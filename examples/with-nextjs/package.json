@@ -11,13 +11,13 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1101.0",
+    "@aws-sdk/client-s3": "^3.1102.0",
     "@base-ui/react": "^1.6.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
-    "@fuma-translate/react": "^1.0.2",
     "@dimah-s3/server": "workspace:*",
     "@dimah-s3/ui": "workspace:*",
+    "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
     "lucide-react": "^1.28.0",
