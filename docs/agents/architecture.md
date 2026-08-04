@@ -29,7 +29,6 @@
 | Docs site copy                                                                             | `apps/docs/`                        |
 | Runnable demo                                                                              | `examples/with-nextjs/`             |
 | Runnable demo (DB persistence)                                                             | `examples/with-db/`                 |
-| Degit starter (generated — `pnpm sync-template`; not a workspace package)                  | `templates/dimah-s3-next/`          |
 
 **Default:** edit the smallest package that owns the behavior. Shared protocol → `core` first, then wire server + react.
 

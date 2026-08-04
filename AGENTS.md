@@ -12,6 +12,7 @@ Index + constraints. **Explore the codebase** for handlers, hooks, and registry 
 1. Touch a file → matching [.cursor/rules/\*.mdc](.cursor/rules/) applies.
 2. Adding/changing a feature → **Read** the relevant [docs/agents/](docs/agents/) checklist.
 3. New code? Search the target package first — [architecture.md § Placement](docs/agents/architecture.md#placement).
+4. **Git:** commit when asked; **never `git push`** (or force-push) unless the human explicitly asks. Stop after the local commit and leave publishing to the remote to them.
 
 ## Stack (one line)
 

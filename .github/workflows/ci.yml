@@ -101,37 +101,6 @@ jobs:
         if: steps.filter.outputs.registry == 'true'
         run: pnpm --filter @dimah-s3/registry check-types
 
-  template:
-    name: Validate Template Sync
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            template:
-              - 'templates/**'
-              - 'examples/with-nextjs/**'
-              - 'scripts/sync-template.mjs'
-
-      - uses: pnpm/action-setup@v6
-        if: steps.filter.outputs.template == 'true'
-
-      - uses: actions/setup-node@v6
-        if: steps.filter.outputs.template == 'true'
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - if: steps.filter.outputs.template == 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Check template is synced
-        if: steps.filter.outputs.template == 'true'
-        run: pnpm sync-template --check
-
   apps:
     name: Build Apps
     runs-on: ubuntu-latest

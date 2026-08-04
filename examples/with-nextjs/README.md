@@ -2,7 +2,7 @@
 
 Runnable Next.js demo for [dimah-s3](https://dimah-s3.dev) — not a production starter.
 
-For a degit-ready starter, use [`templates/dimah-s3-next`](../../templates/dimah-s3-next) (generated from this example via `pnpm sync-template`). For DB persistence see [`examples/with-db`](../with-db).
+For DB persistence see [`examples/with-db`](../with-db).
 
 ## Setup
 
