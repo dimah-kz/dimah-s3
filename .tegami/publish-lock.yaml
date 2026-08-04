@@ -1,26 +1,26 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Initial release\n\nFirst public release of the Dimah S3 presigned upload, download, and delete toolkit (`@dimah-s3/core`, `server`, `react`, `ui`, `db`).\n"
-    filename: 2026-08-04-initial.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Verify npm trusted publishing (OIDC)\n\nTest patch to confirm GitHub Actions can publish via trusted publishers without `NPM_TOKEN`.\n"
+    filename: 2026-08-04-oidc-test.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-04-initial.md
+      - 2026-08-04-oidc-test.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-04-initial.md
+      - 2026-08-04-oidc-test.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-04-initial.md
+      - 2026-08-04-oidc-test.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-04-initial.md
+      - 2026-08-04-oidc-test.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-04-initial.md
+      - 2026-08-04-oidc-test.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:

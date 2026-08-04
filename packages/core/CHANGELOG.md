@@ -1,3 +1,9 @@
+## @dimah-s3/core@0.1.1
+
+### Verify npm trusted publishing (OIDC)
+
+Test patch to confirm GitHub Actions can publish via trusted publishers without `NPM_TOKEN`.
+
 ## @dimah-s3/core@0.1.0
 
 ### Initial release
