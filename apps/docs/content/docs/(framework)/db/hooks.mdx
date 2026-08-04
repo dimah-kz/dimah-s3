@@ -1,0 +1,45 @@
+---
+title: Hooks
+description: Lifecycle hooks the db() plugin registers automatically.
+---
+
+Once a feature is enabled and `db()` is registered, the plugin attaches ownership guards and row updates for you. You do not wire these hooks by hand.
+
+<Callout type="info">
+  **Scope rules:** `resolveScope` returning `null` → `401`. A key owned by
+  another scope → `403`. A required row missing → `404`.
+</Callout>
+
+Your own guards and lifecycle hooks on the feature config still run — **after** the plugin’s.
+
+| Feature   | Hook           | When                         | Effect                                         |
+| --------- | -------------- | ---------------------------- | ---------------------------------------------- |
+| upload    | `presignGuard` | before presign               | reject a key owned by another scope            |
+| upload    | `onPresigned`  | after presign                | upsert `pending` (`declaredSize`, `expiresAt`) |
+| upload    | `confirmGuard` | before HeadObject            | row must exist and match the caller’s scope    |
+| upload    | `onConfirmed`  | after HeadObject             | promote to `active` (verified size / eTag)     |
+| multipart | `initGuard`    | before CreateMultipartUpload | same ownership check as upload presign         |
+| multipart | `onInit`       | after create                 | pending row + `uploadId`                       |
+| multipart | `onComplete`   | after complete + HeadObject  | same as `onConfirmed`                          |
+| multipart | `onAbort`      | after abort                  | delete the pending row                         |
+| download  | `presignGuard` | before GET presign           | require `active` + owned                       |
+| delete    | `guard`        | before DeleteObject          | row must exist + owned (any status)            |
+| delete    | `onDeleted`    | after DeleteObject           | soft (`deleted`) or hard delete (`deleteMode`) |
+
+<Callout type="info">
+  **Default delete:** S3 always removes the object. The DB row soft-deletes
+  (`status: "deleted"`) unless you set `deleteMode: "hard"` on
+  [`db()`](/docs/db/setup#delete-behavior).
+</Callout>
+
+<Callout type="warn">
+  Soft delete is metadata only — not a restore / trash flow.
+</Callout>
+
+## Multipart resume
+
+For resumable uploads after a refresh, combine the DB store with an `UploadStore`:
+
+- Look up `s3.db.objects.findPendingMultipart`
+- Map with `toPendingMultipartResume`
+- See [Upload store](/docs/react/upload-store) for the client side

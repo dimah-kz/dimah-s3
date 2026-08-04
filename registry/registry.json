@@ -1,0 +1,6 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "dimah-s3",
+  "homepage": "https://dimah-s3.site",
+  "include": ["registry/dimah-s3-ui/registry.json"]
+}

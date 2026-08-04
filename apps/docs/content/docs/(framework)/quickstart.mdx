@@ -1,0 +1,156 @@
+---
+title: Quickstart
+description: Minimal setup for Next.js with server and client hooks.
+icon: Rocket
+---
+
+### Install [step]
+
+```npm
+npm i @dimah-s3/core @dimah-s3/server @dimah-s3/react @dimah-s3/ui @aws-sdk/client-s3
+```
+
+### S3 client [step]
+
+```ts title="lib/s3-client.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const s3Client = new S3Client({
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+});
+
+export const defaultBucket = process.env.S3_DEFAULT_BUCKET!;
+```
+
+Use provider-specific values (AWS S3, R2, MinIO) for these env vars.
+
+### Server config and route [step]
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: { enabled: true },
+  download: { enabled: false },
+  delete: { enabled: false },
+  multipart: { enabled: false },
+});
+```
+
+<Tabs items={["Next.js", "Other frameworks"]}>
+
+<Tab value="Next.js">
+
+```ts title="app/api/s3/[...s3]/route.ts"
+import { toNextJsHandler } from "@dimah-s3/server/next";
+import { s3 } from "@/lib/s3";
+
+export const { GET, POST, DELETE } = toNextJsHandler(s3);
+```
+
+</Tab>
+
+<Tab value="Other frameworks">
+
+Examples for other frameworks will be added soon.
+
+</Tab>
+
+</Tabs>
+
+Upload-only is now live on `/api/s3`.
+
+### Client provider (standard) [step]
+
+```tsx title="components/s3-provider.tsx"
+"use client";
+
+import { createS3Client } from "@dimah-s3/react";
+
+export const { api, S3Provider, useApi } = createS3Client();
+
+export function S3ClientProvider({ children }: { children: React.ReactNode }) {
+  return <S3Provider>{children}</S3Provider>;
+}
+```
+
+Then mount your layout inside the provider:
+
+```tsx title="app/layout.tsx"
+import { S3ClientProvider } from "@/components/s3-provider";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <S3ClientProvider>{children}</S3ClientProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+Mount it once near your app root so hooks and UI components can access the same client.
+
+### UI setup [step]
+
+To use ready-made UI components, configure shadcn and theme variables first:
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+  <include>../../_includes/ui/index.mdx#npm-package</include>
+</Tab>
+
+<Tab value="shadcn registry">
+  <include>../../_includes/ui/index.mdx#shadcn-registry-setup</include>
+
+```npm
+npx shadcn@latest add @dimah-s3/upload-button
+```
+
+</Tab>
+
+</Tabs>
+
+### One upload button [step]
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { UploadButton } from "@dimah-s3/ui";
+
+export default function Page() {
+  return (
+    <div>
+      <UploadButton
+        objectKey={(file) => `uploads/${Date.now()}-${file.name}`}
+        accept={["image/*", ".pdf"]}
+        maxFileSize={10 * 1024 * 1024}
+        label="Upload file"
+      />
+    </div>
+  );
+}
+```
+
+At this point, selecting a file uploads directly to S3.
+
+<Callout type="info">
+  Need deeper setup details? See [Server setup](/docs/server/setup), [Client
+  setup](/docs/react/setup), and [UI setup](/docs/react/ui/upload-button).
+</Callout>
+
+Need custom auth/DB hooks or another framework? Continue with [Server setup](/docs/server/setup) and [Client setup](/docs/react/setup).

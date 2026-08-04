@@ -1,0 +1,72 @@
+---
+title: Introduction
+description: "@dimah-s3/react headless hooks for S3 upload, download, and delete."
+icon: Atom
+---
+
+[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) provides **headless React hooks** for upload, download, and delete. You build the UI; hooks handle state, progress, retry, cancel, and multipart.
+
+This package handles presign-based client flows only. For list, copy, tagging, and other S3 APIs, use [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3) in your backend.
+
+<Callout type="info">
+  **Presign-first:** the browser never holds long-lived credentials. Hooks call
+  your API for a presigned URL, then transfer bytes directly to S3 with progress
+  and cancellation.
+</Callout>
+
+## Custom backend
+
+Same model as [`@uppy/aws-s3`](https://uppy.io/docs/aws-s3/): your server presigns, hooks run in the client. Use [Custom backend](/docs/react/custom-backend) to wire your own API — [`@dimah-s3/server`](/docs/server) is optional.
+
+## Why @dimah-s3/react
+
+- **Headless** — your markup; hooks own state, progress, retry, and cancel
+- **Full client flows** — multipart upload, download, and delete in one API
+- **Production UX out of the box** — progress, retry, cancel, and safe two-step delete
+- **Any backend** — works with your own presign API; server package is optional
+- **Easy UI composition** — pair with shadcn components or build custom controls
+
+## Documentation
+
+<Cards>
+  <Card
+    title="Setup"
+    href="/docs/react/setup"
+    description="Upload-first setup: S3Api client, provider, and first upload button."
+  />
+  <Card
+    title="Upload store"
+    href="/docs/react/upload-store"
+    description="Resumable multipart uploads with localStorage, memory, or custom stores."
+  />
+  <Card
+    title="Helpers"
+    href="/docs/react/helpers"
+    description="Progress formatting, validateFile, formatFileSize, and more."
+  />
+  <Card
+    title="Custom backend"
+    href="/docs/react/custom-backend"
+    description="S3Api contract — request and response types."
+  />
+  <Card
+    title="Upload"
+    href="/docs/react/hooks/upload"
+    description="useUploadControls and useMultiUploadControls."
+  />
+  <Card
+    title="Download"
+    href="/docs/react/hooks/download"
+    description="useDownload and useFetchDownload."
+  />
+  <Card
+    title="Delete"
+    href="/docs/react/hooks/delete"
+    description="useDelete two-step confirmation flow."
+  />
+  <Card
+    title="UI"
+    href="/docs/react/ui/upload-button"
+    description="shadcn components built on these hooks."
+  />
+</Cards>

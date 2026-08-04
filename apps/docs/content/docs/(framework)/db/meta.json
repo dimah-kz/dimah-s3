@@ -1,0 +1,7 @@
+{
+  "title": "Database",
+  "description": "Optional object tracking with @dimah-s3/db",
+  "icon": "Database",
+  "defaultOpen": false,
+  "pages": ["index", "setup", "hooks", "api", "purge"]
+}

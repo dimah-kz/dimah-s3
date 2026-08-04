@@ -1,0 +1,43 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "examples/*"
+  - "registry"
+  # templates/dimah-s3-next is generated for degit (published @dimah-s3 ranges).
+  # Keep it out of the workspace so pre-publish installs do not resolve unpublished versions.
+
+catalog:
+  typescript: 7.0.2
+  eslint: ^10.8.0
+  "@eslint/js": ^10.0.1
+  "@next/eslint-plugin-next": ^16.2.12
+  eslint-config-prettier: ^10.1.8
+  eslint-plugin-react: ^7.37.5
+  eslint-plugin-react-hooks: ^7.1.1
+  eslint-plugin-turbo: ^2.10.8
+  globals: ^17.8.0
+  typescript-eslint: ^8.65.0
+  prettier: ^3.9.6
+  turbo: ^2.10.8
+  tsup: ^8.5.1
+  vitest: ^4.1.10
+  react: ^19.2.8
+  react-dom: ^19.2.8
+  "@types/react": ^19.2.18
+  "@types/react-dom": ^19.2.4
+  next: 16.2.12
+
+# typescript-eslint still needs the TS 6 API; keep package typescript on 7 for builds.
+overrides:
+  "typescript-eslint>typescript": "npm:@typescript/typescript6@^6.0.2"
+  "@typescript-eslint/typescript-estree>typescript": "npm:@typescript/typescript6@^6.0.2"
+  "@typescript-eslint/parser>typescript": "npm:@typescript/typescript6@^6.0.2"
+  "@typescript-eslint/utils>typescript": "npm:@typescript/typescript6@^6.0.2"
+  "@typescript-eslint/type-utils>typescript": "npm:@typescript/typescript6@^6.0.2"
+
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  msw: true
+  sharp: true
+  unrs-resolver: true

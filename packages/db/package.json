@@ -1,0 +1,77 @@
+{
+  "name": "@dimah-s3/db",
+  "version": "0.0.1",
+  "description": "Optional FumaDB persistence for dimah-s3 — db() plugin + storage_object schema",
+  "keywords": [
+    "s3",
+    "upload",
+    "database",
+    "fumadb",
+    "drizzle"
+  ],
+  "author": "Hamidrezakz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamidrezakz/dimah-s3.git",
+    "directory": "packages/db"
+  },
+  "homepage": "https://github.com/hamidrezakz/dimah-s3/tree/main/packages/db",
+  "bugs": {
+    "url": "https://github.com/hamidrezakz/dimah-s3/issues"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/schema/examples"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json",
+    "lint": "eslint",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dimah-s3/core": "workspace:*",
+    "@paralleldrive/cuid2": "^3.3.0",
+    "fumadb": "^0.4.0"
+  },
+  "peerDependencies": {
+    "@dimah-s3/server": ">=5",
+    "drizzle-orm": "^0.44.0 || ^0.45.0"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@dimah-s3/server": "workspace:*",
+    "@types/node": "^26.1.2",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,38 @@
+---
+title: Comparison
+description: Minimal comparison with Uppy + AWS S3.
+icon: Scale
+---
+
+**dimah-s3 vs Uppy + AWS S3** — focused on setup effort, control points, and lifecycle completeness.
+
+## At a glance
+
+|                            | dimah-s3 | Uppy + AWS S3 |
+| -------------------------- | :-------: | :-----------: |
+| Upload, download, delete   |    ✅     | Upload-first  |
+| Presign-first S3 flow      |    ✅     |      ✅       |
+| Auth + policy hooks        |    ✅     |  Custom code  |
+| DB-safe lifecycle points   |    ✅     |  Custom code  |
+| Verified upload metadata   |    ✅     |  Custom code  |
+| Multipart guard lifecycle  |    ✅     |  Custom code  |
+| Setup effort               | Very low  |   Moderate    |
+| Headless React hooks       |    ✅     |      ❌       |
+| Dashboard/plugin ecosystem |     —     |      ✅       |
+| Package surface            |   Small   |    Larger     |
+
+---
+
+## Pick dimah-s3 if
+
+- You want a very fast, low-friction setup.
+- You want one cohesive stack for the full file lifecycle.
+- You want first-class server hooks for real policy control (`guard`, `presignGuard`, `confirmGuard`).
+- You need reliable app integration server side points for DB writes and cleanup (`onConfirmed`, `onDeleted`).
+- You want headless React primitives with optional shadcn-compatible UI.
+
+## Pick Uppy + AWS S3 if
+
+- You need a rich upload dashboard and broad plugin ecosystem.
+- You are optimizing for upload UI and external source integrations first.
+- You are comfortable composing more packages and custom server logic.

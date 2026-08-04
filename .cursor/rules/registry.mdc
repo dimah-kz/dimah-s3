@@ -1,0 +1,15 @@
+---
+description: UI source and shadcn registry — open registry.md for detail
+globs: packages/ui/**/*,registry/**/*
+alwaysApply: false
+---
+
+# Registry & UI
+
+Source: `packages/ui/src/`. Use `@/` imports — sync rewrites for shadcn output.
+
+Do not edit `registry/registry/dimah-s3-ui/`. Item manifests: `registry/items/components.ts` → `pnpm --filter @dimah-s3/registry build`.
+
+Direction-safe styling is required (LTR default, RTL-ready): prefer logical utilities like `text-start/end`, `ms/me`, `ps/pe`, and `start/end` over physical `left/right`, `ml/mr`, `pl/pr`, and `text-left/right` unless physically side-locked behavior is intentional.
+
+**Detail (Read):** [docs/agents/registry.md](docs/agents/registry.md).

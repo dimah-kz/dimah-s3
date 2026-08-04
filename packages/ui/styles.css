@@ -1,0 +1,7 @@
+/* @dimah-s3/ui — Tailwind v4 source registration
+   Import this file in your CSS so Tailwind can detect the utility classes
+   used by this package:
+
+     @import "@dimah-s3/ui/styles.css";
+*/
+@source "./dist";

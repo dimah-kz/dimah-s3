@@ -1,0 +1,81 @@
+---
+title: Download
+description: Download hooks for auth and presigned GET URLs.
+---
+
+Enable download in config before these hooks run:
+
+```ts
+download: { enabled: true },
+```
+
+**Flow:** `presignGuard` → `onPresigned`
+
+## Presign guard
+
+```ts
+download: {
+  enabled: true,
+  presignGuard: async ({ key, bucket }) => {
+    // check the user can access this key
+  },
+},
+```
+
+### `DownloadPresignGuardContext`
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DownloadPresignGuardContext"
+/>
+
+```ts
+import type { DownloadPresignGuardContext } from "@dimah-s3/server";
+```
+
+## On presigned
+
+```ts
+download: {
+  enabled: true,
+  onPresigned: async ({ key, url }) => {
+    console.log(`download: ${key} → ${url}`);
+  },
+},
+```
+
+### `DownloadOnPresignedContext`
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DownloadOnPresignedContext"
+/>
+
+```ts
+import type { DownloadOnPresignedContext } from "@dimah-s3/server";
+```
+
+## Example
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+
+  download: {
+    enabled: true,
+    presignGuard: async ({ key, bucket }) => {
+      // authorize download
+    },
+    onPresigned: async ({ key, url }) => {
+      console.log(`download: ${key} → ${url}`);
+    },
+  },
+
+  upload: { enabled: true },
+  delete: { enabled: true },
+});
+```

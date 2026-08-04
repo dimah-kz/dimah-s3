@@ -1,0 +1,81 @@
+---
+title: Introduction
+description: Optional object tracking with @dimah-s3/db — ownership, lifecycle, and listing without custom glue.
+---
+
+**`@dimah-s3/db`** is an optional package that records every upload, download gate, and delete in your own database.
+
+dimah-s3 itself does not require a database. Use this package when you need answers like _who owns this key?_, _how much has this user stored?_, or _which files are still pending confirmation?_
+
+You keep using [`dimahS3`](/docs/server/setup) as usual. Pass the [`db()`](/docs/db/setup) plugin and it wires ownership checks plus row updates into the existing upload / multipart / download / delete hooks — no hand-rolled SQL on every endpoint.
+
+<Callout type="info">
+  **Optional by design.** Auth, quotas, and business rules still live in *your*
+  hooks. The plugin only tracks objects and enforces scope ownership.
+</Callout>
+
+## What it tracks
+
+Each S3 object gets one row in `storage_object`, keyed uniquely by `(bucket, key)`.
+
+Ownership is a string you choose — typically `user:123` or `org:acme` — returned from `resolveScope`. That scope is what listing, quota, and access checks use.
+
+Lifecycle is a small state machine:
+
+| Status    | Meaning                                                  |
+| --------- | -------------------------------------------------------- |
+| `pending` | Presigned (or multipart started); not yet verified in S3 |
+| `active`  | Confirmed via HeadObject — size / eTag stored            |
+| `deleted` | Soft-deleted in DB (S3 object already removed)           |
+
+Typical path: **pending → active → deleted**. Aborted multipart uploads and [purge](/docs/db/purge) remove pending rows before they ever become active.
+
+<Callout type="info">
+  Delete (`api.delete` / Delete button) always removes the S3 object. By default
+  the DB row soft-deletes (`deleteMode: "soft"`). Set `deleteMode: "hard"` to
+  drop the row too — see [Delete behavior](/docs/db/setup#delete-behavior).
+</Callout>
+
+## How it fits
+
+1. Install `@dimah-s3/db` and add the schema (Drizzle, Prisma, or Kysely).
+2. Create a FumaDB client and register `db({ client, resolveScope })` on `dimahS3`.
+3. Enable the features you need (`upload`, `multipart`, …) — the plugin merges its hooks ahead of yours.
+4. On the browser, add `dbClient()` to `createS3Client` to list objects for the current scope.
+
+Your own `presignGuard` / quota logic still runs; stack it with `chainHooks` if you need both.
+
+<Callout type="tip">
+  Prefer this over ad-hoc tables when you want scope isolation and pending →
+  active promotion to stay aligned with dimah-s3’s confirm flow.
+</Callout>
+
+## Next steps
+
+<Cards>
+  <Card
+    title="Setup"
+    href="/docs/db/setup"
+    description="Install, generate the schema, and register db() on dimahS3."
+  />
+  <Card
+    title="Hooks"
+    href="/docs/db/hooks"
+    description="What the plugin registers for upload, multipart, download, and delete."
+  />
+  <Card
+    title="API"
+    href="/docs/db/api"
+    description="s3.db.objects on the server and api.db.listObjects in the browser."
+  />
+  <Card
+    title="Purge"
+    href="/docs/db/purge"
+    description="Clean up stale pending rows and leftover multipart uploads."
+  />
+  <Card
+    title="Full example"
+    href="https://github.com/hamidrezakz/dimah-s3/tree/main/examples/with-db"
+    description="Next.js + Drizzle + SQLite with dashboard listing and quota."
+  />
+</Cards>

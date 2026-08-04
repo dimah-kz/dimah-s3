@@ -1,0 +1,231 @@
+---
+title: Setup
+description: Minimal client setup with createS3Client and one upload button.
+icon: Settings
+---
+
+## Install
+
+```npm
+npm i @dimah-s3/react
+```
+
+### API client [step]
+
+Hooks use an `S3Api` client. Prefer `createS3Client` — one call gives you the
+client, a bound provider, and a typed `useApi`.
+
+<Tabs items={["@dimah-s3/server", "Custom backend"]}>
+
+<Tab value="@dimah-s3/server">
+
+If your backend uses [`@dimah-s3/server`](/docs/server/setup) on `/api/s3`:
+
+```ts title="components/s3-provider.tsx"
+"use client";
+
+import { createS3Client } from "@dimah-s3/react";
+
+export const { api, S3Provider, useApi } = createS3Client();
+
+export function S3ClientProvider({ children }: { children: React.ReactNode }) {
+  return <S3Provider>{children}</S3Provider>;
+}
+```
+
+Custom base path / plugins / auth headers:
+
+```ts
+import { createS3Client } from "@dimah-s3/react";
+import { dbClient } from "@dimah-s3/db/client";
+
+export const { api, S3Provider, useApi } = createS3Client({
+  basePath: "/api/your-path",
+  plugins: [dbClient()],
+  // cookies (same-origin) or Authorization via headers factory
+  credentials: "include",
+  headers: async () => ({
+    Authorization: `Bearer ${await getAccessToken()}`,
+  }),
+});
+```
+
+Failed API calls throw `DimahS3Error` from `@dimah-s3/core` (with `.status`). Upload engine failures throw `S3UploadError` (extends it — `.code`, `.status`, `.phase`).
+
+Use `api` directly (like Better Auth's client) or `useApi()` inside React.
+
+</Tab>
+
+<Tab value="Custom backend">
+
+Implement the same `S3Api` contract with `defineApi`, then pass it to `S3Provider`:
+
+```ts title="lib/s3-api.ts"
+import { defineApi, S3Provider } from "@dimah-s3/react";
+
+export const api = defineApi({
+  async upload(payload) {
+    const res = await fetch("/your-api/presign-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.message ?? res.statusText);
+    }
+    return res.json();
+  },
+
+  async confirm(payload) {
+    /* your confirm endpoint */
+  },
+  async download(key, options) {
+    /* your download endpoint */
+  },
+  async delete(key, options) {
+    /* your delete endpoint */
+  },
+  multipart: {/* init, signPart, listParts, complete, abort */},
+});
+
+export function S3ClientProvider({ children }: { children: React.ReactNode }) {
+  return <S3Provider api={api}>{children}</S3Provider>;
+}
+```
+
+Payload and response types: [Custom backend](/docs/react/custom-backend).
+
+</Tab>
+
+</Tabs>
+
+### Provider [step]
+
+Mount the provider once near your app root.
+
+<Tabs items={["Next.js (App Router)", "Other React apps"]}>
+
+<Tab value="Next.js (App Router)">
+
+```tsx title="app/layout.tsx"
+import { S3ClientProvider } from "@/components/s3-provider";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <S3ClientProvider>{children}</S3ClientProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+</Tab>
+
+<Tab value="Other React apps">
+
+```tsx title="src/main.tsx"
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { S3ClientProvider } from "./components/s3-provider";
+import { App } from "./app";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <S3ClientProvider>
+      <App />
+    </S3ClientProvider>
+  </React.StrictMode>,
+);
+```
+
+</Tab>
+
+</Tabs>
+
+Now hooks inside this provider can omit `api`.
+
+### First hook [step]
+
+```tsx title="app/uploader.tsx"
+"use client";
+
+import { useUploadControls } from "@dimah-s3/react";
+
+export function Uploader() {
+  const { openFilePicker, inputProps, progress, isUploading } =
+    useUploadControls({
+      objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
+      accept: ["image/*", ".pdf"],
+      maxFileSize: 10 * 1024 * 1024,
+      onSuccess: (_file, result) => console.log(result.key),
+    });
+
+  return (
+    <div>
+      <input {...inputProps} />
+      <button type="button" onClick={openFilePicker} disabled={isUploading}>
+        {isUploading ? `Uploading ${progress.percent}%` : "Upload file"}
+      </button>
+    </div>
+  );
+}
+```
+
+### Upload-only server config (recommended start) [step]
+
+If your first screen only needs upload, keep other operations off:
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: { enabled: true },
+  download: { enabled: false },
+  delete: { enabled: false },
+  multipart: { enabled: false },
+});
+```
+
+Enable other features later when you need them.
+
+### Resumable uploads (upload store) [step]
+
+For multipart resume across refreshes, add an upload store:
+
+```ts title="lib/upload-store.ts"
+import { createLocalStorageStore } from "@dimah-s3/react";
+
+export const localStorageStore = createLocalStorageStore();
+```
+
+```tsx title="app/uploader.tsx"
+import { useUploadControls } from "@dimah-s3/react";
+import { localStorageStore } from "@/lib/upload-store";
+
+const { openFilePicker, inputProps } = useUploadControls({
+  objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
+  multipart: true,
+  uploadStore: localStorageStore,
+});
+```
+
+Full guide: [Upload store](/docs/react/upload-store).
+
+### Next [step]
+
+```tsx
+// Minimal upload-ready UI:
+// mount provider once, render one button, done.
+```
+
+Hook reference: [Upload](/docs/react/hooks/upload), [Download](/docs/react/hooks/download), [Delete](/docs/react/hooks/delete). UI components: [UI](/docs/react/ui/upload-button).

@@ -1,0 +1,11 @@
+{
+  "title": "UI",
+  "description": "shadcn components built on client hooks",
+  "pages": [
+    "upload-button",
+    "upload-dropzone",
+    "download-button",
+    "progress-download-button",
+    "delete"
+  ]
+}

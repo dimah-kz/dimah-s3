@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: current
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+  test:
+    name: Test (packages)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: current
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo run build --filter="./packages/*"
+
+      - name: Test packages
+        run: pnpm turbo run test --filter="./packages/*"
+
+  registry:
+    name: Validate Registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            registry:
+              - 'registry/**'
+              - 'packages/ui/**'
+
+      - name: Setup pnpm
+        if: steps.filter.outputs.registry == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.filter.outputs.registry == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: current
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.filter.outputs.registry == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Sync registry sources
+        if: steps.filter.outputs.registry == 'true'
+        run: pnpm --filter @dimah-s3/ui sync-registry
+
+      - name: Validate registry
+        if: steps.filter.outputs.registry == 'true'
+        run: pnpm --filter @dimah-s3/registry validate
+
+      - name: Type check registry items
+        if: steps.filter.outputs.registry == 'true'
+        run: pnpm --filter @dimah-s3/registry check-types
+
+  template:
+    name: Validate Template Sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            template:
+              - 'templates/**'
+              - 'examples/with-nextjs/**'
+              - 'scripts/sync-template.mjs'
+
+      - name: Setup pnpm
+        if: steps.filter.outputs.template == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.filter.outputs.template == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: current
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.filter.outputs.template == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Check template is synced
+        if: steps.filter.outputs.template == 'true'
+        run: pnpm sync-template --check
+
+  build:
+    name: Build & Type Check (packages)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: current
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo run build --filter="./packages/*"
+
+      - name: Type check packages
+        run: pnpm turbo run check-types --filter="./packages/*"
+
+  build-apps:
+    name: Build Apps & Templates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            apps:
+              - 'apps/**'
+
+      - name: Setup pnpm
+        if: steps.filter.outputs.apps == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.filter.outputs.apps == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: current
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.filter.outputs.apps == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build apps
+        if: steps.filter.outputs.apps == 'true'
+        run: pnpm turbo run build --filter="./apps/*"
+
+      - name: Type check apps
+        if: steps.filter.outputs.apps == 'true'
+        run: pnpm turbo run check-types --filter="./apps/*"

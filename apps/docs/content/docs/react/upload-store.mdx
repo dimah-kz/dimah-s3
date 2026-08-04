@@ -1,0 +1,122 @@
+---
+title: Upload store
+description: Persist multipart state to resume uploads after refresh.
+icon: Database
+---
+
+`UploadStore` stores minimal multipart state (`uploadId`, `key`, `fileSize`) so uploads can resume after refresh or reconnect.
+
+<Callout type="info">
+  Prefer `createLocalStorageStore()` for same-browser resume. Use a **custom**
+  (e.g. DB-backed) store for cross-device resume or after cleared storage — see
+  [DB hooks](/docs/db/hooks).
+</Callout>
+
+Use it only for multipart uploads.
+
+## Quick setup
+
+```ts title="lib/upload-store.ts"
+import { createLocalStorageStore } from "@dimah-s3/react";
+
+export const localStorageStore = createLocalStorageStore();
+```
+
+```tsx title="app/uploader.tsx"
+"use client";
+
+import { UploadButton } from "@dimah-s3/ui";
+import { localStorageStore } from "@/lib/upload-store";
+
+export function Uploader() {
+  return (
+    <div>
+      <UploadButton
+        objectKey={(file) => `uploads/${Date.now()}-${file.name}`}
+        multipart={true}
+        uploadStore={localStorageStore}
+        label="Upload file"
+      />
+    </div>
+  );
+}
+```
+
+## Built-in stores
+
+- `createLocalStorageStore()` — default browser choice; survives refresh/reopen
+- `createMemoryStore()` — in-memory only; useful for SSR-safe setups and tests
+
+```ts
+import { createMemoryStore } from "@dimah-s3/react";
+
+const uploadStore = createMemoryStore();
+```
+
+## Custom store
+
+Implement `UploadStore` when you need your own persistence layer (for example: DB).
+
+<AutoTypeTable
+  path="packages/react/src/types/upload-store.ts"
+  name="UploadStore"
+/>
+
+```ts
+import type { UploadStore } from "@dimah-s3/react";
+
+export const uploadStore: UploadStore = {
+  async get(key, fileSize) {
+    // lookup persisted state
+    return null;
+  },
+  async set(upload) {
+    // persist uploadId state
+  },
+  async delete(key) {
+    // cleanup after complete/abort
+  },
+};
+```
+
+## Example: DB-backed store
+
+When using [`@dimah-s3/db`](/docs/db) multipart hooks, `onInit` already persists `uploadId` on the pending row. The client store only needs `get` — `set` / `delete` can be no-ops. Server half: [DB hooks](/docs/db/hooks).
+
+```ts title="lib/upload-store-db.ts"
+import type { StoredUpload, UploadStore } from "@dimah-s3/react";
+
+export const uploadStoreDb: UploadStore = {
+  async get(key, fileSize) {
+    const res = await fetch(
+      `/api/upload-store?key=${encodeURIComponent(key)}&fileSize=${fileSize}`,
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as StoredUpload | null;
+  },
+  async set() {
+    // no-op — db plugin multipart.onInit wrote uploadId
+  },
+  async delete() {
+    // no-op — onComplete / onAbort clear the pending row
+  },
+};
+```
+
+Use a **stable** `objectKey` (not `Date.now()`):
+
+```tsx
+<UploadButton
+  objectKey={(file) => `uploads/${userId}/${file.name}`}
+  multipart
+  uploadStore={uploadStoreDb}
+  label="Upload file"
+/>
+```
+
+## Notes
+
+- Resume works when `multipart: true` and `uploadStore` are both set.
+- `key` must be stable across retries; if it changes every attempt, resume cannot match prior state.
+- The client still needs the same `File` bytes — the store only recovers `uploadId`.
+- For small files or simple uploads, skip `uploadStore`.

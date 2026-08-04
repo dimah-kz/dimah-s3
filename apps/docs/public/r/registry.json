@@ -1,0 +1,188 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "dimah-s3",
+  "homepage": "https://dimah-s3.site",
+  "items": [
+    {
+      "name": "upload-dropzone",
+      "title": "Upload Dropzone",
+      "description": "Drag-and-drop upload zone with inline status and toast support.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "sonner"
+      ],
+      "registryDependencies": [
+        "button",
+        "progress"
+      ],
+      "files": [
+        {
+          "path": "registry/dimah-s3-ui/components/upload/upload-dropzone.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/upload-dropzone.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/upload/upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/upload-status.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/upload/multi-upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/multi-upload-status.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/upload/upload-status-block.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/upload-status-block.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/ui/circle-progress.tsx",
+          "type": "registry:ui",
+          "target": "@ui/circle-progress.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/hooks/use-upload-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-upload-toast.tsx"
+        }
+      ],
+      "type": "registry:component"
+    },
+    {
+      "name": "upload-button",
+      "title": "Upload Button",
+      "description": "File upload button with inline status and toast support.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "sonner"
+      ],
+      "registryDependencies": [
+        "button",
+        "tooltip",
+        "progress"
+      ],
+      "files": [
+        {
+          "path": "registry/dimah-s3-ui/components/upload/upload-button.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/upload-button.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/upload/upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/upload-status.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/upload/multi-upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/multi-upload-status.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/upload/upload-status-block.tsx",
+          "type": "registry:component",
+          "target": "@components/upload/upload-status-block.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/components/ui/circle-progress.tsx",
+          "type": "registry:ui",
+          "target": "@ui/circle-progress.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/hooks/use-upload-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-upload-toast.tsx"
+        }
+      ],
+      "type": "registry:component"
+    },
+    {
+      "name": "download-button",
+      "title": "Download Button",
+      "description": "Presigned-URL download button with toast support.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "sonner"
+      ],
+      "registryDependencies": [
+        "button"
+      ],
+      "files": [
+        {
+          "path": "registry/dimah-s3-ui/components/download/download-button.tsx",
+          "type": "registry:component",
+          "target": "@components/download/download-button.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/hooks/use-download-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-download-toast.tsx"
+        }
+      ],
+      "type": "registry:component"
+    },
+    {
+      "name": "progress-download-button",
+      "title": "Progress Download Button",
+      "description": "Download button with streaming progress bar and cancel support.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "sonner"
+      ],
+      "registryDependencies": [
+        "button",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "registry/dimah-s3-ui/components/download/progress-download-button.tsx",
+          "type": "registry:component",
+          "target": "@components/download/progress-download-button.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/hooks/use-download-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-download-toast.tsx"
+        }
+      ],
+      "type": "registry:component"
+    },
+    {
+      "name": "delete-button",
+      "title": "Delete Button",
+      "description": "S3 object delete button with confirmation dialog and toast support.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "sonner"
+      ],
+      "registryDependencies": [
+        "button",
+        "alert-dialog",
+        "tooltip"
+      ],
+      "files": [
+        {
+          "path": "registry/dimah-s3-ui/components/delete/delete-button.tsx",
+          "type": "registry:component",
+          "target": "@components/delete/delete-button.tsx"
+        },
+        {
+          "path": "registry/dimah-s3-ui/hooks/use-delete-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-delete-toast.tsx"
+        }
+      ],
+      "type": "registry:component"
+    }
+  ]
+}

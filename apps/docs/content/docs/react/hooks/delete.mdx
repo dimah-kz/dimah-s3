@@ -1,0 +1,49 @@
+---
+title: Delete
+description: "`useDelete` two-step deletion flow for safer removes."
+---
+
+`useDelete` uses a two-step flow: `requestDelete` marks a key as pending, then `confirmDelete` sends the request. This makes it easy to show a confirmation dialog between steps.
+
+```tsx
+"use client";
+
+import { useDelete } from "@dimah-s3/react";
+
+const { phase, pendingKey, requestDelete, confirmDelete, cancelDelete } =
+  useDelete({
+    onSuccess: (key) => console.log("Deleted:", key),
+  });
+
+// Step 1 — move to "confirming" phase
+requestDelete("uploads/photo.jpg");
+
+// Step 2 — send the delete request
+await confirmDelete();
+```
+
+If you don't need a confirmation step, call them back-to-back:
+
+```ts
+requestDelete(key);
+await confirmDelete();
+```
+
+## Options
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-delete.ts"
+  name="UseDeleteOptions"
+/>
+
+<Callout type="tip">
+  Use `onSuccess` to remove the file record from your database after a confirmed
+  delete.
+</Callout>
+
+## Return value
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-delete.ts"
+  name="UseDeleteReturn"
+/>

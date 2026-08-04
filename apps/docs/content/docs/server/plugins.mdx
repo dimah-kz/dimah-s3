@@ -1,0 +1,175 @@
+---
+title: Plugins
+description: Extend dimahS3 with definePlugin — hooks, endpoints, context, and matching client plugins.
+icon: Puzzle
+---
+
+Server plugins attach lifecycle hooks, HTTP endpoints, and typed context to a `dimahS3()` instance. Official packages (e.g. [`db()`](/docs/db) from `@dimah-s3/db`) and your own plugins use the same contract. Browser clients mirror this with `defineClientPlugin` + `createS3Client({ plugins })`.
+
+## Quick start
+
+```ts
+import { dimahS3, definePlugin, createEndpoint } from "@dimah-s3/server";
+
+const audit = definePlugin({
+  id: "audit",
+  hooks: {
+    upload: {
+      onConfirmed: async ({ key, bucket }) => {
+        console.log("uploaded", bucket, key);
+      },
+    },
+  },
+  endpoints: {
+    recent: createEndpoint("recent", { method: "GET" }, async () => {
+      return { events: [] };
+    }),
+  },
+  context: {
+    log: (message: string) => console.log("[audit]", message),
+  },
+});
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: { enabled: true },
+  plugins: [audit],
+});
+
+s3.audit.log("ready");
+s3.context.audit === s3.audit; // true
+// GET /api/s3/plugins/audit/recent
+```
+
+Plugin contexts land on `s3.context[id]` **and** are flattened onto the instance (`s3[id]`), so every plugin gets the same DX as `s3.db`.
+
+## Contract
+
+Use `definePlugin` so TypeScript keeps a literal `id` for inference:
+
+| Field        | Purpose                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| `id`         | Unique string. Reserved: `handler`, `api`, `context`, `getPlugin`.                          |
+| `hooks?`     | Feature hooks (`guard`, `upload.*`, `download.*`, …) merged **ahead** of user config hooks. |
+| `endpoints?` | Extra HTTP routes under `plugins/{id}/{path}` — build with `createEndpoint`.                |
+| `context?`   | Data exposed as `s3.context[id]` / `s3[id]`.                                                |
+| `dependsOn?` | Other plugin ids that must be registered — missing deps throw at init.                      |
+| `init?`      | Sync callback after the context map is built; validate options / feature flags.             |
+
+Scalars like `enabled` / `method` stay user-owned on `DimahS3Config` — plugins cannot override them.
+
+## Endpoints
+
+`createEndpoint(path, { method, status? }, handler)` mounts under the shared handler:
+
+- Final path: `plugins/{pluginId}/{path}` (via `pluginEndpointPath` in `@dimah-s3/core`)
+- Global `guard` runs before every plugin endpoint
+- Paths must not collide with core `S3_API_ROUTES` or another plugin's `METHOD + path`
+
+```ts
+import { createEndpoint, definePlugin } from "@dimah-s3/server";
+
+endpoints: {
+  objects: createEndpoint("objects", { method: "GET" }, async ({ request, url }) => {
+    // throw errors with a numeric `status` field (e.g. DimahS3DbError)
+    return { objects: [] };
+  }),
+}
+```
+
+Server-side data access stays on `plugin.context` (e.g. `s3.db.objects.listByScope`) — endpoints are the HTTP surface for browsers, not a second copy of that logic.
+
+## Client plugins
+
+Pair each server endpoint with a client plugin. Prefer `createS3Client` from `@dimah-s3/react` (Better Auth–style — one client, typed `useApi()` with no generics):
+
+```ts
+import { createS3Client } from "@dimah-s3/react";
+import { dbClient } from "@dimah-s3/db/client";
+
+export const { api, S3Provider, useApi } = createS3Client({
+  basePath: "/api/s3",
+  plugins: [dbClient()],
+});
+
+await api.db.listObjects(); // same client outside React
+
+function Dashboard() {
+  const api = useApi(); // .db is typed — no useApi<Api>()
+  return null;
+}
+```
+
+Low-level (without React binding): `createS3Client` + `defineClientPlugin` from `@dimah-s3/core`.
+
+Optional fetch config (auth, cookies, custom `fetch`) applies to core routes **and** every client plugin:
+
+```ts
+export const api = createS3Client({
+  plugins: [dbClient()],
+  credentials: "include",
+  headers: () => ({ Authorization: `Bearer ${token}` }),
+});
+```
+
+Non-OK responses throw `DimahS3Error` (`message` + `status`) — the same class used by `@dimah-s3/server`.
+
+Official packages ship a light `@scope/pkg/client` entry (e.g. `@dimah-s3/db/client`) so browser bundles stay free of server ORM deps.
+
+## Hook merge order
+
+1. Plugins in **array order**
+2. User hooks on config **last**
+
+Stack multiple user hooks with `chainHooks` from `@dimah-s3/server`.
+
+```ts
+import { dimahS3, chainHooks } from "@dimah-s3/server";
+import { db } from "@dimah-s3/db";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  plugins: [db({ client: dimahS3Db, resolveScope })],
+  upload: {
+    enabled: true,
+    // Runs after the db plugin's ownership guard
+    presignGuard: chainHooks(quotaGuard, rateLimitGuard),
+  },
+});
+```
+
+## `dependsOn` and `init`
+
+```ts
+const quota = definePlugin({
+  id: "quota",
+  dependsOn: ["db"],
+  init({ getPlugin, config }) {
+    if (!config.upload?.enabled && !config.multipart?.enabled) {
+      throw new Error('Plugin "quota" requires upload or multipart enabled.');
+    }
+    if (!getPlugin("db")) {
+      // dependsOn already validates this — shown for illustration
+      throw new Error("db plugin required");
+    }
+  },
+  hooks: {
+    upload: {
+      presignGuard: async ({ request, fileSize }) => {
+        // read usage via s3.db after dimahS3() returns
+      },
+    },
+  },
+  context: {
+    maxBytes: 500 * 1024 * 1024,
+  },
+});
+```
+
+Register dependencies **before** dependents in the `plugins` array (merge order follows the array; `dependsOn` only validates presence).
+
+## Official plugins
+
+- [`@dimah-s3/db`](/docs/db) — `db()` persistence + scope ownership + `dbClient()` listing

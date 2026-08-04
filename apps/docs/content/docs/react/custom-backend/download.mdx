@@ -1,0 +1,60 @@
+---
+title: Download
+description: download — return a presigned GET URL for an object key.
+---
+
+`download` presigns a single GET request. The browser (or hook) opens the returned URL — your backend never streams the file body.
+
+First argument is `key`; second is optional `options`.
+
+## Download options
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="DownloadOptions"
+/>
+
+```ts
+import type { DownloadOptions } from "@dimah-s3/core";
+```
+
+## `PresignResponse`
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="PresignResponse"
+/>
+
+```ts
+import type { PresignResponse } from "@dimah-s3/core";
+```
+
+## Example
+
+[`@dimah-s3/server`](/docs/server) uses `GET /api/s3/presign/download?key=…`.
+
+```ts title="lib/s3-api.ts (download)"
+import { defineApi } from "@dimah-s3/react";
+import type { S3Api } from "@dimah-s3/core";
+
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? res.statusText);
+  }
+  return res.json();
+}
+
+export const api = defineApi({
+  async download(key, options) {
+    const params = new URLSearchParams({ key });
+    if (options?.bucket) params.set("bucket", options.bucket);
+    if (options?.fileName) params.set("fileName", options.fileName);
+
+    return apiFetch(`/api/files/presign/download?${params}`);
+  },
+
+  // upload, confirm, delete, multipart — see other pages
+} satisfies Partial<S3Api> as S3Api);
+```

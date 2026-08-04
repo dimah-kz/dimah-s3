@@ -1,0 +1,102 @@
+---
+title: Upload
+description: upload and confirm — presign a single PUT/POST upload and verify the object.
+---
+
+Simple uploads use two `S3Api` methods:
+
+1. **`upload`** — your backend returns a presigned URL (and POST fields or PUT headers).
+2. Browser uploads directly to S3.
+3. **`confirm`** — your backend verifies the object (typically via HeadObject) and returns metadata.
+
+For large files, use [Multipart](/docs/react/custom-backend/multipart) instead.
+
+## Presign upload
+
+### Upload payload
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="UploadPayload"
+/>
+
+```ts
+import type { UploadPayload } from "@dimah-s3/core";
+```
+
+### `UploadPresignResponse`
+
+Return **all** of these fields. `fields` when `method` is `"POST"`; `headers` when `method` is `"PUT"`.
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="UploadPresignResponse"
+/>
+
+```ts
+import type { UploadPresignResponse } from "@dimah-s3/core";
+```
+
+## Confirm upload
+
+### Confirm payload
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="ConfirmPayload"
+/>
+
+```ts
+import type { ConfirmPayload } from "@dimah-s3/core";
+```
+
+### `UploadConfirmResponse`
+
+Return **all** of these fields. `contentLength` and `metadata` are required; `eTag` and `contentType` come from HeadObject when available.
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="UploadConfirmResponse"
+/>
+
+```ts
+import type { UploadConfirmResponse } from "@dimah-s3/core";
+```
+
+## Example
+
+Paths are placeholders — use whatever fits your API. [`@dimah-s3/server`](/docs/server) uses `/api/s3/presign/upload` and `/api/s3/presign/upload/confirm` by default.
+
+```ts title="lib/s3-api.ts (upload + confirm)"
+import { defineApi } from "@dimah-s3/react";
+import type { S3Api } from "@dimah-s3/core";
+
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? res.statusText);
+  }
+  return res.json();
+}
+
+export const api = defineApi({
+  async upload(payload) {
+    return apiFetch("/api/files/presign/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async confirm(payload) {
+    return apiFetch("/api/files/presign/upload/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // download, delete, multipart — see other pages
+} satisfies Partial<S3Api> as S3Api);
+```

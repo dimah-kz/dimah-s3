@@ -1,0 +1,16 @@
+{
+  "title": "Framework",
+  "description": "Minimal presign-first file stack",
+  "icon": "Layers",
+  "root": true,
+  "pages": [
+    "index",
+    "comparison",
+    "quickstart",
+    "---components---",
+    ".../../react/ui",
+    "---features---",
+    "db",
+    "i18n"
+  ]
+}

@@ -1,0 +1,63 @@
+---
+title: Upload Button
+description: A shadcn-styled button that opens the file picker for single- or multi-file uploads.
+---
+
+import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
+
+### Preview
+
+<DemoPreview name="upload-button-demo.tsx">
+  <UploadButtonDemo />
+</DemoPreview>
+
+## Install
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+  <include>../../../_includes/ui/index.mdx#npm-package</include>
+</Tab>
+
+<Tab value="shadcn registry">
+<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
+
+```npm
+npx shadcn@latest add @dimah-s3/upload-button
+```
+
+</Tab>
+
+</Tabs>
+
+## Props
+
+<AutoTypeTable
+  path="packages/ui/src/components/upload/upload-button.tsx"
+  name="UploadButtonProps"
+/>
+
+<Callout type="warn">
+  `accept` and `maxFileSize` are enforced **client-side only**. Always enforce
+  the same limits in `upload.presignGuard` on the server.
+</Callout>
+
+## Button appearance
+
+`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, and `DeleteButton` share optional shadcn button props:
+
+| Prop              | Description                                         |
+| ----------------- | --------------------------------------------------- |
+| `variant`         | shadcn button variant (defaults vary per component) |
+| `size`            | shadcn button size (`default` if omitted)           |
+| `buttonClassName` | Extra classes on the trigger button                 |
+
+```tsx
+<UploadButton variant="secondary" size="sm" objectKey="uploads/file" />
+<DownloadButton variant="ghost" objectKey="uploads/report.pdf" />
+<DeleteButton variant="outline" objectKey="uploads/report.pdf" />
+```
+
+## Headless alternative
+
+Use [`useUploadControls`](/docs/react/hooks/upload#upload-controls) when you need full control over the UI.

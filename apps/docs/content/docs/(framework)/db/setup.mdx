@@ -1,0 +1,199 @@
+---
+title: Setup
+description: Install @dimah-s3/db, add the schema, and register the db() plugin.
+---
+
+This guide assumes you already have Drizzle, Prisma, or Kysely connected to a database.
+
+<Callout type="info">
+  Need a working reference? See
+  [`examples/with-db`](https://github.com/hamidrezakz/dimah-s3/tree/main/examples/with-db)
+  (Next.js + Drizzle + SQLite).
+</Callout>
+
+### Install [step]
+
+```npm
+npm i @dimah-s3/db fumadb
+```
+
+### Schema [step]
+
+Add the `storage_object` table (including the recommended indexes), or [generate it with the CLI](#cli).
+
+<Tabs items={["Drizzle", "Prisma", "Kysely"]}>
+<Tab value="Drizzle">
+
+CLI / Drizzle output imports `fumadb/cuid` — alias it to `@paralleldrive/cuid2` in your `tsconfig` paths.
+
+<include>../../../_includes/db/drizzle-schema.mdx</include>
+
+</Tab>
+<Tab value="Prisma">
+
+<include>../../../_includes/db/prisma-schema.mdx</include>
+
+</Tab>
+<Tab value="Kysely">
+
+There is no committed schema file for Kysely. Migrate with the CLI, then add the [indexes](#cli) with SQL:
+
+```bash
+node --import tsx scripts/db-cli.mts migrate
+```
+
+</Tab>
+</Tabs>
+
+### Client [step]
+
+Wrap your ORM connection with a FumaDB adapter, then create the dimah-s3 DB client:
+
+<Tabs items={["Drizzle", "Prisma", "Kysely"]}>
+<Tab value="Drizzle">
+
+```ts title="lib/dimah-s3-db.ts"
+import { drizzleAdapter } from "fumadb/adapters/drizzle";
+import { DimahS3DB } from "@dimah-s3/db";
+import { db } from "@/lib/db";
+
+export const dimahS3Db = DimahS3DB.client(
+  drizzleAdapter({ db, provider: "sqlite" }), // or "postgresql" | "mysql"
+);
+```
+
+</Tab>
+<Tab value="Prisma">
+
+```ts title="lib/dimah-s3-db.ts"
+import { prismaAdapter } from "fumadb/adapters/prisma";
+import { DimahS3DB } from "@dimah-s3/db";
+import { prisma } from "@/lib/db";
+
+export const dimahS3Db = DimahS3DB.client(
+  prismaAdapter({ prisma, provider: "postgresql" }),
+);
+```
+
+</Tab>
+<Tab value="Kysely">
+
+```ts title="lib/dimah-s3-db.ts"
+import { kyselyAdapter } from "fumadb/adapters/kysely";
+import { DimahS3DB } from "@dimah-s3/db";
+import { db } from "@/lib/db";
+
+export const dimahS3Db = DimahS3DB.client(
+  kyselyAdapter({ db, provider: "postgresql" }),
+);
+```
+
+</Tab>
+</Tabs>
+
+### Register the plugin [step]
+
+Pass `db()` in `plugins`. `resolveScope` must return a stable ownership string, or `null` to reject unauthenticated callers (`401`):
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { db } from "@dimah-s3/db";
+import { dimahS3Db } from "@/lib/dimah-s3-db";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: { enabled: true },
+  multipart: { enabled: true },
+  download: { enabled: true },
+  delete: { enabled: true },
+  plugins: [
+    db({
+      client: dimahS3Db,
+      resolveScope: async (request) => {
+        const session = await getSession(request);
+        return session ? `user:${session.userId}` : null;
+      },
+    }),
+  ],
+});
+
+// Server-side store (same instance as s3.context.db)
+s3.db.objects.listByScope({ scope: "user:123" });
+```
+
+<Callout type="warn">
+  Plugin hooks merge **ahead** of your feature hooks. You still enable each
+  feature (`upload`, `delete`, …) yourself — the plugin does not turn them on.
+</Callout>
+
+| Option         | Default  | Meaning                                           |
+| -------------- | -------- | ------------------------------------------------- |
+| `pendingTtlMs` | `24h`    | Sets `expiresAt` when creating pending rows       |
+| `deleteMode`   | `"soft"` | Soft-delete (`deleted`) vs hard-delete the DB row |
+
+### Delete behavior
+
+When the user deletes via `api.delete`, a Delete button, or your own delete
+hook path:
+
+1. **S3** — `DeleteObject` removes the object for real
+2. **Database** — controlled by `deleteMode` (default `"soft"`)
+
+| `deleteMode` | S3 object           | Database row                                     |
+| ------------ | ------------------- | ------------------------------------------------ |
+| `"soft"`     | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
+| `"hard"`     | permanently deleted | row removed entirely                             |
+
+<Callout type="info">
+  **Default is `"soft"`.** Omit `deleteMode` and the DB row stays as `deleted`
+  after S3 removal. Listings hide soft-deleted rows by default.
+</Callout>
+
+<Callout type="warn">
+  Soft delete is **not** a recycle bin. The file is gone from S3; the row is
+  only kept for audit / history.
+</Callout>
+
+```ts
+db({
+  client: dimahS3Db,
+  resolveScope,
+  deleteMode: "soft", // default — omit this line for the same behavior
+});
+```
+
+<Callout type="tip">
+  Use `"hard"` for GDPR-style erasure. To clean up old soft-deleted rows
+  later, call `s3.db.objects.hardDelete({ bucket, key })` from a script or
+  job.
+</Callout>
+
+## CLI
+
+Generate adapter-specific schema (or run migrations) through FumaDB:
+
+```ts title="scripts/db-cli.mts"
+import { DimahS3DB } from "@dimah-s3/db";
+import { runCli } from "@dimah-s3/db/cli";
+import { drizzleAdapter } from "fumadb/adapters/drizzle";
+
+void runCli(
+  DimahS3DB.client(drizzleAdapter({ db: {} as never, provider: "sqlite" })),
+);
+```
+
+```bash
+node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts
+```
+
+<Callout type="info">
+  `generate` overwrites the output file. Re-add secondary indexes afterward, or
+  keep them in a separate migration.
+</Callout>
+
+| Index                                     | Columns                        |
+| ----------------------------------------- | ------------------------------ |
+| `storage_object_scope_status_created_idx` | `scope`, `status`, `createdAt` |
+| `storage_object_status_expires_idx`       | `status`, `expiresAt`          |
+| `storage_object_status_created_idx`       | `status`, `createdAt`          |

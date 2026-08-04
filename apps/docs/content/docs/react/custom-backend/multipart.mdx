@@ -1,0 +1,199 @@
+---
+title: Multipart
+description: multipart.init, signPart, listParts, complete, and abort — large-file uploads.
+---
+
+Multipart uploads split a large file into parts. Each part is uploaded with a presigned PUT; your backend orchestrates init, signing, completion, and abort.
+
+**Flow:** `init` → `signPart` (per part) → `complete` or `abort` · `listParts` for resume
+
+## Init
+
+### Init payload
+
+Same shape as the [upload payload](/docs/react/custom-backend/upload#upload-payload).
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="MultipartInitPayload"
+/>
+
+```ts
+import type { MultipartInitPayload } from "@dimah-s3/core";
+```
+
+### `MultipartInitResponse`
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="MultipartInitResponse"
+/>
+
+```ts
+import type { MultipartInitResponse } from "@dimah-s3/core";
+```
+
+## Sign part
+
+### Sign-part payload
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="MultipartSignPartPayload"
+/>
+
+```ts
+import type { MultipartSignPartPayload } from "@dimah-s3/core";
+```
+
+### `MultipartPartResponse`
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="MultipartPartResponse"
+/>
+
+```ts
+import type { MultipartPartResponse } from "@dimah-s3/core";
+```
+
+## List parts
+
+### List-parts payload
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="MultipartListPartsPayload"
+/>
+
+```ts
+import type { MultipartListPartsPayload } from "@dimah-s3/core";
+```
+
+### `MultipartListPartsResponse`
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="MultipartListPartsResponse"
+/>
+
+```ts
+import type { MultipartListPartsResponse } from "@dimah-s3/core";
+```
+
+## Complete
+
+### Complete payload
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="MultipartCompletePayload"
+/>
+
+```ts
+import type { MultipartCompletePayload } from "@dimah-s3/core";
+```
+
+### Complete response
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="MultipartCompleteResponse"
+/>
+
+```ts
+import type { MultipartCompleteResponse } from "@dimah-s3/core";
+```
+
+## Abort
+
+### Abort payload
+
+Same shape as [list-parts payload](#list-parts-payload).
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="MultipartAbortPayload"
+/>
+
+```ts
+import type { MultipartAbortPayload } from "@dimah-s3/core";
+```
+
+### Abort response
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="MultipartAbortResponse"
+/>
+
+```ts
+import type { MultipartAbortResponse } from "@dimah-s3/core";
+```
+
+## Example
+
+[`@dimah-s3/server`](/docs/server) mounts multipart routes under `/api/s3/presign/multipart/*`.
+
+```ts title="lib/s3-api.ts (multipart)"
+import { defineApi } from "@dimah-s3/react";
+import type { S3Api } from "@dimah-s3/core";
+
+const base = "/api/files/presign/multipart";
+
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? res.statusText);
+  }
+  return res.json();
+}
+
+export const api = defineApi({
+  multipart: {
+    async init(payload) {
+      return apiFetch(`${base}/init`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+
+    async signPart(payload) {
+      return apiFetch(`${base}/part`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+
+    async listParts(payload) {
+      const params = new URLSearchParams({
+        key: payload.key,
+        uploadId: payload.uploadId,
+      });
+      if (payload.bucket) params.set("bucket", payload.bucket);
+      return apiFetch(`${base}/parts?${params}`);
+    },
+
+    async complete(payload) {
+      return apiFetch(`${base}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+
+    async abort(payload) {
+      return apiFetch(`${base}/abort`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    },
+  },
+
+  // upload, confirm, download, delete — see other pages
+} satisfies Partial<S3Api> as S3Api);
+```

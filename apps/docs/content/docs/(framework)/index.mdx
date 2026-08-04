@@ -1,0 +1,64 @@
+---
+title: Introduction
+description: Minimal file lifecycle with server and client hooks.
+icon: Layers
+---
+
+**dimah-s3** gives you the standard S3 lifecycle with a small setup surface: upload, download, and delete.
+
+This framework path stays minimal: hook-based control on the server and hook-based usage on the client.
+
+Presign flows only. Add any extra S3 operations in your own backend with [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3).
+
+<Callout type="info">
+  **Presign-first:** server signs, client uploads directly to S3. Credentials
+  stay on backend; auth/quota/DB rules stay in server hooks.
+</Callout>
+
+## Why dimah-s3
+
+- **Minimal by default** — small API surface, fast onboarding
+- **Lifecycle coverage** — upload, download, and delete end-to-end
+- **Server hooks** — enforce auth, quotas, and DB sync where they belong
+- **Client hooks** — compose upload/download/delete in your own UI
+- **Optional UI layer** — use `@dimah-s3/ui` only when you need ready components
+
+## Get started
+
+<Cards>
+  <Card
+    title="Quickstart"
+    href="/docs/quickstart"
+    description="Install, wire route, mount provider, and upload your first file."
+  />
+  <Card
+    title="Server"
+    href="/docs/server"
+    description="Route handler and lifecycle hooks for auth and DB rules."
+  />
+  <Card
+    title="Client"
+    href="/docs/react"
+    description="Headless hooks: useUpload, useDownload, useDelete."
+  />
+  <Card
+    title="UI"
+    href="/docs/react/ui/upload-button"
+    description="Optional ready-made shadcn-compatible components."
+  />
+  <Card
+    title="Database"
+    href="/docs/db"
+    description="Optional object tracking with ready-made hooks."
+  />
+  <Card
+    title="Starter template"
+    href="https://github.com/hamidrezakz/dimah-s3/tree/master/templates/dimah-s3-next"
+    description="Next.js app with API route, S3Provider, and UI demos."
+  />
+  <Card
+    title="Comparison"
+    href="/docs/comparison"
+    description="When to choose dimah-s3 vs Uppy + AWS S3."
+  />
+</Cards>

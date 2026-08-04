@@ -1,0 +1,6 @@
+{
+  "title": "Custom backend",
+  "description": "S3Api method shapes for your own API",
+  "defaultOpen": false,
+  "pages": ["index", "upload", "download", "delete", "multipart"]
+}

@@ -1,0 +1,48 @@
+---
+title: Purge
+description: Clean up stale pending rows and leftover multipart uploads.
+---
+
+A client can request a presign and never finish the upload. That leaves `pending` rows (and sometimes open multipart uploads on S3).
+
+Run `purgeStalePendingObjects` on a schedule — cron, queue worker, or a one-off script.
+
+<Callout type="warn">
+  Purge only deletes **database** rows by default. Abort multipart uploads in
+  `onBeforePurge` with your own S3 client so orphans do not linger in the
+  bucket.
+</Callout>
+
+```ts title="scripts/purge-stale-pending.ts"
+import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { purgeStalePendingObjects } from "@dimah-s3/db";
+
+await purgeStalePendingObjects({
+  db: dimahS3Db,
+  olderThanMs: 24 * 60 * 60 * 1000,
+  onBeforePurge: async (objects) => {
+    for (const { bucket, key, uploadId } of objects) {
+      if (!uploadId) continue;
+      await s3.send(
+        new AbortMultipartUploadCommand({
+          Bucket: bucket,
+          Key: key,
+          UploadId: uploadId,
+        }),
+      );
+    }
+  },
+});
+```
+
+| Option          | Default | Meaning                                                        |
+| --------------- | ------- | -------------------------------------------------------------- |
+| `olderThanMs`   | `24h`   | Select pending rows older than this, or past their `expiresAt` |
+| `onBeforePurge` | —       | Called before DB delete — abort multipart uploads here         |
+
+Returns `{ purged: StorageObject[] }`.
+
+<Callout type="info">
+  If `onBeforePurge` throws, the batch is skipped and nothing is deleted until
+  the next successful run.
+</Callout>

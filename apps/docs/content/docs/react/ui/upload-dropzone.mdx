@@ -1,0 +1,49 @@
+---
+title: Upload Dropzone
+description: A drag-and-drop upload area for single- or multi-file uploads.
+---
+
+import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
+
+### Preview
+
+<DemoPreview name="upload-dropzone-demo.tsx">
+  <UploadDropzoneDemo />
+</DemoPreview>
+
+## Install
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+  <include>../../../_includes/ui/index.mdx#npm-package</include>
+</Tab>
+
+<Tab value="shadcn registry">
+<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
+
+```npm
+npx shadcn@latest add @dimah-s3/upload-dropzone
+```
+
+</Tab>
+
+</Tabs>
+
+## Props
+
+<AutoTypeTable
+  path="packages/ui/src/components/upload/upload-dropzone.tsx"
+  name="UploadDropzoneProps"
+/>
+
+<Callout type="warn">
+  `accept` and `maxFileSize` are enforced **client-side only**. Always enforce
+  the same limits in `upload.presignGuard` on the server.
+</Callout>
+
+Set `maxFiles` above `1` for multi-file uploads. The dropzone shows file limits, max size, and accepted types below the main label.
+
+## Headless alternative
+
+Use [`useUploadControls`](/docs/react/hooks/upload#upload-controls) or [`useMultiUploadControls`](/docs/react/hooks/upload#multi-file-upload-controls) when you need full control over the UI.

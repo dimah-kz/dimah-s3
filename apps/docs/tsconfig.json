@@ -1,0 +1,23 @@
+{
+  "extends": "@workspace/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "incremental": true,
+    "jsx": "react-jsx",
+    "noUncheckedIndexedAccess": false,
+    "paths": {
+      "@/*": ["./src/*"],
+      "collections/*": ["./.source/*"],
+      "@dimah-s3/core": ["../../packages/core/src/index.ts"],
+      "@dimah-s3/server": ["../../packages/server/src/index.ts"],
+      "@dimah-s3/react": ["../../packages/react/src/index.ts"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,150 @@
+---
+title: Upload
+description: Upload hooks for single and multiple files.
+---
+
+| Hook                                                    | Use case                                            |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| [`useUploadControls`](#upload-controls)                 | **Default**: one file, picker + drag-and-drop       |
+| [`useMultiUploadControls`](#multi-file-upload-controls) | Multiple files, picker + drag-and-drop              |
+| [`useUpload`](#upload)                                  | You already have a `File`; call `upload()` directly |
+| [`useMultiUpload`](#multi-file-upload)                  | You already have `File[]`; call `upload()` directly |
+
+<Callout>
+  `accept` and `maxFileSize` are client-side checks only — mirror them in
+  `upload.presignGuard` on the server.
+</Callout>
+
+---
+
+## `useUploadControls`
+
+Single-file helper. Spread `inputProps` on a hidden `<input>` and `dropHandlers` on a drop zone, like [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropzone`](/docs/react/ui/upload-dropzone).
+
+```tsx
+"use client";
+
+import { useUploadControls } from "@dimah-s3/react";
+
+const {
+  openFilePicker,
+  inputProps,
+  dropHandlers,
+  phase,
+  progress,
+  isUploading,
+  cancel,
+} = useUploadControls({
+  objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
+  accept: ["image/*"],
+  maxFileSize: 10 * 1024 * 1024,
+  onSuccess: (file, result) => console.log(result.key),
+});
+
+return (
+  <div {...dropHandlers} onClick={openFilePicker}>
+    <input {...inputProps} />
+    {isUploading ? `${progress.percent}%` : "Click or drop to upload"}
+  </div>
+);
+```
+
+### Options
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-upload-controls.ts"
+  name="UseUploadControlsOptions"
+/>
+
+### Return value
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-upload-controls.ts"
+  name="UseUploadControlsReturn"
+/>
+
+---
+
+## `useMultiUploadControls`
+
+Same picker + drop pattern, but `inputProps` sets `multiple` and `files` tracks each upload. Set `maxFiles > 1` — same as [`UploadDropzone`](/docs/react/ui/upload-dropzone) with `maxFiles`.
+
+```tsx
+"use client";
+
+import { useMultiUploadControls } from "@dimah-s3/react";
+
+const {
+  openFilePicker,
+  inputProps,
+  dropHandlers,
+  files,
+  totalProgress,
+  isUploading,
+  cancel,
+} = useMultiUploadControls({
+  objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
+  maxFiles: 5,
+  concurrentFiles: 3,
+  accept: ["image/*"],
+  onSuccess: (results) => console.log(results.map((r) => r.key)),
+});
+
+return (
+  <div {...dropHandlers} onClick={openFilePicker}>
+    <input {...inputProps} />
+    {isUploading
+      ? `${totalProgress.percent}% — ${files.filter((f) => f.status === "success").length}/${files.length}`
+      : "Click or drop files"}
+  </div>
+);
+```
+
+### Options
+
+Extends the same upload config as `useUploadControls`, plus multi-file options:
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-multi-upload-controls.ts"
+  name="UseMultiUploadControlsOptions"
+/>
+
+### Return value
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-multi-upload-controls.ts"
+  name="UseMultiUploadControlsReturn"
+/>
+
+<Callout type="info">
+  **`multipart`** splits one **large** file into S3 parts — not multiple files.
+  For several files at once, use `useMultiUploadControls` (or `maxFiles > 1` on
+  UI components).
+</Callout>
+
+---
+
+## Lower-level hooks
+
+When you already have `File` objects — custom inputs, clipboard paste, camera APIs — skip the picker helpers and call `upload()` directly.
+
+### `useUpload`
+
+```tsx
+const { phase, progress, upload, cancel, reset } = useUpload();
+
+await upload(file, `uploads/${file.name}`, { metadata: { userId: "1" } });
+```
+
+### `useMultiUpload`
+
+```tsx
+const { files, totalProgress, upload, cancel, reset } = useMultiUpload({
+  maxFiles: 10,
+  concurrentFiles: 3,
+});
+
+await upload(fileArray, (file) => `uploads/${file.name}`);
+```
+
+Both accept the same `UploadConfig` and lifecycle hooks as the controls variants (`accept`, `maxFileSize`, `multipart`, `onSuccess`, …).

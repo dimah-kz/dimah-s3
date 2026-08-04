@@ -1,0 +1,67 @@
+{
+  "name": "@dimah-s3/react",
+  "version": "0.0.1",
+  "description": "React hooks for S3-compatible file uploads, downloads, and deletes",
+  "keywords": [
+    "s3",
+    "react",
+    "hooks",
+    "upload",
+    "download",
+    "file-upload"
+  ],
+  "author": "Hamidrezakz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamidrezakz/dimah-s3.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/hamidrezakz/dimah-s3/tree/main/packages/react",
+  "bugs": {
+    "url": "https://github.com/hamidrezakz/dimah-s3/issues"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "compile:translations": "node ./scripts/compile-translations.mjs",
+    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly",
+    "lint": "eslint",
+    "check-types": "pnpm compile:translations && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dimah-s3/core": "workspace:*",
+    "@fuma-translate/react": "^1.0.2"
+  },
+  "peerDependencies": {
+    "@fuma-translate/react": "^1.0.2",
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "fuma-translate": "^1.0.2",
+    "jsdom": "^30.0.1",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

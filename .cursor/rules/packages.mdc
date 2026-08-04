@@ -1,0 +1,17 @@
+---
+description: Core / server / react packages — open packages.md for detail
+globs: packages/core/**/*,packages/server/**/*,packages/react/**/*
+alwaysApply: false
+---
+
+# Packages (core / server / react)
+
+Protocol change: `core` routes + types → `createS3Client` → `dimahS3` procedures + HTTP handler → react hooks. No duplicate route strings.
+
+New procedure: `procedures/` + `DimahS3Config` hooks. New react hook: `hooks/` + `upload/` helpers; depend on `@dimah-s3/core` only.
+
+Server plugins: contract in `packages/server/src/plugin/` (`definePlugin`, `createEndpoint`, `applyPlugins`). Client plugins: `@dimah-s3/core` (`defineClientPlugin`, `createS3Client({ plugins })`, `pluginEndpointPath`); React apps use `createS3Client` from `@dimah-s3/react`. Feature plugins (e.g. `db()` / `dbClient()`) in their packages. Merge once in `dimahS3()`; contexts flatten onto the instance (`s3[id]`).
+
+Public API change → Tegami changelog (`.tegami/`). Build: `tsup` + `package.json` `exports`.
+
+**Detail (Read):** [docs/agents/packages.md](docs/agents/packages.md).

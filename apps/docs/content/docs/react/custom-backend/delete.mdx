@@ -1,0 +1,59 @@
+---
+title: Delete
+description: delete — remove an object by key and return success metadata.
+---
+
+`delete` removes a single object. Unlike upload and download, this is a direct mutation — not a presigned client-to-S3 call.
+
+First argument is `key`; second is optional `options`.
+
+## Delete options
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="DeleteOptions"
+/>
+
+```ts
+import type { DeleteOptions } from "@dimah-s3/core";
+```
+
+## Delete response
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="DeleteResponse"
+/>
+
+```ts
+import type { DeleteResponse } from "@dimah-s3/core";
+```
+
+## Example
+
+[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?key=…`.
+
+```ts title="lib/s3-api.ts (delete)"
+import { defineApi } from "@dimah-s3/react";
+import type { S3Api } from "@dimah-s3/core";
+
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message ?? res.statusText);
+  }
+  return res.json();
+}
+
+export const api = defineApi({
+  async delete(key, options) {
+    const params = new URLSearchParams({ key });
+    if (options?.bucket) params.set("bucket", options.bucket);
+
+    return apiFetch(`/api/files/delete?${params}`, { method: "DELETE" });
+  },
+
+  // upload, confirm, download, multipart — see other pages
+} satisfies Partial<S3Api> as S3Api);
+```

@@ -1,0 +1,81 @@
+---
+title: Delete
+description: Delete hooks for auth and post-delete cleanup.
+---
+
+Enable delete in config before these hooks run:
+
+```ts
+delete: { enabled: true },
+```
+
+**Flow:** `guard` → S3 delete → `onDeleted`
+
+## Delete guard
+
+```ts
+delete: {
+  enabled: true,
+  guard: async ({ key, bucket }) => {
+    // authorize deletion
+  },
+},
+```
+
+### `DeleteGuardContext`
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DeleteGuardContext"
+/>
+
+```ts
+import type { DeleteGuardContext } from "@dimah-s3/server";
+```
+
+## On deleted
+
+```ts
+delete: {
+  enabled: true,
+  onDeleted: async ({ key, bucket }) => {
+    console.log(`deleted: ${key} from ${bucket}`);
+  },
+},
+```
+
+### `DeleteOnDeletedContext`
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DeleteOnDeletedContext"
+/>
+
+```ts
+import type { DeleteOnDeletedContext } from "@dimah-s3/server";
+```
+
+## Example
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+
+  delete: {
+    enabled: true,
+    guard: async ({ key, bucket }) => {
+      // authorize deletion
+    },
+    onDeleted: async ({ key, bucket }) => {
+      console.log(`deleted: ${key} from ${bucket}`);
+    },
+  },
+
+  upload: { enabled: true },
+  download: { enabled: true },
+});
+```

@@ -1,0 +1,90 @@
+---
+title: Helpers
+description: Server helpers for ACL, filenames, and object keys.
+icon: Wrench
+---
+
+Import from `@dimah-s3/server` or `@dimah-s3/core`.
+
+## ACL and metadata
+
+### Resolve object ACL
+
+`GetObjectAcl` to `"public-read"` | `"private"` | `undefined`.
+
+<Callout type="info">
+  Set `resolveObjectAcl: true` in `DimahS3Config` to run this automatically on
+  upload confirm and multipart complete.
+</Callout>
+
+```ts
+import { resolveObjectAcl } from "@dimah-s3/server";
+
+const acl = await resolveObjectAcl(s3, bucket, key);
+// "public-read" | "private" | undefined
+
+await resolveObjectAcl(s3, bucket, key, 3_000); // optional timeout (default 1500 ms)
+```
+
+### Build content disposition
+
+RFC 6266 attachment header with ASCII `filename` and Unicode-safe `filename*`.
+
+<Callout type="info">
+  Applied automatically when the client sends `fileName` in a presign request.
+</Callout>
+
+```ts
+import { buildContentDisposition } from "@dimah-s3/core";
+
+buildContentDisposition("Q4 Report.pdf");
+// attachment; filename="Q4 Report.pdf"; filename*=UTF-8''Q4%20Report.pdf
+
+buildContentDisposition("گزارش.pdf");
+// attachment; filename="_____.pdf"; filename*=UTF-8''%DA%AF%D8%B2%D8%A7%D8%B1%D8%B4.pdf
+```
+
+### Parse file name
+
+Reads `filename*` first, then falls back to `filename`.
+
+```ts
+import { parseFileName } from "@dimah-s3/core";
+
+parseFileName('attachment; filename="photo.jpg"');
+// "photo.jpg"
+
+parseFileName("attachment; filename*=UTF-8''%E6%8A%A5%E5%91%8A.pdf");
+// "报告.pdf"
+
+parseFileName(head.ContentDisposition);
+// "photo.jpg" | undefined
+```
+
+## Object key and extension
+
+### Build object key
+
+Joins path segments, trims slashes, skips empty segments.
+
+```ts
+import { buildObjectKey } from "@dimah-s3/core";
+
+buildObjectKey("uploads", userId, "avatar.png");
+// "uploads/user-123/avatar.png"
+
+buildObjectKey("/uploads/", "/", userId, "/avatar.png/");
+// "uploads/user-123/avatar.png"
+```
+
+### Get file extension
+
+Returns lowercase extension without the dot. Empty string when not found.
+
+```ts
+import { getFileExtension } from "@dimah-s3/core";
+
+getFileExtension("archive.TAR.GZ"); // "gz"
+getFileExtension("photo.jpg"); // "jpg"
+getFileExtension("README"); // ""
+```

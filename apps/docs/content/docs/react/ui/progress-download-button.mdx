@@ -1,0 +1,42 @@
+---
+title: Progress Download Button
+description: Downloads via fetch with a live progress fill and cancellation support.
+---
+
+import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
+
+### Preview
+
+<DemoPreview name="progress-download-demo.tsx">
+  <ProgressDownloadDemo />
+</DemoPreview>
+
+## Install
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+  <include>../../../_includes/ui/index.mdx#npm-package</include>
+</Tab>
+
+<Tab value="shadcn registry">
+<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
+
+```npm
+npx shadcn@latest add @dimah-s3/progress-download-button
+```
+
+</Tab>
+
+</Tabs>
+
+## Props
+
+<AutoTypeTable
+  path="packages/ui/src/components/download/progress-download-button.tsx"
+  name="ProgressDownloadButtonProps"
+/>
+
+## Headless alternative
+
+Use [`useDownload`](/docs/react/hooks/download) for custom download UIs.

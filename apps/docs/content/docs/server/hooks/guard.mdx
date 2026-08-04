@@ -1,0 +1,55 @@
+---
+title: Guard
+description: Global auth hook for all S3 operations.
+---
+
+Runs on every request (upload, download, delete, multipart). Add `guard` to config (no `enabled` flag):
+
+```ts
+guard: async ({ request }) => {
+  // auth check
+},
+```
+
+## Global guard
+
+```ts
+guard: async ({ request }) => {
+  const token = request.headers.get("authorization");
+  if (!token) throw Object.assign(new Error("Unauthorized"), { status: 401 });
+},
+```
+
+### `GuardContext`
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="GuardContext"
+/>
+
+```ts
+import type { GuardContext } from "@dimah-s3/server";
+```
+
+Throw to reject (403 by default). Attach `{ status: 401 }` for other codes.
+
+## Example
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+
+  guard: async ({ request }) => {
+    const token = request.headers.get("authorization");
+    if (!token) throw Object.assign(new Error("Unauthorized"), { status: 401 });
+  },
+
+  upload: { enabled: true },
+  download: { enabled: true },
+  delete: { enabled: true },
+});
+```

@@ -1,0 +1,78 @@
+{
+  "name": "@dimah-s3/ui",
+  "version": "0.0.1",
+  "description": "Pre-built React UI components for S3 file upload, download, and delete",
+  "keywords": [
+    "s3",
+    "react",
+    "ui",
+    "upload",
+    "download",
+    "file-upload",
+    "components"
+  ],
+  "author": "Hamidrezakz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamidrezakz/dimah-s3.git",
+    "directory": "packages/ui"
+  },
+  "homepage": "https://github.com/hamidrezakz/dimah-s3/tree/main/packages/ui",
+  "bugs": {
+    "url": "https://github.com/hamidrezakz/dimah-s3/issues"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./styles.css": "./styles.css"
+  },
+  "files": [
+    "dist",
+    "styles.css"
+  ],
+  "scripts": {
+    "build": "pnpm run sync-registry && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
+    "sync-registry": "node ./scripts/enforce-src-alias-imports.mjs && node ./scripts/sync-registry.mjs",
+    "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
+    "lint": "eslint",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dimah-s3/core": "workspace:*",
+    "@dimah-s3/react": "workspace:*"
+  },
+  "peerDependencies": {
+    "@base-ui/react": ">=1.0.0",
+    "@fuma-translate/react": "^1.0.2",
+    "class-variance-authority": ">=0.7.0",
+    "cnfast": ">=0.1.0",
+    "lucide-react": ">=0.400.0",
+    "react": ">=18",
+    "sonner": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@base-ui/react": "^1.6.0",
+    "@fuma-translate/react": "^1.0.2",
+    "@types/node": "^26.1.2",
+    "@types/react": "catalog:",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "cnfast": "^0.1.0",
+    "eslint": "catalog:",
+    "lucide-react": "^1.28.0",
+    "react": "catalog:",
+    "sonner": "^2.0.7",
+    "tsc-alias": "^1.9.1",
+    "tsup": "catalog:",
+    "typescript": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

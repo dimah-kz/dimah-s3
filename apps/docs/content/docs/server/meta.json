@@ -1,0 +1,14 @@
+{
+  "title": "Server",
+  "description": "Presign handlers and server hooks",
+  "icon": "Server",
+  "root": true,
+  "pages": [
+    "index",
+    "setup",
+    "helpers",
+    "plugins",
+    "---server hooks---",
+    "...hooks"
+  ]
+}

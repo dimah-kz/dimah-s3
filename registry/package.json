@@ -1,0 +1,36 @@
+{
+  "name": "@dimah-s3/registry",
+  "version": "0.0.1",
+  "private": true,
+  "description": "dimah-s3 registry — Drizzle & Prisma schemas, shadcn registry source",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm build-items && shadcn registry validate && shadcn build registry.json --output ../apps/docs/public/r --cwd .",
+    "build-items": "tsx scripts/build-items.ts",
+    "validate": "pnpm build-items && shadcn registry validate",
+    "lint": "eslint",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.6.0",
+    "@dimah-s3/core": "workspace:*",
+    "@dimah-s3/react": "workspace:*",
+    "@fuma-translate/react": "^1.0.2",
+    "class-variance-authority": "^0.7.1",
+    "cnfast": "^0.1.0",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.28.0",
+    "react": "catalog:",
+    "shadcn": "^4.16.1",
+    "sonner": "^2.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "catalog:",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "tsx": "^4.23.5",
+    "typescript": "catalog:"
+  }
+}

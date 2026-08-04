@@ -1,0 +1,11 @@
+﻿node_modules/
+dist/
+.next/
+out/
+build/
+.turbo/
+coverage/
+.source/
+pnpm-lock.yaml
+registry/registry/
+apps/docs/public/r/

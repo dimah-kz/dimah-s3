@@ -1,0 +1,15 @@
+{
+  "extends": "@workspace/typescript-config/node-library.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noUncheckedIndexedAccess": false,
+    "types": ["node"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "fumadb/cuid": ["./node_modules/@paralleldrive/cuid2"]
+    }
+  },
+  "include": ["src"]
+}

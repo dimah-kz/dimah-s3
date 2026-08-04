@@ -1,0 +1,14 @@
+# Fumadocs generated content
+.source
+
+# Next.js
+/.next/
+/out/
+/build
+*.tsbuildinfo
+
+# Environment
+.env*.local
+
+# Vercel
+.vercel

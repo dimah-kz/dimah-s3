@@ -1,0 +1,15 @@
+---
+description: Monorepo boundaries and placement — open architecture.md for detail
+globs: packages/**/*,apps/**/*,examples/**/*,registry/**/*
+alwaysApply: false
+---
+
+# Architecture
+
+**Scope:** presign upload / download / delete — no trivial SDK wrappers. Auth / quota → consumer hooks. Optional DB via `@dimah-s3/db` `db()` plugin.
+
+**Deps:** `core` ← `server` | `react` ← `ui`; `db` → `server` (peer). UI: Fuma Translate. API errors: stable `code` + English `message` (client-localized). Protocol SSOT: `@dimah-s3/core` (`S3_API_ROUTES`, `createS3Client`). Plugins: `definePlugin` in `server/src/plugin/`; contexts flatten onto `s3[id]`.
+
+**Registry:** edit `packages/ui/src/` — never `registry/registry/dimah-s3-ui/`.
+
+**Detail (Read):** [docs/agents/architecture.md](docs/agents/architecture.md).

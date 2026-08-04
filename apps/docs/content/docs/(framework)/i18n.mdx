@@ -1,0 +1,39 @@
+---
+title: Internationalization
+description: English by default. Pass a map to localize.
+icon: Languages
+---
+
+English needs no setup. To localize UI, pass a map to `S3Provider`:
+
+```tsx
+import { createS3Client, type Translations } from "@dimah-s3/react";
+
+const fa = {
+  "Upload failed(toast)": "آپلود ناموفق بود",
+  "Cancel(dialog button)": "لغو",
+} satisfies Partial<Translations>;
+
+export const { S3Provider } = createS3Client();
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <S3Provider translations={fa}>{children}</S3Provider>;
+}
+```
+
+Keys are the English source strings. When the same word appears in more than one role, Fuma adds a `(note)` — e.g. `"Cancel(dialog button)"` vs `"Cancel(toast action)"`. Partial maps are fine; missing keys stay English.
+
+`@dimah-s3/ui` and the React hooks use this automatically. For your own copy of `useTranslations`, import it from [`@fuma-translate/react`](https://translate.fuma-nama.dev/).
+
+## API errors
+
+The server always returns English `{ code, message, params? }` — no locale config. On the client:
+
+```tsx
+import { useFormatDimahError } from "@dimah-s3/react";
+
+const formatError = useFormatDimahError();
+formatError(err); // localized when `translations` is set
+```
+
+Custom UI can skip the helper and branch on `err.code` (`S3_ERROR_CODES` from `@dimah-s3/core`) instead.

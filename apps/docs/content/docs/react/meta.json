@@ -1,0 +1,15 @@
+{
+  "title": "Client",
+  "description": "Headless React hooks for S3 flows",
+  "icon": "Atom",
+  "root": true,
+  "pages": [
+    "index",
+    "setup",
+    "upload-store",
+    "helpers",
+    "custom-backend",
+    "---hooks---",
+    "...hooks"
+  ]
+}

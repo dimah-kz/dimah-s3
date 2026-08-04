@@ -1,0 +1,21 @@
+# Registry output — source of truth is packages/ui/src/
+registry/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+.turbo/
+
+# Lock files
+pnpm-lock.yaml
+
+# Coverage
+coverage/
+
+# Misc
+*.tsbuildinfo

@@ -1,0 +1,31 @@
+# @dimah-s3/react
+
+Headless React hooks for S3 upload, download, and delete flows.
+
+Full documentation: [dimah-s3-docs.vercel.app](https://dimah-s3-docs.vercel.app/docs/react)
+
+## Install
+
+```bash
+pnpm add @dimah-s3/react
+```
+
+## Minimal setup
+
+```tsx
+import { createS3Client, useUploadControls } from "@dimah-s3/react";
+
+export const { api, S3Provider, useApi } = createS3Client();
+
+// App root
+<S3Provider>{children}</S3Provider>;
+
+// In a component
+const { openFilePicker, inputProps } = useUploadControls({
+  objectKey: (file) => `uploads/${file.name}`,
+});
+```
+
+## License
+
+MIT

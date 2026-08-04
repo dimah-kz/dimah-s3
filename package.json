@@ -1,0 +1,34 @@
+{
+  "name": "dimah-s3",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build --concurrency=1",
+    "build:parallel": "turbo run build --concurrency=2",
+    "build:packages": "turbo run build --filter=\"./packages/*\"",
+    "clean:turbo": "turbo daemon clean",
+    "clean:next": "node ./scripts/clean-next-artifacts.mjs",
+    "clean:build": "pnpm clean:next && pnpm clean:turbo",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test --filter=\"./packages/*\"",
+    "tegami": "node ./scripts/tegami.mts",
+    "sync-template": "node ./scripts/sync-template.mjs"
+  },
+  "devDependencies": {
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "prettier": "catalog:",
+    "tegami": "^1.3.1",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=11"
+  }
+}

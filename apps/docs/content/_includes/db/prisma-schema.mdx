@@ -1,0 +1,43 @@
+```prisma title="prisma/schema.prisma"
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model StorageObject {
+  id           String    @id @map("id") @db.VarChar(255)
+  scope        String    @map("scope")
+  bucket       String    @map("bucket")
+  key          String    @map("key")
+  contentType  String?   @map("content_type")
+  size         BigInt?   @map("size")
+  eTag         String?   @map("e_tag")
+  filename     String?   @map("filename")
+  status       String    @map("status")
+  metadata     Json?     @map("metadata")
+  acl          String?   @map("acl")
+  uploadId     String?   @map("upload_id")
+  declaredSize BigInt?   @map("declared_size")
+  confirmedAt  DateTime? @map("confirmed_at")
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  @@unique([bucket, key], map: "storage_object_bucket_key_uk")
+  @@index([scope, status, createdAt], map: "storage_object_scope_status_created_idx")
+  @@index([status, expiresAt], map: "storage_object_status_expires_idx")
+  @@index([status, createdAt], map: "storage_object_status_created_idx")
+  @@map("storage_object")
+}
+
+model PrivateDimahS3Settings {
+  id      String @id @map("id") @db.VarChar(255)
+  version String @default("1.0.0") @map("version") @db.VarChar(255)
+
+  @@map("private_dimah_s3_settings")
+}
+```

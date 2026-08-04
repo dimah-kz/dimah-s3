@@ -1,0 +1,181 @@
+---
+title: Setup
+description: Install `@dimah-s3/server`, configure S3, and mount the route.
+icon: Settings
+---
+
+## Install
+
+```npm
+npm i @dimah-s3/server @aws-sdk/client-s3
+```
+
+### S3 client [step]
+
+<Tabs items={["AWS S3", "Cloudflare R2", "MinIO"]}>
+<Tab value="AWS S3">
+
+```ts title="lib/s3-client.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const s3Client = new S3Client({
+  region: process.env.AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
+export const defaultBucket = process.env.AWS_S3_BUCKET!;
+```
+
+</Tab>
+<Tab value="Cloudflare R2">
+
+```ts title="lib/s3-client.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const s3Client = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT!,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
+
+export const defaultBucket = process.env.R2_DEFAULT_BUCKET_NAME!;
+```
+
+</Tab>
+<Tab value="MinIO">
+
+```ts title="lib/s3-client.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const s3Client = new S3Client({
+  region: "us-east-1",
+  endpoint: process.env.MINIO_ENDPOINT!,
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.MINIO_ACCESS_KEY!,
+    secretAccessKey: process.env.MINIO_SECRET_KEY!,
+  },
+});
+
+export const defaultBucket = process.env.MINIO_BUCKET!;
+```
+
+</Tab>
+</Tabs>
+
+### Config [step]
+
+Enable only what you need. Start minimal for upload-first apps.
+
+```ts title="lib/s3.ts"
+import { dimahS3 } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: { enabled: true },
+  download: { enabled: false },
+  delete: { enabled: false },
+  multipart: { enabled: false },
+});
+```
+
+Hook reference: [Guard](/docs/server/hooks/guard), [Upload](/docs/server/hooks/upload), [Download](/docs/server/hooks/download), [Delete](/docs/server/hooks/delete), [Multipart](/docs/server/hooks/multipart).
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="DimahS3Config"
+/>
+
+### Route handler [step]
+
+Mount at `/api/s3` by default (`app/api/s3/[...s3]/route.ts` in Next.js).
+
+<Tabs items={["Next.js", "Node.js", "Other"]}>
+<Tab value="Next.js">
+
+```ts title="app/api/s3/[...s3]/route.ts"
+import { toNextJsHandler } from "@dimah-s3/server/next";
+import { s3 } from "@/lib/s3";
+
+export const { GET, POST, DELETE } = toNextJsHandler(s3);
+```
+
+</Tab>
+<Tab value="Node.js">
+
+```ts title="server.ts"
+import { createServer } from "node:http";
+import { toNodeHandler } from "@dimah-s3/server/node";
+import { s3 } from "./s3";
+
+const handler = toNodeHandler(s3);
+
+createServer((req, res) => {
+  if (req.url?.startsWith("/api/s3")) {
+    return handler(req, res);
+  }
+  res.statusCode = 404;
+  res.end("Not found");
+}).listen(3000);
+```
+
+Works with Express via `app.use("/api/s3", toNodeHandler(s3))` when you mount so that the path still includes the dimah-s3 base path.
+
+</Tab>
+<Tab value="Other">
+
+```ts
+import { s3 } from "@/lib/s3";
+
+app.all("/api/s3/*", (c) => s3.handler(c.req.raw)); // Hono, Workers, etc.
+```
+
+</Tab>
+</Tabs>
+
+Custom base path — set `basePath` on `dimahS3({ basePath })` and pass the same value to `createS3Client({ basePath })` on the client.
+
+### Server `api` [step]
+
+Call the same protocol from Server Actions or RSC without HTTP. Pass `headers` so guards / db scope still see the request context.
+
+```ts title="app/actions.ts"
+"use server";
+
+import { headers } from "next/headers";
+import { s3 } from "@/lib/s3";
+
+export async function getDownloadUrl(key: string) {
+  return s3.api.download(key, {
+    headers: await headers(),
+  });
+}
+```
+
+`s3.api` implements the same `S3Api` shape as the browser client (`upload`, `confirm`, `download`, `delete`, `multipart`). Errors throw `DimahS3Error` with a `status` field.
+
+### Client [step]
+
+On the frontend, use `createS3Client` from `@dimah-s3/react` (recommended) or `@dimah-s3/core` (fetch-only):
+
+```tsx title="components/s3-provider.tsx"
+"use client";
+
+import { createS3Client } from "@dimah-s3/react";
+
+export const { api, S3Provider, useApi } = createS3Client();
+
+export function S3ClientProvider({ children }: { children: React.ReactNode }) {
+  return <S3Provider>{children}</S3Provider>;
+}
+```
+
+Same `basePath` as the server when customized: `createS3Client({ basePath: "/api/your-path" })`.

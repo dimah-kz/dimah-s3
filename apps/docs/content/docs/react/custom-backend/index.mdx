@@ -1,0 +1,60 @@
+---
+title: Introduction
+description: Connect `defineApi` to your backend using `@dimah-s3/core` types.
+---
+
+Wire [`defineApi`](/docs/react/setup) to your own backend. **URL paths, HTTP methods, and transport** (fetch, tRPC, GraphQL, ...) are fully up to you and do **not** need to match [`@dimah-s3/server`](/docs/server).
+
+Hooks only require each `S3Api` method to accept the documented inputs and return JSON with **all fields** listed in response tables. Missing fields can break upload, download, or multipart flows.
+
+Derive input types from `S3Api` with `Parameters`. Response types are exported from `@dimah-s3/core` (or use `Awaited<ReturnType<…>>` when noted).
+
+## Flows
+
+| Flow             | Methods                                                                         | Doc                                               |
+| ---------------- | ------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Simple upload    | `upload` → browser uploads to S3 → `confirm`                                    | [Upload](/docs/react/custom-backend/upload)       |
+| Download         | `download`                                                                      | [Download](/docs/react/custom-backend/download)   |
+| Delete           | `delete`                                                                        | [Delete](/docs/react/custom-backend/delete)       |
+| Multipart upload | `init` → `signPart` (per part) → `complete` or `abort` · `listParts` for resume | [Multipart](/docs/react/custom-backend/multipart) |
+
+## Full client
+
+Each page ends with a focused `S3Api` example. To wire every method at once:
+
+```ts title="lib/s3-api.ts"
+import { defineApi } from "@dimah-s3/react";
+import type { S3Api } from "@dimah-s3/core";
+
+export const api = defineApi({
+  upload: async (payload) => {
+    /* see Upload */
+  },
+  confirm: async (payload) => {
+    /* see Upload */
+  },
+  download: async (key, options) => {
+    /* see Download */
+  },
+  delete: async (key, options) => {
+    /* see Delete */
+  },
+  multipart: {
+    init: async (payload) => {
+      /* see Multipart */
+    },
+    signPart: async (payload) => {
+      /* see Multipart */
+    },
+    listParts: async (payload) => {
+      /* see Multipart */
+    },
+    complete: async (payload) => {
+      /* see Multipart */
+    },
+    abort: async (payload) => {
+      /* see Multipart */
+    },
+  },
+} satisfies S3Api);
+```

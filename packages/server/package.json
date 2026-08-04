@@ -1,0 +1,72 @@
+{
+  "name": "@dimah-s3/server",
+  "version": "0.0.1",
+  "description": "Presigned S3 server — dimahS3() with HTTP handler and direct api for upload, download, delete, and multipart",
+  "keywords": [
+    "s3",
+    "server",
+    "presigned-url",
+    "upload",
+    "download",
+    "multipart",
+    "framework-agnostic"
+  ],
+  "author": "Hamidrezakz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hamidrezakz/dimah-s3.git",
+    "directory": "packages/server"
+  },
+  "homepage": "https://github.com/hamidrezakz/dimah-s3/tree/main/packages/server",
+  "bugs": {
+    "url": "https://github.com/hamidrezakz/dimah-s3/issues"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./next": {
+      "types": "./dist/adapters/next.d.ts",
+      "default": "./dist/adapters/next.js"
+    },
+    "./node": {
+      "types": "./dist/adapters/node.d.ts",
+      "default": "./dist/adapters/node.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
+    "lint": "eslint",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/s3-presigned-post": "^3.1101.0",
+    "@aws-sdk/s3-request-presigner": "^3.1101.0",
+    "@dimah-s3/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-s3": ">=3"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1101.0",
+    "@types/node": "^26.1.2",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "tsc-alias": "^1.9.1",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

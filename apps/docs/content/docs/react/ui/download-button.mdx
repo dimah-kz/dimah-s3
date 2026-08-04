@@ -1,0 +1,42 @@
+---
+title: Download Button
+description: Presigns and triggers a native browser download — simple, no progress.
+---
+
+import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
+
+### Preview
+
+<DemoPreview name="download-button-demo.tsx">
+  <DownloadButtonDemo />
+</DemoPreview>
+
+## Install
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+  <include>../../../_includes/ui/index.mdx#npm-package</include>
+</Tab>
+
+<Tab value="shadcn registry">
+<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
+
+```npm
+npx shadcn@latest add @dimah-s3/download-button
+```
+
+</Tab>
+
+</Tabs>
+
+## Props
+
+<AutoTypeTable
+  path="packages/ui/src/components/download/download-button.tsx"
+  name="DownloadButtonProps"
+/>
+
+## Headless alternative
+
+Use [`useDownload`](/docs/react/hooks/download) for custom download UIs.
