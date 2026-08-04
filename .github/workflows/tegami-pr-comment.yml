@@ -8,6 +8,11 @@ on:
     workflows: ["Tegami PR"]
     types: [completed]
 
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
 jobs:
   comment:
     name: Post preview comment
@@ -15,22 +20,24 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - uses: actions/download-artifact@v4
+      - name: Download preview
+        uses: actions/download-artifact@v4
         with:
           name: tegami-pr-preview
           run-id: ${{ github.event.workflow_run.id }}

@@ -26,15 +26,13 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-          scope: "@dimah-s3"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -42,8 +40,8 @@ jobs:
       # Versions when pending `.tegami/*.md` changelogs exist (opens a Version
       # Packages PR). Otherwise publishes from `.tegami/publish-lock.yaml`.
       # Package builds run in `willPublish` (see scripts/tegami.mts).
+      # npm trusted publishing uses OIDC (`id-token: write`) — no NPM_TOKEN.
       - name: Version & publish packages
         run: pnpm tegami ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
