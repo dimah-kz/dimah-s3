@@ -9,11 +9,7 @@
     "lucide-react",
     "sonner"
   ],
-  "registryDependencies": [
-    "button",
-    "alert-dialog",
-    "tooltip"
-  ],
+  "registryDependencies": ["button", "alert-dialog", "tooltip"],
   "files": [
     {
       "path": "registry/dimah-s3-ui/components/delete/delete-button.tsx",

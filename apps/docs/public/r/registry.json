@@ -13,10 +13,7 @@
         "lucide-react",
         "sonner"
       ],
-      "registryDependencies": [
-        "button",
-        "progress"
-      ],
+      "registryDependencies": ["button", "progress"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/upload/upload-dropzone.tsx",
@@ -61,11 +58,7 @@
         "lucide-react",
         "sonner"
       ],
-      "registryDependencies": [
-        "button",
-        "tooltip",
-        "progress"
-      ],
+      "registryDependencies": ["button", "tooltip", "progress"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/upload/upload-button.tsx",
@@ -110,9 +103,7 @@
         "lucide-react",
         "sonner"
       ],
-      "registryDependencies": [
-        "button"
-      ],
+      "registryDependencies": ["button"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/download/download-button.tsx",
@@ -137,10 +128,7 @@
         "lucide-react",
         "sonner"
       ],
-      "registryDependencies": [
-        "button",
-        "tooltip"
-      ],
+      "registryDependencies": ["button", "tooltip"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/download/progress-download-button.tsx",
@@ -165,11 +153,7 @@
         "lucide-react",
         "sonner"
       ],
-      "registryDependencies": [
-        "button",
-        "alert-dialog",
-        "tooltip"
-      ],
+      "registryDependencies": ["button", "alert-dialog", "tooltip"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/delete/delete-button.tsx",

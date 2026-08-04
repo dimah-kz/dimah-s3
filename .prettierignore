@@ -1,8 +1,6 @@
-# Registry output — source of truth is packages/ui/src/
+# Synced shadcn sources — source of truth is packages/ui/src/
+# (formatted copies would drift from sync; do not Prettier this tree)
 registry/
-
-# Generated docs registry builds
-apps/docs/public/r/
 
 # Generated Fuma Translate output
 packages/react/.translations/

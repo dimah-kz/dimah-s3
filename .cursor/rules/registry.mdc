@@ -8,7 +8,7 @@ alwaysApply: false
 
 Source: `packages/ui/src/`. Use `@/` imports — sync rewrites for shadcn output.
 
-Do not edit `registry/registry/dimah-s3-ui/`. Item manifests: `registry/items/components.ts` → `pnpm --filter @dimah-s3/registry build`.
+Do not edit `registry/registry/dimah-s3-ui/`. Item manifests: `registry/items/components.ts` → `pnpm --filter @dimah-s3/registry build` (writes `apps/docs/public/r/` then formats the workspace).
 
 Direction-safe styling is required (LTR default, RTL-ready): prefer logical utilities like `text-start/end`, `ms/me`, `ps/pe`, and `start/end` over physical `left/right`, `ml/mr`, `pl/pr`, and `text-left/right` unless physically side-locked behavior is intentional.
 

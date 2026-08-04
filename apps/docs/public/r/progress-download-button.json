@@ -9,10 +9,7 @@
     "lucide-react",
     "sonner"
   ],
-  "registryDependencies": [
-    "button",
-    "tooltip"
-  ],
+  "registryDependencies": ["button", "tooltip"],
   "files": [
     {
       "path": "registry/dimah-s3-ui/components/download/progress-download-button.tsx",

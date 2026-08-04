@@ -5,7 +5,7 @@
   "description": "dimah-s3 registry — Drizzle & Prisma schemas, shadcn registry source",
   "type": "module",
   "scripts": {
-    "build": "pnpm build-items && shadcn registry validate && shadcn build registry.json --output ../apps/docs/public/r --cwd .",
+    "build": "pnpm build-items && shadcn registry validate && shadcn build registry.json --output ../apps/docs/public/r --cwd . && pnpm -w format",
     "build-items": "tsx scripts/build-items.ts",
     "validate": "pnpm build-items && shadcn registry validate",
     "lint": "eslint",

@@ -9,11 +9,7 @@
     "lucide-react",
     "sonner"
   ],
-  "registryDependencies": [
-    "button",
-    "tooltip",
-    "progress"
-  ],
+  "registryDependencies": ["button", "tooltip", "progress"],
   "files": [
     {
       "path": "registry/dimah-s3-ui/components/upload/upload-button.tsx",

@@ -15,7 +15,7 @@ Private shadcn registry for [dimah-s3](https://dimah-s3.dev).
 ```bash
 pnpm --filter @dimah-s3/registry build-items   # items/*.ts → registry.json chunks
 pnpm --filter @dimah-s3/registry validate      # build-items + shadcn registry validate
-pnpm --filter @dimah-s3/registry build         # sync UI → build-items → validate → public/r
+pnpm --filter @dimah-s3/registry build         # build-items → validate → public/r → format workspace
 pnpm --filter @dimah-s3/registry check-types   # typecheck items/*.ts
 ```
 

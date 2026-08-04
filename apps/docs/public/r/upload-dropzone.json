@@ -9,10 +9,7 @@
     "lucide-react",
     "sonner"
   ],
-  "registryDependencies": [
-    "button",
-    "progress"
-  ],
+  "registryDependencies": ["button", "progress"],
   "files": [
     {
       "path": "registry/dimah-s3-ui/components/upload/upload-dropzone.tsx",

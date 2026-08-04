@@ -12,7 +12,7 @@
 2. Imports: short `@/` alias only (`@/components/ui/button`, `@/lib/utils`) — sync rewrites to `@/registry/dimah-s3-ui/...`.
 3. `pnpm --filter @dimah-s3/ui build` (runs sync-registry).
 4. If the shadcn item shape changed → update `registry/items/components.ts` (`files[]`, `registryDependencies` for shadcn primitives only).
-5. `pnpm --filter @dimah-s3/registry build` → validates and updates `apps/docs/public/r/`.
+5. `pnpm --filter @dimah-s3/registry build` → validates, writes `apps/docs/public/r/`, then runs workspace `pnpm format` so generated JSON matches Prettier (keeps `format:check` clean).
 
 ## Registry item rules
 

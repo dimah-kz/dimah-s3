@@ -9,9 +9,7 @@
     "lucide-react",
     "sonner"
   ],
-  "registryDependencies": [
-    "button"
-  ],
+  "registryDependencies": ["button"],
   "files": [
     {
       "path": "registry/dimah-s3-ui/components/download/download-button.tsx",
