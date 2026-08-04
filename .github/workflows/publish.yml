@@ -33,6 +33,11 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+          # Needed so NODE_AUTH_TOKEN is written for classic-token fallback.
+          # Prefer OIDC trusted publishers when configured; token covers gaps
+          # (e.g. a new package without a Trusted Publisher yet).
+          registry-url: https://registry.npmjs.org
+          scope: "@dimah-s3"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -40,9 +45,11 @@ jobs:
       # Versions when pending `.tegami/*.md` changelogs exist (opens a Version
       # Packages PR). Otherwise publishes from `.tegami/publish-lock.yaml`.
       # Package builds run in `willPublish` (see scripts/tegami.mts).
-      # npm trusted publishing uses OIDC (`id-token: write`) — no NPM_TOKEN.
-      # Do not set registry-url / NODE_AUTH_TOKEN here; they block OIDC.
+      # Keep `id-token: write` for npm OIDC trusted publishing. NODE_AUTH_TOKEN
+      # is a fallback when a package has no Trusted Publisher on npmjs.com yet
+      # (OIDC token exchange returns 404 → classic token publish).
       - name: Version & publish packages
         run: pnpm tegami ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

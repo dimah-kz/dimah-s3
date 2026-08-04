@@ -43,6 +43,17 @@ After PRs with pending changelogs merge to `main`:
 
 Failed publishes are safe to retry — the publish lock lives in git.
 
+### npm Trusted Publishers (OIDC)
+
+Each published `@dimah-s3/*` package needs a [Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) on npmjs.com (Package → Settings → Trusted Publisher):
+
+- **Organization or user:** `dimah-kz`
+- **Repository:** `dimah-s3`
+- **Workflow filename:** `publish.yml`
+- **Allowed actions:** `npm publish`
+
+Without that, OIDC token exchange returns 404 and publish falls back to `NPM_TOKEN`. Configure Trusted Publisher when adding a **new** package under the scope (after its first classic-token publish, if needed).
+
 ## How to write a good changelog
 
 Changelog files live under `.tegami/` and need:
