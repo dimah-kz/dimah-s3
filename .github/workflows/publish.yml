@@ -33,8 +33,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
-          scope: "@dimah-s3"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -42,10 +40,9 @@ jobs:
       # Versions when pending `.tegami/*.md` changelogs exist (opens a Version
       # Packages PR). Otherwise publishes from `.tegami/publish-lock.yaml`.
       # Package builds run in `willPublish` (see scripts/tegami.mts).
-      # First publish needs a classic token (OIDC trusted publishing requires the
-      # package to already exist). Keep `id-token: write` for later OIDC.
+      # npm trusted publishing uses OIDC (`id-token: write`) — no NPM_TOKEN.
+      # Do not set registry-url / NODE_AUTH_TOKEN here; they block OIDC.
       - name: Version & publish packages
         run: pnpm tegami ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
