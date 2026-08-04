@@ -1,12 +1,7 @@
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 
-const roots = [
-  "apps/docs",
-  "examples/with-db",
-  "examples/with-nextjs",
-  "templates/dimah-s3-next",
-];
+const roots = ["apps/docs", "examples/with-db", "examples/with-nextjs"];
 
 for (const root of roots) {
   for (const dir of [".next", ".source"]) {

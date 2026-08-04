@@ -3,8 +3,6 @@ packages:
   - "packages/*"
   - "examples/*"
   - "registry"
-  # templates/dimah-s3-next is generated for degit (published @dimah-s3 ranges).
-  # Keep it out of the workspace so pre-publish installs do not resolve unpublished versions.
 
 catalog:
   typescript: 7.0.2

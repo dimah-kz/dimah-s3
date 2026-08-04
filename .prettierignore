@@ -8,12 +8,6 @@ apps/docs/public/r/
 packages/react/.translations/
 packages/react/src/translations/types.ts
 
-# Generated degit template (from examples/with-nextjs)
-templates/
-
-# Template sync staging
-.tmp-dimah-s3-next-template/
-
 # Dependencies
 node_modules/
 
