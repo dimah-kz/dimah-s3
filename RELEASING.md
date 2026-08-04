@@ -52,7 +52,7 @@ Each published `@dimah-s3/*` package needs a [Trusted Publisher](https://docs.np
 - **Workflow filename:** `publish.yml`
 - **Allowed actions:** `npm publish`
 
-Without that, OIDC token exchange returns 404 and publish falls back to `NPM_TOKEN`. Configure Trusted Publisher when adding a **new** package under the scope (after its first classic-token publish, if needed).
+Configure this for every new package under the scope (after the package exists on npm). Missing config makes OIDC token exchange fail with 404.
 
 ## How to write a good changelog
 
