@@ -1,0 +1,31 @@
+core:changelogs:
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Initial release\n\nFirst public release of the Dimah S3 presigned upload, download, and delete toolkit (`@dimah-s3/core`, `server`, `react`, `ui`, `db`).\n"
+    filename: 2026-08-04-initial.md
+    v: 0.0.0
+core:packages:
+  - changelogIds:
+      - 2026-08-04-initial.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-08-04-initial.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-08-04-initial.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-08-04-initial.md
+    id: npm:@dimah-s3/server
+    updated: true
+  - changelogIds:
+      - 2026-08-04-initial.md
+    id: npm:@dimah-s3/ui
+    updated: true
+npm:packages:
+  - id: npm:@dimah-s3/core
+  - id: npm:@dimah-s3/db
+  - id: npm:@dimah-s3/react
+  - id: npm:@dimah-s3/server
+  - id: npm:@dimah-s3/ui
