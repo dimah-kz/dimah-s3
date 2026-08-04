@@ -14,12 +14,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hamidrezakz/dimah-s3.git",
+    "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/react"
   },
-  "homepage": "https://github.com/hamidrezakz/dimah-s3/tree/main/packages/react",
+  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/react",
   "bugs": {
-    "url": "https://github.com/hamidrezakz/dimah-s3/issues"
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
   "sideEffects": false,
   "type": "module",

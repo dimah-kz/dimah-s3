@@ -1,6 +1,6 @@
 # @dimah-s3/db
 
-Optional FumaDB persistence for [dimah-s3](https://github.com/hamidrezakz/dimah-s3) — `storage_object` table via the `db()` plugin.
+Optional FumaDB persistence for [dimah-s3](https://github.com/dimah-kz/dimah-s3) — `storage_object` table via the `db()` plugin.
 
 **Docs:** [Setup](https://dimah-s3.dev/docs/db/setup) · [Hooks](https://dimah-s3.dev/docs/db/hooks) · **Example:** [`examples/with-db`](../../examples/with-db)
 

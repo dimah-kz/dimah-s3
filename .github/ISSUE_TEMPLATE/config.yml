@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security reports
-    url: https://github.com/hamidrezakz/dimah-s3/security/advisories/new
+    url: https://github.com/dimah-kz/dimah-s3/security/advisories/new
     about: Please report security vulnerabilities privately.

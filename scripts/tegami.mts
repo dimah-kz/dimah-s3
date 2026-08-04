@@ -54,7 +54,7 @@ const paper = tegami({
   plugins: [
     buildOnPublish(),
     github({
-      repo: "hamidrezakz/dimah-s3",
+      repo: "dimah-kz/dimah-s3",
       versionPr: {
         base: "main",
         create() {

@@ -115,7 +115,7 @@ const readme = `# dimah-s3 Next.js starter
 Bootstrap a Next.js app with dimah-s3 routes, hooks, and UI demos.
 
 \`\`\`bash
-npx degit hamidrezakz/dimah-s3/templates/dimah-s3-next my-app
+npx degit dimah-kz/dimah-s3/templates/dimah-s3-next my-app
 cd my-app
 pnpm install
 cp .env.example .env
