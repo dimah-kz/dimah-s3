@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Presigned S3 server — dimahS3() with HTTP handler and direct api for upload, download, delete, and multipart",
   "keywords": [
     "s3",

@@ -1,26 +1,26 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Verify npm trusted publishing (OIDC)\n\nTest patch to confirm GitHub Actions can publish via trusted publishers without `NPM_TOKEN`.\n"
-    filename: 2026-08-04-oidc-test.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Verify OIDC publish for all packages\n\nConfirm GitHub Actions trusted publishing works for the full `@dimah-s3/*` line, including `@dimah-s3/db`.\n"
+    filename: 2026-08-04-oidc-retest.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-04-oidc-test.md
+      - 2026-08-04-oidc-retest.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-04-oidc-test.md
+      - 2026-08-04-oidc-retest.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-04-oidc-test.md
+      - 2026-08-04-oidc-retest.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-04-oidc-test.md
+      - 2026-08-04-oidc-retest.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-04-oidc-test.md
+      - 2026-08-04-oidc-retest.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
