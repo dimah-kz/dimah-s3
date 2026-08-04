@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check-types": "tsc --noEmit",
+    "check-types": "next typegen && tsc --noEmit",
     "db:schema": "node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts",
     "db:push": "drizzle-kit push",
     "db:cli": "node --import tsx scripts/db-cli.mts",

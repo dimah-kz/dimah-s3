@@ -1,6 +1,6 @@
-# examples/with-nextjs
+# examples/with-db
 
-Runnable example only — no database or auth. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui` on `/ui`. `/registry` is a placeholder for future shadcn CLI installs.
+Runnable example with SQLite + `@dimah-s3/db`. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

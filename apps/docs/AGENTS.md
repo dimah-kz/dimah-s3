@@ -1,6 +1,6 @@
-# examples/with-nextjs
+# apps/docs
 
-Runnable example only — no database or auth. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui` on `/ui`. `/registry` is a placeholder for future shadcn CLI installs.
+Fumadocs site for dimah-s3. Prefer local package sources and keep docs examples aligned with published APIs.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
