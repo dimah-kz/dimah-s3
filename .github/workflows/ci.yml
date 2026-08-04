@@ -15,7 +15,7 @@ jobs:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
 
@@ -36,7 +36,7 @@ jobs:
     name: Build, Test & Types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
 
@@ -60,15 +60,17 @@ jobs:
     name: Validate Registry
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
             registry:
               - 'registry/**'
               - 'packages/ui/**'
+              - 'packages/react/**'
+              - 'packages/core/**'
 
       - uses: pnpm/action-setup@v6
         if: steps.filter.outputs.registry == 'true'
@@ -81,6 +83,11 @@ jobs:
 
       - if: steps.filter.outputs.registry == 'true'
         run: pnpm install --frozen-lockfile
+
+      # Synced registry sources import @dimah-s3/{core,react}; types come from dist/.
+      - name: Build package deps
+        if: steps.filter.outputs.registry == 'true'
+        run: pnpm turbo run build --filter=@dimah-s3/react
 
       - name: Sync registry sources
         if: steps.filter.outputs.registry == 'true'
@@ -98,9 +105,9 @@ jobs:
     name: Validate Template Sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -129,9 +136,9 @@ jobs:
     name: Build Apps
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |

@@ -53,3 +53,7 @@ Thumbs.db
 
 # Secrets
 *.pem
+
+# Template sync staging
+.tmp-dimah-s3-next-template/
+

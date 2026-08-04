@@ -1,6 +1,19 @@
 # Registry output — source of truth is packages/ui/src/
 registry/
 
+# Generated docs registry builds
+apps/docs/public/r/
+
+# Generated Fuma Translate output
+packages/react/.translations/
+packages/react/src/translations/types.ts
+
+# Generated degit template (from examples/with-nextjs)
+templates/
+
+# Template sync staging
+.tmp-dimah-s3-next-template/
+
 # Dependencies
 node_modules/
 

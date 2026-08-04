@@ -42,14 +42,11 @@ function packageVersion(pkgDirName) {
 }
 
 function buildTemplatePackageJson(sourcePkg) {
-  const versions = {
-    "@dimah-s3/core": packageVersion("core"),
-    "@dimah-s3/i18n": packageVersion("i18n"),
-    "@dimah-s3/react": packageVersion("react"),
-    "@dimah-s3/server": packageVersion("server"),
-    "@dimah-s3/ui": packageVersion("ui"),
-    "@dimah-s3/db": packageVersion("db"),
-  };
+  /** Published packages that may appear in the example's dependencies. */
+  const publishedDirs = ["core", "react", "server", "ui", "db"];
+  const versions = Object.fromEntries(
+    publishedDirs.map((dir) => [`@dimah-s3/${dir}`, packageVersion(dir)]),
+  );
 
   const dependencies = { ...sourcePkg.dependencies };
   for (const [name, version] of Object.entries(versions)) {
