@@ -52,6 +52,33 @@ Wrap your ORM connection with a FumaDB adapter, then create the dimah-s3 DB clie
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
 
+<Tabs items={["0.x", "1.x"]}>
+<Tab value="0.x">
+
+```ts title="lib/db.ts"
+import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
+import * as schema from "./db/dimah-s3";
+
+export const db = drizzle(client, { schema });
+```
+
+</Tab>
+<Tab value="1.x">
+
+```ts title="lib/db.ts"
+import { defineRelations } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
+import { storageObject, private_dimah_s3_settings } from "./db/dimah-s3";
+
+export const db = drizzle({
+  client,
+  relations: defineRelations({ storageObject, private_dimah_s3_settings }),
+});
+```
+
+</Tab>
+</Tabs>
+
 ```ts title="lib/dimah-s3-db.ts"
 import { drizzleAdapter } from "fumadb/adapters/drizzle";
 import { DimahS3DB } from "@dimah-s3/db";
