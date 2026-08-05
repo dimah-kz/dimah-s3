@@ -6,7 +6,8 @@
     "noUncheckedIndexedAccess": false,
     "noEmit": true,
     "paths": {
-      "@/registry/*": ["./registry/*"]
+      "@/registry/*": ["./registry/*"],
+      "@/*": ["../packages/ui/src/*"]
     },
     "types": ["node"]
   },

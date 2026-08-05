@@ -78,7 +78,7 @@ export const components = [
     title: "Download Button",
     description: "Presigned-URL download button with toast support.",
     dependencies: [...componentDependencies],
-    registryDependencies: toastRegistryDependencies,
+    registryDependencies: [...toastRegistryDependencies],
     files: [
       {
         path: "components/download/download-button.tsx",
