@@ -1,3 +1,12 @@
+## @dimah-s3/core@0.2.0
+
+### Use shadcn Base UI toast instead of Sonner
+
+Upload, download, and delete feedback now uses the shadcn Base UI toast.
+
+- **npm:** mount `<Toaster />` from `@dimah-s3/ui` in your root layout.
+- **Registry:** install shadcn `toast` and mount `<Toaster />` from `@/components/ui/toast`.
+
 ## @dimah-s3/core@0.1.3
 
 ### docs update
