@@ -1,3 +1,7 @@
+## @dimah-s3/ui@0.1.3
+
+### docs update
+
 ## @dimah-s3/ui@0.1.2
 
 ### Verify OIDC publish for all packages
