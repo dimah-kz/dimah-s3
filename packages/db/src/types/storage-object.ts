@@ -58,11 +58,16 @@ export type DbClientObject = {
 };
 
 export type DbClientListResponse = {
+  /** Scope resolved on the server via `resolveScope` (not a client input). */
   scope: string;
   usage: { totalBytes: number; objectCount: number };
   objects: DbClientObject[];
 };
 
+/**
+ * Query params for browser `api.db.listObjects`.
+ * Scope is not accepted — the server derives it from `resolveScope` on the request.
+ */
 export type DbClientListInput = {
   status?: StorageObjectStatus;
   limit?: number;

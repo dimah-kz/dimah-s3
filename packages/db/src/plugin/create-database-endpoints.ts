@@ -25,12 +25,16 @@ function parseNonNegativeInt(value: string | null): number | undefined {
 
 /**
  * HTTP endpoints for the `db` plugin — mounted under `plugins/db/…`.
+ *
+ * Browser `api.db.listObjects` maps to the `objects` GET handler below.
+ * Server apps list via `StorageObjectStore.listByScope` instead.
  */
 export function createDatabaseEndpoints(options: {
   objects: StorageObjectStore;
   resolveScope: ScopeResolver;
 }) {
   return {
+    /** List objects + usage for the request scope (`resolveScope`). */
     objects: createEndpoint(
       "objects",
       { method: "GET" },

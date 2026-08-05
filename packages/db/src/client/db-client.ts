@@ -21,13 +21,21 @@ export type {
  *   plugins: [dbClient()],
  * });
  *
- * await api.db.listObjects();
+ * await api.db.listObjects({ limit: 50 });
  * ```
+ *
+ * Server code does not use `listObjects` — it calls `s3.db.objects.listByScope`
+ * and `getScopeUsage` directly (no HTTP round-trip). `listObjects` is the browser
+ * wrapper for `GET plugins/db/objects`.
  */
 export function dbClient() {
   return defineClientPlugin({
     id: "db",
     createMethods: (fetcher) => ({
+      /**
+       * List the caller's objects and usage. Scope comes from server `resolveScope`
+       * — not a parameter here. For another scope, use `listByScope` on the server.
+       */
       listObjects: (input?: DbClientListInput) =>
         fetcher.get<DbClientListResponse>(
           pluginEndpointPath("db", "objects"),

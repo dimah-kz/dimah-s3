@@ -103,7 +103,9 @@ export type StorageObjectStore = {
   upsertPending: (input: UpsertPendingInput) => Promise<void>;
   /** Promote a row to `active` with verified fields (confirm / complete). */
   markActive: (input: MarkActiveInput) => Promise<void>;
+  /** Load one row by `bucket` + `key` (any status). */
   find: (ref: ObjectRef) => Promise<StorageObject | null>;
+  /** Load one row — only when `status` is `active`. */
   findActive: (ref: ObjectRef) => Promise<StorageObject | null>;
   /**
    * Pending multipart row for resume: `pending` + `uploadId` + matching
@@ -112,8 +114,15 @@ export type StorageObjectStore = {
   findPendingMultipart: (
     input: FindPendingMultipartInput,
   ) => Promise<StorageObject | null>;
+  /**
+   * List rows for a scope (pass `scope` explicitly — admin routes, jobs, etc.).
+   * Skips `deleted` by default. Server-side listing; browser apps use
+   * `api.db.listObjects` instead (scope from `resolveScope`, no HTTP from server code).
+   */
   listByScope: (input: ListByScopeInput) => Promise<StorageObject[]>;
+  /** Total bytes and row count for a scope — quota checks (`pending` uses `declaredSize`). */
   getScopeUsage: (scope: string) => Promise<ScopeUsage>;
+  /** Row count for a scope; optional `status` filter (same defaults as `listByScope`). */
   countByScope: (
     scope: string,
     status?: StorageObjectStatus,
