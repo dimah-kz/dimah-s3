@@ -118,9 +118,17 @@ export type StorageObjectStore = {
     scope: string,
     status?: StorageObjectStatus,
   ) => Promise<number>;
-  /** Mark a row `deleted` (keeps the record). */
+  /**
+   * Mark a row `deleted` (keeps the record). DB-only — does not delete from S3.
+   * Not a substitute for `api.delete`; the plugin calls this from `onDeleted`
+   * when `deleteMode` is `"soft"`.
+   */
   softDelete: (ref: ObjectRef) => Promise<void>;
-  /** Remove the row entirely. */
+  /**
+   * Remove the row entirely. DB-only — does not delete from S3.
+   * Not a substitute for `api.delete`; used by the plugin when `deleteMode` is
+   * `"hard"`, or by admin jobs to prune soft-deleted audit rows.
+   */
   hardDelete: (ref: ObjectRef) => Promise<void>;
   /** Remove a `pending` row (multipart abort path). */
   deletePending: (ref: ObjectRef) => Promise<void>;

@@ -127,15 +127,19 @@ s3.db.objects.listByScope({ scope: "user:123" });
   feature (`upload`, `delete`, …) yourself — the plugin does not turn them on.
 </Callout>
 
-| Option         | Default  | Meaning                                           |
-| -------------- | -------- | ------------------------------------------------- |
-| `pendingTtlMs` | `24h`    | Sets `expiresAt` when creating pending rows       |
-| `deleteMode`   | `"soft"` | Soft-delete (`deleted`) vs hard-delete the DB row |
+| Option         | Default  | Meaning                                     |
+| -------------- | -------- | ------------------------------------------- |
+| `pendingTtlMs` | `24h`    | Sets `expiresAt` when creating pending rows |
+| `deleteMode`   | `"soft"` | After `api.delete`, keep or drop the DB row |
 
 ### Delete behavior
 
-When the user deletes via `api.delete`, a Delete button, or your own delete
-hook path:
+App deletes always go through the normal server delete path (`api.delete`,
+Delete button, `useDelete`, or your own delete hooks) — **not**
+`s3.db.objects.softDelete` / `hardDelete`. Those store helpers only update the
+database and are not a replacement for deleting the S3 object.
+
+When that path runs:
 
 1. **S3** — `DeleteObject` removes the object for real
 2. **Database** — controlled by `deleteMode` (default `"soft"`)
@@ -164,9 +168,10 @@ db({
 ```
 
 <Callout type="tip">
-  Use `"hard"` for GDPR-style erasure. To clean up old soft-deleted rows
-  later, call `s3.db.objects.hardDelete({ bucket, key })` from a script or
-  job.
+  Use `deleteMode: "hard"` when every delete should also erase the DB row
+  (for example GDPR-style erasure). To prune old soft-deleted audit rows later,
+  call `s3.db.objects.hardDelete({ bucket, key })` from a script or job — that
+  helper only removes the row; it does not delete from S3.
 </Callout>
 
 ## CLI

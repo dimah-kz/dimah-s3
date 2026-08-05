@@ -18,15 +18,19 @@ You can also build a store without the HTTP plugin: `createStorageObjectStore(di
 | `listByScope({ scope, status?, limit?, offset? })` | list objects (skips `deleted` by default)    |
 | `countByScope({ scope, status? })`                 | count with the same default as list          |
 | `find` / `findActive`                              | load one row                                 |
-| `findPendingMultipart({ bucket, key, fileSize })`  | source for multipart resume                  |
+| `findPendingMultipart({ bucket, key, fileSize })`  | lookup for multipart resume                  |
 | `getScopeUsage(scope)`                             | sum of `size ?? declaredSize` + object count |
-| `softDelete` / `hardDelete`                        | mark `deleted` vs remove the DB row          |
 
-<Callout type="info">
-  `softDelete` / `hardDelete` only touch the **database**. The normal delete API
-  already removes the S3 object first, then applies `deleteMode` (default soft)
-  in `onDeleted` — see [Delete behavior](/docs/db/setup#delete-behavior).
-</Callout>
+For deleting a file, use the normal server delete (`api.delete` / Delete
+button / `useDelete`). The plugin’s `onDeleted` hook then updates the DB from
+[`deleteMode`](/docs/db/setup#delete-behavior) — you do not call store delete
+helpers from app UI code.
+
+`softDelete` / `hardDelete` are **DB-only store helpers** (not HTTP endpoints,
+not a substitute for `api.delete`). The plugin uses them inside `onDeleted`;
+you may call them from an admin script or job when you need to touch the row
+without going through S3 again (for example purging old soft-deleted audit
+rows with `hardDelete`).
 
 ## Browser listing (`dbClient`)
 

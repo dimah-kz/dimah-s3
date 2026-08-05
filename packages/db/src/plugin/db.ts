@@ -18,7 +18,10 @@ export type DbPluginOptions = {
    */
   pendingTtlMs?: number;
   /**
-   * `soft` keeps the row with `status = "deleted"`; `hard` removes it.
+   * After a normal server delete (`api.delete` → S3 `DeleteObject`), how the
+   * plugin updates the DB row in `onDeleted`: `soft` keeps it with
+   * `status = "deleted"`; `hard` removes it. Does not change the S3 delete
+   * path — callers still use `api.delete`, not store helpers.
    * @default "soft"
    */
   deleteMode?: "soft" | "hard";

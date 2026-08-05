@@ -34,6 +34,8 @@ Typical path: **pending → active → deleted**. Aborted multipart uploads and 
   Delete (`api.delete` / Delete button) always removes the S3 object. By default
   the DB row soft-deletes (`deleteMode: "soft"`). Set `deleteMode: "hard"` to
   drop the row too — see [Delete behavior](/docs/db/setup#delete-behavior).
+  Store helpers like `softDelete` / `hardDelete` are not substitutes for that
+  path; they only touch the database.
 </Callout>
 
 ## How it fits

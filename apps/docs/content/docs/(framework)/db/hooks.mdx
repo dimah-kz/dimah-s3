@@ -24,12 +24,14 @@ Your own guards and lifecycle hooks on the feature config still run — **after*
 | multipart | `onAbort`      | after abort                  | delete the pending row                         |
 | download  | `presignGuard` | before GET presign           | require `active` + owned                       |
 | delete    | `guard`        | before DeleteObject          | row must exist + owned (any status)            |
-| delete    | `onDeleted`    | after DeleteObject           | soft (`deleted`) or hard delete (`deleteMode`) |
+| delete    | `onDeleted`    | after DeleteObject           | apply `deleteMode` to the DB row               |
 
 <Callout type="info">
-  **Default delete:** S3 always removes the object. The DB row soft-deletes
-  (`status: "deleted"`) unless you set `deleteMode: "hard"` on
-  [`db()`](/docs/db/setup#delete-behavior).
+  **Default delete:** Callers use `api.delete` (S3 is always removed). The
+  plugin then soft-deletes the DB row (`status: "deleted"`) unless you set
+  `deleteMode: "hard"` on [`db()`](/docs/db/setup#delete-behavior). Do not call
+  `objects.softDelete` / `hardDelete` from app UI — those are DB-only helpers
+  the plugin (or an admin job) uses after S3 is already gone.
 </Callout>
 
 <Callout type="warn">
