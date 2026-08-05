@@ -1,47 +1,36 @@
 ---
 title: Hooks
-description: Lifecycle hooks the db() plugin registers automatically.
+description: Guards and row updates the db plugin adds to each lifecycle step.
 ---
 
-Once a feature is enabled and `db()` is registered, the plugin attaches ownership guards and row updates for you. You do not wire these hooks by hand.
+The [`db()`](/docs/db/setup) plugin attaches guards and database updates to upload, multipart, download, and delete. Enable the feature, register the plugin — you do not wire these hooks yourself.
 
-<Callout type="info">
-  **Scope rules:** `resolveScope` returning `null` → `401`. A key owned by
-  another scope → `403`. A required row missing → `404`.
-</Callout>
+Your own guards and lifecycle hooks on each feature still run **after** the plugin's.
 
-Your own guards and lifecycle hooks on the feature config still run — **after** the plugin’s.
+## Access rules
 
-| Feature   | Hook           | When                         | Effect                                         |
-| --------- | -------------- | ---------------------------- | ---------------------------------------------- |
-| upload    | `presignGuard` | before presign               | reject a key owned by another scope            |
-| upload    | `onPresigned`  | after presign                | upsert `pending` (`declaredSize`, `expiresAt`) |
-| upload    | `confirmGuard` | before HeadObject            | row must exist and match the caller’s scope    |
-| upload    | `onConfirmed`  | after HeadObject             | promote to `active` (verified size / eTag)     |
-| multipart | `initGuard`    | before CreateMultipartUpload | same ownership check as upload presign         |
-| multipart | `onInit`       | after create                 | pending row + `uploadId`                       |
-| multipart | `onComplete`   | after complete + HeadObject  | same as `onConfirmed`                          |
-| multipart | `onAbort`      | after abort                  | delete the pending row                         |
-| download  | `presignGuard` | before GET presign           | require `active` + owned                       |
-| delete    | `guard`        | before DeleteObject          | row must exist + owned (any status)            |
-| delete    | `onDeleted`    | after DeleteObject           | apply `deleteMode` to the DB row               |
+The plugin resolves the caller's scope (configured in [Setup](/docs/db/setup)) and rejects:
 
-<Callout type="info">
-  **Default delete:** Callers use `api.delete` (S3 is always removed). The
-  plugin then soft-deletes the DB row (`status: "deleted"`) unless you set
-  `deleteMode: "hard"` on [`db()`](/docs/db/setup#delete-behavior). Do not call
-  `objects.softDelete` / `hardDelete` from app UI — those are DB-only helpers
-  the plugin (or an admin job) uses after S3 is already gone.
-</Callout>
+| Situation                   | Response |
+| --------------------------- | -------- |
+| No scope (unauthenticated)  | `401`    |
+| File owned by another scope | `403`    |
+| Expected row missing        | `404`    |
 
-<Callout type="warn">
-  Soft delete is metadata only — not a restore / trash flow.
-</Callout>
+## By feature
+
+| Feature        | Before                                     | After                                                          |
+| -------------- | ------------------------------------------ | -------------------------------------------------------------- |
+| Upload         | Reject if the key belongs to another scope | Row created or updated as `pending`                            |
+| Upload confirm | Row must exist and match the caller        | Promoted to `active` with verified size                        |
+| Multipart      | Same ownership check as upload             | `pending` on start, `active` on complete, row removed on abort |
+| Download       | File must be `active` and owned            | —                                                              |
+| Delete         | Row must exist and owned                   | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior) |
+
+Delete always removes the file from S3 through the normal [`api.delete`](/docs/react) path. The plugin only updates the database row afterward.
 
 ## Multipart resume
 
-For resumable uploads after a refresh, combine the DB store with an `UploadStore`:
+To resume a large upload after a refresh, load the pending row with `s3.db.objects.findPendingMultipart`, map it with `toPendingMultipartResume`, and return it from a custom [`UploadStore`](/docs/react/upload-store) on the client.
 
-- Look up `s3.db.objects.findPendingMultipart`
-- Map with `toPendingMultipartResume`
-- See [Upload store](/docs/react/upload-store) for the client side
+See [API](/docs/db/api) for store methods.

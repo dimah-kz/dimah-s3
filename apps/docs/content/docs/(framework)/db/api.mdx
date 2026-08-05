@@ -1,40 +1,30 @@
 ---
 title: API
-description: Server store (s3.db.objects), browser listing (dbClient), quota, and custom access.
+description: List objects and measure usage on the server and in the browser.
 ---
 
-## Server store
+## Server
 
-After `db()` is registered, the store is available as `s3.db` (also `s3.context.db`):
+With the plugin registered, use `s3.db.objects` in routes, quota checks, or jobs:
 
 ```ts
-s3.db.objects.listByScope({ scope, limit: 50, offset: 0 });
+const objects = await s3.db.objects.listByScope({ scope, limit: 50 });
+const usage = await s3.db.objects.getScopeUsage(scope);
 ```
 
-You can also build a store without the HTTP plugin: `createStorageObjectStore(dimahS3Db)`.
+| Method                 | Use for                                             |
+| ---------------------- | --------------------------------------------------- |
+| `listByScope`          | List files for a scope (skips `deleted` by default) |
+| `countByScope`         | Count with the same filters as `listByScope`        |
+| `getScopeUsage`        | Total bytes and object count — quota checks         |
+| `find` / `findActive`  | Load one file by `bucket` + `key`                   |
+| `findPendingMultipart` | Lookup for multipart resume                         |
 
-| Method                                             | Purpose                                      |
-| -------------------------------------------------- | -------------------------------------------- |
-| `listByScope({ scope, status?, limit?, offset? })` | list objects (skips `deleted` by default)    |
-| `countByScope({ scope, status? })`                 | count with the same default as list          |
-| `find` / `findActive`                              | load one row                                 |
-| `findPendingMultipart({ bucket, key, fileSize })`  | lookup for multipart resume                  |
-| `getScopeUsage(scope)`                             | sum of `size ?? declaredSize` + object count |
+To remove a file, use [`api.delete`](/docs/react) — not store helpers. The plugin updates the database in its delete hook ([Setup](/docs/db/setup#delete-behavior)).
 
-For deleting a file, use the normal server delete (`api.delete` / Delete
-button / `useDelete`). The plugin’s `onDeleted` hook then updates the DB from
-[`deleteMode`](/docs/db/setup#delete-behavior) — you do not call store delete
-helpers from app UI code.
+## Browser
 
-`softDelete` / `hardDelete` are **DB-only store helpers** (not HTTP endpoints,
-not a substitute for `api.delete`). The plugin uses them inside `onDeleted`;
-you may call them from an admin script or job when you need to touch the row
-without going through S3 again (for example purging old soft-deleted audit
-rows with `hardDelete`).
-
-## Browser listing (`dbClient`)
-
-The server plugin mounts `GET /api/s3/plugins/db/objects`. On the client, add `dbClient()` to `createS3Client` — no custom app route:
+Add `dbClient()` to `createS3Client` — no extra app route:
 
 ```ts
 import { createS3Client } from "@dimah-s3/react";
@@ -44,38 +34,23 @@ export const { api, S3Provider, useApi } = createS3Client({
   basePath: "/api/s3",
   plugins: [dbClient()],
 });
-
-await api.db.listObjects({ limit: 50, offset: 0 });
-
-// inside a client component
-const client = useApi();
-const { scope, usage, objects } = await client.db.listObjects({ limit: 50 });
 ```
 
-`listObjects({ status?, limit?, offset? })` returns `{ scope, usage, objects }` for the caller’s resolved scope.
-
-Each item is a `DbClientObject` (a safe subset of the DB row):
-
-| Field          | Notes                                 |
-| -------------- | ------------------------------------- |
-| `id`           | row id                                |
-| `bucket`       | pass to `api.download` / `api.delete` |
-| `key`          | S3 object key                         |
-| `filename`     | from Content-Disposition when known   |
-| `contentType`  | MIME type                             |
-| `size`         | verified size once active             |
-| `declaredSize` | client-declared size while pending    |
-| `status`       | `pending` \| `active` \| `deleted`    |
-| `createdAt`    | ISO-8601 string                       |
+List the signed-in user's files:
 
 ```ts
-const { objects } = await api.db.listObjects({ limit: 50 });
+const { scope, usage, objects } = await api.db.listObjects({ limit: 50 });
+
 await api.download(objects[0].key, { bucket: objects[0].bucket });
 ```
 
+`listObjects` returns `{ scope, usage, objects }` for the caller's scope. Each item includes `bucket`, `key`, `filename`, `contentType`, `size`, `status`, and `createdAt` — enough to drive a file list and wire download / delete.
+
+Optional filters: `status`, `limit`, `offset`.
+
 ## Quota
 
-Quota is **app-owned**. The plugin enforces ownership first; put your limit on the feature config:
+Quotas are app-owned. Check usage in your upload guard:
 
 ```ts
 const s3 = dimahS3({
@@ -93,14 +68,11 @@ const s3 = dimahS3({
 });
 ```
 
-<Callout type="tip">
-  Stack multiple guards with `chainHooks` from `@dimah-s3/server` when you need
-  plugin ownership plus your own policy in one feature.
-</Callout>
+Use `chainHooks` from `@dimah-s3/server` when you need plugin ownership checks and your own policy on the same feature.
 
 ## Custom access
 
-For download / delete rules beyond “same scope”, use `createObjectAccessGuard`:
+When same-scope is not enough — for example public files — build a guard with `createObjectAccessGuard`:
 
 ```ts
 createObjectAccessGuard({

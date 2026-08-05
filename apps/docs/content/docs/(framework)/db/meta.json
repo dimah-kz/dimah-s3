@@ -1,6 +1,6 @@
 {
   "title": "Database",
-  "description": "Optional object tracking with @dimah-s3/db",
+  "description": "Optional plugin for object ownership, lifecycle, and listings",
   "icon": "Database",
   "defaultOpen": false,
   "pages": ["index", "setup", "hooks", "api", "purge"]
