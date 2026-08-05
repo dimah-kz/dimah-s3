@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/db",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Optional FumaDB persistence for dimah-s3 — db() plugin + storage_object schema",
   "keywords": [
     "s3",
@@ -52,7 +52,7 @@
     "fumadb": "^0.4.0"
   },
   "peerDependencies": {
-    "@dimah-s3/server": "0.1.3",
+    "@dimah-s3/server": "0.2.0",
     "drizzle-orm": "^0.44.0 || ^0.45.0"
   },
   "peerDependenciesMeta": {
