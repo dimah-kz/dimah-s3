@@ -13,11 +13,11 @@ core:packages:
     updated: true
   - changelogIds:
       - 2026-08-05-drizzle-rc.md
-    id: npm:@dimah-s3/react
+    id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
       - 2026-08-05-drizzle-rc.md
-    id: npm:@dimah-s3/server
+    id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
       - 2026-08-05-drizzle-rc.md
@@ -26,6 +26,6 @@ core:packages:
 npm:packages:
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
-  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
+  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/ui
