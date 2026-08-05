@@ -92,7 +92,7 @@ export function FileList() {
 
 ## Quota and extra guards
 
-Quotas are app-owned. The db plugin enforces ownership first; your guards run **after** ([hook merge order](/docs/server/plugins#hook-merge-order)).
+Quotas are app-owned. The db plugin enforces ownership first; your guards run **after** ([Composition](/docs/server/hooks/composition)).
 
 ```ts
 import { dimahS3, chainHooks } from "@dimah-s3/server";

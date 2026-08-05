@@ -7,8 +7,9 @@
     "index",
     "setup",
     "helpers",
-    "plugins",
     "---server hooks---",
-    "...hooks"
+    "...hooks",
+    "---features---",
+    "custom-plugins"
   ]
 }
