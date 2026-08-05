@@ -22,7 +22,8 @@
 ## UI conventions (components)
 
 - File names: Tailwind `truncate max-w-[30ch]`; errors: `[overflow-wrap:anywhere]`.
-- Toast hooks are `.tsx` when sonner `description` needs JSX.
+- Toast hooks are `.tsx` when toast `description` needs JSX.
+- Toast: shadcn Base UI. Registry → `registryDependencies: toast` + `<Toaster />` from `@/components/ui/toast`. npm → `<Toaster />` from `@dimah-s3/ui`.
 
 ## Direction-safe CSS standard (LTR default, RTL-ready)
 

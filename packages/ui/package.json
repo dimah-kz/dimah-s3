@@ -52,8 +52,7 @@
     "class-variance-authority": ">=0.7.0",
     "cnfast": ">=0.1.0",
     "lucide-react": ">=0.400.0",
-    "react": ">=18",
-    "sonner": ">=1.0.0"
+    "react": ">=18"
   },
   "devDependencies": {
     "@base-ui/react": "^1.6.0",
@@ -67,7 +66,6 @@
     "eslint": "catalog:",
     "lucide-react": "^1.28.0",
     "react": "catalog:",
-    "sonner": "^2.0.7",
     "tsc-alias": "^1.9.1",
     "tsup": "catalog:",
     "typescript": "catalog:"

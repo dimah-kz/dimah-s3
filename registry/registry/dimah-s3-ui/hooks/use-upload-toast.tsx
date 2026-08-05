@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { toast } from "sonner";
 import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import type { UploadProgress, MultiUploadFileState } from "@dimah-s3/react";
+
+import { toast } from "@/components/ui/toast";
 
 export type UploadToastCtrl = {
   mode: "single" | "multi";
@@ -34,7 +35,7 @@ function progressNode(loaded: number, total: number) {
 }
 
 /**
- * Drives sonner toasts for upload progress/success/error.
+ * Drives toasts for upload progress/success/error.
  * Shared between UploadButton and UploadDropzone.
  */
 export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
@@ -64,34 +65,37 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
     const total = totalProgress?.total ?? 0;
 
     if (phase === "idle" && toastIdRef.current) {
-      toast.dismiss(toastIdRef.current);
+      toast.close(toastIdRef.current);
       toastIdRef.current = null;
     }
     if (phase === "success") {
-      if (toastIdRef.current) toast.dismiss(toastIdRef.current);
+      if (toastIdRef.current) toast.close(toastIdRef.current);
       if (isMulti) {
-        toast.success(
-          t("{count} file(s) uploaded", {
+        toast.add({
+          type: "success",
+          title: t("{count} file(s) uploaded", {
             note: "toast",
             variables: { count: String(fileList.length) },
           }),
-          {
-            description: sizeNode(total),
-          },
-        );
+          description: sizeNode(total),
+        });
       } else if (file) {
-        toast.success(t("Upload complete", { note: "toast" }), {
+        toast.add({
+          type: "success",
+          title: t("Upload complete", { note: "toast" }),
           description: sizeNode(file.size),
         });
       }
       toastIdRef.current = null;
     }
     if (phase === "error") {
-      if (toastIdRef.current) toast.dismiss(toastIdRef.current);
+      if (toastIdRef.current) toast.close(toastIdRef.current);
       if (isMulti && fileList.length > 0) {
         const succeeded = fileList.filter((f) => f.status === "success").length;
         const failed = fileList.filter((f) => f.status === "error").length;
-        toast.error(t("Upload finished with errors", { note: "toast" }), {
+        toast.add({
+          type: "error",
+          title: t("Upload finished with errors", { note: "toast" }),
           description: (
             <span
               dir="ltr"
@@ -108,7 +112,9 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
           ),
         });
       } else {
-        toast.error(t("Upload failed", { note: "toast" }), {
+        toast.add({
+          type: "error",
+          title: t("Upload failed", { note: "toast" }),
           description: (
             <span dir="auto" className="block [overflow-wrap:anywhere]">
               {error ??
@@ -144,26 +150,29 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
     toastIdRef.current = id;
     if (isMulti) {
       const done = fileList.filter((f) => f.status === "success").length;
-      toast.loading(
-        t("Uploading {done}/{total}", {
+      toast.add({
+        id,
+        type: "loading",
+        timeout: 0,
+        title: t("Uploading {done}/{total}", {
           note: "toast",
           variables: { done: String(done), total: String(fileList.length) },
         }),
-        {
-          id,
-          description: progressNode(total.loaded, total.total),
-          cancel: {
-            label: t("Cancel", { note: "toast action" }),
-            onClick: () => cancelRef.current(),
-          },
+        description: progressNode(total.loaded, total.total),
+        actionProps: {
+          children: t("Cancel", { note: "toast action" }),
+          onClick: () => cancelRef.current(),
         },
-      );
+      });
     } else if (file) {
-      toast.loading(t("Uploading", { note: "toast" }), {
+      toast.add({
         id,
+        type: "loading",
+        timeout: 0,
+        title: t("Uploading", { note: "toast" }),
         description: progressNode(singleProgress.loaded, file.size),
-        cancel: {
-          label: t("Cancel", { note: "toast action" }),
+        actionProps: {
+          children: t("Cancel", { note: "toast action" }),
           onClick: () => cancelRef.current(),
         },
       });

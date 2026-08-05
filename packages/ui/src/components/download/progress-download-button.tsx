@@ -38,7 +38,7 @@ export type ProgressDownloadButtonProps = FetchDownloadHooks & {
   tooltipText?: string;
   /** Tooltip while downloading (click cancels). @default "Cancel download" */
   cancelTooltipText?: string;
-  /** Show sonner toasts during download. @default true */
+  /** Show toasts during download. @default true */
   toast?: boolean;
   /** Show inline error below the button. @default true */
   showStatus?: boolean;

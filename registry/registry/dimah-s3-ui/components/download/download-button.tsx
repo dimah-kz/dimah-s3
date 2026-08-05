@@ -23,7 +23,7 @@ export type DownloadButtonProps = {
   children?: ReactNode;
   className?: string;
   disabled?: boolean;
-  /** Show a sonner toast when download starts. @default true */
+  /** Show a toast when download starts. @default true */
   toast?: boolean;
   /** Show inline error below the button. @default true */
   showStatus?: boolean;

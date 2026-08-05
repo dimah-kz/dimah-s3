@@ -57,7 +57,7 @@ export type DeleteButtonProps = DeleteHooks & {
   className?: string;
   disabled?: boolean;
   tooltipText?: string;
-  /** Show a sonner toast during delete. @default true */
+  /** Show a toast during delete. @default true */
   toast?: boolean;
   /** Show inline error below the button. @default true */
   showStatus?: boolean;

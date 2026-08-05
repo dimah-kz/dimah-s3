@@ -1,9 +1,10 @@
 "use client";
 
-import { toast } from "sonner";
 import { formatFileSize, truncateFileName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useFormatDimahError } from "@dimah-s3/react";
+
+import { toast } from "@/components/ui/toast";
 
 export type DownloadToastOptions = {
   enabled?: boolean;
@@ -29,13 +30,20 @@ export function useDownloadToast({
   );
 
   const onInitiated = () => {
-    if (enabled) toast.success(t("Download started", { note: "toast" }));
+    if (enabled) {
+      toast.add({
+        type: "success",
+        title: t("Download started", { note: "toast" }),
+      });
+    }
   };
 
   const onSuccess = (_key: string, actualFileName: string) => {
     if (!enabled) return;
-    toast.dismiss(`dl-${objectKey}`);
-    toast.success(t("Download complete", { note: "toast" }), {
+    toast.close(`dl-${objectKey}`);
+    toast.add({
+      type: "success",
+      title: t("Download complete", { note: "toast" }),
       description: (
         <span className="block">
           <bdi>{truncateFileName(actualFileName)}</bdi>
@@ -58,24 +66,30 @@ export function useDownloadToast({
 
   const onError = (_key: string, error: unknown) => {
     if (!enabled) return;
-    toast.dismiss(`dl-${objectKey}`);
-    toast.error(t("Download failed", { note: "toast" }), {
+    toast.close(`dl-${objectKey}`);
+    toast.add({
+      type: "error",
+      title: t("Download failed", { note: "toast" }),
       description: errorNode(error),
     });
   };
 
   const onErrorWithPhase = (_key: string, error: unknown, _phase: string) => {
     if (!enabled) return;
-    toast.dismiss(`dl-${objectKey}`);
-    toast.error(t("Download failed", { note: "toast" }), {
+    toast.close(`dl-${objectKey}`);
+    toast.add({
+      type: "error",
+      title: t("Download failed", { note: "toast" }),
       description: errorNode(error),
     });
   };
 
   const onCancel = (_key: string) => {
     if (!enabled) return;
-    toast.dismiss(`dl-${objectKey}`);
-    toast.info(t("Download cancelled", { note: "toast" }), {
+    toast.close(`dl-${objectKey}`);
+    toast.add({
+      type: "info",
+      title: t("Download cancelled", { note: "toast" }),
       description: <span dir="auto">{truncateFileName(displayName)}</span>,
     });
   };

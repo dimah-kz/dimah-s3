@@ -7,13 +7,8 @@
       "name": "upload-dropzone",
       "title": "Upload Dropzone",
       "description": "Drag-and-drop upload zone with inline status and toast support.",
-      "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
-      ],
-      "registryDependencies": ["button", "progress"],
+      "dependencies": ["@dimah-s3/core", "@dimah-s3/react", "lucide-react"],
+      "registryDependencies": ["button", "toast", "progress"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/upload/upload-dropzone.tsx",
@@ -52,13 +47,8 @@
       "name": "upload-button",
       "title": "Upload Button",
       "description": "File upload button with inline status and toast support.",
-      "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
-      ],
-      "registryDependencies": ["button", "tooltip", "progress"],
+      "dependencies": ["@dimah-s3/core", "@dimah-s3/react", "lucide-react"],
+      "registryDependencies": ["button", "toast", "tooltip", "progress"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/upload/upload-button.tsx",
@@ -97,13 +87,8 @@
       "name": "download-button",
       "title": "Download Button",
       "description": "Presigned-URL download button with toast support.",
-      "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
-      ],
-      "registryDependencies": ["button"],
+      "dependencies": ["@dimah-s3/core", "@dimah-s3/react", "lucide-react"],
+      "registryDependencies": ["button", "toast"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/download/download-button.tsx",
@@ -122,13 +107,8 @@
       "name": "progress-download-button",
       "title": "Progress Download Button",
       "description": "Download button with streaming progress bar and cancel support.",
-      "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
-      ],
-      "registryDependencies": ["button", "tooltip"],
+      "dependencies": ["@dimah-s3/core", "@dimah-s3/react", "lucide-react"],
+      "registryDependencies": ["button", "toast", "tooltip"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/download/progress-download-button.tsx",
@@ -147,13 +127,8 @@
       "name": "delete-button",
       "title": "Delete Button",
       "description": "S3 object delete button with confirmation dialog and toast support.",
-      "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
-      ],
-      "registryDependencies": ["button", "alert-dialog", "tooltip"],
+      "dependencies": ["@dimah-s3/core", "@dimah-s3/react", "lucide-react"],
+      "registryDependencies": ["button", "toast", "alert-dialog", "tooltip"],
       "files": [
         {
           "path": "registry/dimah-s3-ui/components/delete/delete-button.tsx",

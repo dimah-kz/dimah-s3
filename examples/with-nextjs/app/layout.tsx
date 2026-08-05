@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Toaster } from "sonner";
+import { Toaster } from "@dimah-s3/ui";
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <S3ClientProvider>{children}</S3ClientProvider>
-          <Toaster richColors />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

@@ -9,11 +9,11 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
+        "lucide-react"
       ],
       "registryDependencies": [
         "button",
+        "toast",
         "progress"
       ],
       "files": [
@@ -57,11 +57,11 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
+        "lucide-react"
       ],
       "registryDependencies": [
         "button",
+        "toast",
         "tooltip",
         "progress"
       ],
@@ -106,11 +106,11 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
+        "lucide-react"
       ],
       "registryDependencies": [
-        "button"
+        "button",
+        "toast"
       ],
       "files": [
         {
@@ -133,11 +133,11 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
+        "lucide-react"
       ],
       "registryDependencies": [
         "button",
+        "toast",
         "tooltip"
       ],
       "files": [
@@ -161,11 +161,11 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
-        "lucide-react",
-        "sonner"
+        "lucide-react"
       ],
       "registryDependencies": [
         "button",
+        "toast",
         "alert-dialog",
         "tooltip"
       ],

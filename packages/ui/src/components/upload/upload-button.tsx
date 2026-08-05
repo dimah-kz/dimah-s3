@@ -35,7 +35,7 @@ export type UploadButtonProps = (
   children?: ReactNode;
   disabled?: boolean;
   tooltipText?: string;
-  /** Show sonner toasts during upload. @default true */
+  /** Show toasts during upload. @default true */
   toast?: boolean;
   /** Show inline status below the button. @default true */
   showStatus?: boolean;

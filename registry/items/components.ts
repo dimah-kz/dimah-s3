@@ -34,8 +34,9 @@ const componentDependencies = [
   "@dimah-s3/core",
   "@dimah-s3/react",
   "lucide-react",
-  "sonner",
 ] as const;
+
+const toastRegistryDependencies = ["button", "toast"] as const;
 
 export const components = [
   {
@@ -45,7 +46,7 @@ export const components = [
     description:
       "Drag-and-drop upload zone with inline status and toast support.",
     dependencies: [...componentDependencies],
-    registryDependencies: ["button", "progress"],
+    registryDependencies: [...toastRegistryDependencies, "progress"],
     files: [
       {
         path: "components/upload/upload-dropzone.tsx",
@@ -61,7 +62,7 @@ export const components = [
     title: "Upload Button",
     description: "File upload button with inline status and toast support.",
     dependencies: [...componentDependencies],
-    registryDependencies: ["button", "tooltip", "progress"],
+    registryDependencies: [...toastRegistryDependencies, "tooltip", "progress"],
     files: [
       {
         path: "components/upload/upload-button.tsx",
@@ -77,7 +78,7 @@ export const components = [
     title: "Download Button",
     description: "Presigned-URL download button with toast support.",
     dependencies: [...componentDependencies],
-    registryDependencies: ["button"],
+    registryDependencies: toastRegistryDependencies,
     files: [
       {
         path: "components/download/download-button.tsx",
@@ -98,7 +99,7 @@ export const components = [
     description:
       "Download button with streaming progress bar and cancel support.",
     dependencies: [...componentDependencies],
-    registryDependencies: ["button", "tooltip"],
+    registryDependencies: [...toastRegistryDependencies, "tooltip"],
     files: [
       {
         path: "components/download/progress-download-button.tsx",
@@ -119,7 +120,11 @@ export const components = [
     description:
       "S3 object delete button with confirmation dialog and toast support.",
     dependencies: [...componentDependencies],
-    registryDependencies: ["button", "alert-dialog", "tooltip"],
+    registryDependencies: [
+      ...toastRegistryDependencies,
+      "alert-dialog",
+      "tooltip",
+    ],
     files: [
       {
         path: "components/delete/delete-button.tsx",

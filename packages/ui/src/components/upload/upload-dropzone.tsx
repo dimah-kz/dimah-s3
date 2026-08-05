@@ -30,7 +30,7 @@ export type UploadDropzoneProps = (
   /** Custom dropzone content. Replaces built-in icon/text/status block. */
   children?: ReactNode;
   disabled?: boolean;
-  /** Show sonner toasts during upload. @default true */
+  /** Show toasts during upload. @default true */
   toast?: boolean;
   /** Show inline status inside the dropzone. @default true */
   showStatus?: boolean;

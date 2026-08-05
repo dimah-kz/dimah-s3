@@ -1,9 +1,10 @@
 "use client";
 
-import { toast } from "sonner";
 import { truncateFileName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useFormatDimahError } from "@dimah-s3/react";
+
+import { toast } from "@/components/ui/toast";
 
 export type DeleteToastOptions = {
   enabled?: boolean;
@@ -19,14 +20,18 @@ export function useDeleteToast({
 
   const onSuccess = (_key: string) => {
     if (!enabled) return;
-    toast.success(t("File deleted", { note: "toast" }), {
+    toast.add({
+      type: "success",
+      title: t("File deleted", { note: "toast" }),
       description: <span dir="auto">{truncateFileName(displayName)}</span>,
     });
   };
 
   const onError = (_key: string, error: unknown) => {
     if (!enabled) return;
-    toast.error(t("Delete failed", { note: "toast" }), {
+    toast.add({
+      type: "error",
+      title: t("Delete failed", { note: "toast" }),
       description: (
         <span dir="auto" className="block [overflow-wrap:anywhere]">
           {formatDimahError(error)}

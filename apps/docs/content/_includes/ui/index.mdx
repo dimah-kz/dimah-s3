@@ -1,12 +1,31 @@
 <section id="npm-package">
 
 ```npm
-npm i @dimah-s3/ui shadcn sonner
+npm i @dimah-s3/ui shadcn
 ```
 
 <include meta='title="app/globals.css"'>./globals.css</include>
 
 [shadcn theme](https://ui.shadcn.com/docs/theming) variables must be in `globals.css`.
+
+Mount the toaster once in your root layout:
+
+```tsx title="app/layout.tsx"
+import { Toaster } from "@dimah-s3/ui";
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Toaster />
+      </body>
+    </html>
+  );
+}
+```
+
+Already using shadcn [toast](https://ui.shadcn.com/docs/components/base/toast) for your own messages? Mount both — rename one import (`Toaster as DimahToaster`). They are independent; your code keeps `import { toast } from "@/components/ui/toast"`.
 
 </section>
 
@@ -17,6 +36,23 @@ npm i @dimah-s3/ui shadcn sonner
   "registries": {
     "@dimah-s3": "https://dimah-s3.dev/r/{name}.json"
   }
+}
+```
+
+Components depend on shadcn [toast](https://ui.shadcn.com/docs/components/base/toast). After `npx shadcn@latest add …`, mount once:
+
+```tsx title="app/layout.tsx"
+import { Toaster } from "@/components/ui/toast";
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Toaster />
+      </body>
+    </html>
+  );
 }
 ```
 

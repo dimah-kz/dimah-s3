@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
 import { appName } from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
-import { Toaster } from "sonner";
+import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -39,7 +39,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
           }}
         >
           <TooltipProvider>{children}</TooltipProvider>
-          <Toaster richColors />
+          <Toaster />
         </RootProvider>
       </Body>
     </html>

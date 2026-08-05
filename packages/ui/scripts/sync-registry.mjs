@@ -77,6 +77,35 @@ function walkAndRewrite(dir) {
   }
 }
 
+/**
+ * Registry consumers use the stock shadcn toast at `@/components/ui/toast`.
+ * After namespacing `@/` → `@/registry/dimah-s3-ui/…`, rewrite toast imports
+ * back to the app primitive (not the namespaced copy).
+ */
+function fixShadcnToastImports(dir) {
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = join(dir, entry);
+    const stats = statSync(fullPath);
+    if (stats.isDirectory()) {
+      fixShadcnToastImports(fullPath);
+      continue;
+    }
+    const ext = extname(fullPath);
+    if (ext !== ".ts" && ext !== ".tsx") continue;
+
+    const original = readFileSync(fullPath, "utf8");
+    const rewritten = original.replaceAll(
+      "@/registry/dimah-s3-ui/components/ui/toast",
+      "@/components/ui/toast",
+    );
+
+    if (rewritten !== original) {
+      writeFileSync(fullPath, rewritten, "utf8");
+    }
+  }
+}
+
 function syncDirectory(name) {
   const source = resolve(srcRoot, name);
   const target = resolve(registryRoot, name);
@@ -85,6 +114,7 @@ function syncDirectory(name) {
   ensureDir(target);
   cpSync(source, target, { recursive: true });
   walkAndRewrite(target);
+  fixShadcnToastImports(target);
 }
 
 function syncRegistryDependencies() {

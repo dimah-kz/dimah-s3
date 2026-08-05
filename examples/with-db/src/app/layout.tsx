@@ -5,7 +5,7 @@ import { S3ClientProvider } from "@/components/s3-provider";
 import { DirectionProvider } from "@/components/ui/direction";
 import localFont from "next/font/local";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@dimah-s3/ui";
 
 const vazirmatn = localFont({
   src: "../../public/fonts/Vazirmatn-VariableFont_wght.ttf",

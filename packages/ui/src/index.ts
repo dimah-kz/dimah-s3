@@ -24,3 +24,4 @@ export {
   DeleteButton,
   type DeleteButtonProps,
 } from "@/components/delete/delete-button";
+export { Toaster, toast } from "@/components/ui/toast";
