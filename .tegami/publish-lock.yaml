@@ -1,26 +1,26 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Use shadcn Base UI toast instead of Sonner\n\nUpload, download, and delete feedback now uses the shadcn Base UI toast.\n\n- **npm:** mount `<Toaster />` from `@dimah-s3/ui` in your root layout.\n- **Registry:** install shadcn `toast` and mount `<Toaster />` from `@/components/ui/toast`.\n"
-    filename: 2026-08-05-toast-base-ui.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Drizzle ORM 1.x peer support\n\n`@dimah-s3/db` now accepts `drizzle-orm` `>=1.0.0-rc.1` alongside `0.44` / `0.45`. Requires FumaDB 0.5+ for the Drizzle adapter.\n"
+    filename: 2026-08-05-drizzle-rc.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-05-toast-base-ui.md
+      - 2026-08-05-drizzle-rc.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-05-toast-base-ui.md
+      - 2026-08-05-drizzle-rc.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-05-toast-base-ui.md
+      - 2026-08-05-drizzle-rc.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-05-toast-base-ui.md
+      - 2026-08-05-drizzle-rc.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-05-toast-base-ui.md
+      - 2026-08-05-drizzle-rc.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
