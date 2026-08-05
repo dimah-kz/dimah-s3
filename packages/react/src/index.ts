@@ -12,7 +12,7 @@ export {
 } from "./s3-provider";
 
 // ─── Translations (Fuma) ──────────────────────────────────────────────────────
-/** Generated key map — use with `satisfies Translations` / `Partial<Translations>`. */
+/** Generated key map — use with `satisfies Partial<Translations>`. */
 export type { Translations } from "./translations";
 
 // ─── Upload store implementations ────────────────────────────────────────────

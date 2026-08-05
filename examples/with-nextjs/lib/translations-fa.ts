@@ -71,4 +71,4 @@ export const fa = {
   "{name} is required(API error)": "{name} الزامی است",
   "{succeeded} succeeded, {failed} failed(toast)":
     "{succeeded} موفق، {failed} ناموفق",
-} satisfies Translations;
+} satisfies Partial<Translations>;

@@ -1,39 +1,35 @@
 ---
 title: Internationalization
-description: English by default. Pass a map to localize.
+description: English by default. Pass a partial map to localize.
 icon: Languages
 ---
 
-English needs no setup. To localize UI, pass a map to `S3Provider`:
+English needs no setup. To localize, put a map in a file and pass it to `S3Provider`.
 
-```tsx
-import { createS3Client, type Translations } from "@dimah-s3/react";
+```ts title="lib/translations-fa.ts"
+import type { Translations } from "@dimah-s3/react";
 
-const fa = {
+export const fa = {
   "Upload failed(toast)": "آپلود ناموفق بود",
   "Cancel(dialog button)": "لغو",
 } satisfies Partial<Translations>;
+```
 
-export const { S3Provider } = createS3Client();
+```tsx title="components/s3-provider.tsx"
+"use client";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+import { createS3Client } from "@dimah-s3/react";
+import { fa } from "@/lib/translations-fa";
+
+export const { api, S3Provider, useApi } = createS3Client();
+
+export function S3ClientProvider({ children }: { children: React.ReactNode }) {
   return <S3Provider translations={fa}>{children}</S3Provider>;
 }
 ```
 
-Keys are the English source strings. When the same word appears in more than one role, Fuma adds a `(note)` — e.g. `"Cancel(dialog button)"` vs `"Cancel(toast action)"`. Partial maps are fine; missing keys stay English.
-
-`@dimah-s3/ui` and the React hooks use this automatically. For your own copy of `useTranslations`, import it from [`@fuma-translate/react`](https://translate.fuma-nama.dev/).
+Missing keys stay English.
 
 ## API errors
 
-The server always returns English `{ code, message, params? }` — no locale config. On the client:
-
-```tsx
-import { useFormatDimahError } from "@dimah-s3/react";
-
-const formatError = useFormatDimahError();
-formatError(err); // localized when `translations` is set
-```
-
-Custom UI can skip the helper and branch on `err.code` (`S3_ERROR_CODES` from `@dimah-s3/core`) instead.
+The server always responds in English. With `@dimah-s3/ui` or the React hooks you do not need anything else — the same `translations` map localizes those messages.

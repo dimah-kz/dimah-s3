@@ -35,7 +35,10 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
  * ```tsx
  * import { createS3Client, type Translations } from "@dimah-s3/react";
  *
- * const de = { "Upload failed(toast)": "Upload fehlgeschlagen" } satisfies Partial<Translations>;
+ * // lib/translations-de.ts
+ * const de = {
+ *   "Upload failed(toast)": "Upload fehlgeschlagen",
+ * } satisfies Partial<Translations>;
  *
  * export const { S3Provider } = createS3Client();
  *
