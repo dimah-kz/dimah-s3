@@ -1,3 +1,9 @@
+## @dimah-s3/server@0.3.0
+
+### Drizzle ORM 1.x peer support
+
+`@dimah-s3/db` now accepts `drizzle-orm` `>=1.0.0-rc.1` alongside `0.44` / `0.45`. Requires FumaDB 0.5+ for the Drizzle adapter.
+
 ## @dimah-s3/server@0.2.0
 
 ### Use shadcn Base UI toast instead of Sonner
