@@ -37,7 +37,7 @@ pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui}` (tsup, ESM, Tegami 
 - **Published API change:** add a Tegami changelog under `.tegami/` ([release.md](docs/agents/release.md)).
 - **RTL-safe styling:** default copy/design is English + LTR, but UI classes must stay direction-safe so RTL can be enabled later without layout breakage. Prefer logical utilities (`text-start`, `text-end`, `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`) over physical ones (`text-left/right`, `ml/mr`, `pl/pr`, `left/right`) unless the physical side is truly required by behavior (for example side-specific tooltip arrow placement).
 
-Humans: [README.md](README.md) · [RELEASING.md](RELEASING.md)
+Humans: [README.md](README.md) · [release.md](docs/agents/release.md)
 
 # Release workflow
 
