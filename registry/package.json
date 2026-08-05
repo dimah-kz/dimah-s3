@@ -12,7 +12,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@base-ui/react": "^1.6.0",
+    "@base-ui/react": "^1.7.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@fuma-translate/react": "^1.0.2",

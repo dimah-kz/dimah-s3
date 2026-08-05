@@ -49,7 +49,7 @@
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
     "@paralleldrive/cuid2": "^3.3.0",
-    "fumadb": "^0.4.0"
+    "fumadb": "^0.5.1"
   },
   "peerDependencies": {
     "@dimah-s3/server": "0.2.0",

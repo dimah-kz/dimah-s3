@@ -15,7 +15,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@base-ui/react": "^1.6.0",
+    "@base-ui/react": "^1.7.0",
     "@dimah-s3/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
