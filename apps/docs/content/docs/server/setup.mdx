@@ -61,6 +61,12 @@ export const s3Client = new S3Client({
 export const defaultBucket = process.env.R2_DEFAULT_BUCKET_NAME!;
 ```
 
+<Callout type="warn">
+  R2 does **not** support Presigned POST or object ACL. Set `upload.method` to
+  `"PUT"` and keep `resolveObjectAcl` off. Details: [Cloudflare
+  R2](/docs/providers/cloudflare-r2).
+</Callout>
+
 </Tab>
 <Tab value="MinIO">
 
@@ -90,6 +96,8 @@ export const defaultBucket = process.env.MINIO_BUCKET!;
 </Tab>
 </Tabs>
 
+Provider quirks (POST vs PUT, ACL, path-style): [Providers](/docs/providers).
+
 ### Config [step]
 
 Enable only what you need. Start minimal for upload-first apps.
@@ -101,6 +109,7 @@ import { s3Client, defaultBucket } from "@/lib/s3-client";
 export const s3 = dimahS3({
   s3: s3Client,
   defaultBucket,
+  // R2: { enabled: true, method: "PUT" }
   upload: { enabled: true },
   download: { enabled: false },
   delete: { enabled: false },

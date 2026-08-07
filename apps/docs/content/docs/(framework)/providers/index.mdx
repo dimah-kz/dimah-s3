@@ -1,0 +1,65 @@
+---
+title: Providers
+description: S3-compatible storage quirks — what works the same, and what does not.
+icon: HardDrive
+---
+
+dimah-s3 talks to storage through the AWS SDK `S3Client`. Any endpoint that speaks enough of the S3 API can work — **AWS S3**, **Cloudflare R2**, **MinIO**, and many other S3-compatible services.
+
+“S3-compatible” is not identical to Amazon S3. Providers omit or ignore parts of the API. The ones that bite most often with a **presign-first** stack:
+
+| Topic                     | Why it matters                                                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Presigned POST vs PUT** | Default upload in dimah-s3 is `POST` (form/`createPresignedPost`). Some providers only accept **PUT**.                             |
+| **Object ACL**            | `acl: "public-read"` / `GetObjectAcl` need real ACL support. Others use **bucket policies** or a **public access** toggle instead. |
+| **Endpoint & addressing** | Custom endpoints often need `endpoint` and sometimes `forcePathStyle: true`.                                                       |
+| **CORS**                  | Browser uploads hit the storage origin directly — the **bucket** must allow your app origin, methods, and headers.                 |
+| **Public URLs**           | Public reads may use a CDN / custom domain / `*.r2.dev`, not `ACL: public-read`.                                                   |
+
+## Quick comparison
+
+|                    | [AWS S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) |
+| ------------------ | :------------------------------: | :--------------------------------------------: | :----------------------------: |
+| Presigned **POST** |                ✅                |                       ❌                       |               ✅               |
+| Presigned **PUT**  |                ✅                |                 ✅ (required)                  |               ✅               |
+| Object **ACL**     |                ✅                |                  ❌ (ignored)                  |       ❌ (use policies)        |
+| `resolveObjectAcl` |                ✅                |                       ❌                       |               ❌               |
+| Custom `endpoint`  |             Optional             |                    Required                    |            Required            |
+| `forcePathStyle`   |           Usually off            |                      Off                       |             **On**             |
+
+## dimah-s3 knobs
+
+```ts
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  // Default is "POST". Use "PUT" when the provider has no Presigned POST (e.g. R2).
+  upload: { enabled: true, method: "PUT" },
+  // Extra GetObjectAcl round-trip — leave false unless the provider supports ACL.
+  resolveObjectAcl: false,
+});
+```
+
+Client hooks and `@dimah-s3/ui` already honor `method: "PUT" | "POST"` from the presign response — you only change server config.
+
+## Pick a guide
+
+<Cards>
+  <Card
+    title="Amazon S3"
+    href="/docs/providers/aws-s3"
+    description="Full S3 surface — POST, ACL, regions, and bucket CORS."
+  />
+  <Card
+    title="Cloudflare R2"
+    href="/docs/providers/cloudflare-r2"
+    description="PUT-only uploads, no ACL, public access via bucket settings."
+  />
+  <Card
+    title="MinIO"
+    href="/docs/providers/minio"
+    description="Self-hosted / local — path-style endpoint and bucket policies."
+  />
+</Cards>
+
+Wire the client in [Server setup](/docs/server/setup), then come back here when something fails only on one provider.

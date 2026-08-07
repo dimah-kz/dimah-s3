@@ -9,6 +9,12 @@ Enable upload in config before these hooks run:
 upload: { enabled: true },
 ```
 
+Default `method` is `"POST"` (Presigned POST). Use `"PUT"` for providers without POST support (notably [Cloudflare R2](/docs/providers/cloudflare-r2)):
+
+```ts
+upload: { enabled: true, method: "PUT" },
+```
+
 **Flow:** `presignGuard` → `onPresigned` → browser uploads to S3 → `confirmGuard` → `onConfirmed`
 
 ## Presign guard

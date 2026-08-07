@@ -1,0 +1,72 @@
+---
+title: MinIO
+description: Self-hosted S3 — path-style endpoint, policies instead of ACL.
+icon: Server
+---
+
+MinIO is a self-hosted / local S3-compatible server. It is excellent for development and private deployments. Treat it as **S3-like with path-style addressing and policy-based access**, not a drop-in for every AWS ACL feature.
+
+## Client
+
+```env title=".env"
+MINIO_ENDPOINT="http://localhost:9000"
+MINIO_ACCESS_KEY="your-access-key"
+MINIO_SECRET_KEY="your-secret-key"
+MINIO_BUCKET="your-bucket-name"
+```
+
+```ts title="lib/s3-client.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const s3Client = new S3Client({
+  region: "us-east-1",
+  endpoint: process.env.MINIO_ENDPOINT!,
+  forcePathStyle: true,
+  credentials: {
+    accessKeyId: process.env.MINIO_ACCESS_KEY!,
+    secretAccessKey: process.env.MINIO_SECRET_KEY!,
+  },
+});
+
+export const defaultBucket = process.env.MINIO_BUCKET!;
+```
+
+**`forcePathStyle: true` is required** for typical MinIO setups (URLs look like `http://host:9000/bucket/key` instead of `http://bucket.host/...`).
+
+`region` is often `"us-east-1"` even when MinIO is local — match whatever your MinIO / SDK examples use; consistency matters more than a real AWS region.
+
+## Upload method
+
+Presigned **POST** and **PUT** both generally work. Default dimah-s3 config is fine:
+
+```ts
+upload: { enabled: true }, // POST
+```
+
+Use `method: "PUT"` if you prefer the same shape as R2 or hit a POST/policy edge case with your MinIO version.
+
+## ACL vs bucket policies
+
+MinIO does **not** model object ACL the way Amazon S3 does. Prefer **bucket policies** (and anonymous / prefix policies) for public or restricted access.
+
+Practical guidance with dimah-s3:
+
+- Leave objects **private** and use **presigned download** when you need temporary access.
+- For public assets, attach a read policy on a prefix/bucket — do not expect `acl: "public-read"` alone to make objects world-readable.
+- Keep `resolveObjectAcl: false`.
+
+## CORS
+
+Local MinIO is often permissive enough for browser uploads out of the box. For locked-down or remote MinIO, set bucket CORS (or server CORS env) so your app origin can `PUT` / `POST` / `GET` with the headers you sign.
+
+If the app runs on `https://…` and MinIO on `http://localhost:9000`, the browser will treat that as cross-origin — CORS still matters.
+
+## Checklist
+
+- [ ] `endpoint` points at your MinIO API (not the console UI port)
+- [ ] `forcePathStyle: true`
+- [ ] Bucket exists before first upload
+- [ ] Access via policies / private + presign — not AWS-style object ACL
+- [ ] CORS covers your frontend origin when uploading from the browser
+
+Same wiring as other providers: [Server setup](/docs/server/setup).

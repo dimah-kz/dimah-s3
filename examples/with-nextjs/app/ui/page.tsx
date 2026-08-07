@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { localStorageStore } from "@/lib/upload-store";
 import { ExampleSection } from "@/components/example-section";
-import { LocaleToggle } from "@/components/s3-provider";
 import {
   UploadButton,
   UploadDropzone,
@@ -18,16 +17,12 @@ export default function UiExamplesPage() {
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-10 p-8">
       <header>
-        <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-600">
-            ← Home
-          </Link>
-          <LocaleToggle />
-        </div>
+        <Link href="/" className="text-sm text-zinc-400 hover:text-zinc-600">
+          ← Home
+        </Link>
         <h1 className="mt-2 text-2xl font-bold">@dimah-s3/ui</h1>
         <p className="text-sm text-zinc-500">
           Pre-built components from the <code>@dimah-s3/ui</code> npm package.
-          Toggle locale to try English LTR vs Persian RTL UI strings.
         </p>
       </header>
 

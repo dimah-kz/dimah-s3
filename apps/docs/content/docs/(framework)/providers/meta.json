@@ -1,0 +1,6 @@
+{
+  "title": "Providers",
+  "description": "S3-compatible storage quirks and setup notes",
+  "icon": "HardDrive",
+  "pages": ["index", "aws-s3", "cloudflare-r2", "minio"]
+}

@@ -1,0 +1,90 @@
+---
+title: Amazon S3
+description: Regions, Presigned POST/PUT, ACL, and bucket CORS for AWS S3.
+icon: Cloud
+---
+
+Amazon S3 is the reference implementation. dimah-s3 defaults (`upload.method: "POST"`, optional ACL) match it well.
+
+## Client
+
+```env title=".env"
+AWS_REGION="us-east-1"
+AWS_ACCESS_KEY_ID="your-access-key-id"
+AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+AWS_S3_BUCKET="your-bucket-name"
+```
+
+```ts title="lib/s3-client.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+
+export const s3Client = new S3Client({
+  region: process.env.AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
+export const defaultBucket = process.env.AWS_S3_BUCKET!;
+```
+
+No custom `endpoint` and no `forcePathStyle` for standard AWS endpoints.
+
+## Upload method
+
+Both work:
+
+| Method               | How                                    | Notes                                                                                       |
+| -------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **`POST`** (default) | Presigned form (`createPresignedPost`) | Good when you want policy fields (`acl`, `Content-Type`, content-length range) in the form. |
+| **`PUT`**            | Presigned `PutObject` URL              | Simpler request; signed headers must match exactly (e.g. `Content-Type`).                   |
+
+```ts
+upload: { enabled: true }, // method defaults to "POST"
+```
+
+## ACL and public objects
+
+Object ACL (`private` / `public-read`) is supported. dimah-s3 can send `ACL` on upload / multipart init.
+
+Notes:
+
+- Prefer **bucket policies** + **Block Public Access** settings when you can — AWS has been moving away from per-object ACL as the primary model.
+- Enable `resolveObjectAcl: true` only if you need ACL inferred via `GetObjectAcl` on confirm (extra S3 call per confirm).
+
+```ts
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: { enabled: true },
+  resolveObjectAcl: true, // optional
+});
+```
+
+## CORS (browser uploads)
+
+The browser uploads **directly to S3**, not through your API. Configure CORS on the bucket, for example:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://your-app.example"],
+    "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "Content-Type"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+Tighten `AllowedOrigins` / `AllowedHeaders` for production. Include **`PUT`** if you use `upload.method: "PUT"`, and **`POST`** for the default.
+
+## Checklist
+
+- [ ] Correct `AWS_REGION` for the bucket
+- [ ] IAM user/role can `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, and multipart ops if enabled
+- [ ] Bucket CORS allows your app origin and upload methods
+- [ ] If objects should be public, ACL **or** bucket policy is intentional — not accidental
+
+Full install path: [Server setup](/docs/server/setup).

@@ -17,7 +17,7 @@ pnpm --filter @dimah-s3/example-with-nextjs dev
 
 ## Routes
 
-- [`/ui`](http://localhost:3000/ui) — `@dimah-s3/ui` npm package demos (includes locale / RTL toggle)
+- [`/ui`](http://localhost:3000/ui) — `@dimah-s3/ui` npm package demos
 - [`/registry`](http://localhost:3000/registry) — placeholder for shadcn registry installs
 
 ## License
