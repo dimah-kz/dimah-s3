@@ -6,15 +6,15 @@ icon: Plug
 
 `dimahS3()` exposes a Web-standard `handler` (`Request` → `Response`). Adapters map that handler onto each framework’s route API. They are **subpath exports** — import only the one you need; no framework peer dependencies.
 
-| Framework | Import | Helper |
-| --- | --- | --- |
-| Next.js (App Router) | `@dimah-s3/server/next` | `toNextJsHandler` |
-| Express / Connect | `@dimah-s3/server/express` | `toExpressHandler` |
-| Node.js `http` | `@dimah-s3/server/node` | `toNodeHandler` |
-| Hono | `@dimah-s3/server/hono` | `toHonoHandler` |
-| Fastify | `@dimah-s3/server/fastify` | `toFastifyHandler` |
-| Elysia | `@dimah-s3/server/elysia` | `toElysiaHandler` |
-| SvelteKit | `@dimah-s3/server/svelte-kit` | `toSvelteKitHandler` |
+| Framework            | Import                        | Helper               |
+| -------------------- | ----------------------------- | -------------------- |
+| Next.js (App Router) | `@dimah-s3/server/next`       | `toNextJsHandler`    |
+| Express / Connect    | `@dimah-s3/server/express`    | `toExpressHandler`   |
+| Node.js `http`       | `@dimah-s3/server/node`       | `toNodeHandler`      |
+| Hono                 | `@dimah-s3/server/hono`       | `toHonoHandler`      |
+| Fastify              | `@dimah-s3/server/fastify`    | `toFastifyHandler`   |
+| Elysia               | `@dimah-s3/server/elysia`     | `toElysiaHandler`    |
+| SvelteKit            | `@dimah-s3/server/svelte-kit` | `toSvelteKitHandler` |
 
 Any other Fetch-compatible runtime (Cloudflare Workers, Bun.serve, Remix / TanStack Start loaders) can call `s3.handler(request)` directly.
 
@@ -153,9 +153,7 @@ import { Elysia } from "elysia";
 import { toElysiaHandler } from "@dimah-s3/server/elysia";
 import { s3 } from "./s3";
 
-new Elysia()
-  .all("/api/s3/*", toElysiaHandler(s3))
-  .listen(3000);
+new Elysia().all("/api/s3/*", toElysiaHandler(s3)).listen(3000);
 ```
 
 ---
