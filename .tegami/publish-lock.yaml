@@ -1,26 +1,26 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Add framework adapters for popular servers\n\nMount `dimahS3().handler` with first-class adapters for Express, Hono, Fastify, Elysia, and SvelteKit (alongside Next.js and Node). Each ships as a subpath export such as `@dimah-s3/server/hono` with no framework peer dependency.\n"
-    filename: 2026-08-07-framework-adapters.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Fix upload toast progress updates\n\nUpload progress toasts now update in place instead of re-adding on each progress tick, so the loading toast stays stable during uploads.\n"
+    filename: 2026-08-07-upload-toast-update.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-07-framework-adapters.md
+      - 2026-08-07-upload-toast-update.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-07-framework-adapters.md
+      - 2026-08-07-upload-toast-update.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-07-framework-adapters.md
+      - 2026-08-07-upload-toast-update.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-07-framework-adapters.md
+      - 2026-08-07-upload-toast-update.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-07-framework-adapters.md
+      - 2026-08-07-upload-toast-update.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:

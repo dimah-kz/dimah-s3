@@ -1,3 +1,9 @@
+## @dimah-s3/server@0.4.1
+
+### Fix upload toast progress updates
+
+Upload progress toasts now update in place instead of re-adding on each progress tick, so the loading toast stays stable during uploads.
+
 ## @dimah-s3/server@0.4.0
 
 ### Add framework adapters for popular servers
