@@ -25,7 +25,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Already using shadcn [toast](https://ui.shadcn.com/docs/components/base/toast) for your own messages? Mount both — rename one import (`Toaster as DimahToaster`). They are independent; your code keeps `import { toast } from "@/components/ui/toast"`.
+Already using shadcn [toast](https://ui.shadcn.com/docs/components/base/toast) for your own messages? Mount both — rename one import (`Toaster as DimahToaster`). They are independent; your code keeps `import { toast } from "@/components/ui/toast"` and `toast.add({ … })`.
 
 </section>
 
@@ -55,5 +55,7 @@ export default function RootLayout({ children }) {
   );
 }
 ```
+
+Trigger toasts with `toast.add` / `toast.update` / `toast.close` / `toast.promise` from the same module — not the old Sonner helpers (`toast.success`, `toast.error`, …).
 
 </section>

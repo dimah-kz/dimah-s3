@@ -1,15 +1,14 @@
 ---
 title: Cloudflare R2
 description: PUT uploads, no ACL, endpoint setup, and public access on R2.
-icon: CloudFog
 ---
 
-R2 exposes an S3-compatible API, but it is **not** a full Amazon S3 clone. Two differences break a naïve “copy the AWS config” setup:
+R2 exposes an S3-compatible API, but it is not a full Amazon S3 clone. Two differences break a naïve AWS copy:
 
-1. **No Presigned POST** — browser form uploads signed with `createPresignedPost` fail. Use **PUT**.
-2. **No object ACL** — `x-amz-acl` / `ACL` are ignored. Public access is a **bucket** (or custom domain) setting.
+1. **No Presigned POST** — form uploads signed with `createPresignedPost` fail. Use **PUT**.
+2. **No object ACL** — `x-amz-acl` / `ACL` are ignored. Public access is a bucket (or custom domain) setting.
 
-## Required dimah-s3 config
+## Required config
 
 ```ts title="lib/s3.ts"
 import { dimahS3 } from "@dimah-s3/server";
@@ -24,7 +23,6 @@ export const s3 = dimahS3({
   },
   download: { enabled: true },
   delete: { enabled: true },
-  // GetObjectAcl is not meaningful on R2
   resolveObjectAcl: false,
 });
 ```
@@ -33,7 +31,7 @@ Leaving `method` at the default `"POST"` is the most common R2 upload failure wi
 
 ## Client
 
-```env title=".env"
+```dotenv title=".env"
 R2_ENDPOINT="https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
 R2_ACCESS_KEY_ID="your-access-key-id"
 R2_SECRET_ACCESS_KEY="your-secret-access-key"
@@ -55,25 +53,25 @@ export const s3Client = new S3Client({
 export const defaultBucket = process.env.R2_DEFAULT_BUCKET_NAME!;
 ```
 
-Create **R2 API tokens** with Object Read & Write (and Admin Read if you need bucket listing) in the Cloudflare dashboard. Endpoint format: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+Create R2 API tokens with Object Read & Write in the Cloudflare dashboard. Endpoint format: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
 
-## ACL and public files
+## Public access
 
-Do **not** rely on `acl: "public-read"` for R2. The SDK may accept the header; R2 ignores it.
+Do not rely on `acl: "public-read"`. The SDK may accept the header; R2 ignores it.
 
 For public objects:
 
-1. Enable **public access** on the bucket (or attach a **custom domain** / `*.r2.dev` public URL in the dashboard).
-2. Serve files via that public base URL, or keep the bucket private and use **presigned download** (`download` feature) for temporary access.
+1. Enable **public access** on the bucket, or attach a **custom domain** / `*.r2.dev` URL.
+2. Serve files via that public base URL, or keep the bucket private and use **presigned download**.
 
 Keep `resolveObjectAcl` off — ACL lookup will not behave like AWS.
 
 ## Multipart
 
-Multipart upload is supported. Quirks to remember:
+Multipart upload is supported. Notes:
 
-- Non-trailing parts should be the **same size** (R2 enforces uniform part size).
-- Incomplete multipart uploads expire (default lifecycle) — abort or purge stale uploads if you track them in [db](/docs/db).
+- Non-trailing parts must be the **same size** (R2 enforces uniform part size).
+- Incomplete uploads expire — abort or [purge](/docs/db/purge) stale ones if you track them in the database.
 
 dimah-s3 multipart uses signed **PUT** parts, so it aligns with R2.
 

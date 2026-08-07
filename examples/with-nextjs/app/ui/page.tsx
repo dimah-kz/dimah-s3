@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { localStorageStore } from "@/lib/upload-store";
 import { ExampleSection } from "@/components/example-section";
 import {
   UploadButton,
@@ -51,27 +50,17 @@ export default function UiExamplesPage() {
       </ExampleSection>
 
       <ExampleSection
-        title="Resumable multipart"
-        badge="uploadStore"
-        desc={
-          <>
-            Files above 2 MB use multipart. <code>uploadId</code> is stored in{" "}
-            <code>localStorage</code> — use pause to keep parts, or cancel to
-            abort. Re-select the same file to resume after pause.
-          </>
-        }
+        title="Multipart upload"
         code={`<UploadDropzone
   objectKey={(file) => \`uploads/\${file.name}\`}
   multipart
   multipartThreshold={2 * MB}
-  uploadStore={localStorageStore}
 />`}
       >
         <UploadDropzone
           objectKey={(file: File) => `uploads/${file.name}`}
           multipart
           multipartThreshold={2 * MB}
-          uploadStore={localStorageStore}
         />
       </ExampleSection>
 

@@ -7,10 +7,10 @@
     "index",
     "comparison",
     "quickstart",
-    "providers",
     "---components---",
     ".../../react/ui",
     "---features---",
+    "providers",
     "db",
     "i18n"
   ]

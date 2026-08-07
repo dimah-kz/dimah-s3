@@ -12,7 +12,7 @@ npm i @dimah-s3/server @dimah-s3/react @dimah-s3/ui @aws-sdk/client-s3
 
 ### S3 client [step]
 
-```env title=".env"
+```dotenv title=".env"
 S3_ENDPOINT="https://your-endpoint.example.com"
 S3_REGION="auto"
 S3_ACCESS_KEY_ID="your-access-key-id"
@@ -127,9 +127,10 @@ export function S3ClientProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Then mount your layout inside the provider:
+Mount once near your app root — provider for hooks/UI, toaster for feedback (same pattern as the examples):
 
 ```tsx title="app/layout.tsx"
+import { Toaster } from "@dimah-s3/ui";
 import { S3ClientProvider } from "@/components/s3-provider";
 
 export default function RootLayout({
@@ -141,17 +142,18 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <S3ClientProvider>{children}</S3ClientProvider>
+        <Toaster />
       </body>
     </html>
   );
 }
 ```
 
-Mount it once near your app root so hooks and UI components can access the same client.
+Registry installs: import `Toaster` from `@/components/ui/toast` instead of `@dimah-s3/ui`.
 
 ### UI setup [step]
 
-Install the UI package (or a registry item), set theme variables, and mount the toaster:
+Theme variables and package install (toaster is already in the layout above):
 
 <Tabs items={["npm package", "shadcn registry"]}>
 

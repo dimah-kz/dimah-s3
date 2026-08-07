@@ -146,36 +146,44 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
         ? fileList[0].progress
         : { loaded: 0, total: 0, percent: 0 });
 
-    const id = toastIdRef.current ?? `upload-${Date.now()}`;
-    toastIdRef.current = id;
-    if (isMulti) {
-      const done = fileList.filter((f) => f.status === "success").length;
-      toast.add({
-        id,
-        type: "loading",
-        timeout: 0,
-        title: t("Uploading {done}/{total}", {
-          note: "toast",
-          variables: { done: String(done), total: String(fileList.length) },
-        }),
-        description: progressNode(total.loaded, total.total),
-        actionProps: {
-          children: t("Cancel", { note: "toast action" }),
-          onClick: () => cancelRef.current(),
-        },
-      });
-    } else if (file) {
-      toast.add({
-        id,
-        type: "loading",
-        timeout: 0,
-        title: t("Uploading", { note: "toast" }),
-        description: progressNode(singleProgress.loaded, file.size),
-        actionProps: {
-          children: t("Cancel", { note: "toast action" }),
-          onClick: () => cancelRef.current(),
-        },
-      });
+    const payload = isMulti
+      ? {
+          type: "loading" as const,
+          timeout: 0,
+          title: t("Uploading {done}/{total}", {
+            note: "toast",
+            variables: {
+              done: String(
+                fileList.filter((f) => f.status === "success").length,
+              ),
+              total: String(fileList.length),
+            },
+          }),
+          description: progressNode(total.loaded, total.total),
+          actionProps: {
+            children: t("Cancel", { note: "toast action" }),
+            onClick: () => cancelRef.current(),
+          },
+        }
+      : file
+        ? {
+            type: "loading" as const,
+            timeout: 0,
+            title: t("Uploading", { note: "toast" }),
+            description: progressNode(singleProgress.loaded, file.size),
+            actionProps: {
+              children: t("Cancel", { note: "toast action" }),
+              onClick: () => cancelRef.current(),
+            },
+          }
+        : null;
+
+    if (!payload) return;
+
+    if (toastIdRef.current) {
+      toast.update(toastIdRef.current, payload);
+    } else {
+      toastIdRef.current = toast.add(payload);
     }
   }, [enabled, phase, mode, fileInfo, files, progress, totalProgress, t]);
 }

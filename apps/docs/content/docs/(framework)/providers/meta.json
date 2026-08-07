@@ -1,6 +1,7 @@
 {
   "title": "Providers",
-  "description": "S3-compatible storage quirks and setup notes",
+  "description": "S3-compatible storage setup for AWS S3, R2, and MinIO",
   "icon": "HardDrive",
+  "defaultOpen": false,
   "pages": ["index", "aws-s3", "cloudflare-r2", "minio"]
 }
