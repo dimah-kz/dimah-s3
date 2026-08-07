@@ -11,7 +11,7 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1102.0",
+    "@aws-sdk/client-s3": "^3.1104.0",
     "@base-ui/react": "^1.7.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",

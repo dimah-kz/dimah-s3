@@ -15,7 +15,7 @@
     "db:purge-stale": "node --import tsx --env-file-if-exists=.env scripts/purge-stale-pending.mts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1102.0",
+    "@aws-sdk/client-s3": "^3.1104.0",
     "@base-ui/react": "^1.7.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/db": "workspace:*",
@@ -23,7 +23,7 @@
     "@dimah-s3/server": "workspace:*",
     "@dimah-s3/ui": "workspace:*",
     "@paralleldrive/cuid2": "^3.3.0",
-    "better-sqlite3": "^13.0.2",
+    "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
     "drizzle-orm": "^0.45.2",
@@ -48,7 +48,7 @@
     "eslint": "catalog:",
     "shadcn": "^4.16.1",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.5",
+    "tsx": "^4.23.8",
     "typescript": "catalog:"
   }
 }
