@@ -1,0 +1,199 @@
+---
+title: Adapters
+description: Mount dimah-s3 on Next.js, Express, Hono, Fastify, Elysia, SvelteKit, and Node.
+icon: Plug
+---
+
+`dimahS3()` exposes a Web-standard `handler` (`Request` → `Response`). Adapters map that handler onto each framework’s route API. They are **subpath exports** — import only the one you need; no framework peer dependencies.
+
+| Framework | Import | Helper |
+| --- | --- | --- |
+| Next.js (App Router) | `@dimah-s3/server/next` | `toNextJsHandler` |
+| Express / Connect | `@dimah-s3/server/express` | `toExpressHandler` |
+| Node.js `http` | `@dimah-s3/server/node` | `toNodeHandler` |
+| Hono | `@dimah-s3/server/hono` | `toHonoHandler` |
+| Fastify | `@dimah-s3/server/fastify` | `toFastifyHandler` |
+| Elysia | `@dimah-s3/server/elysia` | `toElysiaHandler` |
+| SvelteKit | `@dimah-s3/server/svelte-kit` | `toSvelteKitHandler` |
+
+Any other Fetch-compatible runtime (Cloudflare Workers, Bun.serve, Remix / TanStack Start loaders) can call `s3.handler(request)` directly.
+
+Default mount path is `/api/s3`. Keep `basePath` in sync with the client when you customize it.
+
+---
+
+## Next.js
+
+```ts title="app/api/s3/[...s3]/route.ts"
+import { toNextJsHandler } from "@dimah-s3/server/next";
+import { s3 } from "@/lib/s3";
+
+export const { GET, POST, DELETE } = toNextJsHandler(s3);
+```
+
+---
+
+## Express
+
+Mount the adapter **before** `express.json()` so the body is not consumed early.
+
+<Tabs items={["Express 4", "Express 5"]}>
+<Tab value="Express 4">
+
+```ts title="server.ts"
+import express from "express";
+import { toExpressHandler, fromNodeHeaders } from "@dimah-s3/server/express";
+import { s3 } from "./s3";
+
+const app = express();
+
+app.all("/api/s3/*", toExpressHandler(s3));
+app.use(express.json());
+
+app.listen(3000);
+```
+
+</Tab>
+<Tab value="Express 5">
+
+```ts title="server.ts"
+import express from "express";
+import { toExpressHandler } from "@dimah-s3/server/express";
+import { s3 } from "./s3";
+
+const app = express();
+
+// Express 5 uses a named wildcard
+app.all("/api/s3/*splat", toExpressHandler(s3));
+app.use(express.json());
+
+app.listen(3000);
+```
+
+</Tab>
+</Tabs>
+
+Call `s3.api` from Express routes with Web headers:
+
+```ts
+import { fromNodeHeaders } from "@dimah-s3/server/express";
+
+app.get("/download-url", async (req, res) => {
+  const result = await s3.api.download(req.query.key as string, {
+    headers: fromNodeHeaders(req.headers),
+  });
+  res.json(result);
+});
+```
+
+---
+
+## Node.js
+
+```ts title="server.ts"
+import { createServer } from "node:http";
+import { toNodeHandler } from "@dimah-s3/server/node";
+import { s3 } from "./s3";
+
+const handler = toNodeHandler(s3);
+
+createServer((req, res) => {
+  if (req.url?.startsWith("/api/s3")) {
+    return handler(req, res);
+  }
+  res.statusCode = 404;
+  res.end("Not found");
+}).listen(3000);
+```
+
+`toExpressHandler` is the same Node adapter with Express-oriented docs; use either export.
+
+---
+
+## Hono
+
+```ts title="src/index.ts"
+import { Hono } from "hono";
+import { toHonoHandler } from "@dimah-s3/server/hono";
+import { s3 } from "./s3";
+
+const app = new Hono();
+
+app.on(["GET", "POST", "DELETE"], "/api/s3/*", toHonoHandler(s3));
+
+export default app;
+```
+
+Equivalent without the helper: `(c) => s3.handler(c.req.raw)`.
+
+---
+
+## Fastify
+
+The Fastify adapter hijacks the reply and writes through the Node stream. Register it **before** JSON body parsers (or disable parsing for this path).
+
+```ts title="server.ts"
+import Fastify from "fastify";
+import { toFastifyHandler } from "@dimah-s3/server/fastify";
+import { s3 } from "./s3";
+
+const app = Fastify();
+
+app.all("/api/s3/*", toFastifyHandler(s3));
+
+await app.listen({ port: 3000 });
+```
+
+---
+
+## Elysia
+
+```ts title="src/index.ts"
+import { Elysia } from "elysia";
+import { toElysiaHandler } from "@dimah-s3/server/elysia";
+import { s3 } from "./s3";
+
+new Elysia()
+  .all("/api/s3/*", toElysiaHandler(s3))
+  .listen(3000);
+```
+
+---
+
+## SvelteKit
+
+```ts title="src/routes/api/s3/[...path]/+server.ts"
+import { toSvelteKitHandler } from "@dimah-s3/server/svelte-kit";
+import { s3 } from "$lib/s3";
+
+const handler = toSvelteKitHandler(s3);
+
+export const GET = handler;
+export const POST = handler;
+export const DELETE = handler;
+```
+
+---
+
+## Web standard (Workers, Bun, Remix, TanStack Start)
+
+No adapter needed when your runtime already gives you a `Request`:
+
+```ts
+export default {
+  fetch(request: Request) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/s3")) {
+      return s3.handler(request);
+    }
+    return new Response("Not found", { status: 404 });
+  },
+};
+```
+
+```ts
+// Remix / TanStack Start style
+export async function action({ request }: { request: Request }) {
+  return s3.handler(request);
+}
+```

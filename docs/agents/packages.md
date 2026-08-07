@@ -23,7 +23,7 @@
 2. Hook context types beside other `types/*-context.ts` files.
 3. Feature flags via `DimahS3Config` (`upload`, `download`, `delete`, `multipart`) — disabled → 404.
 4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only.
-5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); Next: `toNextJsHandler(s3)`.
+5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
 
 ## When adding or changing a server plugin
 

@@ -6,6 +6,7 @@
   "pages": [
     "index",
     "setup",
+    "adapters",
     "helpers",
     "---server hooks---",
     "...hooks",

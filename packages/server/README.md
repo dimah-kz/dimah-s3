@@ -26,12 +26,22 @@ export const s3 = dimahS3({
 });
 ```
 
-```ts
-import { toNextJsHandler } from "@dimah-s3/server/next";
-import { s3 } from "@/lib/s3";
+Mount with a framework adapter:
 
+```ts
+// Next.js
+import { toNextJsHandler } from "@dimah-s3/server/next";
 export const { GET, POST, DELETE } = toNextJsHandler(s3);
+
+// Express — @dimah-s3/server/express → toExpressHandler
+// Hono    — @dimah-s3/server/hono → toHonoHandler
+// Fastify — @dimah-s3/server/fastify → toFastifyHandler
+// Elysia  — @dimah-s3/server/elysia → toElysiaHandler
+// SvelteKit — @dimah-s3/server/svelte-kit → toSvelteKitHandler
+// Node http — @dimah-s3/server/node → toNodeHandler
 ```
+
+See [Adapters](https://dimah-s3.vercel.app/docs/server/adapters) for full examples.
 
 Server-side (no HTTP):
 

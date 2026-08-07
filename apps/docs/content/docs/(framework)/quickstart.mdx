@@ -45,7 +45,7 @@ export const s3 = dimahS3({
 });
 ```
 
-<Tabs items={["Next.js", "Other frameworks"]}>
+<Tabs items={["Next.js", "Express", "Hono", "SvelteKit"]}>
 
 <Tab value="Next.js">
 
@@ -58,13 +58,50 @@ export const { GET, POST, DELETE } = toNextJsHandler(s3);
 
 </Tab>
 
-<Tab value="Other frameworks">
+<Tab value="Express">
 
-Examples for other frameworks will be added soon.
+```ts title="server.ts"
+import express from "express";
+import { toExpressHandler } from "@dimah-s3/server/express";
+import { s3 } from "./s3";
+
+const app = express();
+app.all("/api/s3/*", toExpressHandler(s3));
+app.use(express.json());
+```
+
+</Tab>
+
+<Tab value="Hono">
+
+```ts title="src/index.ts"
+import { Hono } from "hono";
+import { toHonoHandler } from "@dimah-s3/server/hono";
+import { s3 } from "./s3";
+
+const app = new Hono();
+app.on(["GET", "POST", "DELETE"], "/api/s3/*", toHonoHandler(s3));
+```
+
+</Tab>
+
+<Tab value="SvelteKit">
+
+```ts title="src/routes/api/s3/[...path]/+server.ts"
+import { toSvelteKitHandler } from "@dimah-s3/server/svelte-kit";
+import { s3 } from "$lib/s3";
+
+const handler = toSvelteKitHandler(s3);
+export const GET = handler;
+export const POST = handler;
+export const DELETE = handler;
+```
 
 </Tab>
 
 </Tabs>
+
+More frameworks (Fastify, Elysia, Node, Workers): [Server adapters](/docs/server/adapters).
 
 Upload-only is now live on `/api/s3`.
 

@@ -1,6 +1,34 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-import type { DimahS3 } from "../dimah-s3";
+import type {
+  IncomingHttpHeaders,
+  IncomingMessage,
+  ServerResponse,
+} from "node:http";
 import { errors } from "../errors";
+import type { DimahS3HandlerSource } from "./types";
+
+/**
+ * Convert Node.js / Express request headers into a Web {@link Headers} object.
+ * Useful when calling `s3.api.*` from a Node handler.
+ *
+ * @example
+ * ```ts
+ * import { fromNodeHeaders } from "@dimah-s3/server/node";
+ *
+ * await s3.api.download(key, { headers: fromNodeHeaders(req.headers) });
+ * ```
+ */
+export function fromNodeHeaders(nodeHeaders: IncomingHttpHeaders): Headers {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(nodeHeaders)) {
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      for (const v of value) headers.append(key, v);
+    } else {
+      headers.set(key, value);
+    }
+  }
+  return headers;
+}
 
 function collectBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -21,16 +49,7 @@ function toWebRequest(req: IncomingMessage, body: Buffer): Request {
       : "http";
   const url = new URL(req.url ?? "/", `${protocol}://${host}`);
 
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (value == null) continue;
-    if (Array.isArray(value)) {
-      for (const v of value) headers.append(key, v);
-    } else {
-      headers.set(key, value);
-    }
-  }
-
+  const headers = fromNodeHeaders(req.headers);
   const method = (req.method ?? "GET").toUpperCase();
   const init: RequestInit = { method, headers };
   if (method !== "GET" && method !== "HEAD") {
@@ -55,7 +74,7 @@ async function writeWebResponse(
 }
 
 /**
- * Adapt a {@link DimahS3} instance to Node.js `http` / Express-style handlers.
+ * Adapt a dimah-s3 instance to Node.js `http` / Express-style handlers.
  *
  * @example
  * ```ts
@@ -66,9 +85,7 @@ async function writeWebResponse(
  * createServer(toNodeHandler(s3)).listen(3000);
  * ```
  */
-export function toNodeHandler(
-  s3: Pick<DimahS3<Record<string, unknown>>, "handler">,
-) {
+export function toNodeHandler(s3: DimahS3HandlerSource) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
       const body = await collectBody(req);

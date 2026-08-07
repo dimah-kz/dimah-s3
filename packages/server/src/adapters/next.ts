@@ -1,7 +1,7 @@
-import type { DimahS3 } from "../dimah-s3";
+import type { DimahS3HandlerSource } from "./types";
 
 /**
- * Adapt a {@link DimahS3} instance to Next.js App Router route handlers.
+ * Adapt a dimah-s3 instance to Next.js App Router route handlers.
  *
  * @example
  * ```ts
@@ -11,9 +11,7 @@ import type { DimahS3 } from "../dimah-s3";
  * export const { GET, POST, DELETE } = toNextJsHandler(s3);
  * ```
  */
-export function toNextJsHandler(
-  s3: Pick<DimahS3<Record<string, unknown>>, "handler">,
-) {
+export function toNextJsHandler(s3: DimahS3HandlerSource) {
   return {
     GET: s3.handler,
     POST: s3.handler,

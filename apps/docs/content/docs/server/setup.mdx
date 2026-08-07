@@ -96,9 +96,9 @@ Hook reference: [Guard](/docs/server/hooks/guard), [Upload](/docs/server/hooks/u
 
 ### Route handler [step]
 
-Mount at `/api/s3` by default (`app/api/s3/[...s3]/route.ts` in Next.js).
+Mount at `/api/s3` by default. Full examples for every supported framework: [Adapters](/docs/server/adapters).
 
-<Tabs items={["Next.js", "Node.js", "Other"]}>
+<Tabs items={["Next.js", "Express", "Hono", "Web standard"]}>
 <Tab value="Next.js">
 
 ```ts title="app/api/s3/[...s3]/route.ts"
@@ -109,37 +109,48 @@ export const { GET, POST, DELETE } = toNextJsHandler(s3);
 ```
 
 </Tab>
-<Tab value="Node.js">
+<Tab value="Express">
 
 ```ts title="server.ts"
-import { createServer } from "node:http";
-import { toNodeHandler } from "@dimah-s3/server/node";
+import express from "express";
+import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
-const handler = toNodeHandler(s3);
-
-createServer((req, res) => {
-  if (req.url?.startsWith("/api/s3")) {
-    return handler(req, res);
-  }
-  res.statusCode = 404;
-  res.end("Not found");
-}).listen(3000);
+const app = express();
+app.all("/api/s3/*", toExpressHandler(s3)); // Express 5: "/api/s3/*splat"
+app.use(express.json());
 ```
 
-Works with Express via `app.use("/api/s3", toNodeHandler(s3))` when you mount so that the path still includes the dimah-s3 base path.
+</Tab>
+<Tab value="Hono">
+
+```ts title="src/index.ts"
+import { Hono } from "hono";
+import { toHonoHandler } from "@dimah-s3/server/hono";
+import { s3 } from "./s3";
+
+const app = new Hono();
+app.on(["GET", "POST", "DELETE"], "/api/s3/*", toHonoHandler(s3));
+```
 
 </Tab>
-<Tab value="Other">
+<Tab value="Web standard">
 
 ```ts
-import { s3 } from "@/lib/s3";
+import { s3 } from "./s3";
 
-app.all("/api/s3/*", (c) => s3.handler(c.req.raw)); // Hono, Workers, etc.
+// Cloudflare Workers, Bun, Remix, TanStack Start, …
+export default {
+  fetch(request: Request) {
+    return s3.handler(request);
+  },
+};
 ```
 
 </Tab>
 </Tabs>
+
+Also available: `@dimah-s3/server/fastify`, `@dimah-s3/server/elysia`, `@dimah-s3/server/svelte-kit`, `@dimah-s3/server/node`.
 
 Custom base path — set `basePath` on `dimahS3({ basePath })` and pass the same value to `createS3Client({ basePath })` on the client.
 

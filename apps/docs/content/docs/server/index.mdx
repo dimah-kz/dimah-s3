@@ -17,7 +17,7 @@ Clients transfer bytes **directly with S3**; your server only signs URLs and run
 - **One instance** — `dimahS3()` gives HTTP `handler` and direct `api`
 - **Lifecycle hooks** — auth, validation, and DB writes at each step
 - **Verified uploads** — `HeadObject` before trusting file metadata
-- **Any runtime** — Next.js, Hono, Bun, Workers, and any `Request`/`Response` stack
+- **Any runtime** — first-class adapters for Next.js, Express, Hono, Fastify, Elysia, SvelteKit, plus any `Request`/`Response` stack
 
 ## Documentation
 
@@ -26,6 +26,11 @@ Clients transfer bytes **directly with S3**; your server only signs URLs and run
     title="Setup"
     href="/docs/server/setup"
     description="S3 client, config, route handlers, and typed client."
+  />
+  <Card
+    title="Adapters"
+    href="/docs/server/adapters"
+    description="Mount on Next.js, Express, Hono, Fastify, Elysia, SvelteKit, and more."
   />
   <Card
     title="Helpers"
