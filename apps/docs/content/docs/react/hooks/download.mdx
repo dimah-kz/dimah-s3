@@ -3,10 +3,8 @@ title: Download
 description: Download hooks for native and fetch-based flows.
 ---
 
-Two hooks cover common download flows:
-
-- **`useDownload`** — presigns a URL and triggers a native browser download (no progress).
-- **`useFetchDownload`** — downloads via `fetch` with progress and cancellation.
+- **`useDownload`** — native browser download (no progress)
+- **`useFetchDownload`** — `fetch` with progress and cancel
 
 ---
 
@@ -19,37 +17,15 @@ import { useDownload } from "@dimah-s3/react";
 
 const { phase, download, presign } = useDownload();
 
-// Trigger a native browser download
 await download("reports/2024.pdf", "Annual Report.pdf");
 
-// Or just get the presigned URL (for image previews, etc.)
+// URL only — previews, embeds, custom links
 const result = await presign("images/photo.jpg");
 ```
-
-<Callout type="tip">
-  `presign()` returns a URL without triggering a download — useful for **image
-  previews**, video embeds, or building custom download links.
-</Callout>
-
-### Options
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-download.ts"
-  name="UseDownloadOptions"
-/>
-
-### Return value
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-download.ts"
-  name="UseDownloadReturn"
-/>
 
 ---
 
 ## Fetch download with progress
-
-Downloads through `fetch` so you can show a progress bar and allow cancellation.
 
 ```tsx
 "use client";
@@ -58,33 +34,6 @@ import { useFetchDownload } from "@dimah-s3/react";
 
 const { phase, progress, download, cancel } = useFetchDownload();
 
-// In JSX:
-// <button onClick={() => isActive ? cancel() : download("file.zip")}>
-//   {phase === "downloading" ? `${progress.percent}% — Cancel` : "Download"}
-// </button>
+await download("file.zip");
+// cancel() to abort
 ```
-
-### Options
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-fetch-download.ts"
-  name="UseFetchDownloadOptions"
-/>
-
-### Return value
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-fetch-download.ts"
-  name="UseFetchDownloadReturn"
-/>
-
----
-
-## When to use which
-
-| Scenario                    | Hook                        |
-| --------------------------- | --------------------------- |
-| Simple download link        | `useDownload`               |
-| Image preview / custom link | `useDownload` → `presign()` |
-| Progress bar needed         | `useFetchDownload`          |
-| Cancellable download        | `useFetchDownload`          |

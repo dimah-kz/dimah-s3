@@ -3,23 +3,21 @@ title: Upload
 description: Upload hooks for single and multiple files.
 ---
 
-| Hook                                                    | Use case                                            |
-| ------------------------------------------------------- | --------------------------------------------------- |
-| [`useUploadControls`](#upload-controls)                 | **Default**: one file, picker + drag-and-drop       |
-| [`useMultiUploadControls`](#multi-file-upload-controls) | Multiple files, picker + drag-and-drop              |
-| [`useUpload`](#upload)                                  | You already have a `File`; call `upload()` directly |
-| [`useMultiUpload`](#multi-file-upload)                  | You already have `File[]`; call `upload()` directly |
+| Hook                           | Use case                          |
+| ------------------------------ | --------------------------------- |
+| `useUploadControls`            | One file — picker + drag-and-drop |
+| `useMultiUploadControls`       | Many files — picker + drop        |
+| `useUpload` / `useMultiUpload` | You already have a `File`         |
 
 <Callout>
-  `accept` and `maxFileSize` are client-side checks only — mirror them in
-  `upload.presignGuard` on the server.
+  Enforce `accept` and `maxFileSize` on the server too (`presignGuard`).
 </Callout>
 
 ---
 
 ## `useUploadControls`
 
-Single-file helper. Spread `inputProps` on a hidden `<input>` and `dropHandlers` on a drop zone, like [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropzone`](/docs/react/ui/upload-dropzone).
+Same pattern as [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropzone`](/docs/react/ui/upload-dropzone).
 
 ```tsx
 "use client";
@@ -49,25 +47,11 @@ return (
 );
 ```
 
-### Options
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-upload-controls.ts"
-  name="UseUploadControlsOptions"
-/>
-
-### Return value
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-upload-controls.ts"
-  name="UseUploadControlsReturn"
-/>
-
 ---
 
 ## `useMultiUploadControls`
 
-Same picker + drop pattern, but `inputProps` sets `multiple` and `files` tracks each upload. Set `maxFiles > 1` — same as [`UploadDropzone`](/docs/react/ui/upload-dropzone) with `maxFiles`.
+Same as above, for multiple files. Set `maxFiles`.
 
 ```tsx
 "use client";
@@ -100,33 +84,15 @@ return (
 );
 ```
 
-### Options
-
-Extends the same upload config as `useUploadControls`, plus multi-file options:
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-multi-upload-controls.ts"
-  name="UseMultiUploadControlsOptions"
-/>
-
-### Return value
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-multi-upload-controls.ts"
-  name="UseMultiUploadControlsReturn"
-/>
-
 <Callout type="info">
-  **`multipart`** splits one **large** file into S3 parts — not multiple files.
-  For several files at once, use `useMultiUploadControls` (or `maxFiles > 1` on
-  UI components).
+  `multipart` splits one large file into parts — it is not multi-file upload.
 </Callout>
 
 ---
 
 ## Lower-level hooks
 
-When you already have `File` objects — custom inputs, clipboard paste, camera APIs — skip the picker helpers and call `upload()` directly.
+Skip the picker when you already have a `File`.
 
 ### `useUpload`
 
@@ -147,4 +113,4 @@ const { files, totalProgress, upload, cancel, reset } = useMultiUpload({
 await upload(fileArray, (file) => `uploads/${file.name}`);
 ```
 
-Both accept the same `UploadConfig` and lifecycle hooks as the controls variants (`accept`, `maxFileSize`, `multipart`, `onSuccess`, …).
+Same options as the controls hooks (`accept`, `maxFileSize`, `onSuccess`, …).
