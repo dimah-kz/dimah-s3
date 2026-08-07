@@ -1,4 +1,7 @@
+import corePackage from "../../../../packages/core/package.json";
+
 export const appName = "dimah-s3";
+export const packageVersion = corePackage.version;
 export const docsRoute = "/docs";
 export const docsImageRoute = "/og/docs";
 export const docsContentRoute = "/llms.mdx/docs";
