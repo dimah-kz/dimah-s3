@@ -1,3 +1,7 @@
+## @dimah-s3/server@0.3.1
+
+### update deps
+
 ## @dimah-s3/server@0.3.0
 
 ### Drizzle ORM 1.x peer support
