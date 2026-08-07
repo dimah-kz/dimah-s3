@@ -29,31 +29,7 @@ export const s3 = dimahS3({
 
 Leaving `method` at the default `"POST"` is the most common R2 upload failure with dimah-s3.
 
-## Client
-
-```dotenv title=".env"
-R2_ENDPOINT="https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
-R2_ACCESS_KEY_ID="your-access-key-id"
-R2_SECRET_ACCESS_KEY="your-secret-access-key"
-R2_DEFAULT_BUCKET_NAME="your-bucket-name"
-```
-
-```ts title="lib/s3-client.ts"
-import { S3Client } from "@aws-sdk/client-s3";
-
-export const s3Client = new S3Client({
-  region: "auto",
-  endpoint: process.env.R2_ENDPOINT!,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
-
-export const defaultBucket = process.env.R2_DEFAULT_BUCKET_NAME!;
-```
-
-Create R2 API tokens with Object Read & Write in the Cloudflare dashboard. Endpoint format: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+Use the [Quickstart](/docs/quickstart) client. Set `S3_REGION` to `auto` and `S3_ENDPOINT` to `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`. Create R2 API tokens with Object Read & Write in the Cloudflare dashboard.
 
 ## Public access
 
@@ -84,7 +60,7 @@ Signed headers must match the actual request; a mismatched `Content-Type` is a f
 ## Checklist
 
 - [ ] `upload.method: "PUT"`
-- [ ] `region: "auto"` + R2 `endpoint`
+- [ ] `S3_REGION=auto` + R2 `S3_ENDPOINT`
 - [ ] `resolveObjectAcl` left `false`
 - [ ] Public access via bucket / custom domain — not object ACL
 - [ ] Bucket CORS allows your origin, `PUT`, and required headers
