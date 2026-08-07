@@ -20,7 +20,7 @@ Presign flows only. Anything else stays in your own backend with [`@aws-sdk/clie
 
 ## Docs
 
-[dimah-s3-docs.vercel.app](https://dimah-s3-docs.vercel.app)
+[dimah-s3.vercel.app](https://dimah-s3.vercel.app)
 
 ## License
 

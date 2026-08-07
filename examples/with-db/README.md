@@ -2,7 +2,7 @@
 
 Next.js example with **@dimah-s3/db** — Drizzle + SQLite via the `db()` plugin.
 
-Docs: [Database setup](https://dimah-s3.dev/docs/db/setup).
+Docs: [Database setup](https://dimah-s3.vercel.app/docs/db/setup).
 
 ## Setup
 

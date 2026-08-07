@@ -1,6 +1,6 @@
 # @dimah-s3/registry
 
-Private shadcn registry for [dimah-s3](https://dimah-s3.dev).
+Private shadcn registry for [dimah-s3](https://dimah-s3.vercel.app).
 
 | Path                     | Role                                                               |
 | ------------------------ | ------------------------------------------------------------------ |

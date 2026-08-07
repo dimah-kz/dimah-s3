@@ -1,6 +1,6 @@
 # @dimah-s3/example-with-nextjs
 
-Runnable Next.js demo for [dimah-s3](https://dimah-s3.dev) — not a production starter.
+Runnable Next.js demo for [dimah-s3](https://dimah-s3.vercel.app) — not a production starter.
 
 For DB persistence see [`examples/with-db`](../with-db).
 

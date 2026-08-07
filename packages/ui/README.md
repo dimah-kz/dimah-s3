@@ -2,7 +2,7 @@
 
 Optional prebuilt UI components for `dimah-s3`, powered by `@dimah-s3/react`.
 
-Full documentation: [dimah-s3.dev](https://dimah-s3.dev/docs/react/ui/upload-button)
+Full documentation: [dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs/react/ui/upload-button)
 
 ## Install
 
