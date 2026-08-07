@@ -15,6 +15,13 @@ npm i @dimah-s3/server @aws-sdk/client-s3
 <Tabs items={["AWS S3", "Cloudflare R2", "MinIO"]}>
 <Tab value="AWS S3">
 
+```env title=".env"
+AWS_REGION="us-east-1"
+AWS_ACCESS_KEY_ID="your-access-key-id"
+AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+AWS_S3_BUCKET="your-bucket-name"
+```
+
 ```ts title="lib/s3-client.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 
@@ -31,6 +38,13 @@ export const defaultBucket = process.env.AWS_S3_BUCKET!;
 
 </Tab>
 <Tab value="Cloudflare R2">
+
+```env title=".env"
+R2_ENDPOINT="https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+R2_ACCESS_KEY_ID="your-access-key-id"
+R2_SECRET_ACCESS_KEY="your-secret-access-key"
+R2_DEFAULT_BUCKET_NAME="your-bucket-name"
+```
 
 ```ts title="lib/s3-client.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -49,6 +63,13 @@ export const defaultBucket = process.env.R2_DEFAULT_BUCKET_NAME!;
 
 </Tab>
 <Tab value="MinIO">
+
+```env title=".env"
+MINIO_ENDPOINT="http://localhost:9000"
+MINIO_ACCESS_KEY="your-access-key"
+MINIO_SECRET_KEY="your-secret-key"
+MINIO_BUCKET="your-bucket-name"
+```
 
 ```ts title="lib/s3-client.ts"
 import { S3Client } from "@aws-sdk/client-s3";
