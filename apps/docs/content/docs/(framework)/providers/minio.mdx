@@ -1,42 +1,28 @@
 ---
 title: MinIO
-description: Self-hosted S3 — path-style endpoint, policies instead of ACL.
+description: Required path-style endpoint and CORS for MinIO.
 ---
 
-MinIO is a self-hosted S3-compatible server for development and private deployments. Treat it as S3-like with **path-style addressing** and **policy-based access** — not a drop-in for every AWS ACL feature.
+MinIO is a self-hosted S3-compatible server. Most of the Quickstart wiring is the same, but path-style addressing is required, and CORS is handled at the server — not like AWS bucket CORS.
 
-Use the [Quickstart](/docs/quickstart) client. Point `S3_ENDPOINT` at the MinIO API (e.g. `http://localhost:9000`) and add **`forcePathStyle: true`** — required for typical setups (URLs look like `http://host:9000/bucket/key`). `S3_REGION` is often `"us-east-1"` even for local MinIO.
+Set the shared `S3_*` env vars in [Quickstart](/docs/quickstart), then apply the extras below.
 
-## Upload method
+## Path style (required)
 
-Presigned **POST** and **PUT** both generally work. Default dimah-s3 config is fine:
+Add **`forcePathStyle: true`** to the Quickstart `S3Client`. Without it, typical MinIO installs fail because object URLs must look like `http://host:9000/bucket/key`.
 
-```ts
-upload: { enabled: true }, // POST
+Point `S3_ENDPOINT` at the **API** port (for example `http://localhost:9000`), not the console UI. For local MinIO, `S3_REGION` is usually `"us-east-1"`.
+
+## CORS (required for browser uploads)
+
+Community MinIO does not rely on AWS-style per-bucket CORS. Origins are allowed with a server env var:
+
+```bash
+MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example
 ```
 
-Use `method: "PUT"` if you prefer the same shape as R2, or hit a POST/policy edge case with your MinIO version.
+The default is `*` — fine for local development. Set an explicit origin when the app and MinIO run on different hosts, or when you lock CORS down. An `https://…` app talking to `http://localhost:9000` is still cross-origin, so the browser enforces CORS either way.
 
 ## Access control
 
-MinIO does not model object ACL the way Amazon S3 does. Prefer **bucket policies** for public or restricted access.
-
-- Leave objects **private** and use **presigned download** for temporary access.
-- For public assets, attach a read policy on a prefix or bucket — do not expect `acl: "public-read"` alone to make objects world-readable.
-- Keep `resolveObjectAcl: false`.
-
-## CORS
-
-Local MinIO is often permissive enough for browser uploads. For locked-down or remote MinIO, set bucket CORS (or server CORS env) so your app origin can `PUT` / `POST` / `GET` with the headers you sign.
-
-If the app runs on `https://…` and MinIO on `http://localhost:9000`, the browser treats that as cross-origin — CORS still matters.
-
-## Checklist
-
-- [ ] `S3_ENDPOINT` points at the MinIO API (not the console UI port)
-- [ ] `forcePathStyle: true`
-- [ ] Bucket exists before first upload
-- [ ] Access via policies or private + presign — not AWS-style object ACL
-- [ ] CORS covers your frontend origin when uploading from the browser
-
-Same wiring as other providers: [Server setup](/docs/server/setup).
+Do not expect AWS-style object ACL. Prefer a bucket policy for public reads, or keep objects private and use presigned download. Leave `resolveObjectAcl` off.

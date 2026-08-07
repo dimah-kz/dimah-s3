@@ -1,14 +1,15 @@
 ---
 title: Cloudflare R2
-description: PUT uploads, no ACL, endpoint setup, and public access on R2.
+description: Required PUT uploads, endpoint, and CORS for Cloudflare R2.
 ---
 
-R2 exposes an S3-compatible API, but it is not a full Amazon S3 clone. Two differences break a naïve AWS copy:
+R2 speaks enough of the S3 API to work with dimah-s3, but it is not a drop-in Amazon S3. Two gaps matter for uploads: no Presigned POST, and no object ACL.
 
-1. **No Presigned POST** — form uploads signed with `createPresignedPost` fail. Use **PUT**.
-2. **No object ACL** — `x-amz-acl` / `ACL` are ignored. Public access is a bucket (or custom domain) setting.
+Start from the [Quickstart](/docs/quickstart) client, then apply the settings below. Skipping any of them usually means browser uploads fail.
 
-## Required config
+## Upload method (required)
+
+R2 rejects Presigned POST. Set `method: "PUT"`:
 
 ```ts title="lib/s3.ts"
 import { dimahS3 } from "@dimah-s3/server";
@@ -19,50 +20,44 @@ export const s3 = dimahS3({
   defaultBucket,
   upload: {
     enabled: true,
-    method: "PUT", // R2 does not support Presigned POST
+    method: "PUT", // required — R2 rejects Presigned POST
   },
   download: { enabled: true },
   delete: { enabled: true },
-  resolveObjectAcl: false,
 });
 ```
 
-Leaving `method` at the default `"POST"` is the most common R2 upload failure with dimah-s3.
+Leaving the default `"POST"` is the most common R2 failure with dimah-s3.
 
-Use the [Quickstart](/docs/quickstart) client. Set `S3_REGION` to `auto` and `S3_ENDPOINT` to `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`. Create R2 API tokens with Object Read & Write in the Cloudflare dashboard.
+## Endpoint (required)
+
+Fill the Quickstart env vars with R2 values:
+
+- `S3_REGION=auto`
+- `S3_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
+
+Create an API token with Object Read & Write in the Cloudflare dashboard.
+
+## CORS (required)
+
+A valid presigned URL is not enough. Without a CORS policy on the bucket, the browser still blocks the upload:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://your-app.example"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag", "Content-Type"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+Headers on the real request must match what was signed. A mismatched `Content-Type` often shows up as a 403.
 
 ## Public access
 
-Do not rely on `acl: "public-read"`. The SDK may accept the header; R2 ignores it.
+R2 ignores object ACL. To serve files publicly, turn on bucket public access or attach a custom domain / `*.r2.dev` URL. Otherwise keep the bucket private and use presigned download. Leave `resolveObjectAcl` off.
 
-For public objects:
-
-1. Enable **public access** on the bucket, or attach a **custom domain** / `*.r2.dev` URL.
-2. Serve files via that public base URL, or keep the bucket private and use **presigned download**.
-
-Keep `resolveObjectAcl` off — ACL lookup will not behave like AWS.
-
-## Multipart
-
-Multipart upload is supported. Notes:
-
-- Non-trailing parts must be the **same size** (R2 enforces uniform part size).
-- Incomplete uploads expire — abort or [purge](/docs/db/purge) stale ones if you track them in the database.
-
-dimah-s3 multipart uses signed **PUT** parts, so it aligns with R2.
-
-## CORS
-
-Configure CORS on the R2 bucket so the browser can `PUT` (and `GET` if you download via the storage origin). Include the headers your signed request uses — typically at least `Content-Type`.
-
-Signed headers must match the actual request; a mismatched `Content-Type` is a frequent 403 cause with PUT.
-
-## Checklist
-
-- [ ] `upload.method: "PUT"`
-- [ ] `S3_REGION=auto` + R2 `S3_ENDPOINT`
-- [ ] `resolveObjectAcl` left `false`
-- [ ] Public access via bucket / custom domain — not object ACL
-- [ ] Bucket CORS allows your origin, `PUT`, and required headers
-
-Official compatibility matrix: [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/).
+See Cloudflare’s [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/) for the full compatibility matrix.

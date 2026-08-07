@@ -1,42 +1,15 @@
 ---
 title: Amazon S3
-description: Regions, Presigned POST/PUT, ACL, and bucket CORS for AWS S3.
+description: Bucket CORS required for browser uploads to AWS S3.
 ---
 
-Amazon S3 is the reference implementation. dimah-s3 defaults (`upload.method: "POST"`, optional ACL) match it well.
+Amazon S3 is the reference target for dimah-s3. Defaults already fit — `upload.method: "POST"` works out of the box, and you do not need a custom `endpoint` or `forcePathStyle`.
 
-Wire the client once in [Quickstart](/docs/quickstart). Standard AWS endpoints need no custom `endpoint` or `forcePathStyle`.
+Set up the client once in [Quickstart](/docs/quickstart). The only extra step for browser uploads is bucket CORS.
 
-## Upload method
+## CORS (required)
 
-| Method               | How                                    | Notes                                                                         |
-| -------------------- | -------------------------------------- | ----------------------------------------------------------------------------- |
-| **`POST`** (default) | Presigned form (`createPresignedPost`) | Policy fields (`acl`, `Content-Type`, content-length range) live on the form. |
-| **`PUT`**            | Presigned `PutObject` URL              | Simpler request; signed headers must match exactly (e.g. `Content-Type`).     |
-
-```ts
-upload: { enabled: true }, // method defaults to "POST"
-```
-
-## ACL and public objects
-
-Object ACL (`private` / `public-read`) is supported. dimah-s3 can send `ACL` on upload and multipart init.
-
-- Prefer **bucket policies** and **Block Public Access** when possible — AWS is moving away from per-object ACL as the primary model.
-- Enable `resolveObjectAcl: true` only when you need ACL inferred via `GetObjectAcl` on confirm (extra S3 call per confirm).
-
-```ts
-export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-  upload: { enabled: true },
-  resolveObjectAcl: true, // optional
-});
-```
-
-## CORS
-
-The browser uploads **directly to S3**, not through your API. Configure CORS on the bucket:
+Uploads go from the browser **straight to S3**, not through your API. If the bucket has no CORS rule, the request fails even when credentials and the route are correct:
 
 ```json
 [
@@ -50,13 +23,6 @@ The browser uploads **directly to S3**, not through your API. Configure CORS on 
 ]
 ```
 
-Tighten `AllowedOrigins` and `AllowedHeaders` for production. Include **`PUT`** if you use `upload.method: "PUT"`, and **`POST`** for the default.
+Allow **`POST`** for the default upload method. Add **`PUT`** if you switch to `upload.method: "PUT"`. Narrow origins and headers in production.
 
-## Checklist
-
-- [ ] Correct `S3_REGION` for the bucket
-- [ ] IAM user/role can `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject`, and multipart ops if enabled
-- [ ] Bucket CORS allows your app origin and upload methods
-- [ ] Public access via ACL or bucket policy is intentional
-
-Full install path: [Server setup](/docs/server/setup).
+Object ACL (`private` / `public-read`) and `resolveObjectAcl` are supported on S3 — enable them only when you need them.

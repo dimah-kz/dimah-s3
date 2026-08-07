@@ -3,9 +3,9 @@ title: Providers
 description: Configure AWS S3, Cloudflare R2, MinIO, and other S3-compatible storage.
 ---
 
-dimah-s3 uses the AWS SDK `S3Client`. Any endpoint that speaks enough of the S3 API can work — AWS S3, Cloudflare R2, MinIO, and similar services.
+dimah-s3 talks to storage through the AWS SDK `S3Client`. Any service that speaks enough of the S3 API can work — Amazon S3, Cloudflare R2, MinIO, and similar backends.
 
-“S3-compatible” is not identical to Amazon S3. Providers omit or ignore parts of the API. These differences matter most with a **presign-first** stack:
+“S3-compatible” is not the same as Amazon S3. Providers skip or ignore parts of the API. With a **presign-first** stack, those gaps show up fast:
 
 | Topic                 | Why it matters                                                                                     |
 | --------------------- | -------------------------------------------------------------------------------------------------- |
@@ -14,6 +14,8 @@ dimah-s3 uses the AWS SDK `S3Client`. Any endpoint that speaks enough of the S3 
 | Endpoint & addressing | Custom endpoints often need `endpoint` and sometimes `forcePathStyle: true`.                       |
 | CORS                  | Browser uploads hit storage directly — the bucket must allow your origin, methods, and headers.    |
 | Public URLs           | Public reads may use a CDN, custom domain, or `*.r2.dev` — not object ACL.                         |
+
+Wire the shared client once in [Quickstart](/docs/quickstart). Use the guides below only for the provider-specific extras that defaults do not cover.
 
 ## Comparison
 
@@ -39,7 +41,7 @@ export const s3 = dimahS3({
 });
 ```
 
-Client hooks and `@dimah-s3/ui` honor `method: "PUT" | "POST"` from the presign response — change server config only.
+Client hooks and `@dimah-s3/ui` read `method: "PUT" | "POST"` from the presign response — change this on the server only.
 
 ## Guides
 
@@ -47,18 +49,16 @@ Client hooks and `@dimah-s3/ui` honor `method: "PUT" | "POST"` from the presign 
   <Card
     title="Amazon S3"
     href="/docs/providers/aws-s3"
-    description="POST and PUT uploads, ACL, regions, and bucket CORS."
+    description="Defaults work; configure bucket CORS for browser uploads."
   />
   <Card
     title="Cloudflare R2"
     href="/docs/providers/cloudflare-r2"
-    description="PUT-only uploads, no ACL, public access via bucket settings."
+    description="PUT uploads, R2 endpoint, and bucket CORS."
   />
   <Card
     title="MinIO"
     href="/docs/providers/minio"
-    description="Self-hosted setup with path-style endpoints and bucket policies."
+    description="Path-style addressing and server CORS for self-hosted S3."
   />
 </Cards>
-
-Wire the client in [Server setup](/docs/server/setup), then use these guides when behavior differs by provider.
