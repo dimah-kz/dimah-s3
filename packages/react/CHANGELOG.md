@@ -1,3 +1,7 @@
+## @dimah-s3/react@0.3.2
+
+### update domain to https://dimah-s3.vercel.app
+
 ## @dimah-s3/react@0.3.1
 
 ### update deps

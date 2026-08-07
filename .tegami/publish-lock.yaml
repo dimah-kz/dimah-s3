@@ -1,26 +1,26 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n## update deps\n"
-    filename: 2026-08-07-msi9gx7i.md
+  - content: "---\npackages:\n  npm:@dimah-s3/core:\n    type: patch\n  npm:@dimah-s3/db:\n    type: patch\n  npm:@dimah-s3/react:\n    type: patch\n  npm:@dimah-s3/server:\n    type: patch\n  npm:@dimah-s3/ui:\n    type: patch\n  group:dimah-s3:\n    type: patch\n---\n\n## update domain to https://dimah-s3.vercel.app\n"
+    filename: 2026-08-07-msim2aiy.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-07-msi9gx7i.md
+      - 2026-08-07-msim2aiy.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-07-msi9gx7i.md
+      - 2026-08-07-msim2aiy.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-07-msi9gx7i.md
+      - 2026-08-07-msim2aiy.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-07-msi9gx7i.md
+      - 2026-08-07-msim2aiy.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-07-msi9gx7i.md
+      - 2026-08-07-msim2aiy.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
