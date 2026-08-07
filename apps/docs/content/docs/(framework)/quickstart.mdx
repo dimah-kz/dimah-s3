@@ -35,7 +35,7 @@ export const s3Client = new S3Client({
 export const defaultBucket = process.env.S3_DEFAULT_BUCKET!;
 ```
 
-Works with any S3-compatible provider (AWS S3, R2, MinIO, …). Provider-specific env names: [Server setup](/docs/server/setup). Quirks (R2 needs `upload.method: "PUT"`, no ACL, …): [Providers](/docs/providers).
+Works with any S3-compatible provider. Setup may differ by provider — see [Providers](/docs/providers).
 
 ### Server config and route [step]
 
