@@ -19,13 +19,12 @@ export default function HomePage() {
             <br />
             Minimal setup, powered by the AWS SDK (v3).
           </p>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/docs/quickstart"
               className={buttonVariants({
                 size: "lg",
-                className:
-                  "h-11 gap-2 px-5 text-sm sm:h-12 sm:px-6 sm:text-base",
+                className: "h-9 px-3.5 text-sm",
               })}
             >
               Get Started
@@ -37,8 +36,7 @@ export default function HomePage() {
               className={buttonVariants({
                 variant: "ghost",
                 size: "lg",
-                className:
-                  "h-11 gap-2 px-5 text-sm sm:h-12 sm:px-6 sm:text-base",
+                className: "h-9 px-3.5 text-sm",
               })}
             >
               View on GitHub
