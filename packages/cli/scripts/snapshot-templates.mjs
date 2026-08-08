@@ -32,7 +32,16 @@ const transformModuleUrl = pathToFileURL(
   resolve(packageRoot, "dist", "snapshot", "transform.js"),
 ).href;
 
-const COPY_EXCLUDE = new Set(["node_modules", ".next", ".turbo", "AGENTS.md"]);
+const COPY_EXCLUDE = new Set([
+  "node_modules",
+  ".next",
+  ".turbo",
+  "AGENTS.md",
+  "dist",
+  "pnpm-lock.yaml",
+  "package-lock.json",
+  "yarn.lock",
+]);
 
 /**
  * @param {string} src

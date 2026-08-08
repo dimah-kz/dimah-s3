@@ -92,11 +92,14 @@ describe("create e2e", () => {
         ".gitignore",
         ".env.example",
         ".env",
+        "pnpm-workspace.yaml",
       ]),
     );
     expect(files).not.toContain("app");
     expect(files).not.toContain("_gitignore");
     expect(files).not.toContain("AGENTS.md");
+    expect(files).not.toContain("node_modules");
+    expect(files).not.toContain("pnpm-lock.yaml");
 
     const src = await readdir(join(appDir, "src"));
     expect(src).toEqual(expect.arrayContaining(["app", "lib", "components"]));
@@ -126,7 +129,7 @@ describe("create e2e", () => {
     expect(pkg.dependencies.react).toMatch(/^\d|^[\^~]/);
   });
 
-  it("bundles every catalog template", async () => {
+  it("snapshots every catalog template without local install artifacts", async () => {
     const catalog = JSON.parse(
       await readFile(
         join(packageRoot, "dist", "templates", "catalog.json"),
@@ -141,53 +144,102 @@ describe("create e2e", () => {
     ]);
 
     for (const entry of catalog.templates) {
-      const entries = await readdir(
-        join(packageRoot, "dist", "templates", entry.id),
-      );
+      const snapshotDir = join(packageRoot, "dist", "templates", entry.id);
+      const entries = await readdir(snapshotDir);
       expect(entries.length).toBeGreaterThan(0);
+
+      // Local-only artifacts from templates:update / templates:build must not ship.
+      expect(entries).not.toContain("node_modules");
+      expect(entries).not.toContain("pnpm-lock.yaml");
+      expect(entries).not.toContain("package-lock.json");
+      expect(entries).not.toContain("yarn.lock");
+      expect(entries).not.toContain("dist");
+      expect(entries).not.toContain("AGENTS.md");
+      expect(entries).not.toContain(".gitignore");
+
+      // End-user starter config + npm-safe gitignore name.
+      expect(entries).toContain("pnpm-workspace.yaml");
+      expect(entries).toContain("_gitignore");
+      expect(entries).toContain("package.json");
+
+      const pkg = JSON.parse(
+        await readFile(join(snapshotDir, "package.json"), "utf8"),
+      ) as {
+        dependencies?: Record<string, string>;
+        devDependencies?: Record<string, string>;
+      };
+      const ranges = [
+        ...Object.values(pkg.dependencies ?? {}),
+        ...Object.values(pkg.devDependencies ?? {}),
+      ];
+      expect(ranges.some((r) => r.startsWith("catalog:"))).toBe(false);
+      expect(ranges.some((r) => r.startsWith("workspace:"))).toBe(false);
+      for (const [name, range] of Object.entries(pkg.dependencies ?? {})) {
+        if (name.startsWith("@dimah-s3/")) {
+          expect(range).toBe(`^${cliPkg.version}`);
+        }
+      }
     }
   });
 });
 
-describe("create --template vite", () => {
-  it("scaffolds the Vite starter", async () => {
-    const result = await runCli(
-      [
-        "create",
-        "vite-app",
-        "--yes",
-        "--no-install",
-        "--no-git",
-        "--template",
-        "vite",
-      ],
-      workDir,
-    );
-    expect(result.exitCode).toBe(0);
-
-    const appDir = join(workDir, "vite-app");
-    const files = await readdir(appDir);
-    expect(files).toEqual(
-      expect.arrayContaining([
+describe("create --template vite|hono", () => {
+  it.each([
+    {
+      id: "vite",
+      dir: "vite-app",
+      expectFiles: [
         "package.json",
         "src",
         "server",
         "vite.config.ts",
         "index.html",
         ".env.example",
-      ]),
-    );
+        "pnpm-workspace.yaml",
+        ".gitignore",
+      ],
+    },
+    {
+      id: "hono",
+      dir: "hono-app",
+      expectFiles: [
+        "package.json",
+        "src",
+        "vite.config.ts",
+        "index.html",
+        ".env.example",
+        "pnpm-workspace.yaml",
+        ".gitignore",
+      ],
+    },
+  ] as const)(
+    "scaffolds the $id starter",
+    async ({ id, dir, expectFiles }) => {
+      const result = await runCli(
+        ["create", dir, "--yes", "--no-install", "--no-git", "--template", id],
+        workDir,
+      );
+      expect(result.exitCode).toBe(0);
 
-    const pkg = JSON.parse(
-      await readFile(join(appDir, "package.json"), "utf8"),
-    ) as {
-      name: string;
-      dependencies: Record<string, string>;
-    };
-    expect(pkg.name).toBe("vite-app");
-    expect(pkg.dependencies.hono).toBeDefined();
-    expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
-  }, 60_000);
+      const appDir = join(workDir, dir);
+      const files = await readdir(appDir);
+      expect(files).toEqual(expect.arrayContaining([...expectFiles]));
+      expect(files).not.toContain("node_modules");
+      expect(files).not.toContain("pnpm-lock.yaml");
+      expect(files).not.toContain("_gitignore");
+
+      const pkg = JSON.parse(
+        await readFile(join(appDir, "package.json"), "utf8"),
+      ) as {
+        name: string;
+        dependencies: Record<string, string>;
+      };
+      expect(pkg.name).toBe(dir);
+      expect(pkg.dependencies.hono).toBeDefined();
+      expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
+    },
+    60_000,
+  );
 
   it("ignores --no-src for vite and keeps src/", async () => {
     const result = await runCli(

@@ -64,19 +64,30 @@ Keep prompts in the config layer and filesystem writes in steps. A step that has
 
 On `pnpm --filter @dimah-s3/cli build`:
 
-- Copy each catalog id from `templates/<id>/` (exclude `node_modules`, `.next`, `.turbo`, `AGENTS.md`, `*.tsbuildinfo`).
-- Resolve `catalog:` / `catalog:<name>` from root `pnpm-workspace.yaml` — missing keys fail the build.
+- Copy each catalog id from `templates/<id>/` (exclude `node_modules`, `.next`, `.turbo`, `AGENTS.md`, lockfiles, `*.tsbuildinfo`).
 - Rewrite every `@dimah-s3/*` range to `^<cliVersion>`.
-- Fail on `workspace:` or `@workspace/*`.
+- Fail on `workspace:`, `catalog:`, or `@workspace/*`.
 - Rename `.gitignore` → `_gitignore` for the npm tarball.
 
 `tsup` runs with `clean: true`, so the snapshot script must run after it — `dist/templates/` is wiped otherwise and the CLI reports a missing catalog.
 
 `packages/cli/turbo.json` sets `build.cache: false` because Turbo cannot track `templates/**` inputs outside the package.
 
+## Template maintenance
+
+Templates stay outside the monorepo workspace. Root scripts:
+
+| Script                  | Purpose                                           |
+| ----------------------- | ------------------------------------------------- |
+| `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/`  |
+| `pnpm templates:build`  | install + build smoke test per template           |
+| `pnpm deps:update`      | `pnpm -r update --latest` then `templates:update` |
+
+Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`.
+
 ## Adding a template
 
-1. Add `templates/<id>/` (self-contained; no `workspace:*` / `@workspace/*`; `catalog:` OK).
+1. Add `templates/<id>/` (self-contained; concrete npm ranges only — no `workspace:*` / `catalog:` / `@workspace/*`).
 2. Register it in `templates/catalog.json`.
 3. Document in `templates/README.md` and docs Quickstart if it is a primary starter.
 

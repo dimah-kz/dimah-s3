@@ -1,7 +1,8 @@
 # Standalone starter (not part of the dimah-s3 monorepo).
 # pnpm 11+ requires allowBuilds for packages with install scripts.
 allowBuilds:
-  esbuild: true
+  unrs-resolver: true
+  sharp: true
 # Fresh @dimah-s3 publishes are expected from the CLI sync bump.
 minimumReleaseAgeExclude:
   - "@dimah-s3/core"

@@ -14,7 +14,10 @@
     "format:check": "prettier --check .",
     "check-types": "turbo run check-types",
     "test": "turbo run test --filter=\"./packages/*\"",
-    "tegami": "node ./scripts/tegami.mts"
+    "tegami": "node ./scripts/tegami.mts",
+    "deps:update": "pnpm -r update --latest && pnpm templates:update",
+    "templates:update": "node ./scripts/templates-update.mjs",
+    "templates:build": "node ./scripts/templates-build.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

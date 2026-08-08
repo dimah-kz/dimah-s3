@@ -4,6 +4,11 @@
 # build
 /dist
 
+# package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
 # env files
 .env*
 !.env.example

@@ -13,6 +13,18 @@ npx @dimah-s3/cli@latest create my-app
 
 Do **not** treat these as library packages. They are outside the pnpm workspace. Starters must install cleanly with concrete npm ranges only (no `catalog:`, `workspace:*`, or `@workspace/*`).
 
+## Maintenance (repo root)
+
+| Script                  | What it does                                                                                          |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/` (rewrites ranges; lockfiles stay local / gitignored) |
+| `pnpm templates:build`  | `pnpm install` + `pnpm run build` smoke test per template                                             |
+| `pnpm deps:update`      | Workspace `pnpm -r update --latest`, then `templates:update`                                          |
+
+Filter by id: `pnpm templates:build -- nextjs` / `pnpm templates:update -- vite hono`.
+
+Day-to-day library work still belongs in `examples/*` (`workspace:*`). Use these scripts when bumping starter deps or verifying a scaffold still builds.
+
 ## Catalog
 
 | Id       | Framework | Notes                                              |
