@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && pnpm install",
-  "buildCommand": "cd ../.. && pnpm turbo run build --filter=docs"
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=docs",
+  "ignoreCommand": "npx turbo-ignore"
 }

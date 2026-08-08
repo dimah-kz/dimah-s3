@@ -6,9 +6,9 @@ This is a Next.js application generated with
 ## Deploy on Vercel
 
 1. **Root Directory:** `apps/docs` (enable _Include source files outside of the Root Directory_).
-2. **Node.js:** `22.x` or newer in Vercel (matches `engines.node` `>=22.0.0` and root `.node-version`).
+2. **Node.js:** `24.x` in Vercel (matches `engines.node` `>=24` and CI).
 3. **Environment variables:** none required for the default `*.vercel.app` URL (see [`.env.example`](./.env.example)). Set `NEXT_PUBLIC_SITE_URL` only when you add a custom domain.
-4. `vercel.json` in this folder pins install/build for the monorepo. The build command runs `turbo run build --filter=docs` from the repo root so workspace packages (`@dimah-s3/ui`, etc.) are built before `next build`.
+4. `vercel.json` pins install/build for the monorepo (`turbo run build --filter=docs` from the repo root) and skips unaffected commits via `ignoreCommand` (`npx turbo-ignore`).
 
 Run development server:
 

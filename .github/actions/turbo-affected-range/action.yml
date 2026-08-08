@@ -1,0 +1,19 @@
+name: Resolve Turbo affected range
+description: >
+  Set TURBO_SCM_BASE so `turbo --affected` compares the right commits on
+  pull_request and push (default main...HEAD is empty when already on main).
+runs:
+  using: composite
+  steps:
+    - name: Resolve Turbo affected range
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "TURBO_SCM_BASE=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+        elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && [ -n "${{ github.event.before }}" ]; then
+          echo "TURBO_SCM_BASE=${{ github.event.before }}" >> "$GITHUB_ENV"
+        else
+          echo "TURBO_SCM_BASE=HEAD^" >> "$GITHUB_ENV"
+        fi
+        echo "TURBO_SCM_HEAD=${{ github.sha }}" >> "$GITHUB_ENV"

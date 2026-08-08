@@ -34,7 +34,8 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Comment step only needs root tegami; skip workspace postinstalls.
+        run: pnpm install --frozen-lockfile --ignore-scripts --filter=dimah-s3...
 
       - name: Download preview
         uses: actions/download-artifact@v4

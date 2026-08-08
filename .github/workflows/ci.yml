@@ -10,12 +10,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Remote cache: set repo secret TURBO_TOKEN + variable TURBO_TEAM (Vercel team slug).
+# Without them, jobs still share a local .turbo cache via actions/cache.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
 jobs:
   quality:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve Turbo affected range
+        uses: ./.github/actions/turbo-affected-range
 
       - uses: pnpm/action-setup@v6
 
@@ -24,10 +35,18 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            turbo-${{ runner.os }}-
 
-      - name: Lint
-        run: pnpm lint
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint (affected)
+        run: pnpm turbo run lint --affected
 
       - name: Format check
         run: pnpm format:check
@@ -37,30 +56,66 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            packages:
+              - 'packages/**'
+              - 'tooling/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'package.json'
+              - 'scripts/templates-shared.mjs'
+
+      - name: Resolve Turbo affected range
+        if: steps.filter.outputs.packages == 'true'
+        uses: ./.github/actions/turbo-affected-range
 
       - uses: pnpm/action-setup@v6
+        if: steps.filter.outputs.packages == 'true'
 
       - uses: actions/setup-node@v6
+        if: steps.filter.outputs.packages == 'true'
         with:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        if: steps.filter.outputs.packages == 'true'
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            turbo-${{ runner.os }}-
 
-      - name: Build packages
-        run: pnpm turbo run build --filter="./packages/*"
+      - if: steps.filter.outputs.packages == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Test packages
-        run: pnpm turbo run test --filter="./packages/*"
+      - name: Build packages (affected)
+        if: steps.filter.outputs.packages == 'true'
+        run: pnpm turbo run build --affected --filter="./packages/*"
 
-      - name: Type check packages
-        run: pnpm turbo run check-types --filter="./packages/*"
+      - name: Test packages (affected)
+        if: steps.filter.outputs.packages == 'true'
+        run: pnpm turbo run test --affected --filter="./packages/*"
+
+      - name: Type check packages (affected)
+        if: steps.filter.outputs.packages == 'true'
+        run: pnpm turbo run check-types --affected --filter="./packages/*"
 
   registry:
     name: Validate Registry
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: dorny/paths-filter@v4
         id: filter
@@ -81,8 +136,17 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - uses: actions/cache@v4
+        if: steps.filter.outputs.registry == 'true'
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            turbo-${{ runner.os }}-
+
       - if: steps.filter.outputs.registry == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       # Synced registry sources import @dimah-s3/{core,react}; types come from dist/.
       - name: Build package deps
@@ -129,7 +193,7 @@ jobs:
           cache: pnpm
 
       - if: steps.filter.outputs.templates == 'true'
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Check template/example drift
         if: steps.filter.outputs.templates == 'true'
@@ -140,10 +204,12 @@ jobs:
         run: pnpm templates:build
 
   apps:
-    name: Build Apps
+    name: Typecheck Apps
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: dorny/paths-filter@v4
         id: filter
@@ -151,8 +217,17 @@ jobs:
           filters: |
             apps:
               - 'apps/**'
-              - 'packages/**'
+              - 'packages/core/**'
+              - 'packages/react/**'
+              - 'packages/server/**'
+              - 'packages/ui/**'
               - 'registry/**'
+              - 'pnpm-lock.yaml'
+              - 'turbo.json'
+
+      - name: Resolve Turbo affected range
+        if: steps.filter.outputs.apps == 'true'
+        uses: ./.github/actions/turbo-affected-range
 
       - uses: pnpm/action-setup@v6
         if: steps.filter.outputs.apps == 'true'
@@ -163,13 +238,25 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - uses: actions/cache@v4
+        if: steps.filter.outputs.apps == 'true'
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+            turbo-${{ runner.os }}-
+
+      # docs postinstall (fumadocs-mdx) is required for typegen / tsc.
       - if: steps.filter.outputs.apps == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Build apps
+      # Build docs deps so package `exports.types` (dist/) exist, then typecheck.
+      # Full `next build` for docs runs on Vercel (with turbo-ignore).
+      - name: Build docs dependency packages
         if: steps.filter.outputs.apps == 'true'
-        run: pnpm turbo run build --filter="./apps/*"
+        run: pnpm turbo run build --filter=docs... --filter=!docs
 
-      - name: Type check apps
+      - name: Type check apps (affected)
         if: steps.filter.outputs.apps == 'true'
-        run: pnpm turbo run check-types --filter="./apps/*"
+        run: pnpm turbo run check-types --affected --filter="./apps/*"
