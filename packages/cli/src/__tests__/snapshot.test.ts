@@ -80,7 +80,10 @@ describe("transformTemplatePackageJson", () => {
       { cliVersion: "0.5.0" },
     );
 
-    expect(pkg.peerDependencies?.["@dimah-s3/server"]).toBe("^0.5.0");
-    expect(pkg.optionalDependencies?.["@dimah-s3/db"]).toBe("^0.5.0");
+    const peers = pkg.peerDependencies as Record<string, string> | undefined;
+    const optionals = pkg.optionalDependencies as
+      Record<string, string> | undefined;
+    expect(peers?.["@dimah-s3/server"]).toBe("^0.5.0");
+    expect(optionals?.["@dimah-s3/db"]).toBe("^0.5.0");
   });
 });
