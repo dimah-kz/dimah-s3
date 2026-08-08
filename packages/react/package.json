@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/react",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "React hooks for S3-compatible file uploads, downloads, and deletes",
   "keywords": [
     "s3",
