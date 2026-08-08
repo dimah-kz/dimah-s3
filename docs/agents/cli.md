@@ -26,7 +26,7 @@ CLI does **not** depend on `@dimah-s3/{core,server,react,ui,db}`. It is outside 
 Two phases, and they must not mix: **resolve** asks questions, **steps** touch the disk.
 
 1. `commands/create.ts` parses argv (`citty`) and opens the error boundary.
-2. `create/config.ts` merges flags with `@clack/prompts` answers into `CreateConfig` + the resolved template. Flags win; `--yes` and non-TTY sessions use defaults. Non-empty-target confirmation happens here too, so no step has to prompt.
+2. `create/config.ts` merges flags with `@clack/prompts` answers into `CreateConfig` + the resolved template. Flags win; `--yes` and non-TTY sessions use defaults for optional choices, but a project directory is required (no silent `my-app`). Non-empty-target confirmation happens here too, so no step has to prompt.
 3. `create/pipeline.ts` builds a `CreateContext` and runs `createSteps` in order, then prints the next steps note.
 4. On an unrecoverable failure the pipeline rolls back — but only a target directory this run created.
 

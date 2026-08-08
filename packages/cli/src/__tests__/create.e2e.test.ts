@@ -222,4 +222,16 @@ describe("non-interactive fallback", () => {
     expect(`${result.stdout}${result.stderr}`).toContain("Non-interactive");
     expect(await readdir(join(workDir, "piped-app"))).toContain("package.json");
   }, 60_000);
+
+  it("rejects --yes without a project directory", async () => {
+    const result = await runCli(
+      ["create", "--yes", "--no-install", "--no-git"],
+      workDir,
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toMatch(
+      /Project name is required/i,
+    );
+  }, 60_000);
 });

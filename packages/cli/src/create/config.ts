@@ -67,19 +67,23 @@ export async function resolveCreateConfig(
     throw new CliError(errorMessage(error), undefined, { cause: error });
   }
 
-  const dirInput = await resolveOption(flags.dir?.trim() || undefined, {
-    interactive,
-    fallback: DEFAULT_PROJECT_NAME,
-    prompt: () =>
-      ask(
-        p.text({
-          message: "Project name",
-          placeholder: DEFAULT_PROJECT_NAME,
-          defaultValue: DEFAULT_PROJECT_NAME,
-          validate: validateNameInput,
-        }),
-      ),
-  });
+  const dirFlag = flags.dir?.trim() || undefined;
+  if (!dirFlag && !interactive) {
+    throw new CliError(
+      "Project name is required in non-interactive mode. Pass a directory (e.g. create my-app) or run without --yes in a terminal.",
+    );
+  }
+
+  const dirInput =
+    dirFlag ??
+    (await ask(
+      p.text({
+        message: "Project name",
+        placeholder: DEFAULT_PROJECT_NAME,
+        defaultValue: DEFAULT_PROJECT_NAME,
+        validate: validateNameInput,
+      }),
+    ));
 
   const target = resolveTarget(dirInput, cwd);
   assertValidPackageName(target.projectName);

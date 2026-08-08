@@ -35,8 +35,10 @@ npx @dimah-s3/cli@latest create my-app --yes --template nextjs
 
 ### Behavior
 
-- **Prompts** are only used on an interactive terminal. Piped input and CI fall
-  back to defaults instead of hanging.
+- **Project name** is required with `--yes` or on a non-TTY (CI / piped input).
+  Interactive runs still prompt when the directory argument is omitted.
+- **Other prompts** are only used on an interactive terminal. Non-interactive
+  sessions fall back to defaults for template / install / git.
 - **Non-empty target:** the run stops unless `--overwrite` is passed (or the
   prompt is confirmed). Overwriting clears the directory contents but keeps
   `.git` and `.env`, and never removes the directory itself.
