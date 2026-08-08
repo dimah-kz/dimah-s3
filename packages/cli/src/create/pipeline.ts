@@ -84,5 +84,7 @@ function printNextSteps(ctx: CreateContext): void {
     ].join("\n"),
     "Next steps",
   );
-  outro(`${pc.bold(config.projectName)} is ready — docs: ${DOCS_URL}`);
+  outro(
+    `${pc.bold(config.projectName || "Your app")} is ready — docs: ${DOCS_URL}`,
+  );
 }
