@@ -6,7 +6,9 @@ import { toHonoHandler } from "@dimah-s3/server/hono";
 import { s3 } from "./lib/s3";
 
 const port = Number(process.env.PORT ?? 3000);
-const hasClientBuild = existsSync(new URL("../dist/index.html", import.meta.url));
+const hasClientBuild = existsSync(
+  new URL("../dist/index.html", import.meta.url),
+);
 
 const app = new Hono();
 

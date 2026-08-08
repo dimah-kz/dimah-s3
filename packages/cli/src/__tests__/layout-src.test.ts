@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -19,7 +26,11 @@ describe("flattenSrcDirectory", () => {
   it("moves src contents to the root and rewrites path aliases", async () => {
     await mkdir(join(dir, "src", "app"), { recursive: true });
     await mkdir(join(dir, "src", "lib"), { recursive: true });
-    await writeFile(join(dir, "src", "app", "page.tsx"), "export default {}", "utf8");
+    await writeFile(
+      join(dir, "src", "app", "page.tsx"),
+      "export default {}",
+      "utf8",
+    );
     await writeFile(join(dir, "src", "lib", "utils.ts"), "export {}", "utf8");
     await writeFile(
       join(dir, "tsconfig.json"),
@@ -28,7 +39,7 @@ describe("flattenSrcDirectory", () => {
           compilerOptions: {
             paths: {
               "@/*": ["./src/*"],
-              "other": ["./src/other"],
+              other: ["./src/other"],
             },
           },
         },
@@ -56,7 +67,9 @@ describe("flattenSrcDirectory", () => {
     expect(entries).toContain("lib");
     expect(entries).not.toContain("src");
 
-    const tsconfig = JSON.parse(await readFile(join(dir, "tsconfig.json"), "utf8")) as {
+    const tsconfig = JSON.parse(
+      await readFile(join(dir, "tsconfig.json"), "utf8"),
+    ) as {
       compilerOptions: { paths: Record<string, string[]> };
     };
     expect(tsconfig.compilerOptions.paths["@/*"]).toEqual(["./*"]);

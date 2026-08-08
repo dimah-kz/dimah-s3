@@ -1,0 +1,5 @@
+minimumReleaseAgeExclude:
+  - '@dimah-s3/core@0.4.1'
+  - '@dimah-s3/react@0.4.1'
+  - '@dimah-s3/server@0.4.1'
+  - '@dimah-s3/ui@0.4.1'
