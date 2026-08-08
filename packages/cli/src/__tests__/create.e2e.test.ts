@@ -134,6 +134,12 @@ describe("create e2e", () => {
       ),
     ) as { templates: Array<{ id: string }> };
 
+    expect(catalog.templates.map((t) => t.id)).toEqual([
+      "nextjs",
+      "vite",
+      "hono",
+    ]);
+
     for (const entry of catalog.templates) {
       const entries = await readdir(
         join(packageRoot, "dist", "templates", entry.id),
@@ -141,6 +147,69 @@ describe("create e2e", () => {
       expect(entries.length).toBeGreaterThan(0);
     }
   });
+});
+
+describe("create --template vite", () => {
+  it("scaffolds the Vite starter", async () => {
+    const result = await runCli(
+      [
+        "create",
+        "vite-app",
+        "--yes",
+        "--no-install",
+        "--no-git",
+        "--template",
+        "vite",
+      ],
+      workDir,
+    );
+    expect(result.exitCode).toBe(0);
+
+    const appDir = join(workDir, "vite-app");
+    const files = await readdir(appDir);
+    expect(files).toEqual(
+      expect.arrayContaining([
+        "package.json",
+        "src",
+        "server",
+        "vite.config.ts",
+        "index.html",
+        ".env.example",
+      ]),
+    );
+
+    const pkg = JSON.parse(
+      await readFile(join(appDir, "package.json"), "utf8"),
+    ) as {
+      name: string;
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.name).toBe("vite-app");
+    expect(pkg.dependencies.hono).toBeDefined();
+    expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
+  }, 60_000);
+
+  it("ignores --no-src for vite and keeps src/", async () => {
+    const result = await runCli(
+      [
+        "create",
+        "vite-nosrc",
+        "--yes",
+        "--no-src",
+        "--no-install",
+        "--no-git",
+        "--template",
+        "vite",
+      ],
+      workDir,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toMatch(/Ignoring for "vite"/i);
+    expect(await readdir(join(workDir, "vite-nosrc"))).toContain("src");
+    expect(await readdir(join(workDir, "vite-nosrc"))).not.toContain(
+      "main.tsx",
+    );
+  }, 60_000);
 });
 
 describe("create --no-src", () => {

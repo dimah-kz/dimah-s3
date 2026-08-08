@@ -10,8 +10,10 @@ import {
 } from "../utils/fs.js";
 
 /**
- * Template apps ship with a `src/` directory. When the user opts out, move
- * everything under `src/` to the project root and rewrite path aliases.
+ * Template apps ship with a `src/` directory. When the user opts out on a
+ * `srcLayout` template (Next.js), move everything under `src/` to the project
+ * root and rewrite path aliases in `tsconfig.json` / `components.json`.
+ * Do not use this for Vite/Hono — their entry HTML and scripts assume `src/`.
  */
 export async function flattenSrcDirectory(targetDir: string): Promise<void> {
   const srcDir = join(targetDir, "src");
@@ -59,6 +61,9 @@ async function patchComponentsCss(targetDir: string): Promise<void> {
   const css = components.tailwind?.css;
   if (!css?.startsWith("src/")) return;
 
-  components.tailwind = { ...components.tailwind, css: css.slice("src/".length) };
+  components.tailwind = {
+    ...components.tailwind,
+    css: css.slice("src/".length),
+  };
   await writeJson(path, components);
 }

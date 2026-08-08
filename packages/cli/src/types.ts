@@ -7,8 +7,8 @@ export type TemplateMeta = {
   title: string;
   hint?: string;
   /**
-   * Template ships app code under `src/` and exposes the create `--src` option.
-   * Only Next.js-style starters set this today.
+   * Template ships app code under `src/` and exposes the create `--src` option
+   * (flatten with `--no-src`). Next.js sets this; Vite/Hono always keep `src/`.
    */
   srcLayout?: boolean;
 };

@@ -32,7 +32,7 @@ Two phases, and they must not mix: **resolve** asks questions, **steps** touch t
 
 Current steps: `scaffold` (prepare dir → copy snapshot → set `package.json` name → restore `_gitignore` → optionally flatten `src/` → copy `.env.example`), `install` (`nypm`), `git` (`init -b main` + initial commit).
 
-Templates ship with a `src/` directory when the catalog entry sets `srcLayout: true` (Next.js). `create` prompts for it only for those templates (default yes); `--src` / `--no-src` and `--yes` skip the prompt. Flattening moves `src/*` to the project root and rewrites `tsconfig` / `components.json` path aliases.
+Templates ship with a `src/` directory when the catalog entry sets `srcLayout: true` (Next.js only). `create` prompts for it only for those templates (default yes); `--src` / `--no-src` and `--yes` skip the prompt. Vite/Hono omit `srcLayout` — their `src/` layout is fixed (entry HTML and scripts). Flattening moves `src/*` to the project root and rewrites `tsconfig` / `components.json` path aliases.
 
 ## Step contract
 
@@ -80,4 +80,4 @@ On `pnpm --filter @dimah-s3/cli build`:
 2. Register it in `templates/catalog.json`.
 3. Document in `templates/README.md` and docs Quickstart if it is a primary starter.
 
-Interactive runs always show the Framework select (default / `initialValue`: first catalog entry). `--template`, `--yes`, and non-TTY sessions skip the prompt and use that default.
+Interactive runs always show the Framework select (default / `initialValue`: first catalog entry — Next.js). Catalog starters today: `nextjs`, `vite`, `hono`. `--template`, `--yes`, and non-TTY sessions skip the prompt and use that default.

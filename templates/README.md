@@ -13,6 +13,18 @@ npx @dimah-s3/cli@latest create my-app
 
 Do **not** treat these as library packages. They are outside the pnpm workspace. Starters must install cleanly with concrete npm ranges only (no `catalog:`, `workspace:*`, or `@workspace/*`).
 
+## Catalog
+
+| Id        | Framework | Notes                                              |
+| --------- | --------- | -------------------------------------------------- |
+| `nextjs`  | Next.js   | Default. Optional `src/` flatten (`srcLayout`)     |
+| `vite`    | Vite      | React SPA + Hono API                               |
+| `hono`    | Hono      | Hono API + Vite React; `start` serves API + static |
+
+```bash
+npx @dimah-s3/cli@latest create my-app --template vite
+```
+
 ## Adding a template
 
 1. Create `templates/<id>/` as a self-contained app (concrete npm ranges only).

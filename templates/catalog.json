@@ -5,6 +5,16 @@
       "title": "Next.js",
       "hint": "App Router + presign route + UploadButton",
       "srcLayout": true
+    },
+    {
+      "id": "vite",
+      "title": "Vite",
+      "hint": "React SPA + Hono API + UploadButton"
+    },
+    {
+      "id": "hono",
+      "title": "Hono",
+      "hint": "Hono API + Vite React + UploadButton"
     }
   ]
 }

@@ -22,7 +22,7 @@ export const createCommand = defineCommand({
     template: {
       type: "string",
       alias: "t",
-      description: "Template id (e.g. nextjs)",
+      description: "Template id (nextjs | vite | hono)",
     },
     "package-manager": {
       type: "string",
@@ -41,9 +41,9 @@ export const createCommand = defineCommand({
     src: {
       type: "boolean",
       description:
-        "Keep app code under a src/ directory (Next.js templates only)",
+        "Keep app code under src/ (Next.js / srcLayout templates only)",
       negativeDescription:
-        "Place app/ lib/ components/ at the project root (Next.js templates only)",
+        "Flatten src/ to the project root (Next.js / srcLayout templates only)",
     },
     overwrite: {
       type: "boolean",

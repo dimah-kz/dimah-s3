@@ -8,7 +8,9 @@
     "scaffold",
     "create",
     "dimah-s3",
-    "nextjs"
+    "nextjs",
+    "vite",
+    "hono"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",

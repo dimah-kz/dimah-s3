@@ -47,6 +47,12 @@ describe("catalog on disk", () => {
     expect(findTemplate(catalog, "nextjs").srcLayout).toBe(true);
   });
 
+  it("keeps vite and hono without srcLayout (src/ is fixed)", async () => {
+    const catalog = await loadCatalog();
+    expect(findTemplate(catalog, "vite").srcLayout).toBeFalsy();
+    expect(findTemplate(catalog, "hono").srcLayout).toBeFalsy();
+  });
+
   it("resolves a template directory case-insensitively", async () => {
     const resolved = await resolveTemplate("NextJS");
     expect(resolved.meta.id).toBe("nextjs");

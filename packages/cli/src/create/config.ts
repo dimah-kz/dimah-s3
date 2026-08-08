@@ -131,20 +131,26 @@ export async function resolveCreateConfig(
       ),
   });
 
-  // Only Next.js-style starters ship an optional `src/` layout.
-  const src = template.meta.srcLayout
-    ? await resolveOption(flags.src, {
-        interactive,
-        fallback: true,
-        prompt: () =>
-          ask(
-            p.confirm({
-              message: "Use a src/ directory?",
-              initialValue: true,
-            }),
-          ),
-      })
-    : true;
+  // `srcLayout` templates (Next.js) can flatten `src/` → root. Vite/Hono keep
+  // `src/` always — flatten would break `index.html` and package scripts.
+  let src = true;
+  if (template.meta.srcLayout) {
+    src = await resolveOption(flags.src, {
+      interactive,
+      fallback: true,
+      prompt: () =>
+        ask(
+          p.confirm({
+            message: "Use a src/ directory?",
+            initialValue: true,
+          }),
+        ),
+    });
+  } else if (flags.src !== undefined) {
+    logWarn(
+      `--src / --no-src only applies to templates with a srcLayout option (currently nextjs). Ignoring for "${template.meta.id}".`,
+    );
+  }
 
   const overwrite = await resolveOverwrite(target.targetDir, {
     flag: Boolean(flags.overwrite),
