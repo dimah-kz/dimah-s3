@@ -131,6 +131,18 @@ export async function resolveCreateConfig(
       ),
   });
 
+  const src = await resolveOption(flags.src, {
+    interactive,
+    fallback: true,
+    prompt: () =>
+      ask(
+        p.confirm({
+          message: "Use a src/ directory?",
+          initialValue: true,
+        }),
+      ),
+  });
+
   const overwrite = await resolveOverwrite(target.targetDir, {
     flag: Boolean(flags.overwrite),
     interactive,
@@ -145,6 +157,7 @@ export async function resolveCreateConfig(
       packageManager,
       install,
       git,
+      src,
       overwrite,
     },
     template,

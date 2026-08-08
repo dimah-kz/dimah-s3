@@ -88,16 +88,18 @@ describe("create e2e", () => {
     expect(files).toEqual(
       expect.arrayContaining([
         "package.json",
-        "app",
-        "lib",
-        "components",
+        "src",
         ".gitignore",
         ".env.example",
         ".env",
       ]),
     );
+    expect(files).not.toContain("app");
     expect(files).not.toContain("_gitignore");
     expect(files).not.toContain("AGENTS.md");
+
+    const src = await readdir(join(appDir, "src"));
+    expect(src).toEqual(expect.arrayContaining(["app", "lib", "components"]));
   });
 
   it("sets package.json name and resolves ranges", async () => {
@@ -139,6 +141,42 @@ describe("create e2e", () => {
       expect(entries.length).toBeGreaterThan(0);
     }
   });
+});
+
+describe("create --no-src", () => {
+  it("flattens the template out of src/", async () => {
+    const result = await runCli(
+      [
+        "create",
+        "flat-app",
+        "--yes",
+        "--no-src",
+        "--no-install",
+        "--no-git",
+        "--template",
+        "nextjs",
+      ],
+      workDir,
+    );
+    expect(result.exitCode).toBe(0);
+
+    const appDir = join(workDir, "flat-app");
+    const files = await readdir(appDir);
+    expect(files).toEqual(
+      expect.arrayContaining(["package.json", "app", "lib", "components"]),
+    );
+    expect(files).not.toContain("src");
+
+    const tsconfig = JSON.parse(
+      await readFile(join(appDir, "tsconfig.json"), "utf8"),
+    ) as { compilerOptions: { paths: Record<string, string[]> } };
+    expect(tsconfig.compilerOptions.paths["@/*"]).toEqual(["./*"]);
+
+    const components = JSON.parse(
+      await readFile(join(appDir, "components.json"), "utf8"),
+    ) as { tailwind: { css: string } };
+    expect(components.tailwind.css).toBe("app/globals.css");
+  }, 60_000);
 });
 
 describe("version flag", () => {

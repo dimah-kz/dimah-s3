@@ -30,7 +30,9 @@ Two phases, and they must not mix: **resolve** asks questions, **steps** touch t
 3. `create/pipeline.ts` builds a `CreateContext` and runs `createSteps` in order, then prints the next steps note.
 4. On an unrecoverable failure the pipeline rolls back — but only a target directory this run created.
 
-Current steps: `scaffold` (prepare dir → copy snapshot → set `package.json` name → restore `_gitignore` → copy `.env.example`), `install` (`nypm`), `git` (`init -b main` + initial commit).
+Current steps: `scaffold` (prepare dir → copy snapshot → set `package.json` name → restore `_gitignore` → optionally flatten `src/` → copy `.env.example`), `install` (`nypm`), `git` (`init -b main` + initial commit).
+
+Templates ship with a `src/` directory. `create` prompts for it (default yes); `--src` / `--no-src` and `--yes` skip the prompt. Flattening moves `src/*` to the project root and rewrites `tsconfig` / `components.json` path aliases.
 
 ## Step contract
 

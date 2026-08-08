@@ -20,18 +20,18 @@ Open `/` — upload a file, then see it listed from `storage_object`.
 
 Shared with the Next.js starter:
 
-1. [lib/s3-client.ts](lib/s3-client.ts) — AWS SDK client
-2. [lib/s3.ts](lib/s3.ts) — `dimahS3(...)` (upload-only flags like the template)
-3. [components/s3-provider.tsx](components/s3-provider.tsx) — `createS3Client`
-4. [app/api/s3/[...s3]/route.ts](app/api/s3/[...s3]/route.ts) — Next.js adapter
-5. [app/page.tsx](app/page.tsx) — `UploadButton`
+1. [src/lib/s3-client.ts](src/lib/s3-client.ts) — AWS SDK client
+2. [src/lib/s3.ts](src/lib/s3.ts) — `dimahS3(...)` (upload-only flags like the template)
+3. [src/components/s3-provider.tsx](src/components/s3-provider.tsx) — `createS3Client`
+4. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts) — Next.js adapter
+5. [src/app/page.tsx](src/app/page.tsx) — `UploadButton`
 
 DB delta only:
 
-1. [lib/db.ts](lib/db.ts) + [lib/dimah-s3-db.ts](lib/dimah-s3-db.ts) — Drizzle + FumaDB client
-2. `plugins: [db({ client, resolveScope })]` in [lib/s3.ts](lib/s3.ts)
+1. [src/lib/db.ts](src/lib/db.ts) + [src/lib/dimah-s3-db.ts](src/lib/dimah-s3-db.ts) — Drizzle + FumaDB client
+2. `plugins: [db({ client, resolveScope })]` in [src/lib/s3.ts](src/lib/s3.ts)
 3. `plugins: [dbClient()]` in the provider
-4. [components/file-list.tsx](components/file-list.tsx) — `api.db.listObjects`
+4. [src/components/file-list.tsx](src/components/file-list.tsx) — `api.db.listObjects`
 
 Demo scope is hard-coded to `user:demo`. Swap `resolveScope` for your auth session when you wire a real app.
 

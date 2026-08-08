@@ -5,7 +5,7 @@
     "jsx": "react-jsx",
     "noUncheckedIndexedAccess": false,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

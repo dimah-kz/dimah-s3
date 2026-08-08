@@ -12,13 +12,13 @@ npx @dimah-s3/cli@latest create my-app
 
 ## What’s included
 
-| Path                          | Role                                |
-| ----------------------------- | ----------------------------------- |
-| `lib/s3-client.ts`            | AWS SDK `S3Client` + default bucket |
-| `lib/s3.ts`                   | `dimahS3()` server config           |
-| `app/api/s3/[...s3]/route.ts` | Next.js route adapter               |
-| `components/s3-provider.tsx`  | Client `createS3Client` + provider  |
-| `app/page.tsx`                | Sample `UploadButton`               |
+| Path                              | Role                                |
+| --------------------------------- | ----------------------------------- |
+| `src/lib/s3-client.ts`            | AWS SDK `S3Client` + default bucket |
+| `src/lib/s3.ts`                   | `dimahS3()` server config           |
+| `src/app/api/s3/[...s3]/route.ts` | Next.js route adapter               |
+| `src/components/s3-provider.tsx`  | Client `createS3Client` + provider  |
+| `src/app/page.tsx`                | Sample `UploadButton`               |
 
 ## Docs
 

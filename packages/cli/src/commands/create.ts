@@ -38,6 +38,11 @@ export const createCommand = defineCommand({
       description: "Initialize a git repository",
       negativeDescription: "Skip git init",
     },
+    src: {
+      type: "boolean",
+      description: "Keep app code under a src/ directory",
+      negativeDescription: "Place app/ lib/ components/ at the project root",
+    },
     overwrite: {
       type: "boolean",
       description: "Replace the contents of a non-empty directory",
@@ -63,6 +68,7 @@ export const createCommand = defineCommand({
             : undefined,
         install: typeof args.install === "boolean" ? args.install : undefined,
         git: typeof args.git === "boolean" ? args.git : undefined,
+        src: typeof args.src === "boolean" ? args.src : undefined,
         overwrite: Boolean(args.overwrite),
         yes: Boolean(args.yes),
       };

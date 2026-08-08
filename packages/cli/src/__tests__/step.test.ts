@@ -15,6 +15,7 @@ function context(): CreateContext {
       packageManager: "pnpm",
       install: true,
       git: true,
+      src: true,
       overwrite: false,
     },
     template: { id: "nextjs", title: "Next.js" },

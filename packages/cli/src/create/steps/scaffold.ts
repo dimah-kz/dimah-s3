@@ -12,6 +12,7 @@ import {
   renameIfExists,
   writeJson,
 } from "../../utils/fs.js";
+import { flattenSrcDirectory } from "../layout-src.js";
 import type { CreateStep } from "../step.js";
 import { PRESERVED_ENTRIES } from "../target.js";
 
@@ -61,6 +62,12 @@ export async function writeEnv(ctx: CreateContext): Promise<void> {
   await cp(example, envPath);
 }
 
+/** Templates ship with `src/`; flatten when the user opted out. */
+export async function applySrcLayout(ctx: CreateContext): Promise<void> {
+  if (ctx.config.src) return;
+  await flattenSrcDirectory(ctx.config.targetDir);
+}
+
 export const scaffoldStep: CreateStep = {
   id: "scaffold",
   title: (ctx) => `Scaffolding ${ctx.template.title} template`,
@@ -70,6 +77,10 @@ export const scaffoldStep: CreateStep = {
     await copyTemplate(ctx);
     report("Applying project name");
     await applyProjectName(ctx);
+    if (!ctx.config.src) {
+      report("Flattening src/ directory");
+      await applySrcLayout(ctx);
+    }
     await writeEnv(ctx);
     return `Scaffolded ${ctx.template.title} template`;
   },

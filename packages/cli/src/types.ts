@@ -17,6 +17,8 @@ export type CreateConfig = {
   packageManager: PackageManager;
   install: boolean;
   git: boolean;
+  /** Keep the template `src/` directory (default true). */
+  src: boolean;
   overwrite: boolean;
 };
 
@@ -26,6 +28,7 @@ export type CreateFlags = {
   packageManager?: string;
   install?: boolean;
   git?: boolean;
+  src?: boolean;
   overwrite?: boolean;
   yes?: boolean;
 };
