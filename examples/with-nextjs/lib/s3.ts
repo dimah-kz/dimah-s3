@@ -5,7 +5,7 @@ export const s3 = dimahS3({
   s3: s3Client,
   defaultBucket,
   upload: { enabled: true },
-  download: { enabled: true },
-  delete: { enabled: true },
-  multipart: { enabled: true },
+  download: { enabled: false },
+  delete: { enabled: false },
+  multipart: { enabled: false },
 });

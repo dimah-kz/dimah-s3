@@ -28,8 +28,8 @@
 | Optional DB schema + `db()` / `dbClient()`                                                 | `packages/db/src/`                  |
 | shadcn manifests                                                                           | `registry/items/` (after UI source) |
 | Docs site copy                                                                             | `apps/docs/`                        |
-| Runnable demo                                                                              | `examples/with-nextjs/`             |
-| Runnable demo (DB persistence)                                                             | `examples/with-db/`                 |
+| Runnable demo (same as template, `workspace:*`)                                            | `examples/with-nextjs/`             |
+| Runnable demo + `@dimah-s3/db`                                                             | `examples/with-db/`                 |
 | User-facing app starters (degit / future CLI)                                              | `templates/<id>/`                   |
 
 **Default:** edit the smallest package that owns the behavior. Shared protocol → `core` first, then wire server + react.

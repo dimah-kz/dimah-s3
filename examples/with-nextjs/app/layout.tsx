@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import { Toaster } from "@dimah-s3/ui";
-import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { S3ClientProvider } from "@/components/s3-provider";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "dimah-s3 — Next.js example",
-  description:
-    "Runnable Next.js example for dimah-s3 upload, download, and delete",
+  title: "dimah-s3 — Next.js",
+  description: "Presigned S3 uploads with dimah-s3",
 };
 
 export default function RootLayout({
@@ -25,7 +24,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("h-full antialiased", "font-sans", inter.variable)}
     >
-      <body className="min-h-full flex flex-col font-sans">
+      <body className="flex min-h-full flex-col font-sans">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

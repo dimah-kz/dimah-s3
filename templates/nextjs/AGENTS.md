@@ -8,6 +8,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# examples/with-db
+# dimah-s3
 
-Same layout as [`templates/nextjs`](../../templates/nextjs) / [`examples/with-nextjs`](../with-nextjs), plus `@dimah-s3/db` (Drizzle / SQLite). Matches the [Database setup](https://dimah-s3.vercel.app/docs/db/setup) guide.
+Next.js App Router starter with [dimah-s3](https://dimah-s3.vercel.app): `@dimah-s3/server` for presign routes, `@dimah-s3/react` for the client, and `@dimah-s3/ui` for upload UI.
+
+Docs: [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) · [Providers](https://dimah-s3.vercel.app/docs/providers)

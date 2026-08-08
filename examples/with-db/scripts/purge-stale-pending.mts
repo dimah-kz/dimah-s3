@@ -6,8 +6,8 @@
  */
 import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { purgeStalePendingObjects } from "@dimah-s3/db";
-import { dimahS3Db } from "../src/lib/dimah-s3-db";
-import { s3Client } from "../src/lib/s3-client";
+import { dimahS3Db } from "../lib/dimah-s3-db";
+import { s3Client } from "../lib/s3-client";
 
 const { purged } = await purgeStalePendingObjects({
   db: dimahS3Db,

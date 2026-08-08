@@ -1,8 +1,8 @@
 # @dimah-s3/example-with-nextjs
 
-Runnable Next.js demo for [dimah-s3](https://dimah-s3.vercel.app) inside the monorepo (`workspace:*`) — not a production starter.
+Monorepo twin of [`templates/nextjs`](../../templates/nextjs): same files and wiring, but `@dimah-s3/*` comes from `workspace:*` so you can exercise local packages without publishing.
 
-For a copy-paste / degit app outside this repo, use [`templates/nextjs`](../../templates/nextjs).
+For a copy-paste / degit app outside this repo, use the template.
 
 For DB persistence see [`examples/with-db`](../with-db).
 
@@ -17,10 +17,7 @@ cp examples/with-nextjs/.env.example examples/with-nextjs/.env
 pnpm --filter @dimah-s3/example-with-nextjs dev
 ```
 
-## Routes
-
-- [`/ui`](http://localhost:3000/ui) — `@dimah-s3/ui` npm package demos
-- [`/registry`](http://localhost:3000/registry) — placeholder for shadcn registry installs
+Open `/` — upload a file with `UploadButton`.
 
 ## License
 

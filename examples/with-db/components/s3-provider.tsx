@@ -4,7 +4,6 @@ import { dbClient } from "@dimah-s3/db/client";
 import { createS3Client } from "@dimah-s3/react";
 
 export const { api, S3Provider, useApi } = createS3Client({
-  basePath: "/api/s3",
   plugins: [dbClient()],
 });
 

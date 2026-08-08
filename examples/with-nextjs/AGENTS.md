@@ -1,9 +1,3 @@
-# examples/with-nextjs
-
-Runnable monorepo demo only (`workspace:*`) — no database or auth. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui` on `/ui`. `/registry` is a placeholder for future shadcn CLI installs.
-
-User-facing degit starter: [`templates/nextjs`](../../templates/nextjs) (published npm ranges, not this folder).
-
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -13,3 +7,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# examples/with-nextjs
+
+Same shape as [`templates/nextjs`](../../templates/nextjs) — monorepo demo only (`workspace:*` `@dimah-s3/*`). No database or auth.
+
+User-facing degit starter: use the template, not this folder.
