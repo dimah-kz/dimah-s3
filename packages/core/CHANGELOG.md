@@ -1,3 +1,9 @@
+## @dimah-s3/core@0.6.1
+
+### Maintenance patch
+
+No public API changes. Keeps the published `@dimah-s3/*` line aligned with the current monorepo release tooling.
+
 ## @dimah-s3/core@0.6.0
 
 ### Add Vite and Hono CLI starters
