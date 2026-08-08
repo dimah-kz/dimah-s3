@@ -1,6 +1,6 @@
 # examples/with-db
 
-Runnable example with SQLite + `@dimah-s3/db`. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui`.
+Minimal quickstart + `@dimah-s3/db` (Drizzle / SQLite). Same shape as the Database setup docs — not a full dashboard demo.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

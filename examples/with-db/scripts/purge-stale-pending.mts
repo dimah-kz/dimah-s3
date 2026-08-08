@@ -1,12 +1,12 @@
 /**
- * Delete stale `pending` rows (presigned but never confirmed) and abort
- * their multipart uploads. Run on a schedule:
+ * Optional — delete stale `pending` rows and abort their multipart uploads.
+ * See /docs/db/purge
  *
  *   pnpm db:purge-stale
  */
 import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { purgeStalePendingObjects } from "@dimah-s3/db";
-import { dimahS3Db } from "../src/lib/db";
+import { dimahS3Db } from "../src/lib/dimah-s3-db";
 import { s3Client } from "../src/lib/s3-client";
 
 const { purged } = await purgeStalePendingObjects({

@@ -1,17 +1,17 @@
+import type { Metadata } from "next";
+import { Toaster } from "@dimah-s3/ui";
 import "./globals.css";
+import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { S3ClientProvider } from "@/components/s3-provider";
-import { DirectionProvider } from "@/components/ui/direction";
-import localFont from "next/font/local";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@dimah-s3/ui";
 
-const vazirmatn = localFont({
-  src: "../../public/fonts/Vazirmatn-VariableFont_wght.ttf",
-  weight: "300 900",
-  variable: "--font-sans",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+
+export const metadata: Metadata = {
+  title: "dimah-s3 — with-db example",
+  description: "Minimal Next.js + Drizzle + SQLite example for @dimah-s3/db",
+};
 
 export default function RootLayout({
   children,
@@ -20,27 +20,20 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="fa-IR"
-      dir="rtl"
-      className={cn("h-full", "antialiased", "font-sans", vazirmatn.variable)}
+      lang="en"
       suppressHydrationWarning
+      className={cn("h-full antialiased", "font-sans", inter.variable)}
     >
-      <body className="min-h-full flex flex-col">
-        <DirectionProvider direction="rtl">
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <TooltipProvider>
-              <S3ClientProvider>
-                {children}
-                <Toaster />
-              </S3ClientProvider>
-            </TooltipProvider>
-          </ThemeProvider>
-        </DirectionProvider>
+      <body className="min-h-full flex flex-col font-sans">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <S3ClientProvider>{children}</S3ClientProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
