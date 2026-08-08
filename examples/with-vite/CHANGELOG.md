@@ -1,4 +1,4 @@
-## @dimah-s3/cli@0.6.0
+## @dimah-s3/example-with-vite@0.1.0
 
 ### Add Vite and Hono CLI starters
 
@@ -7,9 +7,3 @@
 ### Scaffold Next.js starters under `src/`
 
 Official Next.js templates and examples now keep app code in `src/`. `create` prompts for a `src/` directory (default yes) and accepts `--src` / `--no-src`.
-
-## @dimah-s3/cli@0.5.0
-
-### Add `@dimah-s3/cli`
-
-Scaffold official starters with `npx @dimah-s3/cli@latest create my-app`. Templates are bundled into the CLI at publish time.
