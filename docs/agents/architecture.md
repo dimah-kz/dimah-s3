@@ -15,6 +15,7 @@
 ```
 
 `apps/docs` and `examples/*` consume workspace packages — not published.
+`templates/*` are standalone starters (published `@dimah-s3/*` ranges) for degit / future CLI — **not** in the pnpm workspace.
 
 ## Placement {#placement}
 
@@ -29,6 +30,7 @@
 | Docs site copy                                                                             | `apps/docs/`                        |
 | Runnable demo                                                                              | `examples/with-nextjs/`             |
 | Runnable demo (DB persistence)                                                             | `examples/with-db/`                 |
+| User-facing app starters (degit / future CLI)                                              | `templates/<id>/`                   |
 
 **Default:** edit the smallest package that owns the behavior. Shared protocol → `core` first, then wire server + react.
 

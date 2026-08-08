@@ -1,6 +1,8 @@
 # @dimah-s3/example-with-nextjs
 
-Runnable Next.js demo for [dimah-s3](https://dimah-s3.vercel.app) — not a production starter.
+Runnable Next.js demo for [dimah-s3](https://dimah-s3.vercel.app) inside the monorepo (`workspace:*`) — not a production starter.
+
+For a copy-paste / degit app outside this repo, use [`templates/nextjs`](../../templates/nextjs).
 
 For DB persistence see [`examples/with-db`](../with-db).
 

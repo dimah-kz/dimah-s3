@@ -1,6 +1,8 @@
 # examples/with-nextjs
 
-Runnable example only — no database or auth. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui` on `/ui`. `/registry` is a placeholder for future shadcn CLI installs.
+Runnable monorepo demo only (`workspace:*`) — no database or auth. Uses `@dimah-s3/server` route handlers and `@dimah-s3/ui` on `/ui`. `/registry` is a placeholder for future shadcn CLI installs.
+
+User-facing degit starter: [`templates/nextjs`](../../templates/nextjs) (published npm ranges, not this folder).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

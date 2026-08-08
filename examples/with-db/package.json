@@ -15,7 +15,7 @@
     "db:purge-stale": "node --import tsx --env-file-if-exists=.env scripts/purge-stale-pending.mts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1104.0",
+    "@aws-sdk/client-s3": "^3.1105.0",
     "@base-ui/react": "^1.7.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/db": "workspace:*",
@@ -28,7 +28,7 @@
     "cnfast": "^0.1.0",
     "drizzle-orm": "^0.45.2",
     "fumadb": "^0.5.1",
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.29.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",
     "react": "catalog:",
@@ -46,9 +46,9 @@
     "babel-plugin-react-compiler": "1.0.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "catalog:",
-    "shadcn": "^4.16.1",
+    "shadcn": "^4.16.2",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.8",
+    "tsx": "^4.23.9",
     "typescript": "catalog:"
   }
 }

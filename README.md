@@ -22,6 +22,15 @@ Presign flows only. Anything else stays in your own backend with [`@aws-sdk/clie
 
 [dimah-s3.vercel.app](https://dimah-s3.vercel.app)
 
+## Starter (Next.js)
+
+```bash
+npx degit dimah-kz/dimah-s3/templates/nextjs my-app
+cd my-app && cp .env.example .env && npm i && npm run dev
+```
+
+More templates: [`templates/`](./templates).
+
 ## License
 
 MIT

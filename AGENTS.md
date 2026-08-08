@@ -16,7 +16,7 @@ Index + constraints. **Explore the codebase** for handlers, hooks, and registry 
 
 ## Stack (one line)
 
-pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui}` (tsup, ESM, Tegami `dimah-s3` package group). UI i18n via Fuma Translate (`@fuma-translate/react`; import the hook from there, not `@dimah-s3/react`). Shared `@workspace/eslint-config` + `@workspace/typescript-config`; `pnpm lint` / `pnpm check-types` cover all workspace packages.
+pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui}` (tsup, ESM, Tegami `dimah-s3` package group). UI i18n via Fuma Translate (`@fuma-translate/react`; import the hook from there, not `@dimah-s3/react`). Shared `@workspace/eslint-config` + `@workspace/typescript-config`; `pnpm lint` / `pnpm check-types` cover all workspace packages. User starters live in `templates/` (not workspace — published npm ranges); monorepo demos stay in `examples/`.
 
 ## Docs map
 

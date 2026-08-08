@@ -3,6 +3,7 @@ packages:
   - "packages/*"
   - "examples/*"
   - "registry"
+  - "templates/*"
 
 catalog:
   typescript: 7.0.2
@@ -31,3 +32,9 @@ allowBuilds:
   msw: true
   sharp: true
   unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - "@dimah-s3/core@0.4.1"
+  - "@dimah-s3/react@0.4.1"
+  - "@dimah-s3/server@0.4.1"
+  - "@dimah-s3/ui@0.4.1"

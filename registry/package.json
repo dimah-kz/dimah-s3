@@ -19,9 +19,9 @@
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
     "drizzle-orm": "^0.45.2",
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.29.0",
     "react": "catalog:",
-    "shadcn": "^4.16.1"
+    "shadcn": "^4.16.2"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
@@ -29,7 +29,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "tsx": "^4.23.8",
+    "tsx": "^4.23.9",
     "typescript": "catalog:"
   }
 }

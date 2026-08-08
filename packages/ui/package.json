@@ -64,7 +64,7 @@
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
     "eslint": "catalog:",
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.29.0",
     "react": "catalog:",
     "tsc-alias": "^1.9.1",
     "tsup": "catalog:",

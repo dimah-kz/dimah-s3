@@ -1,6 +1,6 @@
 ---
 description: Monorepo boundaries and placement — open architecture.md for detail
-globs: packages/**/*,apps/**/*,examples/**/*,registry/**/*
+globs: packages/**/*,apps/**/*,examples/**/*,templates/**/*,registry/**/*
 alwaysApply: false
 ---
 
