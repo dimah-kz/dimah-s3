@@ -2,7 +2,7 @@
 
 Monorepo twin of [`templates/nextjs`](../../templates/nextjs): same files and wiring, but `@dimah-s3/*` comes from `workspace:*` so you can exercise local packages without publishing.
 
-For an app outside this repo, use `npx @dimah-s3/cli@latest create`.
+For an app outside this repo, use `npx @dimah-s3/cli@latest create my-app`.
 
 For DB persistence see [`examples/with-db`](../with-db).
 

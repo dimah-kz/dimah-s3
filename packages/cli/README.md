@@ -6,19 +6,18 @@ Scaffold an official [dimah-s3](https://dimah-s3.vercel.app) starter.
 
 ```bash
 npx @dimah-s3/cli@latest create my-app
-pnpm dlx @dimah-s3/cli@latest create my-app
 ```
 
-Scaffold into the current directory (the folder name becomes the package name):
+Into the current directory (package name = folder name):
 
 ```bash
 npx @dimah-s3/cli@latest create .
 ```
 
-Non-interactive:
+Skip prompts:
 
 ```bash
-npx @dimah-s3/cli@latest create my-app --yes --template nextjs
+npx @dimah-s3/cli@latest create my-app --yes
 ```
 
 ### Options

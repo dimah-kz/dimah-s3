@@ -8,7 +8,7 @@ Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https:/
 npx @dimah-s3/cli@latest create my-app
 ```
 
-Fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://dimah-s3.vercel.app/docs/providers).
+`cd my-app`, fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://dimah-s3.vercel.app/docs/providers).
 
 ## What’s included
 
