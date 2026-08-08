@@ -1,3 +1,7 @@
+## @dimah-s3/db@0.6.2
+
+### scipts update and remove changelog from templates
+
 ## @dimah-s3/db@0.6.1
 
 ### Maintenance patch
