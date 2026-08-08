@@ -1,3 +1,9 @@
+## @dimah-s3/core@0.6.3
+
+### Clarify create success message
+
+After scaffolding, the CLI still names the project in the success line, with "Your app" as the fallback when the name is missing.
+
 ## @dimah-s3/core@0.6.2
 
 ### scipts update and remove changelog from templates
