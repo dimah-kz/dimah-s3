@@ -1,24 +1,34 @@
 import { installDependencies } from "nypm";
 
-import type { CreateConfig } from "../../types.js";
-import { CliError } from "../../utils/errors.js";
-import { spinner } from "../../utils/ui.js";
+import { errorMessage } from "../../utils/errors.js";
+import { installCommand } from "../../utils/package-manager.js";
+import type { CreateStep } from "../step.js";
 
-export async function installDeps(config: CreateConfig): Promise<void> {
-  if (!config.install) return;
-
-  const s = spinner();
-  s.start(`Installing dependencies with ${config.packageManager}`);
-  try {
-    await installDependencies({
-      cwd: config.targetDir,
-      packageManager: config.packageManager,
-      silent: true,
-      ignoreWorkspace: true,
-    });
-    s.stop(`Installed dependencies with ${config.packageManager}`);
-  } catch (error) {
-    s.stop("Failed to install dependencies");
-    throw new CliError(error instanceof Error ? error.message : String(error));
-  }
-}
+/**
+ * Install is recoverable: the project is already on disk, so a failure only
+ * downgrades the final instructions to "install manually".
+ */
+export const installStep: CreateStep = {
+  id: "install",
+  title: (ctx) => `Installing dependencies with ${ctx.config.packageManager}`,
+  enabled: (ctx) => ctx.config.install,
+  recoverable: true,
+  async run(ctx) {
+    const { packageManager, targetDir } = ctx.config;
+    try {
+      await installDependencies({
+        cwd: targetDir,
+        packageManager,
+        silent: true,
+        ignoreWorkspace: true,
+      });
+    } catch (error) {
+      throw new Error(
+        `${errorMessage(error)}\nRun ${installCommand(packageManager)} inside the project to retry.`,
+        { cause: error },
+      );
+    }
+    ctx.installed = true;
+    return `Installed dependencies with ${packageManager}`;
+  },
+};

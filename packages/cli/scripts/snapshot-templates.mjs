@@ -113,6 +113,9 @@ export async function snapshotTemplates() {
     if (typeof id !== "string" || !id) {
       throw new Error("Each catalog entry needs a string id");
     }
+    if (typeof entry.title !== "string" || !entry.title) {
+      throw new Error(`Catalog entry "${id}" needs a string title`);
+    }
     const src = resolve(templatesRoot, id);
     if (!existsSync(src)) {
       throw new Error(`Template folder missing: ${src}`);

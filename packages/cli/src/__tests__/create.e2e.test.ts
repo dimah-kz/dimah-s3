@@ -1,6 +1,13 @@
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,18 +21,55 @@ const cliPkg = JSON.parse(
   readFileSync(join(packageRoot, "package.json"), "utf8"),
 ) as { version: string };
 
+type RunResult = { stdout: string; stderr: string; exitCode: number };
+
+async function runCli(args: string[], cwd: string): Promise<RunResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      process.execPath,
+      [cliEntry, ...args],
+      {
+        cwd,
+        env: {
+          ...process.env,
+          npm_config_user_agent: "pnpm/11.0.0 npm/? node/v24.0.0",
+        },
+      },
+    );
+    return { stdout, stderr, exitCode: 0 };
+  } catch (error) {
+    const failure = error as {
+      stdout?: string;
+      stderr?: string;
+      code?: number;
+    };
+    return {
+      stdout: failure.stdout ?? "",
+      stderr: failure.stderr ?? "",
+      exitCode: failure.code ?? 1,
+    };
+  }
+}
+
+let workDir: string;
+
+beforeAll(async () => {
+  workDir = await mkdtemp(join(tmpdir(), "dimah-s3-cli-"));
+});
+
+afterAll(async () => {
+  if (workDir) {
+    await rm(workDir, { recursive: true, force: true });
+  }
+});
+
 describe("create e2e", () => {
-  let workDir: string;
   let appDir: string;
 
   beforeAll(async () => {
-    workDir = await mkdtemp(join(tmpdir(), "dimah-s3-cli-"));
     appDir = join(workDir, "demo-app");
-
-    await execFileAsync(
-      process.execPath,
+    const result = await runCli(
       [
-        cliEntry,
         "create",
         "demo-app",
         "--yes",
@@ -34,21 +78,10 @@ describe("create e2e", () => {
         "--template",
         "nextjs",
       ],
-      {
-        cwd: workDir,
-        env: {
-          ...process.env,
-          npm_config_user_agent: "pnpm/11.0.0 npm/? node/v24.0.0",
-        },
-      },
+      workDir,
     );
+    expect(result.exitCode).toBe(0);
   }, 60_000);
-
-  afterAll(async () => {
-    if (workDir) {
-      await rm(workDir, { recursive: true, force: true });
-    }
-  });
 
   it("scaffolds expected files", async () => {
     const files = await readdir(appDir);
@@ -106,4 +139,87 @@ describe("create e2e", () => {
       expect(entries.length).toBeGreaterThan(0);
     }
   });
+});
+
+describe("version flag", () => {
+  it("prints the package version", async () => {
+    const result = await runCli(["--version"], workDir);
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain(cliPkg.version);
+  });
+});
+
+describe("create in the current directory", () => {
+  it("names the project after the folder and skips the cd hint", async () => {
+    const dir = join(workDir, "named-from-folder");
+    await mkdir(dir, { recursive: true });
+
+    const result = await runCli(
+      ["create", ".", "--yes", "--no-install", "--no-git"],
+      dir,
+    );
+    expect(result.exitCode).toBe(0);
+
+    const pkg = JSON.parse(
+      await readFile(join(dir, "package.json"), "utf8"),
+    ) as {
+      name: string;
+    };
+    expect(pkg.name).toBe("named-from-folder");
+    expect(result.stdout).not.toContain("cd ");
+  }, 60_000);
+});
+
+describe("non-empty target directory", () => {
+  it("fails with an --overwrite hint", async () => {
+    const dir = join(workDir, "occupied");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "keep-me.txt"), "hello", "utf8");
+
+    const result = await runCli(
+      ["create", "occupied", "--yes", "--no-install", "--no-git"],
+      workDir,
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toContain("--overwrite");
+    expect(await readdir(dir)).toEqual(["keep-me.txt"]);
+  }, 60_000);
+
+  it("replaces contents with --overwrite but keeps .git", async () => {
+    const dir = join(workDir, "replaced");
+    await mkdir(join(dir, ".git"), { recursive: true });
+    await writeFile(join(dir, "stale.txt"), "old", "utf8");
+
+    const result = await runCli(
+      [
+        "create",
+        "replaced",
+        "--yes",
+        "--overwrite",
+        "--no-install",
+        "--no-git",
+      ],
+      workDir,
+    );
+    expect(result.exitCode).toBe(0);
+
+    const entries = await readdir(dir);
+    expect(entries).toContain(".git");
+    expect(entries).toContain("package.json");
+    expect(entries).not.toContain("stale.txt");
+  }, 60_000);
+});
+
+describe("non-interactive fallback", () => {
+  it("uses defaults without --yes when stdin is not a TTY", async () => {
+    const result = await runCli(
+      ["create", "piped-app", "--no-install", "--no-git"],
+      workDir,
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain("Non-interactive");
+    expect(await readdir(join(workDir, "piped-app"))).toContain("package.json");
+  }, 60_000);
 });

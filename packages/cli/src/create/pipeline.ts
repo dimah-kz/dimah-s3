@@ -1,44 +1,88 @@
-import pc from "picocolors";
 import { relative } from "pathe";
+import pc from "picocolors";
 
-import type { CreateConfig } from "../types.js";
-import { loadCatalog, resolveTemplateMeta } from "../templates/registry.js";
+import type { CreateContext } from "../types.js";
+import { removeDir } from "../utils/fs.js";
 import { installCommand, runDevCommand } from "../utils/package-manager.js";
-import { intro, note, outro, spinner } from "../utils/ui.js";
-import { installDeps } from "./steps/install-deps.js";
-import { initGit } from "./steps/init-git.js";
-import {
-  applyProjectName,
-  copyTemplate,
-  validateTarget,
-  writeEnv,
-} from "./steps/scaffold.js";
+import { logWarn, note, outro } from "../utils/ui.js";
+import type { ResolvedCreate } from "./config.js";
+import type { CreateStep } from "./step.js";
+import { runSteps } from "./step.js";
+import { installStep } from "./steps/install-deps.js";
+import { initGitStep } from "./steps/init-git.js";
+import { scaffoldStep } from "./steps/scaffold.js";
 
-export async function runCreatePipeline(config: CreateConfig): Promise<void> {
-  intro();
+const DOCS_URL = "https://dimah-s3.vercel.app";
 
-  const templates = loadCatalog();
-  const meta = resolveTemplateMeta(templates, config.template);
+/**
+ * Ordered create steps. New options (extra plugins, opt-in features) are added
+ * as steps here — everything they need is on the context.
+ */
+export const createSteps: CreateStep[] = [
+  scaffoldStep,
+  installStep,
+  initGitStep,
+];
 
-  await validateTarget(config);
+export type CreateResult = {
+  /** Recoverable steps that failed — the project exists but needs manual work. */
+  failedSteps: string[];
+};
 
-  const s = spinner();
-  s.start(`Scaffolding ${meta.title} template`);
-  await copyTemplate(config);
-  await applyProjectName(config);
-  await writeEnv(config);
-  s.stop(`Scaffolded ${meta.title} template`);
+export async function runCreatePipeline({
+  config,
+  template,
+}: ResolvedCreate): Promise<CreateResult> {
+  const ctx: CreateContext = {
+    config,
+    template: template.meta,
+    templateDir: template.dir,
+    cwd: process.cwd(),
+    createdTargetDir: false,
+    installed: false,
+  };
 
-  await installDeps(config);
-  await initGit(config);
+  let failedSteps: string[];
+  try {
+    ({ failedSteps } = await runSteps(createSteps, ctx));
+  } catch (error) {
+    await rollback(ctx);
+    throw error;
+  }
 
-  const rel = relative(process.cwd(), config.targetDir) || config.projectName;
-  const lines = [`cd ${rel}`, "Fill S3_* values in .env"];
-  if (!config.install) {
+  printNextSteps(ctx);
+  return { failedSteps };
+}
+
+/** Only removes a directory this run created, never pre-existing content. */
+async function rollback(ctx: CreateContext): Promise<void> {
+  if (!ctx.createdTargetDir) return;
+  try {
+    await removeDir(ctx.config.targetDir);
+  } catch {
+    logWarn(`Could not clean up ${ctx.config.targetDir}. Remove it manually.`);
+  }
+}
+
+function printNextSteps(ctx: CreateContext): void {
+  const { config } = ctx;
+  const lines: string[] = [];
+
+  if (!config.inPlace) {
+    const rel = relative(ctx.cwd, config.targetDir) || config.projectName;
+    lines.push(`cd ${rel}`);
+  }
+  if (!ctx.installed) {
     lines.push(installCommand(config.packageManager));
   }
   lines.push(runDevCommand(config.packageManager));
 
-  note(lines.map((line) => pc.cyan(line)).join("\n"), "Next steps");
-  outro(`Created ${pc.bold(config.projectName)}`);
+  note(
+    [
+      ...lines.map((line) => pc.cyan(line)),
+      pc.dim("then fill the S3_* values in .env"),
+    ].join("\n"),
+    "Next steps",
+  );
+  outro(`${pc.bold(config.projectName)} is ready — docs: ${DOCS_URL}`);
 }

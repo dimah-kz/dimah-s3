@@ -9,6 +9,12 @@ npx @dimah-s3/cli@latest create my-app
 pnpm dlx @dimah-s3/cli@latest create my-app
 ```
 
+Scaffold into the current directory (the folder name becomes the package name):
+
+```bash
+npx @dimah-s3/cli@latest create .
+```
+
 Non-interactive:
 
 ```bash
@@ -20,11 +26,32 @@ npx @dimah-s3/cli@latest create my-app --yes --template nextjs
 | Flag                         | Description                                               |
 | ---------------------------- | --------------------------------------------------------- |
 | `-t, --template <id>`        | Template id (`nextjs`)                                    |
-| `--package-manager <pm>`     | `pnpm` \| `npm` \| `yarn` \| `bun`                        |
+| `--package-manager <pm>`     | `pnpm` \| `npm` \| `yarn` \| `bun` (default: detected)    |
 | `--install` / `--no-install` | Install dependencies (default: prompt / yes with `--yes`) |
 | `--git` / `--no-git`         | Initialize git (default: prompt / yes with `--yes`)       |
-| `--overwrite`                | Allow a non-empty target directory                        |
+| `--overwrite`                | Replace the contents of a non-empty directory             |
 | `-y, --yes`                  | Skip prompts and use defaults                             |
+| `--version`                  | Print the CLI version                                     |
+
+### Behavior
+
+- **Prompts** are only used on an interactive terminal. Piped input and CI fall
+  back to defaults instead of hanging.
+- **Non-empty target:** the run stops unless `--overwrite` is passed (or the
+  prompt is confirmed). Overwriting clears the directory contents but keeps
+  `.git` and `.env`, and never removes the directory itself.
+- **Failed install:** the project is kept and the final instructions tell you to
+  install manually; the exit code is still non-zero.
+- **Git:** initializes on `main` and makes an initial commit. Skipped when the
+  target is already inside a repository.
+
+### Exit codes
+
+| Code  | Meaning                      |
+| ----- | ---------------------------- |
+| `0`   | Success                      |
+| `1`   | Failure                      |
+| `130` | Cancelled (Ctrl+C or a "no") |
 
 ## Templates
 

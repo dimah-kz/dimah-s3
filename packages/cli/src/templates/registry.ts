@@ -1,61 +1,81 @@
-import { readFileSync } from "node:fs";
-import { dirname, join } from "pathe";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { dirname, join } from "pathe";
 
 import type { TemplateMeta } from "../types.js";
-import { CliError } from "../utils/errors.js";
+import { CliError, errorMessage } from "../utils/errors.js";
 import { pathExists } from "../utils/fs.js";
 
 type CatalogFile = {
   templates: TemplateMeta[];
 };
 
+export type ResolvedTemplate = {
+  meta: TemplateMeta;
+  dir: string;
+};
+
+/**
+ * Snapshotted templates sit next to the bundle (`dist/templates`). When running
+ * from source (tests, `tsx`) the same snapshot is reached through the package
+ * root, so the registry works without duplicating catalog data.
+ */
 function templatesRoot(): string {
-  // Bundled into dist/index.js → dist/templates/
-  return join(dirname(fileURLToPath(import.meta.url)), "templates");
+  const here = dirname(fileURLToPath(import.meta.url));
+  return join(here, "templates");
 }
 
-export function getTemplatesRoot(): string {
-  return templatesRoot();
+function fallbackTemplatesRoot(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return join(here, "..", "..", "dist", "templates");
 }
 
-export function loadCatalog(): TemplateMeta[] {
-  const catalogPath = join(templatesRoot(), "catalog.json");
-  let raw: string;
+async function resolveTemplatesRoot(): Promise<string> {
+  const primary = templatesRoot();
+  if (await pathExists(join(primary, "catalog.json"))) return primary;
+
+  const fallback = fallbackTemplatesRoot();
+  if (await pathExists(join(fallback, "catalog.json"))) return fallback;
+
+  throw new CliError(
+    `Template catalog missing at ${join(primary, "catalog.json")}. Run the CLI package build first.`,
+  );
+}
+
+let cachedCatalog: TemplateMeta[] | undefined;
+
+export async function loadCatalog(): Promise<TemplateMeta[]> {
+  if (cachedCatalog) return cachedCatalog;
+
+  const root = await resolveTemplatesRoot();
+  const catalogPath = join(root, "catalog.json");
+
+  let parsed: CatalogFile;
   try {
-    raw = readFileSync(catalogPath, "utf8");
-  } catch {
+    parsed = JSON.parse(await readFile(catalogPath, "utf8")) as CatalogFile;
+  } catch (error) {
     throw new CliError(
-      `Template catalog missing at ${catalogPath}. Run the CLI package build first.`,
+      `Template catalog at ${catalogPath} is not readable JSON: ${errorMessage(error)}`,
+      undefined,
+      { cause: error },
     );
   }
 
-  const parsed = JSON.parse(raw) as CatalogFile;
   if (!Array.isArray(parsed.templates) || parsed.templates.length === 0) {
     throw new CliError("Template catalog is empty.");
   }
-
   for (const entry of parsed.templates) {
     if (!entry?.id || !entry?.title) {
       throw new CliError("Each catalog entry needs id and title.");
     }
   }
 
-  return parsed.templates;
+  cachedCatalog = parsed.templates;
+  return cachedCatalog;
 }
 
-export function getTemplateDir(id: string): string {
-  return join(templatesRoot(), id);
-}
-
-export async function assertTemplateExists(id: string): Promise<void> {
-  const dir = getTemplateDir(id);
-  if (!(await pathExists(dir))) {
-    throw new CliError(`Unknown template "${id}" (missing ${dir}).`);
-  }
-}
-
-export function resolveTemplateMeta(
+/** Pure catalog lookup, split out so it can be unit tested without the disk. */
+export function findTemplate(
   templates: TemplateMeta[],
   id: string,
 ): TemplateMeta {
@@ -65,4 +85,23 @@ export function resolveTemplateMeta(
     throw new CliError(`Unknown template "${id}". Available: ${ids}`);
   }
   return found;
+}
+
+export function normalizeTemplateId(id: string): string {
+  return id.trim().toLowerCase();
+}
+
+/** Validates the id against the catalog and the snapshot on disk in one pass. */
+export async function resolveTemplate(id: string): Promise<ResolvedTemplate> {
+  const templates = await loadCatalog();
+  const meta = findTemplate(templates, normalizeTemplateId(id));
+  const dir = join(await resolveTemplatesRoot(), meta.id);
+
+  if (!(await pathExists(dir))) {
+    throw new CliError(
+      `Template "${meta.id}" is listed in the catalog but missing at ${dir}.`,
+    );
+  }
+
+  return { meta, dir };
 }

@@ -28,16 +28,25 @@ export function logError(message: string) {
 }
 
 export function spinner() {
-  return p.spinner();
+  return p.spinner({ indicator: "timer" });
 }
 
-export function handleCancel(
-  value: unknown,
-): asserts value is Exclude<typeof value, symbol> {
+/** Prompts need a real TTY on both ends — CI and piped input get defaults. */
+export function isInteractive(): boolean {
+  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+/**
+ * Await a Clack prompt and turn cancellation (Ctrl+C) into a `CliError` so the
+ * caller never has to narrow the cancel symbol out of the result.
+ */
+export async function ask<T>(prompt: Promise<T | symbol>): Promise<T> {
+  const value = await prompt;
   if (p.isCancel(value)) {
     p.cancel("Operation cancelled.");
     throw new CliError("Cancelled", EXIT_CANCEL);
   }
+  return value as T;
 }
 
 export { p };

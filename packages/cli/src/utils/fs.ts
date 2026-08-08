@@ -19,28 +19,32 @@ export async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-export async function isDirEmpty(path: string): Promise<boolean> {
-  if (!(await pathExists(path))) return true;
-  const entries = await readdir(path);
-  return entries.length === 0;
+/** Directory entries, or an empty list when the directory does not exist. */
+export async function listDir(path: string): Promise<string[]> {
+  try {
+    return await readdir(path);
+  } catch {
+    return [];
+  }
 }
 
-export async function ensureEmptyDir(
-  path: string,
-  overwrite: boolean,
-): Promise<void> {
-  if (!(await pathExists(path))) {
-    await mkdir(path, { recursive: true });
-    return;
-  }
-  if (await isDirEmpty(path)) return;
-  if (!overwrite) {
-    throw new Error(
-      `Target directory "${path}" is not empty. Pass --overwrite to replace it.`,
-    );
-  }
-  await rm(path, { recursive: true, force: true });
+export async function ensureDir(path: string): Promise<void> {
   await mkdir(path, { recursive: true });
+}
+
+/**
+ * Deletes the contents of a directory without deleting the directory itself,
+ * so an in-place scaffold cannot remove the process working directory.
+ */
+export async function emptyDir(
+  path: string,
+  options: { keep?: string[] } = {},
+): Promise<void> {
+  const keep = new Set(options.keep ?? []);
+  for (const entry of await listDir(path)) {
+    if (keep.has(entry)) continue;
+    await rm(join(path, entry), { recursive: true, force: true });
+  }
 }
 
 export async function copyDir(src: string, dest: string): Promise<void> {
@@ -69,6 +73,6 @@ export async function renameIfExists(
   return true;
 }
 
-export function joinPath(...parts: string[]): string {
-  return join(...parts);
+export async function removeDir(path: string): Promise<void> {
+  await rm(path, { recursive: true, force: true });
 }

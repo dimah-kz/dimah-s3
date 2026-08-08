@@ -1,36 +1,71 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import type { CreateConfig } from "../../types.js";
-import { logInfo, spinner } from "../../utils/ui.js";
+import { cliVersion } from "../../runtime.js";
+import type { CreateStep } from "../step.js";
 
 const execFileAsync = promisify(execFile);
 
-async function isInsideGitRepo(cwd: string): Promise<boolean> {
+async function git(args: string[], cwd: string): Promise<void> {
+  await execFileAsync("git", args, { cwd });
+}
+
+async function isInsideRepo(cwd: string): Promise<boolean> {
   try {
-    await execFileAsync("git", ["rev-parse", "--is-inside-work-tree"], {
-      cwd,
-    });
+    await git(["rev-parse", "--is-inside-work-tree"], cwd);
     return true;
   } catch {
     return false;
   }
 }
 
-export async function initGit(config: CreateConfig): Promise<void> {
-  if (!config.git) return;
-
-  if (await isInsideGitRepo(config.targetDir)) {
-    logInfo("Skipping git init (already inside a git repository).");
-    return;
-  }
-
-  const s = spinner();
-  s.start("Initializing git repository");
+async function isGitAvailable(): Promise<boolean> {
   try {
-    await execFileAsync("git", ["init"], { cwd: config.targetDir });
-    s.stop("Initialized git repository");
+    await execFileAsync("git", ["--version"]);
+    return true;
   } catch {
-    s.stop("Skipped git init (git not available)");
+    return false;
   }
 }
+
+export const initGitStep: CreateStep = {
+  id: "git",
+  title: "Initializing git repository",
+  enabled: (ctx) => ctx.config.git,
+  recoverable: true,
+  async run(ctx, report) {
+    const cwd = ctx.config.targetDir;
+
+    if (!(await isGitAvailable())) {
+      return "Skipped git init (git is not installed)";
+    }
+    if (await isInsideRepo(cwd)) {
+      return "Skipped git init (already inside a git repository)";
+    }
+
+    try {
+      await git(["init", "-b", "main"], cwd);
+    } catch {
+      // `-b` needs git >= 2.28; fall back to the user's default branch name.
+      await git(["init"], cwd);
+    }
+
+    report("Creating the initial commit");
+    try {
+      await git(["add", "-A"], cwd);
+      await git(
+        [
+          "commit",
+          "--no-verify",
+          "-m",
+          `Initial commit from @dimah-s3/cli v${cliVersion()}`,
+        ],
+        cwd,
+      );
+    } catch {
+      return "Initialized git repository (no initial commit — configure git user.name/user.email)";
+    }
+
+    return "Initialized git repository with an initial commit";
+  },
+};

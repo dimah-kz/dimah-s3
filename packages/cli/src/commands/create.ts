@@ -2,9 +2,11 @@ import { defineCommand } from "citty";
 
 import { resolveCreateConfig } from "../create/config.js";
 import { runCreatePipeline } from "../create/pipeline.js";
+import { assertSupportedNode } from "../runtime.js";
 import type { CreateFlags } from "../types.js";
-import { CliError } from "../utils/errors.js";
-import { logError } from "../utils/ui.js";
+import { EXIT_ERROR } from "../utils/errors.js";
+import { withErrorBoundary } from "../utils/exit.js";
+import { intro } from "../utils/ui.js";
 
 export const createCommand = defineCommand({
   meta: {
@@ -22,7 +24,7 @@ export const createCommand = defineCommand({
       alias: "t",
       description: "Template id (e.g. nextjs)",
     },
-    packageManager: {
+    "package-manager": {
       type: "string",
       description: "Package manager: pnpm | npm | yarn | bun",
     },
@@ -38,7 +40,7 @@ export const createCommand = defineCommand({
     },
     overwrite: {
       type: "boolean",
-      description: "Allow scaffolding into a non-empty directory",
+      description: "Replace the contents of a non-empty directory",
       default: false,
     },
     yes: {
@@ -49,13 +51,15 @@ export const createCommand = defineCommand({
     },
   },
   async run({ args }) {
-    try {
+    await withErrorBoundary(async () => {
+      assertSupportedNode();
+
       const flags: CreateFlags = {
         dir: typeof args.dir === "string" ? args.dir : undefined,
         template: typeof args.template === "string" ? args.template : undefined,
         packageManager:
-          typeof args.packageManager === "string"
-            ? args.packageManager
+          typeof args["package-manager"] === "string"
+            ? args["package-manager"]
             : undefined,
         install: typeof args.install === "boolean" ? args.install : undefined,
         git: typeof args.git === "boolean" ? args.git : undefined,
@@ -63,16 +67,14 @@ export const createCommand = defineCommand({
         yes: Boolean(args.yes),
       };
 
-      const config = await resolveCreateConfig(flags);
-      await runCreatePipeline(config);
-    } catch (error) {
-      if (error instanceof CliError) {
-        if (error.exitCode !== 130) {
-          logError(error.message);
-        }
-        process.exit(error.exitCode);
+      intro();
+      const resolved = await resolveCreateConfig(flags);
+      const { failedSteps } = await runCreatePipeline(resolved);
+
+      // The project is usable, but a skipped step must not look like success.
+      if (failedSteps.length > 0) {
+        process.exitCode = EXIT_ERROR;
       }
-      throw error;
-    }
+    });
   },
 });
