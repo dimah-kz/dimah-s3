@@ -78,4 +78,4 @@ On `pnpm --filter @dimah-s3/cli build`:
 2. Register it in `templates/catalog.json`.
 3. Document in `templates/README.md` and docs Quickstart if it is a primary starter.
 
-A single catalog entry is auto-selected; the framework prompt appears once there are two or more.
+Interactive runs always show the Framework select (default / `initialValue`: first catalog entry). `--template`, `--yes`, and non-TTY sessions skip the prompt and use that default.

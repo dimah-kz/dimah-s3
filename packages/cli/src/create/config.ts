@@ -88,10 +88,10 @@ export async function resolveCreateConfig(
   const target = resolveTarget(dirInput, cwd);
   assertValidPackageName(target.projectName);
 
+  const defaultTemplateId = templates[0]!.id;
   const templateId = await resolveOption(flags.template, {
-    // A single template needs no question.
-    interactive: interactive && templates.length > 1,
-    fallback: templates[0]!.id,
+    interactive,
+    fallback: defaultTemplateId,
     prompt: () =>
       ask(
         p.select({
@@ -101,6 +101,7 @@ export async function resolveCreateConfig(
             label: t.title,
             hint: t.hint,
           })),
+          initialValue: defaultTemplateId,
         }),
       ),
   });

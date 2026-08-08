@@ -36,8 +36,9 @@ npx @dimah-s3/cli@latest create my-app --yes
 
 - **Project name** is required with `--yes` or on a non-TTY (CI / piped input).
   Interactive runs still prompt when the directory argument is omitted.
-- **Other prompts** are only used on an interactive terminal. Non-interactive
-  sessions fall back to defaults for template / install / git.
+- **Other prompts** (Framework, install, git) are only used on an interactive
+  terminal. Framework defaults to the first catalog entry (currently Next.js).
+  Non-interactive sessions fall back to those same defaults.
 - **Non-empty target:** the run stops unless `--overwrite` is passed (or the
   prompt is confirmed). Overwriting clears the directory contents but keeps
   `.git` and `.env`, and never removes the directory itself.
