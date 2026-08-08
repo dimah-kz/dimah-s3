@@ -1,7 +1,4 @@
----
-packages:
-  group:dimah-s3: minor
----
+## @dimah-s3/cli@0.5.0
 
 ### Add `@dimah-s3/cli`
 
