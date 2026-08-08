@@ -10,11 +10,7 @@ icon: Rocket
 npx @dimah-s3/cli@latest create my-app
 ```
 
-Then fill S3\_\* values in `.env`, and start the app. Browser uploads may require bucket CORS — see [Providers](/docs/providers).
-
 ## Manual installation
-
-Wire dimah-s3 into an existing app step by step.
 
 ### Install [step]
 
@@ -47,7 +43,7 @@ export const s3Client = new S3Client({
 export const defaultBucket = process.env.S3_DEFAULT_BUCKET!;
 ```
 
-Works with any S3-compatible provider. Setup may differ by provider — see [Providers](/docs/providers).
+Any S3-compatible provider works — details in [Providers](/docs/providers).
 
 ### Server config and route [step]
 
@@ -121,11 +117,9 @@ export const DELETE = handler;
 
 </Tabs>
 
-More frameworks (Fastify, Elysia, Node, Workers): [Server adapters](/docs/server/adapters).
+More frameworks: [Server adapters](/docs/server/adapters).
 
-Upload-only is now live on `/api/s3`.
-
-### Client provider (standard) [step]
+### Client provider [step]
 
 ```tsx title="components/s3-provider.tsx"
 "use client";
@@ -139,7 +133,7 @@ export function S3ClientProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Mount once near your app root — provider for hooks/UI, toaster for feedback (same pattern as the examples):
+Mount near the app root (provider + toaster):
 
 ```tsx title="app/layout.tsx"
 import { Toaster } from "@dimah-s3/ui";
@@ -164,8 +158,6 @@ export default function RootLayout({
 Registry installs: import `Toaster` from `@/components/ui/toast` instead of `@dimah-s3/ui`.
 
 ### UI setup [step]
-
-Theme variables and package install (toaster is already in the layout above):
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -205,11 +197,9 @@ export default function Page() {
 }
 ```
 
-At this point, selecting a file uploads directly to S3.
+Selecting a file uploads directly to S3.
 
 <Callout type="info">
-  Need deeper setup details? See [Server setup](/docs/server/setup), [Client
+  Deeper guides: [Server setup](/docs/server/setup), [Client
   setup](/docs/react/setup), and [UI setup](/docs/react/ui/upload-button).
 </Callout>
-
-Need custom auth/DB hooks or another framework? Continue with [Server setup](/docs/server/setup) and [Client setup](/docs/react/setup).
