@@ -1,29 +1,34 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Fix upload toast progress updates\n\nUpload progress toasts now update in place instead of re-adding on each progress tick, so the loading toast stays stable during uploads.\n"
-    filename: 2026-08-07-upload-toast-update.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Add `@dimah-s3/cli`\n\nScaffold official starters with `npx @dimah-s3/cli@latest create my-app`. Templates are bundled into the CLI at publish time.\n"
+    filename: 2026-08-08-31fafd.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-07-upload-toast-update.md
+      - 2026-08-08-31fafd.md
+    id: npm:@dimah-s3/cli
+    updated: true
+  - changelogIds:
+      - 2026-08-08-31fafd.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-07-upload-toast-update.md
+      - 2026-08-08-31fafd.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-07-upload-toast-update.md
+      - 2026-08-08-31fafd.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-07-upload-toast-update.md
+      - 2026-08-08-31fafd.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-07-upload-toast-update.md
+      - 2026-08-08-31fafd.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
+  - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/react
