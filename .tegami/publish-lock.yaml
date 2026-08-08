@@ -5,19 +5,11 @@ core:changelogs:
 core:packages:
   - changelogIds:
       - 2026-08-08-5b67d7b2.md
-    id: npm:@dimah-s3/example-with-hono
-    updated: true
-  - changelogIds:
-      - 2026-08-08-5b67d7b2.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
       - 2026-08-08-5b67d7b2.md
     id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-08-08-5b67d7b2.md
-    id: npm:@dimah-s3/example-with-vite
     updated: true
   - changelogIds:
       - 2026-08-08-5b67d7b2.md
@@ -36,10 +28,8 @@ core:packages:
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
-  - id: npm:@dimah-s3/example-with-hono
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
-  - id: npm:@dimah-s3/example-with-vite
   - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server

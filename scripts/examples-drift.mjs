@@ -22,6 +22,7 @@ const IGNORE_NAMES = new Set([
   "tsconfig.server.json",
   "AGENTS.md",
   "README.md",
+  "CHANGELOG.md",
   ".gitignore",
   "favicon.ico",
 ]);
