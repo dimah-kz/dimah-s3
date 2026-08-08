@@ -113,7 +113,11 @@ jobs:
           filters: |
             templates:
               - 'templates/**'
+              - 'examples/with-nextjs/**'
+              - 'examples/with-vite/**'
+              - 'examples/with-hono/**'
               - 'scripts/templates-*.mjs'
+              - 'scripts/examples-drift.mjs'
 
       - uses: pnpm/action-setup@v6
         if: steps.filter.outputs.templates == 'true'
@@ -126,6 +130,10 @@ jobs:
 
       - if: steps.filter.outputs.templates == 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Check template/example drift
+        if: steps.filter.outputs.templates == 'true'
+        run: pnpm examples:drift
 
       - name: Smoke-build starters
         if: steps.filter.outputs.templates == 'true'

@@ -2,7 +2,7 @@
   "name": "@dimah-s3/registry",
   "version": "0.0.1",
   "private": true,
-  "description": "dimah-s3 registry — Drizzle & Prisma schemas, shadcn registry source",
+  "description": "dimah-s3 private shadcn registry (item manifests + synced UI sources)",
   "type": "module",
   "scripts": {
     "build": "pnpm build-items && shadcn registry validate && shadcn build registry.json --output ../apps/docs/public/r --cwd . && pnpm -w format",

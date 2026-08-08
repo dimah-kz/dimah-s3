@@ -2,10 +2,12 @@
 
 Private shadcn registry for [dimah-s3](https://dimah-s3.vercel.app).
 
+DB schema examples live in `packages/db/src/schema/examples/` — not here.
+
 | Path                     | Role                                                               |
 | ------------------------ | ------------------------------------------------------------------ |
 | `items/*.ts`             | **Source of truth** — typed with `satisfies Registry`              |
-| `registry/dimah-s3-ui/` | Synced TSX from `@dimah-s3/ui` + generated `registry.json` chunks |
+| `generated/dimah-s3-ui/` | Synced TSX from `@dimah-s3/ui` + generated `registry.json` chunks |
 | `registry.json`          | Root catalog (`include` only)                                      |
 
 ---
@@ -28,5 +30,5 @@ Each registry item is self-contained: list every file the user needs in `files[]
 ## Adding an item
 
 1. Component in `packages/ui/src/`.
-2. Entry in `items/components.ts` — `path` is relative to `registry/dimah-s3-ui/` (e.g. `components/upload/…`, `hooks/…`).
+2. Entry in `items/components.ts` — `path` is relative to `generated/dimah-s3-ui/` (e.g. `components/upload/…`, `hooks/…`).
 3. `pnpm --filter @dimah-s3/registry build`.

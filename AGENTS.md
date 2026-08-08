@@ -16,7 +16,7 @@ Index + constraints. **Explore the codebase** for handlers, hooks, and registry 
 
 ## Stack (one line)
 
-pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui,cli}` (tsup, ESM, Tegami `dimah-s3` package group). UI i18n via Fuma Translate (`@fuma-translate/react`; import the hook from there, not `@dimah-s3/react`). Shared `@workspace/eslint-config` + `@workspace/typescript-config`; `pnpm lint` / `pnpm check-types` cover all workspace packages. User starters live in `templates/` (CLI snapshot source — published npm ranges); monorepo demos stay in `examples/`.
+pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui,cli}` (tsup, ESM, Tegami `dimah-s3` package group). UI i18n via Fuma Translate (`@fuma-translate/react`; import the hook from there, not `@dimah-s3/react`). Shared `@workspace/eslint-config` + `@workspace/typescript-config` under `tooling/`; `pnpm lint` / `pnpm check-types` cover all workspace packages. User starters live in `templates/` (CLI snapshot source — published npm ranges); monorepo demos stay in `examples/`.
 
 ## Docs map
 
@@ -34,7 +34,7 @@ pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui,cli}` (tsup, ESM, Teg
 - **Auth / quota:** consumer `DimahS3Config` hooks — never inside library packages. Optional DB via `@dimah-s3/db` `db()` plugin (not ORM inside `server`).
 - **Deps:** `core` ← `server` \| `react` ← `ui`; `db` → `server` (peer); no reverse ORM into `server`. UI: Fuma Translate. API errors: stable `code` + English `message` (localize on the client).
 - **Protocol SSOT:** `S3_API_ROUTES` + `createS3Client` in `@dimah-s3/core`; server exposes them via `dimahS3().handler` / `.api` — keep server + client in sync.
-- **Registry output:** never hand-edit `registry/registry/dimah-s3-ui/` — source is `packages/ui/src/`.
+- **Registry output:** never hand-edit `registry/generated/dimah-s3-ui/` — source is `packages/ui/src/`.
 - **Published API change:** add a Tegami changelog under `.tegami/` ([release.md](docs/agents/release.md)).
 - **RTL-safe styling:** default copy/design is English + LTR, but UI classes must stay direction-safe so RTL can be enabled later without layout breakage. Prefer logical utilities (`text-start`, `text-end`, `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`) over physical ones (`text-left/right`, `ml/mr`, `pl/pr`, `left/right`) unless the physical side is truly required by behavior (for example side-specific tooltip arrow placement).
 

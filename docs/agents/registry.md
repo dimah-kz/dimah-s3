@@ -4,7 +4,7 @@
 
 **Source of truth:** `packages/ui/src/` (`components/`, `hooks/`, `lib/`).
 
-**Generated (do not edit):** `registry/registry/dimah-s3-ui/` — copied by `packages/ui/scripts/sync-registry.mjs` on UI package build.
+**Generated (do not edit):** `registry/generated/dimah-s3-ui/` — copied by `packages/ui/scripts/sync-registry.mjs` on UI package build.
 
 ## When changing a UI component
 

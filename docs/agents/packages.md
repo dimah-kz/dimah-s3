@@ -46,7 +46,7 @@
 ## Build & exports
 
 - `pnpm build` / `pnpm check-types` / `pnpm lint` from repo root (Turbo).
-- Shared configs: `@workspace/eslint-config` and `@workspace/typescript-config` (each package extends them).
+- Shared configs: `@workspace/eslint-config` and `@workspace/typescript-config` in `tooling/` (each package extends them).
 - Each package: `tsup` → `dist/`; declare new public paths in `package.json` `exports`.
 - `server` peerDep: `@aws-sdk/client-s3`; `react` peerDep: `react`; `db` peerDep: `@dimah-s3/server`.
 

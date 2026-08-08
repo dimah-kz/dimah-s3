@@ -1,7 +1,7 @@
 import type { Registry } from "shadcn/schema";
 
 /** Bundled with upload-button and upload-dropzone (not separate registry items). */
-/** Paths are relative to `registry/dimah-s3-ui/` (see build-items output). */
+/** Paths are relative to `generated/dimah-s3-ui/` (see build-items output). */
 const uploadSupportFiles = [
   {
     path: "components/upload/upload-status.tsx",

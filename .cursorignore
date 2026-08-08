@@ -7,5 +7,5 @@ build/
 coverage/
 .source/
 pnpm-lock.yaml
-registry/registry/
+registry/generated/
 apps/docs/public/r/

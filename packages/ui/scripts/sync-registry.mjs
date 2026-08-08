@@ -20,7 +20,7 @@ const srcRoot = resolve(packageRoot, "src");
 const registryRoot = resolve(
   workspaceRoot,
   "registry",
-  "registry",
+  "generated",
   "dimah-s3-ui",
 );
 const registryPackageJsonPath = resolve(
@@ -162,5 +162,5 @@ for (const dir of sourceDirs) {
 syncRegistryDependencies();
 
 console.log(
-  "[dimah-s3-ui] Synced src/{components,hooks,lib} -> registry/registry/dimah-s3-ui and ensured registry deps include UI deps",
+  "[dimah-s3-ui] Synced src/{components,hooks,lib} -> registry/generated/dimah-s3-ui and ensured registry deps include UI deps",
 );

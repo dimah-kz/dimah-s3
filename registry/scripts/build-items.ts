@@ -8,7 +8,7 @@ const root = resolve(import.meta.dirname, "..");
 
 const outputs = [
   {
-    file: "registry/dimah-s3-ui/registry.json",
+    file: "generated/dimah-s3-ui/registry.json",
     items: components,
   },
 ] as const;

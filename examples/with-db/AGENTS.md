@@ -10,4 +10,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # examples/with-db
 
-Same layout as [`templates/nextjs`](../../templates/nextjs) / [`examples/with-nextjs`](../with-nextjs), plus `@dimah-s3/db` (Drizzle / SQLite). Matches the [Database setup](https://dimah-s3.vercel.app/docs/db/setup) guide.
+Next.js demo with `@dimah-s3/db` (Drizzle / SQLite) — not a CLI template twin. Framework-only twins are `with-nextjs` / `with-vite` / `with-hono`. Matches the [Database setup](https://dimah-s3.vercel.app/docs/db/setup) guide.

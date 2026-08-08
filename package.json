@@ -17,7 +17,8 @@
     "tegami": "node ./scripts/tegami.mts",
     "deps:update": "pnpm -r update --latest && pnpm templates:update",
     "templates:update": "node ./scripts/templates-update.mjs",
-    "templates:build": "node ./scripts/templates-build.mjs"
+    "templates:build": "node ./scripts/templates-build.mjs",
+    "examples:drift": "node ./scripts/examples-drift.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
