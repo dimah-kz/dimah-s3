@@ -10,15 +10,9 @@ describe("cliVersion", () => {
 });
 
 describe("assertSupportedNode", () => {
-  it("allows the minimum supported version", () => {
+  it("allows supported versions and rejects below the floor", () => {
     expect(() => assertSupportedNode("20.19.0")).not.toThrow();
-  });
-
-  it("allows newer majors", () => {
     expect(() => assertSupportedNode("24.0.0")).not.toThrow();
-  });
-
-  it("rejects versions below the floor", () => {
     expect(() => assertSupportedNode("20.18.9")).toThrow(CliError);
     expect(() => assertSupportedNode("18.20.0")).toThrow(/20\.19/);
   });

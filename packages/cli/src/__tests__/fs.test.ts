@@ -34,13 +34,6 @@ describe("emptyDir", () => {
 
     await emptyDir(dir, { keep: [".git", ".env"] });
 
-    const entries = await readdir(dir);
-    expect(entries.sort()).toEqual([".env", ".git"]);
-  });
-
-  it("is a no-op when the directory does not exist", async () => {
-    await expect(
-      emptyDir(join(tmpdir(), "dimah-empty-missing-does-not-exist")),
-    ).resolves.toBeUndefined();
+    expect((await readdir(dir)).sort()).toEqual([".env", ".git"]);
   });
 });

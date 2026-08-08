@@ -29,21 +29,27 @@ describe("dist template snapshot", () => {
       const entries = await readdir(snapshotDir);
       expect(entries.length).toBeGreaterThan(0);
 
-      // Local-only artifacts from templates:update / templates:build must not ship.
-      expect(entries).not.toContain("node_modules");
-      expect(entries).not.toContain("pnpm-lock.yaml");
-      expect(entries).not.toContain("package-lock.json");
-      expect(entries).not.toContain("yarn.lock");
-      expect(entries).not.toContain("dist");
-      expect(entries).not.toContain("AGENTS.md");
-      expect(entries).not.toContain(".gitignore");
-      expect(entries).not.toContain(".env");
-      expect(entries).not.toContain("next-env.d.ts");
-
-      // End-user starter config + npm-safe gitignore name.
-      expect(entries).toContain("pnpm-workspace.yaml");
-      expect(entries).toContain("_gitignore");
-      expect(entries).toContain("package.json");
+      // Local artifacts must not ship; end-user starter files must.
+      for (const name of [
+        "node_modules",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "yarn.lock",
+        "dist",
+        "AGENTS.md",
+        ".gitignore",
+        ".env",
+        "next-env.d.ts",
+      ]) {
+        expect(entries).not.toContain(name);
+      }
+      for (const name of [
+        "pnpm-workspace.yaml",
+        "_gitignore",
+        "package.json",
+      ]) {
+        expect(entries).toContain(name);
+      }
 
       const pkg = JSON.parse(
         await readFile(join(snapshotDir, "package.json"), "utf8"),
@@ -51,18 +57,19 @@ describe("dist template snapshot", () => {
         dependencies?: Record<string, string>;
         devDependencies?: Record<string, string>;
       };
-      const ranges = [
-        ...Object.values(pkg.dependencies ?? {}),
-        ...Object.values(pkg.devDependencies ?? {}),
-      ];
+      const ranges = Object.values({
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+      });
       expect(ranges.some((r) => r.startsWith("catalog:"))).toBe(false);
       expect(ranges.some((r) => r.startsWith("workspace:"))).toBe(false);
 
-      for (const field of ["dependencies", "devDependencies"] as const) {
-        for (const [name, range] of Object.entries(pkg[field] ?? {})) {
-          if (name.startsWith("@dimah-s3/")) {
-            expect(range).toBe(`^${cliPkg.version}`);
-          }
+      for (const [name, range] of Object.entries({
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+      })) {
+        if (name.startsWith("@dimah-s3/")) {
+          expect(range).toBe(`^${cliPkg.version}`);
         }
       }
     }

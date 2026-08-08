@@ -82,7 +82,7 @@ Templates stay outside the monorepo workspace. Root scripts:
 | Script                  | Purpose                                           |
 | ----------------------- | ------------------------------------------------- |
 | `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/`  |
-| `pnpm templates:build`  | install + build (+ `check-types` when present)    |
+| `pnpm templates:build`  | install + build + check-types per template        |
 | `pnpm deps:update`      | `pnpm -r update --latest` then `templates:update` |
 
 Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`.

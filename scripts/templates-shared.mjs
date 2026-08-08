@@ -1,9 +1,6 @@
 /**
- * Shared helpers for standalone `templates/<id>/` maintenance scripts.
+ * Shared helpers for standalone `templates/<id>/` scripts and CLI snapshot.
  * Templates are not pnpm workspace members — see templates/AGENTS.md.
- *
- * Also imported by `packages/cli/scripts/snapshot-templates.mjs` so catalog
- * validation stays a single source of truth.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -12,57 +9,33 @@ import { spawnSync } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export const workspaceRoot = resolve(__dirname, "..");
-export const templatesRoot = resolve(workspaceRoot, "templates");
+export const templatesRoot = resolve(__dirname, "..", "templates");
 export const catalogPath = resolve(templatesRoot, "catalog.json");
 
-/**
- * @typedef {{ id: string, title: string, hint?: string, srcLayout?: boolean }} CatalogEntry
- */
-
-/**
- * Load and validate every catalog entry (id + title required).
- * @returns {CatalogEntry[]}
- */
+/** @returns {{ id: string, title: string }[]} */
 export function listCatalogEntries() {
   if (!existsSync(catalogPath)) {
     throw new Error(`Missing templates catalog at ${catalogPath}`);
   }
-  const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
-  const templates = catalog.templates;
+  const { templates } = JSON.parse(readFileSync(catalogPath, "utf8"));
   if (!Array.isArray(templates) || templates.length === 0) {
     throw new Error("templates/catalog.json must list at least one template");
   }
-  /** @type {CatalogEntry[]} */
-  const entries = [];
   for (const entry of templates) {
-    const id = entry?.id;
-    if (typeof id !== "string" || !id) {
+    if (typeof entry?.id !== "string" || !entry.id) {
       throw new Error("Each catalog entry needs a string id");
     }
     if (typeof entry.title !== "string" || !entry.title) {
-      throw new Error(`Catalog entry "${id}" needs a string title`);
+      throw new Error(`Catalog entry "${entry.id}" needs a string title`);
     }
-    entries.push(entry);
   }
-  return entries;
+  return templates;
 }
 
-/**
- * @returns {string[]}
- */
-export function listTemplateIds() {
-  return listCatalogEntries().map((entry) => entry.id);
-}
-
-/**
- * Resolve which template ids to run. Pass ids as argv (after flags) to filter.
- * @param {string[]} argv
- * @returns {string[]}
- */
+/** @param {string[]} [argv] */
 export function resolveTemplateIds(argv = process.argv.slice(2)) {
   const requested = argv.filter((arg) => !arg.startsWith("-"));
-  const all = listTemplateIds();
+  const all = listCatalogEntries().map((e) => e.id);
   if (requested.length === 0) return all;
 
   const unknown = requested.filter((id) => !all.includes(id));
@@ -74,54 +47,41 @@ export function resolveTemplateIds(argv = process.argv.slice(2)) {
   return requested;
 }
 
-/**
- * @param {string} id
- */
+/** @param {string} id */
 export function templateDir(id) {
   const dir = resolve(templatesRoot, id);
-  if (!existsSync(dir)) {
-    throw new Error(`Template folder missing: ${dir}`);
-  }
-  if (!existsSync(resolve(dir, "package.json"))) {
-    throw new Error(`Missing package.json in ${dir}`);
+  if (!existsSync(dir) || !existsSync(resolve(dir, "package.json"))) {
+    throw new Error(`Template folder missing or incomplete: ${dir}`);
   }
   return dir;
 }
 
 /**
- * Run a command with stdio inherited.
- * Windows needs `shell: true` to resolve `.cmd` shims; pass a single command
- * string there to avoid Node's DEP0190 (args + shell).
+ * Windows needs `shell: true` for `.cmd` shims; pass a single string there
+ * to avoid Node DEP0190 (args + shell).
  * @param {string} command
  * @param {string[]} args
  * @param {string} cwd
  */
 export function run(command, args, cwd) {
   console.log(`\n[${cwd}] ${command} ${args.join(" ")}`);
-  /** @type {import("node:child_process").SpawnSyncReturns<Buffer>} */
-  let result;
-  if (process.platform === "win32") {
-    const line = [command, ...args]
-      .map((part) =>
-        /[\s"]/.test(part) ? `"${part.replaceAll('"', '\\"')}"` : part,
-      )
-      .join(" ");
-    result = spawnSync(line, {
-      cwd,
-      stdio: "inherit",
-      shell: true,
-      env: process.env,
-    });
-  } else {
-    result = spawnSync(command, args, {
-      cwd,
-      stdio: "inherit",
-      env: process.env,
-    });
-  }
-  if (result.error) {
-    throw result.error;
-  }
+  const result =
+    process.platform === "win32"
+      ? spawnSync(
+          [command, ...args]
+            .map((part) =>
+              /[\s"]/.test(part) ? `"${part.replaceAll('"', '\\"')}"` : part,
+            )
+            .join(" "),
+          { cwd, stdio: "inherit", shell: true, env: process.env },
+        )
+      : spawnSync(command, args, {
+          cwd,
+          stdio: "inherit",
+          env: process.env,
+        });
+
+  if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(
       `Command failed (${result.status}): ${command} ${args.join(" ")} (in ${cwd})`,
@@ -129,19 +89,15 @@ export function run(command, args, cwd) {
   }
 }
 
-/**
- * Fail if a template package.json still has workspace/catalog/@workspace leaks.
- * @param {string} dir
- */
+/** @param {string} dir */
 export function assertConcreteNpmRanges(dir) {
   const pkg = JSON.parse(readFileSync(resolve(dir, "package.json"), "utf8"));
-  const fields = [
+  for (const field of [
     "dependencies",
     "devDependencies",
     "peerDependencies",
     "optionalDependencies",
-  ];
-  for (const field of fields) {
+  ]) {
     const deps = pkg[field];
     if (!deps || typeof deps !== "object") continue;
     for (const [name, range] of Object.entries(deps)) {
@@ -157,14 +113,4 @@ export function assertConcreteNpmRanges(dir) {
       }
     }
   }
-}
-
-/**
- * Whether `package.json` defines a given npm script.
- * @param {string} dir
- * @param {string} script
- */
-export function hasScript(dir, script) {
-  const pkg = JSON.parse(readFileSync(resolve(dir, "package.json"), "utf8"));
-  return Boolean(pkg.scripts?.[script]);
 }

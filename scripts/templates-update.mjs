@@ -1,10 +1,6 @@
 /**
- * Bump deps in standalone `templates/<id>/` via `pnpm update --latest`.
+ * `pnpm update --latest` in each standalone `templates/<id>/`.
  *
- * Rewrites package.json ranges in place. Lockfiles stay local (gitignored) and
- * are excluded from the CLI snapshot — users get a fresh lock on `create` install.
- *
- * Usage:
  *   pnpm templates:update
  *   pnpm templates:update -- nextjs vite
  */

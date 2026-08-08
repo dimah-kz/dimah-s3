@@ -1,16 +1,11 @@
 /**
- * Smoke-install and build each standalone `templates/<id>/`.
+ * Smoke-install + build (+ check-types) each standalone `templates/<id>/`.
  *
- * Templates are outside the monorepo workspace, so this is the way to verify
- * starters still install and compile against published npm ranges.
- *
- * Usage:
  *   pnpm templates:build
  *   pnpm templates:build -- nextjs
  */
 import {
   assertConcreteNpmRanges,
-  hasScript,
   resolveTemplateIds,
   run,
   templateDir,
@@ -24,9 +19,7 @@ for (const id of ids) {
   assertConcreteNpmRanges(dir);
   run("pnpm", ["install"], dir);
   run("pnpm", ["run", "build"], dir);
-  if (hasScript(dir, "check-types")) {
-    run("pnpm", ["run", "check-types"], dir);
-  }
+  run("pnpm", ["run", "check-types"], dir);
   console.log(`[ok] templates/${id}`);
 }
 

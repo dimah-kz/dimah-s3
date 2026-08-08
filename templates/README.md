@@ -20,7 +20,7 @@ Each starter ships a local `pnpm-workspace.yaml` for pnpm 11 `allowBuilds` and `
 | Script                  | What it does                                                                                          |
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
 | `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/` (rewrites ranges; lockfiles stay local / gitignored) |
-| `pnpm templates:build`  | `pnpm install` + `build` + `check-types` (when present) smoke test per template                       |
+| `pnpm templates:build`  | `pnpm install` + `build` + `check-types` smoke test per template                                      |
 | `pnpm deps:update`      | Workspace `pnpm -r update --latest`, then `templates:update`                                          |
 
 Filter by id: `pnpm templates:build -- nextjs` / `pnpm templates:update -- vite hono`.

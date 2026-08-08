@@ -1,9 +1,8 @@
 /**
  * Snapshot `templates/<id>/` into `dist/templates/<id>/` for the published CLI.
  *
- * - Rewrites `@dimah-s3/*` to `^<cliVersion>` (sync-bump aligned)
- * - Renames `.gitignore` → `_gitignore` (npm strips `.gitignore` from tarballs)
- * - Fails on `workspace:` / `catalog:` / `@workspace/` leaks
+ * Pins `@dimah-s3/*` to `^<cliVersion>`, renames `.gitignore` → `_gitignore`,
+ * fails on workspace/catalog leaks.
  */
 import {
   cpSync,
@@ -21,16 +20,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   catalogPath,
   listCatalogEntries,
-  templatesRoot,
+  templateDir,
 } from "../../../scripts/templates-shared.mjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const packageRoot = resolve(__dirname, "..");
-const distTemplatesRoot = resolve(packageRoot, "dist", "templates");
-const cliPackageJsonPath = resolve(packageRoot, "package.json");
-const transformModuleUrl = pathToFileURL(
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const distRoot = resolve(packageRoot, "dist", "templates");
+const transformUrl = pathToFileURL(
   resolve(packageRoot, "dist", "snapshot", "transform.js"),
 ).href;
 
@@ -51,20 +46,14 @@ const COPY_EXCLUDE = new Set([
   ".git",
 ]);
 
-/**
- * @param {string} src
- * @param {string} dest
- * @param {(name: string) => boolean} shouldSkip
- */
-function copyDirFiltered(src, dest, shouldSkip) {
+function copyDirFiltered(src, dest) {
   mkdirSync(dest, { recursive: true });
   for (const entry of readdirSync(src)) {
-    if (shouldSkip(entry)) continue;
+    if (COPY_EXCLUDE.has(entry)) continue;
     const from = join(src, entry);
     const to = join(dest, entry);
-    const stats = statSync(from);
-    if (stats.isDirectory()) {
-      copyDirFiltered(from, to, shouldSkip);
+    if (statSync(from).isDirectory()) {
+      copyDirFiltered(from, to);
       continue;
     }
     if (entry.endsWith(".tsbuildinfo")) continue;
@@ -72,77 +61,36 @@ function copyDirFiltered(src, dest, shouldSkip) {
   }
 }
 
-/**
- * @param {string} templateDir
- */
-function renameGitignore(templateDir) {
-  const gitignore = join(templateDir, ".gitignore");
-  const underscored = join(templateDir, "_gitignore");
+const transform = await import(transformUrl);
+const cliVersion = JSON.parse(
+  readFileSync(join(packageRoot, "package.json"), "utf8"),
+).version;
+if (typeof cliVersion !== "string" || !cliVersion) {
+  throw new Error("CLI package.json is missing version");
+}
+
+rmSync(distRoot, { recursive: true, force: true });
+mkdirSync(distRoot, { recursive: true });
+
+for (const { id } of listCatalogEntries()) {
+  const dest = resolve(distRoot, id);
+  copyDirFiltered(templateDir(id), dest);
+
+  const gitignore = join(dest, ".gitignore");
   if (existsSync(gitignore)) {
-    renameSync(gitignore, underscored);
-  }
-}
-
-/**
- * @param {string} templateDir
- * @param {string} cliVersion
- * @param {{ transformTemplatePackageJson: Function }} transform
- */
-function transformPackageJsonFile(templateDir, cliVersion, transform) {
-  const pkgPath = join(templateDir, "package.json");
-  if (!existsSync(pkgPath)) {
-    throw new Error(`Missing package.json in ${templateDir}`);
-  }
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-  const { pkg: next, warnings } = transform.transformTemplatePackageJson(pkg, {
-    cliVersion,
-  });
-  for (const warning of warnings) {
-    console.warn(`[snapshot] ${warning}`);
-  }
-  writeFileSync(pkgPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-}
-
-export async function snapshotTemplates() {
-  const transform = await import(transformModuleUrl);
-  const entries = listCatalogEntries();
-
-  const cliPkg = JSON.parse(readFileSync(cliPackageJsonPath, "utf8"));
-  const cliVersion = cliPkg.version;
-  if (typeof cliVersion !== "string" || !cliVersion) {
-    throw new Error("CLI package.json is missing version");
+    renameSync(gitignore, join(dest, "_gitignore"));
   }
 
-  rmSync(distTemplatesRoot, { recursive: true, force: true });
-  mkdirSync(distTemplatesRoot, { recursive: true });
-
-  for (const entry of entries) {
-    const id = entry.id;
-    const src = resolve(templatesRoot, id);
-    if (!existsSync(src)) {
-      throw new Error(`Template folder missing: ${src}`);
-    }
-    const dest = resolve(distTemplatesRoot, id);
-    copyDirFiltered(src, dest, (name) => COPY_EXCLUDE.has(name));
-    renameGitignore(dest);
-    transformPackageJsonFile(dest, cliVersion, transform);
-    console.log(`[snapshot] ${id} → dist/templates/${id}`);
-  }
-
-  // Ship the validated catalog JSON as written on disk (preserves hint/srcLayout).
-  const catalogJson = JSON.parse(readFileSync(catalogPath, "utf8"));
-  writeFileSync(
-    join(distTemplatesRoot, "catalog.json"),
-    `${JSON.stringify(catalogJson, null, 2)}\n`,
-    "utf8",
+  const pkgPath = join(dest, "package.json");
+  const { pkg, warnings } = transform.transformTemplatePackageJson(
+    JSON.parse(readFileSync(pkgPath, "utf8")),
+    { cliVersion },
   );
-  console.log("[snapshot] wrote dist/templates/catalog.json");
+  for (const warning of warnings) console.warn(`[snapshot] ${warning}`);
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
+
+  console.log(`[snapshot] ${id} → dist/templates/${id}`);
 }
 
-const isDirectRun =
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
-
-if (isDirectRun) {
-  await snapshotTemplates();
-}
+cpSync(catalogPath, join(distRoot, "catalog.json"));
+console.log("[snapshot] wrote dist/templates/catalog.json");
