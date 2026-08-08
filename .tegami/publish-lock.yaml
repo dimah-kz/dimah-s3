@@ -1,36 +1,57 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Add `@dimah-s3/cli`\n\nScaffold official starters with `npx @dimah-s3/cli@latest create my-app`. Templates are bundled into the CLI at publish time.\n"
-    filename: 2026-08-08-31fafd.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Add Vite and Hono CLI starters\n\n`create` now offers `vite` (React SPA + Hono API) and `hono` (Hono + Vite React) alongside the default Next.js template. Pick a framework interactively or pass `--template vite` / `--template hono`.\n"
+    filename: 2026-08-08-a875cf18.md
+    v: 0.0.0
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Scaffold Next.js starters under `src/`\n\nOfficial Next.js templates and examples now keep app code in `src/`. `create` prompts for a `src/` directory (default yes) and accepts `--src` / `--no-src`.\n"
+    filename: 2026-08-08-c4bfa586.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-08-31fafd.md
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
+    id: npm:@dimah-s3/example-with-hono
+    updated: true
+  - changelogIds:
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
+    id: npm:@dimah-s3/example-with-vite
+    updated: true
+  - changelogIds:
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-08-31fafd.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-08-08-31fafd.md
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-08-31fafd.md
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-08-31fafd.md
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-08-31fafd.md
+      - 2026-08-08-a875cf18.md
+      - 2026-08-08-c4bfa586.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
+  - id: npm:@dimah-s3/example-with-hono
+  - id: npm:@dimah-s3/example-with-vite
   - id: npm:@dimah-s3/cli
-  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
+  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
