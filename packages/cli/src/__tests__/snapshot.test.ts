@@ -66,4 +66,21 @@ describe("transformTemplatePackageJson", () => {
       ),
     ).toThrow(/concrete npm range/);
   });
+
+  it("pins peer and optional @dimah-s3/* ranges", () => {
+    const { pkg } = transformTemplatePackageJson(
+      {
+        peerDependencies: {
+          "@dimah-s3/server": "^0.4.0",
+        },
+        optionalDependencies: {
+          "@dimah-s3/db": "^0.4.0",
+        },
+      },
+      { cliVersion: "0.5.0" },
+    );
+
+    expect(pkg.peerDependencies?.["@dimah-s3/server"]).toBe("^0.5.0");
+    expect(pkg.optionalDependencies?.["@dimah-s3/db"]).toBe("^0.5.0");
+  });
 });

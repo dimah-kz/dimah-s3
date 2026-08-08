@@ -22,6 +22,12 @@ pnpm check-types
 pnpm test
 ```
 
+When changing `templates/**` or template maintenance scripts, also run:
+
+```bash
+pnpm templates:build
+```
+
 CI posts a Tegami release preview comment on the PR.
 
 ## Bump types

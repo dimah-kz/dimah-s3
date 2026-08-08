@@ -1,6 +1,9 @@
 /**
  * Shared helpers for standalone `templates/<id>/` maintenance scripts.
  * Templates are not pnpm workspace members — see templates/AGENTS.md.
+ *
+ * Also imported by `packages/cli/scripts/snapshot-templates.mjs` so catalog
+ * validation stays a single source of truth.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -14,9 +17,14 @@ export const templatesRoot = resolve(workspaceRoot, "templates");
 export const catalogPath = resolve(templatesRoot, "catalog.json");
 
 /**
- * @returns {string[]}
+ * @typedef {{ id: string, title: string, hint?: string, srcLayout?: boolean }} CatalogEntry
  */
-export function listTemplateIds() {
+
+/**
+ * Load and validate every catalog entry (id + title required).
+ * @returns {CatalogEntry[]}
+ */
+export function listCatalogEntries() {
   if (!existsSync(catalogPath)) {
     throw new Error(`Missing templates catalog at ${catalogPath}`);
   }
@@ -25,15 +33,26 @@ export function listTemplateIds() {
   if (!Array.isArray(templates) || templates.length === 0) {
     throw new Error("templates/catalog.json must list at least one template");
   }
-  const ids = [];
+  /** @type {CatalogEntry[]} */
+  const entries = [];
   for (const entry of templates) {
     const id = entry?.id;
     if (typeof id !== "string" || !id) {
       throw new Error("Each catalog entry needs a string id");
     }
-    ids.push(id);
+    if (typeof entry.title !== "string" || !entry.title) {
+      throw new Error(`Catalog entry "${id}" needs a string title`);
+    }
+    entries.push(entry);
   }
-  return ids;
+  return entries;
+}
+
+/**
+ * @returns {string[]}
+ */
+export function listTemplateIds() {
+  return listCatalogEntries().map((entry) => entry.id);
 }
 
 /**
@@ -138,4 +157,14 @@ export function assertConcreteNpmRanges(dir) {
       }
     }
   }
+}
+
+/**
+ * Whether `package.json` defines a given npm script.
+ * @param {string} dir
+ * @param {string} script
+ */
+export function hasScript(dir, script) {
+  const pkg = JSON.parse(readFileSync(resolve(dir, "package.json"), "utf8"));
+  return Boolean(pkg.scripts?.[script]);
 }

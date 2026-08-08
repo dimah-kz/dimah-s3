@@ -20,9 +20,8 @@ export default function Home() {
       />
 
       <p className="max-w-sm text-center text-xs text-muted-foreground">
-        Copy <code className="rounded bg-muted px-1 py-0.5">.env.example</code>{" "}
-        to <code className="rounded bg-muted px-1 py-0.5">.env</code> and set
-        your <code className="rounded bg-muted px-1 py-0.5">S3_*</code> values.
+        Fill the <code className="rounded bg-muted px-1 py-0.5">S3_*</code>{" "}
+        values in <code className="rounded bg-muted px-1 py-0.5">.env</code>.
         Browser uploads need bucket CORS.
       </p>
     </main>

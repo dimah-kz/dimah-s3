@@ -10,6 +10,7 @@
  */
 import {
   assertConcreteNpmRanges,
+  hasScript,
   resolveTemplateIds,
   run,
   templateDir,
@@ -23,6 +24,9 @@ for (const id of ids) {
   assertConcreteNpmRanges(dir);
   run("pnpm", ["install"], dir);
   run("pnpm", ["run", "build"], dir);
+  if (hasScript(dir, "check-types")) {
+    run("pnpm", ["run", "check-types"], dir);
+  }
   console.log(`[ok] templates/${id}`);
 }
 

@@ -8,7 +8,7 @@ Minimal [Hono](https://hono.dev) starter with a Vite + React UI and [dimah-s3](h
 npx @dimah-s3/cli@latest create my-app --template hono
 ```
 
-`cd my-app`, copy `.env.example` to `.env`, fill `S3_*`. For browser uploads, configure bucket CORS — see [Providers](https://dimah-s3.vercel.app/docs/providers).
+`cd my-app`, fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://dimah-s3.vercel.app/docs/providers).
 
 `npm run dev` starts Hono (`:3000`) and Vite (`:5173`). Open the Vite URL; `/api` is proxied to Hono. `npm start` after `npm run build` serves the API and static UI from Hono alone.
 

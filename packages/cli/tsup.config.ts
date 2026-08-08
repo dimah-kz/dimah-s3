@@ -1,4 +1,7 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+const SHEBANG = "#!/usr/bin/env node\n";
 
 export default defineConfig({
   entry: {
@@ -14,10 +17,13 @@ export default defineConfig({
   splitting: false,
   treeshake: true,
   outDir: "dist",
-  // Shebang only needed for the bin entry; harmless on transform.
-  banner: {
-    js: "#!/usr/bin/env node",
-  },
   skipNodeModulesBundle: true,
   external: [/^[^./]/],
+  async onSuccess() {
+    const indexPath = "dist/index.js";
+    const content = readFileSync(indexPath, "utf8");
+    if (!content.startsWith("#!")) {
+      writeFileSync(indexPath, `${SHEBANG}${content}`);
+    }
+  },
 });

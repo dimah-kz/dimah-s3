@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "cache": false,
+      "inputs": ["$TURBO_DEFAULT$", "../../templates/**"],
       "outputs": ["dist/**"]
     },
     "test": {

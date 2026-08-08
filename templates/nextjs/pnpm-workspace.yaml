@@ -9,4 +9,3 @@ minimumReleaseAgeExclude:
   - "@dimah-s3/react"
   - "@dimah-s3/server"
   - "@dimah-s3/ui"
-  - "@dimah-s3/db"

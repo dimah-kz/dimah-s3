@@ -18,14 +18,16 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  catalogPath,
+  listCatalogEntries,
+  templatesRoot,
+} from "../../../scripts/templates-shared.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const packageRoot = resolve(__dirname, "..");
-const workspaceRoot = resolve(packageRoot, "..", "..");
-const templatesRoot = resolve(workspaceRoot, "templates");
-const catalogPath = resolve(templatesRoot, "catalog.json");
 const distTemplatesRoot = resolve(packageRoot, "dist", "templates");
 const cliPackageJsonPath = resolve(packageRoot, "package.json");
 const transformModuleUrl = pathToFileURL(
@@ -41,6 +43,12 @@ const COPY_EXCLUDE = new Set([
   "pnpm-lock.yaml",
   "package-lock.json",
   "yarn.lock",
+  ".env",
+  ".env.local",
+  "next-env.d.ts",
+  ".vercel",
+  ".DS_Store",
+  ".git",
 ]);
 
 /**
@@ -96,17 +104,8 @@ function transformPackageJsonFile(templateDir, cliVersion, transform) {
 }
 
 export async function snapshotTemplates() {
-  if (!existsSync(catalogPath)) {
-    throw new Error(`Missing templates catalog at ${catalogPath}`);
-  }
-
   const transform = await import(transformModuleUrl);
-
-  const catalogJson = JSON.parse(readFileSync(catalogPath, "utf8"));
-  const templates = catalogJson.templates;
-  if (!Array.isArray(templates) || templates.length === 0) {
-    throw new Error("templates/catalog.json must list at least one template");
-  }
+  const entries = listCatalogEntries();
 
   const cliPkg = JSON.parse(readFileSync(cliPackageJsonPath, "utf8"));
   const cliVersion = cliPkg.version;
@@ -117,14 +116,8 @@ export async function snapshotTemplates() {
   rmSync(distTemplatesRoot, { recursive: true, force: true });
   mkdirSync(distTemplatesRoot, { recursive: true });
 
-  for (const entry of templates) {
-    const id = entry?.id;
-    if (typeof id !== "string" || !id) {
-      throw new Error("Each catalog entry needs a string id");
-    }
-    if (typeof entry.title !== "string" || !entry.title) {
-      throw new Error(`Catalog entry "${id}" needs a string title`);
-    }
+  for (const entry of entries) {
+    const id = entry.id;
     const src = resolve(templatesRoot, id);
     if (!existsSync(src)) {
       throw new Error(`Template folder missing: ${src}`);
@@ -136,6 +129,8 @@ export async function snapshotTemplates() {
     console.log(`[snapshot] ${id} → dist/templates/${id}`);
   }
 
+  // Ship the validated catalog JSON as written on disk (preserves hint/srcLayout).
+  const catalogJson = JSON.parse(readFileSync(catalogPath, "utf8"));
   writeFileSync(
     join(distTemplatesRoot, "catalog.json"),
     `${JSON.stringify(catalogJson, null, 2)}\n`,

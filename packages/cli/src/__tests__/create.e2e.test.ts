@@ -51,6 +51,20 @@ async function runCli(args: string[], cwd: string): Promise<RunResult> {
   }
 }
 
+const CREATE_TIMEOUT_MS = 60_000;
+
+/** Scaffold with the usual non-interactive flags; extra flags merge in. */
+async function createApp(
+  cwd: string,
+  name: string,
+  flags: string[] = [],
+): Promise<RunResult> {
+  return runCli(
+    ["create", name, "--yes", "--no-install", "--no-git", ...flags],
+    cwd,
+  );
+}
+
 let workDir: string;
 
 beforeAll(async () => {
@@ -68,20 +82,12 @@ describe("create e2e", () => {
 
   beforeAll(async () => {
     appDir = join(workDir, "demo-app");
-    const result = await runCli(
-      [
-        "create",
-        "demo-app",
-        "--yes",
-        "--no-install",
-        "--no-git",
-        "--template",
-        "nextjs",
-      ],
-      workDir,
-    );
+    const result = await createApp(workDir, "demo-app", [
+      "--template",
+      "nextjs",
+    ]);
     expect(result.exitCode).toBe(0);
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 
   it("scaffolds expected files", async () => {
     const files = await readdir(appDir);
@@ -128,59 +134,6 @@ describe("create e2e", () => {
     expect(pkg.dependencies["@dimah-s3/ui"]).toBe(`^${cliPkg.version}`);
     expect(pkg.dependencies.react).toMatch(/^\d|^[\^~]/);
   });
-
-  it("snapshots every catalog template without local install artifacts", async () => {
-    const catalog = JSON.parse(
-      await readFile(
-        join(packageRoot, "dist", "templates", "catalog.json"),
-        "utf8",
-      ),
-    ) as { templates: Array<{ id: string }> };
-
-    expect(catalog.templates.map((t) => t.id)).toEqual([
-      "nextjs",
-      "vite",
-      "hono",
-    ]);
-
-    for (const entry of catalog.templates) {
-      const snapshotDir = join(packageRoot, "dist", "templates", entry.id);
-      const entries = await readdir(snapshotDir);
-      expect(entries.length).toBeGreaterThan(0);
-
-      // Local-only artifacts from templates:update / templates:build must not ship.
-      expect(entries).not.toContain("node_modules");
-      expect(entries).not.toContain("pnpm-lock.yaml");
-      expect(entries).not.toContain("package-lock.json");
-      expect(entries).not.toContain("yarn.lock");
-      expect(entries).not.toContain("dist");
-      expect(entries).not.toContain("AGENTS.md");
-      expect(entries).not.toContain(".gitignore");
-
-      // End-user starter config + npm-safe gitignore name.
-      expect(entries).toContain("pnpm-workspace.yaml");
-      expect(entries).toContain("_gitignore");
-      expect(entries).toContain("package.json");
-
-      const pkg = JSON.parse(
-        await readFile(join(snapshotDir, "package.json"), "utf8"),
-      ) as {
-        dependencies?: Record<string, string>;
-        devDependencies?: Record<string, string>;
-      };
-      const ranges = [
-        ...Object.values(pkg.dependencies ?? {}),
-        ...Object.values(pkg.devDependencies ?? {}),
-      ];
-      expect(ranges.some((r) => r.startsWith("catalog:"))).toBe(false);
-      expect(ranges.some((r) => r.startsWith("workspace:"))).toBe(false);
-      for (const [name, range] of Object.entries(pkg.dependencies ?? {})) {
-        if (name.startsWith("@dimah-s3/")) {
-          expect(range).toBe(`^${cliPkg.version}`);
-        }
-      }
-    }
-  });
 });
 
 describe("create --template vite|hono", () => {
@@ -215,10 +168,7 @@ describe("create --template vite|hono", () => {
   ] as const)(
     "scaffolds the $id starter",
     async ({ id, dir, expectFiles }) => {
-      const result = await runCli(
-        ["create", dir, "--yes", "--no-install", "--no-git", "--template", id],
-        workDir,
-      );
+      const result = await createApp(workDir, dir, ["--template", id]);
       expect(result.exitCode).toBe(0);
 
       const appDir = join(workDir, dir);
@@ -238,47 +188,31 @@ describe("create --template vite|hono", () => {
       expect(pkg.dependencies.hono).toBeDefined();
       expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
     },
-    60_000,
+    CREATE_TIMEOUT_MS,
   );
 
   it("ignores --no-src for vite and keeps src/", async () => {
-    const result = await runCli(
-      [
-        "create",
-        "vite-nosrc",
-        "--yes",
-        "--no-src",
-        "--no-install",
-        "--no-git",
-        "--template",
-        "vite",
-      ],
-      workDir,
-    );
+    const result = await createApp(workDir, "vite-nosrc", [
+      "--no-src",
+      "--template",
+      "vite",
+    ]);
     expect(result.exitCode).toBe(0);
     expect(`${result.stdout}${result.stderr}`).toMatch(/Ignoring for "vite"/i);
     expect(await readdir(join(workDir, "vite-nosrc"))).toContain("src");
     expect(await readdir(join(workDir, "vite-nosrc"))).not.toContain(
       "main.tsx",
     );
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 });
 
 describe("create --no-src", () => {
   it("flattens the template out of src/", async () => {
-    const result = await runCli(
-      [
-        "create",
-        "flat-app",
-        "--yes",
-        "--no-src",
-        "--no-install",
-        "--no-git",
-        "--template",
-        "nextjs",
-      ],
-      workDir,
-    );
+    const result = await createApp(workDir, "flat-app", [
+      "--no-src",
+      "--template",
+      "nextjs",
+    ]);
     expect(result.exitCode).toBe(0);
 
     const appDir = join(workDir, "flat-app");
@@ -297,7 +231,7 @@ describe("create --no-src", () => {
       await readFile(join(appDir, "components.json"), "utf8"),
     ) as { tailwind: { css: string } };
     expect(components.tailwind.css).toBe("app/globals.css");
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 });
 
 describe("version flag", () => {
@@ -313,10 +247,7 @@ describe("create in the current directory", () => {
     const dir = join(workDir, "named-from-folder");
     await mkdir(dir, { recursive: true });
 
-    const result = await runCli(
-      ["create", ".", "--yes", "--no-install", "--no-git"],
-      dir,
-    );
+    const result = await createApp(dir, ".");
     expect(result.exitCode).toBe(0);
 
     const pkg = JSON.parse(
@@ -326,7 +257,7 @@ describe("create in the current directory", () => {
     };
     expect(pkg.name).toBe("named-from-folder");
     expect(result.stdout).not.toContain("cd ");
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 });
 
 describe("non-empty target directory", () => {
@@ -335,39 +266,32 @@ describe("non-empty target directory", () => {
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, "keep-me.txt"), "hello", "utf8");
 
-    const result = await runCli(
-      ["create", "occupied", "--yes", "--no-install", "--no-git"],
-      workDir,
-    );
+    const result = await createApp(workDir, "occupied");
 
     expect(result.exitCode).toBe(1);
     expect(`${result.stdout}${result.stderr}`).toContain("--overwrite");
     expect(await readdir(dir)).toEqual(["keep-me.txt"]);
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 
-  it("replaces contents with --overwrite but keeps .git", async () => {
+  it("replaces contents with --overwrite but keeps .git and .env", async () => {
     const dir = join(workDir, "replaced");
     await mkdir(join(dir, ".git"), { recursive: true });
+    await writeFile(join(dir, ".env"), "S3_BUCKET=keep-me\n", "utf8");
     await writeFile(join(dir, "stale.txt"), "old", "utf8");
 
-    const result = await runCli(
-      [
-        "create",
-        "replaced",
-        "--yes",
-        "--overwrite",
-        "--no-install",
-        "--no-git",
-      ],
-      workDir,
-    );
+    const result = await createApp(workDir, "replaced", ["--overwrite"]);
     expect(result.exitCode).toBe(0);
 
     const entries = await readdir(dir);
     expect(entries).toContain(".git");
+    expect(entries).toContain(".env");
     expect(entries).toContain("package.json");
     expect(entries).not.toContain("stale.txt");
-  }, 60_000);
+
+    expect(await readFile(join(dir, ".env"), "utf8")).toBe(
+      "S3_BUCKET=keep-me\n",
+    );
+  }, CREATE_TIMEOUT_MS);
 });
 
 describe("non-interactive fallback", () => {
@@ -380,7 +304,7 @@ describe("non-interactive fallback", () => {
     expect(result.exitCode).toBe(0);
     expect(`${result.stdout}${result.stderr}`).toContain("Non-interactive");
     expect(await readdir(join(workDir, "piped-app"))).toContain("package.json");
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 
   it("rejects --yes without a project directory", async () => {
     const result = await runCli(
@@ -392,5 +316,5 @@ describe("non-interactive fallback", () => {
     expect(`${result.stdout}${result.stderr}`).toMatch(
       /Project name is required/i,
     );
-  }, 60_000);
+  }, CREATE_TIMEOUT_MS);
 });

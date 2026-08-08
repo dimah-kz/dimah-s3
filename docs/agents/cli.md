@@ -64,14 +64,16 @@ Keep prompts in the config layer and filesystem writes in steps. A step that has
 
 On `pnpm --filter @dimah-s3/cli build`:
 
-- Copy each catalog id from `templates/<id>/` (exclude `node_modules`, `.next`, `.turbo`, `AGENTS.md`, lockfiles, `*.tsbuildinfo`).
+- Copy each catalog id from `templates/<id>/` (exclude `node_modules`, `.next`, `.turbo`, `dist`, `AGENTS.md`, lockfiles, `.env` / `.env.local`, `next-env.d.ts`, `.vercel`, `.DS_Store`, `.git`, `*.tsbuildinfo`).
 - Rewrite every `@dimah-s3/*` range to `^<cliVersion>`.
 - Fail on `workspace:`, `catalog:`, or `@workspace/*`.
 - Rename `.gitignore` → `_gitignore` for the npm tarball.
 
-`tsup` runs with `clean: true`, so the snapshot script must run after it — `dist/templates/` is wiped otherwise and the CLI reports a missing catalog.
+`tsup` runs with `clean: true` on the bin entry, so the snapshot script must run after it — `dist/templates/` is wiped otherwise and the CLI reports a missing catalog.
 
-`packages/cli/turbo.json` sets `build.cache: false` because Turbo cannot track `templates/**` inputs outside the package.
+`packages/cli/turbo.json` tracks `../../templates/**` as build inputs so template edits invalidate the CLI cache.
+
+Each starter ships `pnpm-workspace.yaml` for pnpm 11 `allowBuilds` and `minimumReleaseAgeExclude` on `@dimah-s3/*`. Lockfiles are gitignored and snapshot-excluded.
 
 ## Template maintenance
 
@@ -80,7 +82,7 @@ Templates stay outside the monorepo workspace. Root scripts:
 | Script                  | Purpose                                           |
 | ----------------------- | ------------------------------------------------- |
 | `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/`  |
-| `pnpm templates:build`  | install + build smoke test per template           |
+| `pnpm templates:build`  | install + build (+ `check-types` when present)    |
 | `pnpm deps:update`      | `pnpm -r update --latest` then `templates:update` |
 
 Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`.
