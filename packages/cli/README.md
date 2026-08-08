@@ -22,23 +22,24 @@ npx @dimah-s3/cli@latest create my-app --yes
 
 ### Options
 
-| Flag                         | Description                                               |
-| ---------------------------- | --------------------------------------------------------- |
-| `-t, --template <id>`        | Template id (`nextjs`)                                    |
-| `--package-manager <pm>`     | `pnpm` \| `npm` \| `yarn` \| `bun` (default: detected)    |
-| `--install` / `--no-install` | Install dependencies (default: prompt / yes with `--yes`) |
-| `--git` / `--no-git`         | Initialize git (default: prompt / yes with `--yes`)       |
-| `--src` / `--no-src`         | Keep a `src/` directory (default: prompt / yes with `--yes`) |
-| `--overwrite`                | Replace the contents of a non-empty directory             |
-| `-y, --yes`                  | Skip prompts and use defaults                             |
-| `--version`                  | Print the CLI version                                     |
+| Flag                         | Description                                                   |
+| ---------------------------- | ------------------------------------------------------------- |
+| `-t, --template <id>`        | Template id (`nextjs`)                                        |
+| `--package-manager <pm>`     | `pnpm` \| `npm` \| `yarn` \| `bun` (default: detected)        |
+| `--install` / `--no-install` | Install dependencies (default: prompt / yes with `--yes`)     |
+| `--git` / `--no-git`         | Initialize git (default: prompt / yes with `--yes`)           |
+| `--src` / `--no-src`         | Next.js only: keep a `src/` directory (default: prompt / yes) |
+| `--overwrite`                | Replace the contents of a non-empty directory                 |
+| `-y, --yes`                  | Skip prompts and use defaults                                 |
+| `--version`                  | Print the CLI version                                         |
 
 ### Behavior
 
 - **Project name** is required with `--yes` or on a non-TTY (CI / piped input).
   Interactive runs still prompt when the directory argument is omitted.
-- **Other prompts** (Framework, install, git, src/) are only used on an interactive
+- **Other prompts** (Framework, install, git) are only used on an interactive
   terminal. Framework defaults to the first catalog entry (currently Next.js).
+  The `src/` prompt appears only for templates with `srcLayout` (Next.js today).
   Non-interactive sessions fall back to those same defaults (`src/` included).
 - **Non-empty target:** the run stops unless `--overwrite` is passed (or the
   prompt is confirmed). Overwriting clears the directory contents but keeps

@@ -32,7 +32,7 @@ Two phases, and they must not mix: **resolve** asks questions, **steps** touch t
 
 Current steps: `scaffold` (prepare dir → copy snapshot → set `package.json` name → restore `_gitignore` → optionally flatten `src/` → copy `.env.example`), `install` (`nypm`), `git` (`init -b main` + initial commit).
 
-Templates ship with a `src/` directory. `create` prompts for it (default yes); `--src` / `--no-src` and `--yes` skip the prompt. Flattening moves `src/*` to the project root and rewrites `tsconfig` / `components.json` path aliases.
+Templates ship with a `src/` directory when the catalog entry sets `srcLayout: true` (Next.js). `create` prompts for it only for those templates (default yes); `--src` / `--no-src` and `--yes` skip the prompt. Flattening moves `src/*` to the project root and rewrites `tsconfig` / `components.json` path aliases.
 
 ## Step contract
 

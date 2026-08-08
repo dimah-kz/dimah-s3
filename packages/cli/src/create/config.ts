@@ -131,17 +131,20 @@ export async function resolveCreateConfig(
       ),
   });
 
-  const src = await resolveOption(flags.src, {
-    interactive,
-    fallback: true,
-    prompt: () =>
-      ask(
-        p.confirm({
-          message: "Use a src/ directory?",
-          initialValue: true,
-        }),
-      ),
-  });
+  // Only Next.js-style starters ship an optional `src/` layout.
+  const src = template.meta.srcLayout
+    ? await resolveOption(flags.src, {
+        interactive,
+        fallback: true,
+        prompt: () =>
+          ask(
+            p.confirm({
+              message: "Use a src/ directory?",
+              initialValue: true,
+            }),
+          ),
+      })
+    : true;
 
   const overwrite = await resolveOverwrite(target.targetDir, {
     flag: Boolean(flags.overwrite),

@@ -3,7 +3,8 @@
     {
       "id": "nextjs",
       "title": "Next.js",
-      "hint": "App Router + presign route + UploadButton"
+      "hint": "App Router + presign route + UploadButton",
+      "srcLayout": true
     }
   ]
 }

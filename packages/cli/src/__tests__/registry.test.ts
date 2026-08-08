@@ -42,6 +42,11 @@ describe("catalog on disk", () => {
     }
   });
 
+  it("marks nextjs as supporting the src/ layout option", async () => {
+    const catalog = await loadCatalog();
+    expect(findTemplate(catalog, "nextjs").srcLayout).toBe(true);
+  });
+
   it("resolves a template directory case-insensitively", async () => {
     const resolved = await resolveTemplate("NextJS");
     expect(resolved.meta.id).toBe("nextjs");

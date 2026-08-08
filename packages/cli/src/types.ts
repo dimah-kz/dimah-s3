@@ -6,6 +6,11 @@ export type TemplateMeta = {
   id: TemplateId;
   title: string;
   hint?: string;
+  /**
+   * Template ships app code under `src/` and exposes the create `--src` option.
+   * Only Next.js-style starters set this today.
+   */
+  srcLayout?: boolean;
 };
 
 export type CreateConfig = {

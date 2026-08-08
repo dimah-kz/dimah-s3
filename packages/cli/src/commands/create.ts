@@ -40,8 +40,10 @@ export const createCommand = defineCommand({
     },
     src: {
       type: "boolean",
-      description: "Keep app code under a src/ directory",
-      negativeDescription: "Place app/ lib/ components/ at the project root",
+      description:
+        "Keep app code under a src/ directory (Next.js templates only)",
+      negativeDescription:
+        "Place app/ lib/ components/ at the project root (Next.js templates only)",
     },
     overwrite: {
       type: "boolean",
