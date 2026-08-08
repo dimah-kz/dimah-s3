@@ -191,47 +191,57 @@ describe("create --template vite|hono", () => {
     CREATE_TIMEOUT_MS,
   );
 
-  it("ignores --no-src for vite and keeps src/", async () => {
-    const result = await createApp(workDir, "vite-nosrc", [
-      "--no-src",
-      "--template",
-      "vite",
-    ]);
-    expect(result.exitCode).toBe(0);
-    expect(`${result.stdout}${result.stderr}`).toMatch(/Ignoring for "vite"/i);
-    expect(await readdir(join(workDir, "vite-nosrc"))).toContain("src");
-    expect(await readdir(join(workDir, "vite-nosrc"))).not.toContain(
-      "main.tsx",
-    );
-  }, CREATE_TIMEOUT_MS);
+  it(
+    "ignores --no-src for vite and keeps src/",
+    async () => {
+      const result = await createApp(workDir, "vite-nosrc", [
+        "--no-src",
+        "--template",
+        "vite",
+      ]);
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toMatch(
+        /Ignoring for "vite"/i,
+      );
+      expect(await readdir(join(workDir, "vite-nosrc"))).toContain("src");
+      expect(await readdir(join(workDir, "vite-nosrc"))).not.toContain(
+        "main.tsx",
+      );
+    },
+    CREATE_TIMEOUT_MS,
+  );
 });
 
 describe("create --no-src", () => {
-  it("flattens the template out of src/", async () => {
-    const result = await createApp(workDir, "flat-app", [
-      "--no-src",
-      "--template",
-      "nextjs",
-    ]);
-    expect(result.exitCode).toBe(0);
+  it(
+    "flattens the template out of src/",
+    async () => {
+      const result = await createApp(workDir, "flat-app", [
+        "--no-src",
+        "--template",
+        "nextjs",
+      ]);
+      expect(result.exitCode).toBe(0);
 
-    const appDir = join(workDir, "flat-app");
-    const files = await readdir(appDir);
-    expect(files).toEqual(
-      expect.arrayContaining(["package.json", "app", "lib", "components"]),
-    );
-    expect(files).not.toContain("src");
+      const appDir = join(workDir, "flat-app");
+      const files = await readdir(appDir);
+      expect(files).toEqual(
+        expect.arrayContaining(["package.json", "app", "lib", "components"]),
+      );
+      expect(files).not.toContain("src");
 
-    const tsconfig = JSON.parse(
-      await readFile(join(appDir, "tsconfig.json"), "utf8"),
-    ) as { compilerOptions: { paths: Record<string, string[]> } };
-    expect(tsconfig.compilerOptions.paths["@/*"]).toEqual(["./*"]);
+      const tsconfig = JSON.parse(
+        await readFile(join(appDir, "tsconfig.json"), "utf8"),
+      ) as { compilerOptions: { paths: Record<string, string[]> } };
+      expect(tsconfig.compilerOptions.paths["@/*"]).toEqual(["./*"]);
 
-    const components = JSON.parse(
-      await readFile(join(appDir, "components.json"), "utf8"),
-    ) as { tailwind: { css: string } };
-    expect(components.tailwind.css).toBe("app/globals.css");
-  }, CREATE_TIMEOUT_MS);
+      const components = JSON.parse(
+        await readFile(join(appDir, "components.json"), "utf8"),
+      ) as { tailwind: { css: string } };
+      expect(components.tailwind.css).toBe("app/globals.css");
+    },
+    CREATE_TIMEOUT_MS,
+  );
 });
 
 describe("version flag", () => {
@@ -243,78 +253,100 @@ describe("version flag", () => {
 });
 
 describe("create in the current directory", () => {
-  it("names the project after the folder and skips the cd hint", async () => {
-    const dir = join(workDir, "named-from-folder");
-    await mkdir(dir, { recursive: true });
+  it(
+    "names the project after the folder and skips the cd hint",
+    async () => {
+      const dir = join(workDir, "named-from-folder");
+      await mkdir(dir, { recursive: true });
 
-    const result = await createApp(dir, ".");
-    expect(result.exitCode).toBe(0);
+      const result = await createApp(dir, ".");
+      expect(result.exitCode).toBe(0);
 
-    const pkg = JSON.parse(
-      await readFile(join(dir, "package.json"), "utf8"),
-    ) as {
-      name: string;
-    };
-    expect(pkg.name).toBe("named-from-folder");
-    expect(result.stdout).not.toContain("cd ");
-  }, CREATE_TIMEOUT_MS);
+      const pkg = JSON.parse(
+        await readFile(join(dir, "package.json"), "utf8"),
+      ) as {
+        name: string;
+      };
+      expect(pkg.name).toBe("named-from-folder");
+      expect(result.stdout).not.toContain("cd ");
+    },
+    CREATE_TIMEOUT_MS,
+  );
 });
 
 describe("non-empty target directory", () => {
-  it("fails with an --overwrite hint", async () => {
-    const dir = join(workDir, "occupied");
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, "keep-me.txt"), "hello", "utf8");
+  it(
+    "fails with an --overwrite hint",
+    async () => {
+      const dir = join(workDir, "occupied");
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, "keep-me.txt"), "hello", "utf8");
 
-    const result = await createApp(workDir, "occupied");
+      const result = await createApp(workDir, "occupied");
 
-    expect(result.exitCode).toBe(1);
-    expect(`${result.stdout}${result.stderr}`).toContain("--overwrite");
-    expect(await readdir(dir)).toEqual(["keep-me.txt"]);
-  }, CREATE_TIMEOUT_MS);
+      expect(result.exitCode).toBe(1);
+      expect(`${result.stdout}${result.stderr}`).toContain("--overwrite");
+      expect(await readdir(dir)).toEqual(["keep-me.txt"]);
+    },
+    CREATE_TIMEOUT_MS,
+  );
 
-  it("replaces contents with --overwrite but keeps .git and .env", async () => {
-    const dir = join(workDir, "replaced");
-    await mkdir(join(dir, ".git"), { recursive: true });
-    await writeFile(join(dir, ".env"), "S3_BUCKET=keep-me\n", "utf8");
-    await writeFile(join(dir, "stale.txt"), "old", "utf8");
+  it(
+    "replaces contents with --overwrite but keeps .git and .env",
+    async () => {
+      const dir = join(workDir, "replaced");
+      await mkdir(join(dir, ".git"), { recursive: true });
+      await writeFile(join(dir, ".env"), "S3_BUCKET=keep-me\n", "utf8");
+      await writeFile(join(dir, "stale.txt"), "old", "utf8");
 
-    const result = await createApp(workDir, "replaced", ["--overwrite"]);
-    expect(result.exitCode).toBe(0);
+      const result = await createApp(workDir, "replaced", ["--overwrite"]);
+      expect(result.exitCode).toBe(0);
 
-    const entries = await readdir(dir);
-    expect(entries).toContain(".git");
-    expect(entries).toContain(".env");
-    expect(entries).toContain("package.json");
-    expect(entries).not.toContain("stale.txt");
+      const entries = await readdir(dir);
+      expect(entries).toContain(".git");
+      expect(entries).toContain(".env");
+      expect(entries).toContain("package.json");
+      expect(entries).not.toContain("stale.txt");
 
-    expect(await readFile(join(dir, ".env"), "utf8")).toBe(
-      "S3_BUCKET=keep-me\n",
-    );
-  }, CREATE_TIMEOUT_MS);
+      expect(await readFile(join(dir, ".env"), "utf8")).toBe(
+        "S3_BUCKET=keep-me\n",
+      );
+    },
+    CREATE_TIMEOUT_MS,
+  );
 });
 
 describe("non-interactive fallback", () => {
-  it("uses defaults without --yes when stdin is not a TTY", async () => {
-    const result = await runCli(
-      ["create", "piped-app", "--no-install", "--no-git"],
-      workDir,
-    );
+  it(
+    "uses defaults without --yes when stdin is not a TTY",
+    async () => {
+      const result = await runCli(
+        ["create", "piped-app", "--no-install", "--no-git"],
+        workDir,
+      );
 
-    expect(result.exitCode).toBe(0);
-    expect(`${result.stdout}${result.stderr}`).toContain("Non-interactive");
-    expect(await readdir(join(workDir, "piped-app"))).toContain("package.json");
-  }, CREATE_TIMEOUT_MS);
+      expect(result.exitCode).toBe(0);
+      expect(`${result.stdout}${result.stderr}`).toContain("Non-interactive");
+      expect(await readdir(join(workDir, "piped-app"))).toContain(
+        "package.json",
+      );
+    },
+    CREATE_TIMEOUT_MS,
+  );
 
-  it("rejects --yes without a project directory", async () => {
-    const result = await runCli(
-      ["create", "--yes", "--no-install", "--no-git"],
-      workDir,
-    );
+  it(
+    "rejects --yes without a project directory",
+    async () => {
+      const result = await runCli(
+        ["create", "--yes", "--no-install", "--no-git"],
+        workDir,
+      );
 
-    expect(result.exitCode).toBe(1);
-    expect(`${result.stdout}${result.stderr}`).toMatch(
-      /Project name is required/i,
-    );
-  }, CREATE_TIMEOUT_MS);
+      expect(result.exitCode).toBe(1);
+      expect(`${result.stdout}${result.stderr}`).toMatch(
+        /Project name is required/i,
+      );
+    },
+    CREATE_TIMEOUT_MS,
+  );
 });

@@ -38,7 +38,7 @@
     "concurrently": "^10.0.4",
     "shadcn": "^4.16.2",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.9",
+    "tsx": "^4.23.10",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
   }

@@ -48,7 +48,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "catalog:",
     "tailwindcss": "^4.3.3",
-    "tsx": "^4.23.9",
+    "tsx": "^4.23.10",
     "typescript": "catalog:"
   }
 }
