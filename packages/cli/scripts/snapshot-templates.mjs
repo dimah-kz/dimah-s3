@@ -1,10 +1,9 @@
 /**
  * Snapshot `templates/<id>/` into `dist/templates/<id>/` for the published CLI.
  *
- * - Resolves pnpm `catalog:` ranges from the workspace catalog
  * - Rewrites `@dimah-s3/*` to `^<cliVersion>` (sync-bump aligned)
  * - Renames `.gitignore` → `_gitignore` (npm strips `.gitignore` from tarballs)
- * - Fails on `workspace:` / `@workspace/` leaks
+ * - Fails on `workspace:` / `catalog:` / `@workspace/` leaks
  */
 import {
   cpSync,
@@ -19,7 +18,6 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { parse as parseYaml } from "yaml";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,7 +26,6 @@ const packageRoot = resolve(__dirname, "..");
 const workspaceRoot = resolve(packageRoot, "..", "..");
 const templatesRoot = resolve(workspaceRoot, "templates");
 const catalogPath = resolve(templatesRoot, "catalog.json");
-const workspaceYamlPath = resolve(workspaceRoot, "pnpm-workspace.yaml");
 const distTemplatesRoot = resolve(packageRoot, "dist", "templates");
 const cliPackageJsonPath = resolve(packageRoot, "package.json");
 const transformModuleUrl = pathToFileURL(
@@ -59,26 +56,6 @@ function copyDirFiltered(src, dest, shouldSkip) {
 }
 
 /**
- * @returns {Record<string, string>}
- */
-function loadWorkspaceCatalog() {
-  const raw = readFileSync(workspaceYamlPath, "utf8");
-  const doc = parseYaml(raw);
-  const catalog = doc?.catalog;
-  if (!catalog || typeof catalog !== "object") {
-    throw new Error(`No catalog block in ${workspaceYamlPath}`);
-  }
-  /** @type {Record<string, string>} */
-  const out = {};
-  for (const [key, value] of Object.entries(catalog)) {
-    if (typeof value === "string") {
-      out[key] = value;
-    }
-  }
-  return out;
-}
-
-/**
  * @param {string} templateDir
  */
 function renameGitignore(templateDir) {
@@ -91,18 +68,16 @@ function renameGitignore(templateDir) {
 
 /**
  * @param {string} templateDir
- * @param {Record<string, string>} catalog
  * @param {string} cliVersion
  * @param {{ transformTemplatePackageJson: Function }} transform
  */
-function transformPackageJsonFile(templateDir, catalog, cliVersion, transform) {
+function transformPackageJsonFile(templateDir, cliVersion, transform) {
   const pkgPath = join(templateDir, "package.json");
   if (!existsSync(pkgPath)) {
     throw new Error(`Missing package.json in ${templateDir}`);
   }
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
   const { pkg: next, warnings } = transform.transformTemplatePackageJson(pkg, {
-    catalog,
     cliVersion,
   });
   for (const warning of warnings) {
@@ -124,7 +99,6 @@ export async function snapshotTemplates() {
     throw new Error("templates/catalog.json must list at least one template");
   }
 
-  const catalog = loadWorkspaceCatalog();
   const cliPkg = JSON.parse(readFileSync(cliPackageJsonPath, "utf8"));
   const cliVersion = cliPkg.version;
   if (typeof cliVersion !== "string" || !cliVersion) {
@@ -146,7 +120,7 @@ export async function snapshotTemplates() {
     const dest = resolve(distTemplatesRoot, id);
     copyDirFiltered(src, dest, (name) => COPY_EXCLUDE.has(name));
     renameGitignore(dest);
-    transformPackageJsonFile(dest, catalog, cliVersion, transform);
+    transformPackageJsonFile(dest, cliVersion, transform);
     console.log(`[snapshot] ${id} → dist/templates/${id}`);
   }
 

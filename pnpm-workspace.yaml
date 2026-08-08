@@ -3,7 +3,9 @@ packages:
   - "packages/*"
   - "examples/*"
   - "registry"
-  - "templates/*"
+  # templates/* stay outside the workspace: they are CLI snapshot source with
+  # published npm ranges only. Listing them here lets `pnpm -r update --latest`
+  # rewrite deps to `catalog:` and prefer-workspace would link @dimah-s3/*.
 
 catalog:
   typescript: 7.0.2

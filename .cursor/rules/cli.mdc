@@ -8,7 +8,7 @@ alwaysApply: false
 
 Scaffold only — no dimah-s3 business logic. Pipeline: flags/prompts → `CreateConfig` → validate → copy snapshotted template → transform → install → git → next steps.
 
-Templates SSOT: `templates/<id>/` + `templates/catalog.json`. Build snapshots into `dist/templates/` (resolves `catalog:`, pins `@dimah-s3/*`, renames `.gitignore` → `_gitignore`).
+Templates SSOT: `templates/<id>/` + `templates/catalog.json` (not a workspace member). Build snapshots into `dist/templates/` (pins `@dimah-s3/*`, rejects `catalog:` / `workspace:*`, renames `.gitignore` → `_gitignore`).
 
 New template → catalog entry + folder. New create option → field on `CreateConfig` + step/addon. Do not hand-edit `dist/templates/`.
 

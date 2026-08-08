@@ -31,16 +31,15 @@ CLI does **not** depend on `@dimah-s3/{core,server,react,ui,db}`. It is outside 
 On `pnpm --filter @dimah-s3/cli build`:
 
 - Copy each catalog id from `templates/<id>/` (exclude `node_modules`, `.next`, `.turbo`, `AGENTS.md`, `*.tsbuildinfo`).
-- Resolve `catalog:` / `catalog:<name>` from root `pnpm-workspace.yaml` — missing keys fail the build.
 - Rewrite every `@dimah-s3/*` range to `^<cliVersion>`.
-- Fail on `workspace:` or `@workspace/*`.
+- Fail on `catalog:`, `workspace:`, or `@workspace/*` (templates use concrete npm ranges only; they are not workspace members).
 - Rename `.gitignore` → `_gitignore` for the npm tarball.
 
 `packages/cli/turbo.json` sets `build.cache: false` because Turbo cannot track `templates/**` inputs outside the package.
 
 ## Adding a template
 
-1. Add `templates/<id>/` (self-contained; no `workspace:*` / `@workspace/*`; `catalog:` OK).
+1. Add `templates/<id>/` (self-contained; concrete npm ranges only — no `catalog:` / `workspace:*` / `@workspace/*`).
 2. Register it in `templates/catalog.json`.
 3. Document in `templates/README.md` and docs Quickstart if it is a primary starter.
 

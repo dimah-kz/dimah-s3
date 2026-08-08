@@ -59,7 +59,6 @@
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "yaml": "^2.9.0"
+    "vitest": "catalog:"
   }
 }
