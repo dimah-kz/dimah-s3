@@ -1,30 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n## scipts update and remove changelog from templates\n"
-    filename: 2026-08-08-msjxi562.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Clarify create success message\n\nAfter scaffolding, the CLI still names the project in the success line, with \"Your app\" as the fallback when the name is missing.\n"
+    filename: 2026-08-08-0pb7804l.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-08-msjxi562.md
+      - 2026-08-08-0pb7804l.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-08-msjxi562.md
+      - 2026-08-08-0pb7804l.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-08-msjxi562.md
+      - 2026-08-08-0pb7804l.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-08-msjxi562.md
+      - 2026-08-08-0pb7804l.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-08-msjxi562.md
+      - 2026-08-08-0pb7804l.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-08-msjxi562.md
+      - 2026-08-08-0pb7804l.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
