@@ -8,8 +8,10 @@ alwaysApply: false
 
 **Scope:** presign upload / download / delete — no trivial SDK wrappers. Auth / quota → consumer hooks. Optional DB via `@dimah-s3/db` `db()` plugin.
 
-**Deps:** `core` ← `server` | `react` ← `ui`; `db` → `server` (peer). UI: Fuma Translate. API errors: stable `code` + English `message` (client-localized). Protocol SSOT: `@dimah-s3/core` (`S3_API_ROUTES`, `createS3Client`). Plugins: `definePlugin` in `server/src/plugin/`; contexts flatten onto `s3[id]`.
+**Deps:** `core` ← `server` | `react` ← `ui`; `db` → `server` (peer); CLI is separate (scaffold only). UI: Fuma Translate. API errors: stable `code` + English `message` (client-localized). Protocol SSOT: `@dimah-s3/core` (`S3_API_ROUTES`, `createS3Client`). Plugins: `definePlugin` in `server/src/plugin/`; contexts flatten onto `s3[id]`.
 
 **Registry:** edit `packages/ui/src/` — never `registry/registry/dimah-s3-ui/`.
+
+**CLI:** edit `packages/cli/src/` + `templates/` — never hand-edit `packages/cli/dist/templates/`.
 
 **Detail (Read):** [docs/agents/architecture.md](docs/agents/architecture.md).

@@ -1,0 +1,65 @@
+{
+  "name": "@dimah-s3/cli",
+  "version": "0.4.1",
+  "description": "Scaffold dimah-s3 apps from official templates",
+  "keywords": [
+    "s3",
+    "cli",
+    "scaffold",
+    "create",
+    "dimah-s3",
+    "nextjs"
+  ],
+  "author": "Hamidrezakz",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dimah-kz/dimah-s3.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/cli",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
+  "type": "module",
+  "bin": {
+    "dimah-s3": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts && node ./scripts/snapshot-templates.mjs",
+    "lint": "eslint",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "citty": "^0.2.2",
+    "nypm": "^0.6.9",
+    "pathe": "^2.0.3",
+    "picocolors": "^1.1.1",
+    "validate-npm-package-name": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/validate-npm-package-name": "^4.0.2",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "yaml": "^2.9.0"
+  }
+}

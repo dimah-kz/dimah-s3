@@ -1,0 +1,9 @@
+{
+  "templates": [
+    {
+      "id": "nextjs",
+      "title": "Next.js",
+      "hint": "App Router + presign route + UploadButton"
+    }
+  ]
+}

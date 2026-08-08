@@ -1,28 +1,21 @@
 # Templates
 
-Standalone app starters for **end users**. Copy via [degit](https://github.com/Rich-Harris/degit) today; `@dimah-s3/cli` can consume the same tree later.
+Standalone app starters for **end users**, snapshotted into `@dimah-s3/cli` at build time.
+
+```bash
+npx @dimah-s3/cli@latest create my-app
+```
 
 | Role                    | Path              | Consumes                                                         |
 | ----------------------- | ----------------- | ---------------------------------------------------------------- |
-| Templates (this folder) | `templates/<id>/` | Published `@dimah-s3/*` from npm                                 |
+| Templates (this folder) | `templates/<id>/` | Published `@dimah-s3/*` from npm (CLI snapshots + pins versions) |
 | Examples                | `examples/*`      | Workspace packages (`workspace:*`) for local library development |
 
-Do **not** add `templates/*` to `pnpm-workspace.yaml`. These apps must install cleanly outside the monorepo.
-
-## Next.js
-
-```bash
-npx degit dimah-kz/dimah-s3/templates/nextjs my-app
-cd my-app
-cp .env.example .env   # fill S3_* credentials
-npm install
-npm run dev
-```
-
-Docs: [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) · [Providers](https://dimah-s3.vercel.app/docs/providers)
+Do **not** treat these as library packages. Starters must install cleanly outside the monorepo (`catalog:` OK in-repo — resolved by the CLI snapshot; no `workspace:*` / `@workspace/*`).
 
 ## Adding a template
 
 1. Create `templates/<id>/` as a self-contained app (no `workspace:*`, no `@workspace/*`).
-2. Pin `@dimah-s3/*` to published semver ranges (e.g. `^0.4.1`).
-3. Document the degit one-liner in the template `README.md` and docs Quickstart.
+2. Pin `@dimah-s3/*` to published semver ranges (e.g. `^0.4.1`) — the CLI snapshot rewrites them to `^<cliVersion>` on build.
+3. Add the id to [`catalog.json`](./catalog.json).
+4. Document the create one-liner in the template `README.md` and docs Quickstart.

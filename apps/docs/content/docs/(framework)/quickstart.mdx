@@ -4,19 +4,13 @@ description: Minimal setup for Next.js with server and client hooks.
 icon: Rocket
 ---
 
-## Starter template
-
-Scaffold a ready Next.js app with the API route, provider, and an upload button:
+## Create an app
 
 ```bash
-npx degit dimah-kz/dimah-s3/templates/nextjs my-app
-cd my-app
-cp .env.example .env
-npm install
-npm run dev
+npx @dimah-s3/cli@latest create my-app
 ```
 
-Set `S3_*` in `.env`. Browser uploads need bucket CORS — see [Providers](/docs/providers).
+Fill `S3_*` in `.env`. Browser uploads need bucket CORS — see [Providers](/docs/providers).
 
 ## Manual installation
 

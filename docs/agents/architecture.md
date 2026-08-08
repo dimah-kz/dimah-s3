@@ -12,10 +12,12 @@
 @dimah-s3/server | @dimah-s3/react  ←  @dimah-s3/ui
         ↑
 @dimah-s3/db  (peer: server — `db()` plugin)
+
+@dimah-s3/cli  (scaffold only — no deps on the library chain)
 ```
 
 `apps/docs` and `examples/*` consume workspace packages — not published.
-`templates/*` are standalone starters (published `@dimah-s3/*` ranges) for degit / future CLI — **not** in the pnpm workspace.
+`templates/*` are standalone starters (published `@dimah-s3/*` ranges) snapshotted into `@dimah-s3/cli` at build time.
 
 ## Placement {#placement}
 
@@ -26,11 +28,12 @@
 | React hooks, i18n types (`Translations`), upload client logic                              | `packages/react/src/`               |
 | Pre-built components                                                                       | `packages/ui/src/`                  |
 | Optional DB schema + `db()` / `dbClient()`                                                 | `packages/db/src/`                  |
+| Scaffold CLI (`dimah-s3 create`)                                                           | `packages/cli/`                     |
 | shadcn manifests                                                                           | `registry/items/` (after UI source) |
 | Docs site copy                                                                             | `apps/docs/`                        |
 | Runnable demo (same as template, `workspace:*`)                                            | `examples/with-nextjs/`             |
 | Runnable demo + `@dimah-s3/db`                                                             | `examples/with-db/`                 |
-| User-facing app starters (degit / future CLI)                                              | `templates/<id>/`                   |
+| User-facing app starters (`@dimah-s3/cli` snapshot source)                                 | `templates/<id>/`                   |
 
 **Default:** edit the smallest package that owns the behavior. Shared protocol → `core` first, then wire server + react.
 

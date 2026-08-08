@@ -12,7 +12,8 @@
     "S3_DEFAULT_BUCKET",
     "VERCEL_ENV",
     "VERCEL_URL",
-    "VERCEL_PROJECT_PRODUCTION_URL"
+    "VERCEL_PROJECT_PRODUCTION_URL",
+    "npm_config_user_agent"
   ],
   "tasks": {
     "build": {

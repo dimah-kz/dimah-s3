@@ -12,4 +12,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Same shape as [`templates/nextjs`](../../templates/nextjs) — monorepo demo only (`workspace:*` `@dimah-s3/*`). No database or auth.
 
-User-facing degit starter: use the template, not this folder.
+User-facing starter: `npx @dimah-s3/cli@latest create` (from `templates/nextjs`), not this folder.

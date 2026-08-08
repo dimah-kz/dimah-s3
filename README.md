@@ -17,19 +17,17 @@ Presign flows only. Anything else stays in your own backend with [`@aws-sdk/clie
 | `@dimah-s3/react`  | Headless hooks + i18n types        |
 | `@dimah-s3/ui`     | Optional UI components             |
 | `@dimah-s3/db`     | Optional DB tracking               |
+| `@dimah-s3/cli`    | Scaffold official starters         |
 
 ## Docs
 
 [dimah-s3.vercel.app](https://dimah-s3.vercel.app)
 
-## Starter (Next.js)
+## Create an app
 
 ```bash
-npx degit dimah-kz/dimah-s3/templates/nextjs my-app
-cd my-app && cp .env.example .env && npm i && npm run dev
+npx @dimah-s3/cli@latest create my-app
 ```
-
-More templates: [`templates/`](./templates).
 
 ## License
 

@@ -16,7 +16,7 @@ Index + constraints. **Explore the codebase** for handlers, hooks, and registry 
 
 ## Stack (one line)
 
-pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui}` (tsup, ESM, Tegami `dimah-s3` package group). UI i18n via Fuma Translate (`@fuma-translate/react`; import the hook from there, not `@dimah-s3/react`). Shared `@workspace/eslint-config` + `@workspace/typescript-config`; `pnpm lint` / `pnpm check-types` cover all workspace packages. User starters live in `templates/` (not workspace — published npm ranges); monorepo demos stay in `examples/`.
+pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui,cli}` (tsup, ESM, Tegami `dimah-s3` package group). UI i18n via Fuma Translate (`@fuma-translate/react`; import the hook from there, not `@dimah-s3/react`). Shared `@workspace/eslint-config` + `@workspace/typescript-config`; `pnpm lint` / `pnpm check-types` cover all workspace packages. User starters live in `templates/` (CLI snapshot source — published npm ranges); monorepo demos stay in `examples/`.
 
 ## Docs map
 
@@ -25,6 +25,7 @@ pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui}` (tsup, ESM, Tegami 
 | [architecture.md](docs/agents/architecture.md) | Package boundaries, placement, scope  |
 | [packages.md](docs/agents/packages.md)         | Core / server / react API or protocol |
 | [registry.md](docs/agents/registry.md)         | UI component or shadcn registry item  |
+| [cli.md](docs/agents/cli.md)                   | Scaffold CLI or templates catalog     |
 | [release.md](docs/agents/release.md)           | Version bump / Tegami changelog       |
 
 ## Non-negotiables
