@@ -19,9 +19,9 @@ const statusSupportFiles = [
     target: "@lib/attachment-state.ts",
   },
   {
-    path: "lib/file-type-icon.ts",
+    path: "lib/file-type-icon.tsx",
     type: "registry:lib",
-    target: "@lib/file-type-icon.ts",
+    target: "@lib/file-type-icon.tsx",
   },
 ] as const satisfies Registry["items"][number]["files"];
 
@@ -63,6 +63,7 @@ const componentDependencies = [
   "@dimah-s3/core",
   "@dimah-s3/react",
   "lucide-react",
+  "react-file-icon",
 ] as const;
 
 const toastRegistryDependencies = ["button", "toast"] as const;

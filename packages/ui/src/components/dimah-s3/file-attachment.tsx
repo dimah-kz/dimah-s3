@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/attachment";
 import { CircleProgress } from "@/components/dimah-s3/circle-progress";
 import type { AttachmentState } from "@/lib/attachment-state";
-import { resolveFileTypeIcon } from "@/lib/file-type-icon";
+import { FileTypeGlyph } from "@/lib/file-type-icon";
 import { cn } from "@/lib/utils";
 
 /** @deprecated Use {@link AttachmentState}. */
@@ -56,7 +56,6 @@ export function FileAttachment({
 }: FileAttachmentProps) {
   const t = useTranslations();
   const hasPreview = Boolean(previewUrl);
-  const TypeIcon = resolveFileTypeIcon(fileName, fileType);
 
   const resolvedDescription =
     description ??
@@ -101,7 +100,7 @@ export function FileAttachment({
         </AttachmentMedia>
       ) : (
         <AttachmentMedia>
-          <TypeIcon />
+          <FileTypeGlyph fileName={fileName} fileType={fileType} />
           {showProgressOverlay ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50">
               <CircleProgress

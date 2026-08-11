@@ -1,11 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  AlertCircleIcon,
-  PauseIcon,
-  XIcon,
-} from "lucide-react";
+import { AlertCircleIcon, PauseIcon, XIcon } from "lucide-react";
 import { formatFileSize, truncateFileName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import {
@@ -19,7 +15,7 @@ import {
 } from "@/registry/dimah-s3-ui/components/ui/attachment";
 import { CircleProgress } from "@/registry/dimah-s3-ui/components/dimah-s3/circle-progress";
 import type { AttachmentState } from "@/registry/dimah-s3-ui/lib/attachment-state";
-import { resolveFileTypeIcon } from "@/registry/dimah-s3-ui/lib/file-type-icon";
+import { FileTypeGlyph } from "@/registry/dimah-s3-ui/lib/file-type-icon";
 import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 
 /** @deprecated Use {@link AttachmentState}. */
@@ -60,7 +56,6 @@ export function FileAttachment({
 }: FileAttachmentProps) {
   const t = useTranslations();
   const hasPreview = Boolean(previewUrl);
-  const TypeIcon = resolveFileTypeIcon(fileName, fileType);
 
   const resolvedDescription =
     description ??
@@ -105,7 +100,7 @@ export function FileAttachment({
         </AttachmentMedia>
       ) : (
         <AttachmentMedia>
-          <TypeIcon />
+          <FileTypeGlyph fileName={fileName} fileType={fileType} />
           {showProgressOverlay ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50">
               <CircleProgress

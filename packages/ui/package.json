@@ -61,6 +61,7 @@
     "@fuma-translate/react": "^1.0.2",
     "@types/node": "^26.2.0",
     "@types/react": "catalog:",
+    "@types/react-file-icon": "^1.0.5",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
