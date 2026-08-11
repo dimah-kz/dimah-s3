@@ -4,10 +4,10 @@ import type { ComponentProps, ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
-  useUploadControls,
-  useMultiUploadControls,
-  type UseUploadControlsOptions,
-  type UseMultiUploadControlsOptions,
+  useUpload,
+  useMultiUpload,
+  type UseUploadOptions,
+  type UseMultiUploadOptions,
   type UploadProgress,
   type MultiUploadFileState,
 } from "@dimah-s3/react";
@@ -26,9 +26,9 @@ import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
 const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 const EMPTY_FILES: MultiUploadFileState[] = [];
 
-/** Props for {@link UploadButton}. Extends {@link UseUploadControlsOptions} or {@link UseMultiUploadControlsOptions}. */
+/** Props for {@link UploadButton}. Extends {@link UseUploadOptions} or {@link UseMultiUploadOptions}. */
 export type UploadButtonProps = (
-  UseUploadControlsOptions | UseMultiUploadControlsOptions
+  UseUploadOptions | UseMultiUploadOptions
 ) & {
   className?: string;
   /** Button label. */
@@ -84,9 +84,9 @@ function UploadButtonSingle({
   size = "default",
   buttonClassName,
   ...options
-}: ButtonShellProps & UseUploadControlsOptions) {
+}: ButtonShellProps & UseUploadOptions) {
   const t = useTranslations();
-  const ctrl = useUploadControls({
+  const ctrl = useUpload({
     ...options,
     disabled,
     noDrag: true,
@@ -171,9 +171,9 @@ function UploadButtonMulti({
   size = "default",
   buttonClassName,
   ...options
-}: ButtonShellProps & UseMultiUploadControlsOptions) {
+}: ButtonShellProps & UseMultiUploadOptions) {
   const t = useTranslations();
-  const ctrl = useMultiUploadControls({
+  const ctrl = useMultiUpload({
     ...options,
     disabled,
     noDrag: true,
@@ -249,19 +249,19 @@ function UploadButtonMulti({
 export function UploadButton({ multiple, ...props }: UploadButtonProps) {
   const isMulti =
     multiple === true ||
-    ((props as UseMultiUploadControlsOptions).maxFiles ?? 1) > 1;
+    ((props as UseMultiUploadOptions).maxFiles ?? 1) > 1;
 
   if (isMulti) {
     return (
       <UploadButtonMulti
-        {...(props as ButtonShellProps & UseMultiUploadControlsOptions)}
+        {...(props as ButtonShellProps & UseMultiUploadOptions)}
       />
     );
   }
 
   return (
     <UploadButtonSingle
-      {...(props as ButtonShellProps & UseUploadControlsOptions)}
+      {...(props as ButtonShellProps & UseUploadOptions)}
     />
   );
 }

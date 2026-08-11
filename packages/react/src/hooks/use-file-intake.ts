@@ -50,9 +50,9 @@ export type UseFileIntakeReturn = {
  * Headless file intake powered by react-dropzone.
  *
  * Soft-validates `accept` / size / count at the dropzone layer; authoritative
- * validation still runs inside `useUpload` / `useMultiUpload` via `validateFile`.
+ * validation still runs inside `useFileUpload` / `useMultiFileUpload` via `validateFile`.
  *
- * @internal — prefer {@link useUploadControls} / {@link useMultiUploadControls}.
+ * @internal — prefer {@link useUpload} / {@link useMultiUpload}.
  */
 export function useFileIntake(
   options: UseFileIntakeOptions,

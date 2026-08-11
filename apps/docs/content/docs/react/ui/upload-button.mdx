@@ -82,15 +82,15 @@ Toasts stay independent via `toast`.
 ## Composition
 
 Prefer the wired button for the happy path. For a fully custom layout, combine
-[`useUploadControls`](/docs/react/hooks/upload#upload-controls) with
+[`useUpload`](/docs/react/hooks/upload#useupload) with
 `UploadStatus` (or the exported `Attachment` primitives):
 
 ```tsx
-import { useUploadControls } from "@dimah-s3/react";
+import { useUpload } from "@dimah-s3/react";
 import { UploadStatus } from "@dimah-s3/ui";
 
 function CustomUpload() {
-  const ctrl = useUploadControls({
+  const ctrl = useUpload({
     objectKey: (f) => `uploads/${f.name}`,
   });
 
@@ -113,4 +113,4 @@ function CustomUpload() {
 
 ## Headless alternative
 
-Use [`useUploadControls`](/docs/react/hooks/upload#upload-controls) when you need full control over the UI.
+Use [`useUpload`](/docs/react/hooks/upload#useupload) when you need full control over the UI.

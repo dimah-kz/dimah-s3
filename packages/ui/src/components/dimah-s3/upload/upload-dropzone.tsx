@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
-  useUploadControls,
-  useMultiUploadControls,
+  useUpload,
+  useMultiUpload,
   formatAcceptLabels,
-  type UseUploadControlsOptions,
-  type UseMultiUploadControlsOptions,
+  type UseUploadOptions,
+  type UseMultiUploadOptions,
   type UploadProgress,
   type MultiUploadFileState,
 } from "@dimah-s3/react";
@@ -22,9 +22,9 @@ import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
 const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 const EMPTY_FILES: MultiUploadFileState[] = [];
 
-/** Props for {@link UploadDropzone}. Extends {@link UseUploadControlsOptions} or {@link UseMultiUploadControlsOptions}. */
+/** Props for {@link UploadDropzone}. Extends {@link UseUploadOptions} or {@link UseMultiUploadOptions}. */
 export type UploadDropzoneProps = (
-  UseUploadControlsOptions | UseMultiUploadControlsOptions
+  UseUploadOptions | UseMultiUploadOptions
 ) & {
   className?: string;
   /** Dropzone label. */
@@ -52,11 +52,11 @@ export type UploadDropzoneProps = (
 };
 
 function dropzoneHints(
-  options: UseUploadControlsOptions | UseMultiUploadControlsOptions,
+  options: UseUploadOptions | UseMultiUploadOptions,
   t: ReturnType<typeof useTranslations>,
 ) {
   const acceptLabels = formatAcceptLabels(options.accept);
-  const maxFiles = (options as UseMultiUploadControlsOptions).maxFiles;
+  const maxFiles = (options as UseMultiUploadOptions).maxFiles;
   const limitParts: string[] = [];
   if (maxFiles != null && maxFiles > 0) {
     limitParts.push(
@@ -134,9 +134,9 @@ function UploadDropzoneSingle({
   toast: enableToast = true,
   status: statusSlot = true,
   ...options
-}: Omit<UploadDropzoneProps, "multiple"> & UseUploadControlsOptions) {
+}: Omit<UploadDropzoneProps, "multiple"> & UseUploadOptions) {
   const t = useTranslations();
-  const ctrl = useUploadControls({ ...options, disabled });
+  const ctrl = useUpload({ ...options, disabled });
   const canPause = options.uploadStore != null && options.uploadStore !== false;
   const isDisabled = disabled || ctrl.isUploading;
   const hasCustomChrome = children != null;
@@ -227,9 +227,9 @@ function UploadDropzoneMulti({
   toast: enableToast = true,
   status: statusSlot = true,
   ...options
-}: Omit<UploadDropzoneProps, "multiple"> & UseMultiUploadControlsOptions) {
+}: Omit<UploadDropzoneProps, "multiple"> & UseMultiUploadOptions) {
   const t = useTranslations();
-  const ctrl = useMultiUploadControls({ ...options, disabled });
+  const ctrl = useMultiUpload({ ...options, disabled });
   const canPause = options.uploadStore != null && options.uploadStore !== false;
   const isDisabled = disabled || ctrl.isUploading;
   const hasCustomChrome = children != null;
@@ -315,13 +315,13 @@ function UploadDropzoneMulti({
 export function UploadDropzone({ multiple, ...props }: UploadDropzoneProps) {
   const isMulti =
     multiple === true ||
-    ((props as UseMultiUploadControlsOptions).maxFiles ?? 1) > 1;
+    ((props as UseMultiUploadOptions).maxFiles ?? 1) > 1;
 
   if (isMulti) {
     return (
       <UploadDropzoneMulti
         {...(props as Omit<UploadDropzoneProps, "multiple"> &
-          UseMultiUploadControlsOptions)}
+          UseMultiUploadOptions)}
       />
     );
   }
@@ -329,7 +329,7 @@ export function UploadDropzone({ multiple, ...props }: UploadDropzoneProps) {
   return (
     <UploadDropzoneSingle
       {...(props as Omit<UploadDropzoneProps, "multiple"> &
-        UseUploadControlsOptions)}
+        UseUploadOptions)}
     />
   );
 }

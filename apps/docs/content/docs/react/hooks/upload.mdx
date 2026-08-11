@@ -3,11 +3,11 @@ title: Upload
 description: Upload hooks for single and multiple files.
 ---
 
-| Hook                           | Use case                          |
-| ------------------------------ | --------------------------------- |
-| `useUploadControls`            | One file — picker + drag-and-drop |
-| `useMultiUploadControls`       | Many files — picker + drop        |
-| `useUpload` / `useMultiUpload` | You already have a `File`         |
+| Hook                                       | Use case                          |
+| ------------------------------------------ | --------------------------------- |
+| `useUpload`                                | One file — picker + drag-and-drop |
+| `useMultiUpload`                           | Many files — picker + drop        |
+| `useFileUpload` / `useMultiFileUpload`     | You already have a `File`         |
 
 <Callout>
   Enforce `accept` and `maxFileSize` on the server too (`presignGuard`).
@@ -15,14 +15,14 @@ description: Upload hooks for single and multiple files.
 
 ---
 
-## `useUploadControls`
+## `useUpload`
 
 Same pattern as [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropzone`](/docs/react/ui/upload-dropzone). Built on [react-dropzone](https://react-dropzone.js.org/) (`getRootProps` / `getInputProps`).
 
 ```tsx
 "use client";
 
-import { useUploadControls } from "@dimah-s3/react";
+import { useUpload } from "@dimah-s3/react";
 
 const {
   getRootProps,
@@ -35,7 +35,7 @@ const {
   progress,
   isUploading,
   cancel,
-} = useUploadControls({
+} = useUpload({
   objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
   accept: ["image/*"],
   maxFileSize: 10 * 1024 * 1024,
@@ -76,14 +76,14 @@ For a button-only UI (no drag), pass `noDrag`, `noClick`, and `noKeyboard`, then
 
 ---
 
-## `useMultiUploadControls`
+## `useMultiUpload`
 
 Same as above, for multiple files. Set `maxFiles`.
 
 ```tsx
 "use client";
 
-import { useMultiUploadControls } from "@dimah-s3/react";
+import { useMultiUpload } from "@dimah-s3/react";
 
 const {
   getRootProps,
@@ -92,7 +92,7 @@ const {
   totalProgress,
   isUploading,
   cancel,
-} = useMultiUploadControls({
+} = useMultiUpload({
   objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
   maxFiles: 5,
   concurrentFiles: 3,
@@ -120,18 +120,18 @@ return (
 
 Skip the picker when you already have a `File`.
 
-### `useUpload`
+### `useFileUpload`
 
 ```tsx
-const { phase, progress, upload, cancel, reset } = useUpload();
+const { phase, progress, upload, cancel, reset } = useFileUpload();
 
 await upload(file, `uploads/${file.name}`, { metadata: { userId: "1" } });
 ```
 
-### `useMultiUpload`
+### `useMultiFileUpload`
 
 ```tsx
-const { files, totalProgress, upload, cancel, reset } = useMultiUpload({
+const { files, totalProgress, upload, cancel, reset } = useMultiFileUpload({
   maxFiles: 10,
   concurrentFiles: 3,
 });
@@ -139,4 +139,4 @@ const { files, totalProgress, upload, cancel, reset } = useMultiUpload({
 await upload(fileArray, (file) => `uploads/${file.name}`);
 ```
 
-Same options as the controls hooks (`accept`, `maxFileSize`, `onSuccess`, …).
+Same engine options as the intake hooks (`accept`, `maxFileSize`, `onSuccess`, …).

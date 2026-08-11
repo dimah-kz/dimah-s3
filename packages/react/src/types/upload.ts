@@ -95,7 +95,7 @@ export type RetryConfig = {
   baseDelay?: number;
 };
 
-/** Upload engine configuration for `useUpload` and `useMultiUpload`. */
+/** Upload engine configuration for `useFileUpload` and `useMultiFileUpload`. */
 export type UploadConfig = {
   /** Enable multipart uploads for large files. */
   multipart?: boolean;

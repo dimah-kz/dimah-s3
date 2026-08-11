@@ -13,7 +13,7 @@ pnpm add @dimah-s3/react
 ## Minimal setup
 
 ```tsx
-import { createS3Client, useUploadControls } from "@dimah-s3/react";
+import { createS3Client, useUpload } from "@dimah-s3/react";
 
 export const { api, S3Provider, useApi } = createS3Client();
 
@@ -21,7 +21,7 @@ export const { api, S3Provider, useApi } = createS3Client();
 <S3Provider>{children}</S3Provider>;
 
 // In a component
-const { open, getInputProps } = useUploadControls({
+const { open, getInputProps } = useUpload({
   objectKey: (file) => `uploads/${file.name}`,
   noDrag: true,
   noClick: true,

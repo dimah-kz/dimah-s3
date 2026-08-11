@@ -1,45 +1,44 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef } from "react";
-import type { S3Api } from "@dimah-s3/core";
-import { validateFile } from "@dimah-s3/core";
-import { S3Context } from "../s3-provider";
-import { createSpeedTracker } from "../helpers/speed-tracker";
-import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
-import { useFormatValidateFileError } from "../helpers/format-validate-file-error";
-import {
-  createImagePreviewUrl,
-  revokePreviewUrl,
-} from "../helpers/file-preview";
-import { useLiveRef } from "../internal-helpers";
-import {
-  patchHookState,
-  replaceHookState,
-  useHookStoreInstance,
-  useHookStoreShallow,
-} from "../store/create-hook-store";
 import type {
-  UploadConfig,
   UploadProgress,
-  UploadRequestOptions,
-  MultiUploadPhase,
   MultiUploadFileState,
-  MultiUploadHooks,
+  MultiUploadPhase,
 } from "../types";
-import { uploadFiles } from "../upload";
+import { useMultiFileUpload, type UseMultiFileUploadOptions } from "./use-multi-file-upload";
+import {
+  useFileIntake,
+  type DropzoneInputProps,
+  type DropzoneRootProps,
+  type FileRejection,
+} from "./use-file-intake";
 
 /** Options for {@link useMultiUpload}. */
-export type UseMultiUploadOptions = UploadConfig &
-  MultiUploadHooks & {
-    /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
-    api?: S3Api;
-    /** Static request options applied to all files. */
-    uploadOptions?: UploadRequestOptions;
-    /** Per-file request options (overrides `uploadOptions`). */
-    getUploadOptions?: (file: File) => UploadRequestOptions;
-  };
+export type UseMultiUploadOptions = UseMultiFileUploadOptions & {
+  /** S3 object key, or a function that derives it from each file. */
+  objectKey: string | ((file: File) => string);
+  /** Disable all intake interactions. */
+  disabled?: boolean;
+  /**
+   * Disable drag interactions on the root (button-style UIs).
+   * @default false
+   */
+  noDrag?: boolean;
+  /**
+   * Disable click-to-open on the root (when opening via `open()` on a button).
+   * @default false
+   */
+  noClick?: boolean;
+  /**
+   * Disable keyboard activation on the root.
+   * @default false
+   */
+  noKeyboard?: boolean;
+  /** Called when dropzone soft-rejects files (type/size/count). */
+  onFileReject?: (rejections: readonly FileRejection[]) => void;
+};
 
-export type UseMultiUploadState = {
+export type UseMultiUploadReturn = {
   /** Current batch upload phase. */
   phase: MultiUploadPhase;
   /** Per-file upload states. */
@@ -48,377 +47,86 @@ export type UseMultiUploadState = {
   totalProgress: UploadProgress;
   /** Batch-level error message, or `null`. */
   error: string | null;
-};
-
-export type UseMultiUploadReturn = UseMultiUploadState & {
-  /** Upload multiple files. */
-  upload: (files: File[], resolveKey: (file: File) => string) => Promise<void>;
-  /**
-   * Abort all in-flight uploads and clean up multipart / store resources
-   * (same semantics as {@link useUpload}'s `cancel`).
-   */
+  /** `true` while uploading. */
+  isUploading: boolean;
+  /** Handle files programmatically (bypasses dropzone). */
+  handleFiles: (files: FileList | File[] | null) => void;
+  /** Open the native file picker. */
+  open: () => void;
+  /** Abort all in-flight uploads. */
   cancel: () => void;
-  /**
-   * Stop uploads but preserve multipart store entries for resume
-   * (same semantics as {@link useUpload}'s `detach`).
-   */
+  /** Preserve multipart store entries for resume. */
   detach: () => void;
   /** Reset state to `idle`. */
   reset: () => void;
-};
-
-const INITIAL_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
-
-const INITIAL_STATE: UseMultiUploadState = {
-  phase: "idle",
-  files: [],
-  totalProgress: INITIAL_PROGRESS,
-  error: null,
-};
-
-function generateId() {
-  return crypto.randomUUID();
-}
-
-type ActiveMultiUpload = {
-  objectKey: string;
-  serverKey: string;
-  uploadId?: string;
-  bucket?: string;
+  /** Spread on the dropzone / clickable root element. */
+  getRootProps: <T extends DropzoneRootProps>(props?: T) => T;
+  /** Spread on a hidden `<input type="file">`. */
+  getInputProps: <T extends DropzoneInputProps>(props?: T) => T;
+  /** `true` while a drag is over the root. */
+  isDragActive: boolean;
+  isDragAccept: boolean;
+  isDragReject: boolean;
+  /** Soft rejections from the last drop / selection. */
+  fileRejections: readonly FileRejection[];
 };
 
 export function useMultiUpload(
   options: UseMultiUploadOptions,
 ): UseMultiUploadReturn {
-  const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStoreShallow(store, (s) => ({
-    phase: s.phase,
-    files: s.files,
-    totalProgress: s.totalProgress,
-    error: s.error,
-  }));
-  const contextApi = useContext(S3Context);
-  const formatValidateFileError = useFormatValidateFileError();
-  const optsRef = useLiveRef(options);
-  const apiRef = useLiveRef(contextApi);
-  const abortRef = useRef<AbortController | null>(null);
-  const resettingRef = useRef(false);
-  const detachingRef = useRef(false);
-  const fileMapRef = useRef<Map<string, File>>(new Map());
-  const activeUploadsRef = useRef<Map<string, ActiveMultiUpload>>(new Map());
-  const previewUrlsRef = useRef<string[]>([]);
-  const fileSpeedUpdatersRef = useRef<
-    Map<string, ReturnType<typeof createThrottledSpeedUpdater>>
-  >(new Map());
-  const totalSpeedUpdaterRef = useRef(
-    createThrottledSpeedUpdater(createSpeedTracker(), 1000),
-  );
+  const {
+    objectKey,
+    disabled,
+    noDrag,
+    noClick,
+    noKeyboard,
+    onFileReject,
+    ...multiOpts
+  } = options;
 
-  const revokeAllPreviews = useCallback(() => {
-    for (const url of previewUrlsRef.current) revokePreviewUrl(url);
-    previewUrlsRef.current = [];
-  }, []);
+  const multi = useMultiFileUpload(multiOpts);
 
-  const clearToIdle = useCallback(() => {
-    revokeAllPreviews();
-    replaceHookState(store, INITIAL_STATE);
-  }, [revokeAllPreviews, store]);
+  const resolveKey = (file: File): string =>
+    typeof objectKey === "function" ? objectKey(file) : objectKey;
 
-  useEffect(() => () => revokeAllPreviews(), [revokeAllPreviews]);
+  const handleFiles = (files: FileList | File[] | null) => {
+    if (files == null) return;
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    void multi.upload(list, resolveKey);
+  };
 
-  const upload = useCallback(
-    async (files: File[], resolveKey: (file: File) => string) => {
-      const opts = optsRef.current;
-      const api = opts.api ?? apiRef.current;
-      if (!api)
-        throw new Error(
-          "[dimah-s3] No S3Api found. Pass `api` to useMultiUpload or wrap with <S3Provider>.",
-        );
+  const isUploading = multi.phase === "uploading";
 
-      const items: Array<{
-        id: string;
-        file: File;
-        objectKey: string;
-      }> = [];
-      const fileStates: MultiUploadFileState[] = [];
-      const fileMap = new Map<string, File>();
+  const intake = useFileIntake({
+    accept: options.accept,
+    maxFileSize: options.maxFileSize,
+    maxFiles: options.maxFiles,
+    multiple: true,
+    disabled: Boolean(disabled) || isUploading,
+    noDrag,
+    noClick,
+    noKeyboard,
+    onAccept: (files) => handleFiles(files),
+    onReject: onFileReject,
+  });
 
-      patchHookState(store, (draft) => {
-        draft.phase = "validating";
-        draft.error = null;
-      });
-
-      if (opts.maxFiles && files.length > opts.maxFiles) {
-        const msg = `Too many files. Maximum is ${opts.maxFiles}.`;
-        patchHookState(store, (draft) => {
-          draft.phase = "error";
-          draft.error = msg;
-        });
-        opts.onError?.(new Error(msg));
-        return;
-      }
-
-      for (const file of files) {
-        const validationError = validateFile(file, {
-          accept: opts.accept,
-          maxFileSize: opts.maxFileSize,
-        });
-        if (validationError) {
-          const detail = formatValidateFileError(validationError);
-          const msg = `${file.name}: ${detail}`;
-          patchHookState(store, (draft) => {
-            draft.phase = "error";
-            draft.error = msg;
-          });
-          opts.onError?.(new Error(msg));
-          return;
-        }
-      }
-
-      if (opts.beforeUpload) {
-        const allowed = await opts.beforeUpload(files);
-        if (!allowed) {
-          patchHookState(store, (draft) => {
-            draft.phase = "error";
-            draft.error = "Upload blocked by beforeUpload hook";
-          });
-          opts.onError?.(new Error("blocked"));
-          return;
-        }
-      }
-
-      revokeAllPreviews();
-      const nextPreviewUrls: string[] = [];
-
-      for (const file of files) {
-        const id = generateId();
-        const objectKey = resolveKey(file);
-        const previewUrl = createImagePreviewUrl(file);
-        if (previewUrl) nextPreviewUrls.push(previewUrl);
-        items.push({ id, file, objectKey });
-        fileMap.set(id, file);
-        fileStates.push({
-          id,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          previewUrl,
-          status: "pending",
-          progress: { loaded: 0, total: file.size, percent: 0 },
-          error: null,
-        });
-      }
-
-      previewUrlsRef.current = nextPreviewUrls;
-      fileMapRef.current = fileMap;
-      activeUploadsRef.current = new Map(
-        items.map((item) => [
-          item.id,
-          {
-            objectKey: item.objectKey,
-            serverKey: item.objectKey,
-            bucket:
-              opts.getUploadOptions?.(item.file)?.bucket ??
-              opts.uploadOptions?.bucket,
-          },
-        ]),
-      );
-
-      patchHookState(store, (draft) => {
-        draft.phase = "uploading";
-        draft.files = fileStates;
-        draft.totalProgress = {
-          loaded: 0,
-          total: files.reduce((s, f) => s + f.size, 0),
-          percent: 0,
-        };
-        draft.error = null;
-      });
-
-      opts.onUploadStart?.(files);
-
-      fileSpeedUpdatersRef.current.clear();
-      for (const item of items) {
-        fileSpeedUpdatersRef.current.set(
-          item.id,
-          createThrottledSpeedUpdater(createSpeedTracker()),
-        );
-      }
-      totalSpeedUpdaterRef.current.reset();
-
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      try {
-        const results = await uploadFiles(
-          api,
-          items,
-          {
-            multipart: opts.multipart,
-            multipartThreshold: opts.multipartThreshold,
-            concurrentParts: opts.concurrentParts,
-            concurrentFiles: opts.concurrentFiles,
-            partSize: opts.partSize,
-            retry: opts.retry,
-            uploadStore: opts.uploadStore,
-          },
-          {
-            onFileProgress: (id, progress) => {
-              const updater = fileSpeedUpdatersRef.current.get(id);
-              const p = updater ? updater.apply(progress) : progress;
-              patchHookState(store, (draft) => {
-                const file = draft.files.find((f) => f.id === id);
-                if (file) {
-                  file.status = "uploading";
-                  file.progress = p;
-                }
-              });
-              const file = fileMap.get(id);
-              if (file) opts.onFileProgress?.(file, p);
-            },
-            onFileSuccess: (id, result) => {
-              activeUploadsRef.current.delete(id);
-              patchHookState(store, (draft) => {
-                const file = draft.files.find((f) => f.id === id);
-                if (file) {
-                  file.status = "success";
-                  file.progress = {
-                    loaded: file.fileSize,
-                    total: file.fileSize,
-                    percent: 100,
-                  };
-                }
-              });
-              const file = fileMap.get(id);
-              if (file) opts.onFileSuccess?.(file, result);
-            },
-            onFileError: (id, error) => {
-              patchHookState(store, (draft) => {
-                const file = draft.files.find((f) => f.id === id);
-                if (file) {
-                  file.status = "error";
-                  file.error = error;
-                }
-              });
-              const file = fileMap.get(id);
-              if (file) opts.onFileError?.(file, error);
-            },
-            onTotalProgress: (progress) => {
-              const p = totalSpeedUpdaterRef.current.apply(progress);
-              patchHookState(store, (draft) => {
-                draft.totalProgress = p;
-              });
-              opts.onProgress?.(p);
-            },
-            onMultipartInit: (id, uploadId, serverKey) => {
-              const active = activeUploadsRef.current.get(id);
-              if (active) {
-                active.uploadId = uploadId;
-                active.serverKey = serverKey;
-              }
-            },
-          },
-          controller.signal,
-          (file) => {
-            const perFile = opts.getUploadOptions?.(file);
-            if (!opts.uploadOptions) return perFile ?? {};
-            return { ...opts.uploadOptions, ...perFile };
-          },
-        );
-
-        const hasErrors = results.some((r) => r.status === "error");
-        const successResults = results
-          .filter((r) => r.result !== null)
-          .map((r) => r.result!);
-
-        patchHookState(store, (draft) => {
-          draft.phase = hasErrors ? "error" : "success";
-          draft.error = hasErrors
-            ? `${results.filter((r) => r.status === "error").length} file(s) failed`
-            : null;
-          if (!hasErrors) {
-            draft.totalProgress = {
-              loaded: draft.totalProgress.total,
-              total: draft.totalProgress.total,
-              percent: 100,
-            };
-          }
-        });
-
-        if (!hasErrors) {
-          await opts.onSuccess?.(successResults);
-        }
-      } catch (err) {
-        if ((err as Error).name === "AbortError") {
-          if (detachingRef.current) {
-            detachingRef.current = false;
-            return;
-          }
-          if (!resettingRef.current) opts.onCancel?.();
-          resettingRef.current = false;
-          clearToIdle();
-          return;
-        }
-        const message = err instanceof Error ? err.message : "Upload failed";
-        patchHookState(store, (draft) => {
-          draft.phase = "error";
-          draft.error = message;
-        });
-        opts.onError?.(err);
-      } finally {
-        abortRef.current = null;
-        activeUploadsRef.current.clear();
-      }
-    },
-    [
-      apiRef,
-      optsRef,
-      formatValidateFileError,
-      revokeAllPreviews,
-      clearToIdle,
-      store,
-    ],
-  );
-
-  const cancel = useCallback(() => {
-    const opts = optsRef.current;
-    const api = opts.api ?? apiRef.current;
-    abortRef.current?.abort();
-    if (api) {
-      const uploadStore = opts.uploadStore;
-      for (const active of activeUploadsRef.current.values()) {
-        if (uploadStore != null && uploadStore !== false) {
-          void Promise.resolve(uploadStore.delete(active.objectKey)).catch(
-            () => {},
-          );
-        }
-        if (active.uploadId) {
-          api.multipart
-            .abort({
-              key: active.serverKey,
-              uploadId: active.uploadId,
-              bucket: active.bucket,
-            })
-            .catch(() => {});
-        }
-      }
-    }
-    activeUploadsRef.current.clear();
-    clearToIdle();
-  }, [apiRef, optsRef, clearToIdle]);
-
-  const detach = useCallback(() => {
-    if (activeUploadsRef.current.size === 0) return;
-    detachingRef.current = true;
-    abortRef.current?.abort();
-    clearToIdle();
-  }, [clearToIdle]);
-
-  const reset = useCallback(() => {
-    resettingRef.current = true;
-    abortRef.current?.abort();
-    clearToIdle();
-  }, [clearToIdle]);
-
-  return { ...state, upload, cancel, detach, reset };
+  return {
+    phase: multi.phase,
+    files: multi.files,
+    totalProgress: multi.totalProgress,
+    error: multi.error,
+    isUploading,
+    handleFiles,
+    open: intake.open,
+    cancel: multi.cancel,
+    detach: multi.detach,
+    reset: multi.reset,
+    getRootProps: intake.getRootProps,
+    getInputProps: intake.getInputProps,
+    isDragActive: intake.isDragActive,
+    isDragAccept: intake.isDragAccept,
+    isDragReject: intake.isDragReject,
+    fileRejections: intake.fileRejections,
+  };
 }

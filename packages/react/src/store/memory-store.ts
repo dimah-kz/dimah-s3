@@ -9,7 +9,7 @@ import type { StoredUpload, UploadStore } from "../types/upload-store";
  * @example
  * ```ts
  * const store = createMemoryStore();
- * useUpload({ api, uploadStore: store });
+ * useFileUpload({ api, uploadStore: store });
  * ```
  */
 export function createMemoryStore(): UploadStore {

@@ -158,10 +158,10 @@ Now hooks inside this provider can omit `api`.
 ```tsx title="app/uploader.tsx"
 "use client";
 
-import { useUploadControls } from "@dimah-s3/react";
+import { useUpload } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { open, getInputProps, progress, isUploading } = useUploadControls({
+  const { open, getInputProps, progress, isUploading } = useUpload({
     objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
     accept: ["image/*", ".pdf"],
     maxFileSize: 10 * 1024 * 1024,
@@ -213,10 +213,10 @@ export const localStorageStore = createLocalStorageStore();
 ```
 
 ```tsx title="app/uploader.tsx"
-import { useUploadControls } from "@dimah-s3/react";
+import { useUpload } from "@dimah-s3/react";
 import { localStorageStore } from "@/lib/upload-store";
 
-const { open, getInputProps } = useUploadControls({
+const { open, getInputProps } = useUpload({
   objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
   multipart: true,
   uploadStore: localStorageStore,
