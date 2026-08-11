@@ -1,10 +1,16 @@
 "use client";
 
-import { useCallback, useContext, useRef, useState } from "react";
+import { useCallback, useContext, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import type { DeletePhase, DeleteHooks } from "../types";
 import { useLiveRef } from "../internal-helpers";
+import {
+  patchHookState,
+  replaceHookState,
+  useHookStore,
+  useHookStoreInstance,
+} from "../store/create-hook-store";
 
 /** Options for {@link useDelete}. */
 export type UseDeleteOptions = DeleteHooks & {
@@ -47,16 +53,24 @@ const INITIAL_STATE: InternalState = {
 };
 
 export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
-  const [state, setState] = useState<InternalState>(INITIAL_STATE);
+  const store = useHookStoreInstance(INITIAL_STATE);
+  const state = useHookStore(store, (s) => s);
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
   const pendingKeyRef = useRef<string | null>(null);
 
-  const requestDelete = useCallback((key: string) => {
-    pendingKeyRef.current = key;
-    setState({ phase: "confirming", error: null, pendingKey: key });
-  }, []);
+  const requestDelete = useCallback(
+    (key: string) => {
+      pendingKeyRef.current = key;
+      patchHookState(store, (draft) => {
+        draft.phase = "confirming";
+        draft.error = null;
+        draft.pendingKey = key;
+      });
+    },
+    [store],
+  );
 
   const confirmDelete = useCallback(async () => {
     const key = pendingKeyRef.current;
@@ -71,10 +85,10 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     if (opts.beforeDelete) {
       const allowed = await opts.beforeDelete(key);
       if (!allowed) {
-        setState({
-          phase: "error",
-          error: "Delete blocked by beforeDelete hook",
-          pendingKey: null,
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = "Delete blocked by beforeDelete hook";
+          draft.pendingKey = null;
         });
         opts.onError?.(key, new Error("blocked"), "confirming");
         pendingKeyRef.current = null;
@@ -82,30 +96,40 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
       }
     }
 
-    setState((s) => ({ ...s, phase: "deleting", error: null }));
+    patchHookState(store, (draft) => {
+      draft.phase = "deleting";
+      draft.error = null;
+    });
     opts.onDeleteStart?.(key);
 
     try {
       await api.delete(key, { bucket: opts.bucket });
       pendingKeyRef.current = null;
-      setState({ phase: "success", error: null, pendingKey: null });
+      patchHookState(store, (draft) => {
+        draft.phase = "success";
+        draft.error = null;
+        draft.pendingKey = null;
+      });
       await opts.onSuccess?.(key);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Delete failed";
-      setState((s) => ({ ...s, phase: "error", error: message }));
+      patchHookState(store, (draft) => {
+        draft.phase = "error";
+        draft.error = message;
+      });
       opts.onError?.(key, err, "deleting");
     }
-  }, [apiRef, optsRef]);
+  }, [apiRef, optsRef, store]);
 
   const cancelDelete = useCallback(() => {
     pendingKeyRef.current = null;
-    setState(INITIAL_STATE);
-  }, []);
+    replaceHookState(store, INITIAL_STATE);
+  }, [store]);
 
   const reset = useCallback(() => {
     pendingKeyRef.current = null;
-    setState(INITIAL_STATE);
-  }, []);
+    replaceHookState(store, INITIAL_STATE);
+  }, [store]);
 
   return {
     phase: state.phase,

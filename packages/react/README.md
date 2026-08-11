@@ -21,8 +21,11 @@ export const { api, S3Provider, useApi } = createS3Client();
 <S3Provider>{children}</S3Provider>;
 
 // In a component
-const { openFilePicker, inputProps } = useUploadControls({
+const { open, getInputProps } = useUploadControls({
   objectKey: (file) => `uploads/${file.name}`,
+  noDrag: true,
+  noClick: true,
+  noKeyboard: true,
 });
 ```
 

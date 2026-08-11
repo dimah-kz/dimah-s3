@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import { useLiveRef } from "../internal-helpers";
+import {
+  patchHookState,
+  replaceHookState,
+  useHookStore,
+  useHookStoreInstance,
+} from "../store/create-hook-store";
 
 export type { DownloadPhase, DownloadHooks } from "../types/download";
 
@@ -48,7 +54,8 @@ const INITIAL_STATE: UseDownloadState = {
 };
 
 export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
-  const [state, setState] = useState<UseDownloadState>(INITIAL_STATE);
+  const store = useHookStoreInstance(INITIAL_STATE);
+  const state = useHookStore(store, (s) => s);
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
@@ -61,37 +68,37 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
         throw new Error(
           "[dimah-s3] No S3Api found. Pass `api` to useDownload or wrap with <S3Provider>.",
         );
-      setState({
-        phase: "presigning",
-        error: null,
-        url: null,
-        expiresIn: null,
+      patchHookState(store, (draft) => {
+        draft.phase = "presigning";
+        draft.error = null;
+        draft.url = null;
+        draft.expiresIn = null;
       });
       try {
         const result = await api.download(key, {
           fileName: downloadName,
           bucket: opts.bucket,
         });
-        setState({
-          phase: "idle",
-          error: null,
-          url: result.url,
-          expiresIn: result.expiresIn,
+        patchHookState(store, (draft) => {
+          draft.phase = "idle";
+          draft.error = null;
+          draft.url = result.url;
+          draft.expiresIn = result.expiresIn;
         });
         return { url: result.url, expiresIn: result.expiresIn };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Download failed";
-        setState({
-          phase: "error",
-          error: message,
-          url: null,
-          expiresIn: null,
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = message;
+          draft.url = null;
+          draft.expiresIn = null;
         });
         opts.onError?.(key, err);
         return null;
       }
     },
-    [apiRef, optsRef],
+    [apiRef, optsRef, store],
   );
 
   const download = useCallback(
@@ -100,11 +107,11 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
       if (opts.beforeDownload) {
         const allowed = await opts.beforeDownload(key);
         if (!allowed) {
-          setState({
-            phase: "error",
-            error: "Download blocked by beforeDownload hook",
-            url: null,
-            expiresIn: null,
+          patchHookState(store, (draft) => {
+            draft.phase = "error";
+            draft.error = "Download blocked by beforeDownload hook";
+            draft.url = null;
+            draft.expiresIn = null;
           });
           opts.onError?.(key, new Error("blocked"));
           return;
@@ -115,10 +122,13 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
       window.location.href = result.url;
       opts.onInitiated?.(key);
     },
-    [optsRef, presign],
+    [optsRef, presign, store],
   );
 
-  const reset = useCallback(() => setState(INITIAL_STATE), []);
+  const reset = useCallback(
+    () => replaceHookState(store, INITIAL_STATE),
+    [store],
+  );
 
   return { ...state, download, presign, reset };
 }

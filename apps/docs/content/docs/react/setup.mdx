@@ -161,18 +161,20 @@ Now hooks inside this provider can omit `api`.
 import { useUploadControls } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { openFilePicker, inputProps, progress, isUploading } =
-    useUploadControls({
-      objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
-      accept: ["image/*", ".pdf"],
-      maxFileSize: 10 * 1024 * 1024,
-      onSuccess: (_file, result) => console.log(result.key),
-    });
+  const { open, getInputProps, progress, isUploading } = useUploadControls({
+    objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
+    accept: ["image/*", ".pdf"],
+    maxFileSize: 10 * 1024 * 1024,
+    noDrag: true,
+    noClick: true,
+    noKeyboard: true,
+    onSuccess: (_file, result) => console.log(result.key),
+  });
 
   return (
     <div>
-      <input {...inputProps} />
-      <button type="button" onClick={openFilePicker} disabled={isUploading}>
+      <input {...getInputProps()} />
+      <button type="button" onClick={open} disabled={isUploading}>
         {isUploading ? `Uploading ${progress.percent}%` : "Upload file"}
       </button>
     </div>
@@ -214,10 +216,13 @@ export const localStorageStore = createLocalStorageStore();
 import { useUploadControls } from "@dimah-s3/react";
 import { localStorageStore } from "@/lib/upload-store";
 
-const { openFilePicker, inputProps } = useUploadControls({
+const { open, getInputProps } = useUploadControls({
   objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
   multipart: true,
   uploadStore: localStorageStore,
+  noDrag: true,
+  noClick: true,
+  noKeyboard: true,
 });
 ```
 

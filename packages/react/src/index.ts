@@ -39,6 +39,7 @@ export {
   createSpeedTracker,
   createImagePreviewUrl,
   revokePreviewUrl,
+  toDropzoneAccept,
   type SpeedTracker,
 } from "./helpers";
 
@@ -65,6 +66,14 @@ export {
   type UseMultiUploadControlsOptions,
   type UseMultiUploadControlsReturn,
 } from "./hooks/use-multi-upload-controls";
+export {
+  useFileIntake,
+  type UseFileIntakeOptions,
+  type UseFileIntakeReturn,
+  type FileRejection,
+  type DropzoneRootProps,
+  type DropzoneInputProps,
+} from "./hooks/use-file-intake";
 export {
   useDownload,
   type DownloadPhase,

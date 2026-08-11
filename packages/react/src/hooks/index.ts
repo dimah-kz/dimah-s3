@@ -21,6 +21,14 @@ export {
   type UseMultiUploadControlsReturn,
 } from "./use-multi-upload-controls";
 export {
+  useFileIntake,
+  type UseFileIntakeOptions,
+  type UseFileIntakeReturn,
+  type FileRejection,
+  type DropzoneRootProps,
+  type DropzoneInputProps,
+} from "./use-file-intake";
+export {
   useDownload,
   type DownloadPhase,
   type DownloadHooks,

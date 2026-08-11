@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { validateFile } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
@@ -12,6 +12,12 @@ import {
   revokePreviewUrl,
 } from "../helpers/file-preview";
 import { useLiveRef } from "../internal-helpers";
+import {
+  patchHookState,
+  replaceHookState,
+  useHookStore,
+  useHookStoreInstance,
+} from "../store/create-hook-store";
 import type {
   UploadConfig,
   UploadHooks,
@@ -126,7 +132,8 @@ type ActiveUpload = {
 };
 
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
-  const [state, setState] = useState<UseUploadState>(INITIAL_STATE);
+  const store = useHookStoreInstance(INITIAL_STATE);
+  const state = useHookStore(store, (s) => s);
   const contextApi = useContext(S3Context);
   const formatValidateFileError = useFormatValidateFileError();
   const optsRef = useLiveRef(options);
@@ -148,8 +155,8 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
 
   const clearToIdle = useCallback(() => {
     revokeCurrentPreview();
-    setState(INITIAL_STATE);
-  }, [revokeCurrentPreview]);
+    replaceHookState(store, INITIAL_STATE);
+  }, [revokeCurrentPreview, store]);
 
   useEffect(() => () => revokeCurrentPreview(), [revokeCurrentPreview]);
 
@@ -163,13 +170,15 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
       const previewUrl = createImagePreviewUrl(file);
       previewUrlRef.current = previewUrl;
 
-      setState({
-        ...INITIAL_STATE,
-        phase: "validating",
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        previewUrl,
+      patchHookState(store, (draft) => {
+        draft.phase = "validating";
+        draft.progress = { ...INITIAL_PROGRESS };
+        draft.error = null;
+        draft.result = null;
+        draft.fileName = file.name;
+        draft.fileSize = file.size;
+        draft.fileType = file.type;
+        draft.previewUrl = previewUrl;
       });
 
       const opts = optsRef.current;
@@ -185,7 +194,10 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
       });
       if (validationError) {
         const message = formatValidateFileError(validationError);
-        setState((s) => ({ ...s, phase: "error", error: message }));
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = message;
+        });
         opts.onError?.(file, new Error(message), "validating");
         return;
       }
@@ -193,18 +205,19 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
       if (opts.beforeUpload) {
         const allowed = await opts.beforeUpload(file);
         if (!allowed) {
-          setState((s) => ({
-            ...s,
-            phase: "error",
-            error: "Upload blocked by beforeUpload hook",
-          }));
+          patchHookState(store, (draft) => {
+            draft.phase = "error";
+            draft.error = "Upload blocked by beforeUpload hook";
+          });
           opts.onError?.(file, new Error("blocked"), "validating");
           return;
         }
       }
 
       speedUpdaterRef.current.reset();
-      setState((s) => ({ ...s, phase: "presigning" }));
+      patchHookState(store, (draft) => {
+        draft.phase = "presigning";
+      });
       opts.onUploadStart?.(file, objectKey);
 
       const controller = new AbortController();
@@ -233,10 +246,15 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
           {
             onProgress: (progress) => {
               const p = speedUpdaterRef.current.apply(progress);
-              setState((s) => ({ ...s, progress: p }));
+              patchHookState(store, (draft) => {
+                draft.progress = p;
+              });
               opts.onProgress?.(file, p);
             },
-            onPhaseChange: (phase) => setState((s) => ({ ...s, phase })),
+            onPhaseChange: (phase) =>
+              patchHookState(store, (draft) => {
+                draft.phase = phase;
+              }),
             onPartUpload: (partNumber, totalParts) =>
               opts.onPartUpload?.(file, partNumber, totalParts),
             onMultipartInit: (uploadId, serverKey) => {
@@ -251,12 +269,15 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
           requestOptions,
         );
 
-        setState((s) => ({
-          ...s,
-          phase: "success",
-          result,
-          progress: { loaded: file.size, total: file.size, percent: 100 },
-        }));
+        patchHookState(store, (draft) => {
+          draft.phase = "success";
+          draft.result = result;
+          draft.progress = {
+            loaded: file.size,
+            total: file.size,
+            percent: 100,
+          };
+        });
         await opts.onSuccess?.(file, result);
       } catch (err) {
         if ((err as Error).name === "AbortError") {
@@ -269,7 +290,10 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
           return;
         }
         const message = err instanceof Error ? err.message : "Upload failed";
-        setState((s) => ({ ...s, phase: "error", error: message }));
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = message;
+        });
         opts.onError?.(file, err, "uploading");
       } finally {
         abortRef.current = null;
@@ -282,6 +306,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
       formatValidateFileError,
       revokeCurrentPreview,
       clearToIdle,
+      store,
     ],
   );
 
@@ -292,9 +317,9 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     abortRef.current?.abort();
     if (active && api) {
       const { objectKey, serverKey, uploadId, bucket } = active;
-      const store = opts.uploadStore;
-      if (store != null && store !== false) {
-        void Promise.resolve(store.delete(objectKey)).catch(() => {});
+      const storeOpt = opts.uploadStore;
+      if (storeOpt != null && storeOpt !== false) {
+        void Promise.resolve(storeOpt.delete(objectKey)).catch(() => {});
       }
       if (uploadId) {
         api.multipart

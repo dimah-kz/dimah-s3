@@ -17,7 +17,7 @@ description: Upload hooks for single and multiple files.
 
 ## `useUploadControls`
 
-Same pattern as [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropzone`](/docs/react/ui/upload-dropzone).
+Same pattern as [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropzone`](/docs/react/ui/upload-dropzone). Built on [react-dropzone](https://react-dropzone.js.org/) (`getRootProps` / `getInputProps`).
 
 ```tsx
 "use client";
@@ -25,9 +25,9 @@ Same pattern as [`UploadButton`](/docs/react/ui/upload-button) and [`UploadDropz
 import { useUploadControls } from "@dimah-s3/react";
 
 const {
-  openFilePicker,
-  inputProps,
-  dropHandlers,
+  getRootProps,
+  getInputProps,
+  isDragActive,
   phase,
   progress,
   isUploading,
@@ -40,12 +40,18 @@ const {
 });
 
 return (
-  <div {...dropHandlers} onClick={openFilePicker}>
-    <input {...inputProps} />
-    {isUploading ? `${progress.percent}%` : "Click or drop to upload"}
+  <div {...getRootProps()}>
+    <input {...getInputProps()} />
+    {isUploading
+      ? `${progress.percent}%`
+      : isDragActive
+        ? "Drop to upload"
+        : "Click or drop to upload"}
   </div>
 );
 ```
+
+For a button-only UI (no drag), pass `noDrag`, `noClick`, and `noKeyboard`, then call `open()` from your button.
 
 ---
 
@@ -59,9 +65,8 @@ Same as above, for multiple files. Set `maxFiles`.
 import { useMultiUploadControls } from "@dimah-s3/react";
 
 const {
-  openFilePicker,
-  inputProps,
-  dropHandlers,
+  getRootProps,
+  getInputProps,
   files,
   totalProgress,
   isUploading,
@@ -75,8 +80,8 @@ const {
 });
 
 return (
-  <div {...dropHandlers} onClick={openFilePicker}>
-    <input {...inputProps} />
+  <div {...getRootProps()}>
+    <input {...getInputProps()} />
     {isUploading
       ? `${totalProgress.percent}% — ${files.filter((f) => f.status === "success").length}/${files.length}`
       : "Click or drop files"}

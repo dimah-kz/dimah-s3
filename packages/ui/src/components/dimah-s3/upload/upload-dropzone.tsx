@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
@@ -65,10 +65,12 @@ export function UploadDropzone({
     multiple === true ||
     ((options as UseMultiUploadControlsOptions).maxFiles ?? 1) > 1;
 
+  const controlOptions = { ...options, disabled };
+
   // Both hooks must be called unconditionally (React rules of hooks).
-  const single = useUploadControls(options as UseUploadControlsOptions);
+  const single = useUploadControls(controlOptions as UseUploadControlsOptions);
   const multi = useMultiUploadControls(
-    options as UseMultiUploadControlsOptions,
+    controlOptions as UseMultiUploadControlsOptions,
   );
 
   const canPause = options.uploadStore != null && options.uploadStore !== false;
@@ -91,13 +93,11 @@ export function UploadDropzone({
         cancel: single.cancel,
       };
 
-  const [isDragOver, setIsDragOver] = useState(false);
-
   const isDisabled =
     disabled || (isMulti ? multi.isUploading : single.isUploading);
-  const openFilePicker = isMulti ? multi.openFilePicker : single.openFilePicker;
-  const dropHandlers = isMulti ? multi.dropHandlers : single.dropHandlers;
-  const inputProps = isMulti ? multi.inputProps : single.inputProps;
+  const getRootProps = isMulti ? multi.getRootProps : single.getRootProps;
+  const getInputProps = isMulti ? multi.getInputProps : single.getInputProps;
+  const isDragActive = isMulti ? multi.isDragActive : single.isDragActive;
 
   useUploadToast(ctrl, enableToast);
 
@@ -175,52 +175,24 @@ export function UploadDropzone({
       ? statusSlot(statusNode)
       : resolveStatusSlot(statusSlot, defaultStatus);
 
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (isDisabled) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      openFilePicker();
-    }
-  };
-
   return (
     <div
-      role="button"
-      tabIndex={isDisabled ? -1 : 0}
-      aria-disabled={isDisabled || undefined}
-      aria-label={dropzoneLabel}
-      className={cn(
-        "rounded-lg border-2 border-dashed transition-colors",
-        hasCustomChrome
-          ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
-          : "flex flex-col items-center justify-center gap-3 p-6 text-center",
-        isDisabled
-          ? "cursor-not-allowed border-muted-foreground/25"
-          : "cursor-pointer border-muted-foreground/25 hover:border-primary/50",
-        !isDisabled && isDragOver && "border-primary/50",
-        className,
-      )}
-      onClick={isDisabled ? undefined : openFilePicker}
-      onKeyDown={onKeyDown}
-      {...(isDisabled
-        ? {}
-        : {
-            ...dropHandlers,
-            onDragEnter: (e) => {
-              if (e.dataTransfer.types.includes("Files")) setIsDragOver(true);
-            },
-            onDragLeave: (e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setIsDragOver(false);
-              }
-            },
-            onDrop: (e) => {
-              setIsDragOver(false);
-              dropHandlers.onDrop(e);
-            },
-          })}
+      {...getRootProps({
+        "aria-label": dropzoneLabel,
+        className: cn(
+          "rounded-lg border-2 border-dashed transition-colors",
+          hasCustomChrome
+            ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
+            : "flex flex-col items-center justify-center gap-3 p-6 text-center",
+          isDisabled
+            ? "cursor-not-allowed border-muted-foreground/25"
+            : "cursor-pointer border-muted-foreground/25 hover:border-primary/50",
+          !isDisabled && isDragActive && "border-primary/50",
+          className,
+        ),
+      })}
     >
-      <input {...inputProps} />
+      <input {...getInputProps()} />
       {hasCustomChrome ? (
         children
       ) : (

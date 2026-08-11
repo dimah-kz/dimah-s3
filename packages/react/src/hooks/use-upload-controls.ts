@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import type {
   UploadFileInfo,
   UploadPhase,
@@ -8,6 +7,12 @@ import type {
   UploadRequestOptions,
 } from "../types";
 import { useUpload, type UseUploadOptions } from "./use-upload";
+import {
+  useFileIntake,
+  type DropzoneInputProps,
+  type DropzoneRootProps,
+  type FileRejection,
+} from "./use-file-intake";
 
 /** Options for {@link useUploadControls}. */
 export type UseUploadControlsOptions = UseUploadOptions & {
@@ -17,6 +22,25 @@ export type UseUploadControlsOptions = UseUploadOptions & {
   uploadOptions?: UploadRequestOptions;
   /** Per-upload request options override. */
   getUploadOptions?: (file: File) => UploadRequestOptions;
+  /** Disable all intake interactions. */
+  disabled?: boolean;
+  /**
+   * Disable drag interactions on the root (button-style UIs).
+   * @default false
+   */
+  noDrag?: boolean;
+  /**
+   * Disable click-to-open on the root (when opening via `open()` on a button).
+   * @default false
+   */
+  noClick?: boolean;
+  /**
+   * Disable keyboard activation on the root.
+   * @default false
+   */
+  noKeyboard?: boolean;
+  /** Called when dropzone soft-rejects files (type/size). */
+  onFileReject?: (rejections: readonly FileRejection[]) => void;
 };
 
 export type UseUploadControlsReturn = {
@@ -30,53 +54,74 @@ export type UseUploadControlsReturn = {
   error: string | null;
   /** `true` while uploading. */
   isUploading: boolean;
-  /** Handle files from drag-and-drop or a file input. */
-  handleFiles: (files: FileList | null) => void;
-  /** Open the hidden file picker. */
-  openFilePicker: () => void;
+  /** Handle files programmatically (bypasses dropzone). */
+  handleFiles: (files: FileList | File[] | null) => void;
+  /** Open the native file picker. */
+  open: () => void;
   /** Abort and reset to idle. */
   cancel: () => void;
   /**
    * Soft-stop: preserves S3 parts and store entry so a future `upload()` can
    * resume. For non-resumable uploads, identical to `cancel()`.
-   * See `UseUploadReturn.detach` for full semantics.
    */
   detach: () => void;
   reset: () => void;
-  /** Spread on a hidden `<input>` element. */
-  inputProps: {
-    ref: React.RefObject<HTMLInputElement | null>;
-    type: "file";
-    accept?: string;
-    hidden: true;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  };
-  /** Spread on a container to enable drag-and-drop. */
-  dropHandlers: {
-    onDragOver: (e: React.DragEvent) => void;
-    onDrop: (e: React.DragEvent) => void;
-  };
+  /** Spread on the dropzone / clickable root element. */
+  getRootProps: <T extends DropzoneRootProps>(props?: T) => T;
+  /** Spread on a hidden `<input type="file">`. */
+  getInputProps: <T extends DropzoneInputProps>(props?: T) => T;
+  /** `true` while a drag is over the root. */
+  isDragActive: boolean;
+  isDragAccept: boolean;
+  isDragReject: boolean;
+  /** Soft rejections from the last drop / selection. */
+  fileRejections: readonly FileRejection[];
 };
 
 export function useUploadControls(
   options: UseUploadControlsOptions,
 ): UseUploadControlsReturn {
-  const single = useUpload(options);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    objectKey,
+    uploadOptions,
+    getUploadOptions,
+    disabled,
+    noDrag,
+    noClick,
+    noKeyboard,
+    onFileReject,
+    ...uploadOpts
+  } = options;
+
+  const single = useUpload(uploadOpts);
 
   const resolveKey = (file: File): string =>
-    typeof options.objectKey === "function"
-      ? options.objectKey(file)
-      : options.objectKey;
+    typeof objectKey === "function" ? objectKey(file) : objectKey;
 
-  const handleFiles = async (files: FileList | null) => {
-    const file = files?.[0];
+  const handleFiles = (files: FileList | File[] | null) => {
+    const list = files == null ? [] : Array.from(files);
+    const file = list[0];
     if (!file) return;
-    await single.upload(file, resolveKey(file), {
-      ...options.uploadOptions,
-      ...options.getUploadOptions?.(file),
+    void single.upload(file, resolveKey(file), {
+      ...uploadOptions,
+      ...getUploadOptions?.(file),
     });
   };
+
+  const isUploading = single.phase === "uploading";
+
+  const intake = useFileIntake({
+    accept: options.accept,
+    maxFileSize: options.maxFileSize,
+    maxFiles: 1,
+    multiple: false,
+    disabled: Boolean(disabled) || isUploading,
+    noDrag,
+    noClick,
+    noKeyboard,
+    onAccept: (files) => handleFiles(files),
+    onReject: onFileReject,
+  });
 
   const fileInfo: UploadFileInfo | null =
     single.fileName != null
@@ -93,32 +138,17 @@ export function useUploadControls(
     fileInfo,
     progress: single.progress,
     error: single.error,
-    isUploading: single.phase === "uploading",
+    isUploading,
     handleFiles,
-    openFilePicker: () => inputRef.current?.click(),
+    open: intake.open,
     cancel: single.cancel,
     detach: single.detach,
     reset: single.reset,
-    inputProps: {
-      ref: inputRef,
-      type: "file",
-      accept: options.accept?.join(","),
-      hidden: true,
-      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-        handleFiles(e.target.files);
-        e.target.value = "";
-      },
-    },
-    dropHandlers: {
-      onDragOver: (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-      },
-      onDrop: (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (single.phase !== "uploading") handleFiles(e.dataTransfer.files);
-      },
-    },
+    getRootProps: intake.getRootProps,
+    getInputProps: intake.getInputProps,
+    isDragActive: intake.isDragActive,
+    isDragAccept: intake.isDragAccept,
+    isDragReject: intake.isDragReject,
+    fileRejections: intake.fileRejections,
   };
 }

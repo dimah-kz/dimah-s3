@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useRef, useState } from "react";
+import { useCallback, useContext, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { parseFileName } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
@@ -9,6 +9,12 @@ import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
 import type { FetchDownloadPhase, FetchDownloadHooks } from "../types/download";
 import type { UploadProgress } from "../types/upload";
 import { useLiveRef } from "../internal-helpers";
+import {
+  patchHookState,
+  replaceHookState,
+  useHookStore,
+  useHookStoreInstance,
+} from "../store/create-hook-store";
 
 export type {
   FetchDownloadPhase,
@@ -59,7 +65,8 @@ const INITIAL_STATE: UseFetchDownloadState = {
 export function useFetchDownload(
   options: UseFetchDownloadOptions,
 ): UseFetchDownloadReturn {
-  const [state, setState] = useState<UseFetchDownloadState>(INITIAL_STATE);
+  const store = useHookStoreInstance(INITIAL_STATE);
+  const state = useHookStore(store, (s) => s);
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
@@ -82,22 +89,21 @@ export function useFetchDownload(
       if (opts.beforeDownload) {
         const allowed = await opts.beforeDownload(key);
         if (!allowed) {
-          setState((s) => ({
-            ...s,
-            phase: "error",
-            error: "Download blocked by beforeDownload hook",
-          }));
+          patchHookState(store, (draft) => {
+            draft.phase = "error";
+            draft.error = "Download blocked by beforeDownload hook";
+          });
           opts.onError?.(key, new Error("blocked"), "presigning");
           return;
         }
       }
 
-      setState({
-        phase: "presigning",
-        progress: INITIAL_PROGRESS,
-        error: null,
-        fileName: downloadName ?? null,
-        fileSize: null,
+      patchHookState(store, (draft) => {
+        draft.phase = "presigning";
+        draft.progress = { ...INITIAL_PROGRESS };
+        draft.error = null;
+        draft.fileName = downloadName ?? null;
+        draft.fileSize = null;
       });
 
       try {
@@ -105,7 +111,9 @@ export function useFetchDownload(
           fileName: downloadName,
           bucket: opts.bucket,
         });
-        setState((s) => ({ ...s, phase: "downloading" }));
+        patchHookState(store, (draft) => {
+          draft.phase = "downloading";
+        });
         opts.onDownloadStart?.(key);
 
         speedUpdaterRef.current.reset();
@@ -126,11 +134,10 @@ export function useFetchDownload(
           downloadName ??
           parseFileName(res.headers.get("content-disposition")) ??
           fallback;
-        setState((s) => ({
-          ...s,
-          fileName: name,
-          fileSize: contentLength || null,
-        }));
+        patchHookState(store, (draft) => {
+          draft.fileName = name;
+          draft.fileSize = contentLength || null;
+        });
 
         const reader = res.body?.getReader();
         if (!reader) throw new Error("ReadableStream not supported");
@@ -150,7 +157,9 @@ export function useFetchDownload(
             total: contentLength,
             percent,
           });
-          setState((s) => ({ ...s, progress }));
+          patchHookState(store, (draft) => {
+            draft.progress = progress;
+          });
           opts.onProgress?.(key, progress);
         }
 
@@ -162,40 +171,46 @@ export function useFetchDownload(
         anchor.click();
         URL.revokeObjectURL(blobUrl);
 
-        setState((s) => ({
-          ...s,
-          phase: "success",
-          fileSize: blob.size,
-          progress: { loaded: blob.size, total: blob.size, percent: 100 },
-        }));
+        patchHookState(store, (draft) => {
+          draft.phase = "success";
+          draft.fileSize = blob.size;
+          draft.progress = {
+            loaded: blob.size,
+            total: blob.size,
+            percent: 100,
+          };
+        });
         await opts.onSuccess?.(key, name ?? fallback);
       } catch (err) {
         if ((err as Error).name === "AbortError") {
           if (!resettingRef.current) opts.onCancel?.(key);
           resettingRef.current = false;
-          setState(INITIAL_STATE);
+          replaceHookState(store, INITIAL_STATE);
           return;
         }
         const message = err instanceof Error ? err.message : "Download failed";
-        setState((s) => ({ ...s, phase: "error", error: message }));
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = message;
+        });
         opts.onError?.(key, err, "downloading");
       } finally {
         abortRef.current = null;
       }
     },
-    [apiRef, optsRef],
+    [apiRef, optsRef, store],
   );
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
-    setState(INITIAL_STATE);
-  }, []);
+    replaceHookState(store, INITIAL_STATE);
+  }, [store]);
 
   const reset = useCallback(() => {
     resettingRef.current = true;
     abortRef.current?.abort();
-    setState(INITIAL_STATE);
-  }, []);
+    replaceHookState(store, INITIAL_STATE);
+  }, [store]);
 
   return { ...state, download, cancel, reset };
 }

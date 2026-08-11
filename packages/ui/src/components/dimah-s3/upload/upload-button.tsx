@@ -77,11 +77,19 @@ export function UploadButton({
     multiple === true ||
     ((options as UseMultiUploadControlsOptions).maxFiles ?? 1) > 1;
 
+  const controlOptions = {
+    ...options,
+    disabled,
+    noDrag: true,
+    noClick: true,
+    noKeyboard: true,
+  };
+
   // Both hooks must be called unconditionally (React rules of hooks).
   // Only the active mode's output is used.
-  const single = useUploadControls(options as UseUploadControlsOptions);
+  const single = useUploadControls(controlOptions as UseUploadControlsOptions);
   const multi = useMultiUploadControls(
-    options as UseMultiUploadControlsOptions,
+    controlOptions as UseMultiUploadControlsOptions,
   );
 
   const canPause = options.uploadStore != null && options.uploadStore !== false;
@@ -134,8 +142,8 @@ export function UploadButton({
 
   const status = resolveStatusSlot(statusSlot, statusNode);
 
-  const openFilePicker = isMulti ? multi.openFilePicker : single.openFilePicker;
-  const inputProps = isMulti ? multi.inputProps : single.inputProps;
+  const open = isMulti ? multi.open : single.open;
+  const getInputProps = isMulti ? multi.getInputProps : single.getInputProps;
 
   const buttonLabel =
     label ??
@@ -155,7 +163,7 @@ export function UploadButton({
       size={size}
       className={buttonClassName}
       disabled={isDisabled}
-      onClick={openFilePicker}
+      onClick={open}
     >
       {buttonContent}
     </Button>
@@ -164,7 +172,7 @@ export function UploadButton({
   return (
     <div className={cn("inline-flex flex-col gap-2", className)}>
       <div className="inline-flex items-center gap-2">
-        <input {...inputProps} />
+        <input {...getInputProps()} />
         {tooltipText ? (
           <Tooltip>
             <TooltipTrigger render={button} />

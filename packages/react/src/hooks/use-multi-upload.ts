@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { validateFile } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
@@ -12,6 +12,12 @@ import {
   revokePreviewUrl,
 } from "../helpers/file-preview";
 import { useLiveRef } from "../internal-helpers";
+import {
+  patchHookState,
+  replaceHookState,
+  useHookStore,
+  useHookStoreInstance,
+} from "../store/create-hook-store";
 import type {
   UploadConfig,
   UploadProgress,
@@ -84,7 +90,8 @@ type ActiveMultiUpload = {
 export function useMultiUpload(
   options: UseMultiUploadOptions,
 ): UseMultiUploadReturn {
-  const [state, setState] = useState<UseMultiUploadState>(INITIAL_STATE);
+  const store = useHookStoreInstance(INITIAL_STATE);
+  const state = useHookStore(store, (s) => s);
   const contextApi = useContext(S3Context);
   const formatValidateFileError = useFormatValidateFileError();
   const optsRef = useLiveRef(options);
@@ -109,8 +116,8 @@ export function useMultiUpload(
 
   const clearToIdle = useCallback(() => {
     revokeAllPreviews();
-    setState(INITIAL_STATE);
-  }, [revokeAllPreviews]);
+    replaceHookState(store, INITIAL_STATE);
+  }, [revokeAllPreviews, store]);
 
   useEffect(() => () => revokeAllPreviews(), [revokeAllPreviews]);
 
@@ -131,11 +138,17 @@ export function useMultiUpload(
       const fileStates: MultiUploadFileState[] = [];
       const fileMap = new Map<string, File>();
 
-      setState((s) => ({ ...s, phase: "validating", error: null }));
+      patchHookState(store, (draft) => {
+        draft.phase = "validating";
+        draft.error = null;
+      });
 
       if (opts.maxFiles && files.length > opts.maxFiles) {
         const msg = `Too many files. Maximum is ${opts.maxFiles}.`;
-        setState((s) => ({ ...s, phase: "error", error: msg }));
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = msg;
+        });
         opts.onError?.(new Error(msg));
         return;
       }
@@ -148,7 +161,10 @@ export function useMultiUpload(
         if (validationError) {
           const detail = formatValidateFileError(validationError);
           const msg = `${file.name}: ${detail}`;
-          setState((s) => ({ ...s, phase: "error", error: msg }));
+          patchHookState(store, (draft) => {
+            draft.phase = "error";
+            draft.error = msg;
+          });
           opts.onError?.(new Error(msg));
           return;
         }
@@ -157,11 +173,10 @@ export function useMultiUpload(
       if (opts.beforeUpload) {
         const allowed = await opts.beforeUpload(files);
         if (!allowed) {
-          setState((s) => ({
-            ...s,
-            phase: "error",
-            error: "Upload blocked by beforeUpload hook",
-          }));
+          patchHookState(store, (draft) => {
+            draft.phase = "error";
+            draft.error = "Upload blocked by beforeUpload hook";
+          });
           opts.onError?.(new Error("blocked"));
           return;
         }
@@ -204,15 +219,15 @@ export function useMultiUpload(
         ]),
       );
 
-      setState({
-        phase: "uploading",
-        files: fileStates,
-        totalProgress: {
+      patchHookState(store, (draft) => {
+        draft.phase = "uploading";
+        draft.files = fileStates;
+        draft.totalProgress = {
           loaded: 0,
           total: files.reduce((s, f) => s + f.size, 0),
           percent: 0,
-        },
-        error: null,
+        };
+        draft.error = null;
       });
 
       opts.onUploadStart?.(files);
@@ -246,49 +261,48 @@ export function useMultiUpload(
             onFileProgress: (id, progress) => {
               const updater = fileSpeedUpdatersRef.current.get(id);
               const p = updater ? updater.apply(progress) : progress;
-              setState((s) => ({
-                ...s,
-                files: s.files.map((f) =>
-                  f.id === id ? { ...f, status: "uploading", progress: p } : f,
-                ),
-              }));
+              patchHookState(store, (draft) => {
+                const file = draft.files.find((f) => f.id === id);
+                if (file) {
+                  file.status = "uploading";
+                  file.progress = p;
+                }
+              });
               const file = fileMap.get(id);
               if (file) opts.onFileProgress?.(file, p);
             },
             onFileSuccess: (id, result) => {
               activeUploadsRef.current.delete(id);
-              setState((s) => ({
-                ...s,
-                files: s.files.map((f) =>
-                  f.id === id
-                    ? {
-                        ...f,
-                        status: "success",
-                        progress: {
-                          loaded: f.fileSize,
-                          total: f.fileSize,
-                          percent: 100,
-                        },
-                      }
-                    : f,
-                ),
-              }));
+              patchHookState(store, (draft) => {
+                const file = draft.files.find((f) => f.id === id);
+                if (file) {
+                  file.status = "success";
+                  file.progress = {
+                    loaded: file.fileSize,
+                    total: file.fileSize,
+                    percent: 100,
+                  };
+                }
+              });
               const file = fileMap.get(id);
               if (file) opts.onFileSuccess?.(file, result);
             },
             onFileError: (id, error) => {
-              setState((s) => ({
-                ...s,
-                files: s.files.map((f) =>
-                  f.id === id ? { ...f, status: "error", error } : f,
-                ),
-              }));
+              patchHookState(store, (draft) => {
+                const file = draft.files.find((f) => f.id === id);
+                if (file) {
+                  file.status = "error";
+                  file.error = error;
+                }
+              });
               const file = fileMap.get(id);
               if (file) opts.onFileError?.(file, error);
             },
             onTotalProgress: (progress) => {
               const p = totalSpeedUpdaterRef.current.apply(progress);
-              setState((s) => ({ ...s, totalProgress: p }));
+              patchHookState(store, (draft) => {
+                draft.totalProgress = p;
+              });
               opts.onProgress?.(p);
             },
             onMultipartInit: (id, uploadId, serverKey) => {
@@ -312,20 +326,19 @@ export function useMultiUpload(
           .filter((r) => r.result !== null)
           .map((r) => r.result!);
 
-        setState((s) => ({
-          ...s,
-          phase: hasErrors ? "error" : "success",
-          error: hasErrors
+        patchHookState(store, (draft) => {
+          draft.phase = hasErrors ? "error" : "success";
+          draft.error = hasErrors
             ? `${results.filter((r) => r.status === "error").length} file(s) failed`
-            : null,
-          totalProgress: hasErrors
-            ? s.totalProgress
-            : {
-                loaded: s.totalProgress.total,
-                total: s.totalProgress.total,
-                percent: 100,
-              },
-        }));
+            : null;
+          if (!hasErrors) {
+            draft.totalProgress = {
+              loaded: draft.totalProgress.total,
+              total: draft.totalProgress.total,
+              percent: 100,
+            };
+          }
+        });
 
         if (!hasErrors) {
           await opts.onSuccess?.(successResults);
@@ -342,14 +355,24 @@ export function useMultiUpload(
           return;
         }
         const message = err instanceof Error ? err.message : "Upload failed";
-        setState((s) => ({ ...s, phase: "error", error: message }));
+        patchHookState(store, (draft) => {
+          draft.phase = "error";
+          draft.error = message;
+        });
         opts.onError?.(err);
       } finally {
         abortRef.current = null;
         activeUploadsRef.current.clear();
       }
     },
-    [apiRef, optsRef, formatValidateFileError, revokeAllPreviews, clearToIdle],
+    [
+      apiRef,
+      optsRef,
+      formatValidateFileError,
+      revokeAllPreviews,
+      clearToIdle,
+      store,
+    ],
   );
 
   const cancel = useCallback(() => {
@@ -357,10 +380,12 @@ export function useMultiUpload(
     const api = opts.api ?? apiRef.current;
     abortRef.current?.abort();
     if (api) {
-      const store = opts.uploadStore;
+      const uploadStore = opts.uploadStore;
       for (const active of activeUploadsRef.current.values()) {
-        if (store != null && store !== false) {
-          void Promise.resolve(store.delete(active.objectKey)).catch(() => {});
+        if (uploadStore != null && uploadStore !== false) {
+          void Promise.resolve(uploadStore.delete(active.objectKey)).catch(
+            () => {},
+          );
         }
         if (active.uploadId) {
           api.multipart
