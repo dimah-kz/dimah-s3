@@ -28,6 +28,9 @@ const {
   getRootProps,
   getInputProps,
   isDragActive,
+  isDragAccept,
+  isDragReject,
+  fileRejections,
   phase,
   progress,
   isUploading,
@@ -36,22 +39,40 @@ const {
   objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
   accept: ["image/*"],
   maxFileSize: 10 * 1024 * 1024,
+  onFileReject: (rejections) => console.warn(rejections),
   onSuccess: (file, result) => console.log(result.key),
 });
 
 return (
-  <div {...getRootProps()}>
+  <div
+    {...getRootProps({
+      className: isDragReject
+        ? "border-red-500"
+        : isDragAccept
+          ? "border-green-500"
+          : isDragActive
+            ? "border-blue-500"
+            : undefined,
+    })}
+  >
     <input {...getInputProps()} />
     {isUploading
       ? `${progress.percent}%`
-      : isDragActive
-        ? "Drop to upload"
-        : "Click or drop to upload"}
+      : isDragReject
+        ? "File type or size not allowed"
+        : isDragActive
+          ? "Drop to upload"
+          : "Click or drop to upload"}
+    {fileRejections.length > 0 && (
+      <p>{fileRejections[0]?.errors[0]?.message}</p>
+    )}
   </div>
 );
 ```
 
 For a button-only UI (no drag), pass `noDrag`, `noClick`, and `noKeyboard`, then call `open()` from your button.
+
+`UploadDropzone` already styles accept/reject drags and toasts soft rejections when `toast` is enabled.
 
 ---
 

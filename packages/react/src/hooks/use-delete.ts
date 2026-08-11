@@ -8,8 +8,8 @@ import { useLiveRef } from "../internal-helpers";
 import {
   patchHookState,
   replaceHookState,
-  useHookStore,
   useHookStoreInstance,
+  useHookStoreShallow,
 } from "../store/create-hook-store";
 
 /** Options for {@link useDelete}. */
@@ -54,7 +54,11 @@ const INITIAL_STATE: InternalState = {
 
 export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
   const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStore(store, (s) => s);
+  const state = useHookStoreShallow(store, (s) => ({
+    phase: s.phase,
+    error: s.error,
+    pendingKey: s.pendingKey,
+  }));
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);

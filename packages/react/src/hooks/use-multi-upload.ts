@@ -15,8 +15,8 @@ import { useLiveRef } from "../internal-helpers";
 import {
   patchHookState,
   replaceHookState,
-  useHookStore,
   useHookStoreInstance,
+  useHookStoreShallow,
 } from "../store/create-hook-store";
 import type {
   UploadConfig,
@@ -91,7 +91,12 @@ export function useMultiUpload(
   options: UseMultiUploadOptions,
 ): UseMultiUploadReturn {
   const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStore(store, (s) => s);
+  const state = useHookStoreShallow(store, (s) => ({
+    phase: s.phase,
+    files: s.files,
+    totalProgress: s.totalProgress,
+    error: s.error,
+  }));
   const contextApi = useContext(S3Context);
   const formatValidateFileError = useFormatValidateFileError();
   const optsRef = useLiveRef(options);

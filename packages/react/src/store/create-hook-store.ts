@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { produce, type Draft } from "immer";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 /**
@@ -45,6 +46,20 @@ export function useHookStore<T, U>(
   selector: (state: T) => U,
 ): U {
   return useStore(store, selector);
+}
+
+/**
+ * Subscribe to multiple store fields with shallow equality.
+ * Prefer this over selecting the whole state object so unchanged slices
+ * (via Immer structural sharing) skip re-renders.
+ *
+ * @internal
+ */
+export function useHookStoreShallow<T extends object, U extends object>(
+  store: HookStore<T>,
+  selector: (state: T) => U,
+): U {
+  return useStore(store, useShallow(selector));
 }
 
 /**

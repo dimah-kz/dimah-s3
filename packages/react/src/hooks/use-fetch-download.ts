@@ -12,8 +12,8 @@ import { useLiveRef } from "../internal-helpers";
 import {
   patchHookState,
   replaceHookState,
-  useHookStore,
   useHookStoreInstance,
+  useHookStoreShallow,
 } from "../store/create-hook-store";
 
 export type {
@@ -66,7 +66,13 @@ export function useFetchDownload(
   options: UseFetchDownloadOptions,
 ): UseFetchDownloadReturn {
   const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStore(store, (s) => s);
+  const state = useHookStoreShallow(store, (s) => ({
+    phase: s.phase,
+    progress: s.progress,
+    error: s.error,
+    fileName: s.fileName,
+    fileSize: s.fileSize,
+  }));
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);

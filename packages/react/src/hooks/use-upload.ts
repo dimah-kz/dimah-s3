@@ -15,8 +15,8 @@ import { useLiveRef } from "../internal-helpers";
 import {
   patchHookState,
   replaceHookState,
-  useHookStore,
   useHookStoreInstance,
+  useHookStoreShallow,
 } from "../store/create-hook-store";
 import type {
   UploadConfig,
@@ -133,7 +133,16 @@ type ActiveUpload = {
 
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
   const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStore(store, (s) => s);
+  const state = useHookStoreShallow(store, (s) => ({
+    phase: s.phase,
+    progress: s.progress,
+    error: s.error,
+    result: s.result,
+    fileName: s.fileName,
+    fileSize: s.fileSize,
+    fileType: s.fileType,
+    previewUrl: s.previewUrl,
+  }));
   const contextApi = useContext(S3Context);
   const formatValidateFileError = useFormatValidateFileError();
   const optsRef = useLiveRef(options);

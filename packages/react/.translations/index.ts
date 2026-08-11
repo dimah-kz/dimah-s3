@@ -1,6 +1,5 @@
 export type Translations = {
   "\"{name}\" deleted(status)": string;
-  "Accepted {types}.(dropzone hint)": string;
   "Access denied(API error)": string;
   "All {count} file(s) uploaded(status)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
@@ -24,9 +23,9 @@ export type Translations = {
   "Download started(toast)": string;
   "Download(button)": string;
   "Drag and drop files here(dropzone)": string;
-  "Each up to {size}(dropzone hint)": string;
   "File deleted(toast)": string;
   "File is empty(file validation)": string;
+  "File not accepted(toast)": string;
   "File not found(API error)": string;
   "File size exceeds {size} limit(file validation)": string;
   "File size is required(multipart)": string;
@@ -40,7 +39,6 @@ export type Translations = {
   "Preparing…(upload status)": string;
   "Something went wrong(API error)": string;
   "Unknown error(fallback)": string;
-  "Up to {size}(dropzone hint)": string;
   "Upload ID is required(API error)": string;
   "Upload complete(toast)": string;
   "Upload failed(status)": string;
@@ -51,8 +49,6 @@ export type Translations = {
   "Uploading {done}/{total}(toast)": string;
   "Uploading(toast)": string;
   "Validating…(upload status)": string;
-  "You can upload a file(dropzone hint)": string;
-  "You can upload {count} files(dropzone hint)": string;
   "{count} file(s) uploaded(toast)": string;
   "{done}/{total} files(upload progress)": string;
   "{name} is required(API error)": string;

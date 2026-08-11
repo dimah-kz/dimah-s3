@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
 import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
+import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
 
 const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 const EMPTY_FILES: MultiUploadFileState[] = [];
@@ -58,7 +59,20 @@ export type UploadButtonProps = (
   buttonClassName?: string;
 };
 
-export function UploadButton({
+type ButtonShellProps = {
+  className?: string;
+  label?: string;
+  children?: ReactNode;
+  disabled?: boolean;
+  tooltipText?: string;
+  toast?: boolean;
+  status?: StatusSlot;
+  variant?: ComponentProps<typeof Button>["variant"];
+  size?: ComponentProps<typeof Button>["size"];
+  buttonClassName?: string;
+};
+
+function UploadButtonSingle({
   className,
   label,
   children,
@@ -66,90 +80,48 @@ export function UploadButton({
   tooltipText,
   toast: enableToast = true,
   status: statusSlot = true,
-  multiple,
   variant = "default",
   size = "default",
   buttonClassName,
   ...options
-}: UploadButtonProps) {
+}: ButtonShellProps & UseUploadControlsOptions) {
   const t = useTranslations();
-  const isMulti =
-    multiple === true ||
-    ((options as UseMultiUploadControlsOptions).maxFiles ?? 1) > 1;
-
-  const controlOptions = {
+  const ctrl = useUploadControls({
     ...options,
     disabled,
     noDrag: true,
     noClick: true,
     noKeyboard: true,
-  };
-
-  // Both hooks must be called unconditionally (React rules of hooks).
-  // Only the active mode's output is used.
-  const single = useUploadControls(controlOptions as UseUploadControlsOptions);
-  const multi = useMultiUploadControls(
-    controlOptions as UseMultiUploadControlsOptions,
-  );
-
+  });
   const canPause = options.uploadStore != null && options.uploadStore !== false;
+  const isDisabled = disabled || ctrl.isUploading;
 
-  const ctrl: UploadToastCtrl = isMulti
-    ? {
-        mode: "multi",
-        phase: multi.phase,
-        files: multi.files,
-        totalProgress: multi.totalProgress,
-        error: multi.error,
-        cancel: multi.cancel,
-      }
-    : {
-        mode: "single",
-        phase: single.phase,
-        fileInfo: single.fileInfo,
-        progress: single.progress,
-        error: single.error,
-        cancel: single.cancel,
-      };
-
-  const isDisabled =
-    disabled || (isMulti ? multi.isUploading : single.isUploading);
-
-  useUploadToast(ctrl, enableToast);
+  const toastCtrl: UploadToastCtrl = {
+    mode: "single",
+    phase: ctrl.phase,
+    fileInfo: ctrl.fileInfo,
+    progress: ctrl.progress,
+    error: ctrl.error,
+    cancel: ctrl.cancel,
+  };
+  useUploadToast(toastCtrl, enableToast);
+  useFileRejectToast(ctrl.fileRejections, enableToast);
 
   const statusNode =
-    statusSlot === false ? null : isMulti ? (
-      <UploadStatusBlock
-        mode="multi"
-        phase={multi.phase}
-        files={multi.files ?? EMPTY_FILES}
-        totalProgress={multi.totalProgress ?? EMPTY_PROGRESS}
-        error={multi.error}
-        onCancel={multi.cancel}
-        onPause={canPause ? multi.detach : undefined}
-      />
-    ) : (
+    statusSlot === false ? null : (
       <UploadStatusBlock
         mode="single"
-        phase={single.phase}
-        progress={single.progress}
-        error={single.error}
-        fileInfo={single.fileInfo}
-        onCancel={single.cancel}
-        onPause={canPause ? single.detach : undefined}
+        phase={ctrl.phase}
+        progress={ctrl.progress}
+        error={ctrl.error}
+        fileInfo={ctrl.fileInfo}
+        onCancel={ctrl.cancel}
+        onPause={canPause ? ctrl.detach : undefined}
       />
     );
-
   const status = resolveStatusSlot(statusSlot, statusNode);
 
-  const open = isMulti ? multi.open : single.open;
-  const getInputProps = isMulti ? multi.getInputProps : single.getInputProps;
-
-  const buttonLabel =
-    label ??
-    (isMulti
-      ? t("Upload files", { note: "button" })
-      : t("Upload file", { note: "button" }));
+  const buttonLabel = label ?? t("Upload file", { note: "button" });
   const buttonContent = children ?? (
     <>
       <CloudUpload data-icon="inline-start" />
@@ -163,7 +135,7 @@ export function UploadButton({
       size={size}
       className={buttonClassName}
       disabled={isDisabled}
-      onClick={open}
+      onClick={ctrl.open}
     >
       {buttonContent}
     </Button>
@@ -172,7 +144,7 @@ export function UploadButton({
   return (
     <div className={cn("inline-flex flex-col gap-2", className)}>
       <div className="inline-flex items-center gap-2">
-        <input {...getInputProps()} />
+        <input {...ctrl.getInputProps()} />
         {tooltipText ? (
           <Tooltip>
             <TooltipTrigger render={button} />
@@ -184,5 +156,112 @@ export function UploadButton({
       </div>
       {status}
     </div>
+  );
+}
+
+function UploadButtonMulti({
+  className,
+  label,
+  children,
+  disabled,
+  tooltipText,
+  toast: enableToast = true,
+  status: statusSlot = true,
+  variant = "default",
+  size = "default",
+  buttonClassName,
+  ...options
+}: ButtonShellProps & UseMultiUploadControlsOptions) {
+  const t = useTranslations();
+  const ctrl = useMultiUploadControls({
+    ...options,
+    disabled,
+    noDrag: true,
+    noClick: true,
+    noKeyboard: true,
+  });
+  const canPause = options.uploadStore != null && options.uploadStore !== false;
+  const isDisabled = disabled || ctrl.isUploading;
+
+  const toastCtrl: UploadToastCtrl = {
+    mode: "multi",
+    phase: ctrl.phase,
+    files: ctrl.files,
+    totalProgress: ctrl.totalProgress,
+    error: ctrl.error,
+    cancel: ctrl.cancel,
+  };
+  useUploadToast(toastCtrl, enableToast);
+  useFileRejectToast(ctrl.fileRejections, enableToast);
+
+  const statusNode =
+    statusSlot === false ? null : (
+      <UploadStatusBlock
+        mode="multi"
+        phase={ctrl.phase}
+        files={ctrl.files ?? EMPTY_FILES}
+        totalProgress={ctrl.totalProgress ?? EMPTY_PROGRESS}
+        error={ctrl.error}
+        onCancel={ctrl.cancel}
+        onPause={canPause ? ctrl.detach : undefined}
+      />
+    );
+  const status = resolveStatusSlot(statusSlot, statusNode);
+
+  const buttonLabel = label ?? t("Upload files", { note: "button" });
+  const buttonContent = children ?? (
+    <>
+      <CloudUpload data-icon="inline-start" />
+      {buttonLabel}
+    </>
+  );
+
+  const button = (
+    <Button
+      variant={variant}
+      size={size}
+      className={buttonClassName}
+      disabled={isDisabled}
+      onClick={ctrl.open}
+    >
+      {buttonContent}
+    </Button>
+  );
+
+  return (
+    <div className={cn("inline-flex flex-col gap-2", className)}>
+      <div className="inline-flex items-center gap-2">
+        <input {...ctrl.getInputProps()} />
+        {tooltipText ? (
+          <Tooltip>
+            <TooltipTrigger render={button} />
+            <TooltipContent>{tooltipText}</TooltipContent>
+          </Tooltip>
+        ) : (
+          button
+        )}
+      </div>
+      {status}
+    </div>
+  );
+}
+
+export function UploadButton({ multiple, ...props }: UploadButtonProps) {
+  const isMulti =
+    multiple === true ||
+    ((props as UseMultiUploadControlsOptions).maxFiles ?? 1) > 1;
+
+  if (isMulti) {
+    return (
+      <UploadButtonMulti
+        {...(props as ButtonShellProps & UseMultiUploadControlsOptions)}
+      />
+    );
+  }
+
+  return (
+    <UploadButtonSingle
+      {...(props as ButtonShellProps & UseUploadControlsOptions)}
+    />
   );
 }

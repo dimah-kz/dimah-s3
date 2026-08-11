@@ -7,8 +7,8 @@ import { useLiveRef } from "../internal-helpers";
 import {
   patchHookState,
   replaceHookState,
-  useHookStore,
   useHookStoreInstance,
+  useHookStoreShallow,
 } from "../store/create-hook-store";
 
 export type { DownloadPhase, DownloadHooks } from "../types/download";
@@ -55,7 +55,12 @@ const INITIAL_STATE: UseDownloadState = {
 
 export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
   const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStore(store, (s) => s);
+  const state = useHookStoreShallow(store, (s) => ({
+    phase: s.phase,
+    error: s.error,
+    url: s.url,
+    expiresIn: s.expiresIn,
+  }));
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
