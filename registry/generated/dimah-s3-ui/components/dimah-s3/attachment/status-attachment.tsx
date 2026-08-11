@@ -16,12 +16,17 @@ import {
 } from "@/registry/dimah-s3-ui/components/ui/attachment";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
-  type AttachmentLayoutProps,
+  type AttachmentOrientation,
+  type AttachmentSize,
   type AttachmentState,
 } from "@/registry/dimah-s3-ui/lib/attachment";
 import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 
-export type StatusAttachmentProps = AttachmentLayoutProps & {
+export type StatusAttachmentProps = {
+  /** @default "sm" */
+  size?: AttachmentSize;
+  /** @default "horizontal" */
+  orientation?: AttachmentOrientation;
   state: AttachmentState;
   title?: ReactNode;
   description?: ReactNode;

@@ -16,12 +16,17 @@ import {
 } from "@/components/ui/attachment";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
-  type AttachmentLayoutProps,
+  type AttachmentOrientation,
+  type AttachmentSize,
   type AttachmentState,
 } from "@/lib/attachment";
 import { cn } from "@/lib/utils";
 
-export type StatusAttachmentProps = AttachmentLayoutProps & {
+export type StatusAttachmentProps = {
+  /** @default "sm" */
+  size?: AttachmentSize;
+  /** @default "horizontal" */
+  orientation?: AttachmentOrientation;
   state: AttachmentState;
   title?: ReactNode;
   description?: ReactNode;

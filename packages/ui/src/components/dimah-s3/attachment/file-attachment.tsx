@@ -16,7 +16,7 @@ import {
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
-  type AttachmentLayoutProps,
+  type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
 } from "@/lib/attachment";
@@ -32,7 +32,11 @@ const PROGRESS_BY_SIZE = {
   { size: number; strokeWidth: number; className: string }
 >;
 
-export type FileAttachmentProps = AttachmentLayoutProps & {
+export type FileAttachmentProps = {
+  /** @default "sm" */
+  size?: AttachmentSize;
+  /** @default "horizontal" */
+  orientation?: AttachmentOrientation;
   state: AttachmentState;
   fileName: string;
   fileSize?: number;

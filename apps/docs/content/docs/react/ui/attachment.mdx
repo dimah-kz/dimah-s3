@@ -1,35 +1,36 @@
 ---
 title: Attachment
-description: File and status rows built on shadcn Attachment — size and orientation variants.
+description: File and status rows for upload feedback, with size and orientation variants.
 ---
 
-import { AttachmentSizesDemo } from "@/components/demos/attachment-sizes-demo";
-import { AttachmentOrientationDemo } from "@/components/demos/attachment-orientation-demo";
+import { AttachmentPlaygroundDemo } from "@/components/demos/attachment-playground-demo";
+import { AttachmentUploadDemo } from "@/components/demos/attachment-upload-demo";
 
-Status UI is built on stock shadcn **Attachment**. Dimah wraps it as
-`FileAttachment` (file name, size, preview, progress) and `StatusAttachment`
-(operation feedback).
+`FileAttachment` shows a file row (name, size, preview, progress).
+`StatusAttachment` is a lighter row for generic feedback like “Preparing…” or
+errors. Both use the same shadcn Attachment sizes and orientations.
 
-### Sizes
+### Preview
 
-`size` mirrors Attachment: `default` | `sm` | `xs` (product default is `sm`).
+Use the toggles to try `size`, `orientation`, and `state`.
 
-<DemoPreview name="attachment-sizes-demo.tsx">
-  <AttachmentSizesDemo />
+<DemoPreview name="attachment-playground-demo.tsx">
+  <AttachmentPlaygroundDemo />
 </DemoPreview>
 
-### Orientation
+### Live upload
 
-`orientation` is `horizontal` (default) or `vertical`.
+Same rows, wired through `UploadButton`. Upload a file to see progress and
+cancel.
 
-<DemoPreview name="attachment-orientation-demo.tsx">
-  <AttachmentOrientationDemo />
+<DemoPreview name="attachment-upload-demo.tsx">
+  <AttachmentUploadDemo />
 </DemoPreview>
 
 ## Install
 
-Shipped with `@dimah-s3/ui`. Registry installs include these files with upload,
-download, and delete items — there is no separate registry package.
+Included with `@dimah-s3/ui`. Registry installs already ship these files with
+upload, download, and delete items — no separate registry package.
 
 ## Props
 
@@ -47,18 +48,18 @@ download, and delete items — there is no separate registry package.
   name="StatusAttachmentProps"
 />
 
-## Wired components
+## On buttons and dropzones
 
-Buttons and dropzones already render these rows. Pass layout without clashing
-with Button `size`:
-
-| Prop                    | Maps to Attachment |
-| ----------------------- | ------------------ |
-| `attachmentSize`        | `size`             |
-| `attachmentOrientation` | `orientation`      |
+Wired components render these rows for you. Pass `attachmentSize` /
+`attachmentOrientation` so they stay separate from Button `size`:
 
 ```tsx
-<UploadButton objectKey={(f) => `uploads/${f.name}`} attachmentSize="xs" />
+<UploadButton
+  objectKey={(f) => `uploads/${f.name}`}
+  size="sm"
+  attachmentSize="xs"
+/>
 ```
 
-`UploadStatus` / `MultiUploadStatus` take `size` and `orientation` directly.
+If you render status yourself, pass `size` and `orientation` on `UploadStatus`,
+`MultiUploadStatus`, or `FileAttachment`.

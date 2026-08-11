@@ -10,10 +10,10 @@
 
 `packages/ui/src/components/ui/*` are **vendor primitives** installed via shadcn CLI. Agents and humans must **not** hand-edit them (no new exports, prop renames, style tweaks, or type aliases).
 
-| Own the change in…     | Examples                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------- |
-| `components/dimah-s3/` | `attachment/`, upload/download/delete buttons, status rows                      |
-| `hooks/` / `lib/`      | toast hooks, `AttachmentState` derived from `ComponentProps<typeof Attachment>` |
+| Own the change in…     | Examples                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `components/dimah-s3/` | `attachment/`, upload/download/delete buttons, status rows                    |
+| `hooks/` / `lib/`      | toast hooks, attachment layout types (`AttachmentState`, `AttachmentSize`, …) |
 
 To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (overwrite). Compose on top — never fork the stock file.
 

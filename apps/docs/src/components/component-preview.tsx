@@ -32,7 +32,7 @@ export function ComponentPreview({
           className,
         )}
       >
-        <div className="not-prose flex min-h-[200px] items-center p-4 py-6 sm:min-h-[220px] sm:p-8 sm:py-10">
+        <div className="not-prose flex min-h-[200px] w-full flex-col items-stretch justify-center p-4 py-6 sm:min-h-[220px] sm:p-8 sm:py-10">
           {children}
         </div>
 
