@@ -6,10 +6,10 @@
     "noUncheckedIndexedAccess": false,
     "noEmit": true,
     "paths": {
-      "@/registry/*": ["./registry/*"],
+      "@/registry/*": ["./generated/*"],
       "@/*": ["../packages/ui/src/*"]
     },
     "types": ["node"]
   },
-  "include": ["items/**/*", "scripts/**/*", "registry/**/*"]
+  "include": ["items/**/*", "scripts/**/*", "generated/**/*"]
 }
