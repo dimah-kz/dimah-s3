@@ -7,7 +7,7 @@ import { TypeTable } from "fumadocs-ui/components/type-table";
 import { AutoTypeTable, type AutoTypeTableProps } from "fumadocs-typescript/ui";
 import {
   typeTableBasePath,
-  typeTableGenerator,
+  typeTableGeneratorFor,
 } from "@/lib/type-table-generator";
 
 import { ComponentPreview } from "@/components/component-preview";
@@ -27,7 +27,7 @@ export function getMDXComponents(components?: MDXComponents) {
     AutoTypeTable: (props: Partial<AutoTypeTableProps>) => (
       <AutoTypeTable
         {...props}
-        generator={typeTableGenerator}
+        generator={typeTableGeneratorFor(props.path)}
         options={{ basePath: typeTableBasePath, ...props.options }}
       />
     ),
