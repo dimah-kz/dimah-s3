@@ -5,85 +5,81 @@ import type { DefaultExtensionType, FileIconProps } from "react-file-icon";
 import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 
 /**
- * Exactly 50 popular extensions with colored glyphs via `react-file-icon`.
- * Do not grow past 50 — unknown types use a neutral generic file icon.
+ * Curated extensions with colored glyphs via `react-file-icon`.
+ * Keep this list lean — duplicates and rare types belong in aliases / MIME
+ * family fallbacks, not here. Unknown types use a neutral generic file icon.
  */
 const CURATED_EXTS = [
-  // documents (6)
+  // documents
   "pdf",
   "doc",
   "docx",
   "txt",
   "md",
-  "rtf",
-  // sheets (4)
+  // sheets / slides
   "xls",
   "xlsx",
   "csv",
-  "ods",
-  // slides (2)
   "ppt",
   "pptx",
-  // archives (6)
+  // archives
   "zip",
   "rar",
   "7z",
   "tar",
   "gz",
-  "dmg",
-  // audio (6)
+  // audio / video
   "mp3",
   "wav",
-  "flac",
   "m4a",
-  "aac",
-  "ogg",
-  // video (6)
   "mp4",
   "mov",
   "webm",
   "mkv",
-  "avi",
-  "m4v",
-  // images / design (10)
+  // images
   "png",
   "jpg",
-  "jpeg",
   "gif",
   "webp",
   "svg",
-  "bmp",
   "heic",
-  "psd",
-  "ai",
-  // code / data (10)
+  // code / data
   "json",
   "js",
   "ts",
   "jsx",
   "html",
   "css",
-  "xml",
-  "py",
-  "php",
-  "yml",
 ] as const;
 
-/** Compile-time guard: keep the curated list at exactly 50. */
-type AssertExactly50 = (typeof CURATED_EXTS)["length"] extends 50
-  ? true
-  : never;
-const _exactly50: AssertExactly50 = true;
-void _exactly50;
+type CuratedExt = (typeof CURATED_EXTS)[number];
 
 const CURATED = new Set<string>(CURATED_EXTS);
 
-/** Alias map when `defaultStyles` key differs from the real extension. */
+/**
+ * Map alternate extensions onto a curated key (same glyph, no list bloat).
+ * Also remaps `defaultStyles` keys that differ from the real extension.
+ */
+const EXT_ALIASES: Record<string, CuratedExt | DefaultExtensionType> = {
+  jpeg: "jpg",
+  jpe: "jpg",
+  "7zip": "7z",
+  m4v: "mp4",
+  aac: "m4a",
+  flac: "mp3",
+  ogg: "mp3",
+  avi: "mp4",
+  bmp: "png",
+  tif: "png",
+  tiff: "png",
+};
+
+/** `defaultStyles` lookup when the curated key differs from the library key. */
 const STYLE_ALIASES: Record<string, DefaultExtensionType> = {
   "7z": "7zip",
 };
 
-const MIME_TO_EXT: Record<string, (typeof CURATED_EXTS)[number]> = {
+const MIME_TO_EXT: Record<string, CuratedExt> = {
   "application/pdf": "pdf",
   "application/msword": "doc",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -91,7 +87,6 @@ const MIME_TO_EXT: Record<string, (typeof CURATED_EXTS)[number]> = {
   "application/vnd.ms-excel": "xls",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
   "text/csv": "csv",
-  "application/vnd.oasis.opendocument.spreadsheet": "ods",
   "application/vnd.ms-powerpoint": "ppt",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation":
     "pptx",
@@ -102,28 +97,20 @@ const MIME_TO_EXT: Record<string, (typeof CURATED_EXTS)[number]> = {
   "application/x-7z-compressed": "7z",
   "application/x-tar": "tar",
   "application/gzip": "gz",
-  "application/x-apple-diskimage": "dmg",
   "audio/mpeg": "mp3",
   "audio/wav": "wav",
-  "audio/flac": "flac",
   "audio/mp4": "m4a",
-  "audio/aac": "aac",
-  "audio/ogg": "ogg",
+  "audio/aac": "m4a",
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
   "video/x-matroska": "mkv",
-  "video/x-msvideo": "avi",
-  "video/x-m4v": "m4v",
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/gif": "gif",
   "image/webp": "webp",
   "image/svg+xml": "svg",
-  "image/bmp": "bmp",
   "image/heic": "heic",
-  "image/vnd.adobe.photoshop": "psd",
-  "application/postscript": "ai",
   "application/json": "json",
   "text/javascript": "js",
   "application/javascript": "js",
@@ -132,17 +119,8 @@ const MIME_TO_EXT: Record<string, (typeof CURATED_EXTS)[number]> = {
   "text/jsx": "jsx",
   "text/html": "html",
   "text/css": "css",
-  "application/xml": "xml",
-  "text/xml": "xml",
-  "text/x-python": "py",
-  "application/x-python": "py",
-  "application/x-httpd-php": "php",
-  "text/yaml": "yml",
-  "application/x-yaml": "yml",
   "text/plain": "txt",
   "text/markdown": "md",
-  "application/rtf": "rtf",
-  "text/rtf": "rtf",
 };
 
 function extensionOf(fileName: string): string | null {
@@ -152,11 +130,18 @@ function extensionOf(fileName: string): string | null {
   return base.slice(dot + 1).toLowerCase();
 }
 
-function mimeFamilyExt(mime: string): (typeof CURATED_EXTS)[number] | null {
+function mimeFamilyExt(mime: string): CuratedExt | null {
   if (mime.startsWith("image/")) return "png";
   if (mime.startsWith("audio/")) return "mp3";
   if (mime.startsWith("video/")) return "mp4";
   if (mime.startsWith("text/")) return "txt";
+  return null;
+}
+
+function normalizeExt(ext: string): CuratedExt | null {
+  if (CURATED.has(ext)) return ext as CuratedExt;
+  const aliased = EXT_ALIASES[ext];
+  if (aliased && CURATED.has(aliased)) return aliased as CuratedExt;
   return null;
 }
 
@@ -168,14 +153,14 @@ export function resolveFileTypeExtension(
   const mime = mimeType?.trim().toLowerCase();
   if (mime) {
     const fromMime = MIME_TO_EXT[mime];
-    if (fromMime && CURATED.has(fromMime)) return fromMime;
+    if (fromMime) return fromMime;
     const family = mimeFamilyExt(mime);
     if (family) return family;
   }
 
   const ext = extensionOf(fileName);
-  if (ext && CURATED.has(ext)) return ext;
-  return null;
+  if (!ext) return null;
+  return normalizeExt(ext);
 }
 
 function stylesFor(ext: string): Partial<FileIconProps> {
@@ -196,7 +181,7 @@ export type FileTypeGlyphProps = {
 
 /**
  * Colored file glyph for attachment media (no image preview).
- * Uses `react-file-icon` + a capped map of the 50 most common extensions.
+ * Uses `react-file-icon` + a lean curated extension map.
  */
 export function FileTypeGlyph({
   fileName,
@@ -212,7 +197,7 @@ export function FileTypeGlyph({
       className={cn(
         // AttachmentMedia defaults bare SVGs to size-4; scale the glyph up
         // inside the existing media box without changing the slot.
-        "flex size-full items-center justify-center [&_svg]:size-[1.375rem]!",
+        "flex size-full items-center justify-center [&_svg]:size-[1.4rem]!",
         className,
       )}
       aria-hidden
