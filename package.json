@@ -18,7 +18,8 @@
     "deps:update": "pnpm -r update --latest && pnpm templates:update",
     "templates:update": "node ./scripts/templates-update.mjs",
     "templates:build": "node ./scripts/templates-build.mjs",
-    "examples:drift": "node ./scripts/examples-drift.mjs"
+    "examples:drift": "node ./scripts/examples-drift.mjs",
+    "ui:sync:shadcn": "pnpm --filter @dimah-s3/ui sync:shadcn"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

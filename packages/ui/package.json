@@ -38,6 +38,7 @@
   "scripts": {
     "build": "pnpm run sync-registry && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
     "sync-registry": "node ./scripts/enforce-src-alias-imports.mjs && node ./scripts/sync-registry.mjs",
+    "sync:shadcn": "node scripts/sync-shadcn.mjs",
     "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
     "lint": "eslint",
     "check-types": "tsc --noEmit"
@@ -66,6 +67,7 @@
     "eslint": "catalog:",
     "lucide-react": "^1.31.0",
     "react": "catalog:",
+    "shadcn": "^4.16.2",
     "tsc-alias": "^1.9.1",
     "tsup": "catalog:",
     "typescript": "catalog:"
