@@ -45,7 +45,8 @@
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
-    "@dimah-s3/react": "workspace:*"
+    "@dimah-s3/react": "workspace:*",
+    "react-file-icon": "^1.6.0"
   },
   "peerDependencies": {
     "@base-ui/react": ">=1.0.0",

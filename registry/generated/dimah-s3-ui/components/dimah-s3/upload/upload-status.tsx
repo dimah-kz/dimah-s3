@@ -46,6 +46,7 @@ export function UploadStatus({
         state="uploading"
         fileName={fileInfo.name}
         fileSize={fileInfo.size}
+        fileType={fileInfo.type}
         previewUrl={fileInfo.previewUrl}
         percent={progress.percent}
         description={
@@ -64,6 +65,7 @@ export function UploadStatus({
         state="done"
         fileName={fileInfo.name}
         fileSize={fileInfo.size}
+        fileType={fileInfo.type}
         previewUrl={fileInfo.previewUrl}
         className={className}
       />
@@ -77,6 +79,7 @@ export function UploadStatus({
           state="error"
           fileName={fileInfo.name}
           fileSize={fileInfo.size}
+          fileType={fileInfo.type}
           previewUrl={fileInfo.previewUrl}
           error={error}
           className={className}
@@ -101,6 +104,7 @@ export function UploadStatus({
           state="processing"
           fileName={fileInfo.name}
           fileSize={fileInfo.size}
+          fileType={fileInfo.type}
           previewUrl={fileInfo.previewUrl}
           description={t("Preparing…", { note: "upload status" })}
           className={className}

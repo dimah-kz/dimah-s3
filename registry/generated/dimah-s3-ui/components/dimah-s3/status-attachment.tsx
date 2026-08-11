@@ -62,7 +62,7 @@ export function StatusAttachment({
       <AttachmentMedia>{media ?? defaultMedia}</AttachmentMedia>
       <AttachmentContent>
         {title != null ? (
-          <AttachmentTitle className="max-w-[60ch]">{title}</AttachmentTitle>
+          <AttachmentTitle className="max-w-[48ch]">{title}</AttachmentTitle>
         ) : null}
         {description != null ? (
           <AttachmentDescription

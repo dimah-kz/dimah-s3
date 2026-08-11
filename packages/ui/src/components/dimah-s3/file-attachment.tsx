@@ -1,12 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  AlertCircleIcon,
-  CheckCircleIcon,
-  PauseIcon,
-  XIcon,
-} from "lucide-react";
+import { AlertCircleIcon, PauseIcon, XIcon } from "lucide-react";
 import { formatFileSize, truncateFileName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import {
@@ -20,6 +15,7 @@ import {
 } from "@/components/ui/attachment";
 import { CircleProgress } from "@/components/dimah-s3/circle-progress";
 import type { AttachmentState } from "@/lib/attachment-state";
+import { resolveFileTypeIcon } from "@/lib/file-type-icon";
 import { cn } from "@/lib/utils";
 
 /** @deprecated Use {@link AttachmentState}. */
@@ -31,6 +27,8 @@ export type FileAttachmentProps = {
   state: AttachmentState;
   fileName: string;
   fileSize?: number;
+  /** MIME type — used with the filename to pick a type icon when no preview. */
+  fileType?: string | null;
   /** Image thumbnail URL — enables `AttachmentMedia variant="image"`. */
   previewUrl?: string | null;
   /** Progress 0–100 when `state` is uploading/idle (pending). */
@@ -47,6 +45,7 @@ export function FileAttachment({
   state,
   fileName,
   fileSize,
+  fileType,
   previewUrl,
   percent = 0,
   description,
@@ -57,6 +56,7 @@ export function FileAttachment({
 }: FileAttachmentProps) {
   const t = useTranslations();
   const hasPreview = Boolean(previewUrl);
+  const TypeIcon = resolveFileTypeIcon(fileName, fileType);
 
   const resolvedDescription =
     description ??
@@ -70,19 +70,8 @@ export function FileAttachment({
     (state === "uploading" || state === "processing") &&
     (onCancel != null || onPause != null);
 
-  const iconMedia =
-    state === "done" ? (
-      <CheckCircleIcon />
-    ) : state === "error" ? (
-      <AlertCircleIcon />
-    ) : (
-      <CircleProgress
-        percent={state === "uploading" ? percent : 0}
-        size={14}
-        strokeWidth={2}
-        className="size-3.5"
-      />
-    );
+  const showProgressOverlay =
+    state === "uploading" || state === "processing" || state === "idle";
 
   return (
     <Attachment
@@ -94,9 +83,7 @@ export function FileAttachment({
       {hasPreview ? (
         <AttachmentMedia variant="image">
           <img src={previewUrl!} alt="" />
-          {state === "uploading" ||
-          state === "processing" ||
-          state === "idle" ? (
+          {showProgressOverlay ? (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50">
               <CircleProgress
                 percent={state === "uploading" ? percent : 0}
@@ -113,7 +100,24 @@ export function FileAttachment({
           ) : null}
         </AttachmentMedia>
       ) : (
-        <AttachmentMedia>{iconMedia}</AttachmentMedia>
+        <AttachmentMedia>
+          <TypeIcon />
+          {showProgressOverlay ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+              <CircleProgress
+                percent={state === "uploading" ? percent : 0}
+                size={16}
+                strokeWidth={2}
+                className="size-4"
+              />
+            </div>
+          ) : null}
+          {state === "error" ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-destructive/20 text-destructive">
+              <AlertCircleIcon className="size-4" />
+            </div>
+          ) : null}
+        </AttachmentMedia>
       )}
       <AttachmentContent>
         <AttachmentTitle className="max-w-[48ch]">

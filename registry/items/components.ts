@@ -18,6 +18,11 @@ const statusSupportFiles = [
     type: "registry:lib",
     target: "@lib/attachment-state.ts",
   },
+  {
+    path: "lib/file-type-icon.ts",
+    type: "registry:lib",
+    target: "@lib/file-type-icon.ts",
+  },
 ] as const satisfies Registry["items"][number]["files"];
 
 const uploadSupportFiles = [

@@ -59,6 +59,11 @@
           "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-state.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/file-type-icon.ts",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.ts"
         }
       ],
       "type": "registry:component"
@@ -125,6 +130,11 @@
           "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-state.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/file-type-icon.ts",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.ts"
         }
       ],
       "type": "registry:component"
@@ -160,6 +170,11 @@
           "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-state.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/file-type-icon.ts",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.ts"
         }
       ],
       "type": "registry:component"
@@ -195,6 +210,11 @@
           "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-state.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/file-type-icon.ts",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.ts"
         }
       ],
       "type": "registry:component"
@@ -236,6 +256,11 @@
           "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-state.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/file-type-icon.ts",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.ts"
         }
       ],
       "type": "registry:component"

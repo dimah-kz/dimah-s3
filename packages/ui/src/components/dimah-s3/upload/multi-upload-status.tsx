@@ -155,6 +155,7 @@ function FileList({ files }: { files: MultiUploadFileState[] }) {
           state={fileAttachmentState(f.status)}
           fileName={f.fileName}
           fileSize={f.fileSize}
+          fileType={f.fileType}
           previewUrl={f.previewUrl}
           percent={f.progress.percent}
           error={f.error}
