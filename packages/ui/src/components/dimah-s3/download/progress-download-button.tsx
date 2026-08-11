@@ -1,20 +1,22 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { DownloadIcon, AlertCircleIcon } from "lucide-react";
-import { cn } from "@/registry/dimah-s3-ui/lib/utils";
+import { DownloadIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatFileSize } from "@dimah-s3/core";
 import type { FetchDownloadHooks } from "@dimah-s3/react";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useFetchDownload } from "@dimah-s3/react";
-import { Button } from "@/registry/dimah-s3-ui/components/ui/button";
+import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import { Button } from "@/components/ui/button";
+import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/registry/dimah-s3-ui/components/ui/tooltip";
-import { useDownloadToast } from "@/registry/dimah-s3-ui/hooks/use-download-toast";
+} from "@/components/ui/tooltip";
+import { useDownloadToast } from "@/hooks/use-download-toast";
 
 /** Props for {@link ProgressDownloadButton}. */
 export type ProgressDownloadButtonProps = FetchDownloadHooks & {
@@ -40,8 +42,13 @@ export type ProgressDownloadButtonProps = FetchDownloadHooks & {
   cancelTooltipText?: string;
   /** Show toasts during download. @default true */
   toast?: boolean;
-  /** Show inline error below the button. @default true */
-  showStatus?: boolean;
+  /**
+   * Inline status control.
+   * - `true` (default): render below the button
+   * - `false`: hide status
+   * - `(node) => ReactNode`: wrap or relocate the status node
+   */
+  status?: StatusSlot;
   /** Button variant. @default "outline" */
   variant?: ComponentProps<typeof Button>["variant"];
   /** Button size. @default "default" */
@@ -64,7 +71,7 @@ export function ProgressDownloadButton({
   tooltipText,
   cancelTooltipText,
   toast: enableToast = true,
-  showStatus = true,
+  status: statusSlot = true,
   variant = "outline",
   size = "default",
   buttonClassName,
@@ -137,8 +144,17 @@ export function ProgressDownloadButton({
     </>
   );
 
+  const statusNode =
+    dl.phase === "error" ? (
+      <StatusAttachment
+        state="error"
+        title={t("Download failed", { note: "status" })}
+        description={dl.error ?? undefined}
+      />
+    ) : null;
+
   return (
-    <div className={cn("inline-flex flex-col items-center gap-1.5", className)}>
+    <div className={cn("inline-flex flex-col items-center gap-2", className)}>
       <Tooltip>
         <TooltipTrigger
           render={
@@ -180,14 +196,7 @@ export function ProgressDownloadButton({
         </TooltipContent>
       </Tooltip>
 
-      {showStatus && dl.phase === "error" && (
-        <div className="flex min-w-0 items-start gap-1.5 text-xs">
-          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-          <p className="min-w-0 [overflow-wrap:anywhere] text-destructive">
-            {dl.error ?? t("Download failed", { note: "status" })}
-          </p>
-        </div>
-      )}
+      {resolveStatusSlot(statusSlot, statusNode)}
     </div>
   );
 }

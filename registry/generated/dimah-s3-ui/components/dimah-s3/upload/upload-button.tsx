@@ -11,15 +11,16 @@ import {
   type UploadProgress,
   type MultiUploadFileState,
 } from "@dimah-s3/react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/registry/dimah-s3-ui/lib/utils";
+import { resolveStatusSlot, type StatusSlot } from "@/registry/dimah-s3-ui/lib/status-slot";
+import { Button } from "@/registry/dimah-s3-ui/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { UploadStatusBlock } from "@/components/upload/upload-status-block";
-import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
+} from "@/registry/dimah-s3-ui/components/ui/tooltip";
+import { UploadStatusBlock } from "@/registry/dimah-s3-ui/components/dimah-s3/upload/upload-status-block";
+import { useUploadToast, type UploadToastCtrl } from "@/registry/dimah-s3-ui/hooks/use-upload-toast";
 
 const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 const EMPTY_FILES: MultiUploadFileState[] = [];
@@ -37,8 +38,13 @@ export type UploadButtonProps = (
   tooltipText?: string;
   /** Show toasts during upload. @default true */
   toast?: boolean;
-  /** Show inline status below the button. @default true */
-  showStatus?: boolean;
+  /**
+   * Inline status control.
+   * - `true` (default): render below the button
+   * - `false`: hide status
+   * - `(node) => ReactNode`: wrap or relocate the status node
+   */
+  status?: StatusSlot;
   /**
    * Force multi-file mode. When omitted, multi mode is inferred from
    * `maxFiles > 1`.
@@ -59,7 +65,7 @@ export function UploadButton({
   disabled,
   tooltipText,
   toast: enableToast = true,
-  showStatus = true,
+  status: statusSlot = true,
   multiple,
   variant = "default",
   size = "default",
@@ -103,8 +109,8 @@ export function UploadButton({
 
   useUploadToast(ctrl, enableToast);
 
-  const status = showStatus ? (
-    isMulti ? (
+  const statusNode =
+    statusSlot === false ? null : isMulti ? (
       <UploadStatusBlock
         mode="multi"
         phase={multi.phase}
@@ -124,8 +130,9 @@ export function UploadButton({
         onCancel={single.cancel}
         onPause={canPause ? single.detach : undefined}
       />
-    )
-  ) : null;
+    );
+
+  const status = resolveStatusSlot(statusSlot, statusNode);
 
   const openFilePicker = isMulti ? multi.openFilePicker : single.openFilePicker;
   const inputProps = isMulti ? multi.inputProps : single.inputProps;

@@ -1,12 +1,14 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { AlertCircleIcon, DownloadIcon, LoaderIcon } from "lucide-react";
+import { DownloadIcon, LoaderIcon } from "lucide-react";
 import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDownload } from "@dimah-s3/react";
+import { resolveStatusSlot, type StatusSlot } from "@/registry/dimah-s3-ui/lib/status-slot";
 import { Button } from "@/registry/dimah-s3-ui/components/ui/button";
+import { StatusAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/status-attachment";
 import { useDownloadToast } from "@/registry/dimah-s3-ui/hooks/use-download-toast";
 
 /** Props for {@link DownloadButton}. */
@@ -25,8 +27,13 @@ export type DownloadButtonProps = {
   disabled?: boolean;
   /** Show a toast when download starts. @default true */
   toast?: boolean;
-  /** Show inline error below the button. @default true */
-  showStatus?: boolean;
+  /**
+   * Inline status control.
+   * - `true` (default): render below the button
+   * - `false`: hide status
+   * - `(node) => ReactNode`: wrap or relocate the status node
+   */
+  status?: StatusSlot;
   /** Button variant. @default "outline" */
   variant?: ComponentProps<typeof Button>["variant"];
   /** Button size. @default "default" */
@@ -44,7 +51,7 @@ export function DownloadButton({
   className,
   disabled,
   toast: enableToast = true,
-  showStatus = true,
+  status: statusSlot = true,
   variant = "outline",
   size = "default",
   buttonClassName,
@@ -79,8 +86,17 @@ export function DownloadButton({
     </>
   );
 
+  const statusNode =
+    dl.phase === "error" ? (
+      <StatusAttachment
+        state="error"
+        title={t("Download failed", { note: "status" })}
+        description={dl.error ?? undefined}
+      />
+    ) : null;
+
   return (
-    <div className={cn("inline-flex flex-col gap-1.5", className)}>
+    <div className={cn("inline-flex flex-col gap-2", className)}>
       <Button
         variant={variant}
         size={size}
@@ -90,15 +106,7 @@ export function DownloadButton({
       >
         {buttonContent}
       </Button>
-
-      {showStatus && dl.phase === "error" && (
-        <div className="flex min-w-0 items-start gap-1.5 text-xs">
-          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-          <p className="min-w-0 [overflow-wrap:anywhere] text-destructive">
-            {dl.error ?? t("Download failed", { note: "status" })}
-          </p>
-        </div>
-      )}
+      {resolveStatusSlot(statusSlot, statusNode)}
     </div>
   );
 }

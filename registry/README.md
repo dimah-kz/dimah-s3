@@ -30,5 +30,5 @@ Each registry item is self-contained: list every file the user needs in `files[]
 ## Adding an item
 
 1. Component in `packages/ui/src/`.
-2. Entry in `items/components.ts` — `path` is relative to `generated/dimah-s3-ui/` (e.g. `components/upload/…`, `hooks/…`).
+2. Entry in `items/components.ts` — `path` is relative to `generated/dimah-s3-ui/` (e.g. `components/dimah-s3/upload/…`, `hooks/…`). Install `target`s use `@components/dimah-s3/…` so files land next to — not inside — the consumer's `components/ui`.
 3. `pnpm --filter @dimah-s3/registry build`.

@@ -1,19 +1,28 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 export function CircleProgress({
   percent,
   size = 20,
   strokeWidth = 2.5,
+  className,
 }: {
   percent: number;
   size?: number;
   strokeWidth?: number;
+  className?: string;
 }) {
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (percent / 100) * c;
   return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
+    <svg
+      width={size}
+      height={size}
+      className={cn("shrink-0 -rotate-90", className)}
+      style={{ width: size, height: size }}
+    >
       <circle
         cx={size / 2}
         cy={size / 2}

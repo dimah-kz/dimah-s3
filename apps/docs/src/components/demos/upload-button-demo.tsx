@@ -12,7 +12,6 @@ export function UploadButtonDemo() {
       maxFileSize={25 * 1024 * 1024}
       label="Upload files"
       toast={true}
-      showStatus={true}
       tooltipText="Upload up to 5 files"
     />
   );

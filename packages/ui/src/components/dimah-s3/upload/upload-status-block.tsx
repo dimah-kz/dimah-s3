@@ -6,8 +6,8 @@ import type {
   MultiUploadFileState,
   MultiUploadPhase,
 } from "@dimah-s3/react";
-import { UploadStatus } from "@/components/upload/upload-status";
-import { MultiUploadStatus } from "@/components/upload/multi-upload-status";
+import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
+import { MultiUploadStatus } from "@/components/dimah-s3/upload/multi-upload-status";
 
 export type UploadStatusBlockProps =
   | {

@@ -1,19 +1,16 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import {
-  Trash2Icon,
-  LoaderIcon,
-  AlertCircleIcon,
-  CheckCircle2Icon,
-} from "lucide-react";
-import { cn } from "@/registry/dimah-s3-ui/lib/utils";
+import { Trash2Icon, LoaderIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatFileSize, truncateFileName } from "@dimah-s3/core";
 import type { DeleteHooks } from "@dimah-s3/react";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDelete } from "@dimah-s3/react";
-import { Button } from "@/registry/dimah-s3-ui/components/ui/button";
+import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import { Button } from "@/components/ui/button";
+import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,13 +22,13 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/registry/dimah-s3-ui/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/registry/dimah-s3-ui/components/ui/tooltip";
-import { useDeleteToast } from "@/registry/dimah-s3-ui/hooks/use-delete-toast";
+} from "@/components/ui/tooltip";
+import { useDeleteToast } from "@/hooks/use-delete-toast";
 
 /** Keep LTR file names and sizes readable inside RTL confirmation copy. */
 function isolateLtr(value: string): string {
@@ -59,8 +56,13 @@ export type DeleteButtonProps = DeleteHooks & {
   tooltipText?: string;
   /** Show a toast during delete. @default true */
   toast?: boolean;
-  /** Show inline error below the button. @default true */
-  showStatus?: boolean;
+  /**
+   * Inline status control.
+   * - `true` (default): render below the button
+   * - `false`: hide status
+   * - `(node) => ReactNode`: wrap or relocate the status node
+   */
+  status?: StatusSlot;
   confirmTitle?: string;
   confirmDescription?: string;
   /** Button variant. @default "destructive" */
@@ -83,7 +85,7 @@ export function DeleteButton({
   disabled,
   tooltipText,
   toast: enableToast = true,
-  showStatus = true,
+  status: statusSlot = true,
   confirmTitle,
   confirmDescription,
   variant = "destructive",
@@ -145,8 +147,25 @@ export function DeleteButton({
       },
     );
 
+  const statusNode =
+    del.phase === "success" ? (
+      <StatusAttachment
+        state="done"
+        title={t('"{name}" deleted', {
+          note: "status",
+          variables: { name: truncateFileName(displayName) },
+        })}
+      />
+    ) : del.phase === "error" ? (
+      <StatusAttachment
+        state="error"
+        title={t("Delete failed", { note: "status" })}
+        description={del.error ?? undefined}
+      />
+    ) : null;
+
   return (
-    <div className={cn("inline-flex flex-col gap-1.5", className)}>
+    <div className={cn("inline-flex flex-col gap-2", className)}>
       <div className="inline-flex items-center gap-2">
         <AlertDialog
           open={del.phase === "confirming"}
@@ -208,26 +227,7 @@ export function DeleteButton({
         </AlertDialog>
       </div>
 
-      {showStatus && del.phase === "success" && (
-        <div className="flex min-w-0 items-center gap-1.5 text-xs">
-          <CheckCircle2Icon className="size-3.5 shrink-0 text-green-600" />
-          <p className="min-w-0 [overflow-wrap:anywhere] text-green-600">
-            {t('"{name}" deleted', {
-              note: "status",
-              variables: { name: truncateFileName(displayName) },
-            })}
-          </p>
-        </div>
-      )}
-
-      {showStatus && del.phase === "error" && (
-        <div className="flex min-w-0 items-start gap-1.5 text-xs">
-          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-          <p className="min-w-0 [overflow-wrap:anywhere] text-destructive">
-            {del.error ?? t("Delete failed", { note: "status" })}
-          </p>
-        </div>
-      )}
+      {resolveStatusSlot(statusSlot, statusNode)}
     </div>
   );
 }

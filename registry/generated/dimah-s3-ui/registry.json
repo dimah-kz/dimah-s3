@@ -14,38 +14,54 @@
       "registryDependencies": [
         "button",
         "toast",
+        "attachment",
         "progress"
       ],
       "files": [
         {
-          "path": "components/upload/upload-dropzone.tsx",
+          "path": "components/dimah-s3/upload/upload-dropzone.tsx",
           "type": "registry:component",
-          "target": "@components/upload/upload-dropzone.tsx"
+          "target": "@components/dimah-s3/upload/upload-dropzone.tsx"
         },
         {
-          "path": "components/upload/upload-status.tsx",
+          "path": "components/dimah-s3/upload/upload-status.tsx",
           "type": "registry:component",
-          "target": "@components/upload/upload-status.tsx"
+          "target": "@components/dimah-s3/upload/upload-status.tsx"
         },
         {
-          "path": "components/upload/multi-upload-status.tsx",
+          "path": "components/dimah-s3/upload/multi-upload-status.tsx",
           "type": "registry:component",
-          "target": "@components/upload/multi-upload-status.tsx"
+          "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "components/upload/upload-status-block.tsx",
+          "path": "components/dimah-s3/upload/upload-status-block.tsx",
           "type": "registry:component",
-          "target": "@components/upload/upload-status-block.tsx"
+          "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
-          "path": "components/ui/circle-progress.tsx",
-          "type": "registry:ui",
-          "target": "@ui/circle-progress.tsx"
+          "path": "components/dimah-s3/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/file-attachment.tsx"
+        },
+        {
+          "path": "components/dimah-s3/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/circle-progress.tsx"
         },
         {
           "path": "hooks/use-upload-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-upload-toast.tsx"
+        },
+        {
+          "path": "components/dimah-s3/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/status-attachment.tsx"
+        },
+        {
+          "path": "lib/status-slot.ts",
+          "type": "registry:lib",
+          "target": "@lib/status-slot.ts"
         }
       ]
     },
@@ -63,38 +79,54 @@
         "button",
         "toast",
         "tooltip",
+        "attachment",
         "progress"
       ],
       "files": [
         {
-          "path": "components/upload/upload-button.tsx",
+          "path": "components/dimah-s3/upload/upload-button.tsx",
           "type": "registry:component",
-          "target": "@components/upload/upload-button.tsx"
+          "target": "@components/dimah-s3/upload/upload-button.tsx"
         },
         {
-          "path": "components/upload/upload-status.tsx",
+          "path": "components/dimah-s3/upload/upload-status.tsx",
           "type": "registry:component",
-          "target": "@components/upload/upload-status.tsx"
+          "target": "@components/dimah-s3/upload/upload-status.tsx"
         },
         {
-          "path": "components/upload/multi-upload-status.tsx",
+          "path": "components/dimah-s3/upload/multi-upload-status.tsx",
           "type": "registry:component",
-          "target": "@components/upload/multi-upload-status.tsx"
+          "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "components/upload/upload-status-block.tsx",
+          "path": "components/dimah-s3/upload/upload-status-block.tsx",
           "type": "registry:component",
-          "target": "@components/upload/upload-status-block.tsx"
+          "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
-          "path": "components/ui/circle-progress.tsx",
-          "type": "registry:ui",
-          "target": "@ui/circle-progress.tsx"
+          "path": "components/dimah-s3/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/file-attachment.tsx"
+        },
+        {
+          "path": "components/dimah-s3/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/circle-progress.tsx"
         },
         {
           "path": "hooks/use-upload-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-upload-toast.tsx"
+        },
+        {
+          "path": "components/dimah-s3/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/status-attachment.tsx"
+        },
+        {
+          "path": "lib/status-slot.ts",
+          "type": "registry:lib",
+          "target": "@lib/status-slot.ts"
         }
       ]
     },
@@ -110,18 +142,29 @@
       ],
       "registryDependencies": [
         "button",
-        "toast"
+        "toast",
+        "attachment"
       ],
       "files": [
         {
-          "path": "components/download/download-button.tsx",
+          "path": "components/dimah-s3/download/download-button.tsx",
           "type": "registry:component",
-          "target": "@components/download/download-button.tsx"
+          "target": "@components/dimah-s3/download/download-button.tsx"
         },
         {
           "path": "hooks/use-download-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-download-toast.tsx"
+        },
+        {
+          "path": "components/dimah-s3/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/status-attachment.tsx"
+        },
+        {
+          "path": "lib/status-slot.ts",
+          "type": "registry:lib",
+          "target": "@lib/status-slot.ts"
         }
       ]
     },
@@ -138,18 +181,29 @@
       "registryDependencies": [
         "button",
         "toast",
-        "tooltip"
+        "tooltip",
+        "attachment"
       ],
       "files": [
         {
-          "path": "components/download/progress-download-button.tsx",
+          "path": "components/dimah-s3/download/progress-download-button.tsx",
           "type": "registry:component",
-          "target": "@components/download/progress-download-button.tsx"
+          "target": "@components/dimah-s3/download/progress-download-button.tsx"
         },
         {
           "path": "hooks/use-download-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-download-toast.tsx"
+        },
+        {
+          "path": "components/dimah-s3/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/status-attachment.tsx"
+        },
+        {
+          "path": "lib/status-slot.ts",
+          "type": "registry:lib",
+          "target": "@lib/status-slot.ts"
         }
       ]
     },
@@ -167,18 +221,29 @@
         "button",
         "toast",
         "alert-dialog",
-        "tooltip"
+        "tooltip",
+        "attachment"
       ],
       "files": [
         {
-          "path": "components/delete/delete-button.tsx",
+          "path": "components/dimah-s3/delete/delete-button.tsx",
           "type": "registry:component",
-          "target": "@components/delete/delete-button.tsx"
+          "target": "@components/dimah-s3/delete/delete-button.tsx"
         },
         {
           "path": "hooks/use-delete-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-delete-toast.tsx"
+        },
+        {
+          "path": "components/dimah-s3/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/status-attachment.tsx"
+        },
+        {
+          "path": "lib/status-slot.ts",
+          "type": "registry:lib",
+          "target": "@lib/status-slot.ts"
         }
       ]
     }

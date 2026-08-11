@@ -14,7 +14,8 @@ import {
 } from "@dimah-s3/react";
 import { formatFileSize } from "@dimah-s3/core";
 import { cn } from "@/lib/utils";
-import { UploadStatusBlock } from "@/components/upload/upload-status-block";
+import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
 import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
 
 const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
@@ -27,13 +28,21 @@ export type UploadDropzoneProps = (
   className?: string;
   /** Dropzone label. */
   label?: string;
-  /** Custom dropzone content. Replaces built-in icon/text/status block. */
+  /**
+   * Custom dropzone chrome (icon + hints). Replaces the built-in idle content
+   * only — status still renders via the `status` prop.
+   */
   children?: ReactNode;
   disabled?: boolean;
   /** Show toasts during upload. @default true */
   toast?: boolean;
-  /** Show inline status inside the dropzone. @default true */
-  showStatus?: boolean;
+  /**
+   * Inline status control.
+   * - `true` (default): render inside the dropzone
+   * - `false`: hide status
+   * - `(node) => ReactNode`: wrap or relocate the status node
+   */
+  status?: StatusSlot;
   /**
    * Force multi-file mode. When omitted, multi mode is inferred from
    * `maxFiles > 1`.
@@ -47,7 +56,7 @@ export function UploadDropzone({
   children,
   disabled,
   toast: enableToast = true,
-  showStatus = true,
+  status: statusSlot = true,
   multiple,
   ...options
 }: UploadDropzoneProps) {
@@ -127,12 +136,12 @@ export function UploadDropzone({
           variables: { types: acceptLabels.join(", ") },
         })
       : null;
-  const hasCustomContent = children != null;
+  const hasCustomChrome = children != null;
   const dropzoneLabel =
     label ?? t("Drag and drop files here", { note: "dropzone" });
 
-  const status = showStatus ? (
-    isMulti ? (
+  const statusNode =
+    statusSlot === false ? null : isMulti ? (
       <UploadStatusBlock
         mode="multi"
         phase={multi.phase}
@@ -152,8 +161,19 @@ export function UploadDropzone({
         onCancel={single.cancel}
         onPause={canPause ? single.detach : undefined}
       />
-    )
-  ) : null;
+    );
+
+  const defaultStatus =
+    statusNode == null ? null : (
+      <div className={cn("w-full text-start", hasCustomChrome && "px-3 pb-3")}>
+        {statusNode}
+      </div>
+    );
+
+  const status =
+    typeof statusSlot === "function"
+      ? statusSlot(statusNode)
+      : resolveStatusSlot(statusSlot, defaultStatus);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (isDisabled) return;
@@ -171,8 +191,8 @@ export function UploadDropzone({
       aria-label={dropzoneLabel}
       className={cn(
         "rounded-lg border-2 border-dashed transition-colors",
-        hasCustomContent
-          ? "flex items-stretch justify-stretch p-0"
+        hasCustomChrome
+          ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
           : "flex flex-col items-center justify-center gap-3 p-6 text-center",
         isDisabled
           ? "cursor-not-allowed border-muted-foreground/25"
@@ -201,7 +221,7 @@ export function UploadDropzone({
           })}
     >
       <input {...inputProps} />
-      {hasCustomContent ? (
+      {hasCustomChrome ? (
         children
       ) : (
         <>
@@ -220,9 +240,9 @@ export function UploadDropzone({
               <p className="text-xs text-muted-foreground">{acceptLine}</p>
             )}
           </div>
-          {status && <div className="w-full text-start">{status}</div>}
         </>
       )}
+      {status}
     </div>
   );
 }

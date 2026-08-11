@@ -18,14 +18,10 @@ const uiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(uiRoot, "../..");
 const uiComponentsDir = path.join(uiRoot, "src", "components", "ui");
 
-/** Custom (non-registry) files that must not be passed to `shadcn add`. */
-const CUSTOM_UI_COMPONENTS = new Set(["circle-progress"]);
-
 function listInstalledComponents() {
   return readdirSync(uiComponentsDir)
     .filter((name) => name.endsWith(".tsx"))
     .map((name) => name.replace(/\.tsx$/, ""))
-    .filter((name) => !CUSTOM_UI_COMPONENTS.has(name))
     .sort();
 }
 

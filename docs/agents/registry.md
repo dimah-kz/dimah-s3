@@ -2,7 +2,7 @@
 
 > Rule: `.cursor/rules/registry.mdc`.
 
-**Source of truth:** `packages/ui/src/` (`components/`, `hooks/`, `lib/`).
+**Source of truth:** `packages/ui/src/` — shadcn primitives under `components/ui/`; dimah-owned UI under `components/dimah-s3/` (hooks in `hooks/`, shared helpers in `lib/`).
 
 **Generated (do not edit):** `registry/generated/dimah-s3-ui/` — copied by `packages/ui/scripts/sync-registry.mjs` on UI package build.
 

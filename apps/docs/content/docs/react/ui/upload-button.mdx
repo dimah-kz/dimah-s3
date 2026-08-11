@@ -33,7 +33,7 @@ npx shadcn@latest add @dimah-s3/upload-button
 ## Props
 
 <AutoTypeTable
-  path="packages/ui/src/components/upload/upload-button.tsx"
+  path="packages/ui/src/components/dimah-s3/upload/upload-button.tsx"
   name="UploadButtonProps"
 />
 
@@ -56,6 +56,55 @@ npx shadcn@latest add @dimah-s3/upload-button
 <UploadButton variant="secondary" size="sm" objectKey="uploads/file" />
 <DownloadButton variant="ghost" objectKey="uploads/report.pdf" />
 <DeleteButton variant="outline" objectKey="uploads/report.pdf" />
+```
+
+## Status placement
+
+Inline status uses shadcn **Attachment** rows. Control it with a single `status` prop:
+
+- `true` (default) — render below the button
+- `false` — hide status
+- `(node) => ReactNode` — wrap or relocate the status node
+
+```tsx
+<UploadButton
+  objectKey={(f) => `uploads/${f.name}`}
+  status={(node) => <aside className="ms-auto w-72">{node}</aside>}
+/>
+```
+
+Toasts stay independent via `toast`.
+
+## Composition
+
+Prefer the wired button for the happy path. For a fully custom layout, combine
+[`useUploadControls`](/docs/react/hooks/upload#upload-controls) with
+`UploadStatus` (or the exported `Attachment` primitives):
+
+```tsx
+import { useUploadControls } from "@dimah-s3/react";
+import { UploadStatus } from "@dimah-s3/ui";
+
+function CustomUpload() {
+  const ctrl = useUploadControls({
+    objectKey: (f) => `uploads/${f.name}`,
+  });
+
+  return (
+    <>
+      <button type="button" onClick={ctrl.openFilePicker}>
+        Choose file
+      </button>
+      <UploadStatus
+        phase={ctrl.phase}
+        progress={ctrl.progress}
+        error={ctrl.error}
+        fileInfo={ctrl.fileInfo}
+        onCancel={ctrl.cancel}
+      />
+    </>
+  );
+}
 ```
 
 ## Headless alternative

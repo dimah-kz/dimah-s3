@@ -33,7 +33,7 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 ## Props
 
 <AutoTypeTable
-  path="packages/ui/src/components/upload/upload-dropzone.tsx"
+  path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
   name="UploadDropzoneProps"
 />
 
@@ -43,6 +43,25 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 </Callout>
 
 Set `maxFiles` above `1` for multi-file uploads. The dropzone shows file limits, max size, and accepted types below the main label.
+
+## Custom chrome and status
+
+`children` replaces only the idle chrome (icon + hints). Status still follows the
+`status` prop (`true` | `false` | render function). To own the entire interior,
+set `status={false}` and render `UploadStatus` yourself.
+
+```tsx
+<UploadDropzone
+  objectKey={(f) => `uploads/${f.name}`}
+  status={(node) => (
+    <div className="w-full border-t border-dashed p-3">{node}</div>
+  )}
+>
+  <div className="flex flex-1 items-center justify-center p-8">
+    Drop files here
+  </div>
+</UploadDropzone>
+```
 
 ## Headless alternative
 
