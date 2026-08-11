@@ -28,11 +28,11 @@ export function ComponentPreview({
     <DemoS3Provider>
       <div
         className={cn(
-          "my-4 overflow-hidden rounded-md border sm:my-8",
+          "my-4 overflow-hidden rounded-xl border bg-fd-card sm:my-8",
           className,
         )}
       >
-        <div className="not-prose flex min-h-[200px] w-full flex-col items-stretch justify-center p-4 py-6 sm:min-h-[220px] sm:p-8 sm:py-10">
+        <div className="not-prose flex min-h-50 w-full flex-col items-stretch justify-center p-4 sm:min-h-55 sm:p-6">
           {children}
         </div>
 

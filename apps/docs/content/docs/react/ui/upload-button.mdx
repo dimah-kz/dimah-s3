@@ -58,40 +58,30 @@ npx shadcn@latest add @dimah-s3/upload-button
 <DeleteButton variant="outline" objectKey="uploads/report.pdf" />
 ```
 
-## Attachment size
+## Status
 
-Status rows use [`FileAttachment` / `StatusAttachment`](/docs/react/ui/attachment).
-On wired buttons, pass `attachmentSize` / `attachmentOrientation` so they stay
-separate from Button `size`:
+Inline status uses [`FileAttachment` / `StatusAttachment`](/docs/react/ui/attachment).
+Control placement with `status`:
+
+| Value                    | Behavior                         |
+| ------------------------ | -------------------------------- |
+| `true` (default)         | Render below the button          |
+| `false`                  | Hide status                      |
+| `(node) => ReactNode`    | Wrap or relocate the status node |
+
+Tune density with `attachmentSize` / `attachmentOrientation` (separate from Button `size`):
 
 ```tsx
 <UploadButton
   objectKey={(f) => `uploads/${f.name}`}
   size="sm"
   attachmentSize="xs"
-/>
-```
-
-## Status placement
-
-Inline status uses shadcn **Attachment** rows. Control it with a single `status` prop:
-
-- `true` (default) — render below the button
-- `false` — hide status
-- `(node) => ReactNode` — wrap or relocate the status node
-
-Image uploads show a thumbnail in the status row (progress overlay while
-uploading, full preview when done). Other file types keep the icon progress
-row.
-
-```tsx
-<UploadButton
-  objectKey={(f) => `uploads/${f.name}`}
   status={(node) => <aside className="ms-auto w-72">{node}</aside>}
 />
 ```
 
-Toasts stay independent via `toast`.
+Image uploads show a thumbnail (progress overlay while uploading). Other types
+keep the file-type icon. Toasts stay independent via `toast`.
 
 ## Composition
 

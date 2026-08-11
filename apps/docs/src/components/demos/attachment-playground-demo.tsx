@@ -8,7 +8,7 @@ import {
   type AttachmentSize,
   type AttachmentState,
 } from "@dimah-s3/ui";
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "fumadocs-ui/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 const PREVIEW =
@@ -27,7 +27,7 @@ const STATES: AttachmentState[] = [
   "done",
 ];
 
-function ToggleGroup<T extends string>({
+function VariantTabs<T extends string>({
   label,
   value,
   options,
@@ -39,29 +39,30 @@ function ToggleGroup<T extends string>({
   onChange: (next: T) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="w-24 shrink-0 text-xs text-muted-foreground">
-        {label}
-      </span>
-      <div className="flex flex-wrap gap-1">
+    <Tabs
+      value={value}
+      onValueChange={(next) => onChange(next as T)}
+      className="w-full"
+    >
+      <TabsList className="flex gap-3.5 overflow-x-auto px-4 text-fd-secondary-foreground not-prose">
+        <span className="my-auto me-auto text-sm font-medium text-fd-foreground">
+          {label}
+        </span>
         {options.map((option) => (
-          <Button
+          <TabsTrigger
             key={option}
-            type="button"
-            size="sm"
-            variant={value === option ? "secondary" : "outline"}
-            className={cn(value === option && "ring-1 ring-ring/40")}
-            onClick={() => onChange(option)}
+            value={option}
+            className="inline-flex items-center gap-2 border-b border-transparent py-2 text-sm font-medium whitespace-nowrap text-fd-muted-foreground transition-colors hover:text-fd-accent-foreground disabled:pointer-events-none disabled:opacity-50 data-active:border-fd-primary data-active:text-fd-primary"
           >
             {option}
-          </Button>
+          </TabsTrigger>
         ))}
-      </div>
-    </div>
+      </TabsList>
+    </Tabs>
   );
 }
 
-/** Interactive Attachment playground — try size, orientation, and state. */
+/** Interactive Attachment playground — size, orientation, and state via Fumadocs Tabs. */
 export function AttachmentPlaygroundDemo() {
   const [size, setSize] = useState<AttachmentSize>("sm");
   const [orientation, setOrientation] =
@@ -72,21 +73,21 @@ export function AttachmentPlaygroundDemo() {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
-        <ToggleGroup
-          label="size"
+      <div className="flex flex-col overflow-hidden rounded-xl border bg-fd-secondary">
+        <VariantTabs
+          label="Size"
           value={size}
           options={SIZES}
           onChange={setSize}
         />
-        <ToggleGroup
-          label="orientation"
+        <VariantTabs
+          label="Orientation"
           value={orientation}
           options={ORIENTATIONS}
           onChange={setOrientation}
         />
-        <ToggleGroup
-          label="state"
+        <VariantTabs
+          label="State"
           value={state}
           options={STATES}
           onChange={setState}
@@ -95,7 +96,7 @@ export function AttachmentPlaygroundDemo() {
 
       <div
         className={cn(
-          "flex w-full rounded-md border border-dashed border-border/80 p-4",
+          "flex w-full rounded-xl border border-dashed border-fd-border bg-fd-background p-4",
           orientation === "vertical"
             ? "flex-wrap items-start gap-3"
             : "max-w-lg flex-col gap-3",

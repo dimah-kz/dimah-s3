@@ -1,31 +1,85 @@
 ---
 title: Attachment
-description: File and status rows for upload feedback, with size and orientation variants.
+description: File and status rows for upload feedback — size, orientation, and state variants.
 ---
 
 import { AttachmentPlaygroundDemo } from "@/components/demos/attachment-playground-demo";
 import { AttachmentUploadDemo } from "@/components/demos/attachment-upload-demo";
 
-`FileAttachment` shows a file row (name, size, preview, progress).
-`StatusAttachment` is a lighter row for generic feedback like “Preparing…” or
-errors. Both use the same shadcn Attachment sizes and orientations.
+Status rows for upload, download, and delete feedback. Built on the stock
+shadcn Attachment primitive.
 
-### Preview
+<Cards>
+  <Card
+    title="FileAttachment"
+    description="Name, size, type icon or image preview, progress, and cancel."
+  />
+  <Card
+    title="StatusAttachment"
+    description="Lighter row for preparing, errors, and generic feedback."
+  />
+</Cards>
 
-Use the toggles to try `size`, `orientation`, and `state`.
+## Preview
+
+Use the tabs to try `size`, `orientation`, and `state`.
 
 <DemoPreview name="attachment-playground-demo.tsx">
   <AttachmentPlaygroundDemo />
 </DemoPreview>
 
-### Live upload
+## Live upload
 
-Same rows, wired through `UploadButton`. Upload a file to see progress and
-cancel.
+Same rows, wired through `UploadButton`. Upload a file to see progress and cancel.
 
 <DemoPreview name="attachment-upload-demo.tsx">
   <AttachmentUploadDemo />
 </DemoPreview>
+
+## Layout
+
+Shared by both components (and by wired button/dropzone status via aliases):
+
+<TypeTable
+  type={{
+    size: {
+      description: "Attachment density. Defaults to sm.",
+      type: '"default" | "sm" | "xs"',
+      default: '"sm"',
+    },
+    orientation: {
+      description: "Row layout. Vertical stacks media above the title.",
+      type: '"horizontal" | "vertical"',
+      default: '"horizontal"',
+    },
+    state: {
+      description: "Visual state from the shadcn Attachment primitive.",
+      type: '"idle" | "uploading" | "processing" | "error" | "done"',
+      required: true,
+    },
+  }}
+/>
+
+On wired controls, use aliases so they stay separate from Button `size`:
+
+| Attachment prop | On buttons / dropzone   |
+| --------------- | ----------------------- |
+| `size`          | `attachmentSize`        |
+| `orientation`   | `attachmentOrientation` |
+
+```tsx
+<UploadButton
+  objectKey={(f) => `uploads/${f.name}`}
+  size="sm"
+  attachmentSize="xs"
+  attachmentOrientation="horizontal"
+/>
+```
+
+<Callout type="info">
+  If you render status yourself, pass `size` and `orientation` on
+  `UploadStatus`, `MultiUploadStatus`, or the Attachment components directly.
+</Callout>
 
 ## Install
 
@@ -34,32 +88,17 @@ upload, download, and delete items — no separate registry package.
 
 ## Props
 
-### FileAttachment
-
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/attachment/file-attachment.tsx"
-  name="FileAttachmentProps"
-/>
-
-### StatusAttachment
-
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
-  name="StatusAttachmentProps"
-/>
-
-## On buttons and dropzones
-
-Wired components render these rows for you. Pass `attachmentSize` /
-`attachmentOrientation` so they stay separate from Button `size`:
-
-```tsx
-<UploadButton
-  objectKey={(f) => `uploads/${f.name}`}
-  size="sm"
-  attachmentSize="xs"
-/>
-```
-
-If you render status yourself, pass `size` and `orientation` on `UploadStatus`,
-`MultiUploadStatus`, or `FileAttachment`.
+<Tabs items={["FileAttachment", "StatusAttachment"]}>
+  <Tab value="FileAttachment">
+    <AutoTypeTable
+      path="packages/ui/src/components/dimah-s3/attachment/file-attachment.tsx"
+      name="FileAttachmentProps"
+    />
+  </Tab>
+  <Tab value="StatusAttachment">
+    <AutoTypeTable
+      path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
+      name="StatusAttachmentProps"
+    />
+  </Tab>
+</Tabs>

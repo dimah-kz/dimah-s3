@@ -42,24 +42,22 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
   the same limits in `upload.presignGuard` on the server.
 </Callout>
 
-Set `maxFiles` above `1` for multi-file uploads. The dropzone shows file limits, max size, and accepted types below the main label.
+Set `maxFiles` above `1` for multi-file uploads. Limits, max size, and accepted
+types render below the main label.
 
-Status rows support [`attachmentSize` / `attachmentOrientation`](/docs/react/ui/attachment)
-— the same aliases as `UploadButton`.
+## Status
 
-## Custom chrome and status
+Same [`Attachment`](/docs/react/ui/attachment) rows as `UploadButton`, including
+`attachmentSize` / `attachmentOrientation` and the `status` prop
+(`true` | `false` | render function).
 
-`children` replaces only the idle chrome (icon + hints). Status still follows the
-`status` prop (`true` | `false` | render function). To own the entire interior,
-set `status={false}` and render `UploadStatus` yourself.
-
-Image uploads show a thumbnail in the status row (progress overlay while
-uploading, full preview when done). Other file types keep the icon progress
-row.
+`children` replaces only the idle chrome (icon + hints). To own the entire
+interior, set `status={false}` and render `UploadStatus` yourself.
 
 ```tsx
 <UploadDropzone
   objectKey={(f) => `uploads/${f.name}`}
+  attachmentSize="xs"
   status={(node) => (
     <div className="w-full border-t border-dashed p-3">{node}</div>
   )}
