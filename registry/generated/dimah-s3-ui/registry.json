@@ -62,6 +62,11 @@
           "path": "lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ]
     },
@@ -127,6 +132,11 @@
           "path": "lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ]
     },
@@ -165,6 +175,11 @@
           "path": "lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ]
     },
@@ -204,6 +219,11 @@
           "path": "lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ]
     },
@@ -244,6 +264,11 @@
           "path": "lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ]
     }

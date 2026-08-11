@@ -6,9 +6,20 @@
 
 **Generated (do not edit):** `registry/generated/dimah-s3-ui/` — copied by `packages/ui/scripts/sync-registry.mjs` on UI package build.
 
+## Do not edit stock shadcn (`components/ui/`)
+
+`packages/ui/src/components/ui/*` are **vendor primitives** installed via shadcn CLI. Agents and humans must **not** hand-edit them (no new exports, prop renames, style tweaks, or type aliases).
+
+| Own the change in…     | Examples                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| `components/dimah-s3/` | `FileAttachment`, upload/download/delete buttons, status rows                   |
+| `hooks/` / `lib/`      | toast hooks, `AttachmentState` derived from `ComponentProps<typeof Attachment>` |
+
+To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (overwrite). Compose on top — never fork the stock file.
+
 ## When changing a UI component
 
-1. Edit under `packages/ui/src/`.
+1. Edit under `packages/ui/src/` — **only** `components/dimah-s3/`, `hooks/`, or `lib/` for product behavior. Do not edit `components/ui/`.
 2. Imports: short `@/` alias only (`@/components/ui/button`, `@/lib/utils`) — sync rewrites to `@/registry/dimah-s3-ui/...`.
 3. `pnpm --filter @dimah-s3/ui build` (runs sync-registry).
 4. If the shadcn item shape changed → update `registry/items/components.ts` (`files[]`, `registryDependencies` for shadcn primitives only).
@@ -21,7 +32,8 @@
 
 ## UI conventions (components)
 
-- File names: Tailwind `truncate max-w-[30ch]`; errors: `[overflow-wrap:anywhere]`.
+- File names: Tailwind `truncate max-w-[48ch]`; errors: `[overflow-wrap:anywhere]`.
+  - `truncateFileName` default is 48 printable chars (extension preserved).
 - Toast hooks are `.tsx` when toast `description` needs JSX.
 - Toast: shadcn Base UI. Registry → `registryDependencies: toast` + `<Toaster />` from `@/components/ui/toast`. npm → `<Toaster />` from `@dimah-s3/ui`.
 

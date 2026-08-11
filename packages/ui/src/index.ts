@@ -51,5 +51,6 @@ export {
   type StatusAttachmentProps,
   type StatusAttachmentState,
 } from "@/components/dimah-s3/status-attachment";
+export type { AttachmentState } from "@/lib/attachment-state";
 export { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
 export { Toaster, toast } from "@/components/ui/toast";

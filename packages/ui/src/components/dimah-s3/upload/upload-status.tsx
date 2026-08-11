@@ -1,9 +1,13 @@
 "use client";
 
-import { formatFileSize, truncateFileName } from "@dimah-s3/core";
+import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { formatEta } from "@dimah-s3/react";
-import type { UploadPhase, UploadProgress } from "@dimah-s3/react";
+import type {
+  UploadFileInfo,
+  UploadPhase,
+  UploadProgress,
+} from "@dimah-s3/react";
 import { FileAttachment } from "@/components/dimah-s3/file-attachment";
 import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
 
@@ -11,7 +15,7 @@ export type UploadStatusProps = {
   phase: UploadPhase;
   progress: UploadProgress;
   error: string | null;
-  fileInfo: { name: string; size: number } | null;
+  fileInfo: UploadFileInfo | null;
   onCancel?: () => void;
   /** When set (typically with an `uploadStore`), shows a pause control. */
   onPause?: () => void;
@@ -42,9 +46,10 @@ export function UploadStatus({
         state="uploading"
         fileName={fileInfo.name}
         fileSize={fileInfo.size}
+        previewUrl={fileInfo.previewUrl}
         percent={progress.percent}
         description={
-          eta ? `${eta} · ${formatFileSize(fileInfo.size)}` : undefined
+          eta ? `${formatFileSize(fileInfo.size)} · ${eta}` : undefined
         }
         onCancel={onCancel}
         onPause={onPause}
@@ -59,6 +64,7 @@ export function UploadStatus({
         state="done"
         fileName={fileInfo.name}
         fileSize={fileInfo.size}
+        previewUrl={fileInfo.previewUrl}
         className={className}
       />
     );
@@ -71,6 +77,7 @@ export function UploadStatus({
           state="error"
           fileName={fileInfo.name}
           fileSize={fileInfo.size}
+          previewUrl={fileInfo.previewUrl}
           error={error}
           className={className}
         />
@@ -88,11 +95,23 @@ export function UploadStatus({
   }
 
   if (phase === "validating" || phase === "presigning") {
+    if (fileInfo) {
+      return (
+        <FileAttachment
+          state="processing"
+          fileName={fileInfo.name}
+          fileSize={fileInfo.size}
+          previewUrl={fileInfo.previewUrl}
+          description={t("Preparing…", { note: "upload status" })}
+          className={className}
+        />
+      );
+    }
+
     return (
       <StatusAttachment
         state="processing"
         title={t("Preparing…", { note: "upload status" })}
-        description={fileInfo ? truncateFileName(fileInfo.name) : undefined}
         className={className}
       />
     );

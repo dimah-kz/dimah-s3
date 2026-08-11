@@ -65,8 +65,8 @@ describe("helpers", () => {
     expect(formatFileSize(1024)).toBe("1.0 KB");
     expect(truncateFileName("short.txt")).toBe("short.txt");
     expect(
-      truncateFileName("a".repeat(40) + ".png").length,
-    ).toBeLessThanOrEqual(28);
+      truncateFileName("a".repeat(80) + ".png").length,
+    ).toBeLessThanOrEqual(50);
   });
 });
 

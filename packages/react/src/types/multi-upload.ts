@@ -11,6 +11,13 @@ export type MultiUploadFileState = {
   fileName: string;
   /** File size in bytes. */
   fileSize: number;
+  /** MIME type from the browser `File`. */
+  fileType: string;
+  /**
+   * Object URL for an image thumbnail, or `null` for non-images.
+   * Kept through success; revoked when the batch is cleared.
+   */
+  previewUrl: string | null;
   status: "pending" | "uploading" | "success" | "error";
   progress: UploadProgress;
   error: string | null;

@@ -54,6 +54,11 @@
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ],
       "type": "registry:component"
@@ -115,6 +120,11 @@
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ],
       "type": "registry:component"
@@ -145,6 +155,11 @@
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ],
       "type": "registry:component"
@@ -175,6 +190,11 @@
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ],
       "type": "registry:component"
@@ -211,6 +231,11 @@
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
           "type": "registry:lib",
           "target": "@lib/status-slot.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-state.ts"
         }
       ],
       "type": "registry:component"

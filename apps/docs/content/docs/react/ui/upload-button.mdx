@@ -66,6 +66,10 @@ Inline status uses shadcn **Attachment** rows. Control it with a single `status`
 - `false` — hide status
 - `(node) => ReactNode` — wrap or relocate the status node
 
+Image uploads show a thumbnail in the status row (progress overlay while
+uploading, full preview when done). Other file types keep the icon progress
+row.
+
 ```tsx
 <UploadButton
   objectKey={(f) => `uploads/${f.name}`}

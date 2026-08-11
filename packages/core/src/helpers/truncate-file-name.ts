@@ -1,7 +1,7 @@
 /**
  * Truncates a filename while preserving the extension when possible.
  */
-export function truncateFileName(name: string, maxChars = 26): string {
+export function truncateFileName(name: string, maxChars = 48): string {
   if (name.length <= maxChars) return name;
   const dotIndex = name.lastIndexOf(".");
   if (dotIndex <= 0) {

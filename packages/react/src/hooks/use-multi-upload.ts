@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useContext, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { validateFile } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import { createSpeedTracker } from "../helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
 import { useFormatValidateFileError } from "../helpers/format-validate-file-error";
+import {
+  createImagePreviewUrl,
+  revokePreviewUrl,
+} from "../helpers/file-preview";
 import { useLiveRef } from "../internal-helpers";
 import type {
   UploadConfig,
@@ -90,12 +94,25 @@ export function useMultiUpload(
   const detachingRef = useRef(false);
   const fileMapRef = useRef<Map<string, File>>(new Map());
   const activeUploadsRef = useRef<Map<string, ActiveMultiUpload>>(new Map());
+  const previewUrlsRef = useRef<string[]>([]);
   const fileSpeedUpdatersRef = useRef<
     Map<string, ReturnType<typeof createThrottledSpeedUpdater>>
   >(new Map());
   const totalSpeedUpdaterRef = useRef(
     createThrottledSpeedUpdater(createSpeedTracker(), 1000),
   );
+
+  const revokeAllPreviews = useCallback(() => {
+    for (const url of previewUrlsRef.current) revokePreviewUrl(url);
+    previewUrlsRef.current = [];
+  }, []);
+
+  const clearToIdle = useCallback(() => {
+    revokeAllPreviews();
+    setState(INITIAL_STATE);
+  }, [revokeAllPreviews]);
+
+  useEffect(() => () => revokeAllPreviews(), [revokeAllPreviews]);
 
   const upload = useCallback(
     async (files: File[], resolveKey: (file: File) => string) => {
@@ -150,21 +167,29 @@ export function useMultiUpload(
         }
       }
 
+      revokeAllPreviews();
+      const nextPreviewUrls: string[] = [];
+
       for (const file of files) {
         const id = generateId();
         const objectKey = resolveKey(file);
+        const previewUrl = createImagePreviewUrl(file);
+        if (previewUrl) nextPreviewUrls.push(previewUrl);
         items.push({ id, file, objectKey });
         fileMap.set(id, file);
         fileStates.push({
           id,
           fileName: file.name,
           fileSize: file.size,
+          fileType: file.type,
+          previewUrl,
           status: "pending",
           progress: { loaded: 0, total: file.size, percent: 0 },
           error: null,
         });
       }
 
+      previewUrlsRef.current = nextPreviewUrls;
       fileMapRef.current = fileMap;
       activeUploadsRef.current = new Map(
         items.map((item) => [
@@ -313,7 +338,7 @@ export function useMultiUpload(
           }
           if (!resettingRef.current) opts.onCancel?.();
           resettingRef.current = false;
-          setState(INITIAL_STATE);
+          clearToIdle();
           return;
         }
         const message = err instanceof Error ? err.message : "Upload failed";
@@ -324,7 +349,7 @@ export function useMultiUpload(
         activeUploadsRef.current.clear();
       }
     },
-    [apiRef, optsRef, formatValidateFileError],
+    [apiRef, optsRef, formatValidateFileError, revokeAllPreviews, clearToIdle],
   );
 
   const cancel = useCallback(() => {
@@ -349,21 +374,21 @@ export function useMultiUpload(
       }
     }
     activeUploadsRef.current.clear();
-    setState(INITIAL_STATE);
-  }, [apiRef, optsRef]);
+    clearToIdle();
+  }, [apiRef, optsRef, clearToIdle]);
 
   const detach = useCallback(() => {
     if (activeUploadsRef.current.size === 0) return;
     detachingRef.current = true;
     abortRef.current?.abort();
-    setState(INITIAL_STATE);
-  }, []);
+    clearToIdle();
+  }, [clearToIdle]);
 
   const reset = useCallback(() => {
     resettingRef.current = true;
     abortRef.current?.abort();
-    setState(INITIAL_STATE);
-  }, []);
+    clearToIdle();
+  }, [clearToIdle]);
 
   return { ...state, upload, cancel, detach, reset };
 }

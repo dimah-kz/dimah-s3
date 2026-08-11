@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import type {
+  UploadFileInfo,
   UploadPhase,
   UploadProgress,
   UploadRequestOptions,
@@ -22,7 +23,7 @@ export type UseUploadControlsReturn = {
   /** Current upload phase. */
   phase: UploadPhase;
   /** Info about the selected file. */
-  fileInfo: { name: string; size: number } | null;
+  fileInfo: UploadFileInfo | null;
   /** Byte transfer progress. */
   progress: UploadProgress;
   /** Error message, or `null`. */
@@ -62,10 +63,6 @@ export function useUploadControls(
 ): UseUploadControlsReturn {
   const single = useUpload(options);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [fileInfo, setFileInfo] = useState<{
-    name: string;
-    size: number;
-  } | null>(null);
 
   const resolveKey = (file: File): string =>
     typeof options.objectKey === "function"
@@ -75,12 +72,21 @@ export function useUploadControls(
   const handleFiles = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    setFileInfo({ name: file.name, size: file.size });
     await single.upload(file, resolveKey(file), {
       ...options.uploadOptions,
       ...options.getUploadOptions?.(file),
     });
   };
+
+  const fileInfo: UploadFileInfo | null =
+    single.fileName != null
+      ? {
+          name: single.fileName,
+          size: single.fileSize ?? 0,
+          type: single.fileType ?? "",
+          previewUrl: single.previewUrl,
+        }
+      : null;
 
   return {
     phase: single.phase,
@@ -92,10 +98,7 @@ export function useUploadControls(
     openFilePicker: () => inputRef.current?.click(),
     cancel: single.cancel,
     detach: single.detach,
-    reset: () => {
-      single.reset();
-      setFileInfo(null);
-    },
+    reset: single.reset,
     inputProps: {
       ref: inputRef,
       type: "file",

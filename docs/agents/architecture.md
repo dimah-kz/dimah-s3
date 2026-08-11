@@ -52,3 +52,4 @@
 - ORM / FumaDB imports inside `@dimah-s3/server` — DB adapters stay in `@dimah-s3/db`.
 - Importing `ui` or `react` from `server` / `core`.
 - Hand-editing `registry/generated/dimah-s3-ui/` (generated — [registry.md](./registry.md)).
+- Hand-editing `packages/ui/src/components/ui/` (stock shadcn — compose in `dimah-s3` / `lib` / `hooks`; refresh via `pnpm --filter @dimah-s3/ui sync:shadcn` — [registry.md](./registry.md)).

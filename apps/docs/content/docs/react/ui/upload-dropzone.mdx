@@ -50,6 +50,10 @@ Set `maxFiles` above `1` for multi-file uploads. The dropzone shows file limits,
 `status` prop (`true` | `false` | render function). To own the entire interior,
 set `status={false}` and render `UploadStatus` yourself.
 
+Image uploads show a thumbnail in the status row (progress overlay while
+uploading, full preview when done). Other file types keep the icon progress
+row.
+
 ```tsx
 <UploadDropzone
   objectKey={(f) => `uploads/${f.name}`}

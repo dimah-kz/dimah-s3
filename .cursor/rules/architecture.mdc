@@ -10,7 +10,7 @@ alwaysApply: false
 
 **Deps:** `core` ← `server` | `react` ← `ui`; `db` → `server` (peer); CLI is separate (scaffold only). UI: Fuma Translate. API errors: stable `code` + English `message` (client-localized). Protocol SSOT: `@dimah-s3/core` (`S3_API_ROUTES`, `createS3Client`). Plugins: `definePlugin` in `server/src/plugin/`; contexts flatten onto `s3[id]`.
 
-**Registry:** edit `packages/ui/src/` — never `registry/generated/dimah-s3-ui/`.
+**Registry:** edit `packages/ui/src/components/dimah-s3/`, `hooks/`, `lib/` — never hand-edit `packages/ui/src/components/ui/` (stock shadcn; refresh with `sync:shadcn`) or `registry/generated/dimah-s3-ui/`.
 
 **CLI:** edit `packages/cli/src/` + `templates/` — never hand-edit `packages/cli/dist/templates/`.
 

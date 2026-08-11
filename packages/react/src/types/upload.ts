@@ -29,6 +29,21 @@ export type UploadPhase =
   | "success"
   | "error";
 
+/** Display metadata for a file in upload UI (no raw `File`). */
+export type UploadFileInfo = {
+  /** Display file name. */
+  name: string;
+  /** File size in bytes. */
+  size: number;
+  /** MIME type from the browser `File`. */
+  type: string;
+  /**
+   * Object URL for an image thumbnail, or `null` for non-images.
+   * Created/revoked by upload hooks — do not revoke manually while hooks own it.
+   */
+  previewUrl: string | null;
+};
+
 /** Per-upload options passed to the presign API. */
 export type UploadRequestOptions = {
   /** Custom S3 object metadata (`x-amz-meta-*`). */

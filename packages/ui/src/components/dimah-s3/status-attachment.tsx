@@ -15,12 +15,15 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from "@/components/ui/attachment";
+import type { AttachmentState } from "@/lib/attachment-state";
 
-export type StatusAttachmentState =
-  "idle" | "uploading" | "processing" | "error" | "done";
+/** @deprecated Use {@link AttachmentState}. */
+export type StatusAttachmentState = AttachmentState;
+
+export type { AttachmentState };
 
 export type StatusAttachmentProps = {
-  state: StatusAttachmentState;
+  state: AttachmentState;
   title?: ReactNode;
   description?: ReactNode;
   media?: ReactNode;
@@ -59,7 +62,7 @@ export function StatusAttachment({
       <AttachmentMedia>{media ?? defaultMedia}</AttachmentMedia>
       <AttachmentContent>
         {title != null ? (
-          <AttachmentTitle className="max-w-[30ch]">{title}</AttachmentTitle>
+          <AttachmentTitle className="max-w-[48ch]">{title}</AttachmentTitle>
         ) : null}
         {description != null ? (
           <AttachmentDescription

@@ -1,12 +1,16 @@
 "use client";
 
-import { useCallback, useContext, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { validateFile } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import { createSpeedTracker } from "../helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
 import { useFormatValidateFileError } from "../helpers/format-validate-file-error";
+import {
+  createImagePreviewUrl,
+  revokePreviewUrl,
+} from "../helpers/file-preview";
 import { useLiveRef } from "../internal-helpers";
 import type {
   UploadConfig,
@@ -38,6 +42,13 @@ export type UseUploadState = {
   fileName: string | null;
   /** Size of the file being uploaded in bytes. */
   fileSize: number | null;
+  /** MIME type of the file being uploaded. */
+  fileType: string | null;
+  /**
+   * Image thumbnail object URL, or `null`.
+   * Kept through success; revoked when state returns to idle.
+   */
+  previewUrl: string | null;
 };
 
 export type UseUploadReturn = UseUploadState & {
@@ -72,23 +83,9 @@ export type UseUploadReturn = UseUploadState & {
    */
   cancel: () => void;
   /**
-   * Stop the upload and — when multipart with `uploadStore` is active —
-   * preserve S3 parts and the store entry for a future resume.
-   *
-   * Compared to `cancel()`:
-   * - Does **not** call `AbortMultipartUpload` (parts stay on S3).
-   * - Does **not** remove the `uploadStore` entry.
-   * - Does **not** fire the `onCancel` callback.
-   *
-   * The next call to `upload(sameFile, sameKey)` will detect the stored
-   * `uploadId`, verify the existing parts via `listParts`, and continue
-   * uploading from where it stopped.
-   *
-   * For **simple uploads** or multipart **without** `uploadStore`, this is
-   * identical to `cancel()` — there is no S3 state worth preserving.
-   *
-   * Intended for custom UIs that want to offer a "save for later / resume"
-   * workflow.
+   * Soft-stop: preserves S3 parts and store entry so a future `upload()` can
+   * resume. For non-resumable uploads, identical to `cancel()`.
+   * See `UseUploadReturn.detach` for full semantics.
    */
   detach: () => void;
   /**
@@ -114,6 +111,8 @@ const INITIAL_STATE: UseUploadState = {
   result: null,
   fileName: null,
   fileSize: null,
+  fileType: null,
+  previewUrl: null,
 };
 
 type ActiveUpload = {
@@ -137,9 +136,22 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
   const activeUploadRef = useRef<ActiveUpload | null>(null);
   /** Set before aborting so the AbortError catch skips cancel callbacks. */
   const detachingRef = useRef(false);
+  const previewUrlRef = useRef<string | null>(null);
   const speedUpdaterRef = useRef(
     createThrottledSpeedUpdater(createSpeedTracker()),
   );
+
+  const revokeCurrentPreview = useCallback(() => {
+    revokePreviewUrl(previewUrlRef.current);
+    previewUrlRef.current = null;
+  }, []);
+
+  const clearToIdle = useCallback(() => {
+    revokeCurrentPreview();
+    setState(INITIAL_STATE);
+  }, [revokeCurrentPreview]);
+
+  useEffect(() => () => revokeCurrentPreview(), [revokeCurrentPreview]);
 
   const upload = useCallback(
     async (
@@ -147,11 +159,17 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
       objectKey: string,
       requestOptions?: UploadRequestOptions,
     ) => {
+      revokeCurrentPreview();
+      const previewUrl = createImagePreviewUrl(file);
+      previewUrlRef.current = previewUrl;
+
       setState({
         ...INITIAL_STATE,
         phase: "validating",
         fileName: file.name,
         fileSize: file.size,
+        fileType: file.type,
+        previewUrl,
       });
 
       const opts = optsRef.current;
@@ -247,7 +265,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
             return;
           }
           opts.onCancel?.(file);
-          setState(INITIAL_STATE);
+          clearToIdle();
           return;
         }
         const message = err instanceof Error ? err.message : "Upload failed";
@@ -258,7 +276,13 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
         activeUploadRef.current = null;
       }
     },
-    [apiRef, optsRef, formatValidateFileError],
+    [
+      apiRef,
+      optsRef,
+      formatValidateFileError,
+      revokeCurrentPreview,
+      clearToIdle,
+    ],
   );
 
   const cancel = useCallback(() => {
@@ -278,8 +302,8 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
           .catch(() => {});
       }
     }
-    setState(INITIAL_STATE);
-  }, [apiRef, optsRef]);
+    clearToIdle();
+  }, [apiRef, optsRef, clearToIdle]);
 
   const detach = useCallback(() => {
     const active = activeUploadRef.current;
@@ -287,13 +311,13 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     // Signal the AbortError catch not to fire onCancel or re-reset state.
     detachingRef.current = true;
     abortRef.current?.abort();
-    setState(INITIAL_STATE);
-  }, []);
+    clearToIdle();
+  }, [clearToIdle]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
-    setState(INITIAL_STATE);
-  }, []);
+    clearToIdle();
+  }, [clearToIdle]);
 
   return { ...state, upload, cancel, detach, reset };
 }

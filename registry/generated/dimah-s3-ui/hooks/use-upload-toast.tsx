@@ -3,14 +3,18 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import type { UploadProgress, MultiUploadFileState } from "@dimah-s3/react";
+import type {
+  UploadFileInfo,
+  UploadProgress,
+  MultiUploadFileState,
+} from "@dimah-s3/react";
 
 import { toast } from "@/components/ui/toast";
 
 export type UploadToastCtrl = {
   mode: "single" | "multi";
   phase: string;
-  fileInfo?: { name: string; size: number } | null;
+  fileInfo?: UploadFileInfo | null;
   progress?: UploadProgress;
   files?: MultiUploadFileState[];
   totalProgress?: UploadProgress;

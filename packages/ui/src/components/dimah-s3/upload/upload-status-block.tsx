@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  UploadFileInfo,
   UploadPhase,
   UploadProgress,
   MultiUploadFileState,
@@ -15,7 +16,7 @@ export type UploadStatusBlockProps =
       phase: UploadPhase;
       progress: UploadProgress;
       error: string | null;
-      fileInfo: { name: string; size: number } | null;
+      fileInfo: UploadFileInfo | null;
       onCancel?: () => void;
       onPause?: () => void;
     }
@@ -37,7 +38,12 @@ export function UploadStatusBlock(props: UploadStatusBlockProps) {
         phase={props.phase}
         progress={f.progress}
         error={f.error ?? props.error}
-        fileInfo={{ name: f.fileName, size: f.fileSize }}
+        fileInfo={{
+          name: f.fileName,
+          size: f.fileSize,
+          type: f.fileType,
+          previewUrl: f.previewUrl,
+        }}
         onCancel={props.onCancel}
         onPause={props.onPause}
       />

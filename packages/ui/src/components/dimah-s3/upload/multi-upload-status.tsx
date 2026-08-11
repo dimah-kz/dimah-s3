@@ -3,10 +3,15 @@
 import { XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { formatEta } from "@dimah-s3/react";
-import type { UploadProgress, MultiUploadFileState } from "@dimah-s3/react";
+import type {
+  UploadProgress,
+  MultiUploadFileState,
+  MultiUploadPhase,
+} from "@dimah-s3/react";
 import { FileAttachment } from "@/components/dimah-s3/file-attachment";
 import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
 import { AttachmentAction } from "@/components/ui/attachment";
+import type { AttachmentState } from "@/lib/attachment-state";
 import {
   Progress,
   ProgressLabel,
@@ -15,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export type MultiUploadStatusProps = {
-  phase: string;
+  phase: MultiUploadPhase;
   files: MultiUploadFileState[];
   totalProgress: UploadProgress;
   error: string | null;
@@ -128,7 +133,7 @@ export function MultiUploadStatus({
 
 function fileAttachmentState(
   status: MultiUploadFileState["status"],
-): "idle" | "uploading" | "error" | "done" {
+): AttachmentState {
   switch (status) {
     case "pending":
       return "idle";
@@ -150,6 +155,7 @@ function FileList({ files }: { files: MultiUploadFileState[] }) {
           state={fileAttachmentState(f.status)}
           fileName={f.fileName}
           fileSize={f.fileSize}
+          previewUrl={f.previewUrl}
           percent={f.progress.percent}
           error={f.error}
         />
