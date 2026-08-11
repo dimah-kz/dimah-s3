@@ -8,7 +8,6 @@ export function UploadDropzoneDemo() {
       objectKey={(file) => `demo/${Date.now()}-${file.name}`}
       maxFiles={5}
       concurrentFiles={2}
-      accept={["image/*", ".pdf", ".txt"]}
       maxFileSize={25 * 1024 * 1024}
       className="w-full max-w-md"
     />
