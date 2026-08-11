@@ -78,9 +78,7 @@ export type UseUploadReturn = {
   fileRejections: readonly FileRejection[];
 };
 
-export function useUpload(
-  options: UseUploadOptions,
-): UseUploadReturn {
+export function useUpload(options: UseUploadOptions): UseUploadReturn {
   const {
     objectKey,
     uploadOptions,

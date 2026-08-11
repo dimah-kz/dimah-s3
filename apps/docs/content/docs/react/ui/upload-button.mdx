@@ -58,6 +58,20 @@ npx shadcn@latest add @dimah-s3/upload-button
 <DeleteButton variant="outline" objectKey="uploads/report.pdf" />
 ```
 
+## Attachment size
+
+Inline status rows use [`FileAttachment` / `StatusAttachment`](/docs/react/ui/attachment).
+On wired buttons, pass `attachmentSize` / `attachmentOrientation` so they do not
+clash with Button `size`:
+
+```tsx
+<UploadButton
+  objectKey={(f) => `uploads/${f.name}`}
+  size="sm"
+  attachmentSize="xs"
+/>
+```
+
 ## Status placement
 
 Inline status uses shadcn **Attachment** rows. Control it with a single `status` prop:
@@ -105,6 +119,7 @@ function CustomUpload() {
         error={ctrl.error}
         fileInfo={ctrl.fileInfo}
         onCancel={ctrl.cancel}
+        size="xs"
       />
     </>
   );

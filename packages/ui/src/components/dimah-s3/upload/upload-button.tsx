@@ -13,6 +13,7 @@ import {
 } from "@dimah-s3/react";
 import { cn } from "@/lib/utils";
 import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import type { AttachmentLayoutAliases } from "@/lib/attachment";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -27,39 +28,38 @@ const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 const EMPTY_FILES: MultiUploadFileState[] = [];
 
 /** Props for {@link UploadButton}. Extends {@link UseUploadOptions} or {@link UseMultiUploadOptions}. */
-export type UploadButtonProps = (
-  UseUploadOptions | UseMultiUploadOptions
-) & {
-  className?: string;
-  /** Button label. */
-  label?: string;
-  /** Custom button content. Replaces default icon + label. */
-  children?: ReactNode;
-  disabled?: boolean;
-  tooltipText?: string;
-  /** Show toasts during upload. @default true */
-  toast?: boolean;
-  /**
-   * Inline status control.
-   * - `true` (default): render below the button
-   * - `false`: hide status
-   * - `(node) => ReactNode`: wrap or relocate the status node
-   */
-  status?: StatusSlot;
-  /**
-   * Force multi-file mode. When omitted, multi mode is inferred from
-   * `maxFiles > 1`.
-   */
-  multiple?: boolean;
-  /** Button variant. @default "default" */
-  variant?: ComponentProps<typeof Button>["variant"];
-  /** Button size. @default "default" */
-  size?: ComponentProps<typeof Button>["size"];
-  /** Extra classes on the trigger button element. */
-  buttonClassName?: string;
-};
+export type UploadButtonProps = (UseUploadOptions | UseMultiUploadOptions) &
+  AttachmentLayoutAliases & {
+    className?: string;
+    /** Button label. */
+    label?: string;
+    /** Custom button content. Replaces default icon + label. */
+    children?: ReactNode;
+    disabled?: boolean;
+    tooltipText?: string;
+    /** Show toasts during upload. @default true */
+    toast?: boolean;
+    /**
+     * Inline status control.
+     * - `true` (default): render below the button
+     * - `false`: hide status
+     * - `(node) => ReactNode`: wrap or relocate the status node
+     */
+    status?: StatusSlot;
+    /**
+     * Force multi-file mode. When omitted, multi mode is inferred from
+     * `maxFiles > 1`.
+     */
+    multiple?: boolean;
+    /** Button variant. @default "default" */
+    variant?: ComponentProps<typeof Button>["variant"];
+    /** Button size. @default "default" */
+    size?: ComponentProps<typeof Button>["size"];
+    /** Extra classes on the trigger button element. */
+    buttonClassName?: string;
+  };
 
-type ButtonShellProps = {
+type ButtonShellProps = AttachmentLayoutAliases & {
   className?: string;
   label?: string;
   children?: ReactNode;
@@ -83,6 +83,8 @@ function UploadButtonSingle({
   variant = "default",
   size = "default",
   buttonClassName,
+  attachmentSize,
+  attachmentOrientation,
   ...options
 }: ButtonShellProps & UseUploadOptions) {
   const t = useTranslations();
@@ -117,6 +119,8 @@ function UploadButtonSingle({
         fileInfo={ctrl.fileInfo}
         onCancel={ctrl.cancel}
         onPause={canPause ? ctrl.detach : undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     );
   const status = resolveStatusSlot(statusSlot, statusNode);
@@ -170,6 +174,8 @@ function UploadButtonMulti({
   variant = "default",
   size = "default",
   buttonClassName,
+  attachmentSize,
+  attachmentOrientation,
   ...options
 }: ButtonShellProps & UseMultiUploadOptions) {
   const t = useTranslations();
@@ -204,6 +210,8 @@ function UploadButtonMulti({
         error={ctrl.error}
         onCancel={ctrl.cancel}
         onPause={canPause ? ctrl.detach : undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     );
   const status = resolveStatusSlot(statusSlot, statusNode);
@@ -248,8 +256,7 @@ function UploadButtonMulti({
 
 export function UploadButton({ multiple, ...props }: UploadButtonProps) {
   const isMulti =
-    multiple === true ||
-    ((props as UseMultiUploadOptions).maxFiles ?? 1) > 1;
+    multiple === true || ((props as UseMultiUploadOptions).maxFiles ?? 1) > 1;
 
   if (isMulti) {
     return (
@@ -260,8 +267,6 @@ export function UploadButton({ multiple, ...props }: UploadButtonProps) {
   }
 
   return (
-    <UploadButtonSingle
-      {...(props as ButtonShellProps & UseUploadOptions)}
-    />
+    <UploadButtonSingle {...(props as ButtonShellProps & UseUploadOptions)} />
   );
 }

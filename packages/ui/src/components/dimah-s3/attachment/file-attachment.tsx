@@ -13,17 +13,26 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from "@/components/ui/attachment";
-import { CircleProgress } from "@/components/dimah-s3/circle-progress";
-import type { AttachmentState } from "@/lib/attachment-state";
+import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
+import {
+  ATTACHMENT_ERROR_DESCRIPTION_CLASS,
+  type AttachmentLayoutProps,
+  type AttachmentSize,
+  type AttachmentState,
+} from "@/lib/attachment";
 import { FileTypeGlyph } from "@/lib/file-type-icon";
 import { cn } from "@/lib/utils";
 
-/** @deprecated Use {@link AttachmentState}. */
-export type FileAttachmentState = AttachmentState;
+const PROGRESS_BY_SIZE = {
+  default: { size: 20, strokeWidth: 2.5, className: "size-5" },
+  sm: { size: 16, strokeWidth: 2, className: "size-4" },
+  xs: { size: 14, strokeWidth: 1.5, className: "size-3.5" },
+} as const satisfies Record<
+  AttachmentSize,
+  { size: number; strokeWidth: number; className: string }
+>;
 
-export type { AttachmentState };
-
-export type FileAttachmentProps = {
+export type FileAttachmentProps = AttachmentLayoutProps & {
   state: AttachmentState;
   fileName: string;
   fileSize?: number;
@@ -52,10 +61,13 @@ export function FileAttachment({
   error,
   onCancel,
   onPause,
+  size = "sm",
+  orientation = "horizontal",
   className,
 }: FileAttachmentProps) {
   const t = useTranslations();
   const hasPreview = Boolean(previewUrl);
+  const progress = PROGRESS_BY_SIZE[size];
 
   const resolvedDescription =
     description ??
@@ -72,50 +84,40 @@ export function FileAttachment({
   const showProgressOverlay =
     state === "uploading" || state === "processing" || state === "idle";
 
+  const mediaOverlay = showProgressOverlay ? (
+    <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+      <CircleProgress
+        percent={state === "uploading" ? percent : 0}
+        size={progress.size}
+        strokeWidth={progress.strokeWidth}
+        className={progress.className}
+      />
+    </div>
+  ) : state === "error" ? (
+    <div className="absolute inset-0 flex items-center justify-center bg-destructive/20 text-destructive">
+      <AlertCircleIcon />
+    </div>
+  ) : null;
+
   return (
     <Attachment
       state={state}
-      size="sm"
-      orientation="horizontal"
-      className={cn("w-full max-w-full", className)}
+      size={size}
+      orientation={orientation}
+      className={cn(
+        orientation === "horizontal" && "w-full max-w-full",
+        className,
+      )}
     >
       {hasPreview ? (
         <AttachmentMedia variant="image">
           <img src={previewUrl!} alt="" />
-          {showProgressOverlay ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <CircleProgress
-                percent={state === "uploading" ? percent : 0}
-                size={16}
-                strokeWidth={2}
-                className="size-4"
-              />
-            </div>
-          ) : null}
-          {state === "error" ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-destructive/20 text-destructive">
-              <AlertCircleIcon className="size-4" />
-            </div>
-          ) : null}
+          {mediaOverlay}
         </AttachmentMedia>
       ) : (
         <AttachmentMedia>
           <FileTypeGlyph fileName={fileName} fileType={fileType} />
-          {showProgressOverlay ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <CircleProgress
-                percent={state === "uploading" ? percent : 0}
-                size={16}
-                strokeWidth={2}
-                className="size-4"
-              />
-            </div>
-          ) : null}
-          {state === "error" ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-destructive/20 text-destructive">
-              <AlertCircleIcon className="size-4" />
-            </div>
-          ) : null}
+          {mediaOverlay}
         </AttachmentMedia>
       )}
       <AttachmentContent>
@@ -125,9 +127,7 @@ export function FileAttachment({
         {resolvedDescription != null ? (
           <AttachmentDescription
             className={
-              state === "error"
-                ? "overflow-visible whitespace-normal [overflow-wrap:anywhere]"
-                : undefined
+              state === "error" ? ATTACHMENT_ERROR_DESCRIPTION_CLASS : undefined
             }
           >
             {resolvedDescription}

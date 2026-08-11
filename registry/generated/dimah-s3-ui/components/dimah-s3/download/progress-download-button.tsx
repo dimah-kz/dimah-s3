@@ -9,8 +9,9 @@ import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useFetchDownload } from "@dimah-s3/react";
 import { resolveStatusSlot, type StatusSlot } from "@/registry/dimah-s3-ui/lib/status-slot";
+import type { AttachmentLayoutAliases } from "@/registry/dimah-s3-ui/lib/attachment";
 import { Button } from "@/registry/dimah-s3-ui/components/ui/button";
-import { StatusAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/status-attachment";
+import { StatusAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/attachment/status-attachment";
 import {
   Tooltip,
   TooltipContent,
@@ -19,43 +20,44 @@ import {
 import { useDownloadToast } from "@/registry/dimah-s3-ui/hooks/use-download-toast";
 
 /** Props for {@link ProgressDownloadButton}. */
-export type ProgressDownloadButtonProps = FetchDownloadHooks & {
-  /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
-  api?: S3Api;
-  /** S3 object key to download. */
-  objectKey: string;
-  /** Download filename for Content-Disposition. */
-  fileName?: string;
-  /** Total file size in bytes (used for progress display). */
-  fileSize?: number;
-  /** Target bucket (overrides server default). */
-  bucket?: string;
-  /** Button label. */
-  label?: string;
-  /** Custom button content. Replaces default icon + label / progress text. */
-  children?: ReactNode;
-  className?: string;
-  fillClassName?: string;
-  disabled?: boolean;
-  tooltipText?: string;
-  /** Tooltip while downloading (click cancels). @default "Cancel download" */
-  cancelTooltipText?: string;
-  /** Show toasts during download. @default true */
-  toast?: boolean;
-  /**
-   * Inline status control.
-   * - `true` (default): render below the button
-   * - `false`: hide status
-   * - `(node) => ReactNode`: wrap or relocate the status node
-   */
-  status?: StatusSlot;
-  /** Button variant. @default "outline" */
-  variant?: ComponentProps<typeof Button>["variant"];
-  /** Button size. @default "default" */
-  size?: ComponentProps<typeof Button>["size"];
-  /** Extra classes on the trigger button element. */
-  buttonClassName?: string;
-};
+export type ProgressDownloadButtonProps = FetchDownloadHooks &
+  AttachmentLayoutAliases & {
+    /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
+    api?: S3Api;
+    /** S3 object key to download. */
+    objectKey: string;
+    /** Download filename for Content-Disposition. */
+    fileName?: string;
+    /** Total file size in bytes (used for progress display). */
+    fileSize?: number;
+    /** Target bucket (overrides server default). */
+    bucket?: string;
+    /** Button label. */
+    label?: string;
+    /** Custom button content. Replaces default icon + label / progress text. */
+    children?: ReactNode;
+    className?: string;
+    fillClassName?: string;
+    disabled?: boolean;
+    tooltipText?: string;
+    /** Tooltip while downloading (click cancels). @default "Cancel download" */
+    cancelTooltipText?: string;
+    /** Show toasts during download. @default true */
+    toast?: boolean;
+    /**
+     * Inline status control.
+     * - `true` (default): render below the button
+     * - `false`: hide status
+     * - `(node) => ReactNode`: wrap or relocate the status node
+     */
+    status?: StatusSlot;
+    /** Button variant. @default "outline" */
+    variant?: ComponentProps<typeof Button>["variant"];
+    /** Button size. @default "default" */
+    size?: ComponentProps<typeof Button>["size"];
+    /** Extra classes on the trigger button element. */
+    buttonClassName?: string;
+  };
 
 export function ProgressDownloadButton({
   api,
@@ -75,6 +77,8 @@ export function ProgressDownloadButton({
   variant = "outline",
   size = "default",
   buttonClassName,
+  attachmentSize,
+  attachmentOrientation,
   beforeDownload,
   onDownloadStart,
   onProgress,
@@ -150,6 +154,8 @@ export function ProgressDownloadButton({
         state="error"
         title={t("Download failed", { note: "status" })}
         description={dl.error ?? undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     ) : null;
 

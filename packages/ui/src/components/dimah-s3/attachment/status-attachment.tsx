@@ -6,7 +6,6 @@ import {
   CheckCircleIcon,
   LoaderCircleIcon,
 } from "lucide-react";
-import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 import {
   Attachment,
   AttachmentActions,
@@ -14,15 +13,15 @@ import {
   AttachmentDescription,
   AttachmentMedia,
   AttachmentTitle,
-} from "@/registry/dimah-s3-ui/components/ui/attachment";
-import type { AttachmentState } from "@/registry/dimah-s3-ui/lib/attachment-state";
+} from "@/components/ui/attachment";
+import {
+  ATTACHMENT_ERROR_DESCRIPTION_CLASS,
+  type AttachmentLayoutProps,
+  type AttachmentState,
+} from "@/lib/attachment";
+import { cn } from "@/lib/utils";
 
-/** @deprecated Use {@link AttachmentState}. */
-export type StatusAttachmentState = AttachmentState;
-
-export type { AttachmentState };
-
-export type StatusAttachmentProps = {
+export type StatusAttachmentProps = AttachmentLayoutProps & {
   state: AttachmentState;
   title?: ReactNode;
   description?: ReactNode;
@@ -41,6 +40,8 @@ export function StatusAttachment({
   description,
   media,
   actions,
+  size = "sm",
+  orientation = "horizontal",
   className,
 }: StatusAttachmentProps) {
   const defaultMedia =
@@ -55,9 +56,12 @@ export function StatusAttachment({
   return (
     <Attachment
       state={state}
-      size="sm"
-      orientation="horizontal"
-      className={cn("w-full max-w-full", className)}
+      size={size}
+      orientation={orientation}
+      className={cn(
+        orientation === "horizontal" && "w-full max-w-full",
+        className,
+      )}
     >
       <AttachmentMedia>{media ?? defaultMedia}</AttachmentMedia>
       <AttachmentContent>
@@ -67,9 +71,7 @@ export function StatusAttachment({
         {description != null ? (
           <AttachmentDescription
             className={
-              state === "error"
-                ? "overflow-visible whitespace-normal [overflow-wrap:anywhere]"
-                : undefined
+              state === "error" ? ATTACHMENT_ERROR_DESCRIPTION_CLASS : undefined
             }
           >
             {description}

@@ -15,6 +15,7 @@ import {
 import { formatFileSize } from "@dimah-s3/core";
 import { cn } from "@/lib/utils";
 import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import type { AttachmentLayoutAliases } from "@/lib/attachment";
 import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
 import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
 import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
@@ -23,33 +24,32 @@ const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 const EMPTY_FILES: MultiUploadFileState[] = [];
 
 /** Props for {@link UploadDropzone}. Extends {@link UseUploadOptions} or {@link UseMultiUploadOptions}. */
-export type UploadDropzoneProps = (
-  UseUploadOptions | UseMultiUploadOptions
-) & {
-  className?: string;
-  /** Dropzone label. */
-  label?: string;
-  /**
-   * Custom dropzone chrome (icon + hints). Replaces the built-in idle content
-   * only — status still renders via the `status` prop.
-   */
-  children?: ReactNode;
-  disabled?: boolean;
-  /** Show toasts during upload. @default true */
-  toast?: boolean;
-  /**
-   * Inline status control.
-   * - `true` (default): render inside the dropzone
-   * - `false`: hide status
-   * - `(node) => ReactNode`: wrap or relocate the status node
-   */
-  status?: StatusSlot;
-  /**
-   * Force multi-file mode. When omitted, multi mode is inferred from
-   * `maxFiles > 1`.
-   */
-  multiple?: boolean;
-};
+export type UploadDropzoneProps = (UseUploadOptions | UseMultiUploadOptions) &
+  AttachmentLayoutAliases & {
+    className?: string;
+    /** Dropzone label. */
+    label?: string;
+    /**
+     * Custom dropzone chrome (icon + hints). Replaces the built-in idle content
+     * only — status still renders via the `status` prop.
+     */
+    children?: ReactNode;
+    disabled?: boolean;
+    /** Show toasts during upload. @default true */
+    toast?: boolean;
+    /**
+     * Inline status control.
+     * - `true` (default): render inside the dropzone
+     * - `false`: hide status
+     * - `(node) => ReactNode`: wrap or relocate the status node
+     */
+    status?: StatusSlot;
+    /**
+     * Force multi-file mode. When omitted, multi mode is inferred from
+     * `maxFiles > 1`.
+     */
+    multiple?: boolean;
+  };
 
 function dropzoneHints(
   options: UseUploadOptions | UseMultiUploadOptions,
@@ -133,6 +133,8 @@ function UploadDropzoneSingle({
   disabled,
   toast: enableToast = true,
   status: statusSlot = true,
+  attachmentSize,
+  attachmentOrientation,
   ...options
 }: Omit<UploadDropzoneProps, "multiple"> & UseUploadOptions) {
   const t = useTranslations();
@@ -165,6 +167,8 @@ function UploadDropzoneSingle({
         fileInfo={ctrl.fileInfo}
         onCancel={ctrl.cancel}
         onPause={canPause ? ctrl.detach : undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     );
 
@@ -226,6 +230,8 @@ function UploadDropzoneMulti({
   disabled,
   toast: enableToast = true,
   status: statusSlot = true,
+  attachmentSize,
+  attachmentOrientation,
   ...options
 }: Omit<UploadDropzoneProps, "multiple"> & UseMultiUploadOptions) {
   const t = useTranslations();
@@ -258,6 +264,8 @@ function UploadDropzoneMulti({
         error={ctrl.error}
         onCancel={ctrl.cancel}
         onPause={canPause ? ctrl.detach : undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     );
 
@@ -314,8 +322,7 @@ function UploadDropzoneMulti({
 
 export function UploadDropzone({ multiple, ...props }: UploadDropzoneProps) {
   const isMulti =
-    multiple === true ||
-    ((props as UseMultiUploadOptions).maxFiles ?? 1) > 1;
+    multiple === true || ((props as UseMultiUploadOptions).maxFiles ?? 1) > 1;
 
   if (isMulti) {
     return (
@@ -328,8 +335,7 @@ export function UploadDropzone({ multiple, ...props }: UploadDropzoneProps) {
 
   return (
     <UploadDropzoneSingle
-      {...(props as Omit<UploadDropzoneProps, "multiple"> &
-        UseUploadOptions)}
+      {...(props as Omit<UploadDropzoneProps, "multiple"> & UseUploadOptions)}
     />
   );
 }

@@ -5,7 +5,10 @@ import type {
   MultiUploadFileState,
   MultiUploadPhase,
 } from "../types";
-import { useMultiFileUpload, type UseMultiFileUploadOptions } from "./use-multi-file-upload";
+import {
+  useMultiFileUpload,
+  type UseMultiFileUploadOptions,
+} from "./use-multi-file-upload";
 import {
   useFileIntake,
   type DropzoneInputProps,

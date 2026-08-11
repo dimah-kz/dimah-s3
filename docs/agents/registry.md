@@ -12,7 +12,7 @@
 
 | Own the change in…     | Examples                                                                        |
 | ---------------------- | ------------------------------------------------------------------------------- |
-| `components/dimah-s3/` | `FileAttachment`, upload/download/delete buttons, status rows                   |
+| `components/dimah-s3/` | `attachment/`, upload/download/delete buttons, status rows                      |
 | `hooks/` / `lib/`      | toast hooks, `AttachmentState` derived from `ComponentProps<typeof Attachment>` |
 
 To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (overwrite). Compose on top — never fork the stock file.

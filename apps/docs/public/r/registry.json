@@ -36,14 +36,14 @@
           "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/file-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/file-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/circle-progress.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/circle-progress.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/circle-progress.tsx"
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/hooks/use-upload-toast.tsx",
@@ -51,9 +51,9 @@
           "target": "@hooks/use-upload-toast.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/status-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/status-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
@@ -61,9 +61,9 @@
           "target": "@lib/status-slot.ts"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment-state.ts"
+          "target": "@lib/attachment.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/file-type-icon.tsx",
@@ -112,14 +112,14 @@
           "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/file-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/file-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/circle-progress.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/circle-progress.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/circle-progress.tsx"
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/hooks/use-upload-toast.tsx",
@@ -127,9 +127,9 @@
           "target": "@hooks/use-upload-toast.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/status-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/status-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
@@ -137,9 +137,9 @@
           "target": "@lib/status-slot.ts"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment-state.ts"
+          "target": "@lib/attachment.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/file-type-icon.tsx",
@@ -172,9 +172,9 @@
           "target": "@hooks/use-download-toast.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/status-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/status-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
@@ -182,9 +182,9 @@
           "target": "@lib/status-slot.ts"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment-state.ts"
+          "target": "@lib/attachment.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/file-type-icon.tsx",
@@ -217,9 +217,9 @@
           "target": "@hooks/use-download-toast.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/status-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/status-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
@@ -227,9 +227,9 @@
           "target": "@lib/status-slot.ts"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment-state.ts"
+          "target": "@lib/attachment.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/file-type-icon.tsx",
@@ -268,9 +268,9 @@
           "target": "@hooks/use-delete-toast.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/components/dimah-s3/status-attachment.tsx",
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/status-attachment.tsx"
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
           "path": "generated/dimah-s3-ui/lib/status-slot.ts",
@@ -278,9 +278,9 @@
           "target": "@lib/status-slot.ts"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/attachment-state.ts",
+          "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment-state.ts"
+          "target": "@lib/attachment.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/file-type-icon.tsx",

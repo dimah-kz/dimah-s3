@@ -9,8 +9,9 @@ import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDelete } from "@dimah-s3/react";
 import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import type { AttachmentLayoutAliases } from "@/lib/attachment";
 import { Button } from "@/components/ui/button";
-import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
+import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,42 +37,43 @@ function isolateLtr(value: string): string {
 }
 
 /** Props for {@link DeleteButton}. */
-export type DeleteButtonProps = DeleteHooks & {
-  /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
-  api?: S3Api;
-  /** S3 object key to delete. */
-  objectKey: string;
-  /** Display file name in the confirmation dialog. */
-  fileName?: string;
-  /** Display file size in the confirmation dialog. */
-  fileSize?: number;
-  /** Target bucket (overrides server default). */
-  bucket?: string;
-  /** Button label. */
-  label?: string;
-  /** Custom button content. Replaces default icon + label. */
-  children?: ReactNode;
-  className?: string;
-  disabled?: boolean;
-  tooltipText?: string;
-  /** Show a toast during delete. @default true */
-  toast?: boolean;
-  /**
-   * Inline status control.
-   * - `true` (default): render below the button
-   * - `false`: hide status
-   * - `(node) => ReactNode`: wrap or relocate the status node
-   */
-  status?: StatusSlot;
-  confirmTitle?: string;
-  confirmDescription?: string;
-  /** Button variant. @default "destructive" */
-  variant?: ComponentProps<typeof Button>["variant"];
-  /** Button size. @default "default" */
-  size?: ComponentProps<typeof Button>["size"];
-  /** Extra classes on the trigger button element. */
-  buttonClassName?: string;
-};
+export type DeleteButtonProps = DeleteHooks &
+  AttachmentLayoutAliases & {
+    /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
+    api?: S3Api;
+    /** S3 object key to delete. */
+    objectKey: string;
+    /** Display file name in the confirmation dialog. */
+    fileName?: string;
+    /** Display file size in the confirmation dialog. */
+    fileSize?: number;
+    /** Target bucket (overrides server default). */
+    bucket?: string;
+    /** Button label. */
+    label?: string;
+    /** Custom button content. Replaces default icon + label. */
+    children?: ReactNode;
+    className?: string;
+    disabled?: boolean;
+    tooltipText?: string;
+    /** Show a toast during delete. @default true */
+    toast?: boolean;
+    /**
+     * Inline status control.
+     * - `true` (default): render below the button
+     * - `false`: hide status
+     * - `(node) => ReactNode`: wrap or relocate the status node
+     */
+    status?: StatusSlot;
+    confirmTitle?: string;
+    confirmDescription?: string;
+    /** Button variant. @default "destructive" */
+    variant?: ComponentProps<typeof Button>["variant"];
+    /** Button size. @default "default" */
+    size?: ComponentProps<typeof Button>["size"];
+    /** Extra classes on the trigger button element. */
+    buttonClassName?: string;
+  };
 
 export function DeleteButton({
   api,
@@ -91,6 +93,8 @@ export function DeleteButton({
   variant = "destructive",
   size = "default",
   buttonClassName,
+  attachmentSize,
+  attachmentOrientation,
   beforeDelete,
   onDeleteStart,
   onSuccess,
@@ -155,12 +159,16 @@ export function DeleteButton({
           note: "status",
           variables: { name: truncateFileName(displayName) },
         })}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     ) : del.phase === "error" ? (
       <StatusAttachment
         state="error"
         title={t("Delete failed", { note: "status" })}
         description={del.error ?? undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     ) : null;
 

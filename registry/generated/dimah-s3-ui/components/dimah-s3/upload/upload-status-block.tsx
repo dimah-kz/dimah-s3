@@ -9,28 +9,34 @@ import type {
 } from "@dimah-s3/react";
 import { UploadStatus } from "@/registry/dimah-s3-ui/components/dimah-s3/upload/upload-status";
 import { MultiUploadStatus } from "@/registry/dimah-s3-ui/components/dimah-s3/upload/multi-upload-status";
+import type { AttachmentLayoutProps } from "@/registry/dimah-s3-ui/lib/attachment";
 
-export type UploadStatusBlockProps =
-  | {
-      mode: "single";
-      phase: UploadPhase;
-      progress: UploadProgress;
-      error: string | null;
-      fileInfo: UploadFileInfo | null;
-      onCancel?: () => void;
-      onPause?: () => void;
-    }
-  | {
-      mode: "multi";
-      phase: MultiUploadPhase;
-      files: MultiUploadFileState[];
-      totalProgress: UploadProgress;
-      error: string | null;
-      onCancel?: () => void;
-      onPause?: () => void;
-    };
+export type UploadStatusBlockProps = AttachmentLayoutProps &
+  (
+    | {
+        mode: "single";
+        phase: UploadPhase;
+        progress: UploadProgress;
+        error: string | null;
+        fileInfo: UploadFileInfo | null;
+        onCancel?: () => void;
+        onPause?: () => void;
+      }
+    | {
+        mode: "multi";
+        phase: MultiUploadPhase;
+        files: MultiUploadFileState[];
+        totalProgress: UploadProgress;
+        error: string | null;
+        onCancel?: () => void;
+        onPause?: () => void;
+      }
+  );
 
 export function UploadStatusBlock(props: UploadStatusBlockProps) {
+  const { size, orientation } = props;
+  const layout = { size, orientation };
+
   if (props.mode === "multi" && props.files.length === 1) {
     const f = props.files[0];
     return (
@@ -46,6 +52,7 @@ export function UploadStatusBlock(props: UploadStatusBlockProps) {
         }}
         onCancel={props.onCancel}
         onPause={props.onPause}
+        {...layout}
       />
     );
   }
@@ -58,9 +65,11 @@ export function UploadStatusBlock(props: UploadStatusBlockProps) {
         totalProgress={props.totalProgress}
         error={props.error}
         onCancel={props.onCancel}
+        {...layout}
       />
     );
   }
+
   return (
     <UploadStatus
       phase={props.phase}
@@ -69,6 +78,7 @@ export function UploadStatusBlock(props: UploadStatusBlockProps) {
       fileInfo={props.fileInfo}
       onCancel={props.onCancel}
       onPause={props.onPause}
+      {...layout}
     />
   );
 }

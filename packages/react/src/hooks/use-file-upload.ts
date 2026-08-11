@@ -131,7 +131,9 @@ type ActiveUpload = {
   requestOptions?: UploadRequestOptions;
 };
 
-export function useFileUpload(options: UseFileUploadOptions): UseFileUploadReturn {
+export function useFileUpload(
+  options: UseFileUploadOptions,
+): UseFileUploadReturn {
   const store = useHookStoreInstance(INITIAL_STATE);
   const state = useHookStoreShallow(store, (s) => ({
     phase: s.phase,

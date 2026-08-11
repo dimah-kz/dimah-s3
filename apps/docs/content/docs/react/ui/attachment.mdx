@@ -1,0 +1,64 @@
+---
+title: Attachment
+description: File and status rows built on shadcn Attachment — size and orientation variants.
+---
+
+import { AttachmentSizesDemo } from "@/components/demos/attachment-sizes-demo";
+import { AttachmentOrientationDemo } from "@/components/demos/attachment-orientation-demo";
+
+Status UI is built on stock shadcn **Attachment**. Dimah wraps it as
+`FileAttachment` (file name, size, preview, progress) and `StatusAttachment`
+(operation feedback).
+
+### Sizes
+
+`size` mirrors Attachment: `default` | `sm` | `xs` (product default is `sm`).
+
+<DemoPreview name="attachment-sizes-demo.tsx">
+  <AttachmentSizesDemo />
+</DemoPreview>
+
+### Orientation
+
+`orientation` is `horizontal` (default) or `vertical`.
+
+<DemoPreview name="attachment-orientation-demo.tsx">
+  <AttachmentOrientationDemo />
+</DemoPreview>
+
+## Install
+
+Shipped with `@dimah-s3/ui`. Registry installs include these files with upload,
+download, and delete items — there is no separate registry package.
+
+## Props
+
+### FileAttachment
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/file-attachment.tsx"
+  name="FileAttachmentProps"
+/>
+
+### StatusAttachment
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
+  name="StatusAttachmentProps"
+/>
+
+## Wired components
+
+Buttons and dropzones already render these rows. Pass layout without clashing
+with Button `size`:
+
+| Prop                    | Maps to Attachment |
+| ----------------------- | ------------------ |
+| `attachmentSize`        | `size`             |
+| `attachmentOrientation` | `orientation`      |
+
+```tsx
+<UploadButton objectKey={(f) => `uploads/${f.name}`} attachmentSize="xs" />
+```
+
+`UploadStatus` / `MultiUploadStatus` take `size` and `orientation` directly.

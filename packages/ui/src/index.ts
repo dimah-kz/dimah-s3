@@ -44,13 +44,17 @@ export {
 export {
   FileAttachment,
   type FileAttachmentProps,
-  type FileAttachmentState,
-} from "@/components/dimah-s3/file-attachment";
+} from "@/components/dimah-s3/attachment/file-attachment";
 export {
   StatusAttachment,
   type StatusAttachmentProps,
-  type StatusAttachmentState,
-} from "@/components/dimah-s3/status-attachment";
-export type { AttachmentState } from "@/lib/attachment-state";
+} from "@/components/dimah-s3/attachment/status-attachment";
+export type {
+  AttachmentState,
+  AttachmentSize,
+  AttachmentOrientation,
+  AttachmentLayoutProps,
+  AttachmentLayoutAliases,
+} from "@/lib/attachment";
 export { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
 export { Toaster, toast } from "@/components/ui/toast";

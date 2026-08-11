@@ -7,12 +7,13 @@ import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDownload } from "@dimah-s3/react";
 import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
+import type { AttachmentLayoutAliases } from "@/lib/attachment";
 import { Button } from "@/components/ui/button";
-import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
+import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { useDownloadToast } from "@/hooks/use-download-toast";
 
 /** Props for {@link DownloadButton}. */
-export type DownloadButtonProps = {
+export type DownloadButtonProps = AttachmentLayoutAliases & {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
   api?: S3Api;
   /** S3 object key to download. */
@@ -55,6 +56,8 @@ export function DownloadButton({
   variant = "outline",
   size = "default",
   buttonClassName,
+  attachmentSize,
+  attachmentOrientation,
 }: DownloadButtonProps) {
   const t = useTranslations();
   const toastHandlers = useDownloadToast({
@@ -92,6 +95,8 @@ export function DownloadButton({
         state="error"
         title={t("Download failed", { note: "status" })}
         description={dl.error ?? undefined}
+        size={attachmentSize}
+        orientation={attachmentOrientation}
       />
     ) : null;
 

@@ -4,9 +4,9 @@ import type { Registry } from "shadcn/schema";
 /** Paths are relative to `generated/dimah-s3-ui/` (see build-items output). */
 const statusSupportFiles = [
   {
-    path: "components/dimah-s3/status-attachment.tsx",
+    path: "components/dimah-s3/attachment/status-attachment.tsx",
     type: "registry:component",
-    target: "@components/dimah-s3/status-attachment.tsx",
+    target: "@components/dimah-s3/attachment/status-attachment.tsx",
   },
   {
     path: "lib/status-slot.ts",
@@ -14,9 +14,9 @@ const statusSupportFiles = [
     target: "@lib/status-slot.ts",
   },
   {
-    path: "lib/attachment-state.ts",
+    path: "lib/attachment.ts",
     type: "registry:lib",
-    target: "@lib/attachment-state.ts",
+    target: "@lib/attachment.ts",
   },
   {
     path: "lib/file-type-icon.tsx",
@@ -42,14 +42,14 @@ const uploadSupportFiles = [
     target: "@components/dimah-s3/upload/upload-status-block.tsx",
   },
   {
-    path: "components/dimah-s3/file-attachment.tsx",
+    path: "components/dimah-s3/attachment/file-attachment.tsx",
     type: "registry:component",
-    target: "@components/dimah-s3/file-attachment.tsx",
+    target: "@components/dimah-s3/attachment/file-attachment.tsx",
   },
   {
-    path: "components/dimah-s3/circle-progress.tsx",
+    path: "components/dimah-s3/attachment/circle-progress.tsx",
     type: "registry:component",
-    target: "@components/dimah-s3/circle-progress.tsx",
+    target: "@components/dimah-s3/attachment/circle-progress.tsx",
   },
   {
     path: "hooks/use-upload-toast.tsx",
@@ -58,7 +58,6 @@ const uploadSupportFiles = [
   },
   ...statusSupportFiles,
 ] as const satisfies Registry["items"][number]["files"];
-
 const componentDependencies = [
   "@dimah-s3/core",
   "@dimah-s3/react",

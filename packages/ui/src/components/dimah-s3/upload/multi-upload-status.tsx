@@ -8,10 +8,10 @@ import type {
   MultiUploadFileState,
   MultiUploadPhase,
 } from "@dimah-s3/react";
-import { FileAttachment } from "@/components/dimah-s3/file-attachment";
-import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
+import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
+import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { AttachmentAction } from "@/components/ui/attachment";
-import type { AttachmentState } from "@/lib/attachment-state";
+import type { AttachmentLayoutProps, AttachmentState } from "@/lib/attachment";
 import {
   Progress,
   ProgressLabel,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-export type MultiUploadStatusProps = {
+export type MultiUploadStatusProps = AttachmentLayoutProps & {
   phase: MultiUploadPhase;
   files: MultiUploadFileState[];
   totalProgress: UploadProgress;
@@ -34,9 +34,12 @@ export function MultiUploadStatus({
   totalProgress,
   error,
   onCancel,
+  size,
+  orientation,
   className,
 }: MultiUploadStatusProps) {
   const t = useTranslations();
+  const layout = { size, orientation };
 
   if (phase === "idle") return null;
 
@@ -85,7 +88,7 @@ export function MultiUploadStatus({
             </AttachmentAction>
           ) : null}
         </div>
-        <FileList files={files} />
+        <FileList files={files} {...layout} />
       </div>
     );
   }
@@ -99,8 +102,9 @@ export function MultiUploadStatus({
             note: "status",
             variables: { count: String(files.length) },
           })}
+          {...layout}
         />
-        <FileList files={files} />
+        <FileList files={files} {...layout} />
       </div>
     );
   }
@@ -112,8 +116,9 @@ export function MultiUploadStatus({
           state="error"
           title={t("Upload failed", { note: "status" })}
           description={error ?? undefined}
+          {...layout}
         />
-        {files.length > 0 ? <FileList files={files} /> : null}
+        {files.length > 0 ? <FileList files={files} {...layout} /> : null}
       </div>
     );
   }
@@ -124,6 +129,7 @@ export function MultiUploadStatus({
         state="processing"
         title={t("Validating…", { note: "upload status" })}
         className={className}
+        {...layout}
       />
     );
   }
@@ -146,7 +152,11 @@ function fileAttachmentState(
   }
 }
 
-function FileList({ files }: { files: MultiUploadFileState[] }) {
+function FileList({
+  files,
+  size,
+  orientation,
+}: AttachmentLayoutProps & { files: MultiUploadFileState[] }) {
   return (
     <div className="flex w-full flex-col gap-2">
       {files.map((f) => (
@@ -159,6 +169,8 @@ function FileList({ files }: { files: MultiUploadFileState[] }) {
           previewUrl={f.previewUrl}
           percent={f.progress.percent}
           error={f.error}
+          size={size}
+          orientation={orientation}
         />
       ))}
     </div>

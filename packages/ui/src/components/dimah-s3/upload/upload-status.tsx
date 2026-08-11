@@ -8,10 +8,11 @@ import type {
   UploadPhase,
   UploadProgress,
 } from "@dimah-s3/react";
-import { FileAttachment } from "@/components/dimah-s3/file-attachment";
-import { StatusAttachment } from "@/components/dimah-s3/status-attachment";
+import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
+import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
+import type { AttachmentLayoutProps } from "@/lib/attachment";
 
-export type UploadStatusProps = {
+export type UploadStatusProps = AttachmentLayoutProps & {
   phase: UploadPhase;
   progress: UploadProgress;
   error: string | null;
@@ -29,9 +30,12 @@ export function UploadStatus({
   fileInfo,
   onCancel,
   onPause,
+  size,
+  orientation,
   className,
 }: UploadStatusProps) {
   const t = useTranslations();
+  const layout = { size, orientation, className };
 
   if (phase === "idle") return null;
 
@@ -54,7 +58,7 @@ export function UploadStatus({
         }
         onCancel={onCancel}
         onPause={onPause}
-        className={className}
+        {...layout}
       />
     );
   }
@@ -67,7 +71,7 @@ export function UploadStatus({
         fileSize={fileInfo.size}
         fileType={fileInfo.type}
         previewUrl={fileInfo.previewUrl}
-        className={className}
+        {...layout}
       />
     );
   }
@@ -82,7 +86,7 @@ export function UploadStatus({
           fileType={fileInfo.type}
           previewUrl={fileInfo.previewUrl}
           error={error}
-          className={className}
+          {...layout}
         />
       );
     }
@@ -92,7 +96,7 @@ export function UploadStatus({
         state="error"
         title={t("Upload failed", { note: "status" })}
         description={error ?? undefined}
-        className={className}
+        {...layout}
       />
     );
   }
@@ -107,7 +111,7 @@ export function UploadStatus({
           fileType={fileInfo.type}
           previewUrl={fileInfo.previewUrl}
           description={t("Preparing…", { note: "upload status" })}
-          className={className}
+          {...layout}
         />
       );
     }
@@ -116,7 +120,7 @@ export function UploadStatus({
       <StatusAttachment
         state="processing"
         title={t("Preparing…", { note: "upload status" })}
-        className={className}
+        {...layout}
       />
     );
   }

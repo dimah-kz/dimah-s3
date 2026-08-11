@@ -11,8 +11,22 @@ prop (`true` | `false` | render function) instead of `showStatus` /
 `renderStatus`. Dropzone `children` only replace idle chrome.
 
 Dimah-owned components live under `components/dimah-s3` (separate from stock
-shadcn `components/ui`). Hooks stay in `hooks/`; helpers like `status-slot`
-stay in `lib/`.
+shadcn `components/ui`). Attachment UI is under
+`components/dimah-s3/attachment/`. Hooks stay in `hooks/`; helpers like
+`status-slot` and `lib/attachment.ts` stay in `lib/`.
+
+### Attachment size and orientation
+
+`FileAttachment`, `StatusAttachment`, `UploadStatus`, `MultiUploadStatus`, and
+`UploadStatusBlock` accept stock Attachment `size` (`default` | `sm` | `xs`)
+and `orientation` (`horizontal` | `vertical`). Defaults stay `sm` /
+`horizontal`. Wired buttons and dropzones use `attachmentSize` /
+`attachmentOrientation` so they do not clash with Button `size`.
+
+Shared layout types from `@dimah-s3/ui`: `AttachmentSize`,
+`AttachmentOrientation`, `AttachmentLayoutProps`, `AttachmentLayoutAliases`.
+Use `AttachmentState` instead of the removed `FileAttachmentState` /
+`StatusAttachmentState` aliases.
 
 ### Image thumbnails and file icons
 
@@ -22,6 +36,16 @@ Upload hooks expose MIME type and a managed image `previewUrl` on
 then the thumbnail when complete. Non-image files use colored
 `react-file-icon` glyphs from a curated extension map (aliases + MIME family
 cover the rest).
+
+### Rename upload hooks
+
+Primary intake hooks are now `useUpload` / `useMultiUpload` (formerly
+`useUploadControls` / `useMultiUploadControls`), matching `useDownload` and
+`useDelete`.
+
+Engine hooks (call `upload()` with a `File` you already have) are
+`useFileUpload` / `useMultiFileUpload`. Matching types renamed
+(`UseFileUploadOptions`, `UseMultiFileUploadReturn`, …).
 
 ### Zustand hook state and react-dropzone intake
 
