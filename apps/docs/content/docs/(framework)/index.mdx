@@ -14,7 +14,7 @@ credentials never leave the backend.
 It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
 your own code with the [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
-## Why dimah-s3
+## What you get
 
 - **Fast setup** — a working upload in minutes, not a week of wiring
 - **Full stack** — server, client, and UI; not a client uploader you have to
@@ -23,6 +23,21 @@ your own code with the [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s
 - **Server hooks** — auth, quotas, confirm, and cleanup where they belong
 - **Optional database** — ownership, listings, and resumable uploads when you
   need them
+
+## Why I built this
+
+Every new app needed the same S3 stack: a presign-only backend, a client that
+talks to the bucket, some UI, and often a table of who owns which file. That is
+not hard once. It is expensive every time.
+
+Most people start with a client uploader like
+[Uppy](https://uppy.io/docs/aws-s3/) and write the presign API themselves. The
+uploader is the easy part. A correct, secure presign-only backend is not. The
+flow is small, easy to get wrong, and it holds the keys. Then you still need
+download, delete, UI, and object tracking.
+
+dimah-s3 is that backend, written once. The standard pieces are there. You
+extend it with hooks and plugins.
 
 ## Get started
 
