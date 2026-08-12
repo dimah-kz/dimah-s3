@@ -1,13 +1,5 @@
 {
   "title": "UI",
   "description": "Ready-made upload, download, and delete components",
-  "pages": [
-    "theming",
-    "attachment",
-    "upload-button",
-    "upload-dropzone",
-    "download-button",
-    "progress-download-button",
-    "delete"
-  ]
+  "pages": ["setup", "components", "customization"]
 }

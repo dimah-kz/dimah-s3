@@ -48,7 +48,7 @@ host shadcn vars (`--primary`, `--muted-foreground`, …). Do **not** use bare
 for stock `components/ui/` primitives only.
 
 Consumers override `--color-dimah-s3-*` to theme the library alone. Docs:
-`apps/docs/content/docs/react/ui/theming.mdx`.
+`apps/docs/content/docs/react/ui/customization/theming.mdx`.
 
 ## Direction-safe CSS standard (LTR default, RTL-ready)
 

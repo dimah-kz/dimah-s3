@@ -16,14 +16,19 @@ import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
 ## Install
 
+One-time styles and toaster: [Setup](/docs/react/ui/setup).
+
 <Tabs items={["npm package", "shadcn registry"]}>
 
 <Tab value="npm package">
-  <include>../../../_includes/ui/index.mdx#npm-package</include>
+
+```tsx
+import { UploadButton } from "@dimah-s3/ui";
+```
+
 </Tab>
 
 <Tab value="shadcn registry">
-<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
 
 ```npm
 npx shadcn@latest add @dimah-s3/upload-button
@@ -45,7 +50,7 @@ npx shadcn@latest add @dimah-s3/upload-button
 />
 ```
 
-Inline status uses [`Attachment`](/docs/react/ui/attachment) rows. Control it with
+Inline status uses [`Attachment`](/docs/react/ui/components/attachment) rows. Control it with
 `status`:
 
 | Value                 | Behavior                    |
@@ -55,7 +60,7 @@ Inline status uses [`Attachment`](/docs/react/ui/attachment) rows. Control it wi
 | `(node) => ReactNode` | Wrap or relocate the status |
 
 `attachmentSize` / `attachmentOrientation` set row density without changing
-Button `size`. Toasts are independent via `toast`.
+Button `size`. Toasts are independent via the `toast` prop.
 
 <Callout type="warn">
   `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
@@ -71,6 +76,6 @@ Button `size`. Toasts are independent via `toast`.
 
 ## Headless
 
-For a fully custom trigger, use
-[`useUpload`](/docs/react/hooks/upload#useupload) with `UploadStatus` or the
-Attachment primitives.
+Custom trigger: see [Custom UI](/docs/react/ui/customization/custom-ui)
+([`useUpload`](/docs/react/hooks/upload#useupload) +
+[`FileAttachment`](/docs/react/ui/components/attachment) / `UploadStatus`).

@@ -1,0 +1,105 @@
+---
+title: Attachment
+description: Shared status rows used by wired upload UI — and reusable in your own controls.
+---
+
+import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
+
+`FileAttachment` and `StatusAttachment` are the status rows that
+[Upload Button](/docs/react/ui/components/upload-button),
+[Upload Dropzone](/docs/react/ui/components/upload-dropzone), and the other
+wired controls render for progress, errors, and file info.
+
+They sit on top of shadcn
+[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment) — same
+layout shell (`size`, `orientation`, `state`), with dimah-s3 chrome for file
+progress or a simple title/description row.
+
+You can use them outside the wired controls too: pair a hook from
+`@dimah-s3/react` with these rows when you want a custom trigger and the same
+status look. See [Custom UI](/docs/react/ui/customization/custom-ui).
+
+| Component          | Use when                                                       |
+| ------------------ | -------------------------------------------------------------- |
+| `FileAttachment`   | File name, size, preview, and upload/download progress         |
+| `StatusAttachment` | Generic status — preparing, deleting, or a plain error message |
+
+## Preview
+
+<AttachmentPlaygroundPreview />
+
+## Install
+
+One-time styles: [Setup](/docs/react/ui/setup).
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import {
+  FileAttachment,
+  StatusAttachment,
+  type FileAttachmentProps,
+  type StatusAttachmentProps,
+} from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/file-attachment
+```
+
+Also pulled in automatically with upload, download, and delete registry items.
+
+</Tab>
+
+</Tabs>
+
+## Usage
+
+```tsx
+<FileAttachment
+  state="uploading"
+  fileName="quarterly-report.pdf"
+  fileSize={2_400_000}
+  percent={64}
+  onCancel={() => {}}
+/>
+
+<FileAttachment
+  state="uploading"
+  fileName="avatar.png"
+  fileType="image/png"
+  fileSize={180_000}
+  previewUrl="/dimah-avatar.jpg"
+  percent={42}
+/>
+
+<StatusAttachment state="processing" title="Preparing…" />
+```
+
+Wired controls expose `attachmentSize` / `attachmentOrientation` so row density
+stays independent of Button `size`.
+
+For a hook-driven row that maps upload phase automatically, use `UploadStatus`
+(or `MultiUploadStatus`) as shown in [Custom UI](/docs/react/ui/customization/custom-ui).
+
+## Props
+
+### FileAttachment
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/file-attachment.tsx"
+  name="FileAttachmentProps"
+/>
+
+### StatusAttachment
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
+  name="StatusAttachmentProps"
+/>

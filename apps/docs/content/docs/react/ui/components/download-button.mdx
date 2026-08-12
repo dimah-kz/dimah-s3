@@ -6,7 +6,7 @@ description: Presign and trigger a native browser download.
 import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
 
 `DownloadButton` requests a presigned URL and starts a browser download. No
-progress UI — use [`Progress Download Button`](/docs/react/ui/progress-download-button)
+progress UI — use [`Progress Download Button`](/docs/react/ui/components/progress-download-button)
 when you need a live progress fill.
 
 ## Preview
@@ -17,14 +17,19 @@ when you need a live progress fill.
 
 ## Install
 
+One-time styles and toaster: [Setup](/docs/react/ui/setup).
+
 <Tabs items={["npm package", "shadcn registry"]}>
 
 <Tab value="npm package">
-  <include>../../../_includes/ui/index.mdx#npm-package</include>
+
+```tsx
+import { DownloadButton } from "@dimah-s3/ui";
+```
+
 </Tab>
 
 <Tab value="shadcn registry">
-<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
 
 ```npm
 npx shadcn@latest add @dimah-s3/download-button
@@ -40,7 +45,7 @@ npx shadcn@latest add @dimah-s3/download-button
 <DownloadButton objectKey="uploads/report.pdf" variant="ghost" />
 ```
 
-Errors render as a [`StatusAttachment`](/docs/react/ui/attachment) row
+Errors render as a [`StatusAttachment`](/docs/react/ui/components/attachment) row
 (`attachmentSize` / `attachmentOrientation`).
 
 ## Props
@@ -52,4 +57,6 @@ Errors render as a [`StatusAttachment`](/docs/react/ui/attachment) row
 
 ## Headless
 
-Use [`useDownload`](/docs/react/hooks/download) for a custom download control.
+[`useDownload`](/docs/react/hooks/download) for a custom control — reuse
+[`StatusAttachment`](/docs/react/ui/components/attachment) for errors, or follow the
+same pattern as [Custom UI](/docs/react/ui/customization/custom-ui).

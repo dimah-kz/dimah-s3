@@ -6,7 +6,7 @@ description: Drag-and-drop upload area for single- or multi-file uploads.
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
 `UploadDropzone` is a drop target with the same upload options as
-[`UploadButton`](/docs/react/ui/upload-button). Set `maxFiles` above `1` for
+[`UploadButton`](/docs/react/ui/components/upload-button). Set `maxFiles` above `1` for
 multi-file uploads.
 
 ## Preview
@@ -17,14 +17,19 @@ multi-file uploads.
 
 ## Install
 
+One-time styles and toaster: [Setup](/docs/react/ui/setup).
+
 <Tabs items={["npm package", "shadcn registry"]}>
 
 <Tab value="npm package">
-  <include>../../../_includes/ui/index.mdx#npm-package</include>
+
+```tsx
+import { UploadDropzone } from "@dimah-s3/ui";
+```
+
 </Tab>
 
 <Tab value="shadcn registry">
-<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
 
 ```npm
 npx shadcn@latest add @dimah-s3/upload-dropzone
@@ -69,6 +74,7 @@ interior, set `status={false}` and render `UploadStatus` yourself.
 
 ## Headless
 
-Use [`useUpload`](/docs/react/hooks/upload#useupload) or
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) for a custom drop
-surface.
+Custom drop surface: see [Custom UI](/docs/react/ui/customization/custom-ui)
+([`useUpload`](/docs/react/hooks/upload#useupload) /
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) +
+[`Attachment`](/docs/react/ui/components/attachment)).

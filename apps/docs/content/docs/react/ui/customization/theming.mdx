@@ -3,25 +3,21 @@ title: Theming
 description: Color tokens for @dimah-s3/ui — inherit shadcn by default, override when needed.
 ---
 
-Dimah-owned UI uses prefixed color utilities (`bg-dimah-s3-primary`,
-`text-dimah-s3-muted-foreground`, …) so you can theme the library without changing
-the rest of your app. **By default** every token points at the matching shadcn
-CSS variable.
+Dimah-owned chrome uses prefixed utilities (`bg-dimah-s3-primary`,
+`text-dimah-s3-muted-foreground`, …) so you can theme this library without
+changing the rest of the app.
 
-Stock shadcn primitives shipped with the package (`Button`, `Attachment`,
-`Toast`, …) keep using your app tokens (`bg-primary`, `bg-card`, …).
+**Default:** every token points at the matching shadcn CSS variable. With a
+normal shadcn theme, progress rings, dropzone accents, and overlays already
+match your app.
 
-## Setup
+Stock shadcn primitives in the package (`Button`, `Attachment`, `Toast`, …)
+keep using your app tokens (`bg-primary`, `bg-card`, …).
 
-Import the UI stylesheet once (already required for Tailwind source scanning):
+## Bridge
 
-```css title="app/globals.css"
-@import "tailwindcss";
-@import "shadcn/tailwind.css";
-@import "@dimah-s3/ui/styles.css";
-```
-
-`styles.css` pulls in [`css/shadcn.css`](#tokens), which maps:
+The [Setup](/docs/react/ui/setup) stylesheet imports `css/shadcn.css`,
+which maps:
 
 | Dimah token | Default (shadcn) |
 | ----------- | ---------------- |
@@ -29,14 +25,11 @@ Import the UI stylesheet once (already required for Tailwind source scanning):
 | `--color-dimah-s3-muted-foreground` | `var(--muted-foreground)` |
 | … | same pattern for the rest |
 
-With a normal shadcn theme in place, upload progress, dropzone accents, and
-overlays match your app automatically.
+### Registry only
 
-### shadcn registry only
-
-If you install components from the registry and do **not** depend on
-`@dimah-s3/ui`, paste the bridge into `globals.css` (or install the package and
-import `@dimah-s3/ui/css/shadcn.css`):
+If components come from the registry and you do **not** depend on
+`@dimah-s3/ui`, paste the bridge into `globals.css` (or import
+`@dimah-s3/ui/css/shadcn.css`):
 
 ```css title="app/globals.css"
 @theme {
@@ -71,11 +64,10 @@ Override after the import to theme **only** dimah-s3:
 }
 ```
 
-Light/dark: set values on `:root` / `.dark` for your shadcn vars as usual — the
-dimah bridge keeps following them unless you override `--color-dimah-s3-*`
-directly.
+Light/dark follow your shadcn `:root` / `.dark` values unless you override
+`--color-dimah-s3-*` directly.
 
-Scope to a subtree by setting the variables on a wrapper:
+Scope to a subtree:
 
 ```css
 .uploads-panel {
@@ -85,7 +77,7 @@ Scope to a subtree by setting the variables on a wrapper:
 
 ## Tokens
 
-Full bridge (also exported as `@dimah-s3/ui/css/shadcn.css`):
+Also exported as `@dimah-s3/ui/css/shadcn.css`:
 
 | Token | Maps to |
 | ----- | ------- |
@@ -105,5 +97,5 @@ Full bridge (also exported as `@dimah-s3/ui/css/shadcn.css`):
 | `--color-dimah-s3-border` | `--border` |
 | `--color-dimah-s3-ring` | `--ring` |
 
-Tailwind utilities: `bg-dimah-s3-primary`, `text-dimah-s3-muted-foreground`,
+Utilities: `bg-dimah-s3-primary`, `text-dimah-s3-muted-foreground`,
 `border-dimah-s3-destructive/20`, and other opacity modifiers.

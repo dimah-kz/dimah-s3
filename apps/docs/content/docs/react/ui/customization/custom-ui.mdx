@@ -1,0 +1,79 @@
+---
+title: Custom UI
+description: Build your own upload control with useUpload and Attachment status rows.
+---
+
+import { CustomUploadDemo } from "@/components/demos/custom-upload-demo";
+
+Wired buttons and dropzones are optional. The usual headless path is a hook
+from `@dimah-s3/react` plus [`FileAttachment`](/docs/react/ui/components/attachment)
+(or `UploadStatus`, which maps hook state onto that row).
+
+One-time styles: [Setup](/docs/react/ui/setup).
+
+## Example
+
+Your trigger, shared status chrome:
+
+<DemoPreview name="custom-upload-demo.tsx">
+  <CustomUploadDemo />
+</DemoPreview>
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { UploadStatus } from "@dimah-s3/ui";
+
+export function CustomUpload() {
+  const {
+    open,
+    phase,
+    progress,
+    error,
+    fileInfo,
+    cancel,
+    getInputProps,
+  } = useUpload({
+    objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
+    noDrag: true,
+    noClick: true,
+    noKeyboard: true,
+  });
+
+  return (
+    <div className="flex flex-col gap-2">
+      <input {...getInputProps()} />
+      <button type="button" onClick={() => open()}>
+        Choose file
+      </button>
+      <UploadStatus
+        phase={phase}
+        progress={progress}
+        error={error}
+        fileInfo={fileInfo}
+        onCancel={cancel}
+        size="sm"
+      />
+    </div>
+  );
+}
+```
+
+`UploadStatus` hides itself while `phase` is `idle`. For multiple files, use
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) with
+`MultiUploadStatus`.
+
+## When to use what
+
+| Goal | Use |
+| ---- | --- |
+| Finished control | [Upload Button](/docs/react/ui/components/upload-button) / [Dropzone](/docs/react/ui/components/upload-dropzone) |
+| Custom trigger, same status row | Hook + `UploadStatus` / `FileAttachment` |
+| Fully custom chrome | Hook only — see [Upload hooks](/docs/react/hooks/upload) |
+
+Same idea for download and delete: pair
+[`useDownload`](/docs/react/hooks/download) /
+[`useDelete`](/docs/react/hooks/delete) with
+[`StatusAttachment`](/docs/react/ui/components/attachment) when you want the
+shared error/progress row.

@@ -8,24 +8,8 @@
 
 <include>./npm-setup.mdx</include>
 
-Mount the toaster once in your root layout:
-
-```tsx title="app/layout.tsx"
-import { Toaster } from "@dimah-s3/ui";
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <Toaster />
-      </body>
-    </html>
-  );
-}
-```
-
-Already using shadcn [toast](https://ui.shadcn.com/docs/components/base/toast) for your own messages? Mount both — rename one import (`Toaster as DimahToaster`). They are independent; your code keeps `import { toast } from "@/components/ui/toast"` and `toast.add({ … })`.
+Mount `<Toaster />` from `@dimah-s3/ui` once in the root layout. Full one-time
+guide: [Setup](/docs/react/ui/setup).
 
 </section>
 
@@ -39,27 +23,9 @@ Already using shadcn [toast](https://ui.shadcn.com/docs/components/base/toast) f
 }
 ```
 
-Dimah-owned chrome uses `--color-dimah-s3-*` tokens (default: your shadcn theme).
-If you are not importing `@dimah-s3/ui/styles.css`, add the
-[color bridge](/docs/react/ui/theming#shadcn-registry-only) to `globals.css`.
-
-Components depend on shadcn [toast](https://ui.shadcn.com/docs/components/base/toast). After `npx shadcn@latest add …`, mount once:
-
-```tsx title="app/layout.tsx"
-import { Toaster } from "@/components/ui/toast";
-
-export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-        <Toaster />
-      </body>
-    </html>
-  );
-}
-```
-
-Trigger toasts with `toast.add` / `toast.update` / `toast.close` / `toast.promise` from the same module — not the old Sonner helpers (`toast.success`, `toast.error`, …).
+Mount `<Toaster />` from `@/components/ui/toast` once after adding components.
+Use `toast.add` / `update` / `close` / `promise` — not Sonner-style helpers.
+Full guide: [Setup](/docs/react/ui/setup). Registry-only color bridge:
+[Theming](/docs/react/ui/customization/theming#registry-only).
 
 </section>

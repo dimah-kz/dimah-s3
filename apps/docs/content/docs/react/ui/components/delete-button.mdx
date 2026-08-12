@@ -16,14 +16,19 @@ in a shadcn button and confirmation dialog.
 
 ## Install
 
+One-time styles and toaster: [Setup](/docs/react/ui/setup).
+
 <Tabs items={["npm package", "shadcn registry"]}>
 
 <Tab value="npm package">
-  <include>../../../_includes/ui/index.mdx#npm-package</include>
+
+```tsx
+import { DeleteButton } from "@dimah-s3/ui";
+```
+
 </Tab>
 
 <Tab value="shadcn registry">
-<include>../../../_includes/ui/index.mdx#shadcn-registry-setup</include>
 
 ```npm
 npx shadcn@latest add @dimah-s3/delete-button
@@ -44,7 +49,7 @@ npx shadcn@latest add @dimah-s3/delete-button
 />
 ```
 
-Inline status uses [`StatusAttachment`](/docs/react/ui/attachment)
+Inline status uses [`StatusAttachment`](/docs/react/ui/components/attachment)
 (`attachmentSize` / `attachmentOrientation`).
 
 <Callout type="tip">
@@ -61,4 +66,4 @@ Inline status uses [`StatusAttachment`](/docs/react/ui/attachment)
 
 ## Headless
 
-Use [`useDelete`](/docs/react/hooks/delete) for a custom confirmation UI.
+[`useDelete`](/docs/react/hooks/delete) for a custom confirmation UI.

@@ -1,0 +1,13 @@
+{
+  "title": "Components",
+  "description": "Wired upload, download, and delete controls",
+  "defaultOpen": true,
+  "pages": [
+    "attachment",
+    "upload-button",
+    "upload-dropzone",
+    "download-button",
+    "progress-download-button",
+    "delete-button"
+  ]
+}

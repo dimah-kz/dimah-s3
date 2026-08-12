@@ -7,7 +7,7 @@
     "index",
     "comparison",
     "quickstart",
-    "---components---",
+    "---UI---",
     ".../../react/ui",
     "---features---",
     "providers",
