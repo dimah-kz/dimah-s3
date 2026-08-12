@@ -11,19 +11,19 @@ changing the rest of the app.
 normal shadcn theme, progress rings, dropzone accents, and overlays already
 match your app.
 
-Stock shadcn primitives in the package (`Button`, `Attachment`, `Toast`, …)
-keep using your app tokens (`bg-primary`, `bg-card`, …).
+Stock shadcn primitives used inside the package (`Button`, `Toast`, …) keep
+using your app tokens (`bg-primary`, `bg-card`, …).
 
 ## Bridge
 
 The [Setup](/docs/react/ui/setup) stylesheet imports `css/shadcn.css`,
 which maps:
 
-| Dimah token | Default (shadcn) |
-| ----------- | ---------------- |
-| `--color-dimah-s3-primary` | `var(--primary)` |
+| Dimah token                         | Default (shadcn)          |
+| ----------------------------------- | ------------------------- |
+| `--color-dimah-s3-primary`          | `var(--primary)`          |
 | `--color-dimah-s3-muted-foreground` | `var(--muted-foreground)` |
-| … | same pattern for the rest |
+| …                                   | same pattern for the rest |
 
 ### Registry only
 
@@ -79,23 +79,23 @@ Scope to a subtree:
 
 Also exported as `@dimah-s3/ui/css/shadcn.css`:
 
-| Token | Maps to |
-| ----- | ------- |
-| `--color-dimah-s3-background` | `--background` |
-| `--color-dimah-s3-foreground` | `--foreground` |
-| `--color-dimah-s3-card` | `--card` |
-| `--color-dimah-s3-card-foreground` | `--card-foreground` |
-| `--color-dimah-s3-primary` | `--primary` |
-| `--color-dimah-s3-primary-foreground` | `--primary-foreground` |
-| `--color-dimah-s3-secondary` | `--secondary` |
+| Token                                   | Maps to                  |
+| --------------------------------------- | ------------------------ |
+| `--color-dimah-s3-background`           | `--background`           |
+| `--color-dimah-s3-foreground`           | `--foreground`           |
+| `--color-dimah-s3-card`                 | `--card`                 |
+| `--color-dimah-s3-card-foreground`      | `--card-foreground`      |
+| `--color-dimah-s3-primary`              | `--primary`              |
+| `--color-dimah-s3-primary-foreground`   | `--primary-foreground`   |
+| `--color-dimah-s3-secondary`            | `--secondary`            |
 | `--color-dimah-s3-secondary-foreground` | `--secondary-foreground` |
-| `--color-dimah-s3-muted` | `--muted` |
-| `--color-dimah-s3-muted-foreground` | `--muted-foreground` |
-| `--color-dimah-s3-accent` | `--accent` |
-| `--color-dimah-s3-accent-foreground` | `--accent-foreground` |
-| `--color-dimah-s3-destructive` | `--destructive` |
-| `--color-dimah-s3-border` | `--border` |
-| `--color-dimah-s3-ring` | `--ring` |
+| `--color-dimah-s3-muted`                | `--muted`                |
+| `--color-dimah-s3-muted-foreground`     | `--muted-foreground`     |
+| `--color-dimah-s3-accent`               | `--accent`               |
+| `--color-dimah-s3-accent-foreground`    | `--accent-foreground`    |
+| `--color-dimah-s3-destructive`          | `--destructive`          |
+| `--color-dimah-s3-border`               | `--border`               |
+| `--color-dimah-s3-ring`                 | `--ring`                 |
 
 Utilities: `bg-dimah-s3-primary`, `text-dimah-s3-muted-foreground`,
 `border-dimah-s3-destructive/20`, and other opacity modifiers.
