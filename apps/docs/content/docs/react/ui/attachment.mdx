@@ -1,104 +1,102 @@
 ---
 title: Attachment
-description: File and status rows for upload feedback — size, orientation, and state variants.
+description: File and status rows for upload, download, and delete feedback.
 ---
 
 import { AttachmentPlaygroundDemo } from "@/components/demos/attachment-playground-demo";
 import { AttachmentUploadDemo } from "@/components/demos/attachment-upload-demo";
 
-Status rows for upload, download, and delete feedback. Built on the stock
-shadcn Attachment primitive.
-
-<Cards>
-  <Card
-    title="FileAttachment"
-    description="Name, size, type icon or image preview, progress, and cancel."
-  />
-  <Card
-    title="StatusAttachment"
-    description="Lighter row for preparing, errors, and generic feedback."
-  />
-</Cards>
+`FileAttachment` and `StatusAttachment` are the status rows used across the UI
+package — file progress with preview, or lightweight operation feedback.
 
 ## Preview
-
-Use the tabs to try `size`, `orientation`, and `state`.
 
 <DemoPreview name="attachment-playground-demo.tsx">
   <AttachmentPlaygroundDemo />
 </DemoPreview>
 
-## Live upload
+## Install
 
-Same rows, wired through `UploadButton`. Upload a file to see progress and cancel.
+<Tabs items={["npm package", "shadcn registry"]}>
 
-<DemoPreview name="attachment-upload-demo.tsx">
-  <AttachmentUploadDemo />
-</DemoPreview>
+<Tab value="npm package">
+  <include>../../../_includes/ui/index.mdx#npm-package-setup</include>
 
-## Layout
+Exported from `@dimah-s3/ui` — no toaster required:
 
-Shared by both components (and by wired button/dropzone status via aliases):
+```tsx
+import {
+  FileAttachment,
+  StatusAttachment,
+  type FileAttachmentProps,
+  type StatusAttachmentProps,
+} from "@dimah-s3/ui";
+```
 
-<TypeTable
-  type={{
-    size: {
-      description: "Attachment density. Defaults to sm.",
-      type: '"default" | "sm" | "xs"',
-      default: '"sm"',
-    },
-    orientation: {
-      description: "Row layout. Vertical stacks media above the title.",
-      type: '"horizontal" | "vertical"',
-      default: '"horizontal"',
-    },
-    state: {
-      description: "Visual state from the shadcn Attachment primitive.",
-      type: '"idle" | "uploading" | "processing" | "error" | "done"',
-      required: true,
-    },
-  }}
+</Tab>
+
+<Tab value="shadcn registry">
+
+```json title="components.json"
+{
+  "registries": {
+    "@dimah-s3": "https://dimah-s3.vercel.app/r/{name}.json"
+  }
+}
+```
+
+```npm
+npx shadcn@latest add @dimah-s3/file-attachment
+```
+
+Also installed automatically with upload, download, and delete registry items.
+
+</Tab>
+
+</Tabs>
+
+## Usage
+
+```tsx
+<FileAttachment
+  state="uploading"
+  fileName="report.pdf"
+  fileSize={2_400_000}
+  percent={64}
+  onCancel={() => {}}
 />
 
-On wired controls, use aliases so they stay separate from Button `size`:
+<StatusAttachment state="processing" title="Preparing…" />
+```
 
-| Attachment prop | On buttons / dropzone   |
-| --------------- | ----------------------- |
-| `size`          | `attachmentSize`        |
-| `orientation`   | `attachmentOrientation` |
+Wired controls (`UploadButton`, `UploadDropzone`, …) render these rows for you.
+Pass `attachmentSize` / `attachmentOrientation` so layout stays separate from
+Button `size`:
 
 ```tsx
 <UploadButton
   objectKey={(f) => `uploads/${f.name}`}
   size="sm"
   attachmentSize="xs"
-  attachmentOrientation="horizontal"
 />
 ```
 
-<Callout type="info">
-  If you render status yourself, pass `size` and `orientation` on
-  `UploadStatus`, `MultiUploadStatus`, or the Attachment components directly.
-</Callout>
-
-## Install
-
-Included with `@dimah-s3/ui`. Registry installs already ship these files with
-upload, download, and delete items — no separate registry package.
+<DemoPreview name="attachment-upload-demo.tsx">
+  <AttachmentUploadDemo />
+</DemoPreview>
 
 ## Props
 
-<Tabs items={["FileAttachment", "StatusAttachment"]}>
-  <Tab value="FileAttachment">
-    <AutoTypeTable
-      path="packages/ui/src/components/dimah-s3/attachment/file-attachment.tsx"
-      name="FileAttachmentProps"
-    />
-  </Tab>
-  <Tab value="StatusAttachment">
-    <AutoTypeTable
-      path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
-      name="StatusAttachmentProps"
-    />
-  </Tab>
-</Tabs>
+### FileAttachment
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/file-attachment.tsx"
+  name="FileAttachmentProps"
+/>
+
+### StatusAttachment
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
+  name="StatusAttachmentProps"
+/>

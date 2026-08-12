@@ -1,11 +1,14 @@
 ---
 title: Upload Button
-description: A shadcn-styled button that opens the file picker for single- or multi-file uploads.
+description: File picker button for single- or multi-file uploads with inline status.
 ---
 
 import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
-### Preview
+`UploadButton` opens the native file picker and uploads through
+[`useUpload`](/docs/react/hooks/upload) / [`useMultiUpload`](/docs/react/hooks/upload#usemultiupload).
+
+## Preview
 
 <DemoPreview name="upload-button-demo.tsx">
   <UploadButtonDemo />
@@ -30,6 +33,35 @@ npx shadcn@latest add @dimah-s3/upload-button
 
 </Tabs>
 
+## Usage
+
+```tsx
+<UploadButton
+  objectKey={(f) => `uploads/${f.name}`}
+  maxFiles={5}
+  variant="secondary"
+  size="sm"
+  attachmentSize="xs"
+/>
+```
+
+Inline status uses [`Attachment`](/docs/react/ui/attachment) rows. Control it with
+`status`:
+
+| Value                 | Behavior                    |
+| --------------------- | --------------------------- |
+| `true` (default)      | Render below the button     |
+| `false`               | Hide status                 |
+| `(node) => ReactNode` | Wrap or relocate the status |
+
+`attachmentSize` / `attachmentOrientation` set row density without changing
+Button `size`. Toasts are independent via `toast`.
+
+<Callout type="warn">
+  `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
+  limits in `upload.presignGuard` on the server.
+</Callout>
+
 ## Props
 
 <AutoTypeTable
@@ -37,85 +69,8 @@ npx shadcn@latest add @dimah-s3/upload-button
   name="UploadButtonProps"
 />
 
-<Callout type="warn">
-  `accept` and `maxFileSize` are enforced **client-side only**. Always enforce
-  the same limits in `upload.presignGuard` on the server.
-</Callout>
+## Headless
 
-## Button appearance
-
-`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, and `DeleteButton` share optional shadcn button props:
-
-| Prop              | Description                                         |
-| ----------------- | --------------------------------------------------- |
-| `variant`         | shadcn button variant (defaults vary per component) |
-| `size`            | shadcn button size (`default` if omitted)           |
-| `buttonClassName` | Extra classes on the trigger button                 |
-
-```tsx
-<UploadButton variant="secondary" size="sm" objectKey="uploads/file" />
-<DownloadButton variant="ghost" objectKey="uploads/report.pdf" />
-<DeleteButton variant="outline" objectKey="uploads/report.pdf" />
-```
-
-## Status
-
-Inline status uses [`FileAttachment` / `StatusAttachment`](/docs/react/ui/attachment).
-Control placement with `status`:
-
-| Value                    | Behavior                         |
-| ------------------------ | -------------------------------- |
-| `true` (default)         | Render below the button          |
-| `false`                  | Hide status                      |
-| `(node) => ReactNode`    | Wrap or relocate the status node |
-
-Tune density with `attachmentSize` / `attachmentOrientation` (separate from Button `size`):
-
-```tsx
-<UploadButton
-  objectKey={(f) => `uploads/${f.name}`}
-  size="sm"
-  attachmentSize="xs"
-  status={(node) => <aside className="ms-auto w-72">{node}</aside>}
-/>
-```
-
-Image uploads show a thumbnail (progress overlay while uploading). Other types
-keep the file-type icon. Toasts stay independent via `toast`.
-
-## Composition
-
-Prefer the wired button for the happy path. For a fully custom layout, combine
-[`useUpload`](/docs/react/hooks/upload#useupload) with
-`UploadStatus` (or the exported `Attachment` primitives):
-
-```tsx
-import { useUpload } from "@dimah-s3/react";
-import { UploadStatus } from "@dimah-s3/ui";
-
-function CustomUpload() {
-  const ctrl = useUpload({
-    objectKey: (f) => `uploads/${f.name}`,
-  });
-
-  return (
-    <>
-      <button type="button" onClick={ctrl.open}>
-        Choose file
-      </button>
-      <UploadStatus
-        phase={ctrl.phase}
-        progress={ctrl.progress}
-        error={ctrl.error}
-        fileInfo={ctrl.fileInfo}
-        onCancel={ctrl.cancel}
-        size="xs"
-      />
-    </>
-  );
-}
-```
-
-## Headless alternative
-
-Use [`useUpload`](/docs/react/hooks/upload#useupload) when you need full control over the UI.
+For a fully custom trigger, use
+[`useUpload`](/docs/react/hooks/upload#useupload) with `UploadStatus` or the
+Attachment primitives.

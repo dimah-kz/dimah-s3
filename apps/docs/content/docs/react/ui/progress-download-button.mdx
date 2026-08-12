@@ -1,11 +1,15 @@
 ---
 title: Progress Download Button
-description: Downloads via fetch with a live progress fill and cancellation support.
+description: Fetch download with live progress and cancel.
 ---
 
 import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
 
-### Preview
+`ProgressDownloadButton` downloads through fetch so it can show progress and
+support cancel. Prefer [`DownloadButton`](/docs/react/ui/download-button) when
+you only need a simple native download.
+
+## Preview
 
 <DemoPreview name="progress-download-demo.tsx">
   <ProgressDownloadDemo />
@@ -30,6 +34,15 @@ npx shadcn@latest add @dimah-s3/progress-download-button
 
 </Tabs>
 
+## Usage
+
+```tsx
+<ProgressDownloadButton objectKey="uploads/report.pdf" size="sm" />
+```
+
+Errors render as a [`StatusAttachment`](/docs/react/ui/attachment) row
+(`attachmentSize` / `attachmentOrientation`).
+
 ## Props
 
 <AutoTypeTable
@@ -37,9 +50,7 @@ npx shadcn@latest add @dimah-s3/progress-download-button
   name="ProgressDownloadButtonProps"
 />
 
-Error status uses [`StatusAttachment`](/docs/react/ui/attachment)
-(`attachmentSize` / `attachmentOrientation`).
+## Headless
 
-## Headless alternative
-
-Use [`useDownload`](/docs/react/hooks/download) for custom download UIs.
+Use [`useFetchDownload`](/docs/react/hooks/download#fetch-download-with-progress)
+for a custom progress download UI.

@@ -4,6 +4,46 @@
   "homepage": "https://dimah-s3.vercel.app",
   "items": [
     {
+      "name": "file-attachment",
+      "title": "Attachment",
+      "description": "FileAttachment and StatusAttachment rows for upload, download, and delete feedback.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "react-file-icon"
+      ],
+      "registryDependencies": ["attachment"],
+      "files": [
+        {
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
+        },
+        {
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/attachment.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment.ts"
+        },
+        {
+          "path": "generated/dimah-s3-ui/lib/file-type-icon.tsx",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.tsx"
+        }
+      ],
+      "type": "registry:component"
+    },
+    {
       "name": "upload-dropzone",
       "title": "Upload Dropzone",
       "description": "Drag-and-drop upload zone with inline status and toast support.",

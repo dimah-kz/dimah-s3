@@ -1,11 +1,15 @@
 ---
 title: Upload Dropzone
-description: A drag-and-drop upload area for single- or multi-file uploads.
+description: Drag-and-drop upload area for single- or multi-file uploads.
 ---
 
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
-### Preview
+`UploadDropzone` is a drop target with the same upload options as
+[`UploadButton`](/docs/react/ui/upload-button). Set `maxFiles` above `1` for
+multi-file uploads.
+
+## Preview
 
 <DemoPreview name="upload-dropzone-demo.tsx">
   <UploadDropzoneDemo />
@@ -30,33 +34,12 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 
 </Tabs>
 
-## Props
-
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
-  name="UploadDropzoneProps"
-/>
-
-<Callout type="warn">
-  `accept` and `maxFileSize` are enforced **client-side only**. Always enforce
-  the same limits in `upload.presignGuard` on the server.
-</Callout>
-
-Set `maxFiles` above `1` for multi-file uploads. Limits, max size, and accepted
-types render below the main label.
-
-## Status
-
-Same [`Attachment`](/docs/react/ui/attachment) rows as `UploadButton`, including
-`attachmentSize` / `attachmentOrientation` and the `status` prop
-(`true` | `false` | render function).
-
-`children` replaces only the idle chrome (icon + hints). To own the entire
-interior, set `status={false}` and render `UploadStatus` yourself.
+## Usage
 
 ```tsx
 <UploadDropzone
   objectKey={(f) => `uploads/${f.name}`}
+  maxFiles={5}
   attachmentSize="xs"
   status={(node) => (
     <div className="w-full border-t border-dashed p-3">{node}</div>
@@ -68,6 +51,24 @@ interior, set `status={false}` and render `UploadStatus` yourself.
 </UploadDropzone>
 ```
 
-## Headless alternative
+`children` replaces the idle chrome only. Status follows the same `status` prop
+as `UploadButton` (`true` | `false` | render function). To own the entire
+interior, set `status={false}` and render `UploadStatus` yourself.
 
-Use [`useUpload`](/docs/react/hooks/upload#useupload) or [`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) when you need full control over the UI.
+<Callout type="warn">
+  `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
+  limits in `upload.presignGuard` on the server.
+</Callout>
+
+## Props
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
+  name="UploadDropzoneProps"
+/>
+
+## Headless
+
+Use [`useUpload`](/docs/react/hooks/upload#useupload) or
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) for a custom drop
+surface.

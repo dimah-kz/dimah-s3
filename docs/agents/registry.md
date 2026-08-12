@@ -28,7 +28,8 @@ To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (ove
 ## Registry item rules
 
 - Each item is self-contained — list every file the installer needs in `files[]`.
-- `registryDependencies`: shadcn primitives (`button`, `progress`, …) only — not other `@dimah-s3` items.
+- `registryDependencies`: shadcn primitives (`button`, `progress`, `attachment`, …) only — not other `@dimah-s3` items.
+- Standalone status rows: `@dimah-s3/file-attachment` (`FileAttachment` / `StatusAttachment`). Upload/download/delete items still **bundle** those files (they do not depend on the dimah item).
 
 ## UI conventions (components)
 

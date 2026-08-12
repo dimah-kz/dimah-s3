@@ -1,6 +1,6 @@
 {
   "title": "UI",
-  "description": "shadcn components built on client hooks",
+  "description": "Ready-made upload, download, and delete components",
   "pages": [
     "attachment",
     "upload-button",

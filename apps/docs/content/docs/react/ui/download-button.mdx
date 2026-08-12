@@ -1,11 +1,15 @@
 ---
 title: Download Button
-description: Presigns and triggers a native browser download — simple, no progress.
+description: Presign and trigger a native browser download.
 ---
 
 import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
 
-### Preview
+`DownloadButton` requests a presigned URL and starts a browser download. No
+progress UI — use [`Progress Download Button`](/docs/react/ui/progress-download-button)
+when you need a live progress fill.
+
+## Preview
 
 <DemoPreview name="download-button-demo.tsx">
   <DownloadButtonDemo />
@@ -30,6 +34,15 @@ npx shadcn@latest add @dimah-s3/download-button
 
 </Tabs>
 
+## Usage
+
+```tsx
+<DownloadButton objectKey="uploads/report.pdf" variant="ghost" />
+```
+
+Errors render as a [`StatusAttachment`](/docs/react/ui/attachment) row
+(`attachmentSize` / `attachmentOrientation`).
+
 ## Props
 
 <AutoTypeTable
@@ -37,9 +50,6 @@ npx shadcn@latest add @dimah-s3/download-button
   name="DownloadButtonProps"
 />
 
-Error status uses [`StatusAttachment`](/docs/react/ui/attachment)
-(`attachmentSize` / `attachmentOrientation`).
+## Headless
 
-## Headless alternative
-
-Use [`useDownload`](/docs/react/hooks/download) for custom download UIs.
+Use [`useDownload`](/docs/react/hooks/download) for a custom download control.

@@ -2,6 +2,48 @@
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "items": [
     {
+      "name": "file-attachment",
+      "type": "registry:component",
+      "title": "Attachment",
+      "description": "FileAttachment and StatusAttachment rows for upload, download, and delete feedback.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "lucide-react",
+        "react-file-icon"
+      ],
+      "registryDependencies": [
+        "attachment"
+      ],
+      "files": [
+        {
+          "path": "components/dimah-s3/attachment/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
+        },
+        {
+          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "components/dimah-s3/attachment/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
+        },
+        {
+          "path": "lib/attachment.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment.ts"
+        },
+        {
+          "path": "lib/file-type-icon.tsx",
+          "type": "registry:lib",
+          "target": "@lib/file-type-icon.tsx"
+        }
+      ]
+    },
+    {
       "name": "upload-dropzone",
       "type": "registry:component",
       "title": "Upload Dropzone",

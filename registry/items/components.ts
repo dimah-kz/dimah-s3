@@ -1,6 +1,5 @@
 import type { Registry } from "shadcn/schema";
 
-/** Bundled with upload-button and upload-dropzone (not separate registry items). */
 /** Paths are relative to `generated/dimah-s3-ui/` (see build-items output). */
 const statusSupportFiles = [
   {
@@ -67,7 +66,46 @@ const componentDependencies = [
 
 const toastRegistryDependencies = ["button", "toast"] as const;
 
+const attachmentFiles = [
+  {
+    path: "components/dimah-s3/attachment/file-attachment.tsx",
+    type: "registry:component",
+    target: "@components/dimah-s3/attachment/file-attachment.tsx",
+  },
+  {
+    path: "components/dimah-s3/attachment/status-attachment.tsx",
+    type: "registry:component",
+    target: "@components/dimah-s3/attachment/status-attachment.tsx",
+  },
+  {
+    path: "components/dimah-s3/attachment/circle-progress.tsx",
+    type: "registry:component",
+    target: "@components/dimah-s3/attachment/circle-progress.tsx",
+  },
+  {
+    path: "lib/attachment.ts",
+    type: "registry:lib",
+    target: "@lib/attachment.ts",
+  },
+  {
+    path: "lib/file-type-icon.tsx",
+    type: "registry:lib",
+    target: "@lib/file-type-icon.tsx",
+  },
+] as const satisfies Registry["items"][number]["files"];
+
 export const components = [
+  {
+    name: "file-attachment",
+    type: "registry:component",
+    title: "Attachment",
+    description:
+      "FileAttachment and StatusAttachment rows for upload, download, and delete feedback.",
+    dependencies: [...componentDependencies],
+    // Stock shadcn Attachment primitive (not this item).
+    registryDependencies: ["attachment"],
+    files: [...attachmentFiles],
+  },
   {
     name: "upload-dropzone",
     type: "registry:component",

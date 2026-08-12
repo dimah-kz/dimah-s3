@@ -28,7 +28,7 @@ export function ComponentPreview({
     <DemoS3Provider>
       <div
         className={cn(
-          "my-4 overflow-hidden rounded-xl border bg-fd-card sm:my-8",
+          "my-4 overflow-hidden rounded-xl border sm:my-8",
           className,
         )}
       >
