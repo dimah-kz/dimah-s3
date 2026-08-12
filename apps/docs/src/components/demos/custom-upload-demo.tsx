@@ -1,19 +1,35 @@
 "use client";
 
-import { useUpload } from "@dimah-s3/react";
-import { UploadStatus } from "@dimah-s3/ui";
+import { useUpload, type UploadPhase } from "@dimah-s3/react";
+import { FileIcon, LoaderIcon } from "lucide-react";
+import {
+  Attachment,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
 
-/** Headless upload trigger + shared Attachment status row. */
+function attachmentState(phase: UploadPhase) {
+  if (phase === "uploading") return "uploading" as const;
+  if (phase === "error") return "error" as const;
+  if (phase === "success") return "done" as const;
+  return "processing" as const;
+}
+
+/** Headless upload + stock shadcn Attachment from the docs app. */
 export function CustomUploadDemo() {
-  const { open, phase, progress, error, fileInfo, cancel, getInputProps } =
-    useUpload({
-      objectKey: (file) => `demo/${Date.now()}-${file.name}`,
-      maxFileSize: 25 * 1024 * 1024,
-      noDrag: true,
-      noClick: true,
-      noKeyboard: true,
-    });
+  const { open, phase, progress, error, fileInfo, getInputProps } = useUpload({
+    objectKey: (file) => `demo/${Date.now()}-${file.name}`,
+    maxFileSize: 25 * 1024 * 1024,
+    noDrag: true,
+    noClick: true,
+    noKeyboard: true,
+  });
+
+  const busy =
+    phase === "uploading" || phase === "presigning" || phase === "validating";
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-2">
@@ -21,14 +37,24 @@ export function CustomUploadDemo() {
       <Button type="button" size="sm" onClick={() => open()}>
         Choose file
       </Button>
-      <UploadStatus
-        phase={phase}
-        progress={progress}
-        error={error}
-        fileInfo={fileInfo}
-        onCancel={cancel}
-        size="sm"
-      />
+
+      {phase !== "idle" ? (
+        <Attachment state={attachmentState(phase)} size="sm">
+          <AttachmentMedia>
+            {busy ? <LoaderIcon className="animate-spin" /> : <FileIcon />}
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>{fileInfo?.name ?? "Uploading…"}</AttachmentTitle>
+            <AttachmentDescription>
+              {phase === "error"
+                ? (error ?? "Upload failed")
+                : phase === "uploading"
+                  ? `${progress.percent}%`
+                  : "Preparing…"}
+            </AttachmentDescription>
+          </AttachmentContent>
+        </Attachment>
+      ) : null}
     </div>
   );
 }

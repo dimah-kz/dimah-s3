@@ -31,17 +31,6 @@ export {
   type DeleteButtonProps,
 } from "@/components/dimah-s3/delete/delete-button";
 export {
-  Attachment,
-  AttachmentGroup,
-  AttachmentMedia,
-  AttachmentContent,
-  AttachmentTitle,
-  AttachmentDescription,
-  AttachmentActions,
-  AttachmentAction,
-  AttachmentTrigger,
-} from "@/components/ui/attachment";
-export {
   FileAttachment,
   type FileAttachmentProps,
 } from "@/components/dimah-s3/attachment/file-attachment";

@@ -1,79 +1,38 @@
 ---
 title: Custom UI
-description: Build your own upload control with useUpload and Attachment status rows.
+description: Build your own controls — or fork registry items and edit them.
 ---
 
 import { CustomUploadDemo } from "@/components/demos/custom-upload-demo";
 
-Wired buttons and dropzones are optional. The usual headless path is a hook
-from `@dimah-s3/react` plus [`FileAttachment`](/docs/react/ui/components/attachment)
-(or `UploadStatus`, which maps hook state onto that row).
+The wired controls are a starting point, not the only path. You can build your
+own UI on top of `@dimah-s3/react` hooks, install items from the shadcn registry
+and edit the source in your app, or use both as a reference.
 
-One-time styles: [Setup](/docs/react/ui/setup).
-
-## Example
-
-Your trigger, shared status chrome:
+## Preview
 
 <DemoPreview name="custom-upload-demo.tsx">
   <CustomUploadDemo />
 </DemoPreview>
 
-```tsx
-"use client";
+This example pairs [`useUpload`](/docs/react/hooks/upload) with stock shadcn
+[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment) from your
+app (`npx shadcn@latest add attachment`). Map `phase` onto `state`, and hide
+the row while `phase` is `idle`.
 
-import { useUpload } from "@dimah-s3/react";
-import { UploadStatus } from "@dimah-s3/ui";
-
-export function CustomUpload() {
-  const {
-    open,
-    phase,
-    progress,
-    error,
-    fileInfo,
-    cancel,
-    getInputProps,
-  } = useUpload({
-    objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
-    noDrag: true,
-    noClick: true,
-    noKeyboard: true,
-  });
-
-  return (
-    <div className="flex flex-col gap-2">
-      <input {...getInputProps()} />
-      <button type="button" onClick={() => open()}>
-        Choose file
-      </button>
-      <UploadStatus
-        phase={phase}
-        progress={progress}
-        error={error}
-        fileInfo={fileInfo}
-        onCancel={cancel}
-        size="sm"
-      />
-    </div>
-  );
-}
-```
-
-`UploadStatus` hides itself while `phase` is `idle`. For multiple files, use
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) with
-`MultiUploadStatus`.
+One-time styles: [Setup](/docs/react/ui/setup).
 
 ## When to use what
 
-| Goal | Use |
-| ---- | --- |
-| Finished control | [Upload Button](/docs/react/ui/components/upload-button) / [Dropzone](/docs/react/ui/components/upload-dropzone) |
-| Custom trigger, same status row | Hook + `UploadStatus` / `FileAttachment` |
-| Fully custom chrome | Hook only — see [Upload hooks](/docs/react/hooks/upload) |
+| Goal                               | Use                                                                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Finished control                   | [Upload Button](/docs/react/ui/components/upload-button) / [Dropzone](/docs/react/ui/components/upload-dropzone) |
+| Install and customize              | `npx shadcn@latest add @dimah-s3/…` then edit the generated source                                               |
+| Custom trigger + shadcn chrome     | Hook + your own shadcn components (this page)                                                                    |
+| Custom trigger + dimah status rows | Hook + [`FileAttachment`](/docs/react/ui/components/attachment) / `UploadStatus`                                 |
+| Fully custom chrome                | Hook only — [Upload hooks](/docs/react/hooks/upload)                                                             |
 
-Same idea for download and delete: pair
+Same pattern for download and delete:
 [`useDownload`](/docs/react/hooks/download) /
-[`useDelete`](/docs/react/hooks/delete) with
-[`StatusAttachment`](/docs/react/ui/components/attachment) when you want the
-shared error/progress row.
+[`useDelete`](/docs/react/hooks/delete). For multiple files, use
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload).
