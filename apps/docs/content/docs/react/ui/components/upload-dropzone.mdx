@@ -5,9 +5,16 @@ description: Drag-and-drop upload area for single- or multi-file uploads.
 
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
-`UploadDropzone` is a drop target with the same upload options as
-[`UploadButton`](/docs/react/ui/components/upload-button). Set `maxFiles` above `1` for
-multi-file uploads.
+`UploadDropzone` is a drag-and-drop upload surface powered by
+[`useUpload`](/docs/react/hooks/upload) /
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). Upload options
+match [Upload Button](/docs/react/ui/components/upload-button); set `maxFiles`
+above `1` for multi-file uploads.
+
+Progress and errors use the same
+[`Attachment`](/docs/react/ui/components/attachment) rows as the button.
+`children` replace the idle chrome only. The `status` prop accepts `true`,
+`false`, or a render function — same contract as `UploadButton`.
 
 ## Preview
 
@@ -56,9 +63,8 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 </UploadDropzone>
 ```
 
-`children` replaces the idle chrome only. Status follows the same `status` prop
-as `UploadButton` (`true` | `false` | render function). To own the entire
-interior, set `status={false}` and render `UploadStatus` yourself.
+To own the entire interior, set `status={false}` and render `UploadStatus`
+yourself — see [Custom UI](/docs/react/ui/customization/custom-ui).
 
 <Callout type="warn">
   `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
@@ -71,10 +77,3 @@ interior, set `status={false}` and render `UploadStatus` yourself.
   path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
   name="UploadDropzoneProps"
 />
-
-## Headless
-
-Custom drop surface: see [Custom UI](/docs/react/ui/customization/custom-ui)
-([`useUpload`](/docs/react/hooks/upload#useupload) /
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) +
-[`Attachment`](/docs/react/ui/components/attachment)).

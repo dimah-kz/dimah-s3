@@ -5,9 +5,15 @@ description: Fetch download with live progress and cancel.
 
 import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
 
-`ProgressDownloadButton` downloads through fetch so it can show progress and
-support cancel. Prefer [`DownloadButton`](/docs/react/ui/components/download-button) when
-you only need a simple native download.
+`ProgressDownloadButton` downloads through fetch with
+[`useFetchDownload`](/docs/react/hooks/download#fetch-download-with-progress),
+so it can show a live progress fill on a shadcn
+[Button](https://ui.shadcn.com/docs/components/base/button) and support cancel.
+
+On failure, a [`StatusAttachment`](/docs/react/ui/components/attachment) row
+appears below (`attachmentSize` / `attachmentOrientation`). Use
+[Download Button](/docs/react/ui/components/download-button) when a simple
+native download without progress is enough.
 
 ## Preview
 
@@ -45,17 +51,9 @@ npx shadcn@latest add @dimah-s3/progress-download-button
 <ProgressDownloadButton objectKey="uploads/report.pdf" size="sm" />
 ```
 
-Errors render as a [`StatusAttachment`](/docs/react/ui/components/attachment) row
-(`attachmentSize` / `attachmentOrientation`).
-
 ## Props
 
 <AutoTypeTable
   path="packages/ui/src/components/dimah-s3/download/progress-download-button.tsx"
   name="ProgressDownloadButtonProps"
 />
-
-## Headless
-
-[`useFetchDownload`](/docs/react/hooks/download#fetch-download-with-progress)
-for a custom progress UI.

@@ -5,9 +5,14 @@ description: Presign and trigger a native browser download.
 
 import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
 
-`DownloadButton` requests a presigned URL and starts a browser download. No
-progress UI — use [`Progress Download Button`](/docs/react/ui/components/progress-download-button)
-when you need a live progress fill.
+`DownloadButton` requests a presigned URL and starts a native browser download
+via [`useDownload`](/docs/react/hooks/download). The trigger is a shadcn
+[Button](https://ui.shadcn.com/docs/components/base/button).
+
+There is no progress UI on the button itself — only a spinner while the
+presign request is in flight. On failure, a
+[`StatusAttachment`](/docs/react/ui/components/attachment) row appears below
+(`attachmentSize` / `attachmentOrientation`).
 
 ## Preview
 
@@ -45,18 +50,9 @@ npx shadcn@latest add @dimah-s3/download-button
 <DownloadButton objectKey="uploads/report.pdf" variant="ghost" />
 ```
 
-Errors render as a [`StatusAttachment`](/docs/react/ui/components/attachment) row
-(`attachmentSize` / `attachmentOrientation`).
-
 ## Props
 
 <AutoTypeTable
   path="packages/ui/src/components/dimah-s3/download/download-button.tsx"
   name="DownloadButtonProps"
 />
-
-## Headless
-
-[`useDownload`](/docs/react/hooks/download) for a custom control — reuse
-[`StatusAttachment`](/docs/react/ui/components/attachment) for errors, or follow the
-same pattern as [Custom UI](/docs/react/ui/customization/custom-ui).

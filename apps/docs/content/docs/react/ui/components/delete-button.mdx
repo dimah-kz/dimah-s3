@@ -5,8 +5,14 @@ description: Delete an S3 object with a confirmation dialog and inline status.
 
 import { DeleteButtonDemo } from "@/components/demos/delete-button-demo";
 
-`DeleteButton` wraps the two-step [`useDelete`](/docs/react/hooks/delete) flow
-in a shadcn button and confirmation dialog.
+`DeleteButton` runs the two-step [`useDelete`](/docs/react/hooks/delete) flow
+behind a shadcn [Button](https://ui.shadcn.com/docs/components/base/button) and
+[Alert Dialog](https://ui.shadcn.com/docs/components/base/alert-dialog).
+
+After confirm, status feedback uses
+[`StatusAttachment`](/docs/react/ui/components/attachment)
+(`attachmentSize` / `attachmentOrientation`). Wire `onSuccess` to a database
+mutation so app records stay in sync after the object is removed.
 
 ## Preview
 
@@ -49,21 +55,9 @@ npx shadcn@latest add @dimah-s3/delete-button
 />
 ```
 
-Inline status uses [`StatusAttachment`](/docs/react/ui/components/attachment)
-(`attachmentSize` / `attachmentOrientation`).
-
-<Callout type="tip">
-  Wire `onSuccess` to a database mutation so app records stay in sync after
-  deletion.
-</Callout>
-
 ## Props
 
 <AutoTypeTable
   path="packages/ui/src/components/dimah-s3/delete/delete-button.tsx"
   name="DeleteButtonProps"
 />
-
-## Headless
-
-[`useDelete`](/docs/react/hooks/delete) for a custom confirmation UI.

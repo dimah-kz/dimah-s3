@@ -5,8 +5,16 @@ description: File picker button for single- or multi-file uploads with inline st
 
 import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
-`UploadButton` opens the native file picker and uploads through
-[`useUpload`](/docs/react/hooks/upload) / [`useMultiUpload`](/docs/react/hooks/upload#usemultiupload).
+`UploadButton` opens the native file picker and runs the upload through
+[`useUpload`](/docs/react/hooks/upload) or
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). The trigger is a
+shadcn [Button](https://ui.shadcn.com/docs/components/base/button); progress
+and errors render below it as
+[`Attachment`](/docs/react/ui/components/attachment) rows.
+
+Button `variant` and `size` follow shadcn. Row density is controlled separately
+with `attachmentSize` / `attachmentOrientation`, so the status chrome can stay
+compact without shrinking the button.
 
 ## Preview
 
@@ -50,8 +58,7 @@ npx shadcn@latest add @dimah-s3/upload-button
 />
 ```
 
-Inline status uses [`Attachment`](/docs/react/ui/components/attachment) rows. Control it with
-`status`:
+Control the status row with `status`:
 
 | Value                 | Behavior                    |
 | --------------------- | --------------------------- |
@@ -59,8 +66,9 @@ Inline status uses [`Attachment`](/docs/react/ui/components/attachment) rows. Co
 | `false`               | Hide status                 |
 | `(node) => ReactNode` | Wrap or relocate the status |
 
-`attachmentSize` / `attachmentOrientation` set row density without changing
-Button `size`. Toasts are independent via the `toast` prop.
+Toasts are independent via the `toast` prop. For a custom trigger that still
+uses Attachment rows, see
+[Custom UI](/docs/react/ui/customization/custom-ui).
 
 <Callout type="warn">
   `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
@@ -73,9 +81,3 @@ Button `size`. Toasts are independent via the `toast` prop.
   path="packages/ui/src/components/dimah-s3/upload/upload-button.tsx"
   name="UploadButtonProps"
 />
-
-## Headless
-
-Custom trigger: see [Custom UI](/docs/react/ui/customization/custom-ui)
-([`useUpload`](/docs/react/hooks/upload#useupload) +
-[`FileAttachment`](/docs/react/ui/components/attachment) / `UploadStatus`).

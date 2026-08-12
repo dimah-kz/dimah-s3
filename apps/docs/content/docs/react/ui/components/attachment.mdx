@@ -1,32 +1,32 @@
 ---
 title: Attachment
-description: Shared status rows used by wired upload UI — and reusable in your own controls.
+description: Shared status rows for wired controls — and reusable in your own UI.
 ---
 
 import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
 
-`FileAttachment` and `StatusAttachment` are the status rows that
-[Upload Button](/docs/react/ui/components/upload-button),
-[Upload Dropzone](/docs/react/ui/components/upload-dropzone), and the other
-wired controls render for progress, errors, and file info.
-
-They sit on top of shadcn
-[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment) — same
-layout shell (`size`, `orientation`, `state`), with dimah-s3 chrome for file
-progress or a simple title/description row.
-
-You can use them outside the wired controls too: pair a hook from
-`@dimah-s3/react` with these rows when you want a custom trigger and the same
-status look. See [Custom UI](/docs/react/ui/customization/custom-ui).
-
-| Component          | Use when                                                       |
-| ------------------ | -------------------------------------------------------------- |
-| `FileAttachment`   | File name, size, preview, and upload/download progress         |
-| `StatusAttachment` | Generic status — preparing, deleting, or a plain error message |
+`FileAttachment` and `StatusAttachment` are shared status rows built on shadcn
+[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment).
 
 ## Preview
 
 <AttachmentPlaygroundPreview />
+
+[Upload Button](/docs/react/ui/components/upload-button) and
+[Upload Dropzone](/docs/react/ui/components/upload-dropzone) use them for
+inline progress and file info.
+[Download Button](/docs/react/ui/components/download-button),
+[Progress Download Button](/docs/react/ui/components/progress-download-button),
+and [Delete Button](/docs/react/ui/components/delete-button) use
+`StatusAttachment` for error and status feedback.
+
+You can also render these rows yourself next to a headless hook — see
+[Custom UI](/docs/react/ui/customization/custom-ui).
+
+| Component          | Use when                                                       |
+| ------------------ | -------------------------------------------------------------- |
+| `FileAttachment`   | File name, size, preview, and upload progress                  |
+| `StatusAttachment` | Generic status — preparing, deleting, or a plain error message |
 
 ## Install
 
