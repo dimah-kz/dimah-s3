@@ -100,12 +100,13 @@ export function AttachmentPlaygroundDemo({ code }: Props) {
       />
       <FileAttachment
         {...layout}
-        state={state === "error" ? "done" : state}
+        state={state}
         fileName="avatar.png"
         fileType="image/png"
         fileSize={180_000}
         previewUrl={PREVIEW}
         percent={uploading ? 42 : 0}
+        error={state === "error" ? "Network error" : null}
       />
       <StatusAttachment
         {...layout}
