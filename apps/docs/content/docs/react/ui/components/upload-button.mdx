@@ -5,7 +5,7 @@ description: File picker button for single- or multi-file uploads with inline st
 
 import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
-`UploadButton` opens the native file picker for single- or multi-file uploads.
+`UploadButton` opens the native file picker and uploads one or many files.
 
 ## Preview
 
@@ -16,11 +16,11 @@ import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 Built on [`useUpload`](/docs/react/hooks/upload) /
 [`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) and a shadcn
 [Button](https://ui.shadcn.com/docs/components/base/button). Progress and
-errors use [`Attachment`](/docs/react/ui/components/attachment) rows.
+errors render as [`Attachment`](/docs/react/ui/components/attachment) rows.
 
 ## Install
 
-One-time styles and toaster: [Setup](/docs/react/ui/setup).
+<include>../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 

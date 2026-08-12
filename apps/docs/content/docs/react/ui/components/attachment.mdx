@@ -5,8 +5,10 @@ description: Shared status rows for wired controls — and reusable in your own 
 
 import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
 
-`FileAttachment` and `StatusAttachment` are shared status rows built on shadcn
-[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment).
+`FileAttachment` and `StatusAttachment` are the shared status rows used by the
+wired controls. They are built on shadcn
+[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment), and you
+can render them next to a headless hook as well.
 
 ## Preview
 
@@ -20,7 +22,7 @@ inline progress and file info.
 and [Delete Button](/docs/react/ui/components/delete-button) use
 `StatusAttachment` for error and status feedback.
 
-You can also render these rows yourself next to a headless hook — see
+For a custom trigger with the same rows, see
 [Custom UI](/docs/react/ui/customization/custom-ui).
 
 | Component          | Use when                                                       |
@@ -30,7 +32,7 @@ You can also render these rows yourself next to a headless hook — see
 
 ## Install
 
-One-time styles: [Setup](/docs/react/ui/setup).
+<include>../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -86,7 +88,8 @@ Wired controls expose `attachmentSize` / `attachmentOrientation` so row density
 stays independent of Button `size`.
 
 For a hook-driven row that maps upload phase automatically, use `UploadStatus`
-(or `MultiUploadStatus`) as shown in [Custom UI](/docs/react/ui/customization/custom-ui).
+(or `MultiUploadStatus`) as shown in
+[Custom UI](/docs/react/ui/customization/custom-ui).
 
 ## Props
 

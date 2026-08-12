@@ -1,14 +1,18 @@
 # @dimah-s3/ui
 
-Optional prebuilt UI components for `dimah-s3`, powered by `@dimah-s3/react`.
+Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
+[shadcn/ui](https://ui.shadcn.com).
 
-Full documentation: [dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs/react/ui/setup)
+Full documentation: [dimah-s3.vercel.app/docs/react/ui](https://dimah-s3.vercel.app/docs/react/ui)
 
 ## Install
 
 ```bash
-pnpm add @dimah-s3/ui @dimah-s3/react
+pnpm add @dimah-s3/ui @dimah-s3/react shadcn
 ```
+
+Or copy items from the shadcn registry — see
+[UI setup](https://dimah-s3.vercel.app/docs/react/ui/setup).
 
 ## Styles
 
@@ -34,6 +38,8 @@ export function UploadDemo() {
   return <UploadDropzone objectKey={(file) => `uploads/${file.name}`} />;
 }
 ```
+
+Mount `<Toaster />` from `@dimah-s3/ui` next to `S3Provider`.
 
 ## License
 

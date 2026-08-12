@@ -1,5 +1,5 @@
 {
   "title": "UI",
-  "description": "Ready-made upload, download, and delete components",
-  "pages": ["setup", "components", "customization"]
+  "description": "Ready-made upload, download, and delete controls",
+  "pages": ["index", "setup", "components", "customization"]
 }

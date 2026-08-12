@@ -5,9 +5,9 @@ description: Build your own controls — or fork registry items and edit them.
 
 import { CustomUploadDemo } from "@/components/demos/custom-upload-demo";
 
-The wired controls are a starting point, not the only path. You can build your
-own UI on top of `@dimah-s3/react` hooks, install items from the shadcn registry
-and edit the source in your app, or use both as a reference.
+The wired controls are a starting point. Build your own UI on
+`@dimah-s3/react` hooks, install a registry item and edit the source in your
+app, or use both as a reference.
 
 ## Preview
 
@@ -17,12 +17,10 @@ and edit the source in your app, or use both as a reference.
 
 This example pairs [`useUpload`](/docs/react/hooks/upload) with shadcn
 [`Attachment`](https://ui.shadcn.com/docs/components/base/attachment) from
-your app (`npx shadcn@latest add attachment`). Map `phase` onto `state`, and
-hide the row while `phase` is `idle`. Stock shadcn primitives under
-`components/ui/` are not exported from `@dimah-s3/ui` — only Dimah-owned
-controls and `Toaster` / `toast` are.
+your app. Map `phase` onto `state`, and hide the row while `phase` is `idle`.
 
-One-time styles: [Setup](/docs/react/ui/setup).
+If you have not already, complete [UI setup](/docs/react/ui/setup)
+(stylesheet and toaster).
 
 ## When to use what
 

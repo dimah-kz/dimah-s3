@@ -1,31 +1,11 @@
-<section id="npm-package-setup">
+<section id="styles">
 
 <include>./npm-setup.mdx</include>
 
 </section>
 
-<section id="npm-package">
+<section id="registry-config">
 
-<include>./npm-setup.mdx</include>
-
-Mount `<Toaster />` from `@dimah-s3/ui` once in the root layout. Full one-time
-guide: [Setup](/docs/react/ui/setup).
-
-</section>
-
-<section id="shadcn-registry-setup">
-
-```json title="components.json"
-{
-  "registries": {
-    "@dimah-s3": "https://dimah-s3.vercel.app/r/{name}.json"
-  }
-}
-```
-
-Mount `<Toaster />` from `@/components/ui/toast` once after adding components.
-Use `toast.add` / `update` / `close` / `promise` — not Sonner-style helpers.
-Full guide: [Setup](/docs/react/ui/setup). Registry-only color bridge:
-[Theming](/docs/react/ui/customization/theming#registry-only).
+<include>./registry-config.mdx</include>
 
 </section>

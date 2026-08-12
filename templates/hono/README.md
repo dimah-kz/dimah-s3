@@ -27,6 +27,7 @@ npx @dimah-s3/cli@latest create my-app --template hono
 - [Quickstart](https://dimah-s3.vercel.app/docs/quickstart)
 - [Server adapters](https://dimah-s3.vercel.app/docs/server/adapters)
 - [Client setup](https://dimah-s3.vercel.app/docs/react/setup)
+- [UI setup](https://dimah-s3.vercel.app/docs/react/ui/setup)
 
 ## License
 

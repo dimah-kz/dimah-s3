@@ -5,7 +5,7 @@ description: Drag-and-drop upload area for single- or multi-file uploads.
 
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
-`UploadDropzone` is a drag-and-drop upload surface with the same options as
+`UploadDropzone` is a drag-and-drop surface with the same upload options as
 [Upload Button](/docs/react/ui/components/upload-button).
 
 ## Preview
@@ -16,13 +16,11 @@ import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
 Built on [`useUpload`](/docs/react/hooks/upload) /
 [`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). Progress and
-errors use [`Attachment`](/docs/react/ui/components/attachment) rows. Set
-`maxFiles` above `1` for multi-file uploads. `children` replace the idle
-chrome only; `status` works like `UploadButton`.
+errors use [`Attachment`](/docs/react/ui/components/attachment) rows.
 
 ## Install
 
-One-time styles and toaster: [Setup](/docs/react/ui/setup).
+<include>../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -45,6 +43,9 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 </Tabs>
 
 ## Usage
+
+Set `maxFiles` above `1` for multi-file uploads. `children` replace the idle
+chrome only; `status` works like `UploadButton`.
 
 ```tsx
 <UploadDropzone

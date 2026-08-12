@@ -1,0 +1,59 @@
+---
+title: Introduction
+description: Ready-made upload, download, and delete controls on @dimah-s3/react.
+---
+
+[`@dimah-s3/ui`](https://www.npmjs.com/package/@dimah-s3/ui) is the optional
+component layer. It wraps the headless hooks from
+[`@dimah-s3/react`](/docs/react) in [shadcn/ui](https://ui.shadcn.com) controls
+— buttons, dropzones, status rows, and toasts — so you can ship a file UI
+without designing one from scratch.
+
+The package does not replace the client. You still mount
+[`S3Provider`](/docs/react/setup); these components sit on top of it.
+
+<Callout type="info">
+  **Optional layer:** hooks work on their own. Use `@dimah-s3/ui` when you want
+  finished controls instead of building the chrome yourself.
+</Callout>
+
+## Install paths
+
+Both paths share the same one-time [UI setup](/docs/react/ui/setup): stylesheet
+and toaster. After that, each component is an import or a `shadcn add`.
+
+| Path            | When to use                                                      |
+| --------------- | ---------------------------------------------------------------- |
+| npm package     | Keep the library as a dependency and import from `@dimah-s3/ui`. |
+| shadcn registry | Copy source into your app so you can edit the controls.          |
+
+## Components
+
+| Component                                                                      | Role                                |
+| ------------------------------------------------------------------------------ | ----------------------------------- |
+| [Upload Button](/docs/react/ui/components/upload-button)                       | Native file picker                  |
+| [Upload Dropzone](/docs/react/ui/components/upload-dropzone)                   | Drag-and-drop surface               |
+| [Download Button](/docs/react/ui/components/download-button)                   | Presign and native browser download |
+| [Progress Download Button](/docs/react/ui/components/progress-download-button) | Fetch download with live progress   |
+| [Delete Button](/docs/react/ui/components/delete-button)                       | Confirm and delete                  |
+| [Attachment](/docs/react/ui/components/attachment)                             | Shared status rows                  |
+
+## Documentation
+
+<Cards>
+  <Card
+    title="Setup"
+    href="/docs/react/ui/setup"
+    description="Install path, stylesheet, and toaster — once per app."
+  />
+  <Card
+    title="Theming"
+    href="/docs/react/ui/customization/theming"
+    description="Dimah color tokens — inherit shadcn or override."
+  />
+  <Card
+    title="Custom UI"
+    href="/docs/react/ui/customization/custom-ui"
+    description="Hooks plus your own chrome, or fork a registry item."
+  />
+</Cards>

@@ -1,6 +1,6 @@
 {
   "title": "Customization",
-  "description": "Theming and building your own controls",
+  "description": "Theme tokens and building your own controls",
   "defaultOpen": false,
   "pages": ["theming", "custom-ui"]
 }

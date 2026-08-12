@@ -1,6 +1,6 @@
 {
   "title": "Components",
-  "description": "Wired upload, download, and delete controls",
+  "description": "Upload, download, delete, and status rows",
   "defaultOpen": true,
   "pages": [
     "attachment",

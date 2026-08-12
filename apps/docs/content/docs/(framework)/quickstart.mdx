@@ -1,8 +1,11 @@
 ---
 title: Quickstart
-description: Minimal setup for Next.js with server and client hooks.
+description: Wire the server, client, and UI into a Next.js app.
 icon: Rocket
 ---
+
+Scaffold with the CLI, or follow the steps below to wire
+`@dimah-s3/server`, `@dimah-s3/react`, and `@dimah-s3/ui` into an existing app.
 
 ## Create a new project
 
@@ -15,7 +18,7 @@ npx @dimah-s3/cli@latest create
 ### Install [step]
 
 ```npm
-npm i @dimah-s3/server @dimah-s3/react @dimah-s3/ui @aws-sdk/client-s3
+npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3
 ```
 
 ### S3 client [step]
@@ -133,7 +136,22 @@ export function S3ClientProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-Mount near the app root (provider + toaster):
+Full client options: [Client setup](/docs/react/setup).
+
+### UI [step]
+
+Same one-time work as [UI setup](/docs/react/ui/setup): install path,
+stylesheet, and toaster.
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```npm
+npm i @dimah-s3/ui shadcn
+```
+
+<include>../../_includes/ui/index.mdx#styles</include>
 
 ```tsx title="app/layout.tsx"
 import { Toaster } from "@dimah-s3/ui";
@@ -155,24 +173,37 @@ export default function RootLayout({
 }
 ```
 
-Registry installs: import `Toaster` from `@/components/ui/toast` instead of `@dimah-s3/ui`.
-
-### UI setup [step]
-
-One-time styles and toaster: [Setup](/docs/react/ui/setup). Then add a
-component:
-
-<Tabs items={["npm package", "shadcn registry"]}>
-
-<Tab value="npm package">
-  <include>../../_includes/ui/index.mdx#npm-package-setup</include>
 </Tab>
 
 <Tab value="shadcn registry">
-  <include>../../_includes/ui/index.mdx#shadcn-registry-setup</include>
+
+<include>../../_includes/ui/index.mdx#registry-config</include>
 
 ```npm
 npx shadcn@latest add @dimah-s3/upload-button
+```
+
+If you never install `@dimah-s3/ui`, add the
+[color bridge](/docs/react/ui/customization/theming#registry-only).
+
+```tsx title="app/layout.tsx"
+import { Toaster } from "@/components/ui/toast";
+import { S3ClientProvider } from "@/components/s3-provider";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <S3ClientProvider>{children}</S3ClientProvider>
+        <Toaster />
+      </body>
+    </html>
+  );
+}
 ```
 
 </Tab>
@@ -180,6 +211,9 @@ npx shadcn@latest add @dimah-s3/upload-button
 </Tabs>
 
 ### One upload button [step]
+
+Import `UploadButton` from `@dimah-s3/ui`, or from
+`@/components/dimah-s3/upload/upload-button` after a registry install.
 
 ```tsx title="app/page.tsx"
 "use client";
@@ -204,5 +238,5 @@ Selecting a file uploads directly to S3.
 
 <Callout type="info">
   Deeper guides: [Server setup](/docs/server/setup), [Client
-  setup](/docs/react/setup), and [Setup](/docs/react/ui/setup).
+  setup](/docs/react/setup), and [UI setup](/docs/react/ui/setup).
 </Callout>

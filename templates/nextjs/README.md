@@ -25,6 +25,7 @@ npx @dimah-s3/cli@latest create my-app
 - [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) — wire into an existing app
 - [Server setup](https://dimah-s3.vercel.app/docs/server/setup)
 - [Client setup](https://dimah-s3.vercel.app/docs/react/setup)
+- [UI setup](https://dimah-s3.vercel.app/docs/react/ui/setup)
 
 ## License
 

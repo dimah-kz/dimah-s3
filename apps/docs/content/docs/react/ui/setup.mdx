@@ -1,16 +1,17 @@
 ---
 title: Setup
-description: Install styles and toaster once, then add components from npm or the registry.
+description: Install the package or registry, then add the stylesheet and toaster once.
 icon: Settings
 ---
 
-[`@dimah-s3/ui`](https://www.npmjs.com/package/@dimah-s3/ui) ships shadcn-compatible
-controls on top of [`@dimah-s3/react`](/docs/react) hooks. Do this once per app —
-component pages only cover the import or `shadcn add` command for that item.
+This is the one-time install for `@dimah-s3/ui`. You need a working
+[`S3Provider`](/docs/react/setup) first. After this page, each
+[component](/docs/react/ui/components/upload-button) is only an import or a
+`shadcn add` command.
 
-You need a working [`S3Provider`](/docs/react/setup) first.
+The package is built on [shadcn/ui](https://ui.shadcn.com) by default.
 
-## Choose an install path
+## Install
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -20,29 +21,23 @@ You need a working [`S3Provider`](/docs/react/setup) first.
 npm i @dimah-s3/ui shadcn
 ```
 
-Import components from `@dimah-s3/ui`. Styles and the toaster come from the same
-package.
+Import components from `@dimah-s3/ui`. The stylesheet and toaster come from the
+same package.
 
 </Tab>
 
 <Tab value="shadcn registry">
 
-```json title="components.json"
-{
-  "registries": {
-    "@dimah-s3": "https://dimah-s3.vercel.app/r/{name}.json"
-  }
-}
-```
+<include>../../../_includes/ui/index.mdx#registry-config</include>
 
-Then add items as needed:
+Then add items as you need them:
 
 ```npm
 npx shadcn@latest add @dimah-s3/upload-button
 ```
 
-Source lands in your app (usually under `components/`). Toast UI comes from
-shadcn [toast](https://ui.shadcn.com/docs/components/base/toast).
+Source lands in your app (usually under `components/dimah-s3/`). Toast UI comes
+from shadcn [toast](https://ui.shadcn.com/docs/components/base/toast).
 
 </Tab>
 
@@ -54,9 +49,7 @@ Import the UI stylesheet so Tailwind can scan package classes. It also maps
 `--color-dimah-s3-*` to your [shadcn theme](https://ui.shadcn.com/docs/theming)
 by default — see [Theming](/docs/react/ui/customization/theming).
 
-<include meta='title="app/globals.css"'>
-  ../../../_includes/ui/globals.css
-</include>
+<include>../../../_includes/ui/index.mdx#styles</include>
 
 Keep the usual shadcn variables (`--primary`, `--muted`, …) in the same file.
 
@@ -66,8 +59,8 @@ Registry-only apps that never install `@dimah-s3/ui` should still add the
 
 ## Toaster
 
-Mount once next to your provider. Wired upload / download / delete toasts need
-it.
+Mount a toaster once, next to your provider. The wired upload, download, and
+delete controls use it for status toasts.
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -88,9 +81,9 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Already using shadcn toast for your own messages? Mount both and alias one
-import (`Toaster as DimahToaster`). They are independent — keep
-`import { toast } from "@/components/ui/toast"` for app toasts.
+If you already mount shadcn toast for your own messages, keep both. Alias one
+import (`Toaster as DimahToaster`) so they do not collide. App toasts stay on
+`import { toast } from "@/components/ui/toast"`.
 
 </Tab>
 
@@ -111,8 +104,9 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Use `toast.add` / `toast.update` / `toast.close` / `toast.promise` from that
-module — not the old Sonner helpers (`toast.success`, `toast.error`, …).
+Use `toast.add`, `toast.update`, `toast.close`, and `toast.promise` from that
+module. The older Sonner helpers (`toast.success`, `toast.error`, …) are not
+available on this toaster.
 
 </Tab>
 

@@ -1,6 +1,6 @@
 ---
 title: Setup
-description: Minimal client setup with createS3Client and one upload button.
+description: createS3Client, the provider, and your first upload hook.
 icon: Settings
 ---
 
@@ -126,8 +126,6 @@ export default function RootLayout({
 }
 ```
 
-Using `@dimah-s3/ui`? Also mount `<Toaster />` from `@dimah-s3/ui` (or `@/components/ui/toast` for registry) next to the provider — see [Setup](/docs/react/ui/setup).
-
 </Tab>
 
 <Tab value="Other React apps">
@@ -152,6 +150,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 </Tabs>
 
 Now hooks inside this provider can omit `api`.
+
+<Callout type="info">
+  For ready-made upload, download, and delete controls, continue with [UI
+  setup](/docs/react/ui/setup) — stylesheet, toaster, then components. This page
+  stays on the headless client.
+</Callout>
 
 ### First hook [step]
 
@@ -230,9 +234,8 @@ Full guide: [Upload store](/docs/react/upload-store).
 
 ### Next [step]
 
-```tsx
-// Minimal upload-ready UI:
-// mount provider once, render one button, done.
-```
+Hook reference: [Upload](/docs/react/hooks/upload),
+[Download](/docs/react/hooks/download),
+[Delete](/docs/react/hooks/delete).
 
-Hook reference: [Upload](/docs/react/hooks/upload), [Download](/docs/react/hooks/download), [Delete](/docs/react/hooks/delete). UI components: [Setup](/docs/react/ui/setup).
+Ready-made controls: [UI](/docs/react/ui).
