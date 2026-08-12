@@ -31,7 +31,7 @@ export function CircleProgress({
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
-        className="text-muted-foreground/60"
+        className="text-dimah-muted-foreground/60"
       />
       <circle
         cx={size / 2}
@@ -43,7 +43,7 @@ export function CircleProgress({
         strokeDasharray={c}
         strokeDashoffset={offset}
         strokeLinecap="round"
-        className="text-primary transition-[stroke-dashoffset] duration-200"
+        className="text-dimah-primary transition-[stroke-dashoffset] duration-200"
       />
     </svg>
   );

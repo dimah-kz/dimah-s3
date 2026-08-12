@@ -39,6 +39,10 @@ Already using shadcn [toast](https://ui.shadcn.com/docs/components/base/toast) f
 }
 ```
 
+Dimah-owned chrome uses `--color-dimah-*` tokens (default: your shadcn theme).
+If you are not importing `@dimah-s3/ui/styles.css`, add the
+[color bridge](/docs/react/ui/theming#shadcn-registry-only) to `globals.css`.
+
 Components depend on shadcn [toast](https://ui.shadcn.com/docs/components/base/toast). After `npx shadcn@latest add …`, mount once:
 
 ```tsx title="app/layout.tsx"

@@ -22,18 +22,22 @@
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./styles.css": "./styles.css"
+    "./styles.css": "./styles.css",
+    "./css/shadcn.css": "./css/shadcn.css"
   },
   "files": [
     "dist",
-    "styles.css"
+    "styles.css",
+    "css"
   ],
   "scripts": {
     "build": "pnpm run sync-registry && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",

@@ -38,6 +38,18 @@ To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (ove
 - Toast hooks are `.tsx` when toast `description` needs JSX.
 - Toast: shadcn Base UI. Registry → `registryDependencies: toast` + `<Toaster />` from `@/components/ui/toast`. npm → `<Toaster />` from `@dimah-s3/ui`.
 
+## Color tokens (dimah-owned UI)
+
+Dimah-owned components under `components/dimah-s3/` use prefixed utilities
+(`bg-dimah-primary`, `text-dimah-muted-foreground`, …) backed by
+`packages/ui/css/shadcn.css` (imported from `styles.css`). Defaults map to the
+host shadcn vars (`--primary`, `--muted-foreground`, …). Do **not** use bare
+`bg-primary` / `text-muted-foreground` in `components/dimah-s3/` — keep those
+for stock `components/ui/` primitives only.
+
+Consumers override `--color-dimah-*` to theme the library alone. Docs:
+`apps/docs/content/docs/react/ui/theming.mdx`.
+
 ## Direction-safe CSS standard (LTR default, RTL-ready)
 
 - Default docs/demo language is English and design targets LTR first.
@@ -52,7 +64,7 @@ To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (ove
 Minimal examples:
 
 ```tsx
-<span className="ms-auto text-end text-muted-foreground">42%</span>
+<span className="ms-auto text-end text-dimah-muted-foreground">42%</span>
 ```
 
 ```tsx

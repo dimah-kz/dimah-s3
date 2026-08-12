@@ -1,4 +1,10 @@
 @import "shadcn/tailwind.css";
 @import "@dimah-s3/ui/styles.css";
 
-/* + shadcn theme variables */
+/* + shadcn theme variables (`--primary`, `--muted`, …) */
+
+/* Optional: theme dimah-s3 independently of the rest of the app
+@theme {
+  --color-dimah-primary: oklch(0.65 0.15 150);
+}
+*/

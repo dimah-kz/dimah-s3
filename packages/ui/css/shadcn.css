@@ -1,0 +1,30 @@
+/**
+ * @dimah-s3/ui color tokens ← host shadcn theme.
+ *
+ * Dimah-owned components use `bg-dimah-*` / `text-dimah-*` utilities so the
+ * library can be themed independently. By default every token points at the
+ * matching shadcn CSS variable (`--primary`, `--muted`, …).
+ *
+ * Override after import to theme only dimah-s3:
+ *
+ *   @theme {
+ *     --color-dimah-primary: oklch(0.65 0.15 150);
+ *   }
+ */
+@theme {
+  --color-dimah-background: var(--background);
+  --color-dimah-foreground: var(--foreground);
+  --color-dimah-card: var(--card);
+  --color-dimah-card-foreground: var(--card-foreground);
+  --color-dimah-primary: var(--primary);
+  --color-dimah-primary-foreground: var(--primary-foreground);
+  --color-dimah-secondary: var(--secondary);
+  --color-dimah-secondary-foreground: var(--secondary-foreground);
+  --color-dimah-muted: var(--muted);
+  --color-dimah-muted-foreground: var(--muted-foreground);
+  --color-dimah-accent: var(--accent);
+  --color-dimah-accent-foreground: var(--accent-foreground);
+  --color-dimah-destructive: var(--destructive);
+  --color-dimah-border: var(--border);
+  --color-dimah-ring: var(--ring);
+}

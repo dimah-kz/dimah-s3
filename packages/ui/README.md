@@ -10,6 +10,18 @@ Full documentation: [dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs/react
 pnpm add @dimah-s3/ui @dimah-s3/react
 ```
 
+## Styles
+
+Import once in your CSS (Tailwind v4 source scan + shadcn color bridge):
+
+```css
+@import "@dimah-s3/ui/styles.css";
+```
+
+Colors default to your shadcn theme (`--primary`, `--muted`, …). Override
+`--color-dimah-*` to theme the library alone — see
+[Theming](https://dimah-s3.vercel.app/docs/react/ui/theming).
+
 ## Quick start
 
 ```tsx

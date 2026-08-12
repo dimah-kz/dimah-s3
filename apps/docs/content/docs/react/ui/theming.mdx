@@ -1,0 +1,109 @@
+---
+title: Theming
+description: Color tokens for @dimah-s3/ui — inherit shadcn by default, override when needed.
+---
+
+Dimah-owned UI uses prefixed color utilities (`bg-dimah-primary`,
+`text-dimah-muted-foreground`, …) so you can theme the library without changing
+the rest of your app. **By default** every token points at the matching shadcn
+CSS variable.
+
+Stock shadcn primitives shipped with the package (`Button`, `Attachment`,
+`Toast`, …) keep using your app tokens (`bg-primary`, `bg-card`, …).
+
+## Setup
+
+Import the UI stylesheet once (already required for Tailwind source scanning):
+
+```css title="app/globals.css"
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "@dimah-s3/ui/styles.css";
+```
+
+`styles.css` pulls in [`css/shadcn.css`](#tokens), which maps:
+
+| Dimah token | Default (shadcn) |
+| ----------- | ---------------- |
+| `--color-dimah-primary` | `var(--primary)` |
+| `--color-dimah-muted-foreground` | `var(--muted-foreground)` |
+| … | same pattern for the rest |
+
+With a normal shadcn theme in place, upload progress, dropzone accents, and
+overlays match your app automatically.
+
+### shadcn registry only
+
+If you install components from the registry and do **not** depend on
+`@dimah-s3/ui`, paste the bridge into `globals.css` (or install the package and
+import `@dimah-s3/ui/css/shadcn.css`):
+
+```css title="app/globals.css"
+@theme {
+  --color-dimah-background: var(--background);
+  --color-dimah-foreground: var(--foreground);
+  --color-dimah-card: var(--card);
+  --color-dimah-card-foreground: var(--card-foreground);
+  --color-dimah-primary: var(--primary);
+  --color-dimah-primary-foreground: var(--primary-foreground);
+  --color-dimah-secondary: var(--secondary);
+  --color-dimah-secondary-foreground: var(--secondary-foreground);
+  --color-dimah-muted: var(--muted);
+  --color-dimah-muted-foreground: var(--muted-foreground);
+  --color-dimah-accent: var(--accent);
+  --color-dimah-accent-foreground: var(--accent-foreground);
+  --color-dimah-destructive: var(--destructive);
+  --color-dimah-border: var(--border);
+  --color-dimah-ring: var(--ring);
+}
+```
+
+## Custom colors
+
+Override after the import to theme **only** dimah-s3:
+
+```css title="app/globals.css"
+@import "@dimah-s3/ui/styles.css";
+
+@theme {
+  --color-dimah-primary: oklch(0.65 0.15 150);
+  --color-dimah-destructive: oklch(0.55 0.2 25);
+}
+```
+
+Light/dark: set values on `:root` / `.dark` for your shadcn vars as usual — the
+dimah bridge keeps following them unless you override `--color-dimah-*`
+directly.
+
+Scope to a subtree by setting the variables on a wrapper:
+
+```css
+.uploads-panel {
+  --color-dimah-primary: oklch(0.6 0.14 250);
+}
+```
+
+## Tokens
+
+Full bridge (also exported as `@dimah-s3/ui/css/shadcn.css`):
+
+| Token | Maps to |
+| ----- | ------- |
+| `--color-dimah-background` | `--background` |
+| `--color-dimah-foreground` | `--foreground` |
+| `--color-dimah-card` | `--card` |
+| `--color-dimah-card-foreground` | `--card-foreground` |
+| `--color-dimah-primary` | `--primary` |
+| `--color-dimah-primary-foreground` | `--primary-foreground` |
+| `--color-dimah-secondary` | `--secondary` |
+| `--color-dimah-secondary-foreground` | `--secondary-foreground` |
+| `--color-dimah-muted` | `--muted` |
+| `--color-dimah-muted-foreground` | `--muted-foreground` |
+| `--color-dimah-accent` | `--accent` |
+| `--color-dimah-accent-foreground` | `--accent-foreground` |
+| `--color-dimah-destructive` | `--destructive` |
+| `--color-dimah-border` | `--border` |
+| `--color-dimah-ring` | `--ring` |
+
+Tailwind utilities: `bg-dimah-primary`, `text-dimah-muted-foreground`,
+`border-dimah-destructive/20`, and other opacity modifiers.

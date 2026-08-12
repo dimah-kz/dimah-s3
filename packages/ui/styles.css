@@ -1,7 +1,13 @@
-/* @dimah-s3/ui — Tailwind v4 source registration
+/* @dimah-s3/ui — Tailwind v4 source registration + default shadcn color bridge
    Import this file in your CSS so Tailwind can detect the utility classes
-   used by this package:
+   used by this package and inherit your shadcn theme:
 
      @import "@dimah-s3/ui/styles.css";
+
+   To theme dimah-s3 independently, override `--color-dimah-*` after this
+   import (see css/shadcn.css). Stock shadcn primitives (`Button`,
+   `Attachment`, …) keep using your app `--primary` / `--card` tokens.
 */
+@import "./css/shadcn.css";
+
 @source "./dist";
