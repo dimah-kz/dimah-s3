@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 import { cn } from "@/lib/utils";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
 import { Button } from "@/components/ui/button";
 
 type ComponentPreviewProps = {
-  children: React.ReactNode;
+  children: ReactNode;
+  /** Optional controls rendered above the bordered preview frame. */
+  toolbar?: ReactNode;
   code?: string;
   lang?: string;
   className?: string;
@@ -18,6 +20,7 @@ const codeBlockClassName =
 
 export function ComponentPreview({
   children,
+  toolbar,
   code,
   lang = "tsx",
   className,
@@ -26,64 +29,63 @@ export function ComponentPreview({
 
   return (
     <DemoS3Provider>
-      <div
-        className={cn(
-          "my-4 overflow-hidden rounded-xl border sm:my-8",
-          className,
-        )}
-      >
-        <div className="not-prose flex min-h-50 w-full flex-col items-stretch justify-center p-4 sm:min-h-55 sm:p-6">
-          {children}
-        </div>
+      <div className={cn("my-4 sm:my-8", className)}>
+        {toolbar ? <div className="mb-3">{toolbar}</div> : null}
 
-        {code ? (
-          <div className="relative border-t bg-fd-muted/50">
-            {open ? (
-              <>
-                <div className={codeBlockClassName}>
-                  <DynamicCodeBlock lang={lang} code={code} />
-                </div>
-                <div className="pointer-events-none absolute right-3 bottom-3 z-10">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="pointer-events-auto bg-fd-background/90 backdrop-blur supports-backdrop-filter:bg-fd-background/80"
-                    onClick={() => setOpen(false)}
-                  >
-                    Hide Code
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div
-                  aria-hidden
-                  className={cn(
-                    codeBlockClassName,
-                    "pointer-events-none max-h-44 overflow-hidden opacity-55",
-                  )}
-                >
-                  <DynamicCodeBlock
-                    lang={lang}
-                    code={code}
-                    codeblock={{ allowCopy: false }}
-                  />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center bg-linear-to-b from-transparent via-fd-muted/20 to-fd-muted/70">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setOpen(true)}
-                  >
-                    View Code
-                  </Button>
-                </div>
-              </>
-            )}
+        <div className="overflow-hidden rounded-xl border">
+          <div className="not-prose flex min-h-50 w-full flex-col items-stretch justify-center p-4 sm:min-h-55 sm:p-6">
+            {children}
           </div>
-        ) : null}
+
+          {code ? (
+            <div className="relative border-t bg-fd-muted/50">
+              {open ? (
+                <>
+                  <div className={codeBlockClassName}>
+                    <DynamicCodeBlock lang={lang} code={code} />
+                  </div>
+                  <div className="pointer-events-none absolute end-3 bottom-3 z-10">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="pointer-events-auto bg-fd-background/90 backdrop-blur supports-backdrop-filter:bg-fd-background/80"
+                      onClick={() => setOpen(false)}
+                    >
+                      Hide Code
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div
+                    aria-hidden
+                    className={cn(
+                      codeBlockClassName,
+                      "pointer-events-none max-h-44 overflow-hidden opacity-55",
+                    )}
+                  >
+                    <DynamicCodeBlock
+                      lang={lang}
+                      code={code}
+                      codeblock={{ allowCopy: false }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center bg-linear-to-b from-transparent via-fd-muted/20 to-fd-muted/70">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOpen(true)}
+                    >
+                      View Code
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
     </DemoS3Provider>
   );
