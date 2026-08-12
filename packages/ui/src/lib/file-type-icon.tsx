@@ -195,9 +195,9 @@ export function FileTypeGlyph({
   return (
     <span
       className={cn(
-        // AttachmentMedia defaults bare SVGs to size-4; scale the glyph up
-        // inside the existing media box without changing the slot.
-        "flex size-full items-center justify-center [&_svg]:size-[1.4rem]!",
+        // Fill the media box so the glyph tracks Attachment size/orientation
+        // (vertical media can grow well past the default icon rem sizes).
+        "flex size-full items-center justify-center [&_svg]:size-[min(76%,8rem)]!",
         className,
       )}
       aria-hidden
