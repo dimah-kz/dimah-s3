@@ -1,30 +1,48 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Clarify create success message\n\nAfter scaffolding, the CLI still names the project in the success line, with \"Your app\" as the fallback when the name is missing.\n"
-    filename: 2026-08-08-0pb7804l.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Attachment-based upload status UI\n\nUpload, download, and delete feedback now share Attachment-based status rows\n(`FileAttachment` / `StatusAttachment`). Wired components take a single\n`status` prop (`true` | `false` | render function) instead of `showStatus` /\n`renderStatus`. Dropzone `children` only replace idle chrome.\n\nDimah-owned UI lives under `components/dimah-s3/` (attachment pieces under\n`components/dimah-s3/attachment/`), separate from stock shadcn\n`components/ui/`. Shared helpers stay in `lib/` (`attachment.ts`,\n`status-slot`).\n\n### Attachment size, orientation, and layout types\n\n`FileAttachment`, `StatusAttachment`, `UploadStatus`, `MultiUploadStatus`, and\n`UploadStatusBlock` accept stock Attachment `size` (`default` | `sm` | `xs`)\nand `orientation` (`horizontal` | `vertical`). Defaults remain `sm` /\n`horizontal`. Wired buttons and dropzones expose `attachmentSize` /\n`attachmentOrientation` so they do not clash with Button `size`.\n\nExported layout types: `AttachmentSize`, `AttachmentOrientation`,\n`AttachmentLayoutProps`, `AttachmentLayoutAliases`, and `AttachmentState`.\nRemoved aliases: `FileAttachmentState`, `StatusAttachmentState`.\n\n### Image thumbnails and file-type icons\n\nUpload state includes MIME type and a managed image `previewUrl` on\n`UploadFileInfo` / `MultiUploadFileState`. `FileAttachment` renders\n`AttachmentMedia variant=\"image\"` with a progress overlay while uploading,\nthen the thumbnail when complete. Non-image files use colored\n`react-file-icon` glyphs from a curated extension map (aliases and MIME\nfamilies cover the rest).\n\n### Rename upload hooks\n\n| Role                            | New                                    | Previous                                       |\n| ------------------------------- | -------------------------------------- | ---------------------------------------------- |\n| File intake (dropzone / picker) | `useUpload` / `useMultiUpload`         | `useUploadControls` / `useMultiUploadControls` |\n| Engine (`upload(file)`)         | `useFileUpload` / `useMultiFileUpload` | `useUpload` / `useMultiUpload`                 |\n\nMatching option and return types follow the same names\n(`UseFileUploadOptions`, `UseMultiFileUploadReturn`, …).\n\n### react-dropzone intake API\n\n`useUpload` and `useMultiUpload` are built on react-dropzone. Replace\n`inputProps`, `dropHandlers`, and `openFilePicker` with:\n\n- `getRootProps()` / `getInputProps()`\n- `open()`\n- `isDragActive` / `isDragAccept` / `isDragReject`\n- `fileRejections` (soft rejects at intake)\n\n`UploadDropzone` and `UploadButton` already use this API. Dropzones highlight\naccept vs reject drag states and toast soft rejections. Each control mounts\nonly the single- or multi-file hook it needs.\n\n### Zustand-backed hook state\n\nEngine hooks (`useFileUpload`, `useMultiFileUpload`, `useDownload`,\n`useFetchDownload`, `useDelete`) keep phase and progress in per-instance\nZustand stores with Immer. Public return shapes are unchanged; store\nsubscriptions use shallow equality to cut redundant re-renders.\n\n### Prefixed UI color tokens\n\n`@dimah-s3/ui` styles dimah-owned chrome (progress, dropzone accents,\noverlays) with `--color-dimah-s3-*` tokens. Importing\n`@dimah-s3/ui/styles.css` maps them to your shadcn variables by default\n(`--primary`, `--muted`, …). Override `--color-dimah-s3-*` to theme the\nlibrary independently. The bridge is also available as\n`@dimah-s3/ui/css/shadcn.css`.\n"
+    filename: 2026-08-11-upload-ui-and-controls.md
+    v: 0.0.0
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Attachment-based upload status UI\n\nUpload, download, and delete feedback now share Attachment-based status rows\n(`FileAttachment` / `StatusAttachment`). Wired components take a single\n`status` prop (`true` | `false` | render function) instead of `showStatus` /\n`renderStatus`. Dropzone `children` only replace idle chrome.\n\nDimah-owned UI lives under `components/dimah-s3/` (attachment pieces under\n`components/dimah-s3/attachment/`), separate from stock shadcn\n`components/ui/`. Shared helpers stay in `lib/` (`attachment.ts`,\n`status-slot`).\n\n### Attachment size, orientation, and layout types\n\n`FileAttachment`, `StatusAttachment`, `UploadStatus`, `MultiUploadStatus`, and\n`UploadStatusBlock` accept stock Attachment `size` (`default` | `sm` | `xs`)\nand `orientation` (`horizontal` | `vertical`). Defaults remain `sm` /\n`horizontal`. Wired buttons and dropzones expose `attachmentSize` /\n`attachmentOrientation` so they do not clash with Button `size`.\n\nExported layout types: `AttachmentSize`, `AttachmentOrientation`,\n`AttachmentLayoutProps`, `AttachmentLayoutAliases`, and `AttachmentState`.\nRemoved aliases: `FileAttachmentState`, `StatusAttachmentState`.\n\n### Image thumbnails and file-type icons\n\nUpload state includes MIME type and a managed image `previewUrl` on\n`UploadFileInfo` / `MultiUploadFileState`. `FileAttachment` renders\n`AttachmentMedia variant=\"image\"` with a progress overlay while uploading,\nthen the thumbnail when complete. Non-image files use colored\n`react-file-icon` glyphs from a curated extension map (aliases and MIME\nfamilies cover the rest).\n\n### Rename upload hooks\n\n| Role                            | New                                    | Previous                                       |\n| ------------------------------- | -------------------------------------- | ---------------------------------------------- |\n| File intake (dropzone / picker) | `useUpload` / `useMultiUpload`         | `useUploadControls` / `useMultiUploadControls` |\n| Engine (`upload(file)`)         | `useFileUpload` / `useMultiFileUpload` | `useUpload` / `useMultiUpload`                 |\n\nMatching option and return types follow the same names\n(`UseFileUploadOptions`, `UseMultiFileUploadReturn`, …).\n\n### react-dropzone intake API\n\n`useUpload` and `useMultiUpload` are built on react-dropzone. Replace\n`inputProps`, `dropHandlers`, and `openFilePicker` with:\n\n- `getRootProps()` / `getInputProps()`\n- `open()`\n- `isDragActive` / `isDragAccept` / `isDragReject`\n- `fileRejections` (soft rejects at intake)\n\n`UploadDropzone` and `UploadButton` already use this API. Dropzones highlight\naccept vs reject drag states and toast soft rejections. Each control mounts\nonly the single- or multi-file hook it needs.\n\n### Zustand-backed hook state\n\nEngine hooks (`useFileUpload`, `useMultiFileUpload`, `useDownload`,\n`useFetchDownload`, `useDelete`) keep phase and progress in per-instance\nZustand stores with Immer. Public return shapes are unchanged; store\nsubscriptions use shallow equality to cut redundant re-renders.\n\n### Prefixed UI color tokens\n\n`@dimah-s3/ui` styles dimah-owned chrome (progress, dropzone accents,\noverlays) with `--color-dimah-s3-*` tokens. Importing\n`@dimah-s3/ui/styles.css` maps them to your shadcn variables by default\n(`--primary`, `--muted`, …). Override `--color-dimah-s3-*` to theme the\nlibrary independently. The bridge is also available as\n`@dimah-s3/ui/css/shadcn.css`.\n"
+    filename: 2026-08-12-react-and-ui.md
+    v: 0.0.0
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: major\n---\n\n### Stop re-exporting stock shadcn Attachment primitives\n\n`Attachment`, `AttachmentMedia`, and the other stock shadcn Attachment pieces\nare no longer exported from `@dimah-s3/ui`. Add them in your app with\n`npx shadcn@latest add attachment` (or use the copies that land with registry\nitems). Dimah-owned rows stay available as `FileAttachment` and\n`StatusAttachment`.\n"
+    filename: 2026-08-12-ui-no-attachment-reexport.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-08-0pb7804l.md
+      - 2026-08-11-upload-ui-and-controls.md
+      - 2026-08-12-react-and-ui.md
+      - 2026-08-12-ui-no-attachment-reexport.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-08-0pb7804l.md
+      - 2026-08-11-upload-ui-and-controls.md
+      - 2026-08-12-react-and-ui.md
+      - 2026-08-12-ui-no-attachment-reexport.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-08-0pb7804l.md
+      - 2026-08-11-upload-ui-and-controls.md
+      - 2026-08-12-react-and-ui.md
+      - 2026-08-12-ui-no-attachment-reexport.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-08-0pb7804l.md
+      - 2026-08-11-upload-ui-and-controls.md
+      - 2026-08-12-react-and-ui.md
+      - 2026-08-12-ui-no-attachment-reexport.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-08-0pb7804l.md
+      - 2026-08-11-upload-ui-and-controls.md
+      - 2026-08-12-react-and-ui.md
+      - 2026-08-12-ui-no-attachment-reexport.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-08-0pb7804l.md
+      - 2026-08-11-upload-ui-and-controls.md
+      - 2026-08-12-react-and-ui.md
+      - 2026-08-12-ui-no-attachment-reexport.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
