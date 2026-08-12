@@ -12,8 +12,11 @@ import {
   type MultiUploadFileState,
 } from "@dimah-s3/react";
 import { cn } from "@/lib/utils";
-import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
-import type { AttachmentLayoutAliases } from "@/lib/attachment";
+import {
+  resolveStatusSlot,
+  type AttachmentLayoutAliases,
+  type StatusSlot,
+} from "@/lib/attachment";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,

@@ -14,8 +14,11 @@ import {
 } from "@dimah-s3/react";
 import { formatFileSize } from "@dimah-s3/core";
 import { cn } from "@/lib/utils";
-import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
-import type { AttachmentLayoutAliases } from "@/lib/attachment";
+import {
+  resolveStatusSlot,
+  type AttachmentLayoutAliases,
+  type StatusSlot,
+} from "@/lib/attachment";
 import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
 import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
 import { useFileRejectToast } from "@/hooks/use-file-reject-toast";

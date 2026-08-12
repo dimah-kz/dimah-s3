@@ -8,11 +8,6 @@ const statusSupportFiles = [
     target: "@components/dimah-s3/attachment/status-attachment.tsx",
   },
   {
-    path: "lib/status-slot.ts",
-    type: "registry:lib",
-    target: "@lib/status-slot.ts",
-  },
-  {
     path: "lib/attachment.ts",
     type: "registry:lib",
     target: "@lib/attachment.ts",

@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDownload } from "@dimah-s3/react";
-import { resolveStatusSlot, type StatusSlot } from "@/lib/status-slot";
-import type { AttachmentLayoutAliases } from "@/lib/attachment";
+import {
+  resolveStatusSlot,
+  type AttachmentLayoutAliases,
+  type StatusSlot,
+} from "@/lib/attachment";
 import { Button } from "@/components/ui/button";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { useDownloadToast } from "@/hooks/use-download-toast";
