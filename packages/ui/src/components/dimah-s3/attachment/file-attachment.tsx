@@ -89,7 +89,7 @@ export function FileAttachment({
     state === "uploading" || state === "processing" || state === "idle";
 
   const mediaOverlay = showProgressOverlay ? (
-    <div className="absolute inset-0 flex items-center justify-center bg-dimah-background/60">
+    <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-background/60">
       <CircleProgress
         percent={state === "uploading" ? percent : 0}
         size={progress.size}
@@ -98,7 +98,7 @@ export function FileAttachment({
       />
     </div>
   ) : state === "error" ? (
-    <div className="absolute inset-0 flex items-center justify-center bg-dimah-destructive/20 text-dimah-destructive">
+    <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-destructive/20 text-dimah-s3-destructive">
       <AlertCircleIcon />
     </div>
   ) : null;

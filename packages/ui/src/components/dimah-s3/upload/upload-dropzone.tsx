@@ -119,10 +119,10 @@ function DropzoneChrome({
       <div className={cn("flex flex-col gap-1", isDisabled && "opacity-50")}>
         <p className="text-sm font-medium">{label}</p>
         {limitsLine && (
-          <p className="text-xs text-dimah-muted-foreground">{limitsLine}</p>
+          <p className="text-xs text-dimah-s3-muted-foreground">{limitsLine}</p>
         )}
         {acceptLine && (
-          <p className="text-xs text-dimah-muted-foreground">{acceptLine}</p>
+          <p className="text-xs text-dimah-s3-muted-foreground">{acceptLine}</p>
         )}
       </div>
     </>
@@ -197,17 +197,17 @@ function UploadDropzoneSingle({
             ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
             : "flex flex-col items-center justify-center gap-3 p-6 text-center",
           isDisabled
-            ? "cursor-not-allowed border-dimah-muted-foreground/25"
-            : "cursor-pointer border-dimah-muted-foreground/25 hover:border-dimah-primary/50",
+            ? "cursor-not-allowed border-dimah-s3-muted-foreground/25"
+            : "cursor-pointer border-dimah-s3-muted-foreground/25 hover:border-dimah-s3-primary/50",
           !isDisabled &&
             ctrl.isDragReject &&
-            "border-dimah-destructive bg-dimah-destructive/5",
-          !isDisabled && ctrl.isDragAccept && "border-dimah-primary bg-dimah-primary/5",
+            "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
+          !isDisabled && ctrl.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
           !isDisabled &&
             ctrl.isDragActive &&
             !ctrl.isDragAccept &&
             !ctrl.isDragReject &&
-            "border-dimah-primary/50",
+            "border-dimah-s3-primary/50",
           className,
         ),
       })}
@@ -294,17 +294,17 @@ function UploadDropzoneMulti({
             ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
             : "flex flex-col items-center justify-center gap-3 p-6 text-center",
           isDisabled
-            ? "cursor-not-allowed border-dimah-muted-foreground/25"
-            : "cursor-pointer border-dimah-muted-foreground/25 hover:border-dimah-primary/50",
+            ? "cursor-not-allowed border-dimah-s3-muted-foreground/25"
+            : "cursor-pointer border-dimah-s3-muted-foreground/25 hover:border-dimah-s3-primary/50",
           !isDisabled &&
             ctrl.isDragReject &&
-            "border-dimah-destructive bg-dimah-destructive/5",
-          !isDisabled && ctrl.isDragAccept && "border-dimah-primary bg-dimah-primary/5",
+            "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
+          !isDisabled && ctrl.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
           !isDisabled &&
             ctrl.isDragActive &&
             !ctrl.isDragAccept &&
             !ctrl.isDragReject &&
-            "border-dimah-primary/50",
+            "border-dimah-s3-primary/50",
           className,
         ),
       })}

@@ -19,7 +19,7 @@ Import once in your CSS (Tailwind v4 source scan + shadcn color bridge):
 ```
 
 Colors default to your shadcn theme (`--primary`, `--muted`, …). Override
-`--color-dimah-*` to theme the library alone — see
+`--color-dimah-s3-*` to theme the library alone — see
 [Theming](https://dimah-s3.vercel.app/docs/react/ui/theming).
 
 ## Quick start

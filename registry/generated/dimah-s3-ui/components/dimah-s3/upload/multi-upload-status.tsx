@@ -67,7 +67,7 @@ export function MultiUploadStatus({
                 },
               })}
               {eta ? (
-                <span className="font-normal text-dimah-muted-foreground">
+                <span className="font-normal text-dimah-s3-muted-foreground">
                   {" "}
                   · {eta}
                 </span>

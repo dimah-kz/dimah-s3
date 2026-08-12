@@ -14,6 +14,6 @@ Do not edit `registry/generated/dimah-s3-ui/`. Item manifests: `registry/items/c
 
 Direction-safe styling is required (LTR default, RTL-ready): prefer logical utilities like `text-start/end`, `ms/me`, `ps/pe`, and `start/end` over physical `left/right`, `ml/mr`, `pl/pr`, and `text-left/right` unless physically side-locked behavior is intentional.
 
-Dimah-owned colors use `*-dimah-*` utilities (`bg-dimah-primary`, …) via `packages/ui/css/shadcn.css` — not bare shadcn `bg-primary` in `components/dimah-s3/`.
+Dimah-owned colors use `*-dimah-s3-*` utilities (`bg-dimah-s3-primary`, …) via `packages/ui/css/shadcn.css` — not bare shadcn `bg-primary` in `components/dimah-s3/`.
 
 **Detail (Read):** [docs/agents/registry.md](docs/agents/registry.md).

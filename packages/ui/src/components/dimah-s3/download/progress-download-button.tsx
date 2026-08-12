@@ -182,7 +182,7 @@ export function ProgressDownloadButton({
           {isDownloading && (
             <span
               className={cn(
-                "absolute inset-y-0 start-0 bg-dimah-primary/15",
+                "absolute inset-y-0 start-0 bg-dimah-s3-primary/15",
                 fillPercent != null
                   ? "transition-[width] duration-200"
                   : "w-full animate-pulse",

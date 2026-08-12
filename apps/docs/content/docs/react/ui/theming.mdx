@@ -3,8 +3,8 @@ title: Theming
 description: Color tokens for @dimah-s3/ui — inherit shadcn by default, override when needed.
 ---
 
-Dimah-owned UI uses prefixed color utilities (`bg-dimah-primary`,
-`text-dimah-muted-foreground`, …) so you can theme the library without changing
+Dimah-owned UI uses prefixed color utilities (`bg-dimah-s3-primary`,
+`text-dimah-s3-muted-foreground`, …) so you can theme the library without changing
 the rest of your app. **By default** every token points at the matching shadcn
 CSS variable.
 
@@ -25,8 +25,8 @@ Import the UI stylesheet once (already required for Tailwind source scanning):
 
 | Dimah token | Default (shadcn) |
 | ----------- | ---------------- |
-| `--color-dimah-primary` | `var(--primary)` |
-| `--color-dimah-muted-foreground` | `var(--muted-foreground)` |
+| `--color-dimah-s3-primary` | `var(--primary)` |
+| `--color-dimah-s3-muted-foreground` | `var(--muted-foreground)` |
 | … | same pattern for the rest |
 
 With a normal shadcn theme in place, upload progress, dropzone accents, and
@@ -40,21 +40,21 @@ import `@dimah-s3/ui/css/shadcn.css`):
 
 ```css title="app/globals.css"
 @theme {
-  --color-dimah-background: var(--background);
-  --color-dimah-foreground: var(--foreground);
-  --color-dimah-card: var(--card);
-  --color-dimah-card-foreground: var(--card-foreground);
-  --color-dimah-primary: var(--primary);
-  --color-dimah-primary-foreground: var(--primary-foreground);
-  --color-dimah-secondary: var(--secondary);
-  --color-dimah-secondary-foreground: var(--secondary-foreground);
-  --color-dimah-muted: var(--muted);
-  --color-dimah-muted-foreground: var(--muted-foreground);
-  --color-dimah-accent: var(--accent);
-  --color-dimah-accent-foreground: var(--accent-foreground);
-  --color-dimah-destructive: var(--destructive);
-  --color-dimah-border: var(--border);
-  --color-dimah-ring: var(--ring);
+  --color-dimah-s3-background: var(--background);
+  --color-dimah-s3-foreground: var(--foreground);
+  --color-dimah-s3-card: var(--card);
+  --color-dimah-s3-card-foreground: var(--card-foreground);
+  --color-dimah-s3-primary: var(--primary);
+  --color-dimah-s3-primary-foreground: var(--primary-foreground);
+  --color-dimah-s3-secondary: var(--secondary);
+  --color-dimah-s3-secondary-foreground: var(--secondary-foreground);
+  --color-dimah-s3-muted: var(--muted);
+  --color-dimah-s3-muted-foreground: var(--muted-foreground);
+  --color-dimah-s3-accent: var(--accent);
+  --color-dimah-s3-accent-foreground: var(--accent-foreground);
+  --color-dimah-s3-destructive: var(--destructive);
+  --color-dimah-s3-border: var(--border);
+  --color-dimah-s3-ring: var(--ring);
 }
 ```
 
@@ -66,20 +66,20 @@ Override after the import to theme **only** dimah-s3:
 @import "@dimah-s3/ui/styles.css";
 
 @theme {
-  --color-dimah-primary: oklch(0.65 0.15 150);
-  --color-dimah-destructive: oklch(0.55 0.2 25);
+  --color-dimah-s3-primary: oklch(0.65 0.15 150);
+  --color-dimah-s3-destructive: oklch(0.55 0.2 25);
 }
 ```
 
 Light/dark: set values on `:root` / `.dark` for your shadcn vars as usual — the
-dimah bridge keeps following them unless you override `--color-dimah-*`
+dimah bridge keeps following them unless you override `--color-dimah-s3-*`
 directly.
 
 Scope to a subtree by setting the variables on a wrapper:
 
 ```css
 .uploads-panel {
-  --color-dimah-primary: oklch(0.6 0.14 250);
+  --color-dimah-s3-primary: oklch(0.6 0.14 250);
 }
 ```
 
@@ -89,21 +89,21 @@ Full bridge (also exported as `@dimah-s3/ui/css/shadcn.css`):
 
 | Token | Maps to |
 | ----- | ------- |
-| `--color-dimah-background` | `--background` |
-| `--color-dimah-foreground` | `--foreground` |
-| `--color-dimah-card` | `--card` |
-| `--color-dimah-card-foreground` | `--card-foreground` |
-| `--color-dimah-primary` | `--primary` |
-| `--color-dimah-primary-foreground` | `--primary-foreground` |
-| `--color-dimah-secondary` | `--secondary` |
-| `--color-dimah-secondary-foreground` | `--secondary-foreground` |
-| `--color-dimah-muted` | `--muted` |
-| `--color-dimah-muted-foreground` | `--muted-foreground` |
-| `--color-dimah-accent` | `--accent` |
-| `--color-dimah-accent-foreground` | `--accent-foreground` |
-| `--color-dimah-destructive` | `--destructive` |
-| `--color-dimah-border` | `--border` |
-| `--color-dimah-ring` | `--ring` |
+| `--color-dimah-s3-background` | `--background` |
+| `--color-dimah-s3-foreground` | `--foreground` |
+| `--color-dimah-s3-card` | `--card` |
+| `--color-dimah-s3-card-foreground` | `--card-foreground` |
+| `--color-dimah-s3-primary` | `--primary` |
+| `--color-dimah-s3-primary-foreground` | `--primary-foreground` |
+| `--color-dimah-s3-secondary` | `--secondary` |
+| `--color-dimah-s3-secondary-foreground` | `--secondary-foreground` |
+| `--color-dimah-s3-muted` | `--muted` |
+| `--color-dimah-s3-muted-foreground` | `--muted-foreground` |
+| `--color-dimah-s3-accent` | `--accent` |
+| `--color-dimah-s3-accent-foreground` | `--accent-foreground` |
+| `--color-dimah-s3-destructive` | `--destructive` |
+| `--color-dimah-s3-border` | `--border` |
+| `--color-dimah-s3-ring` | `--ring` |
 
-Tailwind utilities: `bg-dimah-primary`, `text-dimah-muted-foreground`,
-`border-dimah-destructive/20`, and other opacity modifiers.
+Tailwind utilities: `bg-dimah-s3-primary`, `text-dimah-s3-muted-foreground`,
+`border-dimah-s3-destructive/20`, and other opacity modifiers.
