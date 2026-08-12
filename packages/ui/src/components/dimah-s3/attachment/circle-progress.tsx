@@ -22,6 +22,7 @@ export function CircleProgress({
       height={size}
       className={cn("shrink-0 -rotate-90", className)}
       style={{ width: size, height: size }}
+      aria-hidden
     >
       <circle
         cx={size / 2}
@@ -30,7 +31,7 @@ export function CircleProgress({
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
-        className="text-muted-foreground/20"
+        className="text-muted-foreground/60"
       />
       <circle
         cx={size / 2}
