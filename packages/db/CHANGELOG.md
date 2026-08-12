@@ -1,3 +1,11 @@
+## @dimah-s3/db@0.7.1
+
+### Fix attachment title shimmer in dark mode
+
+In dark mode, uploading/processing titles use
+`dark:shimmer-color-dimah-s3-muted-foreground` so the highlight stays visible on
+near-white text. Light mode keeps the stock shimmer formula.
+
 ## @dimah-s3/db@0.7.0
 
 ### Attachment-based upload status UI
