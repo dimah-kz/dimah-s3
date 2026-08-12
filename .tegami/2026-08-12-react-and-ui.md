@@ -38,10 +38,10 @@ families cover the rest).
 
 ### Rename upload hooks
 
-| Role | New | Previous |
-| --- | --- | --- |
-| File intake (dropzone / picker) | `useUpload` / `useMultiUpload` | `useUploadControls` / `useMultiUploadControls` |
-| Engine (`upload(file)`) | `useFileUpload` / `useMultiFileUpload` | `useUpload` / `useMultiUpload` |
+| Role                            | New                                    | Previous                                       |
+| ------------------------------- | -------------------------------------- | ---------------------------------------------- |
+| File intake (dropzone / picker) | `useUpload` / `useMultiUpload`         | `useUploadControls` / `useMultiUploadControls` |
+| Engine (`upload(file)`)         | `useFileUpload` / `useMultiFileUpload` | `useUpload` / `useMultiUpload`                 |
 
 Matching option and return types follow the same names
 (`UseFileUploadOptions`, `UseMultiFileUploadReturn`, …).

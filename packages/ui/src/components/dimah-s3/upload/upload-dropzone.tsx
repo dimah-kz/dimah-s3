@@ -202,7 +202,9 @@ function UploadDropzoneSingle({
           !isDisabled &&
             ctrl.isDragReject &&
             "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
-          !isDisabled && ctrl.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
+          !isDisabled &&
+            ctrl.isDragAccept &&
+            "border-dimah-s3-primary bg-dimah-s3-primary/5",
           !isDisabled &&
             ctrl.isDragActive &&
             !ctrl.isDragAccept &&
@@ -299,7 +301,9 @@ function UploadDropzoneMulti({
           !isDisabled &&
             ctrl.isDragReject &&
             "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
-          !isDisabled && ctrl.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
+          !isDisabled &&
+            ctrl.isDragAccept &&
+            "border-dimah-s3-primary bg-dimah-s3-primary/5",
           !isDisabled &&
             ctrl.isDragActive &&
             !ctrl.isDragAccept &&

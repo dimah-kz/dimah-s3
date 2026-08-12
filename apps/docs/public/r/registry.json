@@ -96,11 +96,6 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/status-slot.ts",
-          "type": "registry:lib",
-          "target": "@lib/status-slot.ts"
-        },
-        {
           "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
           "target": "@lib/attachment.ts"
@@ -172,11 +167,6 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/status-slot.ts",
-          "type": "registry:lib",
-          "target": "@lib/status-slot.ts"
-        },
-        {
           "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
           "target": "@lib/attachment.ts"
@@ -217,11 +207,6 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "generated/dimah-s3-ui/lib/status-slot.ts",
-          "type": "registry:lib",
-          "target": "@lib/status-slot.ts"
-        },
-        {
           "path": "generated/dimah-s3-ui/lib/attachment.ts",
           "type": "registry:lib",
           "target": "@lib/attachment.ts"
@@ -260,11 +245,6 @@
           "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
-        },
-        {
-          "path": "generated/dimah-s3-ui/lib/status-slot.ts",
-          "type": "registry:lib",
-          "target": "@lib/status-slot.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/attachment.ts",
@@ -311,11 +291,6 @@
           "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
-        },
-        {
-          "path": "generated/dimah-s3-ui/lib/status-slot.ts",
-          "type": "registry:lib",
-          "target": "@lib/status-slot.ts"
         },
         {
           "path": "generated/dimah-s3-ui/lib/attachment.ts",
