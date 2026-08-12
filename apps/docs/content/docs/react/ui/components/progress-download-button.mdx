@@ -5,21 +5,20 @@ description: Fetch download with live progress and cancel.
 
 import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
 
-`ProgressDownloadButton` downloads through fetch with
-[`useFetchDownload`](/docs/react/hooks/download#fetch-download-with-progress),
-so it can show a live progress fill on a shadcn
-[Button](https://ui.shadcn.com/docs/components/base/button) and support cancel.
-
-On failure, a [`StatusAttachment`](/docs/react/ui/components/attachment) row
-appears below (`attachmentSize` / `attachmentOrientation`). Use
-[Download Button](/docs/react/ui/components/download-button) when a simple
-native download without progress is enough.
+`ProgressDownloadButton` downloads through fetch with live progress fill and
+cancel support.
 
 ## Preview
 
 <DemoPreview name="progress-download-demo.tsx">
   <ProgressDownloadDemo />
 </DemoPreview>
+
+Built on
+[`useFetchDownload`](/docs/react/hooks/download#fetch-download-with-progress)
+and a shadcn [Button](https://ui.shadcn.com/docs/components/base/button). On
+failure, a [`StatusAttachment`](/docs/react/ui/components/attachment) row
+appears below.
 
 ## Install
 

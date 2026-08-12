@@ -5,22 +5,20 @@ description: Drag-and-drop upload area for single- or multi-file uploads.
 
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
-`UploadDropzone` is a drag-and-drop upload surface powered by
-[`useUpload`](/docs/react/hooks/upload) /
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). Upload options
-match [Upload Button](/docs/react/ui/components/upload-button); set `maxFiles`
-above `1` for multi-file uploads.
-
-Progress and errors use the same
-[`Attachment`](/docs/react/ui/components/attachment) rows as the button.
-`children` replace the idle chrome only. The `status` prop accepts `true`,
-`false`, or a render function — same contract as `UploadButton`.
+`UploadDropzone` is a drag-and-drop upload surface with the same options as
+[Upload Button](/docs/react/ui/components/upload-button).
 
 ## Preview
 
 <DemoPreview name="upload-dropzone-demo.tsx">
   <UploadDropzoneDemo />
 </DemoPreview>
+
+Built on [`useUpload`](/docs/react/hooks/upload) /
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). Progress and
+errors use [`Attachment`](/docs/react/ui/components/attachment) rows. Set
+`maxFiles` above `1` for multi-file uploads. `children` replace the idle
+chrome only; `status` works like `UploadButton`.
 
 ## Install
 

@@ -5,20 +5,19 @@ description: Delete an S3 object with a confirmation dialog and inline status.
 
 import { DeleteButtonDemo } from "@/components/demos/delete-button-demo";
 
-`DeleteButton` runs the two-step [`useDelete`](/docs/react/hooks/delete) flow
-behind a shadcn [Button](https://ui.shadcn.com/docs/components/base/button) and
-[Alert Dialog](https://ui.shadcn.com/docs/components/base/alert-dialog).
-
-After confirm, status feedback uses
-[`StatusAttachment`](/docs/react/ui/components/attachment)
-(`attachmentSize` / `attachmentOrientation`). Wire `onSuccess` to a database
-mutation so app records stay in sync after the object is removed.
+`DeleteButton` deletes an S3 object with confirmation and inline status.
 
 ## Preview
 
 <DemoPreview name="delete-button-demo.tsx">
   <DeleteButtonDemo />
 </DemoPreview>
+
+Built on [`useDelete`](/docs/react/hooks/delete), a shadcn
+[Button](https://ui.shadcn.com/docs/components/base/button), and
+[Alert Dialog](https://ui.shadcn.com/docs/components/base/alert-dialog). Status
+uses [`StatusAttachment`](/docs/react/ui/components/attachment). Wire
+`onSuccess` to keep your database in sync.
 
 ## Install
 

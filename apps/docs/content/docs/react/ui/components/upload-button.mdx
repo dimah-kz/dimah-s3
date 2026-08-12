@@ -5,22 +5,18 @@ description: File picker button for single- or multi-file uploads with inline st
 
 import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
-`UploadButton` opens the native file picker and runs the upload through
-[`useUpload`](/docs/react/hooks/upload) or
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). The trigger is a
-shadcn [Button](https://ui.shadcn.com/docs/components/base/button); progress
-and errors render below it as
-[`Attachment`](/docs/react/ui/components/attachment) rows.
-
-Button `variant` and `size` follow shadcn. Row density is controlled separately
-with `attachmentSize` / `attachmentOrientation`, so the status chrome can stay
-compact without shrinking the button.
+`UploadButton` opens the native file picker for single- or multi-file uploads.
 
 ## Preview
 
 <DemoPreview name="upload-button-demo.tsx">
   <UploadButtonDemo />
 </DemoPreview>
+
+Built on [`useUpload`](/docs/react/hooks/upload) /
+[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) and a shadcn
+[Button](https://ui.shadcn.com/docs/components/base/button). Progress and
+errors use [`Attachment`](/docs/react/ui/components/attachment) rows.
 
 ## Install
 
