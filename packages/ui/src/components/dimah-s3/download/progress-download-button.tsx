@@ -163,7 +163,7 @@ export function ProgressDownloadButton({
     ) : null;
 
   return (
-    <div className={cn("inline-flex flex-col gap-2", className)}>
+    <div className={cn("inline-flex flex-col items-center gap-2", className)}>
       <Tooltip>
         <TooltipTrigger
           render={
@@ -171,7 +171,10 @@ export function ProgressDownloadButton({
               variant={variant}
               size={size}
               disabled={disabled}
-              className={cn("relative overflow-hidden", buttonClassName)}
+              className={cn(
+                "relative min-w-24 overflow-hidden",
+                buttonClassName,
+              )}
               onClick={handleClick}
             />
           }
@@ -191,7 +194,7 @@ export function ProgressDownloadButton({
               aria-hidden={isIndeterminateFill}
             />
           )}
-          <span className="relative z-10 flex items-center justify-center gap-1">
+          <span className="relative z-10 flex w-full items-center justify-center gap-1">
             {buttonContent}
           </span>
         </TooltipTrigger>

@@ -39,6 +39,16 @@ export const ATTACHMENT_ERROR_DESCRIPTION_CLASS =
   "overflow-visible whitespace-normal [overflow-wrap:anywhere]";
 
 /**
+ * Title layout + shimmer highlight.
+ * Stock `shimmer` derives the band from `currentColor`; near-white titles
+ * (typical dark `card-foreground`) make that band invisible. Use the official
+ * `shimmer-color-*` utility with a theme token so light/dark and user themes
+ * stay correct — same approach as shadcn’s shimmer docs.
+ */
+export const ATTACHMENT_TITLE_CLASS =
+  "max-w-[48ch] shimmer-color-dimah-s3-muted-foreground";
+
+/**
  * Controls inline status rendering for wired UI components.
  *
  * - `true` (default): render the status node in the default slot

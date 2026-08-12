@@ -16,6 +16,7 @@ import {
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
+  ATTACHMENT_TITLE_CLASS,
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
@@ -125,7 +126,7 @@ export function FileAttachment({
         </AttachmentMedia>
       )}
       <AttachmentContent>
-        <AttachmentTitle className="max-w-[48ch]">
+        <AttachmentTitle className={ATTACHMENT_TITLE_CLASS}>
           {truncateFileName(fileName)}
         </AttachmentTitle>
         {resolvedDescription != null ? (

@@ -16,6 +16,7 @@ import {
 } from "@/registry/dimah-s3-ui/components/ui/attachment";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
+  ATTACHMENT_TITLE_CLASS,
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
@@ -71,7 +72,9 @@ export function StatusAttachment({
       <AttachmentMedia>{media ?? defaultMedia}</AttachmentMedia>
       <AttachmentContent>
         {title != null ? (
-          <AttachmentTitle className="max-w-[48ch]">{title}</AttachmentTitle>
+          <AttachmentTitle className={ATTACHMENT_TITLE_CLASS}>
+            {title}
+          </AttachmentTitle>
         ) : null}
         {description != null ? (
           <AttachmentDescription
