@@ -16,8 +16,11 @@ and edit the source in your app, or use both as a reference.
 </DemoPreview>
 
 This example pairs [`useUpload`](/docs/react/hooks/upload) with shadcn
-[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment). Map
-`phase` onto `state`, and hide the row while `phase` is `idle`.
+[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment) from
+your app (`npx shadcn@latest add attachment`). Map `phase` onto `state`, and
+hide the row while `phase` is `idle`. Stock shadcn primitives under
+`components/ui/` are not exported from `@dimah-s3/ui` — only Dimah-owned
+controls and `Toaster` / `toast` are.
 
 One-time styles: [Setup](/docs/react/ui/setup).
 

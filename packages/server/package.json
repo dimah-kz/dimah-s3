@@ -68,15 +68,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@aws-sdk/s3-presigned-post": "^3.1106.0",
-    "@aws-sdk/s3-request-presigner": "^3.1106.0",
+    "@aws-sdk/s3-presigned-post": "^3.1107.0",
+    "@aws-sdk/s3-request-presigner": "^3.1107.0",
     "@dimah-s3/core": "workspace:*"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": ">=3"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1106.0",
+    "@aws-sdk/client-s3": "^3.1107.0",
     "@types/node": "^26.2.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",

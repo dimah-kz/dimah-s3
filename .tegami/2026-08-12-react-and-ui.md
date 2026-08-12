@@ -12,8 +12,9 @@ Upload, download, and delete feedback now share Attachment-based status rows
 
 Dimah-owned UI lives under `components/dimah-s3/` (attachment pieces under
 `components/dimah-s3/attachment/`), separate from stock shadcn
-`components/ui/`. Shared helpers stay in `lib/` (`attachment.ts`,
-`status-slot`).
+`components/ui/` (internal only — not exported from `@dimah-s3/ui`). Shared
+helpers stay in `lib/` (`attachment.ts`, `status-slot`). For custom chrome,
+add Attachment in your app with `npx shadcn@latest add attachment`.
 
 ### Attachment size, orientation, and layout types
 
