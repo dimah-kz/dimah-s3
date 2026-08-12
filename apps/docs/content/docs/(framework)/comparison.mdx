@@ -1,38 +1,52 @@
 ---
 title: Comparison
-description: Minimal comparison with Uppy + AWS S3.
+description: dimah-s3 vs Uppy + AWS S3 — setup, control, and lifecycle.
 icon: Scale
 ---
 
-**dimah-s3 vs Uppy + AWS S3** — focused on setup effort, control points, and lifecycle completeness.
+**dimah-s3 vs Uppy + AWS S3** — setup effort, control points, and how much of
+the lifecycle each one actually covers.
+
+[Uppy](https://uppy.io/docs/aws-s3/) is a client uploader. It has **no
+server**. You bring a presign endpoint; download, delete, auth, and database
+work are entirely on you. dimah-s3 ships that other half: route handlers,
+policy hooks, and a headless client (plus optional UI) for upload, download,
+and delete.
 
 ## At a glance
 
 |                            | dimah-s3 | Uppy + AWS S3 |
 | -------------------------- | :------: | :-----------: |
+| Server / backend           |    ✅    |      ❌       |
+| Setup effort               | Very low |   Moderate    |
 | Upload, download, delete   |    ✅    | Upload-first  |
 | Presign-first S3 flow      |    ✅    |      ✅       |
-| Auth + policy hooks        |    ✅    |  Custom code  |
-| DB-safe lifecycle points   |    ✅    |  Custom code  |
-| Verified upload metadata   |    ✅    |  Custom code  |
-| Multipart guard lifecycle  |    ✅    |  Custom code  |
-| Setup effort               | Very low |   Moderate    |
+| Auth + policy hooks        |    ✅    |       —       |
+| DB-safe lifecycle points   |    ✅    |       —       |
+| Verified upload metadata   |    ✅    |       —       |
+| Multipart guard lifecycle  |    ✅    |       —       |
 | Headless React hooks       |    ✅    |      ❌       |
 | Dashboard/plugin ecosystem |    —     |      ✅       |
-| Package surface            |  Small   |    Larger     |
 
 ---
 
 ## Pick dimah-s3 if
 
-- You want a very fast, low-friction setup.
-- You want one cohesive stack for the full file lifecycle.
-- You want first-class server hooks for real policy control (`guard`, `presignGuard`, `confirmGuard`).
-- You need reliable app integration server side points for DB writes and cleanup (`onConfirmed`, `onDeleted`).
-- You want headless React primitives with optional shadcn-compatible UI.
+- You want a **very fast setup** — not a week of wiring a backend for a
+  client uploader.
+- You want the **server included** — not a client library you have to back
+  yourself.
+- You want **one stack** for the full file lifecycle: upload, download, and
+  delete.
+- You want first-class **server hooks** for auth, quotas, and DB sync
+  (`guard`, `presignGuard`, `onConfirmed`, `onDeleted`).
+- You want the object **verified** after upload before you trust size or type.
+- You want **headless React** primitives, with optional ready-made UI.
 
 ## Pick Uppy + AWS S3 if
 
-- You need a rich upload dashboard and broad plugin ecosystem.
-- You are optimizing for upload UI and external source integrations first.
-- You are comfortable composing more packages and custom server logic.
+- You need a rich **upload dashboard** and a broad plugin ecosystem (webcam,
+  Drive, …).
+- You are optimizing for upload UI and external sources first.
+- You already have a backend — or you want to write the entire server side
+  yourself.

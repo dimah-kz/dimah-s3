@@ -1,5 +1,6 @@
 {
   "title": "UI",
   "description": "Ready-made upload, download, and delete controls",
+  "icon": "Component",
   "pages": ["index", "setup", "components", "customization"]
 }

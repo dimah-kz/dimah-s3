@@ -1,27 +1,28 @@
 ---
 title: Introduction
-description: Minimal file lifecycle with server and client hooks.
+description: Presign-first S3 upload, download, and delete — server, client, optional UI and DB.
 icon: Layers
 ---
 
-**dimah-s3** gives you the standard S3 lifecycle with a small setup surface: upload, download, and delete.
+**dimah-s3** is a full-stack toolkit for S3 upload, download, and delete. It
+ships server handlers, headless React hooks, optional UI, and an optional
+database plugin for object tracking. You pass in your own AWS SDK `S3Client`.
 
-This framework path stays minimal: hook-based control on the server and hook-based usage on the client.
+It is **presign-first**: the server signs, the browser talks to the bucket, and
+credentials never leave the backend.
 
-Presign flows only. Add any extra S3 operations in your own backend with [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3).
-
-<Callout type="info">
-  **Presign-first:** server signs, client uploads directly to S3. Credentials
-  stay on backend; auth/quota/DB rules stay in server hooks.
-</Callout>
+It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
+your own code with the [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
 ## Why dimah-s3
 
-- **Minimal by default** — small API surface, fast onboarding
-- **Lifecycle coverage** — upload, download, and delete end-to-end
-- **Server hooks** — enforce auth, quotas, and DB sync where they belong
-- **Client hooks** — compose upload/download/delete in your own UI
-- **Optional UI layer** — use `@dimah-s3/ui` only when you need ready components
+- **Fast setup** — a working upload in minutes, not a week of wiring
+- **Full stack** — server, client, and UI; not a client uploader you have to
+  back yourself
+- **Full lifecycle** — upload, download, and delete, including multipart
+- **Server hooks** — auth, quotas, confirm, and cleanup where they belong
+- **Optional database** — ownership, listings, and resumable uploads when you
+  need them
 
 ## Get started
 
@@ -29,7 +30,12 @@ Presign flows only. Add any extra S3 operations in your own backend with [`@aws-
   <Card
     title="Quickstart"
     href="/docs/quickstart"
-    description="npx @dimah-s3/cli@latest create my-app"
+    description="A working upload in a new app, or in one you already have."
+  />
+  <Card
+    title="Comparison"
+    href="/docs/comparison"
+    description="When dimah-s3 fits — and when Uppy is the better fit."
   />
   <Card
     title="Server"
@@ -47,6 +53,11 @@ Presign flows only. Add any extra S3 operations in your own backend with [`@aws-
     description="Ready-made shadcn controls for upload, download, and delete."
   />
   <Card
+    title="Providers"
+    href="/docs/providers"
+    description="AWS S3, Cloudflare R2, MinIO — POST vs PUT, ACL, and CORS."
+  />
+  <Card
     title="Database"
     href="/docs/db"
     description="Optional object tracking with ready-made hooks."
@@ -54,16 +65,6 @@ Presign flows only. Add any extra S3 operations in your own backend with [`@aws-
   <Card
     title="Next.js example"
     href="https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-nextjs"
-    description="Monorepo twin of the Next.js template — workspace packages."
-  />
-  <Card
-    title="Providers"
-    href="/docs/providers"
-    description="AWS S3, Cloudflare R2, MinIO — POST vs PUT, ACL, and CORS."
-  />
-  <Card
-    title="Comparison"
-    href="/docs/comparison"
-    description="When to choose dimah-s3 vs Uppy + AWS S3."
+    description="A complete Next.js app you can clone and run."
   />
 </Cards>
