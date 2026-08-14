@@ -1,3 +1,7 @@
+## @dimah-s3/db@0.7.2
+
+### deps update
+
 ## @dimah-s3/db@0.7.1
 
 ### Fix attachment title shimmer in dark mode

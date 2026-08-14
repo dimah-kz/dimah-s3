@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Fix attachment title shimmer in dark mode\n\nIn dark mode, uploading/processing titles use\n`dark:shimmer-color-dimah-s3-muted-foreground` so the highlight stays visible on\nnear-white text. Light mode keeps the stock shimmer formula.\n"
-    filename: 2026-08-12-a1b2c3d4.md
+  - content: "---\npackages:\n  npm:@dimah-s3/react:\n    type: patch\n  npm:@dimah-s3/server:\n    type: patch\n  npm:@dimah-s3/ui:\n    type: patch\n  group:dimah-s3:\n    type: patch\n---\n\n## deps update\n"
+    filename: 2026-08-14-mssp5jn9.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-12-a1b2c3d4.md
+      - 2026-08-14-mssp5jn9.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-12-a1b2c3d4.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-08-12-a1b2c3d4.md
+      - 2026-08-14-mssp5jn9.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-12-a1b2c3d4.md
+      - 2026-08-14-mssp5jn9.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-08-14-mssp5jn9.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-12-a1b2c3d4.md
+      - 2026-08-14-mssp5jn9.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-12-a1b2c3d4.md
+      - 2026-08-14-mssp5jn9.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
-  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
+  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
