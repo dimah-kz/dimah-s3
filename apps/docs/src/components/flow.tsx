@@ -8,18 +8,29 @@ export type FlowStep = {
   note?: string;
 };
 
-function Arrow() {
+const KIND_LABEL: Record<FlowKind, string> = {
+  hook: "hook",
+  server: "server",
+  s3: "S3",
+  client: "client",
+};
+
+function Arrow({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden
-      viewBox="0 0 16 16"
-      className="mx-1.5 size-3 shrink-0 self-center text-fd-muted-foreground/50 rtl:rotate-180"
+      viewBox="0 0 24 24"
+      className={cn(
+        "size-4 shrink-0 justify-self-center self-center text-fd-muted-foreground/45",
+        "my-1 rotate-90 @sm:mx-0.5 @sm:my-0 @sm:rotate-0 @sm:rtl:rotate-180",
+        className,
+      )}
     >
       <path
-        d="M2.5 8h11M9.5 4.5 13.5 8l-4 3.5"
+        d="M4 12h14M14 7l5 5-5 5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.25"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -34,32 +45,54 @@ export function Flow({
   steps: FlowStep[];
   label?: string;
 }) {
+  const wide = steps.length > 2;
+
   return (
-    <figure className="not-prose my-5">
+    <figure className="@container not-prose my-6 rounded-xl bg-fd-muted/50 p-3 sm:p-4">
+      <figcaption className="mb-3 text-xs font-medium text-fd-muted-foreground">
+        {label}
+      </figcaption>
       <ol
         aria-label={label}
-        className="m-0 flex list-none flex-wrap items-baseline gap-y-0.5 p-0 text-[13px] leading-7"
+        className={cn(
+          "m-0 grid list-none grid-cols-1 items-stretch gap-y-0 p-0 @sm:gap-y-3",
+          wide
+            ? "@sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]"
+            : "@sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+        )}
       >
         {steps.map((step, index) => {
-          const isHook = (step.kind ?? "hook") === "hook";
+          const kind = step.kind ?? "hook";
+          const isHook = kind === "hook";
+          const caption = step.note ?? KIND_LABEL[kind];
+          const isLast = index === steps.length - 1;
+          const endOfRow = wide && (index + 1) % 3 === 0;
 
           return (
-            <li key={`${step.name}-${index}`} className="flex items-baseline">
-              <span
+            <li key={`${step.name}-${index}`} className="contents">
+              <div
                 className={cn(
-                  isHook
-                    ? "font-mono text-fd-foreground"
-                    : "text-fd-muted-foreground",
+                  "flex min-h-12 min-w-0 flex-col justify-center gap-1 rounded-lg px-3 py-2.5 ring-1 ring-fd-foreground/8",
+                  isHook ? "bg-fd-primary/10" : "bg-fd-background",
                 )}
               >
-                {step.name}
-                {step.note ? (
-                  <span className="ms-1 font-sans text-fd-muted-foreground/80">
-                    {step.note}
-                  </span>
-                ) : null}
-              </span>
-              {index < steps.length - 1 ? <Arrow /> : null}
+                <span
+                  className={cn(
+                    "text-sm leading-tight",
+                    isHook
+                      ? "font-mono text-fd-foreground"
+                      : "font-medium text-fd-foreground",
+                  )}
+                >
+                  {step.name}
+                </span>
+                <span className="text-[11px] leading-tight text-fd-muted-foreground">
+                  {caption}
+                </span>
+              </div>
+              {isLast ? null : (
+                <Arrow className={endOfRow ? "@sm:hidden" : undefined} />
+              )}
             </li>
           );
         })}
