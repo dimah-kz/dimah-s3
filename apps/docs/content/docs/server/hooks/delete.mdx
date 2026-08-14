@@ -5,7 +5,14 @@ description: Authorize deletion and run cleanup after S3 removes the object.
 
 Enable with `delete: { enabled: true }`.
 
-**Flow:** `guard` → S3 `DeleteObject` → `onDeleted`
+<Flow
+  label="Delete flow"
+  steps={[
+    { name: "guard", kind: "hook" },
+    { name: "DeleteObject", kind: "s3" },
+    { name: "onDeleted", kind: "hook", note: "DB cleanup" },
+  ]}
+/>
 
 ```ts title="lib/s3.ts"
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
@@ -17,27 +24,36 @@ export const s3 = dimahS3({
   delete: {
     enabled: true,
     guard: async ({ key, request }) => {
-      if (!(await canDelete(request, key))) {
-        throw new DimahS3Error("Forbidden", 403);
+      if (!request.headers.get("authorization")) {
+        throw new DimahS3Error("Unauthorized", 401);
       }
+      // then check that `key` may be deleted
     },
     onDeleted: async ({ key }) => {
-      await removeObjectRow(key);
+      // object is already gone from S3 — drop the row for `key`
     },
   },
 });
 ```
 
-`onDeleted` runs after S3 has removed the object — same `{ key, bucket,
-request }`. Use it for DB cleanup, not as a substitute for deleting from
-the bucket.
+`onDeleted` is not a substitute for deleting from the bucket. It runs after.
 
-| Hook        | When                     |
-| ----------- | ------------------------ |
-| `guard`     | Before `DeleteObject`    |
-| `onDeleted` | After the object is gone |
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="DeleteGuardContext"
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+    key: {
+      description: "Object key to delete.",
+      type: "string",
+      required: true,
+    },
+    bucket: {
+      description: "Target bucket.",
+      type: "string",
+      required: true,
+    },
+  }}
 />

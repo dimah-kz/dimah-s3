@@ -6,8 +6,20 @@ description: Lifecycle hooks for large-file uploads.
 Enable with `multipart: { enabled: true }`. Pair it with client
 `multipart` options — see [Upload](/docs/react/hooks/upload).
 
-**Flow:** `initGuard` → `onInit` → `partGuard` (per part) → `completeGuard`
-→ `onComplete`. Abort is a separate path: `abortGuard` → `onAbort`.
+<Flow
+  label="Multipart complete"
+  steps={[
+    { name: "initGuard", kind: "hook" },
+    { name: "onInit", kind: "hook" },
+    { name: "partGuard", kind: "hook", note: "each part" },
+    { name: "completeGuard", kind: "hook" },
+    { name: "HeadObject", kind: "server" },
+    { name: "onComplete", kind: "hook" },
+  ]}
+/>
+
+Abort is a separate path: `abortGuard` → `onAbort`. Listing parts:
+`listGuard` → `onList`.
 
 ```ts title="lib/s3.ts"
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
@@ -23,56 +35,101 @@ export const s3 = dimahS3({
         throw new DimahS3Error("File too large", 413);
       }
     },
-    onComplete: async ({ key, contentLength, eTag }) => {
-      await saveObject({ key, size: contentLength, eTag });
+    onComplete: async ({ key, contentLength }) => {
+      // persist { key, size: contentLength }
     },
     onAbort: async ({ key, uploadId }) => {
-      await discardUpload({ key, uploadId });
+      // drop any pending row for `{ key, uploadId }`
     },
   },
 });
 ```
 
-`fileSize` on init is client-declared. `contentLength` on `onComplete` is
-verified by S3. Set `requireFileSize: true` to reject init without
-`fileSize`.
+<Callout>
+  `fileSize` on init is what the client sent. `contentLength` on
+  `onComplete` comes from `HeadObject`.
+</Callout>
 
-| Hook            | When                           | Extra context                         |
-| --------------- | ------------------------------ | ------------------------------------- |
-| `initGuard`     | Before `CreateMultipartUpload` | `fileSize?`                           |
-| `onInit`        | After init                     | `uploadId`                            |
-| `partGuard`     | Before each part presign       | `uploadId`, `partNumber`, `partSize?` |
-| `completeGuard` | Before complete                | `uploadId`, `parts`                   |
-| `onComplete`    | After the object is verified   | `contentLength`, `eTag`, …            |
-| `abortGuard`    | Before abort                   | `uploadId`                            |
-| `onAbort`       | After abort                    | `uploadId`                            |
-| `listGuard`     | Before listing parts           | `uploadId`                            |
-| `onList`        | After listing parts            | `uploadId`, `parts`                   |
+Set `requireFileSize: true` to reject init without `fileSize`.
 
-### Init guard
+## Init guard
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartInitGuardContext"
+Runs before `CreateMultipartUpload`.
+
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+    key: {
+      description: "Object key.",
+      type: "string",
+      required: true,
+    },
+    bucket: {
+      description: "Target bucket.",
+      type: "string",
+      required: true,
+    },
+    fileSize: {
+      description: "Size the client sent. Available during init only.",
+      type: "number",
+    },
+  }}
 />
 
-### Part guard
+## On complete
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartPartGuardContext"
+Runs after `HeadObject`. Same idea as [`upload.onConfirmed`](/docs/server/hooks/upload#on-confirmed).
+
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+    key: {
+      description: "Object key.",
+      type: "string",
+      required: true,
+    },
+    bucket: {
+      description: "Target bucket.",
+      type: "string",
+      required: true,
+    },
+    uploadId: {
+      description: "Multipart upload ID.",
+      type: "string",
+      required: true,
+    },
+    contentLength: {
+      description: "Size from HeadObject.",
+      type: "number",
+      required: true,
+    },
+    eTag: {
+      description: "ETag from HeadObject.",
+      type: "string",
+    },
+  }}
 />
 
-### Complete guard
+<Accordions type="multiple">
+<Accordion title="Other hooks">
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartCompleteGuardContext"
-/>
+| Hook            | When                    | Extra                |
+| --------------- | ----------------------- | -------------------- |
+| `onInit`        | After init              | `uploadId`           |
+| `partGuard`     | Before each part URL    | `partNumber`, `partSize?` |
+| `completeGuard` | Before complete         | `parts`              |
+| `abortGuard`    | Before abort            | `uploadId`           |
+| `onAbort`       | After abort             | `uploadId`           |
+| `listGuard`     | Before listing parts    | `uploadId`           |
+| `onList`        | After listing parts     | `parts`              |
 
-### On complete
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartOnCompleteContext"
-/>
+</Accordion>
+</Accordions>

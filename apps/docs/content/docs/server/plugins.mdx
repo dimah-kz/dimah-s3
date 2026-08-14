@@ -9,26 +9,20 @@ Official plugins ship in their own packages — start with
 with `definePlugin`.
 
 A plugin can add lifecycle hooks, HTTP routes under `plugins/{id}/…`, and
-typed context on the `dimahS3()` instance (`s3[id]`). Pair server endpoints
-with a client plugin when the browser needs them.
+typed context on the `dimahS3()` instance (`s3[id]`).
 
 ```ts
-import { dimahS3, definePlugin, createEndpoint } from "@dimah-s3/server";
+import { dimahS3, definePlugin } from "@dimah-s3/server";
 import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 const audit = definePlugin({
   id: "audit",
   hooks: {
     upload: {
-      onConfirmed: async ({ key, bucket }) => {
-        console.log("uploaded", bucket, key);
+      onConfirmed: async ({ key }) => {
+        console.log("uploaded", key);
       },
     },
-  },
-  endpoints: {
-    recent: createEndpoint("recent", { method: "GET" }, async () => ({
-      events: [],
-    })),
   },
   context: {
     log: (message: string) => console.log("[audit]", message),
@@ -43,32 +37,56 @@ export const s3 = dimahS3({
 });
 
 s3.audit.log("ready");
-// GET /api/s3/plugins/audit/recent
 ```
 
 ## Contract
 
-| Field        | Purpose                                                            |
-| ------------ | ------------------------------------------------------------------ |
-| `id`         | Unique string (reserved: `handler`, `api`, `context`, `getPlugin`) |
-| `hooks?`     | Lifecycle hooks — merged **before** your config hooks              |
-| `endpoints?` | Routes under `plugins/{id}/{path}` via `createEndpoint`            |
-| `context?`   | Data exposed as `s3[id]` and `s3.context[id]`                      |
-| `dependsOn?` | Plugin ids that must be registered first                           |
-| `init?`      | Sync validation after the context map is built                     |
+<TypeTable
+  type={{
+    id: {
+      description:
+        "Unique string. Reserved: `handler`, `api`, `context`, `getPlugin`.",
+      type: "string",
+      required: true,
+    },
+    hooks: {
+      description: "Lifecycle hooks — merged before your config hooks.",
+      type: "DimahS3PluginHooks",
+    },
+    endpoints: {
+      description: "HTTP routes under `plugins/{id}/{path}`.",
+      type: "Record<string, PluginEndpoint>",
+    },
+    context: {
+      description: "Data exposed as `s3[id]` and `s3.context[id]`.",
+      type: "object",
+    },
+    dependsOn: {
+      description: "Plugin ids that must be registered first.",
+      type: "string[]",
+    },
+    init: {
+      description: "Sync validation after the context map is built.",
+      type: "(env) => void",
+    },
+  }}
+/>
 
 `enabled` / `method` stay on `DimahS3Config` — plugins cannot override them.
 You still turn features on yourself.
 
 ## Hook order
 
-1. Plugin hooks — **first**, in `plugins` array order
-2. Your hooks on `dimahS3()` — **last**
+<Flow
+  label="Hook merge order"
+  steps={[
+    { name: "plugin hooks", kind: "server", note: "plugins array order" },
+    { name: "your hooks", kind: "hook", note: "dimahS3() config" },
+  ]}
+/>
 
 With [`db()`](/docs/db) registered, its ownership guard runs before your
-quota check.
-
-Stack several **user** hooks on one slot with `chainHooks`:
+quota check. Stack several **user** hooks on one slot with `chainHooks`:
 
 ```ts
 import { dimahS3, chainHooks } from "@dimah-s3/server";
@@ -88,11 +106,18 @@ export const s3 = dimahS3({
 ## Endpoints
 
 ```ts
-endpoints: {
-  ping: createEndpoint("ping", { method: "GET" }, async ({ request }) => {
-    return { ok: true };
-  }),
-},
+import { definePlugin, createEndpoint } from "@dimah-s3/server";
+
+definePlugin({
+  id: "audit",
+  endpoints: {
+    recent: createEndpoint("recent", { method: "GET" }, async () => ({
+      events: [],
+    })),
+  },
+});
+
+// GET /api/s3/plugins/audit/recent
 ```
 
 - Path: `plugins/{pluginId}/{path}` (`pluginEndpointPath` in `@dimah-s3/core`)

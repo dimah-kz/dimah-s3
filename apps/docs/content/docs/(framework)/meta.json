@@ -1,6 +1,6 @@
 {
   "title": "Framework",
-  "description": "Full-stack presign upload, download, and delete",
+  "description": "dimah-s3 in your app",
   "icon": "Layers",
   "root": true,
   "pages": [

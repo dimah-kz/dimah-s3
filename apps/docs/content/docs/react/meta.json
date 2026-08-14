@@ -1,6 +1,6 @@
 {
   "title": "Client",
-  "description": "Headless React hooks for S3 flows",
+  "description": "Headless React client",
   "icon": "Atom",
   "root": true,
   "pages": [

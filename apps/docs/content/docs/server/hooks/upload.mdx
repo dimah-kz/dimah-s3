@@ -7,8 +7,17 @@ Enable with `upload: { enabled: true }`. Default method is `"POST"`. Use
 `"PUT"` when the provider has no Presigned POST
 ([Cloudflare R2](/docs/providers/cloudflare-r2)).
 
-**Flow:** `presignGuard` → `onPresigned` → client uploads to S3 →
-`confirmGuard` → `onConfirmed`
+<Flow
+  label="Upload flow"
+  steps={[
+    { name: "presignGuard", kind: "hook" },
+    { name: "onPresigned", kind: "hook" },
+    { name: "Upload", kind: "s3" },
+    { name: "confirmGuard", kind: "hook" },
+    { name: "HeadObject", kind: "server" },
+    { name: "onConfirmed", kind: "hook" },
+  ]}
+/>
 
 ```ts title="lib/s3.ts"
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
@@ -24,36 +33,90 @@ export const s3 = dimahS3({
         throw new DimahS3Error("File too large", 413);
       }
     },
-    onConfirmed: async ({ key, contentLength, contentType }) => {
-      await saveObject({ key, size: contentLength, contentType });
+    onConfirmed: async ({ key, contentLength }) => {
+      // persist { key, size: contentLength }
     },
   },
 });
 ```
 
-`fileSize`, `contentType`, and `metadata` on presign are **client-declared**.
-`onConfirmed` receives `HeadObject` values — trust those for quotas and DB
-writes.
+<Callout>
+  `fileSize` / `contentType` on presign are what the client sent. `onConfirmed`
+  sees `HeadObject` — use that for quotas and records.
+</Callout>
 
 Set `requireFileSize: true` to reject presign requests that omit `fileSize`.
 
-| Hook           | When                         |
-| -------------- | ---------------------------- |
-| `presignGuard` | Before the URL is signed     |
-| `onPresigned`  | After the URL is issued      |
-| `confirmGuard` | Before `HeadObject`          |
-| `onConfirmed`  | After the object is verified |
+## Presign guard
 
-### Presign guard
+Runs before the URL is signed. Throw to reject.
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="UploadPresignGuardContext"
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+    key: {
+      description: "Object key to sign.",
+      type: "string",
+      required: true,
+    },
+    bucket: {
+      description: "Target bucket.",
+      type: "string",
+      required: true,
+    },
+    fileSize: {
+      description:
+        "Size the client sent. Not verified — use `onConfirmed.contentLength`.",
+      type: "number",
+    },
+    contentType: {
+      description: "MIME type the client sent. Not verified yet.",
+      type: "string",
+    },
+    fileName: {
+      description: "Original filename for `Content-Disposition`.",
+      type: "string",
+    },
+  }}
 />
 
-### On confirmed
+## On confirmed
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="UploadOnConfirmedContext"
+Runs after `HeadObject`. This is the safe place to persist metadata.
+
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+    key: {
+      description: "Object key.",
+      type: "string",
+      required: true,
+    },
+    bucket: {
+      description: "Target bucket.",
+      type: "string",
+      required: true,
+    },
+    contentLength: {
+      description: "Size from HeadObject. Trust this, not presign `fileSize`.",
+      type: "number",
+      required: true,
+    },
+    contentType: {
+      description: "MIME type from HeadObject.",
+      type: "string",
+    },
+    eTag: {
+      description: "ETag from HeadObject.",
+      type: "string",
+    },
+  }}
 />

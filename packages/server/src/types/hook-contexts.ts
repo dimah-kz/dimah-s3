@@ -19,9 +19,9 @@ type ObjectContext = GuardContext & {
 
 /** Context for `upload.presignGuard`. Client-declared values are not verified by S3. */
 export type UploadPresignGuardContext = ObjectContext & {
-  /** Declared MIME type. */
+  /** MIME type the client sent — not verified until `onConfirmed`. */
   contentType?: string;
-  /** Declared size in bytes. */
+  /** Size the client sent — not verified until `onConfirmed`. */
   fileSize?: number;
   /** Custom object metadata. */
   metadata?: Record<string, string>;
@@ -53,7 +53,7 @@ export type UploadOnConfirmedContext = GuardContext & {
   bucket: string;
   /** MIME type from HeadObject. */
   contentType?: string;
-  /** Verified size in bytes. */
+  /** Size from HeadObject — trust this, not the presign `fileSize`. */
   contentLength: number;
   /** ETag from HeadObject. */
   eTag?: string;

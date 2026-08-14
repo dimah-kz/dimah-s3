@@ -6,7 +6,7 @@ description: Auth hook that runs on every request.
 `guard` runs first on every operation — upload, download, delete, multipart,
 and plugin endpoints. There is no `enabled` flag.
 
-Throw to reject. The default status is `403`. Use `DimahS3Error` for other
+Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` for other
 codes.
 
 ```ts title="lib/s3.ts"
@@ -17,8 +17,9 @@ export const s3 = dimahS3({
   s3: s3Client,
   defaultBucket,
   guard: async ({ request }) => {
-    const session = await getSession(request);
-    if (!session) throw new DimahS3Error("Unauthorized", 401);
+    if (!request.headers.get("authorization")) {
+      throw new DimahS3Error("Unauthorized", 401);
+    }
   },
   upload: { enabled: true },
 });
@@ -29,7 +30,12 @@ Per-file checks belong on the feature hooks (`upload.presignGuard`,
 
 Plugin guards run first. See [hook order](/docs/server/plugins#hook-order).
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="GuardContext"
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+  }}
 />

@@ -1,6 +1,6 @@
 {
   "title": "Server",
-  "description": "Presign handlers and lifecycle hooks",
+  "description": "Backend for dimah-s3",
   "icon": "Server",
   "root": true,
   "pages": [

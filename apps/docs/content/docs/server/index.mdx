@@ -8,6 +8,15 @@ icon: Server
 backend for dimah-s3. It signs short-lived URLs, runs your hooks, and never
 touches the file bytes — the browser talks to the bucket directly.
 
+<Flow
+  label="Presign-first"
+  steps={[
+    { name: "Browser", kind: "client", note: "asks for a URL" },
+    { name: "Server", kind: "server", note: "signs + hooks" },
+    { name: "S3", kind: "s3", note: "bytes stay here" },
+  ]}
+/>
+
 It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
 your code with the
 [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).

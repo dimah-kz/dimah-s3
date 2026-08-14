@@ -12,6 +12,8 @@ import {
 
 import { ComponentPreview } from "@/components/component-preview";
 import { DemoPreview } from "@/components/demo-preview";
+import { Flow } from "@/components/flow";
+import * as StepsComponents from "fumadocs-ui/components/steps";
 import type { MDXComponents } from "mdx/types";
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -19,10 +21,12 @@ export function getMDXComponents(components?: MDXComponents) {
     ...defaultMdxComponents,
     ComponentPreview,
     DemoPreview,
+    Flow,
     ...AccordionComponents,
     ...TabsComponents,
     ...FilesComponents,
     ...CardComponents,
+    ...StepsComponents,
     TypeTable,
     AutoTypeTable: (props: Partial<AutoTypeTableProps>) => (
       <AutoTypeTable

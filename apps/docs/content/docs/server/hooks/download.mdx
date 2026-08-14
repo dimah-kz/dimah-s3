@@ -3,13 +3,17 @@ title: Download
 description: Authorize before issuing a presigned GET URL.
 ---
 
-Enable with `download: { enabled: true }`.
+Enable with `download: { enabled: true }`. The server never streams the file
+— it signs a GET URL, then the browser fetches from S3.
 
-**Flow:** `presignGuard` → `onPresigned`
-
-The server never streams the file. It signs a short-lived GET URL; the
-browser fetches from S3. `onPresigned` receives the same fields plus `url`
-and `expiresIn`.
+<Flow
+  label="Download flow"
+  steps={[
+    { name: "presignGuard", kind: "hook" },
+    { name: "onPresigned", kind: "hook" },
+    { name: "GET object", kind: "s3" },
+  ]}
+/>
 
 ```ts title="lib/s3.ts"
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
@@ -21,20 +25,37 @@ export const s3 = dimahS3({
   download: {
     enabled: true,
     presignGuard: async ({ key, request }) => {
-      if (!(await canRead(request, key))) {
-        throw new DimahS3Error("Forbidden", 403);
+      if (!request.headers.get("authorization")) {
+        throw new DimahS3Error("Unauthorized", 401);
       }
+      // then check that `key` is allowed
     },
   },
 });
 ```
 
-| Hook           | When                     |
-| -------------- | ------------------------ |
-| `presignGuard` | Before the URL is signed |
-| `onPresigned`  | After the URL is issued  |
+`onPresigned` receives the same fields plus `url` and `expiresIn`.
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="DownloadPresignGuardContext"
+<TypeTable
+  type={{
+    request: {
+      description: "The incoming HTTP request.",
+      type: "Request",
+      required: true,
+    },
+    key: {
+      description: "Object key to download.",
+      type: "string",
+      required: true,
+    },
+    bucket: {
+      description: "Target bucket.",
+      type: "string",
+      required: true,
+    },
+    fileName: {
+      description: "Download filename for `Content-Disposition`.",
+      type: "string",
+    },
+  }}
 />
