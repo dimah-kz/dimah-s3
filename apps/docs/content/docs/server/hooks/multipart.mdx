@@ -46,8 +46,8 @@ export const s3 = dimahS3({
 ```
 
 <Callout>
-  `fileSize` on init is what the client sent. `contentLength` on
-  `onComplete` comes from `HeadObject`.
+  `fileSize` on init is what the client sent. `contentLength` on `onComplete`
+  comes from `HeadObject`.
 </Callout>
 
 Set `requireFileSize: true` to reject init without `fileSize`.
@@ -121,15 +121,15 @@ Runs after `HeadObject`. Same idea as [`upload.onConfirmed`](/docs/server/hooks/
 <Accordions type="multiple">
 <Accordion title="Other hooks">
 
-| Hook            | When                    | Extra                |
-| --------------- | ----------------------- | -------------------- |
-| `onInit`        | After init              | `uploadId`           |
-| `partGuard`     | Before each part URL    | `partNumber`, `partSize?` |
-| `completeGuard` | Before complete         | `parts`              |
-| `abortGuard`    | Before abort            | `uploadId`           |
-| `onAbort`       | After abort             | `uploadId`           |
-| `listGuard`     | Before listing parts    | `uploadId`           |
-| `onList`        | After listing parts     | `parts`              |
+| Hook            | When                 | Extra                     |
+| --------------- | -------------------- | ------------------------- |
+| `onInit`        | After init           | `uploadId`                |
+| `partGuard`     | Before each part URL | `partNumber`, `partSize?` |
+| `completeGuard` | Before complete      | `parts`                   |
+| `abortGuard`    | Before abort         | `uploadId`                |
+| `onAbort`       | After abort          | `uploadId`                |
+| `listGuard`     | Before listing parts | `uploadId`                |
+| `onList`        | After listing parts  | `parts`                   |
 
 </Accordion>
 </Accordions>
