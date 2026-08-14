@@ -1,11 +1,11 @@
 ---
-title: Introduction
-description: Connect defineApi to your own backend using @dimah-s3/core types.
+title: Bring your own backend
+description: Connect the React client to your existing API.
 ---
 
-Wire [`defineApi`](/docs/react/setup) to any backend. Paths, HTTP methods,
-and transport (fetch, tRPC, GraphQL, …) are yours — they do **not** need to
-match [`@dimah-s3/server`](/docs/server).
+Implement `S3Api` with [`defineApi`](/docs/react/setup). Routes, transport, and
+server framework are up to you. They do not need to match
+[`@dimah-s3/server`](/docs/server).
 
 Each `S3Api` method must accept the documented input and return JSON with
 **every field** in the response tables. Missing fields break the hooks.

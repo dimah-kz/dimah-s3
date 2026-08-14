@@ -1,6 +1,6 @@
 ---
 title: Setup
-description: createS3Client, the provider, and your first upload hook.
+description: Connect S3Api and use your first hook.
 icon: Settings
 ---
 
@@ -12,10 +12,10 @@ npm i @dimah-s3/react
 
 ### API client [step]
 
-Hooks talk to an `S3Api`. `createS3Client` returns the client, a bound
-provider, and a typed `useApi`.
+Hooks only need an `S3Api`. Use `createS3Client` with `@dimah-s3/server`, or
+`defineApi` with your own backend.
 
-<Tabs items={["@dimah-s3/server", "Custom backend"]}>
+<Tabs items={["@dimah-s3/server", "Your own backend"]}>
 
 <Tab value="@dimah-s3/server">
 
@@ -54,10 +54,10 @@ export const { api, S3Provider, useApi } = createS3Client({
 
 </Tab>
 
-<Tab value="Custom backend">
+<Tab value="Your own backend">
 
 Implement `S3Api` with `defineApi` and pass it to the provider. Payload
-shapes: [Custom backend](/docs/react/custom-backend).
+shapes: [Bring your own backend](/docs/react/custom-backend).
 
 ```tsx title="components/s3-provider.tsx"
 "use client";

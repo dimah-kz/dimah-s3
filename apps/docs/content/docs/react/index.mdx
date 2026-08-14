@@ -1,30 +1,28 @@
 ---
 title: Introduction
-description: Headless React hooks for S3 upload, download, and delete.
+description: Headless React client for S3 upload, download, and delete.
 icon: Atom
 ---
 
-[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is the
-browser client for dimah-s3. Hooks own state, progress, retry, cancel, and
-multipart. You own the markup — or pair them with
-[`@dimah-s3/ui`](/docs/react/ui).
+[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is a
+standalone, headless S3 client for React. It handles file intake, progress,
+retry, cancel, and multipart. You build the UI.
 
-The browser never holds long-lived credentials. Hooks ask your API for a
-presigned URL, then talk to the bucket directly.
+Like [Uppy AWS S3](https://uppy.io/docs/aws-s3/), it works as a standalone
+client. It is also the React client used by dimah-s3.
 
-[`@dimah-s3/server`](/docs/server) is the usual backend. Your own presign API
-works too — see [Custom backend](/docs/react/custom-backend).
+Use `defineApi` with any presign API, or `createS3Client` with
+[`@dimah-s3/server`](/docs/server). No server framework is required.
 
-List, copy, tagging, and other S3 APIs stay in your code with the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+Files transfer directly between the browser and S3. Credentials stay on the
+server.
 
 ## What you get
 
-- **Headless** — state, progress, retry, and cancel; your UI
-- **Full flows** — upload (including multipart), download, and two-step delete
-- **Any backend** — `createS3Client` against dimah-s3, or `defineApi` against yours
-- **Ready-made UI** — the same hooks, wrapped in
-  [shadcn controls](/docs/react/ui)
+- **Headless** — behavior and state without markup
+- **Standalone** — works with any backend through `S3Api`
+- **Full flows** — upload, multipart, download, and delete
+- **Optional UI** — ready-made [shadcn controls](/docs/react/ui)
 
 ## Documentation
 
@@ -32,7 +30,7 @@ List, copy, tagging, and other S3 APIs stay in your code with the
   <Card
     title="Setup"
     href="/docs/react/setup"
-    description="createS3Client, the provider, and your first hook."
+    description="Connect S3Api and use your first hook."
   />
   <Card
     title="Upload"
@@ -65,8 +63,8 @@ List, copy, tagging, and other S3 APIs stay in your code with the
     description="Progress text, file size, and validation."
   />
   <Card
-    title="Custom backend"
+    title="Bring your own backend"
     href="/docs/react/custom-backend"
-    description="Implement S3Api on your own server."
+    description="Connect the hooks to your existing API."
   />
 </Cards>

@@ -1,6 +1,6 @@
 {
-  "title": "Custom backend",
-  "description": "S3Api method shapes for your own API",
+  "title": "Bring your own backend",
+  "description": "Connect the React client to your API",
   "defaultOpen": false,
   "pages": ["index", "upload", "download", "delete", "multipart"]
 }
