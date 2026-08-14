@@ -1,23 +1,24 @@
 ---
 title: Introduction
-description: "@dimah-s3/server presign handlers and lifecycle hooks for S3 flows."
+description: Presign handlers and lifecycle hooks for S3 upload, download, and delete.
 icon: Server
 ---
 
-[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the backend for dimah-s3 **S3 flows**: upload, download, delete, and multipart.
+[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the
+backend for dimah-s3. It signs short-lived URLs, runs your hooks, and never
+touches the file bytes — the browser talks to the bucket directly.
 
-It focuses on presign flows. For list, copy, tagging, and other S3 APIs, use [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3) in your own code.
+It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
+your code with the
+[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
-## Presign-first
+## What you get
 
-Clients transfer bytes **directly with S3**; your server only signs URLs and runs hooks. Flow: authorize, issue a short-lived URL, let the client upload/download, then confirm or clean up on the server.
-
-## Why @dimah-s3/server
-
-- **One instance** — `dimahS3()` gives HTTP `handler` and direct `api`
-- **Lifecycle hooks** — auth, validation, and DB writes at each step
-- **Verified uploads** — `HeadObject` before trusting file metadata
-- **Any runtime** — first-class adapters for Next.js, Express, Hono, Fastify, Elysia, SvelteKit, plus any `Request`/`Response` stack
+- **One instance** — `dimahS3()` gives an HTTP `handler` and a typed `api`
+- **Lifecycle hooks** — auth, quotas, and DB writes at each step
+- **Verified uploads** — `HeadObject` before you trust size or type
+- **Any runtime** — adapters for Next.js, Express, Hono, and others, or a
+  plain `Request` / `Response` handler
 
 ## Documentation
 
@@ -25,22 +26,7 @@ Clients transfer bytes **directly with S3**; your server only signs URLs and run
   <Card
     title="Setup"
     href="/docs/server/setup"
-    description="S3 client, config, route handlers, and typed client."
-  />
-  <Card
-    title="Adapters"
-    href="/docs/server/adapters"
-    description="Mount on Next.js, Express, Hono, Fastify, Elysia, SvelteKit, and more."
-  />
-  <Card
-    title="Helpers"
-    href="/docs/server/helpers"
-    description="resolveObjectAcl, buildContentDisposition, parseFileName, and more."
-  />
-  <Card
-    title="Custom plugins"
-    href="/docs/server/custom-plugins"
-    description="definePlugin for hooks, endpoints, and context you own."
+    description="Install, configure, and mount the route."
   />
   <Card
     title="Guard"
@@ -50,7 +36,7 @@ Clients transfer bytes **directly with S3**; your server only signs URLs and run
   <Card
     title="Upload"
     href="/docs/server/hooks/upload"
-    description="Presign, confirm, and persist metadata."
+    description="Presign, confirm, persist metadata."
   />
   <Card
     title="Download"
@@ -60,11 +46,21 @@ Clients transfer bytes **directly with S3**; your server only signs URLs and run
   <Card
     title="Delete"
     href="/docs/server/hooks/delete"
-    description="Guard and cleanup after removal."
+    description="Guard and clean up after removal."
   />
   <Card
     title="Multipart"
     href="/docs/server/hooks/multipart"
     description="Large-file upload lifecycle."
+  />
+  <Card
+    title="Plugins"
+    href="/docs/server/plugins"
+    description="definePlugin — hooks, endpoints, and context."
+  />
+  <Card
+    title="Database"
+    href="/docs/db"
+    description="Optional object tracking with db()."
   />
 </Cards>

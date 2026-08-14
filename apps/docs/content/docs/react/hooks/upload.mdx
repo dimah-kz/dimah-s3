@@ -1,142 +1,117 @@
 ---
 title: Upload
-description: Upload hooks for single and multiple files.
+description: Headless hooks for single- and multi-file uploads.
 ---
 
-| Hook                                   | Use case                          |
-| -------------------------------------- | --------------------------------- |
-| `useUpload`                            | One file — picker + drag-and-drop |
-| `useMultiUpload`                       | Many files — picker + drop        |
-| `useFileUpload` / `useMultiFileUpload` | You already have a `File`         |
+Pick a file (or drop one), send it to S3, track progress.
 
-<Callout>
-  Enforce `accept` and `maxFileSize` on the server too (`presignGuard`).
-</Callout>
+[Upload Button](/docs/react/ui/components/upload-button) and
+[Upload Dropzone](/docs/react/ui/components/upload-dropzone) are built on
+these hooks.
 
----
+| Hook                 | Use when                      |
+| -------------------- | ----------------------------- |
+| `useUpload`          | One file — picker or dropzone |
+| `useMultiUpload`     | Many files                    |
+| `useFileUpload`      | You already have a `File`     |
+| `useMultiFileUpload` | You already have `File[]`     |
 
-## `useUpload`
+`accept` and `maxFileSize` are client-side only. Mirror them in
+[`presignGuard`](/docs/server/hooks/upload#presign-guard).
 
-Same pattern as [`UploadButton`](/docs/react/ui/components/upload-button) and [`UploadDropzone`](/docs/react/ui/components/upload-dropzone). Built on [react-dropzone](https://react-dropzone.js.org/) (`getRootProps` / `getInputProps`).
+## useUpload
 
 ```tsx
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
 
-const {
-  getRootProps,
-  getInputProps,
-  isDragActive,
-  isDragAccept,
-  isDragReject,
-  fileRejections,
-  phase,
-  progress,
-  isUploading,
-  cancel,
-} = useUpload({
-  objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
-  accept: ["image/*"],
-  maxFileSize: 10 * 1024 * 1024,
-  onFileReject: (rejections) => console.warn(rejections),
-  onSuccess: (file, result) => console.log(result.key),
-});
+export function Uploader() {
+  const { getRootProps, getInputProps, isUploading, progress } = useUpload({
+    objectKey: "uploads/photo.jpg",
+  });
 
-return (
-  <div
-    {...getRootProps({
-      className: isDragReject
-        ? "border-red-500"
-        : isDragAccept
-          ? "border-green-500"
-          : isDragActive
-            ? "border-blue-500"
-            : undefined,
-    })}
-  >
-    <input {...getInputProps()} />
-    {isUploading
-      ? `${progress.percent}%`
-      : isDragReject
-        ? "File type or size not allowed"
-        : isDragActive
-          ? "Drop to upload"
-          : "Click or drop to upload"}
-    {fileRejections.length > 0 && (
-      <p>{fileRejections[0]?.errors[0]?.message}</p>
-    )}
-  </div>
-);
+  return (
+    <div {...getRootProps()}>
+      <input {...getInputProps()} />
+      {isUploading ? `${progress.percent}%` : "Drop a file or click to upload"}
+    </div>
+  );
+}
 ```
 
-For a button-only UI (no drag), pass `noDrag`, `noClick`, and `noKeyboard`, then call `open()` from your button.
+Built on [react-dropzone](https://react-dropzone.js.org/). Spread
+`getRootProps` / `getInputProps` on a wrapper and a hidden file input.
 
-`UploadDropzone` already styles accept/reject drags and toasts soft rejections when `toast` is enabled.
+For a picker button instead of a dropzone, use
+[Upload Button](/docs/react/ui/components/upload-button) — or pass
+`noDrag` / `noClick` / `noKeyboard` and call `open()`.
 
----
+`isDragActive` / `isDragReject` style the drop target. To map `phase` onto
+status rows, see [Custom UI](/docs/react/ui/customization/custom-ui).
 
-## `useMultiUpload`
+## useMultiUpload
 
-Same as above, for multiple files. Set `maxFiles`.
+Same intake, for several files. The UI components above switch to this
+when `maxFiles` is greater than 1.
 
 ```tsx
 "use client";
 
 import { useMultiUpload } from "@dimah-s3/react";
 
-const {
-  getRootProps,
-  getInputProps,
-  files,
-  totalProgress,
-  isUploading,
-  cancel,
-} = useMultiUpload({
-  objectKey: (file) => `uploads/${Date.now()}-${file.name}`,
-  maxFiles: 5,
-  concurrentFiles: 3,
-  accept: ["image/*"],
-  onSuccess: (results) => console.log(results.map((r) => r.key)),
-});
+export function MultiUploader() {
+  const { getRootProps, getInputProps, isUploading, totalProgress } =
+    useMultiUpload({
+      objectKey: (file) => `uploads/${file.name}`,
+      maxFiles: 5,
+    });
 
-return (
-  <div {...getRootProps()}>
-    <input {...getInputProps()} />
-    {isUploading
-      ? `${totalProgress.percent}% — ${files.filter((f) => f.status === "success").length}/${files.length}`
-      : "Click or drop files"}
-  </div>
-);
+  return (
+    <div {...getRootProps()}>
+      <input {...getInputProps()} />
+      {isUploading
+        ? `${totalProgress.percent}%`
+        : "Drop files or click to upload"}
+    </div>
+  );
+}
 ```
 
-<Callout type="info">
-  `multipart` splits one large file into parts — it is not multi-file upload.
-</Callout>
+Each file needs its own key, so `objectKey` is a function of the file.
+`files` on the return value is the per-file list.
 
----
+`multipart` splits **one** large file into parts. It is not multi-file
+upload. To resume after a refresh, pass an
+[upload store](/docs/react/upload-store).
 
-## Lower-level hooks
+## Without a picker
 
-Skip the picker when you already have a `File`.
-
-### `useFileUpload`
+Skip dropzone when you already have a `File`.
 
 ```tsx
-const { phase, progress, upload, cancel, reset } = useFileUpload();
+const { upload, progress, phase } = useFileUpload();
 
-await upload(file, `uploads/${file.name}`, { metadata: { userId: "1" } });
+await upload(file, "uploads/photo.jpg");
 ```
-
-### `useMultiFileUpload`
 
 ```tsx
-const { files, totalProgress, upload, cancel, reset } = useMultiFileUpload({
-  maxFiles: 10,
-  concurrentFiles: 3,
-});
+const { upload, totalProgress, phase } = useMultiFileUpload();
 
-await upload(fileArray, (file) => `uploads/${file.name}`);
+await upload(files, (file) => `uploads/${file.name}`);
 ```
 
-Same engine options as the intake hooks (`accept`, `maxFileSize`, `onSuccess`, …).
+## Options
+
+| Option        | Description                             |
+| ------------- | --------------------------------------- |
+| `objectKey`   | Required. String or `(file) => string`  |
+| `accept`      | MIME types or extensions                |
+| `maxFileSize` | Bytes                                   |
+| `maxFiles`    | `useMultiUpload` / `useMultiFileUpload` |
+| `multipart`   | Split large files into parts            |
+| `uploadStore` | Resume after refresh                    |
+| `onSuccess`   | Called with the uploaded key            |
+
+`api` is optional under `S3Provider`. Full types: `UseUploadOptions`,
+`UseMultiUploadOptions`.

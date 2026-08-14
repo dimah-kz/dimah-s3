@@ -1,4 +1,5 @@
 {
   "title": "Hooks",
+  "defaultOpen": true,
   "pages": ["upload", "download", "delete"]
 }

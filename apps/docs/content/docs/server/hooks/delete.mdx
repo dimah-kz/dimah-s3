@@ -1,81 +1,43 @@
 ---
 title: Delete
-description: Delete hooks for auth and post-delete cleanup.
+description: Authorize deletion and run cleanup after S3 removes the object.
 ---
 
-Enable delete in config before these hooks run:
+Enable with `delete: { enabled: true }`.
 
-```ts
-delete: { enabled: true },
-```
-
-**Flow:** `guard` → S3 delete → `onDeleted`
-
-## Delete guard
-
-```ts
-delete: {
-  enabled: true,
-  guard: async ({ key, bucket }) => {
-    // authorize deletion
-  },
-},
-```
-
-### `DeleteGuardContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="DeleteGuardContext"
-/>
-
-```ts
-import type { DeleteGuardContext } from "@dimah-s3/server";
-```
-
-## On deleted
-
-```ts
-delete: {
-  enabled: true,
-  onDeleted: async ({ key, bucket }) => {
-    console.log(`deleted: ${key} from ${bucket}`);
-  },
-},
-```
-
-### `DeleteOnDeletedContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="DeleteOnDeletedContext"
-/>
-
-```ts
-import type { DeleteOnDeletedContext } from "@dimah-s3/server";
-```
-
-## Example
+**Flow:** `guard` → S3 `DeleteObject` → `onDeleted`
 
 ```ts title="lib/s3.ts"
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, DimahS3Error } from "@dimah-s3/server";
 import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 export const s3 = dimahS3({
   s3: s3Client,
   defaultBucket,
-
   delete: {
     enabled: true,
-    guard: async ({ key, bucket }) => {
-      // authorize deletion
+    guard: async ({ key, request }) => {
+      if (!(await canDelete(request, key))) {
+        throw new DimahS3Error("Forbidden", 403);
+      }
     },
-    onDeleted: async ({ key, bucket }) => {
-      console.log(`deleted: ${key} from ${bucket}`);
+    onDeleted: async ({ key }) => {
+      await removeObjectRow(key);
     },
   },
-
-  upload: { enabled: true },
-  download: { enabled: true },
 });
 ```
+
+`onDeleted` runs after S3 has removed the object — same `{ key, bucket,
+request }`. Use it for DB cleanup, not as a substitute for deleting from
+the bucket.
+
+| Hook        | When                     |
+| ----------- | ------------------------ |
+| `guard`     | Before `DeleteObject`    |
+| `onDeleted` | After the object is gone |
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DeleteGuardContext"
+/>

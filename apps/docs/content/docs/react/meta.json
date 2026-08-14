@@ -6,10 +6,9 @@
   "pages": [
     "index",
     "setup",
+    "hooks",
     "upload-store",
     "helpers",
-    "custom-backend",
-    "---hooks---",
-    "...hooks"
+    "custom-backend"
   ]
 }

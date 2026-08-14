@@ -1,223 +1,78 @@
 ---
 title: Multipart
-description: Multipart hooks for large-file upload flows.
+description: Lifecycle hooks for large-file uploads.
 ---
 
-Enable multipart in config before these hooks run:
+Enable with `multipart: { enabled: true }`. Pair it with client
+`multipart` options — see [Upload](/docs/react/hooks/upload).
 
-```ts
-multipart: { enabled: true },
-```
+**Flow:** `initGuard` → `onInit` → `partGuard` (per part) → `completeGuard`
+→ `onComplete`. Abort is a separate path: `abortGuard` → `onAbort`.
 
-**Flow:** `initGuard` → `onInit` → `partGuard` (per part) → `completeGuard` → `onComplete` · `abortGuard` → `onAbort`
+```ts title="lib/s3.ts"
+import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
 
-## Init guard
-
-```ts
-multipart: {
-  enabled: true,
-  initGuard: async ({ key, fileSize }) => {
-    if (fileSize && fileSize > 5 * 1024 * 1024 * 1024) throw new Error("Too large");
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  multipart: {
+    enabled: true,
+    initGuard: async ({ fileSize }) => {
+      if (fileSize && fileSize > 5 * 1024 * 1024 * 1024) {
+        throw new DimahS3Error("File too large", 413);
+      }
+    },
+    onComplete: async ({ key, contentLength, eTag }) => {
+      await saveObject({ key, size: contentLength, eTag });
+    },
+    onAbort: async ({ key, uploadId }) => {
+      await discardUpload({ key, uploadId });
+    },
   },
-},
+});
 ```
 
-### `MultipartInitGuardContext`
+`fileSize` on init is client-declared. `contentLength` on `onComplete` is
+verified by S3. Set `requireFileSize: true` to reject init without
+`fileSize`.
+
+| Hook            | When                           | Extra context                         |
+| --------------- | ------------------------------ | ------------------------------------- |
+| `initGuard`     | Before `CreateMultipartUpload` | `fileSize?`                           |
+| `onInit`        | After init                     | `uploadId`                            |
+| `partGuard`     | Before each part presign       | `uploadId`, `partNumber`, `partSize?` |
+| `completeGuard` | Before complete                | `uploadId`, `parts`                   |
+| `onComplete`    | After the object is verified   | `contentLength`, `eTag`, …            |
+| `abortGuard`    | Before abort                   | `uploadId`                            |
+| `onAbort`       | After abort                    | `uploadId`                            |
+| `listGuard`     | Before listing parts           | `uploadId`                            |
+| `onList`        | After listing parts            | `uploadId`, `parts`                   |
+
+### Init guard
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartInitGuardContext"
 />
 
-```ts
-import type { MultipartInitGuardContext } from "@dimah-s3/server";
-```
-
-`partGuard`, `completeGuard`, and `abortGuard` use richer contexts that include `uploadId` (and part/parts fields where relevant).
-
-## Part guard
-
-Runs before each part presign. Context includes `uploadId`, `partNumber`, and optional `partSize`.
-
-```ts
-multipart: {
-  enabled: true,
-  partGuard: async ({ key, uploadId, partNumber, partSize }) => {
-    // runs before each part presign
-  },
-},
-```
-
-### `MultipartPartGuardContext`
+### Part guard
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartPartGuardContext"
 />
 
-## Complete guard
-
-Runs before completing the multipart upload. Context includes `uploadId` and `parts`.
-
-```ts
-multipart: {
-  enabled: true,
-  completeGuard: async ({ key, uploadId, parts }) => {
-    // authorize complete
-  },
-},
-```
-
-### `MultipartCompleteGuardContext`
+### Complete guard
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartCompleteGuardContext"
 />
 
-## Abort guard
-
-Runs before aborting the multipart upload. Context includes `uploadId`.
-
-```ts
-multipart: {
-  enabled: true,
-  abortGuard: async ({ key, uploadId }) => {
-    // authorize abort
-  },
-},
-```
-
-### `MultipartAbortGuardContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartAbortGuardContext"
-/>
-
-## List parts guard
-
-```ts
-multipart: {
-  enabled: true,
-  listGuard: async ({ key, uploadId }) => {
-    // same auth check as init/complete
-  },
-},
-```
-
-### `MultipartListGuardContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartListGuardContext"
-/>
-
-```ts
-import type { MultipartListGuardContext } from "@dimah-s3/server";
-```
-
-## On init
-
-```ts
-multipart: {
-  enabled: true,
-  onInit: async ({ key, uploadId }) => {
-    console.log(`init: ${key} (uploadId: ${uploadId})`);
-  },
-},
-```
-
-### `MultipartOnInitContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartOnInitContext"
-/>
-
-```ts
-import type { MultipartOnInitContext } from "@dimah-s3/server";
-```
-
-## On complete
-
-```ts
-multipart: {
-  enabled: true,
-  onComplete: async ({ key, uploadId, contentLength, eTag }) => {
-    console.log(`complete: ${key} — ${contentLength} bytes, eTag: ${eTag}`);
-  },
-},
-```
-
-### `MultipartOnCompleteContext`
+### On complete
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartOnCompleteContext"
 />
-
-```ts
-import type { MultipartOnCompleteContext } from "@dimah-s3/server";
-```
-
-`contentLength` in `onComplete` is verified by S3.
-
-## On abort
-
-```ts
-multipart: {
-  enabled: true,
-  onAbort: async ({ key, uploadId }) => {
-    console.log(`abort: ${key} (uploadId: ${uploadId})`);
-  },
-},
-```
-
-### `MultipartOnAbortContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartOnAbortContext"
-/>
-
-```ts
-import type { MultipartOnAbortContext } from "@dimah-s3/server";
-```
-
-## Example
-
-```ts title="lib/s3.ts"
-import { dimahS3 } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
-
-export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-
-  multipart: {
-    enabled: true,
-    initGuard: async ({ key, fileSize }) => {
-      if (fileSize && fileSize > 5 * 1024 * 1024 * 1024)
-        throw new Error("Too large");
-    },
-    partGuard: async ({ key, bucket }) => {},
-    completeGuard: async ({ key, bucket }) => {},
-    abortGuard: async ({ key, bucket }) => {},
-    listGuard: async ({ key, uploadId }) => {},
-    onInit: async ({ key, uploadId }) => {
-      console.log(`init: ${key} (uploadId: ${uploadId})`);
-    },
-    onComplete: async ({ key, uploadId, contentLength, eTag }) => {
-      console.log(`complete: ${key} — ${contentLength} bytes, eTag: ${eTag}`);
-    },
-    onAbort: async ({ key, uploadId }) => {
-      console.log(`abort: ${key} (uploadId: ${uploadId})`);
-    },
-  },
-
-  upload: { enabled: true },
-  download: { enabled: true },
-  delete: { enabled: true },
-});
-```

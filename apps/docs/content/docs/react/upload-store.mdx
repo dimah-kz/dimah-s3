@@ -4,15 +4,16 @@ description: Persist multipart state to resume uploads after refresh.
 icon: Database
 ---
 
-`UploadStore` stores minimal multipart state (`uploadId`, `key`, `fileSize`) so uploads can resume after refresh or reconnect.
+An `UploadStore` keeps `uploadId`, `key`, and `fileSize` so a multipart
+upload can resume after refresh. Use it only with `multipart: true`.
 
-<Callout type="info">
-  Prefer `createLocalStorageStore()` for same-browser resume. Use a **custom**
-  (e.g. DB-backed) store for cross-device resume or after cleared storage — see
-  [DB hooks](/docs/db/hooks).
-</Callout>
+Prefer `createLocalStorageStore()` for same-browser resume. Use a custom
+store (for example DB-backed) for cross-device resume — see
+[DB hooks](/docs/db/hooks).
 
-Use it only for multipart uploads.
+[Upload Button](/docs/react/ui/components/upload-button) and
+[Upload Dropzone](/docs/react/ui/components/upload-dropzone) take the same
+`uploadStore` prop as the hooks.
 
 ## Quick setup
 
@@ -25,27 +26,32 @@ export const localStorageStore = createLocalStorageStore();
 ```tsx title="app/uploader.tsx"
 "use client";
 
-import { UploadButton } from "@dimah-s3/ui";
+import { useUpload } from "@dimah-s3/react";
 import { localStorageStore } from "@/lib/upload-store";
 
 export function Uploader() {
+  const { getRootProps, getInputProps, isUploading } = useUpload({
+    objectKey: "uploads/photo.jpg",
+    multipart: true,
+    uploadStore: localStorageStore,
+  });
+
   return (
-    <div>
-      <UploadButton
-        objectKey={(file) => `uploads/${Date.now()}-${file.name}`}
-        multipart={true}
-        uploadStore={localStorageStore}
-        label="Upload file"
-      />
+    <div {...getRootProps()}>
+      <input {...getInputProps()} />
+      {isUploading ? "Uploading…" : "Drop a file or click to upload"}
     </div>
   );
 }
 ```
 
+`objectKey` must stay the same across retries, or resume cannot match the
+stored upload.
+
 ## Built-in stores
 
-- `createLocalStorageStore()` — default browser choice; survives refresh/reopen
-- `createMemoryStore()` — in-memory only; useful for SSR-safe setups and tests
+- `createLocalStorageStore()` — survives refresh and reopen
+- `createMemoryStore()` — in-memory; useful for SSR and tests
 
 ```ts
 import { createMemoryStore } from "@dimah-s3/react";
@@ -54,8 +60,6 @@ const uploadStore = createMemoryStore();
 ```
 
 ## Custom store
-
-Implement `UploadStore` when you need your own persistence layer (for example: DB).
 
 <AutoTypeTable
   path="packages/react/src/types/upload-store.ts"
@@ -67,21 +71,22 @@ import type { UploadStore } from "@dimah-s3/react";
 
 export const uploadStore: UploadStore = {
   async get(key, fileSize) {
-    // lookup persisted state
     return null;
   },
   async set(upload) {
-    // persist uploadId state
+    // persist uploadId
   },
   async delete(key) {
-    // cleanup after complete/abort
+    // cleanup after complete / abort
   },
 };
 ```
 
-## Example: DB-backed store
+## DB-backed store
 
-When using [`@dimah-s3/db`](/docs/db) multipart hooks, `onInit` already persists `uploadId` on the pending row. The client store only needs `get` — `set` / `delete` can be no-ops. Server half: [DB hooks](/docs/db/hooks).
+With [`@dimah-s3/db`](/docs/db) multipart hooks, `onInit` already writes
+`uploadId` on the pending row. The client store only needs `get` —
+`set` / `delete` can be no-ops. Server half: [DB hooks](/docs/db/hooks).
 
 ```ts title="lib/upload-store-db.ts"
 import type { StoredUpload, UploadStore } from "@dimah-s3/react";
@@ -94,29 +99,10 @@ export const uploadStoreDb: UploadStore = {
     if (!res.ok) return null;
     return (await res.json()) as StoredUpload | null;
   },
-  async set() {
-    // no-op — db plugin multipart.onInit wrote uploadId
-  },
-  async delete() {
-    // no-op — onComplete / onAbort clear the pending row
-  },
+  async set() {},
+  async delete() {},
 };
 ```
 
-Use a **stable** `objectKey` (not `Date.now()`):
-
-```tsx
-<UploadButton
-  objectKey={(file) => `uploads/${userId}/${file.name}`}
-  multipart
-  uploadStore={uploadStoreDb}
-  label="Upload file"
-/>
-```
-
-## Notes
-
-- Resume works when `multipart: true` and `uploadStore` are both set.
-- `key` must be stable across retries; if it changes every attempt, resume cannot match prior state.
-- The client still needs the same `File` bytes — the store only recovers `uploadId`.
-- For small files or simple uploads, skip `uploadStore`.
+The store recovers `uploadId`. The browser still needs the same `File`
+bytes. Skip `uploadStore` for small or one-shot uploads.

@@ -16,6 +16,26 @@ const nextConfig: NextConfig = {
         destination: "/docs/react/ui",
         permanent: true,
       },
+      {
+        source: "/docs/server/adapters",
+        destination: "/docs/server/setup",
+        permanent: true,
+      },
+      {
+        source: "/docs/server/helpers",
+        destination: "/docs/server/setup",
+        permanent: true,
+      },
+      {
+        source: "/docs/server/custom-plugins",
+        destination: "/docs/server/plugins",
+        permanent: true,
+      },
+      {
+        source: "/docs/server/hooks/composition",
+        destination: "/docs/server/plugins",
+        permanent: true,
+      },
     ];
   },
 };

@@ -120,7 +120,7 @@ export const DELETE = handler;
 
 </Tabs>
 
-More frameworks: [Server adapters](/docs/server/adapters).
+Other runtimes: [Server setup](/docs/server/setup).
 
 ### Client provider [step]
 
@@ -221,16 +221,7 @@ Import `UploadButton` from `@dimah-s3/ui`, or from
 import { UploadButton } from "@dimah-s3/ui";
 
 export default function Page() {
-  return (
-    <div>
-      <UploadButton
-        objectKey={(file) => `uploads/${Date.now()}-${file.name}`}
-        accept={["image/*", ".pdf"]}
-        maxFileSize={10 * 1024 * 1024}
-        label="Upload file"
-      />
-    </div>
-  );
+  return <UploadButton objectKey="uploads/photo.jpg" />;
 }
 ```
 

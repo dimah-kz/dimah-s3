@@ -1,141 +1,59 @@
 ---
 title: Upload
-description: Upload hooks for presign, confirm, and verified metadata.
+description: Presign, confirm, and persist verified metadata.
 ---
 
-Enable upload in config before these hooks run:
+Enable with `upload: { enabled: true }`. Default method is `"POST"`. Use
+`"PUT"` when the provider has no Presigned POST
+([Cloudflare R2](/docs/providers/cloudflare-r2)).
 
-```ts
-upload: { enabled: true },
-```
+**Flow:** `presignGuard` → `onPresigned` → client uploads to S3 →
+`confirmGuard` → `onConfirmed`
 
-Default `method` is `"POST"` (Presigned POST). Use `"PUT"` for providers without POST support (notably [Cloudflare R2](/docs/providers/cloudflare-r2)):
+```ts title="lib/s3.ts"
+import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
 
-```ts
-upload: { enabled: true, method: "PUT" },
-```
-
-**Flow:** `presignGuard` → `onPresigned` → browser uploads to S3 → `confirmGuard` → `onConfirmed`
-
-## Presign guard
-
-```ts
-upload: {
-  enabled: true,
-  presignGuard: async ({ key, fileSize }) => {
-    if (fileSize && fileSize > 10 * 1024 * 1024) throw new Error("Too large");
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  upload: {
+    enabled: true,
+    presignGuard: async ({ fileSize }) => {
+      if (fileSize && fileSize > 10 * 1024 * 1024) {
+        throw new DimahS3Error("File too large", 413);
+      }
+    },
+    onConfirmed: async ({ key, contentLength, contentType }) => {
+      await saveObject({ key, size: contentLength, contentType });
+    },
   },
-},
+});
 ```
 
-### `UploadPresignGuardContext`
+`fileSize`, `contentType`, and `metadata` on presign are **client-declared**.
+`onConfirmed` receives `HeadObject` values — trust those for quotas and DB
+writes.
+
+Set `requireFileSize: true` to reject presign requests that omit `fileSize`.
+
+| Hook           | When                         |
+| -------------- | ---------------------------- |
+| `presignGuard` | Before the URL is signed     |
+| `onPresigned`  | After the URL is issued      |
+| `confirmGuard` | Before `HeadObject`          |
+| `onConfirmed`  | After the object is verified |
+
+### Presign guard
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="UploadPresignGuardContext"
 />
 
-```ts
-import type { UploadPresignGuardContext } from "@dimah-s3/server";
-```
-
-`fileSize`, `contentType`, and `metadata` are client-declared — use `onConfirmed` for verified values.
-
-## On presigned
-
-```ts
-upload: {
-  enabled: true,
-  onPresigned: async ({ key, bucket, contentType }) => {
-    console.log(`presigned: ${key} (${contentType}) in ${bucket}`);
-  },
-},
-```
-
-### `UploadOnPresignedContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="UploadOnPresignedContext"
-/>
-
-```ts
-import type { UploadOnPresignedContext } from "@dimah-s3/server";
-```
-
-## Confirm guard
-
-```ts
-upload: {
-  enabled: true,
-  confirmGuard: async ({ key, bucket }) => {
-    // authorize confirm for this key
-  },
-},
-```
-
-### `UploadConfirmGuardContext`
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="UploadConfirmGuardContext"
-/>
-
-```ts
-import type { UploadConfirmGuardContext } from "@dimah-s3/server";
-```
-
-## On upload confirmed
-
-```ts
-upload: {
-  enabled: true,
-  onConfirmed: async ({ key, contentLength, eTag }) => {
-    console.log(`confirmed: ${key} — ${contentLength} bytes, eTag: ${eTag}`);
-  },
-},
-```
-
-### `UploadOnConfirmedContext`
+### On confirmed
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="UploadOnConfirmedContext"
 />
-
-```ts
-import type { UploadOnConfirmedContext } from "@dimah-s3/server";
-```
-
-`contentLength` and `eTag` are verified by S3.
-
-## Example
-
-```ts title="lib/s3.ts"
-import { dimahS3 } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
-
-export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-
-  upload: {
-    enabled: true,
-    presignGuard: async ({ key, fileSize }) => {
-      if (fileSize && fileSize > 10 * 1024 * 1024) throw new Error("Too large");
-    },
-    onPresigned: async ({ key, bucket, contentType }) => {
-      console.log(`presigned: ${key} (${contentType}) in ${bucket}`);
-    },
-    confirmGuard: async ({ key, bucket }) => {
-      // authorize confirm
-    },
-    onConfirmed: async ({ key, contentLength, eTag }) => {
-      console.log(`confirmed: ${key} — ${contentLength} bytes, eTag: ${eTag}`);
-    },
-  },
-
-  download: { enabled: true },
-  delete: { enabled: true },
-});
-```

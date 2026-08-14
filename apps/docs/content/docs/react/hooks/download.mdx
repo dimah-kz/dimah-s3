@@ -1,39 +1,65 @@
 ---
 title: Download
-description: Download hooks for native and fetch-based flows.
+description: Presign a GET URL — native download, or fetch with progress.
 ---
 
-- **`useDownload`** — native browser download (no progress)
-- **`useFetchDownload`** — `fetch` with progress and cancel
+Ask the API for a short-lived GET URL, then let the browser take the file.
+Your server never streams the body.
 
----
+| Hook               | UI                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `useDownload`      | [Download Button](/docs/react/ui/components/download-button) — native download, no progress                       |
+| `useFetchDownload` | [Progress Download Button](/docs/react/ui/components/progress-download-button) — `fetch` with progress and cancel |
 
-## Browser download
+## useDownload
+
+Presign, then navigate. There is no byte-level progress — only a
+presigning phase.
 
 ```tsx
 "use client";
 
 import { useDownload } from "@dimah-s3/react";
 
-const { phase, download, presign } = useDownload();
+export function DownloadFile() {
+  const { download, phase } = useDownload();
 
-await download("reports/2024.pdf", "Annual Report.pdf");
-
-// URL only — previews, embeds, custom links
-const result = await presign("images/photo.jpg");
+  return (
+    <button type="button" onClick={() => void download("uploads/photo.jpg")}>
+      {phase === "presigning" ? "Preparing…" : "Download"}
+    </button>
+  );
+}
 ```
 
----
+Need the URL only — preview, embed, or your own link:
 
-## Fetch download with progress
+```tsx
+const { presign } = useDownload();
+const { url } = await presign("uploads/photo.jpg");
+```
+
+## useFetchDownload
+
+Fetches the object through the browser so you can show progress and cancel.
 
 ```tsx
 "use client";
 
 import { useFetchDownload } from "@dimah-s3/react";
 
-const { phase, progress, download, cancel } = useFetchDownload();
+export function DownloadFile() {
+  const { download, cancel, progress, phase } = useFetchDownload();
 
-await download("file.zip");
-// cancel() to abort
+  return (
+    <div>
+      <button type="button" onClick={() => void download("uploads/photo.jpg")}>
+        {phase === "downloading" ? `${progress.percent}%` : "Download"}
+      </button>
+      <button type="button" onClick={cancel}>
+        Cancel
+      </button>
+    </div>
+  );
+}
 ```

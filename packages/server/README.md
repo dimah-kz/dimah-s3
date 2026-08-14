@@ -41,7 +41,7 @@ export const { GET, POST, DELETE } = toNextJsHandler(s3);
 // Node http — @dimah-s3/server/node → toNodeHandler
 ```
 
-See [Adapters](https://dimah-s3.vercel.app/docs/server/adapters) for full examples.
+See [Server setup](https://dimah-s3.vercel.app/docs/server/setup) for full examples.
 
 Server-side (no HTTP):
 

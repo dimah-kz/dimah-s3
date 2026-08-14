@@ -1,17 +1,20 @@
 ---
-title: Custom plugins
+title: Plugins
 description: Extend dimahS3 with definePlugin — hooks, endpoints, and context.
 icon: Puzzle
 ---
 
-Official plugins like [`db()`](/docs/db) ship in their own docs. This page is for **plugins you write** with `definePlugin`.
+Official plugins ship in their own packages — start with
+[`db()`](/docs/db) for object tracking. This page is for plugins you write
+with `definePlugin`.
 
-Server plugins add lifecycle hooks, HTTP routes under `plugins/{id}/…`, and typed context on the `dimahS3()` instance. Pair server endpoints with a client plugin (`defineClientPlugin` + `createS3Client`) when the browser needs them.
-
-## Quick start
+A plugin can add lifecycle hooks, HTTP routes under `plugins/{id}/…`, and
+typed context on the `dimahS3()` instance (`s3[id]`). Pair server endpoints
+with a client plugin when the browser needs them.
 
 ```ts
 import { dimahS3, definePlugin, createEndpoint } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 const audit = definePlugin({
   id: "audit",
@@ -43,8 +46,6 @@ s3.audit.log("ready");
 // GET /api/s3/plugins/audit/recent
 ```
 
-Context is on `s3.context[id]` and flattened as `s3[id]` (same as `s3.db`).
-
 ## Contract
 
 | Field        | Purpose                                                            |
@@ -52,13 +53,37 @@ Context is on `s3.context[id]` and flattened as `s3[id]` (same as `s3.db`).
 | `id`         | Unique string (reserved: `handler`, `api`, `context`, `getPlugin`) |
 | `hooks?`     | Lifecycle hooks — merged **before** your config hooks              |
 | `endpoints?` | Routes under `plugins/{id}/{path}` via `createEndpoint`            |
-| `context?`   | Data exposed as `s3[id]`                                           |
+| `context?`   | Data exposed as `s3[id]` and `s3.context[id]`                      |
 | `dependsOn?` | Plugin ids that must be registered first                           |
 | `init?`      | Sync validation after the context map is built                     |
 
 `enabled` / `method` stay on `DimahS3Config` — plugins cannot override them.
+You still turn features on yourself.
 
-Hook merge order: [Composition](/docs/server/hooks/composition).
+## Hook order
+
+1. Plugin hooks — **first**, in `plugins` array order
+2. Your hooks on `dimahS3()` — **last**
+
+With [`db()`](/docs/db) registered, its ownership guard runs before your
+quota check.
+
+Stack several **user** hooks on one slot with `chainHooks`:
+
+```ts
+import { dimahS3, chainHooks } from "@dimah-s3/server";
+import { db } from "@dimah-s3/db";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  plugins: [db({ client: dimahS3Db, resolveScope })],
+  upload: {
+    enabled: true,
+    presignGuard: chainHooks(quotaGuard, rateLimitGuard),
+  },
+});
+```
 
 ## Endpoints
 
@@ -71,13 +96,13 @@ endpoints: {
 ```
 
 - Path: `plugins/{pluginId}/{path}` (`pluginEndpointPath` in `@dimah-s3/core`)
-- Global `guard` runs first; paths must not collide with core routes or another plugin
+- Global `guard` runs first
+- Paths must not collide with core routes or another plugin
 
-Use `context` for server-side data access; endpoints are the HTTP surface for browsers.
+Use `context` for server-side access; endpoints are the HTTP surface for
+browsers.
 
 ## Client plugin
-
-Mirror a server endpoint on the client:
 
 ```ts
 import { defineClientPlugin, pluginEndpointPath } from "@dimah-s3/core";
@@ -92,7 +117,9 @@ export function auditClient() {
 }
 ```
 
-Register with `createS3Client({ plugins: [auditClient()] })` — see [React setup](/docs/react/setup) for `S3Provider` / `useApi`. Official packages use a light entry (e.g. `@dimah-s3/db/client`).
+Register with `createS3Client({ plugins: [auditClient()] })` — see
+[Client setup](/docs/react/setup). Official packages use a light entry
+(e.g. `@dimah-s3/db/client`) so ORM deps stay server-only.
 
 ## `dependsOn` and `init`
 
@@ -109,4 +136,5 @@ const quota = definePlugin({
 });
 ```
 
-Register dependencies before dependents in the `plugins` array.
+List dependencies before dependents in the `plugins` array. Merge order
+follows that array — it is not topological.

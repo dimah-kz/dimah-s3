@@ -1,16 +1,14 @@
 {
   "title": "Server",
-  "description": "Presign handlers and server hooks",
+  "description": "Presign handlers and lifecycle hooks",
   "icon": "Server",
   "root": true,
   "pages": [
     "index",
     "setup",
-    "adapters",
-    "helpers",
-    "---server hooks---",
+    "---hooks---",
     "...hooks",
-    "---features---",
-    "custom-plugins"
+    "---extend---",
+    "plugins"
   ]
 }

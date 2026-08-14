@@ -1,193 +1,106 @@
 ---
 title: Helpers
-description: Helpers for progress, validation, and file naming.
+description: Progress text, file size, validation, and error formatting.
 icon: Wrench
 ---
 
-Import from `@dimah-s3/react` or `@dimah-s3/core`.
+Import display helpers from `@dimah-s3/react`. File helpers live in
+`@dimah-s3/core` — the upload hooks already call them for you.
 
-## Upload UX helpers
-
-### Format upload progress
-
-Returns human-readable progress like `"1.2 MB / 5.6 MB (21%)"`.
+## Progress
 
 ```ts
-import { formatUploadProgress } from "@dimah-s3/react";
+import {
+  formatUploadProgress,
+  formatSpeed,
+  formatEta,
+  createSpeedTracker,
+} from "@dimah-s3/react";
 
 formatUploadProgress(1_200_000, 5_600_000, 21);
 // "1.2 MB / 5.6 MB (21%)"
 
-formatUploadProgress(1_200_000, 0, 0);
-// "1.2 MB"
-```
-
-### Format speed
-
-Bytes per second to text like `"1.2 MB/s"`.
-
-```ts
-import { formatSpeed } from "@dimah-s3/react";
-
 formatSpeed(1_200_000); // "1.2 MB/s"
-formatSpeed(512); // "512 B/s"
-```
-
-### Format ETA
-
-Remaining time from bytes-left and speed. Returns `null` when not calculable.
-
-```ts
-import { formatEta } from "@dimah-s3/react";
-
 formatEta(4_400_000, 450_000); // "9s"
-formatEta(90_000_000, 1_500_000); // "1m"
-formatEta(5_400_000_000, 500_000); // "3h"
-formatEta(0, 450_000); // null
 ```
 
-### Create speed tracker
-
-Sliding-window speed tracker in bytes/second.
-
-<Callout type="tip">
-  Use it inside `onProgress` and call `reset()` whenever an upload restarts.
-</Callout>
+`createSpeedTracker` is a sliding-window bytes/second meter. Call `reset()`
+when an upload restarts. `onProgress` from the hooks already includes
+`speed` — you usually only need this for a custom engine.
 
 ```ts
-import { createSpeedTracker, formatEta, formatSpeed } from "@dimah-s3/react";
-
 const tracker = createSpeedTracker(); // default 3s window
 
 onProgress: ({ loaded, total }) => {
   const speed = tracker.update(loaded);
-
-  formatSpeed(speed); // "450 KB/s"
-  formatEta(total - loaded, speed); // "9s"
+  formatSpeed(speed);
+  formatEta(total - loaded, speed);
 };
 ```
 
-### Format accept labels
+## Accept labels
 
-Normalizes HTML `accept` entries to short display labels. Returns labels only — no sentences — so you can build localized copy in your UI.
+Short labels from HTML `accept` entries — no sentences, so you can localize
+the copy. [Upload Dropzone](/docs/react/ui/components/upload-dropzone) uses
+this for its hint.
 
 ```ts
 import { formatAcceptLabels } from "@dimah-s3/react";
 
 formatAcceptLabels(["image/*", ".pdf", ".txt"]);
 // ["Images", "PDF", "TXT"]
-
-formatAcceptLabels([
-  ".png",
-  ".gif",
-  ".webp",
-  ".pdf",
-  ".docx",
-  ".txt",
-  ".csv",
-  "image/*",
-  "video/mp4",
-  "audio/mpeg",
-]);
-// ["PNG", "GIF", "WEBP", "PDF", "DOCX", "TXT", "CSV", "Images", "MP4", "MPEG"]
 ```
 
-| Input            | Label                                     |
-| ---------------- | ----------------------------------------- |
-| `.png`           | `PNG`                                     |
-| `.jpg` / `.jpeg` | `JPEG` (both extensions map to one label) |
-| `image/*`        | `Images`                                  |
-| `video/mp4`      | `MP4`                                     |
+## Validation and size
 
-In a component, call `formatAcceptLabels` directly and build your own localized sentence:
+`validateFile` returns `null` or `{ code, message, params }`. Client checks
+are not a security boundary — mirror them in
+[`presignGuard`](/docs/server/hooks/upload#presign-guard).
+
+```ts
+import { validateFile, formatFileSize, truncateFileName } from "@dimah-s3/core";
+
+validateFile(file, { accept: ["image/*"], maxFileSize: 10 * 1024 * 1024 });
+// null | { code: "FILE_TYPE_NOT_ALLOWED", message, params }
+
+formatFileSize(1_500_000); // "1.4 MB"
+truncateFileName("very-long-document-name.pdf"); // "very-long-documen… .pdf"
+```
+
+Inside React, map the error with `useFormatValidateFileError()`:
 
 ```tsx
-import { formatAcceptLabels } from "@dimah-s3/react";
-
-function MyDropzone({ accept }: { accept?: string[] }) {
-  const labels = formatAcceptLabels(accept);
-  // ["Images", "PDF", "TXT"]
-
-  return <p>Accepted {labels.join(", ")}.</p>;
-}
-```
-
-`UploadDropzone` from `@dimah-s3/ui` does the same and adds English hint copy in the UI layer.
-
-## Validation and display helpers
-
-### Validate file
-
-Checks `accept` and `maxFileSize`. Returns an error message or `null`.
-
-<Callout type="warn">
-  Mirror these checks in `upload.presignGuard`. Client validation is not a
-  security boundary.
-</Callout>
-
-```ts
+import { useFormatValidateFileError } from "@dimah-s3/react";
 import { validateFile } from "@dimah-s3/core";
 
-validateFile(file, { accept: ["image/*"] });
-// null | 'File type ".pdf" is not allowed'
-
-validateFile(file, { accept: [".png", ".jpg"] });
-// null | 'File type ".gif" is not allowed'
-
-validateFile(file, { maxFileSize: 10 * 1024 * 1024 });
-// null | "File size exceeds 10.0 MB limit"
+const format = useFormatValidateFileError();
+const error = validateFile(file, { accept: ["image/*"] });
+const message = error ? format(error) : null;
 ```
 
-### Format file size
+## File names
+
+`createS3Client` already sanitizes `fileName` on download requests.
 
 ```ts
-import { formatFileSize } from "@dimah-s3/core";
-
-formatFileSize(0); // "0 B"
-formatFileSize(1_500); // "1.5 KB"
-formatFileSize(1_500_000); // "1.4 MB"
-```
-
-### Truncate filename
-
-Shortens long names while preserving extension. Default max is 26 chars.
-
-```ts
-import { truncateFileName } from "@dimah-s3/core";
-
-truncateFileName("very-long-document-name.pdf");
-// "very-long-documen… .pdf"
-
-truncateFileName("short.pdf");
-// "short.pdf"
-```
-
-### Sanitize filename
-
-Replaces `"`, `\`, and newlines for safer query params.
-
-<Callout type="info">
-  `createS3Client` applies this automatically when you pass `fileName` for
-  download requests.
-</Callout>
-
-```ts
-import { sanitizeFileName } from "@dimah-s3/core";
+import { sanitizeFileName, parseFileName } from "@dimah-s3/core";
 
 sanitizeFileName('file"name.pdf'); // file_name.pdf
-sanitizeFileName("report\r\n.pdf"); // report__.pdf
+parseFileName(res.headers.get("content-disposition")); // "report.pdf" | undefined
 ```
 
-### Parse file name
+## API errors
 
-Extracts the original filename from `Content-Disposition`.
+Failed `S3Api` calls throw `DimahS3Error`. Format them for the UI:
 
-```ts
-import { parseFileName } from "@dimah-s3/core";
+```tsx
+import { useFormatDimahError } from "@dimah-s3/react";
 
-parseFileName(res.headers.get("content-disposition"));
-// "report.pdf" | undefined
+const formatError = useFormatDimahError();
 
-parseFileName("attachment; filename*=UTF-8''%E6%8A%A5%E5%91%8A.pdf");
-// "报告.pdf"
+try {
+  await api.download(key);
+} catch (err) {
+  toast.error(formatError(err));
+}
 ```

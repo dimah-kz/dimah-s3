@@ -1,27 +1,52 @@
 ---
 title: Delete
-description: Two-step delete with an optional confirm step.
+description: Two-step delete so you can confirm first.
 ---
 
-`requestDelete` marks a key pending; `confirmDelete` sends the request — so you can show a dialog in between.
+`requestDelete` marks a key pending. `confirmDelete` sends the request.
+[Delete Button](/docs/react/ui/components/delete-button) uses this with an
+alert dialog.
+
+**Flow:** `requestDelete` → your confirm UI → `confirmDelete` (or
+`cancelDelete`)
 
 ```tsx
 "use client";
 
 import { useDelete } from "@dimah-s3/react";
 
-const { phase, pendingKey, requestDelete, confirmDelete, cancelDelete } =
-  useDelete({
-    onSuccess: (key) => console.log("Deleted:", key),
-  });
+export function DeleteFile() {
+  const { pendingKey, requestDelete, confirmDelete, cancelDelete } =
+    useDelete();
 
+  if (pendingKey) {
+    return (
+      <div>
+        <p>Delete {pendingKey}?</p>
+        <button type="button" onClick={() => void confirmDelete()}>
+          Confirm
+        </button>
+        <button type="button" onClick={cancelDelete}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" onClick={() => requestDelete("uploads/photo.jpg")}>
+      Delete
+    </button>
+  );
+}
+```
+
+No dialog? Call both in sequence:
+
+```ts
 requestDelete("uploads/photo.jpg");
 await confirmDelete();
 ```
 
-No dialog needed? Call both at once:
-
-```ts
-requestDelete(key);
-await confirmDelete();
-```
+Wire `onSuccess` to keep your own database in sync. Server-side auth belongs
+in [`delete.guard`](/docs/server/hooks/delete).
