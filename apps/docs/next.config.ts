@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
     // Native Rust React Compiler inside Turbopack (default bundler in Next 16).
     turbopackRustReactCompiler: true,
   },
+  async redirects() {
+    return [
+      {
+        source: "/docs/react/ui/setup",
+        destination: "/docs/react/ui",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withMDX(nextConfig);

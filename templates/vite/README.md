@@ -27,7 +27,7 @@ npx @dimah-s3/cli@latest create my-app --template vite
 - [Quickstart](https://dimah-s3.vercel.app/docs/quickstart)
 - [Server setup](https://dimah-s3.vercel.app/docs/server/setup)
 - [Client setup](https://dimah-s3.vercel.app/docs/react/setup)
-- [UI setup](https://dimah-s3.vercel.app/docs/react/ui/setup)
+- [UI setup](https://dimah-s3.vercel.app/docs/react/ui)
 
 ## License
 

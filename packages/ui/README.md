@@ -12,7 +12,7 @@ pnpm add @dimah-s3/ui @dimah-s3/react shadcn
 ```
 
 Or copy items from the shadcn registry — see
-[UI setup](https://dimah-s3.vercel.app/docs/react/ui/setup).
+[UI setup](https://dimah-s3.vercel.app/docs/react/ui).
 
 ## Styles
 
