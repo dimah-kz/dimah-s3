@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Align npm discovery metadata\n\nPackage keywords, descriptions, and homepage URLs now match how people\nsearch for presigned S3 / R2 uploads. READMEs point coding agents at\nllms.txt.\n"
-    filename: 2026-08-14-c4e8.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Return the pending row from `upsertPending`\n\n`s3.db.objects.upsertPending()` now returns the written `storage_object` row.\nFumaDB 0.6 can return that row from the upsert itself (`forceReturning()`), so\ncallers no longer need a follow-up `find` after presign or multipart init.\n\nIf you implement a custom `StorageObjectStore`, return the pending record from\n`upsertPending` instead of `void`.\n"
+    filename: 2026-08-14-mst5ecwk.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-14-c4e8.md
+      - 2026-08-14-mst5ecwk.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-14-c4e8.md
+      - 2026-08-14-mst5ecwk.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-14-c4e8.md
+      - 2026-08-14-mst5ecwk.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-14-c4e8.md
+      - 2026-08-14-mst5ecwk.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-14-c4e8.md
-    id: npm:@dimah-s3/server
+      - 2026-08-14-mst5ecwk.md
+    id: npm:@dimah-s3/ui
     updated: true
   - changelogIds:
-      - 2026-08-14-c4e8.md
-    id: npm:@dimah-s3/ui
+      - 2026-08-14-mst5ecwk.md
+    id: npm:@dimah-s3/server
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/react
-  - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
+  - id: npm:@dimah-s3/server
