@@ -48,7 +48,7 @@ export function Flow({
   const wide = steps.length > 2;
 
   return (
-    <figure className="@container not-prose my-6 rounded-xl bg-fd-muted/50 p-3 sm:p-4">
+    <figure className="@container not-prose my-6 rounded-xl border bg-fd-muted/40 p-4">
       <figcaption className="mb-3 text-xs font-medium text-fd-muted-foreground">
         {label}
       </figcaption>
@@ -72,8 +72,8 @@ export function Flow({
             <li key={`${step.name}-${index}`} className="contents">
               <div
                 className={cn(
-                  "flex min-h-12 min-w-0 flex-col justify-center gap-1 rounded-lg px-3 py-2.5 ring-1 ring-fd-foreground/8",
-                  isHook ? "bg-fd-primary/10" : "bg-fd-background",
+                  "flex min-h-14 min-w-0 flex-col justify-center gap-1 rounded-lg px-3.5 py-3 ring-1 ring-fd-foreground/8",
+                  isHook ? "bg-fd-primary/12" : "bg-fd-card",
                 )}
               >
                 <span

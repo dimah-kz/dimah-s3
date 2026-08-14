@@ -36,6 +36,11 @@ const nextConfig: NextConfig = {
         destination: "/docs/server/plugins",
         permanent: true,
       },
+      {
+        source: "/docs/server/hooks/guard",
+        destination: "/docs/server/hooks/global-guard",
+        permanent: true,
+      },
     ];
   },
 };

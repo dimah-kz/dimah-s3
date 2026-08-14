@@ -1,4 +1,4 @@
 {
   "title": "Hooks",
-  "pages": ["guard", "upload", "download", "delete", "multipart"]
+  "pages": ["global-guard", "upload", "download", "delete", "multipart"]
 }

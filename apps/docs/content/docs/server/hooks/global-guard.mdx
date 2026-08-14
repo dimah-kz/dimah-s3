@@ -1,0 +1,33 @@
+---
+title: Global Guard
+description: Request-level policy that runs before every operation.
+---
+
+`guard` lives on `dimahS3()`. It
+runs first on every request, including plugin endpoints. There is no
+`enabled` flag.
+
+Use it for the caller: session, auth, tenancy, whether the request is
+allowed at all. It only sees `{ request }`. Per-object rules belong on the
+feature hooks — those receive `key` and `bucket`.
+
+Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` for other
+codes.
+
+```ts title="lib/s3.ts"
+import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { s3Client, defaultBucket } from "@/lib/s3-client";
+
+export const s3 = dimahS3({
+  s3: s3Client,
+  defaultBucket,
+  guard: async ({ request }) => {
+    const session = await getSession(request);
+    if (!session) throw new DimahS3Error("Unauthorized", 401);
+  },
+  upload: { enabled: true },
+});
+```
+
+Plugin `guard` hooks still run first. See [hook
+order](/docs/server/plugins#hook-order).

@@ -1,6 +1,6 @@
 {
   "title": "Client",
-  "description": "Headless React client",
+  "description": "Headless S3 client for React",
   "icon": "Atom",
   "root": true,
   "pages": [

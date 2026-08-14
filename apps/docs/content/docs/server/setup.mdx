@@ -51,15 +51,15 @@ export const s3 = dimahS3({
 R2 and similar providers need `upload: { enabled: true, method: "PUT" }` —
 see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
-| Option | Default | Role |
-| --- | --- | --- |
-| `s3` | required | AWS SDK `S3Client` |
-| `defaultBucket` | required | Bucket when the request omits one |
-| `basePath` | `/api/s3` | Must match `createS3Client({ basePath })` |
-| `resolveObjectAcl` | `false` | Extra `GetObjectAcl` on confirm / complete |
-| `guard` | — | Runs on every request |
-| `upload` / `download` / `delete` / `multipart` | off | Feature flag + [hooks](/docs/server/hooks/guard) |
-| `plugins` | — | e.g. [`db()`](/docs/db) |
+| Option                                         | Default   | Role                                              |
+| ---------------------------------------------- | --------- | ------------------------------------------------- |
+| `s3`                                           | required  | AWS SDK `S3Client`                                |
+| `defaultBucket`                                | required  | Bucket when the request omits one                 |
+| `basePath`                                     | `/api/s3` | Must match `createS3Client({ basePath })`         |
+| `resolveObjectAcl`                             | `false`   | Extra `GetObjectAcl` on confirm / complete        |
+| `guard`                                        | —         | [Global Guard](/docs/server/hooks/global-guard)   |
+| `upload` / `download` / `delete` / `multipart` | off       | Feature flag + [hooks](/docs/server/hooks/upload) |
+| `plugins`                                      | —         | e.g. [`db()`](/docs/db)                           |
 
 ### Route handler [step]
 
@@ -217,7 +217,7 @@ On Node / Express, convert headers with `fromNodeHeaders` from
 
 ### Next [step]
 
-Hooks: [Guard](/docs/server/hooks/guard),
+Hooks: [Global Guard](/docs/server/hooks/global-guard),
 [Upload](/docs/server/hooks/upload),
 [Download](/docs/server/hooks/download),
 [Delete](/docs/server/hooks/delete),
