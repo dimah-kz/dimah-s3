@@ -1,3 +1,11 @@
+## @dimah-s3/react@0.7.3
+
+### Align npm discovery metadata
+
+Package keywords, descriptions, and homepage URLs now match how people
+search for presigned S3 / R2 uploads. READMEs point coding agents at
+llms.txt.
+
 ## @dimah-s3/react@0.7.2
 
 ### deps update

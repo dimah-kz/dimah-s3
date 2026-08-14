@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:@dimah-s3/react:\n    type: patch\n  npm:@dimah-s3/server:\n    type: patch\n  npm:@dimah-s3/ui:\n    type: patch\n  group:dimah-s3:\n    type: patch\n---\n\n## deps update\n"
-    filename: 2026-08-14-mssp5jn9.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Align npm discovery metadata\n\nPackage keywords, descriptions, and homepage URLs now match how people\nsearch for presigned S3 / R2 uploads. READMEs point coding agents at\nllms.txt.\n"
+    filename: 2026-08-14-c4e8.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-14-mssp5jn9.md
+      - 2026-08-14-c4e8.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-14-mssp5jn9.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - changelogIds:
-      - 2026-08-14-mssp5jn9.md
+      - 2026-08-14-c4e8.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-14-mssp5jn9.md
+      - 2026-08-14-c4e8.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-08-14-c4e8.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-14-mssp5jn9.md
+      - 2026-08-14-c4e8.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-14-mssp5jn9.md
+      - 2026-08-14-c4e8.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
-  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/core
+  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
