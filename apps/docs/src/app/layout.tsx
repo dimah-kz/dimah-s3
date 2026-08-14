@@ -4,12 +4,7 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import { Geist } from "next/font/google";
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
-import {
-  appName,
-  siteDescription,
-  siteJsonLd,
-  siteTitle,
-} from "@/lib/shared";
+import { appName, siteDescription, siteJsonLd, siteTitle } from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
