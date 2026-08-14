@@ -1,3 +1,14 @@
+## @dimah-s3/cli@0.7.4
+
+### Return the pending row from `upsertPending`
+
+`s3.db.objects.upsertPending()` now returns the written `storage_object` row.
+FumaDB 0.6 can return that row from the upsert itself (`forceReturning()`), so
+callers no longer need a follow-up `find` after presign or multipart init.
+
+If you implement a custom `StorageObjectStore`, return the pending record from
+`upsertPending` instead of `void`.
+
 ## @dimah-s3/cli@0.7.3
 
 ### Align npm discovery metadata
