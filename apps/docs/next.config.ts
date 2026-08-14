@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
     // Native Rust React Compiler inside Turbopack (default bundler in Next 16).
     turbopackRustReactCompiler: true,
   },
+  async headers() {
+    const cors = [{ key: "Access-Control-Allow-Origin", value: "*" }];
+
+    return [
+      { source: "/llms.txt", headers: cors },
+      { source: "/llms-full.txt", headers: cors },
+    ];
+  },
   async redirects() {
     return [
       {

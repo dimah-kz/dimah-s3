@@ -2,7 +2,7 @@
 
 Optional FumaDB persistence for [dimah-s3](https://github.com/dimah-kz/dimah-s3) — `storage_object` table via the `db()` plugin.
 
-**Docs:** [Setup](https://dimah-s3.vercel.app/docs/db/setup) · [Hooks](https://dimah-s3.vercel.app/docs/db/hooks) · **Example:** [`examples/with-db`](../../examples/with-db)
+**Docs:** [Setup](https://dimah-s3.vercel.app/docs/db/setup) · [Hooks](https://dimah-s3.vercel.app/docs/db/hooks) · [llms.txt](https://dimah-s3.vercel.app/llms.txt) · **Example:** [`examples/with-db`](../../examples/with-db)
 
 ```ts
 import { DimahS3DB, db } from "@dimah-s3/db";

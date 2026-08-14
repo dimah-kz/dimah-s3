@@ -4,12 +4,17 @@
   "description": "Presigned S3 server — dimahS3() with HTTP handler and direct api for upload, download, delete, and multipart",
   "keywords": [
     "s3",
-    "server",
     "presigned-url",
+    "file-upload",
+    "cloudflare-r2",
+    "aws-s3",
+    "minio",
+    "nextjs",
     "upload",
     "download",
     "multipart",
-    "framework-agnostic"
+    "object-storage",
+    "typescript"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",
@@ -18,7 +23,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/server"
   },
-  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/server",
+  "homepage": "https://dimah-s3.vercel.app/docs/server",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

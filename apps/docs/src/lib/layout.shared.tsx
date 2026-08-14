@@ -1,6 +1,6 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { Logo } from "@/components/logo";
-import { appName, gitConfig, packageVersion } from "./shared";
+import { appName, githubRepoUrl, packageVersion } from "./shared";
 
 export function baseOptions(): BaseLayoutProps {
   return {
@@ -15,6 +15,6 @@ export function baseOptions(): BaseLayoutProps {
         </span>
       ),
     },
-    githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
+    githubUrl: githubRepoUrl(),
   };
 }

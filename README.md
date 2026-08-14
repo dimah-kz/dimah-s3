@@ -1,12 +1,20 @@
 # dimah-s3
 
-**dimah-s3** gives you the standard S3 lifecycle with a small surface: upload, download, and delete — built on [AWS SDK for JavaScript v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/s3/).
+**dimah-s3** gives you the standard S3 lifecycle with a small surface: upload,
+download, and delete — built on
+[AWS SDK for JavaScript v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/s3/).
 
-It stays presign-first. The server signs short-lived URLs with your `S3Client`; the client talks to S3 directly. Credentials never leave the backend. Auth, quotas, and database rules live in server hooks — not inside the transfer path.
+It stays presign-first. The server signs short-lived URLs with your
+`S3Client`; the client talks to S3 directly. Credentials never leave the
+backend. Auth, quotas, and database rules live in server hooks — not inside
+the transfer path.
 
-On the client you get headless hooks to compose your own UI, plus an optional component layer when you want something ready-made.
+On the client you get headless hooks to compose your own UI, plus an optional
+component layer when you want something ready-made.
 
-Presign flows only. Anything else stays in your own backend with [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3).
+Works with Amazon S3, Cloudflare R2, MinIO, and other S3-compatible stores.
+Presign flows only. Anything else stays in your own backend with
+[`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
 ## Packages
 
@@ -21,7 +29,9 @@ Presign flows only. Anything else stays in your own backend with [`@aws-sdk/clie
 
 ## Docs
 
-[dimah-s3.vercel.app](https://dimah-s3.vercel.app)
+[dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs) ·
+[Comparison](https://dimah-s3.vercel.app/docs/comparison) ·
+[llms.txt](https://dimah-s3.vercel.app/llms.txt) (coding agents)
 
 ## Create an app
 

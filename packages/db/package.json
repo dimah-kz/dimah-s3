@@ -4,10 +4,11 @@
   "description": "Optional FumaDB persistence for dimah-s3 — db() plugin + storage_object schema",
   "keywords": [
     "s3",
-    "upload",
+    "file-upload",
+    "object-storage",
     "database",
-    "fumadb",
-    "drizzle"
+    "drizzle",
+    "fumadb"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",
@@ -16,7 +17,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/db"
   },
-  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/db",
+  "homepage": "https://dimah-s3.vercel.app/docs/db",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

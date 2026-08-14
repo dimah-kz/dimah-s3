@@ -45,6 +45,11 @@ export const s3 = dimahS3({
   sees `HeadObject` — use that for quotas and records.
 </Callout>
 
+<Callout type="warn">
+  The client proposes `key` and may send `bucket`. Both are untrusted. Scope
+  keys to the user or tenant and reject any other bucket.
+</Callout>
+
 Set `requireFileSize: true` to reject presign requests that omit `fileSize`.
 
 ## Presign guard

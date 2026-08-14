@@ -2,9 +2,9 @@ import Link from "next/link";
 import { DemoPreview } from "@/components/demo-preview";
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 import { buttonVariants } from "@/components/ui/button";
-import { gitConfig } from "@/lib/shared";
+import { githubRepoUrl } from "@/lib/shared";
 
-const githubUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
+const githubUrl = githubRepoUrl();
 
 export default function HomePage() {
   return (

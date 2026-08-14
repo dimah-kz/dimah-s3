@@ -1,52 +1,45 @@
 ---
 title: Comparison
-description: dimah-s3 vs Uppy + AWS S3 — setup, control, and lifecycle.
+description: When to pick dimah-s3 versus Better Upload, Uppy, or a hosted service like UploadThing.
 icon: Scale
 ---
 
-**dimah-s3 vs Uppy + AWS S3** — setup effort, control points, and how much of
-the lifecycle each one actually covers.
+dimah-s3 gives you the server, the React client, and optional shadcn UI for
+files in **your** bucket — upload, download, and delete. You pass your own
+`S3Client`. Auth and quotas live in hooks. List, copy, and tags stay in your
+app.
 
-[Uppy](https://uppy.io/docs/aws-s3/) is a client uploader. It has **no
-server**. You bring a presign endpoint; download, delete, auth, and database
-work are entirely on you. dimah-s3 ships that other half: route handlers,
-policy hooks, and a headless client (plus optional UI) for upload, download,
-and delete.
+[UploadThing](https://uploadthing.com) is hosted — they store the files.
+[Better Upload](https://better-upload.com) covers upload to your bucket.
+[Uppy](https://uppy.io) is an upload dashboard; you write the server.
 
-## At a glance
-
-|                            | dimah-s3 | Uppy + AWS S3 |
-| -------------------------- | :------: | :-----------: |
-| Server / backend           |    ✅    |      ❌       |
-| Setup effort               | Very low |   Moderate    |
-| Upload, download, delete   |    ✅    | Upload-first  |
-| Presign-first S3 flow      |    ✅    |      ✅       |
-| Auth + policy hooks        |    ✅    |       —       |
-| DB-safe lifecycle points   |    ✅    |       —       |
-| Verified upload metadata   |    ✅    |       —       |
-| Multipart guard lifecycle  |    ✅    |       —       |
-| Headless React hooks       |    ✅    |      ❌       |
-| Dashboard/plugin ecosystem |    —     |      ✅       |
-
----
+|                 | dimah-s3                        | [Better Upload](https://better-upload.com) | [Uppy](https://uppy.io) |
+| --------------- | ------------------------------- | ------------------------------------------ | ----------------------- |
+| Server          | Included                        | Uploads only                               | You write it            |
+| Upload          | Yes, then confirms it's there   | Yes                                        | You connect S3          |
+| Download        | Included                        | You add it                                 | You add it              |
+| Delete          | Included                        | You add it                                 | You add it              |
+| Save to your DB | After the file is in the bucket | Before the file is uploaded                | You add it              |
+| Auth            | Hooks on every step             | Before the URL is signed                   | You add it              |
+| Large files     | Resume, abort, checks           | A flag on the route                        | You sign each part      |
+| File database   | Optional                        | —                                          | —                       |
+| Your own UI     | Upload, download, delete        | Upload                                     | —                       |
+| Ready-made UI   | shadcn — all three              | shadcn — upload                            | Dashboard + plugins     |
+| Webcam / Drive  | —                               | —                                          | Yes                     |
 
 ## Pick dimah-s3 if
 
-- You want a **very fast setup** — not a week of wiring a backend for a
-  client uploader.
-- You want the **server included** — not a client library you have to back
-  yourself.
-- You want **one stack** for the full file lifecycle: upload, download, and
-  delete.
-- You want first-class **server hooks** for auth, quotas, and DB sync
-  (`guard`, `presignGuard`, `onConfirmed`, `onDeleted`).
-- You want the object **verified** after upload before you trust size or type.
-- You want **headless React** primitives, with optional ready-made UI.
+- You want the **server included**, not a client you have to back yourself
+- Upload, download, and delete should follow the **same rules**
+- You save a row only after the file is **really in the bucket**
+- Auth lives in **hooks**; the rest of S3 uses your `S3Client`
+- You want an **optional database** for ownership and listings
+- You want **shadcn UI**, or headless hooks if you build your own
 
-## Pick Uppy + AWS S3 if
+## Pick something else if
 
-- You need a rich **upload dashboard** and a broad plugin ecosystem (webcam,
-  Drive, …).
-- You are optimizing for upload UI and external sources first.
-- You already have a backend — or you want to write the entire server side
-  yourself.
+- Hosted uploads, no bucket of yours — [UploadThing](https://uploadthing.com)
+- Uploads only, named file routes — [Better Upload](https://better-upload.com)
+- Dashboard, webcam, Drive — [Uppy](https://uppy.io) (can sit in front of
+  dimah-s3)
+- Image / video transforms — Cloudinary, ImageKit, or similar

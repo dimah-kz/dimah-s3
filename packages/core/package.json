@@ -4,9 +4,10 @@
   "description": "Shared types and pure helpers for @dimah-s3/react and @dimah-s3/server",
   "keywords": [
     "s3",
-    "types",
-    "upload",
-    "file-upload"
+    "presigned-url",
+    "file-upload",
+    "typescript",
+    "object-storage"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",
@@ -15,7 +16,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/core",
+  "homepage": "https://dimah-s3.vercel.app/docs/core",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

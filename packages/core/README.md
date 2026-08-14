@@ -2,7 +2,8 @@
 
 Shared protocol, typed API client, and pure helpers used by `@dimah-s3/server` and `@dimah-s3/react`.
 
-Full documentation: [dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs/quickstart)
+Full documentation: [dimah-s3.vercel.app/docs/core](https://dimah-s3.vercel.app/docs/core) ·
+[llms.txt](https://dimah-s3.vercel.app/llms.txt)
 
 ## Install
 

@@ -3,7 +3,8 @@
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).
 
-Full documentation: [dimah-s3.vercel.app/docs/react/ui](https://dimah-s3.vercel.app/docs/react/ui)
+Full documentation: [dimah-s3.vercel.app/docs/react/ui](https://dimah-s3.vercel.app/docs/react/ui) ·
+[llms.txt](https://dimah-s3.vercel.app/llms.txt)
 
 ## Install
 

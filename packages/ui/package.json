@@ -6,9 +6,10 @@
     "s3",
     "react",
     "ui",
-    "upload",
-    "download",
+    "shadcn",
     "file-upload",
+    "dropzone",
+    "nextjs",
     "components"
   ],
   "author": "Hamidrezakz",
@@ -18,7 +19,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/ui"
   },
-  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/ui",
+  "homepage": "https://dimah-s3.vercel.app/docs/react/ui",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

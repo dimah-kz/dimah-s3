@@ -2,7 +2,8 @@
 
 Presigned S3 handlers with HTTP `handler`, direct `api`, and an optional `plugins` array.
 
-Full documentation: [dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs/server)
+Full documentation: [dimah-s3.vercel.app/docs/server](https://dimah-s3.vercel.app/docs/server) ·
+[llms.txt](https://dimah-s3.vercel.app/llms.txt)
 
 ## Install
 

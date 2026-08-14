@@ -6,9 +6,10 @@
     "s3",
     "cli",
     "scaffold",
-    "create",
-    "dimah-s3",
+    "file-upload",
     "nextjs",
+    "cloudflare-r2",
+    "aws-s3",
     "vite",
     "hono"
   ],
@@ -19,7 +20,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/dimah-kz/dimah-s3/tree/main/packages/cli",
+  "homepage": "https://dimah-s3.vercel.app/docs/quickstart",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

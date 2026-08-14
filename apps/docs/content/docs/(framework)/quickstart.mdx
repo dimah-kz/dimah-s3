@@ -227,6 +227,11 @@ export default function Page() {
 
 Selecting a file uploads directly to S3.
 
+<Callout type="warn">
+  The client sends `objectKey` (and may send `bucket`). For anything beyond a
+  demo, scope keys to the signed-in user in `presignGuard`.
+</Callout>
+
 <Callout type="info">
   Deeper guides: [Server setup](/docs/server/setup), [Client
   setup](/docs/react/setup), and [UI setup](/docs/react/ui).

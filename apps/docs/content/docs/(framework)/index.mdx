@@ -1,6 +1,6 @@
 ---
 title: Introduction
-description: Presign-first S3 upload, download, and delete — server, client, optional UI and DB.
+description: Presign-first S3 and R2 uploads for React and Next.js — server, client, optional UI and DB.
 icon: Layers
 ---
 
@@ -12,7 +12,13 @@ It is **presign-first**: the server signs, the browser talks to the bucket, and
 credentials never leave the backend.
 
 It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
-your own code with the [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+your own code with the
+[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+
+Amazon S3, Cloudflare R2, MinIO, and other S3-compatible stores work — see
+[Providers](/docs/providers).
+
+Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 
 ## What you get
 
@@ -50,7 +56,7 @@ extend it with hooks and plugins.
   <Card
     title="Comparison"
     href="/docs/comparison"
-    description="When dimah-s3 fits — and when Uppy is the better fit."
+    description="When dimah-s3 fits — and when it does not."
   />
   <Card
     title="Server"

@@ -57,11 +57,28 @@ export async function generateMetadata(
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  const markdownUrl = getPageMarkdownUrl(page).url;
+  const image = getPageImage(page).url;
+
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: {
+      types: {
+        "text/markdown": markdownUrl,
+      },
+    },
     openGraph: {
-      images: getPageImage(page).url,
+      title: page.data.title,
+      description: page.data.description,
+      images: image,
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.data.title,
+      description: page.data.description,
+      images: image,
     },
   };
 }

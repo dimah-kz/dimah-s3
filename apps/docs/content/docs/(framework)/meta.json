@@ -1,12 +1,12 @@
 {
   "title": "Framework",
-  "description": "dimah-s3 in your app",
+  "description": "Quickstart, comparison, providers, and database",
   "icon": "Layers",
   "root": true,
   "pages": [
     "index",
-    "comparison",
     "quickstart",
+    "comparison",
     "---UI---",
     ".../../react/ui",
     "---features---",
