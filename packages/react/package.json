@@ -44,7 +44,7 @@
     "@fuma-translate/react": "^1.0.2",
     "immer": "^11.1.16",
     "react-dropzone": "^20.1.0",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.15"
   },
   "peerDependencies": {
     "@fuma-translate/react": "^1.0.2",

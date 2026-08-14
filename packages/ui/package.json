@@ -73,7 +73,7 @@
     "eslint": "catalog:",
     "lucide-react": "^1.31.0",
     "react": "catalog:",
-    "shadcn": "^4.16.2",
+    "shadcn": "^4.17.0",
     "tsc-alias": "^1.9.1",
     "tsup": "catalog:",
     "typescript": "catalog:"
