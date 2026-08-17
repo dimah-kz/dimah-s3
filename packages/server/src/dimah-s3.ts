@@ -1,5 +1,10 @@
 import { errors } from "./errors";
-import { applyPlugins, type DimahS3Plugin, type PluginContextMap, type PluginEndpointMap } from "./plugin";
+import {
+  applyPlugins,
+  type DimahS3Plugin,
+  type PluginContextMap,
+  type PluginEndpointMap,
+} from "./plugin";
 import { coreEndpoints, type CoreEndpoints } from "./api/routes";
 import { createS3Router } from "./router";
 import type { DimahS3Config } from "./types";
