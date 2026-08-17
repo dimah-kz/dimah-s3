@@ -14,13 +14,13 @@ npx @dimah-s3/cli@latest create my-app --template hono
 
 ## What’s included
 
-| Path                   | Role                                              |
-| ---------------------- | ------------------------------------------------- |
-| `src/lib/s3.ts`        | `awsS3` + `dimahS3()` (`upload.prefix`)           |
+| Path                   | Role                                                  |
+| ---------------------- | ----------------------------------------------------- |
+| `src/lib/s3.ts`        | `awsS3` + `dimahS3()` (`upload.prefix`)               |
 | `src/lib/s3-client.ts` | `createS3Client()` (same origin via the `/api` proxy) |
-| `src/server.ts`        | Hono app (`toHonoHandler` + static after build)   |
-| `src/main.tsx`         | `s3Client.Provider` + `Toaster`                   |
-| `src/App.tsx`          | Sample `UploadButton`                             |
+| `src/server.ts`        | Hono app (`toHonoHandler` + static after build)       |
+| `src/main.tsx`         | `s3Client.Provider` + `Toaster`                       |
+| `src/App.tsx`          | Sample `UploadButton`                                 |
 
 Same wiring as [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) (Hono tab), [Server setup](https://dimah-s3.vercel.app/docs/server/setup), [Client setup](https://dimah-s3.vercel.app/docs/react/setup), and [UI setup](https://dimah-s3.vercel.app/docs/react/ui).
 
