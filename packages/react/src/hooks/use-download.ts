@@ -162,7 +162,7 @@ export function useDownload(
 
   const presign = useCallback(
     async (key: string, downloadName?: string) => {
-      const opts = optsRef.current;
+      const opts = optsRef.current as UseNavigateDownloadOptions;
       const api = opts.api ?? apiRef.current;
       if (!api) throw new Error(missingApiMessage("useDownload"));
       patchHookState(store, (draft) => {
@@ -190,8 +190,7 @@ export function useDownload(
           draft.url = null;
           draft.expiresIn = null;
         });
-        // `presign` is navigate-only; fetch mode has its own download path.
-        (opts as UseNavigateDownloadOptions).onError?.(key, err);
+        opts.onError?.(key, err);
         return null;
       }
     },
