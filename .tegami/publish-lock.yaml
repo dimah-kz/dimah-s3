@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Align the consumer API and switch to better-call\n\nServer config uses `client` (`awsS3`) and `bucket` (the default bucket;\nclient-sent `bucket` is ignored unless `allowClientBucket` or `buckets`).\nEnable a feature with `true` or an options object\n(`upload: { prefix: \"uploads\" }`). Multipart is on whenever\nupload is, unless you set `multipart: false`. `upload.guard` /\n`download.guard` replace `presignGuard`. Disabled features return\n`FEATURE_DISABLED` (still HTTP 404). Use `prefix` or `resolveKey` to\nown object keys.\n\n`createS3Client()` from `@dimah-s3/react` _is_ the API\n(`s3Client.download(key)`), plus `Provider` and `useApi`. Cross-origin apps\npass `baseURL`. `objectKey` is optional. `useDownload({ mode: \"fetch\" })`\nreplaces `useFetchDownload`. Hook `error` is a `DimahS3Error`.\n\nServer routes and plugins now use `createS3Endpoint` (better-call) with Zod\nschemas. Call `s3.api.download({ query: { key }, headers })` instead of\n`s3.api.download(key, { headers })`. Plugin paths are absolute under\n`basePath` (`/db/objects`). Client plugins use `getActions($fetch)` and\n`pluginPath`. The Next.js adapter also exports `PUT` and `PATCH`.\n\n`DimahS3Error` extends better-call `APIError` with the same\n`(status, body)` constructor. HTTP error JSON is `{ message, code?, params? }`.\nDetect errors with `isAPIError` / `isDimahS3Error`. The browser client maps\nnon-OK responses onto `DimahS3Error` and exposes `$ERROR_CODES`.\n\nPlugin-author helpers live on `@dimah-s3/server/plugins`. Starters export\n`awsS3` and `s3` from `lib/s3.ts`, plus `lib/s3-client.ts`. See the\n[changelog](https://dimah-s3.vercel.app/docs/changelog).\n"
-    filename: 2026-08-17-c9f1b3.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Refresh official starters to the current setup\n\n`create` now scaffolds the same file layout as Quickstart / Server / Client / UI\nsetup (`lib/s3.ts`, `lib/s3-client.ts`, route adapter, `S3Provider` + `Toaster`)\nand pins starter `@dimah-s3/*` ranges to the current line, along with updated\nNext.js, Hono, and shadcn versions.\n"
+    filename: 2026-08-17-e4b8a1.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-17-c9f1b3.md
+      - 2026-08-17-e4b8a1.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-17-c9f1b3.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-08-17-c9f1b3.md
+      - 2026-08-17-e4b8a1.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-17-c9f1b3.md
+      - 2026-08-17-e4b8a1.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-08-17-e4b8a1.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-17-c9f1b3.md
+      - 2026-08-17-e4b8a1.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-17-c9f1b3.md
+      - 2026-08-17-e4b8a1.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
-  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
+  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui

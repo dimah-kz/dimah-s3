@@ -1,3 +1,12 @@
+## @dimah-s3/core@0.8.1
+
+### Refresh official starters to the current setup
+
+`create` now scaffolds the same file layout as Quickstart / Server / Client / UI
+setup (`lib/s3.ts`, `lib/s3-client.ts`, route adapter, `S3Provider` + `Toaster`)
+and pins starter `@dimah-s3/*` ranges to the current line, along with updated
+Next.js, Hono, and shadcn versions.
+
 ## @dimah-s3/core@0.8.0
 
 ### Align the consumer API and switch to better-call
