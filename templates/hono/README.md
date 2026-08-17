@@ -1,6 +1,6 @@
 # dimah-s3 — Hono template
 
-Minimal [Hono](https://hono.dev) starter with a Vite + React UI and [dimah-s3](https://dimah-s3.vercel.app): `toHonoHandler` presign routes, `S3Provider`, and an upload button.
+Minimal [Hono](https://hono.dev) starter with a Vite + React UI and [dimah-s3](https://dimah-s3.vercel.app): `toHonoHandler` presign routes, `s3Client.Provider`, and an upload button.
 
 ## Create
 
@@ -14,20 +14,15 @@ npx @dimah-s3/cli@latest create my-app --template hono
 
 ## What’s included
 
-| Path                             | Role                                |
-| -------------------------------- | ----------------------------------- |
-| `src/lib/s3-client.ts`           | AWS SDK `S3Client` + default bucket |
-| `src/lib/s3.ts`                  | `dimahS3()` server config           |
-| `src/server.ts`                  | Hono app (`toHonoHandler` + static) |
-| `src/components/s3-provider.tsx` | Client `createS3Client` + provider  |
-| `src/App.tsx`                    | Sample `UploadButton`               |
+| Path                   | Role                                              |
+| ---------------------- | ------------------------------------------------- |
+| `src/lib/s3.ts`        | `awsS3` + `dimahS3()` (`upload.prefix`)           |
+| `src/lib/s3-client.ts` | `createS3Client()` (same origin via the `/api` proxy) |
+| `src/server.ts`        | Hono app (`toHonoHandler` + static after build)   |
+| `src/main.tsx`         | `s3Client.Provider` + `Toaster`                   |
+| `src/App.tsx`          | Sample `UploadButton`                             |
 
-## Docs
-
-- [Quickstart](https://dimah-s3.vercel.app/docs/quickstart)
-- [Server setup](https://dimah-s3.vercel.app/docs/server/setup)
-- [Client setup](https://dimah-s3.vercel.app/docs/react/setup)
-- [UI setup](https://dimah-s3.vercel.app/docs/react/ui)
+Same wiring as [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) (Hono tab), [Server setup](https://dimah-s3.vercel.app/docs/server/setup), [Client setup](https://dimah-s3.vercel.app/docs/react/setup), and [UI setup](https://dimah-s3.vercel.app/docs/react/ui).
 
 ## License
 

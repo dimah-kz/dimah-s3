@@ -20,10 +20,10 @@ Open `/` — upload a file, then see it listed from `storage_object`.
 
 Shared with the Next.js starter:
 
-1. [src/lib/s3-client.ts](src/lib/s3-client.ts) — AWS SDK client
-2. [src/lib/s3.ts](src/lib/s3.ts) — `dimahS3(...)` (upload-only flags like the template)
-3. [src/components/s3-provider.tsx](src/components/s3-provider.tsx) — `createS3Client`
-4. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts) — Next.js adapter
+1. [src/lib/s3.ts](src/lib/s3.ts) — `awsS3` + `dimahS3(...)` (upload/download/delete + `db()`)
+2. [src/lib/s3-client.ts](src/lib/s3-client.ts) — `createS3Client({ plugins: [dbClient()] })` + `S3Provider`
+3. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts) — Next.js adapter
+4. [src/app/layout.tsx](src/app/layout.tsx) — `S3Provider` + `Toaster`
 5. [src/app/page.tsx](src/app/page.tsx) — `UploadButton`
 
 DB delta only:
