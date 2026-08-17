@@ -30,7 +30,9 @@ export const s3 = dimahS3({
     enabled: true,
     presignGuard: async ({ fileSize }) => {
       if (fileSize && fileSize > 10 * 1024 * 1024) {
-        throw new DimahS3Error("File too large", 413);
+        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
+          message: "File too large",
+        });
       }
     },
     onConfirmed: async ({ key, contentLength }) => {

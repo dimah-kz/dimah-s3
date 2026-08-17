@@ -116,7 +116,7 @@ describe("createS3Client errors", () => {
       jsonResponse(
         {
           message: "blocked",
-          code: S3_ERROR_CODES.FORBIDDEN,
+          code: S3_ERROR_CODES.FORBIDDEN.code,
           params: { name: "key" },
         },
         403,
@@ -126,7 +126,7 @@ describe("createS3Client errors", () => {
     await expect(api.delete("a.png")).rejects.toMatchObject({
       name: "DimahS3Error",
       status: 403,
-      code: S3_ERROR_CODES.FORBIDDEN,
+      code: S3_ERROR_CODES.FORBIDDEN.code,
       message: "blocked",
       params: { name: "key" },
     });
@@ -147,6 +147,10 @@ describe("createS3Client errors", () => {
       status: 502,
       message: "Bad Gateway",
     });
+  });
+
+  it("exposes $ERROR_CODES on the client", () => {
+    expect(createS3Client().$ERROR_CODES).toBe(S3_ERROR_CODES);
   });
 });
 

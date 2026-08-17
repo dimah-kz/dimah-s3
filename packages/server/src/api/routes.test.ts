@@ -71,8 +71,8 @@ describe("upload", () => {
     await expect(
       s3.api.upload({ body: { key: "a.png" } }),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD,
-      status: 400,
+      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD.code,
+      statusCode: 400,
     });
   });
 
@@ -153,14 +153,16 @@ describe("download / delete", () => {
     await expect(
       s3.api.download({ query: { key: "missing.png" } }),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.OBJECT_NOT_FOUND,
-      status: 404,
+      code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
+      status: "NOT_FOUND",
+      statusCode: 404,
     });
     await expect(
       s3.api.delete({ query: { key: "missing.png" } }),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.OBJECT_NOT_FOUND,
-      status: 404,
+      code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
+      status: "NOT_FOUND",
+      statusCode: 404,
     });
   });
 
@@ -214,7 +216,7 @@ describe("multipart", () => {
     await expect(
       s3.api.multipartInit({ body: { key: "a.bin" } }),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART,
+      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code,
     });
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DimahS3Error } from "@dimah-s3/core";
+import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
 import { S3UploadError, toUploadError } from "./error";
 
 describe("S3UploadError", () => {
@@ -21,21 +21,14 @@ describe("toUploadError", () => {
     expect(toUploadError(err)).toBe(err);
   });
 
-  it("wraps DimahS3Error as API_ERROR", () => {
-    const wrapped = toUploadError(
-      new DimahS3Error("blocked", 403),
-      "presigning",
-    );
-    expect(wrapped).toMatchObject({
-      code: "API_ERROR",
-      status: 403,
-      phase: "presigning",
-      message: "blocked",
-    });
+  it("preserves DimahS3Error code and does not wrap as API_ERROR", () => {
+    const original = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+    expect(toUploadError(original, "presigning")).toBe(original);
   });
 
   it("wraps plain Errors", () => {
     expect(toUploadError(new Error("boom"), "uploading")).toMatchObject({
+      name: "S3UploadError",
       code: "UPLOAD_ERROR",
       status: 500,
       message: "boom",

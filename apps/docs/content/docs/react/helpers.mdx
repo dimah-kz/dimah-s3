@@ -91,16 +91,18 @@ parseFileName(res.headers.get("content-disposition")); // "report.pdf" | undefin
 
 ## API errors
 
-Failed `S3Api` calls throw `DimahS3Error`. Format them for the UI:
+Failed `S3Api` calls throw `DimahS3Error`. Format them for the UI with
+`useFormatDimahError` (keys off `.code`). Catch with `isDimahS3Error`:
 
 ```tsx
 import { useFormatDimahError } from "@dimah-s3/react";
+import { isDimahS3Error } from "@dimah-s3/core";
 
 const formatError = useFormatDimahError();
 
 try {
   await api.download(key);
 } catch (err) {
-  toast.error(formatError(err));
+  if (isDimahS3Error(err)) toast.error(formatError(err));
 }
 ```

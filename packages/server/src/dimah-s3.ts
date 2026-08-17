@@ -1,4 +1,3 @@
-import { errors } from "./errors";
 import {
   applyPlugins,
   type DimahS3Plugin,
@@ -59,10 +58,7 @@ export function dimahS3<const P extends readonly DimahS3Plugin[] = []>(
   } = applyPlugins(config);
 
   const endpoints = { ...coreEndpoints, ...pluginEndpoints };
-  const router = createS3Router(endpoints, {
-    config: resolved,
-    errors,
-  });
+  const router = createS3Router(endpoints, { config: resolved });
 
   return {
     handler: router.handler,

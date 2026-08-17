@@ -1,3 +1,4 @@
+import { toResponse } from "better-call";
 import type {
   IncomingHttpHeaders,
   IncomingMessage,
@@ -95,15 +96,7 @@ export function toNodeHandler(s3: DimahS3HandlerSource) {
     } catch (err) {
       console.error("[S3 API]", err);
       if (!res.headersSent) {
-        const fallback = errors.internalError();
-        res.statusCode = fallback.statusCode;
-        res.setHeader("Content-Type", "application/json");
-        res.end(
-          JSON.stringify({
-            message: fallback.message,
-            code: fallback.code,
-          }),
-        );
+        await writeWebResponse(res, toResponse(errors.internalError()));
       }
     }
   };

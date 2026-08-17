@@ -14,7 +14,7 @@
 
 1. Static `t("…")` / `useTranslations()` from `@fuma-translate/react` in `react` / `ui` (do not re-export the hook). English source text is the default.
 2. `pnpm --filter @dimah-s3/react compile:translations` — keep exported `Translations` in sync. Code→string mappers must call `useTranslations()` themselves (`useFormatDimahError`, `useFormatValidateFileError`).
-3. Server: `DimahS3Error` extends better-call `APIError` + `S3_ERROR_CODES` + English `message` (+ `params`). Prefer `errors.*` in `server/src/errors.ts`. Do not wrap `APIError` in a custom HTTP serializer — throw `DimahS3Error` and let the router `toResponse`.
+3. Server: `DimahS3Error` extends better-call `APIError` with `(status, body)` + `S3_ERROR_CODES` (`{ code, message }`) + optional `params`. Prefer `errors.*` / `DimahS3Error.from`. Detect with `isAPIError` / `isDimahS3Error`. Do not wrap `APIError` in a custom HTTP serializer — throw `DimahS3Error` and let the router `toResponse`.
 4. Tegami changelog — [release.md](./release.md).
 
 ## When adding or changing a server endpoint

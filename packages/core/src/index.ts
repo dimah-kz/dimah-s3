@@ -3,17 +3,25 @@ export * from "./helpers";
 export * from "./schema";
 export {
   DimahS3Error,
+  defineErrorCodes,
+  isAPIError,
+  isDimahS3Error,
   S3_ERROR_CODES,
-  type S3ErrorCode,
+  type DimahS3ErrorBody,
   type DimahS3ErrorParams,
-  type DimahS3ErrorOptions,
+  type DimahS3ErrorStatus,
+  type S3ErrorCode,
 } from "./error";
 export {
   S3_API_BASE_PATH,
   normalizeS3ApiBasePath,
   S3_API_ROUTES,
 } from "./routes";
-export { createS3Client, type CreateS3ClientOptions } from "./create-s3-client";
+export {
+  createS3Client,
+  type CreateS3ClientOptions,
+  type CreateS3ClientResult,
+} from "./create-s3-client";
 export {
   createS3Fetch,
   defineClientPlugin,

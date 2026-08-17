@@ -1,10 +1,9 @@
 import { createMiddleware } from "better-call";
-import { errors } from "../errors";
 import { requestFromHeaders, runHook } from "../internal-helpers";
 import type { S3EndpointContext } from "./context";
 
 /**
- * Injects `config` / `errors` / `request` and runs the global `guard`.
+ * Injects `config` / `request` and runs the global `guard`.
  * Used by {@link createS3Endpoint} so HTTP and `s3.api` share the same path.
  */
 export const s3ContextMiddleware = createMiddleware(async (ctx) => {
@@ -24,7 +23,6 @@ export const s3ContextMiddleware = createMiddleware(async (ctx) => {
 
   return {
     config: injected.config,
-    errors: injected.errors ?? errors,
     request,
   } satisfies S3EndpointContext;
 });

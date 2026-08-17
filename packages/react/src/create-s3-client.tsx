@@ -3,9 +3,8 @@
 import {
   createS3Client as createCoreS3Client,
   type CreateS3ClientOptions,
-  type S3Api,
+  type CreateS3ClientResult,
   type S3ClientPlugin,
-  type ClientPluginMethodsMap,
 } from "@dimah-s3/core";
 import type { ReactNode } from "react";
 import {
@@ -42,9 +41,9 @@ type BoundProviderProps = Omit<S3ProviderProps, "api"> & {
 export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   options?: CreateS3ClientOptions<P>,
 ) {
-  type TApi = S3Api & ClientPluginMethodsMap<P>;
+  type TApi = CreateS3ClientResult<P>;
 
-  const api = createCoreS3Client(options) as TApi;
+  const api = createCoreS3Client(options);
 
   function S3Provider(props: BoundProviderProps) {
     return <BaseS3Provider api={api} {...props} />;
@@ -57,4 +56,4 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   return { api, S3Provider, useApi };
 }
 
-export type { CreateS3ClientOptions };
+export type { CreateS3ClientOptions, CreateS3ClientResult };

@@ -1,4 +1,5 @@
 import { createFetch } from "@better-fetch/fetch";
+import type { Status } from "better-call/error";
 import { DimahS3Error } from "../error";
 import { s3FetchErrorSchema } from "../schema/error";
 import type { S3ClientFetchOptions, S3Fetch } from "./types";
@@ -30,15 +31,17 @@ function dimahErrorFromFetch(error: {
   statusText: string;
   error?: unknown;
 }): DimahS3Error {
+  const status = error.status as Status;
   const parsed = s3FetchErrorSchema.safeParse(error);
   if (parsed.success) {
     const { message, code, params } = parsed.data;
-    return new DimahS3Error(message, error.status, {
+    return new DimahS3Error(status, {
+      message,
       ...(code !== undefined ? { code } : {}),
       ...(params !== undefined ? { params } : {}),
     });
   }
-  return new DimahS3Error(fallbackMessage(error), error.status);
+  return new DimahS3Error(status, { message: fallbackMessage(error) });
 }
 
 /**

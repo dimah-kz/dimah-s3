@@ -217,7 +217,8 @@ On Node / Express, convert headers with `fromNodeHeaders` from
 `delete`, `multipartInit`, … plus plugin endpoints). The browser client
 (`createS3Client`) still exposes nested `S3Api` (`api.download(key)`,
 `api.multipart.init`). Failures throw `DimahS3Error` (a better-call
-`APIError`) with `.status` / `.statusCode` and `.code`.
+`APIError`) with named `.status` (`"FORBIDDEN"`), numeric `.statusCode`,
+and `.code`. Catch with `isAPIError` / `isDimahS3Error`.
 
 ### Next [step]
 

@@ -17,11 +17,13 @@ function withS3Validation<O extends EndpointOptions>(options: O): O {
   };
 }
 
+type CreateS3Endpoint = typeof createEndpointWithContext;
+
 /**
  * Typed endpoint for dimah-s3 plugins and core routes.
  *
  * Paths are absolute under `basePath` (e.g. `/db/objects`). Context
- * (`config`, `errors`, `request`) is injected by the router / `s3.api`.
+ * (`config`, `request`) is injected by the router / `s3.api`.
  * Zod failures throw `DimahS3Error` (`VALIDATION_ERROR`) via
  * better-call `onValidationError`.
  *
@@ -49,4 +51,4 @@ export const createS3Endpoint = ((
     withS3Validation(pathOrOptions),
     optionsOrHandler as never,
   );
-}) as unknown as typeof createEndpointWithContext;
+}) as unknown as CreateS3Endpoint;

@@ -1,5 +1,5 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import { S3_API_BASE_PATH, S3_ERROR_CODES } from "@dimah-s3/core";
+import { S3_API_BASE_PATH, type S3ErrorCode } from "@dimah-s3/core";
 import { expect, vi } from "vitest";
 import { dimahS3 } from "../dimah-s3";
 import type { DimahS3Config } from "../types";
@@ -78,8 +78,8 @@ export function jsonRequest(
 export async function expectErrorCode(
   response: Response,
   status: number,
-  code: (typeof S3_ERROR_CODES)[keyof typeof S3_ERROR_CODES],
+  error: { code: S3ErrorCode | string },
 ) {
   expect(response.status).toBe(status);
-  await expect(response.json()).resolves.toMatchObject({ code });
+  await expect(response.json()).resolves.toMatchObject({ code: error.code });
 }

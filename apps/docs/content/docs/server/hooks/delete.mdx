@@ -25,7 +25,7 @@ export const s3 = dimahS3({
     enabled: true,
     guard: async ({ key, request }) => {
       if (!request.headers.get("authorization")) {
-        throw new DimahS3Error("Unauthorized", 401);
+        throw new DimahS3Error("UNAUTHORIZED", { message: "Unauthorized" });
       }
       // then check that `key` may be deleted
     },

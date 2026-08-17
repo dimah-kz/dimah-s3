@@ -50,7 +50,9 @@ export const { api, S3Provider, useApi } = createS3Client({
 ```
 
 `basePath` must match the server. Failed API calls throw `DimahS3Error`
-(`.code`, `.status`). Call `api` directly, or `useApi()` inside React.
+(`.code`, `.status` / `.statusCode`). The client also exposes
+`$ERROR_CODES` (same catalog as the server). Call `api` directly, or
+`useApi()` inside React.
 
 </Tab>
 

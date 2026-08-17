@@ -25,7 +25,8 @@ export const api = createS3Client({
 try {
   await api.download(key);
 } catch (err) {
-  if (err instanceof DimahS3Error) console.error(err.status, err.message);
+  if (err instanceof DimahS3Error)
+    console.error(err.statusCode, err.code, err.message);
 }
 ```
 

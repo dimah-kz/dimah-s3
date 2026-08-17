@@ -3,11 +3,11 @@ export type Translations = {
   "Access denied(API error)": string;
   "All {count} file(s) uploaded(status)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
-  "At least one upload part is required(API error)": string;
   "Cancel download(tooltip)": string;
   "Cancel(dialog button)": string;
   "Cancel(toast action)": string;
   "Cancel(upload control)": string;
+  "Conflict(API error)": string;
   "Could not reach storage ({code})(API error)": string;
   "Delete failed(status)": string;
   "Delete failed(toast)": string;
@@ -33,13 +33,11 @@ export type Translations = {
   "File type \"{type}\" is not allowed(file validation)": string;
   "Invalid request(API error)": string;
   "Not found(API error)": string;
-  "Object key is required(API error)": string;
-  "Part number must be a positive integer(API error)": string;
   "Pause(upload control)": string;
   "Preparing…(upload status)": string;
   "Something went wrong(API error)": string;
+  "Unauthorized(API error)": string;
   "Unknown error(fallback)": string;
-  "Upload ID is required(API error)": string;
   "Upload complete(toast)": string;
   "Upload failed(status)": string;
   "Upload failed(toast)": string;
@@ -51,6 +49,5 @@ export type Translations = {
   "Validating…(upload status)": string;
   "{count} file(s) uploaded(toast)": string;
   "{done}/{total} files(upload progress)": string;
-  "{name} is required(API error)": string;
   "{succeeded} succeeded, {failed} failed(toast)": string;
 };

@@ -1,10 +1,10 @@
-import { DimahS3Error } from "@dimah-s3/core";
-import { errors, toDimahS3Error } from "./errors";
+import { DimahS3Error, isAPIError } from "@dimah-s3/core";
+import { errors } from "./errors";
 
 /**
- * Run a guard hook. {@link DimahS3Error} is preserved; plain Errors keep their
- * English message without a library `code` so client `useFormatDimahError` does
- * not replace them with a generic mapped string.
+ * Run a guard hook. {@link isAPIError} values are preserved; plain Errors keep
+ * their English message without a library `code` so client
+ * `useFormatDimahError` does not replace them with a generic mapped string.
  */
 export async function runHook<T extends { request: Request }>(
   hook: ((context: T) => Promise<void> | void) | undefined,
@@ -14,10 +14,12 @@ export async function runHook<T extends { request: Request }>(
   try {
     await hook(context);
   } catch (err) {
-    if (err instanceof DimahS3Error) throw err;
+    if (isAPIError(err)) throw err;
     if (err instanceof Error && err.message.trim()) {
-      // No library `code` — client shows this English message as-is.
-      throw toDimahS3Error(err, errors.forbidden().message, 403);
+      throw new DimahS3Error("FORBIDDEN", {
+        message: err.message,
+        cause: err,
+      });
     }
     throw errors.forbidden();
   }
@@ -25,7 +27,7 @@ export async function runHook<T extends { request: Request }>(
 
 /**
  * Run a lifecycle `on*` hook. Failures become {@link errors.internalError}
- * (or preserve an existing {@link DimahS3Error}).
+ * (or preserve an existing APIError).
  */
 export async function runLifecycleHook<T extends { request: Request }>(
   hook: ((context: T) => Promise<void> | void) | undefined,
@@ -35,7 +37,7 @@ export async function runLifecycleHook<T extends { request: Request }>(
   try {
     await hook(context);
   } catch (err) {
-    if (err instanceof DimahS3Error) throw err;
+    if (isAPIError(err)) throw err;
     console.error("[S3 API] lifecycle hook failed", err);
     throw errors.internalError();
   }

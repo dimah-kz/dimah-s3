@@ -37,7 +37,8 @@ describe("runHook", () => {
       ),
     ).rejects.toMatchObject({
       message: "Custom rejection",
-      status: 403,
+      status: "FORBIDDEN",
+      statusCode: 403,
       code: undefined,
     });
   });
@@ -51,8 +52,9 @@ describe("runHook", () => {
         { request: new Request("http://local") },
       ),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FORBIDDEN,
-      status: 403,
+      code: S3_ERROR_CODES.FORBIDDEN.code,
+      status: "FORBIDDEN",
+      statusCode: 403,
     });
   });
 });
@@ -68,9 +70,10 @@ describe("runLifecycleHook", () => {
         { request: new Request("http://local") },
       ),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.INTERNAL_ERROR,
+      code: S3_ERROR_CODES.INTERNAL_ERROR.code,
       message: "Internal server error",
-      status: 500,
+      status: "INTERNAL_SERVER_ERROR",
+      statusCode: 500,
     });
     spy.mockRestore();
   });

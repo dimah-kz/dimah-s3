@@ -1,6 +1,10 @@
-import { APIError, createRouter, toResponse, type Endpoint } from "better-call";
-import { normalizeS3ApiBasePath, S3_API_BASE_PATH } from "@dimah-s3/core";
-import { errors, type ServerErrors } from "./errors";
+import { createRouter, toResponse, type Endpoint } from "better-call";
+import {
+  isAPIError,
+  normalizeS3ApiBasePath,
+  S3_API_BASE_PATH,
+} from "@dimah-s3/core";
+import { errors } from "./errors";
 import { bindEndpoints } from "./api/bind-endpoints";
 import type { DimahS3Config } from "./types";
 
@@ -12,19 +16,12 @@ const NETWORK_CODES = new Set([
   "ENOTFOUND",
 ]);
 
-function isBetterCallAPIError(error: unknown): error is APIError {
-  return (
-    error instanceof APIError ||
-    (error as { name?: string } | null)?.name === "APIError"
-  );
-}
-
 /**
  * better-call `onError`: APIError (including DimahS3Error) serializes
  * natively. Unknown throws become INTERNAL_ERROR / S3_NETWORK_ERROR.
  */
 function onS3RouterError(error: unknown): void {
-  if (isBetterCallAPIError(error)) return;
+  if (isAPIError(error)) return;
 
   const code = (error as { code?: string })?.code;
   if (typeof code === "string" && NETWORK_CODES.has(code)) {
@@ -58,7 +55,7 @@ function withUnmatchedRouteJson(
  */
 export function createS3Router<E extends Record<string, Endpoint>>(
   endpoints: E,
-  env: { config: DimahS3Config; errors: ServerErrors },
+  env: { config: DimahS3Config },
 ) {
   const basePath = normalizeS3ApiBasePath(
     env.config.basePath ?? S3_API_BASE_PATH,
@@ -66,13 +63,13 @@ export function createS3Router<E extends Record<string, Endpoint>>(
 
   const router = createRouter(endpoints, {
     basePath,
-    routerContext: { config: env.config, errors: env.errors },
+    routerContext: { config: env.config },
     openapi: { disabled: true },
     onError: onS3RouterError,
   });
 
   return {
-    endpoints: bindEndpoints(router.endpoints, env),
+    endpoints: bindEndpoints(router.endpoints, { config: env.config }),
     handler: withUnmatchedRouteJson(router.handler),
   };
 }

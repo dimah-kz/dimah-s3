@@ -1,5 +1,4 @@
 import type { Endpoint } from "better-call";
-import type { ServerErrors } from "../errors";
 import type {
   DeleteConfig,
   DownloadConfig,
@@ -7,8 +6,6 @@ import type {
   UploadConfig,
   DimahS3Config,
 } from "../types/config";
-
-export type { ServerErrors };
 
 /**
  * Hook fields a plugin may contribute. Scalars like `enabled` / `method`

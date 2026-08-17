@@ -1,4 +1,3 @@
-import type { ServerErrors } from "../errors";
 import type { DimahS3Config } from "../types";
 
 /**
@@ -7,6 +6,5 @@ import type { DimahS3Config } from "../types";
  */
 export type S3EndpointContext = {
   config: DimahS3Config;
-  errors: ServerErrors;
   request: Request;
 };

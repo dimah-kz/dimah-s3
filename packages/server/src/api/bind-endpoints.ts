@@ -8,7 +8,7 @@ import { requestFromHeaders } from "../internal-helpers";
  */
 export function bindEndpoints<E extends Record<string, Endpoint>>(
   endpoints: E,
-  context: Pick<S3EndpointContext, "config" | "errors">,
+  context: Pick<S3EndpointContext, "config">,
 ): E {
   const api = {} as E;
 

@@ -16,7 +16,8 @@ describe("createObjectAccessGuard", () => {
     });
     await expect(guard(context)).rejects.toMatchObject({
       code: "UNAUTHORIZED",
-      status: 401,
+      status: "UNAUTHORIZED",
+      statusCode: 401,
     });
   });
 
@@ -29,7 +30,8 @@ describe("createObjectAccessGuard", () => {
     });
     await expect(guard(context)).rejects.toMatchObject({
       code: "NOT_FOUND",
-      status: 404,
+      status: "NOT_FOUND",
+      statusCode: 404,
     });
   });
 
@@ -42,7 +44,8 @@ describe("createObjectAccessGuard", () => {
     });
     await expect(guard(context)).rejects.toMatchObject({
       code: "FORBIDDEN",
-      status: 403,
+      status: "FORBIDDEN",
+      statusCode: 403,
     });
   });
 

@@ -1,6 +1,6 @@
 export { dimahS3 } from "./dimah-s3";
 export type { DimahS3 } from "./dimah-s3";
-export { DimahS3Error, errors } from "./errors";
+export { DimahS3Error, errors, isAPIError, isDimahS3Error } from "./errors";
 export type { ServerErrors } from "./errors";
 export { resolveObjectAcl } from "./helpers/resolve-object-acl";
 

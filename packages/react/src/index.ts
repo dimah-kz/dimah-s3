@@ -3,7 +3,11 @@ export * from "./types";
 
 // ─── S3 API factory + React context provider ──────────────────────────────────
 export { defineApi } from "./api";
-export { createS3Client, type CreateS3ClientOptions } from "./create-s3-client";
+export {
+  createS3Client,
+  type CreateS3ClientOptions,
+  type CreateS3ClientResult,
+} from "./create-s3-client";
 export {
   S3Provider,
   useApi,

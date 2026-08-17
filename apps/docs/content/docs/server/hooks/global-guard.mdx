@@ -23,7 +23,8 @@ export const s3 = dimahS3({
   defaultBucket,
   guard: async ({ request }) => {
     const session = await getSession(request);
-    if (!session) throw new DimahS3Error("Unauthorized", 401);
+    if (!session)
+      throw new DimahS3Error("UNAUTHORIZED", { message: "Unauthorized" });
   },
   upload: { enabled: true },
 });

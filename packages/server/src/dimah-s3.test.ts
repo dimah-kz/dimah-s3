@@ -58,8 +58,9 @@ describe("HTTP envelope", () => {
     const s3 = createInstance({
       upload: { enabled: true },
       guard: () => {
-        throw new DimahS3Error("blocked", 403, {
-          code: S3_ERROR_CODES.FORBIDDEN,
+        throw DimahS3Error.from("FORBIDDEN", {
+          ...S3_ERROR_CODES.FORBIDDEN,
+          message: "blocked",
         });
       },
     });
@@ -68,7 +69,7 @@ describe("HTTP envelope", () => {
     );
     expect(res.status).toBe(403);
     await expect(res.json()).resolves.toMatchObject({
-      code: S3_ERROR_CODES.FORBIDDEN,
+      code: S3_ERROR_CODES.FORBIDDEN.code,
       message: "blocked",
     });
   });
@@ -77,7 +78,8 @@ describe("HTTP envelope", () => {
     const s3 = createInstance({
       upload: { enabled: true },
       guard: () => {
-        throw new DimahS3Error("quota", 403, {
+        throw new DimahS3Error("FORBIDDEN", {
+          message: "quota",
           code: "QUOTA",
           params: { used: 12 },
         });
@@ -114,7 +116,7 @@ describe("HTTP envelope", () => {
     expect(res.status).toBe(500);
     await expect(res.json()).resolves.toEqual({
       message: "Internal server error",
-      code: S3_ERROR_CODES.INTERNAL_ERROR,
+      code: S3_ERROR_CODES.INTERNAL_ERROR.code,
     });
     spy.mockRestore();
   });
@@ -140,7 +142,7 @@ describe("HTTP envelope", () => {
     );
     expect(res.status).toBe(502);
     await expect(res.json()).resolves.toMatchObject({
-      code: S3_ERROR_CODES.S3_NETWORK_ERROR,
+      code: S3_ERROR_CODES.S3_NETWORK_ERROR.code,
       params: { code: "ECONNREFUSED" },
     });
     spy.mockRestore();
@@ -185,8 +187,8 @@ describe("s3.api", () => {
     await expect(s3.api.download({ query: { key: "" } })).rejects.toMatchObject(
       {
         name: "DimahS3Error",
-        code: S3_ERROR_CODES.VALIDATION_ERROR,
-        status: 400,
+        code: S3_ERROR_CODES.VALIDATION_ERROR.code,
+        status: "BAD_REQUEST",
         statusCode: 400,
       },
     );

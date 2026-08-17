@@ -12,14 +12,7 @@ export type {
 } from "./types/storage-object";
 
 // Errors
-export {
-  DimahS3DbError,
-  conflict,
-  forbidden,
-  notFound,
-  unauthorized,
-} from "./errors";
-export type { DimahS3DbErrorCode } from "./errors";
+export { conflict, forbidden, notFound, unauthorized } from "./errors";
 
 // Store (data-access layer)
 export {

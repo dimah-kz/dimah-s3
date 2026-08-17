@@ -11,6 +11,7 @@ import type {
   UploadPresignResponse,
 } from "./types";
 import { sanitizeFileName } from "./helpers/sanitize-file-name";
+import { S3_ERROR_CODES } from "./error";
 import {
   createS3Fetch,
   RESERVED_CLIENT_KEYS,
@@ -123,6 +124,13 @@ function createCoreApi($fetch: S3Fetch): S3Api {
   };
 }
 
+/** Browser client returned by {@link createS3Client}. */
+export type CreateS3ClientResult<P extends readonly S3ClientPlugin[] = []> =
+  S3Api &
+    ClientPluginMethodsMap<P> & {
+      $ERROR_CODES: typeof S3_ERROR_CODES;
+    };
+
 /**
  * Browser (or isomorphic) client for the dimah-s3 HTTP API.
  *
@@ -143,7 +151,7 @@ function createCoreApi($fetch: S3Fetch): S3Api {
  */
 export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   options?: CreateS3ClientOptions<P>,
-): S3Api & ClientPluginMethodsMap<P> {
+): CreateS3ClientResult<P> {
   const { basePath, plugins, ...fetchOptions } = options ?? {};
   const base = normalizeS3ApiBasePath(basePath ?? S3_API_BASE_PATH);
   const $fetch = createS3Fetch(base, fetchOptions);
@@ -163,5 +171,9 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
     pluginMethods[plugin.id] = plugin.getActions($fetch);
   }
 
-  return { ...api, ...pluginMethods } as S3Api & ClientPluginMethodsMap<P>;
+  return {
+    ...api,
+    ...pluginMethods,
+    $ERROR_CODES: S3_ERROR_CODES,
+  } as CreateS3ClientResult<P>;
 }

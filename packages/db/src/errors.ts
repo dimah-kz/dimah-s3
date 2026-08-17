@@ -1,42 +1,37 @@
-import { DimahS3Error } from "@dimah-s3/core";
+import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
 
-/** Error codes thrown by @dimah-s3/db guards and store operations. */
-export type DimahS3DbErrorCode =
-  "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT";
-
-const STATUS_BY_CODE: Record<DimahS3DbErrorCode, number> = {
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-};
-
-/**
- * DB-scoped error — extends {@link DimahS3Error} (better-call `APIError`)
- * so HTTP serializes `status` / `code` natively.
- */
-export class DimahS3DbError extends DimahS3Error {
-  readonly code: DimahS3DbErrorCode;
-
-  constructor(code: DimahS3DbErrorCode, message: string) {
-    super(message, STATUS_BY_CODE[code], { code });
-    this.name = "DimahS3DbError";
-    this.code = code;
-  }
+export function unauthorized(
+  message: string = S3_ERROR_CODES.UNAUTHORIZED.message,
+): DimahS3Error {
+  return DimahS3Error.from("UNAUTHORIZED", {
+    ...S3_ERROR_CODES.UNAUTHORIZED,
+    message,
+  });
 }
 
-export function unauthorized(message = "Unauthorized"): DimahS3DbError {
-  return new DimahS3DbError("UNAUTHORIZED", message);
+export function forbidden(
+  message: string = S3_ERROR_CODES.FORBIDDEN.message,
+): DimahS3Error {
+  return DimahS3Error.from("FORBIDDEN", {
+    ...S3_ERROR_CODES.FORBIDDEN,
+    message,
+  });
 }
 
-export function forbidden(message = "Forbidden"): DimahS3DbError {
-  return new DimahS3DbError("FORBIDDEN", message);
+export function notFound(
+  message: string = S3_ERROR_CODES.OBJECT_NOT_FOUND.message,
+): DimahS3Error {
+  return DimahS3Error.from("NOT_FOUND", {
+    ...S3_ERROR_CODES.NOT_FOUND,
+    message,
+  });
 }
 
-export function notFound(message = "Object not found"): DimahS3DbError {
-  return new DimahS3DbError("NOT_FOUND", message);
-}
-
-export function conflict(message = "Conflict"): DimahS3DbError {
-  return new DimahS3DbError("CONFLICT", message);
+export function conflict(
+  message: string = S3_ERROR_CODES.CONFLICT.message,
+): DimahS3Error {
+  return DimahS3Error.from("CONFLICT", {
+    ...S3_ERROR_CODES.CONFLICT,
+    message,
+  });
 }

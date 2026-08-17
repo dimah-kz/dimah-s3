@@ -58,6 +58,7 @@ export const RESERVED_CLIENT_KEYS = [
   "download",
   "delete",
   "multipart",
+  "$ERROR_CODES",
 ] as const;
 
 export type ReservedClientKey = (typeof RESERVED_CLIENT_KEYS)[number];
