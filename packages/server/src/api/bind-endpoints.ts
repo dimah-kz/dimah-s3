@@ -1,7 +1,9 @@
-import { ValidationError, type Endpoint } from "better-call";
-import { errors } from "../errors";
+import { type Endpoint } from "better-call";
 import type { S3EndpointContext } from "./context";
-import { requestFromHeaders } from "../internal-helpers";
+import {
+  dimahS3ErrorFromCaught,
+  requestFromHeaders,
+} from "../internal-helpers";
 
 /**
  * Wrap better-call endpoints so `s3.api.upload({ body, headers })` injects
@@ -31,9 +33,8 @@ export function bindEndpoints<E extends Record<string, Endpoint>>(
           },
         });
       } catch (err) {
-        if (err instanceof ValidationError) {
-          throw errors.validationError(err.message);
-        }
+        const mapped = dimahS3ErrorFromCaught(err);
+        if (mapped) throw mapped;
         throw err;
       }
     }) as typeof endpoint;

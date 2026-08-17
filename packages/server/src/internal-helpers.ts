@@ -1,4 +1,4 @@
-import { DimahS3Error } from "@dimah-s3/core";
+import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
 import { APIError, ValidationError } from "better-call";
 import { errors, toDimahS3Error } from "./errors";
 
@@ -21,14 +21,12 @@ const NETWORK_CODES = new Set([
   "ENOTFOUND",
 ]);
 
-/** Map uncaught procedure errors to a JSON {@link Response}. */
-export function toErrorResponse(err: unknown): Response {
-  if (err instanceof DimahS3Error) {
-    return errorJson(err);
-  }
+/** Map better-call / DimahS3 errors to {@link DimahS3Error}. */
+export function dimahS3ErrorFromCaught(err: unknown): DimahS3Error | undefined {
+  if (err instanceof DimahS3Error) return err;
 
   if (err instanceof ValidationError) {
-    return errorJson(errors.validationError(err.message));
+    return errors.validationError(err.message);
   }
 
   if (err instanceof APIError) {
@@ -36,11 +34,22 @@ export function toErrorResponse(err: unknown): Response {
       typeof err.statusCode === "number" && err.statusCode > 0
         ? err.statusCode
         : 500;
-    return errorJson(
-      new DimahS3Error(err.body?.message ?? err.message, status, {
-        code: err.body?.code,
-      }),
-    );
+    const code =
+      (typeof err.body?.code === "string" ? err.body.code : undefined) ??
+      (status === 400 ? S3_ERROR_CODES.VALIDATION_ERROR : undefined);
+    return new DimahS3Error(err.body?.message ?? err.message, status, {
+      code,
+    });
+  }
+
+  return undefined;
+}
+
+/** Map uncaught procedure errors to a JSON {@link Response}. */
+export function toErrorResponse(err: unknown): Response {
+  const mapped = dimahS3ErrorFromCaught(err);
+  if (mapped) {
+    return errorJson(mapped);
   }
 
   const code = (err as { code?: string })?.code;
