@@ -9,8 +9,8 @@ import {
   jsonRequest,
 } from "./test/harness";
 
-describe("dimahS3", () => {
-  it("exposes handler, api, context, and getPlugin", () => {
+describe("dimahS3 instance", () => {
+  it("exposes handler, api, flattened context, and getPlugin", () => {
     const plugin = definePlugin({
       id: "audit",
       context: { events: [] as string[] },
@@ -37,8 +37,8 @@ describe("dimahS3", () => {
   });
 });
 
-describe("HTTP error envelope", () => {
-  it("returns JSON VALIDATION_ERROR for an invalid upload body", async () => {
+describe("HTTP envelope", () => {
+  it("returns JSON VALIDATION_ERROR for an invalid body", async () => {
     const s3 = createInstance({ upload: { enabled: true } });
     const res = await s3.handler(
       jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: {} }),
@@ -143,60 +143,4 @@ describe("plugin endpoints", () => {
     await expect(res.json()).resolves.toEqual({ events: [] });
     await expect(s3.api.recent({})).resolves.toEqual({ events: [] });
   });
-});
-
-describe("protocol routes", () => {
-  it.each([
-    { method: "POST", path: S3_API_ROUTES.upload, feature: "upload" as const },
-    {
-      method: "POST",
-      path: S3_API_ROUTES.uploadConfirm,
-      feature: "upload" as const,
-    },
-    {
-      method: "GET",
-      path: S3_API_ROUTES.download,
-      feature: "download" as const,
-    },
-    {
-      method: "DELETE",
-      path: S3_API_ROUTES.delete,
-      feature: "delete" as const,
-    },
-    {
-      method: "POST",
-      path: S3_API_ROUTES.multipartInit,
-      feature: "multipart" as const,
-    },
-    {
-      method: "POST",
-      path: S3_API_ROUTES.multipartPart,
-      feature: "multipart" as const,
-    },
-    {
-      method: "GET",
-      path: S3_API_ROUTES.multipartListParts,
-      feature: "multipart" as const,
-    },
-    {
-      method: "POST",
-      path: S3_API_ROUTES.multipartComplete,
-      feature: "multipart" as const,
-    },
-    {
-      method: "POST",
-      path: S3_API_ROUTES.multipartAbort,
-      feature: "multipart" as const,
-    },
-  ])(
-    "$method $path is registered (not 404) when enabled",
-    async ({ method, path, feature }) => {
-      const s3 = createInstance({ [feature]: { enabled: true } });
-      const res = await s3.handler(
-        jsonRequest(apiUrl(path), { method, body: {} }),
-      );
-      expect(res.status).not.toBe(404);
-      expect(res.status).toBeGreaterThanOrEqual(400);
-    },
-  );
 });

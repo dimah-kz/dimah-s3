@@ -1,0 +1,49 @@
+import { act } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { useDownload } from "./use-download";
+import { fakeS3Api } from "../test/api";
+import { renderHook } from "../test/render-hook";
+
+describe("useDownload", () => {
+  it("presigns and stores the url", async () => {
+    const api = fakeS3Api();
+    const hook = renderHook(() => useDownload({ api, bucket: "b" }));
+
+    let result: { url: string; expiresIn: number } | null = null;
+    await act(async () => {
+      result = await hook.current.presign("a.png", "save.png");
+    });
+
+    expect(api.download).toHaveBeenCalledWith("a.png", {
+      fileName: "save.png",
+      bucket: "b",
+    });
+    expect(result).toEqual({ url: "https://s3.test/dl", expiresIn: 600 });
+    expect(hook.current).toMatchObject({
+      phase: "idle",
+      url: "https://s3.test/dl",
+      error: null,
+    });
+    hook.unmount();
+  });
+
+  it("records API failures", async () => {
+    const api = fakeS3Api({
+      download: vi.fn(async () => {
+        throw new Error("blocked");
+      }),
+    });
+    const hook = renderHook(() => useDownload({ api }));
+
+    await act(async () => {
+      await hook.current.presign("missing.png");
+    });
+
+    expect(hook.current).toMatchObject({
+      phase: "error",
+      error: "blocked",
+      url: null,
+    });
+    hook.unmount();
+  });
+});

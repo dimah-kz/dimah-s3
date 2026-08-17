@@ -1,28 +1,68 @@
 import { act } from "react";
-import { createRoot } from "react-dom/client";
+import type { ReactNode } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { TranslationProvider } from "@fuma-translate/react";
 
-/** Capture a hook return value under an empty English translation map. */
-export function renderHookWithI18n<T>(useHook: () => T): T {
-  let value!: T;
+export type RenderedHook<T> = {
+  readonly current: T;
+  rerender: () => void;
+  unmount: () => void;
+};
+
+/**
+ * Mount a hook under an empty English translation map.
+ * Call `unmount()` when the test finishes (stateful hooks keep the tree alive).
+ */
+export function renderHook<T>(
+  useHook: () => T,
+  options?: {
+    wrapper?: (props: { children: ReactNode }) => ReactNode;
+  },
+): RenderedHook<T> {
+  let latest!: T;
   const host = document.createElement("div");
-  const root = createRoot(host);
+  const root: Root = createRoot(host);
+  const wrap = options?.wrapper;
 
   function Probe() {
-    value = useHook();
+    latest = useHook();
     return null;
   }
 
-  act(() => {
-    root.render(
+  const tree = () => {
+    const inner = <Probe />;
+    return (
       <TranslationProvider translations={{}}>
-        <Probe />
-      </TranslationProvider>,
+        {wrap ? wrap({ children: inner }) : inner}
+      </TranslationProvider>
     );
-  });
+  };
+
   act(() => {
-    root.unmount();
+    root.render(tree());
   });
 
+  return {
+    get current() {
+      return latest;
+    },
+    rerender() {
+      act(() => {
+        root.render(tree());
+      });
+    },
+    unmount() {
+      act(() => {
+        root.unmount();
+      });
+    },
+  };
+}
+
+/** One-shot render for hooks that return a stable callback (formatters). */
+export function renderHookWithI18n<T>(useHook: () => T): T {
+  const rendered = renderHook(useHook);
+  const value = rendered.current;
+  rendered.unmount();
   return value;
 }

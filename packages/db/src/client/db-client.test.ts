@@ -4,7 +4,7 @@ import { dbClient } from "./db-client";
 
 describe("dbClient", () => {
   it("lists objects over GET /db/objects", async () => {
-    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const fetch = vi.fn(async (input: string | URL | Request) => {
       expect(String(input)).toContain("/db/objects");
       return new Response(
         JSON.stringify({

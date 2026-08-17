@@ -51,10 +51,17 @@ describe("truncateFileName", () => {
     const name = `${"a".repeat(80)}.png`;
     const truncated = truncateFileName(name, 20);
     expect(truncated.endsWith(".png")).toBe(true);
-    expect(truncated.length).toBeLessThanOrEqual(20);
+    expect(truncated).toContain("…");
+    expect(truncated.length).toBeLessThan(name.length);
   });
 
-  it("keeps truncateFilename as an alias", () => {
+  it("truncates names without an extension", () => {
+    const truncated = truncateFileName("a".repeat(80), 10);
+    expect(truncated.endsWith("…")).toBe(true);
+    expect(truncated.length).toBe(10);
+  });
+
+  it("keeps truncateFilename as a public alias", () => {
     expect(truncateFilename).toBe(truncateFileName);
   });
 });

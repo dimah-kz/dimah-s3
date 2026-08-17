@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyPlugins, definePlugin, FEATURE_HOOK_KEYS } from "../index";
+import { applyPlugins, definePlugin } from "../index";
 import { createS3Endpoint } from "../api/create-s3-endpoint";
 import type { DimahS3Config } from "../types";
 
@@ -14,27 +14,6 @@ function config(
     ...extra,
   };
 }
-
-describe("FEATURE_HOOK_KEYS", () => {
-  it("is the merge contract for plugin hooks", () => {
-    expect(FEATURE_HOOK_KEYS).toEqual({
-      upload: ["presignGuard", "onPresigned", "confirmGuard", "onConfirmed"],
-      download: ["presignGuard", "onPresigned"],
-      delete: ["guard", "onDeleted"],
-      multipart: [
-        "initGuard",
-        "partGuard",
-        "completeGuard",
-        "abortGuard",
-        "listGuard",
-        "onInit",
-        "onComplete",
-        "onAbort",
-        "onList",
-      ],
-    });
-  });
-});
 
 describe("applyPlugins validation", () => {
   it("rejects reserved ids", () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createHookStore,
   patchHookState,
@@ -55,8 +55,25 @@ describe("createMemoryStore", () => {
 });
 
 describe("createLocalStorageStore", () => {
+  const map = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      map.set(key, value);
+    },
+    removeItem: (key: string) => {
+      map.delete(key);
+    },
+    clear: () => map.clear(),
+  };
+
+  beforeEach(() => {
+    map.clear();
+    vi.stubGlobal("localStorage", storage);
+  });
+
   afterEach(() => {
-    localStorage.clear();
+    map.clear();
   });
 
   it("round-trips the same key and size", async () => {

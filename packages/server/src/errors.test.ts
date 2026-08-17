@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { S3_ERROR_CODES } from "@dimah-s3/core";
-import { errors } from "./errors";
+import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
+import { errors, toDimahS3Error } from "./errors";
 
 describe("errors", () => {
   it.each([
@@ -38,5 +38,29 @@ describe("errors", () => {
       message: "bad",
       code: S3_ERROR_CODES.VALIDATION_ERROR,
     });
+  });
+});
+
+describe("toDimahS3Error", () => {
+  it("preserves DimahS3Error instances", () => {
+    const original = new DimahS3Error("quota", 403, { code: "QUOTA" });
+    expect(toDimahS3Error(original, "Forbidden", 403)).toBe(original);
+  });
+
+  it("keeps plain Error messages without stamping a library code", () => {
+    const err = toDimahS3Error(new Error("Not enough quota"), "Forbidden", 403);
+    expect(err).toMatchObject({
+      message: "Not enough quota",
+      status: 403,
+      code: undefined,
+    });
+  });
+
+  it("uses the fallback message when Error has no text", () => {
+    const err = toDimahS3Error(new Error("  "), "Forbidden", 403, {
+      code: S3_ERROR_CODES.FORBIDDEN,
+    });
+    expect(err.message).toBe("Forbidden");
+    expect(err.code).toBe(S3_ERROR_CODES.FORBIDDEN);
   });
 });

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { deleteQuerySchema } from "./delete";
 import { downloadQuerySchema } from "./download";
 import {
+  multipartAbortBodySchema,
   multipartCompleteBodySchema,
+  multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
 } from "./multipart";
 import { optionalTrimmedString, trimmedString } from "./shared";
@@ -44,6 +46,12 @@ describe("uploadBodySchema", () => {
       metadata: { source: "web" },
     });
   });
+
+  it("rejects unknown acl values", () => {
+    expect(
+      uploadBodySchema.safeParse({ key: "a.png", acl: "public" }).success,
+    ).toBe(false);
+  });
 });
 
 describe("confirmBodySchema", () => {
@@ -57,7 +65,8 @@ describe("confirmBodySchema", () => {
 });
 
 describe("downloadQuerySchema", () => {
-  it("coerces expiresIn from query strings", () => {
+  it("requires key and coerces expiresIn from query strings", () => {
+    expect(downloadQuerySchema.safeParse({}).success).toBe(false);
     expect(
       downloadQuerySchema.parse({ key: "a.png", expiresIn: "120" }),
     ).toMatchObject({ expiresIn: 120 });
@@ -88,6 +97,15 @@ describe("multipart schemas", () => {
         uploadId: "u",
         parts: [],
       }).success,
+    ).toBe(false);
+  });
+
+  it("requires uploadId on abort and list-parts", () => {
+    expect(multipartAbortBodySchema.safeParse({ key: "a.png" }).success).toBe(
+      false,
+    );
+    expect(
+      multipartListPartsQuerySchema.safeParse({ key: "a.png" }).success,
     ).toBe(false);
   });
 });

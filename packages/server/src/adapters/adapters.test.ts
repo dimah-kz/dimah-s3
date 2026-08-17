@@ -80,7 +80,7 @@ describe("node adapters", () => {
     req.method = init.method ?? "GET";
     req.url = init.url ?? "/api/s3/nope";
     req.headers = { host: "localhost" };
-    req.socket = { encrypted: false } as IncomingMessage["socket"];
+    req.socket = { encrypted: false } as unknown as IncomingMessage["socket"];
     return req;
   }
 

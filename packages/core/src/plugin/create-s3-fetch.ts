@@ -10,30 +10,32 @@ async function resolveHeaders(
   return headers;
 }
 
+type FetchErrorPayload = {
+  message?: string;
+  code?: string;
+  params?: Record<string, string | number>;
+};
+
+function payloadOf(value: unknown): FetchErrorPayload | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  return value as FetchErrorPayload;
+}
+
 function dimahErrorFromFetch(error: {
   status: number;
   statusText: string;
   message?: string;
+  code?: string;
+  params?: Record<string, string | number>;
   error?: unknown;
 }): DimahS3Error {
-  const payload = error.error as {
-    message?: string;
-    code?: string;
-    params?: Record<string, string | number>;
-  } | null;
-  const message =
-    (payload && typeof payload === "object" && payload.message) ||
-    error.message ||
-    error.statusText;
+  const nested = payloadOf(error.error);
+  const message = nested?.message || error.message || error.statusText;
+  const code = nested?.code ?? error.code;
+  const params = nested?.params ?? error.params;
   return new DimahS3Error(message, error.status, {
-    code:
-      payload && typeof payload === "object" && typeof payload.code === "string"
-        ? payload.code
-        : undefined,
-    params:
-      payload && typeof payload === "object" && payload.params
-        ? payload.params
-        : undefined,
+    ...(typeof code === "string" ? { code } : {}),
+    ...(params ? { params } : {}),
   });
 }
 

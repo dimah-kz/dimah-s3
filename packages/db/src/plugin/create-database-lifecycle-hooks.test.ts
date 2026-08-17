@@ -113,4 +113,43 @@ describe("createDatabaseLifecycleHooks", () => {
     });
     expect(store.deletePending).toHaveBeenCalledWith({ bucket: "b", key: "k" });
   });
+
+  it("tracks multipart init with uploadId", async () => {
+    const store = fakeStore();
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await hooks.multipart?.onInit?.({
+      request,
+      key: "k",
+      bucket: "b",
+      uploadId: "up-1",
+      fileSize: 100,
+    });
+
+    expect(store.upsertPending).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "user:1",
+        uploadId: "up-1",
+        declaredSize: 100,
+      }),
+    );
+  });
+
+  it("rejects unauthenticated uploads", async () => {
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: fakeStore(),
+      resolveScope: async () => null,
+    });
+
+    await expect(
+      hooks.upload?.presignGuard?.({
+        request,
+        key: "k",
+        bucket: "b",
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });

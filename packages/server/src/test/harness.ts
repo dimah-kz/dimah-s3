@@ -1,6 +1,6 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import { S3_API_BASE_PATH, S3_ERROR_CODES } from "@dimah-s3/core";
-import { expect } from "vitest";
+import { expect, vi } from "vitest";
 import { dimahS3 } from "../dimah-s3";
 import type { DimahS3Config } from "../types";
 
@@ -11,6 +11,31 @@ export function mockS3(
   send: S3Client["send"] = (async () => ({})) as S3Client["send"],
 ): S3Client {
   return { send } as S3Client;
+}
+
+/** Typical HeadObject payload used by confirm / download / delete. */
+export function headResult(overrides: Record<string, unknown> = {}) {
+  return {
+    ContentType: "image/png",
+    ContentLength: 10,
+    ETag: '"abc"',
+    Metadata: { source: "web" },
+    ContentDisposition: 'attachment; filename="a.png"',
+    ...overrides,
+  };
+}
+
+/**
+ * Dispatch `s3.send(command)` by `command.constructor.name`.
+ * Values may be a result object or a function of the command.
+ */
+export function sendByCommand(handlers: Record<string, unknown>) {
+  return vi.fn(async (command: { constructor: { name: string } }) => {
+    const result = handlers[command.constructor.name];
+    if (typeof result === "function") return result(command);
+    if (result !== undefined) return result;
+    return {};
+  });
 }
 
 export function createInstance(
