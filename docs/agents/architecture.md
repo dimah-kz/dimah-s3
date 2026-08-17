@@ -44,7 +44,7 @@
 2. Server stays framework-agnostic; adapters live under `@dimah-s3/server/{next,node,express,hono,fastify,elysia,svelte-kit}` (structural types — no framework peer deps).
 3. React is headless; UI is optional registry or npm package.
 4. Multipart threshold (~30 MB) is internal — not a consumer knob unless config already exposes it.
-5. Server plugins implement `{ id, hooks?, endpoints?, context?, dependsOn?, init? }` via `definePlugin` in `packages/server/src/plugin/`. Client plugins use `defineClientPlugin` in `@dimah-s3/core` and mount via `createS3Client({ plugins })`. Paths share `pluginPath`. Feature packages (e.g. `db()` / `dbClient()`) live outside `server`; merge happens once in `dimahS3()`. Context is available on `s3.context[id]` and flattened onto the instance (`s3[id]`). `DimahS3Error` lives in `@dimah-s3/core` (re-exported from server); client `createS3Fetch` throws it on non-OK HTTP.
+5. Server plugins implement `{ id, hooks?, endpoints?, context?, dependsOn?, init? }` via `definePlugin` in `packages/server/src/plugin/`. Client plugins use `defineClientPlugin` in `@dimah-s3/core` and mount via `createS3Client({ plugins })`. Paths share `pluginPath`. Feature packages (e.g. `db()` / `dbClient()`) live outside `server`; merge happens once in `dimahS3()`. Context is available on `s3.context[id]` and flattened onto the instance (`s3[id]`). `DimahS3Error` (core) extends better-call `APIError` so HTTP uses native `toResponse`; client `createS3Fetch` maps non-OK JSON onto the same class.
 
 ## Forbidden
 

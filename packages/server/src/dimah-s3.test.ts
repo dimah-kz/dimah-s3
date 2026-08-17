@@ -1,5 +1,5 @@
 import { S3_API_ROUTES, S3_ERROR_CODES } from "@dimah-s3/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DimahS3Error } from "./errors";
 import { createS3Endpoint, definePlugin } from "./index";
 import {
@@ -73,6 +73,79 @@ describe("HTTP envelope", () => {
     });
   });
 
+  it("serializes DimahS3Error params through native APIError JSON", async () => {
+    const s3 = createInstance({
+      upload: { enabled: true },
+      guard: () => {
+        throw new DimahS3Error("quota", 403, {
+          code: "QUOTA",
+          params: { used: 12 },
+        });
+      },
+    });
+    const res = await s3.handler(
+      jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: { key: "a.png" } }),
+    );
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({
+      message: "quota",
+      code: "QUOTA",
+      params: { used: 12 },
+    });
+  });
+
+  it("maps unexpected throws to INTERNAL_ERROR JSON", async () => {
+    const s3 = createInstance({
+      plugins: [
+        definePlugin({
+          id: "boom",
+          endpoints: {
+            boom: createS3Endpoint("/boom", { method: "GET" }, async () => {
+              throw new Error("AccessDenied: secret internals");
+            }),
+          },
+        }),
+      ],
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await s3.handler(
+      new Request(apiUrl("/boom"), { method: "GET" }),
+    );
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({
+      message: "Internal server error",
+      code: S3_ERROR_CODES.INTERNAL_ERROR,
+    });
+    spy.mockRestore();
+  });
+
+  it("maps network codes to S3_NETWORK_ERROR JSON", async () => {
+    const s3 = createInstance({
+      plugins: [
+        definePlugin({
+          id: "net",
+          endpoints: {
+            ping: createS3Endpoint("/net", { method: "GET" }, async () => {
+              throw Object.assign(new Error("connect"), {
+                code: "ECONNREFUSED",
+              });
+            }),
+          },
+        }),
+      ],
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await s3.handler(
+      new Request(apiUrl("/net"), { method: "GET" }),
+    );
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toMatchObject({
+      code: S3_ERROR_CODES.S3_NETWORK_ERROR,
+      params: { code: "ECONNREFUSED" },
+    });
+    spy.mockRestore();
+  });
+
   it.each([
     {
       feature: "upload" as const,
@@ -107,13 +180,14 @@ describe("HTTP envelope", () => {
 });
 
 describe("s3.api", () => {
-  it("maps validation failures to DimahS3Error", async () => {
+  it("throws DimahS3Error on validation failures", async () => {
     const s3 = createInstance({ download: { enabled: true } });
     await expect(s3.api.download({ query: { key: "" } })).rejects.toMatchObject(
       {
         name: "DimahS3Error",
         code: S3_ERROR_CODES.VALIDATION_ERROR,
         status: 400,
+        statusCode: 400,
       },
     );
   });

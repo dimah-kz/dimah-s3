@@ -12,14 +12,14 @@ const STATUS_BY_CODE: Record<DimahS3DbErrorCode, number> = {
 };
 
 /**
- * DB-scoped error — extends {@link DimahS3Error} so the server guard runner
- * maps `status` to the HTTP response, and the client fetcher preserves it.
+ * DB-scoped error — extends {@link DimahS3Error} (better-call `APIError`)
+ * so HTTP serializes `status` / `code` natively.
  */
 export class DimahS3DbError extends DimahS3Error {
   readonly code: DimahS3DbErrorCode;
 
   constructor(code: DimahS3DbErrorCode, message: string) {
-    super(message, STATUS_BY_CODE[code]);
+    super(message, STATUS_BY_CODE[code], { code });
     this.name = "DimahS3DbError";
     this.code = code;
   }

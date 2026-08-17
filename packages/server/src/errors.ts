@@ -82,9 +82,10 @@ export const errors = {
 export type ServerErrors = typeof errors;
 
 function statusOf(err: unknown, fallback: number): number {
-  return typeof (err as { status?: unknown })?.status === "number"
-    ? (err as { status: number }).status
-    : fallback;
+  const rec = err as { statusCode?: unknown; status?: unknown };
+  if (typeof rec.statusCode === "number") return rec.statusCode;
+  if (typeof rec.status === "number") return rec.status;
+  return fallback;
 }
 
 /**

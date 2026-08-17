@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@better-fetch/fetch": "catalog:",
+    "better-call": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

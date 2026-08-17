@@ -96,7 +96,7 @@ export function toNodeHandler(s3: DimahS3HandlerSource) {
       console.error("[S3 API]", err);
       if (!res.headersSent) {
         const fallback = errors.internalError();
-        res.statusCode = fallback.status;
+        res.statusCode = fallback.statusCode;
         res.setHeader("Content-Type", "application/json");
         res.end(
           JSON.stringify({

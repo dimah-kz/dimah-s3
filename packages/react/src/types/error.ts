@@ -20,15 +20,10 @@ export class S3UploadError extends DimahS3Error {
     status = 400,
     phase?: UploadPhase,
   ) {
-    super(message, status);
+    super(message, status, { code });
     this.name = "S3UploadError";
     this.code = code;
     this.phase = phase;
-  }
-
-  /** Alias for {@link DimahS3Error.status}. */
-  get statusCode(): number {
-    return this.status;
   }
 }
 
@@ -42,7 +37,7 @@ export function toUploadError(
 ): S3UploadError {
   if (err instanceof S3UploadError) {
     if (phase != null && err.phase == null) {
-      return new S3UploadError(err.message, err.code, err.status, phase);
+      return new S3UploadError(err.message, err.code, err.statusCode, phase);
     }
     return err;
   }
@@ -52,7 +47,7 @@ export function toUploadError(
   }
 
   if (err instanceof DimahS3Error) {
-    return new S3UploadError(err.message, "API_ERROR", err.status, phase);
+    return new S3UploadError(err.message, "API_ERROR", err.statusCode, phase);
   }
 
   const message = err instanceof Error ? err.message : "Upload failed";

@@ -43,8 +43,9 @@ function dimahErrorFromFetch(error: {
  * Shared `$fetch` for core routes and client plugins.
  * `base` is a normalized API prefix (e.g. `/api/s3`).
  *
- * Non-OK responses throw {@link DimahS3Error} — same class as server
- * endpoints, so client and server error shapes stay aligned.
+ * Non-OK responses throw {@link DimahS3Error} (same class as server
+ * endpoints). better-fetch `throw: true` surfaces a `BetterFetchError`;
+ * `onError` maps the JSON body onto {@link DimahS3Error}.
  */
 export function createS3Fetch(
   base: string,
