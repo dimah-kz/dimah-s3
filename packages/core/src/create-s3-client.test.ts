@@ -132,6 +132,22 @@ describe("createS3Client errors", () => {
     });
     await expect(api.download("missing")).rejects.toBeInstanceOf(DimahS3Error);
   });
+
+  it("maps non-JSON failures onto DimahS3Error without a code", async () => {
+    const fetch = async () =>
+      new Response("<html>oops</html>", {
+        status: 502,
+        statusText: "Bad Gateway",
+        headers: { "content-type": "text/html" },
+      });
+    const api = createS3Client({ fetch });
+
+    await expect(api.download("a.png")).rejects.toMatchObject({
+      name: "DimahS3Error",
+      status: 502,
+      message: "Bad Gateway",
+    });
+  });
 });
 
 describe("createS3Client options", () => {

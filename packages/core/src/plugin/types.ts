@@ -2,7 +2,8 @@ import type { BetterFetch } from "@better-fetch/fetch";
 
 /**
  * Shared `$fetch` for core routes and client plugins.
- * Always created with `throw: true` — non-OK responses become {@link DimahS3Error}.
+ * Always created with `throw: true` and `errorSchema` (`s3FetchErrorSchema`) —
+ * non-OK JSON becomes {@link DimahS3Error} via `onError`.
  */
 export type S3Fetch = BetterFetch<{ throw: true }>;
 

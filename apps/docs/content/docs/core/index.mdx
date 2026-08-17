@@ -12,6 +12,7 @@ Shared protocol types, the isomorphic HTTP client, and pure helpers used by `@di
 - `S3_API_ROUTES` / `S3_API_BASE_PATH` — route path SSOT
 - `createS3Client` — browser/isomorphic client implementing `S3Api` (+ client plugins)
 - `DimahS3Error` — extends better-call `APIError`; JSON `{ message, code?, params? }` with numeric `.statusCode` (and optional `cause`)
+- `s3FetchErrorSchema` — Zod schema for that JSON (better-fetch `errorSchema`)
 - Client plugin helpers — `defineClientPlugin`, `createS3Fetch`, `pluginPath`
 - Pure file helpers — `validateFile`, `formatFileSize`, `buildContentDisposition`, …
 

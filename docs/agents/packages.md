@@ -5,7 +5,7 @@
 ## When changing the presign protocol
 
 1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`).
-2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`.
+2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `DimahS3Error`.
 3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds `createS3Router` (HTTP `handler` + `s3.api`).
 4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` stays named (`api.download(key)`); server `s3.api` is the better-call map (`download({ query, headers })`).
 5. Tegami changelog — [release.md](./release.md).

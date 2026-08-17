@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deleteQuerySchema } from "./delete";
 import { downloadQuerySchema } from "./download";
+import { s3FetchErrorSchema } from "./error";
 import {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,
@@ -9,6 +10,26 @@ import {
 } from "./multipart";
 import { optionalTrimmedString, trimmedString } from "./shared";
 import { confirmBodySchema, uploadBodySchema } from "./upload";
+describe("s3FetchErrorSchema", () => {
+  it("accepts the API error JSON body", () => {
+    expect(
+      s3FetchErrorSchema.parse({
+        message: "blocked",
+        code: "FORBIDDEN",
+        params: { name: "key" },
+      }),
+    ).toEqual({
+      message: "blocked",
+      code: "FORBIDDEN",
+      params: { name: "key" },
+    });
+  });
+
+  it("requires message and rejects non-objects", () => {
+    expect(s3FetchErrorSchema.safeParse({ code: "X" }).success).toBe(false);
+    expect(s3FetchErrorSchema.safeParse("not json").success).toBe(false);
+  });
+});
 
 describe("trimmedString", () => {
   it("trims and rejects empty values", () => {
