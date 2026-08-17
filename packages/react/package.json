@@ -39,7 +39,7 @@
   ],
   "scripts": {
     "compile:translations": "node ./scripts/compile-translations.mjs",
-    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly",
+    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json",
     "lint": "eslint",
     "check-types": "pnpm compile:translations && tsc --noEmit",
     "test": "vitest run"

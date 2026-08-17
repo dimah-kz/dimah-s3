@@ -1,5 +1,3 @@
-import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
 import {
   mkdir,
   mkdtemp,
@@ -9,61 +7,10 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const execFileAsync = promisify(execFile);
-const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const cliEntry = join(packageRoot, "dist", "index.js");
-const cliPkg = JSON.parse(
-  readFileSync(join(packageRoot, "package.json"), "utf8"),
-) as { version: string };
-
-type RunResult = { stdout: string; stderr: string; exitCode: number };
-
-async function runCli(args: string[], cwd: string): Promise<RunResult> {
-  try {
-    const { stdout, stderr } = await execFileAsync(
-      process.execPath,
-      [cliEntry, ...args],
-      {
-        cwd,
-        env: {
-          ...process.env,
-          npm_config_user_agent: "pnpm/11.0.0 npm/? node/v24.0.0",
-        },
-      },
-    );
-    return { stdout, stderr, exitCode: 0 };
-  } catch (error) {
-    const failure = error as {
-      stdout?: string;
-      stderr?: string;
-      code?: number;
-    };
-    return {
-      stdout: failure.stdout ?? "",
-      stderr: failure.stderr ?? "",
-      exitCode: failure.code ?? 1,
-    };
-  }
-}
-
-const CREATE_TIMEOUT_MS = 60_000;
-
-/** Scaffold with the usual non-interactive flags; extra flags merge in. */
-async function createApp(
-  cwd: string,
-  name: string,
-  flags: string[] = [],
-): Promise<RunResult> {
-  return runCli(
-    ["create", name, "--yes", "--no-install", "--no-git", ...flags],
-    cwd,
-  );
-}
+import { CREATE_TIMEOUT_MS, cliPkg, createApp, runCli } from "./helpers.js";
 
 let workDir: string;
 

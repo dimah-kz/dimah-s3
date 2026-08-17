@@ -1,18 +1,11 @@
-import { readFileSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const distTemplatesRoot = join(packageRoot, "dist", "templates");
-const cliPkg = JSON.parse(
-  readFileSync(join(packageRoot, "package.json"), "utf8"),
-) as { version: string };
+import { cliPkg, distTemplatesRoot } from "./helpers.js";
 
 type Catalog = { templates: Array<{ id: string; title: string }> };
 
-// Asserts the build-time snapshot under dist/templates/ (turbo runs build first).
 describe("dist template snapshot", () => {
   it("ships every catalog template without local install artifacts", async () => {
     const catalog = JSON.parse(
@@ -29,7 +22,6 @@ describe("dist template snapshot", () => {
       const entries = await readdir(snapshotDir);
       expect(entries.length).toBeGreaterThan(0);
 
-      // Local artifacts must not ship; end-user starter files must.
       for (const name of [
         "node_modules",
         "pnpm-lock.yaml",

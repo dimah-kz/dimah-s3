@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   detectPackageManager,
+  installCommand,
   parsePackageManagerFlag,
+  runDevCommand,
 } from "../utils/package-manager.js";
 import {
   assertValidPackageName,
@@ -52,5 +54,21 @@ describe("parsePackageManagerFlag", () => {
     expect(() => parsePackageManagerFlag("deno")).toThrow(
       /Unknown package manager/,
     );
+  });
+
+  it("returns undefined when the flag is omitted", () => {
+    expect(parsePackageManagerFlag(undefined)).toBeUndefined();
+  });
+});
+
+describe("package manager commands", () => {
+  it.each([
+    ["pnpm", "pnpm install", "pnpm dev"],
+    ["npm", "npm install", "npm run dev"],
+    ["yarn", "yarn", "yarn dev"],
+    ["bun", "bun install", "bun run dev"],
+  ] as const)("%s", (pm, install, dev) => {
+    expect(installCommand(pm)).toBe(install);
+    expect(runDevCommand(pm)).toBe(dev);
   });
 });

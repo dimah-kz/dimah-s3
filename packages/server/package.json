@@ -71,7 +71,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
     "lint": "eslint",
     "check-types": "tsc --noEmit",
     "test": "vitest run"

@@ -1,37 +1,52 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { applyPlugins, definePlugin, FEATURE_HOOK_KEYS } from "../index";
 import { createS3Endpoint } from "../api/create-s3-endpoint";
 import type { DimahS3Config } from "../types";
 
-function baseConfig(
+function config(
   plugins?: DimahS3Config["plugins"],
+  extra: Partial<DimahS3Config> = {},
 ): DimahS3Config & { plugins?: DimahS3Config["plugins"] } {
   return {
     s3: {} as DimahS3Config["s3"],
     defaultBucket: "bucket",
     plugins,
+    ...extra,
   };
 }
 
 describe("FEATURE_HOOK_KEYS", () => {
-  it("uses renamed hook keys", () => {
-    expect(FEATURE_HOOK_KEYS.upload).toContain("onConfirmed");
-    expect(FEATURE_HOOK_KEYS.delete).toContain("guard");
-    expect(FEATURE_HOOK_KEYS.delete).not.toContain("deleteGuard");
+  it("is the merge contract for plugin hooks", () => {
+    expect(FEATURE_HOOK_KEYS).toEqual({
+      upload: ["presignGuard", "onPresigned", "confirmGuard", "onConfirmed"],
+      download: ["presignGuard", "onPresigned"],
+      delete: ["guard", "onDeleted"],
+      multipart: [
+        "initGuard",
+        "partGuard",
+        "completeGuard",
+        "abortGuard",
+        "listGuard",
+        "onInit",
+        "onComplete",
+        "onAbort",
+        "onList",
+      ],
+    });
   });
 });
 
-describe("applyPlugins", () => {
+describe("applyPlugins validation", () => {
   it("rejects reserved ids", () => {
     expect(() =>
-      applyPlugins(baseConfig([definePlugin({ id: "handler", context: {} })])),
+      applyPlugins(config([definePlugin({ id: "handler", context: {} })])),
     ).toThrow(/reserved/);
   });
 
-  it("rejects duplicates", () => {
+  it("rejects duplicate ids", () => {
     expect(() =>
       applyPlugins(
-        baseConfig([
+        config([
           definePlugin({ id: "a", context: {} }),
           definePlugin({ id: "a", context: {} }),
         ]),
@@ -41,16 +56,14 @@ describe("applyPlugins", () => {
 
   it("rejects missing dependsOn", () => {
     expect(() =>
-      applyPlugins(
-        baseConfig([definePlugin({ id: "a", dependsOn: ["missing"] })]),
-      ),
+      applyPlugins(config([definePlugin({ id: "a", dependsOn: ["missing"] })])),
     ).toThrow(/not registered/);
   });
 
   it("rejects circular dependsOn", () => {
     expect(() =>
       applyPlugins(
-        baseConfig([
+        config([
           definePlugin({ id: "a", dependsOn: ["b"] }),
           definePlugin({ id: "b", dependsOn: ["a"] }),
         ]),
@@ -58,10 +71,108 @@ describe("applyPlugins", () => {
     ).toThrow(/Circular/);
   });
 
-  it("merges hooks plugins-first", async () => {
+  it("accepts a satisfied dependsOn graph", () => {
+    expect(() =>
+      applyPlugins(
+        config([
+          definePlugin({ id: "base", context: {} }),
+          definePlugin({ id: "child", dependsOn: ["base"] }),
+        ]),
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects endpoint paths without a leading slash", () => {
+    expect(() =>
+      applyPlugins(
+        config([
+          definePlugin({
+            id: "audit",
+            endpoints: {
+              recent: {
+                path: "recent",
+                options: { method: "GET" },
+              } as never,
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/must start with "\/"/);
+  });
+
+  it("rejects plugin endpoints that collide with a core route path", () => {
+    expect(() =>
+      applyPlugins(
+        config([
+          definePlugin({
+            id: "audit",
+            endpoints: {
+              stolen: createS3Endpoint(
+                "/presign/download",
+                { method: "GET" },
+                async () => ({}),
+              ),
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/collides with a core route/);
+  });
+
+  it("rejects plugin endpoints that reuse a core endpoint name", () => {
+    expect(() =>
+      applyPlugins(
+        config([
+          definePlugin({
+            id: "audit",
+            endpoints: {
+              download: createS3Endpoint(
+                "/audit/download",
+                { method: "GET" },
+                async () => ({}),
+              ),
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/collides with an existing endpoint/);
+  });
+
+  it("rejects duplicate plugin method+path pairs", () => {
+    expect(() =>
+      applyPlugins(
+        config([
+          definePlugin({
+            id: "a",
+            endpoints: {
+              one: createS3Endpoint(
+                "/audit/recent",
+                { method: "GET" },
+                async () => ({}),
+              ),
+            },
+          }),
+          definePlugin({
+            id: "b",
+            endpoints: {
+              two: createS3Endpoint(
+                "/audit/recent",
+                { method: "GET" },
+                async () => ({}),
+              ),
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/Duplicate plugin endpoint/);
+  });
+});
+
+describe("applyPlugins merge", () => {
+  it("runs plugin hooks before user hooks", async () => {
     const order: string[] = [];
     const merged = applyPlugins({
-      ...baseConfig([
+      ...config([
         definePlugin({
           id: "p",
           hooks: {
@@ -82,40 +193,51 @@ describe("applyPlugins", () => {
     expect(order).toEqual(["plugin", "user"]);
   });
 
-  it("rejects endpoint paths without a leading slash", () => {
-    expect(() =>
-      applyPlugins(
-        baseConfig([
-          definePlugin({
-            id: "audit",
-            endpoints: {
-              recent: {
-                path: "recent",
-                options: { method: "GET" },
-              } as never,
+  it("merges feature hooks plugins-first", async () => {
+    const order: string[] = [];
+    const merged = applyPlugins({
+      ...config([
+        definePlugin({
+          id: "p",
+          hooks: {
+            upload: {
+              presignGuard: () => {
+                order.push("plugin");
+              },
             },
-          }),
-        ]),
-      ),
-    ).toThrow(/must start with "\/"/);
+          },
+        }),
+      ]),
+      upload: {
+        enabled: true,
+        presignGuard: () => {
+          order.push("user");
+        },
+      },
+    });
+
+    await merged.config.upload?.presignGuard?.({
+      request: new Request("http://localhost"),
+      key: "a.png",
+      bucket: "bucket",
+    });
+    expect(merged.config.upload?.enabled).toBe(true);
+    expect(order).toEqual(["plugin", "user"]);
   });
 
-  it("rejects plugin endpoints that collide with a core route", () => {
-    expect(() =>
-      applyPlugins(
-        baseConfig([
-          definePlugin({
-            id: "audit",
-            endpoints: {
-              stolen: createS3Endpoint(
-                "/presign/download",
-                { method: "GET" },
-                async () => ({}),
-              ),
-            },
-          }),
-        ]),
-      ),
-    ).toThrow(/collides with a core route/);
+  it("builds context and runs init", () => {
+    const init = vi.fn();
+    const plugin = definePlugin({
+      id: "audit",
+      context: { n: 1 },
+      init: (env) => {
+        init(env.getPlugin("audit")?.id, env.config.defaultBucket);
+      },
+    });
+
+    const merged = applyPlugins(config([plugin]));
+    expect(merged.context.audit).toEqual({ n: 1 });
+    expect(merged.getPlugin("audit")).toBe(plugin);
+    expect(init).toHaveBeenCalledWith("audit", "bucket");
   });
 });

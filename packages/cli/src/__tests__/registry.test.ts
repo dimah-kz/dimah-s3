@@ -33,15 +33,6 @@ describe("normalizeTemplateId", () => {
 
 // Reads the snapshot produced by `pnpm build` (turbo runs build before test).
 describe("catalog on disk", () => {
-  it("lists at least one template with an id and title", async () => {
-    const catalog = await loadCatalog();
-    expect(catalog.length).toBeGreaterThan(0);
-    for (const entry of catalog) {
-      expect(entry.id).toBeTruthy();
-      expect(entry.title).toBeTruthy();
-    }
-  });
-
   it("marks nextjs as supporting the src/ layout option", async () => {
     const catalog = await loadCatalog();
     expect(findTemplate(catalog, "nextjs").srcLayout).toBe(true);

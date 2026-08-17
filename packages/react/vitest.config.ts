@@ -5,5 +5,7 @@ export default defineConfig({
     name: "react",
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    restoreMocks: true,
+    unstubGlobals: true,
   },
 });

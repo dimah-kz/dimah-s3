@@ -1,0 +1,116 @@
+import { describe, expect, it } from "vitest";
+import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
+import { fakeStore, sampleObject } from "../test/fakes";
+
+const request = new Request("http://local");
+
+describe("createDatabaseLifecycleHooks", () => {
+  it("tracks pending uploads for the resolved scope", async () => {
+    const store = fakeStore();
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await hooks.upload?.onPresigned?.({
+      request,
+      key: "k",
+      bucket: "b",
+      contentType: "text/plain",
+      fileSize: 10,
+      fileName: "a.txt",
+      url: "https://s3.test",
+      expiresIn: 600,
+    });
+
+    expect(store.upsertPending).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "user:1",
+        bucket: "b",
+        key: "k",
+        declaredSize: 10,
+        filename: "a.txt",
+      }),
+    );
+  });
+
+  it("promotes confirmed objects to active", async () => {
+    const store = fakeStore();
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await hooks.upload?.onConfirmed?.({
+      request,
+      key: "k",
+      bucket: "b",
+      contentLength: 10,
+      eTag: "abc",
+      contentType: "text/plain",
+    });
+
+    expect(store.markActive).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: "k",
+        size: 10,
+        eTag: "abc",
+      }),
+    );
+  });
+
+  it("soft-deletes by default and hard-deletes when configured", async () => {
+    const soft = fakeStore();
+    const hard = fakeStore();
+    const softHooks = createDatabaseLifecycleHooks({
+      client: soft,
+      resolveScope: async () => "user:1",
+    }).hooks;
+    const hardHooks = createDatabaseLifecycleHooks({
+      client: hard,
+      resolveScope: async () => "user:1",
+      deleteMode: "hard",
+    }).hooks;
+
+    const ctx = { request, key: "k", bucket: "b" };
+    await softHooks.delete?.onDeleted?.(ctx);
+    await hardHooks.delete?.onDeleted?.(ctx);
+
+    expect(soft.softDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
+    expect(hard.hardDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
+  });
+
+  it("rejects upload to a key owned by another scope", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ scope: "user:2" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await expect(
+      hooks.upload?.presignGuard?.({
+        request,
+        key: "k",
+        bucket: "b",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("clears pending rows on multipart abort", async () => {
+    const store = fakeStore();
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await hooks.multipart?.onAbort?.({
+      request,
+      key: "k",
+      bucket: "b",
+      uploadId: "up-1",
+    });
+    expect(store.deletePending).toHaveBeenCalledWith({ bucket: "b", key: "k" });
+  });
+});

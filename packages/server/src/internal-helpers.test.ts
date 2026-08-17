@@ -1,22 +1,32 @@
+import { APIError, ValidationError } from "better-call";
 import { describe, expect, it, vi } from "vitest";
 import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
 import { errors, toDimahS3Error } from "./errors";
-import { runHook, runLifecycleHook, toErrorResponse } from "./internal-helpers";
+import {
+  dimahS3ErrorFromCaught,
+  normalizeExpiresIn,
+  requestFromHeaders,
+  runHook,
+  runLifecycleHook,
+  toErrorResponse,
+} from "./internal-helpers";
 
 describe("toDimahS3Error", () => {
-  it("preserves DimahS3Error subclasses", () => {
+  it("preserves DimahS3Error instances", () => {
     const original = new DimahS3Error("quota", 403, { code: "QUOTA" });
     expect(toDimahS3Error(original, "Forbidden", 403)).toBe(original);
   });
 
   it("keeps plain Error messages without stamping a library code", () => {
     const err = toDimahS3Error(new Error("Not enough quota"), "Forbidden", 403);
-    expect(err.message).toBe("Not enough quota");
-    expect(err.status).toBe(403);
-    expect(err.code).toBeUndefined();
+    expect(err).toMatchObject({
+      message: "Not enough quota",
+      status: 403,
+      code: undefined,
+    });
   });
 
-  it("uses fallback message when Error has no message", () => {
+  it("uses the fallback message when Error has no text", () => {
     const err = toDimahS3Error(new Error("  "), "Forbidden", 403, {
       code: S3_ERROR_CODES.FORBIDDEN,
     });
@@ -25,7 +35,39 @@ describe("toDimahS3Error", () => {
   });
 });
 
+describe("dimahS3ErrorFromCaught", () => {
+  it("maps ValidationError to VALIDATION_ERROR", () => {
+    const err = dimahS3ErrorFromCaught(new ValidationError("key required"));
+    expect(err).toMatchObject({
+      status: 400,
+      code: S3_ERROR_CODES.VALIDATION_ERROR,
+      message: "key required",
+    });
+  });
+
+  it("maps APIError status and body code", () => {
+    const err = dimahS3ErrorFromCaught(
+      new APIError(404, { message: "gone", code: S3_ERROR_CODES.NOT_FOUND }),
+    );
+    expect(err).toMatchObject({
+      status: 404,
+      code: S3_ERROR_CODES.NOT_FOUND,
+      message: "gone",
+    });
+  });
+
+  it("returns undefined for unknown throws", () => {
+    expect(dimahS3ErrorFromCaught(new Error("boom"))).toBeUndefined();
+  });
+});
+
 describe("runHook", () => {
+  it("is a no-op when the hook is omitted", async () => {
+    await expect(
+      runHook(undefined, { request: new Request("http://local") }),
+    ).resolves.toBeUndefined();
+  });
+
   it("rethrows DimahS3Error as-is", async () => {
     const thrown = errors.forbidden();
     await expect(
@@ -52,6 +94,20 @@ describe("runHook", () => {
       code: undefined,
     });
   });
+
+  it("falls back to FORBIDDEN for empty messages", async () => {
+    await expect(
+      runHook(
+        async () => {
+          throw new Error("  ");
+        },
+        { request: new Request("http://local") },
+      ),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.FORBIDDEN,
+      status: 403,
+    });
+  });
 });
 
 describe("runLifecycleHook", () => {
@@ -70,6 +126,18 @@ describe("runLifecycleHook", () => {
       status: 500,
     });
     spy.mockRestore();
+  });
+
+  it("preserves DimahS3Error from lifecycle hooks", async () => {
+    const thrown = errors.objectNotFound();
+    await expect(
+      runLifecycleHook(
+        () => {
+          throw thrown;
+        },
+        { request: new Request("http://local") },
+      ),
+    ).rejects.toBe(thrown);
   });
 });
 
@@ -105,5 +173,27 @@ describe("toErrorResponse", () => {
       params: { code: "ECONNREFUSED" },
     });
     spy.mockRestore();
+  });
+});
+
+describe("normalizeExpiresIn", () => {
+  it.each([
+    [120, 120],
+    ["90", 90],
+    [1.8, 1],
+    [0, 600],
+    [-5, 600],
+    [undefined, 600],
+    ["nope", 600],
+  ])("normalizes %s", (value, expected) => {
+    expect(normalizeExpiresIn(value)).toBe(expected);
+  });
+});
+
+describe("requestFromHeaders", () => {
+  it("builds a synthetic request", () => {
+    const request = requestFromHeaders({ "x-user": "1" });
+    expect(request.headers.get("x-user")).toBe("1");
+    expect(request.url).toContain("dimah-s3.local");
   });
 });

@@ -5,5 +5,6 @@ export default defineConfig({
     name: "db",
     environment: "node",
     include: ["src/**/*.test.ts"],
+    restoreMocks: true,
   },
 });
