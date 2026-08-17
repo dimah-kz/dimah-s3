@@ -12,7 +12,6 @@ import { getSiteUrl } from "./site-url";
 export const LLM_PAGE_PRIORITY = [
   "/docs",
   "/docs/quickstart",
-  "/docs/changelog",
   "/docs/comparison",
   "/docs/providers",
   "/docs/providers/cloudflare-r2",
