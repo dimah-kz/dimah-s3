@@ -47,7 +47,7 @@
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
-    "immer": "^11.1.16",
+    "immer": "^11.1.17",
     "react-dropzone": "^20.1.0",
     "zustand": "^5.0.15"
   },
