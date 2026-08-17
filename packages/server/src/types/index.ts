@@ -1,17 +1,16 @@
 export type {
   GuardContext,
+  ResolveKeyContext,
   UploadPresignGuardContext,
   UploadOnPresignedContext,
   UploadConfirmGuardContext,
   UploadOnConfirmedContext,
-  UploadOnUploadConfirmedContext,
   DownloadPresignGuardContext,
   DownloadOnPresignedContext,
   DeleteGuardContext,
   DeleteOnDeletedContext,
   MultipartUploadContext,
   MultipartInitGuardContext,
-  MultipartGuardContext,
   MultipartPartGuardContext,
   MultipartCompleteGuardContext,
   MultipartAbortGuardContext,
@@ -23,8 +22,11 @@ export type {
 } from "./hook-contexts";
 export type {
   DimahS3Config,
-  UploadConfig,
   DownloadConfig,
   DeleteConfig,
+  FeatureToggle,
+  KeyPrefix,
   MultipartConfig,
+  ResolvedDimahS3Config,
+  UploadConfig,
 } from "./config";

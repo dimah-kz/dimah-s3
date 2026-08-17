@@ -81,6 +81,8 @@ function printNextSteps(ctx: CreateContext): void {
     [
       ...lines.map((line) => pc.cyan(line)),
       pc.dim("then fill the S3_* values in .env"),
+      pc.dim("allow browser POST/PUT in bucket CORS"),
+      pc.dim('Cloudflare R2: upload: { method: "PUT", prefix: "uploads" }'),
     ].join("\n"),
     "Next steps",
   );

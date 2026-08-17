@@ -3,7 +3,7 @@ import { Toaster } from "@dimah-s3/ui";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
-import { S3ClientProvider } from "@/components/s3-provider";
+import { S3Provider } from "@/lib/s3-client";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -31,7 +31,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <S3ClientProvider>{children}</S3ClientProvider>
+          <S3Provider>{children}</S3Provider>
           <Toaster />
         </ThemeProvider>
       </body>

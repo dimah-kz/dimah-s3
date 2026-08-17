@@ -12,7 +12,11 @@ const hasClientBuild = existsSync(
 
 const app = new Hono();
 
-app.on(["GET", "POST", "DELETE"], "/api/s3/*", toHonoHandler(s3));
+app.on(
+  ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  "/api/s3/*",
+  toHonoHandler(s3),
+);
 
 if (hasClientBuild) {
   app.use("/*", serveStatic({ root: "./dist" }));

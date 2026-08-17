@@ -5,7 +5,11 @@ import { s3 } from "./s3.js";
 
 const app = new Hono();
 
-app.on(["GET", "POST", "DELETE"], "/api/s3/*", toHonoHandler(s3));
+app.on(
+  ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  "/api/s3/*",
+  toHonoHandler(s3),
+);
 
 const port = Number(process.env.PORT ?? 8787);
 

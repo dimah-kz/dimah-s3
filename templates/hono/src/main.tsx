@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "@dimah-s3/ui";
 import { ThemeProvider } from "@/components/theme-provider";
-import { S3ClientProvider } from "@/components/s3-provider";
+import { s3Client } from "@/lib/s3-client";
 import { App } from "./App";
 import "./index.css";
 
@@ -14,10 +14,10 @@ createRoot(document.getElementById("root")!).render(
       enableSystem
       disableTransitionOnChange
     >
-      <S3ClientProvider>
+      <s3Client.Provider>
         <App />
         <Toaster />
-      </S3ClientProvider>
+      </s3Client.Provider>
     </ThemeProvider>
   </StrictMode>,
 );

@@ -7,17 +7,21 @@ import {
 } from "@dimah-s3/core";
 import { resolveObjectAcl } from "../../helpers";
 import { runHook, runLifecycleHook } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import type { ResolvedDimahS3Config } from "../../types";
+import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 
 async function handleConfirm(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof confirmBodySchema._output,
   request: Request,
 ): Promise<UploadConfirmResponse> {
-  const key = input.key;
-  const bucket = input.bucket ?? config.defaultBucket;
+  const { key, bucket } = await resolveRequestTarget(config, config.upload, {
+    request,
+    key: input.key,
+    bucket: input.bucket,
+  });
 
   await runHook(config.upload?.confirmGuard, {
     request,
@@ -25,12 +29,12 @@ async function handleConfirm(
     bucket,
   });
 
-  const head = await config.s3.send(
+  const head = await config.client.send(
     new HeadObjectCommand({ Bucket: bucket, Key: key }),
   );
 
   const acl = config.resolveObjectAcl
-    ? await resolveObjectAcl(config.s3, bucket, key)
+    ? await resolveObjectAcl(config.client, bucket, key)
     : undefined;
   const fileName = parseFileName(head.ContentDisposition);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { defaultObjectKey, type DimahS3Error } from "@dimah-s3/core";
 import type {
   UploadProgress,
   MultiUploadFileState,
@@ -19,7 +20,7 @@ import {
 /** Options for {@link useMultiUpload}. */
 export type UseMultiUploadOptions = UseMultiFileUploadOptions & {
   /** S3 object key, or a function that derives it from each file. */
-  objectKey: string | ((file: File) => string);
+  objectKey?: string | ((file: File) => string);
   /** Disable all intake interactions. */
   disabled?: boolean;
   /**
@@ -48,8 +49,8 @@ export type UseMultiUploadReturn = {
   files: MultiUploadFileState[];
   /** Aggregated progress across all files. */
   totalProgress: UploadProgress;
-  /** Batch-level error message, or `null`. */
-  error: string | null;
+  /** Batch-level error, or `null`. */
+  error: DimahS3Error | null;
   /** `true` while uploading. */
   isUploading: boolean;
   /** Handle files programmatically (bypasses dropzone). */
@@ -89,8 +90,11 @@ export function useMultiUpload(
 
   const multi = useMultiFileUpload(multiOpts);
 
-  const resolveKey = (file: File): string =>
-    typeof objectKey === "function" ? objectKey(file) : objectKey;
+  const resolveKey = (file: File): string => {
+    if (typeof objectKey === "function") return objectKey(file);
+    if (objectKey) return objectKey;
+    return defaultObjectKey(file);
+  };
 
   const handleFiles = (files: FileList | File[] | null) => {
     if (files == null) return;

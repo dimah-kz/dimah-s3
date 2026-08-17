@@ -15,6 +15,7 @@ import type {
   MultipartOnInitContext,
   MultipartOnListContext,
   MultipartPartGuardContext,
+  ResolveKeyContext,
   UploadConfirmGuardContext,
   UploadOnConfirmedContext,
   UploadOnPresignedContext,
@@ -22,33 +23,52 @@ import type {
 } from "./hook-contexts";
 import type { DimahS3Plugin } from "../plugin/types";
 
-/** Upload feature. Set `enabled: true` to activate. */
-export type UploadConfig = {
+export type { ResolveKeyContext };
+
+/** String prefix or async factory used by {@link resolveObjectKey}. */
+export type KeyPrefix =
+  | string
+  | ((context: ResolveKeyContext) => string | Promise<string>);
+
+type KeyPolicy = {
+  /**
+   * Prepended to the client-proposed key. Already-prefixed keys are left
+   * unchanged so confirm / download of the stored key still work.
+   */
+  prefix?: KeyPrefix;
+  /** Full control over the object key. Wins over {@link prefix}. */
+  resolveKey?: (
+    context: ResolveKeyContext,
+  ) => string | Promise<string>;
+};
+
+/** Upload feature. A config object (or `true`) enables the feature. */
+export type UploadConfig = KeyPolicy & {
   enabled?: boolean;
   method?: UploadPresignMethod;
   requireFileSize?: boolean;
-  presignGuard?: (context: UploadPresignGuardContext) => Promise<void> | void;
+  guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
   onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
   confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
   onConfirmed?: (context: UploadOnConfirmedContext) => Promise<void> | void;
 };
 
-/** Download feature. Set `enabled: true` to activate. */
-export type DownloadConfig = {
+/** Download feature. A config object (or `true`) enables the feature. */
+export type DownloadConfig = KeyPolicy & {
   enabled?: boolean;
-  presignGuard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
+  guard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
 };
 
-/** Delete feature. Set `enabled: true` to activate. */
-export type DeleteConfig = {
+/** Delete feature. A config object (or `true`) enables the feature. */
+export type DeleteConfig = KeyPolicy & {
   enabled?: boolean;
   guard?: (context: DeleteGuardContext) => Promise<void> | void;
   onDeleted?: (context: DeleteOnDeletedContext) => Promise<void> | void;
 };
 
-/** Multipart feature. Off unless you need large files. */
-export type MultipartConfig = {
+/** Multipart feature. On automatically when upload is on, unless set to `false`. */
+export type MultipartConfig = KeyPolicy & {
   enabled?: boolean;
   requireFileSize?: boolean;
   initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
@@ -64,23 +84,26 @@ export type MultipartConfig = {
   onList?: (context: MultipartOnListContext) => Promise<void> | void;
 };
 
+/** `true` enables the feature; `false` disables it; an object enables unless `enabled: false`. */
+export type FeatureToggle<T> = boolean | T;
+
 /**
  * Options for {@link dimahS3}.
  *
  * @example
  * ```ts
  * export const s3 = dimahS3({
- *   s3: s3Client,
- *   defaultBucket: "my-bucket",
- *   upload: { enabled: true },
+ *   client: s3Client,
+ *   bucket: "my-bucket",
+ *   upload: true,
  * });
  * ```
  */
 export type DimahS3Config = {
   /** AWS SDK v3 S3Client. */
-  s3: S3Client;
-  /** Bucket when the request omits one. */
-  defaultBucket: string;
+  client: S3Client;
+  /** Bucket when the request omits one (and when client-supplied buckets are ignored). */
+  bucket: string;
   /**
    * API path prefix for the HTTP `handler`.
    * Must match `createS3Client({ basePath })` on the client.
@@ -97,16 +120,39 @@ export type DimahS3Config = {
    * @default false
    */
   resolveObjectAcl?: boolean;
+  /**
+   * Allow the client to pick any bucket. Off by default — the request `bucket`
+   * is ignored and {@link bucket} is used.
+   */
+  allowClientBucket?: boolean;
+  /**
+   * Allowlist of buckets the client may send. When set, a request bucket
+   * outside this list is rejected. {@link bucket} should be included.
+   */
+  buckets?: string[];
   /** Runs before every operation. Throw to reject. */
   guard?: (context: GuardContext) => Promise<void> | void;
-  upload?: UploadConfig;
-  download?: DownloadConfig;
-  delete?: DeleteConfig;
-  multipart?: MultipartConfig;
+  upload?: FeatureToggle<UploadConfig>;
+  download?: FeatureToggle<DownloadConfig>;
+  delete?: FeatureToggle<DeleteConfig>;
+  multipart?: FeatureToggle<MultipartConfig>;
   /**
    * Optional server plugins (e.g. `db()` from `@dimah-s3/db`).
    * Plugin hooks merge ahead of user hooks; contexts land on `s3.context[id]`
    * and are flattened onto the instance (`s3[id]`).
    */
   plugins?: readonly DimahS3Plugin[];
+};
+
+type ResolvedFeature<T> = T & { enabled: boolean };
+
+/** Feature flags after {@link dimahS3} normalizes booleans and defaults. */
+export type ResolvedDimahS3Config = Omit<
+  DimahS3Config,
+  "upload" | "download" | "delete" | "multipart" | "plugins"
+> & {
+  upload?: ResolvedFeature<UploadConfig>;
+  download?: ResolvedFeature<DownloadConfig>;
+  delete?: ResolvedFeature<DeleteConfig>;
+  multipart?: ResolvedFeature<MultipartConfig>;
 };

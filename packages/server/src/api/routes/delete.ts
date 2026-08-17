@@ -7,17 +7,21 @@ import {
 import { errors } from "../../errors";
 import { isAwsNotFound } from "../../helpers";
 import { runHook, runLifecycleHook } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import type { ResolvedDimahS3Config } from "../../types";
+import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 
 async function handleDelete(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof deleteQuerySchema._output,
   request: Request,
 ): Promise<DeleteResponse> {
-  const key = input.key;
-  const bucket = input.bucket ?? config.defaultBucket;
+  const { key, bucket } = await resolveRequestTarget(config, config.delete, {
+    request,
+    key: input.key,
+    bucket: input.bucket,
+  });
 
   await runHook(config.delete?.guard, {
     request,
@@ -26,7 +30,7 @@ async function handleDelete(
   });
 
   try {
-    await config.s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    await config.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
   } catch (err: unknown) {
     if (isAwsNotFound(err)) {
       throw errors.objectNotFound();
@@ -34,7 +38,7 @@ async function handleDelete(
     throw err;
   }
 
-  await config.s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  await config.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 
   await runLifecycleHook(config.delete?.onDeleted, { request, key, bucket });
 

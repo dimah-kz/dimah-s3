@@ -6,19 +6,27 @@ import {
   type MultipartPartResponse,
 } from "@dimah-s3/core";
 import { normalizeExpiresIn, runHook } from "../../../internal-helpers";
-import type { DimahS3Config } from "../../../types";
+import type { ResolvedDimahS3Config } from "../../../types";
+import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 
 async function handleSignPart(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof multipartSignPartBodySchema._output,
   request: Request,
 ): Promise<MultipartPartResponse> {
-  const key = input.key;
+  const { key, bucket } = await resolveRequestTarget(
+    config,
+    config.multipart,
+    {
+      request,
+      key: input.key,
+      bucket: input.bucket,
+    },
+  );
   const uploadId = input.uploadId;
   const partNumber = input.partNumber;
-  const bucket = input.bucket ?? config.defaultBucket;
   const expiresIn = normalizeExpiresIn(input.expiresIn);
   const partSize =
     typeof input.partSize === "number" && input.partSize > 0
@@ -35,7 +43,7 @@ async function handleSignPart(
   });
 
   const presignedUrl = await getSignedUrl(
-    config.s3,
+    config.client,
     new UploadPartCommand({
       Bucket: bucket,
       Key: key,

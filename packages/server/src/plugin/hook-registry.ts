@@ -3,8 +3,8 @@
  * feature. {@link applyPlugins} merges these ahead of user config hooks.
  */
 export const FEATURE_HOOK_KEYS = {
-  upload: ["presignGuard", "onPresigned", "confirmGuard", "onConfirmed"],
-  download: ["presignGuard", "onPresigned"],
+  upload: ["guard", "onPresigned", "confirmGuard", "onConfirmed"],
+  download: ["guard", "onPresigned"],
   delete: ["guard", "onDeleted"],
   multipart: [
     "initGuard",

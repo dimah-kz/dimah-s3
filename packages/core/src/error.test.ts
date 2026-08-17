@@ -5,6 +5,7 @@ import {
   S3_ERROR_CODES,
   isAPIError,
   isDimahS3Error,
+  isS3ErrorCode,
 } from "./error";
 
 describe("DimahS3Error", () => {
@@ -63,5 +64,12 @@ describe("isAPIError / isDimahS3Error", () => {
     expect(isAPIError({ name: "APIError" })).toBe(true);
     expect(isDimahS3Error({ name: "DimahS3Error" })).toBe(true);
     expect(isAPIError(new Error("x"))).toBe(false);
+  });
+
+  it("narrows catalog codes with isS3ErrorCode", () => {
+    const err = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+    expect(isS3ErrorCode(err, "FORBIDDEN")).toBe(true);
+    expect(isS3ErrorCode(err, "NOT_FOUND")).toBe(false);
+    expect(isS3ErrorCode(new Error("x"), "FORBIDDEN")).toBe(false);
   });
 });

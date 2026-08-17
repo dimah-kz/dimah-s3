@@ -23,7 +23,7 @@ describe("useFileUpload", () => {
     });
 
     expect(hook.current.phase).toBe("error");
-    expect(hook.current.error).toContain(".exe");
+    expect(hook.current.error?.message).toContain(".exe");
     expect(uploadFile).not.toHaveBeenCalled();
     hook.unmount();
   });

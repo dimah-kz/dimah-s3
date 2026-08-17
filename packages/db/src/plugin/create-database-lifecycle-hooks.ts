@@ -119,7 +119,7 @@ export function createDatabaseLifecycleHooks(
     objects,
     hooks: {
       upload: {
-        presignGuard: guardKeyOwnership,
+        guard: guardKeyOwnership,
         onPresigned: trackPending,
         confirmGuard: ownedObjectGuard,
         onConfirmed: trackConfirmed,
@@ -136,7 +136,7 @@ export function createDatabaseLifecycleHooks(
         },
       },
       download: {
-        presignGuard: activeObjectGuard,
+        guard: activeObjectGuard,
       },
       delete: {
         guard: ownedObjectGuard,

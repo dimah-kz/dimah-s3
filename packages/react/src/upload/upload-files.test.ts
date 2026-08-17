@@ -46,6 +46,7 @@ describe("uploadFiles", () => {
     ]);
 
     expect(results[0]?.status).toBe("success");
-    expect(results[1]).toMatchObject({ status: "error", error: "boom" });
+    expect(results[1]?.status).toBe("error");
+    expect(results[1]?.error?.message).toBe("boom");
   });
 });

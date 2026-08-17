@@ -6,6 +6,7 @@ export {
   defineErrorCodes,
   isAPIError,
   isDimahS3Error,
+  isS3ErrorCode,
   S3_ERROR_CODES,
   type DimahS3ErrorBody,
   type DimahS3ErrorParams,

@@ -4,6 +4,7 @@
     "Access denied(API error)",
     "All {count} file(s) uploaded(status)",
     "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)",
+    "Bucket is not allowed(API error)",
     "Cancel download(tooltip)",
     "Cancel(dialog button)",
     "Cancel(toast action)",
@@ -34,6 +35,7 @@
     "File type \"{type}\" is not allowed(file validation)",
     "Invalid request(API error)",
     "Not found(API error)",
+    "Object key is invalid(API error)",
     "Pause(upload control)",
     "Preparing…(upload status)",
     "Something went wrong(API error)",
@@ -50,6 +52,7 @@
     "Validating…(upload status)",
     "{count} file(s) uploaded(toast)",
     "{done}/{total} files(upload progress)",
+    "{feature} is disabled(API error)",
     "{succeeded} succeeded, {failed} failed(toast)"
   ]
 }

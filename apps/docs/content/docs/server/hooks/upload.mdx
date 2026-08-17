@@ -3,14 +3,15 @@ title: Upload
 description: Presign, confirm, and persist verified metadata.
 ---
 
-Enable with `upload: { enabled: true }`. Default method is `"POST"`. Use
-`"PUT"` when the provider has no Presigned POST
-([Cloudflare R2](/docs/providers/cloudflare-r2)).
+Enable with `upload: true` or an options object. Default method is `"POST"`.
+Use `"PUT"` when the provider has no Presigned POST
+([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is included unless
+you set `multipart: false`.
 
 <Flow
   label="Upload flow"
   steps={[
-    { name: "presignGuard", kind: "hook" },
+    { name: "guard", kind: "hook" },
     { name: "onPresigned", kind: "hook" },
     { name: "Upload", kind: "s3" },
     { name: "confirmGuard", kind: "hook" },
@@ -20,15 +21,15 @@ Enable with `upload: { enabled: true }`. Default method is `"POST"`. Use
 />
 
 ```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
+  client: new S3Client({ /* env */ }),
+  bucket: process.env.S3_BUCKET!,
   upload: {
-    enabled: true,
-    presignGuard: async ({ fileSize }) => {
+    prefix: "uploads",
+    guard: async ({ fileSize }) => {
       if (fileSize && fileSize > 10 * 1024 * 1024) {
         throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
           message: "File too large",
@@ -48,13 +49,14 @@ export const s3 = dimahS3({
 </Callout>
 
 <Callout type="warn">
-  The client proposes `key` and may send `bucket`. Both are untrusted. Scope
-  keys to the user or tenant and reject any other bucket.
+  The client proposes `key`. Use `prefix` or `resolveKey` so the stored key is
+  yours. Client `bucket` is ignored unless `allowClientBucket` or `buckets` is
+  set. A plain `Error` in `guard` is 403; in `onConfirmed` it is 500.
 </Callout>
 
 Set `requireFileSize: true` to reject presign requests that omit `fileSize`.
 
-## Presign guard
+## Guard
 
 Runs before the URL is signed. Throw to reject.
 
@@ -66,7 +68,7 @@ Runs before the URL is signed. Throw to reject.
       required: true,
     },
     key: {
-      description: "Object key to sign.",
+      description: "Object key after `prefix` / `resolveKey`.",
       type: "string",
       required: true,
     },

@@ -6,6 +6,7 @@
   "pages": [
     "index",
     "quickstart",
+    "migration",
     "comparison",
     "---UI---",
     ".../../react/ui",

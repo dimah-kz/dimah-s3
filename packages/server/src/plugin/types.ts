@@ -5,6 +5,7 @@ import type {
   MultipartConfig,
   UploadConfig,
   DimahS3Config,
+  ResolvedDimahS3Config,
 } from "../types/config";
 
 /**
@@ -15,10 +16,15 @@ export type DimahS3PluginHooks = {
   guard?: DimahS3Config["guard"];
   upload?: Pick<
     UploadConfig,
-    "presignGuard" | "onPresigned" | "confirmGuard" | "onConfirmed"
+    | "guard"
+    | "onPresigned"
+    | "confirmGuard"
+    | "onConfirmed"
+    | "prefix"
+    | "resolveKey"
   >;
-  download?: Pick<DownloadConfig, "presignGuard" | "onPresigned">;
-  delete?: Pick<DeleteConfig, "guard" | "onDeleted">;
+  download?: Pick<DownloadConfig, "guard" | "onPresigned" | "prefix" | "resolveKey">;
+  delete?: Pick<DeleteConfig, "guard" | "onDeleted" | "prefix" | "resolveKey">;
   multipart?: Pick<
     MultipartConfig,
     | "initGuard"
@@ -89,7 +95,7 @@ export type AppliedPlugins<
   E extends Record<string, Endpoint> = Record<string, Endpoint>,
 > = {
   /** Config with plugin hooks chained ahead of user hooks. */
-  config: DimahS3Config;
+  config: ResolvedDimahS3Config;
   /** Plugin contexts keyed by plugin id. */
   context: C;
   getPlugin: (id: string) => DimahS3Plugin | undefined;
@@ -128,6 +134,8 @@ export const RESERVED_PLUGIN_IDS = [
   "api",
   "context",
   "getPlugin",
+  "$ERROR_CODES",
+  "$Infer",
 ] as const;
 
 export type ReservedPluginId = (typeof RESERVED_PLUGIN_IDS)[number];

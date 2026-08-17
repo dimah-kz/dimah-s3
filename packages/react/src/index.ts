@@ -1,17 +1,34 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 export * from "./types";
 
+// ─── Protocol helpers (so React apps rarely need @dimah-s3/core) ─────────────
+export {
+  DimahS3Error,
+  S3_ERROR_CODES,
+  buildObjectKey,
+  defaultObjectKey,
+  formatFileSize,
+  isAPIError,
+  isDimahS3Error,
+  isS3ErrorCode,
+  sanitizeFileName,
+  validateFile,
+  type S3Api,
+  type S3ErrorCode,
+  type ValidateFileError,
+} from "@dimah-s3/core";
+
 // ─── S3 API factory + React context provider ──────────────────────────────────
 export { defineApi } from "./api";
 export {
   createS3Client,
   type CreateS3ClientOptions,
   type CreateS3ClientResult,
+  type ReactS3Client,
 } from "./create-s3-client";
 export {
   S3Provider,
   useApi,
-  S3Context,
   type S3ProviderProps,
 } from "./s3-provider";
 
@@ -80,21 +97,15 @@ export {
 } from "./hooks/use-file-intake";
 export {
   useDownload,
-  type DownloadPhase,
-  type DownloadHooks,
   type UseDownloadOptions,
   type UseDownloadState,
   type UseDownloadReturn,
-} from "./hooks/use-download";
-export {
-  useFetchDownload,
-  type FetchDownloadPhase,
-  type FetchDownloadProgress,
-  type FetchDownloadHooks,
+  type UseNavigateDownloadOptions,
+  type UseNavigateDownloadReturn,
   type UseFetchDownloadOptions,
   type UseFetchDownloadState,
   type UseFetchDownloadReturn,
-} from "./hooks/use-fetch-download";
+} from "./hooks/use-download";
 export {
   useDelete,
   type UseDeleteOptions,

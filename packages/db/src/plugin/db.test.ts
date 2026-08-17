@@ -8,8 +8,8 @@ function instance(
   resolveScope: () => Promise<string | null> = async () => "user:1",
 ) {
   return dimahS3({
-    s3: { send: async () => ({}) } as never,
-    defaultBucket: "bucket",
+    client: { send: async () => ({}) } as never,
+    bucket: "bucket",
     plugins: [db({ client: store, resolveScope })],
   });
 }

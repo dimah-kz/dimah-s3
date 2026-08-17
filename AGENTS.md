@@ -14,7 +14,8 @@ Do not treat this monorepo as the app guide. Use
 
 - Never expose S3 credentials to the client.
 - The client proposes `key` and may send `bucket`. Both are untrusted —
-  scope them in `guard` / `presignGuard`.
+  scope them in `guard` / `prefix` / `resolveKey`. Client `bucket` is ignored
+  unless you set `allowClientBucket` or `buckets`.
 - Trust `onConfirmed` (HeadObject) for size and type, not the presign body.
 
 ## Workflow

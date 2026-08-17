@@ -14,6 +14,3 @@ export function truncateFileName(name: string, maxChars = 48): string {
   }
   return name.slice(0, available) + "… " + ext;
 }
-
-/** @deprecated Use {@link truncateFileName}. */
-export const truncateFilename = truncateFileName;

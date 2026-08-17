@@ -13,21 +13,30 @@ import {
   runHook,
   runLifecycleHook,
 } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import type { ResolvedDimahS3Config } from "../../types";
+import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 
 async function handleDownload(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof downloadQuerySchema._output,
   request: Request,
 ): Promise<PresignResponse> {
-  const key = input.key;
-  const bucket = input.bucket ?? config.defaultBucket;
+  const { key, bucket } = await resolveRequestTarget(
+    config,
+    config.download,
+    {
+      request,
+      key: input.key,
+      bucket: input.bucket,
+      fileName: input.fileName,
+    },
+  );
   const expiresIn = normalizeExpiresIn(input.expiresIn);
   const fileName = input.fileName;
 
-  await runHook(config.download?.presignGuard, {
+  await runHook(config.download?.guard, {
     request,
     key,
     bucket,
@@ -35,7 +44,7 @@ async function handleDownload(
   });
 
   try {
-    await config.s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    await config.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
   } catch (err: unknown) {
     if (isAwsNotFound(err)) {
       throw errors.objectNotFound();
@@ -44,7 +53,7 @@ async function handleDownload(
   }
 
   const url = await getSignedUrl(
-    config.s3,
+    config.client,
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,

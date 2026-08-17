@@ -33,14 +33,18 @@ Colors default to your shadcn theme (`--primary`, `--muted`, …). Override
 import { createS3Client } from "@dimah-s3/react";
 import { UploadButton, UploadDropzone } from "@dimah-s3/ui";
 
-export const { api, S3Provider } = createS3Client();
+export const s3Client = createS3Client();
 
 export function UploadDemo() {
-  return <UploadDropzone objectKey={(file) => `uploads/${file.name}`} />;
+  return (
+    <s3Client.Provider>
+      <UploadDropzone />
+    </s3Client.Provider>
+  );
 }
 ```
 
-Mount `<Toaster />` from `@dimah-s3/ui` next to `S3Provider`.
+Mount `<Toaster />` from `@dimah-s3/ui` next to `s3Client.Provider`.
 
 ## License
 

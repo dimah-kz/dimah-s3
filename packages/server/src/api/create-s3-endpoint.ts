@@ -35,7 +35,7 @@ type CreateS3Endpoint = typeof createEndpointWithContext;
  * }
  * ```
  */
-export const createS3Endpoint = ((
+export const createS3Endpoint: CreateS3Endpoint = ((
   pathOrOptions: string | EndpointOptions,
   optionsOrHandler: EndpointOptions | ((...args: never[]) => unknown),
   maybeHandler?: (...args: never[]) => unknown,

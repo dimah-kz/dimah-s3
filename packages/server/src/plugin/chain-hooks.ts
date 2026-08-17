@@ -8,7 +8,7 @@ type Hook<Context> = (context: Context) => Promise<void> | void;
  *
  * ```ts
  * upload: {
- *   presignGuard: chainHooks(myQuotaGuard, myAuditGuard),
+ *   guard: chainHooks(myQuotaGuard, myAuditGuard),
  * }
  * ```
  *

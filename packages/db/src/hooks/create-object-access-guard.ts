@@ -45,7 +45,7 @@ export function resolveStore(
  * Guard that checks the requested object exists in the DB and belongs to the
  * caller's scope. Throws `DimahS3Error` (401 / 404 / 403) to reject.
  *
- * Usable as `download.presignGuard`, `delete.guard`,
+ * Usable as `download.guard`, `delete.guard`,
  * `upload.confirmGuard`, or in your own routes.
  */
 export function createObjectAccessGuard(

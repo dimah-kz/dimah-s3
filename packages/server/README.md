@@ -14,16 +14,13 @@ pnpm add @dimah-s3/server @aws-sdk/client-s3
 ## Minimal setup
 
 ```ts
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3 } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-  upload: { enabled: true },
-  download: { enabled: false },
-  delete: { enabled: false },
-  multipart: { enabled: false },
+  client: new S3Client({ /* env */ }),
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: "uploads" },
 });
 ```
 

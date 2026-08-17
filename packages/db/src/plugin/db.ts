@@ -42,8 +42,8 @@ export type DbPluginContext = {
  *
  * ```ts
  * const s3 = dimahS3({
- *   s3: s3Client,
- *   defaultBucket,
+ *   client: s3Client,
+ *   bucket,
  *   upload: { enabled: true },
  *   multipart: { enabled: true },
  *   download: { enabled: true },

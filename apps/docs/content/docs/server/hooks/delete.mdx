@@ -3,7 +3,7 @@ title: Delete
 description: Authorize deletion and run cleanup after S3 removes the object.
 ---
 
-Enable with `delete: { enabled: true }`.
+Enable with `delete: true` or an options object.
 
 <Flow
   label="Delete flow"
@@ -15,14 +15,14 @@ Enable with `delete: { enabled: true }`.
 />
 
 ```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
+  client: new S3Client({ /* env */ }),
+  bucket: process.env.S3_BUCKET!,
   delete: {
-    enabled: true,
+    prefix: "uploads",
     guard: async ({ key, request }) => {
       if (!request.headers.get("authorization")) {
         throw new DimahS3Error("UNAUTHORIZED", { message: "Unauthorized" });

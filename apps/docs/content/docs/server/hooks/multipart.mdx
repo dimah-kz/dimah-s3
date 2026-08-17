@@ -3,8 +3,9 @@ title: Multipart
 description: Lifecycle hooks for large-file uploads.
 ---
 
-Enable with `multipart: { enabled: true }`. Pair it with client
-`multipart` options — see [Upload](/docs/react/hooks/upload).
+Enable with `multipart: true`, or omit it — multipart is on whenever `upload`
+is on unless you set `multipart: false`. Pair it with client `multipart`
+options — see [Upload](/docs/react/hooks/upload).
 
 <Flow
   label="Multipart complete"
@@ -22,14 +23,14 @@ Abort is a separate path: `abortGuard` → `onAbort`. Listing parts:
 `listGuard` → `onList`.
 
 ```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
+  client: new S3Client({ /* env */ }),
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: "uploads" },
   multipart: {
-    enabled: true,
     initGuard: async ({ fileSize }) => {
       if (fileSize && fileSize > 5 * 1024 * 1024 * 1024) {
         throw new DimahS3Error("PAYLOAD_TOO_LARGE", {

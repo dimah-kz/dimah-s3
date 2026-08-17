@@ -2,7 +2,7 @@
 
 import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
-import { validateFile } from "@dimah-s3/core";
+import { DimahS3Error, validateFile } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import { createSpeedTracker } from "../helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
@@ -27,6 +27,7 @@ import type {
   UploadRequestOptions,
 } from "../types";
 import { uploadFile } from "../upload";
+import { hookBlockedError, toHookError } from "../types/error";
 
 /** Options for {@link useFileUpload}. */
 export type UseFileUploadOptions = UploadConfig &
@@ -40,8 +41,8 @@ export type UseFileUploadState = {
   phase: UploadPhase;
   /** Byte transfer progress. */
   progress: UploadProgress;
-  /** Error message, or `null`. */
-  error: string | null;
+  /** Last error, or `null`. */
+  error: DimahS3Error | null;
   /** Result after success, or `null`. */
   result: UploadResult | null;
   /** Name of the file being uploaded. */
@@ -207,7 +208,7 @@ export function useFileUpload(
         const message = formatValidateFileError(validationError);
         patchHookState(store, (draft) => {
           draft.phase = "error";
-          draft.error = message;
+          draft.error = new DimahS3Error("BAD_REQUEST", { message });
         });
         opts.onError?.(file, new Error(message), "validating");
         return;
@@ -218,7 +219,9 @@ export function useFileUpload(
         if (!allowed) {
           patchHookState(store, (draft) => {
             draft.phase = "error";
-            draft.error = "Upload blocked by beforeUpload hook";
+            draft.error = hookBlockedError(
+              "Upload blocked by beforeUpload hook",
+            );
           });
           opts.onError?.(file, new Error("blocked"), "validating");
           return;
@@ -303,7 +306,7 @@ export function useFileUpload(
         const message = err instanceof Error ? err.message : "Upload failed";
         patchHookState(store, (draft) => {
           draft.phase = "error";
-          draft.error = message;
+          draft.error = toHookError(err, message);
         });
         opts.onError?.(file, err, "uploading");
       } finally {

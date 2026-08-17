@@ -11,21 +11,29 @@ import {
 } from "@dimah-s3/core";
 import { resolveObjectAcl } from "../../../helpers";
 import { runHook, runLifecycleHook } from "../../../internal-helpers";
-import type { DimahS3Config } from "../../../types";
+import type { ResolvedDimahS3Config } from "../../../types";
+import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 
 async function handleComplete(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof multipartCompleteBodySchema._output,
   request: Request,
 ): Promise<MultipartCompleteResponse> {
-  const key = input.key;
+  const { key, bucket } = await resolveRequestTarget(
+    config,
+    config.multipart,
+    {
+      request,
+      key: input.key,
+      bucket: input.bucket,
+    },
+  );
   const uploadId = input.uploadId;
   const parts = input.parts
     .map(({ partNumber }) => partNumber)
     .sort((a, b) => a - b);
-  const bucket = input.bucket ?? config.defaultBucket;
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
   await runHook(config.multipart?.completeGuard, {
@@ -36,7 +44,7 @@ async function handleComplete(
     parts: partRefs,
   });
 
-  const listed = await config.s3.send(
+  const listed = await config.client.send(
     new ListPartsCommand({ Bucket: bucket, Key: key, UploadId: uploadId }),
   );
   const listedParts = listed.Parts ?? [];
@@ -46,7 +54,7 @@ async function handleComplete(
     return { PartNumber: partNumber, ETag: found?.ETag ?? "" };
   });
 
-  const completeResult = await config.s3.send(
+  const completeResult = await config.client.send(
     new CompleteMultipartUploadCommand({
       Bucket: bucket,
       Key: key,
@@ -55,12 +63,12 @@ async function handleComplete(
     }),
   );
 
-  let head = await config.s3.send(
+  let head = await config.client.send(
     new HeadObjectCommand({ Bucket: bucket, Key: key }),
   );
   for (let attempt = 0; attempt < 4 && !head.ContentLength; attempt++) {
     await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
-    head = await config.s3.send(
+    head = await config.client.send(
       new HeadObjectCommand({ Bucket: bucket, Key: key }),
     );
   }
@@ -72,7 +80,7 @@ async function handleComplete(
   const lastModified = head.LastModified?.toISOString();
 
   const acl = config.resolveObjectAcl
-    ? await resolveObjectAcl(config.s3, bucket, key)
+    ? await resolveObjectAcl(config.client, bucket, key)
     : undefined;
   const fileName = parseFileName(head.ContentDisposition);
 

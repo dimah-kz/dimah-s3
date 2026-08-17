@@ -13,17 +13,23 @@ import {
   runHook,
   runLifecycleHook,
 } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import type { ResolvedDimahS3Config } from "../../types";
+import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 
 async function handleUpload(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof uploadBodySchema._output,
   request: Request,
 ): Promise<UploadPresignResponse> {
-  const key = input.key;
-  const bucket = input.bucket ?? config.defaultBucket;
+  const { key, bucket } = await resolveRequestTarget(config, config.upload, {
+    request,
+    key: input.key,
+    bucket: input.bucket,
+    fileName: input.fileName,
+    contentType: input.contentType,
+  });
   const expiresIn = normalizeExpiresIn(input.expiresIn);
   const acl = input.acl === "public-read" ? "public-read" : "private";
   const contentType = input.contentType ?? "application/octet-stream";
@@ -32,7 +38,7 @@ async function handleUpload(
       ? Math.floor(input.fileSize)
       : null;
 
-  await runHook(config.upload?.presignGuard, {
+  await runHook(config.upload?.guard, {
     request,
     key,
     bucket,
@@ -60,7 +66,7 @@ async function handleUpload(
     }
 
     const url = await getSignedUrl(
-      config.s3,
+      config.client,
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -117,7 +123,7 @@ async function handleUpload(
   const rangeMin = fileSize ?? 1;
   const rangeMax = fileSize ?? undefined;
 
-  const { url, fields: signedFields } = await createPresignedPost(config.s3, {
+  const { url, fields: signedFields } = await createPresignedPost(config.client, {
     Bucket: bucket,
     Key: key,
     Conditions:

@@ -90,7 +90,7 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     await expect(
-      hooks.upload?.presignGuard?.({
+      hooks.upload?.guard?.({
         request,
         key: "k",
         bucket: "b",
@@ -145,7 +145,7 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     await expect(
-      hooks.upload?.presignGuard?.({
+      hooks.upload?.guard?.({
         request,
         key: "k",
         bucket: "b",

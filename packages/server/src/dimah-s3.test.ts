@@ -23,6 +23,8 @@ describe("dimahS3 instance", () => {
     expect(s3.audit).toBe(s3.context.audit);
     expect(s3.getPlugin("audit")).toBe(plugin);
     expect(s3.getPlugin("missing")).toBeUndefined();
+    expect(s3.$ERROR_CODES).toBe(S3_ERROR_CODES);
+    expect(s3.api.multipart.init).toBe(s3.api.multipartInit);
   });
 
   it("honors a custom basePath", async () => {
@@ -172,11 +174,11 @@ describe("HTTP envelope", () => {
       body: { key: "a.png" },
     },
   ])(
-    "returns NOT_FOUND when $feature is disabled",
+    "returns FEATURE_DISABLED when $feature is disabled",
     async ({ feature, method, path, body }) => {
       const s3 = createInstance({ [feature]: { enabled: false } });
       const res = await s3.handler(jsonRequest(apiUrl(path), { method, body }));
-      await expectErrorCode(res, 404, S3_ERROR_CODES.NOT_FOUND);
+      await expectErrorCode(res, 404, S3_ERROR_CODES.FEATURE_DISABLED);
     },
   );
 });

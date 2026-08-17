@@ -17,7 +17,17 @@ type ObjectContext = GuardContext & {
   bucket: string;
 };
 
-/** Context for `upload.presignGuard`. Client-declared values are not verified by S3. */
+/** Input to `prefix` / `resolveKey` on a feature config. */
+export type ResolveKeyContext = {
+  request: Request;
+  /** Key the client sent. */
+  proposedKey: string;
+  fileName?: string;
+  contentType?: string;
+  bucket: string;
+};
+
+/** Context for `upload.guard`. Client-declared values are not verified by S3. */
 export type UploadPresignGuardContext = ObjectContext & {
   /** MIME type the client sent — not verified until `onConfirmed`. */
   contentType?: string;
@@ -69,10 +79,7 @@ export type UploadOnConfirmedContext = GuardContext & {
   lastModified?: string;
 };
 
-/** @deprecated Use {@link UploadOnConfirmedContext}. */
-export type UploadOnUploadConfirmedContext = UploadOnConfirmedContext;
-
-/** Context for `download.presignGuard`. */
+/** Context for `download.guard`. */
 export type DownloadPresignGuardContext = ObjectContext & {
   /** Download filename for Content-Disposition. */
   fileName?: string;
@@ -103,9 +110,6 @@ export type MultipartInitGuardContext = ObjectContext & {
   /** Declared byte size of the file — available during init only. */
   fileSize?: number;
 };
-
-/** @deprecated Use {@link MultipartInitGuardContext}. */
-export type MultipartGuardContext = MultipartInitGuardContext;
 
 /** Context for `multipart.partGuard`. */
 export type MultipartPartGuardContext = MultipartUploadContext & {

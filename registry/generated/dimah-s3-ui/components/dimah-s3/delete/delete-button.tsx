@@ -7,7 +7,7 @@ import { formatFileSize, truncateFileName } from "@dimah-s3/core";
 import type { DeleteHooks } from "@dimah-s3/react";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { useDelete } from "@dimah-s3/react";
+import { useDelete, useFormatDimahError } from "@dimah-s3/react";
 import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
@@ -104,6 +104,7 @@ export function DeleteButton({
   onError,
 }: DeleteButtonProps) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
   const displayName = fileName ?? objectKey.split("/").pop() ?? objectKey;
   const toastHandlers = useDeleteToast({
     enabled: enableToast,
@@ -169,7 +170,7 @@ export function DeleteButton({
       <StatusAttachment
         state="error"
         title={t("Delete failed", { note: "status" })}
-        description={del.error ?? undefined}
+        description={del.error ? formatError(del.error) : undefined}
         size={attachmentSize}
         orientation={attachmentOrientation}
       />

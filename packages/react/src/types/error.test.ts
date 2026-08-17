@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
-import { S3UploadError, toUploadError } from "./error";
+import { S3UploadError, toHookError, toUploadError } from "./error";
 
 describe("S3UploadError", () => {
   it("exposes statusCode as an alias of status", () => {
@@ -39,5 +39,19 @@ describe("toUploadError", () => {
     expect(() =>
       toUploadError(new DOMException("aborted", "AbortError")),
     ).toThrow(expect.objectContaining({ name: "AbortError" }));
+  });
+});
+
+describe("toHookError", () => {
+  it("preserves DimahS3Error", () => {
+    const original = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+    expect(toHookError(original)).toBe(original);
+  });
+
+  it("wraps plain Errors as DimahS3Error", () => {
+    expect(toHookError(new Error("boom"))).toMatchObject({
+      name: "DimahS3Error",
+      message: "boom",
+    });
   });
 });

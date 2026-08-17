@@ -32,10 +32,10 @@ Wire the shared client once in [Quickstart](/docs/quickstart). Use the guides be
 
 ```ts
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
+  client,
+  bucket: process.env.S3_BUCKET!,
   // Default is "POST". Use "PUT" when the provider has no Presigned POST (e.g. R2).
-  upload: { enabled: true, method: "PUT" },
+  upload: { method: "PUT", prefix: "uploads" },
   // Extra GetObjectAcl round-trip — leave false unless the provider supports ACL.
   resolveObjectAcl: false,
 });

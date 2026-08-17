@@ -4,7 +4,8 @@ description: English by default. Pass a partial map to localize.
 icon: Languages
 ---
 
-English needs no setup. To localize, put a map in a file and pass it to `S3Provider`.
+English needs no setup. To localize, put a map in a file and pass it to
+`s3Client.Provider`.
 
 ```ts title="lib/translations-fa.ts"
 import type { Translations } from "@dimah-s3/react";
@@ -15,16 +16,18 @@ export const fa = {
 } satisfies Partial<Translations>;
 ```
 
-```tsx title="components/s3-provider.tsx"
+```tsx title="lib/s3-client.ts"
 "use client";
 
 import { createS3Client } from "@dimah-s3/react";
 import { fa } from "@/lib/translations-fa";
 
-export const { api, S3Provider, useApi } = createS3Client();
+export const s3Client = createS3Client();
 
-export function S3ClientProvider({ children }: { children: React.ReactNode }) {
-  return <S3Provider translations={fa}>{children}</S3Provider>;
+export function AppS3Provider({ children }: { children: React.ReactNode }) {
+  return (
+    <s3Client.Provider translations={fa}>{children}</s3Client.Provider>
+  );
 }
 ```
 

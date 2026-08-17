@@ -1,4 +1,5 @@
 import { APIError } from "better-call/error";
+import { type S3ErrorCode } from "./error-codes";
 
 export {
   defineErrorCodes,
@@ -81,4 +82,12 @@ export function isDimahS3Error(error: unknown): error is DimahS3Error {
     error instanceof DimahS3Error ||
     (error as { name?: string } | null)?.name === "DimahS3Error"
   );
+}
+
+/** True when `error` is a {@link DimahS3Error} with this catalog `code`. */
+export function isS3ErrorCode<C extends S3ErrorCode>(
+  error: unknown,
+  code: C,
+): error is DimahS3Error & { code: C } {
+  return isDimahS3Error(error) && error.code === code;
 }

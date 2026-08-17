@@ -1,9 +1,13 @@
 import { S3_API_ROUTES } from "@dimah-s3/core";
 import type { Endpoint } from "better-call";
 import { CORE_ENDPOINT_NAMES } from "../api/routes";
+import {
+  applyMultipartDefault,
+  normalizeFeatures,
+} from "../helpers/resolve-target";
+import type { DimahS3Config, ResolvedDimahS3Config } from "../types/config";
 import { chainHooks } from "./chain-hooks";
 import { FEATURE_HOOK_KEYS, type FeatureName } from "./hook-registry";
-import type { DimahS3Config } from "../types/config";
 import {
   RESERVED_PLUGIN_IDS,
   type AppliedPlugins,
@@ -29,13 +33,13 @@ function mergeFeatureHooks<F extends FeatureName>(
   feature: F,
   keys: readonly (typeof FEATURE_HOOK_KEYS)[F][number][],
   plugins: readonly DimahS3Plugin[],
-  userFeature: DimahS3Config[F] | undefined,
-): DimahS3Config[F] | undefined {
+  userFeature: ResolvedDimahS3Config[F],
+): ResolvedDimahS3Config[F] {
   if (!userFeature && plugins.every((p) => !p.hooks?.[feature])) {
     return userFeature;
   }
 
-  const merged: Record<string, unknown> = { ...userFeature };
+  const merged: Record<string, unknown> = { ...(userFeature ?? {}) };
 
   for (const key of keys) {
     const fromPlugins = plugins.map(
@@ -48,7 +52,7 @@ function mergeFeatureHooks<F extends FeatureName>(
     }
   }
 
-  return merged as DimahS3Config[F];
+  return merged as ResolvedDimahS3Config[F];
 }
 
 /**
@@ -91,7 +95,6 @@ export function applyPlugins<
     }
   }
 
-  // Detect circular dependsOn chains (DFS).
   const visiting = new Set<string>();
   const visited = new Set<string>();
   function visit(id: string, stack: string[]) {
@@ -120,7 +123,7 @@ export function applyPlugins<
   }
 
   const reservedRoutePaths = new Set<string>(Object.values(S3_API_ROUTES));
-  const reservedNames = new Set<string>(CORE_ENDPOINT_NAMES);
+  const reservedNames = new Set<string>([...CORE_ENDPOINT_NAMES, "multipart"]);
   const seenEndpointKeys = new Set<string>();
   const endpoints: Record<string, Endpoint> = {};
 
@@ -162,13 +165,22 @@ export function applyPlugins<
     plugin.init?.({ config: rest, getPlugin });
   }
 
+  const features = normalizeFeatures(rest);
+  const {
+    upload: _upload,
+    download: _download,
+    delete: _delete,
+    multipart: _multipart,
+    ...base
+  } = rest;
   const guard = mergeHookField(
     plugins.map((p) => p.hooks?.guard as HookFn),
     rest.guard as HookFn,
-  ) as DimahS3Config["guard"];
+  ) as ResolvedDimahS3Config["guard"];
 
-  const merged: DimahS3Config = {
-    ...rest,
+  const merged: ResolvedDimahS3Config = {
+    ...base,
+    ...features,
     ...(guard !== undefined ? { guard } : {}),
   };
 
@@ -177,12 +189,12 @@ export function applyPlugins<
       feature,
       FEATURE_HOOK_KEYS[feature],
       plugins,
-      rest[feature],
+      merged[feature],
     );
   }
 
   return {
-    config: merged,
+    config: applyMultipartDefault(merged, rest.multipart),
     context,
     getPlugin,
     endpoints,

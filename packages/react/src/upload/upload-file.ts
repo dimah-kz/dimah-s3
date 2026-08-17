@@ -42,11 +42,10 @@ export async function uploadFile(
   const contentType = requestOptions?.contentType ?? file.type;
 
   try {
-    let eTag: string | undefined;
-
     if (useMultipart) {
       callbacks.onPhaseChange?.("uploading");
-      eTag = await uploadMultipart(
+      let key = objectKey;
+      const eTag = await uploadMultipart(
         api,
         file,
         objectKey,
@@ -58,56 +57,58 @@ export async function uploadFile(
         config.retry,
         config.uploadStore,
         callbacks.onPartUpload,
-        callbacks.onMultipartInit,
-      );
-    } else {
-      await withRetry(
-        async () => {
-          callbacks.onPhaseChange?.("presigning");
-          const presign = await api.upload({
-            key: objectKey,
-            contentType,
-            fileSize: file.size,
-            fileName:
-              requestOptions?.fileName !== null
-                ? (requestOptions?.fileName ?? file.name)
-                : undefined,
-            metadata: requestOptions?.metadata,
-            bucket: requestOptions?.bucket,
-            acl: requestOptions?.acl,
-          });
-          callbacks.onPhaseChange?.("uploading");
-          if (presign.method === "PUT") {
-            await uploadPut(
-              file,
-              presign.url,
-              presign.headers ?? {},
-              callbacks.onProgress,
-              signal,
-            );
-          } else {
-            await uploadSimple(
-              file,
-              presign.url,
-              presign.fields ?? {},
-              callbacks.onProgress,
-              signal,
-            );
-          }
+        (uploadId, serverKey) => {
+          key = serverKey;
+          callbacks.onMultipartInit?.(uploadId, serverKey);
         },
-        config.retry,
-        signal,
       );
-
-      callbacks.onPhaseChange?.("finalizing");
-      const confirmed = await api.confirm({
-        key: objectKey,
-        bucket: requestOptions?.bucket,
-      });
-      eTag = confirmed.eTag;
+      return { key, eTag };
     }
 
-    return { key: objectKey, eTag };
+    return await withRetry(
+      async () => {
+        callbacks.onPhaseChange?.("presigning");
+        const presign = await api.upload({
+          key: objectKey,
+          contentType,
+          fileSize: file.size,
+          fileName:
+            requestOptions?.fileName !== null
+              ? (requestOptions?.fileName ?? file.name)
+              : undefined,
+          metadata: requestOptions?.metadata,
+          bucket: requestOptions?.bucket,
+          acl: requestOptions?.acl,
+        });
+        callbacks.onPhaseChange?.("uploading");
+        if (presign.method === "PUT") {
+          await uploadPut(
+            file,
+            presign.url,
+            presign.headers ?? {},
+            callbacks.onProgress,
+            signal,
+          );
+        } else {
+          await uploadSimple(
+            file,
+            presign.url,
+            presign.fields ?? {},
+            callbacks.onProgress,
+            signal,
+          );
+        }
+
+        callbacks.onPhaseChange?.("finalizing");
+        const confirmed = await api.confirm({
+          key: presign.key,
+          bucket: presign.bucket,
+        });
+        return { key: presign.key, eTag: confirmed.eTag };
+      },
+      config.retry,
+      signal,
+    );
   } catch (err) {
     throw toUploadError(err, "uploading");
   }

@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: [
     "src/index.ts",
+    "src/plugins.ts",
     "src/adapters/next.ts",
     "src/adapters/node.ts",
     "src/adapters/express.ts",

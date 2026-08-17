@@ -1,5 +1,6 @@
 "use client";
 
+import { defaultObjectKey, type DimahS3Error } from "@dimah-s3/core";
 import type {
   UploadFileInfo,
   UploadPhase,
@@ -17,7 +18,7 @@ import {
 /** Options for {@link useUpload}. */
 export type UseUploadOptions = UseFileUploadOptions & {
   /** S3 object key, or a function that derives it from the file. */
-  objectKey: string | ((file: File) => string);
+  objectKey?: string | ((file: File) => string);
   /** Static request options applied to the upload. */
   uploadOptions?: UploadRequestOptions;
   /** Per-upload request options override. */
@@ -50,8 +51,8 @@ export type UseUploadReturn = {
   fileInfo: UploadFileInfo | null;
   /** Byte transfer progress. */
   progress: UploadProgress;
-  /** Error message, or `null`. */
-  error: string | null;
+  /** Last error, or `null`. */
+  error: DimahS3Error | null;
   /** `true` while uploading. */
   isUploading: boolean;
   /** Handle files programmatically (bypasses dropzone). */
@@ -93,8 +94,11 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
 
   const single = useFileUpload(uploadOpts);
 
-  const resolveKey = (file: File): string =>
-    typeof objectKey === "function" ? objectKey(file) : objectKey;
+  const resolveKey = (file: File): string => {
+    if (typeof objectKey === "function") return objectKey(file);
+    if (objectKey) return objectKey;
+    return defaultObjectKey(file);
+  };
 
   const handleFiles = (files: FileList | File[] | null) => {
     const list = files == null ? [] : Array.from(files);

@@ -49,7 +49,7 @@ Closest neighbors: UploadThing (hosted), Better Upload (BYO-bucket, upload-only)
 
 Install: \`npx @dimah-s3/cli@latest create\` or \`npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3\`.
 
-Security (app-owned; the library does not do this): never expose S3 credentials; the client proposes \`key\` and may send \`bucket\` — scope both in \`guard\` / \`presignGuard\`; trust \`onConfirmed\` (HeadObject) for size and type, not the presign body.
+Security (app-owned; the library does not do this): never expose S3 credentials; the client proposes \`key\` and may send \`bucket\` — scope both in \`guard\` / \`prefix\` / \`resolveKey\` (client \`bucket\` is ignored unless you opt in); trust \`onConfirmed\` (HeadObject) for size and type, not the presign body.
 `;
 }
 

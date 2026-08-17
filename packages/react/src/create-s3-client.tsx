@@ -6,7 +6,7 @@ import {
   type CreateS3ClientResult,
   type S3ClientPlugin,
 } from "@dimah-s3/core";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import {
   S3Provider as BaseS3Provider,
   useApi as useBaseApi,
@@ -17,35 +17,43 @@ type BoundProviderProps = Omit<S3ProviderProps, "api"> & {
   children: ReactNode;
 };
 
+export type ReactS3Client<P extends readonly S3ClientPlugin[] = []> =
+  CreateS3ClientResult<P> & {
+    Provider: ComponentType<BoundProviderProps>;
+    useApi: () => CreateS3ClientResult<P>;
+  };
+
 /**
  * Create a typed S3 browser client — Better Auth–style one-shot setup.
  *
- * Returns the `api` singleton plus a bound `S3Provider` / `useApi` so plugin
- * methods stay typed without generics on every call.
+ * The returned object *is* the API (`s3Client.download(key)`), plus a bound
+ * `Provider` / `useApi` so plugin methods stay typed without generics.
  *
  * ```ts
  * import { createS3Client } from "@dimah-s3/react";
  * import { dbClient } from "@dimah-s3/db/client";
  *
- * export const { api, S3Provider, useApi } = createS3Client({
+ * export const s3Client = createS3Client({
  *   basePath: "/api/s3",
  *   plugins: [dbClient()],
  * });
  *
- * await api.db.listObjects();
+ * await s3Client.db.listObjects();
  *
- * const api = useApi(); // includes .db
- * <S3Provider>{children}</S3Provider>
+ * const api = s3Client.useApi(); // includes .db
+ * // Vite / Hono:
+ * <s3Client.Provider>{children}</s3Client.Provider>
+ * // Next.js App Router: re-export a top-level `S3Provider` from `s3-client.ts`
  * ```
  */
 export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   options?: CreateS3ClientOptions<P>,
-) {
+): ReactS3Client<P> {
   type TApi = CreateS3ClientResult<P>;
 
   const api = createCoreS3Client(options);
 
-  function S3Provider(props: BoundProviderProps) {
+  function Provider(props: BoundProviderProps) {
     return <BaseS3Provider api={api} {...props} />;
   }
 
@@ -53,7 +61,7 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
     return useBaseApi<TApi>();
   }
 
-  return { api, S3Provider, useApi };
+  return Object.assign(api, { Provider, useApi });
 }
 
 export type { CreateS3ClientOptions, CreateS3ClientResult };

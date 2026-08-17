@@ -30,7 +30,8 @@ try {
 }
 ```
 
-For React apps, prefer `createS3Client` from `@dimah-s3/react` (returns `api` + bound `S3Provider` / `useApi`).
+For React apps, prefer `createS3Client` from `@dimah-s3/react` (returns the API
+object plus a bound `Provider` / `useApi`).
 
 ## License
 

@@ -5,7 +5,7 @@ import { DownloadIcon, LoaderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { useDownload } from "@dimah-s3/react";
+import { useDownload, useFormatDimahError } from "@dimah-s3/react";
 import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
@@ -63,6 +63,7 @@ export function DownloadButton({
   attachmentOrientation,
 }: DownloadButtonProps) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
   const toastHandlers = useDownloadToast({
     enabled: enableToast,
     objectKey,
@@ -97,7 +98,7 @@ export function DownloadButton({
       <StatusAttachment
         state="error"
         title={t("Download failed", { note: "status" })}
-        description={dl.error ?? undefined}
+        description={dl.error ? formatError(dl.error) : undefined}
         size={attachmentSize}
         orientation={attachmentOrientation}
       />

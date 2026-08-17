@@ -133,12 +133,11 @@ import { db } from "@dimah-s3/db";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-  upload: { enabled: true },
-  multipart: { enabled: true },
-  download: { enabled: true },
-  delete: { enabled: true },
+  client,
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: "uploads" },
+  download: true,
+  delete: true,
   plugins: [
     db({
       client: dimahS3Db,

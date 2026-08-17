@@ -12,9 +12,16 @@ A plugin can add lifecycle hooks, HTTP routes under paths it owns (for
 example `/audit/recent`), and typed context on the `dimahS3()` instance
 (`s3[id]`).
 
+Keep the plugin **inline** (or `as const`) in `plugins` so `s3.audit` stays
+narrowed. A widened `DimahS3Plugin[]` variable drops the id.
+
+Author helpers (`chainHooks`, hook context types, `applyPlugins`) live on
+[`@dimah-s3/server/plugins`](https://www.npmjs.com/package/@dimah-s3/server).
+`definePlugin` and `createS3Endpoint` are also re-exported from
+`@dimah-s3/server`.
+
 ```ts
 import { dimahS3, definePlugin } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 const audit = definePlugin({
   id: "audit",
@@ -31,9 +38,9 @@ const audit = definePlugin({
 });
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-  upload: { enabled: true },
+  client,
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: "uploads" },
   plugins: [audit],
 });
 
@@ -46,7 +53,7 @@ s3.audit.log("ready");
   type={{
     id: {
       description:
-        "Unique string. Reserved: `handler`, `api`, `context`, `getPlugin`.",
+        "Unique string. Reserved: `handler`, `api`, `context`, `getPlugin`, `$ERROR_CODES`, `$Infer`.",
       type: "string",
       required: true,
     },
@@ -91,16 +98,17 @@ With [`db()`](/docs/db) registered, its ownership guard runs before your
 quota check. Stack several **user** hooks on one slot with `chainHooks`:
 
 ```ts
-import { dimahS3, chainHooks } from "@dimah-s3/server";
+import { dimahS3 } from "@dimah-s3/server";
+import { chainHooks } from "@dimah-s3/server/plugins";
 import { db } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
+  client,
+  bucket: process.env.S3_BUCKET!,
   plugins: [db({ client: dimahS3Db, resolveScope })],
   upload: {
-    enabled: true,
-    presignGuard: chainHooks(quotaGuard, rateLimitGuard),
+    prefix: "uploads",
+    guard: chainHooks(quotaGuard, rateLimitGuard),
   },
 });
 ```
@@ -159,7 +167,7 @@ const quota = definePlugin({
       throw new Error("quota plugin requires upload enabled");
     }
   },
-  hooks: { upload: { presignGuard: quotaGuard } },
+  hooks: { upload: { guard: quotaGuard } },
 });
 ```
 

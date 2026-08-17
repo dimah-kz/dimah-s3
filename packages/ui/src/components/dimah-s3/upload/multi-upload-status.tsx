@@ -2,8 +2,9 @@
 
 import { XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
-import { formatEta } from "@dimah-s3/react";
+import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type {
+  DimahS3Error,
   UploadProgress,
   MultiUploadFileState,
   MultiUploadPhase,
@@ -23,7 +24,7 @@ export type MultiUploadStatusProps = AttachmentLayoutProps & {
   phase: MultiUploadPhase;
   files: MultiUploadFileState[];
   totalProgress: UploadProgress;
-  error: string | null;
+  error: DimahS3Error | null;
   onCancel?: () => void;
   className?: string;
 };
@@ -39,6 +40,8 @@ export function MultiUploadStatus({
   className,
 }: MultiUploadStatusProps) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
+  const errorText = error ? formatError(error) : null;
   const layout = { size, orientation };
 
   if (phase === "idle") return null;
@@ -115,7 +118,7 @@ export function MultiUploadStatus({
         <StatusAttachment
           state="error"
           title={t("Upload failed", { note: "status" })}
-          description={error ?? undefined}
+          description={errorText ?? undefined}
           {...layout}
         />
         {files.length > 0 ? <FileList files={files} {...layout} /> : null}

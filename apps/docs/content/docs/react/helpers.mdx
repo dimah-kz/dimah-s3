@@ -55,7 +55,7 @@ formatAcceptLabels(["image/*", ".pdf", ".txt"]);
 
 `validateFile` returns `null` or `{ code, message, params }`. Client checks
 are not a security boundary — mirror them in
-[`presignGuard`](/docs/server/hooks/upload#presign-guard).
+[`upload.guard`](/docs/server/hooks/upload#guard).
 
 ```ts
 import { validateFile, formatFileSize, truncateFileName } from "@dimah-s3/core";

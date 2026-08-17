@@ -6,12 +6,15 @@ description: Presign a GET URL — native download, or fetch with progress.
 Ask the API for a short-lived GET URL, then let the browser take the file.
 Your server never streams the body.
 
-| Hook               | UI                                                                                                                |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `useDownload`      | [Download Button](/docs/react/ui/components/download-button) — native download, no progress                       |
-| `useFetchDownload` | [Progress Download Button](/docs/react/ui/components/progress-download-button) — `fetch` with progress and cancel |
+| Hook | UI |
+| ---- | -- |
+| `useDownload()` | [Download Button](/docs/react/ui/components/download-button) — native download, no progress |
+| `useDownload({ mode: "fetch" })` | [Progress Download Button](/docs/react/ui/components/progress-download-button) — `fetch` with progress and cancel |
 
-## useDownload
+Hook `error` is a `DimahS3Error` (or `null`). Format it with
+`useFormatDimahError(error)` or read `error.message`.
+
+## Navigate (default)
 
 Presign, then navigate. There is no byte-level progress — only a
 presigning phase.
@@ -25,7 +28,7 @@ export function DownloadFile() {
   const { download, phase } = useDownload();
 
   return (
-    <button type="button" onClick={() => void download("uploads/photo.jpg")}>
+    <button type="button" onClick={() => void download("photo.jpg")}>
       {phase === "presigning" ? "Preparing…" : "Download"}
     </button>
   );
@@ -36,24 +39,27 @@ Need the URL only — preview, embed, or your own link:
 
 ```tsx
 const { presign } = useDownload();
-const { url } = await presign("uploads/photo.jpg");
+const result = await presign("photo.jpg");
 ```
 
-## useFetchDownload
+## Fetch with progress
 
-Fetches the object through the browser so you can show progress and cancel.
+Pass `mode: "fetch"` to stream bytes in the browser so you can show progress
+and cancel.
 
 ```tsx
 "use client";
 
-import { useFetchDownload } from "@dimah-s3/react";
+import { useDownload } from "@dimah-s3/react";
 
 export function DownloadFile() {
-  const { download, cancel, progress, phase } = useFetchDownload();
+  const { download, cancel, progress, phase } = useDownload({
+    mode: "fetch",
+  });
 
   return (
     <div>
-      <button type="button" onClick={() => void download("uploads/photo.jpg")}>
+      <button type="button" onClick={() => void download("photo.jpg")}>
         {phase === "downloading" ? `${progress.percent}%` : "Download"}
       </button>
       <button type="button" onClick={cancel}>

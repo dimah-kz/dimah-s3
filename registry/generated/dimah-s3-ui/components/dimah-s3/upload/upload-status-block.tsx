@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  DimahS3Error,
   UploadFileInfo,
   UploadPhase,
   UploadProgress,
@@ -17,7 +18,7 @@ export type UploadStatusBlockProps = AttachmentLayoutProps &
         mode: "single";
         phase: UploadPhase;
         progress: UploadProgress;
-        error: string | null;
+        error: DimahS3Error | null;
         fileInfo: UploadFileInfo | null;
         onCancel?: () => void;
         onPause?: () => void;
@@ -27,7 +28,7 @@ export type UploadStatusBlockProps = AttachmentLayoutProps &
         phase: MultiUploadPhase;
         files: MultiUploadFileState[];
         totalProgress: UploadProgress;
-        error: string | null;
+        error: DimahS3Error | null;
         onCancel?: () => void;
         onPause?: () => void;
       }

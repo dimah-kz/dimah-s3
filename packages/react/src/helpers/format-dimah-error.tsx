@@ -43,6 +43,17 @@ export function useFormatDimahError(): (err: unknown) => string {
           return t("Something went wrong", { note: "API error" });
         case S3_ERROR_CODES.OBJECT_NOT_FOUND.code:
           return t("File not found", { note: "API error" });
+        case S3_ERROR_CODES.FEATURE_DISABLED.code:
+          return t("{feature} is disabled", {
+            note: "API error",
+            variables: {
+              feature: param(err.params, "feature", "This feature"),
+            },
+          });
+        case S3_ERROR_CODES.INVALID_KEY.code:
+          return t("Object key is invalid", { note: "API error" });
+        case S3_ERROR_CODES.INVALID_BUCKET.code:
+          return t("Bucket is not allowed", { note: "API error" });
         case S3_ERROR_CODES.S3_NETWORK_ERROR.code:
           return t("Could not reach storage ({code})", {
             note: "API error",

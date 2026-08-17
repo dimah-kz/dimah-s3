@@ -32,6 +32,11 @@ export type CreateS3ClientOptions<
 > = {
   /** API path prefix — must match server `basePath`. @default "/api/s3" */
   basePath?: string;
+  /**
+   * Absolute client origin + path (e.g. `https://api.example.com/api/s3`).
+   * Wins over {@link basePath} when both are set.
+   */
+  baseURL?: string;
   /** Client plugins (e.g. `dbClient()` from `@dimah-s3/db/client`). */
   plugins?: P;
 } & S3ClientFetchOptions;
@@ -129,13 +134,15 @@ export type CreateS3ClientResult<P extends readonly S3ClientPlugin[] = []> =
   S3Api &
     ClientPluginMethodsMap<P> & {
       $ERROR_CODES: typeof S3_ERROR_CODES;
+      $fetch: S3Fetch;
+      $Infer: { plugins: P };
     };
 
 /**
  * Browser (or isomorphic) client for the dimah-s3 HTTP API.
  *
  * For React apps prefer `createS3Client` from `@dimah-s3/react` — same options,
- * plus a bound `S3Provider` / typed `useApi`.
+ * plus a bound `Provider` / typed `useApi` on the client object.
  *
  * ```ts
  * import { createS3Client } from "@dimah-s3/core";
@@ -152,8 +159,10 @@ export type CreateS3ClientResult<P extends readonly S3ClientPlugin[] = []> =
 export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   options?: CreateS3ClientOptions<P>,
 ): CreateS3ClientResult<P> {
-  const { basePath, plugins, ...fetchOptions } = options ?? {};
-  const base = normalizeS3ApiBasePath(basePath ?? S3_API_BASE_PATH);
+  const { basePath, baseURL, plugins, ...fetchOptions } = options ?? {};
+  const base = normalizeS3ApiBasePath(
+    baseURL ?? basePath ?? S3_API_BASE_PATH,
+  );
   const $fetch = createS3Fetch(base, fetchOptions);
 
   const api = createCoreApi($fetch);
@@ -175,5 +184,7 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
     ...api,
     ...pluginMethods,
     $ERROR_CODES: S3_ERROR_CODES,
+    $fetch,
+    $Infer: {} as CreateS3ClientResult<P>["$Infer"],
   } as CreateS3ClientResult<P>;
 }

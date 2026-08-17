@@ -5,18 +5,26 @@ import {
   type MultipartListPartsResponse,
 } from "@dimah-s3/core";
 import { runHook, runLifecycleHook } from "../../../internal-helpers";
-import type { DimahS3Config } from "../../../types";
+import type { ResolvedDimahS3Config } from "../../../types";
+import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 
 async function handleListParts(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof multipartListPartsQuerySchema._output,
   request: Request,
 ): Promise<MultipartListPartsResponse> {
-  const key = input.key;
+  const { key, bucket } = await resolveRequestTarget(
+    config,
+    config.multipart,
+    {
+      request,
+      key: input.key,
+      bucket: input.bucket,
+    },
+  );
   const uploadId = input.uploadId;
-  const bucket = input.bucket ?? config.defaultBucket;
 
   await runHook(config.multipart?.listGuard, {
     request,
@@ -25,7 +33,7 @@ async function handleListParts(
     uploadId,
   });
 
-  const response = await config.s3.send(
+  const response = await config.client.send(
     new ListPartsCommand({
       Bucket: bucket,
       Key: key,

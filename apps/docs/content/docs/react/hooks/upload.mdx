@@ -17,7 +17,7 @@ these hooks.
 | `useMultiFileUpload` | You already have `File[]`     |
 
 `accept` and `maxFileSize` are client-side only. Mirror them in
-[`presignGuard`](/docs/server/hooks/upload#presign-guard).
+[`upload.guard`](/docs/server/hooks/upload#guard).
 
 ## useUpload
 
@@ -27,9 +27,7 @@ these hooks.
 import { useUpload } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { getRootProps, getInputProps, isUploading, progress } = useUpload({
-    objectKey: "uploads/photo.jpg",
-  });
+  const { getRootProps, getInputProps, isUploading, progress } = useUpload();
 
   return (
     <div {...getRootProps()}>
@@ -63,7 +61,6 @@ import { useMultiUpload } from "@dimah-s3/react";
 export function MultiUploader() {
   const { getRootProps, getInputProps, isUploading, totalProgress } =
     useMultiUpload({
-      objectKey: (file) => `uploads/${file.name}`,
       maxFiles: 5,
     });
 
@@ -90,9 +87,11 @@ upload. To resume after a refresh, pass an
 Skip dropzone when you already have a `File`.
 
 ```tsx
+import { defaultObjectKey, useFileUpload } from "@dimah-s3/react";
+
 const { upload, progress, phase } = useFileUpload();
 
-await upload(file, "uploads/photo.jpg");
+await upload(file, defaultObjectKey(file));
 ```
 
 ```tsx
@@ -105,7 +104,7 @@ await upload(files, (file) => `uploads/${file.name}`);
 
 | Option        | Description                             |
 | ------------- | --------------------------------------- |
-| `objectKey`   | Required. String or `(file) => string`  |
+| `objectKey`   | Optional. String or `(file) => string`. Default: uuid + filename |
 | `accept`      | MIME types or extensions                |
 | `maxFileSize` | Bytes                                   |
 | `maxFiles`    | `useMultiUpload` / `useMultiFileUpload` |
@@ -113,5 +112,6 @@ await upload(files, (file) => `uploads/${file.name}`);
 | `uploadStore` | Resume after refresh                    |
 | `onSuccess`   | Called with the uploaded key            |
 
-`api` is optional under `S3Provider`. Full types: `UseUploadOptions`,
-`UseMultiUploadOptions`.
+Hook `error` is a `DimahS3Error` (or `null`). Format with
+`useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
+types: `UseUploadOptions`, `UseMultiUploadOptions`.

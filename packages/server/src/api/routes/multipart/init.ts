@@ -7,17 +7,27 @@ import {
 } from "@dimah-s3/core";
 import { errors } from "../../../errors";
 import { runHook, runLifecycleHook } from "../../../internal-helpers";
-import type { DimahS3Config } from "../../../types";
+import type { ResolvedDimahS3Config } from "../../../types";
+import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 
 async function handleMultipartInit(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof multipartInitBodySchema._output,
   request: Request,
 ): Promise<MultipartInitResponse> {
-  const key = input.key;
-  const bucket = input.bucket ?? config.defaultBucket;
+  const { key, bucket } = await resolveRequestTarget(
+    config,
+    config.multipart,
+    {
+      request,
+      key: input.key,
+      bucket: input.bucket,
+      fileName: input.fileName,
+      contentType: input.contentType,
+    },
+  );
   const acl = input.acl === "public-read" ? "public-read" : "private";
   const fileSize =
     typeof input.fileSize === "number" && input.fileSize > 0
@@ -35,7 +45,7 @@ async function handleMultipartInit(
     fileSize,
   });
 
-  const { UploadId } = await config.s3.send(
+  const { UploadId } = await config.client.send(
     new CreateMultipartUploadCommand({
       Bucket: bucket,
       Key: key,

@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useContext, useRef } from "react";
-import type { S3Api } from "@dimah-s3/core";
+import type { DimahS3Error, S3Api } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import type { DeletePhase, DeleteHooks } from "../types";
+import { hookBlockedError, toHookError } from "../types/error";
 import { useLiveRef } from "../internal-helpers";
 import {
   patchHookState,
@@ -23,8 +24,8 @@ export type UseDeleteOptions = DeleteHooks & {
 export type UseDeleteState = {
   /** Current delete phase. */
   phase: DeletePhase;
-  /** Error message, or `null`. */
-  error: string | null;
+  /** Last error, or `null`. */
+  error: DimahS3Error | null;
 };
 
 export type UseDeleteReturn = UseDeleteState & {
@@ -42,7 +43,7 @@ export type UseDeleteReturn = UseDeleteState & {
 
 type InternalState = {
   phase: DeletePhase;
-  error: string | null;
+  error: DimahS3Error | null;
   pendingKey: string | null;
 };
 
@@ -91,7 +92,9 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
       if (!allowed) {
         patchHookState(store, (draft) => {
           draft.phase = "error";
-          draft.error = "Delete blocked by beforeDelete hook";
+          draft.error = hookBlockedError(
+            "Delete blocked by beforeDelete hook",
+          );
           draft.pendingKey = null;
         });
         opts.onError?.(key, new Error("blocked"), "confirming");
@@ -116,10 +119,9 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
       });
       await opts.onSuccess?.(key);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Delete failed";
       patchHookState(store, (draft) => {
         draft.phase = "error";
-        draft.error = message;
+        draft.error = toHookError(err, "Delete failed");
       });
       opts.onError?.(key, err, "deleting");
     }

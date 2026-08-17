@@ -62,6 +62,10 @@
       "types": "./dist/adapters/svelte-kit.d.ts",
       "default": "./dist/adapters/svelte-kit.js"
     },
+    "./plugins": {
+      "types": "./dist/plugins.d.ts",
+      "default": "./dist/plugins.js"
+    },
     "./api": {
       "types": "./dist/api/index.d.ts",
       "default": "./dist/api/index.js"

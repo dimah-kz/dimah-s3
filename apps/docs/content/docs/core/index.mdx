@@ -10,7 +10,7 @@ Shared protocol types, the isomorphic HTTP client, and pure helpers used by `@di
 ## What lives here
 
 - `S3_API_ROUTES` / `S3_API_BASE_PATH` — route path SSOT
-- `createS3Client` — browser/isomorphic client implementing `S3Api` (+ client plugins). Exposes `$ERROR_CODES`.
+- `createS3Client` — browser/isomorphic client implementing `S3Api` (+ client plugins). Exposes `$ERROR_CODES`, `$fetch`, `$Infer`. `baseURL` wins over `basePath`.
 - `DimahS3Error` — extends better-call `APIError` with the same `(status, body)` constructor; JSON `{ message, code?, params? }`. Use `DimahS3Error.from(status, S3_ERROR_CODES.FORBIDDEN)` or `isDimahS3Error` / `isAPIError`.
 - `s3FetchErrorSchema` — Zod schema for that JSON (better-fetch `errorSchema`)
 - Client plugin helpers — `defineClientPlugin`, `createS3Fetch`, `pluginPath`
@@ -32,7 +32,7 @@ await api.upload({ key: "uploads/a.png", contentType: "image/png" });
 await api.db.listObjects({ limit: 20, offset: 0 });
 ```
 
-For React apps prefer `createS3Client` from `@dimah-s3/react` — same options, plus a bound `S3Provider` / typed `useApi`.
+For React apps prefer `createS3Client` from `@dimah-s3/react` — same options, plus a bound `Provider` / typed `useApi` on the client object.
 
 ## Client plugins
 

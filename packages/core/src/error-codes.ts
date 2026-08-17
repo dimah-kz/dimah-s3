@@ -25,6 +25,9 @@ export const S3_ERROR_CODES = defineErrorCodes({
   CONFLICT: "Conflict",
   INTERNAL_ERROR: "Internal server error",
   OBJECT_NOT_FOUND: "Object not found",
+  FEATURE_DISABLED: "{feature} is disabled",
+  INVALID_KEY: "Object key is invalid",
+  INVALID_BUCKET: "Bucket is not allowed",
   S3_NETWORK_ERROR:
     "S3 endpoint unreachable ({code}): check your endpoint URL and network connectivity",
   FILE_SIZE_REQUIRED_UPLOAD:

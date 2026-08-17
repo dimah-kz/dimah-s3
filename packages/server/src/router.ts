@@ -6,7 +6,7 @@ import {
 } from "@dimah-s3/core";
 import { errors } from "./errors";
 import { bindEndpoints } from "./api/bind-endpoints";
-import type { DimahS3Config } from "./types";
+import type { ResolvedDimahS3Config } from "./types";
 
 const NETWORK_CODES = new Set([
   "EAI_AGAIN",
@@ -55,7 +55,7 @@ function withUnmatchedRouteJson(
  */
 export function createS3Router<E extends Record<string, Endpoint>>(
   endpoints: E,
-  env: { config: DimahS3Config },
+  env: { config: ResolvedDimahS3Config },
 ) {
   const basePath = normalizeS3ApiBasePath(
     env.config.basePath ?? S3_API_BASE_PATH,

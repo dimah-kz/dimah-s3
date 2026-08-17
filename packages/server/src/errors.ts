@@ -3,9 +3,10 @@ import {
   S3_ERROR_CODES,
   isAPIError,
   isDimahS3Error,
+  isS3ErrorCode,
 } from "@dimah-s3/core";
 
-export { DimahS3Error, isAPIError, isDimahS3Error };
+export { DimahS3Error, isAPIError, isDimahS3Error, isS3ErrorCode };
 
 /** English API errors with stable codes for client-side localization. */
 export const errors = {
@@ -23,6 +24,26 @@ export const errors = {
 
   objectNotFound: () =>
     DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND),
+
+  featureDisabled: (feature: string) =>
+    DimahS3Error.from("NOT_FOUND", {
+      code: S3_ERROR_CODES.FEATURE_DISABLED.code,
+      message: S3_ERROR_CODES.FEATURE_DISABLED.message.replaceAll(
+        "{feature}",
+        feature,
+      ),
+      params: { feature },
+    }),
+
+  invalidKey: () =>
+    DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY),
+
+  invalidBucket: (bucket: string) =>
+    DimahS3Error.from("FORBIDDEN", {
+      code: S3_ERROR_CODES.INVALID_BUCKET.code,
+      message: S3_ERROR_CODES.INVALID_BUCKET.message,
+      params: { bucket },
+    }),
 
   s3NetworkError: (code: string) =>
     DimahS3Error.from("BAD_GATEWAY", {

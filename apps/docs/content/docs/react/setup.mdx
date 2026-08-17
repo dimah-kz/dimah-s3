@@ -12,8 +12,8 @@ npm i @dimah-s3/react
 
 ### API client [step]
 
-Hooks only need an `S3Api`. Use `createS3Client` with `@dimah-s3/server`, or
-`defineApi` with your own backend.
+Hooks only need an `S3Api`. Use `createS3Client` from `@dimah-s3/react` with
+`@dimah-s3/server`, or `defineApi` with your own backend.
 
 <Tabs items={["@dimah-s3/server", "Your own backend"]}>
 
@@ -21,26 +21,29 @@ Hooks only need an `S3Api`. Use `createS3Client` with `@dimah-s3/server`, or
 
 If the server is mounted at `/api/s3` ([Server setup](/docs/server/setup)):
 
-```tsx title="components/s3-provider.tsx"
+```tsx title="lib/s3-client.ts"
 "use client";
 
+import type { ComponentProps } from "react";
 import { createS3Client } from "@dimah-s3/react";
 
-export const { api, S3Provider, useApi } = createS3Client();
+export const s3Client = createS3Client();
 
-export function S3ClientProvider({ children }: { children: React.ReactNode }) {
-  return <S3Provider>{children}</S3Provider>;
+/** Next.js App Router: top-level Client Component (not `s3Client.Provider`). */
+export function S3Provider(props: ComponentProps<typeof s3Client.Provider>) {
+  return <s3Client.Provider {...props} />;
 }
 ```
 
-Custom base path, plugins, or auth:
+Custom base path, absolute `baseURL`, plugins, or auth:
 
 ```ts
 import { createS3Client } from "@dimah-s3/react";
 import { dbClient } from "@dimah-s3/db/client";
 
-export const { api, S3Provider, useApi } = createS3Client({
+export const s3Client = createS3Client({
   basePath: "/api/your-path",
+  // baseURL: "https://api.example.com/api/s3",
   plugins: [dbClient()],
   credentials: "include",
   headers: async () => ({
@@ -49,16 +52,17 @@ export const { api, S3Provider, useApi } = createS3Client({
 });
 ```
 
-`basePath` must match the server. Failed API calls throw `DimahS3Error`
-(`.code`, `.status` / `.statusCode`). The client also exposes
-`$ERROR_CODES` (same catalog as the server). Call `api` directly, or
-`useApi()` inside React.
+`basePath` must match the server. `baseURL` wins when both are set (Vite /
+Hono when the UI origin differs). Failed API calls throw `DimahS3Error`
+(`.code`, `.status` / `.statusCode`). The client also exposes `$ERROR_CODES`,
+`$fetch`, and `$Infer`. Call `s3Client.download(key)` directly, or
+`s3Client.useApi()` inside React.
 
 </Tab>
 
 <Tab value="Your own backend">
 
-Implement `S3Api` with `defineApi` and pass it to the provider. Payload
+Implement `S3Api` with `defineApi` and pass it to `S3Provider`. Payload
 shapes: [Bring your own backend](/docs/react/custom-backend).
 
 ```tsx title="components/s3-provider.tsx"
@@ -67,7 +71,7 @@ shapes: [Bring your own backend](/docs/react/custom-backend).
 import { S3Provider } from "@dimah-s3/react";
 import { api } from "@/lib/s3-api";
 
-export function S3ClientProvider({ children }: { children: React.ReactNode }) {
+export function AppS3Provider({ children }: { children: React.ReactNode }) {
   return <S3Provider api={api}>{children}</S3Provider>;
 }
 ```
@@ -80,12 +84,12 @@ export function S3ClientProvider({ children }: { children: React.ReactNode }) {
 
 Mount once near the app root. Hooks inside can omit `api`.
 
-<Tabs items={["Next.js (App Router)", "Other React apps"]}>
+<Tabs items={["Next.js (App Router)", "Vite / other React apps"]}>
 
 <Tab value="Next.js (App Router)">
 
 ```tsx title="app/layout.tsx"
-import { S3ClientProvider } from "@/components/s3-provider";
+import { S3Provider } from "@/lib/s3-client";
 
 export default function RootLayout({
   children,
@@ -95,7 +99,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <S3ClientProvider>{children}</S3ClientProvider>
+        <S3Provider>{children}</S3Provider>
       </body>
     </html>
   );
@@ -104,19 +108,19 @@ export default function RootLayout({
 
 </Tab>
 
-<Tab value="Other React apps">
+<Tab value="Vite / other React apps">
 
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { S3ClientProvider } from "./components/s3-provider";
+import { s3Client } from "./lib/s3-client";
 import { App } from "./app";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <S3ClientProvider>
+    <s3Client.Provider>
       <App />
-    </S3ClientProvider>
+    </s3Client.Provider>
   </React.StrictMode>,
 );
 ```
@@ -125,10 +129,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 </Tabs>
 
-Strings default to English. To localize, pass `translations` on `S3Provider`
-— [Internationalization](/docs/i18n).
+Strings default to English. To localize, pass `translations` on
+`s3Client.Provider` — [Internationalization](/docs/i18n).
 
 ### First hook [step]
+
+`objectKey` is optional. The default is
+`` `${crypto.randomUUID()}/${sanitizeFileName(file.name)}` ``. Prefer a server
+`upload.prefix` (or `resolveKey`) so keys stay scoped.
 
 ```tsx title="app/uploader.tsx"
 "use client";
@@ -136,9 +144,7 @@ Strings default to English. To localize, pass `translations` on `S3Provider`
 import { useUpload } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { getRootProps, getInputProps, isUploading, progress } = useUpload({
-    objectKey: "uploads/photo.jpg",
-  });
+  const { getRootProps, getInputProps, isUploading, progress } = useUpload();
 
   return (
     <div {...getRootProps()}>

@@ -32,19 +32,18 @@ export {
   useDownload,
   type DownloadPhase,
   type DownloadHooks,
-  type UseDownloadOptions,
-  type UseDownloadState,
-  type UseDownloadReturn,
-} from "./use-download";
-export {
-  useFetchDownload,
   type FetchDownloadPhase,
   type FetchDownloadProgress,
   type FetchDownloadHooks,
+  type UseDownloadOptions,
+  type UseDownloadState,
+  type UseDownloadReturn,
+  type UseNavigateDownloadOptions,
+  type UseNavigateDownloadReturn,
   type UseFetchDownloadOptions,
   type UseFetchDownloadState,
   type UseFetchDownloadReturn,
-} from "./use-fetch-download";
+} from "./use-download";
 export {
   useDelete,
   type UseDeleteOptions,

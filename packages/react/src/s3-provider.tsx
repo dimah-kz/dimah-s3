@@ -7,8 +7,6 @@ import type { Translations } from "./translations/types";
 
 /**
  * Internal context — use `S3Provider` to supply and `useApi` to consume.
- * Exported so hooks can call `useContext(S3Context)` directly without throwing
- * when `api` is passed explicitly.
  */
 export const S3Context = createContext<S3Api | null>(null);
 
@@ -28,22 +26,23 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
  * and UI. When `translations` is set, wraps children in Fuma
  * `TranslationProvider`; otherwise English source keys are used as-is.
  *
- * Prefer {@link createS3Client} when using client plugins — it returns a
- * bound provider and typed `useApi()` without generics.
+ * Prefer {@link createS3Client} when using client plugins — it returns the
+ * API object itself plus a bound `Provider` / typed `useApi()`.
  *
  * @example
  * ```tsx
  * import { createS3Client, type Translations } from "@dimah-s3/react";
  *
- * // lib/translations-de.ts
  * const de = {
  *   "Upload failed(toast)": "Upload fehlgeschlagen",
  * } satisfies Partial<Translations>;
  *
- * export const { S3Provider } = createS3Client();
+ * export const s3Client = createS3Client();
  *
  * export function Providers({ children }: { children: React.ReactNode }) {
- *   return <S3Provider translations={de}>{children}</S3Provider>;
+ *   return (
+ *     <s3Client.Provider translations={de}>{children}</s3Client.Provider>
+ *   );
  * }
  * ```
  */

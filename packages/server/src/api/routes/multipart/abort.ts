@@ -5,20 +5,28 @@ import {
   type MultipartAbortResponse,
 } from "@dimah-s3/core";
 import { runHook, runLifecycleHook } from "../../../internal-helpers";
-import type { DimahS3Config } from "../../../types";
+import type { ResolvedDimahS3Config } from "../../../types";
+import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 
 async function handleAbort(
-  config: DimahS3Config,
+  config: ResolvedDimahS3Config,
   input: typeof multipartAbortBodySchema._output,
   request: Request,
 ): Promise<
   MultipartAbortResponse & { bucket: string; key: string; uploadId: string }
 > {
-  const key = input.key;
+  const { key, bucket } = await resolveRequestTarget(
+    config,
+    config.multipart,
+    {
+      request,
+      key: input.key,
+      bucket: input.bucket,
+    },
+  );
   const uploadId = input.uploadId;
-  const bucket = input.bucket ?? config.defaultBucket;
 
   await runHook(config.multipart?.abortGuard, {
     request,
@@ -27,7 +35,7 @@ async function handleAbort(
     uploadId,
   });
 
-  await config.s3.send(
+  await config.client.send(
     new AbortMultipartUploadCommand({
       Bucket: bucket,
       Key: key,

@@ -29,6 +29,20 @@ describe("useFormatDimahError", () => {
     expect(format("x")).toBe("Unknown error");
     expect(
       format(
+        DimahS3Error.from("NOT_FOUND", {
+          ...S3_ERROR_CODES.FEATURE_DISABLED,
+          params: { feature: "download" },
+        }),
+      ),
+    ).toBe("download is disabled");
+    expect(
+      format(DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY)),
+    ).toBe("Object key is invalid");
+    expect(
+      format(DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.INVALID_BUCKET)),
+    ).toBe("Bucket is not allowed");
+    expect(
+      format(
         new DimahS3Error("BAD_REQUEST", {
           message: "custom",
           code: "CUSTOM",

@@ -1,3 +1,4 @@
+import type { DimahS3Error } from "@dimah-s3/core";
 import type { UploadProgress, UploadResult } from "./upload";
 
 export type MultiUploadPhase =
@@ -20,7 +21,7 @@ export type MultiUploadFileState = {
   previewUrl: string | null;
   status: "pending" | "uploading" | "success" | "error";
   progress: UploadProgress;
-  error: string | null;
+  error: DimahS3Error | null;
 };
 
 /** Lifecycle hooks for multi-file upload. */
@@ -29,7 +30,7 @@ export type MultiUploadHooks = {
   onUploadStart?: (files: File[]) => void;
   onFileProgress?: (file: File, progress: UploadProgress) => void;
   onFileSuccess?: (file: File, result: UploadResult) => void;
-  onFileError?: (file: File, error: string) => void;
+  onFileError?: (file: File, error: DimahS3Error) => void;
   onProgress?: (progress: UploadProgress) => void;
   onSuccess?: (results: UploadResult[]) => Promise<void> | void;
   onError?: (error: unknown) => void;

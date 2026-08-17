@@ -43,10 +43,10 @@ export function createInstance(
     plugins?: DimahS3Config["plugins"];
   } = {},
 ) {
-  const { s3, ...rest } = overrides;
+  const { client, ...rest } = overrides;
   return dimahS3({
-    s3: s3 ?? mockS3(),
-    defaultBucket: "bucket",
+    client: client ?? mockS3(),
+    bucket: "bucket",
     ...rest,
   });
 }

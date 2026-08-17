@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import { AlertCircleIcon, PauseIcon, XIcon } from "lucide-react";
-import { formatFileSize, truncateFileName } from "@dimah-s3/core";
+import {
+  formatFileSize,
+  truncateFileName,
+  type DimahS3Error,
+} from "@dimah-s3/core";
+import { useFormatDimahError } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   Attachment,
@@ -49,7 +54,7 @@ export type FileAttachmentProps = {
   percent?: number;
   /** Secondary line; defaults to size, or error text when `state="error"`. */
   description?: ReactNode;
-  error?: string | null;
+  error?: string | DimahS3Error | null;
   onCancel?: () => void;
   onPause?: () => void;
   className?: string;
@@ -71,13 +76,20 @@ export function FileAttachment({
   className,
 }: FileAttachmentProps) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
+  const errorText =
+    error == null
+      ? null
+      : typeof error === "string"
+        ? error
+        : formatError(error);
   const hasPreview = Boolean(previewUrl);
   const progress = PROGRESS_BY_SIZE[size];
 
   const resolvedDescription =
     description ??
     (state === "error"
-      ? (error ?? t("Upload failed", { note: "status" }))
+      ? (errorText ?? t("Upload failed", { note: "status" }))
       : fileSize != null
         ? formatFileSize(fileSize)
         : null);

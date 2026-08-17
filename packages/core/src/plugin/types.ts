@@ -29,17 +29,19 @@ export type S3ClientFetchOptions = {
  *
  * @typeParam Id — unique plugin id; becomes `api[id]`.
  * @typeParam TMethods — methods returned by {@link S3ClientPlugin.getActions}.
+ * @typeParam TServer — matching server plugin; `$InferServerPlugin` must share `id`.
  */
 export type S3ClientPlugin<
   Id extends string = string,
   TMethods extends Record<string, unknown> = Record<string, unknown>,
+  TServer extends { id: string } = { id: Id },
 > = {
   id: Id;
   /**
    * Type-only pointer at the matching server plugin (`ReturnType<typeof db>`).
-   * Not used at runtime.
+   * Constrains `id` to match the server plugin's `id`.
    */
-  $InferServerPlugin?: unknown;
+  $InferServerPlugin?: TServer & { id: Id };
   /** Build typed methods that call plugin endpoints via the shared `$fetch`. */
   getActions: ($fetch: S3Fetch) => TMethods;
 };
@@ -59,6 +61,10 @@ export const RESERVED_CLIENT_KEYS = [
   "delete",
   "multipart",
   "$ERROR_CODES",
+  "$fetch",
+  "$Infer",
+  "Provider",
+  "useApi",
 ] as const;
 
 export type ReservedClientKey = (typeof RESERVED_CLIENT_KEYS)[number];

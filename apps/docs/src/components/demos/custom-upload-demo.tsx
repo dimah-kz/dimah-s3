@@ -21,7 +21,6 @@ function attachmentState(phase: UploadPhase) {
 /** Headless upload + stock shadcn Attachment from the docs app. */
 export function CustomUploadDemo() {
   const { open, phase, progress, error, fileInfo, getInputProps } = useUpload({
-    objectKey: (file) => `demo/${Date.now()}-${file.name}`,
     maxFileSize: 25 * 1024 * 1024,
     noDrag: true,
     noClick: true,
@@ -47,7 +46,7 @@ export function CustomUploadDemo() {
             <AttachmentTitle>{fileInfo?.name ?? "Uploading…"}</AttachmentTitle>
             <AttachmentDescription>
               {phase === "error"
-                ? (error ?? "Upload failed")
+                ? (error?.message ?? "Upload failed")
                 : phase === "uploading"
                   ? `${progress.percent}%`
                   : "Preparing…"}

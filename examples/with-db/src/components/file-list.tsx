@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useApi } from "@/components/s3-provider";
+import { s3Client } from "@/lib/s3-client";
 
 type ListedObject = Awaited<
-  ReturnType<ReturnType<typeof useApi>["db"]["listObjects"]>
+  ReturnType<(typeof s3Client)["db"]["listObjects"]>
 >["objects"][number];
 
 /** Browser listing via `dbClient()` — see /docs/db/api */
 export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
-  const api = useApi();
+  const api = s3Client.useApi();
   const [files, setFiles] = useState<ListedObject[]>([]);
 
   useEffect(() => {

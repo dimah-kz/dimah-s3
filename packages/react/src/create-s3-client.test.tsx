@@ -4,21 +4,19 @@ import { useApi } from "./s3-provider";
 import { renderHook } from "./test/render-hook";
 
 describe("createS3Client (react)", () => {
-  it("returns a bound provider and useApi", () => {
-    const {
-      api,
-      S3Provider,
-      useApi: useBoundApi,
-    } = createS3Client({
+  it("returns the api plus a bound Provider and useApi", () => {
+    const s3Client = createS3Client({
       fetch: async () => new Response("{}", { status: 200 }),
     });
 
-    expect(api.upload).toBeTypeOf("function");
+    expect(s3Client.upload).toBeTypeOf("function");
 
-    const hook = renderHook(() => useBoundApi(), {
-      wrapper: ({ children }) => <S3Provider>{children}</S3Provider>,
+    const hook = renderHook(() => s3Client.useApi(), {
+      wrapper: ({ children }) => (
+        <s3Client.Provider>{children}</s3Client.Provider>
+      ),
     });
-    expect(hook.current).toBe(api);
+    expect(hook.current).toBe(s3Client);
     hook.unmount();
   });
 

@@ -2,8 +2,9 @@
 
 import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { formatEta } from "@dimah-s3/react";
+import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type {
+  DimahS3Error,
   UploadFileInfo,
   UploadPhase,
   UploadProgress,
@@ -15,7 +16,7 @@ import type { AttachmentLayoutProps } from "@/registry/dimah-s3-ui/lib/attachmen
 export type UploadStatusProps = AttachmentLayoutProps & {
   phase: UploadPhase;
   progress: UploadProgress;
-  error: string | null;
+  error: DimahS3Error | null;
   fileInfo: UploadFileInfo | null;
   onCancel?: () => void;
   /** When set (typically with an `uploadStore`), shows a pause control. */
@@ -35,6 +36,8 @@ export function UploadStatus({
   className,
 }: UploadStatusProps) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
+  const errorText = error ? formatError(error) : null;
   const layout = { size, orientation, className };
 
   if (phase === "idle") return null;
@@ -85,7 +88,7 @@ export function UploadStatus({
           fileSize={fileInfo.size}
           fileType={fileInfo.type}
           previewUrl={fileInfo.previewUrl}
-          error={error}
+          error={errorText}
           {...layout}
         />
       );
@@ -95,7 +98,7 @@ export function UploadStatus({
       <StatusAttachment
         state="error"
         title={t("Upload failed", { note: "status" })}
-        description={error ?? undefined}
+        description={errorText ?? undefined}
         {...layout}
       />
     );

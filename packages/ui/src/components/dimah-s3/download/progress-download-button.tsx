@@ -7,7 +7,7 @@ import { formatFileSize } from "@dimah-s3/core";
 import type { FetchDownloadHooks } from "@dimah-s3/react";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { useFetchDownload } from "@dimah-s3/react";
+import { useDownload, useFormatDimahError } from "@dimah-s3/react";
 import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
@@ -90,6 +90,7 @@ export function ProgressDownloadButton({
   onCancel,
 }: ProgressDownloadButtonProps) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
   const toastHandlers = useDownloadToast({
     enabled: enableToast,
     objectKey,
@@ -97,7 +98,8 @@ export function ProgressDownloadButton({
     fileSize,
   });
 
-  const dl = useFetchDownload({
+  const dl = useDownload({
+    mode: "fetch",
     api,
     bucket,
     beforeDownload,
@@ -156,7 +158,7 @@ export function ProgressDownloadButton({
       <StatusAttachment
         state="error"
         title={t("Download failed", { note: "status" })}
-        description={dl.error ?? undefined}
+        description={dl.error ? formatError(dl.error) : undefined}
         size={attachmentSize}
         orientation={attachmentOrientation}
       />

@@ -76,11 +76,30 @@ describe("upload", () => {
     });
   });
 
-  it("uses the request bucket over the default", async () => {
-    const s3 = createInstance({ upload: { enabled: true } });
+  it("ignores a client-supplied bucket by default", async () => {
+    const s3 = createInstance({ upload: true });
+    await expect(
+      s3.api.upload({ body: { key: "a.png", bucket: "other" } }),
+    ).resolves.toMatchObject({ bucket: "bucket" });
+  });
+
+  it("allows a client bucket when allowlisted", async () => {
+    const s3 = createInstance({
+      upload: true,
+      buckets: ["bucket", "other"],
+    });
     await expect(
       s3.api.upload({ body: { key: "a.png", bucket: "other" } }),
     ).resolves.toMatchObject({ bucket: "other" });
+  });
+
+  it("prefixes the object key", async () => {
+    const s3 = createInstance({
+      upload: { prefix: "uploads" },
+    });
+    await expect(
+      s3.api.upload({ body: { key: "a.png" } }),
+    ).resolves.toMatchObject({ key: "uploads/a.png" });
   });
 });
 
@@ -88,7 +107,7 @@ describe("confirm", () => {
   it("confirms from HeadObject metadata", async () => {
     const onConfirmed = vi.fn();
     const s3 = createInstance({
-      s3: mockS3(sendByCommand({ HeadObjectCommand: headResult() }) as never),
+      client: mockS3(sendByCommand({ HeadObjectCommand: headResult() }) as never),
       upload: { enabled: true, onConfirmed },
     });
 
@@ -108,7 +127,7 @@ describe("confirm", () => {
   it("resolves ACL when enabled", async () => {
     const s3 = createInstance({
       resolveObjectAcl: true,
-      s3: mockS3(
+      client: mockS3(
         sendByCommand({
           HeadObjectCommand: headResult(),
           GetObjectAclCommand: { Grants: [] },
@@ -127,7 +146,7 @@ describe("download / delete", () => {
   it("presigns a download after HeadObject succeeds", async () => {
     const onPresigned = vi.fn();
     const s3 = createInstance({
-      s3: mockS3(sendByCommand({ HeadObjectCommand: headResult() }) as never),
+      client: mockS3(sendByCommand({ HeadObjectCommand: headResult() }) as never),
       download: { enabled: true, onPresigned },
     });
 
@@ -145,7 +164,7 @@ describe("download / delete", () => {
       throw Object.assign(new Error("missing"), { name: "NoSuchKey" });
     });
     const s3 = createInstance({
-      s3: mockS3(missing as never),
+      client: mockS3(missing as never),
       download: { enabled: true },
       delete: { enabled: true },
     });
@@ -173,7 +192,7 @@ describe("download / delete", () => {
       DeleteObjectCommand: {},
     });
     const s3 = createInstance({
-      s3: mockS3(send as never),
+      client: mockS3(send as never),
       delete: { enabled: true, onDeleted },
     });
 
@@ -191,7 +210,7 @@ describe("multipart", () => {
   it("inits a multipart upload", async () => {
     const onInit = vi.fn();
     const s3 = createInstance({
-      s3: mockS3(
+      client: mockS3(
         sendByCommand({
           CreateMultipartUploadCommand: { UploadId: "up-1" },
         }) as never,
@@ -237,7 +256,7 @@ describe("multipart", () => {
   it("lists uploaded parts", async () => {
     const onList = vi.fn();
     const s3 = createInstance({
-      s3: mockS3(
+      client: mockS3(
         sendByCommand({
           ListPartsCommand: {
             Parts: [{ PartNumber: 1, Size: 8, ETag: '"p1"' }],
@@ -260,7 +279,7 @@ describe("multipart", () => {
   it("completes from listed parts and HeadObject", async () => {
     const onComplete = vi.fn();
     const s3 = createInstance({
-      s3: mockS3(
+      client: mockS3(
         sendByCommand({
           ListPartsCommand: {
             Parts: [{ PartNumber: 1, ETag: '"p1"' }],
@@ -310,7 +329,7 @@ describe("multipart", () => {
 });
 
 describe("feature guards", () => {
-  it("runs upload.presignGuard after the global guard", async () => {
+  it("runs upload.guard after the global guard", async () => {
     const order: string[] = [];
     const s3 = createInstance({
       guard: () => {
@@ -318,7 +337,7 @@ describe("feature guards", () => {
       },
       upload: {
         enabled: true,
-        presignGuard: () => {
+        guard: () => {
           order.push("presign");
         },
       },

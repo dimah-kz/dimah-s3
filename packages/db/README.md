@@ -14,12 +14,11 @@ export const dimahS3Db = DimahS3DB.client(
 );
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
-  upload: { enabled: true },
-  multipart: { enabled: true },
-  download: { enabled: true },
-  delete: { enabled: true },
+  client: s3Client,
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: "uploads" },
+  download: true,
+  delete: true,
   plugins: [
     db({
       client: dimahS3Db,

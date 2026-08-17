@@ -3,7 +3,9 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
+import { useFormatDimahError } from "@dimah-s3/react";
 import type {
+  DimahS3Error,
   UploadFileInfo,
   UploadProgress,
   MultiUploadFileState,
@@ -18,7 +20,7 @@ export type UploadToastCtrl = {
   progress?: UploadProgress;
   files?: MultiUploadFileState[];
   totalProgress?: UploadProgress;
-  error: string | null;
+  error: DimahS3Error | null;
   cancel: () => void;
 };
 
@@ -44,6 +46,7 @@ function progressNode(loaded: number, total: number) {
  */
 export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
   const t = useTranslations();
+  const formatError = useFormatDimahError();
   const toastIdRef = useRef<string | null>(null);
   const prevPhaseRef = useRef(ctrl.phase);
   const cancelRef = useRef(ctrl.cancel);
@@ -121,16 +124,28 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
           title: t("Upload failed", { note: "toast" }),
           description: (
             <span dir="auto" className="block [overflow-wrap:anywhere]">
-              {error ??
-                fileList[0]?.error ??
-                t("Unknown error", { note: "fallback" })}
+              {error
+                ? formatError(error)
+                : fileList[0]?.error
+                  ? formatError(fileList[0].error)
+                  : t("Unknown error", { note: "fallback" })}
             </span>
           ),
         });
       }
       toastIdRef.current = null;
     }
-  }, [enabled, phase, mode, fileInfo, files, totalProgress, error, t]);
+  }, [
+    enabled,
+    phase,
+    mode,
+    fileInfo,
+    files,
+    totalProgress,
+    error,
+    t,
+    formatError,
+  ]);
 
   // Progress toast (updated on each progress tick)
   useEffect(() => {

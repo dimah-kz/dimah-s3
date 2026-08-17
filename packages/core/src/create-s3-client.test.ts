@@ -108,6 +108,20 @@ describe("createS3Client protocol", () => {
     await createS3Client({ fetch, basePath: "/s3/" }).upload({ key: "a.png" });
     expect(calls[0]?.url.startsWith("/s3/")).toBe(true);
   });
+
+  it("uses baseURL over basePath", async () => {
+    const { fetch, calls } = captureFetch();
+    await createS3Client({
+      fetch,
+      basePath: "/api/s3",
+      baseURL: "https://api.example.com/s3",
+    }).upload({ key: "a.png" });
+    expect(calls[0]?.url.startsWith("https://api.example.com/s3/")).toBe(true);
+  });
+
+  it("exposes $fetch", () => {
+    expect(typeof createS3Client().$fetch).toBe("function");
+  });
 });
 
 describe("createS3Client errors", () => {

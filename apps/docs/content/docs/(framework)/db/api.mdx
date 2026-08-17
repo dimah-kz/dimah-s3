@@ -47,13 +47,15 @@ To remove a file, use [`api.delete`](/docs/react) — not store helpers ([Setup]
 
 ## Browser (client-side)
 
-Register `dbClient()` once. In a client component, `useApi()` gives you `api.db.listObjects`:
+Register `dbClient()` once. In a client component, `s3Client.useApi()` gives you `api.db.listObjects`:
 
 ```ts title="lib/s3-client.ts"
+"use client";
+
 import { createS3Client } from "@dimah-s3/react";
 import { dbClient } from "@dimah-s3/db/client";
 
-export const { api, S3Provider, useApi } = createS3Client({
+export const s3Client = createS3Client({
   basePath: "/api/s3",
   plugins: [dbClient()],
 });
@@ -63,10 +65,10 @@ export const { api, S3Provider, useApi } = createS3Client({
 "use client";
 
 import { useEffect, useState } from "react";
-import { useApi } from "@/lib/s3-client";
+import { s3Client } from "@/lib/s3-client";
 
 export function FileList() {
-  const api = useApi();
+  const api = s3Client.useApi();
   const [files, setFiles] = useState([]);
 
   useEffect(() => {
@@ -95,14 +97,15 @@ export function FileList() {
 Quotas are app-owned. The db plugin enforces ownership first; your guards run **after** ([hook order](/docs/server/plugins#hook-order)).
 
 ```ts
-import { dimahS3, chainHooks } from "@dimah-s3/server";
+import { dimahS3 } from "@dimah-s3/server";
+import { chainHooks } from "@dimah-s3/server/plugins";
 import { db } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
   plugins: [db({ client: dimahS3Db, resolveScope })],
   upload: {
-    enabled: true,
-    presignGuard: quotaGuard,
+    prefix: "uploads",
+    guard: quotaGuard,
     // or stack several: chainHooks(quotaGuard, rateLimitGuard),
   },
 });
@@ -132,8 +135,7 @@ For rules beyond same-scope ownership, add a guard on the feature config (runs a
 
 ```ts
 download: {
-  enabled: true,
-  presignGuard: async ({ request, bucket, key }) => {
+  guard: async ({ request, bucket, key }) => {
     // ownership already checked by the db plugin
   },
 },

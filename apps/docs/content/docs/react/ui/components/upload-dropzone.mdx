@@ -49,7 +49,6 @@ chrome only; `status` works like `UploadButton`.
 
 ```tsx
 <UploadDropzone
-  objectKey={(f) => `uploads/${f.name}`}
   maxFiles={5}
   attachmentSize="xs"
   status={(node) => (
@@ -67,7 +66,7 @@ yourself — see [Custom UI](/docs/react/ui/customization/custom-ui).
 
 <Callout type="warn">
   `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
-  limits in `upload.presignGuard` on the server.
+  limits in `upload.guard` on the server.
 </Callout>
 
 ## Props

@@ -52,3 +52,18 @@ export function toUploadError(err: unknown, phase?: UploadPhase): DimahS3Error {
   const message = err instanceof Error ? err.message : "Upload failed";
   return new S3UploadError(message, "UPLOAD_ERROR", 500, phase);
 }
+
+/** Normalize unknown throws for hook `error` state. */
+export function toHookError(
+  err: unknown,
+  fallback = "Request failed",
+): DimahS3Error {
+  if (isDimahS3Error(err)) return err;
+  const message = err instanceof Error ? err.message : fallback;
+  return new DimahS3Error("BAD_REQUEST", { message });
+}
+
+/** Client-side block from a `before*` hook (`false` return). */
+export function hookBlockedError(message: string): DimahS3Error {
+  return new DimahS3Error("BAD_REQUEST", { message });
+}

@@ -45,7 +45,7 @@ describe("uploadFile", () => {
     expect(uploadPut).not.toHaveBeenCalled();
     expect(api.confirm).toHaveBeenCalledWith({
       key: "a.png",
-      bucket: undefined,
+      bucket: "bucket",
     });
     expect(phases).toEqual(["presigning", "uploading", "finalizing"]);
   });

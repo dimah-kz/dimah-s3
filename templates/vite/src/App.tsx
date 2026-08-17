@@ -11,7 +11,6 @@ export function App() {
       </div>
 
       <UploadButton
-        objectKey={(file) => `uploads/${Date.now()}-${file.name}`}
         accept={["image/*", ".pdf"]}
         maxFileSize={10 * 1024 * 1024}
         label="Upload file"

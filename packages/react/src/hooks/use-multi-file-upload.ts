@@ -2,7 +2,7 @@
 
 import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
-import { validateFile } from "@dimah-s3/core";
+import { DimahS3Error, validateFile } from "@dimah-s3/core";
 import { S3Context } from "../s3-provider";
 import { createSpeedTracker } from "../helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
@@ -27,6 +27,7 @@ import type {
   MultiUploadHooks,
 } from "../types";
 import { uploadFiles } from "../upload";
+import { hookBlockedError, toHookError } from "../types/error";
 
 /** Options for {@link useMultiFileUpload}. */
 export type UseMultiFileUploadOptions = UploadConfig &
@@ -46,8 +47,8 @@ export type UseMultiFileUploadState = {
   files: MultiUploadFileState[];
   /** Aggregated progress across all files. */
   totalProgress: UploadProgress;
-  /** Batch-level error message, or `null`. */
-  error: string | null;
+  /** Batch-level error, or `null`. */
+  error: DimahS3Error | null;
 };
 
 export type UseMultiFileUploadReturn = UseMultiFileUploadState & {
@@ -152,7 +153,7 @@ export function useMultiFileUpload(
         const msg = `Too many files. Maximum is ${opts.maxFiles}.`;
         patchHookState(store, (draft) => {
           draft.phase = "error";
-          draft.error = msg;
+          draft.error = new DimahS3Error("BAD_REQUEST", { message: msg });
         });
         opts.onError?.(new Error(msg));
         return;
@@ -168,7 +169,7 @@ export function useMultiFileUpload(
           const msg = `${file.name}: ${detail}`;
           patchHookState(store, (draft) => {
             draft.phase = "error";
-            draft.error = msg;
+            draft.error = new DimahS3Error("BAD_REQUEST", { message: msg });
           });
           opts.onError?.(new Error(msg));
           return;
@@ -180,7 +181,9 @@ export function useMultiFileUpload(
         if (!allowed) {
           patchHookState(store, (draft) => {
             draft.phase = "error";
-            draft.error = "Upload blocked by beforeUpload hook";
+            draft.error = hookBlockedError(
+              "Upload blocked by beforeUpload hook",
+            );
           });
           opts.onError?.(new Error("blocked"));
           return;
@@ -334,7 +337,9 @@ export function useMultiFileUpload(
         patchHookState(store, (draft) => {
           draft.phase = hasErrors ? "error" : "success";
           draft.error = hasErrors
-            ? `${results.filter((r) => r.status === "error").length} file(s) failed`
+            ? new DimahS3Error("BAD_REQUEST", {
+                message: `${results.filter((r) => r.status === "error").length} file(s) failed`,
+              })
             : null;
           if (!hasErrors) {
             draft.totalProgress = {
@@ -359,10 +364,9 @@ export function useMultiFileUpload(
           clearToIdle();
           return;
         }
-        const message = err instanceof Error ? err.message : "Upload failed";
         patchHookState(store, (draft) => {
           draft.phase = "error";
-          draft.error = message;
+          draft.error = toHookError(err, "Upload failed");
         });
         opts.onError?.(err);
       } finally {

@@ -15,18 +15,18 @@ Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` for other
 codes.
 
 ```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
-import { s3Client, defaultBucket } from "@/lib/s3-client";
 
 export const s3 = dimahS3({
-  s3: s3Client,
-  defaultBucket,
+  client: new S3Client({ /* env */ }),
+  bucket: process.env.S3_BUCKET!,
   guard: async ({ request }) => {
     const session = await getSession(request);
     if (!session)
       throw new DimahS3Error("UNAUTHORIZED", { message: "Unauthorized" });
   },
-  upload: { enabled: true },
+  upload: { prefix: "uploads" },
 });
 ```
 

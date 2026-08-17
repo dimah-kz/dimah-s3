@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyPlugins, definePlugin } from "../index";
+import { definePlugin } from "../index";
+import { applyPlugins } from "./apply-plugins";
 import { createS3Endpoint } from "../api/create-s3-endpoint";
 import type { DimahS3Config } from "../types";
 
@@ -8,8 +9,8 @@ function config(
   extra: Partial<DimahS3Config> = {},
 ): DimahS3Config & { plugins?: DimahS3Config["plugins"] } {
   return {
-    s3: {} as DimahS3Config["s3"],
-    defaultBucket: "bucket",
+    client: {} as DimahS3Config["client"],
+    bucket: "bucket",
     plugins,
     ...extra,
   };
@@ -180,7 +181,7 @@ describe("applyPlugins merge", () => {
           id: "p",
           hooks: {
             upload: {
-              presignGuard: () => {
+              guard: () => {
                 order.push("plugin");
               },
             },
@@ -189,13 +190,13 @@ describe("applyPlugins merge", () => {
       ]),
       upload: {
         enabled: true,
-        presignGuard: () => {
+        guard: () => {
           order.push("user");
         },
       },
     });
 
-    await merged.config.upload?.presignGuard?.({
+    await merged.config.upload?.guard?.({
       request: new Request("http://localhost"),
       key: "a.png",
       bucket: "bucket",
@@ -210,7 +211,7 @@ describe("applyPlugins merge", () => {
       id: "audit",
       context: { n: 1 },
       init: (env) => {
-        init(env.getPlugin("audit")?.id, env.config.defaultBucket);
+        init(env.getPlugin("audit")?.id, env.config.bucket);
       },
     });
 

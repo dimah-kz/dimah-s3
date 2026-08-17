@@ -41,9 +41,22 @@ describe("useDownload", () => {
 
     expect(hook.current).toMatchObject({
       phase: "error",
-      error: "blocked",
+      error: expect.objectContaining({ message: "blocked" }),
       url: null,
     });
+    hook.unmount();
+  });
+
+  it("fetch mode exposes progress and cancel", () => {
+    const hook = renderHook(() =>
+      useDownload({ api: fakeS3Api(), mode: "fetch" }),
+    );
+    expect(hook.current.progress).toEqual({
+      loaded: 0,
+      total: 0,
+      percent: 0,
+    });
+    expect(typeof hook.current.cancel).toBe("function");
     hook.unmount();
   });
 });
