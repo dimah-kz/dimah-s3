@@ -17,10 +17,10 @@ pnpm add @dimah-s3/server @aws-sdk/client-s3
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3 } from "@dimah-s3/server";
 
-export const s3Sdk = new S3Client({/* env */});
+export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: { prefix: "uploads" },
 });

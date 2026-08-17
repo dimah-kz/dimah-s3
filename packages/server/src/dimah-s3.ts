@@ -61,8 +61,9 @@ export type DimahS3<
  *
  * @example
  * ```ts
+ * export const awsS3 = new S3Client({ ... });
  * export const s3 = dimahS3({
- *   client: s3Sdk,
+ *   client: awsS3,
  *   bucket: "my-bucket",
  *   upload: true,
  * });

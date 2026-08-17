@@ -7,7 +7,7 @@ import { dimahS3Db } from "@/lib/dimah-s3-db";
  * Same as `templates/nextjs` / `examples/with-nextjs`, plus the `db()` plugin.
  * Replace `resolveScope` with your session lookup (return `null` to reject).
  */
-export const s3Sdk = new S3Client({
+export const awsS3 = new S3Client({
   region: process.env.S3_REGION,
   endpoint: process.env.S3_ENDPOINT,
   credentials: {
@@ -17,7 +17,7 @@ export const s3Sdk = new S3Client({
 });
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: { prefix: "uploads" },
   download: true,

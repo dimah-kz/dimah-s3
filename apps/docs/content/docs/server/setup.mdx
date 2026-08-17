@@ -12,7 +12,7 @@ npm i @dimah-s3/server @aws-sdk/client-s3
 
 ### Config [step]
 
-Pass an AWS SDK `S3Client` as `client` (export it as `s3Sdk` so jobs and a
+Pass an AWS SDK `S3Client` as `client` (export it as `awsS3` so jobs and a
 custom backend can reuse it) and a `bucket`. That `bucket` is the default:
 used when the request omits one, and whenever a client-sent bucket is
 ignored. Enable a feature with `true` or an options object (omit `enabled` —
@@ -27,7 +27,7 @@ Provider-specific wiring (POST vs PUT, ACL, path-style):
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3 } from "@dimah-s3/server";
 
-export const s3Sdk = new S3Client({
+export const awsS3 = new S3Client({
   region: process.env.S3_REGION,
   endpoint: process.env.S3_ENDPOINT,
   credentials: {
@@ -37,7 +37,7 @@ export const s3Sdk = new S3Client({
 });
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: { prefix: "uploads" },
 });
@@ -48,7 +48,7 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
 | Option                                         | Default   | Role                                              |
 | ---------------------------------------------- | --------- | ------------------------------------------------- |
-| `client`                                       | required  | AWS SDK `S3Client` (`s3Sdk`)                      |
+| `client`                                       | required  | AWS SDK `S3Client` (`awsS3`)                      |
 | `bucket`                                       | required  | Default bucket                                    |
 | `allowClientBucket` / `buckets`                | off       | Honor a client-sent `bucket`                      |
 | `basePath`                                     | `/api/s3` | Must match `createS3Client({ basePath })`         |

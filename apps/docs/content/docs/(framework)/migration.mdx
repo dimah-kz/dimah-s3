@@ -11,7 +11,7 @@ boundaries (`core` ← `server` | `react` ← `ui`) are the same.
 
 | 0.x                                             | 1.0                                               |
 | ----------------------------------------------- | ------------------------------------------------- |
-| `s3: awsClient`                                 | `client: s3Sdk`                                   |
+| `s3: awsClient`                                 | `client: awsS3`                                   |
 | `defaultBucket`                                 | `bucket` (still the default; see below)           |
 | `upload: { enabled: true }`                     | `upload: true` or `upload: { prefix: "uploads" }` |
 | `upload.presignGuard` / `download.presignGuard` | `upload.guard` / `download.guard`                 |
@@ -21,17 +21,17 @@ boundaries (`core` ← `server` | `react` ← `ui`) are the same.
 Multipart is on whenever `upload` is on, unless you set `multipart: false`.
 
 Env in starters: `S3_DEFAULT_BUCKET` → `S3_BUCKET`. Keep the AWS SDK instance
-as `export const s3Sdk` and pass `client: s3Sdk` — `s3Client` is the React
+as `export const awsS3` and pass `client: awsS3` — `s3Client` is the React
 browser client. `bucket` is the default bucket: hooks may send `bucket`, but
 the server ignores it unless you set `allowClientBucket` or `buckets`.
 
 Key policy:
 
 ```ts
-export const s3Sdk = new S3Client({/* env */});
+export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: {
     prefix: "uploads",

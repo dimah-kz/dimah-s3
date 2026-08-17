@@ -15,10 +15,10 @@ R2 rejects Presigned POST. Set `method: "PUT"`:
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3 } from "@dimah-s3/server";
 
-export const s3Sdk = new S3Client({/* env */});
+export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: {
     method: "PUT", // required — R2 rejects Presigned POST

@@ -1,7 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3 } from "@dimah-s3/server";
 
-export const s3Sdk = new S3Client({
+export const awsS3 = new S3Client({
   region: process.env.S3_REGION,
   endpoint: process.env.S3_ENDPOINT,
   credentials: {
@@ -11,7 +11,7 @@ export const s3Sdk = new S3Client({
 });
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: { prefix: "uploads" },
 });

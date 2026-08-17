@@ -9,7 +9,7 @@ Set the shared `S3_*` env vars in [Quickstart](/docs/quickstart), then apply the
 
 ## Path style (required)
 
-Add **`forcePathStyle: true`** to the Quickstart `s3Sdk`. Without it, typical MinIO installs fail because object URLs must look like `http://host:9000/bucket/key`.
+Add **`forcePathStyle: true`** to the Quickstart `awsS3`. Without it, typical MinIO installs fail because object URLs must look like `http://host:9000/bucket/key`.
 
 Point `S3_ENDPOINT` at the **API** port (for example `http://localhost:9000`), not the console UI. For local MinIO, `S3_REGION` is usually `"us-east-1"`.
 

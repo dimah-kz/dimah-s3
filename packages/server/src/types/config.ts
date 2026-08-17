@@ -89,16 +89,16 @@ export type FeatureToggle<T> = boolean | T;
  *
  * @example
  * ```ts
- * export const s3Sdk = new S3Client({ ... });
+ * export const awsS3 = new S3Client({ ... });
  * export const s3 = dimahS3({
- *   client: s3Sdk,
+ *   client: awsS3,
  *   bucket: "my-bucket",
  *   upload: true,
  * });
  * ```
  */
 export type DimahS3Config = {
-  /** AWS SDK v3 `S3Client`. Export it as `s3Sdk` so scripts and a custom backend can reuse it. */
+  /** AWS SDK v3 `S3Client`. Export it as `awsS3` so scripts and a custom backend can reuse it. */
   client: S3Client;
   /**
    * Default bucket. Used when the request omits `bucket`, and whenever a

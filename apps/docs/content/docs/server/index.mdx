@@ -20,7 +20,7 @@ touches the file bytes — the browser talks to the bucket directly.
 It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
 your code with the
 [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3). Export that
-instance as `s3Sdk` from `lib/s3.ts` and pass `client: s3Sdk` into
+instance as `awsS3` from `lib/s3.ts` and pass `client: awsS3` into
 `dimahS3`.
 
 ## What you get

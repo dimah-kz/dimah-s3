@@ -11,7 +11,7 @@ If a client gets a presign and never confirms, the row stays `pending`. Over tim
 import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { purgeStalePendingObjects } from "@dimah-s3/db";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
-import { s3Sdk } from "@/lib/s3";
+import { awsS3 } from "@/lib/s3";
 
 const { purged } = await purgeStalePendingObjects({
   db: dimahS3Db,
@@ -19,7 +19,7 @@ const { purged } = await purgeStalePendingObjects({
   onBeforePurge: async (objects) => {
     for (const object of objects) {
       if (!object.uploadId) continue;
-      await s3Sdk.send(
+      await awsS3.send(
         new AbortMultipartUploadCommand({
           Bucket: object.bucket,
           Key: object.key,

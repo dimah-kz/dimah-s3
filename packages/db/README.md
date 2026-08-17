@@ -14,7 +14,7 @@ export const dimahS3Db = DimahS3DB.client(
 );
 
 export const s3 = dimahS3({
-  client: s3Sdk,
+  client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: { prefix: "uploads" },
   download: true,
