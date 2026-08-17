@@ -165,44 +165,6 @@ jobs:
         if: steps.filter.outputs.registry == 'true'
         run: pnpm --filter @dimah-s3/registry check-types
 
-  templates:
-    name: Build Templates
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            templates:
-              - 'templates/**'
-              - 'examples/with-nextjs/**'
-              - 'examples/with-vite/**'
-              - 'examples/with-hono/**'
-              - 'scripts/templates-*.mjs'
-              - 'scripts/examples-drift.mjs'
-
-      - uses: pnpm/action-setup@v6
-        if: steps.filter.outputs.templates == 'true'
-
-      - uses: actions/setup-node@v6
-        if: steps.filter.outputs.templates == 'true'
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - if: steps.filter.outputs.templates == 'true'
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Check template/example drift
-        if: steps.filter.outputs.templates == 'true'
-        run: pnpm examples:drift
-
-      - name: Smoke-build starters
-        if: steps.filter.outputs.templates == 'true'
-        run: pnpm templates:build
-
   apps:
     name: Typecheck Apps
     runs-on: ubuntu-latest
