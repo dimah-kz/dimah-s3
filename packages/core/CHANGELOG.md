@@ -1,3 +1,36 @@
+## @dimah-s3/core@0.8.0
+
+### Align the consumer API and switch to better-call
+
+Server config uses `client` (`awsS3`) and `bucket` (the default bucket;
+client-sent `bucket` is ignored unless `allowClientBucket` or `buckets`).
+Enable a feature with `true` or an options object
+(`upload: { prefix: "uploads" }`). Multipart is on whenever
+upload is, unless you set `multipart: false`. `upload.guard` /
+`download.guard` replace `presignGuard`. Disabled features return
+`FEATURE_DISABLED` (still HTTP 404). Use `prefix` or `resolveKey` to
+own object keys.
+
+`createS3Client()` from `@dimah-s3/react` _is_ the API
+(`s3Client.download(key)`), plus `Provider` and `useApi`. Cross-origin apps
+pass `baseURL`. `objectKey` is optional. `useDownload({ mode: "fetch" })`
+replaces `useFetchDownload`. Hook `error` is a `DimahS3Error`.
+
+Server routes and plugins now use `createS3Endpoint` (better-call) with Zod
+schemas. Call `s3.api.download({ query: { key }, headers })` instead of
+`s3.api.download(key, { headers })`. Plugin paths are absolute under
+`basePath` (`/db/objects`). Client plugins use `getActions($fetch)` and
+`pluginPath`. The Next.js adapter also exports `PUT` and `PATCH`.
+
+`DimahS3Error` extends better-call `APIError` with the same
+`(status, body)` constructor. HTTP error JSON is `{ message, code?, params? }`.
+Detect errors with `isAPIError` / `isDimahS3Error`. The browser client maps
+non-OK responses onto `DimahS3Error` and exposes `$ERROR_CODES`.
+
+Plugin-author helpers live on `@dimah-s3/server/plugins`. Starters export
+`awsS3` and `s3` from `lib/s3.ts`, plus `lib/s3-client.ts`. See the
+[changelog](https://dimah-s3.vercel.app/docs/changelog).
+
 ## @dimah-s3/core@0.7.4
 
 ### Return the pending row from `upsertPending`
