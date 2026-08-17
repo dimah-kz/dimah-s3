@@ -92,9 +92,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
       if (!allowed) {
         patchHookState(store, (draft) => {
           draft.phase = "error";
-          draft.error = hookBlockedError(
-            "Delete blocked by beforeDelete hook",
-          );
+          draft.error = hookBlockedError("Delete blocked by beforeDelete hook");
           draft.pendingKey = null;
         });
         opts.onError?.(key, new Error("blocked"), "confirming");

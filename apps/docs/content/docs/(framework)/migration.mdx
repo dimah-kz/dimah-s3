@@ -9,24 +9,29 @@ boundaries (`core` ← `server` | `react` ← `ui`) are the same.
 
 ## Server config
 
-| 0.x | 1.0 |
-| --- | --- |
-| `s3: awsClient` | `client: awsClient` |
-| `defaultBucket` | `bucket` |
-| `upload: { enabled: true }` | `upload: true` or `upload: { prefix: "uploads" }` |
-| `upload.presignGuard` / `download.presignGuard` | `upload.guard` / `download.guard` |
-| Disabled feature → generic `NOT_FOUND` | `FEATURE_DISABLED` (still HTTP 404) |
-| Client `bucket` always accepted | Ignored unless `allowClientBucket` or `buckets` |
+| 0.x                                             | 1.0                                               |
+| ----------------------------------------------- | ------------------------------------------------- |
+| `s3: awsClient`                                 | `client: s3Sdk`                                   |
+| `defaultBucket`                                 | `bucket` (still the default; see below)           |
+| `upload: { enabled: true }`                     | `upload: true` or `upload: { prefix: "uploads" }` |
+| `upload.presignGuard` / `download.presignGuard` | `upload.guard` / `download.guard`                 |
+| Disabled feature → generic `NOT_FOUND`          | `FEATURE_DISABLED` (still HTTP 404)               |
+| Client `bucket` always accepted                 | Ignored unless `allowClientBucket` or `buckets`   |
 
 Multipart is on whenever `upload` is on, unless you set `multipart: false`.
 
-Env in starters: `S3_DEFAULT_BUCKET` → `S3_BUCKET`.
+Env in starters: `S3_DEFAULT_BUCKET` → `S3_BUCKET`. Keep the AWS SDK instance
+as `export const s3Sdk` and pass `client: s3Sdk` — `s3Client` is the React
+browser client. `bucket` is the default bucket: hooks may send `bucket`, but
+the server ignores it unless you set `allowClientBucket` or `buckets`.
 
 Key policy:
 
 ```ts
+export const s3Sdk = new S3Client({/* env */});
+
 export const s3 = dimahS3({
-  client,
+  client: s3Sdk,
   bucket: process.env.S3_BUCKET!,
   upload: {
     prefix: "uploads",
@@ -58,7 +63,7 @@ api.download(key)
 export const s3Client = createS3Client();
 s3Client.download(key)
 // Vite / Hono: <s3Client.Provider>
-// Next.js App Router: re-export `S3Provider` from `s3-client.ts`
+// Next.js App Router: export const S3Provider = s3Client.Provider
 ```
 
 `createS3Client` comes from `@dimah-s3/react` (not `@dimah-s3/server`).

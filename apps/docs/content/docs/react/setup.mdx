@@ -21,18 +21,15 @@ Hooks only need an `S3Api`. Use `createS3Client` from `@dimah-s3/react` with
 
 If the server is mounted at `/api/s3` ([Server setup](/docs/server/setup)):
 
-```tsx title="lib/s3-client.ts"
+```ts title="lib/s3-client.ts"
 "use client";
 
-import type { ComponentProps } from "react";
 import { createS3Client } from "@dimah-s3/react";
 
 export const s3Client = createS3Client();
 
-/** Next.js App Router: top-level Client Component (not `s3Client.Provider`). */
-export function S3Provider(props: ComponentProps<typeof s3Client.Provider>) {
-  return <s3Client.Provider {...props} />;
-}
+/** Next.js App Router: named Client Component export (not `<s3Client.Provider>`). */
+export const S3Provider = s3Client.Provider;
 ```
 
 Custom base path, absolute `baseURL`, plugins, or auth:
@@ -106,6 +103,8 @@ export default function RootLayout({
 }
 ```
 
+App Router cannot render `<s3Client.Provider>` from a Server Component. Re-export `S3Provider` from `s3-client.ts` as in the client snippet above.
+
 </Tab>
 
 <Tab value="Vite / other React apps">
@@ -129,8 +128,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 </Tabs>
 
-Strings default to English. To localize, pass `translations` on
-`s3Client.Provider` — [Internationalization](/docs/i18n).
+Strings default to English. To localize, pass `translations` on the
+provider — [Internationalization](/docs/i18n).
 
 ### First hook [step]
 

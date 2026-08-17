@@ -38,12 +38,8 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
  * } satisfies Partial<Translations>;
  *
  * export const s3Client = createS3Client();
- *
- * export function Providers({ children }: { children: React.ReactNode }) {
- *   return (
- *     <s3Client.Provider translations={de}>{children}</s3Client.Provider>
- *   );
- * }
+ * export const S3Provider = s3Client.Provider;
+ * // <S3Provider translations={de}>{children}</S3Provider>
  * ```
  */
 export function S3Provider<TApi extends S3Api>({

@@ -15,15 +15,11 @@ async function handleListParts(
   input: typeof multipartListPartsQuerySchema._output,
   request: Request,
 ): Promise<MultipartListPartsResponse> {
-  const { key, bucket } = await resolveRequestTarget(
-    config,
-    config.multipart,
-    {
-      request,
-      key: input.key,
-      bucket: input.bucket,
-    },
-  );
+  const { key, bucket } = await resolveRequestTarget(config, config.multipart, {
+    request,
+    key: input.key,
+    bucket: input.bucket,
+  });
   const uploadId = input.uploadId;
 
   await runHook(config.multipart?.listGuard, {

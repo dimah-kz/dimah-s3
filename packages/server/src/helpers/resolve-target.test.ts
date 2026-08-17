@@ -39,14 +39,17 @@ describe("resolveObjectKey", () => {
       proposedKey: "a.png",
       bucket: "bucket",
     };
+    await expect(resolveObjectKey({ prefix: "uploads" }, ctx)).resolves.toBe(
+      "uploads/a.png",
+    );
     await expect(
-      resolveObjectKey({ prefix: "uploads" }, ctx),
-    ).resolves.toBe("uploads/a.png");
-    await expect(
-      resolveObjectKey({ prefix: "uploads" }, {
-        ...ctx,
-        proposedKey: "uploads/a.png",
-      }),
+      resolveObjectKey(
+        { prefix: "uploads" },
+        {
+          ...ctx,
+          proposedKey: "uploads/a.png",
+        },
+      ),
     ).resolves.toBe("uploads/a.png");
   });
 

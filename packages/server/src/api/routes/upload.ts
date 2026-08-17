@@ -123,16 +123,19 @@ async function handleUpload(
   const rangeMin = fileSize ?? 1;
   const rangeMax = fileSize ?? undefined;
 
-  const { url, fields: signedFields } = await createPresignedPost(config.client, {
-    Bucket: bucket,
-    Key: key,
-    Conditions:
-      rangeMax !== undefined
-        ? [["content-length-range", rangeMin, rangeMax]]
-        : [["content-length-range", rangeMin, Number.MAX_SAFE_INTEGER]],
-    Fields: fields,
-    Expires: expiresIn,
-  });
+  const { url, fields: signedFields } = await createPresignedPost(
+    config.client,
+    {
+      Bucket: bucket,
+      Key: key,
+      Conditions:
+        rangeMax !== undefined
+          ? [["content-length-range", rangeMin, rangeMax]]
+          : [["content-length-range", rangeMin, Number.MAX_SAFE_INTEGER]],
+      Fields: fields,
+      Expires: expiresIn,
+    },
+  );
 
   await runLifecycleHook(config.upload?.onPresigned, {
     request,

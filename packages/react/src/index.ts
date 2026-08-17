@@ -26,11 +26,7 @@ export {
   type CreateS3ClientResult,
   type ReactS3Client,
 } from "./create-s3-client";
-export {
-  S3Provider,
-  useApi,
-  type S3ProviderProps,
-} from "./s3-provider";
+export { S3Provider, useApi, type S3ProviderProps } from "./s3-provider";
 
 // ─── Translations (Fuma) ──────────────────────────────────────────────────────
 /** Generated key map — use with `satisfies Partial<Translations>`. */

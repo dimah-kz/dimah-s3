@@ -17,9 +17,10 @@ export type MultipartAliasApi = {
   abort: CoreEndpoints["multipartAbort"];
 };
 
-export type DimahS3Api<P extends readonly DimahS3Plugin[] = []> = CoreEndpoints & {
-  multipart: MultipartAliasApi;
-} & PluginEndpointMap<P>;
+export type DimahS3Api<P extends readonly DimahS3Plugin[] = []> =
+  CoreEndpoints & {
+    multipart: MultipartAliasApi;
+  } & PluginEndpointMap<P>;
 
 export type DimahS3<
   P extends readonly DimahS3Plugin[] = [],
@@ -61,7 +62,7 @@ export type DimahS3<
  * @example
  * ```ts
  * export const s3 = dimahS3({
- *   client: s3Client,
+ *   client: s3Sdk,
  *   bucket: "my-bucket",
  *   upload: true,
  * });

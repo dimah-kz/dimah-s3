@@ -6,9 +6,9 @@ description: Presign a GET URL — native download, or fetch with progress.
 Ask the API for a short-lived GET URL, then let the browser take the file.
 Your server never streams the body.
 
-| Hook | UI |
-| ---- | -- |
-| `useDownload()` | [Download Button](/docs/react/ui/components/download-button) — native download, no progress |
+| Hook                             | UI                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `useDownload()`                  | [Download Button](/docs/react/ui/components/download-button) — native download, no progress                       |
 | `useDownload({ mode: "fetch" })` | [Progress Download Button](/docs/react/ui/components/progress-download-button) — `fetch` with progress and cancel |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format it with

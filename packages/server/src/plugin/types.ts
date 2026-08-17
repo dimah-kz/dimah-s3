@@ -23,7 +23,10 @@ export type DimahS3PluginHooks = {
     | "prefix"
     | "resolveKey"
   >;
-  download?: Pick<DownloadConfig, "guard" | "onPresigned" | "prefix" | "resolveKey">;
+  download?: Pick<
+    DownloadConfig,
+    "guard" | "onPresigned" | "prefix" | "resolveKey"
+  >;
   delete?: Pick<DeleteConfig, "guard" | "onDeleted" | "prefix" | "resolveKey">;
   multipart?: Pick<
     MultipartConfig,

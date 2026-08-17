@@ -24,8 +24,10 @@ you set `multipart: false`.
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
 
+export const s3Sdk = new S3Client({/* env */});
+
 export const s3 = dimahS3({
-  client: new S3Client({ /* env */ }),
+  client: s3Sdk,
   bucket: process.env.S3_BUCKET!,
   upload: {
     prefix: "uploads",
@@ -50,8 +52,9 @@ export const s3 = dimahS3({
 
 <Callout type="warn">
   The client proposes `key`. Use `prefix` or `resolveKey` so the stored key is
-  yours. Client `bucket` is ignored unless `allowClientBucket` or `buckets` is
-  set. A plain `Error` in `guard` is 403; in `onConfirmed` it is 500.
+  yours. Config `bucket` is the default. A client-sent `bucket` is ignored
+  unless `allowClientBucket` or `buckets` is set. A plain `Error` in `guard` is
+  403; in `onConfirmed` it is 500.
 </Callout>
 
 Set `requireFileSize: true` to reject presign requests that omit `fileSize`.

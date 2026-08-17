@@ -5,7 +5,7 @@ icon: Languages
 ---
 
 English needs no setup. To localize, put a map in a file and pass it to
-`s3Client.Provider`.
+the provider.
 
 ```ts title="lib/translations-fa.ts"
 import type { Translations } from "@dimah-s3/react";
@@ -16,20 +16,35 @@ export const fa = {
 } satisfies Partial<Translations>;
 ```
 
-```tsx title="lib/s3-client.ts"
+```ts title="lib/s3-client.ts"
 "use client";
 
 import { createS3Client } from "@dimah-s3/react";
-import { fa } from "@/lib/translations-fa";
 
 export const s3Client = createS3Client();
+export const S3Provider = s3Client.Provider;
+```
 
-export function AppS3Provider({ children }: { children: React.ReactNode }) {
+```tsx title="app/layout.tsx"
+import { S3Provider } from "@/lib/s3-client";
+import { fa } from "@/lib/translations-fa";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <s3Client.Provider translations={fa}>{children}</s3Client.Provider>
+    <html lang="fa" dir="rtl">
+      <body>
+        <S3Provider translations={fa}>{children}</S3Provider>
+      </body>
+    </html>
   );
 }
 ```
+
+Vite / other all-client apps can pass `translations` on `<s3Client.Provider>` instead.
 
 Missing keys stay English.
 

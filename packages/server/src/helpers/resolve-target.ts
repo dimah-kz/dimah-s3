@@ -12,9 +12,7 @@ import type {
 
 type KeyPolicy = {
   prefix?: KeyPrefix;
-  resolveKey?: (
-    context: ResolveKeyContext,
-  ) => string | Promise<string>;
+  resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
 };
 
 /**

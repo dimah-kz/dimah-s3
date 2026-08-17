@@ -35,15 +35,17 @@ S3_BUCKET="your-bucket-name"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3 } from "@dimah-s3/server";
 
+export const s3Sdk = new S3Client({
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+});
+
 export const s3 = dimahS3({
-  client: new S3Client({
-    region: process.env.S3_REGION,
-    endpoint: process.env.S3_ENDPOINT,
-    credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
-    },
-  }),
+  client: s3Sdk,
   bucket: process.env.S3_BUCKET!,
   upload: { prefix: "uploads" },
 });
@@ -144,21 +146,18 @@ Other runtimes: [Server setup](/docs/server/setup).
 
 ### Client [step]
 
-```tsx title="lib/s3-client.ts"
+```ts title="lib/s3-client.ts"
 "use client";
 
-import type { ComponentProps } from "react";
 import { createS3Client } from "@dimah-s3/react";
 
 export const s3Client = createS3Client();
 
-/** Next.js App Router: top-level Client Component (not `s3Client.Provider`). */
-export function S3Provider(props: ComponentProps<typeof s3Client.Provider>) {
-  return <s3Client.Provider {...props} />;
-}
+/** Next.js App Router: named Client Component export (not `<s3Client.Provider>`). */
+export const S3Provider = s3Client.Provider;
 ```
 
-`s3Client` *is* the API (`s3Client.download(key)`), plus `Provider` and
+`s3Client` _is_ the API (`s3Client.download(key)`), plus `Provider` and
 `useApi`. Full options: [Client setup](/docs/react/setup).
 
 ### UI [step]
@@ -253,9 +252,10 @@ Selecting a file uploads directly to S3. The client default key is
 `lib/s3.ts` scopes it under `uploads/`.
 
 <Callout type="warn">
-  The client proposes `key` and may send `bucket`. Client `bucket` is ignored
-  unless you set `allowClientBucket` or `buckets`. Scope keys with `prefix` /
-  `resolveKey`, and reject unauthorized work in `upload.guard`.
+  The client proposes `key` and may send `bucket`. Config `bucket` is the
+  default — a client-sent `bucket` is ignored unless you set `allowClientBucket`
+  or `buckets`. Scope keys with `prefix` / `resolveKey`, and reject unauthorized
+  work in `upload.guard`.
 </Callout>
 
 <Callout type="info">

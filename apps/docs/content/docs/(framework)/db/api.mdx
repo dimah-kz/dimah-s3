@@ -102,6 +102,7 @@ import { chainHooks } from "@dimah-s3/server/plugins";
 import { db } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
+  client: s3Sdk,
   plugins: [db({ client: dimahS3Db, resolveScope })],
   upload: {
     prefix: "uploads",

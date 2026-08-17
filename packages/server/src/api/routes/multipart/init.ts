@@ -17,17 +17,13 @@ async function handleMultipartInit(
   input: typeof multipartInitBodySchema._output,
   request: Request,
 ): Promise<MultipartInitResponse> {
-  const { key, bucket } = await resolveRequestTarget(
-    config,
-    config.multipart,
-    {
-      request,
-      key: input.key,
-      bucket: input.bucket,
-      fileName: input.fileName,
-      contentType: input.contentType,
-    },
-  );
+  const { key, bucket } = await resolveRequestTarget(config, config.multipart, {
+    request,
+    key: input.key,
+    bucket: input.bucket,
+    fileName: input.fileName,
+    contentType: input.contentType,
+  });
   const acl = input.acl === "public-read" ? "public-read" : "private";
   const fileSize =
     typeof input.fileSize === "number" && input.fileSize > 0

@@ -41,9 +41,8 @@ export type ReactS3Client<P extends readonly S3ClientPlugin[] = []> =
  * await s3Client.db.listObjects();
  *
  * const api = s3Client.useApi(); // includes .db
- * // Vite / Hono:
- * <s3Client.Provider>{children}</s3Client.Provider>
- * // Next.js App Router: re-export a top-level `S3Provider` from `s3-client.ts`
+ * // Vite / Hono: <s3Client.Provider>
+ * // Next.js: export const S3Provider = s3Client.Provider
  * ```
  */
 export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(

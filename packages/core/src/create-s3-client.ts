@@ -160,9 +160,7 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   options?: CreateS3ClientOptions<P>,
 ): CreateS3ClientResult<P> {
   const { basePath, baseURL, plugins, ...fetchOptions } = options ?? {};
-  const base = normalizeS3ApiBasePath(
-    baseURL ?? basePath ?? S3_API_BASE_PATH,
-  );
+  const base = normalizeS3ApiBasePath(baseURL ?? basePath ?? S3_API_BASE_PATH);
   const $fetch = createS3Fetch(base, fetchOptions);
 
   const api = createCoreApi($fetch);

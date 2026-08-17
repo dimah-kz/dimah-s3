@@ -54,8 +54,7 @@ export type UseFetchDownloadOptions = SharedDownloadOptions &
   };
 
 export type UseDownloadOptions =
-  | UseNavigateDownloadOptions
-  | UseFetchDownloadOptions;
+  UseNavigateDownloadOptions | UseFetchDownloadOptions;
 
 export type UseNavigateDownloadState = {
   /** Current download phase. */
@@ -191,11 +190,8 @@ export function useDownload(
           draft.url = null;
           draft.expiresIn = null;
         });
-        if (opts.mode === "fetch") {
-          opts.onError?.(key, err, "presigning");
-        } else {
-          opts.onError?.(key, err);
-        }
+        // `presign` is navigate-only; fetch mode has its own download path.
+        (opts as UseNavigateDownloadOptions).onError?.(key, err);
         return null;
       }
     },

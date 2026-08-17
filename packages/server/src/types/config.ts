@@ -27,8 +27,7 @@ export type { ResolveKeyContext };
 
 /** String prefix or async factory used by {@link resolveObjectKey}. */
 export type KeyPrefix =
-  | string
-  | ((context: ResolveKeyContext) => string | Promise<string>);
+  string | ((context: ResolveKeyContext) => string | Promise<string>);
 
 type KeyPolicy = {
   /**
@@ -37,9 +36,7 @@ type KeyPolicy = {
    */
   prefix?: KeyPrefix;
   /** Full control over the object key. Wins over {@link prefix}. */
-  resolveKey?: (
-    context: ResolveKeyContext,
-  ) => string | Promise<string>;
+  resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
 };
 
 /** Upload feature. A config object (or `true`) enables the feature. */
@@ -92,17 +89,22 @@ export type FeatureToggle<T> = boolean | T;
  *
  * @example
  * ```ts
+ * export const s3Sdk = new S3Client({ ... });
  * export const s3 = dimahS3({
- *   client: s3Client,
+ *   client: s3Sdk,
  *   bucket: "my-bucket",
  *   upload: true,
  * });
  * ```
  */
 export type DimahS3Config = {
-  /** AWS SDK v3 S3Client. */
+  /** AWS SDK v3 `S3Client`. Export it as `s3Sdk` so scripts and a custom backend can reuse it. */
   client: S3Client;
-  /** Bucket when the request omits one (and when client-supplied buckets are ignored). */
+  /**
+   * Default bucket. Used when the request omits `bucket`, and whenever a
+   * client-sent bucket is ignored (the default). Hooks may still send
+   * `bucket`; it only wins with {@link allowClientBucket} or {@link buckets}.
+   */
   bucket: string;
   /**
    * API path prefix for the HTTP `handler`.

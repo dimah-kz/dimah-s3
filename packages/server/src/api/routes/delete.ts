@@ -30,7 +30,9 @@ async function handleDelete(
   });
 
   try {
-    await config.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    await config.client.send(
+      new HeadObjectCommand({ Bucket: bucket, Key: key }),
+    );
   } catch (err: unknown) {
     if (isAwsNotFound(err)) {
       throw errors.objectNotFound();
@@ -38,7 +40,9 @@ async function handleDelete(
     throw err;
   }
 
-  await config.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  await config.client.send(
+    new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+  );
 
   await runLifecycleHook(config.delete?.onDeleted, { request, key, bucket });
 

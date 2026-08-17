@@ -23,16 +23,12 @@ async function handleDownload(
   input: typeof downloadQuerySchema._output,
   request: Request,
 ): Promise<PresignResponse> {
-  const { key, bucket } = await resolveRequestTarget(
-    config,
-    config.download,
-    {
-      request,
-      key: input.key,
-      bucket: input.bucket,
-      fileName: input.fileName,
-    },
-  );
+  const { key, bucket } = await resolveRequestTarget(config, config.download, {
+    request,
+    key: input.key,
+    bucket: input.bucket,
+    fileName: input.fileName,
+  });
   const expiresIn = normalizeExpiresIn(input.expiresIn);
   const fileName = input.fileName;
 
@@ -44,7 +40,9 @@ async function handleDownload(
   });
 
   try {
-    await config.client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    await config.client.send(
+      new HeadObjectCommand({ Bucket: bucket, Key: key }),
+    );
   } catch (err: unknown) {
     if (isAwsNotFound(err)) {
       throw errors.objectNotFound();

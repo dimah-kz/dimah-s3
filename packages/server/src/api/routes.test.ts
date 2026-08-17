@@ -107,7 +107,9 @@ describe("confirm", () => {
   it("confirms from HeadObject metadata", async () => {
     const onConfirmed = vi.fn();
     const s3 = createInstance({
-      client: mockS3(sendByCommand({ HeadObjectCommand: headResult() }) as never),
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
       upload: { enabled: true, onConfirmed },
     });
 
@@ -146,7 +148,9 @@ describe("download / delete", () => {
   it("presigns a download after HeadObject succeeds", async () => {
     const onPresigned = vi.fn();
     const s3 = createInstance({
-      client: mockS3(sendByCommand({ HeadObjectCommand: headResult() }) as never),
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
       download: { enabled: true, onPresigned },
     });
 
