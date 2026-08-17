@@ -1,7 +1,20 @@
-import type { UploadPresignMethod } from "./upload-presign-method";
+import type { z } from "zod";
+import type { confirmBodySchema, uploadBodySchema } from "../schema/upload";
+import type { downloadQuerySchema } from "../schema/download";
+import type { deleteQuerySchema } from "../schema/delete";
+import type {
+  multipartAbortBodySchema,
+  multipartCompleteBodySchema,
+  multipartInitBodySchema,
+  multipartListPartsQuerySchema,
+  multipartSignPartBodySchema,
+} from "../schema/multipart";
+import type { s3ObjectAclSchema } from "../schema/shared";
+
+export type { UploadPresignMethod } from "./upload-presign-method";
 
 /** S3 object ACL. */
-export type S3ObjectAcl = "private" | "public-read";
+export type S3ObjectAcl = z.infer<typeof s3ObjectAclSchema>;
 
 /**
  * Server-side auth context for `dimahS3().api` calls (guards / db scope).
@@ -13,71 +26,34 @@ export type S3ApiHeaders = {
 };
 
 /** Payload for {@link S3Api.upload}. */
-export type UploadPayload = S3ApiHeaders & {
-  /** S3 object key. */
-  key: string;
-  /** Declared MIME type. */
-  contentType?: string;
-  /** Declared size in bytes. */
-  fileSize?: number;
-  /** Custom object metadata (`x-amz-meta-*`). */
-  metadata?: Record<string, string>;
-  /** Override default bucket. */
-  bucket?: string;
-  /** Requested ACL. */
-  acl?: S3ObjectAcl;
-  /** Original filename for `Content-Disposition`. */
-  fileName?: string;
-};
+export type UploadPayload = z.infer<typeof uploadBodySchema> & S3ApiHeaders;
 
 /** Payload for {@link S3Api.confirm}. */
-export type ConfirmPayload = S3ApiHeaders & {
-  /** S3 object key. */
-  key: string;
-  /** Override default bucket. */
-  bucket?: string;
-};
+export type ConfirmPayload = z.infer<typeof confirmBodySchema> & S3ApiHeaders;
 
 /** Options for {@link S3Api.download}. */
-export type DownloadOptions = S3ApiHeaders & {
-  /** Download filename for `Content-Disposition`. */
-  fileName?: string;
-  /** Override default bucket. */
-  bucket?: string;
-};
+export type DownloadOptions = Omit<z.infer<typeof downloadQuerySchema>, "key"> &
+  S3ApiHeaders;
 
 /** Options for {@link S3Api.delete}. */
-export type DeleteOptions = S3ApiHeaders & {
-  /** Override default bucket. */
-  bucket?: string;
-};
+export type DeleteOptions = Omit<z.infer<typeof deleteQuerySchema>, "key"> &
+  S3ApiHeaders;
 
-/** Payload for {@link S3Api.multipart.init}. Same fields as {@link UploadPayload}. */
-export type MultipartInitPayload = UploadPayload;
+/** Payload for {@link S3Api.multipart.init}. */
+export type MultipartInitPayload = z.infer<typeof multipartInitBodySchema> &
+  S3ApiHeaders;
 
 /** Payload for {@link S3Api.multipart.signPart}. */
-export type MultipartSignPartPayload = S3ApiHeaders & {
-  /** S3 object key. */
-  key: string;
-  /** Multipart upload ID. */
-  uploadId: string;
-  /** 1-based part number. */
-  partNumber: number;
-  /** Byte size locked into the presigned URL signature. */
-  partSize?: number;
-  /** Override default bucket. */
-  bucket?: string;
-};
+export type MultipartSignPartPayload = z.infer<
+  typeof multipartSignPartBodySchema
+> &
+  S3ApiHeaders;
 
 /** Payload for {@link S3Api.multipart.listParts}. */
-export type MultipartListPartsPayload = S3ApiHeaders & {
-  /** S3 object key. */
-  key: string;
-  /** Multipart upload ID. */
-  uploadId: string;
-  /** Override default bucket. */
-  bucket?: string;
-};
+export type MultipartListPartsPayload = z.infer<
+  typeof multipartListPartsQuerySchema
+> &
+  S3ApiHeaders;
 
 /** A completed multipart part reference for {@link S3Api.multipart.complete}. */
 export type MultipartCompletedPartRef = {
@@ -86,25 +62,11 @@ export type MultipartCompletedPartRef = {
 };
 
 /** Payload for {@link S3Api.multipart.complete}. */
-export type MultipartCompletePayload = S3ApiHeaders & {
-  /** S3 object key. */
-  key: string;
-  /** Multipart upload ID. */
-  uploadId: string;
-  /** Parts to assemble (order does not matter — S3 sorts by part number). */
-  parts: MultipartCompletedPartRef[];
-  /** Override default bucket. */
-  bucket?: string;
-};
+export type MultipartCompletePayload = z.infer<
+  typeof multipartCompleteBodySchema
+> &
+  S3ApiHeaders;
 
 /** Payload for {@link S3Api.multipart.abort}. */
-export type MultipartAbortPayload = S3ApiHeaders & {
-  /** S3 object key. */
-  key: string;
-  /** Multipart upload ID. */
-  uploadId: string;
-  /** Override default bucket. */
-  bucket?: string;
-};
-
-export type { UploadPresignMethod };
+export type MultipartAbortPayload = z.infer<typeof multipartAbortBodySchema> &
+  S3ApiHeaders;

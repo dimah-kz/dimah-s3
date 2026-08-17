@@ -5,9 +5,15 @@ export type { ServerErrors } from "./errors";
 export { resolveObjectAcl } from "./helpers/resolve-object-acl";
 
 export {
+  createS3Endpoint,
+  createS3Middleware,
+  CORE_ENDPOINT_NAMES,
+} from "./api";
+export type { CoreEndpoints, S3EndpointContext } from "./api";
+
+export {
   applyPlugins,
   chainHooks,
-  createEndpoint,
   definePlugin,
   FEATURE_HOOK_KEYS,
   RESERVED_PLUGIN_IDS,
@@ -18,11 +24,9 @@ export type {
   DimahS3PluginHooks,
   FeatureName,
   PluginContextMap,
-  PluginEndpoint,
-  PluginEndpointContext,
+  PluginEndpointMap,
   PluginInitEnv,
   ReservedPluginId,
-  ResolvedPluginEndpoint,
 } from "./plugin";
 
 export type {

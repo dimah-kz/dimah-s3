@@ -4,10 +4,10 @@
 
 ## When changing the presign protocol
 
-1. Types + `S3_API_ROUTES` in `packages/core/src/`.
-2. `createS3Client` in core — same paths as server router; optional `fetch` / `credentials` / `headers`.
-3. Handler + `dimahS3` / procedures in `packages/server/src/` — register procedures once in `procedures/registry.ts` (shared by HTTP handler and `createServerApi`).
-4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings.
+1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`).
+2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`.
+3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds `createS3Router` (HTTP `handler` + `s3.api`).
+4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` stays named (`api.download(key)`); server `s3.api` is the better-call map (`download({ query, headers })`).
 5. Tegami changelog — [release.md](./release.md).
 
 ## When adding or changing UI / API strings
@@ -17,22 +17,22 @@
 3. Server: `DimahS3Error` + `S3_ERROR_CODES` + English `message` (+ `params`). Prefer `errors.*` in `server/src/errors.ts`.
 4. Tegami changelog — [release.md](./release.md).
 
-## When adding or changing a server procedure
+## When adding or changing a server endpoint
 
-1. Procedure under `procedures/`; wire in `handler.ts` + `api.ts`.
+1. `createS3Endpoint` + Zod schema in `api/routes/`; add the export to `coreEndpoints`.
 2. Hook context types beside other `types/*-context.ts` files.
-3. Feature flags via `DimahS3Config` (`upload`, `download`, `delete`, `multipart`) — disabled → 404.
+3. Feature flags via `DimahS3Config` (`upload`, `download`, `delete`, `multipart`) — disabled → `NOT_FOUND` (endpoint still registered).
 4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only.
-5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
+5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). Next adapter exposes GET/POST/PUT/PATCH/DELETE. New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
 
 ## When adding or changing a server plugin
 
-1. Plugin subsystem lives in `packages/server/src/plugin/` (`DimahS3Plugin`, `definePlugin`, `createEndpoint`, `applyPlugins`, `chainHooks`, `FEATURE_HOOK_KEYS`).
+1. Plugin subsystem lives in `packages/server/src/plugin/` (`DimahS3Plugin`, `definePlugin`, `applyPlugins`, `chainHooks`, `FEATURE_HOOK_KEYS`). Endpoints use `createS3Endpoint` from `@dimah-s3/server` / `@dimah-s3/server/api`.
 2. Author plugins with `definePlugin({ id, hooks?, endpoints?, context?, dependsOn?, init? })` so literal ids infer onto `s3.context[id]` / flattened `s3[id]`.
-3. HTTP endpoints use `createEndpoint` — mounted under `plugins/{id}/{path}` via `pluginEndpointPath` from `@dimah-s3/core` (shared with the client). Never duplicate route strings.
-4. Pair browser access with `createS3Client({ plugins })` from `@dimah-s3/react` (returns typed `api` + bound `S3Provider` / `useApi`) or the same helper from `@dimah-s3/core` for fetch-only. Ship light `@pkg/client` entries from feature packages so ORM deps stay server-only.
+3. HTTP endpoints use `createS3Endpoint` with an absolute path under `basePath` (e.g. `/db/objects`) via `pluginPath` from `@dimah-s3/core` (shared with the client). Never duplicate route strings. Do not export raw better-call `createEndpoint`.
+4. Pair browser access with `createS3Client({ plugins })` from `@dimah-s3/react` (returns typed `api` + bound `S3Provider` / `useApi`) or the same helper from `@dimah-s3/core` for fetch-only. Client plugins implement `getActions($fetch)` + `$InferServerPlugin`. Ship light `@pkg/client` entries from feature packages so ORM deps stay server-only.
 5. Feature plugins live in their packages (e.g. `db()` / `dbClient()` in `@dimah-s3/db`) and peer-depend on `@dimah-s3/server` (client entry depends on `@dimah-s3/core` only).
-6. Merge once in `dimahS3()` — validate ids / `dependsOn` / reserved keys / endpoint collisions, run `init`, then chain hooks (plugins first in array order, user hooks last). Never merge inside procedures.
+6. Merge once in `dimahS3()` — validate ids / `dependsOn` / reserved keys / endpoint collisions, run `init`, then chain hooks (plugins first in array order, user hooks last). Never merge inside endpoints.
 7. Expose data on `plugin.context` — consumers read `s3.context[id]` or the flattened `s3[id]` (e.g. `s3.db`). Do **not** hardcode per-plugin fields on `DimahS3`.
 8. Tegami changelog — [release.md](./release.md).
 

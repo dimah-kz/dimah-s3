@@ -51,12 +51,14 @@ describe("fetch adapters", () => {
     expect(result).toBe(response);
   });
 
-  it("toNextJsHandler exposes GET/POST/DELETE", async () => {
+  it("toNextJsHandler exposes GET/POST/PUT/PATCH/DELETE", async () => {
     const { handler, s3 } = mockS3();
     const routes = toNextJsHandler(s3);
     await routes.GET(request);
     await routes.POST(request);
+    await routes.PUT(request);
+    await routes.PATCH(request);
     await routes.DELETE(request);
-    expect(handler).toHaveBeenCalledTimes(3);
+    expect(handler).toHaveBeenCalledTimes(5);
   });
 });

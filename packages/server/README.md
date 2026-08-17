@@ -32,7 +32,7 @@ Mount with a framework adapter:
 ```ts
 // Next.js
 import { toNextJsHandler } from "@dimah-s3/server/next";
-export const { GET, POST, DELETE } = toNextJsHandler(s3);
+export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 
 // Express — @dimah-s3/server/express → toExpressHandler
 // Hono    — @dimah-s3/server/hono → toHonoHandler
@@ -47,7 +47,7 @@ See [Server setup](https://dimah-s3.vercel.app/docs/server/setup) for full examp
 Server-side (no HTTP):
 
 ```ts
-await s3.api.download(key, { headers: await headers() });
+await s3.api.download({ query: { key }, headers: await headers() });
 ```
 
 Optional persistence: add `db()` from [`@dimah-s3/db`](../db) to `plugins`.

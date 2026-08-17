@@ -12,7 +12,7 @@ Shared protocol types, the isomorphic HTTP client, and pure helpers used by `@di
 - `S3_API_ROUTES` / `S3_API_BASE_PATH` — route path SSOT
 - `createS3Client` — browser/isomorphic client implementing `S3Api` (+ client plugins)
 - `DimahS3Error` — typed API error with HTTP `status` (and optional `cause`)
-- Client plugin helpers — `defineClientPlugin`, `createFetcher`, `pluginEndpointPath`
+- Client plugin helpers — `defineClientPlugin`, `createS3Fetch`, `pluginPath`
 - Pure file helpers — `validateFile`, `formatFileSize`, `buildContentDisposition`, …
 
 ## Quick start
@@ -36,19 +36,19 @@ For React apps prefer `createS3Client` from `@dimah-s3/react` — same options, 
 ## Client plugins
 
 ```ts
-import { defineClientPlugin, pluginEndpointPath } from "@dimah-s3/core";
+import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
 
 export function myClient() {
   return defineClientPlugin({
     id: "my",
-    createMethods: (fetcher) => ({
-      ping: () => fetcher.get(pluginEndpointPath("my", "ping")),
+    getActions: ($fetch) => ({
+      ping: () => $fetch(pluginPath("my", "ping"), { method: "GET" }),
     }),
   });
 }
 ```
 
-Paths must match the server plugin endpoint mounted under `plugins/{id}/{path}`.
+Paths must match the server plugin endpoint (e.g. `createS3Endpoint("/my/ping", …)`).
 
 ## Validation
 

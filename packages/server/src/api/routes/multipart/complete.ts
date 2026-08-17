@@ -3,38 +3,29 @@ import {
   HeadObjectCommand,
   ListPartsCommand,
 } from "@aws-sdk/client-s3";
-import type { MultipartCompleteResponse } from "@dimah-s3/core";
-import { parseFileName } from "@dimah-s3/core";
-import { errors, requireString } from "../../errors";
-import { resolveObjectAcl } from "../../helpers";
-import { runHook, runLifecycleHook } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import {
+  multipartCompleteBodySchema,
+  parseFileName,
+  S3_API_ROUTES,
+  type MultipartCompleteResponse,
+} from "@dimah-s3/core";
+import { resolveObjectAcl } from "../../../helpers";
+import { runHook, runLifecycleHook } from "../../../internal-helpers";
+import type { DimahS3Config } from "../../../types";
+import { assertFeatureEnabled } from "../../assert-feature-enabled";
+import { createS3Endpoint } from "../../create-s3-endpoint";
 
-export type MultipartCompleteInput = {
-  key: string;
-  uploadId: string;
-  bucket?: string;
-  parts: { partNumber: number }[];
-};
-
-export async function multipartComplete(
+async function handleComplete(
   config: DimahS3Config,
-  input: MultipartCompleteInput,
+  input: typeof multipartCompleteBodySchema._output,
   request: Request,
 ): Promise<MultipartCompleteResponse> {
-  const key = requireString(input.key, "key");
-  const uploadId = requireString(input.uploadId, "uploadId");
-
-  const parts = (Array.isArray(input.parts) ? input.parts : [])
-    .map(({ partNumber }) => Number(partNumber))
-    .filter((n) => Number.isInteger(n) && n > 0)
+  const key = input.key;
+  const uploadId = input.uploadId;
+  const parts = input.parts
+    .map(({ partNumber }) => partNumber)
     .sort((a, b) => a - b);
-
-  if (!parts.length) {
-    throw errors.partsRequired();
-  }
-
-  const bucket = input.bucket?.trim() || config.defaultBucket;
+  const bucket = input.bucket ?? config.defaultBucket;
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
   await runHook(config.multipart?.completeGuard, {
@@ -114,3 +105,12 @@ export async function multipartComplete(
     lastModified,
   };
 }
+
+export const multipartComplete = createS3Endpoint(
+  S3_API_ROUTES.multipartComplete,
+  { method: "POST", body: multipartCompleteBodySchema },
+  async (ctx) => {
+    assertFeatureEnabled(ctx.context.config, "multipart");
+    return handleComplete(ctx.context.config, ctx.body, ctx.context.request);
+  },
+);

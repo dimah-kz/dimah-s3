@@ -41,7 +41,7 @@ export type ScopeResolver = (
 ) => string | null | Promise<string | null>;
 
 /**
- * Browser-facing object row from `GET plugins/db/objects`.
+ * Browser-facing object row from `GET /db/objects`.
  * Deliberately narrower than {@link StorageObject} — omits server-only fields.
  */
 export type DbClientObject = {

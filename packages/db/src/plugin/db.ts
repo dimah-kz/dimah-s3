@@ -38,7 +38,7 @@ export type DbPluginContext = {
  * Persistence plugin for {@link dimahS3} — keeps rows in sync with upload /
  * multipart / download / delete lifecycle and enforces scope ownership.
  *
- * Exposes `GET plugins/db/objects` for browser listing via {@link dbClient}.
+ * Exposes `GET /db/objects` for browser listing via {@link dbClient}.
  *
  * ```ts
  * const s3 = dimahS3({

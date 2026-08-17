@@ -1,32 +1,24 @@
 import { UploadPartCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type { MultipartPartResponse } from "@dimah-s3/core";
-import { errors, requireString } from "../../errors";
-import { normalizeExpiresIn, runHook } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import {
+  multipartSignPartBodySchema,
+  S3_API_ROUTES,
+  type MultipartPartResponse,
+} from "@dimah-s3/core";
+import { normalizeExpiresIn, runHook } from "../../../internal-helpers";
+import type { DimahS3Config } from "../../../types";
+import { assertFeatureEnabled } from "../../assert-feature-enabled";
+import { createS3Endpoint } from "../../create-s3-endpoint";
 
-export type MultipartSignPartInput = {
-  key: string;
-  uploadId: string;
-  partNumber: number;
-  partSize?: number;
-  bucket?: string;
-  expiresIn?: number;
-};
-
-export async function multipartSignPart(
+async function handleSignPart(
   config: DimahS3Config,
-  input: MultipartSignPartInput,
+  input: typeof multipartSignPartBodySchema._output,
   request: Request,
 ): Promise<MultipartPartResponse> {
-  const key = requireString(input.key, "key");
-  const uploadId = requireString(input.uploadId, "uploadId");
-  const partNumber = Number(input.partNumber);
-  if (!Number.isInteger(partNumber) || partNumber <= 0) {
-    throw errors.partNumberInvalid();
-  }
-
-  const bucket = input.bucket?.trim() || config.defaultBucket;
+  const key = input.key;
+  const uploadId = input.uploadId;
+  const partNumber = input.partNumber;
+  const bucket = input.bucket ?? config.defaultBucket;
   const expiresIn = normalizeExpiresIn(input.expiresIn);
   const partSize =
     typeof input.partSize === "number" && input.partSize > 0
@@ -68,3 +60,12 @@ export async function multipartSignPart(
     ...(partSize !== null ? { partSize } : {}),
   };
 }
+
+export const multipartPart = createS3Endpoint(
+  S3_API_ROUTES.multipartPart,
+  { method: "POST", body: multipartSignPartBodySchema },
+  async (ctx) => {
+    assertFeatureEnabled(ctx.context.config, "multipart");
+    return handleSignPart(ctx.context.config, ctx.body, ctx.context.request);
+  },
+);

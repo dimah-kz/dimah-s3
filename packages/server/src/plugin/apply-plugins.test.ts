@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyPlugins, definePlugin, FEATURE_HOOK_KEYS } from "../index";
+import { createS3Endpoint } from "../api/create-s3-endpoint";
 import type { DimahS3Config } from "../types";
 
 function baseConfig(
@@ -79,5 +80,42 @@ describe("applyPlugins", () => {
       request: new Request("http://localhost"),
     });
     expect(order).toEqual(["plugin", "user"]);
+  });
+
+  it("rejects endpoint paths without a leading slash", () => {
+    expect(() =>
+      applyPlugins(
+        baseConfig([
+          definePlugin({
+            id: "audit",
+            endpoints: {
+              recent: {
+                path: "recent",
+                options: { method: "GET" },
+              } as never,
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/must start with "\/"/);
+  });
+
+  it("rejects plugin endpoints that collide with a core route", () => {
+    expect(() =>
+      applyPlugins(
+        baseConfig([
+          definePlugin({
+            id: "audit",
+            endpoints: {
+              stolen: createS3Endpoint(
+                "/presign/download",
+                { method: "GET" },
+                async () => ({}),
+              ),
+            },
+          }),
+        ]),
+      ),
+    ).toThrow(/collides with a core route/);
   });
 });

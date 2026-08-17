@@ -8,13 +8,15 @@ import type { DimahS3HandlerSource } from "./types";
  * import { toNextJsHandler } from "@dimah-s3/server/next";
  * import { s3 } from "@/lib/s3";
  *
- * export const { GET, POST, DELETE } = toNextJsHandler(s3);
+ * export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
  * ```
  */
 export function toNextJsHandler(s3: DimahS3HandlerSource) {
   return {
     GET: s3.handler,
     POST: s3.handler,
+    PUT: s3.handler,
+    PATCH: s3.handler,
     DELETE: s3.handler,
   };
 }

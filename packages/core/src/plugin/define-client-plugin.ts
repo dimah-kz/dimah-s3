@@ -8,8 +8,9 @@ import type { S3ClientPlugin } from "./types";
  * export function dbClient() {
  *   return defineClientPlugin({
  *     id: "db",
- *     createMethods: (fetcher) => ({
- *       listObjects: () => fetcher.get(pluginEndpointPath("db", "objects")),
+ *     $InferServerPlugin: {} as ReturnType<typeof db>,
+ *     getActions: ($fetch) => ({
+ *       listObjects: () => $fetch("/db/objects", { method: "GET" }),
  *     }),
  *   });
  * }

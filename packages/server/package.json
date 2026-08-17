@@ -61,6 +61,10 @@
     "./svelte-kit": {
       "types": "./dist/adapters/svelte-kit.d.ts",
       "default": "./dist/adapters/svelte-kit.js"
+    },
+    "./api": {
+      "types": "./dist/api/index.d.ts",
+      "default": "./dist/api/index.js"
     }
   },
   "files": [
@@ -75,7 +79,9 @@
   "dependencies": {
     "@aws-sdk/s3-presigned-post": "^3.1111.0",
     "@aws-sdk/s3-request-presigner": "^3.1111.0",
-    "@dimah-s3/core": "workspace:*"
+    "@dimah-s3/core": "workspace:*",
+    "better-call": "catalog:",
+    "zod": "catalog:"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": ">=3"

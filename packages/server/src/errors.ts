@@ -72,16 +72,14 @@ export const errors = {
       400,
       { code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART },
     ),
+
+  validationError: (message: string) =>
+    new DimahS3Error(message, 400, {
+      code: S3_ERROR_CODES.VALIDATION_ERROR,
+    }),
 } as const;
 
 export type ServerErrors = typeof errors;
-
-/** Trim and require a non-empty string; throws {@link errors.fieldRequired}. */
-export function requireString(value: unknown, name: string): string {
-  const trimmed = typeof value === "string" ? value.trim() : "";
-  if (!trimmed) throw errors.fieldRequired(name);
-  return trimmed;
-}
 
 function statusOf(err: unknown, fallback: number): number {
   return typeof (err as { status?: unknown })?.status === "number"

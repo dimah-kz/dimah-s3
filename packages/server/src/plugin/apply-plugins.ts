@@ -1,4 +1,6 @@
-import { pluginEndpointPath, S3_API_ROUTES } from "@dimah-s3/core";
+import { S3_API_ROUTES } from "@dimah-s3/core";
+import type { Endpoint } from "better-call";
+import { CORE_ENDPOINT_NAMES } from "../api/routes";
 import { chainHooks } from "./chain-hooks";
 import { FEATURE_HOOK_KEYS, type FeatureName } from "./hook-registry";
 import type { DimahS3Config } from "../types/config";
@@ -7,7 +9,6 @@ import {
   type AppliedPlugins,
   type DimahS3Plugin,
   type PluginContextMap,
-  type ResolvedPluginEndpoint,
 } from "./types";
 
 type HookFn = ((context: never) => Promise<void> | void) | undefined;
@@ -119,23 +120,39 @@ export function applyPlugins<
   }
 
   const reservedRoutePaths = new Set<string>(Object.values(S3_API_ROUTES));
+  const reservedNames = new Set<string>(CORE_ENDPOINT_NAMES);
   const seenEndpointKeys = new Set<string>();
-  const endpoints: ResolvedPluginEndpoint[] = [];
+  const endpoints: Record<string, Endpoint> = {};
 
   for (const plugin of plugins) {
     for (const [name, endpoint] of Object.entries(plugin.endpoints ?? {})) {
-      const mounted = pluginEndpointPath(plugin.id, endpoint.path);
-      if (reservedRoutePaths.has(mounted)) {
+      if (reservedNames.has(name) || name in endpoints) {
+        throw new Error(
+          `Plugin "${plugin.id}" endpoint "${name}" collides with an existing endpoint.`,
+        );
+      }
+      const path = endpoint.path;
+      if (typeof path !== "string" || !path.startsWith("/")) {
+        throw new Error(
+          `Plugin "${plugin.id}" endpoint "${name}" path must start with "/".`,
+        );
+      }
+      if (reservedRoutePaths.has(path)) {
         throw new Error(
           `Plugin "${plugin.id}" endpoint "${name}" collides with a core route.`,
         );
       }
-      const routeKey = `${endpoint.method} ${mounted}`;
-      if (seenEndpointKeys.has(routeKey)) {
-        throw new Error(`Duplicate plugin endpoint ${routeKey}.`);
+      const methods = Array.isArray(endpoint.options.method)
+        ? endpoint.options.method
+        : [endpoint.options.method];
+      for (const method of methods) {
+        const routeKey = `${method} ${path}`;
+        if (seenEndpointKeys.has(routeKey)) {
+          throw new Error(`Duplicate plugin endpoint ${routeKey}.`);
+        }
+        seenEndpointKeys.add(routeKey);
       }
-      seenEndpointKeys.add(routeKey);
-      endpoints.push({ ...endpoint, pluginId: plugin.id });
+      endpoints[name] = endpoint;
     }
   }
 

@@ -5,7 +5,7 @@ import {
   formatFileSize,
   normalizeS3ApiBasePath,
   parseFileName,
-  pluginEndpointPath,
+  pluginPath,
   sanitizeFileName,
   truncateFileName,
   validateFile,
@@ -17,10 +17,10 @@ describe("normalizeS3ApiBasePath", () => {
   });
 });
 
-describe("pluginEndpointPath", () => {
+describe("pluginPath", () => {
   it("builds plugin paths", () => {
-    expect(pluginEndpointPath("db", "objects")).toBe("plugins/db/objects");
-    expect(pluginEndpointPath("db", "/objects")).toBe("plugins/db/objects");
+    expect(pluginPath("db", "objects")).toBe("/db/objects");
+    expect(pluginPath("db", "/objects")).toBe("/db/objects");
   });
 });
 

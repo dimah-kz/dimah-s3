@@ -1,23 +1,23 @@
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
-import type { UploadConfirmResponse } from "@dimah-s3/core";
-import { parseFileName } from "@dimah-s3/core";
-import { requireString } from "../errors";
-import { resolveObjectAcl } from "../helpers";
-import { runHook, runLifecycleHook } from "../internal-helpers";
-import type { DimahS3Config } from "../types";
+import {
+  confirmBodySchema,
+  parseFileName,
+  S3_API_ROUTES,
+  type UploadConfirmResponse,
+} from "@dimah-s3/core";
+import { resolveObjectAcl } from "../../helpers";
+import { runHook, runLifecycleHook } from "../../internal-helpers";
+import type { DimahS3Config } from "../../types";
+import { assertFeatureEnabled } from "../assert-feature-enabled";
+import { createS3Endpoint } from "../create-s3-endpoint";
 
-export type ConfirmInput = {
-  key: string;
-  bucket?: string;
-};
-
-export async function confirm(
+async function handleConfirm(
   config: DimahS3Config,
-  input: ConfirmInput,
+  input: typeof confirmBodySchema._output,
   request: Request,
 ): Promise<UploadConfirmResponse> {
-  const key = requireString(input.key, "key");
-  const bucket = input.bucket?.trim() || config.defaultBucket;
+  const key = input.key;
+  const bucket = input.bucket ?? config.defaultBucket;
 
   await runHook(config.upload?.confirmGuard, {
     request,
@@ -63,3 +63,12 @@ export async function confirm(
     lastModified: context.lastModified,
   };
 }
+
+export const confirm = createS3Endpoint(
+  S3_API_ROUTES.uploadConfirm,
+  { method: "POST", body: confirmBodySchema },
+  async (ctx) => {
+    assertFeatureEnabled(ctx.context.config, "upload");
+    return handleConfirm(ctx.context.config, ctx.body, ctx.context.request);
+  },
+);

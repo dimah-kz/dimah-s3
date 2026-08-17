@@ -1,16 +1,6 @@
 import { DimahS3Error } from "@dimah-s3/core";
+import { APIError, ValidationError } from "better-call";
 import { errors, toDimahS3Error } from "./errors";
-
-export async function parseBody<T extends Record<string, unknown>>(
-  request: Request,
-): Promise<T | null> {
-  try {
-    const body = await request.json();
-    return body && typeof body === "object" ? (body as T) : null;
-  } catch {
-    return null;
-  }
-}
 
 function errorJson(err: DimahS3Error): Response {
   return Response.json(
@@ -37,6 +27,22 @@ export function toErrorResponse(err: unknown): Response {
     return errorJson(err);
   }
 
+  if (err instanceof ValidationError) {
+    return errorJson(errors.validationError(err.message));
+  }
+
+  if (err instanceof APIError) {
+    const status =
+      typeof err.statusCode === "number" && err.statusCode > 0
+        ? err.statusCode
+        : 500;
+    return errorJson(
+      new DimahS3Error(err.body?.message ?? err.message, status, {
+        code: err.body?.code,
+      }),
+    );
+  }
+
   const code = (err as { code?: string })?.code;
   if (typeof code === "string" && NETWORK_CODES.has(code)) {
     const networkErr = errors.s3NetworkError(code);
@@ -47,16 +53,6 @@ export function toErrorResponse(err: unknown): Response {
   // Never leak raw SDK / stack messages — clients localize via `code`.
   console.error("[S3 API]", err);
   return errorJson(errors.internalError());
-}
-
-export function wrapHandler(handler: (request: Request) => Promise<Response>) {
-  return async (request: Request) => {
-    try {
-      return await handler(request);
-    } catch (err) {
-      return toErrorResponse(err);
-    }
-  };
 }
 
 /**

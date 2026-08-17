@@ -1,27 +1,23 @@
 import { CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
-import type { MultipartInitResponse } from "@dimah-s3/core";
-import { buildContentDisposition } from "@dimah-s3/core";
-import { errors, requireString } from "../../errors";
-import { runHook, runLifecycleHook } from "../../internal-helpers";
-import type { DimahS3Config } from "../../types";
+import {
+  buildContentDisposition,
+  multipartInitBodySchema,
+  S3_API_ROUTES,
+  type MultipartInitResponse,
+} from "@dimah-s3/core";
+import { errors } from "../../../errors";
+import { runHook, runLifecycleHook } from "../../../internal-helpers";
+import type { DimahS3Config } from "../../../types";
+import { assertFeatureEnabled } from "../../assert-feature-enabled";
+import { createS3Endpoint } from "../../create-s3-endpoint";
 
-export type MultipartInitInput = {
-  key: string;
-  bucket?: string;
-  contentType?: string;
-  fileSize?: number;
-  metadata?: Record<string, string>;
-  acl?: "private" | "public-read";
-  fileName?: string;
-};
-
-export async function multipartInit(
+async function handleMultipartInit(
   config: DimahS3Config,
-  input: MultipartInitInput,
+  input: typeof multipartInitBodySchema._output,
   request: Request,
 ): Promise<MultipartInitResponse> {
-  const key = requireString(input.key, "key");
-  const bucket = input.bucket?.trim() || config.defaultBucket;
+  const key = input.key;
+  const bucket = input.bucket ?? config.defaultBucket;
   const acl = input.acl === "public-read" ? "public-read" : "private";
   const fileSize =
     typeof input.fileSize === "number" && input.fileSize > 0
@@ -66,3 +62,17 @@ export async function multipartInit(
 
   return { bucket, key, uploadId: UploadId! };
 }
+
+export const multipartInit = createS3Endpoint(
+  S3_API_ROUTES.multipartInit,
+  { method: "POST", body: multipartInitBodySchema },
+  async (ctx) => {
+    assertFeatureEnabled(ctx.context.config, "multipart");
+    ctx.setStatus(201);
+    return handleMultipartInit(
+      ctx.context.config,
+      ctx.body,
+      ctx.context.request,
+    );
+  },
+);

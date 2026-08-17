@@ -1,37 +1,32 @@
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import type { UploadPresignResponse } from "@dimah-s3/core";
-import { buildContentDisposition } from "@dimah-s3/core";
-import { errors, requireString } from "../errors";
+import {
+  buildContentDisposition,
+  S3_API_ROUTES,
+  uploadBodySchema,
+  type UploadPresignResponse,
+} from "@dimah-s3/core";
+import { errors } from "../../errors";
 import {
   normalizeExpiresIn,
   runHook,
   runLifecycleHook,
-} from "../internal-helpers";
-import type { DimahS3Config } from "../types";
+} from "../../internal-helpers";
+import type { DimahS3Config } from "../../types";
+import { assertFeatureEnabled } from "../assert-feature-enabled";
+import { createS3Endpoint } from "../create-s3-endpoint";
 
-export type UploadInput = {
-  key: string;
-  contentType?: string;
-  fileSize?: number;
-  metadata?: Record<string, string>;
-  bucket?: string;
-  expiresIn?: number;
-  acl?: "private" | "public-read";
-  fileName?: string;
-};
-
-export async function upload(
+async function handleUpload(
   config: DimahS3Config,
-  input: UploadInput,
+  input: typeof uploadBodySchema._output,
   request: Request,
 ): Promise<UploadPresignResponse> {
-  const key = requireString(input.key, "key");
-  const bucket = input.bucket?.trim() || config.defaultBucket;
+  const key = input.key;
+  const bucket = input.bucket ?? config.defaultBucket;
   const expiresIn = normalizeExpiresIn(input.expiresIn);
   const acl = input.acl === "public-read" ? "public-read" : "private";
-  const contentType = input.contentType?.trim() || "application/octet-stream";
+  const contentType = input.contentType ?? "application/octet-stream";
   const fileSize =
     typeof input.fileSize === "number" && input.fileSize > 0
       ? Math.floor(input.fileSize)
@@ -155,3 +150,12 @@ export async function upload(
     method: "POST",
   };
 }
+
+export const upload = createS3Endpoint(
+  S3_API_ROUTES.upload,
+  { method: "POST", body: uploadBodySchema },
+  async (ctx) => {
+    assertFeatureEnabled(ctx.context.config, "upload");
+    return handleUpload(ctx.context.config, ctx.body, ctx.context.request);
+  },
+);

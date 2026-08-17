@@ -74,7 +74,7 @@ peer dependencies. Any Fetch runtime can call `s3.handler(request)` instead.
 import { toNextJsHandler } from "@dimah-s3/server/next";
 import { s3 } from "@/lib/s3";
 
-export const { GET, POST, DELETE } = toNextJsHandler(s3);
+export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 ```
 
 </Tab>
@@ -203,7 +203,8 @@ import { headers } from "next/headers";
 import { s3 } from "@/lib/s3";
 
 export async function getDownloadUrl(key: string) {
-  return s3.api.download(key, {
+  return s3.api.download({
+    query: { key },
     headers: await headers(),
   });
 }
@@ -212,8 +213,11 @@ export async function getDownloadUrl(key: string) {
 On Node / Express, convert headers with `fromNodeHeaders` from
 `@dimah-s3/server/node` (re-exported from `@dimah-s3/server/express`).
 
-`s3.api` matches `S3Api` (`upload`, `confirm`, `download`, `delete`,
-`multipart`). Failures throw `DimahS3Error` with `.status` and `.code`.
+`s3.api` is the better-call endpoint map (`upload`, `confirm`, `download`,
+`delete`, `multipartInit`, … plus plugin endpoints). The browser client
+(`createS3Client`) still exposes nested `S3Api` (`api.download(key)`,
+`api.multipart.init`). Failures throw `DimahS3Error` with `.status` and
+`.code`.
 
 ### Next [step]
 
