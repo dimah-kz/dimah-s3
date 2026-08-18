@@ -40,6 +40,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    creator: "@dimahkzx",
     title: siteTitle,
     description: siteDescription,
     images: "/og/docs/image.png",

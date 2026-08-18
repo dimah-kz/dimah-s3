@@ -17,6 +17,8 @@ export const gitConfig = {
   contentPath: "apps/docs/content/docs",
 };
 
+export const xProfileUrl = "https://x.com/dimahkzx";
+
 export function githubRepoUrl() {
   return `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
 }
@@ -42,7 +44,11 @@ export function siteJsonLd(origin: string) {
         programmingLanguage: "TypeScript",
         license: "https://opensource.org/licenses/MIT",
         isAccessibleForFree: true,
-        sameAs: [repo, "https://www.npmjs.com/package/@dimah-s3/server"],
+        sameAs: [
+          repo,
+          xProfileUrl,
+          "https://www.npmjs.com/package/@dimah-s3/server",
+        ],
       },
     ],
   };

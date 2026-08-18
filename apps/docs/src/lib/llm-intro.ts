@@ -5,7 +5,7 @@
  * the positioning blurb, optional links, and absolute-URL rewrite in one
  * place so the two routes cannot drift.
  */
-import { githubRepoUrl } from "./shared";
+import { githubRepoUrl, xProfileUrl } from "./shared";
 import { getSiteUrl } from "./site-url";
 
 /** Pages that should appear first in llms-full.txt (then the rest by URL). */
@@ -58,6 +58,7 @@ export function llmOptionalSection(origin = getSiteUrl().origin): string {
 
 - [Full docs dump](${origin}/llms-full.txt): every page as markdown
 - [GitHub](${githubRepoUrl()}): source and examples
+- [X](${xProfileUrl}): updates and announcements
 - [npm @dimah-s3/server](https://www.npmjs.com/package/@dimah-s3/server): presign handlers
 `;
 }
