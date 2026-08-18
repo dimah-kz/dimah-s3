@@ -158,3 +158,19 @@
   --server-color: hsl(158, 45%, 58%);
   --react-color: hsl(193, 95%, 65%);
 }
+
+@keyframes try-demo-nudge {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 0.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .try-demo-nudge {
+    animation: try-demo-nudge 2s ease-in-out infinite;
+  }
+}
