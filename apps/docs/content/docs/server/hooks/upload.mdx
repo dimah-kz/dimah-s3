@@ -51,17 +51,17 @@ export const s3 = dimahS3({
 </Callout>
 
 <Callout type="warn">
-  The client proposes `key`. Use `prefix` or `resolveKey` so the stored key is
-  yours. Config `bucket` is the default. A client-sent `bucket` is ignored
-  unless `allowClientBucket` or `buckets` is set. A plain `Error` in `guard` is
-  403; in `onConfirmed` it is 500.
+  Treat `key` as untrusted. Rewrite it with `prefix` or `resolveKey`, then
+  reject unauthorized uploads in `guard`. How `bucket` is resolved is in [Server
+  setup](/docs/server/setup).
 </Callout>
 
 Set `requireFileSize: true` to reject presign requests that omit `fileSize`.
 
 ## Guard
 
-Runs before the URL is signed. Throw to reject.
+Runs before the URL is signed. Throw to reject. A plain `Error` becomes
+**403**.
 
 <TypeTable
   type={{
@@ -98,7 +98,8 @@ Runs before the URL is signed. Throw to reject.
 
 ## On confirmed
 
-Runs after `HeadObject`. This is the safe place to persist metadata.
+Runs after `HeadObject`. This is the safe place to persist metadata. A
+plain `Error` here becomes **500**.
 
 <TypeTable
   type={{

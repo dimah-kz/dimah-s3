@@ -251,13 +251,6 @@ Selecting a file uploads directly to S3. The client default key is
 `` `${crypto.randomUUID()}/${file.name}` ``; the server `upload.prefix` in
 `lib/s3.ts` scopes it under `uploads/`.
 
-<Callout type="warn">
-  The client proposes `key` and may send `bucket`. Config `bucket` is the
-  default — a client-sent `bucket` is ignored unless you set `allowClientBucket`
-  or `buckets`. Scope keys with `prefix` / `resolveKey`, and reject unauthorized
-  work in `upload.guard`.
-</Callout>
-
 <Callout type="info">
   Deeper guides: [Server setup](/docs/server/setup), [Client
   setup](/docs/react/setup), and [UI setup](/docs/react/ui).
