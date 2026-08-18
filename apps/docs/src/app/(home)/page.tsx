@@ -17,26 +17,32 @@ export default function HomePage() {
     <section className="relative mx-auto flex w-full min-w-0 flex-1 flex-col items-center justify-center px-4 py-16 text-center sm:px-6 sm:py-20">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--color-fd-primary)_16%,transparent),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-92 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--color-fd-primary)_12%,transparent),transparent_70%)]"
       />
 
-      <div className="flex w-full max-w-2xl flex-col items-center gap-5 sm:gap-6">
+      <div className="flex w-full max-w-3xl flex-col items-center gap-5 sm:gap-6">
+        <p
+          className={cn(
+            enter,
+            "rounded-full border border-fd-border px-3 py-1 text-sm font-medium tracking-wide text-fd-muted-foreground",
+          )}
+        >
+          Presign-first S3 for React
+        </p>
         <h1
           className={cn(
             enter,
-            "text-5xl font-bold tracking-tight text-fd-foreground sm:text-6xl lg:text-7xl",
+            "delay-100 max-w-3xl text-balance text-3xl font-bold tracking-tight text-fd-foreground sm:text-4xl lg:text-5xl",
           )}
         >
-          dimah-s3
+          Full-stack S3 lifecycle with server and React hooks
         </h1>
         <p
           className={cn(
             enter,
-            "delay-100 max-w-xl text-pretty text-base leading-relaxed text-fd-muted-foreground sm:text-lg sm:leading-8",
+            "delay-150 max-w-xl text-pretty text-base leading-relaxed text-fd-muted-foreground sm:text-lg sm:leading-8",
           )}
         >
-          Full-stack S3 lifecycle with server and React hooks.
-          <br />
           Minimal setup, powered by the AWS SDK (v3).
         </p>
         <div

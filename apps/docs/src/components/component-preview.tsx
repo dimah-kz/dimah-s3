@@ -44,7 +44,7 @@ export function ComponentPreview({
                   <div className={codeBlockClassName}>
                     <DynamicCodeBlock lang={lang} code={code} />
                   </div>
-                  <div className="pointer-events-none absolute end-3 bottom-3 z-10">
+                  <div className="pointer-events-none absolute inset-e-3 bottom-3 z-10">
                     <Button
                       type="button"
                       variant="outline"
