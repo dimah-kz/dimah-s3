@@ -15,7 +15,7 @@ export default function HomePage() {
             dimah-s3
           </h1>
           <p className="text-pretty text-base leading-relaxed tracking-tight text-fd-muted-foreground sm:text-lg sm:leading-8 lg:text-xl">
-            Full-stack object lifecycle with server and React hooks.
+            Full-stack S3 lifecycle with server and React hooks.
             <br />
             Minimal setup, powered by the AWS SDK (v3).
           </p>
