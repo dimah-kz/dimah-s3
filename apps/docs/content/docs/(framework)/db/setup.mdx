@@ -3,13 +3,10 @@ title: Setup
 description: Install @dimah-s3/db, add the schema, and register the db() plugin.
 ---
 
-This guide assumes you already have Drizzle, Prisma, or Kysely connected to a database.
-
-<Callout type="info">
-  Need a working reference? See
-  [`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
-  (Next.js + Drizzle + SQLite).
-</Callout>
+This guide assumes you already have Drizzle, Prisma, or Kysely connected to
+a database. A working reference is
+[`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
+(Next.js + Drizzle + SQLite).
 
 ### Install [step]
 
@@ -19,12 +16,14 @@ npm i @dimah-s3/db fumadb
 
 ### Schema [step]
 
-Add the `storage_object` table (including the recommended indexes), or [generate it with the CLI](#cli).
+Add the `storage_object` table (including the recommended indexes), or
+[generate it with the CLI](#cli).
 
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
 
-CLI / Drizzle output imports `fumadb/cuid` — alias it to `@paralleldrive/cuid2` in your `tsconfig` paths.
+CLI / Drizzle output imports `fumadb/cuid` — alias it to
+`@paralleldrive/cuid2` in your `tsconfig` paths.
 
 <include>../../../_includes/db/drizzle-schema.mdx</include>
 
@@ -36,7 +35,8 @@ CLI / Drizzle output imports `fumadb/cuid` — alias it to `@paralleldrive/cuid2
 </Tab>
 <Tab value="Kysely">
 
-There is no committed schema file for Kysely. Migrate with the CLI, then add the [indexes](#cli) with SQL:
+There is no committed schema file for Kysely. Migrate with the CLI, then add
+the [indexes](#cli) with SQL:
 
 ```bash
 node --import tsx scripts/db-cli.mts migrate
@@ -47,15 +47,14 @@ node --import tsx scripts/db-cli.mts migrate
 
 ### Client [step]
 
-Wrap your ORM connection with a FumaDB adapter, then create the dimah-s3 DB client:
+Wrap your ORM connection with a FumaDB adapter, then create the dimah-s3 DB
+client:
 
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
 
-<Callout type="info">
-  **drizzle-orm 1.x (RC)** is supported alongside 0.44 / 0.45. Use the **1.x**
-  tab below on RC; requires FumaDB 0.5+.
-</Callout>
+drizzle-orm 0.44 / 0.45 and 1.x (RC) are both supported. 1.x needs FumaDB
+0.5 or later.
 
 <Tabs items={["0.x", "1.x"]}>
 <Tab value="0.x">
@@ -125,7 +124,8 @@ export const dimahS3Db = DimahS3DB.client(
 
 ### Register the plugin [step]
 
-Pass `db()` in `plugins`. `resolveScope` must return a stable ownership string, or `null` to reject unauthenticated callers (`401`):
+Pass `db()` in `plugins`. `resolveScope` must return a stable ownership
+string, or `null` to reject unauthenticated callers (`401`):
 
 ```ts title="lib/s3.ts"
 import { dimahS3 } from "@dimah-s3/server";
@@ -148,14 +148,17 @@ export const s3 = dimahS3({
     }),
   ],
 });
+```
 
-// Server-side store (same instance as s3.context.db)
+The same store is available as `s3.db` (and `s3.context.db`):
+
+```ts
 s3.db.objects.listByScope({ scope: "user:123" });
 ```
 
-<Callout type="warn">
-  Plugin hooks merge **ahead** of your feature hooks. You still enable each
-  feature (`upload`, `delete`, …) yourself — the plugin does not turn them on.
+<Callout type="warn" title="Features stay opt-in">
+  Plugin hooks merge ahead of your feature hooks. You still enable each feature
+  (`upload`, `delete`, and so on) yourself — the plugin does not turn them on.
 </Callout>
 
 | Option         | Default  | Meaning                                     |
@@ -166,44 +169,47 @@ s3.db.objects.listByScope({ scope: "user:123" });
 ### Delete behavior
 
 App deletes always go through the normal server delete path (`api.delete`,
-Delete button, `useDelete`, or your own delete hooks) — **not**
-`s3.db.objects.softDelete` / `hardDelete`. Those store helpers only update the
-database and are not a replacement for deleting the S3 object.
+the Delete button, `useDelete`, or your own delete hooks). Do not call
+`s3.db.objects.softDelete` or `hardDelete` for that. Those store helpers
+only update the database. They are not a replacement for deleting the S3
+object.
 
 When that path runs:
 
-1. **S3** — `DeleteObject` removes the object for real
-2. **Database** — controlled by `deleteMode` (default `"soft"`)
+1. S3 — `DeleteObject` removes the object
+2. Database — controlled by `deleteMode` (default `"soft"`)
 
 | `deleteMode` | S3 object           | Database row                                     |
 | ------------ | ------------------- | ------------------------------------------------ |
 | `"soft"`     | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
 | `"hard"`     | permanently deleted | row removed entirely                             |
 
-<Callout type="info">
-  **Default is `"soft"`.** Omit `deleteMode` and the DB row stays as `deleted`
-  after S3 removal. Listings hide soft-deleted rows by default.
-</Callout>
+Omit `deleteMode` and the row stays as `deleted` after S3 removal. Listings
+hide soft-deleted rows by default.
 
-<Callout type="warn">
-  Soft delete is **not** a recycle bin. The file is gone from S3; the row is
-  only kept for audit / history.
+<Callout type="warn" title="Not a recycle bin">
+  Soft delete is not a recycle bin. The file is gone from S3. The row is kept
+  for audit and history.
 </Callout>
 
 ```ts
 db({
   client: dimahS3Db,
   resolveScope,
-  deleteMode: "soft", // default — omit this line for the same behavior
+  deleteMode: "soft", // default — you can omit this line
 });
 ```
 
-<Callout type="tip">
-  Use `deleteMode: "hard"` when every delete should also erase the DB row
-  (for example GDPR-style erasure). To prune old soft-deleted audit rows later,
-  call `s3.db.objects.hardDelete({ bucket, key })` from a script or job — that
-  helper only removes the row; it does not delete from S3.
-</Callout>
+<Accordions>
+<Accordion title="When to use hard delete">
+
+Use `deleteMode: "hard"` when every delete should also erase the DB row
+(for example GDPR-style erasure). To prune old soft-deleted audit rows
+later, call `s3.db.objects.hardDelete({ bucket, key })` from a script or
+job — that helper only removes the row; it does not delete from S3.
+
+</Accordion>
+</Accordions>
 
 ## CLI
 
@@ -223,10 +229,8 @@ void runCli(
 node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts
 ```
 
-<Callout type="info">
-  `generate` overwrites the output file. Re-add secondary indexes afterward, or
-  keep them in a separate migration.
-</Callout>
+`generate` overwrites the output file. Re-add secondary indexes afterward,
+or keep them in a separate migration.
 
 | Index                                     | Columns                        |
 | ----------------------------------------- | ------------------------------ |

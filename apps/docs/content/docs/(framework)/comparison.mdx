@@ -1,45 +1,57 @@
 ---
 title: Comparison
-description: When to pick dimah-s3 versus Better Upload, Uppy, or a hosted service like UploadThing.
+description: When to pick dimah-s3 versus Better Upload, Uppy, or a hosted service.
 icon: Scale
 ---
 
-dimah-s3 gives you the server, the React client, and optional shadcn UI for
-files in **your** bucket — upload, download, and delete. You pass your own
+dimah-s3 is the server, the React client, and optional shadcn UI for files in
+a bucket you control — upload, download, and delete. You pass your own
 `S3Client`. Auth and quotas live in hooks. List, copy, and tags stay in your
 app.
 
-[UploadThing](https://uploadthing.com) is hosted — they store the files.
+That is a different job from a hosted service, an upload-only library, or a
+dashboard you still have to back yourself.
+
+[UploadThing](https://uploadthing.com) stores the files for you.
 [Better Upload](https://better-upload.com) covers upload to your bucket.
 [Uppy](https://uppy.io) is an upload dashboard; you write the server.
 
 |                 | dimah-s3                        | [Better Upload](https://better-upload.com) | [Uppy](https://uppy.io) |
 | --------------- | ------------------------------- | ------------------------------------------ | ----------------------- |
 | Server          | Included                        | Uploads only                               | You write it            |
-| Upload          | Yes, then confirms it's there   | Yes                                        | You connect S3          |
+| Upload          | Yes, then confirms it is there  | Yes                                        | You connect S3          |
 | Download        | Included                        | You add it                                 | You add it              |
 | Delete          | Included                        | You add it                                 | You add it              |
 | Save to your DB | After the file is in the bucket | Before the file is uploaded                | You add it              |
 | Auth            | Hooks on every step             | Before the URL is signed                   | You add it              |
-| Large files     | Resume, abort, checks           | A flag on the route                        | You sign each part      |
+| Large files     | Resume, abort, and checks       | A flag on the route                        | You sign each part      |
 | File database   | Optional                        | —                                          | —                       |
-| Your own UI     | Upload, download, delete        | Upload                                     | —                       |
-| Ready-made UI   | shadcn — all three              | shadcn — upload                            | Dashboard + plugins     |
+| Headless client | Upload, download, and delete    | Upload                                     | —                       |
+| Ready-made UI   | shadcn for all three            | shadcn for upload                          | Dashboard and plugins   |
 | Webcam / Drive  | —                               | —                                          | Yes                     |
 
 ## Pick dimah-s3 if
 
-- You want the **server included**, not a client you have to back yourself
-- Upload, download, and delete should follow the **same rules**
-- You save a row only after the file is **really in the bucket**
-- Auth lives in **hooks**; the rest of S3 uses your `S3Client`
-- You want an **optional database** for ownership and listings
-- You want **shadcn UI**, or headless hooks if you build your own
+- You want the server included, not a client you have to back yourself
+- Upload, download, and delete should follow the same rules
+- You save a row only after the file is really in the bucket
+- Auth lives in hooks, and the rest of S3 uses your `S3Client`
+- You want an optional database for ownership and listings
+- You want shadcn UI, or headless hooks if you build your own
 
 ## Pick something else if
 
 - Hosted uploads, no bucket of yours — [UploadThing](https://uploadthing.com)
-- Uploads only, named file routes — [Better Upload](https://better-upload.com)
-- Dashboard, webcam, Drive — [Uppy](https://uppy.io) (can sit in front of
-  dimah-s3)
-- Image / video transforms — Cloudinary, ImageKit, or similar
+- Uploads only, with named file routes — [Better Upload](https://better-upload.com)
+- A dashboard with webcam or Drive — [Uppy](https://uppy.io)
+- Image or video transforms — Cloudinary, ImageKit, or similar
+
+<Accordions>
+<Accordion title="Can Uppy sit in front of dimah-s3?">
+
+Yes. Uppy can stay as the dashboard while dimah-s3 signs URLs and owns
+download, delete, and hooks. That glue is yours to write — there is no
+first-class Uppy plugin.
+
+</Accordion>
+</Accordions>

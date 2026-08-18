@@ -1,13 +1,16 @@
 ---
 title: Cloudflare R2
-description: Required PUT uploads, endpoint, and CORS for Cloudflare R2.
+description: PUT uploads, endpoint, and CORS for Cloudflare R2.
 ---
 
-R2 speaks enough of the S3 API to work with dimah-s3, but it is not a drop-in Amazon S3. Two gaps matter for uploads: no Presigned POST, and no object ACL.
+R2 speaks enough of the S3 API to work with dimah-s3, but it is not a
+drop-in Amazon S3. Two gaps matter for uploads: no Presigned POST, and no
+object ACL.
 
-Start from the [Quickstart](/docs/quickstart) client, then apply the settings below. Skipping any of them usually means browser uploads fail.
+Start from the [Quickstart](/docs/quickstart) client, then apply the
+settings below.
 
-## Upload method (required)
+## Upload method
 
 R2 rejects Presigned POST. Set `method: "PUT"`:
 
@@ -21,7 +24,7 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   upload: {
-    method: "PUT", // required — R2 rejects Presigned POST
+    method: "PUT", // R2 does not accept Presigned POST
     prefix: "uploads",
   },
   download: true,
@@ -29,9 +32,12 @@ export const s3 = dimahS3({
 });
 ```
 
-Leaving the default `"POST"` is the most common R2 failure with dimah-s3.
+<Callout type="warn" title="Leaving the default POST">
+  This is the most common R2 failure with dimah-s3. The presign succeeds; the
+  browser upload does not.
+</Callout>
 
-## Endpoint (required)
+## Endpoint
 
 Fill the Quickstart env vars with R2 values:
 
@@ -40,9 +46,10 @@ Fill the Quickstart env vars with R2 values:
 
 Create an API token with Object Read & Write in the Cloudflare dashboard.
 
-## CORS (required)
+## CORS
 
-A valid presigned URL is not enough. Without a CORS policy on the bucket, the browser still blocks the upload:
+A valid presigned URL is not enough. Without a CORS policy on the bucket,
+the browser still blocks the upload:
 
 ```json
 [
@@ -56,10 +63,14 @@ A valid presigned URL is not enough. Without a CORS policy on the bucket, the br
 ]
 ```
 
-Headers on the real request must match what was signed. A mismatched `Content-Type` often shows up as a 403.
+Headers on the real request must match what was signed. A mismatched
+`Content-Type` often shows up as a 403.
 
 ## Public access
 
-R2 ignores object ACL. To serve files publicly, turn on bucket public access or attach a custom domain / `*.r2.dev` URL. Otherwise keep the bucket private and use presigned download. Leave `resolveObjectAcl` off.
+R2 ignores object ACL. To serve files publicly, turn on bucket public
+access or attach a custom domain / `*.r2.dev` URL. Otherwise keep the
+bucket private and use presigned download. Leave `resolveObjectAcl` off.
 
-See Cloudflare’s [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/) for the full compatibility matrix.
+See Cloudflare's [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/)
+for the full compatibility matrix.

@@ -6,9 +6,9 @@ export const docsRoute = "/docs";
 export const docsImageRoute = "/og/docs";
 export const docsContentRoute = "/llms.mdx/docs";
 
-export const siteTitle = `${appName} — S3 file uploads for React and Next.js`;
+export const siteTitle = `${appName} — Presign-first S3 for React and Next.js`;
 export const siteDescription =
-  "Presigned S3 and Cloudflare R2 file uploads for React and Next.js. Direct to your bucket — upload, download, and delete.";
+  "Upload, download, and delete in your own Amazon S3, Cloudflare R2, or MinIO bucket. Server, React hooks, optional UI and database — you pass an AWS SDK client.";
 
 export const gitConfig = {
   user: "dimah-kz",

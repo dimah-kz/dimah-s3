@@ -5,7 +5,8 @@ description: List objects and measure usage on the server and in the browser.
 
 ## Server
 
-With the plugin registered, `s3.db.objects` is available in routes, quota checks, and jobs:
+With the plugin registered, `s3.db.objects` is available in routes, quota
+checks, and jobs:
 
 ```ts
 const scope = "user:123";
@@ -43,11 +44,13 @@ const pending = await s3.db.objects.findPendingMultipart({
 | `findActive`           | One row — only `active`                       |
 | `findPendingMultipart` | Multipart resume lookup                       |
 
-To remove a file, use [`api.delete`](/docs/react) — not store helpers ([Setup](/docs/db/setup#delete-behavior)).
+To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
+[delete behavior](/docs/db/setup#delete-behavior).
 
-## Browser (client-side)
+## Browser
 
-Register `dbClient()` once. In a client component, `s3Client.useApi()` gives you `api.db.listObjects`:
+Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
+you `api.db.listObjects`:
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -69,7 +72,9 @@ import { s3Client } from "@/lib/s3-client";
 
 export function FileList() {
   const api = s3Client.useApi();
-  const [files, setFiles] = useState([]);
+  const [files, setFiles] = useState<
+    { id: string; filename: string | null; key: string }[]
+  >([]);
 
   useEffect(() => {
     api.db
@@ -87,19 +92,21 @@ export function FileList() {
 }
 ```
 
-<Callout type="info">
-  **`listObjects` is browser-only**. (scope is a server argument and in
-  `listObjects` automatically resolved by the plugin in the server).
+<Callout title="Scope is resolved on the server">
+  `listObjects` is the browser wrapper for `GET /db/objects`. It does not take a
+  scope. The plugin uses `resolveScope` on the request. To list another scope,
+  call `listByScope` on the server.
 </Callout>
 
 ## Quota and extra guards
 
-Quotas are app-owned. The db plugin enforces ownership first; your guards run **after** ([hook order](/docs/server/plugins#hook-order)).
+Quotas are app-owned. The db plugin enforces ownership first; your guards
+run after ([hook order](/docs/server/plugins#hook-order)).
 
 ```ts
 import { dimahS3 } from "@dimah-s3/server";
 import { chainHooks } from "@dimah-s3/server/plugins";
-import { db } from "@dimah-s3/db";
+import { db, forbidden } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
   client: awsS3,
@@ -110,29 +117,35 @@ export const s3 = dimahS3({
     // or stack several: chainHooks(quotaGuard, rateLimitGuard),
   },
 });
-```
 
-```ts
 async function quotaGuard({ request, fileSize }) {
   const scope = await resolveScope(request);
   const { totalBytes } = await s3.db.objects.getScopeUsage(scope);
-  if (totalBytes + (fileSize ?? 0) > MAX_BYTES)
+  if (totalBytes + (fileSize ?? 0) > MAX_BYTES) {
     throw forbidden("Quota exceeded");
+  }
 }
 ```
 
-<Callout type="tip">
-  **`getScopeUsage` scans every row** for the scope on each call — fine for
-  demos and light use. For frequent presign checks or large scopes, keep a
-  separate quota table (or counter) updated in your hooks instead of recounting
-  each time.
-</Callout>
+Use `chainHooks` when you need more than one user guard on the same hook.
+Ownership stays on the plugin — you only add policy on top.
 
-Use `chainHooks` when you need more than one user guard on the same hook. Ownership stays on the plugin — you only add policy on top.
+<Accordions>
+<Accordion title="getScopeUsage on large scopes">
+
+`getScopeUsage` scans every row for the scope on each call. That is fine
+for demos and light use. For frequent presign checks or large scopes, keep
+a separate quota table (or counter) updated in your hooks instead of
+recounting each time.
+
+</Accordion>
+</Accordions>
 
 ## Custom access
 
-For rules beyond same-scope ownership, add a guard on the feature config (runs after the plugin) or use `createObjectAccessGuard` on your own routes:
+For rules beyond same-scope ownership, add a guard on the feature config
+(it runs after the plugin) or use `createObjectAccessGuard` on your own
+routes:
 
 ```ts
 download: {
@@ -146,4 +159,6 @@ download: {
 createObjectAccessGuard({ db: dimahS3Db, resolveScope, authorize: myRule });
 ```
 
-`authorize` replaces the default `object.scope === scope` check — use it where you own the full access policy (custom routes, or a guard you wire yourself).
+`authorize` replaces the default `object.scope === scope` check. Use it
+where you own the full access policy — custom routes, or a guard you wire
+yourself.

@@ -1,15 +1,20 @@
 ---
 title: Amazon S3
-description: Bucket CORS required for browser uploads to AWS S3.
+description: Bucket CORS for browser uploads to AWS S3.
 ---
 
-Amazon S3 is the reference target for dimah-s3. Defaults already fit — `upload.method: "POST"` works out of the box, and you do not need a custom `endpoint` or `forcePathStyle`.
+Amazon S3 is the reference target for dimah-s3. Defaults already fit:
+`upload.method` is POST, and you do not need a custom `endpoint` or
+`forcePathStyle`.
 
-Set up the client once in [Quickstart](/docs/quickstart). The only extra step for browser uploads is bucket CORS.
+Set up the client once in [Quickstart](/docs/quickstart). The extra step for
+browser uploads is bucket CORS.
 
-## CORS (required)
+## CORS
 
-Uploads go from the browser **straight to S3**, not through your API. If the bucket has no CORS rule, the request fails even when credentials and the route are correct:
+Uploads go from the browser straight to S3, not through your API. If the
+bucket has no CORS rule, the request fails even when credentials and the
+route are correct.
 
 ```json
 [
@@ -23,6 +28,11 @@ Uploads go from the browser **straight to S3**, not through your API. If the buc
 ]
 ```
 
-Allow **`POST`** for the default upload method. Add **`PUT`** if you switch to `upload.method: "PUT"`. Narrow origins and headers in production.
+Allow POST for the default upload method. Add PUT if you switch to
+`upload.method: "PUT"`. Narrow origins and headers in production.
 
-Object ACL (`private` / `public-read`) and `resolveObjectAcl` are supported on S3 — enable them only when you need them.
+<Callout title="Object ACL">
+  `private` / `public-read` and `resolveObjectAcl` are supported on S3. Enable
+  them only when you need them — ACL inference adds a GetObjectAcl call on
+  confirm.
+</Callout>

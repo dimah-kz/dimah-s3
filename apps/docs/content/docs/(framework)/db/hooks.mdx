@@ -3,13 +3,17 @@ title: Hooks
 description: Guards and row updates the db plugin adds to each lifecycle step.
 ---
 
-The [`db()`](/docs/db/setup) plugin attaches guards and database updates to upload, multipart, download, and delete. Enable the feature, register the plugin — you do not wire these hooks yourself.
+The [`db()`](/docs/db/setup) plugin attaches guards and database updates to
+upload, multipart, download, and delete. Enable the feature, register the
+plugin — you do not wire these hooks yourself.
 
-Your own guards and lifecycle hooks on each feature still run **after** the plugin's.
+Your own guards and lifecycle hooks on each feature still run after the
+plugin.
 
 ## Access rules
 
-The plugin resolves the caller's scope (configured in [Setup](/docs/db/setup)) and rejects:
+The plugin resolves the caller's scope (configured in
+[Setup](/docs/db/setup)) and rejects:
 
 | Situation                   | Response |
 | --------------------------- | -------- |
@@ -27,10 +31,15 @@ The plugin resolves the caller's scope (configured in [Setup](/docs/db/setup)) a
 | Download       | File must be `active` and owned            | —                                                              |
 | Delete         | Row must exist and owned                   | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior) |
 
-Delete always removes the file from S3 through the normal [`api.delete`](/docs/react) path. The plugin only updates the database row afterward.
+Delete always removes the file from S3 through the normal
+[`api.delete`](/docs/react) path. The plugin only updates the database row
+afterward.
 
 ## Multipart resume
 
-To resume a large upload after a refresh, load the pending row with `s3.db.objects.findPendingMultipart`, map it with `toPendingMultipartResume`, and return it from a custom [`UploadStore`](/docs/react/upload-store) on the client.
+To resume a large upload after a refresh, load the pending row with
+`s3.db.objects.findPendingMultipart`, map it with
+`toPendingMultipartResume`, and return it from a custom
+[`UploadStore`](/docs/react/upload-store) on the client.
 
 See [API](/docs/db/api) for store methods.

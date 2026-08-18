@@ -1,32 +1,38 @@
 ---
 title: Providers
-description: Configure AWS S3, Cloudflare R2, MinIO, and other S3-compatible storage.
+description: Configure Amazon S3, Cloudflare R2, MinIO, and other S3-compatible storage.
 ---
 
-dimah-s3 talks to storage through the AWS SDK `S3Client`. Any service that speaks enough of the S3 API can work — Amazon S3, Cloudflare R2, MinIO, and similar backends.
+dimah-s3 talks to storage through the AWS SDK `S3Client`. Any service that
+speaks enough of the S3 API can work — Amazon S3, Cloudflare R2, MinIO, and
+similar backends.
 
-“S3-compatible” is not the same as Amazon S3. Providers skip or ignore parts of the API. With a **presign-first** stack, those gaps show up fast:
+S3-compatible is not the same as Amazon S3. Providers skip or ignore parts of
+the API. With a presign-first stack, those gaps show up quickly: the browser
+hits storage directly, so CORS, addressing, and the upload method have to
+match what the provider actually supports.
 
 | Topic                 | Why it matters                                                                                     |
 | --------------------- | -------------------------------------------------------------------------------------------------- |
-| Presigned POST vs PUT | Default upload is `POST`. Some providers only accept **PUT**.                                      |
+| Presigned POST vs PUT | Default upload is POST. Some providers only accept PUT.                                            |
 | Object ACL            | `acl: "public-read"` needs real ACL support. Others use bucket policies or a public-access toggle. |
-| Endpoint & addressing | Custom endpoints often need `endpoint` and sometimes `forcePathStyle: true`.                       |
-| CORS                  | Browser uploads hit storage directly — the bucket must allow your origin, methods, and headers.    |
-| Public URLs           | Public reads may use a CDN, custom domain, or `*.r2.dev` — not object ACL.                         |
+| Endpoint & addressing | Custom endpoints often need `endpoint`, and sometimes `forcePathStyle: true`.                      |
+| CORS                  | Browser uploads hit storage directly. The bucket must allow your origin, methods, and headers.     |
+| Public URLs           | Public reads may use a CDN, a custom domain, or `*.r2.dev` — not object ACL.                       |
 
-Wire the shared client once in [Quickstart](/docs/quickstart). Use the guides below only for the provider-specific extras that defaults do not cover.
+Wire the shared client once in [Quickstart](/docs/quickstart). Use the guides
+below only for the extras that defaults do not cover.
 
 ## Comparison
 
 |                    | [AWS S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) |
 | ------------------ | :------------------------------: | :--------------------------------------------: | :----------------------------: |
-| Presigned **POST** |                ✅                |                       ❌                       |               ✅               |
-| Presigned **PUT**  |                ✅                |                 ✅ (required)                  |               ✅               |
-| Object **ACL**     |                ✅                |                  ❌ (ignored)                  |       ❌ (use policies)        |
-| `resolveObjectAcl` |                ✅                |                       ❌                       |               ❌               |
+| Presigned POST     |               Yes                |                       No                       |              Yes               |
+| Presigned PUT      |               Yes                |                 Yes (required)                 |              Yes               |
+| Object ACL         |               Yes                |                    Ignored                     |          Use policies          |
+| `resolveObjectAcl` |               Yes                |                       No                       |               No               |
 | Custom `endpoint`  |             Optional             |                    Required                    |            Required            |
-| `forcePathStyle`   |           Usually off            |                      Off                       |             **On**             |
+| `forcePathStyle`   |           Usually off            |                      Off                       |            Required            |
 
 ## Configuration
 
@@ -34,14 +40,18 @@ Wire the shared client once in [Quickstart](/docs/quickstart). Use the guides be
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  // Default is "POST". Use "PUT" when the provider has no Presigned POST (e.g. R2).
   upload: { method: "PUT", prefix: "uploads" },
-  // Extra GetObjectAcl round-trip — leave false unless the provider supports ACL.
   resolveObjectAcl: false,
 });
 ```
 
-Client hooks and `@dimah-s3/ui` read `method: "PUT" | "POST"` from the presign response — change this on the server only.
+The default upload method is POST. Switch to PUT when the provider has no
+Presigned POST (R2 is the usual case). Leave `resolveObjectAcl` off unless
+the provider actually supports object ACL — it adds a GetObjectAcl round-trip
+on confirm.
+
+Client hooks and `@dimah-s3/ui` read `method` from the presign response.
+Change it on the server only.
 
 ## Guides
 
@@ -49,12 +59,12 @@ Client hooks and `@dimah-s3/ui` read `method: "PUT" | "POST"` from the presign r
   <Card
     title="Amazon S3"
     href="/docs/providers/aws-s3"
-    description="Defaults work; configure bucket CORS for browser uploads."
+    description="Defaults work. Configure bucket CORS for browser uploads."
   />
   <Card
     title="Cloudflare R2"
     href="/docs/providers/cloudflare-r2"
-    description="PUT uploads, R2 endpoint, and bucket CORS."
+    description="PUT uploads, the R2 endpoint, and bucket CORS."
   />
   <Card
     title="MinIO"

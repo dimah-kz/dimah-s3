@@ -3,30 +3,39 @@ title: Introduction
 description: Optional plugin to track object ownership, lifecycle, and listings in your database.
 ---
 
-**`@dimah-s3/db`** is an optional plugin for [`dimahS3`](/docs/server/setup). It keeps your database aligned with S3 — who owns each file, whether it is still uploading, and when it was removed — without custom SQL on every endpoint.
+[`@dimah-s3/db`](https://www.npmjs.com/package/@dimah-s3/db) is an optional
+plugin for [`dimahS3`](/docs/server/setup). It keeps your database aligned
+with S3 — who owns each file, whether it is still uploading, and when it was
+removed — without custom SQL on every endpoint.
 
-dimah-s3 works fine without a database. Add this plugin when you need ownership checks, usage totals, file listings, or resumable multipart uploads backed by metadata.
+dimah-s3 works without a database. Add this plugin when you need ownership
+checks, usage totals, file listings, or resumable multipart uploads backed
+by metadata.
 
 ## What the plugin does
 
-- **Tracks objects** — writes and updates a row on presign, confirm, and delete
-- **Enforces ownership** — each file belongs to a scope you define (e.g. `user:123`); download and delete reject access from another scope
-- **Lists files** — query by scope on the server and in the browser
-- **Handles multipart** — records in-progress uploads so you can resume or purge stale ones
+- Tracks objects — writes and updates a row on presign, confirm, and delete
+- Enforces ownership — each file belongs to a scope you define (for example
+  `user:123`); download and delete reject access from another scope
+- Lists files — query by scope on the server and in the browser
+- Handles multipart — records in-progress uploads so you can resume or purge
+  stale ones
 
-Auth, quotas, and business rules stay in your hooks. The plugin only manages object metadata and scope isolation.
+Auth, quotas, and business rules stay in your hooks. The plugin only manages
+object metadata and scope isolation.
 
 ## Lifecycle
 
 Each object moves through three statuses:
 
-| Status    | Meaning                         |
-| --------- | ------------------------------- |
-| `pending` | Upload started, not confirmed   |
-| `active`  | Confirmed in S3 — size recorded |
-| `deleted` | Removed from S3                 |
+| Status    | Meaning                                |
+| --------- | -------------------------------------- |
+| `pending` | Upload started, not confirmed          |
+| `active`  | Confirmed in S3 — verified size stored |
+| `deleted` | Removed from S3                        |
 
-Typical flow: **pending → active → deleted**. Aborted multipart uploads and [purge](/docs/db/purge) clean up rows that never reached `active`.
+Typical flow: pending → active → deleted. Aborted multipart uploads and
+[purge](/docs/db/purge) clean up rows that never reached `active`.
 
 ## Next steps
 

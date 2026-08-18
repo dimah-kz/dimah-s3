@@ -4,8 +4,9 @@ description: A working S3 upload — new app or existing project.
 icon: Rocket
 ---
 
-Create a new app with the CLI, or follow the steps below if you already have a
-project. When you are done, picking a file sends it straight to your bucket.
+Create a new app with the CLI, or follow the steps below if you already have
+a project. When you are done, picking a file sends it straight to your
+bucket.
 
 ## Create a new project
 
@@ -52,7 +53,11 @@ export const s3 = dimahS3({
 ```
 
 Any S3-compatible provider works — details in [Providers](/docs/providers).
-Cloudflare R2 needs `method: "PUT"` on `upload`.
+
+<Callout title="Cloudflare R2">
+  Set `method: "PUT"` on `upload`. R2 does not accept Presigned POST. See
+  [Cloudflare R2](/docs/providers/cloudflare-r2).
+</Callout>
 
 <Tabs items={["Next.js", "Vite", "Express", "Hono", "SvelteKit"]}>
 
@@ -70,7 +75,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 <Tab value="Vite">
 
 Mount the handler on your Node/Hono API (the Vite starter uses
-`@hono/node-server`). Register **PUT** and **PATCH** as well as GET/POST/DELETE.
+`@hono/node-server`). Register PUT and PATCH as well as GET/POST/DELETE.
 
 ```ts title="server/index.ts"
 import { Hono } from "hono";
@@ -93,7 +98,7 @@ API are on different ports.
 
 <Tab value="Express">
 
-Mount **before** `express.json()` so the body is not consumed early.
+Mount before `express.json()` so the body is not consumed early.
 
 ```ts title="server.ts"
 import express from "express";
@@ -157,7 +162,7 @@ export const s3Client = createS3Client();
 export const S3Provider = s3Client.Provider;
 ```
 
-`s3Client` _is_ the API (`s3Client.download(key)`), plus `Provider` and
+`s3Client` is the API (`s3Client.download(key)`), plus `Provider` and
 `useApi`. Full options: [Client setup](/docs/react/setup).
 
 ### UI [step]
@@ -251,7 +256,7 @@ Selecting a file uploads directly to S3. The client default key is
 `` `${crypto.randomUUID()}/${file.name}` ``; the server `upload.prefix` in
 `lib/s3.ts` scopes it under `uploads/`.
 
-<Callout type="info">
+<Callout>
   Deeper guides: [Server setup](/docs/server/setup), [Client
   setup](/docs/react/setup), and [UI setup](/docs/react/ui).
 </Callout>

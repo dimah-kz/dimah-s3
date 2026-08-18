@@ -3,9 +3,11 @@ title: Purge
 description: Remove stale pending rows from abandoned uploads.
 ---
 
-If a client gets a presign and never confirms, the row stays `pending`. Over time that clutters listings and quota counts.
+If a client gets a presign and never confirms, the row stays `pending`. Over
+time that clutters listings and quota counts.
 
-`purgeStalePendingObjects` deletes those stale rows. Run it on a schedule — cron, queue worker, or a script.
+`purgeStalePendingObjects` deletes those stale rows. Run it on a schedule —
+cron, a queue worker, or a script.
 
 ```ts title="scripts/purge-stale-pending.ts"
 import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
@@ -31,17 +33,17 @@ const { purged } = await purgeStalePendingObjects({
 });
 ```
 
-Returns `{ purged }` — the rows removed from the database.
+The return value is `{ purged }` — the rows removed from the database.
 
-<Callout type="warn">
-  By default purge only deletes **database** rows. Use `onBeforePurge` to abort
-  open multipart uploads on S3 so orphans do not linger in the bucket.
+A row is eligible when it is `pending` and older than `olderThanMs`
+(default 24 hours), or past its `expiresAt`. If `onBeforePurge` throws, the
+batch is skipped until the next run.
+
+<Callout type="warn" title="Database only, unless you abort multipart">
+  By default purge only deletes database rows. Use `onBeforePurge` to abort open
+  multipart uploads on S3 so orphans do not linger in the bucket.
 </Callout>
 
-<Callout type="info">
-  Rows are eligible when `pending` and older than `olderThanMs` (default 24h),
-  or past their `expiresAt`. If `onBeforePurge` throws, the batch is skipped
-  until the next run.
-</Callout>
-
-Working script: [`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db) (`pnpm db:purge-stale`).
+A working script lives in
+[`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
+(`pnpm db:purge-stale`).

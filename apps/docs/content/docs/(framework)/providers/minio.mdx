@@ -1,28 +1,44 @@
 ---
 title: MinIO
-description: Required path-style endpoint and CORS for MinIO.
+description: Path-style endpoint and CORS for MinIO.
 ---
 
-MinIO is a self-hosted S3-compatible server. Most of the Quickstart wiring is the same, but path-style addressing is required, and CORS is handled at the server — not like AWS bucket CORS.
+MinIO is a self-hosted S3-compatible server. Most of the Quickstart wiring
+is the same, but path-style addressing is required, and CORS is handled at
+the server — not as AWS-style per-bucket rules.
 
-Set the shared `S3_*` env vars in [Quickstart](/docs/quickstart), then apply the extras below.
+Set the shared `S3_*` env vars in [Quickstart](/docs/quickstart), then apply
+the extras below.
 
-## Path style (required)
+## Path style
 
-Add **`forcePathStyle: true`** to the Quickstart `awsS3`. Without it, typical MinIO installs fail because object URLs must look like `http://host:9000/bucket/key`.
+Add `forcePathStyle: true` to the Quickstart `awsS3`. Without it, typical
+MinIO installs fail because object URLs must look like
+`http://host:9000/bucket/key`.
 
-Point `S3_ENDPOINT` at the **API** port (for example `http://localhost:9000`), not the console UI. For local MinIO, `S3_REGION` is usually `"us-east-1"`.
+<Callout title="API port, not the console">
+  Point `S3_ENDPOINT` at the API (for example `http://localhost:9000`), not the
+  console UI. For local MinIO, `S3_REGION` is usually `us-east-1`.
+</Callout>
 
-## CORS (required for browser uploads)
+## CORS
 
-Community MinIO does not rely on AWS-style per-bucket CORS. Origins are allowed with a server env var:
+Community MinIO does not rely on AWS-style per-bucket CORS. Origins are
+allowed with a server env var:
 
 ```bash
 MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example
 ```
 
-The default is `*` — fine for local development. Set an explicit origin when the app and MinIO run on different hosts, or when you lock CORS down. An `https://…` app talking to `http://localhost:9000` is still cross-origin, so the browser enforces CORS either way.
+The default is `*`, which is fine for local development. Set an explicit
+origin when the app and MinIO run on different hosts, or when you lock CORS
+down.
+
+An `https://…` app talking to `http://localhost:9000` is still
+cross-origin, so the browser enforces CORS either way.
 
 ## Access control
 
-Do not expect AWS-style object ACL. Prefer a bucket policy for public reads, or keep objects private and use presigned download. Leave `resolveObjectAcl` off.
+Do not expect AWS-style object ACL. Prefer a bucket policy for public
+reads, or keep objects private and use presigned download. Leave
+`resolveObjectAcl` off.

@@ -1,18 +1,27 @@
 ---
 title: Introduction
-description: Presign-first S3 and R2 uploads for React and Next.js — server, client, optional UI and DB.
+description: Presign-first S3 and R2 for React and Next.js — server, client, optional UI and DB.
 icon: Layers
 ---
 
-**dimah-s3** is a full-stack toolkit for S3 upload, download, and delete. It
-ships server handlers, headless React hooks, optional UI, and an optional
-database plugin for object tracking. You pass in your own AWS SDK `S3Client`.
+dimah-s3 is a full-stack toolkit for S3. It ships server handlers, headless
+React hooks, optional UI, and an optional database plugin for object
+tracking. You pass in your own AWS SDK `S3Client`.
 
-It is **presign-first**: the server signs, the browser talks to the bucket, and
+It is presign-first: the server signs, the browser talks to the bucket, and
 credentials never leave the backend.
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
-your own code with the
+<Flow
+  label="Presign-first"
+  steps={[
+    { name: "Browser", kind: "client", note: "asks for a URL" },
+    { name: "Server", kind: "server", note: "signs and runs hooks" },
+    { name: "Bucket", kind: "s3", note: "receives the bytes" },
+  ]}
+/>
+
+It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
+in your own code with the
 [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
 Amazon S3, Cloudflare R2, MinIO, and other S3-compatible stores work — see
@@ -22,25 +31,38 @@ Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 
 ## What you get
 
-- **Fast setup** — a working upload in minutes, not a week of wiring
-- **Full stack** — server, client, and UI; not a client uploader you have to
-  back yourself
-- **Full lifecycle** — upload, download, and delete, including multipart
-- **Server hooks** — auth, quotas, confirm, and cleanup where they belong
-- **Optional database** — ownership, listings, and resumable uploads when you
+- Fast setup — a working upload in minutes, not a week of wiring
+- Full stack — server, client, and UI; not a client uploader you have to back
+  yourself
+- Full lifecycle — including multipart
+- Server hooks — auth, quotas, confirm, and cleanup where they belong
+- Optional database — ownership, listings, and resumable uploads when you
   need them
+
+<Accordions>
+<Accordion title="What this covers — and what it does not">
+
+Upload, download, and delete — including multipart — through presigned URLs
+to a bucket you control. Auth, quotas and your own rules can be applied in server hooks.
+Database tracking is optional through [`@dimah-s3/db`](/docs/db).
+
+It does not wrap the rest of S3. List, copy, tagging, and similar stay in
+your app.
+
+</Accordion>
+</Accordions>
 
 ## Why I built this
 
 Every new app needed the same S3 stack: a presign-only backend, a client that
-talks to the bucket, some UI, and often a table of who owns which file. That is
-not hard once. It is expensive every time.
+talks to the bucket, some UI, and often a table of who owns which file. That
+is not hard once. It is expensive every time.
 
 Most people start with a client uploader like
-[Uppy](https://uppy.io/docs/aws-s3/) and write the presign API themselves. The
-uploader is the easy part. A correct, secure presign-only backend is not. The
-flow is small, easy to get wrong, and it holds the keys. Then you still need
-download, delete, UI, and object tracking.
+[Uppy](https://uppy.io/docs/aws-s3/) and write the presign API themselves.
+The uploader is the easy part. A correct, secure presign-only backend is
+not. The flow is small, easy to get wrong, and it holds the keys. Then you
+still need UI, object tracking, and the rest of the file flows.
 
 dimah-s3 is that backend, written once. The standard pieces are there. You
 extend it with hooks and plugins.
