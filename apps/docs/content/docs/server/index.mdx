@@ -5,31 +5,48 @@ icon: Server
 ---
 
 [`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the
-backend for dimah-s3. It signs short-lived URLs, runs your hooks, and never
-touches the file bytes — the browser talks to the bucket directly.
+backend for dimah-s3. It signs short-lived URLs, runs your hooks, and keeps
+credentials on the server.
+
+It is presign-first: the server signs, the browser talks to the bucket, and
+the file bytes never pass through your API.
 
 <Flow
   label="Presign-first"
   steps={[
     { name: "Browser", kind: "client", note: "asks for a URL" },
-    { name: "Server", kind: "server", note: "signs + hooks" },
-    { name: "S3", kind: "s3", note: "bytes stay here" },
+    { name: "Server", kind: "server", note: "signs and runs hooks" },
+    { name: "Bucket", kind: "s3", note: "receives the bytes" },
   ]}
 />
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay in
-your code with the
+<Accordions>
+<Accordion title="Upload, download, and delete">
+
+Upload and download are presigned — the browser talks to the bucket.
+Multipart is part of upload.
+
+<Callout title="Delete is not presigned">
+  Delete goes to your API. After `guard`, the server calls `DeleteObject`. The
+  browser never talks to the bucket for this step.
+</Callout>
+
+</Accordion>
+</Accordions>
+
+It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
+in your code with the
 [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3). Export that
 instance as `awsS3` from `lib/s3.ts` and pass `client: awsS3` into
 `dimahS3`.
 
 ## What you get
 
-- **One instance** — `dimahS3()` gives an HTTP `handler` and a typed `api`
-- **Lifecycle hooks** — auth, quotas, and DB writes at each step
-- **Verified uploads** — `HeadObject` before you trust size or type
-- **Any runtime** — adapters for Next.js, Express, Hono, and others, or a
-  plain `Request` / `Response` handler
+- One instance — `dimahS3()` gives an HTTP `handler` and a typed `api`
+- Lifecycle hooks — auth, quotas, and DB writes at each step
+- Verified uploads — `HeadObject` before you trust size or type
+- Any runtime — adapters for Next.js, Express, Hono, and others, or a plain
+  `Request` / `Response` handler
 
 ## Documentation
 

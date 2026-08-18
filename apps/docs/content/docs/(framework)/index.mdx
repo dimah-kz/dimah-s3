@@ -20,6 +20,20 @@ credentials never leave the backend.
   ]}
 />
 
+<Accordions>
+<Accordion title="Upload, download, and delete">
+
+Upload and download are presigned — the browser talks to the bucket.
+Multipart is part of upload.
+
+<Callout title="Delete is not presigned">
+  Delete goes to your API. After `guard`, the server calls `DeleteObject`. The
+  browser never talks to the bucket for this step.
+</Callout>
+
+</Accordion>
+</Accordions>
+
 It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
 in your own code with the
 [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
@@ -34,23 +48,10 @@ Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 - Fast setup — a working upload in minutes, not a week of wiring
 - Full stack — server, client, and UI; not a client uploader you have to back
   yourself
-- Full lifecycle — including multipart
+- Full lifecycle — upload, download, and delete, including multipart
 - Server hooks — auth, quotas, confirm, and cleanup where they belong
 - Optional database — ownership, listings, and resumable uploads when you
   need them
-
-<Accordions>
-<Accordion title="What this covers — and what it does not">
-
-Upload, download, and delete — including multipart — through presigned URLs
-to a bucket you control. Auth, quotas and your own rules can be applied in server hooks.
-Database tracking is optional through [`@dimah-s3/db`](/docs/db).
-
-It does not wrap the rest of S3. List, copy, tagging, and similar stay in
-your app.
-
-</Accordion>
-</Accordions>
 
 ## Why I built this
 

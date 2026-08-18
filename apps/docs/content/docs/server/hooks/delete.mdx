@@ -5,6 +5,11 @@ description: Authorize deletion and run cleanup after S3 removes the object.
 
 Enable with `delete: true` or an options object.
 
+<Callout title="Not a presigned URL">
+  After `guard`, the server sends `DeleteObject`. The browser never talks to the
+  bucket for this step.
+</Callout>
+
 <Flow
   label="Delete flow"
   steps={[
