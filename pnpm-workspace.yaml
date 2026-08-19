@@ -16,13 +16,13 @@ catalog:
   eslint-config-prettier: ^10.1.8
   eslint-plugin-react: ^7.37.5
   eslint-plugin-react-hooks: ^7.1.1
-  eslint-plugin-turbo: ^2.10.10
+  eslint-plugin-turbo: ^2.10.11
   globals: ^17.11.0
   typescript-eslint: ^8.67.0
   prettier: ^3.9.6
-  turbo: ^2.10.10
+  turbo: ^2.10.11
   tsup: ^8.5.1
-  vitest: ^4.1.10
+  vitest: ^4.1.11
   react: ^19.2.8
   react-dom: ^19.2.8
   "@types/react": ^19.2.18
