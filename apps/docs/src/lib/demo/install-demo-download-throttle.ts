@@ -44,7 +44,7 @@ export function installDemoDownloadThrottle() {
   installed = true;
 
   const originalFetch = window.fetch.bind(window);
-  window.fetch = (input, init) => {
+  window.fetch = async (input, init) => {
     const file = getDemoFileByObjectUrl(requestUrl(input));
     if (!file) return originalFetch(input, init);
     return throttledFileResponse(file, requestSignal(input, init));
