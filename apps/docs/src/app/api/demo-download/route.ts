@@ -1,6 +1,6 @@
 import { getUploadedObject } from "@/lib/demo/server-object-store";
 
-const MAX_BYTES = 50_000_000;
+const MAX_BYTES = 75 * 1024 * 1024;
 const CHUNK_BYTES = 64_000;
 const CHUNK_DELAY_MS = 28;
 
@@ -53,10 +53,10 @@ export async function GET(request: Request) {
     );
   }
 
-  const requested = Number(searchParams.get("bytes") ?? 40_000_000);
+  const requested = Number(searchParams.get("bytes") ?? MAX_BYTES);
   const bytes = Number.isFinite(requested)
     ? Math.min(Math.max(0, Math.floor(requested)), MAX_BYTES)
-    : 40_000_000;
+    : MAX_BYTES;
 
   return new Response(
     throttleStream(bytes, (_start, size) => new Uint8Array(size)),

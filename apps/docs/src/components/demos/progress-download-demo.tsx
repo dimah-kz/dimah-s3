@@ -8,7 +8,7 @@ export function ProgressDownloadDemo() {
       className="w-fit self-start"
       objectKey="videos/demo.mp4"
       fileName="Demo.mp4"
-      fileSize={40_000_000}
+      fileSize={75 * 1024 * 1024}
     />
   );
 }

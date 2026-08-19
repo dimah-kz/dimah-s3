@@ -112,7 +112,7 @@ export function HomeDropzoneDemo() {
       {idle ? <TryDemoHint className={cn(enter, "delay-700")} /> : null}
       <UploadDropzone
         maxFiles={1}
-        maxFileSize={25 * 1024 * 1024}
+        maxFileSize={75 * 1024 * 1024}
         className="w-full"
         onUploadStart={() => {
           setUploading(true);

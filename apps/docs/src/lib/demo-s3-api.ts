@@ -57,7 +57,7 @@ export const demoS3Api: S3Api = {
       };
     }
 
-    const bytes = objectSizes.get(key) ?? 40_000_000;
+    const bytes = objectSizes.get(key) ?? 75 * 1024 * 1024;
     const params = new URLSearchParams({ key, bytes: String(bytes) });
     if (options?.fileName) params.set("name", options.fileName);
 
