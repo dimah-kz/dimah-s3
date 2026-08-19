@@ -1,3 +1,4 @@
+import type { UploadPresignResponse } from "@dimah-s3/core";
 import type { UploadStore } from "./upload-store";
 
 /** Result returned after a successful upload. */
@@ -85,6 +86,27 @@ export type UploadHooks = {
   onError?: (file: File | null, error: unknown, phase: UploadPhase) => void;
   /** Fires when the upload is cancelled via `cancel()`. */
   onCancel?: (file: File | null) => void;
+};
+
+/**
+ * Replaces PUT/POST to `presign.url`. Use for in-memory backends or when
+ * file bytes must not pass through a serverless function.
+ */
+export type UploadTransport = (
+  file: File,
+  presign: UploadPresignResponse,
+  options: {
+    onProgress?: (progress: UploadProgress) => void;
+    signal?: AbortSignal;
+  },
+) => Promise<void>;
+
+/**
+ * Custom `S3Api` objects may set this to handle the byte transfer instead of
+ * uploading to the presigned URL.
+ */
+export type S3ApiUploadTransport = {
+  uploadTransport?: UploadTransport;
 };
 
 /** Retry configuration for failed network requests. */

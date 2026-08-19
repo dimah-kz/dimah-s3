@@ -35,7 +35,7 @@ export default function HomePage() {
             "delay-100 max-w-3xl text-balance text-3xl font-bold tracking-tight text-fd-foreground sm:text-4xl lg:text-5xl",
           )}
         >
-          Full-stack S3 lifecycle with server and React hooks
+          Full-stack S3 toolkit with server and React hooks
         </h1>
         <p
           className={cn(

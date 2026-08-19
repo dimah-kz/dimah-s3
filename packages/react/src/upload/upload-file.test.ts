@@ -80,6 +80,30 @@ describe("uploadFile", () => {
     expect(api.confirm).not.toHaveBeenCalled();
   });
 
+  it("uses api.uploadTransport instead of PUT/POST", async () => {
+    const transport = vi.fn(async () => {});
+    const api = fakeS3Api();
+    Object.assign(api, { uploadTransport: transport });
+    vi.mocked(api.upload).mockResolvedValue({
+      bucket: "bucket",
+      key: "a.png",
+      url: "https://s3.test/put",
+      expiresIn: 600,
+      method: "PUT",
+      headers: { "Content-Type": "image/png" },
+    });
+
+    await uploadFile(api, file(), "a.png");
+
+    expect(transport).toHaveBeenCalledOnce();
+    expect(uploadPut).not.toHaveBeenCalled();
+    expect(uploadSimple).not.toHaveBeenCalled();
+    expect(api.confirm).toHaveBeenCalledWith({
+      key: "a.png",
+      bucket: "bucket",
+    });
+  });
+
   it("wraps API failures as S3UploadError", async () => {
     const api = fakeS3Api();
     vi.mocked(api.upload).mockRejectedValue(new Error("nope"));

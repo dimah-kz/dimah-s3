@@ -3,6 +3,8 @@ import type {
   UploadProgress,
   UploadResult,
   UploadRequestOptions,
+  S3ApiUploadTransport,
+  UploadTransport,
 } from "../types";
 import type { S3Api } from "@dimah-s3/core";
 import { toUploadError } from "../types/error";
@@ -14,6 +16,11 @@ import {
 import { withRetry } from "./retry";
 import { uploadSimple, uploadPut } from "./presigned-http";
 import { uploadMultipart } from "./multipart";
+
+function getUploadTransport(api: S3Api): UploadTransport | undefined {
+  const transport = (api as S3Api & S3ApiUploadTransport).uploadTransport;
+  return typeof transport === "function" ? transport : undefined;
+}
 
 export type UploadEngineCallbacks = {
   onProgress?: (progress: UploadProgress) => void;
@@ -81,7 +88,13 @@ export async function uploadFile(
           acl: requestOptions?.acl,
         });
         callbacks.onPhaseChange?.("uploading");
-        if (presign.method === "PUT") {
+        const transport = getUploadTransport(api);
+        if (transport) {
+          await transport(file, presign, {
+            onProgress: callbacks.onProgress,
+            signal,
+          });
+        } else if (presign.method === "PUT") {
           await uploadPut(
             file,
             presign.url,
