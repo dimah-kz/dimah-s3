@@ -10,10 +10,10 @@
 
 `packages/ui/src/components/ui/*` are **vendor primitives** installed via shadcn CLI. Agents and humans must **not** hand-edit them (no new exports, prop renames, style tweaks, or type aliases).
 
-| Own the change in…     | Examples                                                                      |
-| ---------------------- | ----------------------------------------------------------------------------- |
-| `components/dimah-s3/` | `attachment/`, upload/download/delete buttons, status rows                    |
-| `hooks/` / `lib/`      | toast hooks, attachment layout types (`AttachmentState`, `AttachmentSize`, …) |
+| Own the change in…     | Examples                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `components/dimah-s3/` | `attachment/`, upload/download/delete buttons, status rows                                                  |
+| `hooks/` / `lib/`      | toast hooks, attachment layout types in `lib/attachment-layout.ts` (`AttachmentState`, `AttachmentSize`, …) |
 
 To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (overwrite). Compose on top — never fork the stock file.
 
@@ -27,8 +27,11 @@ To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (ove
 
 ## Registry item rules
 
-- Each item is self-contained — list every file the installer needs in `files[]`.
+- Each item is self-contained — list every file the installer needs in `files[]` (hooks included). `pnpm --filter @dimah-s3/registry build-items` runs `scripts/check-items.ts` and fails if a local `@/` import is missing from `files[]`.
 - `registryDependencies`: shadcn primitives (`button`, `progress`, `attachment`, …) only — not other `@dimah-s3` items.
+- **No basename collision** with those primitives. `lib/attachment.ts` is rewritten by the shadcn CLI onto `@/components/ui/attachment` — layout helpers live in `lib/attachment-layout.ts`.
+- `dependencies` / `devDependencies`: every npm import the copied source uses (`@fuma-translate/react`, `@types/react-file-icon`, …). `@/lib/utils` is the consumer's shadcn `cn` — do not ship `lib/utils.ts`.
+- `cssVars.theme`: `--color-dimah-s3-*` bridge (same map as `packages/ui/css/shadcn.css`) so registry-only apps get utilities without `@dimah-s3/ui`.
 - Standalone status rows: `@dimah-s3/file-attachment` (`FileAttachment` / `StatusAttachment`). Upload/download/delete items still **bundle** those files (they do not depend on the dimah item).
 
 ## UI conventions (components)

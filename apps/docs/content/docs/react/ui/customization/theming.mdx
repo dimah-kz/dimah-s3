@@ -44,8 +44,8 @@ The same map is exported as `@dimah-s3/ui/css/shadcn.css`.
 
 ### Registry only
 
-If components come from the registry and you do **not** depend on
-`@dimah-s3/ui`, paste the bridge into `globals.css` (or import
+`shadcn add @dimah-s3/…` writes these tokens into your CSS via `cssVars.theme`.
+If an older install skipped that, paste the bridge into `globals.css` (or import
 `@dimah-s3/ui/css/shadcn.css`):
 
 ```css title="app/globals.css"

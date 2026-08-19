@@ -49,9 +49,10 @@ by default — see [Theming](/docs/react/ui/customization/theming).
 
 Keep the usual shadcn variables (`--primary`, `--muted`, …) in the same file.
 
-Registry-only apps that never install `@dimah-s3/ui` should still add the
+`shadcn add` injects the
 [color bridge](/docs/react/ui/customization/theming#registry-only) so
-`*-dimah-s3-*` utilities resolve.
+`*-dimah-s3-*` utilities resolve. Registry-only apps that skipped that CSS
+update can paste it from the theming page.
 
 ## Toaster
 

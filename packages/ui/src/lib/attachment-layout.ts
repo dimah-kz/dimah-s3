@@ -4,6 +4,9 @@ import { Attachment } from "@/components/ui/attachment";
 /**
  * Attachment layout/state types — derived from stock shadcn {@link Attachment}
  * (do not edit `components/ui/attachment.tsx`).
+ *
+ * Named `attachment-layout` so the shadcn CLI does not collapse this module
+ * onto the stock `attachment` primitive (same basename → `@/components/ui/attachment`).
  */
 export type AttachmentState = NonNullable<
   ComponentProps<typeof Attachment>["state"]

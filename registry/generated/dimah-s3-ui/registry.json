@@ -9,9 +9,32 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
+        "@fuma-translate/react",
         "lucide-react",
         "react-file-icon"
       ],
+      "devDependencies": [
+        "@types/react-file-icon"
+      ],
+      "cssVars": {
+        "theme": {
+          "color-dimah-s3-background": "var(--background)",
+          "color-dimah-s3-foreground": "var(--foreground)",
+          "color-dimah-s3-card": "var(--card)",
+          "color-dimah-s3-card-foreground": "var(--card-foreground)",
+          "color-dimah-s3-primary": "var(--primary)",
+          "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+          "color-dimah-s3-secondary": "var(--secondary)",
+          "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+          "color-dimah-s3-muted": "var(--muted)",
+          "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+          "color-dimah-s3-accent": "var(--accent)",
+          "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+          "color-dimah-s3-destructive": "var(--destructive)",
+          "color-dimah-s3-border": "var(--border)",
+          "color-dimah-s3-ring": "var(--ring)"
+        }
+      },
       "registryDependencies": [
         "attachment"
       ],
@@ -32,9 +55,9 @@
           "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
-          "path": "lib/attachment.ts",
+          "path": "lib/attachment-layout.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment.ts"
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "lib/file-type-icon.tsx",
@@ -51,9 +74,32 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
+        "@fuma-translate/react",
         "lucide-react",
         "react-file-icon"
       ],
+      "devDependencies": [
+        "@types/react-file-icon"
+      ],
+      "cssVars": {
+        "theme": {
+          "color-dimah-s3-background": "var(--background)",
+          "color-dimah-s3-foreground": "var(--foreground)",
+          "color-dimah-s3-card": "var(--card)",
+          "color-dimah-s3-card-foreground": "var(--card-foreground)",
+          "color-dimah-s3-primary": "var(--primary)",
+          "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+          "color-dimah-s3-secondary": "var(--secondary)",
+          "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+          "color-dimah-s3-muted": "var(--muted)",
+          "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+          "color-dimah-s3-accent": "var(--accent)",
+          "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+          "color-dimah-s3-destructive": "var(--destructive)",
+          "color-dimah-s3-border": "var(--border)",
+          "color-dimah-s3-ring": "var(--ring)"
+        }
+      },
       "registryDependencies": [
         "button",
         "toast",
@@ -97,14 +143,19 @@
           "target": "@hooks/use-upload-toast.tsx"
         },
         {
+          "path": "hooks/use-file-reject-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-file-reject-toast.tsx"
+        },
+        {
           "path": "components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment.ts",
+          "path": "lib/attachment-layout.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment.ts"
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "lib/file-type-icon.tsx",
@@ -121,9 +172,32 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
+        "@fuma-translate/react",
         "lucide-react",
         "react-file-icon"
       ],
+      "devDependencies": [
+        "@types/react-file-icon"
+      ],
+      "cssVars": {
+        "theme": {
+          "color-dimah-s3-background": "var(--background)",
+          "color-dimah-s3-foreground": "var(--foreground)",
+          "color-dimah-s3-card": "var(--card)",
+          "color-dimah-s3-card-foreground": "var(--card-foreground)",
+          "color-dimah-s3-primary": "var(--primary)",
+          "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+          "color-dimah-s3-secondary": "var(--secondary)",
+          "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+          "color-dimah-s3-muted": "var(--muted)",
+          "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+          "color-dimah-s3-accent": "var(--accent)",
+          "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+          "color-dimah-s3-destructive": "var(--destructive)",
+          "color-dimah-s3-border": "var(--border)",
+          "color-dimah-s3-ring": "var(--ring)"
+        }
+      },
       "registryDependencies": [
         "button",
         "toast",
@@ -168,14 +242,19 @@
           "target": "@hooks/use-upload-toast.tsx"
         },
         {
+          "path": "hooks/use-file-reject-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-file-reject-toast.tsx"
+        },
+        {
           "path": "components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment.ts",
+          "path": "lib/attachment-layout.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment.ts"
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "lib/file-type-icon.tsx",
@@ -192,9 +271,32 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
+        "@fuma-translate/react",
         "lucide-react",
         "react-file-icon"
       ],
+      "devDependencies": [
+        "@types/react-file-icon"
+      ],
+      "cssVars": {
+        "theme": {
+          "color-dimah-s3-background": "var(--background)",
+          "color-dimah-s3-foreground": "var(--foreground)",
+          "color-dimah-s3-card": "var(--card)",
+          "color-dimah-s3-card-foreground": "var(--card-foreground)",
+          "color-dimah-s3-primary": "var(--primary)",
+          "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+          "color-dimah-s3-secondary": "var(--secondary)",
+          "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+          "color-dimah-s3-muted": "var(--muted)",
+          "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+          "color-dimah-s3-accent": "var(--accent)",
+          "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+          "color-dimah-s3-destructive": "var(--destructive)",
+          "color-dimah-s3-border": "var(--border)",
+          "color-dimah-s3-ring": "var(--ring)"
+        }
+      },
       "registryDependencies": [
         "button",
         "toast",
@@ -217,9 +319,9 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment.ts",
+          "path": "lib/attachment-layout.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment.ts"
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "lib/file-type-icon.tsx",
@@ -236,9 +338,32 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
+        "@fuma-translate/react",
         "lucide-react",
         "react-file-icon"
       ],
+      "devDependencies": [
+        "@types/react-file-icon"
+      ],
+      "cssVars": {
+        "theme": {
+          "color-dimah-s3-background": "var(--background)",
+          "color-dimah-s3-foreground": "var(--foreground)",
+          "color-dimah-s3-card": "var(--card)",
+          "color-dimah-s3-card-foreground": "var(--card-foreground)",
+          "color-dimah-s3-primary": "var(--primary)",
+          "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+          "color-dimah-s3-secondary": "var(--secondary)",
+          "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+          "color-dimah-s3-muted": "var(--muted)",
+          "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+          "color-dimah-s3-accent": "var(--accent)",
+          "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+          "color-dimah-s3-destructive": "var(--destructive)",
+          "color-dimah-s3-border": "var(--border)",
+          "color-dimah-s3-ring": "var(--ring)"
+        }
+      },
       "registryDependencies": [
         "button",
         "toast",
@@ -262,9 +387,9 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment.ts",
+          "path": "lib/attachment-layout.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment.ts"
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "lib/file-type-icon.tsx",
@@ -281,9 +406,32 @@
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
+        "@fuma-translate/react",
         "lucide-react",
         "react-file-icon"
       ],
+      "devDependencies": [
+        "@types/react-file-icon"
+      ],
+      "cssVars": {
+        "theme": {
+          "color-dimah-s3-background": "var(--background)",
+          "color-dimah-s3-foreground": "var(--foreground)",
+          "color-dimah-s3-card": "var(--card)",
+          "color-dimah-s3-card-foreground": "var(--card-foreground)",
+          "color-dimah-s3-primary": "var(--primary)",
+          "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+          "color-dimah-s3-secondary": "var(--secondary)",
+          "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+          "color-dimah-s3-muted": "var(--muted)",
+          "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+          "color-dimah-s3-accent": "var(--accent)",
+          "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+          "color-dimah-s3-destructive": "var(--destructive)",
+          "color-dimah-s3-border": "var(--border)",
+          "color-dimah-s3-ring": "var(--ring)"
+        }
+      },
       "registryDependencies": [
         "button",
         "toast",
@@ -308,9 +456,9 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment.ts",
+          "path": "lib/attachment-layout.ts",
           "type": "registry:lib",
-          "target": "@lib/attachment.ts"
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "lib/file-type-icon.tsx",

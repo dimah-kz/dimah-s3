@@ -12,7 +12,10 @@ import type {
 import { FileAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/attachment/file-attachment";
 import { StatusAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/attachment/status-attachment";
 import { AttachmentAction } from "@/registry/dimah-s3-ui/components/ui/attachment";
-import type { AttachmentLayoutProps, AttachmentState } from "@/registry/dimah-s3-ui/lib/attachment";
+import type {
+  AttachmentLayoutProps,
+  AttachmentState,
+} from "@/registry/dimah-s3-ui/lib/attachment-layout";
 import {
   Progress,
   ProgressLabel,

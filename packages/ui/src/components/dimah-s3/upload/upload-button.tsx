@@ -16,7 +16,7 @@ import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
   type StatusSlot,
-} from "@/lib/attachment";
+} from "@/lib/attachment-layout";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,

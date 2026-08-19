@@ -25,7 +25,7 @@ import {
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
-} from "@/registry/dimah-s3-ui/lib/attachment";
+} from "@/registry/dimah-s3-ui/lib/attachment-layout";
 import { FileTypeGlyph } from "@/registry/dimah-s3-ui/lib/file-type-icon";
 import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 

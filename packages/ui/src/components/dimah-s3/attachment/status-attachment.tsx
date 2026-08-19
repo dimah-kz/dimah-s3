@@ -20,7 +20,7 @@ import {
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
-} from "@/lib/attachment";
+} from "@/lib/attachment-layout";
 import { cn } from "@/lib/utils";
 
 export type StatusAttachmentProps = {

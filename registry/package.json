@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm build-items && shadcn registry validate && shadcn build registry.json --output ../apps/docs/public/r --cwd . && pnpm -w format",
-    "build-items": "tsx scripts/build-items.ts",
+    "build-items": "tsx scripts/build-items.ts && tsx scripts/check-items.ts",
     "validate": "pnpm build-items && shadcn registry validate",
     "lint": "eslint",
     "check-types": "tsc --noEmit"

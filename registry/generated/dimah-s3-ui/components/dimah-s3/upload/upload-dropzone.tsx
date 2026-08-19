@@ -18,7 +18,7 @@ import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
   type StatusSlot,
-} from "@/registry/dimah-s3-ui/lib/attachment";
+} from "@/registry/dimah-s3-ui/lib/attachment-layout";
 import { UploadStatusBlock } from "@/registry/dimah-s3-ui/components/dimah-s3/upload/upload-status-block";
 import { useUploadToast, type UploadToastCtrl } from "@/registry/dimah-s3-ui/hooks/use-upload-toast";
 import { useFileRejectToast } from "@/registry/dimah-s3-ui/hooks/use-file-reject-toast";

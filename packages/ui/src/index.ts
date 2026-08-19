@@ -45,6 +45,6 @@ export type {
   AttachmentLayoutProps,
   AttachmentLayoutAliases,
   StatusSlot,
-} from "@/lib/attachment";
-export { resolveStatusSlot } from "@/lib/attachment";
+} from "@/lib/attachment-layout";
+export { resolveStatusSlot } from "@/lib/attachment-layout";
 export { Toaster, toast } from "@/components/ui/toast";

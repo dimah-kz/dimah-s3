@@ -23,7 +23,7 @@ pnpm --filter @dimah-s3/registry check-types   # typecheck items/*.ts
 
 Install: `pnpm dlx shadcn add @dimah-s3/upload-dropzone` (namespace in template `components.json`).
 
-Each registry item is self-contained: list every file the user needs in `files[]` (including hooks). Use `registryDependencies` only for shadcn primitives (`button`, `progress`, …), not other `@dimah-s3` items.
+Each registry item is self-contained: list every file the user needs in `files[]` (including hooks). Use `registryDependencies` only for shadcn primitives (`button`, `progress`, …), not other `@dimah-s3` items. Do not give a dimah `lib/` file the same basename as a primitive (`attachment.ts` collides with shadcn `attachment`).
 
 ---
 

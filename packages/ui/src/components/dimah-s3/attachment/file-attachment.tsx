@@ -25,7 +25,7 @@ import {
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
-} from "@/lib/attachment";
+} from "@/lib/attachment-layout";
 import { FileTypeGlyph } from "@/lib/file-type-icon";
 import { cn } from "@/lib/utils";
 

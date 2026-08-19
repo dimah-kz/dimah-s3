@@ -16,7 +16,7 @@ import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
   type StatusSlot,
-} from "@/registry/dimah-s3-ui/lib/attachment";
+} from "@/registry/dimah-s3-ui/lib/attachment-layout";
 import { Button } from "@/registry/dimah-s3-ui/components/ui/button";
 import {
   Tooltip,

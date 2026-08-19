@@ -10,7 +10,7 @@ import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
   type StatusSlot,
-} from "@/lib/attachment";
+} from "@/lib/attachment-layout";
 import { Button } from "@/components/ui/button";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { useDownloadToast } from "@/hooks/use-download-toast";

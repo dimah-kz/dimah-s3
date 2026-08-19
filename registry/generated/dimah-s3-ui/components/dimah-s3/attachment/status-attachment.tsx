@@ -20,7 +20,7 @@ import {
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
-} from "@/registry/dimah-s3-ui/lib/attachment";
+} from "@/registry/dimah-s3-ui/lib/attachment-layout";
 import { cn } from "@/registry/dimah-s3-ui/lib/utils";
 
 export type StatusAttachmentProps = {

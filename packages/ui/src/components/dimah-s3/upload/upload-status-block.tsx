@@ -10,7 +10,7 @@ import type {
 } from "@dimah-s3/react";
 import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
 import { MultiUploadStatus } from "@/components/dimah-s3/upload/multi-upload-status";
-import type { AttachmentLayoutProps } from "@/lib/attachment";
+import type { AttachmentLayoutProps } from "@/lib/attachment-layout";
 
 export type UploadStatusBlockProps = AttachmentLayoutProps &
   (

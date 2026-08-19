@@ -11,7 +11,7 @@ import type {
 } from "@dimah-s3/react";
 import { FileAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/attachment/file-attachment";
 import { StatusAttachment } from "@/registry/dimah-s3-ui/components/dimah-s3/attachment/status-attachment";
-import type { AttachmentLayoutProps } from "@/registry/dimah-s3-ui/lib/attachment";
+import type { AttachmentLayoutProps } from "@/registry/dimah-s3-ui/lib/attachment-layout";
 
 export type UploadStatusProps = AttachmentLayoutProps & {
   phase: UploadPhase;

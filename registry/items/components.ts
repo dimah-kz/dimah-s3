@@ -1,23 +1,27 @@
 import type { Registry } from "shadcn/schema";
 
+type RegistryItem = Registry["items"][number];
+
 /** Paths are relative to `generated/dimah-s3-ui/` (see build-items output). */
+const layoutLibFile = {
+  path: "lib/attachment-layout.ts",
+  type: "registry:lib",
+  target: "@lib/attachment-layout.ts",
+} as const satisfies NonNullable<RegistryItem["files"]>[number];
+
 const statusSupportFiles = [
   {
     path: "components/dimah-s3/attachment/status-attachment.tsx",
     type: "registry:component",
     target: "@components/dimah-s3/attachment/status-attachment.tsx",
   },
-  {
-    path: "lib/attachment.ts",
-    type: "registry:lib",
-    target: "@lib/attachment.ts",
-  },
+  layoutLibFile,
   {
     path: "lib/file-type-icon.tsx",
     type: "registry:lib",
     target: "@lib/file-type-icon.tsx",
   },
-] as const satisfies Registry["items"][number]["files"];
+] as const satisfies RegistryItem["files"];
 
 const uploadSupportFiles = [
   {
@@ -50,14 +54,44 @@ const uploadSupportFiles = [
     type: "registry:hook",
     target: "@hooks/use-upload-toast.tsx",
   },
+  {
+    path: "hooks/use-file-reject-toast.tsx",
+    type: "registry:hook",
+    target: "@hooks/use-file-reject-toast.tsx",
+  },
   ...statusSupportFiles,
-] as const satisfies Registry["items"][number]["files"];
+] as const satisfies RegistryItem["files"];
+
 const componentDependencies = [
   "@dimah-s3/core",
   "@dimah-s3/react",
+  "@fuma-translate/react",
   "lucide-react",
   "react-file-icon",
 ] as const;
+
+const componentDevDependencies = ["@types/react-file-icon"] as const;
+
+/** Maps `*-dimah-s3-*` utilities to the host shadcn theme (Tailwind v4 `@theme`). */
+export const componentCssVars = {
+  theme: {
+    "color-dimah-s3-background": "var(--background)",
+    "color-dimah-s3-foreground": "var(--foreground)",
+    "color-dimah-s3-card": "var(--card)",
+    "color-dimah-s3-card-foreground": "var(--card-foreground)",
+    "color-dimah-s3-primary": "var(--primary)",
+    "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
+    "color-dimah-s3-secondary": "var(--secondary)",
+    "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
+    "color-dimah-s3-muted": "var(--muted)",
+    "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
+    "color-dimah-s3-accent": "var(--accent)",
+    "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
+    "color-dimah-s3-destructive": "var(--destructive)",
+    "color-dimah-s3-border": "var(--border)",
+    "color-dimah-s3-ring": "var(--ring)",
+  },
+} as const satisfies RegistryItem["cssVars"];
 
 const toastRegistryDependencies = ["button", "toast"] as const;
 
@@ -77,17 +111,19 @@ const attachmentFiles = [
     type: "registry:component",
     target: "@components/dimah-s3/attachment/circle-progress.tsx",
   },
-  {
-    path: "lib/attachment.ts",
-    type: "registry:lib",
-    target: "@lib/attachment.ts",
-  },
+  layoutLibFile,
   {
     path: "lib/file-type-icon.tsx",
     type: "registry:lib",
     target: "@lib/file-type-icon.tsx",
   },
-] as const satisfies Registry["items"][number]["files"];
+] as const satisfies RegistryItem["files"];
+
+const installMeta = {
+  dependencies: [...componentDependencies],
+  devDependencies: [...componentDevDependencies],
+  cssVars: componentCssVars,
+};
 
 export const components = [
   {
@@ -96,7 +132,7 @@ export const components = [
     title: "Attachment",
     description:
       "FileAttachment and StatusAttachment rows for upload, download, and delete feedback.",
-    dependencies: [...componentDependencies],
+    ...installMeta,
     // Stock shadcn Attachment primitive (not this item).
     registryDependencies: ["attachment"],
     files: [...attachmentFiles],
@@ -107,7 +143,7 @@ export const components = [
     title: "Upload Dropzone",
     description:
       "Drag-and-drop upload zone with inline status and toast support.",
-    dependencies: [...componentDependencies],
+    ...installMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
       "attachment",
@@ -127,7 +163,7 @@ export const components = [
     type: "registry:component",
     title: "Upload Button",
     description: "File upload button with inline status and toast support.",
-    dependencies: [...componentDependencies],
+    ...installMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
       "tooltip",
@@ -148,7 +184,7 @@ export const components = [
     type: "registry:component",
     title: "Download Button",
     description: "Presigned-URL download button with toast support.",
-    dependencies: [...componentDependencies],
+    ...installMeta,
     registryDependencies: [...toastRegistryDependencies, "attachment"],
     files: [
       {
@@ -170,7 +206,7 @@ export const components = [
     title: "Progress Download Button",
     description:
       "Download button with streaming progress bar and cancel support.",
-    dependencies: [...componentDependencies],
+    ...installMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
       "tooltip",
@@ -196,7 +232,7 @@ export const components = [
     title: "Delete Button",
     description:
       "S3 object delete button with confirmation dialog and toast support.",
-    dependencies: [...componentDependencies],
+    ...installMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
       "alert-dialog",
