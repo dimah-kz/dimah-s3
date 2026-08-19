@@ -1,3 +1,9 @@
+## @dimah-s3/react@0.8.4
+
+### Install registry items from UI source
+
+Namespaced (`@dimah-s3/…`) and GitHub (`dimah-kz/dimah-s3/…`) installs now copy `packages/ui/src` as-is. Import aliases stay `@/` until the shadcn CLI rewrites them for the consuming app.
+
 ## @dimah-s3/react@0.8.3
 
 ### Fix shadcn registry installs
