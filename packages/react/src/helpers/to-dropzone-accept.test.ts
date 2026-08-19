@@ -34,7 +34,9 @@ describe("toDropzoneAccept", () => {
     expect(toDropzoneAccept(["*/*", "image/*"])).toEqual({
       "image/*": [],
     });
-    expect(toDropzoneAccept(["*/json", "foo/*", "application/*"])).toBeUndefined();
+    expect(
+      toDropzoneAccept(["*/json", "foo/*", "application/*"]),
+    ).toBeUndefined();
     expect(toDropzoneAccept(["pdf"])).toBeUndefined();
   });
 

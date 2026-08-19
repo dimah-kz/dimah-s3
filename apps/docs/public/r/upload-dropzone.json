@@ -9,12 +9,7 @@
     "lucide-react",
     "react-file-icon"
   ],
-  "registryDependencies": [
-    "button",
-    "toast",
-    "attachment",
-    "progress"
-  ],
+  "registryDependencies": ["button", "toast", "attachment", "progress"],
   "files": [
     {
       "path": "generated/dimah-s3-ui/components/dimah-s3/upload/upload-dropzone.tsx",

@@ -9,9 +9,7 @@
     "lucide-react",
     "react-file-icon"
   ],
-  "registryDependencies": [
-    "attachment"
-  ],
+  "registryDependencies": ["attachment"],
   "files": [
     {
       "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/file-attachment.tsx",
