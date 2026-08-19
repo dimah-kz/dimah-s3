@@ -70,6 +70,8 @@ export const demoS3Api: S3Api = {
   },
 
   delete: async (key, options) => {
+    // Pause so the deleting spinner is visible on fast localhost.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
     objectSizes.delete(key);
     pendingUploadSizes.delete(key);
     forgetDemoFile(key);
