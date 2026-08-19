@@ -1,6 +1,5 @@
-# Synced shadcn sources — source of truth is packages/ui/src/
-# (formatted copies would drift from sync; do not Prettier this tree)
-registry/
+# Built shadcn item JSON (shadcn build → apps/docs/public/r)
+apps/docs/public/r/
 
 # Generated Fuma Translate output
 packages/react/.translations/

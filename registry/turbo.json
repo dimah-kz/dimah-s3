@@ -1,9 +1,0 @@
-{
-  "extends": ["//"],
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build", "@dimah-s3/ui#build"],
-      "outputs": ["registry/**"]
-    }
-  }
-}

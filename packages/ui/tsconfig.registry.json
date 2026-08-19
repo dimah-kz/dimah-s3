@@ -1,0 +1,14 @@
+{
+  "extends": "@workspace/typescript-config/node-library.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "scripts/registry-items.ts",
+    "scripts/build-registry-items.ts",
+    "scripts/check-registry-items.ts"
+  ]
+}

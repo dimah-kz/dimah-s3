@@ -4,7 +4,7 @@
 
 **Source of truth:** `packages/ui/src/` — shadcn primitives under `components/ui/`; dimah-owned UI under `components/dimah-s3/` (hooks in `hooks/`, shared helpers in `lib/`).
 
-**Generated (do not edit):** `registry/generated/dimah-s3-ui/` — copied by `packages/ui/scripts/sync-registry.mjs` on UI package build.
+The registry is a [source registry](https://ui.shadcn.com/docs/registry/getting-started): `registry.json` at the repo root `include`s `packages/ui/registry.json`, whose `files[].path` values point at `packages/ui/src`. Do not copy or rewrite UI sources for install.
 
 ## Do not edit stock shadcn (`components/ui/`)
 
@@ -20,19 +20,27 @@ To refresh primitives to upstream: `pnpm --filter @dimah-s3/ui sync:shadcn` (ove
 ## When changing a UI component
 
 1. Edit under `packages/ui/src/` — **only** `components/dimah-s3/`, `hooks/`, or `lib/` for product behavior. Do not edit `components/ui/`.
-2. Imports: short `@/` alias only (`@/components/ui/button`, `@/lib/utils`) — sync rewrites to `@/registry/dimah-s3-ui/...`.
-3. `pnpm --filter @dimah-s3/ui build` (runs sync-registry).
-4. If the shadcn item shape changed → update `registry/items/components.ts` (`files[]`, `registryDependencies` for shadcn primitives only).
-5. `pnpm --filter @dimah-s3/registry build` → validates, writes `apps/docs/public/r/`, then runs workspace `pnpm format` so generated JSON matches Prettier (keeps `format:check` clean).
+2. Imports: short `@/` alias only (`@/components/ui/button`, `@/lib/utils`). The shadcn CLI rewrites these to the consumer’s aliases on install.
+3. If the shadcn item shape changed → update `packages/ui/scripts/registry-items.ts` (`files[]`, `registryDependencies` for shadcn primitives only).
+4. `pnpm registry:validate` — regenerates `packages/ui/registry.json`, checks item completeness, then `shadcn registry validate`.
+5. `pnpm registry:build` — validate, then `shadcn build` into `apps/docs/public/r/` (docs `build` depends on this). Commit `packages/ui/registry.json` if it changed.
+
+Do not hand-edit `packages/ui/registry.json` or `apps/docs/public/r/`.
 
 ## Registry item rules
 
-- Each item is self-contained — list every file the installer needs in `files[]` (hooks included). `pnpm --filter @dimah-s3/registry build-items` runs `scripts/check-items.ts` and fails if a local `@/` import is missing from `files[]`.
+- Each item is self-contained — list every file the installer needs in `files[]` (hooks included). `pnpm --filter @dimah-s3/ui registry:check` fails if a local `@/` import is missing from `files[]`.
 - `registryDependencies`: shadcn primitives (`button`, `progress`, `attachment`, …) only — not other `@dimah-s3` items.
 - **No basename collision** with those primitives. `lib/attachment.ts` is rewritten by the shadcn CLI onto `@/components/ui/attachment` — layout helpers live in `lib/attachment-layout.ts`.
 - `dependencies` / `devDependencies`: every npm import the copied source uses (`@fuma-translate/react`, `@types/react-file-icon`, …). `@/lib/utils` is the consumer's shadcn `cn` — do not ship `lib/utils.ts`.
 - `cssVars.theme`: `--color-dimah-s3-*` bridge (same map as `packages/ui/css/shadcn.css`) so registry-only apps get utilities without `@dimah-s3/ui`.
 - Standalone status rows: `@dimah-s3/file-attachment` (`FileAttachment` / `StatusAttachment`). Upload/download/delete items still **bundle** those files (they do not depend on the dimah item).
+- `files[].target` uses shadcn placeholders (`@components/`, `@hooks/`, `@lib/`) so installs follow the consumer `components.json`.
+
+## Serve vs GitHub
+
+- **Namespaced HTTP registry:** `shadcn build` writes `apps/docs/public/r/{name}.json` for `@dimah-s3` (`https://dimah-s3.vercel.app/r/{name}.json`). Prefer this over `loadRegistry` routes — docs is not the registry root, and static JSON is what Vercel serves.
+- **GitHub registry:** root `registry.json` is the catalog. `pnpm dlx shadcn add dimah-kz/dimah-s3/<item>` reads source files from the repo (no build). Keep `packages/ui/registry.json` committed so GitHub installs stay in sync.
 
 ## UI conventions (components)
 

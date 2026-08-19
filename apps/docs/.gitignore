@@ -1,3 +1,6 @@
+# Built shadcn registry (pnpm registry:build)
+/public/r
+
 # Fumadocs generated content
 .source
 

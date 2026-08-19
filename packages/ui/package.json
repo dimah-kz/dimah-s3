@@ -41,12 +41,15 @@
     "css"
   ],
   "scripts": {
-    "build": "pnpm run sync-registry && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
-    "sync-registry": "node ./scripts/enforce-src-alias-imports.mjs && node ./scripts/sync-registry.mjs",
+    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
     "sync:shadcn": "node scripts/sync-shadcn.mjs",
     "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
+    "registry:items": "tsx scripts/build-registry-items.ts && pnpm -w exec prettier --write packages/ui/registry.json",
+    "registry:check": "tsx scripts/check-registry-items.ts",
+    "registry:validate": "pnpm registry:items && pnpm registry:check && shadcn registry validate --cwd ../..",
+    "registry:build": "pnpm registry:validate && shadcn build --output apps/docs/public/r --cwd ../..",
     "lint": "eslint",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json"
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
@@ -76,6 +79,7 @@
     "react": "catalog:",
     "shadcn": "^4.18.0",
     "tsc-alias": "^1.9.2",
+    "tsx": "^4.23.12",
     "tsup": "catalog:",
     "typescript": "catalog:"
   },

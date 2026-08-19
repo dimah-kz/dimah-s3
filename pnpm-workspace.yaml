@@ -2,7 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "examples/*"
-  - "registry"
   - "tooling/*"
   # templates/* stay outside the workspace: they are CLI snapshot source with
   # published npm ranges only. Listing them here lets `pnpm -r update --latest`

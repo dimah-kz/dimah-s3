@@ -2,7 +2,7 @@ import type { Registry } from "shadcn/schema";
 
 type RegistryItem = Registry["items"][number];
 
-/** Paths are relative to `generated/dimah-s3-ui/` (see build-items output). */
+/** Paths are relative to `packages/ui/src/` (`@/` in source). */
 const layoutLibFile = {
   path: "lib/attachment-layout.ts",
   type: "registry:lib",

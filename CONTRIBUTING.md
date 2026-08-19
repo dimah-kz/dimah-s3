@@ -19,6 +19,7 @@ pnpm install
 pnpm build
 pnpm check-types
 pnpm lint
+pnpm registry:validate
 ```
 
 For package work only (lighter on RAM — avoids building every Next.js app):

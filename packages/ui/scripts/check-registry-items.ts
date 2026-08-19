@@ -1,17 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, resolve } from "node:path";
 
-import { componentCssVars, components } from "../items/components";
+import { componentCssVars, components } from "./registry-items";
 
-const uiSrcRoot = resolve(import.meta.dirname, "../../packages/ui/src");
-const uiCssPath = resolve(
-  import.meta.dirname,
-  "../../packages/ui/css/shadcn.css",
-);
-const uiPackageJsonPath = resolve(
-  import.meta.dirname,
-  "../../packages/ui/package.json",
-);
+const uiSrcRoot = resolve(import.meta.dirname, "../src");
+const uiCssPath = resolve(import.meta.dirname, "../css/shadcn.css");
+const uiPackageJsonPath = resolve(import.meta.dirname, "../package.json");
 
 const SOURCE_EXTS = [".ts", ".tsx"] as const;
 const SKIP_PACKAGES = new Set(["react", "react-dom", "react/jsx-runtime"]);
@@ -71,16 +65,15 @@ const uiTypesPackages = new Set(
 
 const css = readFileSync(uiCssPath, "utf8");
 const cssThemeTokens = new Set(
-  [...css.matchAll(/--(color-dimah-s3-[a-z0-9-]+)\s*:/g)].map(
-    (match) => match[1],
-  ),
+  [...css.matchAll(/--(color-dimah-s3-[a-z0-9-]+)\s*:/g)].flatMap((match) => {
+    const token = match[1];
+    return token ? [token] : [];
+  }),
 );
 const itemThemeTokens = new Set(Object.keys(componentCssVars.theme));
 for (const token of cssThemeTokens) {
   if (!itemThemeTokens.has(token)) {
-    fail(
-      `cssVars.theme is missing --${token} from packages/ui/css/shadcn.css`,
-    );
+    fail(`cssVars.theme is missing --${token} from packages/ui/css/shadcn.css`);
   }
 }
 

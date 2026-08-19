@@ -4,7 +4,7 @@ import { config } from "@workspace/eslint-config/react";
 export default [
   ...config,
   {
-    files: ["scripts/**/*.{js,mjs,cjs}"],
+    files: ["scripts/**/*.{js,mjs,cjs,ts}"],
     languageOptions: {
       globals: {
         console: "readonly",

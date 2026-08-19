@@ -1,0 +1,33 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "registry:validate": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../registry.json",
+        "src/components/dimah-s3/**",
+        "src/hooks/**",
+        "src/lib/**",
+        "css/shadcn.css",
+        "scripts/registry-items.ts",
+        "scripts/build-registry-items.ts",
+        "scripts/check-registry-items.ts"
+      ],
+      "outputs": ["registry.json"]
+    },
+    "registry:build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../registry.json",
+        "src/components/dimah-s3/**",
+        "src/hooks/**",
+        "src/lib/**",
+        "css/shadcn.css",
+        "scripts/registry-items.ts",
+        "scripts/build-registry-items.ts",
+        "scripts/check-registry-items.ts"
+      ],
+      "outputs": ["registry.json", "../../apps/docs/public/r/**"]
+    }
+  }
+}

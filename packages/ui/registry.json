@@ -13,9 +13,7 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "devDependencies": [
-        "@types/react-file-icon"
-      ],
+      "devDependencies": ["@types/react-file-icon"],
       "cssVars": {
         "theme": {
           "color-dimah-s3-background": "var(--background)",
@@ -35,32 +33,30 @@
           "color-dimah-s3-ring": "var(--ring)"
         }
       },
-      "registryDependencies": [
-        "attachment"
-      ],
+      "registryDependencies": ["attachment"],
       "files": [
         {
-          "path": "components/dimah-s3/attachment/file-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-attachment.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/circle-progress.tsx",
+          "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
-          "path": "lib/attachment-layout.ts",
+          "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
         },
         {
-          "path": "lib/file-type-icon.tsx",
+          "path": "src/lib/file-type-icon.tsx",
           "type": "registry:lib",
           "target": "@lib/file-type-icon.tsx"
         }
@@ -78,9 +74,7 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "devDependencies": [
-        "@types/react-file-icon"
-      ],
+      "devDependencies": ["@types/react-file-icon"],
       "cssVars": {
         "theme": {
           "color-dimah-s3-background": "var(--background)",
@@ -100,65 +94,60 @@
           "color-dimah-s3-ring": "var(--ring)"
         }
       },
-      "registryDependencies": [
-        "button",
-        "toast",
-        "attachment",
-        "progress"
-      ],
+      "registryDependencies": ["button", "toast", "attachment", "progress"],
       "files": [
         {
-          "path": "components/dimah-s3/upload/upload-dropzone.tsx",
+          "path": "src/components/dimah-s3/upload/upload-dropzone.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-dropzone.tsx"
         },
         {
-          "path": "components/dimah-s3/upload/upload-status.tsx",
+          "path": "src/components/dimah-s3/upload/upload-status.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-status.tsx"
         },
         {
-          "path": "components/dimah-s3/upload/multi-upload-status.tsx",
+          "path": "src/components/dimah-s3/upload/multi-upload-status.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "components/dimah-s3/upload/upload-status-block.tsx",
+          "path": "src/components/dimah-s3/upload/upload-status-block.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/file-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-attachment.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/circle-progress.tsx",
+          "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
-          "path": "hooks/use-upload-toast.tsx",
+          "path": "src/hooks/use-upload-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-upload-toast.tsx"
         },
         {
-          "path": "hooks/use-file-reject-toast.tsx",
+          "path": "src/hooks/use-file-reject-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-file-reject-toast.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment-layout.ts",
+          "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
         },
         {
-          "path": "lib/file-type-icon.tsx",
+          "path": "src/lib/file-type-icon.tsx",
           "type": "registry:lib",
           "target": "@lib/file-type-icon.tsx"
         }
@@ -176,9 +165,7 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "devDependencies": [
-        "@types/react-file-icon"
-      ],
+      "devDependencies": ["@types/react-file-icon"],
       "cssVars": {
         "theme": {
           "color-dimah-s3-background": "var(--background)",
@@ -207,57 +194,57 @@
       ],
       "files": [
         {
-          "path": "components/dimah-s3/upload/upload-button.tsx",
+          "path": "src/components/dimah-s3/upload/upload-button.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-button.tsx"
         },
         {
-          "path": "components/dimah-s3/upload/upload-status.tsx",
+          "path": "src/components/dimah-s3/upload/upload-status.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-status.tsx"
         },
         {
-          "path": "components/dimah-s3/upload/multi-upload-status.tsx",
+          "path": "src/components/dimah-s3/upload/multi-upload-status.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "components/dimah-s3/upload/upload-status-block.tsx",
+          "path": "src/components/dimah-s3/upload/upload-status-block.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/file-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-attachment.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/circle-progress.tsx",
+          "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
-          "path": "hooks/use-upload-toast.tsx",
+          "path": "src/hooks/use-upload-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-upload-toast.tsx"
         },
         {
-          "path": "hooks/use-file-reject-toast.tsx",
+          "path": "src/hooks/use-file-reject-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-file-reject-toast.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment-layout.ts",
+          "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
         },
         {
-          "path": "lib/file-type-icon.tsx",
+          "path": "src/lib/file-type-icon.tsx",
           "type": "registry:lib",
           "target": "@lib/file-type-icon.tsx"
         }
@@ -275,9 +262,7 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "devDependencies": [
-        "@types/react-file-icon"
-      ],
+      "devDependencies": ["@types/react-file-icon"],
       "cssVars": {
         "theme": {
           "color-dimah-s3-background": "var(--background)",
@@ -297,34 +282,30 @@
           "color-dimah-s3-ring": "var(--ring)"
         }
       },
-      "registryDependencies": [
-        "button",
-        "toast",
-        "attachment"
-      ],
+      "registryDependencies": ["button", "toast", "attachment"],
       "files": [
         {
-          "path": "components/dimah-s3/download/download-button.tsx",
+          "path": "src/components/dimah-s3/download/download-button.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/download/download-button.tsx"
         },
         {
-          "path": "hooks/use-download-toast.tsx",
+          "path": "src/hooks/use-download-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-download-toast.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment-layout.ts",
+          "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
         },
         {
-          "path": "lib/file-type-icon.tsx",
+          "path": "src/lib/file-type-icon.tsx",
           "type": "registry:lib",
           "target": "@lib/file-type-icon.tsx"
         }
@@ -342,9 +323,7 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "devDependencies": [
-        "@types/react-file-icon"
-      ],
+      "devDependencies": ["@types/react-file-icon"],
       "cssVars": {
         "theme": {
           "color-dimah-s3-background": "var(--background)",
@@ -364,35 +343,30 @@
           "color-dimah-s3-ring": "var(--ring)"
         }
       },
-      "registryDependencies": [
-        "button",
-        "toast",
-        "tooltip",
-        "attachment"
-      ],
+      "registryDependencies": ["button", "toast", "tooltip", "attachment"],
       "files": [
         {
-          "path": "components/dimah-s3/download/progress-download-button.tsx",
+          "path": "src/components/dimah-s3/download/progress-download-button.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/download/progress-download-button.tsx"
         },
         {
-          "path": "hooks/use-download-toast.tsx",
+          "path": "src/hooks/use-download-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-download-toast.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment-layout.ts",
+          "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
         },
         {
-          "path": "lib/file-type-icon.tsx",
+          "path": "src/lib/file-type-icon.tsx",
           "type": "registry:lib",
           "target": "@lib/file-type-icon.tsx"
         }
@@ -410,9 +384,7 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "devDependencies": [
-        "@types/react-file-icon"
-      ],
+      "devDependencies": ["@types/react-file-icon"],
       "cssVars": {
         "theme": {
           "color-dimah-s3-background": "var(--background)",
@@ -441,27 +413,27 @@
       ],
       "files": [
         {
-          "path": "components/dimah-s3/delete/delete-button.tsx",
+          "path": "src/components/dimah-s3/delete/delete-button.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/delete/delete-button.tsx"
         },
         {
-          "path": "hooks/use-delete-toast.tsx",
+          "path": "src/hooks/use-delete-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-delete-toast.tsx"
         },
         {
-          "path": "components/dimah-s3/attachment/status-attachment.tsx",
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
-          "path": "lib/attachment-layout.ts",
+          "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
         },
         {
-          "path": "lib/file-type-icon.tsx",
+          "path": "src/lib/file-type-icon.tsx",
           "type": "registry:lib",
           "target": "@lib/file-type-icon.tsx"
         }

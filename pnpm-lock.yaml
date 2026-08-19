@@ -835,64 +835,6 @@ importers:
       tsup:
         specifier: 'catalog:'
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(supports-color@10.2.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.0)
-      typescript:
-        specifier: 'catalog:'
-        version: 7.0.2
-
-  registry:
-    dependencies:
-      '@base-ui/react':
-        specifier: ^1.7.0
-        version: 1.7.0(@date-fns/tz@1.5.0)(@types/react@19.2.18)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@dimah-s3/core':
-        specifier: workspace:*
-        version: link:../packages/core
-      '@dimah-s3/react':
-        specifier: workspace:*
-        version: link:../packages/react
-      '@fuma-translate/react':
-        specifier: ^1.0.2
-        version: 1.0.2(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      cnfast:
-        specifier: ^0.1.0
-        version: 0.1.0
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)(kysely@0.29.5)
-      lucide-react:
-        specifier: ^1.32.0
-        version: 1.32.0(react@19.2.8)
-      react:
-        specifier: 'catalog:'
-        version: 19.2.8
-      react-file-icon:
-        specifier: ^1.6.0
-        version: 1.6.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      shadcn:
-        specifier: ^4.18.0
-        version: 4.18.0(supports-color@10.2.2)(typescript@7.0.2)
-    devDependencies:
-      '@types/node':
-        specifier: ^26.2.0
-        version: 26.2.0
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.18
-      '@types/react-file-icon':
-        specifier: ^1.0.5
-        version: 1.0.5
-      '@workspace/eslint-config':
-        specifier: workspace:*
-        version: link:../tooling/eslint-config
-      '@workspace/typescript-config':
-        specifier: workspace:*
-        version: link:../tooling/typescript-config
-      eslint:
-        specifier: 'catalog:'
-        version: 10.8.1(jiti@2.7.0)(supports-color@10.2.2)
       tsx:
         specifier: ^4.23.12
         version: 4.23.12

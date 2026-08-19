@@ -19,7 +19,9 @@
     "templates:update": "node ./scripts/templates-update.mjs",
     "templates:build": "node ./scripts/templates-build.mjs",
     "examples:drift": "node ./scripts/examples-drift.mjs",
-    "ui:sync:shadcn": "pnpm --filter @dimah-s3/ui sync:shadcn"
+    "ui:sync:shadcn": "pnpm --filter @dimah-s3/ui sync:shadcn",
+    "registry:validate": "pnpm --filter @dimah-s3/ui registry:validate",
+    "registry:build": "pnpm --filter @dimah-s3/ui registry:build"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

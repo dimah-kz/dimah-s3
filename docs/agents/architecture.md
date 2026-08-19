@@ -21,20 +21,20 @@
 
 ## Placement {#placement}
 
-| Change                                                                                     | Package / path                        |
-| ------------------------------------------------------------------------------------------ | ------------------------------------- |
-| Route constants, `S3Api`, `createS3Client`, `DimahS3Error`, client plugins (`src/plugin/`) | `packages/core/src/`                  |
-| Presign endpoints (`api/routes`), `dimahS3`, `createS3Router`, plugin subsystem            | `packages/server/src/`                |
-| React hooks, i18n types (`Translations`), upload client logic                              | `packages/react/src/`                 |
-| Pre-built components                                                                       | `packages/ui/src/`                    |
-| Optional DB schema + `db()` / `dbClient()`                                                 | `packages/db/src/`                    |
-| Scaffold CLI (`dimah-s3 create`)                                                           | `packages/cli/`                       |
-| shadcn manifests                                                                           | `registry/items/` (after UI source)   |
-| Docs site copy                                                                             | `apps/docs/`                          |
-| Runnable demo (same as template, `workspace:*`)                                            | `examples/with-{nextjs,vite,hono}/`   |
-| Runnable demo + `@dimah-s3/db`                                                             | `examples/with-db/`                   |
-| User-facing app starters (`@dimah-s3/cli` snapshot source)                                 | `templates/<id>/`                     |
-| Shared ESLint / TSConfig                                                                   | `tooling/{eslint,typescript}-config/` |
+| Change                                                                                     | Package / path                                                |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| Route constants, `S3Api`, `createS3Client`, `DimahS3Error`, client plugins (`src/plugin/`) | `packages/core/src/`                                          |
+| Presign endpoints (`api/routes`), `dimahS3`, `createS3Router`, plugin subsystem            | `packages/server/src/`                                        |
+| React hooks, i18n types (`Translations`), upload client logic                              | `packages/react/src/`                                         |
+| Pre-built components                                                                       | `packages/ui/src/`                                            |
+| Optional DB schema + `db()` / `dbClient()`                                                 | `packages/db/src/`                                            |
+| Scaffold CLI (`dimah-s3 create`)                                                           | `packages/cli/`                                               |
+| shadcn manifests                                                                           | `packages/ui/scripts/registry-items.ts`; root `registry.json` |
+| Docs site copy                                                                             | `apps/docs/`                                                  |
+| Runnable demo (same as template, `workspace:*`)                                            | `examples/with-{nextjs,vite,hono}/`                           |
+| Runnable demo + `@dimah-s3/db`                                                             | `examples/with-db/`                                           |
+| User-facing app starters (`@dimah-s3/cli` snapshot source)                                 | `templates/<id>/`                                             |
+| Shared ESLint / TSConfig                                                                   | `tooling/{eslint,typescript}-config/`                         |
 
 **Default:** edit the smallest package that owns the behavior. Shared protocol → `core` first, then wire server + react.
 
@@ -51,5 +51,5 @@
 - Auth or quota logic inside library packages (consumer hooks / user config).
 - ORM / FumaDB imports inside `@dimah-s3/server` — DB adapters stay in `@dimah-s3/db`.
 - Importing `ui` or `react` from `server` / `core`.
-- Hand-editing `registry/generated/dimah-s3-ui/` (generated — [registry.md](./registry.md)).
+- Hand-editing `packages/ui/registry.json` (generated — [registry.md](./registry.md)).
 - Hand-editing `packages/ui/src/components/ui/` (stock shadcn — compose in `dimah-s3` / `lib` / `hooks`; refresh via `pnpm --filter @dimah-s3/ui sync:shadcn` — [registry.md](./registry.md)).

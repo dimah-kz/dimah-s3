@@ -122,10 +122,8 @@ jobs:
         with:
           filters: |
             registry:
-              - 'registry/**'
+              - 'registry.json'
               - 'packages/ui/**'
-              - 'packages/react/**'
-              - 'packages/core/**'
 
       - uses: pnpm/action-setup@v6
         if: steps.filter.outputs.registry == 'true'
@@ -148,22 +146,17 @@ jobs:
       - if: steps.filter.outputs.registry == 'true'
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      # Synced registry sources import @dimah-s3/{core,react}; types come from dist/.
-      - name: Build package deps
-        if: steps.filter.outputs.registry == 'true'
-        run: pnpm turbo run build --filter=@dimah-s3/react
-
-      - name: Sync registry sources
-        if: steps.filter.outputs.registry == 'true'
-        run: pnpm --filter @dimah-s3/ui sync-registry
-
       - name: Validate registry
         if: steps.filter.outputs.registry == 'true'
-        run: pnpm --filter @dimah-s3/registry validate
+        run: pnpm registry:validate
+
+      - name: Check registry.json is up to date
+        if: steps.filter.outputs.registry == 'true'
+        run: git diff --exit-code -- packages/ui/registry.json
 
       - name: Type check registry items
         if: steps.filter.outputs.registry == 'true'
-        run: pnpm --filter @dimah-s3/registry check-types
+        run: pnpm --filter @dimah-s3/ui exec tsc --noEmit -p tsconfig.registry.json
 
   apps:
     name: Typecheck Apps
@@ -183,7 +176,7 @@ jobs:
               - 'packages/react/**'
               - 'packages/server/**'
               - 'packages/ui/**'
-              - 'registry/**'
+              - 'registry.json'
               - 'pnpm-lock.yaml'
               - 'turbo.json'
 

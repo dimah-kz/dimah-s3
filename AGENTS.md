@@ -45,7 +45,7 @@ pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui,cli}` (tsup, ESM, Teg
 - **Auth / quota:** consumer `DimahS3Config` hooks — never inside library packages. Optional DB via `@dimah-s3/db` `db()` plugin (not ORM inside `server`).
 - **Deps:** `core` ← `server` \| `react` ← `ui`; `db` → `server` (peer); no reverse ORM into `server`. UI: Fuma Translate. API errors: stable `code` + English `message` (localize on the client).
 - **Protocol SSOT:** `S3_API_ROUTES` + `createS3Client` in `@dimah-s3/core`; server exposes them via `dimahS3().handler` / `.api` — keep server + client in sync.
-- **Registry output:** never hand-edit `registry/generated/dimah-s3-ui/` — source is `packages/ui/src/`.
+- **Registry catalog:** never hand-edit `packages/ui/registry.json` — source is `packages/ui/scripts/registry-items.ts` + `packages/ui/src/`.
 - **Stock shadcn UI:** never hand-edit `packages/ui/src/components/ui/` — compose in `components/dimah-s3/` / `lib/` / `hooks/`; refresh with `pnpm --filter @dimah-s3/ui sync:shadcn` ([registry.md](docs/agents/registry.md)).
 - **Published API change:** add a Tegami changelog under `.tegami/` ([release.md](docs/agents/release.md)).
 - **RTL-safe styling:** default copy/design is English + LTR, but UI classes must stay direction-safe so RTL can be enabled later without layout breakage. Prefer logical utilities (`text-start`, `text-end`, `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`) over physical ones (`text-left/right`, `ml/mr`, `pl/pr`, `left/right`) unless the physical side is truly required by behavior (for example side-specific tooltip arrow placement).
