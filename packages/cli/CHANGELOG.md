@@ -1,3 +1,9 @@
+## @dimah-s3/cli@0.8.3
+
+### Fix shadcn registry installs
+
+Installing `@dimah-s3/*` UI items no longer rewrites layout helpers onto the stock Attachment primitive. Upload items ship the reject-toast hook, `@fuma-translate/react` and `react-file-icon` types install automatically, and dimah color tokens are injected into the project CSS.
+
 ## @dimah-s3/cli@0.8.2
 
 ### Fix invalid dropzone `accept` mapping
