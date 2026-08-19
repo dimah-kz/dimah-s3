@@ -13,7 +13,9 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "registryDependencies": ["attachment"],
+      "registryDependencies": [
+        "attachment"
+      ],
       "files": [
         {
           "path": "generated/dimah-s3-ui/components/dimah-s3/attachment/file-attachment.tsx",
@@ -53,7 +55,12 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "registryDependencies": ["button", "toast", "attachment", "progress"],
+      "registryDependencies": [
+        "button",
+        "toast",
+        "attachment",
+        "progress"
+      ],
       "files": [
         {
           "path": "generated/dimah-s3-ui/components/dimah-s3/upload/upload-dropzone.tsx",
@@ -189,7 +196,11 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "registryDependencies": ["button", "toast", "attachment"],
+      "registryDependencies": [
+        "button",
+        "toast",
+        "attachment"
+      ],
       "files": [
         {
           "path": "generated/dimah-s3-ui/components/dimah-s3/download/download-button.tsx",
@@ -229,7 +240,12 @@
         "lucide-react",
         "react-file-icon"
       ],
-      "registryDependencies": ["button", "toast", "tooltip", "attachment"],
+      "registryDependencies": [
+        "button",
+        "toast",
+        "tooltip",
+        "attachment"
+      ],
       "files": [
         {
           "path": "generated/dimah-s3-ui/components/dimah-s3/download/progress-download-button.tsx",

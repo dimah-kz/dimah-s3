@@ -9,7 +9,12 @@
     "lucide-react",
     "react-file-icon"
   ],
-  "registryDependencies": ["button", "toast", "tooltip", "attachment"],
+  "registryDependencies": [
+    "button",
+    "toast",
+    "tooltip",
+    "attachment"
+  ],
   "files": [
     {
       "path": "generated/dimah-s3-ui/components/dimah-s3/download/progress-download-button.tsx",
