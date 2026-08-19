@@ -9,14 +9,14 @@ describe("toDropzoneAccept", () => {
     expect(toDropzoneAccept([])).toBeUndefined();
   });
 
-  it("maps MIME wildcards and bare extensions to real MIME keys", () => {
-    expect(toDropzoneAccept(["image/*", ".pdf", "PDF"])).toEqual({
+  it("maps HTML accept tokens to dropzone MIME keys", () => {
+    expect(toDropzoneAccept(["image/*", ".pdf"])).toEqual({
       "image/*": [],
       "application/pdf": [".pdf"],
     });
   });
 
-  it("keeps explicit MIME types", () => {
+  it("keeps concrete MIME types", () => {
     expect(toDropzoneAccept(["application/json", "text/plain"])).toEqual({
       "application/json": [],
       "text/plain": [],
@@ -29,15 +29,16 @@ describe("toDropzoneAccept", () => {
     });
   });
 
-  it("omits */* so dropzone never receives an invalid MIME key", () => {
+  it("omits tokens that are not HTML accept specifiers", () => {
     expect(toDropzoneAccept(["*/*"])).toBeUndefined();
     expect(toDropzoneAccept(["*/*", "image/*"])).toEqual({
       "image/*": [],
     });
-    expect(toDropzoneAccept(["*/json", "foo/*"])).toBeUndefined();
+    expect(toDropzoneAccept(["*/json", "foo/*", "application/*"])).toBeUndefined();
+    expect(toDropzoneAccept(["pdf"])).toBeUndefined();
   });
 
-  it("maps the homepage demo accept list without */*", () => {
+  it("maps the homepage demo accept list", () => {
     expect(toDropzoneAccept(["image/*", ".pdf", "video/*"])).toEqual({
       "image/*": [],
       "application/pdf": [".pdf"],
@@ -45,10 +46,10 @@ describe("toDropzoneAccept", () => {
     });
   });
 
-  it("groups jpeg aliases and falls back for unknown extensions", () => {
+  it("groups jpeg aliases; unknown extensions use octet-stream", () => {
     expect(toDropzoneAccept([".jpg", ".jpeg", ".foo"])).toEqual({
       "image/jpeg": [".jpg", ".jpeg"],
-      "application/x-foo": [".foo"],
+      "application/octet-stream": [".foo"],
     });
   });
 

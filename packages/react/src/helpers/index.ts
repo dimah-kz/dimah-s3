@@ -7,4 +7,3 @@ export { useFormatDimahError } from "./format-dimah-error";
 export { createSpeedTracker, type SpeedTracker } from "./speed-tracker";
 export { createThrottledSpeedUpdater } from "./throttled-speed";
 export { createImagePreviewUrl, revokePreviewUrl } from "./file-preview";
-export { toDropzoneAccept } from "./to-dropzone-accept";

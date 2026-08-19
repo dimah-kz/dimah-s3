@@ -1,91 +1,78 @@
 import type { Accept } from "react-dropzone";
 
 /**
- * Extension → MIME for dropzone's `{ [mime]: extensions }` map.
- *
- * react-dropzone (and Chromium's file picker) warn and drop keys that are not
- * valid MIME types (the catch-all star type is not). Pairing a real type also
- * lets drag-over match by MIME when the browser has not exposed the filename
- * yet.
+ * Common IANA media types for filename extensions.
+ * @see https://www.iana.org/assignments/media-types/media-types.xhtml
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
  */
 const EXTENSION_MIME: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-  ".avif": "image/avif",
-  ".heic": "image/heic",
-  ".bmp": "image/bmp",
-  ".tif": "image/tiff",
-  ".tiff": "image/tiff",
-  ".mp4": "video/mp4",
-  ".webm": "video/webm",
-  ".mov": "video/quicktime",
-  ".mkv": "video/x-matroska",
-  ".mp3": "audio/mpeg",
-  ".wav": "audio/wav",
-  ".ogg": "audio/ogg",
-  ".m4a": "audio/mp4",
   ".aac": "audio/aac",
-  ".txt": "text/plain",
-  ".csv": "text/csv",
-  ".json": "application/json",
-  ".md": "text/markdown",
-  ".html": "text/html",
-  ".htm": "text/html",
+  ".avif": "image/avif",
+  ".bmp": "image/bmp",
   ".css": "text/css",
-  ".zip": "application/zip",
+  ".csv": "text/csv",
   ".doc": "application/msword",
   ".docx":
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".xls": "application/vnd.ms-excel",
-  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".gif": "image/gif",
+  ".heic": "image/heic",
+  ".htm": "text/html",
+  ".html": "text/html",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".json": "application/json",
+  ".m4a": "audio/mp4",
+  ".md": "text/markdown",
+  ".mkv": "video/x-matroska",
+  ".mov": "video/quicktime",
+  ".mp3": "audio/mpeg",
+  ".mp4": "video/mp4",
+  ".ogg": "audio/ogg",
+  ".pdf": "application/pdf",
+  ".png": "image/png",
   ".ppt": "application/vnd.ms-powerpoint",
   ".pptx":
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".svg": "image/svg+xml",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".txt": "text/plain",
+  ".wav": "audio/wav",
+  ".webm": "video/webm",
+  ".webp": "image/webp",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".zip": "application/zip",
 };
 
-/** Family wildcards react-dropzone treats as valid MIME keys (same as HTML `accept`). */
-const FAMILY_WILDCARDS = new Set([
-  "audio/*",
-  "video/*",
-  "image/*",
-  "text/*",
-  "application/*",
-]);
+/** HTML `accept` family wildcards. @see https://html.spec.whatwg.org/multipage/input.html#attr-input-accept */
+const FAMILY_WILDCARD = new Set(["audio/*", "image/*", "video/*"]);
 
-function isDropzoneMimeKey(value: string): boolean {
-  if (FAMILY_WILDCARDS.has(value)) return true;
-  // Anchored; react-dropzone's copy of this check uses `/g` and is not `^$`.
-  return /^\w+\/[-+.\w]+$/.test(value);
-}
-
-function mimeForExtension(ext: string): string | undefined {
-  const mime = EXTENSION_MIME[ext] ?? `application/x-${ext.slice(1)}`;
-  return isDropzoneMimeKey(mime) ? mime : undefined;
+/**
+ * Whether a token is a MIME-shaped HTML accept specifier: `image|audio|video/*`
+ * or a MIME type with no parameters and no wildcards.
+ */
+function isMimeAcceptToken(token: string): boolean {
+  if (FAMILY_WILDCARD.has(token)) return true;
+  const slash = token.indexOf("/");
+  if (slash < 1) return false;
+  const type = token.slice(0, slash);
+  const subtype = token.slice(slash + 1);
+  return (
+    type.length > 0 &&
+    subtype.length > 0 &&
+    !type.includes("*") &&
+    !subtype.includes("*") &&
+    !subtype.includes(";")
+  );
 }
 
 /**
- * Convert dimah-s3 `accept: string[]` into react-dropzone's `Accept` map.
+ * Convert dimah-s3 `accept: string[]` (HTML accept tokens) into react-dropzone's
+ * `{ [mime]: extensions }` map. Dropzone keys must be MIME types; a catch-all
+ * star type is not valid.
  *
- * - MIME types / wildcards (`image/*`, `application/pdf`) become keys.
- * - Bare extensions (`.png`, `pdf`) are grouped under their MIME type so
- *   dropzone can match by type or filename. Invalid keys such as the
- *   catch-all star type are omitted (they are not valid MIME types for the
- *   picker).
- *
- * Family wildcards keep an empty extension list so the native `accept`
- * attribute can stay `image/*` (pairing extensions would make react-dropzone
- * drop the wildcard from the input).
- *
- * @example
- * ```ts
- * toDropzoneAccept(["image/*", ".pdf"])
- * // → { "image/*": [], "application/pdf": [".pdf"] }
- * ```
+ * @internal
  */
 export function toDropzoneAccept(
   accept: string[] | undefined,
@@ -95,21 +82,18 @@ export function toDropzoneAccept(
   const map: Record<string, string[]> = {};
 
   for (const raw of accept) {
-    const item = raw.trim().toLowerCase();
-    if (!item) continue;
+    const token = raw.trim().toLowerCase();
+    if (!token) continue;
 
-    if (item.includes("/")) {
-      if (isDropzoneMimeKey(item)) map[item] ??= [];
+    if (token.startsWith(".")) {
+      if (token.length < 2) continue;
+      const mime = EXTENSION_MIME[token] ?? "application/octet-stream";
+      map[mime] ??= [];
+      if (!map[mime].includes(token)) map[mime].push(token);
       continue;
     }
 
-    const ext = item.startsWith(".") ? item : `.${item}`;
-    if (!/^\.[\w]+$/.test(ext)) continue;
-
-    const mime = mimeForExtension(ext);
-    if (!mime) continue;
-    map[mime] ??= [];
-    if (!map[mime].includes(ext)) map[mime].push(ext);
+    if (isMimeAcceptToken(token)) map[token] ??= [];
   }
 
   return Object.keys(map).length > 0 ? map : undefined;

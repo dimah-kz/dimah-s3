@@ -56,7 +56,6 @@ export {
   createSpeedTracker,
   createImagePreviewUrl,
   revokePreviewUrl,
-  toDropzoneAccept,
   type SpeedTracker,
 } from "./helpers";
 
