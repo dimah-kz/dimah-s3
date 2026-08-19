@@ -2,8 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
-import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
-import { TryDemoHint } from "@/components/try-demo-hint";
+import { HomeDropzoneDemo } from "@/components/demos/home-dropzone-demo";
 import { buttonVariants } from "@/components/ui/button";
 import { githubRepoUrl } from "@/lib/shared";
 import { cn } from "@/lib/utils";
@@ -80,9 +79,8 @@ export default function HomePage() {
       </div>
 
       <div className={cn(enter, "relative mt-20 w-full max-w-md delay-300")}>
-        <TryDemoHint className={cn(enter, "delay-700")} />
         <DemoS3Provider>
-          <UploadDropzoneDemo />
+          <HomeDropzoneDemo />
         </DemoS3Provider>
       </div>
     </section>

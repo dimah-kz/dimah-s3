@@ -1,9 +1,11 @@
 import type { S3Api } from "@dimah-s3/core";
+import { forgetDemoFile, getDemoFileUrl } from "@/lib/demo/client-object-store";
 
 const unsupported = (action: string) =>
   Promise.reject(new Error(`Demo API does not support ${action}`));
 
 const pendingUploadSizes = new Map<string, number>();
+const objectSizes = new Map<string, number>();
 
 function uploadUrl(key: string, fileSize: number) {
   const params = new URLSearchParams({
@@ -33,6 +35,7 @@ export const demoS3Api: S3Api = {
   confirm: async (payload) => {
     const contentLength = pendingUploadSizes.get(payload.key) ?? 0;
     pendingUploadSizes.delete(payload.key);
+    objectSizes.set(payload.key, contentLength);
 
     return {
       key: payload.key,
@@ -44,8 +47,18 @@ export const demoS3Api: S3Api = {
   },
 
   download: async (key, options) => {
-    const bytes = 40_000_000;
-    const params = new URLSearchParams({ bytes: String(bytes) });
+    const localUrl = getDemoFileUrl(key);
+    if (localUrl) {
+      return {
+        key,
+        bucket: "demo",
+        url: localUrl,
+        expiresIn: 3600,
+      };
+    }
+
+    const bytes = objectSizes.get(key) ?? 40_000_000;
+    const params = new URLSearchParams({ key, bytes: String(bytes) });
     if (options?.fileName) params.set("name", options.fileName);
 
     return {
@@ -57,6 +70,12 @@ export const demoS3Api: S3Api = {
   },
 
   delete: async (key, options) => {
+    objectSizes.delete(key);
+    pendingUploadSizes.delete(key);
+    forgetDemoFile(key);
+    void fetch(`/api/demo-upload?key=${encodeURIComponent(key)}`, {
+      method: "DELETE",
+    });
     return {
       success: true,
       bucket: options?.bucket ?? "demo",
