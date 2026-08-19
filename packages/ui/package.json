@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/ui",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Pre-built React UI components for S3 file upload, download, and delete",
   "keywords": [
     "s3",

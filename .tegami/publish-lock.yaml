@@ -1,30 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Fix invalid dropzone `accept` mapping\n\nBare extensions such as `.pdf` now pair with their IANA media type so the file picker no longer warns that a catch-all MIME type is invalid. Hook `accept` still uses HTML unique file type specifiers (`image/*`, `application/pdf`, `.pdf`). The dropzone conversion helper is no longer a public export.\n\n### Allow in-memory upload transports\n\nCustom `S3Api` objects may set `uploadTransport` to move file bytes without PUT/POST to the presigned URL. Use this for in-memory backends and demos that must not send large files through a serverless function.\n"
-    filename: 2026-08-19-e8c1d4a2.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Fix shadcn registry installs\n\nInstalling `@dimah-s3/*` UI items no longer rewrites layout helpers onto the stock Attachment primitive. Upload items ship the reject-toast hook, `@fuma-translate/react` and `react-file-icon` types install automatically, and dimah color tokens are injected into the project CSS.\n"
+    filename: 2026-08-20-registry-install.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-19-e8c1d4a2.md
+      - 2026-08-20-registry-install.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-19-e8c1d4a2.md
+      - 2026-08-20-registry-install.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-19-e8c1d4a2.md
+      - 2026-08-20-registry-install.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-19-e8c1d4a2.md
+      - 2026-08-20-registry-install.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-19-e8c1d4a2.md
+      - 2026-08-20-registry-install.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-19-e8c1d4a2.md
+      - 2026-08-20-registry-install.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
