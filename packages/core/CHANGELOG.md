@@ -1,3 +1,13 @@
+## @dimah-s3/core@0.8.2
+
+### Fix invalid dropzone `accept` mapping
+
+Bare extensions such as `.pdf` now pair with their IANA media type so the file picker no longer warns that a catch-all MIME type is invalid. Hook `accept` still uses HTML unique file type specifiers (`image/*`, `application/pdf`, `.pdf`). The dropzone conversion helper is no longer a public export.
+
+### Allow in-memory upload transports
+
+Custom `S3Api` objects may set `uploadTransport` to move file bytes without PUT/POST to the presigned URL. Use this for in-memory backends and demos that must not send large files through a serverless function.
+
 ## @dimah-s3/core@0.8.1
 
 ### Refresh official starters to the current setup
