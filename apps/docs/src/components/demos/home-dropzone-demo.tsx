@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 
 const enter =
   "animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 ease-out";
+const reveal =
+  "animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-300 ease-out";
 
 type DemoObject = {
   key: string;
@@ -42,7 +44,7 @@ function DemoObjectRow({
 }) {
   return (
     <div
-      className="flex w-full flex-col gap-2 p-3 text-start"
+      className={cn("flex w-full flex-col gap-2 p-3 text-start", reveal)}
       onClick={keepInsideDemo}
       onKeyDown={keepInsideDemo}
     >
@@ -53,7 +55,9 @@ function DemoObjectRow({
         fileType={object.type}
         previewUrl={object.previewUrl}
       />
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn("flex flex-wrap items-center gap-2", reveal, "delay-100")}
+      >
         <ProgressDownloadButton
           className="w-fit"
           objectKey={object.key}
@@ -151,13 +155,17 @@ export function HomeDropzoneDemo() {
           }
           if (uploading || failed) {
             if (node == null) return null;
-            return <div className="w-full text-start">{node}</div>;
+            return (
+              <div className={cn("w-full p-3 text-start", reveal)}>{node}</div>
+            );
           }
           return null;
         }}
       >
-        {object && !uploading ? (
-          <span className="sr-only">Uploaded file</span>
+        {!idle ? (
+          <span className="sr-only">
+            {object ? "Uploaded file" : "Uploading file"}
+          </span>
         ) : undefined}
       </UploadDropzone>
     </>
