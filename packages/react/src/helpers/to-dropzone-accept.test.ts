@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { useDropzone } from "react-dropzone";
+import { describe, expect, it, vi } from "vitest";
+import { renderHook } from "../test/render-hook";
 import { toDropzoneAccept } from "./to-dropzone-accept";
 
 describe("toDropzoneAccept", () => {
@@ -7,10 +9,10 @@ describe("toDropzoneAccept", () => {
     expect(toDropzoneAccept([])).toBeUndefined();
   });
 
-  it("maps MIME wildcards and bare extensions", () => {
+  it("maps MIME wildcards and bare extensions to real MIME keys", () => {
     expect(toDropzoneAccept(["image/*", ".pdf", "PDF"])).toEqual({
       "image/*": [],
-      "*/*": [".pdf"],
+      "application/pdf": [".pdf"],
     });
   });
 
@@ -23,7 +25,41 @@ describe("toDropzoneAccept", () => {
 
   it("skips blank entries", () => {
     expect(toDropzoneAccept(["  ", ".png"])).toEqual({
-      "*/*": [".png"],
+      "image/png": [".png"],
     });
+  });
+
+  it("omits */* so dropzone never receives an invalid MIME key", () => {
+    expect(toDropzoneAccept(["*/*"])).toBeUndefined();
+    expect(toDropzoneAccept(["*/*", "image/*"])).toEqual({
+      "image/*": [],
+    });
+    expect(toDropzoneAccept(["*/json", "foo/*"])).toBeUndefined();
+  });
+
+  it("maps the homepage demo accept list without */*", () => {
+    expect(toDropzoneAccept(["image/*", ".pdf", "video/*"])).toEqual({
+      "image/*": [],
+      "application/pdf": [".pdf"],
+      "video/*": [],
+    });
+  });
+
+  it("groups jpeg aliases and falls back for unknown extensions", () => {
+    expect(toDropzoneAccept([".jpg", ".jpeg", ".foo"])).toEqual({
+      "image/jpeg": [".jpg", ".jpeg"],
+      "application/x-foo": [".foo"],
+    });
+  });
+
+  it("does not warn when react-dropzone receives the mapped accept", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const hook = renderHook(() =>
+      useDropzone({
+        accept: toDropzoneAccept(["image/*", ".pdf", "video/*"]),
+      }),
+    );
+    expect(warn).not.toHaveBeenCalled();
+    hook.unmount();
   });
 });

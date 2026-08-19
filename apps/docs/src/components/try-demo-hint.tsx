@@ -12,7 +12,7 @@ export function TryDemoHint({ className }: { className?: string }) {
       aria-hidden
       className={cn(
         "pointer-events-none absolute z-10 flex flex-col items-end",
-        "-top-14 end-1 md:-top-3 md:-end-8",
+        "-top-14 inset-e-1 md:-top-3 md:-inset-e-8",
         className,
       )}
     >
