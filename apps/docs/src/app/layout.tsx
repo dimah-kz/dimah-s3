@@ -4,7 +4,13 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import { Geist } from "next/font/google";
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
-import { appName, siteDescription, siteJsonLd, siteTitle } from "@/lib/shared";
+import {
+  appName,
+  siteDescription,
+  siteJsonLd,
+  siteKeywords,
+  siteTitle,
+} from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,9 +30,18 @@ export const metadata: Metadata = {
   },
   description: siteDescription,
   applicationName: appName,
+  category: "technology",
+  keywords: [...siteKeywords],
+  authors: [{ name: "Hamidrezakz", url: "https://github.com/dimah-kz" }],
+  creator: "@dimahkzx",
+  publisher: appName,
   alternates: {
+    canonical: "/",
     types: {
-      "text/markdown": "/llms.txt",
+      "text/markdown": [
+        { url: "/llms.txt", title: "llms.txt" },
+        { url: "/llms-full.txt", title: "llms-full.txt" },
+      ],
     },
   },
   openGraph: {
@@ -44,6 +59,10 @@ export const metadata: Metadata = {
     title: siteTitle,
     description: siteDescription,
     images: "/og/docs/image.png",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 

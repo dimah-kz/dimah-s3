@@ -1,14 +1,18 @@
 {
   "name": "@dimah-s3/db",
   "version": "0.8.4",
-  "description": "Optional FumaDB persistence for dimah-s3 — db() plugin + storage_object schema",
+  "description": "Optional database plugin for dimah-s3 — track S3 object ownership, listings, and resumable uploads",
   "keywords": [
     "s3",
+    "s3-compatible",
+    "aws-s3",
     "file-upload",
     "object-storage",
     "database",
     "drizzle",
-    "fumadb"
+    "prisma",
+    "fumadb",
+    "typescript"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",

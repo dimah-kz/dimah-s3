@@ -4,11 +4,16 @@
   "description": "Pre-built React UI components for S3 file upload, download, and delete",
   "keywords": [
     "s3",
+    "s3-compatible",
+    "aws-s3",
+    "cloudflare-r2",
     "react",
     "ui",
     "shadcn",
+    "shadcn-ui",
     "file-upload",
     "dropzone",
+    "file-uploader",
     "nextjs",
     "components"
   ],

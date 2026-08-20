@@ -4,12 +4,15 @@
   "description": "Scaffold dimah-s3 apps from official templates",
   "keywords": [
     "s3",
+    "s3-compatible",
+    "aws-s3",
+    "cloudflare-r2",
+    "minio",
+    "file-upload",
     "cli",
     "scaffold",
-    "file-upload",
+    "create",
     "nextjs",
-    "cloudflare-r2",
-    "aws-s3",
     "vite",
     "hono"
   ],

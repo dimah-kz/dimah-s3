@@ -1,13 +1,17 @@
 {
   "name": "@dimah-s3/core",
   "version": "0.8.4",
-  "description": "Shared types and pure helpers for @dimah-s3/react and @dimah-s3/server",
+  "description": "Typed S3 presign protocol and fetch client shared by @dimah-s3/server and @dimah-s3/react",
   "keywords": [
     "s3",
+    "s3-compatible",
+    "aws-s3",
+    "cloudflare-r2",
+    "minio",
     "presigned-url",
     "file-upload",
-    "typescript",
-    "object-storage"
+    "object-storage",
+    "typescript"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",
