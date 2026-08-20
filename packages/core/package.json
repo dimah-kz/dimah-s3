@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/core",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Typed S3 presign protocol and fetch client shared by @dimah-s3/server and @dimah-s3/react",
   "keywords": [
     "s3",
