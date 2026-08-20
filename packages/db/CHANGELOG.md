@@ -1,3 +1,10 @@
+## @dimah-s3/db@0.8.5
+
+### Clarify npm discovery copy
+
+Package keywords now include S3-compatible storage terms so the packages
+show up for more than a single vendor.
+
 ## @dimah-s3/db@0.8.4
 
 ### Install registry items from UI source
