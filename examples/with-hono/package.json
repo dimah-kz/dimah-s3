@@ -34,7 +34,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "concurrently": "^10.0.5",
@@ -43,6 +43,6 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.12",
     "typescript": "catalog:",
-    "vite": "^8.2.1"
+    "vite": "^8.2.2"
   }
 }
