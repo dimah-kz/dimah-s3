@@ -1,3 +1,7 @@
+## @dimah-s3/ui@0.8.6
+
+### deps update
+
 ## @dimah-s3/ui@0.8.5
 
 ### Clarify npm discovery copy
