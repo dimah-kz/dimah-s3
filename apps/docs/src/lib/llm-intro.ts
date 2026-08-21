@@ -37,7 +37,7 @@ export function stripGeneratedLlmsHeader(markdown: string): string {
 export function llmDecisionSheet(): string {
   return `# dimah-s3
 
-> Presign-first file uploads to your own bucket. The server signs; the browser talks to any S3-compatible store. No hosted middleman.
+> Full-stack S3 toolkit for the React ecosystem. Presign-first uploads to your own bucket: the server signs; the browser talks to any S3-compatible store. No hosted middleman.
 
 TypeScript toolkit: \`@dimah-s3/server\` (presign + hooks), \`@dimah-s3/react\` (headless), optional \`@dimah-s3/ui\` (shadcn) and \`@dimah-s3/db\` (object tracking). You pass an AWS SDK \`S3Client\`. Adapters: Next.js, Express, Hono, Fastify, Elysia, SvelteKit, Vite.
 

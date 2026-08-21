@@ -6,7 +6,9 @@ export const docsRoute = "/docs";
 export const docsImageRoute = "/og/docs";
 export const docsContentRoute = "/llms.mdx/docs";
 
-export const siteTitle = `${appName} — Presign-first S3 for React and Next.js`;
+/** Landing H1, browser tab, and Open Graph title — keep these in sync. */
+export const siteTagline = "Full-stack S3 toolkit for the React ecosystem";
+export const siteTitle = `${appName} — ${siteTagline}`;
 export const siteDescription =
   "Upload, download, and delete in your own S3-compatible bucket. Server, React hooks, optional UI and database — you pass an AWS SDK client.";
 
@@ -14,6 +16,8 @@ export const siteDescription =
 export const siteKeywords = [
   "s3",
   "s3-compatible",
+  "aws sdk",
+  "dimah s3",
   "object storage",
   "presigned url",
   "file upload",

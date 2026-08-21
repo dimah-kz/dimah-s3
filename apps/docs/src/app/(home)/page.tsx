@@ -4,7 +4,7 @@ import { SiGithub } from "@icons-pack/react-simple-icons";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
 import { HomeDropzoneDemo } from "@/components/demos/home-dropzone-demo";
 import { buttonVariants } from "@/components/ui/button";
-import { githubRepoUrl } from "@/lib/shared";
+import { githubRepoUrl, siteTagline } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
 const githubUrl = githubRepoUrl();
@@ -27,7 +27,7 @@ export default function HomePage() {
             "rounded-full border border-fd-border px-3 py-1 text-sm font-medium tracking-wide text-fd-muted-foreground",
           )}
         >
-          Presign-first S3 for React
+          Presign-first
         </p>
         <h1
           className={cn(
@@ -35,7 +35,7 @@ export default function HomePage() {
             "delay-100 max-w-3xl text-balance text-3xl font-bold tracking-tight text-fd-foreground sm:text-4xl lg:text-5xl",
           )}
         >
-          Full-stack S3 toolkit with server and React hooks
+          {siteTagline}
         </h1>
         <p
           className={cn(
