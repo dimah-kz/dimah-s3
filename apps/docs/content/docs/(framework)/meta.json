@@ -1,7 +1,7 @@
 {
   "title": "Framework",
   "description": "All-in-one, quickstart, and features",
-  "icon": "Package",
+  "icon": "Layers",
   "root": true,
   "pages": [
     "index",
