@@ -1,10 +1,9 @@
-import localFont from "next/font/local";
+import { Caveat } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const tryIt = localFont({
-  src: "../fonts/caveat-latin-600-normal.woff2",
+const tryIt = Caveat({
+  subsets: ["latin"],
   weight: "600",
-  display: "swap",
 });
 
 export function TryDemoHint({ className }: { className?: string }) {

@@ -24,7 +24,6 @@
     "fumadocs-mdx": "15.3.1",
     "fumadocs-typescript": "^5.3.0",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.15.0",
-    "geist": "^1.7.2",
     "lucide-react": "^1.33.0",
     "next": "catalog:",
     "react": "catalog:",
