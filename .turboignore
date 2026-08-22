@@ -1,0 +1,9 @@
+# Explicit `inputs` globs (e.g. packages/cli → ../../templates/**) do not
+# honor gitignore. Local `pnpm templates:build` leaves installs under
+# templates/*/ that must not be hashed on every `turbo run`.
+templates/**/node_modules
+templates/**/.next
+templates/**/.turbo
+templates/**/.source
+templates/**/.vercel
+templates/**/dist

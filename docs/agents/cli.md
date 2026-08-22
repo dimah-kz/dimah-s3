@@ -71,7 +71,7 @@ On `pnpm --filter @dimah-s3/cli build`:
 
 `tsup` runs with `clean: true` on the bin entry, so the snapshot script must run after it — `dist/templates/` is wiped otherwise and the CLI reports a missing catalog.
 
-`packages/cli/turbo.json` tracks `../../templates/**` as build inputs so template edits invalidate the CLI cache.
+`packages/cli/turbo.json` tracks `../../templates/**` as build inputs so template edits invalidate the CLI cache. That extra glob does not honor gitignore, so `node_modules` / `.next` / `dist` under `templates/` are negated there and in the root `.turboignore` — otherwise a local `pnpm templates:build` makes every `turbo run` hash ~100k install files before the first task starts.
 
 Each starter ships `pnpm-workspace.yaml` for pnpm 11 `allowBuilds` and `minimumReleaseAgeExclude` on `@dimah-s3/*`. Lockfiles are gitignored and snapshot-excluded.
 

@@ -1,7 +1,7 @@
 import "./global.css";
 import { Body } from "@/app/layout.client";
 import { RootProvider } from "fumadocs-ui/provider/next";
-import { Geist } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
 import {
@@ -14,11 +14,6 @@ import {
 import { getSiteUrl } from "@/lib/site-url";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
-
-const fontSans = Geist({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
 
 const siteUrl = getSiteUrl();
 
@@ -72,7 +67,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn(fontSans.className, "font-sans", fontSans.variable)}
+      className={cn(GeistSans.className, "font-sans", GeistSans.variable)}
       suppressHydrationWarning
     >
       <Body>

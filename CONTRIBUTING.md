@@ -22,13 +22,14 @@ pnpm lint
 pnpm registry:validate
 ```
 
-For package work only (lighter on RAM — avoids building every Next.js app):
+`pnpm build` compiles workspace packages and the docs app. It skips `examples/*` (those are extra Next/Vite production builds). Other entry points:
 
 ```bash
-pnpm build:packages
+pnpm build:packages   # library packages only
+pnpm build:all        # packages + docs + examples (heavy RAM — three Next.js apps)
 ```
 
-On a memory-constrained machine (e.g. while the editor is open), prefer `pnpm build:packages`. Use `pnpm build:parallel` only if you have enough free RAM.
+On a memory-constrained machine (e.g. while the editor is open), prefer `pnpm build:packages`.
 
 Run commands for a specific package:
 

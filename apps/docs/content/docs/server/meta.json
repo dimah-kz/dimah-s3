@@ -6,9 +6,9 @@
   "pages": [
     "index",
     "setup",
-    "---hooks---",
+    "---Hooks---",
     "...hooks",
-    "---extend---",
+    "---Extend---",
     "plugins"
   ]
 }

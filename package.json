@@ -2,8 +2,8 @@
   "name": "dimah-s3",
   "private": true,
   "scripts": {
-    "build": "turbo run build --concurrency=1",
-    "build:parallel": "turbo run build --concurrency=2",
+    "build": "turbo run build --filter=!./examples/*",
+    "build:all": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
     "clean:turbo": "turbo daemon clean",
     "clean:next": "node ./scripts/clean-next-artifacts.mjs",

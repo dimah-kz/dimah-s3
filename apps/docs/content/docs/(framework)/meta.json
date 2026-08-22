@@ -1,16 +1,15 @@
 {
   "title": "Framework",
-  "description": "Quickstart, comparison, providers, and database",
-  "icon": "Layers",
+  "description": "All-in-one, quickstart, and features",
+  "icon": "Package",
   "root": true,
   "pages": [
-    "---Getting Started---",
     "index",
     "quickstart",
     "comparison",
-    "---ui---",
+    "---Ui---",
     ".../../react/ui",
-    "---features---",
+    "---Features---",
     "providers",
     "db",
     "i18n"
