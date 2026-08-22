@@ -1,12 +1,13 @@
 ---
 title: Introduction
-description: Full-stack S3 toolkit for the React ecosystem — server, client, optional UI and DB.
+description: Full-stack S3 toolkit for the React ecosystem — server, client, optional shadcn UI and DB.
 icon: House
 ---
 
 dimah-s3 is a full-stack S3 toolkit for the React ecosystem. It ships server
-handlers, headless React hooks, optional UI, and an optional database plugin
-for object tracking. You pass in your own AWS SDK `S3Client`.
+handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com) UI, and
+an optional database plugin for object tracking. You pass in your own AWS SDK
+`S3Client`.
 
 It is presign-first: the server signs, the browser talks to the bucket, and
 credentials never leave the backend.
@@ -46,8 +47,8 @@ Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 ## What you get
 
 - Fast setup — a working upload in minutes, not a week of wiring
-- Full stack — server, client, and UI; not a client uploader you have to back
-  yourself
+- Full stack — server, client, and optional shadcn UI; not a client uploader you
+  have to back yourself
 - Full lifecycle — upload, download, and delete, including multipart
 - Server hooks — auth, quotas, confirm, and cleanup where they belong
 - Optional database — ownership, listings, and resumable uploads when you

@@ -1,6 +1,6 @@
 {
   "title": "UI",
-  "description": "Ready-made upload, download, and delete controls",
+  "description": "Ready-made shadcn controls for upload, download, and delete",
   "icon": "Component",
   "pages": ["index", "components", "customization"]
 }

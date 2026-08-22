@@ -10,7 +10,7 @@ export const docsContentRoute = "/llms.mdx/docs";
 export const siteTagline = "Full-stack S3 toolkit for the React ecosystem";
 export const siteTitle = `${appName} — ${siteTagline}`;
 export const siteDescription =
-  "Upload, download, and delete in your own S3-compatible bucket. Server, React hooks, optional UI and database — you pass an AWS SDK client.";
+  "Upload, download, and delete in your own S3-compatible bucket. Server, React hooks, optional shadcn UI and database — you pass an AWS SDK client.";
 
 /** Short, accurate terms for crawlers that still read `keywords`. Not stuffed. */
 export const siteKeywords = [
@@ -23,6 +23,7 @@ export const siteKeywords = [
   "file upload",
   "react",
   "next.js",
+  "shadcn",
 ];
 
 export const gitConfig = {
