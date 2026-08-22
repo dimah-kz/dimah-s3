@@ -1,13 +1,13 @@
 {
   "title": "Framework",
-  "description": "All-in-one, quickstart and features",
+  "description": "All-in-one, server + client + UI and more features...",
   "icon": "Layers",
   "root": true,
   "pages": [
     "index",
     "quickstart",
     "comparison",
-    "---Ui---",
+    "---UI---",
     ".../../react/ui",
     "---Features---",
     "providers",
