@@ -4,10 +4,11 @@
   "icon": "Layers",
   "root": true,
   "pages": [
+    "---Getting Started---",
     "index",
     "quickstart",
     "comparison",
-    "---UI---",
+    "---ui---",
     ".../../react/ui",
     "---features---",
     "providers",
