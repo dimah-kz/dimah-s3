@@ -9,7 +9,7 @@ import type {
 } from "@/types/config";
 
 /**
- * Hook fields a plugin may contribute. Scalars like `enabled` / `method` /
+ * Hook fields a plugin may contribute. Scalars like `method` /
  * `prefix` / `resolveKey` / `acl` stay user-owned on {@link DimahS3Config}.
  */
 export type DimahS3PluginHooks = {

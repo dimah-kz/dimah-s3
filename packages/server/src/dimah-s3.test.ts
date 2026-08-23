@@ -30,18 +30,23 @@ describe("dimahS3 instance", () => {
   it("honors a custom basePath", async () => {
     const s3 = createInstance({
       basePath: "/s3/",
-      upload: { enabled: true },
+      upload: true,
     });
     const res = await s3.handler(
       jsonRequest(apiUrl(S3_API_ROUTES.upload, "/s3"), { body: {} }),
     );
     await expectErrorCode(res, 400, S3_ERROR_CODES.VALIDATION_ERROR);
   });
+
+  it("rejects enabled on a feature options object", () => {
+    const upload = { prefix: "uploads", enabled: false };
+    expect(() => createInstance({ upload })).toThrow(/do not set `enabled`/);
+  });
 });
 
 describe("HTTP envelope", () => {
   it("returns JSON VALIDATION_ERROR for an invalid body", async () => {
-    const s3 = createInstance({ upload: { enabled: true } });
+    const s3 = createInstance({ upload: true });
     const res = await s3.handler(
       jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: {} }),
     );
@@ -58,7 +63,7 @@ describe("HTTP envelope", () => {
 
   it("runs the global guard before the endpoint", async () => {
     const s3 = createInstance({
-      upload: { enabled: true },
+      upload: true,
       guard: () => {
         throw DimahS3Error.from("FORBIDDEN", {
           ...S3_ERROR_CODES.FORBIDDEN,
@@ -78,7 +83,7 @@ describe("HTTP envelope", () => {
 
   it("serializes DimahS3Error params through native APIError JSON", async () => {
     const s3 = createInstance({
-      upload: { enabled: true },
+      upload: true,
       guard: () => {
         throw new DimahS3Error("FORBIDDEN", {
           message: "quota",
@@ -176,7 +181,7 @@ describe("HTTP envelope", () => {
   ])(
     "returns FEATURE_DISABLED when $feature is disabled",
     async ({ feature, method, path, body }) => {
-      const s3 = createInstance({ [feature]: { enabled: false } });
+      const s3 = createInstance({ [feature]: false });
       const res = await s3.handler(jsonRequest(apiUrl(path), { method, body }));
       await expectErrorCode(res, 404, S3_ERROR_CODES.FEATURE_DISABLED);
     },
@@ -185,7 +190,7 @@ describe("HTTP envelope", () => {
 
 describe("s3.api", () => {
   it("throws DimahS3Error on validation failures", async () => {
-    const s3 = createInstance({ download: { enabled: true } });
+    const s3 = createInstance({ download: true });
     await expect(s3.api.download({ query: { key: "" } })).rejects.toMatchObject(
       {
         name: "DimahS3Error",

@@ -30,7 +30,7 @@ describe("upload", () => {
   it("presigns POST uploads and runs onPresigned", async () => {
     const onPresigned = vi.fn();
     const s3 = createInstance({
-      upload: { enabled: true, onPresigned },
+      upload: { onPresigned },
     });
 
     await expect(
@@ -48,7 +48,7 @@ describe("upload", () => {
 
   it("presigns PUT uploads when configured", async () => {
     const s3 = createInstance({
-      upload: { enabled: true, method: "PUT" },
+      upload: { method: "PUT" },
     });
 
     await expect(
@@ -65,7 +65,7 @@ describe("upload", () => {
 
   it("requires fileSize for PUT when configured", async () => {
     const s3 = createInstance({
-      upload: { enabled: true, method: "PUT", requireFileSize: true },
+      upload: { method: "PUT", requireFileSize: true },
     });
 
     await expect(
@@ -78,7 +78,7 @@ describe("upload", () => {
 
   it("requires fileSize for POST when configured", async () => {
     const s3 = createInstance({
-      upload: { enabled: true, requireFileSize: true },
+      upload: { requireFileSize: true },
     });
 
     await expect(
@@ -119,7 +119,7 @@ describe("upload", () => {
 
   it("signs PUT metadata onto the command and response headers", async () => {
     const s3 = createInstance({
-      upload: { enabled: true, method: "PUT" },
+      upload: { method: "PUT" },
     });
 
     await expect(
@@ -230,7 +230,7 @@ describe("confirm", () => {
       client: mockS3(
         sendByCommand({ HeadObjectCommand: headResult() }) as never,
       ),
-      upload: { enabled: true, onConfirmed },
+      upload: { onConfirmed },
     });
 
     await expect(
@@ -253,7 +253,7 @@ describe("confirm", () => {
           HeadObjectCommand: headResult({ ContentLength: undefined }),
         }) as never,
       ),
-      upload: { enabled: true },
+      upload: true,
     });
 
     await expect(
@@ -270,7 +270,7 @@ describe("confirm", () => {
     });
     const s3 = createInstance({
       client: mockS3(missing as never),
-      upload: { enabled: true },
+      upload: true,
     });
 
     await expect(
@@ -291,7 +291,7 @@ describe("confirm", () => {
           GetObjectAclCommand: { Grants: [] },
         }) as never,
       ),
-      upload: { enabled: true },
+      upload: true,
     });
 
     await expect(
@@ -307,7 +307,7 @@ describe("download / delete", () => {
       client: mockS3(
         sendByCommand({ HeadObjectCommand: headResult() }) as never,
       ),
-      download: { enabled: true, onPresigned },
+      download: { onPresigned },
     });
 
     await expect(
@@ -325,8 +325,8 @@ describe("download / delete", () => {
     });
     const s3 = createInstance({
       client: mockS3(missing as never),
-      download: { enabled: true },
-      delete: { enabled: true },
+      download: true,
+      delete: true,
     });
 
     await expect(
@@ -353,7 +353,7 @@ describe("download / delete", () => {
     });
     const s3 = createInstance({
       client: mockS3(send as never),
-      delete: { enabled: true, onDeleted },
+      delete: { onDeleted },
     });
 
     await expect(s3.api.delete({ query: { key: "a.png" } })).resolves.toEqual({
@@ -375,7 +375,7 @@ describe("multipart", () => {
           CreateMultipartUploadCommand: { UploadId: "up-1" },
         }) as never,
       ),
-      multipart: { enabled: true, onInit },
+      multipart: { onInit },
     });
 
     await expect(
@@ -390,7 +390,7 @@ describe("multipart", () => {
 
   it("requires fileSize when configured", async () => {
     const s3 = createInstance({
-      multipart: { enabled: true, requireFileSize: true },
+      multipart: { requireFileSize: true },
     });
     await expect(
       s3.api.multipartInit({ body: { key: "a.bin" } }),
@@ -401,7 +401,7 @@ describe("multipart", () => {
 
   it("inherits requireFileSize from upload onto multipart", async () => {
     const s3 = createInstance({
-      upload: { enabled: true, requireFileSize: true },
+      upload: { requireFileSize: true },
     });
     await expect(
       s3.api.multipartInit({ body: { key: "a.bin" } }),
@@ -411,7 +411,7 @@ describe("multipart", () => {
   });
 
   it("signs a part", async () => {
-    const s3 = createInstance({ multipart: { enabled: true } });
+    const s3 = createInstance({ multipart: true });
     await expect(
       s3.api.multipartPart({
         body: { key: "a.bin", uploadId: "up-1", partNumber: 1, partSize: 8 },
@@ -434,7 +434,7 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      multipart: { enabled: true, onList },
+      multipart: { onList },
     });
 
     await expect(
@@ -459,7 +459,7 @@ describe("multipart", () => {
           HeadObjectCommand: headResult({ ContentLength: 8 }),
         }) as never,
       ),
-      multipart: { enabled: true, onComplete },
+      multipart: { onComplete },
     });
 
     await expect(
@@ -492,7 +492,7 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      multipart: { enabled: true },
+      multipart: true,
     });
 
     await expect(
@@ -523,7 +523,7 @@ describe("multipart", () => {
       });
     const s3 = createInstance({
       client: mockS3(sendByCommand({ ListPartsCommand: listParts }) as never),
-      multipart: { enabled: true },
+      multipart: true,
     });
 
     await expect(
@@ -548,7 +548,7 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      multipart: { enabled: true },
+      multipart: true,
     });
 
     await expect(
@@ -571,7 +571,7 @@ describe("multipart", () => {
     });
     const s3 = createInstance({
       client: mockS3(missing as never),
-      multipart: { enabled: true },
+      multipart: true,
     });
 
     await expect(
@@ -588,7 +588,7 @@ describe("multipart", () => {
   it("aborts a multipart upload", async () => {
     const onAbort = vi.fn();
     const s3 = createInstance({
-      multipart: { enabled: true, onAbort },
+      multipart: { onAbort },
     });
 
     await expect(
@@ -613,7 +613,6 @@ describe("feature guards", () => {
         order.push("global");
       },
       upload: {
-        enabled: true,
         guard: () => {
           order.push("presign");
         },

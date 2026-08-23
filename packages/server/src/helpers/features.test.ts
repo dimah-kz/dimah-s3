@@ -21,6 +21,25 @@ describe("normalizeFeature / multipart default", () => {
     expect(normalizeFeature(true)).toEqual({ enabled: true });
   });
 
+  it("treats a bare false as disabled", () => {
+    expect(normalizeFeature(false)).toEqual({ enabled: false });
+  });
+
+  it("treats an options object as enabled", () => {
+    expect(normalizeFeature({ prefix: "uploads" })).toEqual({
+      prefix: "uploads",
+      enabled: true,
+    });
+  });
+
+  it("throws when the options object sets enabled", () => {
+    expect(() =>
+      normalizeFeature({ prefix: "uploads", enabled: false } as {
+        prefix: string;
+      }),
+    ).toThrow(/do not set `enabled`/);
+  });
+
   it("enables multipart when upload is on and multipart is omitted", () => {
     const resolved = applyMultipartDefault(
       config({ upload: { enabled: true } }),

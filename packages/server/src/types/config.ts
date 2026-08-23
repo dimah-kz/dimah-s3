@@ -55,7 +55,6 @@ export type AclPolicy = {
 /** Upload feature. A config object (or `true`) enables the feature. */
 export type UploadConfig = KeyPolicy &
   AclPolicy & {
-    enabled?: boolean;
     method?: UploadPresignMethod;
     requireFileSize?: boolean;
     guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
@@ -66,14 +65,12 @@ export type UploadConfig = KeyPolicy &
 
 /** Download feature. A config object (or `true`) enables the feature. */
 export type DownloadConfig = KeyPolicy & {
-  enabled?: boolean;
   guard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
 };
 
 /** Delete feature. A config object (or `true`) enables the feature. */
 export type DeleteConfig = KeyPolicy & {
-  enabled?: boolean;
   guard?: (context: DeleteGuardContext) => Promise<void> | void;
   onDeleted?: (context: DeleteOnDeletedContext) => Promise<void> | void;
 };
@@ -81,7 +78,6 @@ export type DeleteConfig = KeyPolicy & {
 /** Multipart feature. On automatically when upload is on, unless set to `false`. */
 export type MultipartConfig = KeyPolicy &
   AclPolicy & {
-    enabled?: boolean;
     requireFileSize?: boolean;
     initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
     partGuard?: (context: MultipartPartGuardContext) => Promise<void> | void;
@@ -96,7 +92,7 @@ export type MultipartConfig = KeyPolicy &
     onList?: (context: MultipartOnListContext) => Promise<void> | void;
   };
 
-/** `true` enables the feature; `false` disables it; an object enables unless `enabled: false`. */
+/** `true` or an options object enables the feature; omit or `false` disables it. */
 export type FeatureToggle<T> = boolean | T;
 
 /**

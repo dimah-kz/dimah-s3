@@ -81,7 +81,7 @@ s3.audit.log("ready");
   }}
 />
 
-`enabled` / `method` / `prefix` / `resolveKey` / `acl` stay on
+`method` / `prefix` / `resolveKey` / `acl` stay on
 `DimahS3Config` — plugins cannot override them. You still turn features on
 and set key policy yourself. Hook context types import from
 `@dimah-s3/server/plugins`.
@@ -168,7 +168,7 @@ const quota = definePlugin({
   id: "quota",
   dependsOn: ["db"],
   init({ config }) {
-    if (!config.upload?.enabled) {
+    if (!config.upload) {
       throw new Error("quota plugin requires upload enabled");
     }
   },

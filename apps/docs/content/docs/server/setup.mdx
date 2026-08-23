@@ -15,8 +15,8 @@ npm i @dimah-s3/server @aws-sdk/client-s3
 Pass an AWS SDK `S3Client` as `client` (export it as `awsS3` so jobs and a
 custom backend can reuse it) and a `bucket`. That `bucket` is the default:
 used when the request omits one, and whenever a client-sent bucket is
-ignored. Enable a feature with `true` or an options object (omit `enabled` —
-the object itself means on). Multipart turns on with upload unless you set
+ignored. Enable a feature with `true` or an options object (the object
+itself means on). Multipart turns on with upload unless you set
 `multipart: false`. Disabled features return `404` with code
 `FEATURE_DISABLED`.
 

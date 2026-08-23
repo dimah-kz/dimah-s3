@@ -189,7 +189,6 @@ describe("applyPlugins merge", () => {
         }),
       ]),
       upload: {
-        enabled: true,
         guard: () => {
           order.push("user");
         },
