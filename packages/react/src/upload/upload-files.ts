@@ -1,5 +1,5 @@
 import type {
-  UploadConfig,
+  MultiUploadConfig,
   UploadProgress,
   UploadResult,
   UploadRequestOptions,
@@ -33,7 +33,7 @@ export type MultiUploadCallbacks = {
 export async function uploadFiles(
   api: S3Api,
   items: Array<{ id: string; file: File; objectKey: string }>,
-  config: UploadConfig = {},
+  config: MultiUploadConfig = {},
   callbacks: MultiUploadCallbacks = {},
   signal?: AbortSignal,
   getRequestOptions?: (file: File) => UploadRequestOptions,

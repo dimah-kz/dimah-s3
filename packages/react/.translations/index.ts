@@ -23,6 +23,7 @@ export type Translations = {
   "Download file(tooltip)": string;
   "Download started(toast)": string;
   "Download(button)": string;
+  "Downloading(toast)": string;
   "Drag and drop files here(dropzone)": string;
   "File deleted(toast)": string;
   "File is empty(file validation)": string;
@@ -32,6 +33,7 @@ export type Translations = {
   "File size is required(multipart)": string;
   "File size is required(upload)": string;
   "File type \"{type}\" is not allowed(file validation)": string;
+  "Finishing…(upload status)": string;
   "Invalid request(API error)": string;
   "Not found(API error)": string;
   "Object key is invalid(API error)": string;
@@ -52,5 +54,6 @@ export type Translations = {
   "{count} file(s) uploaded(toast)": string;
   "{done}/{total} files(upload progress)": string;
   "{feature} is disabled(API error)": string;
+  "{percent}%(progress)": string;
   "{succeeded} succeeded, {failed} failed(toast)": string;
 };

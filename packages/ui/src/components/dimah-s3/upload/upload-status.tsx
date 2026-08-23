@@ -104,7 +104,11 @@ export function UploadStatus({
     );
   }
 
-  if (phase === "validating" || phase === "presigning") {
+  if (
+    phase === "validating" ||
+    phase === "presigning" ||
+    phase === "finalizing"
+  ) {
     if (fileInfo) {
       return (
         <FileAttachment
@@ -113,7 +117,11 @@ export function UploadStatus({
           fileSize={fileInfo.size}
           fileType={fileInfo.type}
           previewUrl={fileInfo.previewUrl}
-          description={t("Preparing…", { note: "upload status" })}
+          description={
+            phase === "finalizing"
+              ? t("Finishing…", { note: "upload status" })
+              : t("Preparing…", { note: "upload status" })
+          }
           {...layout}
         />
       );
@@ -122,7 +130,11 @@ export function UploadStatus({
     return (
       <StatusAttachment
         state="processing"
-        title={t("Preparing…", { note: "upload status" })}
+        title={
+          phase === "finalizing"
+            ? t("Finishing…", { note: "upload status" })
+            : t("Preparing…", { note: "upload status" })
+        }
         {...layout}
       />
     );

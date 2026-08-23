@@ -10,12 +10,7 @@ Import display helpers from `@dimah-s3/react`. File helpers live in
 ## Progress
 
 ```ts
-import {
-  formatUploadProgress,
-  formatSpeed,
-  formatEta,
-  createSpeedTracker,
-} from "@dimah-s3/react";
+import { formatUploadProgress, formatSpeed, formatEta } from "@dimah-s3/react";
 
 formatUploadProgress(1_200_000, 5_600_000, 21);
 // "1.2 MB / 5.6 MB (21%)"
@@ -24,19 +19,7 @@ formatSpeed(1_200_000); // "1.2 MB/s"
 formatEta(4_400_000, 450_000); // "9s"
 ```
 
-`createSpeedTracker` is a sliding-window bytes/second meter. Call `reset()`
-when an upload restarts. `onProgress` from the hooks already includes
-`speed` — you usually only need this for a custom engine.
-
-```ts
-const tracker = createSpeedTracker(); // default 3s window
-
-onProgress: ({ loaded, total }) => {
-  const speed = tracker.update(loaded);
-  formatSpeed(speed);
-  formatEta(total - loaded, speed);
-};
-```
+`onProgress` from the hooks already includes `speed` when it is measurable.
 
 ## Accept labels
 

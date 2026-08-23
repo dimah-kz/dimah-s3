@@ -17,10 +17,12 @@ import {
   type FileRejection,
 } from "./use-file-intake";
 
+export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
+
 /** Options for {@link useMultiUpload}. */
 export type UseMultiUploadOptions = UseMultiFileUploadOptions & {
-  /** S3 object key, or a function that derives it from each file. */
-  objectKey?: string | ((file: File) => string);
+  /** S3 object key derived from each file. */
+  objectKey?: (file: File) => string;
   /** Disable all intake interactions. */
   disabled?: boolean;
   /**
@@ -51,8 +53,10 @@ export type UseMultiUploadReturn = {
   totalProgress: UploadProgress;
   /** Batch-level error, or `null`. */
   error: DimahS3Error | null;
-  /** `true` while uploading. */
+  /** `true` while bytes are transferring (`phase === "uploading"`). */
   isUploading: boolean;
+  /** `true` while the batch is in-flight (`validating` or `uploading`). */
+  isPending: boolean;
   /** Handle files programmatically (bypasses dropzone). */
   handleFiles: (files: FileList | File[] | null) => void;
   /** Open the native file picker. */
@@ -91,8 +95,7 @@ export function useMultiUpload(
   const multi = useMultiFileUpload(multiOpts);
 
   const resolveKey = (file: File): string => {
-    if (typeof objectKey === "function") return objectKey(file);
-    if (objectKey) return objectKey;
+    if (objectKey) return objectKey(file);
     return defaultObjectKey(file);
   };
 
@@ -103,14 +106,12 @@ export function useMultiUpload(
     void multi.upload(list, resolveKey);
   };
 
-  const isUploading = multi.phase === "uploading";
-
   const intake = useFileIntake({
     accept: options.accept,
     maxFileSize: options.maxFileSize,
     maxFiles: options.maxFiles,
     multiple: true,
-    disabled: Boolean(disabled) || isUploading,
+    disabled: Boolean(disabled) || multi.isPending,
     noDrag,
     noClick,
     noKeyboard,
@@ -123,7 +124,8 @@ export function useMultiUpload(
     files: multi.files,
     totalProgress: multi.totalProgress,
     error: multi.error,
-    isUploading,
+    isUploading: multi.isUploading,
+    isPending: multi.isPending,
     handleFiles,
     open: intake.open,
     cancel: multi.cancel,

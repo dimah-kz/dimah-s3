@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { DownloadIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@dimah-s3/core";
@@ -91,11 +92,13 @@ export function ProgressDownloadButton({
 }: ProgressDownloadButtonProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const dlRef = useRef<{ cancel: () => void } | null>(null);
   const toastHandlers = useDownloadToast({
     enabled: enableToast,
     objectKey,
     fileName,
     fileSize,
+    cancel: () => dlRef.current?.cancel(),
   });
 
   const dl = useDownload({
@@ -103,20 +106,29 @@ export function ProgressDownloadButton({
     api,
     bucket,
     beforeDownload,
-    onDownloadStart,
-    onProgress,
+    onDownloadStart: (key) => {
+      toastHandlers.onDownloadStart();
+      onDownloadStart?.(key);
+    },
+    onProgress: (key, progress) => {
+      toastHandlers.onProgress(key, progress);
+      onProgress?.(key, progress);
+    },
     onSuccess: (key, actualFileName) => {
       toastHandlers.onSuccess(key, actualFileName);
       onSuccess?.(key, actualFileName);
     },
     onError: (key, error, phase) => {
-      toastHandlers.onErrorWithPhase(key, error, phase);
+      toastHandlers.onError(key, error, phase);
       onError?.(key, error, phase);
     },
     onCancel: (key) => {
       toastHandlers.onCancel(key);
       onCancel?.(key);
     },
+  });
+  useLayoutEffect(() => {
+    dlRef.current = dl;
   });
 
   const isDownloading = dl.phase === "downloading" || dl.phase === "presigning";

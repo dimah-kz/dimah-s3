@@ -67,7 +67,7 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
     const file =
       fileInfo ??
       (fileList.length === 1
-        ? { name: fileList[0].fileName, size: fileList[0].fileSize }
+        ? { name: fileList[0].name, size: fileList[0].size }
         : null);
     const total = totalProgress?.total ?? 0;
 
@@ -156,7 +156,7 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
     const file =
       fileInfo ??
       (fileList.length === 1
-        ? { name: fileList[0].fileName, size: fileList[0].fileSize }
+        ? { name: fileList[0].name, size: fileList[0].size }
         : null);
     const total = totalProgress ?? { loaded: 0, total: 0, percent: 0 };
     const singleProgress =

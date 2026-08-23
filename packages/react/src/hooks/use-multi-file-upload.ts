@@ -12,14 +12,9 @@ import {
   revokePreviewUrl,
 } from "../helpers/file-preview";
 import { useLiveRef } from "../internal-helpers";
-import {
-  patchHookState,
-  replaceHookState,
-  useHookStoreInstance,
-  useHookStoreShallow,
-} from "../store/create-hook-store";
+import { useImmerState } from "../store/use-immer-state";
 import type {
-  UploadConfig,
+  MultiUploadConfig,
   UploadProgress,
   UploadRequestOptions,
   MultiUploadPhase,
@@ -30,7 +25,7 @@ import { uploadFiles } from "../upload";
 import { hookBlockedError, toHookError } from "../types/error";
 
 /** Options for {@link useMultiFileUpload}. */
-export type UseMultiFileUploadOptions = UploadConfig &
+export type UseMultiFileUploadOptions = MultiUploadConfig &
   MultiUploadHooks & {
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
@@ -52,6 +47,10 @@ export type UseMultiFileUploadState = {
 };
 
 export type UseMultiFileUploadReturn = UseMultiFileUploadState & {
+  /** `true` while bytes are transferring (`phase === "uploading"`). */
+  isUploading: boolean;
+  /** `true` while the batch is in-flight (`validating` or `uploading`). */
+  isPending: boolean;
   /** Upload multiple files. */
   upload: (files: File[], resolveKey: (file: File) => string) => Promise<void>;
   /**
@@ -77,6 +76,11 @@ const INITIAL_STATE: UseMultiFileUploadState = {
   error: null,
 };
 
+const PENDING_PHASES: ReadonlySet<MultiUploadPhase> = new Set([
+  "validating",
+  "uploading",
+]);
+
 function generateId() {
   return crypto.randomUUID();
 }
@@ -91,13 +95,7 @@ type ActiveMultiUpload = {
 export function useMultiFileUpload(
   options: UseMultiFileUploadOptions,
 ): UseMultiFileUploadReturn {
-  const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStoreShallow(store, (s) => ({
-    phase: s.phase,
-    files: s.files,
-    totalProgress: s.totalProgress,
-    error: s.error,
-  }));
+  const [state, patch, replace] = useImmerState(INITIAL_STATE);
   const contextApi = useContext(S3Context);
   const formatValidateFileError = useFormatValidateFileError();
   const optsRef = useLiveRef(options);
@@ -122,8 +120,8 @@ export function useMultiFileUpload(
 
   const clearToIdle = useCallback(() => {
     revokeAllPreviews();
-    replaceHookState(store, INITIAL_STATE);
-  }, [revokeAllPreviews, store]);
+    replace(INITIAL_STATE);
+  }, [revokeAllPreviews, replace]);
 
   useEffect(() => () => revokeAllPreviews(), [revokeAllPreviews]);
 
@@ -144,14 +142,14 @@ export function useMultiFileUpload(
       const fileStates: MultiUploadFileState[] = [];
       const fileMap = new Map<string, File>();
 
-      patchHookState(store, (draft) => {
+      patch((draft) => {
         draft.phase = "validating";
         draft.error = null;
       });
 
       if (opts.maxFiles && files.length > opts.maxFiles) {
         const msg = `Too many files. Maximum is ${opts.maxFiles}.`;
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "error";
           draft.error = new DimahS3Error("BAD_REQUEST", { message: msg });
         });
@@ -167,7 +165,7 @@ export function useMultiFileUpload(
         if (validationError) {
           const detail = formatValidateFileError(validationError);
           const msg = `${file.name}: ${detail}`;
-          patchHookState(store, (draft) => {
+          patch((draft) => {
             draft.phase = "error";
             draft.error = new DimahS3Error("BAD_REQUEST", { message: msg });
           });
@@ -179,7 +177,7 @@ export function useMultiFileUpload(
       if (opts.beforeUpload) {
         const allowed = await opts.beforeUpload(files);
         if (!allowed) {
-          patchHookState(store, (draft) => {
+          patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
               "Upload blocked by beforeUpload hook",
@@ -202,9 +200,9 @@ export function useMultiFileUpload(
         fileMap.set(id, file);
         fileStates.push({
           id,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
+          name: file.name,
+          size: file.size,
+          type: file.type,
           previewUrl,
           status: "pending",
           progress: { loaded: 0, total: file.size, percent: 0 },
@@ -227,7 +225,7 @@ export function useMultiFileUpload(
         ]),
       );
 
-      patchHookState(store, (draft) => {
+      patch((draft) => {
         draft.phase = "uploading";
         draft.files = fileStates;
         draft.totalProgress = {
@@ -269,11 +267,11 @@ export function useMultiFileUpload(
             onFileProgress: (id, progress) => {
               const updater = fileSpeedUpdatersRef.current.get(id);
               const p = updater ? updater.apply(progress) : progress;
-              patchHookState(store, (draft) => {
-                const file = draft.files.find((f) => f.id === id);
-                if (file) {
-                  file.status = "uploading";
-                  file.progress = p;
+              patch((draft) => {
+                const fileState = draft.files.find((f) => f.id === id);
+                if (fileState) {
+                  fileState.status = "uploading";
+                  fileState.progress = p;
                 }
               });
               const file = fileMap.get(id);
@@ -281,13 +279,13 @@ export function useMultiFileUpload(
             },
             onFileSuccess: (id, result) => {
               activeUploadsRef.current.delete(id);
-              patchHookState(store, (draft) => {
-                const file = draft.files.find((f) => f.id === id);
-                if (file) {
-                  file.status = "success";
-                  file.progress = {
-                    loaded: file.fileSize,
-                    total: file.fileSize,
+              patch((draft) => {
+                const fileState = draft.files.find((f) => f.id === id);
+                if (fileState) {
+                  fileState.status = "success";
+                  fileState.progress = {
+                    loaded: fileState.size,
+                    total: fileState.size,
                     percent: 100,
                   };
                 }
@@ -296,11 +294,11 @@ export function useMultiFileUpload(
               if (file) opts.onFileSuccess?.(file, result);
             },
             onFileError: (id, error) => {
-              patchHookState(store, (draft) => {
-                const file = draft.files.find((f) => f.id === id);
-                if (file) {
-                  file.status = "error";
-                  file.error = error;
+              patch((draft) => {
+                const fileState = draft.files.find((f) => f.id === id);
+                if (fileState) {
+                  fileState.status = "error";
+                  fileState.error = error;
                 }
               });
               const file = fileMap.get(id);
@@ -308,7 +306,7 @@ export function useMultiFileUpload(
             },
             onTotalProgress: (progress) => {
               const p = totalSpeedUpdaterRef.current.apply(progress);
-              patchHookState(store, (draft) => {
+              patch((draft) => {
                 draft.totalProgress = p;
               });
               opts.onProgress?.(p);
@@ -334,7 +332,7 @@ export function useMultiFileUpload(
           .filter((r) => r.result !== null)
           .map((r) => r.result!);
 
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = hasErrors ? "error" : "success";
           draft.error = hasErrors
             ? new DimahS3Error("BAD_REQUEST", {
@@ -364,7 +362,7 @@ export function useMultiFileUpload(
           clearToIdle();
           return;
         }
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Upload failed");
         });
@@ -380,7 +378,7 @@ export function useMultiFileUpload(
       formatValidateFileError,
       revokeAllPreviews,
       clearToIdle,
-      store,
+      patch,
     ],
   );
 
@@ -424,5 +422,13 @@ export function useMultiFileUpload(
     clearToIdle();
   }, [clearToIdle]);
 
-  return { ...state, upload, cancel, detach, reset };
+  return {
+    ...state,
+    isUploading: state.phase === "uploading",
+    isPending: PENDING_PHASES.has(state.phase),
+    upload,
+    cancel,
+    detach,
+    reset,
+  };
 }

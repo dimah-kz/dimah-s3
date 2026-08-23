@@ -49,6 +49,13 @@ describe("useFileUpload", () => {
       undefined,
     );
     expect(hook.current.phase).toBe("success");
+    expect(hook.current.fileInfo).toMatchObject({
+      name: "a.txt",
+      size: 5,
+      type: "text/plain",
+    });
+    expect(hook.current.isPending).toBe(false);
+    expect(hook.current.isUploading).toBe(false);
     expect(hook.current.result).toEqual({ key: "k", eTag: "e" });
     hook.unmount();
   });

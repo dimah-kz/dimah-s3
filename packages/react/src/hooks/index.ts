@@ -14,20 +14,15 @@ export {
   useUpload,
   type UseUploadOptions,
   type UseUploadReturn,
+  type FileRejection,
+  type DropzoneRootProps,
+  type DropzoneInputProps,
 } from "./use-upload";
 export {
   useMultiUpload,
   type UseMultiUploadOptions,
   type UseMultiUploadReturn,
 } from "./use-multi-upload";
-export {
-  useFileIntake,
-  type UseFileIntakeOptions,
-  type UseFileIntakeReturn,
-  type FileRejection,
-  type DropzoneRootProps,
-  type DropzoneInputProps,
-} from "./use-file-intake";
 export {
   useDownload,
   type DownloadPhase,
@@ -36,7 +31,6 @@ export {
   type FetchDownloadProgress,
   type FetchDownloadHooks,
   type UseDownloadOptions,
-  type UseDownloadState,
   type UseDownloadReturn,
   type UseNavigateDownloadOptions,
   type UseNavigateDownloadReturn,

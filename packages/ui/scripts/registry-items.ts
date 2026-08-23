@@ -40,6 +40,11 @@ const uploadSupportFiles = [
     target: "@components/dimah-s3/upload/upload-status-block.tsx",
   },
   {
+    path: "components/dimah-s3/upload/upload-wired.tsx",
+    type: "registry:component",
+    target: "@components/dimah-s3/upload/upload-wired.tsx",
+  },
+  {
     path: "components/dimah-s3/attachment/file-attachment.tsx",
     type: "registry:component",
     target: "@components/dimah-s3/attachment/file-attachment.tsx",
@@ -185,7 +190,11 @@ export const components = [
     title: "Download Button",
     description: "Presigned-URL download button with toast support.",
     ...installMeta,
-    registryDependencies: [...toastRegistryDependencies, "attachment"],
+    registryDependencies: [
+      ...toastRegistryDependencies,
+      "tooltip",
+      "attachment",
+    ],
     files: [
       {
         path: "components/dimah-s3/download/download-button.tsx",

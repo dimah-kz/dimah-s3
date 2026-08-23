@@ -7,11 +7,14 @@ export function CircleProgress({
   size = 20,
   strokeWidth = 2.5,
   className,
+  label,
 }: {
   percent: number;
   size?: number;
   strokeWidth?: number;
   className?: string;
+  /** Accessible name. When omitted the graphic is hidden from AT. */
+  label?: string;
 }) {
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
@@ -22,7 +25,12 @@ export function CircleProgress({
       height={size}
       className={cn("shrink-0 -rotate-90", className)}
       style={{ width: size, height: size }}
-      aria-hidden
+      role={label ? "progressbar" : undefined}
+      aria-label={label}
+      aria-valuenow={label ? Math.round(percent) : undefined}
+      aria-valuemin={label ? 0 : undefined}
+      aria-valuemax={label ? 100 : undefined}
+      aria-hidden={label ? undefined : true}
     >
       <circle
         cx={size / 2}

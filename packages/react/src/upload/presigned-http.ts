@@ -1,90 +1,14 @@
 import type { UploadProgress } from "../types";
-import { S3UploadError } from "../types/error";
+import { sendXhrUpload } from "./xhr-upload";
 
-type XhrUploadOptions = {
-  method: "POST" | "PUT";
-  url: string;
-  body: FormData | File;
-  headers?: Record<string, string>;
-  fileSize: number;
-  onProgress?: (progress: UploadProgress) => void;
-  signal?: AbortSignal;
-  errorLabel?: string;
-};
-
-function sendXhrUpload(options: XhrUploadOptions): Promise<void> {
-  const {
-    method,
-    url,
-    body,
-    headers,
-    fileSize,
-    onProgress,
-    signal,
-    errorLabel = "Upload",
-  } = options;
-
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-
-    const onAbort = () => {
-      xhr.abort();
-      reject(new DOMException("Upload aborted", "AbortError"));
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        onProgress?.({
-          loaded: e.loaded,
-          total: e.total,
-          percent: Math.round((e.loaded / e.total) * 100),
-        });
-      }
+function reportByteProgress(onProgress?: (progress: UploadProgress) => void) {
+  return (loaded: number, total: number) => {
+    onProgress?.({
+      loaded,
+      total,
+      percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
     });
-
-    xhr.addEventListener("load", () => {
-      signal?.removeEventListener("abort", onAbort);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress?.({ loaded: fileSize, total: fileSize, percent: 100 });
-        resolve();
-      } else {
-        reject(
-          new S3UploadError(
-            `${errorLabel} failed: ${xhr.status} ${xhr.statusText}`,
-            "HTTP_ERROR",
-            xhr.status,
-            "uploading",
-          ),
-        );
-      }
-    });
-
-    xhr.addEventListener("error", () => {
-      signal?.removeEventListener("abort", onAbort);
-      reject(
-        new S3UploadError(
-          `${errorLabel} failed: network error`,
-          "NETWORK_ERROR",
-          0,
-          "uploading",
-        ),
-      );
-    });
-
-    xhr.addEventListener("abort", () => {
-      signal?.removeEventListener("abort", onAbort);
-      reject(new DOMException("Upload aborted", "AbortError"));
-    });
-
-    xhr.open(method, url);
-    if (headers) {
-      for (const [k, v] of Object.entries(headers)) {
-        xhr.setRequestHeader(k, v);
-      }
-    }
-    xhr.send(body);
-  });
+  };
 }
 
 /**
@@ -111,9 +35,10 @@ export function uploadSimple(
     method: "POST",
     url,
     body: formData,
-    fileSize: file.size,
-    onProgress,
     signal,
+    onProgress: reportByteProgress(onProgress),
+  }).then(() => {
+    onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
   });
 }
 
@@ -135,8 +60,9 @@ export function uploadPut(
     url,
     body: file,
     headers,
-    fileSize: file.size,
-    onProgress,
     signal,
+    onProgress: reportByteProgress(onProgress),
+  }).then(() => {
+    onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
   });
 }

@@ -117,6 +117,11 @@
           "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
+          "path": "src/components/dimah-s3/upload/upload-wired.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-wired.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-attachment.tsx"
@@ -214,6 +219,11 @@
           "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
+          "path": "src/components/dimah-s3/upload/upload-wired.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-wired.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-attachment.tsx"
@@ -282,7 +292,7 @@
           "color-dimah-s3-ring": "var(--ring)"
         }
       },
-      "registryDependencies": ["button", "toast", "attachment"],
+      "registryDependencies": ["button", "toast", "tooltip", "attachment"],
       "files": [
         {
           "path": "src/components/dimah-s3/download/download-button.tsx",

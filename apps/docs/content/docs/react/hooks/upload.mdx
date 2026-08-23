@@ -41,6 +41,11 @@ export function Uploader() {
 Built on [react-dropzone](https://react-dropzone.js.org/). Spread
 `getRootProps` / `getInputProps` on a wrapper and a hidden file input.
 
+`isUploading` is `true` while bytes are moving (`phase === "uploading"`).
+`isPending` is `true` for the whole in-flight window (`validating`,
+`presigning`, `uploading`, `finalizing`) — use it to disable the dropzone
+or picker.
+
 For a picker button instead of a dropzone, use
 [Upload Button](/docs/react/ui/components/upload-button) — or pass
 `noDrag` / `noClick` / `noKeyboard` and call `open()`.
@@ -75,8 +80,9 @@ export function MultiUploader() {
 }
 ```
 
-Each file needs its own key, so `objectKey` is a function of the file.
-`files` on the return value is the per-file list.
+Each file needs its own key, so `objectKey` is `(file: File) => string`.
+`files` on the return value is the per-file list (`name`, `size`, `type`,
+`previewUrl`, plus `id` / `status` / `progress` / `error`).
 
 `multipart` splits **one** large file into parts. It is not multi-file
 upload. To resume after a refresh, pass an
@@ -89,7 +95,7 @@ Skip dropzone when you already have a `File`.
 ```tsx
 import { defaultObjectKey, useFileUpload } from "@dimah-s3/react";
 
-const { upload, progress, phase } = useFileUpload();
+const { upload, progress, phase, fileInfo } = useFileUpload();
 
 await upload(file, defaultObjectKey(file));
 ```
@@ -102,16 +108,16 @@ await upload(files, (file) => `uploads/${file.name}`);
 
 ## Options
 
-| Option        | Description                                                        |
-| ------------- | ------------------------------------------------------------------ |
-| `objectKey`   | Optional. String or `(file) => string`. Default: uuid + filename   |
-| `bucket`      | Sent to the server. Ignored unless `allowClientBucket` / `buckets` |
-| `accept`      | MIME types or extensions                                           |
-| `maxFileSize` | Bytes                                                              |
-| `maxFiles`    | `useMultiUpload` / `useMultiFileUpload`                            |
-| `multipart`   | Split large files into parts                                       |
-| `uploadStore` | Resume after refresh                                               |
-| `onSuccess`   | Called with the uploaded key                                       |
+| Option                               | Description                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `objectKey`                          | Optional. `useUpload`: string or `(file) => string`. `useMultiUpload`: `(file) => string` only. Default: uuid + filename |
+| `uploadOptions` / `getUploadOptions` | Extra presign fields (`bucket`, `metadata`, `acl`, …)                                                                    |
+| `accept`                             | MIME types or extensions                                                                                                 |
+| `maxFileSize`                        | Bytes                                                                                                                    |
+| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                             |
+| `multipart`                          | Split large files into parts                                                                                             |
+| `uploadStore`                        | Resume after refresh                                                                                                     |
+| `onSuccess`                          | Called with the uploaded key                                                                                             |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full

@@ -24,6 +24,7 @@
     "Download file(tooltip)",
     "Download started(toast)",
     "Download(button)",
+    "Downloading(toast)",
     "Drag and drop files here(dropzone)",
     "File deleted(toast)",
     "File is empty(file validation)",
@@ -33,6 +34,7 @@
     "File size is required(multipart)",
     "File size is required(upload)",
     "File type \"{type}\" is not allowed(file validation)",
+    "Finishing…(upload status)",
     "Invalid request(API error)",
     "Not found(API error)",
     "Object key is invalid(API error)",
@@ -53,6 +55,7 @@
     "{count} file(s) uploaded(toast)",
     "{done}/{total} files(upload progress)",
     "{feature} is disabled(API error)",
+    "{percent}%(progress)",
     "{succeeded} succeeded, {failed} failed(toast)"
   ]
 }

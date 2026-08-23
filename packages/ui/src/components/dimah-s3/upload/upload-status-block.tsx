@@ -12,8 +12,9 @@ import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
 import { MultiUploadStatus } from "@/components/dimah-s3/upload/multi-upload-status";
 import type { AttachmentLayoutProps } from "@/lib/attachment-layout";
 
-export type UploadStatusBlockProps = AttachmentLayoutProps &
-  (
+export type UploadStatusBlockProps = AttachmentLayoutProps & {
+  className?: string;
+} & (
     | {
         mode: "single";
         phase: UploadPhase;
@@ -35,8 +36,8 @@ export type UploadStatusBlockProps = AttachmentLayoutProps &
   );
 
 export function UploadStatusBlock(props: UploadStatusBlockProps) {
-  const { size, orientation } = props;
-  const layout = { size, orientation };
+  const { size, orientation, className } = props;
+  const layout = { size, orientation, className };
 
   if (props.mode === "multi" && props.files.length === 1) {
     const f = props.files[0];
@@ -45,12 +46,7 @@ export function UploadStatusBlock(props: UploadStatusBlockProps) {
         phase={props.phase}
         progress={f.progress}
         error={f.error ?? props.error}
-        fileInfo={{
-          name: f.fileName,
-          size: f.fileSize,
-          type: f.fileType,
-          previewUrl: f.previewUrl,
-        }}
+        fileInfo={f}
         onCancel={props.onCancel}
         onPause={props.onPause}
         {...layout}
@@ -66,6 +62,7 @@ export function UploadStatusBlock(props: UploadStatusBlockProps) {
         totalProgress={props.totalProgress}
         error={props.error}
         onCancel={props.onCancel}
+        onPause={props.onPause}
         {...layout}
       />
     );

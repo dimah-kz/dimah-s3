@@ -1,12 +1,7 @@
 "use client";
 
 import { defaultObjectKey, type DimahS3Error } from "@dimah-s3/core";
-import type {
-  UploadFileInfo,
-  UploadPhase,
-  UploadProgress,
-  UploadRequestOptions,
-} from "../types";
+import type { UploadFileInfo, UploadPhase, UploadProgress } from "../types";
 import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
 import {
   useFileIntake,
@@ -15,14 +10,12 @@ import {
   type FileRejection,
 } from "./use-file-intake";
 
+export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
+
 /** Options for {@link useUpload}. */
 export type UseUploadOptions = UseFileUploadOptions & {
   /** S3 object key, or a function that derives it from the file. */
   objectKey?: string | ((file: File) => string);
-  /** Static request options applied to the upload. */
-  uploadOptions?: UploadRequestOptions;
-  /** Per-upload request options override. */
-  getUploadOptions?: (file: File) => UploadRequestOptions;
   /** Disable all intake interactions. */
   disabled?: boolean;
   /**
@@ -53,8 +46,13 @@ export type UseUploadReturn = {
   progress: UploadProgress;
   /** Last error, or `null`. */
   error: DimahS3Error | null;
-  /** `true` while uploading. */
+  /** `true` while bytes are transferring (`phase === "uploading"`). */
   isUploading: boolean;
+  /**
+   * `true` while the upload is in-flight (`validating`, `presigning`,
+   * `uploading`, or `finalizing`).
+   */
+  isPending: boolean;
   /** Handle files programmatically (bypasses dropzone). */
   handleFiles: (files: FileList | File[] | null) => void;
   /** Open the native file picker. */
@@ -82,8 +80,6 @@ export type UseUploadReturn = {
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
   const {
     objectKey,
-    uploadOptions,
-    getUploadOptions,
     disabled,
     noDrag,
     noClick,
@@ -104,20 +100,15 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     const list = files == null ? [] : Array.from(files);
     const file = list[0];
     if (!file) return;
-    void single.upload(file, resolveKey(file), {
-      ...uploadOptions,
-      ...getUploadOptions?.(file),
-    });
+    void single.upload(file, resolveKey(file));
   };
-
-  const isUploading = single.phase === "uploading";
 
   const intake = useFileIntake({
     accept: options.accept,
     maxFileSize: options.maxFileSize,
     maxFiles: 1,
     multiple: false,
-    disabled: Boolean(disabled) || isUploading,
+    disabled: Boolean(disabled) || single.isPending,
     noDrag,
     noClick,
     noKeyboard,
@@ -125,22 +116,13 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     onReject: onFileReject,
   });
 
-  const fileInfo: UploadFileInfo | null =
-    single.fileName != null
-      ? {
-          name: single.fileName,
-          size: single.fileSize ?? 0,
-          type: single.fileType ?? "",
-          previewUrl: single.previewUrl,
-        }
-      : null;
-
   return {
     phase: single.phase,
-    fileInfo,
+    fileInfo: single.fileInfo,
     progress: single.progress,
     error: single.error,
-    isUploading,
+    isUploading: single.isUploading,
+    isPending: single.isPending,
     handleFiles,
     open: intake.open,
     cancel: single.cancel,

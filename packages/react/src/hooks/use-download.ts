@@ -7,12 +7,7 @@ import { S3Context } from "../s3-provider";
 import { createSpeedTracker } from "../helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
 import { useLiveRef } from "../internal-helpers";
-import {
-  patchHookState,
-  replaceHookState,
-  useHookStoreInstance,
-  useHookStoreShallow,
-} from "../store/create-hook-store";
+import { useImmerState } from "../store/use-immer-state";
 import { hookBlockedError, toHookError } from "../types/error";
 import type { UploadProgress } from "../types/upload";
 import type {
@@ -101,8 +96,6 @@ export type UseFetchDownloadReturn = UseFetchDownloadState & {
   reset: () => void;
 };
 
-/** @deprecated Use {@link UseNavigateDownloadState}. */
-export type UseDownloadState = UseNavigateDownloadState;
 /** Default (navigate) return. Fetch mode is {@link UseFetchDownloadReturn}. */
 export type UseDownloadReturn = UseNavigateDownloadReturn;
 
@@ -141,16 +134,7 @@ export function useDownload(
 export function useDownload(
   options: UseDownloadOptions = {},
 ): UseNavigateDownloadReturn | UseFetchDownloadReturn {
-  const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStoreShallow(store, (s) => ({
-    phase: s.phase,
-    error: s.error,
-    url: s.url,
-    expiresIn: s.expiresIn,
-    progress: s.progress,
-    fileName: s.fileName,
-    fileSize: s.fileSize,
-  }));
+  const [state, patch, replace] = useImmerState(INITIAL_STATE);
   const contextApi = useContext(S3Context);
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
@@ -165,7 +149,7 @@ export function useDownload(
       const opts = optsRef.current as UseNavigateDownloadOptions;
       const api = opts.api ?? apiRef.current;
       if (!api) throw new Error(missingApiMessage("useDownload"));
-      patchHookState(store, (draft) => {
+      patch((draft) => {
         draft.phase = "presigning";
         draft.error = null;
         draft.url = null;
@@ -176,7 +160,7 @@ export function useDownload(
           fileName: downloadName,
           bucket: opts.bucket,
         });
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "idle";
           draft.error = null;
           draft.url = result.url;
@@ -184,7 +168,7 @@ export function useDownload(
         });
         return { url: result.url, expiresIn: result.expiresIn };
       } catch (err) {
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Download failed");
           draft.url = null;
@@ -194,7 +178,7 @@ export function useDownload(
         return null;
       }
     },
-    [apiRef, optsRef, store],
+    [apiRef, optsRef, patch],
   );
 
   const downloadNavigate = useCallback(
@@ -203,7 +187,7 @@ export function useDownload(
       if (opts.beforeDownload) {
         const allowed = await opts.beforeDownload(key);
         if (!allowed) {
-          patchHookState(store, (draft) => {
+          patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
               "Download blocked by beforeDownload hook",
@@ -220,7 +204,7 @@ export function useDownload(
       window.location.href = result.url;
       opts.onInitiated?.(key);
     },
-    [optsRef, presign, store],
+    [optsRef, presign, patch],
   );
 
   const downloadFetch = useCallback(
@@ -233,7 +217,7 @@ export function useDownload(
       if (opts.beforeDownload) {
         const allowed = await opts.beforeDownload(key);
         if (!allowed) {
-          patchHookState(store, (draft) => {
+          patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
               "Download blocked by beforeDownload hook",
@@ -244,7 +228,7 @@ export function useDownload(
         }
       }
 
-      patchHookState(store, (draft) => {
+      patch((draft) => {
         draft.phase = "presigning";
         draft.progress = { ...INITIAL_PROGRESS };
         draft.error = null;
@@ -257,7 +241,7 @@ export function useDownload(
           fileName: downloadName,
           bucket: opts.bucket,
         });
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "downloading";
         });
         opts.onDownloadStart?.(key);
@@ -280,7 +264,7 @@ export function useDownload(
           downloadName ??
           parseFileName(res.headers.get("content-disposition")) ??
           fallback;
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.fileName = name;
           draft.fileSize = contentLength || null;
         });
@@ -303,7 +287,7 @@ export function useDownload(
             total: contentLength,
             percent,
           });
-          patchHookState(store, (draft) => {
+          patch((draft) => {
             draft.progress = progress;
           });
           opts.onProgress?.(key, progress);
@@ -317,7 +301,7 @@ export function useDownload(
         anchor.click();
         URL.revokeObjectURL(blobUrl);
 
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "success";
           draft.fileSize = blob.size;
           draft.progress = {
@@ -331,10 +315,10 @@ export function useDownload(
         if ((err as Error).name === "AbortError") {
           if (!resettingRef.current) opts.onCancel?.(key);
           resettingRef.current = false;
-          replaceHookState(store, INITIAL_STATE);
+          replace(INITIAL_STATE);
           return;
         }
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Download failed");
         });
@@ -343,7 +327,7 @@ export function useDownload(
         abortRef.current = null;
       }
     },
-    [apiRef, optsRef, store],
+    [apiRef, optsRef, patch, replace],
   );
 
   const download = useCallback(
@@ -359,14 +343,14 @@ export function useDownload(
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();
-    replaceHookState(store, INITIAL_STATE);
-  }, [store]);
+    replace(INITIAL_STATE);
+  }, [replace]);
 
   const reset = useCallback(() => {
     resettingRef.current = true;
     abortRef.current?.abort();
-    replaceHookState(store, INITIAL_STATE);
-  }, [store]);
+    replace(INITIAL_STATE);
+  }, [replace]);
 
   if (options.mode === "fetch") {
     return {

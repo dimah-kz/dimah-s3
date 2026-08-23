@@ -12,14 +12,10 @@ import {
   revokePreviewUrl,
 } from "../helpers/file-preview";
 import { useLiveRef } from "../internal-helpers";
-import {
-  patchHookState,
-  replaceHookState,
-  useHookStoreInstance,
-  useHookStoreShallow,
-} from "../store/create-hook-store";
+import { useImmerState } from "../store/use-immer-state";
 import type {
   UploadConfig,
+  UploadFileInfo,
   UploadHooks,
   UploadPhase,
   UploadProgress,
@@ -34,6 +30,10 @@ export type UseFileUploadOptions = UploadConfig &
   UploadHooks & {
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
+    /** Static request options applied to the upload. */
+    uploadOptions?: UploadRequestOptions;
+    /** Per-upload request options override. */
+    getUploadOptions?: (file: File) => UploadRequestOptions;
   };
 
 export type UseFileUploadState = {
@@ -45,20 +45,18 @@ export type UseFileUploadState = {
   error: DimahS3Error | null;
   /** Result after success, or `null`. */
   result: UploadResult | null;
-  /** Name of the file being uploaded. */
-  fileName: string | null;
-  /** Size of the file being uploaded in bytes. */
-  fileSize: number | null;
-  /** MIME type of the file being uploaded. */
-  fileType: string | null;
-  /**
-   * Image thumbnail object URL, or `null`.
-   * Kept through success; revoked when state returns to idle.
-   */
-  previewUrl: string | null;
+  /** Display metadata for the selected file, or `null`. */
+  fileInfo: UploadFileInfo | null;
 };
 
 export type UseFileUploadReturn = UseFileUploadState & {
+  /** `true` while bytes are transferring (`phase === "uploading"`). */
+  isUploading: boolean;
+  /**
+   * `true` while the upload is in-flight (`validating`, `presigning`,
+   * `uploading`, or `finalizing`).
+   */
+  isPending: boolean;
   /**
    * Start an upload.
    *
@@ -116,11 +114,28 @@ const INITIAL_STATE: UseFileUploadState = {
   progress: INITIAL_PROGRESS,
   error: null,
   result: null,
-  fileName: null,
-  fileSize: null,
-  fileType: null,
-  previewUrl: null,
+  fileInfo: null,
 };
+
+const PENDING_PHASES: ReadonlySet<UploadPhase> = new Set([
+  "validating",
+  "presigning",
+  "uploading",
+  "finalizing",
+]);
+
+function mergeRequestOptions(
+  hook: UseFileUploadOptions,
+  file: File,
+  requestOptions?: UploadRequestOptions,
+): UploadRequestOptions | undefined {
+  const merged = {
+    ...hook.uploadOptions,
+    ...hook.getUploadOptions?.(file),
+    ...requestOptions,
+  };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
 
 type ActiveUpload = {
   file: File;
@@ -135,17 +150,7 @@ type ActiveUpload = {
 export function useFileUpload(
   options: UseFileUploadOptions,
 ): UseFileUploadReturn {
-  const store = useHookStoreInstance(INITIAL_STATE);
-  const state = useHookStoreShallow(store, (s) => ({
-    phase: s.phase,
-    progress: s.progress,
-    error: s.error,
-    result: s.result,
-    fileName: s.fileName,
-    fileSize: s.fileSize,
-    fileType: s.fileType,
-    previewUrl: s.previewUrl,
-  }));
+  const [state, patch, replace] = useImmerState(INITIAL_STATE);
   const contextApi = useContext(S3Context);
   const formatValidateFileError = useFormatValidateFileError();
   const optsRef = useLiveRef(options);
@@ -167,8 +172,8 @@ export function useFileUpload(
 
   const clearToIdle = useCallback(() => {
     revokeCurrentPreview();
-    replaceHookState(store, INITIAL_STATE);
-  }, [revokeCurrentPreview, store]);
+    replace(INITIAL_STATE);
+  }, [revokeCurrentPreview, replace]);
 
   useEffect(() => () => revokeCurrentPreview(), [revokeCurrentPreview]);
 
@@ -182,15 +187,19 @@ export function useFileUpload(
       const previewUrl = createImagePreviewUrl(file);
       previewUrlRef.current = previewUrl;
 
-      patchHookState(store, (draft) => {
+      const fileInfo: UploadFileInfo = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        previewUrl,
+      };
+
+      patch((draft) => {
         draft.phase = "validating";
         draft.progress = { ...INITIAL_PROGRESS };
         draft.error = null;
         draft.result = null;
-        draft.fileName = file.name;
-        draft.fileSize = file.size;
-        draft.fileType = file.type;
-        draft.previewUrl = previewUrl;
+        draft.fileInfo = fileInfo;
       });
 
       const opts = optsRef.current;
@@ -206,7 +215,7 @@ export function useFileUpload(
       });
       if (validationError) {
         const message = formatValidateFileError(validationError);
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "error";
           draft.error = new DimahS3Error("BAD_REQUEST", { message });
         });
@@ -217,7 +226,7 @@ export function useFileUpload(
       if (opts.beforeUpload) {
         const allowed = await opts.beforeUpload(file);
         if (!allowed) {
-          patchHookState(store, (draft) => {
+          patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
               "Upload blocked by beforeUpload hook",
@@ -229,19 +238,20 @@ export function useFileUpload(
       }
 
       speedUpdaterRef.current.reset();
-      patchHookState(store, (draft) => {
+      patch((draft) => {
         draft.phase = "presigning";
       });
       opts.onUploadStart?.(file, objectKey);
 
+      const mergedOptions = mergeRequestOptions(opts, file, requestOptions);
       const controller = new AbortController();
       abortRef.current = controller;
       activeUploadRef.current = {
         file,
         objectKey,
         serverKey: objectKey,
-        bucket: requestOptions?.bucket,
-        requestOptions,
+        bucket: mergedOptions?.bucket,
+        requestOptions: mergedOptions,
       };
 
       try {
@@ -260,13 +270,13 @@ export function useFileUpload(
           {
             onProgress: (progress) => {
               const p = speedUpdaterRef.current.apply(progress);
-              patchHookState(store, (draft) => {
+              patch((draft) => {
                 draft.progress = p;
               });
               opts.onProgress?.(file, p);
             },
             onPhaseChange: (phase) =>
-              patchHookState(store, (draft) => {
+              patch((draft) => {
                 draft.phase = phase;
               }),
             onPartUpload: (partNumber, totalParts) =>
@@ -280,10 +290,10 @@ export function useFileUpload(
             },
           },
           controller.signal,
-          requestOptions,
+          mergedOptions,
         );
 
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "success";
           draft.result = result;
           draft.progress = {
@@ -304,7 +314,7 @@ export function useFileUpload(
           return;
         }
         const message = err instanceof Error ? err.message : "Upload failed";
-        patchHookState(store, (draft) => {
+        patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, message);
         });
@@ -320,7 +330,7 @@ export function useFileUpload(
       formatValidateFileError,
       revokeCurrentPreview,
       clearToIdle,
-      store,
+      patch,
     ],
   );
 
@@ -358,5 +368,13 @@ export function useFileUpload(
     clearToIdle();
   }, [clearToIdle]);
 
-  return { ...state, upload, cancel, detach, reset };
+  return {
+    ...state,
+    isUploading: state.phase === "uploading",
+    isPending: PENDING_PHASES.has(state.phase),
+    upload,
+    cancel,
+    detach,
+    reset,
+  };
 }

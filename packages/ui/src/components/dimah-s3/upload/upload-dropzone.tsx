@@ -1,30 +1,26 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   useUpload,
   useMultiUpload,
-  formatAcceptLabels,
   type UseUploadOptions,
   type UseMultiUploadOptions,
-  type UploadProgress,
-  type MultiUploadFileState,
 } from "@dimah-s3/react";
-import { formatFileSize } from "@dimah-s3/core";
-import { cn } from "@/lib/utils";
 import {
-  resolveStatusSlot,
   type AttachmentLayoutAliases,
   type StatusSlot,
 } from "@/lib/attachment-layout";
-import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
-import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
-import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
-
-const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
-const EMPTY_FILES: MultiUploadFileState[] = [];
+import {
+  DropzoneChrome,
+  DropzoneFrame,
+  canPauseUpload,
+  dropzoneHints,
+  resolveDefaultStatus,
+  useMultiUploadUi,
+  useSingleUploadUi,
+} from "@/components/dimah-s3/upload/upload-wired";
 
 /** Props for {@link UploadDropzone}. Extends {@link UseUploadOptions} or {@link UseMultiUploadOptions}. */
 export type UploadDropzoneProps = (UseUploadOptions | UseMultiUploadOptions) &
@@ -54,81 +50,6 @@ export type UploadDropzoneProps = (UseUploadOptions | UseMultiUploadOptions) &
     multiple?: boolean;
   };
 
-function dropzoneHints(
-  options: UseUploadOptions | UseMultiUploadOptions,
-  t: ReturnType<typeof useTranslations>,
-) {
-  const acceptLabels = formatAcceptLabels(options.accept);
-  const maxFiles = (options as UseMultiUploadOptions).maxFiles;
-  const limitParts: string[] = [];
-  if (maxFiles != null && maxFiles > 0) {
-    limitParts.push(
-      maxFiles === 1
-        ? t("You can upload a file", { note: "dropzone hint" })
-        : t("You can upload {count} files", {
-            note: "dropzone hint",
-            variables: { count: String(maxFiles) },
-          }),
-    );
-  }
-  if (options.maxFileSize != null) {
-    const size = formatFileSize(options.maxFileSize);
-    limitParts.push(
-      maxFiles != null && maxFiles > 1
-        ? t("Each up to {size}", {
-            note: "dropzone hint",
-            variables: { size },
-          })
-        : t("Up to {size}", {
-            note: "dropzone hint",
-            variables: { size },
-          }),
-    );
-  }
-  const limitsLine = limitParts.length > 0 ? `${limitParts.join(". ")}.` : null;
-  const acceptLine =
-    acceptLabels.length > 0
-      ? t("Accepted {types}.", {
-          note: "dropzone hint",
-          variables: { types: acceptLabels.join(", ") },
-        })
-      : null;
-  return { limitsLine, acceptLine };
-}
-
-function DropzoneChrome({
-  label,
-  limitsLine,
-  acceptLine,
-  isDisabled,
-  children,
-}: {
-  label: string;
-  limitsLine: string | null;
-  acceptLine: string | null;
-  isDisabled: boolean;
-  children?: ReactNode;
-}) {
-  if (children != null) return <>{children}</>;
-  return (
-    <>
-      <CloudUpload
-        className={cn("size-6", isDisabled && "opacity-50")}
-        strokeWidth={1.5}
-      />
-      <div className={cn("flex flex-col gap-1", isDisabled && "opacity-50")}>
-        <p className="text-sm font-medium">{label}</p>
-        {limitsLine && (
-          <p className="text-xs text-dimah-s3-muted-foreground">{limitsLine}</p>
-        )}
-        {acceptLine && (
-          <p className="text-xs text-dimah-s3-muted-foreground">{acceptLine}</p>
-        )}
-      </div>
-    </>
-  );
-}
-
 function UploadDropzoneSingle({
   className,
   label,
@@ -142,89 +63,51 @@ function UploadDropzoneSingle({
 }: Omit<UploadDropzoneProps, "multiple"> & UseUploadOptions) {
   const t = useTranslations();
   const ctrl = useUpload({ ...options, disabled });
-  const canPause = options.uploadStore != null && options.uploadStore !== false;
-  const isDisabled = disabled || ctrl.isUploading;
+  const isDisabled = disabled || ctrl.isPending;
   const hasCustomChrome = children != null;
   const dropzoneLabel =
     label ?? t("Drag and drop files here", { note: "dropzone" });
   const { limitsLine, acceptLine } = dropzoneHints(options, t);
-
-  const toastCtrl: UploadToastCtrl = {
-    mode: "single",
-    phase: ctrl.phase,
-    fileInfo: ctrl.fileInfo,
-    progress: ctrl.progress,
-    error: ctrl.error,
-    cancel: ctrl.cancel,
-  };
-  useUploadToast(toastCtrl, enableToast);
-  useFileRejectToast(ctrl.fileRejections, enableToast);
-
-  const statusNode =
-    statusSlot === false ? null : (
-      <UploadStatusBlock
-        mode="single"
-        phase={ctrl.phase}
-        progress={ctrl.progress}
-        error={ctrl.error}
-        fileInfo={ctrl.fileInfo}
-        onCancel={ctrl.cancel}
-        onPause={canPause ? ctrl.detach : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    );
-
-  const defaultStatus =
-    statusNode == null ? null : (
-      <div className={cn("w-full text-start", hasCustomChrome && "px-3 pb-3")}>
-        {statusNode}
-      </div>
-    );
-
-  const status =
-    typeof statusSlot === "function"
-      ? statusSlot(statusNode)
-      : resolveStatusSlot(statusSlot, defaultStatus);
+  const { statusNode } = useSingleUploadUi(ctrl, {
+    toast: enableToast,
+    status: statusSlot,
+    attachmentSize,
+    attachmentOrientation,
+    canPause: canPauseUpload(options.uploadStore),
+  });
+  const status = resolveDefaultStatus(statusSlot, statusNode, (node) => (
+    <div
+      className={
+        hasCustomChrome ? "w-full px-3 pb-3 text-start" : "w-full text-start"
+      }
+    >
+      {node}
+    </div>
+  ));
 
   return (
-    <div
-      {...ctrl.getRootProps({
-        "aria-label": dropzoneLabel,
-        className: cn(
-          "rounded-lg border-2 border-dashed transition-colors",
-          hasCustomChrome
-            ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
-            : "flex flex-col items-center justify-center gap-3 p-6 text-center",
-          isDisabled
-            ? "cursor-not-allowed border-dimah-s3-muted-foreground/25"
-            : "cursor-pointer border-dimah-s3-muted-foreground/25 hover:border-dimah-s3-primary/50",
-          !isDisabled &&
-            ctrl.isDragReject &&
-            "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
-          !isDisabled &&
-            ctrl.isDragAccept &&
-            "border-dimah-s3-primary bg-dimah-s3-primary/5",
-          !isDisabled &&
-            ctrl.isDragActive &&
-            !ctrl.isDragAccept &&
-            !ctrl.isDragReject &&
-            "border-dimah-s3-primary/50",
-          className,
-        ),
-      })}
-    >
-      <input {...ctrl.getInputProps()} />
-      <DropzoneChrome
-        label={dropzoneLabel}
-        limitsLine={limitsLine}
-        acceptLine={acceptLine}
-        isDisabled={isDisabled}
-      >
-        {children}
-      </DropzoneChrome>
-      {status}
-    </div>
+    <DropzoneFrame
+      getRootProps={ctrl.getRootProps}
+      getInputProps={ctrl.getInputProps}
+      isDisabled={isDisabled}
+      isDragReject={ctrl.isDragReject}
+      isDragAccept={ctrl.isDragAccept}
+      isDragActive={ctrl.isDragActive}
+      className={className}
+      hasCustomChrome={hasCustomChrome}
+      ariaLabel={dropzoneLabel}
+      chrome={
+        <DropzoneChrome
+          label={dropzoneLabel}
+          limitsLine={limitsLine}
+          acceptLine={acceptLine}
+          isDisabled={isDisabled}
+        >
+          {children}
+        </DropzoneChrome>
+      }
+      status={status}
+    />
   );
 }
 
@@ -241,89 +124,51 @@ function UploadDropzoneMulti({
 }: Omit<UploadDropzoneProps, "multiple"> & UseMultiUploadOptions) {
   const t = useTranslations();
   const ctrl = useMultiUpload({ ...options, disabled });
-  const canPause = options.uploadStore != null && options.uploadStore !== false;
-  const isDisabled = disabled || ctrl.isUploading;
+  const isDisabled = disabled || ctrl.isPending;
   const hasCustomChrome = children != null;
   const dropzoneLabel =
     label ?? t("Drag and drop files here", { note: "dropzone" });
   const { limitsLine, acceptLine } = dropzoneHints(options, t);
-
-  const toastCtrl: UploadToastCtrl = {
-    mode: "multi",
-    phase: ctrl.phase,
-    files: ctrl.files,
-    totalProgress: ctrl.totalProgress,
-    error: ctrl.error,
-    cancel: ctrl.cancel,
-  };
-  useUploadToast(toastCtrl, enableToast);
-  useFileRejectToast(ctrl.fileRejections, enableToast);
-
-  const statusNode =
-    statusSlot === false ? null : (
-      <UploadStatusBlock
-        mode="multi"
-        phase={ctrl.phase}
-        files={ctrl.files ?? EMPTY_FILES}
-        totalProgress={ctrl.totalProgress ?? EMPTY_PROGRESS}
-        error={ctrl.error}
-        onCancel={ctrl.cancel}
-        onPause={canPause ? ctrl.detach : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    );
-
-  const defaultStatus =
-    statusNode == null ? null : (
-      <div className={cn("w-full text-start", hasCustomChrome && "px-3 pb-3")}>
-        {statusNode}
-      </div>
-    );
-
-  const status =
-    typeof statusSlot === "function"
-      ? statusSlot(statusNode)
-      : resolveStatusSlot(statusSlot, defaultStatus);
+  const { statusNode } = useMultiUploadUi(ctrl, {
+    toast: enableToast,
+    status: statusSlot,
+    attachmentSize,
+    attachmentOrientation,
+    canPause: canPauseUpload(options.uploadStore),
+  });
+  const status = resolveDefaultStatus(statusSlot, statusNode, (node) => (
+    <div
+      className={
+        hasCustomChrome ? "w-full px-3 pb-3 text-start" : "w-full text-start"
+      }
+    >
+      {node}
+    </div>
+  ));
 
   return (
-    <div
-      {...ctrl.getRootProps({
-        "aria-label": dropzoneLabel,
-        className: cn(
-          "rounded-lg border-2 border-dashed transition-colors",
-          hasCustomChrome
-            ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
-            : "flex flex-col items-center justify-center gap-3 p-6 text-center",
-          isDisabled
-            ? "cursor-not-allowed border-dimah-s3-muted-foreground/25"
-            : "cursor-pointer border-dimah-s3-muted-foreground/25 hover:border-dimah-s3-primary/50",
-          !isDisabled &&
-            ctrl.isDragReject &&
-            "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
-          !isDisabled &&
-            ctrl.isDragAccept &&
-            "border-dimah-s3-primary bg-dimah-s3-primary/5",
-          !isDisabled &&
-            ctrl.isDragActive &&
-            !ctrl.isDragAccept &&
-            !ctrl.isDragReject &&
-            "border-dimah-s3-primary/50",
-          className,
-        ),
-      })}
-    >
-      <input {...ctrl.getInputProps()} />
-      <DropzoneChrome
-        label={dropzoneLabel}
-        limitsLine={limitsLine}
-        acceptLine={acceptLine}
-        isDisabled={isDisabled}
-      >
-        {children}
-      </DropzoneChrome>
-      {status}
-    </div>
+    <DropzoneFrame
+      getRootProps={ctrl.getRootProps}
+      getInputProps={ctrl.getInputProps}
+      isDisabled={isDisabled}
+      isDragReject={ctrl.isDragReject}
+      isDragAccept={ctrl.isDragAccept}
+      isDragActive={ctrl.isDragActive}
+      className={className}
+      hasCustomChrome={hasCustomChrome}
+      ariaLabel={dropzoneLabel}
+      chrome={
+        <DropzoneChrome
+          label={dropzoneLabel}
+          limitsLine={limitsLine}
+          acceptLine={acceptLine}
+          isDisabled={isDisabled}
+        >
+          {children}
+        </DropzoneChrome>
+      }
+      status={status}
+    />
   );
 }
 

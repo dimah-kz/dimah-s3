@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
@@ -8,27 +8,25 @@ import {
   useMultiUpload,
   type UseUploadOptions,
   type UseMultiUploadOptions,
-  type UploadProgress,
-  type MultiUploadFileState,
+  type UseUploadReturn,
 } from "@dimah-s3/react";
-import { cn } from "@/lib/utils";
-import {
-  resolveStatusSlot,
-  type AttachmentLayoutAliases,
-  type StatusSlot,
-} from "@/lib/attachment-layout";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
-import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
-import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
-
-const EMPTY_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
-const EMPTY_FILES: MultiUploadFileState[] = [];
+import { cn } from "@/lib/utils";
+import {
+  resolveStatusSlot,
+  type AttachmentLayoutAliases,
+  type StatusSlot,
+} from "@/lib/attachment-layout";
+import {
+  canPauseUpload,
+  useMultiUploadUi,
+  useSingleUploadUi,
+} from "@/components/dimah-s3/upload/upload-wired";
 
 /** Props for {@link UploadButton}. Extends {@link UseUploadOptions} or {@link UseMultiUploadOptions}. */
 export type UploadButtonProps = (UseUploadOptions | UseMultiUploadOptions) &
@@ -70,10 +68,41 @@ type ButtonShellProps = AttachmentLayoutAliases & {
   tooltipText?: string;
   toast?: boolean;
   status?: StatusSlot;
-  variant?: ComponentProps<typeof Button>["variant"];
-  size?: ComponentProps<typeof Button>["size"];
+  variant?: UploadButtonProps["variant"];
+  size?: UploadButtonProps["size"];
   buttonClassName?: string;
 };
+
+function buttonShell({
+  className,
+  tooltipText,
+  getInputProps,
+  button,
+  status,
+}: {
+  className?: string;
+  tooltipText?: string;
+  getInputProps: UseUploadReturn["getInputProps"];
+  button: ReactElement;
+  status: ReactNode;
+}) {
+  return (
+    <div className={cn("inline-flex flex-col gap-2", className)}>
+      <div className="inline-flex items-center gap-2">
+        <input {...getInputProps()} />
+        {tooltipText ? (
+          <Tooltip>
+            <TooltipTrigger render={button} />
+            <TooltipContent>{tooltipText}</TooltipContent>
+          </Tooltip>
+        ) : (
+          button
+        )}
+      </div>
+      {status}
+    </div>
+  );
+}
 
 function UploadButtonSingle({
   className,
@@ -98,36 +127,15 @@ function UploadButtonSingle({
     noClick: true,
     noKeyboard: true,
   });
-  const canPause = options.uploadStore != null && options.uploadStore !== false;
-  const isDisabled = disabled || ctrl.isUploading;
-
-  const toastCtrl: UploadToastCtrl = {
-    mode: "single",
-    phase: ctrl.phase,
-    fileInfo: ctrl.fileInfo,
-    progress: ctrl.progress,
-    error: ctrl.error,
-    cancel: ctrl.cancel,
-  };
-  useUploadToast(toastCtrl, enableToast);
-  useFileRejectToast(ctrl.fileRejections, enableToast);
-
-  const statusNode =
-    statusSlot === false ? null : (
-      <UploadStatusBlock
-        mode="single"
-        phase={ctrl.phase}
-        progress={ctrl.progress}
-        error={ctrl.error}
-        fileInfo={ctrl.fileInfo}
-        onCancel={ctrl.cancel}
-        onPause={canPause ? ctrl.detach : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    );
+  const isDisabled = disabled || ctrl.isPending;
+  const { statusNode } = useSingleUploadUi(ctrl, {
+    toast: enableToast,
+    status: statusSlot,
+    attachmentSize,
+    attachmentOrientation,
+    canPause: canPauseUpload(options.uploadStore),
+  });
   const status = resolveStatusSlot(statusSlot, statusNode);
-
   const buttonLabel = label ?? t("Upload file", { note: "button" });
   const buttonContent = children ?? (
     <>
@@ -136,34 +144,23 @@ function UploadButtonSingle({
     </>
   );
 
-  const button = (
-    <Button
-      variant={variant}
-      size={size}
-      className={buttonClassName}
-      disabled={isDisabled}
-      onClick={ctrl.open}
-    >
-      {buttonContent}
-    </Button>
-  );
-
-  return (
-    <div className={cn("inline-flex flex-col gap-2", className)}>
-      <div className="inline-flex items-center gap-2">
-        <input {...ctrl.getInputProps()} />
-        {tooltipText ? (
-          <Tooltip>
-            <TooltipTrigger render={button} />
-            <TooltipContent>{tooltipText}</TooltipContent>
-          </Tooltip>
-        ) : (
-          button
-        )}
-      </div>
-      {status}
-    </div>
-  );
+  return buttonShell({
+    className,
+    tooltipText,
+    getInputProps: ctrl.getInputProps,
+    status,
+    button: (
+      <Button
+        variant={variant}
+        size={size}
+        className={buttonClassName}
+        disabled={isDisabled}
+        onClick={ctrl.open}
+      >
+        {buttonContent}
+      </Button>
+    ),
+  });
 }
 
 function UploadButtonMulti({
@@ -189,36 +186,15 @@ function UploadButtonMulti({
     noClick: true,
     noKeyboard: true,
   });
-  const canPause = options.uploadStore != null && options.uploadStore !== false;
-  const isDisabled = disabled || ctrl.isUploading;
-
-  const toastCtrl: UploadToastCtrl = {
-    mode: "multi",
-    phase: ctrl.phase,
-    files: ctrl.files,
-    totalProgress: ctrl.totalProgress,
-    error: ctrl.error,
-    cancel: ctrl.cancel,
-  };
-  useUploadToast(toastCtrl, enableToast);
-  useFileRejectToast(ctrl.fileRejections, enableToast);
-
-  const statusNode =
-    statusSlot === false ? null : (
-      <UploadStatusBlock
-        mode="multi"
-        phase={ctrl.phase}
-        files={ctrl.files ?? EMPTY_FILES}
-        totalProgress={ctrl.totalProgress ?? EMPTY_PROGRESS}
-        error={ctrl.error}
-        onCancel={ctrl.cancel}
-        onPause={canPause ? ctrl.detach : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    );
+  const isDisabled = disabled || ctrl.isPending;
+  const { statusNode } = useMultiUploadUi(ctrl, {
+    toast: enableToast,
+    status: statusSlot,
+    attachmentSize,
+    attachmentOrientation,
+    canPause: canPauseUpload(options.uploadStore),
+  });
   const status = resolveStatusSlot(statusSlot, statusNode);
-
   const buttonLabel = label ?? t("Upload files", { note: "button" });
   const buttonContent = children ?? (
     <>
@@ -227,34 +203,23 @@ function UploadButtonMulti({
     </>
   );
 
-  const button = (
-    <Button
-      variant={variant}
-      size={size}
-      className={buttonClassName}
-      disabled={isDisabled}
-      onClick={ctrl.open}
-    >
-      {buttonContent}
-    </Button>
-  );
-
-  return (
-    <div className={cn("inline-flex flex-col gap-2", className)}>
-      <div className="inline-flex items-center gap-2">
-        <input {...ctrl.getInputProps()} />
-        {tooltipText ? (
-          <Tooltip>
-            <TooltipTrigger render={button} />
-            <TooltipContent>{tooltipText}</TooltipContent>
-          </Tooltip>
-        ) : (
-          button
-        )}
-      </div>
-      {status}
-    </div>
-  );
+  return buttonShell({
+    className,
+    tooltipText,
+    getInputProps: ctrl.getInputProps,
+    status,
+    button: (
+      <Button
+        variant={variant}
+        size={size}
+        className={buttonClassName}
+        disabled={isDisabled}
+        onClick={ctrl.open}
+      >
+        {buttonContent}
+      </Button>
+    ),
+  });
 }
 
 export function UploadButton({ multiple, ...props }: UploadButtonProps) {

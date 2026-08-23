@@ -125,8 +125,6 @@ export type UploadConfig = {
   accept?: string[];
   /** Max file size in bytes. */
   maxFileSize?: number;
-  /** Max number of files (multi-upload). */
-  maxFiles?: number;
   /** File size threshold in bytes above which multipart is used. */
   multipartThreshold?: number;
   /**
@@ -137,8 +135,6 @@ export type UploadConfig = {
   partSize?: number;
   /** Number of parts uploaded concurrently (multipart). */
   concurrentParts?: number;
-  /** Number of files uploaded concurrently (multi-upload). */
-  concurrentFiles?: number;
   /** Retry configuration for failed network requests. */
   retry?: RetryConfig;
   /**
@@ -149,4 +145,12 @@ export type UploadConfig = {
    * - Custom `UploadStore` — persist `uploadId` across sessions.
    */
   uploadStore?: UploadStore | false;
+};
+
+/** Extra engine configuration for multi-file uploads. */
+export type MultiUploadConfig = UploadConfig & {
+  /** Max number of files in a batch. */
+  maxFiles?: number;
+  /** Number of files uploaded concurrently. */
+  concurrentFiles?: number;
 };

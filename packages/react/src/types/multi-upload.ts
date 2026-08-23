@@ -1,24 +1,13 @@
 import type { DimahS3Error } from "@dimah-s3/core";
-import type { UploadProgress, UploadResult } from "./upload";
+import type { UploadFileInfo, UploadProgress, UploadResult } from "./upload";
 
 export type MultiUploadPhase =
   "idle" | "validating" | "uploading" | "success" | "error";
 
 /** Per-file state in a multi-upload batch. */
-export type MultiUploadFileState = {
+export type MultiUploadFileState = UploadFileInfo & {
   /** Unique ID for this file in the batch. */
   id: string;
-  /** Display file name. */
-  fileName: string;
-  /** File size in bytes. */
-  fileSize: number;
-  /** MIME type from the browser `File`. */
-  fileType: string;
-  /**
-   * Object URL for an image thumbnail, or `null` for non-images.
-   * Kept through success; revoked when the batch is cleared.
-   */
-  previewUrl: string | null;
   status: "pending" | "uploading" | "success" | "error";
   progress: UploadProgress;
   error: DimahS3Error | null;

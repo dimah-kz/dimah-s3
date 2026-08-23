@@ -108,6 +108,14 @@ export function FileAttachment({
         size={progress.size}
         strokeWidth={progress.strokeWidth}
         className={progress.className}
+        label={
+          state === "uploading"
+            ? t("{percent}%", {
+                note: "progress",
+                variables: { percent: String(Math.round(percent)) },
+              })
+            : undefined
+        }
       />
     </div>
   ) : state === "error" ? (

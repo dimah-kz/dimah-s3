@@ -1,5 +1,31 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
-export * from "./types";
+export type {
+  UploadResult,
+  UploadProgress,
+  UploadPhase,
+  UploadFileInfo,
+  UploadRequestOptions,
+  UploadHooks,
+  UploadTransport,
+  S3ApiUploadTransport,
+  RetryConfig,
+  UploadConfig,
+  MultiUploadConfig,
+} from "./types/upload";
+export type { StoredUpload, UploadStore } from "./types/upload-store";
+export type {
+  MultiUploadPhase,
+  MultiUploadFileState,
+  MultiUploadHooks,
+} from "./types/multi-upload";
+export type {
+  DownloadPhase,
+  DownloadHooks,
+  FetchDownloadPhase,
+  FetchDownloadProgress,
+  FetchDownloadHooks,
+} from "./types/download";
+export type { DeletePhase, DeleteHooks } from "./types/delete";
 
 // ─── Protocol helpers (so React apps rarely need @dimah-s3/core) ─────────────
 export {
@@ -53,10 +79,6 @@ export {
   formatEta,
   useFormatDimahError,
   useFormatValidateFileError,
-  createSpeedTracker,
-  createImagePreviewUrl,
-  revokePreviewUrl,
-  type SpeedTracker,
 } from "./helpers";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -76,6 +98,9 @@ export {
   useUpload,
   type UseUploadOptions,
   type UseUploadReturn,
+  type FileRejection,
+  type DropzoneRootProps,
+  type DropzoneInputProps,
 } from "./hooks/use-upload";
 export {
   useMultiUpload,
@@ -83,17 +108,8 @@ export {
   type UseMultiUploadReturn,
 } from "./hooks/use-multi-upload";
 export {
-  useFileIntake,
-  type UseFileIntakeOptions,
-  type UseFileIntakeReturn,
-  type FileRejection,
-  type DropzoneRootProps,
-  type DropzoneInputProps,
-} from "./hooks/use-file-intake";
-export {
   useDownload,
   type UseDownloadOptions,
-  type UseDownloadState,
   type UseDownloadReturn,
   type UseNavigateDownloadOptions,
   type UseNavigateDownloadReturn,

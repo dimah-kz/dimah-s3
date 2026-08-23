@@ -1,6 +1,6 @@
 "use client";
 
-import { XIcon } from "lucide-react";
+import { PauseIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type {
@@ -29,6 +29,8 @@ export type MultiUploadStatusProps = AttachmentLayoutProps & {
   totalProgress: UploadProgress;
   error: DimahS3Error | null;
   onCancel?: () => void;
+  /** When set (typically with an `uploadStore`), shows a pause control. */
+  onPause?: () => void;
   className?: string;
 };
 
@@ -38,6 +40,7 @@ export function MultiUploadStatus({
   totalProgress,
   error,
   onCancel,
+  onPause,
   size,
   orientation,
   className,
@@ -81,6 +84,18 @@ export function MultiUploadStatus({
             </ProgressLabel>
             <ProgressValue />
           </Progress>
+          {onPause ? (
+            <AttachmentAction
+              className="shrink-0"
+              aria-label={t("Pause", { note: "upload control" })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPause();
+              }}
+            >
+              <PauseIcon />
+            </AttachmentAction>
+          ) : null}
           {onCancel ? (
             <AttachmentAction
               className="shrink-0"
@@ -169,9 +184,9 @@ function FileList({
         <FileAttachment
           key={f.id}
           state={fileAttachmentState(f.status)}
-          fileName={f.fileName}
-          fileSize={f.fileSize}
-          fileType={f.fileType}
+          fileName={f.name}
+          fileSize={f.size}
+          fileType={f.type}
           previewUrl={f.previewUrl}
           percent={f.progress.percent}
           error={f.error}

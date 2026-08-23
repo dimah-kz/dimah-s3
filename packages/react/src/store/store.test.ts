@@ -1,9 +1,7 @@
+import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  createHookStore,
-  patchHookState,
-  replaceHookState,
-} from "./create-hook-store";
+import { renderHook } from "../test/render-hook";
+import { useImmerState } from "./use-immer-state";
 import { createLocalStorageStore } from "./local-storage-store";
 import { createMemoryStore } from "./memory-store";
 
@@ -14,32 +12,39 @@ const sample = {
   bucket: "b",
 };
 
-describe("createHookStore", () => {
+describe("useImmerState", () => {
   it("supports immer drafts and replace", () => {
     type State = {
       phase: "idle" | "uploading";
       files: Array<{ id: string; progress: number }>;
     };
     const initial: State = { phase: "idle", files: [] };
-    const store = createHookStore(initial);
+    const hook = renderHook(() => useImmerState(initial));
 
-    patchHookState(store, (draft) => {
-      draft.phase = "uploading";
-      draft.files.push({ id: "a", progress: 0 });
+    act(() => {
+      hook.current[1]((draft) => {
+        draft.phase = "uploading";
+        draft.files.push({ id: "a", progress: 0 });
+      });
     });
-    expect(store.getState()).toMatchObject({
+    expect(hook.current[0]).toMatchObject({
       phase: "uploading",
       files: [{ id: "a", progress: 0 }],
     });
 
-    patchHookState(store, (draft) => {
-      const file = draft.files.find((f) => f.id === "a");
-      if (file) file.progress = 42;
+    act(() => {
+      hook.current[1]((draft) => {
+        const file = draft.files.find((f) => f.id === "a");
+        if (file) file.progress = 42;
+      });
     });
-    expect(store.getState().files[0]?.progress).toBe(42);
+    expect(hook.current[0].files[0]?.progress).toBe(42);
 
-    replaceHookState(store, initial);
-    expect(store.getState()).toEqual(initial);
+    act(() => {
+      hook.current[2](initial);
+    });
+    expect(hook.current[0]).toEqual(initial);
+    hook.unmount();
   });
 });
 

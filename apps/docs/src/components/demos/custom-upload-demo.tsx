@@ -29,7 +29,10 @@ export function CustomUploadDemo() {
   });
 
   const busy =
-    phase === "uploading" || phase === "presigning" || phase === "validating";
+    phase === "uploading" ||
+    phase === "presigning" ||
+    phase === "validating" ||
+    phase === "finalizing";
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-2">
