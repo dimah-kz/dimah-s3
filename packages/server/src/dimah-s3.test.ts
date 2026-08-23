@@ -37,11 +37,6 @@ describe("dimahS3 instance", () => {
     );
     await expectErrorCode(res, 400, S3_ERROR_CODES.VALIDATION_ERROR);
   });
-
-  it("rejects enabled on a feature options object", () => {
-    const upload = { prefix: "uploads", enabled: false };
-    expect(() => createInstance({ upload })).toThrow(/do not set `enabled`/);
-  });
 });
 
 describe("HTTP envelope", () => {

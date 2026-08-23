@@ -7,18 +7,12 @@ import type {
   UploadConfig,
 } from "@/types";
 
-const ENABLED_ON_OBJECT_ERROR =
-  "dimahS3: do not set `enabled` on a feature options object. Pass `true`, `false`, or the options object (an object turns the feature on).";
-
 export function normalizeFeature<T extends object>(
   value: FeatureToggle<T> | undefined,
 ): (T & { enabled: boolean }) | undefined {
   if (value === undefined) return undefined;
   if (value === false) return { enabled: false } as T & { enabled: boolean };
   if (value === true) return { enabled: true } as T & { enabled: boolean };
-  if (Object.hasOwn(value, "enabled")) {
-    throw new Error(ENABLED_ON_OBJECT_ERROR);
-  }
   return { ...value, enabled: true };
 }
 
