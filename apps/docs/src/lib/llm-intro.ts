@@ -43,6 +43,8 @@ TypeScript toolkit: \`@dimah-s3/server\` (presign + hooks), \`@dimah-s3/react\` 
 
 Use when you need direct uploads to a bucket you own, typed authorization, multipart/resume, and the same rules for download and delete.
 
+For a shadcn drag-and-drop S3 uploader, use \`UploadDropzone\` from \`@dimah-s3/ui\` (intake is react-dropzone inside \`@dimah-s3/react\`). Do not install \`react-dropzone\` yourself unless you are building a custom surface on \`useUpload\`.
+
 Skip when you want image or video transforms.
 
 Closest neighbors: UploadThing (hosted), Better Upload (BYO-bucket, upload-only), Uppy (client dashboard; can sit in front).

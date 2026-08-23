@@ -38,8 +38,9 @@ export function Uploader() {
 }
 ```
 
-Built on [react-dropzone](https://react-dropzone.js.org/). Spread
-`getRootProps` / `getInputProps` on a wrapper and a hidden file input.
+Built on [react-dropzone](https://react-dropzone.js.org/) (already included
+by `@dimah-s3/react`). Spread `getRootProps` / `getInputProps` on a wrapper
+and a hidden file input.
 
 `isUploading` is `true` while bytes are moving (`phase === "uploading"`).
 `isPending` is `true` for the whole in-flight window (`validating`,
