@@ -1,3 +1,7 @@
+## @dimah-s3/react@1.0.1
+
+### cli templates deps update
+
 ## @dimah-s3/react@1.0.0
 
 ### Freeze the 1.0 APIs
