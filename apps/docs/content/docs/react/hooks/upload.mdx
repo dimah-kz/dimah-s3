@@ -20,10 +20,8 @@ these hooks.
 [`upload.guard`](/docs/server/hooks/upload#guard).
 
 `accept` is the HTML list: MIME types (`image/*`, `application/pdf`) and/or
-extensions (`.pdf`). MIME types drive drag-over highlighting (the browser
-does not expose filenames during a drag). Extensions are matched when the
-file is dropped or picked. Prefer MIME types when you care about the
-drop-target color.
+extensions (`.pdf`). The native picker uses it as the `accept` attribute;
+dropzone and `validateFile` share the same tokens.
 
 ## useUpload
 

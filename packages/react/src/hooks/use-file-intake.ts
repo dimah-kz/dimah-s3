@@ -1,16 +1,14 @@
 "use client";
 
 import { useCallback } from "react";
+import { validateFile } from "@dimah-s3/core";
 import {
+  ErrorCode,
   useDropzone,
   type DropzoneInputProps,
   type DropzoneRootProps,
   type FileRejection,
 } from "react-dropzone";
-import {
-  toDropzoneAccept,
-  toHtmlAcceptAttr,
-} from "../helpers/to-dropzone-accept";
 import { useLiveRef } from "../internal-helpers";
 
 /** Options for {@link useFileIntake}. */
@@ -52,9 +50,9 @@ export type UseFileIntakeReturn = {
 /**
  * Headless file intake powered by react-dropzone.
  *
- * Dropzone owns picker / drag / soft-reject for `accept`, size, and count.
- * `useFileUpload` / `useMultiFileUpload` still run `validateFile` for
- * programmatic `upload()` that bypasses the dropzone.
+ * Dropzone owns picker / drag / size / count. Type matching uses
+ * {@link validateFile} (same HTML `accept` tokens as programmatic upload).
+ * The native input gets the HTML `accept` attribute directly.
  *
  * @internal — prefer {@link useUpload} / {@link useMultiUpload}.
  */
@@ -77,7 +75,20 @@ export function useFileIntake(
     [optsRef],
   );
 
-  const htmlAccept = toHtmlAcceptAttr(options.accept);
+  const validator = useCallback(
+    (file: File) => {
+      const error = validateFile(file, { accept: optsRef.current.accept });
+      if (error?.code !== "FILE_TYPE_NOT_ALLOWED") return null;
+      return { code: ErrorCode.FileInvalidType, message: error.message };
+    },
+    [optsRef],
+  );
+
+  const htmlAccept =
+    options.accept
+      ?.map((token) => token.trim())
+      .filter(Boolean)
+      .join(",") || undefined;
 
   const {
     getRootProps,
@@ -88,7 +99,6 @@ export function useFileIntake(
     isDragReject,
     fileRejections,
   } = useDropzone({
-    accept: toDropzoneAccept(options.accept),
     maxSize: options.maxFileSize,
     maxFiles: options.maxFiles,
     multiple: options.multiple ?? false,
@@ -96,6 +106,7 @@ export function useFileIntake(
     noClick: options.noClick,
     noDrag: options.noDrag,
     noKeyboard: options.noKeyboard,
+    validator,
     onDropAccepted,
     onDropRejected,
   });

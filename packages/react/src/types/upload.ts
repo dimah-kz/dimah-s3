@@ -123,8 +123,7 @@ export type UploadConfig = {
   multipart?: boolean;
   /**
    * HTML `accept` tokens: MIME types (`image/*`, `application/pdf`) and/or
-   * extensions (`.pdf`). MIME types drive drag-over highlighting; extensions
-   * are matched on drop / picker selection.
+   * extensions (`.pdf`).
    */
   accept?: string[];
   /** Max file size in bytes. */
