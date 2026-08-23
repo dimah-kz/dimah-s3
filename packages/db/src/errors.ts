@@ -22,7 +22,7 @@ export function notFound(
   message: string = S3_ERROR_CODES.OBJECT_NOT_FOUND.message,
 ): DimahS3Error {
   return DimahS3Error.from("NOT_FOUND", {
-    ...S3_ERROR_CODES.NOT_FOUND,
+    ...S3_ERROR_CODES.OBJECT_NOT_FOUND,
     message,
   });
 }

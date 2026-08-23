@@ -1,7 +1,4 @@
-import {
-  S3_DEFAULT_EXPIRES_IN,
-  S3_MAX_EXPIRES_IN,
-} from "@dimah-s3/core";
+import { S3_DEFAULT_EXPIRES_IN, S3_MAX_EXPIRES_IN } from "@dimah-s3/core";
 
 /**
  * Coerce a client `expiresIn` to a positive integer, then clamp to

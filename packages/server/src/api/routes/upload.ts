@@ -4,6 +4,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   buildContentDisposition,
   S3_API_ROUTES,
+  S3_MAX_POST_OBJECT_BYTES,
   uploadBodySchema,
   type UploadPresignResponse,
 } from "@dimah-s3/core";
@@ -11,11 +12,11 @@ import { errors } from "../../errors";
 import {
   normalizeExpiresIn,
   resolveRequestAcl,
+  resolveRequestTarget,
   runHook,
   runLifecycleHook,
 } from "../../helpers";
 import type { ResolvedDimahS3Config } from "../../types";
-import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 
@@ -50,6 +51,10 @@ async function handleUpload(
       ? Math.floor(input.fileSize)
       : null;
 
+  if (config.upload?.requireFileSize && fileSize === null) {
+    throw errors.fileSizeRequiredUpload();
+  }
+
   await runHook(config.upload?.guard, {
     request,
     key,
@@ -62,10 +67,6 @@ async function handleUpload(
   });
 
   const method = config.upload?.method ?? "POST";
-
-  if (config.upload?.requireFileSize && fileSize === null) {
-    throw errors.fileSizeRequiredUpload();
-  }
 
   if (method === "PUT") {
     const putHeaders: Record<string, string> = {
@@ -145,7 +146,7 @@ async function handleUpload(
       Conditions:
         rangeMax !== undefined
           ? [["content-length-range", rangeMin, rangeMax]]
-          : [["content-length-range", rangeMin, Number.MAX_SAFE_INTEGER]],
+          : [["content-length-range", rangeMin, S3_MAX_POST_OBJECT_BYTES]],
       Fields: fields,
       Expires: expiresIn,
     },

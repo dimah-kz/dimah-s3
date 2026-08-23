@@ -9,7 +9,6 @@ export {
   S3_ERROR_CODES,
 } from "./errors";
 export type { ServerErrors } from "./errors";
-export { resolveObjectAcl } from "./helpers/resolve-object-acl";
 
 export { createS3Endpoint, createS3Middleware } from "./api";
 export type { S3EndpointContext } from "./api";

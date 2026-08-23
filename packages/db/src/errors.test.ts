@@ -6,7 +6,7 @@ describe("db errors", () => {
   it.each([
     [unauthorized, 401, "UNAUTHORIZED"],
     [forbidden, 403, "FORBIDDEN"],
-    [notFound, 404, "NOT_FOUND"],
+    [notFound, 404, "OBJECT_NOT_FOUND"],
     [conflict, 409, "CONFLICT"],
   ] as const)("%s maps to %s / %s", (factory, statusCode, code) => {
     const err = factory();

@@ -9,8 +9,8 @@ pick object keys for you. Those stay in your `guard` / `prefix` /
 `resolveKey` hooks.
 
 <Callout type="warn">
-  Never put S3 credentials in the browser. The AWS SDK `S3Client` lives on
-  the server and is passed into `dimahS3({ client })`.
+  Never put S3 credentials in the browser. The AWS SDK `S3Client` lives on the
+  server and is passed into `dimahS3({client})`.
 </Callout>
 
 ## Untrusted input
@@ -18,20 +18,30 @@ pick object keys for you. Those stay in your `guard` / `prefix` /
 The client proposes `key` and may send `bucket`, `fileSize`, `contentType`,
 `metadata`, and `acl`. Treat all of them as untrusted.
 
-| Field | Default | How to scope it |
-| --- | --- | --- |
-| `key` | used as-is after safety checks | `prefix` or `resolveKey` on each feature, then `guard` |
-| `bucket` | ignored; `dimahS3({ bucket })` is used | `buckets` (allowlist) **or** `allowClientBucket` — not both |
-| `acl` | always `private` | `upload.acl` (server-forced) or `upload.allowClientAcl` |
-| `fileSize` / `contentType` | declared by the client | Trust `onConfirmed` / `multipart.onComplete` (`HeadObject`) |
+| Field                      | Default                                | How to scope it                                             |
+| -------------------------- | -------------------------------------- | ----------------------------------------------------------- |
+| `key`                      | used as-is after safety checks         | `prefix` or `resolveKey` on each feature, then `guard`      |
+| `bucket`                   | ignored; `dimahS3({ bucket })` is used | `buckets` (allowlist) **or** `allowClientBucket` — not both |
+| `acl`                      | always `private`                       | `upload.acl` (server-forced) or `upload.allowClientAcl`     |
+| `fileSize` / `contentType` | declared by the client                 | Trust `onConfirmed` / `multipart.onComplete` (`HeadObject`) |
 
 `prefix` and `resolveKey` run before feature guards. Keys that are already
 prefixed are left unchanged so confirm / download of a stored key still
 works. That is not an authorization check — still reject unauthorized work
 in `guard`.
 
+`resolveKey` must be **deterministic**. Confirm, complete, download, and
+delete run the same key policy again. If the function returns a new key
+each time, those calls miss the object. The `key` and `bucket` in the
+response are the values to store and send back.
+
+Unsafe keys are rejected with `INVALID_KEY`: empty, backslash, NUL, `.` /
+`..` segments, or empty path segments.
+
 Set the same `prefix` (or an equivalent `resolveKey`) on `download` and
 `delete` if those features should only see keys under that prefix.
+Multipart inherits `prefix`, `resolveKey`, `acl`, `allowClientAcl`, and
+`requireFileSize` from upload when omitted.
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -66,7 +76,8 @@ upload: {
 }
 ```
 
-Multipart inherits `acl` / `allowClientAcl` from upload when omitted.
+Multipart inherits `prefix`, `resolveKey`, `acl`, `allowClientAcl`, and
+`requireFileSize` from upload when omitted.
 
 ## Trust HeadObject, not the presign body
 
@@ -78,7 +89,7 @@ see size and type from `HeadObject`.
 Quota and max size belong in your hooks, not in library config:
 
 ```ts
-import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { dimahS3, errors } from "@dimah-s3/server";
 
 const MAX = 10 * 1024 * 1024;
 
@@ -90,16 +101,12 @@ export const s3 = dimahS3({
     requireFileSize: true,
     guard: async ({ fileSize }) => {
       if (fileSize && fileSize > MAX) {
-        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
-          message: "File too large",
-        });
+        throw errors.payloadTooLarge("File too large");
       }
     },
     onConfirmed: async ({ key, contentLength }) => {
       if (contentLength > MAX) {
-        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
-          message: "File too large",
-        });
+        throw errors.payloadTooLarge("File too large");
       }
       // persist { key, size: contentLength }
     },
@@ -108,7 +115,9 @@ export const s3 = dimahS3({
 ```
 
 `requireFileSize` rejects presign when the client omits `fileSize` (POST
-and PUT). It does not verify the bytes — that is `onConfirmed`.
+and PUT). It does not verify the bytes — that is `onConfirmed`. Unsigned
+POST uploads without `fileSize` are still capped at 5 GB (the S3 POST
+object limit).
 
 ## Errors from hooks
 

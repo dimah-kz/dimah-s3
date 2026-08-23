@@ -11,7 +11,9 @@ export type PurgeStalePendingOptions = {
   /** FumaDB client (`DimahS3DB.client(adapter)`) or a prebuilt store. */
   db: DimahS3DbClient | StorageObjectStore;
   /**
-   * Pending rows older than this (or with a passed `expiresAt`) are purged.
+   * Fallback age for pending rows that have no `expiresAt`.
+   * Rows with `expiresAt` are purged when that timestamp has passed,
+   * independent of this value.
    * @default 86_400_000 (24h)
    */
   olderThanMs?: number;

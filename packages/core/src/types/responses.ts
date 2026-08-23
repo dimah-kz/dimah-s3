@@ -40,6 +40,9 @@ export type MultipartCompleteResponse = {
 /** Response from {@link S3Api.multipart.abort}. */
 export type MultipartAbortResponse = {
   aborted: boolean;
+  bucket: string;
+  key: string;
+  uploadId: string;
 };
 
 /** Presigned GET URL for download. */

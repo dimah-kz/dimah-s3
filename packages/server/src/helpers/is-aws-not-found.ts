@@ -19,7 +19,9 @@ export function isAwsNotFound(err: unknown): boolean {
 }
 
 /** Run an AWS call and map not-found errors to `OBJECT_NOT_FOUND`. */
-export async function sendOrObjectNotFound<T>(send: () => Promise<T>): Promise<T> {
+export async function sendOrObjectNotFound<T>(
+  send: () => Promise<T>,
+): Promise<T> {
   try {
     return await send();
   } catch (err: unknown) {

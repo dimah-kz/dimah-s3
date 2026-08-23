@@ -48,6 +48,7 @@ describe("normalizeFeature / multipart default", () => {
           acl: "public-read",
           allowClientAcl: true,
           prefix: "uploads",
+          requireFileSize: true,
         },
         multipart: { enabled: true },
       }),
@@ -56,6 +57,7 @@ describe("normalizeFeature / multipart default", () => {
     expect(resolved.multipart?.acl).toBe("public-read");
     expect(resolved.multipart?.allowClientAcl).toBe(true);
     expect(resolved.multipart?.prefix).toBe("uploads");
+    expect(resolved.multipart?.requireFileSize).toBe(true);
   });
 });
 

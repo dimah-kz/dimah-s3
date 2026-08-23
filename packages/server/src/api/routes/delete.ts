@@ -4,10 +4,13 @@ import {
   S3_API_ROUTES,
   type DeleteResponse,
 } from "@dimah-s3/core";
-import { runHook, runLifecycleHook } from "../../helpers";
-import { headObjectOrNotFound } from "../../helpers/head-object";
+import {
+  headObjectOrNotFound,
+  resolveRequestTarget,
+  runHook,
+  runLifecycleHook,
+} from "../../helpers";
 import type { ResolvedDimahS3Config } from "../../types";
-import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 

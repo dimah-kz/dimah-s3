@@ -21,12 +21,7 @@ export function bindEndpoints<E extends Record<string, Endpoint>>(
         ...input,
         headers: headers ?? request.headers,
         request,
-        context: {
-          ...context,
-          ...(typeof input.context === "object" && input.context !== null
-            ? input.context
-            : {}),
-        },
+        context,
       });
     }) as typeof endpoint;
 

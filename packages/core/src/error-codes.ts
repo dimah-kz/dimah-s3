@@ -35,6 +35,7 @@ export const S3_ERROR_CODES = defineErrorCodes({
   FILE_SIZE_REQUIRED_MULTIPART:
     "fileSize is required when multipart.requireFileSize is enabled",
   MULTIPART_PART_MISSING: "Uploaded part {partNumber} was not found",
+  PAYLOAD_TOO_LARGE: "Payload too large",
   VALIDATION_ERROR: "Validation Error",
 });
 

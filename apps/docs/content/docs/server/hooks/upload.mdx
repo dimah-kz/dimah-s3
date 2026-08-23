@@ -27,7 +27,7 @@ and [Security](/docs/server/security).
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { dimahS3, errors } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
@@ -38,9 +38,7 @@ export const s3 = dimahS3({
     prefix: "uploads",
     guard: async ({ fileSize }) => {
       if (fileSize && fileSize > 10 * 1024 * 1024) {
-        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
-          message: "File too large",
-        });
+        throw errors.payloadTooLarge("File too large");
       }
     },
     onConfirmed: async ({ key, contentLength }) => {
@@ -57,8 +55,8 @@ export const s3 = dimahS3({
 
 <Callout type="warn">
   Treat `key` as untrusted. Rewrite it with `prefix` or `resolveKey`, then
-  reject unauthorized uploads in `guard`. Object ACL is `private` unless you
-  set `upload.acl` or `upload.allowClientAcl`. How `bucket` is resolved is in
+  reject unauthorized uploads in `guard`. Object ACL is `private` unless you set
+  `upload.acl` or `upload.allowClientAcl`. How `bucket` is resolved is in
   [Server setup](/docs/server/setup).
 </Callout>
 

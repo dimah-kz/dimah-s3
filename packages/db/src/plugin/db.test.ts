@@ -50,6 +50,33 @@ describe("db plugin", () => {
     expect(s3.db.objects).toBe(store);
   });
 
+  it("defaults list limit to 50", async () => {
+    const listByScope = vi.fn(async () => []);
+    const store = fakeStore({ listByScope });
+    const s3 = instance(store);
+
+    const res = await s3.handler(
+      new Request("http://localhost/api/s3/db/objects", { method: "GET" }),
+    );
+    expect(res.status).toBe(200);
+    expect(listByScope).toHaveBeenCalledWith({
+      scope: "user:1",
+      status: undefined,
+      limit: 50,
+      offset: undefined,
+    });
+  });
+
+  it("rejects a list limit above 100", async () => {
+    const s3 = instance();
+    const res = await s3.handler(
+      new Request("http://localhost/api/s3/db/objects?limit=101", {
+        method: "GET",
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("rejects listing when scope is missing", async () => {
     const s3 = instance(fakeStore(), async () => null);
     const res = await s3.handler(

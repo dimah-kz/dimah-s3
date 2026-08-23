@@ -70,6 +70,8 @@ export function useFormatDimahError(): (err: unknown) => string {
               partNumber: param(err.params, "partNumber", "?"),
             },
           });
+        case S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code:
+          return t("File is too large", { note: "API error" });
         case S3_ERROR_CODES.VALIDATION_ERROR.code:
           return t("Invalid request", { note: "API error" });
         default:

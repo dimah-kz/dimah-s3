@@ -6,6 +6,7 @@ export {
   s3ObjectAclSchema,
   S3_DEFAULT_EXPIRES_IN,
   S3_MAX_EXPIRES_IN,
+  S3_MAX_POST_OBJECT_BYTES,
   trimmedString,
 } from "./shared";
 export { confirmBodySchema, uploadBodySchema } from "./upload";

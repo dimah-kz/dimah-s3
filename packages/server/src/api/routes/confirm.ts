@@ -4,10 +4,15 @@ import {
   S3_API_ROUTES,
   type UploadConfirmResponse,
 } from "@dimah-s3/core";
-import { resolveObjectAcl, runHook, runLifecycleHook } from "../../helpers";
-import { headObjectOrNotFound } from "../../helpers/head-object";
+import {
+  headObjectOrNotFound,
+  requireContentLength,
+  resolveObjectAcl,
+  resolveRequestTarget,
+  runHook,
+  runLifecycleHook,
+} from "../../helpers";
 import type { ResolvedDimahS3Config } from "../../types";
-import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 
@@ -40,7 +45,7 @@ async function handleConfirm(
     key,
     bucket,
     contentType: head.ContentType,
-    contentLength: head.ContentLength ?? 0,
+    contentLength: requireContentLength(head),
     eTag: head.ETag?.replace(/"/g, ""),
     metadata: head.Metadata,
     acl,

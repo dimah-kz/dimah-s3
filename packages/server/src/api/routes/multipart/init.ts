@@ -8,11 +8,11 @@ import {
 import { errors } from "../../../errors";
 import {
   resolveRequestAcl,
+  resolveRequestTarget,
   runHook,
   runLifecycleHook,
 } from "../../../helpers";
 import type { ResolvedDimahS3Config } from "../../../types";
-import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 

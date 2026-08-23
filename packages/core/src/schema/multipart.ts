@@ -6,7 +6,10 @@ import {
   trimmedString,
 } from "./shared";
 
-export const multipartInitBodySchema = uploadBodySchema;
+/** Same as upload, without `expiresIn` (init does not presign). */
+export const multipartInitBodySchema = uploadBodySchema.omit({
+  expiresIn: true,
+});
 
 export const multipartSignPartBodySchema = z.object({
   key: trimmedString,

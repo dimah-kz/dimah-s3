@@ -7,13 +7,13 @@ import {
   type PresignResponse,
 } from "@dimah-s3/core";
 import {
+  headObjectOrNotFound,
   normalizeExpiresIn,
+  resolveRequestTarget,
   runHook,
   runLifecycleHook,
 } from "../../helpers";
-import { headObjectOrNotFound } from "../../helpers/head-object";
 import type { ResolvedDimahS3Config } from "../../types";
-import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
 

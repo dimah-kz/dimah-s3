@@ -5,6 +5,7 @@ import { s3FetchErrorSchema } from "./error";
 import {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,
+  multipartInitBodySchema,
   multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
 } from "./multipart";
@@ -114,6 +115,12 @@ describe("deleteQuerySchema", () => {
 });
 
 describe("multipart schemas", () => {
+  it("strips expiresIn from init", () => {
+    expect(
+      multipartInitBodySchema.parse({ key: "a.png", expiresIn: 600 }),
+    ).toEqual({ key: "a.png" });
+  });
+
   it("requires a positive partNumber", () => {
     expect(
       multipartSignPartBodySchema.safeParse({

@@ -3,10 +3,13 @@ import {
   S3_API_ROUTES,
   type MultipartListPartsResponse,
 } from "@dimah-s3/core";
-import { runHook, runLifecycleHook } from "../../../helpers";
-import { listAllParts } from "../../../helpers/list-parts";
+import {
+  listAllParts,
+  resolveRequestTarget,
+  runHook,
+  runLifecycleHook,
+} from "../../../helpers";
 import type { ResolvedDimahS3Config } from "../../../types";
-import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 

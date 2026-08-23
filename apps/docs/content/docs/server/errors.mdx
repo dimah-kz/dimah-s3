@@ -16,6 +16,7 @@ import { errors, isDimahS3Error, isS3ErrorCode } from "@dimah-s3/server";
 
 throw errors.forbidden();
 throw errors.objectNotFound();
+throw errors.payloadTooLarge();
 throw errors.featureDisabled("download");
 
 if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
@@ -29,22 +30,23 @@ if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
 
 ## Catalog
 
-| `code` | HTTP | When |
-| --- | --- | --- |
-| `NOT_FOUND` | 404 | Unknown route (empty better-call 404 rewritten to JSON) |
-| `FEATURE_DISABLED` | 404 | Feature flag off (`params.feature`) |
-| `OBJECT_NOT_FOUND` | 404 | Missing object or multipart upload |
-| `UNAUTHORIZED` | 401 | Helper for your auth hooks |
-| `FORBIDDEN` | 403 | Guard rejection; invalid bucket when not allowlisted |
-| `CONFLICT` | 409 | Helper for your hooks |
-| `VALIDATION_ERROR` | 400 | Zod / request shape |
-| `INVALID_KEY` | 400 | Unsafe object key |
-| `INVALID_BUCKET` | 403 | Client bucket not on `buckets` (`params.bucket`) |
-| `FILE_SIZE_REQUIRED_UPLOAD` | 400 | `upload.requireFileSize` and no `fileSize` |
-| `FILE_SIZE_REQUIRED_MULTIPART` | 400 | `multipart.requireFileSize` and no `fileSize` |
-| `MULTIPART_PART_MISSING` | 400 | Complete referenced a part S3 does not have (`params.partNumber`) |
-| `S3_NETWORK_ERROR` | 502 | Unreachable S3 endpoint (`params.code`) |
-| `INTERNAL_ERROR` | 500 | Unexpected throw; failed `on*` hook |
+| `code`                         | HTTP | When                                                                |
+| ------------------------------ | ---- | ------------------------------------------------------------------- |
+| `NOT_FOUND`                    | 404  | Unknown route (empty better-call 404 rewritten to JSON)             |
+| `FEATURE_DISABLED`             | 404  | Feature flag off (`params.feature`)                                 |
+| `OBJECT_NOT_FOUND`             | 404  | Missing object or multipart upload                                  |
+| `UNAUTHORIZED`                 | 401  | Helper for your auth hooks                                          |
+| `FORBIDDEN`                    | 403  | Guard rejection (`errors.forbidden()` / a plain `Error` in a guard) |
+| `CONFLICT`                     | 409  | Helper for your hooks                                               |
+| `PAYLOAD_TOO_LARGE`            | 413  | Helper for your quota hooks (`errors.payloadTooLarge()`)            |
+| `VALIDATION_ERROR`             | 400  | Zod / request shape                                                 |
+| `INVALID_KEY`                  | 400  | Unsafe object key (empty, `\`, NUL, `.` / `..` / empty segments)    |
+| `INVALID_BUCKET`               | 403  | Client bucket not on `buckets` (`params.bucket`)                    |
+| `FILE_SIZE_REQUIRED_UPLOAD`    | 400  | `upload.requireFileSize` and no `fileSize`                          |
+| `FILE_SIZE_REQUIRED_MULTIPART` | 400  | `multipart.requireFileSize` and no `fileSize`                       |
+| `MULTIPART_PART_MISSING`       | 400  | Complete referenced a part S3 does not have (`params.partNumber`)   |
+| `S3_NETWORK_ERROR`             | 502  | Unreachable S3 endpoint (`params.code`)                             |
+| `INTERNAL_ERROR`               | 500  | Unexpected throw; failed `on*` hook                                 |
 
 Disabled features stay registered and return `FEATURE_DISABLED` rather than
 an empty 404.

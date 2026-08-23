@@ -29,10 +29,32 @@ describe("createObjectAccessGuard", () => {
       resolveScope: async () => "user:1",
     });
     await expect(guard(context)).rejects.toMatchObject({
-      code: "NOT_FOUND",
+      code: "OBJECT_NOT_FOUND",
       status: "NOT_FOUND",
       statusCode: 404,
     });
+  });
+
+  it("treats any as pending or active, not deleted", async () => {
+    const deleted = createObjectAccessGuard({
+      db: fakeStore({
+        find: async () => sampleObject({ status: "deleted" }),
+      }),
+      resolveScope: async () => "user:1",
+      requireStatus: "any",
+    });
+    await expect(deleted(context)).rejects.toMatchObject({
+      code: "OBJECT_NOT_FOUND",
+    });
+
+    const pending = createObjectAccessGuard({
+      db: fakeStore({
+        find: async () => sampleObject({ status: "pending" }),
+      }),
+      resolveScope: async () => "user:1",
+      requireStatus: "any",
+    });
+    await expect(pending(context)).resolves.toBeUndefined();
   });
 
   it("rejects objects owned by another scope", async () => {

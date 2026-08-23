@@ -143,14 +143,6 @@ export type MultipartListGuardContext = MultipartUploadContext;
 export type MultipartOnInitContext = MultipartInitGuardContext & {
   /** Multipart upload ID. */
   uploadId: string;
-  /** Declared MIME type. */
-  contentType?: string;
-  /** Custom object metadata. */
-  metadata?: Record<string, string>;
-  /** Requested ACL. */
-  acl?: S3ObjectAcl;
-  /** Original filename for `Content-Disposition`. */
-  fileName?: string;
 };
 
 /** Context for `multipart.onComplete`. */

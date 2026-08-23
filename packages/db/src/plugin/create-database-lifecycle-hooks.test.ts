@@ -96,9 +96,9 @@ describe("createDatabaseLifecycleHooks", () => {
       uploadId: "up-1",
     };
 
-    await expect(hooks.multipart?.partGuard?.({ ...ctx, partNumber: 1 })).rejects.toMatchObject(
-      { code: "FORBIDDEN" },
-    );
+    await expect(
+      hooks.multipart?.partGuard?.({ ...ctx, partNumber: 1 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(hooks.multipart?.listGuard?.(ctx)).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
@@ -163,5 +163,19 @@ describe("createDatabaseLifecycleHooks", () => {
         bucket: "b",
       }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("does not confirm a deleted object", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ status: "deleted" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await expect(
+      hooks.upload?.confirmGuard?.({ request, key: "k", bucket: "b" }),
+    ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
   });
 });

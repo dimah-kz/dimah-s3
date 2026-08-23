@@ -5,9 +5,12 @@ import {
   S3_API_ROUTES,
   type MultipartPartResponse,
 } from "@dimah-s3/core";
-import { normalizeExpiresIn, runHook } from "../../../helpers";
+import {
+  normalizeExpiresIn,
+  resolveRequestTarget,
+  runHook,
+} from "../../../helpers";
 import type { ResolvedDimahS3Config } from "../../../types";
-import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 

@@ -27,6 +27,7 @@ export type Translations = {
   "Drag and drop files here(dropzone)": string;
   "File deleted(toast)": string;
   "File is empty(file validation)": string;
+  "File is too large(API error)": string;
   "File not accepted(toast)": string;
   "File not found(API error)": string;
   "File size exceeds {size} limit(file validation)": string;

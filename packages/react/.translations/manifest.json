@@ -28,6 +28,7 @@
     "Drag and drop files here(dropzone)",
     "File deleted(toast)",
     "File is empty(file validation)",
+    "File is too large(API error)",
     "File not accepted(toast)",
     "File not found(API error)",
     "File size exceeds {size} limit(file validation)",

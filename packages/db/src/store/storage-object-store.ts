@@ -141,7 +141,7 @@ export type StorageObjectStore = {
   hardDelete: (ref: ObjectRef) => Promise<void>;
   /** Remove a `pending` row (multipart abort path). */
   deletePending: (ref: ObjectRef) => Promise<void>;
-  /** Pending rows created before `olderThan` or whose `expiresAt` passed. */
+  /** Pending rows past `expiresAt`, or with no TTL and `createdAt` before `olderThan`. */
   findStalePending: (input: { olderThan: Date }) => Promise<StorageObject[]>;
   /** Delete rows by ID (used by the purge job after `findStalePending`). */
   deleteByIds: (ids: string[]) => Promise<void>;
@@ -193,7 +193,11 @@ export function createStorageObjectStore(
       const now = new Date();
       await orm.updateMany("storageObject", {
         where: (b) =>
-          b.and(b("bucket", "=", input.bucket), b("key", "=", input.key)),
+          b.and(
+            b("bucket", "=", input.bucket),
+            b("key", "=", input.key),
+            b("status", "!=", "deleted"),
+          ),
         set: {
           status: "active",
           size: toBigInt(input.size),
@@ -322,7 +326,10 @@ export function createStorageObjectStore(
         where: (b) =>
           b.and(
             b("status", "=", "pending"),
-            b.or(b("createdAt", "<", olderThan), b("expiresAt", "<", now)),
+            b.or(
+              b("expiresAt", "<", now),
+              b.and(b.isNull("expiresAt"), b("createdAt", "<", olderThan)),
+            ),
           ),
         orderBy: ["createdAt", "asc"],
       });

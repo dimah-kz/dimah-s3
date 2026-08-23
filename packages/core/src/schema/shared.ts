@@ -6,6 +6,9 @@ export const S3_DEFAULT_EXPIRES_IN = 600;
 /** AWS SigV4 presign maximum (7 days), in seconds. */
 export const S3_MAX_EXPIRES_IN = 604_800;
 
+/** S3 POST object maximum (5 GiB), in bytes. */
+export const S3_MAX_POST_OBJECT_BYTES = 5 * 1024 * 1024 * 1024;
+
 /** Non-empty trimmed string. */
 export const trimmedString = z.string().trim().min(1);
 

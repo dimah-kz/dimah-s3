@@ -8,9 +8,9 @@ describe("resolveRequestAcl", () => {
   });
 
   it("honors a client ACL when allowClientAcl is set", () => {
-    expect(
-      resolveRequestAcl({ allowClientAcl: true }, "public-read"),
-    ).toBe("public-read");
+    expect(resolveRequestAcl({ allowClientAcl: true }, "public-read")).toBe(
+      "public-read",
+    );
   });
 
   it("lets a server ACL win", () => {

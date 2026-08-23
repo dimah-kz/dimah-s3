@@ -6,10 +6,14 @@ import type {
   DbClientListResponse,
   ScopeResolver,
 } from "../types/storage-object";
-import { dbListQuerySchema } from "./list-query-schema";
+import { dbListQuerySchema, DB_LIST_DEFAULT_LIMIT } from "./list-query-schema";
 import { toDbClientObject } from "./to-db-client-object";
 
-export { dbListQuerySchema } from "./list-query-schema";
+export {
+  dbListQuerySchema,
+  DB_LIST_DEFAULT_LIMIT,
+  DB_LIST_MAX_LIMIT,
+} from "./list-query-schema";
 
 /**
  * HTTP endpoints for the `db` plugin — `GET /db/objects`.
@@ -30,7 +34,11 @@ export function createDatabaseEndpoints(options: {
         const scope = await options.resolveScope(ctx.context.request);
         if (scope === null) throw unauthorized();
 
-        const { status, limit, offset } = ctx.query ?? {};
+        const {
+          status,
+          limit = DB_LIST_DEFAULT_LIMIT,
+          offset,
+        } = ctx.query ?? {};
 
         const [rows, usage] = await Promise.all([
           options.objects.listByScope({

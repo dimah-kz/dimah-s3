@@ -80,6 +80,14 @@ export const errors = {
       params: { partNumber },
     }),
 
+  payloadTooLarge: (
+    message: string = S3_ERROR_CODES.PAYLOAD_TOO_LARGE.message,
+  ) =>
+    DimahS3Error.from("PAYLOAD_TOO_LARGE", {
+      ...S3_ERROR_CODES.PAYLOAD_TOO_LARGE,
+      message,
+    }),
+
   validationError: (message: string) =>
     DimahS3Error.from("BAD_REQUEST", {
       code: S3_ERROR_CODES.VALIDATION_ERROR.code,

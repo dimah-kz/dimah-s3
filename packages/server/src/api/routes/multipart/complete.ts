@@ -6,12 +6,17 @@ import {
   type MultipartCompleteResponse,
 } from "@dimah-s3/core";
 import { errors } from "../../../errors";
-import { resolveObjectAcl, runHook, runLifecycleHook } from "../../../helpers";
-import { sendOrObjectNotFound } from "../../../helpers/is-aws-not-found";
-import { headObjectAfterMultipartComplete } from "../../../helpers/head-object";
-import { listAllParts } from "../../../helpers/list-parts";
+import {
+  headObjectAfterMultipartComplete,
+  listAllParts,
+  requireContentLength,
+  resolveObjectAcl,
+  resolveRequestTarget,
+  runHook,
+  runLifecycleHook,
+  sendOrObjectNotFound,
+} from "../../../helpers";
 import type { ResolvedDimahS3Config } from "../../../types";
-import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
 import { createS3Endpoint } from "../../create-s3-endpoint";
 
@@ -69,7 +74,7 @@ async function handleComplete(
     bucket,
     key,
   );
-  const contentLength = head.ContentLength ?? 0;
+  const contentLength = requireContentLength(head);
   const contentType = head.ContentType;
   const eTag = (head.ETag ?? completeResult.ETag ?? "").replace(/"/g, "");
   const metadata = head.Metadata ?? {};

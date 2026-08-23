@@ -1,11 +1,7 @@
 import type { S3ObjectAcl } from "@dimah-s3/core";
+import type { AclPolicy } from "../types/config";
 
-export type AclPolicy = {
-  /** Server-forced ACL — wins over a client value. */
-  acl?: S3ObjectAcl;
-  /** When true and {@link acl} is unset, honor a client-sent ACL. */
-  allowClientAcl?: boolean;
-};
+export type { AclPolicy };
 
 /**
  * Resolve object ACL. Default is `private`. A server `acl` is forced.

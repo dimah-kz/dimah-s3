@@ -35,9 +35,10 @@ const { purged } = await purgeStalePendingObjects({
 
 The return value is `{ purged }` — the rows removed from the database.
 
-A row is eligible when it is `pending` and older than `olderThanMs`
-(default 24 hours), or past its `expiresAt`. If `onBeforePurge` throws, the
-batch is skipped until the next run.
+A row is eligible when it is `pending` and `expiresAt` has passed, or
+`expiresAt` is null and `createdAt` is older than `olderThanMs` (default
+24 hours). `db({ pendingTtlMs })` is what sets `expiresAt` on pending
+rows. If `onBeforePurge` throws, the batch is skipped until the next run.
 
 <Callout type="warn" title="Database only, unless you abort multipart">
   By default purge only deletes database rows. Use `onBeforePurge` to abort open

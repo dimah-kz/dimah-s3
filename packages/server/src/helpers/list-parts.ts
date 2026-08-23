@@ -1,8 +1,4 @@
-import {
-  ListPartsCommand,
-  type Part,
-  type S3Client,
-} from "@aws-sdk/client-s3";
+import { ListPartsCommand, type Part, type S3Client } from "@aws-sdk/client-s3";
 import { sendOrObjectNotFound } from "./is-aws-not-found";
 
 /** Page through ListParts until S3 reports no more parts. */
@@ -27,9 +23,7 @@ export async function listAllParts(
     );
     parts.push(...(response.Parts ?? []));
     isTruncated = response.IsTruncated === true;
-    partNumberMarker = isTruncated
-      ? response.NextPartNumberMarker
-      : undefined;
+    partNumberMarker = isTruncated ? response.NextPartNumberMarker : undefined;
   }
 
   return parts;

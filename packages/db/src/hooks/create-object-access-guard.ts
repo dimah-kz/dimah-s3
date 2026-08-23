@@ -22,6 +22,7 @@ export type CreateObjectAccessGuardOptions = {
   resolveScope: ScopeResolver;
   /**
    * Which rows count as accessible.
+   * `"any"` means pending or active (not deleted).
    * @default "active"
    */
   requireStatus?: StorageObjectStatus | "any";
@@ -63,12 +64,12 @@ export function createObjectAccessGuard(
       bucket: context.bucket,
       key: context.key,
     });
-    if (
-      !object ||
-      (requireStatus !== "any" && object.status !== requireStatus)
-    ) {
-      throw notFound();
-    }
+    if (!object) throw notFound();
+    const statusOk =
+      requireStatus === "any"
+        ? object.status !== "deleted"
+        : object.status === requireStatus;
+    if (!statusOk) throw notFound();
 
     const allowed = options.authorize
       ? await options.authorize(object, { ...context, scope })

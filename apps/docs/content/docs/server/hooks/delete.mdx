@@ -21,7 +21,7 @@ Enable with `delete: true` or an options object.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { dimahS3, errors } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
@@ -32,7 +32,7 @@ export const s3 = dimahS3({
     prefix: "uploads",
     guard: async ({ key, request }) => {
       if (!request.headers.get("authorization")) {
-        throw new DimahS3Error("UNAUTHORIZED", { message: "Unauthorized" });
+        throw errors.unauthorized();
       }
       // then check that `key` may be deleted
     },

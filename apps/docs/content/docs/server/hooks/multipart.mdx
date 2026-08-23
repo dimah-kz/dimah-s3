@@ -28,7 +28,7 @@ Abort is a separate path: `abortGuard` → `onAbort`. Listing parts:
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+import { dimahS3, errors } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
@@ -39,9 +39,7 @@ export const s3 = dimahS3({
   multipart: {
     initGuard: async ({ fileSize }) => {
       if (fileSize && fileSize > 5 * 1024 * 1024 * 1024) {
-        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
-          message: "File too large",
-        });
+        throw errors.payloadTooLarge("File too large");
       }
     },
     onComplete: async ({ key, contentLength }) => {
@@ -59,9 +57,9 @@ export const s3 = dimahS3({
   comes from `HeadObject`.
 </Callout>
 
-Set `requireFileSize: true` to reject init without `fileSize`. ACL follows
-the same rules as upload (`acl` / `allowClientAcl`, inherited from upload
-when omitted).
+Set `requireFileSize: true` to reject init without `fileSize`. When omitted,
+multipart inherits `requireFileSize`, `prefix`, `resolveKey`, `acl`, and
+`allowClientAcl` from upload.
 
 The complete body only sends `partNumber`s. The server lists parts from S3
 for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.

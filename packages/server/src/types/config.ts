@@ -29,7 +29,7 @@ export type { ResolveKeyContext };
 export type KeyPrefix =
   string | ((context: ResolveKeyContext) => string | Promise<string>);
 
-type KeyPolicy = {
+export type KeyPolicy = {
   /**
    * Prepended to the client-proposed key. Already-prefixed keys are left
    * unchanged so confirm / download of the stored key still work.
@@ -39,7 +39,7 @@ type KeyPolicy = {
   resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
 };
 
-type AclPolicy = {
+export type AclPolicy = {
   /**
    * Server-forced ACL. When set, the client `acl` is ignored.
    * @default "private" (when omitted)

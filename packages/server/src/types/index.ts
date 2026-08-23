@@ -21,10 +21,12 @@ export type {
   MultipartOnListContext,
 } from "./hook-contexts";
 export type {
+  AclPolicy,
   DimahS3Config,
   DownloadConfig,
   DeleteConfig,
   FeatureToggle,
+  KeyPolicy,
   KeyPrefix,
   MultipartConfig,
   ResolvedDimahS3Config,

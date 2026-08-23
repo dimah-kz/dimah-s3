@@ -1,14 +1,11 @@
 import { errors } from "../errors";
 import type {
-  KeyPrefix,
+  KeyPolicy,
   ResolvedDimahS3Config,
   ResolveKeyContext,
 } from "../types";
 
-type KeyPolicy = {
-  prefix?: KeyPrefix;
-  resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
-};
+export type { KeyPolicy };
 
 /**
  * Normalize a client-proposed object key: strip leading slashes, reject
@@ -87,5 +84,3 @@ export async function resolveRequestTarget(
   });
   return { key, bucket };
 }
-
-export type { KeyPolicy };

@@ -240,10 +240,25 @@ On Node / Express, convert headers with `fromNodeHeaders` from
 `delete`, `multipartInit`, … plus plugin endpoints). Nested aliases exist for
 multipart: `s3.api.multipart.init` is the same as `s3.api.multipartInit`. The
 browser client (`createS3Client`) still exposes nested `S3Api`
-(`s3Client.download(key)`, `s3Client.multipart.init`). Failures throw
-`DimahS3Error` (a better-call `APIError`) with named `.status` (`"FORBIDDEN"`),
-numeric `.statusCode`, and `.code`. Catch with `isAPIError` / `isDimahS3Error`
-/ `isS3ErrorCode`. The instance also exposes `$ERROR_CODES` and `$Infer`.
+(`s3Client.download(key)`, `s3Client.multipart.init`). Names differ in a few
+places:
+
+| Browser `S3Api`       | Server `s3.api`                              | Route constant                     |
+| --------------------- | -------------------------------------------- | ---------------------------------- |
+| `upload`              | `upload`                                     | `S3_API_ROUTES.upload`             |
+| `confirm`             | `confirm`                                    | `S3_API_ROUTES.uploadConfirm`      |
+| `download(key)`       | `download({ query })`                        | `S3_API_ROUTES.download`           |
+| `delete(key)`         | `delete({ query })`                          | `S3_API_ROUTES.delete`             |
+| `multipart.init`      | `multipart.init` / `multipartInit`           | `S3_API_ROUTES.multipartInit`      |
+| `multipart.signPart`  | `multipart.signPart` / `multipartPart`       | `S3_API_ROUTES.multipartPart`      |
+| `multipart.listParts` | `multipart.listParts` / `multipartListParts` | `S3_API_ROUTES.multipartListParts` |
+| `multipart.complete`  | `multipart.complete` / `multipartComplete`   | `S3_API_ROUTES.multipartComplete`  |
+| `multipart.abort`     | `multipart.abort` / `multipartAbort`         | `S3_API_ROUTES.multipartAbort`     |
+
+Failures throw `DimahS3Error` (a better-call `APIError`) with named `.status`
+(`"FORBIDDEN"`), numeric `.statusCode`, and `.code`. Catch with `isAPIError` /
+`isDimahS3Error` / `isS3ErrorCode`. The instance also exposes `$ERROR_CODES`
+and `$Infer`.
 
 ### Next [step]
 

@@ -44,6 +44,8 @@ export function applyMultipartDefault(
         acl: next.multipart.acl ?? next.upload.acl,
         allowClientAcl:
           next.multipart.allowClientAcl ?? next.upload.allowClientAcl,
+        requireFileSize:
+          next.multipart.requireFileSize ?? next.upload.requireFileSize,
       },
     };
   }

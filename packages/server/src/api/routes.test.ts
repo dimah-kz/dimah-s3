@@ -166,6 +166,61 @@ describe("upload", () => {
       s3.api.upload({ body: { key: "a.png" } }),
     ).resolves.toMatchObject({ key: "uploads/a.png" });
   });
+
+  it("caps unsigned POST uploads at 5 GiB", async () => {
+    const s3 = createInstance({ upload: true });
+    await s3.api.upload({ body: { key: "a.png" } });
+    expect(createPresignedPost).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        Conditions: [["content-length-range", 1, 5 * 1024 * 1024 * 1024]],
+      }),
+    );
+  });
+
+  it("clamps expiresIn to maxExpiresIn", async () => {
+    const s3 = createInstance({ upload: true, maxExpiresIn: 60 });
+    await s3.api.upload({ body: { key: "a.png", expiresIn: 600 } });
+    expect(createPresignedPost).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ Expires: 60 }),
+    );
+  });
+
+  it("rejects a bucket outside the allowlist", async () => {
+    const s3 = createInstance({ upload: true, buckets: ["bucket"] });
+    await expect(
+      s3.api.upload({ body: { key: "a.png", bucket: "other" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.INVALID_BUCKET.code,
+      statusCode: 403,
+    });
+  });
+
+  it("forces a server ACL over the client value", async () => {
+    const s3 = createInstance({
+      upload: { acl: "public-read" },
+    });
+    await s3.api.upload({
+      body: { key: "a.png", acl: "private" },
+    });
+    expect(createPresignedPost).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        Fields: expect.objectContaining({ acl: "public-read" }),
+      }),
+    );
+  });
+
+  it("does not let s3.api callers replace bound config", async () => {
+    const s3 = createInstance({ upload: true });
+    await expect(
+      s3.api.upload({
+        body: { key: "a.png" },
+        context: { config: { bucket: "hacked" } },
+      }),
+    ).resolves.toMatchObject({ bucket: "bucket" });
+  });
 });
 
 describe("confirm", () => {
@@ -189,6 +244,24 @@ describe("confirm", () => {
       fileName: "a.png",
     });
     expect(onConfirmed).toHaveBeenCalled();
+  });
+
+  it("rejects confirm when HeadObject omits ContentLength", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult({ ContentLength: undefined }),
+        }) as never,
+      ),
+      upload: { enabled: true },
+    });
+
+    await expect(
+      s3.api.confirm({ body: { key: "a.png" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.INTERNAL_ERROR.code,
+      statusCode: 500,
+    });
   });
 
   it("maps a missing object to OBJECT_NOT_FOUND", async () => {
@@ -326,6 +399,17 @@ describe("multipart", () => {
     });
   });
 
+  it("inherits requireFileSize from upload onto multipart", async () => {
+    const s3 = createInstance({
+      upload: { enabled: true, requireFileSize: true },
+    });
+    await expect(
+      s3.api.multipartInit({ body: { key: "a.bin" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code,
+    });
+  });
+
   it("signs a part", async () => {
     const s3 = createInstance({ multipart: { enabled: true } });
     await expect(
@@ -395,6 +479,36 @@ describe("multipart", () => {
     expect(onComplete).toHaveBeenCalled();
   });
 
+  it("maps post-complete HeadObject not-found to OBJECT_NOT_FOUND", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          ListPartsCommand: {
+            Parts: [{ PartNumber: 1, ETag: '"p1"' }],
+          },
+          CompleteMultipartUploadCommand: { ETag: '"final"' },
+          HeadObjectCommand: async () => {
+            throw Object.assign(new Error("missing"), { name: "NoSuchKey" });
+          },
+        }) as never,
+      ),
+      multipart: { enabled: true },
+    });
+
+    await expect(
+      s3.api.multipartComplete({
+        body: {
+          key: "a.bin",
+          uploadId: "up-1",
+          parts: [{ partNumber: 1 }],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
+      statusCode: 404,
+    });
+  });
+
   it("pages through truncated ListParts results", async () => {
     const listParts = vi
       .fn()
@@ -408,9 +522,7 @@ describe("multipart", () => {
         IsTruncated: false,
       });
     const s3 = createInstance({
-      client: mockS3(
-        sendByCommand({ ListPartsCommand: listParts }) as never,
-      ),
+      client: mockS3(sendByCommand({ ListPartsCommand: listParts }) as never),
       multipart: { enabled: true },
     });
 

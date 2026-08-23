@@ -9,6 +9,14 @@ describe("useFormatDimahError", () => {
     expect(
       format(DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND)),
     ).toBe("File not found");
+    expect(
+      format(
+        DimahS3Error.from(
+          "PAYLOAD_TOO_LARGE",
+          S3_ERROR_CODES.PAYLOAD_TOO_LARGE,
+        ),
+      ),
+    ).toBe("File is too large");
   });
 
   it("interpolates params", () => {

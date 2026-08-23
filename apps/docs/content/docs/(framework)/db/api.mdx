@@ -47,6 +47,10 @@ const pending = await s3.db.objects.findPendingMultipart({
 To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
 [delete behavior](/docs/db/setup#delete-behavior).
 
+`GET /db/objects` (browser `listObjects`) defaults to `limit: 50` and
+rejects anything above `100`. Pass `limit` on `listByScope` yourself for
+server listings.
+
 ## Browser
 
 Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
