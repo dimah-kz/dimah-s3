@@ -125,11 +125,7 @@ jobs:
             apps:
               - 'apps/**'
               - 'examples/**'
-              - 'packages/core/**'
-              - 'packages/react/**'
-              - 'packages/server/**'
-              - 'packages/ui/**'
-              - 'packages/db/**'
+              - 'packages/**'
               - 'registry.json'
               - 'pnpm-lock.yaml'
               - 'turbo.json'
