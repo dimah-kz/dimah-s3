@@ -1,11 +1,11 @@
 import { pluginPath } from "@dimah-s3/core";
 import { createS3Endpoint } from "@dimah-s3/server";
-import { unauthorized } from "../errors";
-import type { StorageObjectStore } from "../store/storage-object-store";
+import { unauthorized } from "@/errors";
+import type { StorageObjectStore } from "@/store/storage-object-store";
 import type {
   DbClientListResponse,
   ScopeResolver,
-} from "../types/storage-object";
+} from "@/types/storage-object";
 import { dbListQuerySchema, DB_LIST_DEFAULT_LIMIT } from "./list-query-schema";
 import { toDbClientObject } from "./to-db-client-object";
 

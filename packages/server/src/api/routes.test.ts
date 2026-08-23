@@ -8,7 +8,7 @@ import {
   headResult,
   mockS3,
   sendByCommand,
-} from "../test/harness";
+} from "@/test/harness";
 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
   getSignedUrl: vi.fn(async () => "https://s3.test/signed"),

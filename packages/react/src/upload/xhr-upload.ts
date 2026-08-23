@@ -1,4 +1,4 @@
-import { S3UploadError } from "../types/error";
+import { S3UploadError } from "@/types/error";
 
 export type SendXhrUploadOptions = {
   method: "POST" | "PUT";

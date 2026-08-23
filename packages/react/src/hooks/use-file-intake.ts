@@ -9,7 +9,7 @@ import {
   type DropzoneRootProps,
   type FileRejection,
 } from "react-dropzone";
-import { useLiveRef } from "../internal-helpers";
+import { useLiveRef } from "@/internal-helpers";
 
 /** Options for {@link useFileIntake}. */
 export type UseFileIntakeOptions = {

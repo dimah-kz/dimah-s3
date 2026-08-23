@@ -3,16 +3,16 @@
 import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { DimahS3Error, validateFile } from "@dimah-s3/core";
-import { S3Context } from "../s3-provider";
-import { createSpeedTracker } from "../helpers/speed-tracker";
-import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
-import { useFormatValidateFileError } from "../helpers/format-validate-file-error";
+import { S3Context } from "@/s3-provider";
+import { createSpeedTracker } from "@/helpers/speed-tracker";
+import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
+import { useFormatValidateFileError } from "@/helpers/format-validate-file-error";
 import {
   createImagePreviewUrl,
   revokePreviewUrl,
-} from "../helpers/file-preview";
-import { useLiveRef } from "../internal-helpers";
-import { useImmerState } from "../store/use-immer-state";
+} from "@/helpers/file-preview";
+import { useLiveRef } from "@/internal-helpers";
+import { useImmerState } from "@/store/use-immer-state";
 import type {
   UploadConfig,
   UploadFileInfo,
@@ -21,9 +21,9 @@ import type {
   UploadProgress,
   UploadResult,
   UploadRequestOptions,
-} from "../types";
-import { uploadFile } from "../upload";
-import { hookBlockedError, toHookError } from "../types/error";
+} from "@/types";
+import { uploadFile } from "@/upload";
+import { hookBlockedError, toHookError } from "@/types/error";
 
 /** Options for {@link useFileUpload}. */
 export type UseFileUploadOptions = UploadConfig &

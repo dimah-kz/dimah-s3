@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { assertSupportedNode, cliVersion } from "../runtime.js";
-import { CliError } from "../utils/errors.js";
+import { assertSupportedNode, cliVersion } from "@/runtime";
+import { CliError } from "@/utils/errors";
 
 describe("cliVersion", () => {
   it("reads the package version", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { useFormatValidateFileError } from "./format-validate-file-error";
-import { renderHookWithI18n } from "../test/render-hook";
+import { renderHookWithI18n } from "@/test/render-hook";
 
 describe("useFormatValidateFileError", () => {
   it("maps validation codes to English source strings", () => {

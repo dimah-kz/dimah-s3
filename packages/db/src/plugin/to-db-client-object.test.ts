@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toDbClientObject } from "./to-db-client-object";
-import { sampleObject } from "../test/fakes";
+import { sampleObject } from "@/test/fakes";
 
 describe("toDbClientObject", () => {
   it("maps to the browser wire shape and drops server-only fields", () => {

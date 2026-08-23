@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import { cliVersion } from "../../runtime.js";
-import type { CreateStep } from "../step.js";
+import { cliVersion } from "@/runtime";
+import type { CreateStep } from "@/create/step";
 
 const execFileAsync = promisify(execFile);
 

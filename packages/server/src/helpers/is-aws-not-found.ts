@@ -1,4 +1,4 @@
-import { errors } from "../errors";
+import { errors } from "@/errors";
 
 /** True when an AWS SDK throw means the object or multipart upload does not exist. */
 export function isAwsNotFound(err: unknown): boolean {

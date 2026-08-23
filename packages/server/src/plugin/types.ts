@@ -6,7 +6,7 @@ import type {
   UploadConfig,
   DimahS3Config,
   ResolvedDimahS3Config,
-} from "../types/config";
+} from "@/types/config";
 
 /**
  * Hook fields a plugin may contribute. Scalars like `enabled` / `method` /

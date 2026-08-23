@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { renderHook } from "../test/render-hook";
+import { renderHook } from "@/test/render-hook";
 import { useFileIntake } from "./use-file-intake";
 
 describe("useFileIntake", () => {

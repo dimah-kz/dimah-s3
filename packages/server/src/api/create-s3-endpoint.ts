@@ -1,5 +1,5 @@
 import { createEndpoint, type EndpointOptions } from "better-call";
-import { errors } from "../errors";
+import { errors } from "@/errors";
 import { s3ContextMiddleware } from "./create-s3-middleware";
 
 const createEndpointWithContext = createEndpoint.create({

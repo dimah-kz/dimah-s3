@@ -1,5 +1,5 @@
 import { DimahS3Error, isAPIError } from "@dimah-s3/core";
-import { errors } from "../errors";
+import { errors } from "@/errors";
 
 /**
  * Run a guard hook. {@link isAPIError} values are preserved; plain Errors keep

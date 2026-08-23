@@ -1,6 +1,6 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "../test/render-hook";
+import { renderHook } from "@/test/render-hook";
 import { useImmerState } from "./use-immer-state";
 import { createLocalStorageStore } from "./local-storage-store";
 import { createMemoryStore } from "./memory-store";

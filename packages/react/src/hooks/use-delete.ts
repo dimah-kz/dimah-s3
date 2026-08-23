@@ -2,11 +2,11 @@
 
 import { useCallback, useContext, useRef } from "react";
 import type { DimahS3Error, S3Api } from "@dimah-s3/core";
-import { S3Context } from "../s3-provider";
-import type { DeletePhase, DeleteHooks } from "../types";
-import { hookBlockedError, toHookError } from "../types/error";
-import { useLiveRef } from "../internal-helpers";
-import { useImmerState } from "../store/use-immer-state";
+import { S3Context } from "@/s3-provider";
+import type { DeletePhase, DeleteHooks } from "@/types";
+import { hookBlockedError, toHookError } from "@/types/error";
+import { useLiveRef } from "@/internal-helpers";
+import { useImmerState } from "@/store/use-immer-state";
 
 /** Options for {@link useDelete}. */
 export type UseDeleteOptions = DeleteHooks & {

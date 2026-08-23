@@ -1,14 +1,14 @@
-import { forbidden, notFound, unauthorized } from "../errors";
+import { forbidden, notFound, unauthorized } from "@/errors";
 import {
   createStorageObjectStore,
   type DimahS3DbClient,
   type StorageObjectStore,
-} from "../store/storage-object-store";
+} from "@/store/storage-object-store";
 import type {
   ScopeResolver,
   StorageObject,
   StorageObjectStatus,
-} from "../types/storage-object";
+} from "@/types/storage-object";
 
 /** Minimal context the guard needs — matches every key-bearing server hook context. */
 export type ObjectAccessGuardContext = {

@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "pathe";
 
-import type { TemplateMeta } from "../types.js";
-import { CliError, errorMessage } from "../utils/errors.js";
-import { pathExists } from "../utils/fs.js";
+import type { TemplateMeta } from "@/types";
+import { CliError, errorMessage } from "@/utils/errors";
+import { pathExists } from "@/utils/fs";
 
 type CatalogFile = {
   templates: TemplateMeta[];

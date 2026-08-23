@@ -1,4 +1,4 @@
-import type { UploadProgress } from "../types";
+import type { UploadProgress } from "@/types";
 import { sendXhrUpload } from "./xhr-upload";
 
 function reportByteProgress(onProgress?: (progress: UploadProgress) => void) {

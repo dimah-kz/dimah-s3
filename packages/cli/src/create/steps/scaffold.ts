@@ -1,8 +1,8 @@
 import { cp } from "node:fs/promises";
 import { join } from "pathe";
 
-import type { CreateContext } from "../../types.js";
-import { CliError } from "../../utils/errors.js";
+import type { CreateContext } from "@/types";
+import { CliError } from "@/utils/errors";
 import {
   copyDir,
   emptyDir,
@@ -11,10 +11,10 @@ import {
   readJson,
   renameIfExists,
   writeJson,
-} from "../../utils/fs.js";
-import { flattenSrcDirectory } from "../layout-src.js";
-import type { CreateStep } from "../step.js";
-import { PRESERVED_ENTRIES } from "../target.js";
+} from "@/utils/fs";
+import { flattenSrcDirectory } from "@/create/layout-src";
+import type { CreateStep } from "@/create/step";
+import { PRESERVED_ENTRIES } from "@/create/target";
 
 /**
  * Creates the target directory, or clears it when the user opted into

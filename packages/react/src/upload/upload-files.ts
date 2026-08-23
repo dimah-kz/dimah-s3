@@ -3,9 +3,9 @@ import type {
   UploadProgress,
   UploadResult,
   UploadRequestOptions,
-} from "../types";
+} from "@/types";
 import type { DimahS3Error, S3Api } from "@dimah-s3/core";
-import { toHookError } from "../types/error";
+import { toHookError } from "@/types/error";
 import { DEFAULT_CONCURRENT_FILES } from "./constants";
 import { uploadFile } from "./upload-file";
 

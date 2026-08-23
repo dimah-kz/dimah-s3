@@ -1,4 +1,4 @@
-import type { StoredUpload, UploadStore } from "../types/upload-store";
+import type { StoredUpload, UploadStore } from "@/types/upload-store";
 
 /**
  * In-memory `UploadStore` — safe for SSR and server-component environments.

@@ -1,4 +1,4 @@
-import type { ResolvedDimahS3Config } from "../types";
+import type { ResolvedDimahS3Config } from "@/types";
 
 /**
  * Injected on every {@link createS3Endpoint} via better-call `routerContext`

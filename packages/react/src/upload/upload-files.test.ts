@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fakeS3Api } from "../test/api";
+import { fakeS3Api } from "@/test/api";
 import { uploadFile } from "./upload-file";
 import { uploadFiles } from "./upload-files";
 

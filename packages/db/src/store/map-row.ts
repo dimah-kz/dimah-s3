@@ -1,7 +1,7 @@
 import type {
   StorageObject,
   StorageObjectStatus,
-} from "../types/storage-object";
+} from "@/types/storage-object";
 
 /** Raw `storage_object` row as returned by the FumaDB ORM. */
 export type StorageObjectRow = {

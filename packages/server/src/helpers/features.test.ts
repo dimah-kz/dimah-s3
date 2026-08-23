@@ -4,7 +4,7 @@ import {
   assertExclusiveBucketFlags,
   normalizeFeature,
 } from "./features";
-import type { ResolvedDimahS3Config } from "../types";
+import type { ResolvedDimahS3Config } from "@/types";
 
 function config(
   overrides: Partial<ResolvedDimahS3Config> = {},

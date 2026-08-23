@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
-import { fakeStore, sampleObject } from "../test/fakes";
+import { fakeStore, sampleObject } from "@/test/fakes";
 
 const request = new Request("http://local");
 

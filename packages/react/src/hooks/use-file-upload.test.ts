@@ -1,11 +1,11 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useFileUpload } from "./use-file-upload";
-import { fakeS3Api } from "../test/api";
-import { renderHook } from "../test/render-hook";
-import { uploadFile } from "../upload";
+import { fakeS3Api } from "@/test/api";
+import { renderHook } from "@/test/render-hook";
+import { uploadFile } from "@/upload";
 
-vi.mock("../upload", () => ({
+vi.mock("@/upload", () => ({
   uploadFile: vi.fn(async () => ({ key: "k", eTag: "e" })),
 }));
 

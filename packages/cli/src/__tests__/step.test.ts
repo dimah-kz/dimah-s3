@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CreateStep } from "../create/step.js";
-import { runSteps } from "../create/step.js";
-import type { CreateContext } from "../types.js";
-import { CliError } from "../utils/errors.js";
+import type { CreateStep } from "@/create/step";
+import { runSteps } from "@/create/step";
+import type { CreateContext } from "@/types";
+import { CliError } from "@/utils/errors";
 
 function context(): CreateContext {
   return {

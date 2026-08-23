@@ -5,9 +5,9 @@ import type {
   UploadRequestOptions,
   S3ApiUploadTransport,
   UploadTransport,
-} from "../types";
+} from "@/types";
 import type { S3Api } from "@dimah-s3/core";
-import { toUploadError } from "../types/error";
+import { toUploadError } from "@/types/error";
 import {
   DEFAULT_MULTIPART_THRESHOLD,
   DEFAULT_CONCURRENT_PARTS,

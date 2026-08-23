@@ -1,9 +1,9 @@
 import type { InferFumaDB } from "fumadb";
-import type { DimahS3DB } from "../fuma-db";
+import type { DimahS3DB } from "@/fuma-db";
 import type {
   StorageObject,
   StorageObjectStatus,
-} from "../types/storage-object";
+} from "@/types/storage-object";
 import { mapStorageObjectRow } from "./map-row";
 
 /** FumaDB client for the @dimah-s3/db schema. */

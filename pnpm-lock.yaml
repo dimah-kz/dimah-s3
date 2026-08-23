@@ -624,6 +624,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.9.0(jiti@2.7.0)(supports-color@10.2.2)
+      tsc-alias:
+        specifier: ^1.9.2
+        version: 1.9.2
       tsup:
         specifier: 'catalog:'
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(supports-color@10.2.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.0)
@@ -667,6 +670,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.9.0(jiti@2.7.0)(supports-color@10.2.2)
+      tsc-alias:
+        specifier: ^1.9.2
+        version: 1.9.2
       tsup:
         specifier: 'catalog:'
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(supports-color@10.2.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.0)
@@ -719,6 +725,9 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.2.8(react@19.2.8)
+      tsc-alias:
+        specifier: ^1.9.2
+        version: 1.9.2
       tsup:
         specifier: 'catalog:'
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(supports-color@10.2.2)(tsx@4.23.12)(typescript@7.0.2)(yaml@2.9.0)

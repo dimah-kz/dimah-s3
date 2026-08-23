@@ -1,4 +1,4 @@
-import type { UploadProgress } from "../types";
+import type { UploadProgress } from "@/types";
 import type { SpeedTracker } from "./speed-tracker";
 
 /** Throttle speed samples so UI updates stay readable. */

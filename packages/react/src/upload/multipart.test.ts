@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMemoryStore } from "../store/memory-store";
-import { fakeS3Api } from "../test/api";
+import { createMemoryStore } from "@/store/memory-store";
+import { fakeS3Api } from "@/test/api";
 import { uploadMultipart } from "./multipart";
 import { uploadPart } from "./upload-part";
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uploadFile } from "./upload-file";
 import { uploadMultipart } from "./multipart";
 import { uploadPut, uploadSimple } from "./presigned-http";
-import { fakeS3Api } from "../test/api";
+import { fakeS3Api } from "@/test/api";
 
 vi.mock("./presigned-http", () => ({
   uploadSimple: vi.fn(async () => {}),

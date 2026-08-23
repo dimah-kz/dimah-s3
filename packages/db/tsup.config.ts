@@ -21,4 +21,9 @@ export default defineConfig({
   outDir: "dist",
   skipNodeModulesBundle: true,
   external: [/^[^./]/],
+  esbuildOptions(options) {
+    options.alias = {
+      "@": "./src",
+    };
+  },
 });

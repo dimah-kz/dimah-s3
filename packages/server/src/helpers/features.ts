@@ -5,7 +5,7 @@ import type {
   MultipartConfig,
   ResolvedDimahS3Config,
   UploadConfig,
-} from "../types";
+} from "@/types";
 
 export function normalizeFeature<T extends { enabled?: boolean }>(
   value: FeatureToggle<T> | undefined,

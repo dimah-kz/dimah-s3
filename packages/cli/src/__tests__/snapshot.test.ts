@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { transformTemplatePackageJson } from "../snapshot/transform.js";
+import { transformTemplatePackageJson } from "@/snapshot/transform";
 
 describe("transformTemplatePackageJson", () => {
   it("pins @dimah-s3/* to the CLI version", () => {

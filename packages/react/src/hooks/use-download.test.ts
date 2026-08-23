@@ -1,8 +1,8 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useDownload } from "./use-download";
-import { fakeS3Api } from "../test/api";
-import { renderHook } from "../test/render-hook";
+import { fakeS3Api } from "@/test/api";
+import { renderHook } from "@/test/render-hook";
 
 describe("useDownload", () => {
   it("presigns and stores the url", async () => {

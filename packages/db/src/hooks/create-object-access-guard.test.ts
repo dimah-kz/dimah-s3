@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createObjectAccessGuard } from "./create-object-access-guard";
-import { fakeStore, sampleObject } from "../test/fakes";
+import { fakeStore, sampleObject } from "@/test/fakes";
 
 const context = {
   request: new Request("http://local"),

@@ -7,7 +7,7 @@ import {
   readJson,
   removeDir,
   writeJson,
-} from "../utils/fs.js";
+} from "@/utils/fs";
 
 /**
  * Template apps ship with a `src/` directory. When the user opts out on a

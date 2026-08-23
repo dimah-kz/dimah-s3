@@ -1,6 +1,6 @@
 import { basename, resolve } from "pathe";
 
-import { sanitizeProjectName } from "../utils/project-name.js";
+import { sanitizeProjectName } from "@/utils/project-name";
 
 /**
  * Entries kept when scaffolding over an existing directory: git history and

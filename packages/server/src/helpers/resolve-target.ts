@@ -1,9 +1,9 @@
-import { errors } from "../errors";
+import { errors } from "@/errors";
 import type {
   KeyPolicy,
   ResolvedDimahS3Config,
   ResolveKeyContext,
-} from "../types";
+} from "@/types";
 
 export type { KeyPolicy };
 

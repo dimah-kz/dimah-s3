@@ -1,15 +1,15 @@
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
-import type { db } from "../plugin/db";
+import type { db } from "@/plugin/db";
 import type {
   DbClientListInput,
   DbClientListResponse,
-} from "../types/storage-object";
+} from "@/types/storage-object";
 
 export type {
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
-} from "../types/storage-object";
+} from "@/types/storage-object";
 
 /**
  * Client plugin for the server `db()` endpoints.

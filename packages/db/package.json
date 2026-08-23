@@ -46,7 +46,7 @@
     "src/schema/examples"
   ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json",
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
     "lint": "eslint",
     "check-types": "tsc --noEmit",
     "test": "vitest run"
@@ -73,6 +73,7 @@
     "@workspace/typescript-config": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "eslint": "catalog:",
+    "tsc-alias": "^1.9.2",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

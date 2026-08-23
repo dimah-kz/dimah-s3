@@ -12,10 +12,10 @@ import {
   resolveRequestTarget,
   runHook,
   runLifecycleHook,
-} from "../../helpers";
-import type { ResolvedDimahS3Config } from "../../types";
-import { assertFeatureEnabled } from "../assert-feature-enabled";
-import { createS3Endpoint } from "../create-s3-endpoint";
+} from "@/helpers";
+import type { ResolvedDimahS3Config } from "@/types";
+import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
+import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleDownload(
   config: ResolvedDimahS3Config,

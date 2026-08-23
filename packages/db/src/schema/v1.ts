@@ -45,4 +45,4 @@ export const v1 = schema({
   },
 });
 
-export type { StorageObjectStatus } from "../types/storage-object";
+export type { StorageObjectStatus } from "@/types/storage-object";

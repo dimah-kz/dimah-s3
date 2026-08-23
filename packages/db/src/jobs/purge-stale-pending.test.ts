@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { purgeStalePendingObjects } from "./purge-stale-pending";
-import { fakeStore, sampleObject } from "../test/fakes";
+import { fakeStore, sampleObject } from "@/test/fakes";
 
 describe("purgeStalePendingObjects", () => {
   it("returns early when nothing is stale", async () => {

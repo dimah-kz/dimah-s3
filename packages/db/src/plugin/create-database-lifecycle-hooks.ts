@@ -1,14 +1,14 @@
 import type { DimahS3PluginHooks } from "@dimah-s3/server";
-import { forbidden, unauthorized } from "../errors";
+import { forbidden, unauthorized } from "@/errors";
 import {
   type DimahS3DbClient,
   type StorageObjectStore,
-} from "../store/storage-object-store";
-import type { ScopeResolver } from "../types/storage-object";
+} from "@/store/storage-object-store";
+import type { ScopeResolver } from "@/types/storage-object";
 import {
   createObjectAccessGuard,
   resolveStore,
-} from "../hooks/create-object-access-guard";
+} from "@/hooks/create-object-access-guard";
 
 const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1000;
 

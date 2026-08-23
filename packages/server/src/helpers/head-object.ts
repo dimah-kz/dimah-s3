@@ -3,7 +3,7 @@ import {
   type HeadObjectCommandOutput,
   type S3Client,
 } from "@aws-sdk/client-s3";
-import { errors } from "../errors";
+import { errors } from "@/errors";
 import { sendOrObjectNotFound } from "./is-aws-not-found";
 
 /** HeadObject, mapping AWS not-found to `OBJECT_NOT_FOUND`. */

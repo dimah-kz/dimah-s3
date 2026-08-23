@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toPendingMultipartResume } from "./storage-object-store";
-import { sampleObject } from "../test/fakes";
+import { sampleObject } from "@/test/fakes";
 
 describe("toPendingMultipartResume", () => {
   it("maps a pending multipart row", () => {

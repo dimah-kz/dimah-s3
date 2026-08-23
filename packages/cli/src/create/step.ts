@@ -1,6 +1,6 @@
-import type { CreateContext } from "../types.js";
-import { CliError, errorMessage } from "../utils/errors.js";
-import { isInteractive, logInfo, logWarn, spinner } from "../utils/ui.js";
+import type { CreateContext } from "@/types";
+import { CliError, errorMessage } from "@/utils/errors";
+import { isInteractive, logInfo, logWarn, spinner } from "@/utils/ui";
 
 /** Updates the running spinner text of the current step. */
 export type StepReport = (message: string) => void;

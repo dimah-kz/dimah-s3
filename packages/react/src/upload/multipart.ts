@@ -2,9 +2,9 @@ import type {
   UploadProgress,
   UploadRequestOptions,
   RetryConfig,
-} from "../types";
+} from "@/types";
 import type { S3Api } from "@dimah-s3/core";
-import type { UploadStore } from "../types/upload-store";
+import type { UploadStore } from "@/types/upload-store";
 import { withRetry } from "./retry";
 import { uploadPart } from "./upload-part";
 

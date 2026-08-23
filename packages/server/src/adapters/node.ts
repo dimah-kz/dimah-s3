@@ -4,7 +4,7 @@ import type {
   IncomingMessage,
   ServerResponse,
 } from "node:http";
-import { errors } from "../errors";
+import { errors } from "@/errors";
 import type { DimahS3HandlerSource } from "./types";
 
 /**

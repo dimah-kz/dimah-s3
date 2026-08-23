@@ -1,9 +1,9 @@
-import { resolveStore } from "../hooks/create-object-access-guard";
+import { resolveStore } from "@/hooks/create-object-access-guard";
 import type {
   DimahS3DbClient,
   StorageObjectStore,
-} from "../store/storage-object-store";
-import type { StorageObject } from "../types/storage-object";
+} from "@/store/storage-object-store";
+import type { StorageObject } from "@/types/storage-object";
 
 const DEFAULT_OLDER_THAN_MS = 24 * 60 * 60 * 1000;
 

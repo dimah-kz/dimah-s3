@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { S3_ERROR_CODES, S3_MAX_EXPIRES_IN } from "@dimah-s3/core";
-import { errors } from "../errors";
+import { errors } from "@/errors";
 import {
   normalizeExpiresIn,
   requestFromHeaders,

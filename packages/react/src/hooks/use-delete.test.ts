@@ -1,8 +1,8 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useDelete } from "./use-delete";
-import { fakeS3Api } from "../test/api";
-import { renderHook } from "../test/render-hook";
+import { fakeS3Api } from "@/test/api";
+import { renderHook } from "@/test/render-hook";
 
 describe("useDelete", () => {
   it("confirms the pending key", async () => {

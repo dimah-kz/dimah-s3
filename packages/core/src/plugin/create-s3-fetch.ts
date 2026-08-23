@@ -1,7 +1,7 @@
 import { createFetch } from "@better-fetch/fetch";
 import type { Status } from "better-call/error";
-import { DimahS3Error } from "../error";
-import { s3FetchErrorSchema } from "../schema/error";
+import { DimahS3Error } from "@/error";
+import { s3FetchErrorSchema } from "@/schema/error";
 import type { S3ClientFetchOptions, S3Fetch } from "./types";
 
 async function resolveHeaders(

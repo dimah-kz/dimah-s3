@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { flattenSrcDirectory } from "../create/layout-src.js";
+import { flattenSrcDirectory } from "@/create/layout-src";
 
 describe("flattenSrcDirectory", () => {
   let dir: string;

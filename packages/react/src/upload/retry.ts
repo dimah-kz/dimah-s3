@@ -1,5 +1,5 @@
 import { MAX_RETRIES, RETRY_BASE_DELAY } from "./constants";
-import type { RetryConfig } from "../types";
+import type { RetryConfig } from "@/types";
 
 export async function withRetry<T>(
   fn: () => Promise<T>,

@@ -19,6 +19,11 @@ export default defineConfig({
   outDir: "dist",
   skipNodeModulesBundle: true,
   external: [/^[^./]/],
+  esbuildOptions(options) {
+    options.alias = {
+      "@": "./src",
+    };
+  },
   async onSuccess() {
     const indexPath = "dist/index.js";
     const content = readFileSync(indexPath, "utf8");

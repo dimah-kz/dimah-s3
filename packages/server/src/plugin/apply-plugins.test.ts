@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { definePlugin } from "../index";
+import { definePlugin } from "@/index";
 import { applyPlugins } from "./apply-plugins";
-import { createS3Endpoint } from "../api/create-s3-endpoint";
-import type { DimahS3Config } from "../types";
+import { createS3Endpoint } from "@/api/create-s3-endpoint";
+import type { DimahS3Config } from "@/types";
 
 function config(
   plugins?: DimahS3Config["plugins"],

@@ -4,9 +4,9 @@ import {
   normalizeS3ApiBasePath,
   S3_API_BASE_PATH,
 } from "@dimah-s3/core";
-import { errors } from "../errors";
+import { errors } from "@/errors";
 import { bindEndpoints } from "./bind-endpoints";
-import type { ResolvedDimahS3Config } from "../types";
+import type { ResolvedDimahS3Config } from "@/types";
 
 const NETWORK_CODES = new Set([
   "EAI_AGAIN",

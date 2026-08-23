@@ -5,7 +5,7 @@ import {
   resolveBucket,
   resolveObjectKey,
 } from "./resolve-target";
-import type { ResolvedDimahS3Config } from "../types";
+import type { ResolvedDimahS3Config } from "@/types";
 
 const request = new Request("http://localhost");
 

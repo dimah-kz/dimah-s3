@@ -1,17 +1,17 @@
-import type { ResolvedTemplate } from "../templates/registry.js";
-import { loadCatalog, resolveTemplate } from "../templates/registry.js";
-import type { CreateConfig, CreateFlags, PackageManager } from "../types.js";
-import { CliError, EXIT_CANCEL, errorMessage } from "../utils/errors.js";
-import { listDir } from "../utils/fs.js";
+import type { ResolvedTemplate } from "@/templates/registry";
+import { loadCatalog, resolveTemplate } from "@/templates/registry";
+import type { CreateConfig, CreateFlags, PackageManager } from "@/types";
+import { CliError, EXIT_CANCEL, errorMessage } from "@/utils/errors";
+import { listDir } from "@/utils/fs";
 import {
   detectPackageManager,
   parsePackageManagerFlag,
-} from "../utils/package-manager.js";
+} from "@/utils/package-manager";
 import {
   assertValidPackageName,
   sanitizeProjectName,
-} from "../utils/project-name.js";
-import { ask, isInteractive, logWarn, p } from "../utils/ui.js";
+} from "@/utils/project-name";
+import { ask, isInteractive, logWarn, p } from "@/utils/ui";
 import { PRESERVED_ENTRIES, resolveTarget } from "./target.js";
 
 const DEFAULT_PROJECT_NAME = "my-app";

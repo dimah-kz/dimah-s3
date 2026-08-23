@@ -1,8 +1,8 @@
 import { installDependencies } from "nypm";
 
-import { errorMessage } from "../../utils/errors.js";
-import { installCommand } from "../../utils/package-manager.js";
-import type { CreateStep } from "../step.js";
+import { errorMessage } from "@/utils/errors";
+import { installCommand } from "@/utils/package-manager";
+import type { CreateStep } from "@/create/step";
 
 /**
  * Install is recoverable: the project is already on disk, so a failure only

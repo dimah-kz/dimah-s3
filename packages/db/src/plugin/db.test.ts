@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { dimahS3 } from "@dimah-s3/server";
 import { db } from "./db";
-import { fakeStore, sampleObject } from "../test/fakes";
+import { fakeStore, sampleObject } from "@/test/fakes";
 
 function instance(
   store = fakeStore(),

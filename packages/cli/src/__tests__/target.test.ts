@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveTarget } from "../create/target.js";
+import { resolveTarget } from "@/create/target";
 
 const cwd = "/work/projects/current-folder";
 

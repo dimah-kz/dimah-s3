@@ -5,12 +5,12 @@ import {
   installCommand,
   parsePackageManagerFlag,
   runDevCommand,
-} from "../utils/package-manager.js";
+} from "@/utils/package-manager";
 import {
   assertValidPackageName,
   sanitizeProjectName,
-} from "../utils/project-name.js";
-import { CliError } from "../utils/errors.js";
+} from "@/utils/project-name";
+import { CliError } from "@/utils/errors";
 
 describe("sanitizeProjectName", () => {
   it("uses the last path segment", () => {

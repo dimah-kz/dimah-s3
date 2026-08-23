@@ -1,12 +1,12 @@
 import { defineCommand } from "citty";
 
-import { resolveCreateConfig } from "../create/config.js";
-import { runCreatePipeline } from "../create/pipeline.js";
-import { assertSupportedNode } from "../runtime.js";
-import type { CreateFlags } from "../types.js";
-import { EXIT_ERROR } from "../utils/errors.js";
-import { withErrorBoundary } from "../utils/exit.js";
-import { intro } from "../utils/ui.js";
+import { resolveCreateConfig } from "@/create/config";
+import { runCreatePipeline } from "@/create/pipeline";
+import { assertSupportedNode } from "@/runtime";
+import type { CreateFlags } from "@/types";
+import { EXIT_ERROR } from "@/utils/errors";
+import { withErrorBoundary } from "@/utils/exit";
+import { intro } from "@/utils/ui";
 
 export const createCommand = defineCommand({
   meta: {

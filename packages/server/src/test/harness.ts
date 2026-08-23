@@ -1,8 +1,8 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import { S3_API_BASE_PATH, type S3ErrorCode } from "@dimah-s3/core";
 import { expect, vi } from "vitest";
-import { dimahS3 } from "../dimah-s3";
-import type { DimahS3Config } from "../types";
+import { dimahS3 } from "@/dimah-s3";
+import type { DimahS3Config } from "@/types";
 
 export type TestS3 = ReturnType<typeof dimahS3>;
 

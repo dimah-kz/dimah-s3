@@ -1,6 +1,6 @@
-import { errors } from "../errors";
-import { isFeatureEnabled } from "../helpers/features";
-import type { ResolvedDimahS3Config } from "../types";
+import { errors } from "@/errors";
+import { isFeatureEnabled } from "@/helpers/features";
+import type { ResolvedDimahS3Config } from "@/types";
 
 export type FeatureFlag = "upload" | "download" | "delete" | "multipart";
 

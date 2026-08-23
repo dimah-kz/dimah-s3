@@ -1,15 +1,15 @@
 import type { z } from "zod";
-import type { confirmBodySchema, uploadBodySchema } from "../schema/upload";
-import type { downloadQuerySchema } from "../schema/download";
-import type { deleteQuerySchema } from "../schema/delete";
+import type { confirmBodySchema, uploadBodySchema } from "@/schema/upload";
+import type { downloadQuerySchema } from "@/schema/download";
+import type { deleteQuerySchema } from "@/schema/delete";
 import type {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,
   multipartInitBodySchema,
   multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
-} from "../schema/multipart";
-import type { s3ObjectAclSchema } from "../schema/shared";
+} from "@/schema/multipart";
+import type { s3ObjectAclSchema } from "@/schema/shared";
 
 export type { UploadPresignMethod } from "./upload-presign-method";
 

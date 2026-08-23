@@ -3,16 +3,16 @@
 import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { DimahS3Error, validateFile } from "@dimah-s3/core";
-import { S3Context } from "../s3-provider";
-import { createSpeedTracker } from "../helpers/speed-tracker";
-import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
-import { useFormatValidateFileError } from "../helpers/format-validate-file-error";
+import { S3Context } from "@/s3-provider";
+import { createSpeedTracker } from "@/helpers/speed-tracker";
+import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
+import { useFormatValidateFileError } from "@/helpers/format-validate-file-error";
 import {
   createImagePreviewUrl,
   revokePreviewUrl,
-} from "../helpers/file-preview";
-import { useLiveRef } from "../internal-helpers";
-import { useImmerState } from "../store/use-immer-state";
+} from "@/helpers/file-preview";
+import { useLiveRef } from "@/internal-helpers";
+import { useImmerState } from "@/store/use-immer-state";
 import type {
   MultiUploadConfig,
   UploadProgress,
@@ -20,9 +20,9 @@ import type {
   MultiUploadPhase,
   MultiUploadFileState,
   MultiUploadHooks,
-} from "../types";
-import { uploadFiles } from "../upload";
-import { hookBlockedError, toHookError } from "../types/error";
+} from "@/types";
+import { uploadFiles } from "@/upload";
+import { hookBlockedError, toHookError } from "@/types/error";
 
 /** Options for {@link useMultiFileUpload}. */
 export type UseMultiFileUploadOptions = MultiUploadConfig &

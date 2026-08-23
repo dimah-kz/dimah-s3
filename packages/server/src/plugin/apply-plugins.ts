@@ -1,12 +1,12 @@
 import { S3_API_ROUTES } from "@dimah-s3/core";
 import type { Endpoint } from "better-call";
-import { CORE_ENDPOINT_NAMES } from "../api/routes";
+import { CORE_ENDPOINT_NAMES } from "@/api/routes";
 import {
   applyMultipartDefault,
   assertExclusiveBucketFlags,
   normalizeFeatures,
-} from "../helpers/features";
-import type { DimahS3Config, ResolvedDimahS3Config } from "../types/config";
+} from "@/helpers/features";
+import type { DimahS3Config, ResolvedDimahS3Config } from "@/types/config";
 import { chainHooks } from "./chain-hooks";
 import { FEATURE_HOOK_KEYS, type FeatureName } from "./hook-registry";
 import {

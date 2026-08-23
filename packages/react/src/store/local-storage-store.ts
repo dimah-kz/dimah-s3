@@ -1,4 +1,4 @@
-import type { StoredUpload, UploadStore } from "../types/upload-store";
+import type { StoredUpload, UploadStore } from "@/types/upload-store";
 
 const STORAGE_PREFIX = "dimah-s3:upload:";
 

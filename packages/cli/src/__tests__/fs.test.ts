@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { emptyDir } from "../utils/fs.js";
+import { emptyDir } from "@/utils/fs";
 
 describe("emptyDir", () => {
   let dir: string | undefined;

@@ -5,7 +5,7 @@ import type {
   UploadProgress,
   MultiUploadFileState,
   MultiUploadPhase,
-} from "../types";
+} from "@/types";
 import {
   useMultiFileUpload,
   type UseMultiFileUploadOptions,

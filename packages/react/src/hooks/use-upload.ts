@@ -1,7 +1,7 @@
 "use client";
 
 import { defaultObjectKey, type DimahS3Error } from "@dimah-s3/core";
-import type { UploadFileInfo, UploadPhase, UploadProgress } from "../types";
+import type { UploadFileInfo, UploadPhase, UploadProgress } from "@/types";
 import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
 import {
   useFileIntake,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
 import { useFormatDimahError } from "./format-dimah-error";
-import { renderHookWithI18n } from "../test/render-hook";
+import { renderHookWithI18n } from "@/test/render-hook";
 
 describe("useFormatDimahError", () => {
   it("maps coded errors to English source strings", () => {

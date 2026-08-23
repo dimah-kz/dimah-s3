@@ -21,7 +21,7 @@ import type {
   UploadOnPresignedContext,
   UploadPresignGuardContext,
 } from "./hook-contexts";
-import type { DimahS3Plugin } from "../plugin/types";
+import type { DimahS3Plugin } from "@/plugin/types";
 
 export type { ResolveKeyContext };
 

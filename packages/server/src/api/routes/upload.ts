@@ -8,17 +8,17 @@ import {
   uploadBodySchema,
   type UploadPresignResponse,
 } from "@dimah-s3/core";
-import { errors } from "../../errors";
+import { errors } from "@/errors";
 import {
   normalizeExpiresIn,
   resolveRequestAcl,
   resolveRequestTarget,
   runHook,
   runLifecycleHook,
-} from "../../helpers";
-import type { ResolvedDimahS3Config } from "../../types";
-import { assertFeatureEnabled } from "../assert-feature-enabled";
-import { createS3Endpoint } from "../create-s3-endpoint";
+} from "@/helpers";
+import type { ResolvedDimahS3Config } from "@/types";
+import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
+import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 function putMetadataHeaders(
   metadata: Record<string, string> | undefined,

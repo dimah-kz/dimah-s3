@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import type { StorageObjectStore } from "../store/storage-object-store";
-import type { StorageObject } from "../types/storage-object";
+import type { StorageObjectStore } from "@/store/storage-object-store";
+import type { StorageObject } from "@/types/storage-object";
 
 export function sampleObject(
   overrides: Partial<StorageObject> = {},

@@ -1,10 +1,10 @@
 import { relative } from "pathe";
 import pc from "picocolors";
 
-import type { CreateContext } from "../types.js";
-import { removeDir } from "../utils/fs.js";
-import { installCommand, runDevCommand } from "../utils/package-manager.js";
-import { logWarn, note, outro } from "../utils/ui.js";
+import type { CreateContext } from "@/types";
+import { removeDir } from "@/utils/fs";
+import { installCommand, runDevCommand } from "@/utils/package-manager";
+import { logWarn, note, outro } from "@/utils/ui";
 import type { ResolvedCreate } from "./config.js";
 import type { CreateStep } from "./step.js";
 import { runSteps } from "./step.js";

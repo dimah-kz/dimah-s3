@@ -5,8 +5,8 @@ import {
   loadCatalog,
   normalizeTemplateId,
   resolveTemplate,
-} from "../templates/registry.js";
-import { CliError } from "../utils/errors.js";
+} from "@/templates/registry";
+import { CliError } from "@/utils/errors";
 
 const templates = [
   { id: "nextjs", title: "Next.js" },

@@ -2,8 +2,8 @@ import { definePlugin } from "@dimah-s3/server";
 import {
   type DimahS3DbClient,
   type StorageObjectStore,
-} from "../store/storage-object-store";
-import type { ScopeResolver } from "../types/storage-object";
+} from "@/store/storage-object-store";
+import type { ScopeResolver } from "@/types/storage-object";
 import { createDatabaseEndpoints } from "./create-database-endpoints";
 import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
 

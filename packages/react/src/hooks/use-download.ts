@@ -3,19 +3,19 @@
 import { useCallback, useContext, useRef } from "react";
 import type { DimahS3Error, S3Api } from "@dimah-s3/core";
 import { parseFileName } from "@dimah-s3/core";
-import { S3Context } from "../s3-provider";
-import { createSpeedTracker } from "../helpers/speed-tracker";
-import { createThrottledSpeedUpdater } from "../helpers/throttled-speed";
-import { useLiveRef } from "../internal-helpers";
-import { useImmerState } from "../store/use-immer-state";
-import { hookBlockedError, toHookError } from "../types/error";
-import type { UploadProgress } from "../types/upload";
+import { S3Context } from "@/s3-provider";
+import { createSpeedTracker } from "@/helpers/speed-tracker";
+import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
+import { useLiveRef } from "@/internal-helpers";
+import { useImmerState } from "@/store/use-immer-state";
+import { hookBlockedError, toHookError } from "@/types/error";
+import type { UploadProgress } from "@/types/upload";
 import type {
   DownloadPhase,
   DownloadHooks,
   FetchDownloadPhase,
   FetchDownloadHooks,
-} from "../types/download";
+} from "@/types/download";
 
 export type {
   DownloadPhase,
@@ -23,7 +23,7 @@ export type {
   FetchDownloadPhase,
   FetchDownloadProgress,
   FetchDownloadHooks,
-} from "../types/download";
+} from "@/types/download";
 
 type SharedDownloadOptions = {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */

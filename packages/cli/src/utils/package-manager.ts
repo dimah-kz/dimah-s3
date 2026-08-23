@@ -1,4 +1,4 @@
-import type { PackageManager } from "../types.js";
+import type { PackageManager } from "@/types";
 
 const KNOWN: PackageManager[] = ["pnpm", "npm", "yarn", "bun"];
 

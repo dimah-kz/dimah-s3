@@ -1,4 +1,4 @@
-import type { DbClientObject, StorageObject } from "../types/storage-object";
+import type { DbClientObject, StorageObject } from "@/types/storage-object";
 
 /**
  * Map a full store row to the browser wire contract for `GET /db/objects`.
