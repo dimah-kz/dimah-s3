@@ -7,7 +7,10 @@ import {
   type DropzoneRootProps,
   type FileRejection,
 } from "react-dropzone";
-import { toDropzoneAccept } from "../helpers/to-dropzone-accept";
+import {
+  toDropzoneAccept,
+  toHtmlAcceptAttr,
+} from "../helpers/to-dropzone-accept";
 import { useLiveRef } from "../internal-helpers";
 
 /** Options for {@link useFileIntake}. */
@@ -49,8 +52,9 @@ export type UseFileIntakeReturn = {
 /**
  * Headless file intake powered by react-dropzone.
  *
- * Soft-validates `accept` / size / count at the dropzone layer; authoritative
- * validation still runs inside `useFileUpload` / `useMultiFileUpload` via `validateFile`.
+ * Dropzone owns picker / drag / soft-reject for `accept`, size, and count.
+ * `useFileUpload` / `useMultiFileUpload` still run `validateFile` for
+ * programmatic `upload()` that bypasses the dropzone.
  *
  * @internal — prefer {@link useUpload} / {@link useMultiUpload}.
  */
@@ -73,9 +77,11 @@ export function useFileIntake(
     [optsRef],
   );
 
+  const htmlAccept = toHtmlAcceptAttr(options.accept);
+
   const {
     getRootProps,
-    getInputProps,
+    getInputProps: getDropzoneInputProps,
     open,
     isDragActive,
     isDragAccept,
@@ -93,6 +99,15 @@ export function useFileIntake(
     onDropAccepted,
     onDropRejected,
   });
+
+  const getInputProps = useCallback(
+    <T extends DropzoneInputProps>(props?: T): T =>
+      getDropzoneInputProps({
+        ...props,
+        ...(htmlAccept != null ? { accept: htmlAccept } : {}),
+      } as T),
+    [getDropzoneInputProps, htmlAccept],
+  );
 
   return {
     getRootProps,

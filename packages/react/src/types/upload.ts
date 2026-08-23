@@ -121,7 +121,11 @@ export type RetryConfig = {
 export type UploadConfig = {
   /** Enable multipart uploads for large files. */
   multipart?: boolean;
-  /** Allowed file extensions or MIME types. */
+  /**
+   * HTML `accept` tokens: MIME types (`image/*`, `application/pdf`) and/or
+   * extensions (`.pdf`). MIME types drive drag-over highlighting; extensions
+   * are matched on drop / picker selection.
+   */
   accept?: string[];
   /** Max file size in bytes. */
   maxFileSize?: number;

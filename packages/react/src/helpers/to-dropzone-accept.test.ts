@@ -1,7 +1,9 @@
 import { useDropzone } from "react-dropzone";
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "../test/render-hook";
-import { toDropzoneAccept } from "./to-dropzone-accept";
+import { toDropzoneAccept, toHtmlAcceptAttr } from "./to-dropzone-accept";
+
+const EXT_CARRIER = "application/x-dimah-accept";
 
 describe("toDropzoneAccept", () => {
   it("returns undefined for empty input", () => {
@@ -9,10 +11,10 @@ describe("toDropzoneAccept", () => {
     expect(toDropzoneAccept([])).toBeUndefined();
   });
 
-  it("maps HTML accept tokens to dropzone MIME keys", () => {
+  it("maps MIME tokens to keys and extensions to the carrier", () => {
     expect(toDropzoneAccept(["image/*", ".pdf"])).toEqual({
       "image/*": [],
-      "application/pdf": [".pdf"],
+      [EXT_CARRIER]: [".pdf"],
     });
   });
 
@@ -25,7 +27,7 @@ describe("toDropzoneAccept", () => {
 
   it("skips blank entries", () => {
     expect(toDropzoneAccept(["  ", ".png"])).toEqual({
-      "image/png": [".png"],
+      [EXT_CARRIER]: [".png"],
     });
   });
 
@@ -41,17 +43,16 @@ describe("toDropzoneAccept", () => {
   });
 
   it("maps the homepage demo accept list", () => {
-    expect(toDropzoneAccept(["image/*", ".pdf", "video/*"])).toEqual({
+    expect(toDropzoneAccept(["image/*", "application/pdf", "video/*"])).toEqual({
       "image/*": [],
-      "application/pdf": [".pdf"],
+      "application/pdf": [],
       "video/*": [],
     });
   });
 
-  it("groups jpeg aliases; unknown extensions use octet-stream", () => {
-    expect(toDropzoneAccept([".jpg", ".jpeg", ".foo"])).toEqual({
-      "image/jpeg": [".jpg", ".jpeg"],
-      "application/octet-stream": [".foo"],
+  it("dedupes extensions without guessing IANA types", () => {
+    expect(toDropzoneAccept([".jpg", ".jpeg", ".jpg", ".foo"])).toEqual({
+      [EXT_CARRIER]: [".jpg", ".jpeg", ".foo"],
     });
   });
 
@@ -64,5 +65,14 @@ describe("toDropzoneAccept", () => {
     );
     expect(warn).not.toHaveBeenCalled();
     hook.unmount();
+  });
+});
+
+describe("toHtmlAcceptAttr", () => {
+  it("joins trimmed tokens for the native input", () => {
+    expect(toHtmlAcceptAttr(undefined)).toBeUndefined();
+    expect(toHtmlAcceptAttr([])).toBeUndefined();
+    expect(toHtmlAcceptAttr(["image/*", ".pdf"])).toBe("image/*,.pdf");
+    expect(toHtmlAcceptAttr(["  ", "video/*"])).toBe("video/*");
   });
 });

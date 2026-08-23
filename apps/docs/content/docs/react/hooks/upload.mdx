@@ -19,6 +19,12 @@ these hooks.
 `accept` and `maxFileSize` are client-side only. Mirror them in
 [`upload.guard`](/docs/server/hooks/upload#guard).
 
+`accept` is the HTML list: MIME types (`image/*`, `application/pdf`) and/or
+extensions (`.pdf`). MIME types drive drag-over highlighting (the browser
+does not expose filenames during a drag). Extensions are matched when the
+file is dropped or picked. Prefer MIME types when you care about the
+drop-target color.
+
 ## useUpload
 
 ```tsx
@@ -113,7 +119,7 @@ await upload(files, (file) => `uploads/${file.name}`);
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | `objectKey`                          | Optional. `useUpload`: string or `(file) => string`. `useMultiUpload`: `(file) => string` only. Default: uuid + filename |
 | `uploadOptions` / `getUploadOptions` | Extra presign fields (`bucket`, `metadata`, `acl`, …)                                                                    |
-| `accept`                             | MIME types or extensions                                                                                                 |
+| `accept`                             | HTML tokens: MIME types (`image/*`, `application/pdf`) and/or extensions (`.pdf`)                                        |
 | `maxFileSize`                        | Bytes                                                                                                                    |
 | `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                             |
 | `multipart`                          | Split large files into parts                                                                                             |

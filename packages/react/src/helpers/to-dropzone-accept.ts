@@ -1,52 +1,18 @@
 import type { Accept } from "react-dropzone";
 
 /**
- * Common IANA media types for filename extensions.
- * @see https://www.iana.org/assignments/media-types/media-types.xhtml
- * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
+ * HTML `accept` family wildcards.
+ * @see https://html.spec.whatwg.org/multipage/input.html#attr-input-accept
  */
-const EXTENSION_MIME: Record<string, string> = {
-  ".aac": "audio/aac",
-  ".avif": "image/avif",
-  ".bmp": "image/bmp",
-  ".css": "text/css",
-  ".csv": "text/csv",
-  ".doc": "application/msword",
-  ".docx":
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".gif": "image/gif",
-  ".heic": "image/heic",
-  ".htm": "text/html",
-  ".html": "text/html",
-  ".jpeg": "image/jpeg",
-  ".jpg": "image/jpeg",
-  ".json": "application/json",
-  ".m4a": "audio/mp4",
-  ".md": "text/markdown",
-  ".mkv": "video/x-matroska",
-  ".mov": "video/quicktime",
-  ".mp3": "audio/mpeg",
-  ".mp4": "video/mp4",
-  ".ogg": "audio/ogg",
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".ppt": "application/vnd.ms-powerpoint",
-  ".pptx":
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ".svg": "image/svg+xml",
-  ".tif": "image/tiff",
-  ".tiff": "image/tiff",
-  ".txt": "text/plain",
-  ".wav": "audio/wav",
-  ".webm": "video/webm",
-  ".webp": "image/webp",
-  ".xls": "application/vnd.ms-excel",
-  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ".zip": "application/zip",
-};
-
-/** HTML `accept` family wildcards. @see https://html.spec.whatwg.org/multipage/input.html#attr-input-accept */
 const FAMILY_WILDCARD = new Set(["audio/*", "image/*", "video/*"]);
+
+/**
+ * Carrier MIME so react-dropzone has a valid key for extension-only tokens.
+ * Dropzone keys must be MIME types; extensions live in the value array.
+ * Drag-over only sees `DataTransferItem.type` (no filename), so this key
+ * never matches during drag — extension checks run on drop/selection.
+ */
+const EXT_CARRIER = "application/x-dimah-accept";
 
 /**
  * Whether a token is a MIME-shaped HTML accept specifier: `image|audio|video/*`
@@ -69,8 +35,11 @@ function isMimeAcceptToken(token: string): boolean {
 
 /**
  * Convert dimah-s3 `accept: string[]` (HTML accept tokens) into react-dropzone's
- * `{ [mime]: extensions }` map. Dropzone keys must be MIME types; a catch-all
- * star type is not valid.
+ * `{ [mime]: extensions }` map. Dropzone keys must be MIME types.
+ *
+ * MIME tokens (`image/*`, `application/pdf`) become keys and drive drag-over
+ * highlighting. Extensions (`.pdf`) are grouped on a private carrier MIME so
+ * drop/selection still match them without a hand-maintained IANA table.
  *
  * @internal
  */
@@ -80,21 +49,30 @@ export function toDropzoneAccept(
   if (accept == null || accept.length === 0) return undefined;
 
   const map: Record<string, string[]> = {};
+  const exts: string[] = [];
 
   for (const raw of accept) {
     const token = raw.trim().toLowerCase();
     if (!token) continue;
 
     if (token.startsWith(".")) {
-      if (token.length < 2) continue;
-      const mime = EXTENSION_MIME[token] ?? "application/octet-stream";
-      map[mime] ??= [];
-      if (!map[mime].includes(token)) map[mime].push(token);
+      if (token.length >= 2 && !exts.includes(token)) exts.push(token);
       continue;
     }
 
     if (isMimeAcceptToken(token)) map[token] ??= [];
   }
 
+  if (exts.length > 0) map[EXT_CARRIER] = exts;
+
   return Object.keys(map).length > 0 ? map : undefined;
+}
+
+/** Comma-separated HTML `accept` attribute from the same token list. */
+export function toHtmlAcceptAttr(
+  accept: string[] | undefined,
+): string | undefined {
+  if (accept == null || accept.length === 0) return undefined;
+  const tokens = accept.map((t) => t.trim()).filter(Boolean);
+  return tokens.length > 0 ? tokens.join(",") : undefined;
 }
