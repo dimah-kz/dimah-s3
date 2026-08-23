@@ -1,0 +1,44 @@
+name: Setup
+description: pnpm, Node.js, Turbo local cache, and install.
+
+inputs:
+  ignore-scripts:
+    description: Skip package lifecycle scripts (docs postinstall needs false).
+    required: false
+    default: "true"
+  turbo-cache:
+    description: Restore and save the .turbo cache.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v6
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: pnpm
+
+    - name: Cache Turbo
+      if: ${{ inputs.turbo-cache == 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: .turbo
+        key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-${{ github.sha }}
+        restore-keys: |
+          turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'turbo.json') }}-
+          turbo-${{ runner.os }}-
+
+    - name: Install (ignore scripts)
+      if: ${{ inputs.ignore-scripts == 'true' }}
+      shell: bash
+      run: pnpm install --frozen-lockfile --ignore-scripts
+
+    - name: Install
+      if: ${{ inputs.ignore-scripts != 'true' }}
+      shell: bash
+      run: pnpm install --frozen-lockfile

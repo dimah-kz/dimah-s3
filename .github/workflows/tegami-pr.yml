@@ -41,3 +41,4 @@ jobs:
         with:
           name: tegami-pr-preview
           path: tegami-pr-preview.md
+          retention-days: 1
