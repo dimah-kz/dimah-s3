@@ -6,10 +6,7 @@
     "noUncheckedIndexedAccess": false,
     "paths": {
       "@/*": ["./src/*"],
-      "collections/*": ["./.source/*"],
-      "@dimah-s3/core": ["../../packages/core/src/index.ts"],
-      "@dimah-s3/server": ["../../packages/server/src/index.ts"],
-      "@dimah-s3/react": ["../../packages/react/src/index.ts"]
+      "collections/*": ["./.source/*"]
     }
   },
   "include": [

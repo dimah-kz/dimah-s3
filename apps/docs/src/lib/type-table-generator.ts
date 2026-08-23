@@ -8,26 +8,44 @@ import {
 /** Monorepo root — AutoTypeTable paths are relative to this directory. */
 export const typeTableBasePath = path.join(process.cwd(), "../..");
 
-/** Default generator for core / server / react (docs app tsconfig). */
-export const typeTableGenerator = createGenerator({
-  cache: createFileSystemGeneratorCache(".next/fumadocs-typescript"),
-  tsconfigPath: path.join(process.cwd(), "tsconfig.json"),
-});
+const generators = new Map<string, Generator>();
+
+function generatorForTsconfig(
+  cacheKey: string,
+  tsconfigPath: string,
+): Generator {
+  const existing = generators.get(cacheKey);
+  if (existing) return existing;
+
+  const generator = createGenerator({
+    cache: createFileSystemGeneratorCache(
+      `.next/fumadocs-typescript-${cacheKey}`,
+    ),
+    tsconfigPath,
+  });
+  generators.set(cacheKey, generator);
+  return generator;
+}
 
 /**
- * UI package generator — `@/*` must resolve to `packages/ui/src/*`.
- * Using the docs tsconfig maps `@/` to `apps/docs/src` and collapses types
- * to `any` (or empty tables for union props like UploadButtonProps).
+ * Docs-app generator. Do not use this for `packages/*` sources — those files
+ * resolve `@/` against their own package, and the docs `@/` alias would collapse
+ * types.
  */
-export const uiTypeTableGenerator = createGenerator({
-  cache: createFileSystemGeneratorCache(".next/fumadocs-typescript-ui"),
-  tsconfigPath: path.join(typeTableBasePath, "packages/ui/tsconfig.json"),
-});
+export const typeTableGenerator = generatorForTsconfig(
+  "docs",
+  path.join(process.cwd(), "tsconfig.json"),
+);
 
-/** Pick the generator that can resolve imports for the given source path. */
+/** Pick the generator that can resolve `@/` imports for the given source path. */
 export function typeTableGeneratorFor(filePath?: string): Generator {
-  if (filePath?.replaceAll("\\", "/").includes("packages/ui/")) {
-    return uiTypeTableGenerator;
+  const match = filePath?.replaceAll("\\", "/").match(/packages\/([^/]+)\//);
+  if (match) {
+    const pkg = match[1];
+    return generatorForTsconfig(
+      pkg,
+      path.join(typeTableBasePath, "packages", pkg, "tsconfig.json"),
+    );
   }
   return typeTableGenerator;
 }
