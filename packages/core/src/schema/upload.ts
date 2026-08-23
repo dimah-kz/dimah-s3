@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   metadataSchema,
+  optionalExpiresInSchema,
   optionalTrimmedString,
   s3ObjectAclSchema,
   trimmedString,
@@ -12,7 +13,7 @@ export const uploadBodySchema = z.object({
   fileSize: z.number().positive().optional(),
   metadata: metadataSchema.optional(),
   bucket: optionalTrimmedString,
-  expiresIn: z.number().positive().optional(),
+  expiresIn: optionalExpiresInSchema,
   acl: s3ObjectAclSchema.optional(),
   fileName: optionalTrimmedString,
 });

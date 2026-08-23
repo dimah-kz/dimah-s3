@@ -1,16 +1,15 @@
-import {
-  CompleteMultipartUploadCommand,
-  HeadObjectCommand,
-  ListPartsCommand,
-} from "@aws-sdk/client-s3";
+import { CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
 import {
   multipartCompleteBodySchema,
   parseFileName,
   S3_API_ROUTES,
   type MultipartCompleteResponse,
 } from "@dimah-s3/core";
-import { resolveObjectAcl } from "../../../helpers";
-import { runHook, runLifecycleHook } from "../../../internal-helpers";
+import { errors } from "../../../errors";
+import { resolveObjectAcl, runHook, runLifecycleHook } from "../../../helpers";
+import { sendOrObjectNotFound } from "../../../helpers/is-aws-not-found";
+import { headObjectAfterMultipartComplete } from "../../../helpers/head-object";
+import { listAllParts } from "../../../helpers/list-parts";
 import type { ResolvedDimahS3Config } from "../../../types";
 import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
@@ -40,34 +39,36 @@ async function handleComplete(
     parts: partRefs,
   });
 
-  const listed = await config.client.send(
-    new ListPartsCommand({ Bucket: bucket, Key: key, UploadId: uploadId }),
-  );
-  const listedParts = listed.Parts ?? [];
+  const listedParts = await listAllParts(config.client, {
+    bucket,
+    key,
+    uploadId,
+  });
 
   const completeParts = parts.map((partNumber) => {
     const found = listedParts.find((p) => p.PartNumber === partNumber);
-    return { PartNumber: partNumber, ETag: found?.ETag ?? "" };
+    if (!found?.ETag) {
+      throw errors.multipartPartMissing(partNumber);
+    }
+    return { PartNumber: partNumber, ETag: found.ETag };
   });
 
-  const completeResult = await config.client.send(
-    new CompleteMultipartUploadCommand({
-      Bucket: bucket,
-      Key: key,
-      UploadId: uploadId,
-      MultipartUpload: { Parts: completeParts },
-    }),
+  const completeResult = await sendOrObjectNotFound(() =>
+    config.client.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: completeParts },
+      }),
+    ),
   );
 
-  let head = await config.client.send(
-    new HeadObjectCommand({ Bucket: bucket, Key: key }),
+  const head = await headObjectAfterMultipartComplete(
+    config.client,
+    bucket,
+    key,
   );
-  for (let attempt = 0; attempt < 4 && !head.ContentLength; attempt++) {
-    await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
-    head = await config.client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: key }),
-    );
-  }
   const contentLength = head.ContentLength ?? 0;
   const contentType = head.ContentType;
   const eTag = (head.ETag ?? completeResult.ETag ?? "").replace(/"/g, "");

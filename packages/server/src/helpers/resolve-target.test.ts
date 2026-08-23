@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
 import {
-  applyMultipartDefault,
   assertSafeObjectKey,
-  normalizeFeature,
   resolveBucket,
   resolveObjectKey,
 } from "./resolve-target";
@@ -84,30 +82,5 @@ describe("resolveBucket", () => {
     } catch (err) {
       expect(err).toMatchObject({ code: S3_ERROR_CODES.INVALID_BUCKET.code });
     }
-  });
-});
-
-describe("normalizeFeature / multipart default", () => {
-  it("treats a bare true as enabled", () => {
-    expect(normalizeFeature(true)).toEqual({ enabled: true });
-  });
-
-  it("enables multipart when upload is on and multipart is omitted", () => {
-    const resolved = applyMultipartDefault(
-      config({ upload: { enabled: true } }),
-      undefined,
-    );
-    expect(resolved.multipart?.enabled).toBe(true);
-  });
-
-  it("does not enable multipart when explicitly false", () => {
-    const resolved = applyMultipartDefault(
-      config({
-        upload: { enabled: true },
-        multipart: { enabled: false },
-      }),
-      false,
-    );
-    expect(resolved.multipart?.enabled).toBe(false);
   });
 });

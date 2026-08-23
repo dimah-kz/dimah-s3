@@ -43,6 +43,14 @@ describe("useFormatDimahError", () => {
     ).toBe("Bucket is not allowed");
     expect(
       format(
+        DimahS3Error.from("BAD_REQUEST", {
+          ...S3_ERROR_CODES.MULTIPART_PART_MISSING,
+          params: { partNumber: 3 },
+        }),
+      ),
+    ).toBe("Uploaded part 3 was not found");
+    expect(
+      format(
         new DimahS3Error("BAD_REQUEST", {
           message: "custom",
           code: "CUSTOM",

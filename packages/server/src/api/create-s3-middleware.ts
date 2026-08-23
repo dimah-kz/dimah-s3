@@ -1,5 +1,5 @@
 import { createMiddleware } from "better-call";
-import { requestFromHeaders, runHook } from "../internal-helpers";
+import { requestFromHeaders, runHook } from "../helpers";
 import type { S3EndpointContext } from "./context";
 
 /**

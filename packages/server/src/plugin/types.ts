@@ -9,25 +9,17 @@ import type {
 } from "../types/config";
 
 /**
- * Hook fields a plugin may contribute. Scalars like `enabled` / `method`
- * stay user-owned on {@link DimahS3Config}.
+ * Hook fields a plugin may contribute. Scalars like `enabled` / `method` /
+ * `prefix` / `resolveKey` / `acl` stay user-owned on {@link DimahS3Config}.
  */
 export type DimahS3PluginHooks = {
   guard?: DimahS3Config["guard"];
   upload?: Pick<
     UploadConfig,
-    | "guard"
-    | "onPresigned"
-    | "confirmGuard"
-    | "onConfirmed"
-    | "prefix"
-    | "resolveKey"
+    "guard" | "onPresigned" | "confirmGuard" | "onConfirmed"
   >;
-  download?: Pick<
-    DownloadConfig,
-    "guard" | "onPresigned" | "prefix" | "resolveKey"
-  >;
-  delete?: Pick<DeleteConfig, "guard" | "onDeleted" | "prefix" | "resolveKey">;
+  download?: Pick<DownloadConfig, "guard" | "onPresigned">;
+  delete?: Pick<DeleteConfig, "guard" | "onDeleted">;
   multipart?: Pick<
     MultipartConfig,
     | "initGuard"

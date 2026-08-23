@@ -38,26 +38,12 @@ export const s3 = dimahS3({
 
 `onPresigned` receives the same fields plus `url` and `expiresIn`.
 
-<TypeTable
-  type={{
-    request: {
-      description: "The incoming HTTP request.",
-      type: "Request",
-      required: true,
-    },
-    key: {
-      description: "Object key to download.",
-      type: "string",
-      required: true,
-    },
-    bucket: {
-      description: "Target bucket.",
-      type: "string",
-      required: true,
-    },
-    fileName: {
-      description: "Download filename for `Content-Disposition`.",
-      type: "string",
-    },
-  }}
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DownloadPresignGuardContext"
+/>
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DownloadOnPresignedContext"
 />

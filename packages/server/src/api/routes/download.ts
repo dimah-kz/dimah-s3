@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   buildContentDisposition,
@@ -6,13 +6,12 @@ import {
   S3_API_ROUTES,
   type PresignResponse,
 } from "@dimah-s3/core";
-import { errors } from "../../errors";
-import { isAwsNotFound } from "../../helpers";
 import {
   normalizeExpiresIn,
   runHook,
   runLifecycleHook,
-} from "../../internal-helpers";
+} from "../../helpers";
+import { headObjectOrNotFound } from "../../helpers/head-object";
 import type { ResolvedDimahS3Config } from "../../types";
 import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
@@ -29,7 +28,7 @@ async function handleDownload(
     bucket: input.bucket,
     fileName: input.fileName,
   });
-  const expiresIn = normalizeExpiresIn(input.expiresIn);
+  const expiresIn = normalizeExpiresIn(input.expiresIn, config.maxExpiresIn);
   const fileName = input.fileName;
 
   await runHook(config.download?.guard, {
@@ -39,16 +38,7 @@ async function handleDownload(
     fileName,
   });
 
-  try {
-    await config.client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: key }),
-    );
-  } catch (err: unknown) {
-    if (isAwsNotFound(err)) {
-      throw errors.objectNotFound();
-    }
-    throw err;
-  }
+  await headObjectOrNotFound(config.client, bucket, key);
 
   const url = await getSignedUrl(
     config.client,

@@ -1,3 +1,4 @@
+import { pluginPath } from "@dimah-s3/core";
 import { createS3Endpoint } from "@dimah-s3/server";
 import { unauthorized } from "../errors";
 import type { StorageObjectStore } from "../store/storage-object-store";
@@ -23,7 +24,7 @@ export function createDatabaseEndpoints(options: {
   return {
     /** List objects + usage for the request scope (`resolveScope`). */
     objects: createS3Endpoint(
-      "/db/objects",
+      pluginPath("db", "objects"),
       { method: "GET", query: dbListQuerySchema },
       async (ctx): Promise<DbClientListResponse> => {
         const scope = await options.resolveScope(ctx.context.request);

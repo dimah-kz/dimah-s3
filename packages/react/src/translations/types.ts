@@ -48,6 +48,7 @@ export type Translations = {
   "Upload file(button)": string;
   "Upload files(button)": string;
   "Upload finished with errors(toast)": string;
+  "Uploaded part {partNumber} was not found(API error)": string;
   "Uploading {done}/{total}(toast)": string;
   "Uploading(toast)": string;
   "Validating…(upload status)": string;

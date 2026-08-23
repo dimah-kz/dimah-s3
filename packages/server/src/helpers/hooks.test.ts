@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { S3_ERROR_CODES } from "@dimah-s3/core";
-import { errors } from "./errors";
+import { S3_ERROR_CODES, S3_MAX_EXPIRES_IN } from "@dimah-s3/core";
+import { errors } from "../errors";
 import {
   normalizeExpiresIn,
   requestFromHeaders,
   runHook,
   runLifecycleHook,
-} from "./internal-helpers";
+} from "./index";
 
 describe("runHook", () => {
   it("is a no-op when the hook is omitted", async () => {
@@ -102,6 +102,11 @@ describe("normalizeExpiresIn", () => {
     ["nope", 600],
   ])("normalizes %s", (value, expected) => {
     expect(normalizeExpiresIn(value)).toBe(expected);
+  });
+
+  it("clamps to maxExpiresIn", () => {
+    expect(normalizeExpiresIn(7200, 3600)).toBe(3600);
+    expect(normalizeExpiresIn(S3_MAX_EXPIRES_IN + 1)).toBe(S3_MAX_EXPIRES_IN);
   });
 });
 

@@ -24,7 +24,7 @@
 | Change                                                                                     | Package / path                                                |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
 | Route constants, `S3Api`, `createS3Client`, `DimahS3Error`, client plugins (`src/plugin/`) | `packages/core/src/`                                          |
-| Presign endpoints (`api/routes`), `dimahS3`, `createS3Router`, plugin subsystem            | `packages/server/src/`                                        |
+| Presign endpoints (`api/routes`), `dimahS3`, plugin subsystem. HTTP `createS3Router` is internal (`packages/server/src/api/router.ts`). | `packages/server/src/` |
 | React hooks, i18n types (`Translations`), upload client logic                              | `packages/react/src/`                                         |
 | Pre-built components                                                                       | `packages/ui/src/`                                            |
 | Optional DB schema + `db()` / `dbClient()`                                                 | `packages/db/src/`                                            |

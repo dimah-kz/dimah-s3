@@ -6,7 +6,7 @@ import {
   type PluginEndpointMap,
 } from "./plugin";
 import { coreEndpoints, type CoreEndpoints } from "./api/routes";
-import { createS3Router } from "./router";
+import { createS3Router } from "./api/router";
 import type { DimahS3Config } from "./types";
 
 export type MultipartAliasApi = {

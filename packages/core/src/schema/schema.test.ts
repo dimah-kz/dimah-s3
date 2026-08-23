@@ -73,6 +73,15 @@ describe("uploadBodySchema", () => {
       uploadBodySchema.safeParse({ key: "a.png", acl: "public" }).success,
     ).toBe(false);
   });
+
+  it("rejects expiresIn above the SigV4 maximum", () => {
+    expect(
+      uploadBodySchema.safeParse({ key: "a.png", expiresIn: 604_801 }).success,
+    ).toBe(false);
+    expect(
+      uploadBodySchema.parse({ key: "a.png", expiresIn: 604_800 }),
+    ).toMatchObject({ expiresIn: 604_800 });
+  });
 });
 
 describe("confirmBodySchema", () => {
@@ -91,6 +100,10 @@ describe("downloadQuerySchema", () => {
     expect(
       downloadQuerySchema.parse({ key: "a.png", expiresIn: "120" }),
     ).toMatchObject({ expiresIn: 120 });
+    expect(
+      downloadQuerySchema.safeParse({ key: "a.png", expiresIn: "604801" })
+        .success,
+    ).toBe(false);
   });
 });
 

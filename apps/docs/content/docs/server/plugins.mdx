@@ -81,8 +81,13 @@ s3.audit.log("ready");
   }}
 />
 
-`enabled` / `method` stay on `DimahS3Config` — plugins cannot override them.
-You still turn features on yourself.
+`enabled` / `method` / `prefix` / `resolveKey` / `acl` stay on
+`DimahS3Config` — plugins cannot override them. You still turn features on
+and set key policy yourself. Hook context types import from
+`@dimah-s3/server/plugins`.
+
+Plugin hooks are the same slots as `FEATURE_HOOK_KEYS`: feature `guard` /
+`on*` functions only.
 
 ## Hook order
 

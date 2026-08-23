@@ -1,5 +1,5 @@
 import { DimahS3Error, isAPIError } from "@dimah-s3/core";
-import { errors } from "./errors";
+import { errors } from "../errors";
 
 /**
  * Run a guard hook. {@link isAPIError} values are preserved; plain Errors keep
@@ -41,14 +41,4 @@ export async function runLifecycleHook<T extends { request: Request }>(
     console.error("[S3 API] lifecycle hook failed", err);
     throw errors.internalError();
   }
-}
-
-export function normalizeExpiresIn(value: unknown): number {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 600;
-}
-
-/** Build a synthetic Request for server-side `api` calls. */
-export function requestFromHeaders(headers?: HeadersInit): Request {
-  return new Request("http://dimah-s3.local", { headers });
 }

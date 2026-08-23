@@ -10,13 +10,25 @@ import {
 import { errors } from "../../errors";
 import {
   normalizeExpiresIn,
+  resolveRequestAcl,
   runHook,
   runLifecycleHook,
-} from "../../internal-helpers";
+} from "../../helpers";
 import type { ResolvedDimahS3Config } from "../../types";
 import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
 import { createS3Endpoint } from "../create-s3-endpoint";
+
+function putMetadataHeaders(
+  metadata: Record<string, string> | undefined,
+): Record<string, string> {
+  if (!metadata) return {};
+  const headers: Record<string, string> = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    headers[`x-amz-meta-${k}`] = v;
+  }
+  return headers;
+}
 
 async function handleUpload(
   config: ResolvedDimahS3Config,
@@ -30,8 +42,8 @@ async function handleUpload(
     fileName: input.fileName,
     contentType: input.contentType,
   });
-  const expiresIn = normalizeExpiresIn(input.expiresIn);
-  const acl = input.acl === "public-read" ? "public-read" : "private";
+  const expiresIn = normalizeExpiresIn(input.expiresIn, config.maxExpiresIn);
+  const acl = resolveRequestAcl(config.upload, input.acl);
   const contentType = input.contentType ?? "application/octet-stream";
   const fileSize =
     typeof input.fileSize === "number" && input.fileSize > 0
@@ -51,13 +63,14 @@ async function handleUpload(
 
   const method = config.upload?.method ?? "POST";
 
-  if (method === "PUT" && config.upload?.requireFileSize && fileSize === null) {
+  if (config.upload?.requireFileSize && fileSize === null) {
     throw errors.fileSizeRequiredUpload();
   }
 
   if (method === "PUT") {
     const putHeaders: Record<string, string> = {
       "Content-Type": contentType,
+      ...putMetadataHeaders(input.metadata),
     };
     if (input.fileName) {
       putHeaders["Content-Disposition"] = buildContentDisposition(
@@ -72,6 +85,7 @@ async function handleUpload(
         Key: key,
         ContentType: contentType,
         ACL: acl,
+        Metadata: input.metadata,
         ...(input.fileName
           ? { ContentDisposition: buildContentDisposition(input.fileName) }
           : {}),

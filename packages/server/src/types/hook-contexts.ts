@@ -109,6 +109,14 @@ export type MultipartUploadContext = ObjectContext & {
 export type MultipartInitGuardContext = ObjectContext & {
   /** Declared byte size of the file — available during init only. */
   fileSize?: number;
+  /** MIME type the client sent — not verified until `onComplete`. */
+  contentType?: string;
+  /** Custom object metadata. */
+  metadata?: Record<string, string>;
+  /** Resolved ACL that will be applied at init. */
+  acl?: S3ObjectAcl;
+  /** Original filename for `Content-Disposition`. */
+  fileName?: string;
 };
 
 /** Context for `multipart.partGuard`. */

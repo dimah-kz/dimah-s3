@@ -1,12 +1,11 @@
-import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import {
   confirmBodySchema,
   parseFileName,
   S3_API_ROUTES,
   type UploadConfirmResponse,
 } from "@dimah-s3/core";
-import { resolveObjectAcl } from "../../helpers";
-import { runHook, runLifecycleHook } from "../../internal-helpers";
+import { resolveObjectAcl, runHook, runLifecycleHook } from "../../helpers";
+import { headObjectOrNotFound } from "../../helpers/head-object";
 import type { ResolvedDimahS3Config } from "../../types";
 import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
@@ -29,9 +28,7 @@ async function handleConfirm(
     bucket,
   });
 
-  const head = await config.client.send(
-    new HeadObjectCommand({ Bucket: bucket, Key: key }),
-  );
+  const head = await headObjectOrNotFound(config.client, bucket, key);
 
   const acl = config.resolveObjectAcl
     ? await resolveObjectAcl(config.client, bucket, key)

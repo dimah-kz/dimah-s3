@@ -76,6 +76,71 @@ describe("upload", () => {
     });
   });
 
+  it("requires fileSize for POST when configured", async () => {
+    const s3 = createInstance({
+      upload: { enabled: true, requireFileSize: true },
+    });
+
+    await expect(
+      s3.api.upload({ body: { key: "a.png" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD.code,
+      statusCode: 400,
+    });
+  });
+
+  it("keeps objects private unless allowClientAcl is set", async () => {
+    const s3 = createInstance({ upload: true });
+    await s3.api.upload({
+      body: { key: "a.png", acl: "public-read" },
+    });
+    expect(createPresignedPost).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        Fields: expect.objectContaining({ acl: "private" }),
+      }),
+    );
+  });
+
+  it("honors a client ACL when allowClientAcl is set", async () => {
+    const s3 = createInstance({
+      upload: { allowClientAcl: true },
+    });
+    await s3.api.upload({
+      body: { key: "a.png", acl: "public-read" },
+    });
+    expect(createPresignedPost).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        Fields: expect.objectContaining({ acl: "public-read" }),
+      }),
+    );
+  });
+
+  it("signs PUT metadata onto the command and response headers", async () => {
+    const s3 = createInstance({
+      upload: { enabled: true, method: "PUT" },
+    });
+
+    await expect(
+      s3.api.upload({
+        body: {
+          key: "a.png",
+          contentType: "image/png",
+          metadata: { source: "web" },
+        },
+      }),
+    ).resolves.toMatchObject({
+      method: "PUT",
+      headers: expect.objectContaining({ "x-amz-meta-source": "web" }),
+    });
+
+    const command = vi.mocked(getSignedUrl).mock.calls.at(-1)?.[1] as {
+      input?: { Metadata?: Record<string, string> };
+    };
+    expect(command.input?.Metadata).toEqual({ source: "web" });
+  });
+
   it("ignores a client-supplied bucket by default", async () => {
     const s3 = createInstance({ upload: true });
     await expect(
@@ -124,6 +189,24 @@ describe("confirm", () => {
       fileName: "a.png",
     });
     expect(onConfirmed).toHaveBeenCalled();
+  });
+
+  it("maps a missing object to OBJECT_NOT_FOUND", async () => {
+    const missing = vi.fn(async () => {
+      throw Object.assign(new Error("missing"), { name: "NoSuchKey" });
+    });
+    const s3 = createInstance({
+      client: mockS3(missing as never),
+      upload: { enabled: true },
+    });
+
+    await expect(
+      s3.api.confirm({ body: { key: "missing.png" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
+      status: "NOT_FOUND",
+      statusCode: 404,
+    });
   });
 
   it("resolves ACL when enabled", async () => {
@@ -312,6 +395,84 @@ describe("multipart", () => {
     expect(onComplete).toHaveBeenCalled();
   });
 
+  it("pages through truncated ListParts results", async () => {
+    const listParts = vi
+      .fn()
+      .mockResolvedValueOnce({
+        Parts: [{ PartNumber: 1, Size: 8, ETag: '"p1"' }],
+        IsTruncated: true,
+        NextPartNumberMarker: "1",
+      })
+      .mockResolvedValueOnce({
+        Parts: [{ PartNumber: 2, Size: 8, ETag: '"p2"' }],
+        IsTruncated: false,
+      });
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ ListPartsCommand: listParts }) as never,
+      ),
+      multipart: { enabled: true },
+    });
+
+    await expect(
+      s3.api.multipartListParts({
+        query: { key: "a.bin", uploadId: "up-1" },
+      }),
+    ).resolves.toEqual({
+      parts: [
+        { partNumber: 1, size: 8, eTag: "p1" },
+        { partNumber: 2, size: 8, eTag: "p2" },
+      ],
+    });
+    expect(listParts).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects complete when a requested part has no ETag", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          ListPartsCommand: {
+            Parts: [{ PartNumber: 2, ETag: '"p2"' }],
+          },
+        }) as never,
+      ),
+      multipart: { enabled: true },
+    });
+
+    await expect(
+      s3.api.multipartComplete({
+        body: {
+          key: "a.bin",
+          uploadId: "up-1",
+          parts: [{ partNumber: 1 }],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.MULTIPART_PART_MISSING.code,
+      params: { partNumber: 1 },
+    });
+  });
+
+  it("maps abort of a missing upload to OBJECT_NOT_FOUND", async () => {
+    const missing = vi.fn(async () => {
+      throw Object.assign(new Error("missing"), { name: "NoSuchUpload" });
+    });
+    const s3 = createInstance({
+      client: mockS3(missing as never),
+      multipart: { enabled: true },
+    });
+
+    await expect(
+      s3.api.multipartAbort({
+        body: { key: "a.bin", uploadId: "gone" },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
+      status: "NOT_FOUND",
+      statusCode: 404,
+    });
+  });
+
   it("aborts a multipart upload", async () => {
     const onAbort = vi.fn();
     const s3 = createInstance({
@@ -349,5 +510,14 @@ describe("feature guards", () => {
 
     await s3.api.upload({ body: { key: "a.png" } });
     expect(order).toEqual(["global", "presign"]);
+  });
+
+  it("rejects allowClientBucket together with buckets", () => {
+    expect(() =>
+      createInstance({
+        allowClientBucket: true,
+        buckets: ["bucket"],
+      }),
+    ).toThrow(/allowClientBucket or buckets/);
   });
 });

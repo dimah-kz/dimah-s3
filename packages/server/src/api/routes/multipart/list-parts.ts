@@ -1,10 +1,10 @@
-import { ListPartsCommand } from "@aws-sdk/client-s3";
 import {
   multipartListPartsQuerySchema,
   S3_API_ROUTES,
   type MultipartListPartsResponse,
 } from "@dimah-s3/core";
-import { runHook, runLifecycleHook } from "../../../internal-helpers";
+import { runHook, runLifecycleHook } from "../../../helpers";
+import { listAllParts } from "../../../helpers/list-parts";
 import type { ResolvedDimahS3Config } from "../../../types";
 import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
@@ -29,15 +29,9 @@ async function handleListParts(
     uploadId,
   });
 
-  const response = await config.client.send(
-    new ListPartsCommand({
-      Bucket: bucket,
-      Key: key,
-      UploadId: uploadId,
-    }),
-  );
+  const listed = await listAllParts(config.client, { bucket, key, uploadId });
 
-  const parts = (response.Parts ?? []).map((p) => ({
+  const parts = listed.map((p) => ({
     partNumber: p.PartNumber ?? 0,
     size: p.Size ?? 0,
     eTag: (p.ETag ?? "").replace(/"/g, ""),

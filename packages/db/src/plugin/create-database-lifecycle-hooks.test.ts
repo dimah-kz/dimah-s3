@@ -80,7 +80,7 @@ describe("createDatabaseLifecycleHooks", () => {
     expect(hard.hardDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
   });
 
-  it("rejects upload to a key owned by another scope", async () => {
+  it("guards multipart part/list/complete/abort with ownership", async () => {
     const store = fakeStore({
       find: async () => sampleObject({ scope: "user:2" }),
     });
@@ -89,13 +89,25 @@ describe("createDatabaseLifecycleHooks", () => {
       resolveScope: async () => "user:1",
     });
 
+    const ctx = {
+      request,
+      key: "k",
+      bucket: "b",
+      uploadId: "up-1",
+    };
+
+    await expect(hooks.multipart?.partGuard?.({ ...ctx, partNumber: 1 })).rejects.toMatchObject(
+      { code: "FORBIDDEN" },
+    );
+    await expect(hooks.multipart?.listGuard?.(ctx)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
     await expect(
-      hooks.upload?.guard?.({
-        request,
-        key: "k",
-        bucket: "b",
-      }),
+      hooks.multipart?.completeGuard?.({ ...ctx, parts: [{ partNumber: 1 }] }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(hooks.multipart?.abortGuard?.(ctx)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
   });
 
   it("clears pending rows on multipart abort", async () => {

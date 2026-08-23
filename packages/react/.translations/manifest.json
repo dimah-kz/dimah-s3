@@ -49,6 +49,7 @@
     "Upload file(button)",
     "Upload files(button)",
     "Upload finished with errors(toast)",
+    "Uploaded part {partNumber} was not found(API error)",
     "Uploading {done}/{total}(toast)",
     "Uploading(toast)",
     "Validating…(upload status)",

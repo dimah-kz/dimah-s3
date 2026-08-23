@@ -1,7 +1,11 @@
 export {
   metadataSchema,
+  optionalCoerceExpiresInSchema,
+  optionalExpiresInSchema,
   optionalTrimmedString,
   s3ObjectAclSchema,
+  S3_DEFAULT_EXPIRES_IN,
+  S3_MAX_EXPIRES_IN,
   trimmedString,
 } from "./shared";
 export { confirmBodySchema, uploadBodySchema } from "./upload";

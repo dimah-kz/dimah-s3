@@ -6,7 +6,13 @@ import {
   isS3ErrorCode,
 } from "@dimah-s3/core";
 
-export { DimahS3Error, isAPIError, isDimahS3Error, isS3ErrorCode };
+export {
+  DimahS3Error,
+  S3_ERROR_CODES,
+  isAPIError,
+  isDimahS3Error,
+  isS3ErrorCode,
+};
 
 /** English API errors with stable codes for client-side localization. */
 export const errors = {
@@ -63,6 +69,16 @@ export const errors = {
       "BAD_REQUEST",
       S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART,
     ),
+
+  multipartPartMissing: (partNumber: number) =>
+    DimahS3Error.from("BAD_REQUEST", {
+      code: S3_ERROR_CODES.MULTIPART_PART_MISSING.code,
+      message: S3_ERROR_CODES.MULTIPART_PART_MISSING.message.replaceAll(
+        "{partNumber}",
+        String(partNumber),
+      ),
+      params: { partNumber },
+    }),
 
   validationError: (message: string) =>
     DimahS3Error.from("BAD_REQUEST", {

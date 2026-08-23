@@ -50,7 +50,8 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 | ---------------------------------------------- | --------- | ------------------------------------------------- |
 | `client`                                       | required  | AWS SDK `S3Client` (`awsS3`)                      |
 | `bucket`                                       | required  | Default bucket                                    |
-| `allowClientBucket` / `buckets`                | off       | Honor a client-sent `bucket`                      |
+| `allowClientBucket` / `buckets`                | off       | Honor a client-sent `bucket` (not both)           |
+| `maxExpiresIn`                                 | `604800`  | Clamp client `expiresIn` (SigV4 max)              |
 | `basePath`                                     | `/api/s3` | Must match `createS3Client({ basePath })`         |
 | `resolveObjectAcl`                             | `false`   | Extra `GetObjectAcl` on confirm / complete        |
 | `guard`                                        | —         | [Global Guard](/docs/server/hooks/global-guard)   |
@@ -62,12 +63,19 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
   `prefix` or `resolveKey` on each feature, then reject unauthorized work in
   `guard`. The `bucket` you pass to `dimahS3` is the one that is used. A
   `bucket` on the request is ignored unless you set `allowClientBucket` or
-  `buckets`.
+  `buckets` (not both). Uploads are `private` unless `upload.acl` or
+  `upload.allowClientAcl` is set. Full rules: [Security](/docs/server/security).
 </Callout>
 
 A plain `Error` in `guard` / `*Guard` becomes **403**. The same throw in
 `onPresigned` / `onConfirmed` / `onDeleted` / other `on*` hooks becomes
-**500**. Throw `DimahS3Error` when you need a specific status and `code`.
+**500**. Throw `DimahS3Error` or use [`errors`](/docs/server/errors) when you
+need a specific status and `code`.
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="DimahS3Config"
+/>
 
 ### Route handler [step]
 
@@ -244,5 +252,6 @@ Hooks: [Global Guard](/docs/server/hooks/global-guard),
 [Download](/docs/server/hooks/download),
 [Delete](/docs/server/hooks/delete),
 [Multipart](/docs/server/hooks/multipart).
+[Security](/docs/server/security) · [Errors](/docs/server/errors).
 
 Browser client: [Client setup](/docs/react/setup).

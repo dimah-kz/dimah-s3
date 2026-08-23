@@ -38,4 +38,13 @@ describe("errors", () => {
       code: S3_ERROR_CODES.VALIDATION_ERROR.code,
     });
   });
+
+  it("interpolates missing multipart part numbers", () => {
+    expect(errors.multipartPartMissing(3)).toMatchObject({
+      statusCode: 400,
+      code: S3_ERROR_CODES.MULTIPART_PART_MISSING.code,
+      params: { partNumber: 3 },
+      message: "Uploaded part 3 was not found",
+    });
+  });
 });

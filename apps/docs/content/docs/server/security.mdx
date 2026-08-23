@@ -1,0 +1,123 @@
+---
+title: Security
+description: What the library does not trust, and where your app must take over.
+icon: Shield
+---
+
+dimah-s3 signs URLs. It does not authenticate users, enforce quotas, or
+pick object keys for you. Those stay in your `guard` / `prefix` /
+`resolveKey` hooks.
+
+<Callout type="warn">
+  Never put S3 credentials in the browser. The AWS SDK `S3Client` lives on
+  the server and is passed into `dimahS3({ client })`.
+</Callout>
+
+## Untrusted input
+
+The client proposes `key` and may send `bucket`, `fileSize`, `contentType`,
+`metadata`, and `acl`. Treat all of them as untrusted.
+
+| Field | Default | How to scope it |
+| --- | --- | --- |
+| `key` | used as-is after safety checks | `prefix` or `resolveKey` on each feature, then `guard` |
+| `bucket` | ignored; `dimahS3({ bucket })` is used | `buckets` (allowlist) **or** `allowClientBucket` — not both |
+| `acl` | always `private` | `upload.acl` (server-forced) or `upload.allowClientAcl` |
+| `fileSize` / `contentType` | declared by the client | Trust `onConfirmed` / `multipart.onComplete` (`HeadObject`) |
+
+`prefix` and `resolveKey` run before feature guards. Keys that are already
+prefixed are left unchanged so confirm / download of a stored key still
+works. That is not an authorization check — still reject unauthorized work
+in `guard`.
+
+Set the same `prefix` (or an equivalent `resolveKey`) on `download` and
+`delete` if those features should only see keys under that prefix.
+
+```ts title="lib/s3.ts"
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: "uploads" },
+  download: { prefix: "uploads" },
+  delete: { prefix: "uploads" },
+});
+```
+
+## Bucket flags
+
+- Omit both: client `bucket` is ignored.
+- `buckets: ["app", "cdn"]`: client may send a bucket on that list; anything
+  else is `INVALID_BUCKET`.
+- `allowClientBucket: true`: any client bucket is accepted.
+
+Setting both throws when `dimahS3()` runs.
+
+## ACL
+
+Uploads are `private` unless you opt in:
+
+```ts
+upload: {
+  prefix: "uploads",
+  // Force every object:
+  acl: "public-read",
+  // Or let the client choose private | public-read:
+  allowClientAcl: true,
+}
+```
+
+Multipart inherits `acl` / `allowClientAcl` from upload when omitted.
+
+## Trust HeadObject, not the presign body
+
+Simple uploads call `confirm` after the bytes land. Multipart calls
+`multipart.complete` instead — there is no second `confirm`. Persist
+records in `upload.onConfirmed` **and** `multipart.onComplete`. Both
+see size and type from `HeadObject`.
+
+Quota and max size belong in your hooks, not in library config:
+
+```ts
+import { dimahS3, DimahS3Error } from "@dimah-s3/server";
+
+const MAX = 10 * 1024 * 1024;
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  upload: {
+    prefix: "uploads",
+    requireFileSize: true,
+    guard: async ({ fileSize }) => {
+      if (fileSize && fileSize > MAX) {
+        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
+          message: "File too large",
+        });
+      }
+    },
+    onConfirmed: async ({ key, contentLength }) => {
+      if (contentLength > MAX) {
+        throw new DimahS3Error("PAYLOAD_TOO_LARGE", {
+          message: "File too large",
+        });
+      }
+      // persist { key, size: contentLength }
+    },
+  },
+});
+```
+
+`requireFileSize` rejects presign when the client omits `fileSize` (POST
+and PUT). It does not verify the bytes — that is `onConfirmed`.
+
+## Errors from hooks
+
+A plain `Error` in `guard` / `*Guard` becomes **403** (message kept, no
+library `code`). The same throw in `onPresigned` / `onConfirmed` / other
+`on*` hooks becomes **500**. Throw `DimahS3Error` or use
+[`errors`](/docs/server/errors) when you need a specific status and `code`.
+
+Presigned URL lifetime is clamped by `maxExpiresIn` (default 7 days, the
+SigV4 maximum). Clients cannot request a longer window.
+
+See [Errors](/docs/server/errors) for the catalog.

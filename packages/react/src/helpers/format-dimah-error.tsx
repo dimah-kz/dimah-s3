@@ -63,6 +63,13 @@ export function useFormatDimahError(): (err: unknown) => string {
           return t("File size is required", { note: "upload" });
         case S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code:
           return t("File size is required", { note: "multipart" });
+        case S3_ERROR_CODES.MULTIPART_PART_MISSING.code:
+          return t("Uploaded part {partNumber} was not found", {
+            note: "API error",
+            variables: {
+              partNumber: param(err.params, "partNumber", "?"),
+            },
+          });
         case S3_ERROR_CODES.VALIDATION_ERROR.code:
           return t("Invalid request", { note: "API error" });
         default:

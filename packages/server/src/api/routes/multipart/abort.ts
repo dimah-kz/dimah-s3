@@ -4,7 +4,8 @@ import {
   S3_API_ROUTES,
   type MultipartAbortResponse,
 } from "@dimah-s3/core";
-import { runHook, runLifecycleHook } from "../../../internal-helpers";
+import { runHook, runLifecycleHook } from "../../../helpers";
+import { sendOrObjectNotFound } from "../../../helpers/is-aws-not-found";
 import type { ResolvedDimahS3Config } from "../../../types";
 import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
@@ -31,12 +32,14 @@ async function handleAbort(
     uploadId,
   });
 
-  await config.client.send(
-    new AbortMultipartUploadCommand({
-      Bucket: bucket,
-      Key: key,
-      UploadId: uploadId,
-    }),
+  await sendOrObjectNotFound(() =>
+    config.client.send(
+      new AbortMultipartUploadCommand({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+      }),
+    ),
   );
 
   await runLifecycleHook(config.multipart?.onAbort, {

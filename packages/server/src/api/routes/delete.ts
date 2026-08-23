@@ -1,12 +1,11 @@
-import { DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   deleteQuerySchema,
   S3_API_ROUTES,
   type DeleteResponse,
 } from "@dimah-s3/core";
-import { errors } from "../../errors";
-import { isAwsNotFound } from "../../helpers";
-import { runHook, runLifecycleHook } from "../../internal-helpers";
+import { runHook, runLifecycleHook } from "../../helpers";
+import { headObjectOrNotFound } from "../../helpers/head-object";
 import type { ResolvedDimahS3Config } from "../../types";
 import { resolveRequestTarget } from "../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../assert-feature-enabled";
@@ -29,16 +28,7 @@ async function handleDelete(
     bucket,
   });
 
-  try {
-    await config.client.send(
-      new HeadObjectCommand({ Bucket: bucket, Key: key }),
-    );
-  } catch (err: unknown) {
-    if (isAwsNotFound(err)) {
-      throw errors.objectNotFound();
-    }
-    throw err;
-  }
+  await headObjectOrNotFound(config.client, bucket, key);
 
   await config.client.send(
     new DeleteObjectCommand({ Bucket: bucket, Key: key }),

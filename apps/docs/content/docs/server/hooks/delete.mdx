@@ -45,22 +45,12 @@ export const s3 = dimahS3({
 
 `onDeleted` is not a substitute for deleting from the bucket. It runs after.
 
-<TypeTable
-  type={{
-    request: {
-      description: "The incoming HTTP request.",
-      type: "Request",
-      required: true,
-    },
-    key: {
-      description: "Object key to delete.",
-      type: "string",
-      required: true,
-    },
-    bucket: {
-      description: "Target bucket.",
-      type: "string",
-      required: true,
-    },
-  }}
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DeleteGuardContext"
+/>
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DeleteOnDeletedContext"
 />

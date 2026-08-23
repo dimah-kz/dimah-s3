@@ -16,6 +16,8 @@ export const LLM_PAGE_PRIORITY = [
   "/docs/providers",
   "/docs/providers/cloudflare-r2",
   "/docs/server",
+  "/docs/server/security",
+  "/docs/server/setup",
   "/docs/server/hooks/global-guard",
   "/docs/server/hooks/upload",
   "/docs/react",
@@ -51,7 +53,7 @@ Closest neighbors: UploadThing (hosted), Better Upload (BYO-bucket, upload-only)
 
 Install: \`npx @dimah-s3/cli@latest create\` or \`npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3\`.
 
-Security (app-owned; the library does not do this): never expose S3 credentials; the client proposes \`key\` and may send \`bucket\` — scope both in \`guard\` / \`prefix\` / \`resolveKey\` (client \`bucket\` is ignored unless you opt in); trust \`onConfirmed\` (HeadObject) for size and type, not the presign body.
+Security (app-owned; the library does not do this): never expose S3 credentials; the client proposes \`key\` and may send \`bucket\` — scope both in \`guard\` / \`prefix\` / \`resolveKey\` (client \`bucket\` is ignored unless you set \`allowClientBucket\` or \`buckets\`, not both; client \`acl\` is ignored unless \`allowClientAcl\`); trust \`onConfirmed\` / \`multipart.onComplete\` (HeadObject) for size and type, not the presign body.
 `;
 }
 

@@ -1,6 +1,6 @@
 import { type Endpoint } from "better-call";
 import type { S3EndpointContext } from "./context";
-import { requestFromHeaders } from "../internal-helpers";
+import { requestFromHeaders } from "../helpers";
 
 /**
  * Wrap better-call endpoints so `s3.api.upload({ body, headers })` injects

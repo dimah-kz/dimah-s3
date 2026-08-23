@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { uploadBodySchema } from "./upload";
-import { optionalTrimmedString, trimmedString } from "./shared";
+import {
+  optionalExpiresInSchema,
+  optionalTrimmedString,
+  trimmedString,
+} from "./shared";
 
 export const multipartInitBodySchema = uploadBodySchema;
 
@@ -10,7 +14,7 @@ export const multipartSignPartBodySchema = z.object({
   partNumber: z.number().int().positive(),
   partSize: z.number().positive().optional(),
   bucket: optionalTrimmedString,
-  expiresIn: z.number().positive().optional(),
+  expiresIn: optionalExpiresInSchema,
 });
 
 export const multipartListPartsQuerySchema = z.object({

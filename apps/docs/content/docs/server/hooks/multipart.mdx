@@ -7,6 +7,10 @@ Enable with `multipart: true`, or omit it — multipart is on whenever `upload`
 is on unless you set `multipart: false`. Pair it with client `multipart`
 options — see [Upload](/docs/react/hooks/upload).
 
+Multipart **complete** is the confirmation step (HeadObject after S3
+assembles the parts). There is no extra `confirm` call. Persist in
+`onComplete` the same way you persist in `upload.onConfirmed`.
+
 <Flow
   label="Multipart complete"
   steps={[
@@ -55,72 +59,29 @@ export const s3 = dimahS3({
   comes from `HeadObject`.
 </Callout>
 
-Set `requireFileSize: true` to reject init without `fileSize`.
+Set `requireFileSize: true` to reject init without `fileSize`. ACL follows
+the same rules as upload (`acl` / `allowClientAcl`, inherited from upload
+when omitted).
+
+The complete body only sends `partNumber`s. The server lists parts from S3
+for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.
 
 ## Init guard
 
 Runs before `CreateMultipartUpload`.
 
-<TypeTable
-  type={{
-    request: {
-      description: "The incoming HTTP request.",
-      type: "Request",
-      required: true,
-    },
-    key: {
-      description: "Object key.",
-      type: "string",
-      required: true,
-    },
-    bucket: {
-      description: "Target bucket.",
-      type: "string",
-      required: true,
-    },
-    fileSize: {
-      description: "Size the client sent. Available during init only.",
-      type: "number",
-    },
-  }}
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="MultipartInitGuardContext"
 />
 
 ## On complete
 
 Runs after `HeadObject`. Same idea as [`upload.onConfirmed`](/docs/server/hooks/upload#on-confirmed).
 
-<TypeTable
-  type={{
-    request: {
-      description: "The incoming HTTP request.",
-      type: "Request",
-      required: true,
-    },
-    key: {
-      description: "Object key.",
-      type: "string",
-      required: true,
-    },
-    bucket: {
-      description: "Target bucket.",
-      type: "string",
-      required: true,
-    },
-    uploadId: {
-      description: "Multipart upload ID.",
-      type: "string",
-      required: true,
-    },
-    contentLength: {
-      description: "Size from HeadObject.",
-      type: "number",
-      required: true,
-    },
-    eTag: {
-      description: "ETag from HeadObject.",
-      type: "string",
-    },
-  }}
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="MultipartOnCompleteContext"
 />
 
 <Accordions type="multiple">

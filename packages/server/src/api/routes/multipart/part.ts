@@ -5,7 +5,7 @@ import {
   S3_API_ROUTES,
   type MultipartPartResponse,
 } from "@dimah-s3/core";
-import { normalizeExpiresIn, runHook } from "../../../internal-helpers";
+import { normalizeExpiresIn, runHook } from "../../../helpers";
 import type { ResolvedDimahS3Config } from "../../../types";
 import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
@@ -23,7 +23,7 @@ async function handleSignPart(
   });
   const uploadId = input.uploadId;
   const partNumber = input.partNumber;
-  const expiresIn = normalizeExpiresIn(input.expiresIn);
+  const expiresIn = normalizeExpiresIn(input.expiresIn, config.maxExpiresIn);
   const partSize =
     typeof input.partSize === "number" && input.partSize > 0
       ? Math.floor(input.partSize)

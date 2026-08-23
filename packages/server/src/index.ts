@@ -6,6 +6,7 @@ export {
   isAPIError,
   isDimahS3Error,
   isS3ErrorCode,
+  S3_ERROR_CODES,
 } from "./errors";
 export type { ServerErrors } from "./errors";
 export { resolveObjectAcl } from "./helpers/resolve-object-acl";

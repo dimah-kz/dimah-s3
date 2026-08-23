@@ -6,7 +6,7 @@
 
 1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`).
 2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `DimahS3Error`.
-3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds `createS3Router` (HTTP `handler` + `s3.api`).
+3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds the internal `createS3Router` (HTTP `handler` + `s3.api`). Do not export `createS3Router`.
 4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` stays named (`api.download(key)`); server `s3.api` is the better-call map (`download({ query, headers })`).
 5. Tegami changelog — [release.md](./release.md).
 
@@ -22,7 +22,7 @@
 1. `createS3Endpoint` + Zod schema in `api/routes/`; add the export to `coreEndpoints`.
 2. Hook context types beside other `types/*-context.ts` files.
 3. Feature flags via `DimahS3Config` (`upload`, `download`, `delete`, `multipart`) — disabled → `FEATURE_DISABLED` (HTTP 404; endpoint still registered). Object config without `enabled` means on; `true` means `{ enabled: true }`. Multipart is on with upload unless `multipart: false`.
-4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. `prefix` / `resolveKey` rewrite keys. Client `bucket` is ignored unless `allowClientBucket` or `buckets`.
+4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. `prefix` / `resolveKey` rewrite keys. Client `bucket` is ignored unless `allowClientBucket` or `buckets` (mutually exclusive). Client `acl` is ignored unless `allowClientAcl` or a server `acl`.
 5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). Next adapter exposes GET/POST/PUT/PATCH/DELETE. New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
 
 ## When adding or changing a server plugin

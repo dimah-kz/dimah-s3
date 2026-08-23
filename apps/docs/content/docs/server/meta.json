@@ -6,6 +6,8 @@
   "pages": [
     "index",
     "setup",
+    "security",
+    "errors",
     "---Hooks---",
     "...hooks",
     "---Extend---",

@@ -11,8 +11,8 @@ Use it for the caller: session, auth, tenancy, whether the request is
 allowed at all. It only sees `{ request }`. Per-object rules belong on the
 feature hooks — those receive `key` and `bucket`.
 
-Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` for other
-codes.
+Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` or
+[`errors`](/docs/server/errors) for other codes.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -31,6 +31,11 @@ export const s3 = dimahS3({
   upload: { prefix: "uploads" },
 });
 ```
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="GuardContext"
+/>
 
 Plugin `guard` hooks still run first. See [hook
 order](/docs/server/plugins#hook-order).

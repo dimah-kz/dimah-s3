@@ -46,7 +46,8 @@ export function resolveStore(
  * caller's scope. Throws `DimahS3Error` (401 / 404 / 403) to reject.
  *
  * Usable as `download.guard`, `delete.guard`,
- * `upload.confirmGuard`, or in your own routes.
+ * `upload.confirmGuard`, multipart `partGuard` / `listGuard` /
+ * `completeGuard` / `abortGuard`, or in your own routes.
  */
 export function createObjectAccessGuard(
   options: CreateObjectAccessGuardOptions,

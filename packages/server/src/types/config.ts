@@ -1,5 +1,5 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { UploadPresignMethod } from "@dimah-s3/core";
+import type { S3ObjectAcl, UploadPresignMethod } from "@dimah-s3/core";
 import type {
   DeleteGuardContext,
   DeleteOnDeletedContext,
@@ -39,16 +39,30 @@ type KeyPolicy = {
   resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
 };
 
-/** Upload feature. A config object (or `true`) enables the feature. */
-export type UploadConfig = KeyPolicy & {
-  enabled?: boolean;
-  method?: UploadPresignMethod;
-  requireFileSize?: boolean;
-  guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
-  onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
-  confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
-  onConfirmed?: (context: UploadOnConfirmedContext) => Promise<void> | void;
+type AclPolicy = {
+  /**
+   * Server-forced ACL. When set, the client `acl` is ignored.
+   * @default "private" (when omitted)
+   */
+  acl?: S3ObjectAcl;
+  /**
+   * Honor a client-sent `acl` (`private` | `public-read`). Off by default —
+   * uploads are `private` unless {@link acl} is set.
+   */
+  allowClientAcl?: boolean;
 };
+
+/** Upload feature. A config object (or `true`) enables the feature. */
+export type UploadConfig = KeyPolicy &
+  AclPolicy & {
+    enabled?: boolean;
+    method?: UploadPresignMethod;
+    requireFileSize?: boolean;
+    guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
+    onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
+    confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
+    onConfirmed?: (context: UploadOnConfirmedContext) => Promise<void> | void;
+  };
 
 /** Download feature. A config object (or `true`) enables the feature. */
 export type DownloadConfig = KeyPolicy & {
@@ -65,21 +79,22 @@ export type DeleteConfig = KeyPolicy & {
 };
 
 /** Multipart feature. On automatically when upload is on, unless set to `false`. */
-export type MultipartConfig = KeyPolicy & {
-  enabled?: boolean;
-  requireFileSize?: boolean;
-  initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
-  partGuard?: (context: MultipartPartGuardContext) => Promise<void> | void;
-  completeGuard?: (
-    context: MultipartCompleteGuardContext,
-  ) => Promise<void> | void;
-  abortGuard?: (context: MultipartAbortGuardContext) => Promise<void> | void;
-  listGuard?: (context: MultipartListGuardContext) => Promise<void> | void;
-  onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
-  onComplete?: (context: MultipartOnCompleteContext) => Promise<void> | void;
-  onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
-  onList?: (context: MultipartOnListContext) => Promise<void> | void;
-};
+export type MultipartConfig = KeyPolicy &
+  AclPolicy & {
+    enabled?: boolean;
+    requireFileSize?: boolean;
+    initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
+    partGuard?: (context: MultipartPartGuardContext) => Promise<void> | void;
+    completeGuard?: (
+      context: MultipartCompleteGuardContext,
+    ) => Promise<void> | void;
+    abortGuard?: (context: MultipartAbortGuardContext) => Promise<void> | void;
+    listGuard?: (context: MultipartListGuardContext) => Promise<void> | void;
+    onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
+    onComplete?: (context: MultipartOnCompleteContext) => Promise<void> | void;
+    onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
+    onList?: (context: MultipartOnListContext) => Promise<void> | void;
+  };
 
 /** `true` enables the feature; `false` disables it; an object enables unless `enabled: false`. */
 export type FeatureToggle<T> = boolean | T;
@@ -125,13 +140,23 @@ export type DimahS3Config = {
   /**
    * Allow the client to pick any bucket. Off by default — the request `bucket`
    * is ignored and {@link bucket} is used.
+   *
+   * Mutually exclusive with {@link buckets}.
    */
   allowClientBucket?: boolean;
   /**
    * Allowlist of buckets the client may send. When set, a request bucket
    * outside this list is rejected. {@link bucket} should be included.
+   *
+   * Mutually exclusive with {@link allowClientBucket}.
    */
   buckets?: string[];
+  /**
+   * Upper bound for client `expiresIn` (seconds). Requests above this are
+   * clamped. The protocol maximum is 7 days (604800).
+   * @default 604800
+   */
+  maxExpiresIn?: number;
   /** Runs before every operation. Throw to reject. */
   guard?: (context: GuardContext) => Promise<void> | void;
   upload?: FeatureToggle<UploadConfig>;

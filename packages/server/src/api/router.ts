@@ -4,9 +4,9 @@ import {
   normalizeS3ApiBasePath,
   S3_API_BASE_PATH,
 } from "@dimah-s3/core";
-import { errors } from "./errors";
-import { bindEndpoints } from "./api/bind-endpoints";
-import type { ResolvedDimahS3Config } from "./types";
+import { errors } from "../errors";
+import { bindEndpoints } from "./bind-endpoints";
+import type { ResolvedDimahS3Config } from "../types";
 
 const NETWORK_CODES = new Set([
   "EAI_AGAIN",
@@ -51,7 +51,8 @@ function withUnmatchedRouteJson(
 }
 
 /**
- * better-call router with dimah-s3 context, OpenAPI off, and native APIError JSON.
+ * Internal better-call router with dimah-s3 context, OpenAPI off, and native
+ * APIError JSON. Not part of the public package surface.
  */
 export function createS3Router<E extends Record<string, Endpoint>>(
   endpoints: E,

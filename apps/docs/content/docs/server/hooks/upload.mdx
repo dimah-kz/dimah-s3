@@ -20,6 +20,11 @@ you set `multipart: false`.
   ]}
 />
 
+Simple uploads finish with **`confirm`**. Multipart finishes with
+**`multipart.complete`** (`multipart.onComplete`) — there is no second
+`confirm`. Persist in both places. See [Multipart](/docs/server/hooks/multipart)
+and [Security](/docs/server/security).
+
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, DimahS3Error } from "@dimah-s3/server";
@@ -52,48 +57,22 @@ export const s3 = dimahS3({
 
 <Callout type="warn">
   Treat `key` as untrusted. Rewrite it with `prefix` or `resolveKey`, then
-  reject unauthorized uploads in `guard`. How `bucket` is resolved is in [Server
-  setup](/docs/server/setup).
+  reject unauthorized uploads in `guard`. Object ACL is `private` unless you
+  set `upload.acl` or `upload.allowClientAcl`. How `bucket` is resolved is in
+  [Server setup](/docs/server/setup).
 </Callout>
 
-Set `requireFileSize: true` to reject presign requests that omit `fileSize`.
+Set `requireFileSize: true` to reject presign requests that omit `fileSize`
+(POST and PUT).
 
 ## Guard
 
 Runs before the URL is signed. Throw to reject. A plain `Error` becomes
 **403**.
 
-<TypeTable
-  type={{
-    request: {
-      description: "The incoming HTTP request.",
-      type: "Request",
-      required: true,
-    },
-    key: {
-      description: "Object key after `prefix` / `resolveKey`.",
-      type: "string",
-      required: true,
-    },
-    bucket: {
-      description: "Target bucket.",
-      type: "string",
-      required: true,
-    },
-    fileSize: {
-      description:
-        "Size the client sent. Not verified — use `onConfirmed.contentLength`.",
-      type: "number",
-    },
-    contentType: {
-      description: "MIME type the client sent. Not verified yet.",
-      type: "string",
-    },
-    fileName: {
-      description: "Original filename for `Content-Disposition`.",
-      type: "string",
-    },
-  }}
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadPresignGuardContext"
 />
 
 ## On confirmed
@@ -101,35 +80,7 @@ Runs before the URL is signed. Throw to reject. A plain `Error` becomes
 Runs after `HeadObject`. This is the safe place to persist metadata. A
 plain `Error` here becomes **500**.
 
-<TypeTable
-  type={{
-    request: {
-      description: "The incoming HTTP request.",
-      type: "Request",
-      required: true,
-    },
-    key: {
-      description: "Object key.",
-      type: "string",
-      required: true,
-    },
-    bucket: {
-      description: "Target bucket.",
-      type: "string",
-      required: true,
-    },
-    contentLength: {
-      description: "Size from HeadObject. Trust this, not presign `fileSize`.",
-      type: "number",
-      required: true,
-    },
-    contentType: {
-      description: "MIME type from HeadObject.",
-      type: "string",
-    },
-    eTag: {
-      description: "ETag from HeadObject.",
-      type: "string",
-    },
-  }}
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadOnConfirmedContext"
 />

@@ -220,4 +220,36 @@ describe("applyPlugins merge", () => {
     expect(merged.getPlugin("audit")).toBe(plugin);
     expect(init).toHaveBeenCalledWith("audit", "bucket");
   });
+
+  it("does not merge plugin prefix onto user key policy", () => {
+    const merged = applyPlugins({
+      ...config([
+        definePlugin({
+          id: "p",
+          hooks: {
+            upload: {
+              guard: () => undefined,
+              prefix: "plugin",
+            } as never,
+          },
+        }),
+      ]),
+      upload: { prefix: "uploads" },
+    });
+
+    expect(merged.config.upload?.prefix).toBe("uploads");
+  });
+});
+
+describe("applyPlugins config validation", () => {
+  it("rejects allowClientBucket together with buckets", () => {
+    expect(() =>
+      applyPlugins(
+        config(undefined, {
+          allowClientBucket: true,
+          buckets: ["bucket"],
+        }),
+      ),
+    ).toThrow(/allowClientBucket or buckets/);
+  });
 });

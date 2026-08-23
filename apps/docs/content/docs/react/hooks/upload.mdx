@@ -123,3 +123,6 @@ await upload(files, (file) => `uploads/${file.name}`);
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
 types: `UseUploadOptions`, `UseMultiUploadOptions`.
+
+Client `acl` is ignored unless the server sets `upload.allowClientAcl` — see
+[Upload](/docs/server/hooks/upload).

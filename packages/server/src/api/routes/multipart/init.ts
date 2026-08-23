@@ -6,7 +6,11 @@ import {
   type MultipartInitResponse,
 } from "@dimah-s3/core";
 import { errors } from "../../../errors";
-import { runHook, runLifecycleHook } from "../../../internal-helpers";
+import {
+  resolveRequestAcl,
+  runHook,
+  runLifecycleHook,
+} from "../../../helpers";
 import type { ResolvedDimahS3Config } from "../../../types";
 import { resolveRequestTarget } from "../../../helpers/resolve-target";
 import { assertFeatureEnabled } from "../../assert-feature-enabled";
@@ -24,7 +28,7 @@ async function handleMultipartInit(
     fileName: input.fileName,
     contentType: input.contentType,
   });
-  const acl = input.acl === "public-read" ? "public-read" : "private";
+  const acl = resolveRequestAcl(config.multipart, input.acl);
   const fileSize =
     typeof input.fileSize === "number" && input.fileSize > 0
       ? Math.floor(input.fileSize)
@@ -39,6 +43,10 @@ async function handleMultipartInit(
     key,
     bucket,
     fileSize,
+    contentType: input.contentType,
+    metadata: input.metadata,
+    acl,
+    fileName: input.fileName,
   });
 
   const { UploadId } = await config.client.send(
@@ -54,11 +62,15 @@ async function handleMultipartInit(
     }),
   );
 
+  if (!UploadId) {
+    throw errors.internalError();
+  }
+
   await runLifecycleHook(config.multipart?.onInit, {
     request,
     key,
     bucket,
-    uploadId: UploadId!,
+    uploadId: UploadId,
     contentType: input.contentType,
     fileSize,
     metadata: input.metadata,
@@ -66,7 +78,7 @@ async function handleMultipartInit(
     fileName: input.fileName,
   });
 
-  return { bucket, key, uploadId: UploadId! };
+  return { bucket, key, uploadId: UploadId };
 }
 
 export const multipartInit = createS3Endpoint(

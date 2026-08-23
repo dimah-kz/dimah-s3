@@ -127,6 +127,10 @@ export function createDatabaseLifecycleHooks(
       multipart: {
         initGuard: guardKeyOwnership,
         onInit: trackPending,
+        partGuard: ownedObjectGuard,
+        listGuard: ownedObjectGuard,
+        completeGuard: ownedObjectGuard,
+        abortGuard: ownedObjectGuard,
         onComplete: trackConfirmed,
         onAbort: async (context) => {
           await objects.deletePending({

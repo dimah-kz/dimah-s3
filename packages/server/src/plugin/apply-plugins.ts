@@ -3,8 +3,9 @@ import type { Endpoint } from "better-call";
 import { CORE_ENDPOINT_NAMES } from "../api/routes";
 import {
   applyMultipartDefault,
+  assertExclusiveBucketFlags,
   normalizeFeatures,
-} from "../helpers/resolve-target";
+} from "../helpers/features";
 import type { DimahS3Config, ResolvedDimahS3Config } from "../types/config";
 import { chainHooks } from "./chain-hooks";
 import { FEATURE_HOOK_KEYS, type FeatureName } from "./hook-registry";
@@ -160,6 +161,8 @@ export function applyPlugins<
   }
 
   const { plugins: _omit, ...rest } = config;
+
+  assertExclusiveBucketFlags(rest);
 
   for (const plugin of plugins) {
     plugin.init?.({ config: rest, getPlugin });
