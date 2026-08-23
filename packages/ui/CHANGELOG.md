@@ -1,3 +1,64 @@
+## @dimah-s3/ui@1.0.0
+
+### Freeze the 1.0 APIs
+
+Server, React, and UI contracts are now the v1 surface. Uploads stay private
+unless you set `upload.acl` or `upload.allowClientAcl`. `allowClientBucket`
+and `buckets` cannot be combined. Presign lifetime is clamped with
+`maxExpiresIn` (7 days by default).
+
+### Server
+
+- Confirm, abort, and multipart list/complete map missing S3 objects or
+  uploads to `OBJECT_NOT_FOUND` instead of a generic 500.
+- PUT presigns include object metadata (and the `x-amz-meta-*` headers the
+  client must send). `requireFileSize` applies to POST as well as PUT, and
+  multipart inherits it from upload when omitted.
+- Unsigned POST uploads without `fileSize` are capped at 5 GB (the S3 POST
+  object limit).
+- Multipart complete pages `ListParts` and rejects a missing part with
+  `MULTIPART_PART_MISSING`. Abort responses include `bucket`, `key`, and
+  `uploadId`.
+- `errors.payloadTooLarge()` is in the catalog (`PAYLOAD_TOO_LARGE`, HTTP 413)
+  for quota hooks. Prefer `errors.*` over constructing `DimahS3Error` with a
+  catalog code as the first argument.
+- Plugin hooks can no longer type `prefix` / `resolveKey` — key policy stays
+  on your `dimahS3()` config. The `db()` plugin uses `pluginPath` and
+  ownership guards on multipart part/list/complete/abort.
+- `db()` 404s use `OBJECT_NOT_FOUND`. Confirm/complete will not resurrect a
+  soft-deleted row. `GET /db/objects` defaults to 50 items and maxes out at 100.
+- `@dimah-s3/server` no longer exports `resolveObjectAcl` from the package
+  root, or `coreEndpoints` from `@dimah-s3/server/api`. Use the
+  `resolveObjectAcl` config flag; plugin authors keep `createS3Endpoint` and
+  `CORE_ENDPOINT_NAMES`.
+- Feature flags: `true` or an options object turns a feature on; omit or
+  `false` turns it off. There is no `enabled` field on the options object.
+
+### React and UI
+
+The headless hooks keep the same product shape (`useUpload` /
+`useMultiUpload` / `useFileUpload` / `useMultiFileUpload`), with a smaller
+public surface.
+
+- `useFileUpload` now exposes `fileInfo` instead of separate `fileName` /
+  `fileSize` / `fileType` / `previewUrl` fields. Multi-file rows use the same
+  `name` / `size` / `type` shape.
+- `isPending` is true for the whole in-flight window. `isUploading` still
+  means bytes are transferring. Wired UI disables intake on `isPending`.
+- `useMultiUpload` `objectKey` is a function of the file only.
+- `maxFiles` and `concurrentFiles` live on multi-file config only.
+  `uploadOptions` / `getUploadOptions` are on `useFileUpload` as well as
+  multi.
+- Internal helpers (`useFileIntake`, speed/preview factories, error mappers)
+  are no longer exported from `@dimah-s3/react`. Dropzone types stay on
+  `useUpload`.
+- Upload status covers `finalizing`. Multi-file status can pause. Download
+  button accepts `bucket`, lifecycle hooks, and an optional tooltip.
+- Dropzone `accept` is the HTML list (`image/*`, `application/pdf`, `.pdf`).
+  The native file input gets that string. Type checks go through
+  `validateFile` (dropzone `validator` at intake, and again on programmatic
+  `upload()`). There is no MIME-map helper and no IANA table.
+
 ## @dimah-s3/ui@0.8.6
 
 ### deps update

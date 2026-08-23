@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  npm:@dimah-s3/react:\n    type: patch\n  group:dimah-s3:\n    type: patch\n---\n\n## deps update\n"
-    filename: 2026-08-21-mt2xr9kg.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: major\n---\n\n## Freeze the 1.0 APIs\n\nServer, React, and UI contracts are now the v1 surface. Uploads stay private\nunless you set `upload.acl` or `upload.allowClientAcl`. `allowClientBucket`\nand `buckets` cannot be combined. Presign lifetime is clamped with\n`maxExpiresIn` (7 days by default).\n\n### Server\n\n- Confirm, abort, and multipart list/complete map missing S3 objects or\n  uploads to `OBJECT_NOT_FOUND` instead of a generic 500.\n- PUT presigns include object metadata (and the `x-amz-meta-*` headers the\n  client must send). `requireFileSize` applies to POST as well as PUT, and\n  multipart inherits it from upload when omitted.\n- Unsigned POST uploads without `fileSize` are capped at 5 GB (the S3 POST\n  object limit).\n- Multipart complete pages `ListParts` and rejects a missing part with\n  `MULTIPART_PART_MISSING`. Abort responses include `bucket`, `key`, and\n  `uploadId`.\n- `errors.payloadTooLarge()` is in the catalog (`PAYLOAD_TOO_LARGE`, HTTP 413)\n  for quota hooks. Prefer `errors.*` over constructing `DimahS3Error` with a\n  catalog code as the first argument.\n- Plugin hooks can no longer type `prefix` / `resolveKey` — key policy stays\n  on your `dimahS3()` config. The `db()` plugin uses `pluginPath` and\n  ownership guards on multipart part/list/complete/abort.\n- `db()` 404s use `OBJECT_NOT_FOUND`. Confirm/complete will not resurrect a\n  soft-deleted row. `GET /db/objects` defaults to 50 items and maxes out at 100.\n- `@dimah-s3/server` no longer exports `resolveObjectAcl` from the package\n  root, or `coreEndpoints` from `@dimah-s3/server/api`. Use the\n  `resolveObjectAcl` config flag; plugin authors keep `createS3Endpoint` and\n  `CORE_ENDPOINT_NAMES`.\n- Feature flags: `true` or an options object turns a feature on; omit or\n  `false` turns it off. There is no `enabled` field on the options object.\n\n### React and UI\n\nThe headless hooks keep the same product shape (`useUpload` /\n`useMultiUpload` / `useFileUpload` / `useMultiFileUpload`), with a smaller\npublic surface.\n\n- `useFileUpload` now exposes `fileInfo` instead of separate `fileName` /\n  `fileSize` / `fileType` / `previewUrl` fields. Multi-file rows use the same\n  `name` / `size` / `type` shape.\n- `isPending` is true for the whole in-flight window. `isUploading` still\n  means bytes are transferring. Wired UI disables intake on `isPending`.\n- `useMultiUpload` `objectKey` is a function of the file only.\n- `maxFiles` and `concurrentFiles` live on multi-file config only.\n  `uploadOptions` / `getUploadOptions` are on `useFileUpload` as well as\n  multi.\n- Internal helpers (`useFileIntake`, speed/preview factories, error mappers)\n  are no longer exported from `@dimah-s3/react`. Dropzone types stay on\n  `useUpload`.\n- Upload status covers `finalizing`. Multi-file status can pause. Download\n  button accepts `bucket`, lifecycle hooks, and an optional tooltip.\n- Dropzone `accept` is the HTML list (`image/*`, `application/pdf`, `.pdf`).\n  The native file input gets that string. Type checks go through\n  `validateFile` (dropzone `validator` at intake, and again on programmatic\n  `upload()`). There is no MIME-map helper and no IANA table.\n"
+    filename: 2026-08-23-v1.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-21-mt2xr9kg.md
+      - 2026-08-23-v1.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-21-mt2xr9kg.md
+      - 2026-08-23-v1.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-21-mt2xr9kg.md
-    id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-08-21-mt2xr9kg.md
+      - 2026-08-23-v1.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-21-mt2xr9kg.md
+      - 2026-08-23-v1.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-08-23-v1.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-21-mt2xr9kg.md
+      - 2026-08-23-v1.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
-  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/db
+  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
