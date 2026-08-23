@@ -1,22 +1,21 @@
 ---
 title: Security
-description: What the library does not trust, and where your app must take over.
+description: Untrusted input, key scoping, and what to trust after HeadObject.
 icon: Shield
 ---
 
-dimah-s3 signs URLs. It does not authenticate users, enforce quotas, or
-pick object keys for you. Those stay in your `guard` / `prefix` /
-`resolveKey` hooks.
+dimah-s3 signs URLs. It does not authenticate users, enforce quotas, or pick
+object keys. Those stay in your `guard`, `prefix`, and `resolveKey` hooks.
 
 <Callout type="warn">
-  Never put S3 credentials in the browser. The AWS SDK `S3Client` lives on the
-  server and is passed into `dimahS3({client})`.
+  Never put S3 credentials in the browser. Keep the AWS SDK `S3Client` on the
+  server and pass it into `dimahS3({client})`.
 </Callout>
 
 ## Untrusted input
 
 The client proposes `key` and may send `bucket`, `fileSize`, `contentType`,
-`metadata`, and `acl`. Treat all of them as untrusted.
+`metadata`, `acl`, and `expiresIn`. Treat all of them as untrusted.
 
 | Field                      | Default                                | How to scope it                                             |
 | -------------------------- | -------------------------------------- | ----------------------------------------------------------- |
@@ -24,24 +23,26 @@ The client proposes `key` and may send `bucket`, `fileSize`, `contentType`,
 | `bucket`                   | ignored; `dimahS3({ bucket })` is used | `buckets` (allowlist) **or** `allowClientBucket` — not both |
 | `acl`                      | always `private`                       | `upload.acl` (server-forced) or `upload.allowClientAcl`     |
 | `fileSize` / `contentType` | declared by the client                 | Trust `onConfirmed` / `multipart.onComplete` (`HeadObject`) |
+| `expiresIn`                | clamped to `maxExpiresIn` (7 days)     | Clients cannot exceed the SigV4 maximum                     |
 
-`prefix` and `resolveKey` run before feature guards. Keys that are already
-prefixed are left unchanged so confirm / download of a stored key still
-works. That is not an authorization check — still reject unauthorized work
-in `guard`.
+## Keys
 
-`resolveKey` must be **deterministic**. Confirm, complete, download, and
-delete run the same key policy again. If the function returns a new key
-each time, those calls miss the object. The `key` and `bucket` in the
-response are the values to store and send back.
+Rewrite `key` with `prefix` or `resolveKey` on each feature, then reject
+unauthorized work in `guard`. Both run before feature guards.
 
-Unsafe keys are rejected with `INVALID_KEY`: empty, backslash, NUL, `.` /
-`..` segments, or empty path segments.
+- A key that already has the prefix is left as-is, so confirm and download of
+  a stored key still work. That is not authorization — `guard` still has to
+  reject the request.
+- `resolveKey` must be **deterministic**. Confirm, complete, download, and
+  delete run the same policy again. A new key each time misses the object.
+  Store and send back the `key` and `bucket` from the response.
+- Unsafe keys fail with `INVALID_KEY`: empty, backslash, NUL, `.` / `..`
+  segments, or empty path segments.
+- Give `download` and `delete` the same `prefix` (or an equivalent
+  `resolveKey`) if they should only see keys under that prefix.
 
-Set the same `prefix` (or an equivalent `resolveKey`) on `download` and
-`delete` if those features should only see keys under that prefix.
-Multipart inherits `prefix`, `resolveKey`, `acl`, `allowClientAcl`, and
-`requireFileSize` from upload when omitted.
+When omitted, multipart inherits `prefix`, `resolveKey`, `acl`,
+`allowClientAcl`, and `requireFileSize` from upload.
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -76,15 +77,12 @@ upload: {
 }
 ```
 
-Multipart inherits `prefix`, `resolveKey`, `acl`, `allowClientAcl`, and
-`requireFileSize` from upload when omitted.
-
 ## Trust HeadObject, not the presign body
 
 Simple uploads call `confirm` after the bytes land. Multipart calls
-`multipart.complete` instead — there is no second `confirm`. Persist
-records in `upload.onConfirmed` **and** `multipart.onComplete`. Both
-see size and type from `HeadObject`.
+`multipart.complete` instead — there is no second `confirm`. Persist records
+in `upload.onConfirmed` **and** `multipart.onComplete`. Both see size and
+type from `HeadObject`.
 
 Quota and max size belong in your hooks, not in library config:
 
@@ -114,19 +112,16 @@ export const s3 = dimahS3({
 });
 ```
 
-`requireFileSize` rejects presign when the client omits `fileSize` (POST
-and PUT). It does not verify the bytes — that is `onConfirmed`. Unsigned
-POST uploads without `fileSize` are still capped at 5 GB (the S3 POST
-object limit).
+`requireFileSize` rejects presign when the client omits `fileSize` (POST and
+PUT). It does not verify the bytes — that is `onConfirmed`. Unsigned POST
+uploads without `fileSize` are still capped at 5 GB (the S3 POST object
+limit).
 
-## Errors from hooks
+## Hook throws
 
-A plain `Error` in `guard` / `*Guard` becomes **403** (message kept, no
-library `code`). The same throw in `onPresigned` / `onConfirmed` / other
-`on*` hooks becomes **500**. Throw `DimahS3Error` or use
-[`errors`](/docs/server/errors) when you need a specific status and `code`.
+| Where              | Plain `Error`                            | `errors.*` / `DimahS3Error`     |
+| ------------------ | ---------------------------------------- | ------------------------------- |
+| `guard` / `*Guard` | **403**, message kept, no library `code` | the status and `code` you chose |
+| `on*` hooks        | **500**                                  | the status and `code` you chose |
 
-Presigned URL lifetime is clamped by `maxExpiresIn` (default 7 days, the
-SigV4 maximum). Clients cannot request a longer window.
-
-See [Errors](/docs/server/errors) for the catalog.
+Full catalog: [Errors](/docs/server/errors).

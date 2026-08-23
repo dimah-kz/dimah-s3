@@ -4,12 +4,8 @@ description: Stable codes, the errors helper, and how to detect DimahS3Error.
 icon: CircleAlert
 ---
 
-API failures serialize as JSON `{ message, code?, params? }` with an HTTP
-status. `DimahS3Error` extends better-call `APIError`. Catch with
-`isAPIError` / `isDimahS3Error` / `isS3ErrorCode`.
-
-Prefer the `errors` helper from `@dimah-s3/server` in hooks and plugins
-so the `code` stays in the catalog.
+Failed requests return JSON `{ message, code?, params? }` and an HTTP status.
+Throw with the `errors` helper so the `code` stays in the catalog.
 
 ```ts
 import { errors, isDimahS3Error, isS3ErrorCode } from "@dimah-s3/server";
@@ -24,9 +20,11 @@ if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
 }
 ```
 
-`S3_ERROR_CODES` lives in `@dimah-s3/core` and is re-exported from
-`@dimah-s3/server`. The instance also has `s3.$ERROR_CODES`. On the client,
-`useFormatDimahError` maps each `code` to a localized string.
+`DimahS3Error` extends better-call `APIError`. Detect it with `isAPIError`,
+`isDimahS3Error`, or `isS3ErrorCode`. The catalog is `S3_ERROR_CODES` in
+`@dimah-s3/core` — re-exported from `@dimah-s3/server`, and also on
+`s3.$ERROR_CODES`. On the client, `useFormatDimahError` maps each `code` to a
+localized string.
 
 ## Catalog
 
@@ -48,7 +46,7 @@ if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
 | `S3_NETWORK_ERROR`             | 502  | Unreachable S3 endpoint (`params.code`)                             |
 | `INTERNAL_ERROR`               | 500  | Unexpected throw; failed `on*` hook                                 |
 
-Disabled features stay registered and return `FEATURE_DISABLED` rather than
-an empty 404.
+Disabled features stay registered and return `FEATURE_DISABLED`, not an empty 404.
 
-Hook throws: [Security](/docs/server/security#errors-from-hooks).
+A plain `Error` in a guard is **403**. The same throw in an `on*` hook is
+**500**. See [Security](/docs/server/security#hook-throws).
