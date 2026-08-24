@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n## cli templates deps update\n"
-    filename: 2026-08-23-mt68z7ls.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Document `prefix` factories\n\n`prefix` on upload, download, delete, and multipart already accepted an async\nfactory with `ResolveKeyContext` — the same context as `resolveKey`. Docs,\nJSDoc, and the public `@dimah-s3/server` export now make that path obvious.\nUse a factory for per-user or per-tenant folders so confirm and download of a\nstored key stay idempotent. `resolveKey` still replaces the entire key.\n"
+    filename: 2026-08-24-prefix-factory.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-23-mt68z7ls.md
+      - 2026-08-24-prefix-factory.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-23-mt68z7ls.md
+      - 2026-08-24-prefix-factory.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-08-23-mt68z7ls.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - changelogIds:
-      - 2026-08-23-mt68z7ls.md
+      - 2026-08-24-prefix-factory.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-08-23-mt68z7ls.md
+      - 2026-08-24-prefix-factory.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-08-24-prefix-factory.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-23-mt68z7ls.md
+      - 2026-08-24-prefix-factory.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
-  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/react
+  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
