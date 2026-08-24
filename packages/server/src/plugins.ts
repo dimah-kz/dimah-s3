@@ -29,6 +29,7 @@ export type {
   DownloadPresignGuardContext,
   FeatureToggle,
   GuardContext,
+  KeyPolicy,
   KeyPrefix,
   MultipartAbortGuardContext,
   MultipartCompleteGuardContext,

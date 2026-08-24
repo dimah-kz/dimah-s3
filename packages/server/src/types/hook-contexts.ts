@@ -17,7 +17,11 @@ type ObjectContext = GuardContext & {
   bucket: string;
 };
 
-/** Input to `prefix` / `resolveKey` on a feature config. */
+/**
+ * Input to `prefix` (string or factory) and `resolveKey` on a feature config.
+ * Prefer a `prefix` factory for per-user / per-tenant folders so already-
+ * prefixed stored keys stay idempotent.
+ */
 export type ResolveKeyContext = {
   request: Request;
   /** Key the client sent. */

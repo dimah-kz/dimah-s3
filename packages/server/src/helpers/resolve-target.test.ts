@@ -5,7 +5,7 @@ import {
   resolveBucket,
   resolveObjectKey,
 } from "./resolve-target";
-import type { ResolvedDimahS3Config } from "@/types";
+import type { ResolvedDimahS3Config, ResolveKeyContext } from "@/types";
 
 const request = new Request("http://localhost");
 
@@ -56,6 +56,38 @@ describe("resolveObjectKey", () => {
       resolveObjectKey(
         {
           prefix: "uploads",
+          resolveKey: ({ proposedKey }) => `users/1/${proposedKey}`,
+        },
+        { request, proposedKey: "a.png", bucket: "bucket" },
+      ),
+    ).resolves.toBe("users/1/a.png");
+  });
+
+  it("applies an async prefix factory and stays idempotent", async () => {
+    const prefix = async ({ request: req }: ResolveKeyContext) => {
+      const userId = req.headers.get("x-user-id") ?? "anon";
+      return `users/${userId}`;
+    };
+    const ctx = {
+      request: new Request("http://localhost", {
+        headers: { "x-user-id": "42" },
+      }),
+      proposedKey: "a.png",
+      bucket: "bucket",
+    };
+    await expect(resolveObjectKey({ prefix }, ctx)).resolves.toBe(
+      "users/42/a.png",
+    );
+    await expect(
+      resolveObjectKey({ prefix }, { ...ctx, proposedKey: "users/42/a.png" }),
+    ).resolves.toBe("users/42/a.png");
+  });
+
+  it("lets resolveKey win over a prefix factory", async () => {
+    await expect(
+      resolveObjectKey(
+        {
+          prefix: async () => "uploads",
           resolveKey: ({ proposedKey }) => `users/1/${proposedKey}`,
         },
         { request, proposedKey: "a.png", bucket: "bucket" },

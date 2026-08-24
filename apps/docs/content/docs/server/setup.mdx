@@ -61,10 +61,13 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 <Callout type="warn">
   Object `key` comes from the client — treat it as untrusted. Rewrite it with
   `prefix` or `resolveKey` on each feature, then reject unauthorized work in
-  `guard`. The `bucket` you pass to `dimahS3` is the one that is used. A
-  `bucket` on the request is ignored unless you set `allowClientBucket` or
-  `buckets` (not both). Uploads are `private` unless `upload.acl` or
-  `upload.allowClientAcl` is set. Full rules: [Security](/docs/server/security).
+  `guard`. `prefix` may be a string or an async factory (`ResolveKeyContext`)
+  that returns the folder to prepend — use that for per-user / per-tenant paths
+  so confirm and download of a stored key stay idempotent. The `bucket` you pass
+  to `dimahS3` is the one that is used. A `bucket` on the request is ignored
+  unless you set `allowClientBucket` or `buckets` (not both). Uploads are
+  `private` unless `upload.acl` or `upload.allowClientAcl` is set. Full rules:
+  [Security](/docs/server/security).
 </Callout>
 
 A plain `Error` in `guard` / `*Guard` becomes **403**. The same throw in

@@ -135,7 +135,8 @@ provider — [Internationalization](/docs/i18n).
 
 `objectKey` is optional. The default is
 `` `${crypto.randomUUID()}/${sanitizeFileName(file.name)}` ``. Prefer a server
-`upload.prefix` (or `resolveKey`) so keys stay scoped.
+`upload.prefix` — a string or an async factory — so keys stay scoped.
+`resolveKey` is only when you replace the entire key.
 
 ```tsx title="app/uploader.tsx"
 "use client";

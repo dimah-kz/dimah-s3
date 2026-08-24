@@ -27,8 +27,10 @@ export type {
   DownloadConfig,
   DeleteConfig,
   FeatureToggle,
+  KeyPolicy,
   KeyPrefix,
   MultipartConfig,
+  ResolveKeyContext,
   ResolvedDimahS3Config,
   UploadConfig,
 } from "./types";

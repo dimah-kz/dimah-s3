@@ -55,9 +55,13 @@ export const s3 = dimahS3({
 
 <Callout type="warn">
   Treat `key` as untrusted. Rewrite it with `prefix` or `resolveKey`, then
-  reject unauthorized uploads in `guard`. Object ACL is `private` unless you set
-  `upload.acl` or `upload.allowClientAcl`. How `bucket` is resolved is in
-  [Server setup](/docs/server/setup).
+  reject unauthorized uploads in `guard`. `prefix` can be a string or an async
+  factory that returns the folder to prepend (same `ResolveKeyContext` as
+  `resolveKey`). Prefer the factory for per-user folders — `resolveKey` replaces
+  the whole key and must stay deterministic. Object ACL is `private` unless you
+  set `upload.acl` or `upload.allowClientAcl`. How `bucket` is resolved is in
+  [Server setup](/docs/server/setup). Dynamic prefix example:
+  [Security](/docs/server/security#keys).
 </Callout>
 
 Set `requireFileSize: true` to reject presign requests that omit `fileSize`

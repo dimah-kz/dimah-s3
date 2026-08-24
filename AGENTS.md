@@ -14,9 +14,11 @@ Do not treat this monorepo as the app guide. Use
 
 - Never expose S3 credentials to the client.
 - The client proposes `key` and may send `bucket`. Both are untrusted —
-  scope them in `guard` / `prefix` / `resolveKey`. Client `bucket` is ignored
-  unless you set `allowClientBucket` or `buckets` (not both). Client `acl` is
-  ignored unless you set `allowClientAcl` or a server `acl`.
+  scope them in `guard` / `prefix` / `resolveKey`. `prefix` may be a string
+  or an async factory (`ResolveKeyContext`) that returns the folder to
+  prepend. Client `bucket` is ignored unless you set `allowClientBucket` or
+  `buckets` (not both). Client `acl` is ignored unless you set
+  `allowClientAcl` or a server `acl`.
 - Trust `onConfirmed` (HeadObject) for size and type, not the presign body.
 
 ## Workflow

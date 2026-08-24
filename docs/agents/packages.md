@@ -22,7 +22,7 @@
 1. `createS3Endpoint` + Zod schema in `api/routes/`; add the export to `coreEndpoints`.
 2. Hook context types in `types/hook-contexts.ts`.
 3. Feature flags via `DimahS3Config` (`upload`, `download`, `delete`, `multipart`) — disabled → `FEATURE_DISABLED` (HTTP 404; endpoint still registered). `true` or an options object means on; omit or `false` means off. Multipart is on with upload unless `multipart: false`.
-4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. `prefix` / `resolveKey` rewrite keys. Client `bucket` is ignored unless `allowClientBucket` or `buckets` (mutually exclusive). Client `acl` is ignored unless `allowClientAcl` or a server `acl`.
+4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. `prefix` (string or `ResolveKeyContext` factory) / `resolveKey` rewrite keys. Client `bucket` is ignored unless `allowClientBucket` or `buckets` (mutually exclusive). Client `acl` is ignored unless `allowClientAcl` or a server `acl`.
 5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). Next adapter exposes GET/POST/PUT/PATCH/DELETE. New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
 
 ## When adding or changing a server plugin

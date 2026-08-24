@@ -30,12 +30,19 @@ The client proposes `key` and may send `bucket`, `fileSize`, `contentType`,
 Rewrite `key` with `prefix` or `resolveKey` on each feature, then reject
 unauthorized work in `guard`. Both run before feature guards.
 
+- `prefix` is a string **or** an async factory with the same
+  `ResolveKeyContext` as `resolveKey` (`request`, `proposedKey`, `fileName`,
+  `contentType`, `bucket`). The factory returns the folder to prepend, not
+  the full key.
 - A key that already has the prefix is left as-is, so confirm and download of
   a stored key still work. That is not authorization — `guard` still has to
-  reject the request.
-- `resolveKey` must be **deterministic**. Confirm, complete, download, and
-  delete run the same policy again. A new key each time misses the object.
-  Store and send back the `key` and `bucket` from the response.
+  reject the request. Prefer a `prefix` factory for per-user / per-tenant
+  folders so you keep that idempotent prepend.
+- `resolveKey` replaces the entire key. It must be **deterministic**. Confirm,
+  complete, download, and delete run the same policy again. A new key each
+  time misses the object. Store and send back the `key` and `bucket` from the
+  response. Use it when you ignore or reshape the client key, not for a
+  dynamic folder — that is `prefix`.
 - Unsafe keys fail with `INVALID_KEY`: empty, backslash, NUL, `.` / `..`
   segments, or empty path segments.
 - Give `download` and `delete` the same `prefix` (or an equivalent
@@ -53,6 +60,37 @@ export const s3 = dimahS3({
   delete: { prefix: "uploads" },
 });
 ```
+
+Per-user (or per-tenant) folders — reuse the same factory on every feature:
+
+```ts title="lib/s3.ts"
+import { dimahS3, errors } from "@dimah-s3/server";
+import type { ResolveKeyContext } from "@dimah-s3/server";
+
+const userPrefix = async ({ request }: ResolveKeyContext) => {
+  const session = await getSession(request); // your auth
+  if (!session) throw errors.unauthorized();
+  return `users/${session.userId}`;
+};
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  upload: { prefix: userPrefix },
+  download: { prefix: userPrefix },
+  delete: { prefix: userPrefix },
+});
+```
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="KeyPolicy"
+/>
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="ResolveKeyContext"
+/>
 
 ## Bucket flags
 

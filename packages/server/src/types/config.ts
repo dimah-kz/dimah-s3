@@ -25,17 +25,27 @@ import type { DimahS3Plugin } from "@/plugin/types";
 
 export type { ResolveKeyContext };
 
-/** String prefix or async factory used by {@link resolveObjectKey}. */
+/**
+ * Static folder, or a factory that returns one from {@link ResolveKeyContext}.
+ * The return value is prepended — it is not the full object key. Use
+ * {@link KeyPolicy.resolveKey} when you need to replace the key entirely.
+ */
 export type KeyPrefix =
   string | ((context: ResolveKeyContext) => string | Promise<string>);
 
 export type KeyPolicy = {
   /**
-   * Prepended to the client-proposed key. Already-prefixed keys are left
-   * unchanged so confirm / download of the stored key still work.
+   * Prepended to the client-proposed key. A string or an async factory with
+   * the same {@link ResolveKeyContext} as {@link resolveKey} (session, tenant,
+   * …). Already-prefixed keys are left unchanged so confirm / download of the
+   * stored key still work.
    */
   prefix?: KeyPrefix;
-  /** Full control over the object key. Wins over {@link prefix}. */
+  /**
+   * Full control over the object key. Wins over {@link prefix}. Must be
+   * deterministic across presign, confirm, download, and delete — a new key
+   * each time misses the object.
+   */
   resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
 };
 
