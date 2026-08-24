@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
 import { HomeDropzoneDemo } from "@/components/demos/home-dropzone-demo";
+import { HomeAnnouncement } from "@/components/home-announcement";
 import { buttonVariants } from "@/components/ui/button";
 import { githubRepoUrl, siteTagline } from "@/lib/shared";
 import { cn } from "@/lib/utils";
@@ -21,14 +22,7 @@ export default function HomePage() {
       />
 
       <div className="flex w-full max-w-3xl flex-col items-center gap-5 sm:gap-6">
-        <p
-          className={cn(
-            enter,
-            "rounded-full border border-fd-border px-3 py-1 text-sm font-medium tracking-wide text-fd-muted-foreground",
-          )}
-        >
-          Presign-first
-        </p>
+        <HomeAnnouncement className={enter} />
         <h1
           className={cn(
             enter,
