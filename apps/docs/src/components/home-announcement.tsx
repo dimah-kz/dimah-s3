@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { docsRoute } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
@@ -12,8 +12,11 @@ export function HomeAnnouncement({ className }: { className?: string }) {
         className,
       )}
     >
-      <Sparkles className="size-3.5" aria-hidden />
-      Bring your own S3Client
+      <KeyRound className="size-3.5" aria-hidden />
+      Pass your own AWS-SDK{" "}
+      <code className="font-mono text-[0.8125rem] font-medium tracking-normal">
+        S3Client
+      </code>
     </Link>
   );
 }
