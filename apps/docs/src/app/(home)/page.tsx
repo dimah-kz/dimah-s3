@@ -98,7 +98,7 @@ export default function HomePage() {
                 <span className="size-2 rounded-full bg-fd-muted-foreground/25" />
               </div>
               <span className="font-mono text-[0.6875rem] font-medium tracking-wider text-fd-muted-foreground/80">
-                dimah-s3/demo
+                demo
               </span>
               <span aria-hidden className="size-5" />
             </div>
