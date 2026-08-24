@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import { docsRoute, packageVersion } from "@/lib/shared";
+import { docsRoute } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
 export function HomeAnnouncement({ className }: { className?: string }) {
@@ -12,7 +12,8 @@ export function HomeAnnouncement({ className }: { className?: string }) {
         className,
       )}
     >
-      <Sparkles className="size-3.5" aria-hidden />v{packageVersion} is out
+      <Sparkles className="size-3.5" aria-hidden />
+      Bring your own S3Client
     </Link>
   );
 }
