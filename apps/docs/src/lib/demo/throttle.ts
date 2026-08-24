@@ -1,7 +1,7 @@
 /** Shared demo transfer pacing — same feel for upload and download. */
-export const DEMO_BYTES_PER_SECOND = 5 * 1024 * 1024;
-export const DEMO_MIN_DURATION_MS = 1_500;
-export const DEMO_MAX_DURATION_MS = 7_000;
+export const DEMO_BYTES_PER_SECOND = 3 * 1024 * 1024;
+export const DEMO_MIN_DURATION_MS = 2_500;
+export const DEMO_MAX_DURATION_MS = 10_000;
 export const DEMO_TICK_MS = 50;
 
 export function demoTransferDurationMs(totalBytes: number) {
