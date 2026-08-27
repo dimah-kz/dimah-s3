@@ -15,7 +15,7 @@ export function HomeAnnouncement({ className }: { className?: string }) {
       <span className="flex size-7 items-center justify-center rounded-full border border-fd-border/80 bg-fd-muted/70 text-fd-primary">
         <KeyRound className="size-3.5" aria-hidden />
       </span>
-      Pass your own AWS-SDK{" "}
+      Bring your own AWS SDK{" "}
       <code className="font-mono text-[0.8125rem] font-semibold tracking-normal text-fd-foreground">
         S3Client
       </code>
