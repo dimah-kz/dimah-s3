@@ -117,7 +117,10 @@ export default function HomePage() {
                 Interactive upload
               </span>
               <span className="inline-flex items-center gap-1.5 font-mono text-[0.625rem] font-medium tracking-wide text-fd-muted-foreground/75 uppercase">
-                <span aria-hidden className="size-1.5 rounded-full bg-fd-primary/80" />
+                <span
+                  aria-hidden
+                  className="size-1.5 rounded-full bg-fd-primary/80"
+                />
                 Live
               </span>
             </div>
