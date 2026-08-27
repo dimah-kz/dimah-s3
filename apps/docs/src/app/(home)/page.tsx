@@ -88,7 +88,7 @@ export default function HomePage() {
           <ul
             className={cn(
               enter,
-              "mt-9 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium tracking-wide text-fd-muted-foreground delay-300 lg:justify-start",
+              "mt-9 hidden flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium tracking-wide text-fd-muted-foreground delay-300 sm:flex lg:justify-start",
             )}
           >
             {highlights.map((highlight, index) => (
