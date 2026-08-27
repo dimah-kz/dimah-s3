@@ -32,7 +32,7 @@ export default function HomePage() {
             id="home-title"
             className={cn(
               enter,
-              "mt-7 max-w-4xl bg-linear-to-b from-fd-foreground from-45% to-fd-foreground/60 bg-clip-text text-balance text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-transparent delay-100 sm:text-5xl lg:max-w-2xl lg:text-[56px]",
+              "mt-7 max-w-4xl bg-linear-to-b from-fd-foreground from-45% to-fd-foreground/60 bg-clip-text text-balance text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-transparent delay-100 sm:text-5xl lg:max-w-2xl lg:text-[58px]",
             )}
           >
             {siteTagline}
@@ -112,16 +112,13 @@ export default function HomePage() {
           )}
         >
           <div className="relative rounded-[1.75rem] border border-fd-border/80 bg-fd-card/75 p-3 shadow-2xl shadow-fd-foreground/5 backdrop-blur-xl sm:p-4">
-            <div className="flex h-8 items-center justify-between px-2">
-              <span className="font-mono text-[0.6875rem] font-medium tracking-[0.14em] text-fd-muted-foreground/80 uppercase">
-                Interactive upload
-              </span>
-              <span className="inline-flex items-center gap-1.5 font-mono text-[0.625rem] font-medium tracking-wide text-fd-muted-foreground/75 uppercase">
+            <div className="flex h-8 items-center justify-end px-2">
+              <span className="inline-flex -mt-2 items-center gap-1.5 rounded-full border border-fd-border/70 bg-fd-background/60 px-2 py-0.5 font-mono text-[0.625rem] font-medium tracking-wider text-fd-muted-foreground uppercase">
                 <span
                   aria-hidden
-                  className="size-1.5 rounded-full bg-fd-primary/80"
+                  className="size-1.5 rounded-full bg-fd-primary"
                 />
-                Live
+                demo
               </span>
             </div>
 
