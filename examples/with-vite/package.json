@@ -14,7 +14,7 @@
     "check-types": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1116.0",
+    "@aws-sdk/client-s3": "^3.1119.0",
     "@base-ui/react": "^1.7.0",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
@@ -23,8 +23,8 @@
     "@hono/node-server": "^2.1.1",
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
-    "hono": "^4.13.3",
-    "lucide-react": "^1.33.0",
+    "hono": "^4.13.5",
+    "lucide-react": "^1.34.0",
     "next-themes": "^0.4.6",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -32,7 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^6.1.0",

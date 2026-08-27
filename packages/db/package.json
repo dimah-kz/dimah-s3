@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@dimah-s3/server": "workspace:*",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "drizzle-orm": "^0.45.2",

@@ -14,15 +14,17 @@ const githubUrl = githubRepoUrl();
 const enter =
   "animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700 ease-out motion-reduce:animate-none";
 
+const highlights = ["Presigned flows", "S3-compatible", "Optional UI"];
+
 export default function HomePage() {
   return (
     <section
       aria-labelledby="home-title"
-      className="relative isolate mx-auto flex min-h-[calc(100svh-4rem)] w-full min-w-0 flex-1 items-center overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
+      className="relative isolate mx-auto flex min-h-[calc(100svh-4rem)] w-full min-w-0 flex-1 items-center overflow-hidden px-4 py-14 sm:px-6 sm:py-16 lg:px-8"
     >
       <HomeBackground />
 
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-16 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)] lg:gap-12 xl:gap-20">
+      <div className="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)] lg:gap-12 xl:gap-20">
         <div className="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-start">
           <HomeAnnouncement className={cn(enter, "delay-75")} />
 
@@ -82,6 +84,25 @@ export default function HomePage() {
               View on GitHub
             </Link>
           </div>
+
+          <ul
+            className={cn(
+              enter,
+              "mt-9 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium tracking-wide text-fd-muted-foreground delay-300 lg:justify-start",
+            )}
+          >
+            {highlights.map((highlight, index) => (
+              <li key={highlight} className="flex items-center gap-x-4">
+                {index > 0 ? (
+                  <span
+                    aria-hidden
+                    className="size-1 rounded-full bg-fd-muted-foreground/45"
+                  />
+                ) : null}
+                {highlight}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div
@@ -90,17 +111,15 @@ export default function HomePage() {
             "relative mx-auto w-full max-w-xl delay-300 lg:delay-200",
           )}
         >
-          <div className="relative rounded-[1.75rem] border border-fd-border/80 bg-fd-card/75 p-2 shadow-2xl shadow-fd-foreground/5 backdrop-blur-xl">
-            <div className="flex h-10 items-center justify-between px-3">
-              <div aria-hidden className="flex items-center gap-1.5">
-                <span className="size-2 rounded-full bg-fd-muted-foreground/25" />
-                <span className="size-2 rounded-full bg-fd-muted-foreground/25" />
-                <span className="size-2 rounded-full bg-fd-muted-foreground/25" />
-              </div>
-              <span className="font-mono text-[0.6875rem] font-medium tracking-wider text-fd-muted-foreground/80">
-                demo
+          <div className="relative rounded-[1.75rem] border border-fd-border/80 bg-fd-card/75 p-3 shadow-2xl shadow-fd-foreground/5 backdrop-blur-xl sm:p-4">
+            <div className="flex h-8 items-center justify-between px-2">
+              <span className="font-mono text-[0.6875rem] font-medium tracking-[0.14em] text-fd-muted-foreground/80 uppercase">
+                Interactive upload
               </span>
-              <span aria-hidden className="size-5" />
+              <span className="inline-flex items-center gap-1.5 font-mono text-[0.625rem] font-medium tracking-wide text-fd-muted-foreground/75 uppercase">
+                <span aria-hidden className="size-1.5 rounded-full bg-fd-primary/80" />
+                Live
+              </span>
             </div>
 
             <div className="relative rounded-[1.25rem] border border-fd-border/80 bg-fd-background/80 p-4 sm:p-6">

@@ -11,7 +11,7 @@ export function TryDemoHint({ className }: { className?: string }) {
       )}
     >
       <MousePointer2 className="size-3 text-fd-primary" />
-      Try it
+      Live demo
     </div>
   );
 }
