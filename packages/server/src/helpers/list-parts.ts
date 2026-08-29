@@ -1,4 +1,9 @@
-import { ListPartsCommand, type Part, type S3Client } from "@aws-sdk/client-s3";
+import {
+  ListPartsCommand,
+  type ListPartsCommandOutput,
+  type Part,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 import { sendOrObjectNotFound } from "./is-aws-not-found";
 
 /** Page through ListParts until S3 reports no more parts. */
@@ -11,7 +16,7 @@ export async function listAllParts(
   let isTruncated = true;
 
   while (isTruncated) {
-    const response = await sendOrObjectNotFound(() =>
+    const response: ListPartsCommandOutput = await sendOrObjectNotFound(() =>
       client.send(
         new ListPartsCommand({
           Bucket: input.bucket,

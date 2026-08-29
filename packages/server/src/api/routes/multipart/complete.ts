@@ -1,4 +1,7 @@
-import { CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
+import {
+  CompleteMultipartUploadCommand,
+  type CompleteMultipartUploadCommandOutput,
+} from "@aws-sdk/client-s3";
 import {
   multipartCompleteBodySchema,
   parseFileName,
@@ -58,16 +61,17 @@ async function handleComplete(
     return { PartNumber: partNumber, ETag: found.ETag };
   });
 
-  const completeResult = await sendOrObjectNotFound(() =>
-    config.client.send(
-      new CompleteMultipartUploadCommand({
-        Bucket: bucket,
-        Key: key,
-        UploadId: uploadId,
-        MultipartUpload: { Parts: completeParts },
-      }),
-    ),
-  );
+  const completeResult: CompleteMultipartUploadCommandOutput =
+    await sendOrObjectNotFound(() =>
+      config.client.send(
+        new CompleteMultipartUploadCommand({
+          Bucket: bucket,
+          Key: key,
+          UploadId: uploadId,
+          MultipartUpload: { Parts: completeParts },
+        }),
+      ),
+    );
 
   const head = await headObjectAfterMultipartComplete(
     config.client,

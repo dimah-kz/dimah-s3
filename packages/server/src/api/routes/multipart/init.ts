@@ -1,4 +1,7 @@
-import { CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
+import {
+  CreateMultipartUploadCommand,
+  type CreateMultipartUploadCommandOutput,
+} from "@aws-sdk/client-s3";
 import {
   buildContentDisposition,
   multipartInitBodySchema,
@@ -49,7 +52,7 @@ async function handleMultipartInit(
     fileName: input.fileName,
   });
 
-  const { UploadId } = await config.client.send(
+  const { UploadId } = (await config.client.send(
     new CreateMultipartUploadCommand({
       Bucket: bucket,
       Key: key,
@@ -60,7 +63,7 @@ async function handleMultipartInit(
       Metadata: input.metadata,
       ACL: acl,
     }),
-  );
+  )) as CreateMultipartUploadCommandOutput;
 
   if (!UploadId) {
     throw errors.internalError();

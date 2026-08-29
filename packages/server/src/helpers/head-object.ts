@@ -26,7 +26,7 @@ export async function headObjectAfterMultipartComplete(
   bucket: string,
   key: string,
 ): Promise<HeadObjectCommandOutput> {
-  const send = () =>
+  const send = (): Promise<HeadObjectCommandOutput> =>
     sendOrObjectNotFound(() =>
       client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })),
     );

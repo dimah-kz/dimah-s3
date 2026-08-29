@@ -1,4 +1,8 @@
-import { GetObjectAclCommand, type S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectAclCommand,
+  type GetObjectAclCommandOutput,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 
 const DEFAULT_ACL_LOOKUP_TIMEOUT_MS = 1_500;
 
@@ -19,10 +23,10 @@ export async function resolveObjectAcl(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const result = await s3.send(
+    const result = (await s3.send(
       new GetObjectAclCommand({ Bucket: bucket, Key: key }),
       { abortSignal: controller.signal },
-    );
+    )) as GetObjectAclCommandOutput;
     const isPublic = result.Grants?.some(
       (g) =>
         g.Grantee?.URI === "http://acs.amazonaws.com/groups/global/AllUsers" &&
