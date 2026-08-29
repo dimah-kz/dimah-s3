@@ -15,7 +15,7 @@
     "db:purge-stale": "node --import tsx --env-file-if-exists=.env scripts/purge-stale-pending.mts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1119.0",
+    "@aws-sdk/client-s3": "^3.1120.0",
     "@base-ui/react": "^1.7.0",
     "@dimah-s3/db": "workspace:*",
     "@dimah-s3/react": "workspace:*",
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^26.3.0",
+    "@types/node": "^26.4.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:*",
