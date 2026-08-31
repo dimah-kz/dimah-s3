@@ -4,15 +4,15 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   buildContentDisposition,
   S3_API_ROUTES,
-  S3_MAX_POST_OBJECT_BYTES,
   uploadBodySchema,
   type UploadPresignResponse,
 } from "@dimah-s3/core";
-import { errors } from "@/errors";
 import {
+  assertDeclaredConstraints,
+  getResolvedRoute,
   normalizeExpiresIn,
   resolveRequestAcl,
-  resolveRequestTarget,
+  resolveUploadTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -36,79 +36,80 @@ async function handleUpload(
   input: typeof uploadBodySchema._output,
   request: Request,
 ): Promise<UploadPresignResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.upload, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-    fileName: input.fileName,
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "upload");
+  await runHook(route.guard, { request, route: route.name });
+
+  const fileSize = Math.floor(input.fileSize);
+  const fileName = input.fileName;
+  assertDeclaredConstraints(route.upload, {
+    fileName,
+    fileSize,
     contentType: input.contentType,
   });
-  const expiresIn = normalizeExpiresIn(input.expiresIn, config.maxExpiresIn);
-  const acl = resolveRequestAcl(config.upload, input.acl);
-  const contentType = input.contentType ?? "application/octet-stream";
-  const fileSize =
-    typeof input.fileSize === "number" && input.fileSize > 0
-      ? Math.floor(input.fileSize)
-      : null;
 
-  if (config.upload?.requireFileSize && fileSize === null) {
-    throw errors.fileSizeRequiredUpload();
-  }
-
-  await runHook(config.upload?.guard, {
+  const { key, bucket } = await resolveUploadTarget(route, {
     request,
+    route: route.name,
+    fileName,
+    contentType: input.contentType,
+    fileSize,
+  });
+  const expiresIn = normalizeExpiresIn(
+    route.upload?.expiresIn,
+    config.maxExpiresIn,
+  );
+  const acl = resolveRequestAcl(route.upload);
+  const contentType = input.contentType ?? "application/octet-stream";
+
+  await runHook(route.upload?.guard, {
+    request,
+    route: route.name,
     key,
     bucket,
     contentType: input.contentType,
-    fileSize: fileSize ?? undefined,
+    fileSize,
     metadata: input.metadata,
     acl,
-    fileName: input.fileName,
+    fileName,
   });
 
-  const method = config.upload?.method ?? "POST";
+  const method = route.upload?.method ?? "POST";
 
   if (method === "PUT") {
     const putHeaders: Record<string, string> = {
       "Content-Type": contentType,
       ...putMetadataHeaders(input.metadata),
     };
-    if (input.fileName) {
-      putHeaders["Content-Disposition"] = buildContentDisposition(
-        input.fileName,
-      );
-    }
+    putHeaders["Content-Disposition"] = buildContentDisposition(fileName);
 
     const url = await getSignedUrl(
-      config.client,
+      route.client,
       new PutObjectCommand({
         Bucket: bucket,
         Key: key,
         ContentType: contentType,
         ACL: acl,
         Metadata: input.metadata,
-        ...(input.fileName
-          ? { ContentDisposition: buildContentDisposition(input.fileName) }
-          : {}),
-        ...(fileSize !== null ? { ContentLength: fileSize } : {}),
+        ContentDisposition: buildContentDisposition(fileName),
+        ContentLength: fileSize,
       }),
       {
         expiresIn,
-        ...(fileSize !== null
-          ? { signableHeaders: new Set(["content-length"]) }
-          : {}),
+        signableHeaders: new Set(["content-length"]),
       },
     );
 
-    await runLifecycleHook(config.upload?.onPresigned, {
+    await runLifecycleHook(route.upload?.onPresigned, {
       request,
+      route: route.name,
       key,
       bucket,
       contentType: input.contentType,
-      fileSize: fileSize ?? undefined,
+      fileSize,
       metadata: input.metadata,
       acl,
-      fileName: input.fileName,
+      fileName,
       url,
       expiresIn,
     });
@@ -124,10 +125,7 @@ async function handleUpload(
   }
 
   const fields: Record<string, string> = { acl, "Content-Type": contentType };
-
-  if (input.fileName) {
-    fields["Content-Disposition"] = buildContentDisposition(input.fileName);
-  }
+  fields["Content-Disposition"] = buildContentDisposition(fileName);
 
   if (input.metadata) {
     for (const [k, v] of Object.entries(input.metadata)) {
@@ -135,32 +133,27 @@ async function handleUpload(
     }
   }
 
-  const rangeMin = fileSize ?? 1;
-  const rangeMax = fileSize ?? undefined;
-
   const { url, fields: signedFields } = await createPresignedPost(
-    config.client,
+    route.client,
     {
       Bucket: bucket,
       Key: key,
-      Conditions:
-        rangeMax !== undefined
-          ? [["content-length-range", rangeMin, rangeMax]]
-          : [["content-length-range", rangeMin, S3_MAX_POST_OBJECT_BYTES]],
+      Conditions: [["content-length-range", fileSize, fileSize]],
       Fields: fields,
       Expires: expiresIn,
     },
   );
 
-  await runLifecycleHook(config.upload?.onPresigned, {
+  await runLifecycleHook(route.upload?.onPresigned, {
     request,
+    route: route.name,
     key,
     bucket,
     contentType: input.contentType,
-    fileSize: fileSize ?? undefined,
+    fileSize,
     metadata: input.metadata,
     acl,
-    fileName: input.fileName,
+    fileName,
     url,
     expiresIn,
   });
@@ -179,7 +172,6 @@ export const upload = createS3Endpoint(
   S3_API_ROUTES.upload,
   { method: "POST", body: uploadBodySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "upload");
     return handleUpload(ctx.context.config, ctx.body, ctx.context.request);
   },
 );

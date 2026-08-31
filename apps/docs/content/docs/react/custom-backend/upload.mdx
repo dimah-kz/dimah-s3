@@ -9,6 +9,12 @@ description: upload and confirm — presign a single PUT/POST, then verify the o
 
 Large files: [Multipart](/docs/react/custom-backend/multipart).
 
+<Callout>
+  `upload` does not receive `key`. Generate it on the server and return it
+  in the presign response. `confirm` sends that stored `key` plus the same
+  `route`.
+</Callout>
+
 ## Presign
 
 <AutoTypeTable

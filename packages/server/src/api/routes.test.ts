@@ -3,8 +3,11 @@ import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { route } from "@/route";
 import {
+  allFeaturesRoute,
   createInstance,
+  defaultUploadBody,
   headResult,
   mockS3,
   sendByCommand,
@@ -30,31 +33,30 @@ describe("upload", () => {
   it("presigns POST uploads and runs onPresigned", async () => {
     const onPresigned = vi.fn();
     const s3 = createInstance({
-      upload: { onPresigned },
+      routes: { uploads: allFeaturesRoute({ upload: { onPresigned } }) },
     });
 
     await expect(
-      s3.api.upload({ body: { key: "a.png", contentType: "image/png" } }),
+      s3.api.upload({ body: defaultUploadBody }),
     ).resolves.toMatchObject({
       bucket: "bucket",
-      key: "a.png",
       url: "https://s3.test/post",
       method: "POST",
     });
     expect(onPresigned).toHaveBeenCalledWith(
-      expect.objectContaining({ key: "a.png", bucket: "bucket" }),
+      expect.objectContaining({ bucket: "bucket", route: "uploads" }),
     );
   });
 
   it("presigns PUT uploads when configured", async () => {
     const s3 = createInstance({
-      upload: { method: "PUT" },
+      routes: {
+        uploads: allFeaturesRoute({ upload: { method: "PUT" } }),
+      },
     });
 
     await expect(
-      s3.api.upload({
-        body: { key: "a.png", contentType: "image/png", fileName: "a.png" },
-      }),
+      s3.api.upload({ body: defaultUploadBody }),
     ).resolves.toMatchObject({
       method: "PUT",
       url: "https://s3.test/signed",
@@ -63,37 +65,19 @@ describe("upload", () => {
     expect(getSignedUrl).toHaveBeenCalled();
   });
 
-  it("requires fileSize for PUT when configured", async () => {
-    const s3 = createInstance({
-      upload: { method: "PUT", requireFileSize: true },
-    });
-
+  it("requires fileName and fileSize on the body", async () => {
+    const s3 = createInstance();
     await expect(
-      s3.api.upload({ body: { key: "a.png" } }),
+      s3.api.upload({ body: { route: "uploads" } as never }),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD.code,
+      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
       statusCode: 400,
     });
   });
 
-  it("requires fileSize for POST when configured", async () => {
-    const s3 = createInstance({
-      upload: { requireFileSize: true },
-    });
-
-    await expect(
-      s3.api.upload({ body: { key: "a.png" } }),
-    ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD.code,
-      statusCode: 400,
-    });
-  });
-
-  it("keeps objects private unless allowClientAcl is set", async () => {
-    const s3 = createInstance({ upload: true });
-    await s3.api.upload({
-      body: { key: "a.png", acl: "public-read" },
-    });
+  it("keeps objects private unless the route sets acl", async () => {
+    const s3 = createInstance();
+    await s3.api.upload({ body: defaultUploadBody });
     expect(createPresignedPost).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -102,13 +86,13 @@ describe("upload", () => {
     );
   });
 
-  it("honors a client ACL when allowClientAcl is set", async () => {
+  it("forces a server ACL", async () => {
     const s3 = createInstance({
-      upload: { allowClientAcl: true },
+      routes: {
+        uploads: allFeaturesRoute({ upload: { acl: "public-read" } }),
+      },
     });
-    await s3.api.upload({
-      body: { key: "a.png", acl: "public-read" },
-    });
+    await s3.api.upload({ body: defaultUploadBody });
     expect(createPresignedPost).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -119,16 +103,14 @@ describe("upload", () => {
 
   it("signs PUT metadata onto the command and response headers", async () => {
     const s3 = createInstance({
-      upload: { method: "PUT" },
+      routes: {
+        uploads: allFeaturesRoute({ upload: { method: "PUT" } }),
+      },
     });
 
     await expect(
       s3.api.upload({
-        body: {
-          key: "a.png",
-          contentType: "image/png",
-          metadata: { source: "web" },
-        },
+        body: { ...defaultUploadBody, metadata: { source: "web" } },
       }),
     ).resolves.toMatchObject({
       method: "PUT",
@@ -141,82 +123,97 @@ describe("upload", () => {
     expect(command.input?.Metadata).toEqual({ source: "web" });
   });
 
-  it("ignores a client-supplied bucket by default", async () => {
-    const s3 = createInstance({ upload: true });
-    await expect(
-      s3.api.upload({ body: { key: "a.png", bucket: "other" } }),
-    ).resolves.toMatchObject({ bucket: "bucket" });
-  });
-
-  it("allows a client bucket when allowlisted", async () => {
+  it("uses the route bucket override", async () => {
     const s3 = createInstance({
-      upload: true,
-      buckets: ["bucket", "other"],
+      routes: {
+        uploads: allFeaturesRoute({ bucket: "cdn-bucket" }),
+      },
     });
     await expect(
-      s3.api.upload({ body: { key: "a.png", bucket: "other" } }),
-    ).resolves.toMatchObject({ bucket: "other" });
+      s3.api.upload({ body: defaultUploadBody }),
+    ).resolves.toMatchObject({ bucket: "cdn-bucket" });
   });
 
-  it("prefixes the object key", async () => {
+  it("prefixes the generated object key", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
     const s3 = createInstance({
-      upload: { prefix: "uploads" },
+      routes: { uploads: allFeaturesRoute({ prefix: "uploads" }) },
     });
     await expect(
-      s3.api.upload({ body: { key: "a.png" } }),
-    ).resolves.toMatchObject({ key: "uploads/a.png" });
+      s3.api.upload({ body: defaultUploadBody }),
+    ).resolves.toMatchObject({
+      key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
+    });
   });
 
-  it("caps unsigned POST uploads at 5 GiB", async () => {
-    const s3 = createInstance({ upload: true });
-    await s3.api.upload({ body: { key: "a.png" } });
+  it("locks POST content-length-range to the declared size", async () => {
+    const s3 = createInstance();
+    await s3.api.upload({ body: defaultUploadBody });
     expect(createPresignedPost).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        Conditions: [["content-length-range", 1, 5 * 1024 * 1024 * 1024]],
+        Conditions: [["content-length-range", 10, 10]],
       }),
     );
   });
 
-  it("clamps expiresIn to maxExpiresIn", async () => {
-    const s3 = createInstance({ upload: true, maxExpiresIn: 60 });
-    await s3.api.upload({ body: { key: "a.png", expiresIn: 600 } });
+  it("clamps route expiresIn to maxExpiresIn", async () => {
+    const s3 = createInstance({
+      maxExpiresIn: 60,
+      routes: {
+        uploads: allFeaturesRoute({ upload: { expiresIn: 600 } }),
+      },
+    });
+    await s3.api.upload({ body: defaultUploadBody });
     expect(createPresignedPost).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ Expires: 60 }),
     );
   });
 
-  it("rejects a bucket outside the allowlist", async () => {
-    const s3 = createInstance({ upload: true, buckets: ["bucket"] });
+  it("rejects disallowed file types", async () => {
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: { fileTypes: ["image/*"] },
+        }),
+      },
+    });
     await expect(
-      s3.api.upload({ body: { key: "a.png", bucket: "other" } }),
+      s3.api.upload({
+        body: {
+          ...defaultUploadBody,
+          fileName: "a.exe",
+          contentType: "application/octet-stream",
+        },
+      }),
     ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.INVALID_BUCKET.code,
-      statusCode: 403,
+      code: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.code,
     });
   });
 
-  it("forces a server ACL over the client value", async () => {
+  it("rejects oversized files at presign", async () => {
     const s3 = createInstance({
-      upload: { acl: "public-read" },
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: { maxFileSize: 5 },
+        }),
+      },
     });
-    await s3.api.upload({
-      body: { key: "a.png", acl: "private" },
+    await expect(
+      s3.api.upload({ body: defaultUploadBody }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
     });
-    expect(createPresignedPost).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        Fields: expect.objectContaining({ acl: "public-read" }),
-      }),
-    );
   });
 
   it("does not let s3.api callers replace bound config", async () => {
-    const s3 = createInstance({ upload: true });
+    const s3 = createInstance();
     await expect(
       s3.api.upload({
-        body: { key: "a.png" },
+        body: defaultUploadBody,
         context: { config: { bucket: "hacked" } },
       }),
     ).resolves.toMatchObject({ bucket: "bucket" });
@@ -230,11 +227,11 @@ describe("confirm", () => {
       client: mockS3(
         sendByCommand({ HeadObjectCommand: headResult() }) as never,
       ),
-      upload: { onConfirmed },
+      routes: { uploads: allFeaturesRoute({ upload: { onConfirmed } }) },
     });
 
     await expect(
-      s3.api.confirm({ body: { key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
     ).resolves.toMatchObject({
       key: "a.png",
       bucket: "bucket",
@@ -253,11 +250,10 @@ describe("confirm", () => {
           HeadObjectCommand: headResult({ ContentLength: undefined }),
         }) as never,
       ),
-      upload: true,
     });
 
     await expect(
-      s3.api.confirm({ body: { key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.INTERNAL_ERROR.code,
       statusCode: 500,
@@ -270,11 +266,10 @@ describe("confirm", () => {
     });
     const s3 = createInstance({
       client: mockS3(missing as never),
-      upload: true,
     });
 
     await expect(
-      s3.api.confirm({ body: { key: "missing.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: "missing.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
@@ -291,12 +286,42 @@ describe("confirm", () => {
           GetObjectAclCommand: { Grants: [] },
         }) as never,
       ),
-      upload: true,
     });
 
     await expect(
-      s3.api.confirm({ body: { key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
     ).resolves.toMatchObject({ acl: "private" });
+  });
+
+  it("rejects confirm when HeadObject size exceeds maxFileSize", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult({ ContentLength: 100 }),
+          DeleteObjectCommand: {},
+        }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ upload: { maxFileSize: 20 } }),
+      },
+    });
+
+    await expect(
+      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
+    });
+  });
+
+  it("rejects stored keys outside a string prefix", async () => {
+    const s3 = createInstance({
+      routes: { uploads: allFeaturesRoute({ prefix: "uploads" }) },
+    });
+    await expect(
+      s3.api.confirm({ body: { route: "uploads", key: "other/a.png" } }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.INVALID_KEY.code,
+    });
   });
 });
 
@@ -307,11 +332,13 @@ describe("download / delete", () => {
       client: mockS3(
         sendByCommand({ HeadObjectCommand: headResult() }) as never,
       ),
-      download: { onPresigned },
+      routes: { uploads: allFeaturesRoute({ download: { onPresigned } }) },
     });
 
     await expect(
-      s3.api.download({ query: { key: "a.png", fileName: "save.png" } }),
+      s3.api.download({
+        query: { route: "uploads", key: "a.png", fileName: "save.png" },
+      }),
     ).resolves.toMatchObject({
       key: "a.png",
       url: "https://s3.test/signed",
@@ -325,19 +352,17 @@ describe("download / delete", () => {
     });
     const s3 = createInstance({
       client: mockS3(missing as never),
-      download: true,
-      delete: true,
     });
 
     await expect(
-      s3.api.download({ query: { key: "missing.png" } }),
+      s3.api.download({ query: { route: "uploads", key: "missing.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
       statusCode: 404,
     });
     await expect(
-      s3.api.delete({ query: { key: "missing.png" } }),
+      s3.api.delete({ query: { route: "uploads", key: "missing.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
@@ -353,10 +378,12 @@ describe("download / delete", () => {
     });
     const s3 = createInstance({
       client: mockS3(send as never),
-      delete: { onDeleted },
+      routes: { uploads: allFeaturesRoute({ delete: { onDeleted } }) },
     });
 
-    await expect(s3.api.delete({ query: { key: "a.png" } })).resolves.toEqual({
+    await expect(
+      s3.api.delete({ query: { route: "uploads", key: "a.png" } }),
+    ).resolves.toEqual({
       success: true,
       bucket: "bucket",
       key: "a.png",
@@ -375,46 +402,29 @@ describe("multipart", () => {
           CreateMultipartUploadCommand: { UploadId: "up-1" },
         }) as never,
       ),
-      multipart: { onInit },
+      plugins: [{ id: "mp", hooks: { multipart: { onInit } } }],
     });
 
     await expect(
-      s3.api.multipartInit({ body: { key: "a.bin", fileSize: 10 } }),
-    ).resolves.toEqual({
+      s3.api.multipartInit({ body: defaultUploadBody }),
+    ).resolves.toMatchObject({
       bucket: "bucket",
-      key: "a.bin",
       uploadId: "up-1",
     });
     expect(onInit).toHaveBeenCalled();
   });
 
-  it("requires fileSize when configured", async () => {
-    const s3 = createInstance({
-      multipart: { requireFileSize: true },
-    });
-    await expect(
-      s3.api.multipartInit({ body: { key: "a.bin" } }),
-    ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code,
-    });
-  });
-
-  it("inherits requireFileSize from upload onto multipart", async () => {
-    const s3 = createInstance({
-      upload: { requireFileSize: true },
-    });
-    await expect(
-      s3.api.multipartInit({ body: { key: "a.bin" } }),
-    ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code,
-    });
-  });
-
   it("signs a part", async () => {
-    const s3 = createInstance({ multipart: true });
+    const s3 = createInstance();
     await expect(
       s3.api.multipartPart({
-        body: { key: "a.bin", uploadId: "up-1", partNumber: 1, partSize: 8 },
+        body: {
+          route: "uploads",
+          key: "a.bin",
+          uploadId: "up-1",
+          partNumber: 1,
+          partSize: 8,
+        },
       }),
     ).resolves.toMatchObject({
       presignedUrl: "https://s3.test/signed",
@@ -434,12 +444,12 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      multipart: { onList },
+      plugins: [{ id: "mp", hooks: { multipart: { onList } } }],
     });
 
     await expect(
       s3.api.multipartListParts({
-        query: { key: "a.bin", uploadId: "up-1" },
+        query: { route: "uploads", key: "a.bin", uploadId: "up-1" },
       }),
     ).resolves.toEqual({
       parts: [{ partNumber: 1, size: 8, eTag: "p1" }],
@@ -459,12 +469,13 @@ describe("multipart", () => {
           HeadObjectCommand: headResult({ ContentLength: 8 }),
         }) as never,
       ),
-      multipart: { onComplete },
+      plugins: [{ id: "mp", hooks: { multipart: { onComplete } } }],
     });
 
     await expect(
       s3.api.multipartComplete({
         body: {
+          route: "uploads",
           key: "a.bin",
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
@@ -492,12 +503,12 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      multipart: true,
     });
 
     await expect(
       s3.api.multipartComplete({
         body: {
+          route: "uploads",
           key: "a.bin",
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
@@ -523,12 +534,11 @@ describe("multipart", () => {
       });
     const s3 = createInstance({
       client: mockS3(sendByCommand({ ListPartsCommand: listParts }) as never),
-      multipart: true,
     });
 
     await expect(
       s3.api.multipartListParts({
-        query: { key: "a.bin", uploadId: "up-1" },
+        query: { route: "uploads", key: "a.bin", uploadId: "up-1" },
       }),
     ).resolves.toEqual({
       parts: [
@@ -548,12 +558,12 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      multipart: true,
     });
 
     await expect(
       s3.api.multipartComplete({
         body: {
+          route: "uploads",
           key: "a.bin",
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
@@ -571,12 +581,11 @@ describe("multipart", () => {
     });
     const s3 = createInstance({
       client: mockS3(missing as never),
-      multipart: true,
     });
 
     await expect(
       s3.api.multipartAbort({
-        body: { key: "a.bin", uploadId: "gone" },
+        body: { route: "uploads", key: "a.bin", uploadId: "gone" },
       }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
@@ -588,12 +597,12 @@ describe("multipart", () => {
   it("aborts a multipart upload", async () => {
     const onAbort = vi.fn();
     const s3 = createInstance({
-      multipart: { onAbort },
+      plugins: [{ id: "mp", hooks: { multipart: { onAbort } } }],
     });
 
     await expect(
       s3.api.multipartAbort({
-        body: { key: "a.bin", uploadId: "up-1" },
+        body: { route: "uploads", key: "a.bin", uploadId: "up-1" },
       }),
     ).resolves.toEqual({
       aborted: true,
@@ -612,23 +621,18 @@ describe("feature guards", () => {
       guard: () => {
         order.push("global");
       },
-      upload: {
-        guard: () => {
-          order.push("presign");
-        },
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            guard: () => {
+              order.push("presign");
+            },
+          },
+        }),
       },
     });
 
-    await s3.api.upload({ body: { key: "a.png" } });
+    await s3.api.upload({ body: defaultUploadBody });
     expect(order).toEqual(["global", "presign"]);
-  });
-
-  it("rejects allowClientBucket together with buckets", () => {
-    expect(() =>
-      createInstance({
-        allowClientBucket: true,
-        buckets: ["bucket"],
-      }),
-    ).toThrow(/allowClientBucket or buckets/);
   });
 });

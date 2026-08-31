@@ -3,7 +3,6 @@ export type Translations = {
   "Access denied(API error)": string;
   "All {count} file(s) uploaded(status)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
-  "Bucket is not allowed(API error)": string;
   "Cancel download(tooltip)": string;
   "Cancel(dialog button)": string;
   "Cancel(toast action)": string;
@@ -31,9 +30,8 @@ export type Translations = {
   "File not accepted(toast)": string;
   "File not found(API error)": string;
   "File size exceeds {size} limit(file validation)": string;
-  "File size is required(multipart)": string;
-  "File size is required(upload)": string;
   "File type \"{type}\" is not allowed(file validation)": string;
+  "File type is not allowed(API error)": string;
   "Finishing…(upload status)": string;
   "Invalid request(API error)": string;
   "Not found(API error)": string;
@@ -41,8 +39,10 @@ export type Translations = {
   "Pause(upload control)": string;
   "Preparing…(upload status)": string;
   "Something went wrong(API error)": string;
+  "Storage is misconfigured(API error)": string;
   "Unauthorized(API error)": string;
   "Unknown error(fallback)": string;
+  "Unknown file route(API error)": string;
   "Upload complete(toast)": string;
   "Upload failed(status)": string;
   "Upload failed(toast)": string;

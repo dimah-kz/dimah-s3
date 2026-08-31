@@ -1,0 +1,191 @@
+---
+title: Routes
+description: Named file routes — server-owned keys, constraints, and inheritance.
+icon: Route
+---
+
+A **route** is a named policy, not an HTTP path. The instance holds shared
+infra (`client`, `bucket`, `plugins`, optional `guard`). Each route is a
+mini config with nested `upload` / `download` / `delete` / `multipart`.
+
+The client sends the route name on every request. The server generates
+object keys and enforces file constraints. Protocol paths stay
+`/presign/upload`, `/presign/download`, and so on — do not put the name in
+the URL (that would collide with plugin paths like `/db/objects`).
+
+Unknown names return `404` with `UNKNOWN_ROUTE`. A missing name fails
+validation (`400`). A disabled operation on that route returns `404`
+`FEATURE_DISABLED`.
+
+```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+import { dimahS3, route } from "@dimah-s3/server";
+
+export const awsS3 = new S3Client({/* env */});
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  guard: requireAuth,
+  plugins: [db({ client: dimahS3Db, resolveScope })],
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+        onConfirmed: async ({ key, contentLength }) => {
+          /* persist after HeadObject */
+        },
+      },
+      download: true,
+      delete: true,
+    }),
+    avatars: route({
+      client: r2,
+      bucket: "cdn-bucket",
+      prefix: ({ request }) => `avatars/${userId(request)}`,
+      upload: {
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+        acl: "public-read",
+      },
+      download: true,
+    }),
+    videos: route({
+      prefix: "videos",
+      upload: {
+        fileTypes: ["video/*"],
+        maxFileSize: 500 * 1024 * 1024,
+      },
+      multipart: true,
+      download: true,
+    }),
+  },
+});
+```
+
+`dimahS3()` with empty or missing `routes` throws. Names match
+`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`. `route()` is an identity helper for
+inference — `s3.$Infer.routes` is the union of those keys.
+
+## Inheritance
+
+- **Instance (required unless every route overrides):** `client`, `bucket`.
+  Also `basePath`, `plugins`, optional instance `guard`,
+  `resolveObjectAcl`, `maxExpiresIn` (clamp).
+- **Route:** nested features. Optional `client` / `bucket` override that
+  route only. Optional `guard` for every op on that route. Optional
+  `prefix` / `resolveKey` inherited by upload, download, delete, and
+  multipart unless a feature overrides.
+- Do not put `basePath` or `plugins` on a route. Plugin opt-out is
+  `plugins: { db: false }` on the route.
+
+If the instance omits `client` or `bucket`, every route must set the
+missing field or `dimahS3()` throws.
+
+## Defaults
+
+Upload is **on** if `upload` is omitted, `true`, or an object. `download`,
+`delete`, and `multipart` are **off** unless set. A route with every
+operation off throws at init. `upload: false` is a download/delete-only
+route; `fileTypes` / `maxFileSize` / `multipart: true` with `upload: false`
+throws.
+
+`multipart: true` inherits `prefix` / `acl` from upload. It does not turn
+on automatically with upload.
+
+## Keys
+
+The client does not send `key` on upload or multipart init. Generation:
+
+- string `prefix` → `{prefix}/{uuid}/{sanitize(fileName)}`
+- `prefix` factory → same, with the returned folder
+- `resolveKey` → full key (wins); only on upload / init
+- neither → `{routeName}/{uuid}/{sanitize(fileName)}`
+
+Confirm, multipart follow-ups, download, and delete send the **stored**
+key from the presign response, plus the same route name. A string `prefix`
+namespaces later ops (the key must stay under that prefix). A function
+`prefix` / `resolveKey` is not re-run on confirm — route `guard` / db
+ownership authorizes.
+
+## Constraints
+
+`fileTypes` and `maxFileSize` live on `upload`, not the route root.
+
+- `fileTypes` — same tokens as HTML `accept`. Checked at presign (declared
+  type / name) and again at confirm / multipart complete (HeadObject + key
+  suffix).
+- `maxFileSize` — presign `fileSize` and HeadObject `contentLength`.
+  Oversize after landing rejects confirm and best-effort `DeleteObject`.
+
+Upload and multipart init always require `fileName` + `fileSize`.
+
+## Client
+
+```ts
+useUpload({ route: "uploads" })
+useDownload({ route: "uploads" })  // download(storedKey)
+useDelete({ route: "uploads" })
+<UploadButton route="uploads" />
+```
+
+Client `accept` / `maxFileSize` are optional UX only. The server still
+enforces `upload.fileTypes` / `upload.maxFileSize`.
+
+<TypeTable
+  type={{
+    client: {
+      type: "S3Client",
+      description: "Override the instance S3 client for this route only.",
+    },
+    bucket: {
+      type: "string",
+      description: "Override the instance bucket for this route only.",
+    },
+    prefix: {
+      type: "string | ((ctx) => string | Promise<string>)",
+      description:
+        "Folder prepended when generating keys. Inherited by upload, download, delete, and multipart unless a feature overrides.",
+    },
+    resolveKey: {
+      type: "(ctx) => string | Promise<string>",
+      description:
+        "Full object key on upload / init. Wins over prefix. Not re-run on confirm.",
+    },
+    guard: {
+      type: "(ctx) => void",
+      description: "Runs before every operation on this route.",
+    },
+    plugins: {
+      type: "{ db?: false }",
+      description: "Opt out of instance plugins by id.",
+    },
+    upload: {
+      type: "boolean | UploadConfig",
+      description:
+        "On when omitted, true, or an object. Holds fileTypes, maxFileSize, method, acl, expiresIn, and upload hooks.",
+    },
+    download: {
+      type: "boolean | DownloadConfig",
+      description: "Off unless set.",
+    },
+    delete: {
+      type: "boolean | DeleteConfig",
+      description: "Off unless set.",
+    },
+    multipart: {
+      type: "boolean",
+      description:
+        "Opt-in. Default false. Requires upload. Inherits prefix and acl from upload.",
+      default: "false",
+    },
+  }}
+/>
+
+Per-feature hooks:
+[Upload](/docs/server/hooks/upload),
+[Download](/docs/server/hooks/download),
+[Delete](/docs/server/hooks/delete),
+[Multipart](/docs/server/hooks/multipart).

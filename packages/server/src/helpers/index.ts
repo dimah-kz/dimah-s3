@@ -7,22 +7,20 @@ export { runHook, runLifecycleHook } from "./hooks";
 export { requestFromHeaders } from "./request";
 export {
   assertSafeObjectKey,
-  resolveBucket,
-  resolveObjectKey,
-  resolveRequestTarget,
+  assertStoredKey,
+  generateObjectKey,
+  keyPolicyFor,
+  resolveMultipartInitTarget,
+  resolveStoredTarget,
+  resolveUploadTarget,
 } from "./resolve-target";
 export type { KeyPolicy } from "./resolve-target";
+export { getResolvedRoute } from "./resolve-route";
+export { assertDeclaredConstraints, assertVerifiedConstraints } from "./constraints";
 export {
   headObjectAfterMultipartComplete,
   headObjectOrNotFound,
   requireContentLength,
 } from "./head-object";
 export { listAllParts } from "./list-parts";
-export {
-  applyMultipartDefault,
-  assertExclusiveBucketFlags,
-  isFeatureEnabled,
-  normalizeFeature,
-  normalizeFeatures,
-} from "./features";
-export type { NormalizedFeatures } from "./features";
+export { normalizeFeature, normalizeRoute, normalizeRoutes } from "./features";

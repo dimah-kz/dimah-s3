@@ -26,6 +26,8 @@ import { useDownloadToast } from "@/hooks/use-download-toast";
 /** Props for {@link ProgressDownloadButton}. */
 export type ProgressDownloadButtonProps = FetchDownloadHooks &
   AttachmentLayoutAliases & {
+    /** Named server route (`dimahS3({ routes })`). */
+    route: string;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
     /** S3 object key to download. */
@@ -34,8 +36,6 @@ export type ProgressDownloadButtonProps = FetchDownloadHooks &
     fileName?: string;
     /** Total file size in bytes (used for progress display). */
     fileSize?: number;
-    /** Target bucket (overrides server default). */
-    bucket?: string;
     /** Button label. */
     label?: string;
     /** Custom button content. Replaces default icon + label / progress text. */
@@ -65,10 +65,10 @@ export type ProgressDownloadButtonProps = FetchDownloadHooks &
 
 export function ProgressDownloadButton({
   api,
+  route,
   objectKey,
   fileName,
   fileSize,
-  bucket,
   label,
   children,
   className,
@@ -104,7 +104,7 @@ export function ProgressDownloadButton({
   const dl = useDownload({
     mode: "fetch",
     api,
-    bucket,
+    route,
     beforeDownload,
     onDownloadStart: (key) => {
       toastHandlers.onDownloadStart();

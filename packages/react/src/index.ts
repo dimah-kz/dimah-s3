@@ -65,6 +65,7 @@ export { createLocalStorageStore, createMemoryStore } from "./store";
 export {
   uploadFile,
   uploadFiles,
+  multipartResumeKey,
   type UploadEngineCallbacks,
   type FileItem,
   type FileItemStatus,

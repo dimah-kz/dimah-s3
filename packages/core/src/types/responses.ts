@@ -1,7 +1,7 @@
 import type {
   ConfirmPayload,
-  DeleteOptions,
-  DownloadOptions,
+  DeletePayload,
+  DownloadPayload,
   MultipartAbortPayload,
   MultipartCompletePayload,
   MultipartInitPayload,
@@ -149,11 +149,8 @@ export type UploadConfirmResponse = {
 export type S3Api = {
   upload: (payload: UploadPayload) => Promise<UploadPresignResponse>;
   confirm: (payload: ConfirmPayload) => Promise<UploadConfirmResponse>;
-  download: (
-    key: string,
-    options?: DownloadOptions,
-  ) => Promise<PresignResponse>;
-  delete: (key: string, options?: DeleteOptions) => Promise<DeleteResponse>;
+  download: (payload: DownloadPayload) => Promise<PresignResponse>;
+  delete: (payload: DeletePayload) => Promise<DeleteResponse>;
   multipart: {
     init: (payload: MultipartInitPayload) => Promise<MultipartInitResponse>;
     signPart: (

@@ -13,12 +13,9 @@ Do not treat this monorepo as the app guide. Use
 [the docs](https://dimah-s3.vercel.app/docs).
 
 - Never expose S3 credentials to the client.
-- The client proposes `key` and may send `bucket`. Both are untrusted —
-  scope them in `guard` / `prefix` / `resolveKey`. `prefix` may be a string
-  or an async factory (`ResolveKeyContext`) that returns the folder to
-  prepend. Client `bucket` is ignored unless you set `allowClientBucket` or
-  `buckets` (not both). Client `acl` is ignored unless you set
-  `allowClientAcl` or a server `acl`.
+- The client sends a route name; the server owns keys. Scope keys with
+  `prefix` / `resolveKey` on the route. `prefix` may be a string or an
+  async factory (`GenerateKeyContext`) that returns the folder to prepend.
 - Trust `onConfirmed` (HeadObject) for size and type, not the presign body.
 
 ## Workflow

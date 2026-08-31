@@ -34,7 +34,7 @@ S3_BUCKET="your-bucket-name"
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
   region: process.env.S3_REGION,
@@ -48,14 +48,24 @@ export const awsS3 = new S3Client({
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+      },
+      download: true,
+      delete: true,
+    }),
+  },
 });
 ```
 
 Any S3-compatible provider works — details in [Providers](/docs/providers).
 
 <Callout title="Cloudflare R2">
-  Set `method: "PUT"` on `upload`. R2 does not accept Presigned POST. See
+  Set `method: "PUT"` on the route's `upload`. R2 does not accept Presigned POST. See
   [Cloudflare R2](/docs/providers/cloudflare-r2).
 </Callout>
 
@@ -245,13 +255,12 @@ Import `UploadButton` from `@dimah-s3/ui`, or from
 import { UploadButton } from "@dimah-s3/ui";
 
 export default function Page() {
-  return <UploadButton />;
+  return <UploadButton route="uploads" />;
 }
 ```
 
-Selecting a file uploads directly to S3. The client default key is
-`` `${crypto.randomUUID()}/${file.name}` ``; the server `upload.prefix` in
-`lib/s3.ts` scopes it under `uploads/`.
+Selecting a file uploads directly to S3. The server generates the object key
+under the route `prefix` (`uploads/` in `lib/s3.ts`).
 
 <Callout>
   Deeper guides: [Server setup](/docs/server/setup), [Client

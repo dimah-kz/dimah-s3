@@ -13,19 +13,18 @@ npm i @dimah-s3/server @aws-sdk/client-s3
 ### Config [step]
 
 Pass an AWS SDK `S3Client` as `client` (export it as `awsS3` so jobs and a
-custom backend can reuse it) and a `bucket`. That `bucket` is the default:
-used when the request omits one, and whenever a client-sent bucket is
-ignored. Enable a feature with `true` or an options object (the object
-itself means on). Multipart turns on with upload unless you set
-`multipart: false`. Disabled features return `404` with code
-`FEATURE_DISABLED`.
+custom backend can reuse it) and a `bucket`. Those are instance defaults —
+a route may override either. Named routes are required: see
+[Routes](/docs/server/routes). Upload is on when omitted on a route;
+`download` / `delete` / `multipart` stay off until you set them. Disabled
+operations return `404` with code `FEATURE_DISABLED`.
 
 Provider-specific wiring (POST vs PUT, ACL, path-style):
 [Providers](/docs/providers).
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
   region: process.env.S3_REGION,
@@ -39,46 +38,48 @@ export const awsS3 = new S3Client({
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+      },
+      download: true,
+      delete: true,
+    }),
+  },
 });
 ```
 
-R2 and similar providers need `upload: { method: "PUT", prefix: "uploads" }` —
+R2 and similar providers need `upload: { method: "PUT", … }` on the route —
 see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
-| Option                                         | Default   | Role                                              |
-| ---------------------------------------------- | --------- | ------------------------------------------------- |
-| `client`                                       | required  | AWS SDK `S3Client` (`awsS3`)                      |
-| `bucket`                                       | required  | Default bucket                                    |
-| `allowClientBucket` / `buckets`                | off       | Honor a client-sent `bucket` (not both)           |
-| `maxExpiresIn`                                 | `604800`  | Clamp client `expiresIn` (SigV4 max)              |
-| `basePath`                                     | `/api/s3` | Must match `createS3Client({ basePath })`         |
-| `resolveObjectAcl`                             | `false`   | Extra `GetObjectAcl` on confirm / complete        |
-| `guard`                                        | —         | [Global Guard](/docs/server/hooks/global-guard)   |
-| `upload` / `download` / `delete` / `multipart` | off       | Feature flag + [hooks](/docs/server/hooks/upload) |
-| `plugins`                                      | —         | e.g. [`db()`](/docs/db)                           |
+| Option                          | Default   | Role                                              |
+| ------------------------------- | --------- | ------------------------------------------------- |
+| `client`                        | *         | AWS SDK `S3Client` (`awsS3`)                      |
+| `bucket`                        | *         | Default bucket                                    |
+| `routes`                        | required  | Named policies — [Routes](/docs/server/routes)    |
+| `maxExpiresIn`                  | `604800`  | Clamp route `expiresIn` (SigV4 max)               |
+| `basePath`                      | `/api/s3` | Must match `createS3Client({ basePath })`         |
+| `resolveObjectAcl`              | `false`   | Extra `GetObjectAcl` on confirm / complete        |
+| `guard`                         | —         | [Global Guard](/docs/server/hooks/global-guard)   |
+| `plugins`                       | —         | e.g. [`db()`](/docs/db)                           |
+
+\* Required on the instance unless every route sets the same field.
 
 <Callout type="warn">
-  Object `key` comes from the client — treat it as untrusted. Rewrite it with
-  `prefix` or `resolveKey` on each feature, then reject unauthorized work in
-  `guard`. `prefix` may be a string or an async factory (`ResolveKeyContext`)
-  that returns the folder to prepend — use that for per-user / per-tenant paths
-  so confirm and download of a stored key stay idempotent. The `bucket` you pass
-  to `dimahS3` is the one that is used. A `bucket` on the request is ignored
-  unless you set `allowClientBucket` or `buckets` (not both). Uploads are
-  `private` unless `upload.acl` or `upload.allowClientAcl` is set. Full rules:
-  [Security](/docs/server/security).
+  The server owns object keys. The client sends a route name, never a key on
+  upload. Scope keys with route `prefix` or `resolveKey`. `prefix` may be a
+  string or an async factory (`GenerateKeyContext`) that returns the folder
+  to prepend. Uploads are `private` unless the route sets `upload.acl`. Full
+  rules: [Security](/docs/server/security).
 </Callout>
 
 A plain `Error` in `guard` / `*Guard` becomes **403**. The same throw in
 `onPresigned` / `onConfirmed` / `onDeleted` / other `on*` hooks becomes
 **500**. Throw `DimahS3Error` or use [`errors`](/docs/server/errors) when you
-need a specific status and `code`.
-
-<AutoTypeTable
-  path="packages/server/src/types/config.ts"
-  name="DimahS3Config"
-/>
+need a specific status and `code`. Route fields: [Routes](/docs/server/routes).
 
 ### Route handler [step]
 
@@ -228,9 +229,9 @@ Same protocol as the browser client, without HTTP. Pass `headers` so
 import { headers } from "next/headers";
 import { s3 } from "@/lib/s3";
 
-export async function getDownloadUrl(key: string) {
+export async function getDownloadUrl(route: string, key: string) {
   return s3.api.download({
-    query: { key },
+    query: { route, key },
     headers: await headers(),
   });
 }
@@ -243,15 +244,15 @@ On Node / Express, convert headers with `fromNodeHeaders` from
 `delete`, `multipartInit`, … plus plugin endpoints). Nested aliases exist for
 multipart: `s3.api.multipart.init` is the same as `s3.api.multipartInit`. The
 browser client (`createS3Client`) still exposes nested `S3Api`
-(`s3Client.download(key)`, `s3Client.multipart.init`). Names differ in a few
+(`s3Client.download({ route, key })`, `s3Client.multipart.init`). Names differ in a few
 places:
 
 | Browser `S3Api`       | Server `s3.api`                              | Route constant                     |
 | --------------------- | -------------------------------------------- | ---------------------------------- |
 | `upload`              | `upload`                                     | `S3_API_ROUTES.upload`             |
 | `confirm`             | `confirm`                                    | `S3_API_ROUTES.uploadConfirm`      |
-| `download(key)`       | `download({ query })`                        | `S3_API_ROUTES.download`           |
-| `delete(key)`         | `delete({ query })`                          | `S3_API_ROUTES.delete`             |
+| `download({ route, key })` | `download({ query })`                   | `S3_API_ROUTES.download`           |
+| `delete({ route, key })`   | `delete({ query })`                     | `S3_API_ROUTES.delete`             |
 | `multipart.init`      | `multipart.init` / `multipartInit`           | `S3_API_ROUTES.multipartInit`      |
 | `multipart.signPart`  | `multipart.signPart` / `multipartPart`       | `S3_API_ROUTES.multipartPart`      |
 | `multipart.listParts` | `multipart.listParts` / `multipartListParts` | `S3_API_ROUTES.multipartListParts` |
@@ -265,7 +266,8 @@ and `$Infer`.
 
 ### Next [step]
 
-Hooks: [Global Guard](/docs/server/hooks/global-guard),
+Hooks: [Routes](/docs/server/routes),
+[Global Guard](/docs/server/hooks/global-guard),
 [Upload](/docs/server/hooks/upload),
 [Download](/docs/server/hooks/download),
 [Delete](/docs/server/hooks/delete),

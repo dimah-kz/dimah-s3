@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryStore } from "@/store/memory-store";
 import { fakeS3Api } from "@/test/api";
+import { multipartResumeKey } from "./resume-key";
 import { uploadMultipart } from "./multipart";
 import { uploadPart } from "./upload-part";
 
@@ -17,17 +18,22 @@ function file(size: number) {
 describe("uploadMultipart", () => {
   it("inits, signs each part, then completes", async () => {
     const api = fakeS3Api();
-    const eTag = await uploadMultipart(api, file(8), "a.bin", 4, 2);
+    const eTag = await uploadMultipart(api, file(8), "videos", 4, 2);
 
     expect(eTag).toBe("abc");
     expect(api.multipart.init).toHaveBeenCalledWith(
-      expect.objectContaining({ key: "a.bin", fileSize: 8 }),
+      expect.objectContaining({
+        route: "videos",
+        fileSize: 8,
+        fileName: "a.bin",
+      }),
     );
     expect(api.multipart.signPart).toHaveBeenCalledTimes(2);
     expect(uploadPart).toHaveBeenCalledTimes(2);
     expect(api.multipart.complete).toHaveBeenCalledWith(
       expect.objectContaining({
-        key: "a.bin",
+        route: "videos",
+        key: "videos/a.bin",
         uploadId: "up-1",
         parts: [{ partNumber: 1 }, { partNumber: 2 }],
       }),
@@ -35,12 +41,14 @@ describe("uploadMultipart", () => {
   });
 
   it("resumes from the store and skips completed parts", async () => {
+    const blob = file(8);
+    const resumeKey = multipartResumeKey("videos", blob);
     const store = createMemoryStore();
     await store.set({
+      resumeKey,
       uploadId: "up-resume",
-      key: "a.bin",
+      key: "videos/uuid/a.bin",
       fileSize: 8,
-      bucket: "bucket",
     });
     const api = fakeS3Api({
       multipart: {
@@ -52,8 +60,8 @@ describe("uploadMultipart", () => {
 
     await uploadMultipart(
       api,
-      file(8),
-      "a.bin",
+      blob,
+      "videos",
       4,
       2,
       undefined,
@@ -66,9 +74,13 @@ describe("uploadMultipart", () => {
     expect(api.multipart.init).not.toHaveBeenCalled();
     expect(api.multipart.signPart).toHaveBeenCalledTimes(1);
     expect(api.multipart.signPart).toHaveBeenCalledWith(
-      expect.objectContaining({ partNumber: 2, uploadId: "up-resume" }),
+      expect.objectContaining({
+        route: "videos",
+        partNumber: 2,
+        uploadId: "up-resume",
+      }),
     );
-    expect(await store.get("a.bin", 8)).toBeNull();
+    expect(await store.get(resumeKey, 8)).toBeNull();
   });
 
   it("aborts when resumability is off and a part fails", async () => {
@@ -79,7 +91,7 @@ describe("uploadMultipart", () => {
       uploadMultipart(
         api,
         file(4),
-        "a.bin",
+        "videos",
         4,
         1,
         undefined,
@@ -90,7 +102,11 @@ describe("uploadMultipart", () => {
     ).rejects.toThrow("part failed");
     await vi.waitFor(() => {
       expect(api.multipart.abort).toHaveBeenCalledWith(
-        expect.objectContaining({ key: "a.bin", uploadId: "up-1" }),
+        expect.objectContaining({
+          route: "videos",
+          key: "videos/a.bin",
+          uploadId: "up-1",
+        }),
       );
     });
   });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { definePlugin } from "@/index";
 import { applyPlugins } from "./apply-plugins";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
+import { route } from "@/route";
 import type { DimahS3Config } from "@/types";
 
 function config(
@@ -11,6 +12,9 @@ function config(
   return {
     client: {} as DimahS3Config["client"],
     bucket: "bucket",
+    routes: {
+      uploads: route({ upload: true, download: true, delete: true }),
+    },
     plugins,
     ...extra,
   };
@@ -173,7 +177,7 @@ describe("applyPlugins merge", () => {
     expect(order).toEqual(["plugin", "user"]);
   });
 
-  it("merges feature hooks plugins-first", async () => {
+  it("merges feature hooks plugins-first onto each route", async () => {
     const order: string[] = [];
     const merged = applyPlugins({
       ...config([
@@ -188,20 +192,46 @@ describe("applyPlugins merge", () => {
           },
         }),
       ]),
-      upload: {
-        guard: () => {
-          order.push("user");
-        },
+      routes: {
+        uploads: route({
+          upload: {
+            guard: () => {
+              order.push("user");
+            },
+          },
+        }),
       },
     });
 
-    await merged.config.upload?.guard?.({
+    await merged.config.routes.uploads.upload?.guard?.({
       request: new Request("http://localhost"),
+      route: "uploads",
       key: "a.png",
       bucket: "bucket",
     });
-    expect(merged.config.upload?.enabled).toBe(true);
+    expect(merged.config.routes.uploads.upload?.enabled).toBe(true);
     expect(order).toEqual(["plugin", "user"]);
+  });
+
+  it("skips opted-out plugins on a route", async () => {
+    const pluginGuard = vi.fn();
+    const merged = applyPlugins({
+      ...config([
+        definePlugin({
+          id: "db",
+          hooks: {
+            upload: { guard: pluginGuard },
+          },
+        }),
+      ]),
+      routes: {
+        uploads: route({ upload: true }),
+        scratch: route({ upload: true, plugins: { db: false } }),
+      },
+    });
+
+    expect(merged.config.routes.uploads.upload?.guard).toBe(pluginGuard);
+    expect(merged.config.routes.scratch.upload?.guard).toBeUndefined();
   });
 
   it("builds context and runs init", () => {
@@ -233,22 +263,21 @@ describe("applyPlugins merge", () => {
           },
         }),
       ]),
-      upload: { prefix: "uploads" },
+      routes: {
+        uploads: route({ prefix: "uploads", upload: true }),
+      },
     });
 
-    expect(merged.config.upload?.prefix).toBe("uploads");
+    expect(merged.config.routes.uploads.prefix).toBe("uploads");
   });
-});
 
-describe("applyPlugins config validation", () => {
-  it("rejects allowClientBucket together with buckets", () => {
+  it("requires at least one route", () => {
     expect(() =>
-      applyPlugins(
-        config(undefined, {
-          allowClientBucket: true,
-          buckets: ["bucket"],
-        }),
-      ),
-    ).toThrow(/allowClientBucket or buckets/);
+      applyPlugins({
+        client: {} as DimahS3Config["client"],
+        bucket: "bucket",
+        routes: {},
+      }),
+    ).toThrow(/at least one route/);
   });
 });

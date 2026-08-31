@@ -1,12 +1,12 @@
 import { S3_API_ROUTES } from "@dimah-s3/core";
 import type { Endpoint } from "better-call";
 import { CORE_ENDPOINT_NAMES } from "@/api/routes";
-import {
-  applyMultipartDefault,
-  assertExclusiveBucketFlags,
-  normalizeFeatures,
-} from "@/helpers/features";
-import type { DimahS3Config, ResolvedDimahS3Config } from "@/types/config";
+import { normalizeRoutes } from "@/helpers/features";
+import type {
+  DimahS3Config,
+  ResolvedDimahS3Config,
+  ResolvedRoutePolicy,
+} from "@/types";
 import { chainHooks } from "./chain-hooks";
 import { FEATURE_HOOK_KEYS, type FeatureName } from "./hook-registry";
 import {
@@ -34,8 +34,8 @@ function mergeFeatureHooks<F extends FeatureName>(
   feature: F,
   keys: readonly (typeof FEATURE_HOOK_KEYS)[F][number][],
   plugins: readonly DimahS3Plugin[],
-  userFeature: ResolvedDimahS3Config[F],
-): ResolvedDimahS3Config[F] {
+  userFeature: ResolvedRoutePolicy[F],
+): ResolvedRoutePolicy[F] {
   if (!userFeature && plugins.every((p) => !p.hooks?.[feature])) {
     return userFeature;
   }
@@ -53,12 +53,29 @@ function mergeFeatureHooks<F extends FeatureName>(
     }
   }
 
-  return merged as ResolvedDimahS3Config[F];
+  return merged as ResolvedRoutePolicy[F];
+}
+
+function applyHooksToRoute(
+  route: ResolvedRoutePolicy,
+  plugins: readonly DimahS3Plugin[],
+): ResolvedRoutePolicy {
+  const active = plugins.filter((p) => !route.skippedPluginIds.has(p.id));
+  const next: ResolvedRoutePolicy = { ...route };
+  for (const feature of Object.keys(FEATURE_HOOK_KEYS) as FeatureName[]) {
+    next[feature] = mergeFeatureHooks(
+      feature,
+      FEATURE_HOOK_KEYS[feature],
+      active,
+      next[feature],
+    );
+  }
+  return next;
 }
 
 /**
  * Validate plugins, build context map, collect endpoints, run `init`,
- * and merge hooks into config.
+ * and merge hooks into each route.
  * Plugin hooks run in array order; user hooks run last.
  */
 export function applyPlugins<
@@ -162,42 +179,29 @@ export function applyPlugins<
 
   const { plugins: _omit, ...rest } = config;
 
-  assertExclusiveBucketFlags(rest);
-
   for (const plugin of plugins) {
     plugin.init?.({ config: rest, getPlugin });
   }
 
-  const features = normalizeFeatures(rest);
-  const {
-    upload: _upload,
-    download: _download,
-    delete: _delete,
-    multipart: _multipart,
-    ...base
-  } = rest;
+  const normalized = normalizeRoutes(rest);
+  const routes: Record<string, ResolvedRoutePolicy> = {};
+  for (const [name, route] of Object.entries(normalized)) {
+    routes[name] = applyHooksToRoute(route, plugins);
+  }
+
   const guard = mergeHookField(
     plugins.map((p) => p.hooks?.guard as HookFn),
     rest.guard as HookFn,
   ) as ResolvedDimahS3Config["guard"];
 
   const merged: ResolvedDimahS3Config = {
-    ...base,
-    ...features,
+    ...rest,
+    routes,
     ...(guard !== undefined ? { guard } : {}),
   };
 
-  for (const feature of Object.keys(FEATURE_HOOK_KEYS) as FeatureName[]) {
-    merged[feature] = mergeFeatureHooks(
-      feature,
-      FEATURE_HOOK_KEYS[feature],
-      plugins,
-      merged[feature],
-    );
-  }
-
   return {
-    config: applyMultipartDefault(merged, rest.multipart),
+    config: merged,
     context,
     getPlugin,
     endpoints,

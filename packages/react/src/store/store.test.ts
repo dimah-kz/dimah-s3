@@ -6,10 +6,10 @@ import { createLocalStorageStore } from "./local-storage-store";
 import { createMemoryStore } from "./memory-store";
 
 const sample = {
+  resumeKey: "uploads:photo.jpg:10:1",
   uploadId: "u1",
-  key: "k",
+  key: "uploads/uuid/photo.jpg",
   fileSize: 10,
-  bucket: "b",
 };
 
 describe("useImmerState", () => {
@@ -52,10 +52,12 @@ describe("createMemoryStore", () => {
   it("persists only when the size matches", async () => {
     const store = createMemoryStore();
     await store.set(sample);
-    expect(await store.get("k", 10)).toMatchObject({ uploadId: "u1" });
-    expect(await store.get("k", 11)).toBeNull();
-    await store.delete("k");
-    expect(await store.get("k", 10)).toBeNull();
+    expect(await store.get("uploads:photo.jpg:10:1", 10)).toMatchObject({
+      uploadId: "u1",
+    });
+    expect(await store.get("uploads:photo.jpg:10:1", 11)).toBeNull();
+    await store.delete("uploads:photo.jpg:10:1");
+    expect(await store.get("uploads:photo.jpg:10:1", 10)).toBeNull();
   });
 });
 
@@ -84,14 +86,16 @@ describe("createLocalStorageStore", () => {
   it("round-trips the same key and size", async () => {
     const store = createLocalStorageStore();
     await store.set(sample);
-    expect(await store.get("k", 10)).toEqual(sample);
-    expect(await store.get("k", 11)).toBeNull();
-    await store.delete("k");
-    expect(await store.get("k", 10)).toBeNull();
+    expect(await store.get("uploads:photo.jpg:10:1", 10)).toEqual(sample);
+    expect(await store.get("uploads:photo.jpg:10:1", 11)).toBeNull();
+    await store.delete("uploads:photo.jpg:10:1");
+    expect(await store.get("uploads:photo.jpg:10:1", 10)).toBeNull();
   });
 
   it("returns null for invalid JSON", async () => {
-    localStorage.setItem("dimah-s3:upload:k", "{");
-    expect(await createLocalStorageStore().get("k", 10)).toBeNull();
+    localStorage.setItem("dimah-s3:upload:uploads:photo.jpg:10:1", "{");
+    expect(
+      await createLocalStorageStore().get("uploads:photo.jpg:10:1", 10),
+    ).toBeNull();
   });
 });

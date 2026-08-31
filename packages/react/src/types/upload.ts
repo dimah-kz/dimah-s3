@@ -49,23 +49,13 @@ export type UploadFileInfo = {
 export type UploadRequestOptions = {
   /** Custom S3 object metadata (`x-amz-meta-*`). */
   metadata?: Record<string, string>;
-  /** Target bucket (overrides server default). */
-  bucket?: string;
   /** Override auto-detected content type. */
   contentType?: string;
-  /** Object ACL — defaults to `'private'`. */
-  acl?: "private" | "public-read";
   /**
-   * Original file name stored as `Content-Disposition` on the S3 object.
-   * Defaults to the browser's `file.name` when not provided.
-   * Pass `null` to omit Content-Disposition entirely.
+   * Original file name sent on presign. Defaults to the browser's `file.name`.
+   * Pass `null` to omit it.
    */
   fileName?: string | null;
-  /**
-   * Per-upload multipart part size in bytes. Overrides `UploadConfig.partSize`.
-   * Minimum 5 MB; ignored for non-multipart uploads.
-   */
-  partSize?: number;
 };
 
 /** Lifecycle hooks for single-file upload. */
@@ -73,7 +63,7 @@ export type UploadHooks = {
   /** Runs before the upload starts. Return `false` to block it. */
   beforeUpload?: (file: File) => Promise<boolean> | boolean;
   /** Fires after validation passes and the upload begins. */
-  onUploadStart?: (file: File, key: string) => void;
+  onUploadStart?: (file: File) => void;
   /** Fires continuously while bytes are transferred. */
   onProgress?: (file: File, progress: UploadProgress) => void;
   /** Fires after each part is successfully uploaded to S3 (multipart only). */
@@ -119,23 +109,27 @@ export type RetryConfig = {
 
 /** Upload engine configuration for `useFileUpload` and `useMultiFileUpload`. */
 export type UploadConfig = {
-  /** Enable multipart uploads for large files. */
+  /**
+   * Named server route (`dimahS3({ routes })`). Required — the server
+   * generates the object key from this route's policy.
+   */
+  route: string;
+  /**
+   * Attempt multipart when the file is at least 50 MB. The server must
+   * enable `multipart` on the route or init returns `FEATURE_DISABLED`.
+   */
   multipart?: boolean;
   /**
    * HTML `accept` tokens: MIME types (`image/*`, `application/pdf`) and/or
-   * extensions (`.pdf`).
+   * extensions (`.pdf`). Client-side UX only — the server enforces
+   * `upload.fileTypes`.
    */
   accept?: string[];
-  /** Max file size in bytes. */
-  maxFileSize?: number;
-  /** File size threshold in bytes above which multipart is used. */
-  multipartThreshold?: number;
   /**
-   * Multipart part size in bytes. Minimum 5 MB.
-   * Can be overridden per-upload via `UploadRequestOptions.partSize`.
-   * @default 5 MB
+   * Max file size in bytes. Client-side UX only — the server enforces
+   * `upload.maxFileSize`.
    */
-  partSize?: number;
+  maxFileSize?: number;
   /** Number of parts uploaded concurrently (multipart). */
   concurrentParts?: number;
   /** Retry configuration for failed network requests. */

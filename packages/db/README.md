@@ -6,7 +6,7 @@ Optional FumaDB persistence for [dimah-s3](https://github.com/dimah-kz/dimah-s3)
 
 ```ts
 import { DimahS3DB, db } from "@dimah-s3/db";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 import { drizzleAdapter } from "fumadb/adapters/drizzle";
 
 export const dimahS3Db = DimahS3DB.client(
@@ -16,9 +16,6 @@ export const dimahS3Db = DimahS3DB.client(
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
-  download: true,
-  delete: true,
   plugins: [
     db({
       client: dimahS3Db,
@@ -28,6 +25,14 @@ export const s3 = dimahS3({
       },
     }),
   ],
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: true,
+      download: true,
+      delete: true,
+    }),
+  },
 });
 
 s3.db.objects.listByScope({ scope });

@@ -18,8 +18,8 @@
  *       .then(r => r.json());
  *   },
  *   async confirm(payload) { ... },
- *   async download(key, options) { ... },
- *   async delete(key) { ... },
+ *   async download(payload) { ... },
+ *   async delete(payload) { ... },
  *   multipart: { init, signPart, listParts, complete, abort },
  * });
  * ```

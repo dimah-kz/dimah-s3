@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateFile } from "./validate-file";
+import { matchesFileTypes, validateFile } from "./validate-file";
 
 function file(name: string, type: string, contents = "x") {
   return new File([contents], name, { type });
@@ -59,5 +59,23 @@ describe("validateFile", () => {
     expect(
       validateFile(file("a.bin", "application/octet-stream"), {}),
     ).toBeNull();
+  });
+});
+
+describe("matchesFileTypes", () => {
+  it("matches wildcards, extensions, and exact MIME types", () => {
+    expect(matchesFileTypes("a.png", "image/png", ["image/*"])).toBe(true);
+    expect(
+      matchesFileTypes("photo.PNG", "application/octet-stream", [".png"]),
+    ).toBe(true);
+    expect(
+      matchesFileTypes("a.json", "application/json", ["application/json"]),
+    ).toBe(true);
+    expect(
+      matchesFileTypes("a.exe", "application/octet-stream", [".png"]),
+    ).toBe(false);
+    expect(matchesFileTypes("a.bin", "application/octet-stream", [])).toBe(
+      true,
+    );
   });
 });

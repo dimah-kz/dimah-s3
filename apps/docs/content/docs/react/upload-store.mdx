@@ -4,8 +4,8 @@ description: Persist multipart state to resume uploads after refresh.
 icon: Database
 ---
 
-An `UploadStore` keeps `uploadId`, `key`, and `fileSize` so a multipart
-upload can resume after refresh. Use it only with `multipart: true`.
+An `UploadStore` keeps `resumeKey`, `uploadId`, S3 `key`, and `fileSize` so a
+multipart upload can resume after refresh. Use it only with `multipart: true`.
 
 Prefer `createLocalStorageStore()` for same-browser resume. Use a custom
 store (for example DB-backed) for cross-device resume — see
@@ -31,7 +31,7 @@ import { localStorageStore } from "@/lib/upload-store";
 
 export function Uploader() {
   const { getRootProps, getInputProps, isUploading } = useUpload({
-    objectKey: "uploads/photo.jpg",
+    route: "uploads",
     multipart: true,
     uploadStore: localStorageStore,
   });
@@ -45,8 +45,8 @@ export function Uploader() {
 }
 ```
 
-`objectKey` must stay the same across retries, or resume cannot match the
-stored upload.
+Resume is keyed by `${route}:${file.name}:${file.size}:${file.lastModified}`.
+The same file on the same route can resume; a different file cannot.
 
 ## Built-in stores
 
@@ -70,13 +70,13 @@ const uploadStore = createMemoryStore();
 import type { UploadStore } from "@dimah-s3/react";
 
 export const uploadStore: UploadStore = {
-  async get(key, fileSize) {
+  async get(resumeKey, fileSize) {
     return null;
   },
   async set(upload) {
-    // persist uploadId
+    // persist uploadId under upload.resumeKey
   },
-  async delete(key) {
+  async delete(resumeKey) {
     // cleanup after complete / abort
   },
 };
@@ -92,9 +92,9 @@ With [`@dimah-s3/db`](/docs/db) multipart hooks, `onInit` already writes
 import type { StoredUpload, UploadStore } from "@dimah-s3/react";
 
 export const uploadStoreDb: UploadStore = {
-  async get(key, fileSize) {
+  async get(resumeKey, fileSize) {
     const res = await fetch(
-      `/api/upload-store?key=${encodeURIComponent(key)}&fileSize=${fileSize}`,
+      `/api/upload-store?resumeKey=${encodeURIComponent(resumeKey)}&fileSize=${fileSize}`,
     );
     if (!res.ok) return null;
     return (await res.json()) as StoredUpload | null;

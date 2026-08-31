@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 import { db } from "./db";
 import { fakeStore, sampleObject } from "@/test/fakes";
 
@@ -11,6 +11,14 @@ function instance(
     client: { send: async () => ({}) } as never,
     bucket: "bucket",
     plugins: [db({ client: store, resolveScope })],
+    routes: {
+      uploads: route({
+        prefix: "uploads",
+        upload: true,
+        download: true,
+        delete: true,
+      }),
+    },
   });
 }
 

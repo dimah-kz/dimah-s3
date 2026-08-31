@@ -60,6 +60,7 @@ function DemoObjectRow({
       >
         <ProgressDownloadButton
           className="w-fit"
+          route="uploads"
           objectKey={object.key}
           fileName={object.name}
           fileSize={object.size}
@@ -68,6 +69,7 @@ function DemoObjectRow({
         />
         <DeleteButton
           className="w-fit"
+          route="uploads"
           objectKey={object.key}
           fileName={object.name}
           fileSize={object.size}
@@ -115,6 +117,7 @@ export function HomeDropzoneDemo() {
     <>
       {idle ? <TryDemoHint className={cn(enter, "delay-700")} /> : null}
       <UploadDropzone
+        route="uploads"
         accept={["image/*", "application/pdf", "video/*"]}
         maxFiles={1}
         maxFileSize={75 * 1024 * 1024}

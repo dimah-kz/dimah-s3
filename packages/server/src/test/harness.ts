@@ -2,7 +2,8 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import { S3_API_BASE_PATH, type S3ErrorCode } from "@dimah-s3/core";
 import { expect, vi } from "vitest";
 import { dimahS3 } from "@/dimah-s3";
-import type { DimahS3Config } from "@/types";
+import { route } from "@/route";
+import type { DimahS3Config, DimahS3RouteConfig } from "@/types";
 
 export type TestS3 = ReturnType<typeof dimahS3>;
 
@@ -38,15 +39,33 @@ export function sendByCommand(handlers: Record<string, unknown>) {
   });
 }
 
+export const defaultUploadBody = {
+  route: "uploads",
+  fileName: "a.png",
+  fileSize: 10,
+  contentType: "image/png",
+};
+
+export function allFeaturesRoute(overrides: DimahS3RouteConfig = {}) {
+  return route({
+    upload: true,
+    download: true,
+    delete: true,
+    multipart: true,
+    ...overrides,
+  });
+}
+
 export function createInstance(
   overrides: Partial<DimahS3Config> & {
     plugins?: DimahS3Config["plugins"];
   } = {},
 ) {
-  const { client, ...rest } = overrides;
+  const { client, routes, ...rest } = overrides;
   return dimahS3({
     client: client ?? mockS3(),
     bucket: "bucket",
+    routes: routes ?? { uploads: allFeaturesRoute() },
     ...rest,
   });
 }

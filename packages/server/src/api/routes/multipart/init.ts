@@ -10,8 +10,10 @@ import {
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import {
+  assertDeclaredConstraints,
+  getResolvedRoute,
+  resolveMultipartInitTarget,
   resolveRequestAcl,
-  resolveRequestTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -24,42 +26,45 @@ async function handleMultipartInit(
   input: typeof multipartInitBodySchema._output,
   request: Request,
 ): Promise<MultipartInitResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.multipart, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-    fileName: input.fileName,
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "multipart");
+  await runHook(route.guard, { request, route: route.name });
+
+  const fileSize = Math.floor(input.fileSize);
+  const fileName = input.fileName;
+  assertDeclaredConstraints(route.upload, {
+    fileName,
+    fileSize,
     contentType: input.contentType,
   });
-  const acl = resolveRequestAcl(config.multipart, input.acl);
-  const fileSize =
-    typeof input.fileSize === "number" && input.fileSize > 0
-      ? Math.floor(input.fileSize)
-      : undefined;
 
-  if (config.multipart?.requireFileSize && fileSize === undefined) {
-    throw errors.fileSizeRequiredMultipart();
-  }
-
-  await runHook(config.multipart?.initGuard, {
+  const { key, bucket } = await resolveMultipartInitTarget(route, {
     request,
+    route: route.name,
+    fileName,
+    contentType: input.contentType,
+    fileSize,
+  });
+  const acl = resolveRequestAcl(route.multipart ?? route.upload);
+
+  await runHook(route.multipart?.initGuard, {
+    request,
+    route: route.name,
     key,
     bucket,
     fileSize,
     contentType: input.contentType,
     metadata: input.metadata,
     acl,
-    fileName: input.fileName,
+    fileName,
   });
 
-  const { UploadId } = (await config.client.send(
+  const { UploadId } = (await route.client.send(
     new CreateMultipartUploadCommand({
       Bucket: bucket,
       Key: key,
       ContentType: input.contentType,
-      ContentDisposition: input.fileName
-        ? buildContentDisposition(input.fileName)
-        : undefined,
+      ContentDisposition: buildContentDisposition(fileName),
       Metadata: input.metadata,
       ACL: acl,
     }),
@@ -69,8 +74,9 @@ async function handleMultipartInit(
     throw errors.internalError();
   }
 
-  await runLifecycleHook(config.multipart?.onInit, {
+  await runLifecycleHook(route.multipart?.onInit, {
     request,
+    route: route.name,
     key,
     bucket,
     uploadId: UploadId,
@@ -78,7 +84,7 @@ async function handleMultipartInit(
     fileSize,
     metadata: input.metadata,
     acl,
-    fileName: input.fileName,
+    fileName,
   });
 
   return { bucket, key, uploadId: UploadId };
@@ -88,12 +94,12 @@ export const multipartInit = createS3Endpoint(
   S3_API_ROUTES.multipartInit,
   { method: "POST", body: multipartInitBodySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "multipart");
-    ctx.setStatus(201);
-    return handleMultipartInit(
+    const result = await handleMultipartInit(
       ctx.context.config,
       ctx.body,
       ctx.context.request,
     );
+    ctx.setStatus(201);
+    return result;
   },
 );

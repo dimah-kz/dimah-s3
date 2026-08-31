@@ -23,7 +23,7 @@ export const api = createS3Client({
 });
 
 try {
-  await api.download(key);
+  await api.download({ route: "uploads", key });
 } catch (err) {
   if (err instanceof DimahS3Error)
     console.error(err.statusCode, err.code, err.message);

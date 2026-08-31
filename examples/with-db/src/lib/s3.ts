@@ -1,5 +1,5 @@
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 import { db } from "@dimah-s3/db";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
 
@@ -19,13 +19,21 @@ export const awsS3 = new S3Client({
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
-  download: true,
-  delete: true,
   plugins: [
     db({
       client: dimahS3Db,
       resolveScope: () => "user:demo",
     }),
   ],
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+      },
+      download: true,
+      delete: true,
+    }),
+  },
 });

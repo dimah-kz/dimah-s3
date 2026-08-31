@@ -4,13 +4,19 @@ import type {
   S3ObjectAcl,
 } from "@dimah-s3/core";
 
-/** Context for the global `guard` hook. */
+/** Context for the instance `guard` hook. */
 export type GuardContext = {
   /** The incoming HTTP request. */
   request: Request;
 };
 
-type ObjectContext = GuardContext & {
+/** Context for a route-level `guard` (every operation on that route). */
+export type RouteGuardContext = GuardContext & {
+  /** Named file route. */
+  route: string;
+};
+
+type ObjectContext = RouteGuardContext & {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
@@ -18,18 +24,19 @@ type ObjectContext = GuardContext & {
 };
 
 /**
- * Input to `prefix` (string or factory) and `resolveKey` on a feature config.
- * Prefer a `prefix` factory for per-user / per-tenant folders so already-
- * prefixed stored keys stay idempotent.
+ * Input to `prefix` (string or factory) and `resolveKey` on upload / init.
  */
-export type ResolveKeyContext = {
+export type GenerateKeyContext = {
   request: Request;
-  /** Key the client sent. */
-  proposedKey: string;
-  fileName?: string;
+  route: string;
+  fileName: string;
   contentType?: string;
+  fileSize?: number;
   bucket: string;
 };
+
+/** @deprecated Use {@link GenerateKeyContext}. */
+export type ResolveKeyContext = GenerateKeyContext;
 
 /** Context for `upload.guard`. Client-declared values are not verified by S3. */
 export type UploadPresignGuardContext = ObjectContext & {
@@ -60,7 +67,7 @@ export type UploadConfirmGuardContext = ObjectContext;
  * Context for `upload.onConfirmed`.
  * `contentLength` and `eTag` are verified by S3 via HeadObject.
  */
-export type UploadOnConfirmedContext = GuardContext & {
+export type UploadOnConfirmedContext = RouteGuardContext & {
   /** S3 object key. */
   key: string;
   /** Target bucket. */

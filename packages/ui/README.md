@@ -38,7 +38,7 @@ export const s3Client = createS3Client();
 export function UploadDemo() {
   return (
     <s3Client.Provider>
-      <UploadDropzone />
+      <UploadDropzone route="uploads" />
     </s3Client.Provider>
   );
 }

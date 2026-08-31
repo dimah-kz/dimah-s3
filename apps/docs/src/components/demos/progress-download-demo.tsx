@@ -6,6 +6,7 @@ export function ProgressDownloadDemo() {
   return (
     <ProgressDownloadButton
       className="w-fit self-start"
+      route="uploads"
       objectKey="videos/demo.mp4"
       fileName="Demo.mp4"
       fileSize={75 * 1024 * 1024}

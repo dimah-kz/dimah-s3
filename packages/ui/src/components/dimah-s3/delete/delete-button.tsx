@@ -42,6 +42,8 @@ function isolateLtr(value: string): string {
 /** Props for {@link DeleteButton}. */
 export type DeleteButtonProps = DeleteHooks &
   AttachmentLayoutAliases & {
+    /** Named server route (`dimahS3({ routes })`). */
+    route: string;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
     /** S3 object key to delete. */
@@ -50,8 +52,6 @@ export type DeleteButtonProps = DeleteHooks &
     fileName?: string;
     /** Display file size in the confirmation dialog. */
     fileSize?: number;
-    /** Target bucket (overrides server default). */
-    bucket?: string;
     /** Button label. */
     label?: string;
     /** Custom button content. Replaces default icon + label. */
@@ -80,10 +80,10 @@ export type DeleteButtonProps = DeleteHooks &
 
 export function DeleteButton({
   api,
+  route,
   objectKey,
   fileName,
   fileSize,
-  bucket,
   label,
   children,
   className,
@@ -113,7 +113,7 @@ export function DeleteButton({
 
   const del = useDelete({
     api,
-    bucket,
+    route,
     beforeDelete,
     onDeleteStart,
     onSuccess: (key) => {

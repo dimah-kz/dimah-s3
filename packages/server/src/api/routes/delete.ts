@@ -5,8 +5,9 @@ import {
   type DeleteResponse,
 } from "@dimah-s3/core";
 import {
+  getResolvedRoute,
   headObjectOrNotFound,
-  resolveRequestTarget,
+  resolveStoredTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -19,25 +20,29 @@ async function handleDelete(
   input: typeof deleteQuerySchema._output,
   request: Request,
 ): Promise<DeleteResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.delete, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-  });
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "delete");
+  await runHook(route.guard, { request, route: route.name });
 
-  await runHook(config.delete?.guard, {
+  const { key, bucket } = resolveStoredTarget(route, "delete", input.key);
+
+  await runHook(route.delete?.guard, {
     request,
+    route: route.name,
     key,
     bucket,
   });
 
-  await headObjectOrNotFound(config.client, bucket, key);
+  await headObjectOrNotFound(route.client, bucket, key);
 
-  await config.client.send(
-    new DeleteObjectCommand({ Bucket: bucket, Key: key }),
-  );
+  await route.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 
-  await runLifecycleHook(config.delete?.onDeleted, { request, key, bucket });
+  await runLifecycleHook(route.delete?.onDeleted, {
+    request,
+    route: route.name,
+    key,
+    bucket,
+  });
 
   return { success: true, bucket, key };
 }
@@ -46,7 +51,6 @@ export const deleteObject = createS3Endpoint(
   S3_API_ROUTES.delete,
   { method: "DELETE", query: deleteQuerySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "delete");
     return handleDelete(ctx.context.config, ctx.query, ctx.context.request);
   },
 );

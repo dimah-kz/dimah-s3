@@ -4,17 +4,16 @@ import { uploadFile } from "./upload-file";
 import { uploadFiles } from "./upload-files";
 
 vi.mock("./upload-file", () => ({
-  uploadFile: vi.fn(async (_api, _file, objectKey) => ({
-    key: objectKey,
+  uploadFile: vi.fn(async (_api, file: File) => ({
+    key: `uploads/${file.name}`,
     eTag: "e",
   })),
 }));
 
-function item(id: string, key: string) {
+function item(id: string) {
   return {
     id,
     file: new File(["x"], `${id}.txt`, { type: "text/plain" }),
-    objectKey: key,
   };
 }
 
@@ -25,8 +24,8 @@ describe("uploadFiles", () => {
 
     const results = await uploadFiles(
       api,
-      [item("a", "a.txt"), item("b", "b.txt")],
-      { concurrentFiles: 2 },
+      [item("a"), item("b")],
+      { route: "uploads", concurrentFiles: 2 },
       { onFileSuccess },
     );
 
@@ -37,13 +36,12 @@ describe("uploadFiles", () => {
 
   it("records per-file errors without failing the batch", async () => {
     vi.mocked(uploadFile)
-      .mockResolvedValueOnce({ key: "a.txt", eTag: "e" })
+      .mockResolvedValueOnce({ key: "uploads/a.txt", eTag: "e" })
       .mockRejectedValueOnce(new Error("boom"));
 
-    const results = await uploadFiles(fakeS3Api(), [
-      item("a", "a.txt"),
-      item("b", "b.txt"),
-    ]);
+    const results = await uploadFiles(fakeS3Api(), [item("a"), item("b")], {
+      route: "uploads",
+    });
 
     expect(results[0]?.status).toBe("success");
     expect(results[1]?.status).toBe("error");

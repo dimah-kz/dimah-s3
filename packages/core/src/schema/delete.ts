@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { optionalTrimmedString, trimmedString } from "./shared";
+import { routeNameSchema, trimmedString } from "./shared";
 
 export const deleteQuerySchema = z.object({
+  route: routeNameSchema,
   key: trimmedString,
-  bucket: optionalTrimmedString,
 });

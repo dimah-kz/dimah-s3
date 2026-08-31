@@ -31,13 +31,11 @@ export type UploadPayload = z.infer<typeof uploadBodySchema> & S3ApiHeaders;
 /** Payload for {@link S3Api.confirm}. */
 export type ConfirmPayload = z.infer<typeof confirmBodySchema> & S3ApiHeaders;
 
-/** Options for {@link S3Api.download}. */
-export type DownloadOptions = Omit<z.infer<typeof downloadQuerySchema>, "key"> &
-  S3ApiHeaders;
+/** Payload for {@link S3Api.download}. */
+export type DownloadPayload = z.infer<typeof downloadQuerySchema> & S3ApiHeaders;
 
-/** Options for {@link S3Api.delete}. */
-export type DeleteOptions = Omit<z.infer<typeof deleteQuerySchema>, "key"> &
-  S3ApiHeaders;
+/** Payload for {@link S3Api.delete}. */
+export type DeletePayload = z.infer<typeof deleteQuerySchema> & S3ApiHeaders;
 
 /** Payload for {@link S3Api.multipart.init}. */
 export type MultipartInitPayload = z.infer<typeof multipartInitBodySchema> &

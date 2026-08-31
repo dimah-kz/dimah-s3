@@ -5,6 +5,7 @@ import type {
   DeleteOnDeletedContext,
   DownloadOnPresignedContext,
   DownloadPresignGuardContext,
+  GenerateKeyContext,
   GuardContext,
   MultipartAbortGuardContext,
   MultipartCompleteGuardContext,
@@ -15,7 +16,7 @@ import type {
   MultipartOnInitContext,
   MultipartOnListContext,
   MultipartPartGuardContext,
-  ResolveKeyContext,
+  RouteGuardContext,
   UploadConfirmGuardContext,
   UploadOnConfirmedContext,
   UploadOnPresignedContext,
@@ -23,50 +24,48 @@ import type {
 } from "./hook-contexts";
 import type { DimahS3Plugin } from "@/plugin/types";
 
-export type { ResolveKeyContext };
+export type { GenerateKeyContext };
 
 /**
- * Static folder, or a factory that returns one from {@link ResolveKeyContext}.
+ * Static folder, or a factory that returns one from {@link GenerateKeyContext}.
  * The return value is prepended — it is not the full object key. Use
  * {@link KeyPolicy.resolveKey} when you need to replace the key entirely.
  */
 export type KeyPrefix =
-  string | ((context: ResolveKeyContext) => string | Promise<string>);
+  string | ((context: GenerateKeyContext) => string | Promise<string>);
 
 export type KeyPolicy = {
   /**
-   * Prepended to the client-proposed key. A string or an async factory with
-   * the same {@link ResolveKeyContext} as {@link resolveKey} (session, tenant,
-   * …). Already-prefixed keys are left unchanged so confirm / download of the
-   * stored key still work.
+   * Folder prepended when generating keys on upload / multipart init.
+   * A string or an async factory (`GenerateKeyContext`).
    */
   prefix?: KeyPrefix;
   /**
-   * Full control over the object key. Wins over {@link prefix}. Must be
-   * deterministic across presign, confirm, download, and delete — a new key
-   * each time misses the object.
+   * Full control over the object key. Wins over {@link prefix}.
+   * Only runs on upload / multipart init — confirm, download, and delete
+   * use the stored key from the presign response.
    */
-  resolveKey?: (context: ResolveKeyContext) => string | Promise<string>;
+  resolveKey?: (context: GenerateKeyContext) => string | Promise<string>;
 };
 
 export type AclPolicy = {
   /**
-   * Server-forced ACL. When set, the client `acl` is ignored.
-   * @default "private" (when omitted)
+   * Server-forced ACL.
+   * @default "private"
    */
   acl?: S3ObjectAcl;
-  /**
-   * Honor a client-sent `acl` (`private` | `public-read`). Off by default —
-   * uploads are `private` unless {@link acl} is set.
-   */
-  allowClientAcl?: boolean;
 };
 
 /** Upload feature. A config object (or `true`) enables the feature. */
 export type UploadConfig = KeyPolicy &
   AclPolicy & {
+    /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
+    fileTypes?: string[];
+    /** Max declared and HeadObject size in bytes. */
+    maxFileSize?: number;
     method?: UploadPresignMethod;
-    requireFileSize?: boolean;
+    /** Presign TTL in seconds. Clamped by instance `maxExpiresIn`. */
+    expiresIn?: number;
     guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
     onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
     confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
@@ -75,6 +74,7 @@ export type UploadConfig = KeyPolicy &
 
 /** Download feature. A config object (or `true`) enables the feature. */
 export type DownloadConfig = KeyPolicy & {
+  expiresIn?: number;
   guard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
 };
@@ -85,10 +85,12 @@ export type DeleteConfig = KeyPolicy & {
   onDeleted?: (context: DeleteOnDeletedContext) => Promise<void> | void;
 };
 
-/** Multipart feature. On automatically when upload is on, unless set to `false`. */
+/**
+ * Multipart lifecycle hooks. Consumers enable multipart with `multipart: true`
+ * on the route; plugins may still contribute these fields.
+ */
 export type MultipartConfig = KeyPolicy &
   AclPolicy & {
-    requireFileSize?: boolean;
     initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
     partGuard?: (context: MultipartPartGuardContext) => Promise<void> | void;
     completeGuard?: (
@@ -106,27 +108,57 @@ export type MultipartConfig = KeyPolicy &
 export type FeatureToggle<T> = boolean | T;
 
 /**
+ * Named file-route policy — a mini {@link DimahS3Config} under `routes`.
+ * Upload is on when omitted; download, delete, and multipart are off.
+ */
+export type DimahS3RouteConfig = KeyPolicy & {
+  /** Override the instance S3 client for this route. */
+  client?: S3Client;
+  /** Override the instance bucket for this route. */
+  bucket?: string;
+  /** Runs before every operation on this route. */
+  guard?: (context: RouteGuardContext) => Promise<void> | void;
+  /**
+   * Opt out of instance plugins by id (`{ db: false }`).
+   * Hooks from opted-out plugins are not merged onto this route.
+   */
+  plugins?: { readonly [pluginId: string]: false };
+  upload?: FeatureToggle<UploadConfig>;
+  download?: FeatureToggle<DownloadConfig>;
+  delete?: FeatureToggle<DeleteConfig>;
+  /** Opt-in multipart. Default `false`. Requires upload. */
+  multipart?: boolean;
+};
+
+/**
  * Options for {@link dimahS3}.
  *
  * @example
  * ```ts
- * export const awsS3 = new S3Client({ ... });
  * export const s3 = dimahS3({
  *   client: awsS3,
  *   bucket: "my-bucket",
- *   upload: true,
+ *   routes: {
+ *     uploads: route({
+ *       prefix: "uploads",
+ *       upload: { fileTypes: ["image/*"] },
+ *       download: true,
+ *     }),
+ *   },
  * });
  * ```
  */
 export type DimahS3Config = {
-  /** AWS SDK v3 `S3Client`. Export it as `awsS3` so scripts and a custom backend can reuse it. */
-  client: S3Client;
   /**
-   * Default bucket. Used when the request omits `bucket`, and whenever a
-   * client-sent bucket is ignored (the default). Hooks may still send
-   * `bucket`; it only wins with {@link allowClientBucket} or {@link buckets}.
+   * Default AWS SDK v3 `S3Client`. Required unless every route sets
+   * {@link DimahS3RouteConfig.client}.
    */
-  bucket: string;
+  client?: S3Client;
+  /**
+   * Default bucket. Required unless every route sets
+   * {@link DimahS3RouteConfig.bucket}.
+   */
+  bucket?: string;
   /**
    * API path prefix for the HTTP `handler`.
    * Must match `createS3Client({ basePath })` on the client.
@@ -137,55 +169,47 @@ export type DimahS3Config = {
    * When enabled, confirmation procedures call GetObjectAcl to infer whether
    * the object is public-read or private.
    *
-   * Keep disabled unless you need ACL inference in responses/hooks —
-   * it adds one extra S3 request per upload confirmation.
-   *
    * @default false
    */
   resolveObjectAcl?: boolean;
   /**
-   * Allow the client to pick any bucket. Off by default — the request `bucket`
-   * is ignored and {@link bucket} is used.
-   *
-   * Mutually exclusive with {@link buckets}.
-   */
-  allowClientBucket?: boolean;
-  /**
-   * Allowlist of buckets the client may send. When set, a request bucket
-   * outside this list is rejected. {@link bucket} should be included.
-   *
-   * Mutually exclusive with {@link allowClientBucket}.
-   */
-  buckets?: string[];
-  /**
-   * Upper bound for client `expiresIn` (seconds). Requests above this are
-   * clamped. The protocol maximum is 7 days (604800).
+   * Upper bound for route `expiresIn` (seconds). The protocol maximum is
+   * 7 days (604800).
    * @default 604800
    */
   maxExpiresIn?: number;
-  /** Runs before every operation. Throw to reject. */
+  /** Runs before every operation, before route lookup. Throw to reject. */
   guard?: (context: GuardContext) => Promise<void> | void;
-  upload?: FeatureToggle<UploadConfig>;
-  download?: FeatureToggle<DownloadConfig>;
-  delete?: FeatureToggle<DeleteConfig>;
-  multipart?: FeatureToggle<MultipartConfig>;
   /**
    * Optional server plugins (e.g. `db()` from `@dimah-s3/db`).
-   * Plugin hooks merge ahead of user hooks; contexts land on `s3.context[id]`
-   * and are flattened onto the instance (`s3[id]`).
+   * Plugin hooks merge onto each route unless the route opts out.
    */
   plugins?: readonly DimahS3Plugin[];
+  /** Named file routes. At least one is required. */
+  routes: Record<string, DimahS3RouteConfig>;
 };
 
 type ResolvedFeature<T> = T & { enabled: boolean };
 
-/** Feature flags after {@link dimahS3} normalizes booleans and defaults. */
-export type ResolvedDimahS3Config = Omit<
-  DimahS3Config,
-  "upload" | "download" | "delete" | "multipart" | "plugins"
-> & {
+/** One named route after {@link dimahS3} normalizes booleans, inheritance, and plugin hooks. */
+export type ResolvedRoutePolicy = {
+  name: string;
+  client: S3Client;
+  bucket: string;
+  prefix?: KeyPrefix;
+  resolveKey?: KeyPolicy["resolveKey"];
+  guard?: DimahS3RouteConfig["guard"];
+  skippedPluginIds: ReadonlySet<string>;
   upload?: ResolvedFeature<UploadConfig>;
   download?: ResolvedFeature<DownloadConfig>;
   delete?: ResolvedFeature<DeleteConfig>;
   multipart?: ResolvedFeature<MultipartConfig>;
+};
+
+/** Instance config after {@link dimahS3} normalizes routes and plugins. */
+export type ResolvedDimahS3Config = Omit<
+  DimahS3Config,
+  "routes" | "plugins"
+> & {
+  routes: Record<string, ResolvedRoutePolicy>;
 };

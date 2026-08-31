@@ -7,7 +7,7 @@ import {
 } from "./plugin";
 import { coreEndpoints, type CoreEndpoints } from "./api/routes";
 import { createS3Router } from "./api/router";
-import type { DimahS3Config } from "./types";
+import type { DimahS3Config, DimahS3RouteConfig } from "./types";
 
 export type MultipartAliasApi = {
   init: CoreEndpoints["multipartInit"];
@@ -25,6 +25,10 @@ export type DimahS3Api<P extends readonly DimahS3Plugin[] = []> =
 export type DimahS3<
   P extends readonly DimahS3Plugin[] = [],
   C extends Record<string, unknown> = PluginContextMap<P>,
+  R extends Record<string, DimahS3RouteConfig> = Record<
+    string,
+    DimahS3RouteConfig
+  >,
 > = {
   /** Framework-agnostic HTTP handler (`Request` → `Response`). */
   handler: (request: Request) => Promise<Response>;
@@ -32,8 +36,8 @@ export type DimahS3<
    * better-call endpoints — invoke as functions from Server Actions / RSC.
    *
    * ```ts
-   * await s3.api.download({ query: { key }, headers: await headers() });
-   * await s3.api.multipart.init({ body: { key } });
+   * await s3.api.download({ query: { route, key }, headers: await headers() });
+   * await s3.api.multipart.init({ body: { route, fileName, fileSize } });
    * ```
    */
   api: DimahS3Api<P>;
@@ -50,6 +54,7 @@ export type DimahS3<
   $Infer: {
     api: DimahS3Api<P>;
     context: C;
+    routes: keyof R & string;
   };
 } & C;
 
@@ -65,17 +70,23 @@ export type DimahS3<
  * export const s3 = dimahS3({
  *   client: awsS3,
  *   bucket: "my-bucket",
- *   upload: true,
+ *   routes: {
+ *     uploads: route({ prefix: "uploads", download: true }),
+ *   },
  * });
  *
  * export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
  *
- * await s3.api.download({ query: { key }, headers: await headers() });
+ * await s3.api.download({ query: { route: "uploads", key }, headers: await headers() });
  * ```
  */
-export function dimahS3<const P extends readonly DimahS3Plugin[] = []>(
-  config: DimahS3Config & { plugins?: P },
-): DimahS3<P> {
+export function dimahS3<
+  const P extends readonly DimahS3Plugin[] = [],
+  const R extends Record<string, DimahS3RouteConfig> = Record<
+    string,
+    DimahS3RouteConfig
+  >,
+>(config: DimahS3Config & { plugins?: P; routes: R }): DimahS3<P, PluginContextMap<P>, R> {
   const {
     config: resolved,
     context,
@@ -96,7 +107,7 @@ export function dimahS3<const P extends readonly DimahS3Plugin[] = []>(
       complete: bound.multipartComplete,
       abort: bound.multipartAbort,
     },
-  } as DimahS3<P>["api"];
+  } as DimahS3<P, PluginContextMap<P>, R>["api"];
 
   return {
     handler: router.handler,
@@ -104,7 +115,7 @@ export function dimahS3<const P extends readonly DimahS3Plugin[] = []>(
     context,
     getPlugin,
     $ERROR_CODES: S3_ERROR_CODES,
-    $Infer: {} as DimahS3<P>["$Infer"],
+    $Infer: {} as DimahS3<P, PluginContextMap<P>, R>["$Infer"],
     ...context,
-  } as DimahS3<P>;
+  } as DimahS3<P, PluginContextMap<P>, R>;
 }

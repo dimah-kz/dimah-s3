@@ -25,7 +25,7 @@ presigning phase.
 import { useDownload } from "@dimah-s3/react";
 
 export function DownloadFile() {
-  const { download, phase } = useDownload();
+  const { download, phase } = useDownload({ route: "uploads" });
 
   return (
     <button type="button" onClick={() => void download("photo.jpg")}>
@@ -38,7 +38,7 @@ export function DownloadFile() {
 Need the URL only — preview, embed, or your own link:
 
 ```tsx
-const { presign } = useDownload();
+const { presign } = useDownload({ route: "uploads" });
 const result = await presign("photo.jpg");
 ```
 
@@ -54,6 +54,7 @@ import { useDownload } from "@dimah-s3/react";
 
 export function DownloadFile() {
   const { download, cancel, progress, phase } = useDownload({
+    route: "uploads",
     mode: "fetch",
   });
 

@@ -27,14 +27,14 @@ import { useDownloadToast } from "@/hooks/use-download-toast";
 /** Props for {@link DownloadButton}. */
 export type DownloadButtonProps = DownloadHooks &
   AttachmentLayoutAliases & {
+    /** Named server route (`dimahS3({ routes })`). */
+    route: string;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
     /** S3 object key to download. */
     objectKey: string;
     /** Download filename for Content-Disposition. */
     fileName?: string;
-    /** Target bucket (overrides server default). */
-    bucket?: string;
     /** Button label. */
     label?: string;
     /** Custom button content. Replaces default icon + label. */
@@ -61,9 +61,9 @@ export type DownloadButtonProps = DownloadHooks &
 
 export function DownloadButton({
   api,
+  route,
   objectKey,
   fileName,
-  bucket,
   label,
   children,
   className,
@@ -90,7 +90,7 @@ export function DownloadButton({
 
   const dl = useDownload({
     api,
-    bucket,
+    route,
     beforeDownload,
     onInitiated: (key) => {
       toastHandlers.onInitiated();

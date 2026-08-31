@@ -1,6 +1,6 @@
 "use client";
 
-import { defaultObjectKey, type DimahS3Error } from "@dimah-s3/core";
+import type { DimahS3Error } from "@dimah-s3/core";
 import type {
   UploadProgress,
   MultiUploadFileState,
@@ -21,8 +21,6 @@ export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
 
 /** Options for {@link useMultiUpload}. */
 export type UseMultiUploadOptions = UseMultiFileUploadOptions & {
-  /** S3 object key derived from each file. */
-  objectKey?: (file: File) => string;
   /** Disable all intake interactions. */
   disabled?: boolean;
   /**
@@ -82,28 +80,16 @@ export type UseMultiUploadReturn = {
 export function useMultiUpload(
   options: UseMultiUploadOptions,
 ): UseMultiUploadReturn {
-  const {
-    objectKey,
-    disabled,
-    noDrag,
-    noClick,
-    noKeyboard,
-    onFileReject,
-    ...multiOpts
-  } = options;
+  const { disabled, noDrag, noClick, noKeyboard, onFileReject, ...multiOpts } =
+    options;
 
   const multi = useMultiFileUpload(multiOpts);
-
-  const resolveKey = (file: File): string => {
-    if (objectKey) return objectKey(file);
-    return defaultObjectKey(file);
-  };
 
   const handleFiles = (files: FileList | File[] | null) => {
     if (files == null) return;
     const list = Array.from(files);
     if (list.length === 0) return;
-    void multi.upload(list, resolveKey);
+    void multi.upload(list);
   };
 
   const intake = useFileIntake({

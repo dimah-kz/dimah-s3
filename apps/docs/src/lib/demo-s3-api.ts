@@ -10,18 +10,24 @@ const objectSizes = new Map<string, number>();
 
 type DemoS3Api = S3Api & { uploadTransport: typeof simulateDemoUpload };
 
+function demoKey(route: string, fileName: string) {
+  const safe = fileName.replace(/[^a-zA-Z0-9._-]+/g, "_") || "file";
+  return `${route}/${crypto.randomUUID()}/${safe}`;
+}
+
 /** Client-side S3Api mock for docs demos. File bytes stay in the browser. */
 export const demoS3Api: DemoS3Api = {
   uploadTransport: simulateDemoUpload,
 
   upload: async (payload) => {
-    const fileSize = payload.fileSize ?? 0;
+    const fileSize = payload.fileSize;
     const contentType = payload.contentType || "application/octet-stream";
-    pendingUploadSizes.set(payload.key, fileSize);
+    const key = demoKey(payload.route, payload.fileName);
+    pendingUploadSizes.set(key, fileSize);
 
     return {
-      key: payload.key,
-      bucket: payload.bucket ?? "demo",
+      key,
+      bucket: "demo",
       url: "local://demo",
       expiresIn: 3600,
       method: "PUT",
@@ -36,14 +42,15 @@ export const demoS3Api: DemoS3Api = {
 
     return {
       key: payload.key,
-      bucket: payload.bucket ?? "demo",
+      bucket: "demo",
       contentLength,
       metadata: {},
       eTag: '"demo"',
     };
   },
 
-  download: async (key, options) => {
+  download: async (payload) => {
+    const { key } = payload;
     const localUrl = getDemoFileUrl(key);
     if (localUrl) {
       return {
@@ -56,7 +63,7 @@ export const demoS3Api: DemoS3Api = {
 
     const bytes = objectSizes.get(key) ?? 75 * 1024 * 1024;
     const params = new URLSearchParams({ key, bytes: String(bytes) });
-    if (options?.fileName) params.set("name", options.fileName);
+    if (payload.fileName) params.set("name", payload.fileName);
 
     return {
       key,
@@ -66,7 +73,8 @@ export const demoS3Api: DemoS3Api = {
     };
   },
 
-  delete: async (key, options) => {
+  delete: async (payload) => {
+    const { key } = payload;
     // Pause so the deleting spinner is visible on fast localhost.
     await new Promise((resolve) => setTimeout(resolve, 1200));
     objectSizes.delete(key);
@@ -74,7 +82,7 @@ export const demoS3Api: DemoS3Api = {
     forgetDemoFile(key);
     return {
       success: true,
-      bucket: options?.bucket ?? "demo",
+      bucket: "demo",
       key,
     };
   },

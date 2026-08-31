@@ -16,8 +16,8 @@ these hooks.
 | `useFileUpload`      | You already have a `File`     |
 | `useMultiFileUpload` | You already have `File[]`     |
 
-`accept` and `maxFileSize` are client-side only. Mirror them in
-[`upload.guard`](/docs/server/hooks/upload#guard).
+`accept` and `maxFileSize` are client-side UX only. The server enforces
+[`upload.fileTypes` / `upload.maxFileSize`](/docs/server/routes).
 
 `accept` is the HTML list: MIME types (`image/*`, `application/pdf`) and/or
 extensions (`.pdf`). The native picker uses it as the `accept` attribute;
@@ -31,7 +31,9 @@ dropzone and `validateFile` share the same tokens.
 import { useUpload } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { getRootProps, getInputProps, isUploading, progress } = useUpload();
+  const { getRootProps, getInputProps, isUploading, progress } = useUpload({
+    route: "uploads",
+  });
 
   return (
     <div {...getRootProps()}>
@@ -71,6 +73,7 @@ import { useMultiUpload } from "@dimah-s3/react";
 export function MultiUploader() {
   const { getRootProps, getInputProps, isUploading, totalProgress } =
     useMultiUpload({
+      route: "uploads",
       maxFiles: 5,
     });
 
@@ -85,9 +88,9 @@ export function MultiUploader() {
 }
 ```
 
-Each file needs its own key, so `objectKey` is `(file: File) => string`.
-`files` on the return value is the per-file list (`name`, `size`, `type`,
-`previewUrl`, plus `id` / `status` / `progress` / `error`).
+The server generates each object key. `files` on the return value is the
+per-file list (`name`, `size`, `type`, `previewUrl`, plus `id` / `status` /
+`progress` / `error`).
 
 `multipart` splits **one** large file into parts. It is not multi-file
 upload. To resume after a refresh, pass an
@@ -98,35 +101,36 @@ upload. To resume after a refresh, pass an
 Skip dropzone when you already have a `File`.
 
 ```tsx
-import { defaultObjectKey, useFileUpload } from "@dimah-s3/react";
+import { useFileUpload } from "@dimah-s3/react";
 
-const { upload, progress, phase, fileInfo } = useFileUpload();
+const { upload, progress, phase, fileInfo } = useFileUpload({
+  route: "uploads",
+});
 
-await upload(file, defaultObjectKey(file));
+await upload(file);
 ```
 
 ```tsx
-const { upload, totalProgress, phase } = useMultiFileUpload();
+const { upload, totalProgress, phase } = useMultiFileUpload({
+  route: "uploads",
+});
 
-await upload(files, (file) => `uploads/${file.name}`);
+await upload(files);
 ```
 
 ## Options
 
-| Option                               | Description                                                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `objectKey`                          | Optional. `useUpload`: string or `(file) => string`. `useMultiUpload`: `(file) => string` only. Default: uuid + filename |
-| `uploadOptions` / `getUploadOptions` | Extra presign fields (`bucket`, `metadata`, `acl`, …)                                                                    |
-| `accept`                             | HTML tokens: MIME types (`image/*`, `application/pdf`) and/or extensions (`.pdf`)                                        |
-| `maxFileSize`                        | Bytes                                                                                                                    |
-| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                             |
-| `multipart`                          | Split large files into parts                                                                                             |
-| `uploadStore`                        | Resume after refresh                                                                                                     |
-| `onSuccess`                          | Called with the uploaded key                                                                                             |
+| Option                               | Description                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                            |
+| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                    |
+| `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions       |
+| `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                              |
+| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                    |
+| `multipart`                          | Split files ≥ 50 MB into parts (server route must set `multipart: true`)                        |
+| `uploadStore`                        | Resume after refresh                                                                            |
+| `onSuccess`                          | Called with the uploaded key                                                                    |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
 types: `UseUploadOptions`, `UseMultiUploadOptions`.
-
-Client `acl` is ignored unless the server sets `upload.allowClientAcl` — see
-[Upload](/docs/server/hooks/upload).

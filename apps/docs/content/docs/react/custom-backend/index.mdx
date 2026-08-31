@@ -9,6 +9,8 @@ server framework are up to you. They do not need to match
 
 Each `S3Api` method must accept the documented input and return JSON with
 **every field** in the response tables. Missing fields break the hooks.
+Every request includes a required `route` name. Upload and multipart init
+do **not** send `key` — your backend generates it and returns it.
 
 Input types: `Parameters<S3Api["upload"]>`. Response types are exported from
 `@dimah-s3/core`.
@@ -36,10 +38,10 @@ export const api = defineApi({
   async confirm(payload) {
     /* see Upload */
   },
-  async download(key, options) {
+  async download(payload) {
     /* see Download */
   },
-  async delete(key, options) {
+  async delete(payload) {
     /* see Delete */
   },
   multipart: {

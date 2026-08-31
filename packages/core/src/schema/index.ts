@@ -1,8 +1,8 @@
 export {
   metadataSchema,
-  optionalCoerceExpiresInSchema,
-  optionalExpiresInSchema,
   optionalTrimmedString,
+  routeNameSchema,
+  ROUTE_NAME_PATTERN,
   s3ObjectAclSchema,
   S3_DEFAULT_EXPIRES_IN,
   S3_MAX_EXPIRES_IN,

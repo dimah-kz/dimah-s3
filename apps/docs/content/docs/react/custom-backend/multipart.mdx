@@ -112,10 +112,10 @@ multipart: {
   signPart: (payload) => post(`${base}/part`, payload),
   async listParts(payload) {
     const params = new URLSearchParams({
+      route: payload.route,
       key: payload.key,
       uploadId: payload.uploadId,
     });
-    if (payload.bucket) params.set("bucket", payload.bucket);
     const res = await fetch(`${base}/parts?${params}`);
     if (!res.ok) throw new Error(await res.text());
     return res.json();

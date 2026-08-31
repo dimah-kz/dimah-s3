@@ -1,3 +1,4 @@
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   CompleteMultipartUploadCommand,
   type CompleteMultipartUploadCommandOutput,
@@ -10,11 +11,13 @@ import {
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import {
+  assertVerifiedConstraints,
+  getResolvedRoute,
   headObjectAfterMultipartComplete,
   listAllParts,
   requireContentLength,
   resolveObjectAcl,
-  resolveRequestTarget,
+  resolveStoredTarget,
   runHook,
   runLifecycleHook,
   sendOrObjectNotFound,
@@ -28,26 +31,27 @@ async function handleComplete(
   input: typeof multipartCompleteBodySchema._output,
   request: Request,
 ): Promise<MultipartCompleteResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.multipart, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-  });
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "multipart");
+  await runHook(route.guard, { request, route: route.name });
+
+  const { key, bucket } = resolveStoredTarget(route, "multipart", input.key);
   const uploadId = input.uploadId;
   const parts = input.parts
     .map(({ partNumber }) => partNumber)
     .sort((a, b) => a - b);
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
-  await runHook(config.multipart?.completeGuard, {
+  await runHook(route.multipart?.completeGuard, {
     request,
+    route: route.name,
     key,
     bucket,
     uploadId,
     parts: partRefs,
   });
 
-  const listedParts = await listAllParts(config.client, {
+  const listedParts = await listAllParts(route.client, {
     bucket,
     key,
     uploadId,
@@ -63,7 +67,7 @@ async function handleComplete(
 
   const completeResult: CompleteMultipartUploadCommandOutput =
     await sendOrObjectNotFound(() =>
-      config.client.send(
+      route.client.send(
         new CompleteMultipartUploadCommand({
           Bucket: bucket,
           Key: key,
@@ -74,24 +78,43 @@ async function handleComplete(
     );
 
   const head = await headObjectAfterMultipartComplete(
-    config.client,
+    route.client,
     bucket,
     key,
   );
   const contentLength = requireContentLength(head);
   const contentType = head.ContentType;
+  const fileName = parseFileName(head.ContentDisposition);
+
+  try {
+    assertVerifiedConstraints(route.upload, {
+      fileName,
+      contentType,
+      contentLength,
+    });
+  } catch (err) {
+    try {
+      await route.client.send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+      );
+    } catch {
+      // Best-effort cleanup.
+    }
+    throw err;
+  }
+
   const eTag = (head.ETag ?? completeResult.ETag ?? "").replace(/"/g, "");
   const metadata = head.Metadata ?? {};
   const versionId = head.VersionId;
   const lastModified = head.LastModified?.toISOString();
 
   const acl = config.resolveObjectAcl
-    ? await resolveObjectAcl(config.client, bucket, key)
+    ? await resolveObjectAcl(route.client, bucket, key)
     : undefined;
-  const fileName = parseFileName(head.ContentDisposition);
 
-  await runLifecycleHook(config.multipart?.onComplete, {
+  await runLifecycleHook(route.multipart?.onComplete, {
     request,
+    route: route.name,
     key,
     bucket,
     uploadId,
@@ -124,7 +147,6 @@ export const multipartComplete = createS3Endpoint(
   S3_API_ROUTES.multipartComplete,
   { method: "POST", body: multipartCompleteBodySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "multipart");
     return handleComplete(ctx.context.config, ctx.body, ctx.context.request);
   },
 );

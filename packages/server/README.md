@@ -15,14 +15,21 @@ pnpm add @dimah-s3/server @aws-sdk/client-s3
 
 ```ts
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: true,
+      download: true,
+      delete: true,
+    }),
+  },
 });
 ```
 
@@ -46,7 +53,7 @@ See [Server setup](https://dimah-s3.vercel.app/docs/server/setup) for full examp
 Server-side (no HTTP):
 
 ```ts
-await s3.api.download({ query: { key }, headers: await headers() });
+await s3.api.download({ query: { route, key }, headers: await headers() });
 ```
 
 Optional persistence: add `db()` from [`@dimah-s3/db`](../db) to `plugins`.

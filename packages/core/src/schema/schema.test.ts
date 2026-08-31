@@ -11,6 +11,13 @@ import {
 } from "./multipart";
 import { optionalTrimmedString, trimmedString } from "./shared";
 import { confirmBodySchema, uploadBodySchema } from "./upload";
+
+const uploadBody = {
+  route: "uploads",
+  fileName: "a.png",
+  fileSize: 10,
+};
+
 describe("s3FetchErrorSchema", () => {
   it("accepts the API error JSON body", () => {
     expect(
@@ -47,83 +54,87 @@ describe("optionalTrimmedString", () => {
 });
 
 describe("uploadBodySchema", () => {
-  it("requires a non-empty key", () => {
+  it("requires route, fileName, and fileSize", () => {
     expect(uploadBodySchema.safeParse({}).success).toBe(false);
-    expect(uploadBodySchema.parse({ key: " a.png " })).toMatchObject({
-      key: "a.png",
-    });
+    expect(uploadBodySchema.safeParse({ route: "uploads" }).success).toBe(false);
+    expect(uploadBodySchema.parse(uploadBody)).toMatchObject(uploadBody);
   });
 
-  it("accepts optional metadata, acl, and size", () => {
+  it("rejects invalid route names", () => {
+    expect(
+      uploadBodySchema.safeParse({ ...uploadBody, route: "1bad" }).success,
+    ).toBe(false);
+    expect(
+      uploadBodySchema.safeParse({ ...uploadBody, route: "has space" }).success,
+    ).toBe(false);
+  });
+
+  it("accepts optional metadata and contentType", () => {
     expect(
       uploadBodySchema.parse({
-        key: "a.png",
-        fileSize: 10,
-        acl: "private",
+        ...uploadBody,
+        contentType: "image/png",
         metadata: { source: "web" },
       }),
     ).toMatchObject({
       fileSize: 10,
-      acl: "private",
       metadata: { source: "web" },
     });
   });
 
-  it("rejects unknown acl values", () => {
-    expect(
-      uploadBodySchema.safeParse({ key: "a.png", acl: "public" }).success,
-    ).toBe(false);
-  });
-
-  it("rejects expiresIn above the SigV4 maximum", () => {
-    expect(
-      uploadBodySchema.safeParse({ key: "a.png", expiresIn: 604_801 }).success,
-    ).toBe(false);
-    expect(
-      uploadBodySchema.parse({ key: "a.png", expiresIn: 604_800 }),
-    ).toMatchObject({ expiresIn: 604_800 });
+  it("rejects a client key, bucket, acl, or expiresIn", () => {
+    const parsed = uploadBodySchema.parse({
+      ...uploadBody,
+      key: "a.png",
+      bucket: "other",
+      acl: "public-read",
+      expiresIn: 600,
+    });
+    expect(parsed).not.toHaveProperty("key");
+    expect(parsed).not.toHaveProperty("bucket");
+    expect(parsed).not.toHaveProperty("acl");
+    expect(parsed).not.toHaveProperty("expiresIn");
   });
 });
 
 describe("confirmBodySchema", () => {
-  it("requires key", () => {
-    expect(confirmBodySchema.safeParse({ bucket: "b" }).success).toBe(false);
-    expect(confirmBodySchema.parse({ key: "a.png", bucket: "b" })).toEqual({
+  it("requires route and key", () => {
+    expect(confirmBodySchema.safeParse({ key: "a.png" }).success).toBe(false);
+    expect(confirmBodySchema.parse({ route: "uploads", key: "a.png" })).toEqual({
+      route: "uploads",
       key: "a.png",
-      bucket: "b",
     });
   });
 });
 
 describe("downloadQuerySchema", () => {
-  it("requires key and coerces expiresIn from query strings", () => {
-    expect(downloadQuerySchema.safeParse({}).success).toBe(false);
+  it("requires route and key", () => {
+    expect(downloadQuerySchema.safeParse({ key: "a.png" }).success).toBe(false);
     expect(
-      downloadQuerySchema.parse({ key: "a.png", expiresIn: "120" }),
-    ).toMatchObject({ expiresIn: 120 });
-    expect(
-      downloadQuerySchema.safeParse({ key: "a.png", expiresIn: "604801" })
-        .success,
-    ).toBe(false);
+      downloadQuerySchema.parse({ route: "uploads", key: "a.png" }),
+    ).toMatchObject({ route: "uploads", key: "a.png" });
   });
 });
 
 describe("deleteQuerySchema", () => {
-  it("requires key", () => {
-    expect(deleteQuerySchema.safeParse({}).success).toBe(false);
+  it("requires route and key", () => {
+    expect(deleteQuerySchema.safeParse({ key: "a.png" }).success).toBe(false);
+    expect(deleteQuerySchema.parse({ route: "uploads", key: "a.png" })).toEqual({
+      route: "uploads",
+      key: "a.png",
+    });
   });
 });
 
 describe("multipart schemas", () => {
-  it("strips expiresIn from init", () => {
-    expect(
-      multipartInitBodySchema.parse({ key: "a.png", expiresIn: 600 }),
-    ).toEqual({ key: "a.png" });
+  it("requires the same fields as upload on init", () => {
+    expect(multipartInitBodySchema.parse(uploadBody)).toEqual(uploadBody);
   });
 
   it("requires a positive partNumber", () => {
     expect(
       multipartSignPartBodySchema.safeParse({
+        route: "uploads",
         key: "a.png",
         uploadId: "u",
         partNumber: 0,
@@ -134,6 +145,7 @@ describe("multipart schemas", () => {
   it("requires at least one part to complete", () => {
     expect(
       multipartCompleteBodySchema.safeParse({
+        route: "uploads",
         key: "a.png",
         uploadId: "u",
         parts: [],
@@ -142,11 +154,17 @@ describe("multipart schemas", () => {
   });
 
   it("requires uploadId on abort and list-parts", () => {
-    expect(multipartAbortBodySchema.safeParse({ key: "a.png" }).success).toBe(
-      false,
-    );
     expect(
-      multipartListPartsQuerySchema.safeParse({ key: "a.png" }).success,
+      multipartAbortBodySchema.safeParse({
+        route: "uploads",
+        key: "a.png",
+      }).success,
+    ).toBe(false);
+    expect(
+      multipartListPartsQuerySchema.safeParse({
+        route: "uploads",
+        key: "a.png",
+      }).success,
     ).toBe(false);
   });
 });

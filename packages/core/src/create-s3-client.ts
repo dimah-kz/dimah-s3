@@ -65,24 +65,23 @@ function createCoreApi($fetch: S3Fetch): S3Api {
       });
     },
 
-    download(key, options?) {
-      const { fileName, bucket, expiresIn } = options ?? {};
+    download(payload) {
+      const { route, key, fileName } = withoutHeaders(payload);
       return $fetch<PresignResponse>(S3_API_ROUTES.download, {
         method: "GET",
         query: {
+          route,
           key,
           fileName: fileName ? sanitizeFileName(fileName) : undefined,
-          bucket,
-          expiresIn,
         },
       });
     },
 
-    delete(key, options?) {
-      const { bucket } = options ?? {};
+    delete(payload) {
+      const { route, key } = withoutHeaders(payload);
       return $fetch<DeleteResponse>(S3_API_ROUTES.delete, {
         method: "DELETE",
-        query: { key, bucket },
+        query: { route, key },
       });
     },
 
@@ -102,10 +101,10 @@ function createCoreApi($fetch: S3Fetch): S3Api {
       },
 
       listParts(payload) {
-        const { key, uploadId, bucket } = withoutHeaders(payload);
+        const { route, key, uploadId } = withoutHeaders(payload);
         return $fetch<MultipartListPartsResponse>(
           S3_API_ROUTES.multipartListParts,
-          { method: "GET", query: { key, uploadId, bucket } },
+          { method: "GET", query: { route, key, uploadId } },
         );
       },
 

@@ -4,19 +4,19 @@ const STORAGE_PREFIX = "dimah-s3:upload:";
 
 /**
  * Default `UploadStore` implementation backed by `localStorage`.
- * Stores one pending upload per S3 object key.
+ * Stores one pending upload per resume identity (`route:name:size:mtime`).
  *
  * Falls back silently when `localStorage` is unavailable (SSR, private
  * browsing with full quota, or environments without a `window` object).
  */
 export function createLocalStorageStore(): UploadStore {
   return {
-    get(key, fileSize) {
+    get(resumeKey, fileSize) {
       try {
-        const raw = localStorage.getItem(STORAGE_PREFIX + key);
+        const raw = localStorage.getItem(STORAGE_PREFIX + resumeKey);
         if (!raw) return null;
         const stored = JSON.parse(raw) as StoredUpload;
-        // Reject if the stored size doesn't match — different file for the same key.
+        // Reject if the stored size doesn't match — different file for the same identity.
         return stored.fileSize === fileSize ? stored : null;
       } catch {
         return null;
@@ -26,7 +26,7 @@ export function createLocalStorageStore(): UploadStore {
     set(upload) {
       try {
         localStorage.setItem(
-          STORAGE_PREFIX + upload.key,
+          STORAGE_PREFIX + upload.resumeKey,
           JSON.stringify(upload),
         );
       } catch {
@@ -34,9 +34,9 @@ export function createLocalStorageStore(): UploadStore {
       }
     },
 
-    delete(key) {
+    delete(resumeKey) {
       try {
-        localStorage.removeItem(STORAGE_PREFIX + key);
+        localStorage.removeItem(STORAGE_PREFIX + resumeKey);
       } catch {
         // ignore
       }

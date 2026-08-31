@@ -1,22 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  applyMultipartDefault,
-  assertExclusiveBucketFlags,
-  normalizeFeature,
-} from "./features";
-import type { ResolvedDimahS3Config } from "@/types";
+import { normalizeFeature, normalizeRoute, normalizeRoutes } from "./features";
+import { route } from "@/route";
+import type { DimahS3Config } from "@/types";
 
-function config(
-  overrides: Partial<ResolvedDimahS3Config> = {},
-): ResolvedDimahS3Config {
-  return {
-    client: {} as ResolvedDimahS3Config["client"],
-    bucket: "bucket",
-    ...overrides,
-  };
-}
+const client = {} as NonNullable<DimahS3Config["client"]>;
 
-describe("normalizeFeature / multipart default", () => {
+describe("normalizeFeature / routes", () => {
   it("treats a bare true as enabled", () => {
     expect(normalizeFeature(true)).toEqual({ enabled: true });
   });
@@ -32,62 +21,85 @@ describe("normalizeFeature / multipart default", () => {
     });
   });
 
-  it("enables multipart when upload is on and multipart is omitted", () => {
-    const resolved = applyMultipartDefault(
-      config({ upload: { enabled: true } }),
-      undefined,
-    );
-    expect(resolved.multipart?.enabled).toBe(true);
+  it("defaults upload on and other features off", () => {
+    const resolved = normalizeRoute("uploads", route({ prefix: "uploads" }), {
+      client,
+      bucket: "bucket",
+    });
+    expect(resolved.upload?.enabled).toBe(true);
+    expect(resolved.download?.enabled).toBeUndefined();
+    expect(resolved.multipart?.enabled).toBe(false);
+    expect(resolved.prefix).toBe("uploads");
   });
 
-  it("does not enable multipart when explicitly false", () => {
-    const resolved = applyMultipartDefault(
-      config({
-        upload: { enabled: true },
-        multipart: { enabled: false },
-      }),
-      false,
+  it("does not enable multipart unless opted in", () => {
+    const resolved = normalizeRoute(
+      "uploads",
+      route({ upload: true, multipart: false }),
+      { client, bucket: "bucket" },
     );
     expect(resolved.multipart?.enabled).toBe(false);
   });
 
-  it("inherits upload ACL policy onto multipart", () => {
-    const resolved = applyMultipartDefault(
-      config({
-        upload: {
-          enabled: true,
-          acl: "public-read",
-          allowClientAcl: true,
-          prefix: "uploads",
-          requireFileSize: true,
-        },
-        multipart: { enabled: true },
+  it("inherits upload ACL onto multipart when opted in", () => {
+    const resolved = normalizeRoute(
+      "uploads",
+      route({
+        prefix: "uploads",
+        upload: { acl: "public-read" },
+        multipart: true,
       }),
-      true,
+      { client, bucket: "bucket" },
     );
+    expect(resolved.multipart?.enabled).toBe(true);
     expect(resolved.multipart?.acl).toBe("public-read");
-    expect(resolved.multipart?.allowClientAcl).toBe(true);
     expect(resolved.multipart?.prefix).toBe("uploads");
-    expect(resolved.multipart?.requireFileSize).toBe(true);
   });
-});
 
-describe("assertExclusiveBucketFlags", () => {
-  it("rejects allowClientBucket together with buckets", () => {
+  it("rejects multipart without upload", () => {
     expect(() =>
-      assertExclusiveBucketFlags({
-        allowClientBucket: true,
-        buckets: ["bucket"],
+      normalizeRoute(
+        "files",
+        route({ upload: false, download: true, multipart: true }),
+        { client, bucket: "bucket" },
+      ),
+    ).toThrow(/multipart requires upload/);
+  });
+
+  it("rejects a route with every operation off", () => {
+    expect(() =>
+      normalizeRoute("empty", route({ upload: false }), {
+        client,
+        bucket: "bucket",
       }),
-    ).toThrow(/allowClientBucket or buckets/);
+    ).toThrow(/enable upload, download, or delete/);
   });
 
-  it("allows either flag alone", () => {
+  it("allows a route-level client and bucket override", () => {
+    const other = { id: "other" } as unknown as NonNullable<
+      DimahS3Config["client"]
+    >;
+    const resolved = normalizeRoute(
+      "cdn",
+      route({ client: other, bucket: "cdn-bucket", upload: true }),
+      { client, bucket: "bucket" },
+    );
+    expect(resolved.client).toBe(other);
+    expect(resolved.bucket).toBe("cdn-bucket");
+  });
+
+  it("requires client and bucket on the instance or the route", () => {
     expect(() =>
-      assertExclusiveBucketFlags({ allowClientBucket: true }),
-    ).not.toThrow();
+      normalizeRoute("uploads", route({ upload: true }), {}),
+    ).toThrow(/set client/);
     expect(() =>
-      assertExclusiveBucketFlags({ buckets: ["bucket"] }),
-    ).not.toThrow();
+      normalizeRoute("uploads", route({ upload: true }), { client }),
+    ).toThrow(/set bucket/);
+  });
+
+  it("requires at least one named route", () => {
+    expect(() =>
+      normalizeRoutes({ client, bucket: "bucket", routes: {} }),
+    ).toThrow(/at least one route/);
   });
 });

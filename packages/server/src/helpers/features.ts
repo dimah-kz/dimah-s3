@@ -1,11 +1,14 @@
 import type {
-  DownloadConfig,
   DeleteConfig,
+  DimahS3RouteConfig,
+  DownloadConfig,
   FeatureToggle,
   MultipartConfig,
-  ResolvedDimahS3Config,
+  ResolvedRoutePolicy,
   UploadConfig,
 } from "@/types";
+import { assertRouteName } from "@/route";
+import type { DimahS3Config } from "@/types/config";
 
 export function normalizeFeature<T extends object>(
   value: FeatureToggle<T> | undefined,
@@ -16,73 +19,95 @@ export function normalizeFeature<T extends object>(
   return { ...value, enabled: true };
 }
 
-export function isFeatureEnabled(
-  config: ResolvedDimahS3Config,
-  feature: "upload" | "download" | "delete" | "multipart",
-): boolean {
-  return config[feature]?.enabled === true;
+function skippedPluginIds(
+  plugins: DimahS3RouteConfig["plugins"],
+): Set<string> {
+  const ids = new Set<string>();
+  if (!plugins) return ids;
+  for (const [id, enabled] of Object.entries(plugins)) {
+    if (enabled === false) ids.add(id);
+  }
+  return ids;
 }
 
-export function applyMultipartDefault(
-  config: ResolvedDimahS3Config,
-  multipartInput: FeatureToggle<MultipartConfig> | undefined,
-): ResolvedDimahS3Config {
-  let next = config;
-  if (multipartInput === undefined && config.upload?.enabled) {
-    next = {
-      ...config,
-      multipart: { ...config.multipart, enabled: true },
-    };
-  }
-  if (next.multipart && next.upload) {
-    next = {
-      ...next,
-      multipart: {
-        ...next.multipart,
-        prefix: next.multipart.prefix ?? next.upload.prefix,
-        resolveKey: next.multipart.resolveKey ?? next.upload.resolveKey,
-        acl: next.multipart.acl ?? next.upload.acl,
-        allowClientAcl:
-          next.multipart.allowClientAcl ?? next.upload.allowClientAcl,
-        requireFileSize:
-          next.multipart.requireFileSize ?? next.upload.requireFileSize,
-      },
-    };
-  }
-  return next;
-}
+export function normalizeRoute(
+  name: string,
+  route: DimahS3RouteConfig,
+  instance: Pick<DimahS3Config, "client" | "bucket">,
+): ResolvedRoutePolicy {
+  assertRouteName(name);
 
-export type NormalizedFeatures = {
-  upload?: UploadConfig & { enabled: boolean };
-  download?: DownloadConfig & { enabled: boolean };
-  delete?: DeleteConfig & { enabled: boolean };
-  multipart?: MultipartConfig & { enabled: boolean };
-};
+  const client = route.client ?? instance.client;
+  const bucket = route.bucket ?? instance.bucket;
+  if (!client) {
+    throw new Error(
+      `dimahS3 route "${name}": set client on the route or on dimahS3().`,
+    );
+  }
+  if (!bucket) {
+    throw new Error(
+      `dimahS3 route "${name}": set bucket on the route or on dimahS3().`,
+    );
+  }
 
-export function normalizeFeatures(config: {
-  upload?: FeatureToggle<UploadConfig>;
-  download?: FeatureToggle<DownloadConfig>;
-  delete?: FeatureToggle<DeleteConfig>;
-  multipart?: FeatureToggle<MultipartConfig>;
-}): NormalizedFeatures {
+  const upload = normalizeFeature<UploadConfig>(
+    route.upload === undefined ? true : route.upload,
+  );
+  const download = normalizeFeature<DownloadConfig>(route.download);
+  const deleteFeature = normalizeFeature<DeleteConfig>(route.delete);
+
+  if (route.multipart === true && upload?.enabled === false) {
+    throw new Error(
+      `dimahS3 route "${name}": multipart requires upload to be enabled.`,
+    );
+  }
+
+  const multipart = normalizeFeature<MultipartConfig>(
+    route.multipart === true ? true : false,
+  );
+
+  if (
+    upload?.enabled !== true &&
+    download?.enabled !== true &&
+    deleteFeature?.enabled !== true
+  ) {
+    throw new Error(
+      `dimahS3 route "${name}": enable upload, download, or delete.`,
+    );
+  }
+
+  if (multipart?.enabled && upload?.enabled) {
+    multipart.prefix = multipart.prefix ?? upload.prefix ?? route.prefix;
+    multipart.resolveKey =
+      multipart.resolveKey ?? upload.resolveKey ?? route.resolveKey;
+    multipart.acl = multipart.acl ?? upload.acl;
+  }
+
   return {
-    upload: normalizeFeature(config.upload),
-    download: normalizeFeature(config.download),
-    delete: normalizeFeature(config.delete),
-    multipart: normalizeFeature(config.multipart),
+    name,
+    client,
+    bucket,
+    prefix: route.prefix,
+    resolveKey: route.resolveKey,
+    guard: route.guard,
+    skippedPluginIds: skippedPluginIds(route.plugins),
+    upload,
+    download,
+    delete: deleteFeature,
+    multipart,
   };
 }
 
-/**
- * `allowClientBucket` (any bucket) and `buckets` (allowlist) are exclusive.
- */
-export function assertExclusiveBucketFlags(config: {
-  allowClientBucket?: boolean;
-  buckets?: string[];
-}): void {
-  if (config.allowClientBucket && config.buckets?.length) {
-    throw new Error(
-      "dimahS3: set either allowClientBucket or buckets, not both. allowClientBucket honors any client-sent bucket; buckets is an allowlist.",
-    );
+export function normalizeRoutes(
+  config: DimahS3Config,
+): Record<string, ResolvedRoutePolicy> {
+  const entries = Object.entries(config.routes ?? {});
+  if (entries.length === 0) {
+    throw new Error("dimahS3: at least one route is required.");
   }
+  const routes: Record<string, ResolvedRoutePolicy> = {};
+  for (const [name, route] of entries) {
+    routes[name] = normalizeRoute(name, route, config);
+  }
+  return routes;
 }

@@ -1,5 +1,7 @@
 export type {
   GuardContext,
+  RouteGuardContext,
+  GenerateKeyContext,
   ResolveKeyContext,
   UploadPresignGuardContext,
   UploadOnPresignedContext,
@@ -23,6 +25,7 @@ export type {
 export type {
   AclPolicy,
   DimahS3Config,
+  DimahS3RouteConfig,
   DownloadConfig,
   DeleteConfig,
   FeatureToggle,
@@ -30,5 +33,6 @@ export type {
   KeyPrefix,
   MultipartConfig,
   ResolvedDimahS3Config,
+  ResolvedRoutePolicy,
   UploadConfig,
 } from "./config";

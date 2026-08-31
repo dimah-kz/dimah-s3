@@ -128,16 +128,13 @@ Pass `db()` in `plugins`. `resolveScope` must return a stable ownership
 string, or `null` to reject unauthenticated callers (`401`):
 
 ```ts title="lib/s3.ts"
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 import { db } from "@dimah-s3/db";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
-  download: true,
-  delete: true,
   plugins: [
     db({
       client: dimahS3Db,
@@ -147,6 +144,14 @@ export const s3 = dimahS3({
       },
     }),
   ],
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: true,
+      download: true,
+      delete: true,
+    }),
+  },
 });
 ```
 
@@ -157,8 +162,9 @@ s3.db.objects.listByScope({ scope: "user:123" });
 ```
 
 <Callout type="warn" title="Features stay opt-in">
-  Plugin hooks merge ahead of your feature hooks. You still enable each feature
-  (`upload`, `delete`, and so on) yourself — the plugin does not turn them on.
+  Plugin hooks merge onto every route unless the route sets
+  `plugins: { db: false }`. You still enable each operation on the route
+  yourself — the plugin does not turn them on.
 </Callout>
 
 | Option         | Default  | Meaning                                     |

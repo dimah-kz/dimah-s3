@@ -12,8 +12,8 @@ import { useImmerState } from "@/store/use-immer-state";
 export type UseDeleteOptions = DeleteHooks & {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
   api?: S3Api;
-  /** Target bucket (overrides server default). */
-  bucket?: string;
+  /** Named server route (`dimahS3({ routes })`). */
+  route: string;
 };
 
 export type UseDeleteState = {
@@ -98,7 +98,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     opts.onDeleteStart?.(key);
 
     try {
-      await api.delete(key, { bucket: opts.bucket });
+      await api.delete({ route: opts.route, key });
       pendingKeyRef.current = null;
       patch((draft) => {
         draft.phase = "success";

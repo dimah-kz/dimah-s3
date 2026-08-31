@@ -7,6 +7,7 @@ import type { S3Api } from "@dimah-s3/core";
 import type { UploadStore } from "@/types/upload-store";
 import { withRetry } from "./retry";
 import { uploadPart } from "./upload-part";
+import { multipartResumeKey } from "./resume-key";
 
 /** Returns the byte size of a specific part (last part may be smaller). */
 function resolvePartSize(
@@ -23,7 +24,7 @@ function resolvePartSize(
 export async function uploadMultipart(
   api: S3Api,
   file: File,
-  objectKey: string,
+  route: string,
   partSize: number,
   concurrentParts: number,
   onProgress?: (progress: UploadProgress) => void,
@@ -34,8 +35,9 @@ export async function uploadMultipart(
   onPartUpload?: (partNumber: number, totalParts: number) => void,
   onMultipartInit?: (uploadId: string, key: string) => void,
 ): Promise<string | undefined> {
-  const bucket = requestOptions?.bucket;
   const contentType = requestOptions?.contentType ?? file.type;
+  const fileName = requestOptions?.fileName || file.name;
+  const resumeKey = multipartResumeKey(route, file);
 
   // Resolve the active store.
   // null  → resumability disabled (uploadStore omitted, false, or SSR)
@@ -43,20 +45,39 @@ export async function uploadMultipart(
   const store: UploadStore | null =
     uploadStore != null && uploadStore !== false ? uploadStore : null;
 
-  let uploadId: string;
-  let key: string;
   const completedPartNumbers = new Set<number>();
 
+  const initUpload = async () => {
+    const result = await api.multipart.init({
+      route,
+      contentType,
+      fileSize: file.size,
+      fileName,
+      metadata: requestOptions?.metadata,
+    });
+    await store?.set({
+      resumeKey,
+      uploadId: result.uploadId,
+      key: result.key,
+      fileSize: file.size,
+    });
+    onMultipartInit?.(result.uploadId, result.key);
+    return { uploadId: result.uploadId, key: result.key };
+  };
+
   // ── Attempt to resume an existing upload ─────────────────────────────────
-  const existing = store ? await store.get(objectKey, file.size) : null;
+  const existing = store ? await store.get(resumeKey, file.size) : null;
+
+  let uploadId: string;
+  let key: string;
 
   if (existing) {
     try {
       // Verify the uploadId is still valid on S3 and fetch already-done parts.
       const { parts } = await api.multipart.listParts({
+        route,
         key: existing.key,
         uploadId: existing.uploadId,
-        bucket: bucket ?? existing.bucket,
       });
       uploadId = existing.uploadId;
       key = existing.key;
@@ -64,41 +85,11 @@ export async function uploadMultipart(
       onMultipartInit?.(uploadId, key);
     } catch {
       // uploadId is expired or no longer valid — start a fresh upload.
-      await store?.delete(objectKey);
-      const result = await api.multipart.init({
-        key: objectKey,
-        contentType,
-        fileSize: file.size,
-        fileName:
-          requestOptions?.fileName !== null
-            ? (requestOptions?.fileName ?? file.name)
-            : undefined,
-        metadata: requestOptions?.metadata,
-        bucket,
-        acl: requestOptions?.acl,
-      });
-      uploadId = result.uploadId;
-      key = result.key;
-      await store?.set({ uploadId, key, fileSize: file.size, bucket });
-      onMultipartInit?.(uploadId, key);
+      await store?.delete(resumeKey);
+      ({ uploadId, key } = await initUpload());
     }
   } else {
-    const result = await api.multipart.init({
-      key: objectKey,
-      contentType,
-      fileSize: file.size,
-      fileName:
-        requestOptions?.fileName !== null
-          ? (requestOptions?.fileName ?? file.name)
-          : undefined,
-      metadata: requestOptions?.metadata,
-      bucket,
-      acl: requestOptions?.acl,
-    });
-    uploadId = result.uploadId;
-    key = result.key;
-    await store?.set({ uploadId, key, fileSize: file.size, bucket });
-    onMultipartInit?.(uploadId, key);
+    ({ uploadId, key } = await initUpload());
   }
 
   // ── Setup progress tracking ───────────────────────────────────────────────
@@ -162,11 +153,11 @@ export async function uploadMultipart(
           withRetry(
             async () => {
               const { presignedUrl } = await api.multipart.signPart({
+                route,
                 key,
                 uploadId,
                 partNumber,
                 partSize: blob.size,
-                bucket,
               });
 
               partProgress[i].bytes = 0;
@@ -195,21 +186,21 @@ export async function uploadMultipart(
     parts.sort((a, b) => a.partNumber - b.partNumber);
 
     const result = await api.multipart.complete({
+      route,
       key,
       uploadId,
       parts,
-      bucket,
     });
 
     // Upload finished successfully — remove from store.
-    await store?.delete(objectKey);
+    await store?.delete(resumeKey);
 
     onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
     return result.eTag;
   } catch (err) {
     if (store === null) {
       // Resumability is disabled — clean up the S3 multipart upload immediately.
-      api.multipart.abort({ key, uploadId, bucket }).catch(() => {});
+      api.multipart.abort({ route, key, uploadId }).catch(() => {});
     }
     // With store active: preserve uploadId so the upload can be resumed later.
     // The S3 multipart upload is left open (expires automatically per bucket policy).

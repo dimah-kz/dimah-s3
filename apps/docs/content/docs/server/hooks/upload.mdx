@@ -3,10 +3,11 @@ title: Upload
 description: Presign, confirm, and persist verified metadata.
 ---
 
-Enable with `upload: true` or an options object. Default method is `"POST"`.
-Use `"PUT"` when the provider has no Presigned POST
-([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is included unless
-you set `multipart: false`.
+Enable on a [named route](/docs/server/routes) with `upload: true`, an
+options object, or by omitting `upload` (it defaults on). Default method is
+`"POST"`. Use `"PUT"` when the provider has no Presigned POST
+([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is **off**
+until you set `multipart: true` on the same route.
 
 <Flow
   label="Upload flow"
@@ -27,45 +28,39 @@ and [Security](/docs/server/security).
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: {
-    prefix: "uploads",
-    guard: async ({ fileSize }) => {
-      if (fileSize && fileSize > 10 * 1024 * 1024) {
-        throw errors.payloadTooLarge("File too large");
-      }
-    },
-    onConfirmed: async ({ key, contentLength }) => {
-      // persist { key, size: contentLength }
-    },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+        onConfirmed: async ({ key, contentLength }) => {
+          // persist { key, size: contentLength }
+        },
+      },
+    }),
   },
 });
 ```
 
 <Callout>
   `fileSize` / `contentType` on presign are what the client sent. `onConfirmed`
-  sees `HeadObject` — use that for quotas and records.
+  sees `HeadObject` — use that for quotas and records. Route `fileTypes` /
+  `maxFileSize` are enforced at both steps.
 </Callout>
 
 <Callout type="warn">
-  Treat `key` as untrusted. Rewrite it with `prefix` or `resolveKey`, then
-  reject unauthorized uploads in `guard`. `prefix` can be a string or an async
-  factory that returns the folder to prepend (same `ResolveKeyContext` as
-  `resolveKey`). Prefer the factory for per-user folders — `resolveKey` replaces
-  the whole key and must stay deterministic. Object ACL is `private` unless you
-  set `upload.acl` or `upload.allowClientAcl`. How `bucket` is resolved is in
-  [Server setup](/docs/server/setup). Dynamic prefix example:
-  [Security](/docs/server/security#keys).
+  The client does not send a key on upload. The server generates it from
+  route `prefix` or `resolveKey`. Object ACL is `private` unless you set
+  `upload.acl`.
 </Callout>
-
-Set `requireFileSize: true` to reject presign requests that omit `fileSize`
-(POST and PUT).
 
 ## Guard
 
@@ -79,8 +74,8 @@ Runs before the URL is signed. Throw to reject. A plain `Error` becomes
 
 ## On confirmed
 
-Runs after `HeadObject`. This is the safe place to persist metadata. A
-plain `Error` here becomes **500**.
+Runs after `HeadObject`. Use `contentLength` and verified type here — not
+the presign body.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"

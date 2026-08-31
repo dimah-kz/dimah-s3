@@ -7,9 +7,10 @@ import {
   type PresignResponse,
 } from "@dimah-s3/core";
 import {
+  getResolvedRoute,
   headObjectOrNotFound,
   normalizeExpiresIn,
-  resolveRequestTarget,
+  resolveStoredTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -22,26 +23,29 @@ async function handleDownload(
   input: typeof downloadQuerySchema._output,
   request: Request,
 ): Promise<PresignResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.download, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-    fileName: input.fileName,
-  });
-  const expiresIn = normalizeExpiresIn(input.expiresIn, config.maxExpiresIn);
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "download");
+  await runHook(route.guard, { request, route: route.name });
+
+  const { key, bucket } = resolveStoredTarget(route, "download", input.key);
+  const expiresIn = normalizeExpiresIn(
+    route.download?.expiresIn,
+    config.maxExpiresIn,
+  );
   const fileName = input.fileName;
 
-  await runHook(config.download?.guard, {
+  await runHook(route.download?.guard, {
     request,
+    route: route.name,
     key,
     bucket,
     fileName,
   });
 
-  await headObjectOrNotFound(config.client, bucket, key);
+  await headObjectOrNotFound(route.client, bucket, key);
 
   const url = await getSignedUrl(
-    config.client,
+    route.client,
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -52,8 +56,9 @@ async function handleDownload(
     { expiresIn },
   );
 
-  await runLifecycleHook(config.download?.onPresigned, {
+  await runLifecycleHook(route.download?.onPresigned, {
     request,
+    route: route.name,
     key,
     bucket,
     fileName,
@@ -68,7 +73,6 @@ export const download = createS3Endpoint(
   S3_API_ROUTES.download,
   { method: "GET", query: downloadQuerySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "download");
     return handleDownload(ctx.context.config, ctx.query, ctx.context.request);
   },
 );

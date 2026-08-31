@@ -10,16 +10,6 @@ describe("errors", () => {
     ["conflict", 409, S3_ERROR_CODES.CONFLICT.code],
     ["internalError", 500, S3_ERROR_CODES.INTERNAL_ERROR.code],
     ["objectNotFound", 404, S3_ERROR_CODES.OBJECT_NOT_FOUND.code],
-    [
-      "fileSizeRequiredUpload",
-      400,
-      S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD.code,
-    ],
-    [
-      "fileSizeRequiredMultipart",
-      400,
-      S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code,
-    ],
     ["payloadTooLarge", 413, S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code],
   ] as const)("%s → %s / %s", (name, statusCode, code) => {
     const err = errors[name]();

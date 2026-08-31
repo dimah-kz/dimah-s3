@@ -28,8 +28,8 @@ export type {
 type SharedDownloadOptions = {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
   api?: S3Api;
-  /** Target bucket (overrides server default). */
-  bucket?: string;
+  /** Named server route (`dimahS3({ routes })`). */
+  route: string;
 };
 
 /** Options for {@link useDownload} in navigate mode (the default). */
@@ -126,13 +126,13 @@ function missingApiMessage(hook: string) {
 }
 
 export function useDownload(
-  options?: UseNavigateDownloadOptions,
+  options: UseNavigateDownloadOptions,
 ): UseNavigateDownloadReturn;
 export function useDownload(
   options: UseFetchDownloadOptions,
 ): UseFetchDownloadReturn;
 export function useDownload(
-  options: UseDownloadOptions = {},
+  options: UseDownloadOptions,
 ): UseNavigateDownloadReturn | UseFetchDownloadReturn {
   const [state, patch, replace] = useImmerState(INITIAL_STATE);
   const contextApi = useContext(S3Context);
@@ -156,9 +156,10 @@ export function useDownload(
         draft.expiresIn = null;
       });
       try {
-        const result = await api.download(key, {
+        const result = await api.download({
+          route: opts.route,
+          key,
           fileName: downloadName,
-          bucket: opts.bucket,
         });
         patch((draft) => {
           draft.phase = "idle";
@@ -237,9 +238,10 @@ export function useDownload(
       });
 
       try {
-        const { url } = await api.download(key, {
+        const { url } = await api.download({
+          route: opts.route,
+          key,
           fileName: downloadName,
-          bucket: opts.bucket,
         });
         patch((draft) => {
           draft.phase = "downloading";

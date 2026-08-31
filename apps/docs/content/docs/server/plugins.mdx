@@ -21,7 +21,7 @@ Author helpers (`chainHooks`, hook context types, `applyPlugins`) live on
 `@dimah-s3/server`.
 
 ```ts
-import { dimahS3, definePlugin } from "@dimah-s3/server";
+import { definePlugin, dimahS3, route } from "@dimah-s3/server";
 
 const audit = definePlugin({
   id: "audit",
@@ -40,8 +40,10 @@ const audit = definePlugin({
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
   plugins: [audit],
+  routes: {
+    uploads: route({ prefix: "uploads" }),
+  },
 });
 
 s3.audit.log("ready");
@@ -103,7 +105,7 @@ With [`db()`](/docs/db) registered, its ownership guard runs before your
 quota check. Stack several **user** hooks on one slot with `chainHooks`:
 
 ```ts
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 import { chainHooks } from "@dimah-s3/server/plugins";
 import { db } from "@dimah-s3/db";
 
@@ -111,9 +113,13 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   plugins: [db({ client: dimahS3Db, resolveScope })],
-  upload: {
-    prefix: "uploads",
-    guard: chainHooks(quotaGuard, rateLimitGuard),
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        guard: chainHooks(quotaGuard, rateLimitGuard),
+      },
+    }),
   },
 });
 ```
@@ -168,8 +174,11 @@ const quota = definePlugin({
   id: "quota",
   dependsOn: ["db"],
   init({ config }) {
-    if (!config.upload) {
-      throw new Error("quota plugin requires upload enabled");
+    const hasUpload = Object.values(config.routes).some(
+      (r) => r.upload !== false,
+    );
+    if (!hasUpload) {
+      throw new Error("quota plugin requires upload enabled on a route");
     }
   },
   hooks: { upload: { guard: quotaGuard } },

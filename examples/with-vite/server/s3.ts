@@ -1,5 +1,5 @@
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
   region: process.env.S3_REGION,
@@ -13,5 +13,15 @@ export const awsS3 = new S3Client({
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+      },
+      download: true,
+      delete: true,
+    }),
+  },
 });

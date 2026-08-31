@@ -6,40 +6,51 @@ import { pluginPath } from "./plugin/plugin-path";
 import { S3_API_ROUTES } from "./routes";
 import { captureFetch, jsonResponse } from "./test/http";
 
+const uploadBody = {
+  route: "uploads",
+  fileName: "a.png",
+  fileSize: 10,
+};
+
 describe("createS3Client protocol", () => {
   it.each([
     {
       name: "upload",
       method: "POST",
       path: S3_API_ROUTES.upload,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.upload({ key: "a.png" }),
+      run: (api: ReturnType<typeof createS3Client>) => api.upload(uploadBody),
     },
     {
       name: "confirm",
       method: "POST",
       path: S3_API_ROUTES.uploadConfirm,
       run: (api: ReturnType<typeof createS3Client>) =>
-        api.confirm({ key: "a.png" }),
+        api.confirm({ route: "uploads", key: "a.png" }),
     },
     {
       name: "download",
       method: "GET",
       path: S3_API_ROUTES.download,
-      run: (api: ReturnType<typeof createS3Client>) => api.download("a.png"),
+      run: (api: ReturnType<typeof createS3Client>) =>
+        api.download({ route: "uploads", key: "a.png" }),
     },
     {
       name: "delete",
       method: "DELETE",
       path: S3_API_ROUTES.delete,
-      run: (api: ReturnType<typeof createS3Client>) => api.delete("a.png"),
+      run: (api: ReturnType<typeof createS3Client>) =>
+        api.delete({ route: "uploads", key: "a.png" }),
     },
     {
       name: "multipart.init",
       method: "POST",
       path: S3_API_ROUTES.multipartInit,
       run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.init({ key: "a.bin" }),
+        api.multipart.init({
+          route: "uploads",
+          fileName: "a.bin",
+          fileSize: 10,
+        }),
     },
     {
       name: "multipart.signPart",
@@ -47,6 +58,7 @@ describe("createS3Client protocol", () => {
       path: S3_API_ROUTES.multipartPart,
       run: (api: ReturnType<typeof createS3Client>) =>
         api.multipart.signPart({
+          route: "uploads",
           key: "a.bin",
           uploadId: "up-1",
           partNumber: 1,
@@ -57,7 +69,11 @@ describe("createS3Client protocol", () => {
       method: "GET",
       path: S3_API_ROUTES.multipartListParts,
       run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.listParts({ key: "a.bin", uploadId: "up-1" }),
+        api.multipart.listParts({
+          route: "uploads",
+          key: "a.bin",
+          uploadId: "up-1",
+        }),
     },
     {
       name: "multipart.complete",
@@ -65,6 +81,7 @@ describe("createS3Client protocol", () => {
       path: S3_API_ROUTES.multipartComplete,
       run: (api: ReturnType<typeof createS3Client>) =>
         api.multipart.complete({
+          route: "uploads",
           key: "a.bin",
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
@@ -75,7 +92,11 @@ describe("createS3Client protocol", () => {
       method: "POST",
       path: S3_API_ROUTES.multipartAbort,
       run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.abort({ key: "a.bin", uploadId: "up-1" }),
+        api.multipart.abort({
+          route: "uploads",
+          key: "a.bin",
+          uploadId: "up-1",
+        }),
     },
   ])("$name → $method $path", async ({ method, path, run }) => {
     const { fetch, calls } = captureFetch();
@@ -87,25 +108,26 @@ describe("createS3Client protocol", () => {
   it("strips server-only headers from the upload body", async () => {
     const { fetch, calls } = captureFetch();
     await createS3Client({ fetch }).upload({
-      key: "a.png",
+      ...uploadBody,
       headers: { Authorization: "secret" },
     });
-    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ key: "a.png" });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual(uploadBody);
   });
 
-  it("sanitizes download fileName and forwards bucket", async () => {
+  it("sanitizes download fileName and forwards the route", async () => {
     const { fetch, calls } = captureFetch();
-    await createS3Client({ fetch }).download("a.png", {
+    await createS3Client({ fetch }).download({
+      route: "uploads",
+      key: "a.png",
       fileName: 'quote"name.png',
-      bucket: "b",
     });
     expect(calls[0]?.url).toContain("fileName=quote_name.png");
-    expect(calls[0]?.url).toContain("bucket=b");
+    expect(calls[0]?.url).toContain("route=uploads");
   });
 
   it("uses a custom basePath", async () => {
     const { fetch, calls } = captureFetch();
-    await createS3Client({ fetch, basePath: "/s3/" }).upload({ key: "a.png" });
+    await createS3Client({ fetch, basePath: "/s3/" }).upload(uploadBody);
     expect(calls[0]?.url.startsWith("/s3/")).toBe(true);
   });
 
@@ -115,7 +137,7 @@ describe("createS3Client protocol", () => {
       fetch,
       basePath: "/api/s3",
       baseURL: "https://api.example.com/s3",
-    }).upload({ key: "a.png" });
+    }).upload(uploadBody);
     expect(calls[0]?.url.startsWith("https://api.example.com/s3/")).toBe(true);
   });
 
@@ -137,14 +159,18 @@ describe("createS3Client errors", () => {
       );
     const api = createS3Client({ fetch });
 
-    await expect(api.delete("a.png")).rejects.toMatchObject({
+    await expect(
+      api.delete({ route: "uploads", key: "a.png" }),
+    ).rejects.toMatchObject({
       name: "DimahS3Error",
       status: 403,
       code: S3_ERROR_CODES.FORBIDDEN.code,
       message: "blocked",
       params: { name: "key" },
     });
-    await expect(api.download("missing")).rejects.toBeInstanceOf(DimahS3Error);
+    await expect(
+      api.download({ route: "uploads", key: "missing" }),
+    ).rejects.toBeInstanceOf(DimahS3Error);
   });
 
   it("maps non-JSON failures onto DimahS3Error without a code", async () => {
@@ -156,7 +182,9 @@ describe("createS3Client errors", () => {
       });
     const api = createS3Client({ fetch });
 
-    await expect(api.download("a.png")).rejects.toMatchObject({
+    await expect(
+      api.download({ route: "uploads", key: "a.png" }),
+    ).rejects.toMatchObject({
       name: "DimahS3Error",
       status: 502,
       message: "Bad Gateway",
@@ -174,7 +202,10 @@ describe("createS3Client options", () => {
     async () => ({ Authorization: "Bearer t" }),
   ])("attaches headers to every request", async (headers) => {
     const { fetch, calls } = captureFetch();
-    await createS3Client({ fetch, headers }).confirm({ key: "a.png" });
+    await createS3Client({ fetch, headers }).confirm({
+      route: "uploads",
+      key: "a.png",
+    });
     expect(new Headers(calls[0]?.init.headers).get("authorization")).toBe(
       "Bearer t",
     );

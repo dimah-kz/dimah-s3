@@ -1,19 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
 import {
   assertSafeObjectKey,
-  resolveBucket,
-  resolveObjectKey,
+  assertStoredKey,
+  generateObjectKey,
 } from "./resolve-target";
-import type { ResolvedDimahS3Config, ResolveKeyContext } from "@/types";
+import type { GenerateKeyContext } from "@/types";
 
 const request = new Request("http://localhost");
 
-function config(
-  overrides: Partial<ResolvedDimahS3Config> = {},
-): ResolvedDimahS3Config {
+function ctx(
+  overrides: Partial<GenerateKeyContext> = {},
+): GenerateKeyContext {
   return {
-    client: {} as ResolvedDimahS3Config["client"],
+    request,
+    route: "uploads",
+    fileName: "a.png",
     bucket: "bucket",
     ...overrides,
   };
@@ -30,89 +32,77 @@ describe("assertSafeObjectKey", () => {
   });
 });
 
-describe("resolveObjectKey", () => {
-  it("applies a string prefix unless the key is already prefixed", async () => {
-    const ctx = {
-      request,
-      proposedKey: "a.png",
-      bucket: "bucket",
-    };
-    await expect(resolveObjectKey({ prefix: "uploads" }, ctx)).resolves.toBe(
-      "uploads/a.png",
+describe("generateObjectKey", () => {
+  it("prefixes a generated uuid/filename leaf", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
     );
     await expect(
-      resolveObjectKey(
-        { prefix: "uploads" },
-        {
-          ...ctx,
-          proposedKey: "uploads/a.png",
-        },
-      ),
-    ).resolves.toBe("uploads/a.png");
+      generateObjectKey({ prefix: "uploads" }, ctx()),
+    ).resolves.toBe("uploads/11111111-1111-1111-1111-111111111111/a.png");
+  });
+
+  it("defaults to route/uuid/filename when no prefix is set", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    await expect(generateObjectKey({}, ctx())).resolves.toBe(
+      "uploads/11111111-1111-1111-1111-111111111111/a.png",
+    );
   });
 
   it("lets resolveKey win over prefix", async () => {
     await expect(
-      resolveObjectKey(
+      generateObjectKey(
         {
           prefix: "uploads",
-          resolveKey: ({ proposedKey }) => `users/1/${proposedKey}`,
+          resolveKey: ({ fileName }) => `users/1/${fileName}`,
         },
-        { request, proposedKey: "a.png", bucket: "bucket" },
+        ctx(),
       ),
     ).resolves.toBe("users/1/a.png");
   });
 
-  it("applies an async prefix factory and stays idempotent", async () => {
-    const prefix = async ({ request: req }: ResolveKeyContext) => {
+  it("applies an async prefix factory", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    const prefix = async ({ request: req }: GenerateKeyContext) => {
       const userId = req.headers.get("x-user-id") ?? "anon";
       return `users/${userId}`;
     };
-    const ctx = {
-      request: new Request("http://localhost", {
-        headers: { "x-user-id": "42" },
-      }),
-      proposedKey: "a.png",
-      bucket: "bucket",
-    };
-    await expect(resolveObjectKey({ prefix }, ctx)).resolves.toBe(
-      "users/42/a.png",
-    );
     await expect(
-      resolveObjectKey({ prefix }, { ...ctx, proposedKey: "users/42/a.png" }),
-    ).resolves.toBe("users/42/a.png");
-  });
-
-  it("lets resolveKey win over a prefix factory", async () => {
-    await expect(
-      resolveObjectKey(
-        {
-          prefix: async () => "uploads",
-          resolveKey: ({ proposedKey }) => `users/1/${proposedKey}`,
-        },
-        { request, proposedKey: "a.png", bucket: "bucket" },
+      generateObjectKey(
+        { prefix },
+        ctx({
+          request: new Request("http://localhost", {
+            headers: { "x-user-id": "42" },
+          }),
+        }),
       ),
-    ).resolves.toBe("users/1/a.png");
+    ).resolves.toBe("users/42/11111111-1111-1111-1111-111111111111/a.png");
   });
 });
 
-describe("resolveBucket", () => {
-  it("ignores a client bucket by default", () => {
-    expect(resolveBucket(config(), "other")).toBe("bucket");
-  });
-
-  it("allows any bucket when allowClientBucket is set", () => {
-    expect(resolveBucket(config({ allowClientBucket: true }), "other")).toBe(
-      "other",
+describe("assertStoredKey", () => {
+  it("allows keys under a string prefix", () => {
+    expect(assertStoredKey({ prefix: "uploads" }, "uploads/a.png")).toBe(
+      "uploads/a.png",
     );
   });
 
-  it("rejects buckets outside the allowlist", () => {
+  it("rejects keys outside a string prefix", () => {
     try {
-      resolveBucket(config({ buckets: ["bucket"] }), "other");
+      assertStoredKey({ prefix: "uploads" }, "other/a.png");
       throw new Error("expected throw");
     } catch (err) {
-      expect(err).toMatchObject({ code: S3_ERROR_CODES.INVALID_BUCKET.code });
+      expect(err).toMatchObject({ code: S3_ERROR_CODES.INVALID_KEY.code });
     }
+  });
+
+  it("does not namespace-check a prefix factory", () => {
+    expect(
+      assertStoredKey({ prefix: async () => "uploads" }, "anything/a.png"),
+    ).toBe("anything/a.png");
   });
 });

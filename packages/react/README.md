@@ -23,6 +23,7 @@ export const s3Client = createS3Client();
 
 // In a component
 const { open, getInputProps } = useUpload({
+  route: "uploads",
   noDrag: true,
   noClick: true,
   noKeyboard: true,

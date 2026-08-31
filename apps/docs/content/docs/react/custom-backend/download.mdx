@@ -6,11 +6,11 @@ description: download — return a presigned GET URL for an object key.
 `download` presigns a GET. The hook opens that URL — your backend never
 streams the file.
 
-First argument is `key`; second is optional `options`.
+The payload is a single object: `route`, `key`, and optional `fileName`.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
-  name="DownloadOptions"
+  name="DownloadPayload"
 />
 
 <AutoTypeTable
@@ -19,19 +19,22 @@ First argument is `key`; second is optional `options`.
 />
 
 ```ts
-import type { DownloadOptions, PresignResponse } from "@dimah-s3/core";
+import type { DownloadPayload, PresignResponse } from "@dimah-s3/core";
 ```
 
 ## Example
 
 Add this to the [`defineApi`](/docs/react/custom-backend) skeleton.
-[`@dimah-s3/server`](/docs/server) uses `GET /api/s3/presign/download?key=…`.
+[`@dimah-s3/server`](/docs/server) uses
+`GET /api/s3/presign/download?route=…&key=…`.
 
 ```ts
-async download(key, options) {
-  const params = new URLSearchParams({ key });
-  if (options?.bucket) params.set("bucket", options.bucket);
-  if (options?.fileName) params.set("fileName", options.fileName);
+async download(payload) {
+  const params = new URLSearchParams({
+    route: payload.route,
+    key: payload.key,
+  });
+  if (payload.fileName) params.set("fileName", payload.fileName);
 
   const res = await fetch(`/api/files/presign/download?${params}`);
   if (!res.ok) throw new Error(await res.text());

@@ -3,7 +3,8 @@ title: Download
 description: Authorize before issuing a presigned GET URL.
 ---
 
-Enable with `download: true` or an options object. The server never streams the
+Enable with `download: true` or an options object on a
+[named route](/docs/server/routes). The server never streams the
 file — it signs a GET URL, then the browser fetches from S3.
 
 <Flow
@@ -17,21 +18,25 @@ file — it signs a GET URL, then the browser fetches from S3.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors } from "@dimah-s3/server";
+import { dimahS3, errors, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  download: {
-    prefix: "uploads",
-    guard: async ({ key, request }) => {
-      if (!request.headers.get("authorization")) {
-        throw errors.unauthorized();
-      }
-      // then check that `key` is allowed
-    },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      download: {
+        guard: async ({ key, request }) => {
+          if (!request.headers.get("authorization")) {
+            throw errors.unauthorized();
+          }
+          // then check that `key` is allowed
+        },
+      },
+    }),
   },
 });
 ```

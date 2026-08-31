@@ -1,6 +1,8 @@
 /** Machine-readable codes for client-side file validation failures. */
 export type ValidateFileErrorCode =
-  "FILE_TYPE_NOT_ALLOWED" | "FILE_EMPTY" | "FILE_TOO_LARGE";
+  | "FILE_TYPE_NOT_ALLOWED"
+  | "FILE_EMPTY"
+  | "FILE_TOO_LARGE";
 
 /** Result of {@link validateFile} when the file fails a check. */
 export type ValidateFileError = {
@@ -12,6 +14,28 @@ export type ValidateFileError = {
 };
 
 /**
+ * Whether `fileName` / `contentType` match HTML `accept` / route `fileTypes`
+ * tokens (`image/*`, `application/pdf`, `.png`).
+ */
+export function matchesFileTypes(
+  fileName: string,
+  contentType: string | undefined,
+  fileTypes: readonly string[],
+): boolean {
+  if (!fileTypes.length) return true;
+  const type = contentType ?? "";
+  return fileTypes.some((token) => {
+    if (token.startsWith(".")) {
+      return fileName.toLowerCase().endsWith(token.toLowerCase());
+    }
+    if (token.endsWith("/*")) {
+      return type.startsWith(token.replace("/*", "/"));
+    }
+    return type === token;
+  });
+}
+
+/**
  * Client-side accept / size / empty checks before starting an upload.
  * Returns `null` when the file is valid.
  */
@@ -20,16 +44,7 @@ export function validateFile(
   options: { accept?: string[]; maxFileSize?: number },
 ): ValidateFileError | null {
   if (options.accept?.length) {
-    const allowed = options.accept.some((type) => {
-      if (type.startsWith(".")) {
-        return file.name.toLowerCase().endsWith(type.toLowerCase());
-      }
-      if (type.endsWith("/*")) {
-        return file.type.startsWith(type.replace("/*", "/"));
-      }
-      return file.type === type;
-    });
-    if (!allowed) {
+    if (!matchesFileTypes(file.name, file.type, options.accept)) {
       const ext = file.name.includes(".") ? file.name.split(".").pop() : null;
       const type = ext ? `.${ext}` : file.type || "unknown";
       return {

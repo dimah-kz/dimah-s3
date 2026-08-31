@@ -21,7 +21,7 @@ function attachmentState(phase: UploadPhase) {
 /** Headless upload + stock shadcn Attachment from the docs app. */
 export function CustomUploadDemo() {
   const { open, phase, progress, error, fileInfo, getInputProps } = useUpload({
-    objectKey: "uploads/photo.jpg",
+    route: "uploads",
     maxFileSize: 75 * 1024 * 1024,
     noDrag: true,
     noClick: true,

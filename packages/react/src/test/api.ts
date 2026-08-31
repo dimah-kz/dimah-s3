@@ -3,6 +3,10 @@ import type { S3Api } from "@dimah-s3/core";
 
 const bucket = "bucket";
 
+function generatedKey(payload: { route: string; fileName?: string }) {
+  return `${payload.route}/${payload.fileName ?? "file"}`;
+}
+
 /**
  * Typed `S3Api` stub. Override individual methods (or `multipart.*`) per test.
  * Default implementations succeed with stable fixture values.
@@ -16,47 +20,47 @@ export function fakeS3Api(
 
   return {
     upload: vi.fn(async (payload) => ({
-      bucket: payload.bucket ?? bucket,
-      key: payload.key,
+      bucket,
+      key: generatedKey(payload),
       url: "https://s3.test/post",
       expiresIn: 600,
       method: "POST" as const,
-      fields: { key: payload.key, Policy: "p" },
+      fields: { key: generatedKey(payload), Policy: "p" },
     })),
     confirm: vi.fn(async (payload) => ({
       key: payload.key,
-      bucket: payload.bucket ?? bucket,
+      bucket,
       contentLength: 1,
       metadata: {},
       eTag: "abc",
     })),
-    download: vi.fn(async (key) => ({
+    download: vi.fn(async (payload) => ({
       bucket,
-      key,
+      key: payload.key,
       url: "https://s3.test/dl",
       expiresIn: 600,
     })),
-    delete: vi.fn(async (key) => ({
+    delete: vi.fn(async (payload) => ({
       success: true,
       bucket,
-      key,
+      key: payload.key,
     })),
     multipart: {
       init: vi.fn(async (payload) => ({
-        bucket: payload.bucket ?? bucket,
-        key: payload.key,
+        bucket,
+        key: generatedKey(payload),
         uploadId: "up-1",
       })),
       signPart: vi.fn(async (payload) => ({
         presignedUrl: "https://s3.test/part",
         partNumber: payload.partNumber,
         uploadId: payload.uploadId,
-        bucket: payload.bucket ?? bucket,
+        bucket,
         expiresIn: 600,
       })),
       listParts: vi.fn(async () => ({ parts: [] })),
       complete: vi.fn(async (payload) => ({
-        bucket: payload.bucket ?? bucket,
+        bucket,
         key: payload.key,
         uploadId: payload.uploadId,
         contentLength: 1,
@@ -65,7 +69,7 @@ export function fakeS3Api(
       })),
       abort: vi.fn(async (payload) => ({
         aborted: true,
-        bucket: payload.bucket ?? bucket,
+        bucket,
         key: payload.key,
         uploadId: payload.uploadId,
       })),

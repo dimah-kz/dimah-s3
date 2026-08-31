@@ -28,12 +28,10 @@ export const S3_ERROR_CODES = defineErrorCodes({
   FEATURE_DISABLED: "{feature} is disabled",
   INVALID_KEY: "Object key is invalid",
   INVALID_BUCKET: "Bucket is not allowed",
+  UNKNOWN_ROUTE: "Unknown file route",
+  FILE_TYPE_NOT_ALLOWED: "File type is not allowed",
   S3_NETWORK_ERROR:
     "S3 endpoint unreachable ({code}): check your endpoint URL and network connectivity",
-  FILE_SIZE_REQUIRED_UPLOAD:
-    "fileSize is required when upload.requireFileSize is enabled",
-  FILE_SIZE_REQUIRED_MULTIPART:
-    "fileSize is required when multipart.requireFileSize is enabled",
   MULTIPART_PART_MISSING: "Uploaded part {partNumber} was not found",
   PAYLOAD_TOO_LARGE: "Payload too large",
   VALIDATION_ERROR: "Validation Error",

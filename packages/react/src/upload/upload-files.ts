@@ -14,7 +14,6 @@ export type FileItemStatus = "pending" | "uploading" | "success" | "error";
 export type FileItem = {
   id: string;
   file: File;
-  objectKey: string;
   status: FileItemStatus;
   progress: UploadProgress;
   result: UploadResult | null;
@@ -32,8 +31,8 @@ export type MultiUploadCallbacks = {
 
 export async function uploadFiles(
   api: S3Api,
-  items: Array<{ id: string; file: File; objectKey: string }>,
-  config: MultiUploadConfig = {},
+  items: Array<{ id: string; file: File }>,
+  config: MultiUploadConfig,
   callbacks: MultiUploadCallbacks = {},
   signal?: AbortSignal,
   getRequestOptions?: (file: File) => UploadRequestOptions,
@@ -70,7 +69,6 @@ export async function uploadFiles(
         const result = await uploadFile(
           api,
           item.file,
-          item.objectKey,
           config,
           {
             onProgress: (progress) => {

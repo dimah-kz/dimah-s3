@@ -16,19 +16,23 @@ R2 rejects Presigned POST. Set `method: "PUT"`:
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: {
-    method: "PUT", // R2 does not accept Presigned POST
-    prefix: "uploads",
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        method: "PUT", // R2 does not accept Presigned POST
+      },
+      download: true,
+      delete: true,
+    }),
   },
-  download: true,
-  delete: true,
 });
 ```
 

@@ -9,25 +9,25 @@ import type { StoredUpload, UploadStore } from "@/types/upload-store";
  * @example
  * ```ts
  * const store = createMemoryStore();
- * useFileUpload({ api, uploadStore: store });
+ * useFileUpload({ api, route: "uploads", uploadStore: store });
  * ```
  */
 export function createMemoryStore(): UploadStore {
   const map = new Map<string, StoredUpload>();
 
   return {
-    get(key, fileSize) {
-      const stored = map.get(key);
+    get(resumeKey, fileSize) {
+      const stored = map.get(resumeKey);
       if (!stored) return null;
       return stored.fileSize === fileSize ? stored : null;
     },
 
     set(upload) {
-      map.set(upload.key, upload);
+      map.set(upload.resumeKey, upload);
     },
 
-    delete(key) {
-      map.delete(key);
+    delete(resumeKey) {
+      map.delete(resumeKey);
     },
   };
 }

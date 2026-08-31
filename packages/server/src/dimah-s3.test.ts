@@ -2,9 +2,11 @@ import { S3_API_ROUTES, S3_ERROR_CODES } from "@dimah-s3/core";
 import { describe, expect, it, vi } from "vitest";
 import { DimahS3Error } from "./errors";
 import { createS3Endpoint, definePlugin } from "./index";
+import { route } from "./route";
 import {
   apiUrl,
   createInstance,
+  defaultUploadBody,
   expectErrorCode,
   jsonRequest,
 } from "./test/harness";
@@ -30,7 +32,6 @@ describe("dimahS3 instance", () => {
   it("honors a custom basePath", async () => {
     const s3 = createInstance({
       basePath: "/s3/",
-      upload: true,
     });
     const res = await s3.handler(
       jsonRequest(apiUrl(S3_API_ROUTES.upload, "/s3"), { body: {} }),
@@ -41,7 +42,7 @@ describe("dimahS3 instance", () => {
 
 describe("HTTP envelope", () => {
   it("returns JSON VALIDATION_ERROR for an invalid body", async () => {
-    const s3 = createInstance({ upload: true });
+    const s3 = createInstance();
     const res = await s3.handler(
       jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: {} }),
     );
@@ -56,9 +57,18 @@ describe("HTTP envelope", () => {
     await expectErrorCode(res, 404, S3_ERROR_CODES.NOT_FOUND);
   });
 
+  it("returns UNKNOWN_ROUTE for an unknown file route", async () => {
+    const s3 = createInstance();
+    const res = await s3.handler(
+      jsonRequest(apiUrl(S3_API_ROUTES.upload), {
+        body: { ...defaultUploadBody, route: "missing" },
+      }),
+    );
+    await expectErrorCode(res, 404, S3_ERROR_CODES.UNKNOWN_ROUTE);
+  });
+
   it("runs the global guard before the endpoint", async () => {
     const s3 = createInstance({
-      upload: true,
       guard: () => {
         throw DimahS3Error.from("FORBIDDEN", {
           ...S3_ERROR_CODES.FORBIDDEN,
@@ -67,7 +77,7 @@ describe("HTTP envelope", () => {
       },
     });
     const res = await s3.handler(
-      jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: { key: "a.png" } }),
+      jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: defaultUploadBody }),
     );
     expect(res.status).toBe(403);
     await expect(res.json()).resolves.toMatchObject({
@@ -78,7 +88,6 @@ describe("HTTP envelope", () => {
 
   it("serializes DimahS3Error params through native APIError JSON", async () => {
     const s3 = createInstance({
-      upload: true,
       guard: () => {
         throw new DimahS3Error("FORBIDDEN", {
           message: "quota",
@@ -88,7 +97,7 @@ describe("HTTP envelope", () => {
       },
     });
     const res = await s3.handler(
-      jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: { key: "a.png" } }),
+      jsonRequest(apiUrl(S3_API_ROUTES.upload), { body: defaultUploadBody }),
     );
     expect(res.status).toBe(403);
     await expect(res.json()).resolves.toEqual({
@@ -155,28 +164,32 @@ describe("HTTP envelope", () => {
       feature: "upload" as const,
       method: "POST",
       path: S3_API_ROUTES.upload,
-      body: { key: "a.png" },
+      body: defaultUploadBody,
+      routes: { uploads: route({ upload: false, download: true }) },
     },
     {
       feature: "download" as const,
       method: "GET",
-      path: `${S3_API_ROUTES.download}?key=a.png`,
+      path: `${S3_API_ROUTES.download}?route=uploads&key=a.png`,
+      routes: { uploads: route({ upload: true, download: false }) },
     },
     {
       feature: "delete" as const,
       method: "DELETE",
-      path: `${S3_API_ROUTES.delete}?key=a.png`,
+      path: `${S3_API_ROUTES.delete}?route=uploads&key=a.png`,
+      routes: { uploads: route({ upload: true, delete: false }) },
     },
     {
       feature: "multipart" as const,
       method: "POST",
       path: S3_API_ROUTES.multipartInit,
-      body: { key: "a.png" },
+      body: defaultUploadBody,
+      routes: { uploads: route({ upload: true, multipart: false }) },
     },
   ])(
     "returns FEATURE_DISABLED when $feature is disabled",
-    async ({ feature, method, path, body }) => {
-      const s3 = createInstance({ [feature]: false });
+    async ({ method, path, body, routes }) => {
+      const s3 = createInstance({ routes });
       const res = await s3.handler(jsonRequest(apiUrl(path), { method, body }));
       await expectErrorCode(res, 404, S3_ERROR_CODES.FEATURE_DISABLED);
     },
@@ -185,15 +198,15 @@ describe("HTTP envelope", () => {
 
 describe("s3.api", () => {
   it("throws DimahS3Error on validation failures", async () => {
-    const s3 = createInstance({ download: true });
-    await expect(s3.api.download({ query: { key: "" } })).rejects.toMatchObject(
-      {
-        name: "DimahS3Error",
-        code: S3_ERROR_CODES.VALIDATION_ERROR.code,
-        status: "BAD_REQUEST",
-        statusCode: 400,
-      },
-    );
+    const s3 = createInstance();
+    await expect(
+      s3.api.download({ query: { route: "uploads", key: "" } }),
+    ).rejects.toMatchObject({
+      name: "DimahS3Error",
+      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
+      status: "BAD_REQUEST",
+      statusCode: 400,
+    });
   });
 });
 

@@ -37,11 +37,18 @@ below only for the extras that defaults do not cover.
 ## Configuration
 
 ```ts
+import { dimahS3, route } from "@dimah-s3/server";
+
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { method: "PUT", prefix: "uploads" },
   resolveObjectAcl: false,
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: { method: "PUT" },
+    }),
+  },
 });
 ```
 

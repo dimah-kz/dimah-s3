@@ -1,15 +1,16 @@
+import { sanitizeFileName } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import type {
+  GenerateKeyContext,
   KeyPolicy,
-  ResolvedDimahS3Config,
-  ResolveKeyContext,
+  ResolvedRoutePolicy,
 } from "@/types";
 
 export type { KeyPolicy };
 
 /**
- * Normalize a client-proposed object key: strip leading slashes, reject
- * `.` / `..` segments, NUL, and backslashes.
+ * Normalize an object key: strip leading slashes, reject `.` / `..` segments,
+ * NUL, and backslashes.
  */
 export function assertSafeObjectKey(key: string): string {
   const trimmed = key.replace(/^\/+/u, "").replace(/\/+$/u, "");
@@ -33,54 +34,92 @@ function applyPrefix(prefix: string, key: string): string {
   return `${p}/${k}`;
 }
 
-export async function resolveObjectKey(
-  policy: KeyPolicy | undefined,
-  context: ResolveKeyContext,
+export function keyPolicyFor(
+  route: ResolvedRoutePolicy,
+  feature: "upload" | "download" | "delete" | "multipart",
+): KeyPolicy {
+  const feat = route[feature];
+  return {
+    prefix: feat?.prefix ?? route.prefix,
+    resolveKey: feat?.resolveKey ?? route.resolveKey,
+  };
+}
+
+async function resolvePrefixValue(
+  prefix: KeyPolicy["prefix"],
+  context: GenerateKeyContext,
+): Promise<string | undefined> {
+  if (prefix === undefined) return undefined;
+  if (typeof prefix === "function") return prefix(context);
+  return prefix;
+}
+
+/** Generate a key on upload / multipart init. */
+export async function generateObjectKey(
+  policy: KeyPolicy,
+  context: GenerateKeyContext,
 ): Promise<string> {
-  if (policy?.resolveKey) {
+  if (policy.resolveKey) {
     return assertSafeObjectKey(await policy.resolveKey(context));
   }
-  const prefix =
-    typeof policy?.prefix === "function"
-      ? await policy.prefix(context)
-      : policy?.prefix;
+  const leaf = `${crypto.randomUUID()}/${sanitizeFileName(context.fileName)}`;
+  const prefix = await resolvePrefixValue(policy.prefix, context);
   if (prefix) {
-    return applyPrefix(prefix, context.proposedKey);
+    return applyPrefix(prefix, leaf);
   }
-  return assertSafeObjectKey(context.proposedKey);
+  return assertSafeObjectKey(`${context.route}/${leaf}`);
 }
 
-export function resolveBucket(
-  config: ResolvedDimahS3Config,
-  requested?: string,
-): string {
-  if (!requested) return config.bucket;
-  if (config.allowClientBucket) return requested;
-  if (config.buckets?.length) {
-    if (config.buckets.includes(requested)) return requested;
-    throw errors.invalidBucket(requested);
+/**
+ * Confirm / download / delete / multipart follow-ups: trust the stored key,
+ * but reject keys outside a string `prefix` namespace.
+ */
+export function assertStoredKey(policy: KeyPolicy, key: string): string {
+  const safe = assertSafeObjectKey(key);
+  if (typeof policy.prefix === "string") {
+    const prefix = assertSafeObjectKey(policy.prefix);
+    if (safe !== prefix && !safe.startsWith(`${prefix}/`)) {
+      throw errors.invalidKey();
+    }
   }
-  return config.bucket;
+  return safe;
 }
 
-export async function resolveRequestTarget(
-  config: ResolvedDimahS3Config,
-  policy: KeyPolicy | undefined,
-  input: {
-    request: Request;
-    key: string;
-    bucket?: string;
-    fileName?: string;
-    contentType?: string;
-  },
+export function resolveRouteBucket(route: ResolvedRoutePolicy): string {
+  return route.bucket;
+}
+
+export async function resolveUploadTarget(
+  route: ResolvedRoutePolicy,
+  context: Omit<GenerateKeyContext, "bucket">,
 ): Promise<{ key: string; bucket: string }> {
-  const bucket = resolveBucket(config, input.bucket);
-  const key = await resolveObjectKey(policy, {
-    request: input.request,
-    proposedKey: input.key,
-    fileName: input.fileName,
-    contentType: input.contentType,
+  const bucket = route.bucket;
+  const key = await generateObjectKey(keyPolicyFor(route, "upload"), {
+    ...context,
     bucket,
   });
   return { key, bucket };
+}
+
+export async function resolveMultipartInitTarget(
+  route: ResolvedRoutePolicy,
+  context: Omit<GenerateKeyContext, "bucket">,
+): Promise<{ key: string; bucket: string }> {
+  const bucket = route.bucket;
+  const key = await generateObjectKey(keyPolicyFor(route, "multipart"), {
+    ...context,
+    bucket,
+  });
+  return { key, bucket };
+}
+
+export function resolveStoredTarget(
+  route: ResolvedRoutePolicy,
+  feature: "upload" | "download" | "delete" | "multipart",
+  key: string,
+): { key: string; bucket: string } {
+  return {
+    key: assertStoredKey(keyPolicyFor(route, feature), key),
+    bucket: route.bucket,
+  };
 }

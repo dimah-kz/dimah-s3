@@ -38,18 +38,26 @@ export type DbPluginContext = {
  * Persistence plugin for {@link dimahS3} — keeps rows in sync with upload /
  * multipart / download / delete lifecycle and enforces scope ownership.
  *
+ * Hooks attach to every route unless the route sets `plugins: { db: false }`.
+ * Identity stays `(bucket, key)` — no schema change for named routes.
+ *
  * Exposes `GET /db/objects` for browser listing via {@link dbClient}.
  *
  * ```ts
  * const s3 = dimahS3({
  *   client: awsS3,
  *   bucket,
- *   upload: true,
- *   download: true,
- *   delete: true,
  *   plugins: [
  *     db({ client: dimahS3Db, resolveScope }),
  *   ],
+ *   routes: {
+ *     uploads: route({
+ *       prefix: "uploads",
+ *       upload: true,
+ *       download: true,
+ *       delete: true,
+ *     }),
+ *   },
  * });
  *
  * s3.db.objects.listByScope({ scope });
@@ -61,6 +69,21 @@ export function db(options: DbPluginOptions) {
 
   return definePlugin({
     id: "db",
+    init({ config }) {
+      const routes = Object.values(config.routes ?? {});
+      const hasLifecycle = routes.some(
+        (r) =>
+          r.upload !== false ||
+          Boolean(r.download) ||
+          Boolean(r.delete) ||
+          r.multipart === true,
+      );
+      if (!hasLifecycle) {
+        throw new Error(
+          "[dimah-s3] db plugin requires at least one route with upload, download, delete, or multipart enabled.",
+        );
+      }
+    },
     hooks,
     endpoints: createDatabaseEndpoints({
       objects,

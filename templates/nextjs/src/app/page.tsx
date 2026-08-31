@@ -13,6 +13,7 @@ export default function Home() {
       </div>
 
       <UploadButton
+        route="uploads"
         accept={["image/*", "application/pdf"]}
         maxFileSize={10 * 1024 * 1024}
         label="Upload file"

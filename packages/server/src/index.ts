@@ -1,5 +1,6 @@
 export { dimahS3 } from "./dimah-s3";
 export type { DimahS3, DimahS3Api, MultipartAliasApi } from "./dimah-s3";
+export { route } from "./route";
 export {
   DimahS3Error,
   errors,
@@ -24,13 +25,16 @@ export type {
 
 export type {
   DimahS3Config,
+  DimahS3RouteConfig,
   DownloadConfig,
   DeleteConfig,
   FeatureToggle,
   KeyPolicy,
   KeyPrefix,
   MultipartConfig,
+  GenerateKeyContext,
   ResolveKeyContext,
   ResolvedDimahS3Config,
+  ResolvedRoutePolicy,
   UploadConfig,
 } from "./types";

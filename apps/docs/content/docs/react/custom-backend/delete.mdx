@@ -6,11 +6,11 @@ description: delete — remove an object by key.
 `delete` removes one object. Unlike upload and download, this is a direct
 mutation — not a presigned client-to-S3 call.
 
-First argument is `key`; second is optional `options`.
+The payload is a single object: `route` and `key`.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
-  name="DeleteOptions"
+  name="DeletePayload"
 />
 
 <AutoTypeTable
@@ -19,18 +19,20 @@ First argument is `key`; second is optional `options`.
 />
 
 ```ts
-import type { DeleteOptions, DeleteResponse } from "@dimah-s3/core";
+import type { DeletePayload, DeleteResponse } from "@dimah-s3/core";
 ```
 
 ## Example
 
 Add this to the [`defineApi`](/docs/react/custom-backend) skeleton.
-[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?key=…`.
+[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?route=…&key=…`.
 
 ```ts
-async delete(key, options) {
-  const params = new URLSearchParams({ key });
-  if (options?.bucket) params.set("bucket", options.bucket);
+async delete(payload) {
+  const params = new URLSearchParams({
+    route: payload.route,
+    key: payload.key,
+  });
 
   const res = await fetch(`/api/files/delete?${params}`, { method: "DELETE" });
   if (!res.ok) throw new Error(await res.text());

@@ -1,6 +1,6 @@
 "use client";
 
-import { defaultObjectKey, type DimahS3Error } from "@dimah-s3/core";
+import type { DimahS3Error } from "@dimah-s3/core";
 import type { UploadFileInfo, UploadPhase, UploadProgress } from "@/types";
 import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
 import {
@@ -14,8 +14,6 @@ export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
 
 /** Options for {@link useUpload}. */
 export type UseUploadOptions = UseFileUploadOptions & {
-  /** S3 object key, or a function that derives it from the file. */
-  objectKey?: string | ((file: File) => string);
   /** Disable all intake interactions. */
   disabled?: boolean;
   /**
@@ -78,29 +76,16 @@ export type UseUploadReturn = {
 };
 
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
-  const {
-    objectKey,
-    disabled,
-    noDrag,
-    noClick,
-    noKeyboard,
-    onFileReject,
-    ...uploadOpts
-  } = options;
+  const { disabled, noDrag, noClick, noKeyboard, onFileReject, ...uploadOpts } =
+    options;
 
   const single = useFileUpload(uploadOpts);
-
-  const resolveKey = (file: File): string => {
-    if (typeof objectKey === "function") return objectKey(file);
-    if (objectKey) return objectKey;
-    return defaultObjectKey(file);
-  };
 
   const handleFiles = (files: FileList | File[] | null) => {
     const list = files == null ? [] : Array.from(files);
     const file = list[0];
     if (!file) return;
-    void single.upload(file, resolveKey(file));
+    void single.upload(file);
   };
 
   const intake = useFileIntake({

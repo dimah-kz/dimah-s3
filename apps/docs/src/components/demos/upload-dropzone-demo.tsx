@@ -5,7 +5,7 @@ import { UploadDropzone } from "@dimah-s3/ui";
 export function UploadDropzoneDemo() {
   return (
     <UploadDropzone
-      objectKey={(file) => `uploads/${file.name}`}
+      route="uploads"
       maxFiles={5}
       concurrentFiles={2}
       maxFileSize={75 * 1024 * 1024}

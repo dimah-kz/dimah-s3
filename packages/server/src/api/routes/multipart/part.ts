@@ -5,7 +5,12 @@ import {
   S3_API_ROUTES,
   type MultipartPartResponse,
 } from "@dimah-s3/core";
-import { normalizeExpiresIn, resolveRequestTarget, runHook } from "@/helpers";
+import {
+  getResolvedRoute,
+  normalizeExpiresIn,
+  resolveStoredTarget,
+  runHook,
+} from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
 import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
@@ -15,21 +20,25 @@ async function handleSignPart(
   input: typeof multipartSignPartBodySchema._output,
   request: Request,
 ): Promise<MultipartPartResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.multipart, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-  });
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "multipart");
+  await runHook(route.guard, { request, route: route.name });
+
+  const { key, bucket } = resolveStoredTarget(route, "multipart", input.key);
   const uploadId = input.uploadId;
   const partNumber = input.partNumber;
-  const expiresIn = normalizeExpiresIn(input.expiresIn, config.maxExpiresIn);
+  const expiresIn = normalizeExpiresIn(
+    route.upload?.expiresIn,
+    config.maxExpiresIn,
+  );
   const partSize =
     typeof input.partSize === "number" && input.partSize > 0
       ? Math.floor(input.partSize)
       : null;
 
-  await runHook(config.multipart?.partGuard, {
+  await runHook(route.multipart?.partGuard, {
     request,
+    route: route.name,
     key,
     bucket,
     uploadId,
@@ -38,7 +47,7 @@ async function handleSignPart(
   });
 
   const presignedUrl = await getSignedUrl(
-    config.client,
+    route.client,
     new UploadPartCommand({
       Bucket: bucket,
       Key: key,
@@ -68,7 +77,6 @@ export const multipartPart = createS3Endpoint(
   S3_API_ROUTES.multipartPart,
   { method: "POST", body: multipartSignPartBodySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "multipart");
     return handleSignPart(ctx.context.config, ctx.body, ctx.context.request);
   },
 );

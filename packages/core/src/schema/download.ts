@@ -1,14 +1,9 @@
 import { z } from "zod";
-import {
-  optionalCoerceExpiresInSchema,
-  optionalTrimmedString,
-  trimmedString,
-} from "./shared";
+import { optionalTrimmedString, routeNameSchema, trimmedString } from "./shared";
 
 /** Query string — numbers arrive as strings. */
 export const downloadQuerySchema = z.object({
+  route: routeNameSchema,
   key: trimmedString,
-  bucket: optionalTrimmedString,
   fileName: optionalTrimmedString,
-  expiresIn: optionalCoerceExpiresInSchema,
 });

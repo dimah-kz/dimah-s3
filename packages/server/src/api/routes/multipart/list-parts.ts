@@ -4,8 +4,9 @@ import {
   type MultipartListPartsResponse,
 } from "@dimah-s3/core";
 import {
+  getResolvedRoute,
   listAllParts,
-  resolveRequestTarget,
+  resolveStoredTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -18,21 +19,22 @@ async function handleListParts(
   input: typeof multipartListPartsQuerySchema._output,
   request: Request,
 ): Promise<MultipartListPartsResponse> {
-  const { key, bucket } = await resolveRequestTarget(config, config.multipart, {
-    request,
-    key: input.key,
-    bucket: input.bucket,
-  });
+  const route = getResolvedRoute(config, input.route);
+  assertFeatureEnabled(route, "multipart");
+  await runHook(route.guard, { request, route: route.name });
+
+  const { key, bucket } = resolveStoredTarget(route, "multipart", input.key);
   const uploadId = input.uploadId;
 
-  await runHook(config.multipart?.listGuard, {
+  await runHook(route.multipart?.listGuard, {
     request,
+    route: route.name,
     key,
     bucket,
     uploadId,
   });
 
-  const listed = await listAllParts(config.client, { bucket, key, uploadId });
+  const listed = await listAllParts(route.client, { bucket, key, uploadId });
 
   const parts = listed.map((p) => ({
     partNumber: p.PartNumber ?? 0,
@@ -40,8 +42,9 @@ async function handleListParts(
     eTag: (p.ETag ?? "").replace(/"/g, ""),
   }));
 
-  await runLifecycleHook(config.multipart?.onList, {
+  await runLifecycleHook(route.multipart?.onList, {
     request,
+    route: route.name,
     key,
     bucket,
     uploadId,
@@ -55,7 +58,6 @@ export const multipartListParts = createS3Endpoint(
   S3_API_ROUTES.multipartListParts,
   { method: "GET", query: multipartListPartsQuerySchema },
   async (ctx) => {
-    assertFeatureEnabled(ctx.context.config, "multipart");
     return handleListParts(ctx.context.config, ctx.query, ctx.context.request);
   },
 );

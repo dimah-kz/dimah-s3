@@ -3,9 +3,9 @@ title: Multipart
 description: Lifecycle hooks for large-file uploads.
 ---
 
-Enable with `multipart: true`, or omit it — multipart is on whenever `upload`
-is on unless you set `multipart: false`. Pair it with client `multipart`
-options — see [Upload](/docs/react/hooks/upload).
+Enable with `multipart: true` on a [named route](/docs/server/routes).
+Default is **off** — it does not turn on with upload. Pair it with client
+`multipart: true` — see [Upload](/docs/react/hooks/upload).
 
 Multipart **complete** is the confirmation step (HeadObject after S3
 assembles the parts). There is no extra `confirm` call. Persist in
@@ -28,26 +28,19 @@ Abort is a separate path: `abortGuard` → `onAbort`. Listing parts:
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors } from "@dimah-s3/server";
+import { dimahS3, errors, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  upload: { prefix: "uploads" },
-  multipart: {
-    initGuard: async ({ fileSize }) => {
-      if (fileSize && fileSize > 5 * 1024 * 1024 * 1024) {
-        throw errors.payloadTooLarge("File too large");
-      }
-    },
-    onComplete: async ({ key, contentLength }) => {
-      // persist { key, size: contentLength }
-    },
-    onAbort: async ({ key, uploadId }) => {
-      // drop any pending row for `{ key, uploadId }`
-    },
+  routes: {
+    videos: route({
+      prefix: "videos",
+      upload: true,
+      multipart: true,
+    }),
   },
 });
 ```
@@ -57,9 +50,9 @@ export const s3 = dimahS3({
   comes from `HeadObject`.
 </Callout>
 
-Set `requireFileSize: true` to reject init without `fileSize`. When omitted,
-multipart inherits `requireFileSize`, `prefix`, `resolveKey`, `acl`, and
-`allowClientAcl` from upload.
+Set `multipart: true` on the route. Multipart inherits `prefix`,
+`resolveKey`, and `acl` from upload. Plugins still receive the granular
+`initGuard` / `onComplete` / … hooks.
 
 The complete body only sends `partNumber`s. The server lists parts from S3
 for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.

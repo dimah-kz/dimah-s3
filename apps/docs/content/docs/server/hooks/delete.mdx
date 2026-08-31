@@ -3,7 +3,8 @@ title: Delete
 description: Authorize deletion and run cleanup after S3 removes the object.
 ---
 
-Enable with `delete: true` or an options object.
+Enable with `delete: true` or an options object on a
+[named route](/docs/server/routes).
 
 <Callout title="Not a presigned URL">
   After `guard`, the server sends `DeleteObject`. The browser never talks to the
@@ -21,24 +22,28 @@ Enable with `delete: true` or an options object.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors } from "@dimah-s3/server";
+import { dimahS3, errors, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  delete: {
-    prefix: "uploads",
-    guard: async ({ key, request }) => {
-      if (!request.headers.get("authorization")) {
-        throw errors.unauthorized();
-      }
-      // then check that `key` may be deleted
-    },
-    onDeleted: async ({ key }) => {
-      // object is already gone from S3 — drop the row for `key`
-    },
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      delete: {
+        guard: async ({ key, request }) => {
+          if (!request.headers.get("authorization")) {
+            throw errors.unauthorized();
+          }
+          // then check that `key` may be deleted
+        },
+        onDeleted: async ({ key }) => {
+          // object is already gone from S3 — drop the row for `key`
+        },
+      },
+    }),
   },
 });
 ```

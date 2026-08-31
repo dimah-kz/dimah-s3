@@ -1,15 +1,14 @@
 import { errors } from "@/errors";
-import { isFeatureEnabled } from "@/helpers/features";
-import type { ResolvedDimahS3Config } from "@/types";
+import type { ResolvedRoutePolicy } from "@/types";
 
 export type FeatureFlag = "upload" | "download" | "delete" | "multipart";
 
 /** Disabled features respond 404 (`FEATURE_DISABLED`) from both HTTP and `s3.api`. */
 export function assertFeatureEnabled(
-  config: ResolvedDimahS3Config,
+  route: ResolvedRoutePolicy,
   feature: FeatureFlag,
 ): void {
-  if (!isFeatureEnabled(config, feature)) {
+  if (route[feature]?.enabled !== true) {
     throw errors.featureDisabled(feature);
   }
 }

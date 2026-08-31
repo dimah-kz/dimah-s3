@@ -53,16 +53,16 @@ export function useFormatDimahError(): (err: unknown) => string {
         case S3_ERROR_CODES.INVALID_KEY.code:
           return t("Object key is invalid", { note: "API error" });
         case S3_ERROR_CODES.INVALID_BUCKET.code:
-          return t("Bucket is not allowed", { note: "API error" });
+          return t("Storage is misconfigured", { note: "API error" });
+        case S3_ERROR_CODES.UNKNOWN_ROUTE.code:
+          return t("Unknown file route", { note: "API error" });
+        case S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.code:
+          return t("File type is not allowed", { note: "API error" });
         case S3_ERROR_CODES.S3_NETWORK_ERROR.code:
           return t("Could not reach storage ({code})", {
             note: "API error",
             variables: { code: param(err.params, "code", "UNKNOWN") },
           });
-        case S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD.code:
-          return t("File size is required", { note: "upload" });
-        case S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART.code:
-          return t("File size is required", { note: "multipart" });
         case S3_ERROR_CODES.MULTIPART_PART_MISSING.code:
           return t("Uploaded part {partNumber} was not found", {
             note: "API error",

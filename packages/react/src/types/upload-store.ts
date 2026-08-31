@@ -4,14 +4,17 @@
  * Minimal state that must be persisted to resume a multipart upload.
  */
 export type StoredUpload = {
+  /**
+   * Client-side resume identity
+   * (`${route}:${file.name}:${file.size}:${file.lastModified}`).
+   */
+  resumeKey: string;
   /** S3 multipart `UploadId` returned by `CreateMultipartUpload`. */
   uploadId: string;
-  /** S3 object key. */
+  /** Server-generated S3 object key. */
   key: string;
   /** Total file size in bytes — used to verify the same file is being resumed. */
   fileSize: number;
-  /** Bucket override, if any. */
-  bucket?: string;
 };
 
 // ── UploadStore interface ─────────────────────────────────────────────────────
@@ -23,30 +26,41 @@ export type StoredUpload = {
  * (database, Redis, IndexedDB, etc.). The default implementation uses
  * `localStorage` via `createLocalStorageStore()`.
  *
+ * Lookup is by {@link StoredUpload.resumeKey}, not the S3 object key.
+ *
  * @example
  * ```ts
- * // Custom database-backed store
  * const dbStore: UploadStore = {
- *   async get(key, fileSize) {
- *     const row = await db.uploads.findFirst({ where: { key, fileSize } });
- *     return row ? { uploadId: row.uploadId, key, fileSize, bucket: row.bucket } : null;
+ *   async get(resumeKey, fileSize) {
+ *     const row = await db.uploads.findFirst({ where: { resumeKey, fileSize } });
+ *     return row
+ *       ? {
+ *           resumeKey,
+ *           uploadId: row.uploadId,
+ *           key: row.key,
+ *           fileSize,
+ *         }
+ *       : null;
  *   },
  *   async set(upload) {
- *     await db.uploads.upsert({ where: { key: upload.key }, data: upload });
+ *     await db.uploads.upsert({
+ *       where: { resumeKey: upload.resumeKey },
+ *       data: upload,
+ *     });
  *   },
- *   async delete(key) {
- *     await db.uploads.deleteMany({ where: { key } });
+ *   async delete(resumeKey) {
+ *     await db.uploads.deleteMany({ where: { resumeKey } });
  *   },
  * };
  * ```
  */
 export type UploadStore = {
   /**
-   * Look up a pending upload by its S3 object key and file size.
+   * Look up a pending upload by resume identity and file size.
    * Returns `null` if no matching upload is found.
    */
   get: (
-    key: string,
+    resumeKey: string,
     fileSize: number,
   ) => StoredUpload | null | Promise<StoredUpload | null>;
 
@@ -60,5 +74,5 @@ export type UploadStore = {
    * Remove the upload state after the upload completes or is explicitly
    * abandoned. Should be a no-op if the key is not found.
    */
-  delete: (key: string) => void | Promise<void>;
+  delete: (resumeKey: string) => void | Promise<void>;
 };

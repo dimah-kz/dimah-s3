@@ -8,7 +8,9 @@ describe("useDelete", () => {
   it("confirms the pending key", async () => {
     const api = fakeS3Api();
     const onSuccess = vi.fn();
-    const hook = renderHook(() => useDelete({ api, onSuccess }));
+    const hook = renderHook(() =>
+      useDelete({ api, route: "uploads", onSuccess }),
+    );
 
     act(() => {
       hook.current.requestDelete("a.png");
@@ -22,7 +24,10 @@ describe("useDelete", () => {
       await hook.current.confirmDelete();
     });
 
-    expect(api.delete).toHaveBeenCalledWith("a.png", { bucket: undefined });
+    expect(api.delete).toHaveBeenCalledWith({
+      route: "uploads",
+      key: "a.png",
+    });
     expect(onSuccess).toHaveBeenCalledWith("a.png");
     expect(hook.current.phase).toBe("success");
     hook.unmount();
@@ -31,7 +36,7 @@ describe("useDelete", () => {
   it("honors beforeDelete", async () => {
     const api = fakeS3Api();
     const hook = renderHook(() =>
-      useDelete({ api, beforeDelete: async () => false }),
+      useDelete({ api, route: "uploads", beforeDelete: async () => false }),
     );
 
     act(() => {

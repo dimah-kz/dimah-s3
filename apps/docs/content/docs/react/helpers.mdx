@@ -84,7 +84,7 @@ import { isDimahS3Error } from "@dimah-s3/core";
 const formatError = useFormatDimahError();
 
 try {
-  await api.download(key);
+  await api.download({ route: "uploads", key });
 } catch (err) {
   if (isDimahS3Error(err)) toast.error(formatError(err));
 }

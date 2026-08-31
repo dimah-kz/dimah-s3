@@ -3,6 +3,7 @@ import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks"
 import { fakeStore, sampleObject } from "@/test/fakes";
 
 const request = new Request("http://local");
+const route = "uploads";
 
 describe("createDatabaseLifecycleHooks", () => {
   it("tracks pending uploads for the resolved scope", async () => {
@@ -14,6 +15,7 @@ describe("createDatabaseLifecycleHooks", () => {
 
     await hooks.upload?.onPresigned?.({
       request,
+      route,
       key: "k",
       bucket: "b",
       contentType: "text/plain",
@@ -43,6 +45,7 @@ describe("createDatabaseLifecycleHooks", () => {
 
     await hooks.upload?.onConfirmed?.({
       request,
+      route,
       key: "k",
       bucket: "b",
       contentLength: 10,
@@ -72,7 +75,7 @@ describe("createDatabaseLifecycleHooks", () => {
       deleteMode: "hard",
     }).hooks;
 
-    const ctx = { request, key: "k", bucket: "b" };
+    const ctx = { request, route, key: "k", bucket: "b" };
     await softHooks.delete?.onDeleted?.(ctx);
     await hardHooks.delete?.onDeleted?.(ctx);
 
@@ -91,6 +94,7 @@ describe("createDatabaseLifecycleHooks", () => {
 
     const ctx = {
       request,
+      route,
       key: "k",
       bucket: "b",
       uploadId: "up-1",
@@ -119,6 +123,7 @@ describe("createDatabaseLifecycleHooks", () => {
 
     await hooks.multipart?.onAbort?.({
       request,
+      route,
       key: "k",
       bucket: "b",
       uploadId: "up-1",
@@ -135,6 +140,7 @@ describe("createDatabaseLifecycleHooks", () => {
 
     await hooks.multipart?.onInit?.({
       request,
+      route,
       key: "k",
       bucket: "b",
       uploadId: "up-1",
@@ -159,6 +165,7 @@ describe("createDatabaseLifecycleHooks", () => {
     await expect(
       hooks.upload?.guard?.({
         request,
+        route,
         key: "k",
         bucket: "b",
       }),
@@ -175,7 +182,7 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     await expect(
-      hooks.upload?.confirmGuard?.({ request, key: "k", bucket: "b" }),
+      hooks.upload?.confirmGuard?.({ request, route, key: "k", bucket: "b" }),
     ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
   });
 });

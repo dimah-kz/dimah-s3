@@ -7,16 +7,19 @@ import { renderHook } from "@/test/render-hook";
 describe("useDownload", () => {
   it("presigns and stores the url", async () => {
     const api = fakeS3Api();
-    const hook = renderHook(() => useDownload({ api, bucket: "b" }));
+    const hook = renderHook(() =>
+      useDownload({ api, route: "uploads" }),
+    );
 
     let result: { url: string; expiresIn: number } | null = null;
     await act(async () => {
       result = await hook.current.presign("a.png", "save.png");
     });
 
-    expect(api.download).toHaveBeenCalledWith("a.png", {
+    expect(api.download).toHaveBeenCalledWith({
+      route: "uploads",
+      key: "a.png",
       fileName: "save.png",
-      bucket: "b",
     });
     expect(result).toEqual({ url: "https://s3.test/dl", expiresIn: 600 });
     expect(hook.current).toMatchObject({
@@ -33,7 +36,7 @@ describe("useDownload", () => {
         throw new Error("blocked");
       }),
     });
-    const hook = renderHook(() => useDownload({ api }));
+    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
 
     await act(async () => {
       await hook.current.presign("missing.png");
@@ -49,7 +52,7 @@ describe("useDownload", () => {
 
   it("fetch mode exposes progress and cancel", () => {
     const hook = renderHook(() =>
-      useDownload({ api: fakeS3Api(), mode: "fetch" }),
+      useDownload({ api: fakeS3Api(), route: "uploads", mode: "fetch" }),
     );
     expect(hook.current.progress).toEqual({
       loaded: 0,

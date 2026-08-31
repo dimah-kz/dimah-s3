@@ -51,6 +51,20 @@ export const errors = {
       params: { bucket },
     }),
 
+  unknownRoute: (route: string) =>
+    DimahS3Error.from("NOT_FOUND", {
+      code: S3_ERROR_CODES.UNKNOWN_ROUTE.code,
+      message: S3_ERROR_CODES.UNKNOWN_ROUTE.message,
+      params: { route },
+    }),
+
+  fileTypeNotAllowed: (type: string) =>
+    DimahS3Error.from("BAD_REQUEST", {
+      code: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.code,
+      message: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.message,
+      params: { type },
+    }),
+
   s3NetworkError: (code: string) =>
     DimahS3Error.from("BAD_GATEWAY", {
       code: S3_ERROR_CODES.S3_NETWORK_ERROR.code,
@@ -60,15 +74,6 @@ export const errors = {
       ),
       params: { code },
     }),
-
-  fileSizeRequiredUpload: () =>
-    DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.FILE_SIZE_REQUIRED_UPLOAD),
-
-  fileSizeRequiredMultipart: () =>
-    DimahS3Error.from(
-      "BAD_REQUEST",
-      S3_ERROR_CODES.FILE_SIZE_REQUIRED_MULTIPART,
-    ),
 
   multipartPartMissing: (partNumber: number) =>
     DimahS3Error.from("BAD_REQUEST", {

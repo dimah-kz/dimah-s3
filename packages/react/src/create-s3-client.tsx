@@ -26,7 +26,7 @@ export type ReactS3Client<P extends readonly S3ClientPlugin[] = []> =
 /**
  * Create a typed S3 browser client — Better Auth–style one-shot setup.
  *
- * The returned object *is* the API (`s3Client.download(key)`), plus a bound
+ * The returned object *is* the API (`s3Client.download({ route, key })`), plus a bound
  * `Provider` / `useApi` so plugin methods stay typed without generics.
  *
  * ```ts

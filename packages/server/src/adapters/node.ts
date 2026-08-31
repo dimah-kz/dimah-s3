@@ -15,7 +15,7 @@ import type { DimahS3HandlerSource } from "./types";
  * ```ts
  * import { fromNodeHeaders } from "@dimah-s3/server/node";
  *
- * await s3.api.download({ query: { key }, headers: fromNodeHeaders(req.headers) });
+ * await s3.api.download({ query: { route, key }, headers: fromNodeHeaders(req.headers) });
  * ```
  */
 export function fromNodeHeaders(nodeHeaders: IncomingHttpHeaders): Headers {

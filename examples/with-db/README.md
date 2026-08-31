@@ -20,7 +20,7 @@ Open `/` — upload a file, then see it listed from `storage_object`.
 
 Shared with the Next.js starter:
 
-1. [src/lib/s3.ts](src/lib/s3.ts) — `awsS3` + `dimahS3(...)` (upload/download/delete + `db()`)
+1. [src/lib/s3.ts](src/lib/s3.ts) — `awsS3` + `dimahS3({ routes })` (`uploads` route + `db()`)
 2. [src/lib/s3-client.ts](src/lib/s3-client.ts) — `createS3Client({ plugins: [dbClient()] })` + `S3Provider`
 3. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts) — Next.js adapter
 4. [src/app/layout.tsx](src/app/layout.tsx) — `S3Provider` + `Toaster`

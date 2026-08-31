@@ -108,17 +108,22 @@ Quotas are app-owned. The db plugin enforces ownership first; your guards
 run after ([hook order](/docs/server/plugins#hook-order)).
 
 ```ts
-import { dimahS3 } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 import { chainHooks } from "@dimah-s3/server/plugins";
 import { db, forbidden } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
   client: awsS3,
+  bucket: process.env.S3_BUCKET!,
   plugins: [db({ client: dimahS3Db, resolveScope })],
-  upload: {
-    prefix: "uploads",
-    guard: quotaGuard,
-    // or stack several: chainHooks(quotaGuard, rateLimitGuard),
+  routes: {
+    uploads: route({
+      prefix: "uploads",
+      upload: {
+        guard: quotaGuard,
+        // or stack several: chainHooks(quotaGuard, rateLimitGuard),
+      },
+    }),
   },
 });
 

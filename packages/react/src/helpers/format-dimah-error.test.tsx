@@ -47,8 +47,16 @@ describe("useFormatDimahError", () => {
       format(DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY)),
     ).toBe("Object key is invalid");
     expect(
+      format(DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.UNKNOWN_ROUTE)),
+    ).toBe("Unknown file route");
+    expect(
+      format(
+        DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED),
+      ),
+    ).toBe("File type is not allowed");
+    expect(
       format(DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.INVALID_BUCKET)),
-    ).toBe("Bucket is not allowed");
+    ).toBe("Storage is misconfigured");
     expect(
       format(
         DimahS3Error.from("BAD_REQUEST", {

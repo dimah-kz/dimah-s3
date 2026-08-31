@@ -12,13 +12,12 @@ vi.mock("@/upload", () => ({
 describe("useFileUpload", () => {
   it("rejects a disallowed type before calling the engine", async () => {
     const hook = renderHook(() =>
-      useFileUpload({ api: fakeS3Api(), accept: [".png"] }),
+      useFileUpload({ api: fakeS3Api(), route: "uploads", accept: [".png"] }),
     );
 
     await act(async () => {
       await hook.current.upload(
         new File(["x"], "a.exe", { type: "application/octet-stream" }),
-        "k",
       );
     });
 
@@ -30,20 +29,18 @@ describe("useFileUpload", () => {
 
   it("uploads through the engine and lands on success", async () => {
     const api = fakeS3Api();
-    const hook = renderHook(() => useFileUpload({ api }));
+    const hook = renderHook(() => useFileUpload({ api, route: "uploads" }));
 
     await act(async () => {
       await hook.current.upload(
         new File(["hello"], "a.txt", { type: "text/plain" }),
-        "k",
       );
     });
 
     expect(uploadFile).toHaveBeenCalledWith(
       api,
       expect.any(File),
-      "k",
-      expect.anything(),
+      expect.objectContaining({ route: "uploads" }),
       expect.anything(),
       expect.any(AbortSignal),
       undefined,

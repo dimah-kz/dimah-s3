@@ -21,6 +21,7 @@ import type {
   MultiUploadFileState,
   MultiUploadHooks,
 } from "@/types";
+import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFiles } from "@/upload";
 import { hookBlockedError, toHookError } from "@/types/error";
 
@@ -51,8 +52,8 @@ export type UseMultiFileUploadReturn = UseMultiFileUploadState & {
   isUploading: boolean;
   /** `true` while the batch is in-flight (`validating` or `uploading`). */
   isPending: boolean;
-  /** Upload multiple files. */
-  upload: (files: File[], resolveKey: (file: File) => string) => Promise<void>;
+  /** Upload multiple files. The server generates each object key. */
+  upload: (files: File[]) => Promise<void>;
   /**
    * Abort all in-flight uploads and clean up multipart / store resources
    * (same semantics as {@link useFileUpload}'s `cancel`).
@@ -86,10 +87,9 @@ function generateId() {
 }
 
 type ActiveMultiUpload = {
-  objectKey: string;
+  resumeKey: string;
   serverKey: string;
   uploadId?: string;
-  bucket?: string;
 };
 
 export function useMultiFileUpload(
@@ -126,7 +126,7 @@ export function useMultiFileUpload(
   useEffect(() => () => revokeAllPreviews(), [revokeAllPreviews]);
 
   const upload = useCallback(
-    async (files: File[], resolveKey: (file: File) => string) => {
+    async (files: File[]) => {
       const opts = optsRef.current;
       const api = opts.api ?? apiRef.current;
       if (!api)
@@ -137,7 +137,6 @@ export function useMultiFileUpload(
       const items: Array<{
         id: string;
         file: File;
-        objectKey: string;
       }> = [];
       const fileStates: MultiUploadFileState[] = [];
       const fileMap = new Map<string, File>();
@@ -193,10 +192,9 @@ export function useMultiFileUpload(
 
       for (const file of files) {
         const id = generateId();
-        const objectKey = resolveKey(file);
         const previewUrl = createImagePreviewUrl(file);
         if (previewUrl) nextPreviewUrls.push(previewUrl);
-        items.push({ id, file, objectKey });
+        items.push({ id, file });
         fileMap.set(id, file);
         fileStates.push({
           id,
@@ -216,11 +214,8 @@ export function useMultiFileUpload(
         items.map((item) => [
           item.id,
           {
-            objectKey: item.objectKey,
-            serverKey: item.objectKey,
-            bucket:
-              opts.getUploadOptions?.(item.file)?.bucket ??
-              opts.uploadOptions?.bucket,
+            resumeKey: multipartResumeKey(opts.route, item.file),
+            serverKey: "",
           },
         ]),
       );
@@ -255,11 +250,10 @@ export function useMultiFileUpload(
           api,
           items,
           {
+            route: opts.route,
             multipart: opts.multipart,
-            multipartThreshold: opts.multipartThreshold,
             concurrentParts: opts.concurrentParts,
             concurrentFiles: opts.concurrentFiles,
-            partSize: opts.partSize,
             retry: opts.retry,
             uploadStore: opts.uploadStore,
           },
@@ -390,16 +384,16 @@ export function useMultiFileUpload(
       const uploadStore = opts.uploadStore;
       for (const active of activeUploadsRef.current.values()) {
         if (uploadStore != null && uploadStore !== false) {
-          void Promise.resolve(uploadStore.delete(active.objectKey)).catch(
+          void Promise.resolve(uploadStore.delete(active.resumeKey)).catch(
             () => {},
           );
         }
-        if (active.uploadId) {
+        if (active.uploadId && active.serverKey) {
           api.multipart
             .abort({
+              route: opts.route,
               key: active.serverKey,
               uploadId: active.uploadId,
-              bucket: active.bucket,
             })
             .catch(() => {});
         }

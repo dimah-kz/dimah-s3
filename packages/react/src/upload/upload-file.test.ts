@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { uploadFile } from "./upload-file";
 import { uploadMultipart } from "./multipart";
 import { uploadPut, uploadSimple } from "./presigned-http";
+import { DEFAULT_MULTIPART_THRESHOLD } from "./constants";
 import { fakeS3Api } from "@/test/api";
 
 vi.mock("./presigned-http", () => ({
@@ -10,11 +11,23 @@ vi.mock("./presigned-http", () => ({
 }));
 
 vi.mock("./multipart", () => ({
-  uploadMultipart: vi.fn(async () => "etag-mp"),
+  uploadMultipart: vi.fn(async (...args: unknown[]) => {
+    const onInit = args[11] as
+      | ((uploadId: string, key: string) => void)
+      | undefined;
+    onInit?.("up-1", "videos/a.bin");
+    return "etag-mp";
+  }),
 }));
 
 function file(size = 4) {
   return new File(["x".repeat(size)], "a.png", { type: "image/png" });
+}
+
+function oversizedFile() {
+  const f = new File(["x"], "a.bin", { type: "application/octet-stream" });
+  Object.defineProperty(f, "size", { value: DEFAULT_MULTIPART_THRESHOLD });
+  return f;
 }
 
 describe("uploadFile", () => {
@@ -32,20 +45,23 @@ describe("uploadFile", () => {
       uploadFile(
         api,
         file(),
-        "a.png",
-        {},
+        { route: "uploads" },
         { onPhaseChange: (p) => phases.push(p) },
       ),
-    ).resolves.toEqual({ key: "a.png", eTag: "abc" });
+    ).resolves.toEqual({ key: "uploads/a.png", eTag: "abc" });
 
     expect(api.upload).toHaveBeenCalledWith(
-      expect.objectContaining({ key: "a.png", fileName: "a.png" }),
+      expect.objectContaining({
+        route: "uploads",
+        fileName: "a.png",
+        fileSize: 4,
+      }),
     );
     expect(uploadSimple).toHaveBeenCalledOnce();
     expect(uploadPut).not.toHaveBeenCalled();
     expect(api.confirm).toHaveBeenCalledWith({
-      key: "a.png",
-      bucket: "bucket",
+      route: "uploads",
+      key: "uploads/a.png",
     });
     expect(phases).toEqual(["presigning", "uploading", "finalizing"]);
   });
@@ -54,26 +70,24 @@ describe("uploadFile", () => {
     const api = fakeS3Api();
     vi.mocked(api.upload).mockResolvedValue({
       bucket: "bucket",
-      key: "a.png",
+      key: "uploads/a.png",
       url: "https://s3.test/put",
       expiresIn: 600,
       method: "PUT",
       headers: { "Content-Type": "image/png" },
     });
 
-    await uploadFile(api, file(), "a.png");
+    await uploadFile(api, file(), { route: "uploads" });
     expect(uploadPut).toHaveBeenCalledOnce();
     expect(uploadSimple).not.toHaveBeenCalled();
   });
 
-  it("delegates to multipart above the threshold", async () => {
+  it("delegates to multipart above the internal threshold", async () => {
     const api = fakeS3Api();
+    const big = oversizedFile();
     await expect(
-      uploadFile(api, file(8), "a.bin", {
-        multipart: true,
-        multipartThreshold: 4,
-      }),
-    ).resolves.toEqual({ key: "a.bin", eTag: "etag-mp" });
+      uploadFile(api, big, { route: "videos", multipart: true }),
+    ).resolves.toEqual({ key: "videos/a.bin", eTag: "etag-mp" });
 
     expect(uploadMultipart).toHaveBeenCalledOnce();
     expect(api.upload).not.toHaveBeenCalled();
@@ -86,21 +100,21 @@ describe("uploadFile", () => {
     Object.assign(api, { uploadTransport: transport });
     vi.mocked(api.upload).mockResolvedValue({
       bucket: "bucket",
-      key: "a.png",
+      key: "uploads/a.png",
       url: "https://s3.test/put",
       expiresIn: 600,
       method: "PUT",
       headers: { "Content-Type": "image/png" },
     });
 
-    await uploadFile(api, file(), "a.png");
+    await uploadFile(api, file(), { route: "uploads" });
 
     expect(transport).toHaveBeenCalledOnce();
     expect(uploadPut).not.toHaveBeenCalled();
     expect(uploadSimple).not.toHaveBeenCalled();
     expect(api.confirm).toHaveBeenCalledWith({
-      key: "a.png",
-      bucket: "bucket",
+      route: "uploads",
+      key: "uploads/a.png",
     });
   });
 
@@ -109,7 +123,7 @@ describe("uploadFile", () => {
     vi.mocked(api.upload).mockRejectedValue(new Error("nope"));
 
     await expect(
-      uploadFile(api, file(), "a.png", { retry: { maxRetries: 0 } }),
+      uploadFile(api, file(), { route: "uploads", retry: { maxRetries: 0 } }),
     ).rejects.toMatchObject({
       name: "S3UploadError",
       code: "UPLOAD_ERROR",

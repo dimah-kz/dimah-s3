@@ -5,3 +5,4 @@ export {
   type FileItemStatus,
   type MultiUploadCallbacks,
 } from "./upload-files";
+export { multipartResumeKey } from "./resume-key";

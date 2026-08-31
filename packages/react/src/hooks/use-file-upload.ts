@@ -22,6 +22,7 @@ import type {
   UploadResult,
   UploadRequestOptions,
 } from "@/types";
+import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFile } from "@/upload";
 import { hookBlockedError, toHookError } from "@/types/error";
 
@@ -64,13 +65,12 @@ export type UseFileUploadReturn = UseFileUploadState & {
    * automatically before the new upload begins.
    *
    * If `uploadStore` is configured and a previous upload for the same
-   * `objectKey` was interrupted (e.g. via `detach()`), the engine will find
+   * file identity was interrupted (e.g. via `detach()`), the engine will find
    * the stored `uploadId`, call `listParts`, and resume from the last completed
    * part rather than starting a new multipart upload.
    */
   upload: (
     file: File,
-    objectKey: string,
     requestOptions?: UploadRequestOptions,
   ) => Promise<void>;
   /**
@@ -139,11 +139,10 @@ function mergeRequestOptions(
 
 type ActiveUpload = {
   file: File;
-  objectKey: string;
-  /** S3 key as returned by the server (may differ from objectKey). */
+  resumeKey: string;
+  /** S3 key as returned by the server. */
   serverKey: string;
   uploadId?: string;
-  bucket?: string;
   requestOptions?: UploadRequestOptions;
 };
 
@@ -178,11 +177,7 @@ export function useFileUpload(
   useEffect(() => () => revokeCurrentPreview(), [revokeCurrentPreview]);
 
   const upload = useCallback(
-    async (
-      file: File,
-      objectKey: string,
-      requestOptions?: UploadRequestOptions,
-    ) => {
+    async (file: File, requestOptions?: UploadRequestOptions) => {
       revokeCurrentPreview();
       const previewUrl = createImagePreviewUrl(file);
       previewUrlRef.current = previewUrl;
@@ -241,16 +236,15 @@ export function useFileUpload(
       patch((draft) => {
         draft.phase = "presigning";
       });
-      opts.onUploadStart?.(file, objectKey);
+      opts.onUploadStart?.(file);
 
       const mergedOptions = mergeRequestOptions(opts, file, requestOptions);
       const controller = new AbortController();
       abortRef.current = controller;
       activeUploadRef.current = {
         file,
-        objectKey,
-        serverKey: objectKey,
-        bucket: mergedOptions?.bucket,
+        resumeKey: multipartResumeKey(opts.route, file),
+        serverKey: "",
         requestOptions: mergedOptions,
       };
 
@@ -258,12 +252,10 @@ export function useFileUpload(
         const result = await uploadFile(
           api,
           file,
-          objectKey,
           {
+            route: opts.route,
             multipart: opts.multipart,
-            multipartThreshold: opts.multipartThreshold,
             concurrentParts: opts.concurrentParts,
-            partSize: opts.partSize,
             retry: opts.retry,
             uploadStore: opts.uploadStore,
           },
@@ -340,14 +332,14 @@ export function useFileUpload(
     const active = activeUploadRef.current;
     abortRef.current?.abort();
     if (active && api) {
-      const { objectKey, serverKey, uploadId, bucket } = active;
+      const { resumeKey, serverKey, uploadId } = active;
       const storeOpt = opts.uploadStore;
       if (storeOpt != null && storeOpt !== false) {
-        void Promise.resolve(storeOpt.delete(objectKey)).catch(() => {});
+        void Promise.resolve(storeOpt.delete(resumeKey)).catch(() => {});
       }
-      if (uploadId) {
+      if (uploadId && serverKey) {
         api.multipart
-          .abort({ key: serverKey, uploadId, bucket })
+          .abort({ route: opts.route, key: serverKey, uploadId })
           .catch(() => {});
       }
     }

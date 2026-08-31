@@ -4,10 +4,10 @@
 
 ## When changing the presign protocol
 
-1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`).
+1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`). Every core request schema requires `route`. Upload and multipart init do not accept `key`.
 2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `DimahS3Error`.
 3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds the internal `createS3Router` (HTTP `handler` + `s3.api`). Do not export `createS3Router`.
-4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` stays named (`api.download(key)`); server `s3.api` is the better-call map (`download({ query, headers })`).
+4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` uses object args (`api.download({ route, key })`); server `s3.api` is the better-call map (`download({ query, headers })`).
 5. Tegami changelog — [release.md](./release.md).
 
 ## When adding or changing UI / API strings
@@ -21,8 +21,8 @@
 
 1. `createS3Endpoint` + Zod schema in `api/routes/`; add the export to `coreEndpoints`.
 2. Hook context types in `types/hook-contexts.ts`.
-3. Feature flags via `DimahS3Config` (`upload`, `download`, `delete`, `multipart`) — disabled → `FEATURE_DISABLED` (HTTP 404; endpoint still registered). `true` or an options object means on; omit or `false` means off. Multipart is on with upload unless `multipart: false`.
-4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. `prefix` (string or `ResolveKeyContext` factory) / `resolveKey` rewrite keys. Client `bucket` is ignored unless `allowClientBucket` or `buckets` (mutually exclusive). Client `acl` is ignored unless `allowClientAcl` or a server `acl`.
+3. Feature flags via named `routes` (`upload`, `download`, `delete`, `multipart` on each route) — disabled → `FEATURE_DISABLED` (HTTP 404; endpoint still registered). `true` or an options object means on; omit or `false` means off. Upload defaults on; `download` / `delete` / `multipart` default off.
+4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. Route `prefix` (string or `GenerateKeyContext` factory) / `resolveKey` generate keys on upload. The client does not send `key` on upload, or `bucket` / `acl` / `expiresIn`. Add named policies with `route()` (`packages/server/src/route.ts`).
 5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). Next adapter exposes GET/POST/PUT/PATCH/DELETE. New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
 
 ## When adding or changing a server plugin
@@ -41,7 +41,8 @@
 1. Hook in `packages/react/src/hooks/`.
 2. Upload mechanics in `upload/`; shared helpers in `helpers/`.
 3. Depend on `@dimah-s3/core` only — fetch through `S3Api`, not ad-hoc URLs.
-4. Export from `src/index.ts` when public.
+4. Required `route` on hooks that hit core endpoints. Upload does not take `objectKey`.
+5. Export from `src/index.ts` when public.
 
 ## Build & exports
 

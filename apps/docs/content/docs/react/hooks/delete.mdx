@@ -17,7 +17,7 @@ import { useDelete } from "@dimah-s3/react";
 
 export function DeleteFile() {
   const { pendingKey, requestDelete, confirmDelete, cancelDelete } =
-    useDelete();
+    useDelete({ route: "uploads" });
 
   if (pendingKey) {
     return (

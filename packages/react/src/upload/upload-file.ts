@@ -35,28 +35,27 @@ export type UploadEngineCallbacks = {
 export async function uploadFile(
   api: S3Api,
   file: File,
-  objectKey: string,
-  config: UploadConfig = {},
+  config: UploadConfig,
   callbacks: UploadEngineCallbacks = {},
   signal?: AbortSignal,
   requestOptions?: UploadRequestOptions,
 ): Promise<UploadResult> {
-  const threshold = config.multipartThreshold ?? DEFAULT_MULTIPART_THRESHOLD;
-  const useMultipart = config.multipart === true && file.size >= threshold;
+  const { route } = config;
+  const useMultipart =
+    config.multipart === true && file.size >= DEFAULT_MULTIPART_THRESHOLD;
   const concurrentParts = config.concurrentParts ?? DEFAULT_CONCURRENT_PARTS;
-  const partSize =
-    requestOptions?.partSize ?? config.partSize ?? DEFAULT_PART_SIZE;
   const contentType = requestOptions?.contentType ?? file.type;
+  const fileName = requestOptions?.fileName || file.name;
 
   try {
     if (useMultipart) {
       callbacks.onPhaseChange?.("uploading");
-      let key = objectKey;
+      let key = "";
       const eTag = await uploadMultipart(
         api,
         file,
-        objectKey,
-        partSize,
+        route,
+        DEFAULT_PART_SIZE,
         concurrentParts,
         callbacks.onProgress,
         signal,
@@ -76,16 +75,11 @@ export async function uploadFile(
       async () => {
         callbacks.onPhaseChange?.("presigning");
         const presign = await api.upload({
-          key: objectKey,
+          route,
           contentType,
           fileSize: file.size,
-          fileName:
-            requestOptions?.fileName !== null
-              ? (requestOptions?.fileName ?? file.name)
-              : undefined,
+          fileName,
           metadata: requestOptions?.metadata,
-          bucket: requestOptions?.bucket,
-          acl: requestOptions?.acl,
         });
         callbacks.onPhaseChange?.("uploading");
         const transport = getUploadTransport(api);
@@ -114,8 +108,8 @@ export async function uploadFile(
 
         callbacks.onPhaseChange?.("finalizing");
         const confirmed = await api.confirm({
+          route,
           key: presign.key,
-          bucket: presign.bucket,
         });
         return { key: presign.key, eTag: confirmed.eTag };
       },
