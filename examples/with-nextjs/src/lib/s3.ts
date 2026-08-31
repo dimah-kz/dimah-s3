@@ -19,8 +19,6 @@ export const s3 = dimahS3({
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
-      download: true,
-      delete: true,
     }),
   },
 });

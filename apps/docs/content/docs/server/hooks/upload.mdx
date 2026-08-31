@@ -4,8 +4,10 @@ description: Presign, confirm, and persist verified metadata.
 ---
 
 Enable on a [named route](/docs/server/routes) with `upload: true` or an
-options object. Upload is **off** until you set it. Default method is
-`"POST"`. Use `"PUT"` when the provider has no Presigned POST
+options object. Upload is **off** until you set it. Leave download and
+delete off unless this route also serves those objects
+([one job per route](/docs/server/routes#one-job-per-route)). Default method
+is `"POST"`. Use `"PUT"` when the provider has no Presigned POST
 ([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is **off**
 until you set `upload.multipart: true`.
 

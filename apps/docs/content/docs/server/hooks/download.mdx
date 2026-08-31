@@ -7,6 +7,11 @@ Enable with `download: true` or an options object on a
 [named route](/docs/server/routes). The server never streams the
 file — it signs a GET URL, then the browser fetches from S3.
 
+A download-only route is the usual shape. If these keys were created by
+an upload route, enable `download` on **that** route instead of a second
+name for the same prefix
+([combining features](/docs/server/routes#combining-features)).
+
 The stored `key` must sit under the route `keyPrefix`. That is a folder
 bound, not ownership — add `guard` or [`db()`](/docs/db) so callers cannot
 download another user's object in the same prefix.

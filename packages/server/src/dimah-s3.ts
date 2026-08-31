@@ -71,13 +71,14 @@ export type DimahS3<
  *   client: awsS3,
  *   bucket: "my-bucket",
  *   routes: {
- *     uploads: route({ upload: { fileTypes: ["image/*"] }, download: true }),
+ *     uploads: route({ upload: { fileTypes: ["image/*"] } }),
+ *     invoices: route({ download: true }),
  *   },
  * });
  *
  * export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
  *
- * await s3.api.download({ query: { route: "uploads", key }, headers: await headers() });
+ * await s3.api.download({ query: { route: "invoices", key }, headers: await headers() });
  * ```
  */
 export function dimahS3<

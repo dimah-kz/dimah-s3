@@ -117,6 +117,8 @@ export type DeleteConfig = {
 /**
  * Named file route — a mini {@link DimahS3Config} under `routes`.
  * Upload, download, delete, and `upload.multipart` are off until set.
+ * Prefer one feature per route; combine only when those callers share
+ * the key namespace.
  */
 export type DimahS3RouteConfig = {
   /** Override the instance S3 client for this route. */
@@ -152,7 +154,6 @@ export type DimahS3RouteConfig = {
  *   routes: {
  *     uploads: route({
  *       upload: { fileTypes: ["image/*"], multipart: true },
- *       download: true,
  *     }),
  *   },
  * });

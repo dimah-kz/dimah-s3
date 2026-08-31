@@ -90,8 +90,9 @@ export function MultiUploader() {
 
 The server generates each object key. After success, `useUpload` exposes
 `result` (`key`, `contentLength`, …). `useMultiUpload` puts the same object
-on each `files[]` entry (`result`). Persist `result.key` for download and
-delete.
+on each `files[]` entry (`result`). Persist `result.key`. Enable download
+or delete on that **same** route when the UI needs them
+([combining features](/docs/server/routes#combining-features)).
 
 `multipart` splits **one** large file into parts. It is not multi-file
 upload. To resume after a refresh, pass an
@@ -121,16 +122,16 @@ await upload(files);
 
 ## Options
 
-| Option                               | Description                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                              |
-| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                      |
-| `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions         |
-| `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                                |
-| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                      |
-| `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`) |
-| `uploadStore`                        | Resume after refresh                                                                              |
-| `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key` for download / delete                     |
+| Option                               | Description                                                                                                     |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                                            |
+| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                                    |
+| `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions                       |
+| `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                                              |
+| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                    |
+| `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`)               |
+| `uploadStore`                        | Resume after refresh                                                                                            |
+| `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key`; enable download / delete on the same route when needed |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full

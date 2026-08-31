@@ -49,23 +49,27 @@ follow-up check off and generates `{uuid}/{name}` (no route folder).
 `keyPrefix` is a folder bound, not per-user ownership. Enabling
 `download: true` / `delete: true` still means anyone who knows a key in
 that prefix can presign it unless you add `guard` or [`db()`](/docs/db).
+Enable those only when this route actually serves them
+([one job per route](/docs/server/routes#one-job-per-route)).
 
-Put `object` on **upload**. See [Routes](/docs/server/routes).
+Put `object` on **upload**. See [Routes](/docs/server/routes). Download
+and delete have no `object` callback:
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    uploads: route({
+    invoices: route({
       download: true,
-      delete: true,
     }),
   },
 });
 ```
 
-Per-user (or per-tenant) folders:
+Per-user (or per-tenant) folders. Download and delete stay on this route
+because they target the same keys
+([combining features](/docs/server/routes#combining-features)):
 
 ```ts title="lib/s3.ts"
 import { dimahS3, errors, route } from "@dimah-s3/server";

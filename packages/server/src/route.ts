@@ -6,7 +6,7 @@ import type { DimahS3RouteConfig } from "@/types/config";
  *
  * ```ts
  * routes: {
- *   uploads: route({ upload: { fileTypes: ["image/*"] }, download: true }),
+ *   uploads: route({ upload: { fileTypes: ["image/*"] } }),
  * }
  * ```
  */

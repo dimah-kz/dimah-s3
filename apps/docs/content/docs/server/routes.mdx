@@ -19,6 +19,12 @@ Unknown names return `404` with `UNKNOWN_ROUTE`. A missing name fails
 validation (`400`). A disabled operation on that route returns `404`
 `FEATURE_DISABLED`.
 
+## One job per route
+
+Enable upload, or download, or delete — not every operation "just in
+case". Unused features are still reachable by anyone who knows a key in
+that `keyPrefix` unless you add `guard` or [`db()`](/docs/db).
+
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, route } from "@dimah-s3/server";
@@ -36,8 +42,6 @@ export const s3 = dimahS3({
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
-      download: true,
-      delete: true,
     }),
     avatars: route({
       client: r2,
@@ -51,6 +55,8 @@ export const s3 = dimahS3({
           acl: "public-read",
         }),
       },
+    }),
+    invoices: route({
       download: true,
     }),
     videos: route({
@@ -59,7 +65,6 @@ export const s3 = dimahS3({
         maxFileSize: 500 * 1024 * 1024,
         multipart: true,
       },
-      download: true,
     }),
   },
 });
@@ -68,6 +73,29 @@ export const s3 = dimahS3({
 `dimahS3()` with empty or missing `routes` throws. Names match
 `^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`. `route()` is an identity helper for
 inference — `s3.$Infer.routes` is the union of those keys.
+
+## Combining features
+
+Put a second (or third) feature on the **same** route when those callers
+work on the **same objects**. Confirm, download, delete, and multipart
+follow-ups must stay under that route's `keyPrefix`, and prefixes cannot
+overlap — you cannot split `attachments/…` across two route names.
+
+```ts
+attachments: route({
+  upload: {
+    fileTypes: ["image/*", "application/pdf"],
+    maxFileSize: 10 * 1024 * 1024,
+  },
+  download: true,
+  delete: true,
+}),
+```
+
+Typical cases: a file manager, an attachment field with view + remove.
+Public-read uploads (`acl: "public-read"`) often stay upload-only — the
+CDN URL does not need `download`. Multipart is not a separate job; set
+`upload.multipart: true` on the upload route.
 
 ## Inheritance
 
@@ -88,8 +116,8 @@ missing field or `dimahS3()` throws.
 
 `upload`, `download`, `delete`, and `upload.multipart` are **off** until
 set (`true` or an options object). A route with every operation off throws
-at init. `upload: false` (or omitting `upload`) with `download: true` is a
-download-only route.
+at init. Enable only the operations that route needs. Omitting `upload`
+with `download: true` is a download-only route.
 
 `upload.multipart: true` uses the same `object` / `acl` as upload. It does
 not turn on automatically with upload.
@@ -154,10 +182,13 @@ Upload and multipart init always require `fileName` + `fileSize`.
 
 ```ts
 useUpload({ route: "uploads" })
-useDownload({ route: "uploads" })  // download(storedKey)
-useDelete({ route: "uploads" })
+useDownload({ route: "invoices" })  // download(storedKey)
 <UploadButton route="uploads" />
 ```
+
+Download or delete of keys created by `uploads` belongs on that same route
+— enable the extra feature there, do not add a second route for the same
+prefix.
 
 Client `accept` / `maxFileSize` are optional UX only. The server still
 enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits

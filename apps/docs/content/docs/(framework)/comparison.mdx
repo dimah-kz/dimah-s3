@@ -33,8 +33,8 @@ dashboard you still have to back yourself.
 
 ## Pick dimah-s3 if
 
-- You want named file routes with server-owned keys, plus download and delete
-  on the same policy
+- You want named file routes with server-owned keys — upload, download, and
+  delete as separate policies, or together when the same objects need them
 - Upload, download, and delete should follow the same rules
 - You save a row only after the file is really in the bucket
 - Auth lives in hooks, and the rest of S3 uses your `S3Client`

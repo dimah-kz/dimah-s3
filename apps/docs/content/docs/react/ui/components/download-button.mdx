@@ -48,8 +48,10 @@ npx shadcn@latest add @dimah-s3/download-button
 <DownloadButton route="uploads" objectKey={storedKey} variant="ghost" />
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The prop is not
-named `key` because React reserves that for lists.
+`objectKey` is the stored S3 key (`result.key` from upload). The `route`
+must have `download` enabled — the same route as upload when those keys
+were created there. The prop is not named `key` because React reserves
+that for lists.
 
 ## Props
 

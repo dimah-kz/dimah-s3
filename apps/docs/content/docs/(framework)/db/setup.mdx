@@ -146,8 +146,10 @@ export const s3 = dimahS3({
   ],
   routes: {
     uploads: route({
-      download: true,
-      delete: true,
+      upload: {
+        fileTypes: ["image/*", "application/pdf"],
+        maxFileSize: 10 * 1024 * 1024,
+      },
     }),
   },
 });
@@ -162,7 +164,9 @@ s3.db.objects.listByScope({ scope: "user:123" });
 <Callout type="warn" title="Features stay opt-in">
   Plugin hooks merge onto every route unless the route sets
   `plugins: { db: false }`. You still enable each operation on the route
-  yourself — the plugin does not turn them on.
+  yourself — the plugin does not turn them on. Enable download or delete
+  on this **same** route when those callers share these objects
+  ([combining features](/docs/server/routes#combining-features)).
 </Callout>
 
 | Option         | Default  | Meaning                                     |

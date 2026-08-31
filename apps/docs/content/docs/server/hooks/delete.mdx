@@ -4,9 +4,14 @@ description: Authorize deletion and run cleanup after S3 removes the object.
 ---
 
 Enable with `delete: true` or an options object on a
-[named route](/docs/server/routes). The stored `key` must sit under the
-route `keyPrefix`. Add `guard` or [`db()`](/docs/db) for per-object
-ownership — `keyPrefix` alone is not enough.
+[named route](/docs/server/routes). A delete-only route is the usual
+shape. If these keys were created by an upload route, enable `delete` on
+**that** route instead of a second name for the same prefix
+([combining features](/docs/server/routes#combining-features)).
+
+The stored `key` must sit under the route `keyPrefix`. Add `guard` or
+[`db()`](/docs/db) for per-object ownership — `keyPrefix` alone is not
+enough.
 
 <Callout title="Not a presigned URL">
   After `guard`, the server sends `DeleteObject`. The browser never talks to the

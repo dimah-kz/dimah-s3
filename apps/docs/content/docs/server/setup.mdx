@@ -16,8 +16,9 @@ Pass an AWS SDK `S3Client` as `client` (export it as `awsS3` so jobs and a
 custom backend can reuse it) and a `bucket`. Those are instance defaults —
 a route may override either. Named routes are required: see
 [Routes](/docs/server/routes). `upload` / `download` / `delete` /
-`upload.multipart` stay off until you set them. Disabled operations return
-`404` with code `FEATURE_DISABLED`.
+`upload.multipart` stay off until you set them — enable only the
+operations that route needs. Disabled operations return `404` with code
+`FEATURE_DISABLED`.
 
 Provider-specific wiring (POST vs PUT, ACL, path-style):
 [Providers](/docs/providers).
@@ -44,8 +45,6 @@ export const s3 = dimahS3({
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
-      download: true,
-      delete: true,
     }),
   },
 });
@@ -222,7 +221,9 @@ Custom base path: set `basePath` on `dimahS3()` and the same value on
 ### Server `api` [step]
 
 Same protocol as the browser client, without HTTP. Pass `headers` so
-`guard` still sees the request.
+`guard` still sees the request. The named route must have `download`
+enabled — the same route as upload when those keys were created there
+([combining features](/docs/server/routes#combining-features)).
 
 ```ts title="app/actions.ts"
 "use server";

@@ -25,8 +25,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: { fileTypes: ["image/*"] },
-      download: true,
-      delete: true,
     }),
   },
 });

@@ -8,6 +8,11 @@ description: Confirm-first or one-shot delete.
 alert dialog. Headless callers that already confirmed can call `remove(key)`
 instead.
 
+The route name must have `delete` enabled. Keys from an upload live on
+that upload route — enable `delete` there rather than adding a second
+route for the same prefix
+([combining features](/docs/server/routes#combining-features)).
+
 **Flow:** `requestDelete` → your confirm UI → `confirmDelete` (or
 `cancelDelete`). Or `remove(key)` in one step.
 

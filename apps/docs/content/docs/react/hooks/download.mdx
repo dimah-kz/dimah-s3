@@ -7,7 +7,10 @@ Ask the API for a short-lived GET URL, then let the browser take the file.
 Your server never streams the body.
 
 Pass the **stored** key from upload (`result.key`) — a bare filename is
-outside the route `keyPrefix` and returns `INVALID_KEY`.
+outside the route `keyPrefix` and returns `INVALID_KEY`. The route name
+must have `download` enabled. Keys from an upload live on that upload
+route — enable `download` there rather than adding a second route for the
+same prefix ([combining features](/docs/server/routes#combining-features)).
 
 | Hook                             | UI                                                                                                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |

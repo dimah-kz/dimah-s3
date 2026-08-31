@@ -56,8 +56,10 @@ npx shadcn@latest add @dimah-s3/delete-button
 />
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The prop is not
-named `key` because React reserves that for lists.
+`objectKey` is the stored S3 key (`result.key` from upload). The `route`
+must have `delete` enabled — the same route as upload when those keys
+were created there. The prop is not named `key` because React reserves
+that for lists.
 
 ## Props
 
