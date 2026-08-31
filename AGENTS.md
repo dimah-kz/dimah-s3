@@ -17,7 +17,8 @@ Do not treat this monorepo as the app guide. Use
   `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name).
   Return `{ folder? }` or `{ key? }` from `upload.object` (`metadata` /
   `acl` optional). Follow-up keys must stay under `keyPrefix` unless it is
-  `false` (then generated keys are `{uuid}/{name}`).
+  `false` (then generated keys are `{uuid}/{name}`). Nested or identical
+  `keyPrefix` values across routes are rejected at init.
 - Trust `onConfirmed` (HeadObject, including multipart complete) for size
   and type, not the presign body.
 
