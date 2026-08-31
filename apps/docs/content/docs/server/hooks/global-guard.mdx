@@ -8,8 +8,12 @@ runs first on every request, including plugin endpoints. There is no
 `enabled` flag.
 
 Use it for the caller: session, auth, tenancy, whether the request is
-allowed at all. It only sees `{ request }`. Per-object rules belong on the
+allowed at all. It only sees `{ request }` — the route name is not
+available yet (lookup happens next). Per-object rules belong on the
 feature hooks — those receive `key` and `bucket`.
+
+If some routes are public and others need a session, put auth on
+`route.guard` (or the feature `guard`) instead of the instance `guard`.
 
 Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` or
 [`errors`](/docs/server/errors) for other codes.

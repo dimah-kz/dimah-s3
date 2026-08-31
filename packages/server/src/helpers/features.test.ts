@@ -48,6 +48,42 @@ describe("normalizeFeature / routes", () => {
     expect(resolved.maxFileSize).toBe(1024);
     expect(resolved.acl).toBe("public-read");
     expect(resolved.method).toBe("PUT");
+    expect(resolved.keyPrefix).toBe("uploads");
+  });
+
+  it("uses the route name as keyPrefix by default", () => {
+    const resolved = normalizeRoute("avatars", route({}), {
+      client,
+      bucket: "bucket",
+    });
+    expect(resolved.keyPrefix).toBe("avatars");
+  });
+
+  it("accepts a custom keyPrefix or false", () => {
+    expect(
+      normalizeRoute(
+        "uploads",
+        route({ keyPrefix: "users" }),
+        { client, bucket: "bucket" },
+      ).keyPrefix,
+    ).toBe("users");
+    expect(
+      normalizeRoute(
+        "uploads",
+        route({ keyPrefix: false }),
+        { client, bucket: "bucket" },
+      ).keyPrefix,
+    ).toBe(false);
+  });
+
+  it("rejects an unsafe keyPrefix at init", () => {
+    expect(() =>
+      normalizeRoute(
+        "uploads",
+        route({ keyPrefix: "../secret" }),
+        { client, bucket: "bucket" },
+      ),
+    ).toThrow(/keyPrefix is not a valid object-key prefix/);
   });
 
   it("does not enable multipart unless opted in under upload", () => {

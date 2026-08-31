@@ -1,5 +1,6 @@
 import type {
   DeleteConfig,
+  DimahS3Config,
   DimahS3RouteConfig,
   DownloadConfig,
   FeatureToggle,
@@ -7,8 +8,22 @@ import type {
   ResolvedRoutePolicy,
   UploadConfig,
 } from "@/types";
+import { normalizeObjectKey } from "@/helpers/resolve-target";
 import { assertRouteName } from "@/route";
-import type { DimahS3Config } from "@/types/config";
+
+function resolveKeyPrefix(
+  name: string,
+  value: DimahS3RouteConfig["keyPrefix"],
+): string | false {
+  if (value === false) return false;
+  const normalized = normalizeObjectKey(value ?? name);
+  if (!normalized) {
+    throw new Error(
+      `dimahS3 route "${name}": keyPrefix is not a valid object-key prefix.`,
+    );
+  }
+  return normalized;
+}
 
 export function normalizeFeature<T extends object>(
   value: FeatureToggle<T> | undefined,
@@ -93,6 +108,7 @@ export function normalizeRoute(
     name,
     client,
     bucket,
+    keyPrefix: resolveKeyPrefix(name, route.keyPrefix),
     fileTypes: upload?.fileTypes,
     maxFileSize: upload?.maxFileSize,
     object: upload?.object,

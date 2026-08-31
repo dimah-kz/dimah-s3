@@ -28,10 +28,7 @@ async function handleSignPart(
   const uploadId = input.uploadId;
   const partNumber = input.partNumber;
   const expiresIn = normalizeExpiresIn(route.expiresIn, config.maxExpiresIn);
-  const partSize =
-    typeof input.partSize === "number" && input.partSize > 0
-      ? Math.floor(input.partSize)
-      : null;
+  const partSize = Math.floor(input.partSize);
 
   await runHook(route.upload?.multipart?.sessionGuard, {
     request,
@@ -41,7 +38,7 @@ async function handleSignPart(
     uploadId,
     action: "part",
     partNumber,
-    partSize: partSize ?? undefined,
+    partSize,
   });
 
   const presignedUrl = await getSignedUrl(
@@ -51,13 +48,11 @@ async function handleSignPart(
       Key: key,
       UploadId: uploadId,
       PartNumber: partNumber,
-      ...(partSize !== null ? { ContentLength: partSize } : {}),
+      ContentLength: partSize,
     }),
     {
       expiresIn,
-      ...(partSize !== null
-        ? { signableHeaders: new Set(["content-length"]) }
-        : {}),
+      signableHeaders: new Set(["content-length"]),
     },
   );
 
@@ -67,7 +62,7 @@ async function handleSignPart(
     uploadId,
     bucket,
     expiresIn,
-    ...(partSize !== null ? { partSize } : {}),
+    partSize,
   };
 }
 

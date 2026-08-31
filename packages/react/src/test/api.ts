@@ -57,6 +57,7 @@ export function fakeS3Api(
         uploadId: payload.uploadId,
         bucket,
         expiresIn: 600,
+        partSize: payload.partSize,
       })),
       listParts: vi.fn(async () => ({ parts: [] })),
       complete: vi.fn(async (payload) => ({

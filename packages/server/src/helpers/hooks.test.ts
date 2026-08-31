@@ -6,6 +6,7 @@ import {
   requestFromHeaders,
   runHook,
   runLifecycleHook,
+  runObjectHook,
 } from "./index";
 
 describe("runHook", () => {
@@ -53,6 +54,34 @@ describe("runHook", () => {
       ),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.FORBIDDEN.code,
+      status: "FORBIDDEN",
+      statusCode: 403,
+    });
+  });
+});
+
+describe("runObjectHook", () => {
+  const objectContext = {
+    request: new Request("http://local"),
+    route: "uploads",
+    file: { name: "a.png" },
+    bucket: "bucket",
+    keyPrefix: "uploads" as const,
+  };
+
+  it("returns object identity", async () => {
+    await expect(
+      runObjectHook(() => ({ prefix: "media" }), objectContext),
+    ).resolves.toEqual({ prefix: "media" });
+  });
+
+  it("wraps plain Errors as FORBIDDEN", async () => {
+    await expect(
+      runObjectHook(() => {
+        throw new Error("nope");
+      }, objectContext),
+    ).rejects.toMatchObject({
+      message: "nope",
       status: "FORBIDDEN",
       statusCode: 403,
     });

@@ -40,17 +40,27 @@ export type ObjectContext = {
   route: string;
   file: ObjectFile;
   bucket: string;
+  /**
+   * Namespace this route writes under. `false` means keys are not nested
+   * or checked against a prefix.
+   */
+  keyPrefix: string | false;
   clientMetadata?: Record<string, string>;
 };
 
 /** Server-owned S3 object identity from route `object`. */
 export type ObjectInfo = {
   /**
-   * Folder prepended to `{uuid}/{sanitize(name)}`.
-   * Ignored when {@link key} is set.
+   * Extra folder under the route {@link ObjectContext.keyPrefix}.
+   * Nested as `{keyPrefix}/{prefix}/{uuid}/{name}` unless `keyPrefix` is
+   * `false`. Ignored when {@link key} is set.
    */
   prefix?: string;
-  /** Full object key. If omitted, `{prefix|route}/{uuid}/{name}` is used. */
+  /**
+   * Object key, nested under {@link ObjectContext.keyPrefix} unless the
+   * key is already inside that prefix or `keyPrefix` is `false`.
+   * If omitted, `{keyPrefix|prefix}/{uuid}/{name}` is used.
+   */
   key?: string;
   /** S3 user metadata (`x-amz-meta-*`). */
   metadata?: Record<string, string>;
@@ -170,7 +180,7 @@ export type MultipartSessionGuardContext =
       /** 1-based part number. */
       partNumber: number;
       /** Byte size locked into the presigned URL signature. */
-      partSize?: number;
+      partSize: number;
     })
   | (MultipartUploadContext & { action: "list" })
   | (MultipartUploadContext & { action: "abort" });

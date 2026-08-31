@@ -3,8 +3,10 @@ import {
   assertSafeObjectKey,
   assertStoredKey,
   generateObjectKey,
+  resolveStoredTarget,
   resolveUploadTarget,
 } from "./resolve-target";
+import { errors } from "@/errors";
 import type { ObjectContext, ResolvedRoutePolicy } from "@/types";
 
 const request = new Request("http://localhost");
@@ -15,6 +17,7 @@ function ctx(overrides: Partial<ObjectContext> = {}): ObjectContext {
     route: "uploads",
     file: { name: "a.png" },
     bucket: "bucket",
+    keyPrefix: "uploads",
     ...overrides,
   };
 }
@@ -26,6 +29,7 @@ function route(
     name: "uploads",
     client: {} as ResolvedRoutePolicy["client"],
     bucket: "bucket",
+    keyPrefix: "uploads",
     skippedPluginIds: new Set(),
     upload: { enabled: true },
     ...overrides,
@@ -53,7 +57,7 @@ describe("generateObjectKey", () => {
     );
   });
 
-  it("defaults to route/uuid/filename when no prefix is set", () => {
+  it("defaults to keyPrefix/uuid/filename when no prefix is set", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
@@ -61,10 +65,19 @@ describe("generateObjectKey", () => {
       "uploads/11111111-1111-1111-1111-111111111111/a.png",
     );
   });
+
+  it("nests a custom prefix under keyPrefix", () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    expect(generateObjectKey("media", ctx())).toBe(
+      "uploads/media/11111111-1111-1111-1111-111111111111/a.png",
+    );
+  });
 });
 
 describe("resolveUploadTarget", () => {
-  it("lets object.key win over object.prefix", async () => {
+  it("lets object.key win over object.prefix and nests under keyPrefix", async () => {
     await expect(
       resolveUploadTarget(
         route({
@@ -75,7 +88,10 @@ describe("resolveUploadTarget", () => {
         }),
         ctx(),
       ),
-    ).resolves.toMatchObject({ key: "users/1/a.png", bucket: "bucket" });
+    ).resolves.toMatchObject({
+      key: "uploads/users/1/a.png",
+      bucket: "bucket",
+    });
   });
 
   it("uses object.prefix when key is omitted", async () => {
@@ -93,11 +109,22 @@ describe("resolveUploadTarget", () => {
         ctx(),
       ),
     ).resolves.toEqual({
-      key: "media/11111111-1111-1111-1111-111111111111/a.png",
+      key: "uploads/media/11111111-1111-1111-1111-111111111111/a.png",
       bucket: "bucket",
       metadata: { author: "user_123" },
       acl: "private",
     });
+  });
+
+  it("does not double-prefix a key already under keyPrefix", async () => {
+    await expect(
+      resolveUploadTarget(
+        route({
+          object: () => ({ key: "uploads/stable.png" }),
+        }),
+        ctx(),
+      ),
+    ).resolves.toMatchObject({ key: "uploads/stable.png" });
   });
 
   it("lets object override the route ACL", async () => {
@@ -109,12 +136,63 @@ describe("resolveUploadTarget", () => {
         }),
         ctx(),
       ),
-    ).resolves.toMatchObject({ key: "a.png", acl: "public-read" });
+    ).resolves.toMatchObject({
+      key: "uploads/a.png",
+      acl: "public-read",
+    });
+  });
+
+  it("maps a plain Error from object() to FORBIDDEN", async () => {
+    await expect(
+      resolveUploadTarget(
+        route({
+          object: () => {
+            throw new Error("not signed in");
+          },
+        }),
+        ctx(),
+      ),
+    ).rejects.toMatchObject({
+      message: "not signed in",
+      status: "FORBIDDEN",
+      statusCode: 403,
+    });
+  });
+
+  it("preserves DimahS3Error from object()", async () => {
+    await expect(
+      resolveUploadTarget(
+        route({
+          object: () => {
+            throw errors.unauthorized();
+          },
+        }),
+        ctx(),
+      ),
+    ).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+      statusCode: 401,
+    });
   });
 });
 
-describe("assertStoredKey", () => {
-  it("normalizes a safe stored key", () => {
-    expect(assertStoredKey("uploads/a.png")).toBe("uploads/a.png");
+describe("assertStoredKey / resolveStoredTarget", () => {
+  it("normalizes a safe stored key under the prefix", () => {
+    expect(assertStoredKey("uploads/a.png", "uploads")).toBe("uploads/a.png");
+  });
+
+  it("rejects a key outside the route prefix", () => {
+    expect(() => assertStoredKey("avatars/a.png", "uploads")).toThrow();
+    expect(() =>
+      resolveStoredTarget(route(), "avatars/a.png"),
+    ).toThrow();
+  });
+
+  it("allows any safe key when keyPrefix is false", () => {
+    expect(assertStoredKey("avatars/a.png", false)).toBe("avatars/a.png");
+    expect(resolveStoredTarget(route({ keyPrefix: false }), "a.png")).toEqual({
+      key: "a.png",
+      bucket: "bucket",
+    });
   });
 });

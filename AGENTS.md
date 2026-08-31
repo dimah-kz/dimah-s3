@@ -14,8 +14,9 @@ Do not treat this monorepo as the app guide. Use
 
 - Never expose S3 credentials to the client.
 - The client sends a route name; the server owns keys. Default key is
- `{route}/{uuid}/{name}`. Return `{ prefix? }` or `{ key? }` from
- `upload.object` (`metadata` / `acl` optional).
+ `{route}/{uuid}/{name}` under the route `keyPrefix`. Return `{ prefix? }` or `{ key? }` from
+ `upload.object` (`metadata` / `acl` optional). Follow-up keys must stay under
+ `keyPrefix` unless it is `false`.
 - Trust `onConfirmed` (HeadObject, including multipart complete) for size
   and type, not the presign body.
 

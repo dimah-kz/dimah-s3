@@ -1,5 +1,6 @@
 import { sanitizeFileName } from "@dimah-s3/core";
 import { errors } from "@/errors";
+import { runObjectHook } from "@/helpers/hooks";
 import type {
   ObjectContext,
   ObjectInfo,
@@ -13,23 +14,31 @@ export type ResolvedObject = {
   acl: NonNullable<ResolvedRoutePolicy["acl"]>;
 };
 
+export type RouteKeyPrefix = string | false;
+
+/**
+ * Strip leading/trailing slashes and reject `.` / `..` / empty segments,
+ * NUL, and backslashes. Returns `null` when the key is unsafe.
+ */
+export function normalizeObjectKey(key: string): string | null {
+  const trimmed = key.replace(/^\/+/u, "").replace(/\/+$/u, "");
+  if (!trimmed) return null;
+  if (trimmed.includes("\\") || trimmed.includes("\0")) return null;
+  const parts = trimmed.split("/");
+  if (parts.some((part) => part === "" || part === "." || part === "..")) {
+    return null;
+  }
+  return parts.join("/");
+}
+
 /**
  * Normalize an object key: strip leading slashes, reject `.` / `..` segments,
  * NUL, and backslashes.
  */
 export function assertSafeObjectKey(key: string): string {
-  const trimmed = key.replace(/^\/+/u, "").replace(/\/+$/u, "");
-  if (!trimmed) {
-    throw errors.invalidKey();
-  }
-  if (trimmed.includes("\\") || trimmed.includes("\0")) {
-    throw errors.invalidKey();
-  }
-  const parts = trimmed.split("/");
-  if (parts.some((part) => part === "" || part === "." || part === "..")) {
-    throw errors.invalidKey();
-  }
-  return parts.join("/");
+  const normalized = normalizeObjectKey(key);
+  if (!normalized) throw errors.invalidKey();
+  return normalized;
 }
 
 function applyPrefix(prefix: string, key: string): string {
@@ -39,21 +48,42 @@ function applyPrefix(prefix: string, key: string): string {
   return `${p}/${k}`;
 }
 
+/** Nest `key` under `keyPrefix`. `false` leaves a safe key unchanged. */
+export function nestKeyUnderPrefix(
+  keyPrefix: RouteKeyPrefix,
+  key: string,
+): string {
+  const safe = assertSafeObjectKey(key);
+  if (keyPrefix === false) return safe;
+  return applyPrefix(keyPrefix, safe);
+}
+
+/** Confirm / download / delete / multipart follow-ups: stored key + namespace. */
+export function assertStoredKey(
+  key: string,
+  keyPrefix: RouteKeyPrefix,
+): string {
+  const safe = assertSafeObjectKey(key);
+  if (keyPrefix === false) return safe;
+  const root = assertSafeObjectKey(keyPrefix);
+  if (safe === root || safe.startsWith(`${root}/`)) return safe;
+  throw errors.invalidKey();
+}
+
 /** Generate a key from an optional folder plus uuid/filename. */
 export function generateObjectKey(
   prefix: string | undefined,
   context: ObjectContext,
+  keyPrefix: RouteKeyPrefix = context.keyPrefix,
 ): string {
   const leaf = `${crypto.randomUUID()}/${sanitizeFileName(context.file.name)}`;
-  if (prefix) {
-    return applyPrefix(prefix, leaf);
-  }
-  return assertSafeObjectKey(`${context.route}/${leaf}`);
-}
-
-/** Confirm / download / delete / multipart follow-ups: trust the stored key. */
-export function assertStoredKey(key: string): string {
-  return assertSafeObjectKey(key);
+  const folder =
+    prefix != null && prefix !== ""
+      ? nestKeyUnderPrefix(keyPrefix, prefix)
+      : keyPrefix === false
+        ? context.route
+        : keyPrefix;
+  return applyPrefix(folder, leaf);
 }
 
 export function resolveRouteBucket(route: ResolvedRoutePolicy): string {
@@ -69,14 +99,18 @@ function resolveAcl(
 
 async function resolveObject(
   route: ResolvedRoutePolicy,
-  context: Omit<ObjectContext, "bucket">,
+  context: Omit<ObjectContext, "bucket" | "keyPrefix">,
 ): Promise<ResolvedObject> {
   const bucket = route.bucket;
-  const objectContext: ObjectContext = { ...context, bucket };
-  const info = (await route.object?.(objectContext)) ?? undefined;
+  const objectContext: ObjectContext = {
+    ...context,
+    bucket,
+    keyPrefix: route.keyPrefix,
+  };
+  const info = (await runObjectHook(route.object, objectContext)) ?? undefined;
   const key = info?.key
-    ? assertSafeObjectKey(info.key)
-    : generateObjectKey(info?.prefix, objectContext);
+    ? nestKeyUnderPrefix(route.keyPrefix, info.key)
+    : generateObjectKey(info?.prefix, objectContext, route.keyPrefix);
   return {
     key,
     bucket,
@@ -87,7 +121,7 @@ async function resolveObject(
 
 export async function resolveUploadTarget(
   route: ResolvedRoutePolicy,
-  context: Omit<ObjectContext, "bucket">,
+  context: Omit<ObjectContext, "bucket" | "keyPrefix">,
 ): Promise<ResolvedObject> {
   return resolveObject(route, context);
 }
@@ -97,7 +131,7 @@ export function resolveStoredTarget(
   key: string,
 ): { key: string; bucket: string } {
   return {
-    key: assertStoredKey(key),
+    key: assertStoredKey(key, route.keyPrefix),
     bucket: route.bucket,
   };
 }

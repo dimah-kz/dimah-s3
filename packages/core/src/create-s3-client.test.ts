@@ -62,6 +62,7 @@ describe("createS3Client protocol", () => {
           key: "a.bin",
           uploadId: "up-1",
           partNumber: 1,
+          partSize: 8,
         }),
     },
     {

@@ -1,5 +1,17 @@
 import { DimahS3Error, isAPIError } from "@dimah-s3/core";
 import { errors } from "@/errors";
+import type { ObjectContext, ObjectInfo, UploadConfig } from "@/types";
+
+function mapGuardError(err: unknown): never {
+  if (isAPIError(err)) throw err;
+  if (err instanceof Error && err.message.trim()) {
+    throw new DimahS3Error("FORBIDDEN", {
+      message: err.message,
+      cause: err,
+    });
+  }
+  throw errors.forbidden();
+}
 
 /**
  * Run a guard hook. {@link isAPIError} values are preserved; plain Errors keep
@@ -14,14 +26,23 @@ export async function runHook<T extends { request: Request }>(
   try {
     await hook(context);
   } catch (err) {
-    if (isAPIError(err)) throw err;
-    if (err instanceof Error && err.message.trim()) {
-      throw new DimahS3Error("FORBIDDEN", {
-        message: err.message,
-        cause: err,
-      });
-    }
-    throw errors.forbidden();
+    mapGuardError(err);
+  }
+}
+
+/**
+ * Run `upload.object`. Same rejection mapping as {@link runHook}
+ * (plain `Error` → 403) so auth throws in `object` match `guard`.
+ */
+export async function runObjectHook(
+  hook: UploadConfig["object"],
+  context: ObjectContext,
+): Promise<ObjectInfo | void> {
+  if (!hook) return;
+  try {
+    return await hook(context);
+  } catch (err) {
+    mapGuardError(err);
   }
 }
 

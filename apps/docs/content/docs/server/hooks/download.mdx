@@ -7,6 +7,10 @@ Enable with `download: true` or an options object on a
 [named route](/docs/server/routes). The server never streams the
 file — it signs a GET URL, then the browser fetches from S3.
 
+The stored `key` must sit under the route `keyPrefix`. That is a folder
+bound, not ownership — add `guard` or [`db()`](/docs/db) so callers cannot
+download another user's object in the same prefix.
+
 <Flow
   label="Download flow"
   steps={[

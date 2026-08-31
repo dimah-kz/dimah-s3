@@ -10,6 +10,8 @@ import {
   headResult,
   mockS3,
   sendByCommand,
+  storedBinKey,
+  storedPngKey,
 } from "@/test/harness";
 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
@@ -190,7 +192,7 @@ describe("upload", () => {
     await expect(
       s3.api.upload({ body: defaultUploadBody }),
     ).resolves.toMatchObject({
-      key: "media/11111111-1111-1111-1111-111111111111/a.png",
+      key: "uploads/media/11111111-1111-1111-1111-111111111111/a.png",
     });
   });
 
@@ -277,9 +279,9 @@ describe("confirm", () => {
     });
 
     await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: storedPngKey } }),
     ).resolves.toMatchObject({
-      key: "a.png",
+      key: storedPngKey,
       bucket: "bucket",
       contentType: "image/png",
       contentLength: 10,
@@ -299,7 +301,7 @@ describe("confirm", () => {
     });
 
     await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: storedPngKey } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.INTERNAL_ERROR.code,
       statusCode: 500,
@@ -315,7 +317,7 @@ describe("confirm", () => {
     });
 
     await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "missing.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: "uploads/missing.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
@@ -335,7 +337,7 @@ describe("confirm", () => {
     });
 
     await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: storedPngKey } }),
     ).resolves.toMatchObject({ acl: "private" });
   });
 
@@ -353,7 +355,7 @@ describe("confirm", () => {
     });
 
     await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
+      s3.api.confirm({ body: { route: "uploads", key: storedPngKey } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
     });
@@ -372,10 +374,10 @@ describe("download / delete", () => {
 
     await expect(
       s3.api.download({
-        query: { route: "uploads", key: "a.png", fileName: "save.png" },
+        query: { route: "uploads", key: storedPngKey, fileName: "save.png" },
       }),
     ).resolves.toMatchObject({
-      key: "a.png",
+      key: storedPngKey,
       url: "https://s3.test/signed",
     });
     expect(onPresigned).toHaveBeenCalled();
@@ -390,14 +392,14 @@ describe("download / delete", () => {
     });
 
     await expect(
-      s3.api.download({ query: { route: "uploads", key: "missing.png" } }),
+      s3.api.download({ query: { route: "uploads", key: "uploads/missing.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
       statusCode: 404,
     });
     await expect(
-      s3.api.delete({ query: { route: "uploads", key: "missing.png" } }),
+      s3.api.delete({ query: { route: "uploads", key: "uploads/missing.png" } }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
@@ -417,11 +419,11 @@ describe("download / delete", () => {
     });
 
     await expect(
-      s3.api.delete({ query: { route: "uploads", key: "a.png" } }),
+      s3.api.delete({ query: { route: "uploads", key: storedPngKey } }),
     ).resolves.toEqual({
       success: true,
       bucket: "bucket",
-      key: "a.png",
+      key: storedPngKey,
     });
     expect(onDeleted).toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith(expect.any(HeadObjectCommand));
@@ -472,7 +474,7 @@ describe("multipart", () => {
       s3.api.multipartPart({
         body: {
           route: "uploads",
-          key: "a.bin",
+          key: storedBinKey,
           uploadId: "up-1",
           partNumber: 1,
           partSize: 8,
@@ -501,7 +503,7 @@ describe("multipart", () => {
 
     await expect(
       s3.api.multipartListParts({
-        query: { route: "uploads", key: "a.bin", uploadId: "up-1" },
+        query: { route: "uploads", key: storedBinKey, uploadId: "up-1" },
       }),
     ).resolves.toEqual({
       parts: [{ partNumber: 1, size: 8, eTag: "p1" }],
@@ -528,13 +530,13 @@ describe("multipart", () => {
       s3.api.multipartComplete({
         body: {
           route: "uploads",
-          key: "a.bin",
+          key: storedBinKey,
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
         },
       }),
     ).resolves.toMatchObject({
-      key: "a.bin",
+      key: storedBinKey,
       uploadId: "up-1",
       contentLength: 8,
       eTag: "abc",
@@ -561,7 +563,7 @@ describe("multipart", () => {
       s3.api.multipartComplete({
         body: {
           route: "uploads",
-          key: "a.bin",
+          key: storedBinKey,
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
         },
@@ -590,7 +592,7 @@ describe("multipart", () => {
 
     await expect(
       s3.api.multipartListParts({
-        query: { route: "uploads", key: "a.bin", uploadId: "up-1" },
+        query: { route: "uploads", key: storedBinKey, uploadId: "up-1" },
       }),
     ).resolves.toEqual({
       parts: [
@@ -616,7 +618,7 @@ describe("multipart", () => {
       s3.api.multipartComplete({
         body: {
           route: "uploads",
-          key: "a.bin",
+          key: storedBinKey,
           uploadId: "up-1",
           parts: [{ partNumber: 1 }],
         },
@@ -637,7 +639,7 @@ describe("multipart", () => {
 
     await expect(
       s3.api.multipartAbort({
-        body: { route: "uploads", key: "a.bin", uploadId: "gone" },
+        body: { route: "uploads", key: storedBinKey, uploadId: "gone" },
       }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
@@ -654,15 +656,73 @@ describe("multipart", () => {
 
     await expect(
       s3.api.multipartAbort({
-        body: { route: "uploads", key: "a.bin", uploadId: "up-1" },
+        body: { route: "uploads", key: storedBinKey, uploadId: "up-1" },
       }),
     ).resolves.toEqual({
       aborted: true,
       bucket: "bucket",
-      key: "a.bin",
+      key: storedBinKey,
       uploadId: "up-1",
     });
     expect(onAbort).toHaveBeenCalled();
+  });
+
+  it("requires partSize when signing a part", async () => {
+    const s3 = createInstance();
+    await expect(
+      s3.api.multipartPart({
+        body: {
+          route: "uploads",
+          key: storedBinKey,
+          uploadId: "up-1",
+          partNumber: 1,
+        } as never,
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
+      statusCode: 400,
+    });
+  });
+});
+
+describe("key namespace", () => {
+  it("rejects follow-up keys outside the route prefix", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+    });
+
+    await expect(
+      s3.api.confirm({
+        body: { route: "uploads", key: "avatars/a.png" },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.INVALID_KEY.code,
+      statusCode: 400,
+    });
+    await expect(
+      s3.api.download({
+        query: { route: "uploads", key: "avatars/a.png" },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.INVALID_KEY.code,
+    });
+  });
+
+  it("allows keys anywhere in the bucket when keyPrefix is false", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ keyPrefix: false }),
+      },
+    });
+
+    await expect(
+      s3.api.confirm({ body: { route: "uploads", key: "a.png" } }),
+    ).resolves.toMatchObject({ key: "a.png" });
   });
 });
 

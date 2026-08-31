@@ -98,7 +98,7 @@ export type MultipartPartResponse = {
   /** Validity in seconds. */
   expiresIn: number;
   /** Exact byte size locked into this part's presigned URL signature. */
-  partSize?: number;
+  partSize: number;
 };
 
 /** A part already uploaded in a multipart session. */

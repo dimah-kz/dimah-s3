@@ -46,6 +46,9 @@ export const defaultUploadBody = {
   contentType: "image/png",
 };
 
+export const storedPngKey = "uploads/a.png";
+export const storedBinKey = "uploads/a.bin";
+
 export function allFeaturesRoute(overrides: DimahS3RouteConfig = {}) {
   const { upload, ...rest } = overrides;
   return route({

@@ -74,8 +74,8 @@ inference — `s3.$Infer.routes` is the union of those keys.
 - **Instance (required unless every route overrides):** `client`, `bucket`.
   Also `basePath`, `plugins`, optional instance `guard`,
   `resolveObjectAcl`, `maxExpiresIn` (clamp).
-- **Route:** optional `client` / `bucket` override, optional `guard` for
-  every op, nested features.
+- **Route:** optional `client` / `bucket` / `keyPrefix` override, optional
+  `guard` for every op, nested features.
 - **Upload:** `fileTypes`, `maxFileSize`, `object`, `acl`, `method`,
   `expiresIn`, and upload hooks.
 - Do not put `basePath` or `plugins` on a route. Plugin opt-out is
@@ -98,20 +98,30 @@ not turn on automatically with upload.
 
 The client does not send `key` on upload or multipart init. Default:
 
-`{routeName}/{uuid}/{sanitize(fileName)}`
+`{keyPrefix}/{uuid}/{sanitize(fileName)}`
+
+`keyPrefix` defaults to the route name. Confirm, download, delete, and
+multipart follow-ups reject keys outside that prefix (`INVALID_KEY`). Set
+`keyPrefix: "users"` to write under `users/…`, or `keyPrefix: false` to
+allow any safe key in the bucket.
 
 `object` runs on upload / init and may return:
 
-- `prefix` — folder only; the library still appends `{uuid}/{name}`
-- `key` — full key (wins over `prefix`)
+- `prefix` — extra folder under `keyPrefix`; the library still appends
+  `{uuid}/{name}`
+- `key` — rest of the key, nested under `keyPrefix` unless it already
+  starts with that prefix
 - `metadata` — S3 user metadata
 - `acl` — per-object override
+
+A plain `Error` from `object` is **403**, same as `guard`.
 
 ```ts
 route({
   upload: {
     object: ({ request, clientMetadata }) => ({
       prefix: `users/${userId(request)}`,
+      // uploads/users/{id}/{uuid}/{name}
       metadata: { author: userId(request), title: clientMetadata?.title ?? "" },
     }),
   },
@@ -123,7 +133,8 @@ copies it.
 
 Confirm, multipart follow-ups, download, and delete send the **stored**
 key from the presign response, plus the same route name. `object` is not
-re-run — authorize with route `guard` / db ownership.
+re-run. `keyPrefix` only bounds the folder — authorize with route `guard`
+or [`db()`](/docs/db) for ownership.
 
 ## Constraints
 
@@ -159,6 +170,11 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     bucket: {
       type: "string",
       description: "Override the instance bucket for this route only.",
+    },
+    keyPrefix: {
+      type: "string | false",
+      description:
+        "Object-key namespace. Default is the route name. Follow-up keys must stay under it. false disables the bound.",
     },
     guard: {
       type: "(ctx) => void",

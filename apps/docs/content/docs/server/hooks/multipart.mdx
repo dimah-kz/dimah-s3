@@ -60,6 +60,8 @@ resume cleanup or per-part checks.
 
 The complete body only sends `partNumber`s. The server lists parts from S3
 for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.
+`signPart` requires `partSize`; that byte length is locked into the
+presigned URL.
 
 ## On init
 

@@ -21,23 +21,32 @@ The client sends a **route name**, plus `fileName` / `fileSize` /
 | Field                      | Default                                         | How to scope it                                             |
 | -------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
 | `route`                    | required                                        | Must match a name in `routes` (`UNKNOWN_ROUTE` otherwise)   |
-| `key` (upload / init)      | **not sent** — server generates it              | `upload.object` (`prefix` / `key`) or `{route}/{uuid}/{name}` |
-| `key` (confirm / later)    | stored key from the presign response            | `guard` / db — `object` is not re-run                       |
+| `key` (upload / init)      | **not sent** — server generates it              | `upload.object` (`prefix` / `key`) nested under `keyPrefix` (default `{route}/{uuid}/{name}`) |
+| `key` (confirm / later)    | stored key from the presign response            | Must stay under route `keyPrefix`; then `guard` / db — `object` is not re-run |
 | `bucket` / `acl` / `expiresIn` | never accepted from the client              | Route `bucket` / `upload.acl` / `upload.expiresIn`          |
 | `fileSize` / `contentType` | required on upload / init                       | Also enforce `fileTypes` / `maxFileSize`; trust HeadObject  |
+| `partSize`                 | required on `multipart.signPart`                | Locked into the part URL `Content-Length`                   |
 
 ## Keys
 
 The server generates keys on upload and multipart init. Confirm, download,
-and delete reuse the stored key — they do not re-run `object`.
+and delete reuse the stored key — they do not re-run `object`. Follow-up
+keys must stay under the route **`keyPrefix`** (default: the route name) or
+the request fails with `INVALID_KEY`. That stops `uploads` from targeting
+`avatars/…` on the same bucket. `keyPrefix: false` turns the bound off.
 
-- Default key is `{route}/{uuid}/{sanitize(fileName)}`.
+- Default key is `{keyPrefix}/{uuid}/{sanitize(fileName)}`.
 - `object` returns `{ prefix?, key?, metadata?, acl? }` on upload / init
-  only. `prefix` is the folder; `key` is the full key and wins. Store and
-  send back the `key` from the response. Client `metadata` is not written
-  to S3 unless `object` copies it.
+  only. `prefix` and `key` are nested under `keyPrefix` unless they already
+  sit inside it. Store and send back the `key` from the response. Client
+  `metadata` is not written to S3 unless `object` copies it.
+- A plain `Error` from `object` is **403**, same as `guard`.
 - Unsafe keys fail with `INVALID_KEY`: empty, backslash, NUL, `.` / `..`
-  segments, or empty path segments.
+  segments, empty path segments, or outside `keyPrefix`.
+
+`keyPrefix` is a folder bound, not per-user ownership. Enabling
+`download: true` / `delete: true` still means anyone who knows a key in
+that prefix can presign it unless you add `guard` or [`db()`](/docs/db).
 
 Put `object` on **upload**. See [Routes](/docs/server/routes).
 
@@ -69,6 +78,7 @@ export const s3 = dimahS3({
           const session = await getSession(request); // your auth
           if (!session) throw errors.unauthorized();
           return { prefix: `users/${session.userId}` };
+          // key: uploads/users/{userId}/{uuid}/{name}
         },
       },
       download: true,
@@ -137,7 +147,7 @@ export const s3 = dimahS3({
 
 | Where              | Plain `Error`                            | `errors.*` / `DimahS3Error`     |
 | ------------------ | ---------------------------------------- | ------------------------------- |
-| `guard` / `*Guard` | **403**, message kept, no library `code` | the status and `code` you chose |
+| `guard` / `*Guard` / `object` | **403**, message kept, no library `code` | the status and `code` you chose |
 | `on*` hooks        | **500**                                  | the status and `code` you chose |
 
 Order: instance `guard` → lookup route → route `guard` → feature `guard`.

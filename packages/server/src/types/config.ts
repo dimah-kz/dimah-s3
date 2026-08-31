@@ -47,10 +47,11 @@ export type UploadConfig = {
   /** Max declared and HeadObject size in bytes. */
   maxFileSize?: number;
   /**
-   * Server-owned object identity. Return `prefix` for a folder,
-   * `key` for the full key, plus optional S3 `metadata` and `acl`.
+   * Server-owned object identity. Return `prefix` for a folder under
+   * the route `keyPrefix`, `key` for the rest of the key (also nested
+   * under `keyPrefix`), plus optional S3 `metadata` and `acl`.
    * Runs on upload / multipart init only. Default key is
-   * `{route}/{uuid}/{name}`.
+   * `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name).
    */
   object?: (
     context: ObjectContext,
@@ -99,6 +100,12 @@ export type DimahS3RouteConfig = {
   client?: S3Client;
   /** Override the instance bucket for this route. */
   bucket?: string;
+  /**
+   * Object-key namespace. Generated keys and follow-up ops (confirm,
+   * download, delete, multipart) must stay under it.
+   * Defaults to the route name. `false` disables the bound.
+   */
+  keyPrefix?: string | false;
   /** Runs before every operation on this route. */
   guard?: (context: RouteGuardContext) => Promise<void> | void;
   /**
@@ -181,6 +188,8 @@ export type ResolvedRoutePolicy = {
   name: string;
   client: S3Client;
   bucket: string;
+  /** `false` means follow-up keys are not namespace-checked. */
+  keyPrefix: string | false;
   fileTypes?: string[];
   maxFileSize?: number;
   object?: UploadConfig["object"];

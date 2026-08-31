@@ -131,7 +131,7 @@ describe("multipart schemas", () => {
     expect(multipartInitBodySchema.parse(uploadBody)).toEqual(uploadBody);
   });
 
-  it("requires a positive partNumber", () => {
+  it("requires a positive partNumber and partSize", () => {
     expect(
       multipartSignPartBodySchema.safeParse({
         route: "uploads",
@@ -140,6 +140,29 @@ describe("multipart schemas", () => {
         partNumber: 0,
       }).success,
     ).toBe(false);
+    expect(
+      multipartSignPartBodySchema.safeParse({
+        route: "uploads",
+        key: "a.png",
+        uploadId: "u",
+        partNumber: 1,
+      }).success,
+    ).toBe(false);
+    expect(
+      multipartSignPartBodySchema.parse({
+        route: "uploads",
+        key: "a.png",
+        uploadId: "u",
+        partNumber: 1,
+        partSize: 8,
+      }),
+    ).toEqual({
+      route: "uploads",
+      key: "a.png",
+      uploadId: "u",
+      partNumber: 1,
+      partSize: 8,
+    });
   });
 
   it("requires at least one part to complete", () => {

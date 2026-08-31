@@ -42,7 +42,7 @@ localized string.
 | `PAYLOAD_TOO_LARGE`            | 413  | Oversize vs route `maxFileSize`, or `errors.payloadTooLarge()`      |
 | `FILE_TYPE_NOT_ALLOWED`        | 400  | Declared or HeadObject type not in route `fileTypes`                |
 | `VALIDATION_ERROR`             | 400  | Zod / request shape                                                 |
-| `INVALID_KEY`                  | 400  | Unsafe object key (empty, `\`, NUL, `.` / `..` / empty segments)    |
+| `INVALID_KEY`                  | 400  | Unsafe object key, or a follow-up key outside the route `keyPrefix` |
 | `INVALID_BUCKET`               | 403  | Route has no bucket (internal misconfig)                            |
 | `MULTIPART_PART_MISSING`       | 400  | Complete referenced a part S3 does not have (`params.partNumber`)   |
 | `S3_NETWORK_ERROR`             | 502  | Unreachable S3 endpoint (`params.code`)                             |
