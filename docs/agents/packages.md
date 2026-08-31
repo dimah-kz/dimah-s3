@@ -21,13 +21,13 @@
 
 1. `createS3Endpoint` + Zod schema in `api/routes/`; add the export to `coreEndpoints`.
 2. Hook context types in `types/hook-contexts.ts`.
-3. Feature flags via named `routes` (`upload`, `download`, `delete`, `multipart` on each route) — disabled → `FEATURE_DISABLED` (HTTP 404; endpoint still registered). `true` or an options object means on; omit or `false` means off. Upload defaults on; `download` / `delete` / `multipart` default off.
+3. Feature flags via named `routes` (`upload`, `download`, `delete` on each route; multipart under `upload.multipart`) — disabled → `FEATURE_DISABLED` (HTTP 404; endpoint still registered). `true` or an options object means on; omit or `false` means off. Upload defaults on; `download` / `delete` / `upload.multipart` default off.
 4. `guard` / `*Guard` / `on*` hooks for consumer auth and side effects only. `upload.object` generates keys and S3 metadata on upload (`{ prefix?, key?, metadata?, acl? }`). Default key is `{route}/{uuid}/{name}`. The client does not send `key` on upload, or `bucket` / `acl` / `expiresIn`. Add named policies with `route()` (`packages/server/src/route.ts`).
 5. Public entry: `dimahS3(config)` → `{ handler, api, context, getPlugin }` + flattened plugin contexts (`s3[id]`); mount via adapters in `packages/server/src/adapters/` (`toNextJsHandler`, `toExpressHandler`, `toHonoHandler`, …). Next adapter exposes GET/POST/PUT/PATCH/DELETE. New adapter → add file + `package.json` `exports` + `tsup` entry; prefer structural framework types (no peer deps).
 
 ## When adding or changing a server plugin
 
-1. Plugin subsystem lives in `packages/server/src/plugin/` (`DimahS3Plugin`, `definePlugin`, `applyPlugins`, `chainHooks`, `FEATURE_HOOK_KEYS`). Endpoints use `createS3Endpoint` from `@dimah-s3/server` / `@dimah-s3/server/api`.
+1. Plugin subsystem lives in `packages/server/src/plugin/` (`DimahS3Plugin`, `definePlugin`, `applyPlugins`, `chainHooks`, `FEATURE_HOOK_KEYS`, `MULTIPART_HOOK_KEYS`). Endpoints use `createS3Endpoint` from `@dimah-s3/server` / `@dimah-s3/server/api`.
 2. Author plugins with `definePlugin({ id, hooks?, endpoints?, context?, dependsOn?, init? })` so literal ids infer onto `s3.context[id]` / flattened `s3[id]`.
 3. HTTP endpoints use `createS3Endpoint` with an absolute path under `basePath` (e.g. `/db/objects`) via `pluginPath` from `@dimah-s3/core` (shared with the client). Never duplicate route strings. Do not export raw better-call `createEndpoint`.
 4. Pair browser access with `createS3Client({ plugins })` from `@dimah-s3/react` (returns the API object plus bound `Provider` / typed `useApi`) or the same helper from `@dimah-s3/core` for fetch-only. Client plugins implement `getActions($fetch)` + `$InferServerPlugin`. Ship light `@pkg/client` entries from feature packages so ORM deps stay server-only.

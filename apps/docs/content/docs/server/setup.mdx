@@ -16,7 +16,7 @@ Pass an AWS SDK `S3Client` as `client` (export it as `awsS3` so jobs and a
 custom backend can reuse it) and a `bucket`. Those are instance defaults —
 a route may override either. Named routes are required: see
 [Routes](/docs/server/routes). Upload is on when omitted on a route;
-`download` / `delete` / `multipart` stay off until you set them. Disabled
+`download` / `delete` / `upload.multipart` stay off until you set them. Disabled
 operations return `404` with code `FEATURE_DISABLED`.
 
 Provider-specific wiring (POST vs PUT, ACL, path-style):

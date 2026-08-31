@@ -7,7 +7,7 @@ Enable on a [named route](/docs/server/routes) with `upload: true`, an
 options object, or by omitting `upload` (it defaults on). Default method is
 `"POST"`. Use `"PUT"` when the provider has no Presigned POST
 ([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is **off**
-until you set `multipart: true` on the same route.
+until you set `upload.multipart: true`.
 
 <Flow
   label="Upload flow"
@@ -22,9 +22,9 @@ until you set `multipart: true` on the same route.
 />
 
 Simple uploads finish with **`confirm`**. Multipart finishes with
-**`multipart.complete`** (`multipart.onComplete`) — there is no second
-`confirm`. Persist in both places. See [Multipart](/docs/server/hooks/multipart)
-and [Security](/docs/server/security).
+**`multipart.complete`** — there is no second `confirm`. Both run
+`upload.confirmGuard` then `upload.onConfirmed`. See
+[Multipart](/docs/server/hooks/multipart) and [Security](/docs/server/security).
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -64,8 +64,8 @@ export const s3 = dimahS3({
 
 ## Guard
 
-Runs before the URL is signed. Throw to reject. A plain `Error` becomes
-**403**.
+Runs before the URL is signed, and on multipart init. Throw to reject. A
+plain `Error` becomes **403**.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
@@ -74,8 +74,9 @@ Runs before the URL is signed. Throw to reject. A plain `Error` becomes
 
 ## On confirmed
 
-Runs after `HeadObject`. Use `contentLength` and verified type here — not
-the presign body.
+Runs after `HeadObject` on confirm and multipart complete. Use
+`contentLength` and verified type here — not the presign body. Multipart
+adds `uploadId`.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"

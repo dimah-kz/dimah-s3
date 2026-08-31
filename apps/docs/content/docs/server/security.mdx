@@ -106,8 +106,8 @@ uploads: route({
 
 Simple uploads call `confirm` after the bytes land. Multipart calls
 `multipart.complete` instead — there is no second `confirm`. Persist records
-in `upload.onConfirmed` **and** `multipart.onComplete`. Both see size and
-type from `HeadObject`.
+in `upload.onConfirmed` (simple confirm and multipart complete). Both see
+size and type from `HeadObject`.
 
 Set `fileTypes` and `maxFileSize` on `upload`. The server
 checks them at presign and again after HeadObject. Oversize after landing

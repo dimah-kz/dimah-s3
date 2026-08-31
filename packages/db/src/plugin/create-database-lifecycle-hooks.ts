@@ -123,20 +123,15 @@ export function createDatabaseLifecycleHooks(
         onPresigned: trackPending,
         confirmGuard: ownedObjectGuard,
         onConfirmed: trackConfirmed,
-      },
-      multipart: {
-        initGuard: guardKeyOwnership,
-        onInit: trackPending,
-        partGuard: ownedObjectGuard,
-        listGuard: ownedObjectGuard,
-        completeGuard: ownedObjectGuard,
-        abortGuard: ownedObjectGuard,
-        onComplete: trackConfirmed,
-        onAbort: async (context) => {
-          await objects.deletePending({
-            bucket: context.bucket,
-            key: context.key,
-          });
+        multipart: {
+          onInit: trackPending,
+          guard: ownedObjectGuard,
+          onAbort: async (context) => {
+            await objects.deletePending({
+              bucket: context.bucket,
+              key: context.key,
+            });
+          },
         },
       },
       download: {

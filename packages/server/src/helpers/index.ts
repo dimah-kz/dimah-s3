@@ -8,7 +8,6 @@ export {
   assertSafeObjectKey,
   assertStoredKey,
   generateObjectKey,
-  resolveMultipartInitTarget,
   resolveStoredTarget,
   resolveUploadTarget,
 } from "./resolve-target";

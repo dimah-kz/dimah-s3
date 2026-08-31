@@ -42,7 +42,7 @@ async function handleComplete(
     .sort((a, b) => a - b);
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
-  await runHook(route.multipart?.completeGuard, {
+  await runHook(route.upload?.confirmGuard, {
     request,
     route: route.name,
     key,
@@ -112,7 +112,7 @@ async function handleComplete(
     ? await resolveObjectAcl(route.client, bucket, key)
     : undefined;
 
-  await runLifecycleHook(route.multipart?.onComplete, {
+  await runLifecycleHook(route.upload?.onConfirmed, {
     request,
     route: route.name,
     key,

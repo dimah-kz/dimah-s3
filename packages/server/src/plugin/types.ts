@@ -17,21 +17,11 @@ export type DimahS3PluginHooks = {
   upload?: Pick<
     UploadConfig,
     "guard" | "onPresigned" | "confirmGuard" | "onConfirmed"
-  >;
+  > & {
+    multipart?: Pick<MultipartConfig, "onInit" | "guard" | "onAbort" | "onList">;
+  };
   download?: Pick<DownloadConfig, "guard" | "onPresigned">;
   delete?: Pick<DeleteConfig, "guard" | "onDeleted">;
-  multipart?: Pick<
-    MultipartConfig,
-    | "initGuard"
-    | "partGuard"
-    | "completeGuard"
-    | "abortGuard"
-    | "listGuard"
-    | "onInit"
-    | "onComplete"
-    | "onAbort"
-    | "onList"
-  >;
 };
 
 /**

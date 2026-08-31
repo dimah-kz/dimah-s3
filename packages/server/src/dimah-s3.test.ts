@@ -184,7 +184,7 @@ describe("HTTP envelope", () => {
       method: "POST",
       path: S3_API_ROUTES.multipartInit,
       body: defaultUploadBody,
-      routes: { uploads: route({ upload: true, multipart: false }) },
+      routes: { uploads: route({ upload: { multipart: false } }) },
     },
   ])(
     "returns FEATURE_DISABLED when $feature is disabled",

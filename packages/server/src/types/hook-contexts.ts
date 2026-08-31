@@ -58,7 +58,11 @@ export type ObjectInfo = {
   acl?: S3ObjectAcl;
 };
 
-/** Context for `upload.guard`. Client-declared values are not verified by S3. */
+/**
+ * Context for `upload.guard`.
+ * Runs on single-shot presign and multipart init.
+ * Client-declared values are not verified by S3.
+ */
 export type UploadPresignGuardContext = StoredObjectContext & {
   /** MIME type the client sent — not verified until `onConfirmed`. */
   contentType?: string;
@@ -74,7 +78,7 @@ export type UploadPresignGuardContext = StoredObjectContext & {
   fileName?: string;
 };
 
-/** Context for `upload.onPresigned`. */
+/** Context for `upload.onPresigned` (single-shot only). */
 export type UploadOnPresignedContext = UploadPresignGuardContext & {
   /** Presigned upload URL. */
   url: string;
@@ -82,12 +86,21 @@ export type UploadOnPresignedContext = UploadPresignGuardContext & {
   expiresIn: number;
 };
 
-/** Context for `upload.confirmGuard`. */
-export type UploadConfirmGuardContext = StoredObjectContext;
+/**
+ * Context for `upload.confirmGuard`.
+ * Runs on single-shot confirm and multipart complete.
+ */
+export type UploadConfirmGuardContext = StoredObjectContext & {
+  /** Present on multipart complete. */
+  uploadId?: string;
+  /** Parts to assemble. Present on multipart complete. */
+  parts?: MultipartCompletedPartRef[];
+};
 
 /**
  * Context for `upload.onConfirmed`.
  * `contentLength` and `eTag` are verified by S3 via HeadObject.
+ * Runs after single-shot confirm and multipart complete.
  */
 export type UploadOnConfirmedContext = RouteGuardContext & {
   /** S3 object key. */
@@ -110,6 +123,8 @@ export type UploadOnConfirmedContext = RouteGuardContext & {
   versionId?: string;
   /** Last modified timestamp. */
   lastModified?: string;
+  /** Present after multipart complete. */
+  uploadId?: string;
 };
 
 /** Context for `download.guard`. */
@@ -138,72 +153,32 @@ export type MultipartUploadContext = StoredObjectContext & {
   uploadId: string;
 };
 
-/** Context for `multipart.initGuard`. */
-export type MultipartInitGuardContext = StoredObjectContext & {
-  /** Declared byte size of the file — available during init only. */
-  fileSize?: number;
-  /** MIME type the client sent — not verified until `onComplete`. */
-  contentType?: string;
-  /** S3 object metadata from route `object`. */
-  metadata?: Record<string, string>;
-  /** Client extras from the request — not written to S3 automatically. */
-  clientMetadata?: Record<string, string>;
-  /** Resolved ACL that will be applied at init. */
-  acl?: S3ObjectAcl;
-  /** Original filename for `Content-Disposition`. */
-  fileName?: string;
-};
-
-/** Context for `multipart.partGuard`. */
-export type MultipartPartGuardContext = MultipartUploadContext & {
-  /** 1-based part number. */
-  partNumber: number;
-  /** Byte size locked into the presigned URL signature. */
-  partSize?: number;
-};
-
-/** Context for `multipart.completeGuard`. */
-export type MultipartCompleteGuardContext = MultipartUploadContext & {
-  /** Parts to assemble. */
-  parts: MultipartCompletedPartRef[];
-};
-
-/** Context for `multipart.abortGuard`. */
-export type MultipartAbortGuardContext = MultipartUploadContext;
-
-/** Context for `multipart.listGuard`. */
-export type MultipartListGuardContext = MultipartUploadContext;
-
-/** Context for `multipart.onInit`. */
-export type MultipartOnInitContext = MultipartInitGuardContext & {
+/** Context for `upload.multipart.onInit`. */
+export type MultipartOnInitContext = UploadPresignGuardContext & {
   /** Multipart upload ID. */
   uploadId: string;
 };
 
-/** Context for `multipart.onComplete`. */
-export type MultipartOnCompleteContext = MultipartUploadContext & {
-  /** Verified size in bytes. */
-  contentLength: number;
-  /** MIME type from HeadObject. */
-  contentType?: string;
-  /** ETag from HeadObject. */
-  eTag?: string;
-  /** Object metadata. */
-  metadata: Record<string, string>;
-  /** Resolved ACL. Omitted when ACL lookup is disabled or unsupported. */
-  acl?: S3ObjectAcl;
-  /** Stored filename. */
-  fileName?: string;
-  /** S3 version ID. */
-  versionId?: string;
-  /** Last modified timestamp. */
-  lastModified?: string;
-};
+/**
+ * Context for `upload.multipart.guard`.
+ * Runs on part, list, and abort (init uses `upload.guard`; complete uses
+ * `upload.confirmGuard`).
+ */
+export type MultipartGuardContext =
+  | (MultipartUploadContext & {
+      action: "part";
+      /** 1-based part number. */
+      partNumber: number;
+      /** Byte size locked into the presigned URL signature. */
+      partSize?: number;
+    })
+  | (MultipartUploadContext & { action: "list" })
+  | (MultipartUploadContext & { action: "abort" });
 
-/** Context for `multipart.onAbort`. */
+/** Context for `upload.multipart.onAbort`. */
 export type MultipartOnAbortContext = MultipartUploadContext;
 
-/** Context for `multipart.onList`. */
+/** Context for `upload.multipart.onList`. */
 export type MultipartOnListContext = MultipartUploadContext & {
   /** Parts already uploaded to S3. */
   parts: MultipartPartInfo[];

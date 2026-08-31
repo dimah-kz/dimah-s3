@@ -26,12 +26,13 @@ async function handleListParts(
   const { key, bucket } = resolveStoredTarget(route, input.key);
   const uploadId = input.uploadId;
 
-  await runHook(route.multipart?.listGuard, {
+  await runHook(route.upload?.multipart?.guard, {
     request,
     route: route.name,
     key,
     bucket,
     uploadId,
+    action: "list",
   });
 
   const listed = await listAllParts(route.client, { bucket, key, uploadId });
@@ -42,7 +43,7 @@ async function handleListParts(
     eTag: (p.ETag ?? "").replace(/"/g, ""),
   }));
 
-  await runLifecycleHook(route.multipart?.onList, {
+  await runLifecycleHook(route.upload?.multipart?.onList, {
     request,
     route: route.name,
     key,

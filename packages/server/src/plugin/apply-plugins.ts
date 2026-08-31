@@ -8,7 +8,11 @@ import type {
   ResolvedRoutePolicy,
 } from "@/types";
 import { chainHooks } from "./chain-hooks";
-import { FEATURE_HOOK_KEYS, type FeatureName } from "./hook-registry";
+import {
+  FEATURE_HOOK_KEYS,
+  MULTIPART_HOOK_KEYS,
+  type FeatureName,
+} from "./hook-registry";
 import {
   RESERVED_PLUGIN_IDS,
   type AppliedPlugins,
@@ -56,6 +60,36 @@ function mergeFeatureHooks<F extends FeatureName>(
   return merged as ResolvedRoutePolicy[F];
 }
 
+function mergeMultipartHooks(
+  plugins: readonly DimahS3Plugin[],
+  userFeature: NonNullable<ResolvedRoutePolicy["upload"]>["multipart"],
+): NonNullable<ResolvedRoutePolicy["upload"]>["multipart"] {
+  if (
+    !userFeature &&
+    plugins.every((p) => !p.hooks?.upload?.multipart)
+  ) {
+    return userFeature;
+  }
+
+  const merged: Record<string, unknown> = { ...(userFeature ?? {}) };
+
+  for (const key of MULTIPART_HOOK_KEYS) {
+    const fromPlugins = plugins.map(
+      (p) =>
+        (p.hooks?.upload?.multipart as Record<string, HookFn> | undefined)?.[
+          key
+        ],
+    );
+    const userHook = (userFeature as Record<string, HookFn> | undefined)?.[key];
+    const next = mergeHookField(fromPlugins, userHook);
+    if (next !== undefined) {
+      merged[key] = next;
+    }
+  }
+
+  return merged as NonNullable<ResolvedRoutePolicy["upload"]>["multipart"];
+}
+
 function applyHooksToRoute(
   route: ResolvedRoutePolicy,
   plugins: readonly DimahS3Plugin[],
@@ -69,6 +103,12 @@ function applyHooksToRoute(
       active,
       next[feature],
     );
+  }
+  if (next.upload) {
+    next.upload = {
+      ...next.upload,
+      multipart: mergeMultipartHooks(active, next.upload.multipart),
+    };
   }
   return next;
 }

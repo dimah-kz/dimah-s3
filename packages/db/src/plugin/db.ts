@@ -72,14 +72,11 @@ export function db(options: DbPluginOptions) {
       const routes = Object.values(config.routes ?? {});
       const hasLifecycle = routes.some(
         (r) =>
-          r.upload !== false ||
-          Boolean(r.download) ||
-          Boolean(r.delete) ||
-          r.multipart === true,
+          r.upload !== false || Boolean(r.download) || Boolean(r.delete),
       );
       if (!hasLifecycle) {
         throw new Error(
-          "[dimah-s3] db plugin requires at least one route with upload, download, delete, or multipart enabled.",
+          "[dimah-s3] db plugin requires at least one route with upload, download, or delete enabled.",
         );
       }
     },

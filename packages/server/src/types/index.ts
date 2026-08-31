@@ -13,13 +13,8 @@ export type {
   DeleteGuardContext,
   DeleteOnDeletedContext,
   MultipartUploadContext,
-  MultipartInitGuardContext,
-  MultipartPartGuardContext,
-  MultipartCompleteGuardContext,
-  MultipartAbortGuardContext,
-  MultipartListGuardContext,
+  MultipartGuardContext,
   MultipartOnInitContext,
-  MultipartOnCompleteContext,
   MultipartOnAbortContext,
   MultipartOnListContext,
 } from "./hook-contexts";
@@ -31,6 +26,8 @@ export type {
   FeatureToggle,
   MultipartConfig,
   ResolvedDimahS3Config,
+  ResolvedFeature,
   ResolvedRoutePolicy,
+  ResolvedUploadConfig,
   UploadConfig,
 } from "./config";

@@ -12,7 +12,7 @@ import { errors } from "@/errors";
 import {
   assertDeclaredConstraints,
   getResolvedRoute,
-  resolveMultipartInitTarget,
+  resolveUploadTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -37,21 +37,18 @@ async function handleMultipartInit(
     contentType: input.contentType,
   });
 
-  const { key, bucket, metadata, acl } = await resolveMultipartInitTarget(
-    route,
-    {
-      request,
-      route: route.name,
-      file: {
-        name: fileName,
-        size: fileSize,
-        type: input.contentType,
-      },
-      clientMetadata: input.metadata,
+  const { key, bucket, metadata, acl } = await resolveUploadTarget(route, {
+    request,
+    route: route.name,
+    file: {
+      name: fileName,
+      size: fileSize,
+      type: input.contentType,
     },
-  );
+    clientMetadata: input.metadata,
+  });
 
-  await runHook(route.multipart?.initGuard, {
+  await runHook(route.upload?.guard, {
     request,
     route: route.name,
     key,
@@ -79,7 +76,7 @@ async function handleMultipartInit(
     throw errors.internalError();
   }
 
-  await runLifecycleHook(route.multipart?.onInit, {
+  await runLifecycleHook(route.upload?.multipart?.onInit, {
     request,
     route: route.name,
     key,

@@ -83,7 +83,7 @@ describe("createDatabaseLifecycleHooks", () => {
     expect(hard.hardDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
   });
 
-  it("guards multipart part/list/complete/abort with ownership", async () => {
+  it("guards multipart part/list/abort with ownership", async () => {
     const store = fakeStore({
       find: async () => sampleObject({ scope: "user:2" }),
     });
@@ -101,15 +101,26 @@ describe("createDatabaseLifecycleHooks", () => {
     };
 
     await expect(
-      hooks.multipart?.partGuard?.({ ...ctx, partNumber: 1 }),
+      hooks.upload?.multipart?.guard?.({
+        ...ctx,
+        action: "part",
+        partNumber: 1,
+      }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(hooks.multipart?.listGuard?.(ctx)).rejects.toMatchObject({
+    await expect(
+      hooks.upload?.multipart?.guard?.({ ...ctx, action: "list" }),
+    ).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
     await expect(
-      hooks.multipart?.completeGuard?.({ ...ctx, parts: [{ partNumber: 1 }] }),
+      hooks.upload?.confirmGuard?.({
+        ...ctx,
+        parts: [{ partNumber: 1 }],
+      }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(hooks.multipart?.abortGuard?.(ctx)).rejects.toMatchObject({
+    await expect(
+      hooks.upload?.multipart?.guard?.({ ...ctx, action: "abort" }),
+    ).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
   });
@@ -121,7 +132,7 @@ describe("createDatabaseLifecycleHooks", () => {
       resolveScope: async () => "user:1",
     });
 
-    await hooks.multipart?.onAbort?.({
+    await hooks.upload?.multipart?.onAbort?.({
       request,
       route,
       key: "k",
@@ -138,7 +149,7 @@ describe("createDatabaseLifecycleHooks", () => {
       resolveScope: async () => "user:1",
     });
 
-    await hooks.multipart?.onInit?.({
+    await hooks.upload?.multipart?.onInit?.({
       request,
       route,
       key: "k",

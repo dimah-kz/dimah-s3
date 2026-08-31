@@ -8,7 +8,11 @@ export function assertFeatureEnabled(
   route: ResolvedRoutePolicy,
   feature: FeatureFlag,
 ): void {
-  if (route[feature]?.enabled !== true) {
+  const enabled =
+    feature === "multipart"
+      ? route.upload?.multipart?.enabled
+      : route[feature]?.enabled;
+  if (enabled !== true) {
     throw errors.featureDisabled(feature);
   }
 }

@@ -16,7 +16,8 @@ Do not treat this monorepo as the app guide. Use
 - The client sends a route name; the server owns keys. Default key is
  `{route}/{uuid}/{name}`. Return `{ prefix? }` or `{ key? }` from
  `upload.object` (`metadata` / `acl` optional).
-- Trust `onConfirmed` (HeadObject) for size and type, not the presign body.
+- Trust `onConfirmed` (HeadObject, including multipart complete) for size
+  and type, not the presign body.
 
 ## Workflow
 

@@ -6,8 +6,9 @@ icon: Route
 
 A **route** is a named policy, not an HTTP path. The instance holds shared
 infra (`client`, `bucket`, `plugins`, optional `guard`). Each route nests
-`upload` / `download` / `delete` — upload owns constraints and object
-identity; the other features are toggles (or hook objects).
+`upload` / `download` / `delete` — upload owns constraints, object
+identity, and opt-in `multipart`; the other features are toggles (or hook
+objects).
 
 The client sends the route name on every request. The server generates
 object keys and enforces file constraints. Protocol paths stay
@@ -56,8 +57,8 @@ export const s3 = dimahS3({
       upload: {
         fileTypes: ["video/*"],
         maxFileSize: 500 * 1024 * 1024,
+        multipart: true,
       },
-      multipart: true,
       download: true,
     }),
   },
@@ -85,13 +86,13 @@ missing field or `dimahS3()` throws.
 
 ## Defaults
 
-Upload is **on** if `upload` is omitted, `true`, or an object. `download`,
-`delete`, and `multipart` are **off** unless set. A route with every
-operation off throws at init. `upload: false` is a download/delete-only
-route; `multipart: true` with `upload: false` throws.
+Upload is **on** if `upload` is omitted, `true`, or an object. `download`
+and `delete` are **off** unless set. `upload.multipart` is **off** unless
+set. A route with every operation off throws at init. `upload: false` is a
+download/delete-only route.
 
-`multipart: true` uses the same `object` / `acl` as upload. It does not
-turn on automatically with upload.
+`upload.multipart: true` uses the same `object` / `acl` as upload. It does
+not turn on automatically with upload.
 
 ## Keys and object identity
 
@@ -170,7 +171,7 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     upload: {
       type: "boolean | UploadConfig",
       description:
-        "On when omitted, true, or an object. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, and upload hooks.",
+        "On when omitted, true, or an object. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, upload hooks, and optional multipart.",
     },
     download: {
       type: "boolean | DownloadConfig",
@@ -179,12 +180,6 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     delete: {
       type: "boolean | DeleteConfig",
       description: "Off unless set. Holds delete hooks.",
-    },
-    multipart: {
-      type: "boolean",
-      description:
-        "Opt-in. Default false. Requires upload. Uses the same object and acl.",
-      default: "false",
     },
   }}
 />

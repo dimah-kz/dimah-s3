@@ -47,12 +47,18 @@ export const defaultUploadBody = {
 };
 
 export function allFeaturesRoute(overrides: DimahS3RouteConfig = {}) {
+  const { upload, ...rest } = overrides;
   return route({
-    upload: true,
     download: true,
     delete: true,
-    multipart: true,
-    ...overrides,
+    ...rest,
+    upload:
+      upload === false
+        ? false
+        : {
+            multipart: true,
+            ...(typeof upload === "object" ? upload : {}),
+          },
   });
 }
 

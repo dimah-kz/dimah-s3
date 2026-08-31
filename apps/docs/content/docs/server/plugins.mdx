@@ -88,8 +88,9 @@ s3.audit.log("ready");
 and set key policy yourself. Hook context types import from
 `@dimah-s3/server/plugins`.
 
-Plugin hooks are the same slots as `FEATURE_HOOK_KEYS`: feature `guard` /
-`on*` functions only.
+Plugin hooks are the same slots as `FEATURE_HOOK_KEYS` (plus nested
+`upload.multipart` via `MULTIPART_HOOK_KEYS`): feature `guard` / `on*`
+functions only.
 
 ## Hook order
 

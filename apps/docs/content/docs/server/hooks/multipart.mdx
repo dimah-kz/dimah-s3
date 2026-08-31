@@ -1,34 +1,34 @@
 ---
 title: Multipart
-description: Lifecycle hooks for large-file uploads.
+description: Large-file uploads as an opt-in under upload.
 ---
 
-Enable with `multipart: true` on a [named route](/docs/server/routes).
+Enable with `upload.multipart: true` on a [named route](/docs/server/routes).
 Default is **off** — it does not turn on with upload. Pair it with client
 `multipart: true` — see [Upload](/docs/react/hooks/upload).
 
-Multipart **complete** is the confirmation step (HeadObject after S3
-assembles the parts). There is no extra `confirm` call. Persist in
-`onComplete` the same way you persist in `upload.onConfirmed`.
+Init and complete reuse upload hooks. Persist in `upload.onConfirmed` for
+both simple confirm and multipart complete — there is no second `confirm`
+call.
 
 <Flow
   label="Multipart complete"
   steps={[
-    { name: "initGuard", kind: "hook" },
+    { name: "upload.guard", kind: "hook" },
     { name: "onInit", kind: "hook" },
-    { name: "partGuard", kind: "hook", note: "each part" },
-    { name: "completeGuard", kind: "hook" },
+    { name: "multipart.guard", kind: "hook", note: "each part" },
+    { name: "confirmGuard", kind: "hook" },
     { name: "HeadObject", kind: "server" },
-    { name: "onComplete", kind: "hook" },
+    { name: "onConfirmed", kind: "hook" },
   ]}
 />
 
-Abort is a separate path: `abortGuard` → `onAbort`. Listing parts:
-`listGuard` → `onList`.
+Abort and list are the remaining unique steps: `multipart.guard` (`action:
+"abort"` / `"list"`) → `onAbort` / `onList`.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors, route } from "@dimah-s3/server";
+import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
@@ -37,54 +37,57 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     videos: route({
-      multipart: true,
+      upload: {
+        fileTypes: ["video/*"],
+        multipart: true,
+        onConfirmed: async ({ key, contentLength }) => {
+          // persist { key, size: contentLength }
+        },
+      },
     }),
   },
 });
 ```
 
 <Callout>
-  `fileSize` on init is what the client sent. `contentLength` on `onComplete`
-  comes from `HeadObject`.
+  `fileSize` on init is what the client sent. `contentLength` on
+  `onConfirmed` comes from `HeadObject`.
 </Callout>
 
-Set `multipart: true` on the route. Multipart uses the same `object`
-and `acl` as upload. Plugins still receive the granular
-`initGuard` / `onComplete` / … hooks.
+Multipart uses the same `object` and `acl` as upload. Most apps only set
+`multipart: true`. Unique hooks live on the same object when you need
+resume cleanup or per-part checks.
 
 The complete body only sends `partNumber`s. The server lists parts from S3
 for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.
 
-## Init guard
+## On init
 
-Runs before `CreateMultipartUpload`.
+Runs after `CreateMultipartUpload`. Use this to store `uploadId` for
+resume. Init authorization is `upload.guard`.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartInitGuardContext"
+  name="MultipartOnInitContext"
 />
 
-## On complete
+## Multipart guard
 
-Runs after `HeadObject`. Same idea as [`upload.onConfirmed`](/docs/server/hooks/upload#on-confirmed).
+Runs before each part URL, list, and abort. Branch on `action` if you need
+different rules. Complete uses `upload.confirmGuard` instead.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartOnCompleteContext"
+  name="MultipartGuardContext"
 />
 
 <Accordions type="multiple">
 <Accordion title="Other hooks">
 
-| Hook            | When                 | Extra                     |
-| --------------- | -------------------- | ------------------------- |
-| `onInit`        | After init           | `uploadId`                |
-| `partGuard`     | Before each part URL | `partNumber`, `partSize?` |
-| `completeGuard` | Before complete      | `parts`                   |
-| `abortGuard`    | Before abort         | `uploadId`                |
-| `onAbort`       | After abort          | `uploadId`                |
-| `listGuard`     | Before listing parts | `uploadId`                |
-| `onList`        | After listing parts  | `parts`                   |
+| Hook       | When            | Extra                      |
+| ---------- | --------------- | -------------------------- |
+| `onAbort`  | After abort     | `uploadId`                 |
+| `onList`   | After listing   | `parts`                    |
 
 </Accordion>
 </Accordions>

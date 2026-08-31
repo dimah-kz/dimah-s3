@@ -3,7 +3,6 @@ import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { route } from "@/route";
 import {
   allFeaturesRoute,
   createInstance,
@@ -359,7 +358,6 @@ describe("confirm", () => {
       code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
     });
   });
-
 });
 
 describe("download / delete", () => {
@@ -439,7 +437,7 @@ describe("multipart", () => {
           CreateMultipartUploadCommand: { UploadId: "up-1" },
         }) as never,
       ),
-      plugins: [{ id: "mp", hooks: { multipart: { onInit } } }],
+      plugins: [{ id: "mp", hooks: { upload: { multipart: { onInit } } } }],
     });
 
     await expect(
@@ -449,6 +447,23 @@ describe("multipart", () => {
       uploadId: "up-1",
     });
     expect(onInit).toHaveBeenCalled();
+  });
+
+  it("runs upload.guard on multipart init", async () => {
+    const guard = vi.fn();
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          CreateMultipartUploadCommand: { UploadId: "up-1" },
+        }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ upload: { guard } }),
+      },
+    });
+
+    await s3.api.multipartInit({ body: defaultUploadBody });
+    expect(guard).toHaveBeenCalled();
   });
 
   it("signs a part", async () => {
@@ -481,7 +496,7 @@ describe("multipart", () => {
           },
         }) as never,
       ),
-      plugins: [{ id: "mp", hooks: { multipart: { onList } } }],
+      plugins: [{ id: "mp", hooks: { upload: { multipart: { onList } } } }],
     });
 
     await expect(
@@ -495,7 +510,7 @@ describe("multipart", () => {
   });
 
   it("completes from listed parts and HeadObject", async () => {
-    const onComplete = vi.fn();
+    const onConfirmed = vi.fn();
     const s3 = createInstance({
       client: mockS3(
         sendByCommand({
@@ -506,7 +521,7 @@ describe("multipart", () => {
           HeadObjectCommand: headResult({ ContentLength: 8 }),
         }) as never,
       ),
-      plugins: [{ id: "mp", hooks: { multipart: { onComplete } } }],
+      plugins: [{ id: "mp", hooks: { upload: { onConfirmed } } }],
     });
 
     await expect(
@@ -524,7 +539,7 @@ describe("multipart", () => {
       contentLength: 8,
       eTag: "abc",
     });
-    expect(onComplete).toHaveBeenCalled();
+    expect(onConfirmed).toHaveBeenCalled();
   });
 
   it("maps post-complete HeadObject not-found to OBJECT_NOT_FOUND", async () => {
@@ -634,7 +649,7 @@ describe("multipart", () => {
   it("aborts a multipart upload", async () => {
     const onAbort = vi.fn();
     const s3 = createInstance({
-      plugins: [{ id: "mp", hooks: { multipart: { onAbort } } }],
+      plugins: [{ id: "mp", hooks: { upload: { multipart: { onAbort } } } }],
     });
 
     await expect(

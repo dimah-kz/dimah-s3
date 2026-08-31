@@ -28,7 +28,7 @@ describe("normalizeFeature / routes", () => {
     });
     expect(resolved.upload?.enabled).toBe(true);
     expect(resolved.download?.enabled).toBeUndefined();
-    expect(resolved.multipart?.enabled).toBe(false);
+    expect(resolved.upload?.multipart?.enabled).toBe(false);
   });
 
   it("keeps file constraints on the upload policy", () => {
@@ -50,23 +50,33 @@ describe("normalizeFeature / routes", () => {
     expect(resolved.method).toBe("PUT");
   });
 
-  it("does not enable multipart unless opted in", () => {
+  it("does not enable multipart unless opted in under upload", () => {
     const resolved = normalizeRoute(
       "uploads",
-      route({ upload: true, multipart: false }),
+      route({ upload: { multipart: false } }),
       { client, bucket: "bucket" },
     );
-    expect(resolved.multipart?.enabled).toBe(false);
+    expect(resolved.upload?.multipart?.enabled).toBe(false);
   });
 
-  it("rejects multipart without upload", () => {
-    expect(() =>
-      normalizeRoute(
-        "files",
-        route({ upload: false, download: true, multipart: true }),
-        { client, bucket: "bucket" },
-      ),
-    ).toThrow(/multipart requires upload/);
+  it("enables multipart on the upload policy", () => {
+    const resolved = normalizeRoute(
+      "videos",
+      route({ upload: { multipart: true } }),
+      { client, bucket: "bucket" },
+    );
+    expect(resolved.upload?.enabled).toBe(true);
+    expect(resolved.upload?.multipart?.enabled).toBe(true);
+  });
+
+  it("keeps multipart off when upload is disabled", () => {
+    const resolved = normalizeRoute(
+      "files",
+      route({ upload: false, download: true }),
+      { client, bucket: "bucket" },
+    );
+    expect(resolved.upload?.enabled).toBe(false);
+    expect(resolved.upload?.multipart?.enabled).toBe(false);
   });
 
   it("rejects a route with every operation off", () => {

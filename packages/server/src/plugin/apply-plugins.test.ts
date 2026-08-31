@@ -271,6 +271,47 @@ describe("applyPlugins merge", () => {
     expect(merged.config.routes.uploads.acl).toBe("private");
   });
 
+  it("merges nested upload.multipart hooks plugins-first", async () => {
+    const order: string[] = [];
+    const merged = applyPlugins({
+      ...config([
+        definePlugin({
+          id: "p",
+          hooks: {
+            upload: {
+              multipart: {
+                onAbort: () => {
+                  order.push("plugin");
+                },
+              },
+            },
+          },
+        }),
+      ]),
+      routes: {
+        uploads: route({
+          upload: {
+            multipart: {
+              onAbort: () => {
+                order.push("user");
+              },
+            },
+          },
+        }),
+      },
+    });
+
+    await merged.config.routes.uploads.upload?.multipart?.onAbort?.({
+      request: new Request("http://localhost"),
+      route: "uploads",
+      key: "a.bin",
+      bucket: "bucket",
+      uploadId: "up-1",
+    });
+    expect(merged.config.routes.uploads.upload?.multipart?.enabled).toBe(true);
+    expect(order).toEqual(["plugin", "user"]);
+  });
+
   it("requires at least one route", () => {
     expect(() =>
       applyPlugins({

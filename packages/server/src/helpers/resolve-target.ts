@@ -92,13 +92,6 @@ export async function resolveUploadTarget(
   return resolveObject(route, context);
 }
 
-export async function resolveMultipartInitTarget(
-  route: ResolvedRoutePolicy,
-  context: Omit<ObjectContext, "bucket">,
-): Promise<ResolvedObject> {
-  return resolveObject(route, context);
-}
-
 export function resolveStoredTarget(
   route: ResolvedRoutePolicy,
   key: string,

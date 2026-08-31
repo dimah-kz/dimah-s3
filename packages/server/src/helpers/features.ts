@@ -30,6 +30,20 @@ function skippedPluginIds(
   return ids;
 }
 
+function splitUpload(upload: DimahS3RouteConfig["upload"]): {
+  upload: FeatureToggle<Omit<UploadConfig, "multipart">>;
+  multipart: FeatureToggle<MultipartConfig> | undefined;
+} {
+  if (upload === undefined || upload === true) {
+    return { upload: true, multipart: undefined };
+  }
+  if (upload === false) {
+    return { upload: false, multipart: undefined };
+  }
+  const { multipart, ...rest } = upload;
+  return { upload: rest, multipart };
+}
+
 export function normalizeRoute(
   name: string,
   route: DimahS3RouteConfig,
@@ -50,21 +64,20 @@ export function normalizeRoute(
     );
   }
 
-  const upload = normalizeFeature<UploadConfig>(
-    route.upload === undefined ? true : route.upload,
+  const { upload: uploadInput, multipart: multipartInput } = splitUpload(
+    route.upload,
   );
+  const upload = normalizeFeature(uploadInput);
   const download = normalizeFeature<DownloadConfig>(route.download);
   const deleteFeature = normalizeFeature<DeleteConfig>(route.delete);
-
-  if (route.multipart === true && upload?.enabled === false) {
-    throw new Error(
-      `dimahS3 route "${name}": multipart requires upload to be enabled.`,
-    );
-  }
-
   const multipart = normalizeFeature<MultipartConfig>(
-    route.multipart === true ? true : false,
+    multipartInput === undefined ? false : multipartInput,
   );
+
+  const resolvedMultipart =
+    upload?.enabled === true
+      ? multipart
+      : ({ enabled: false } as MultipartConfig & { enabled: boolean });
 
   if (
     upload?.enabled !== true &&
@@ -88,10 +101,9 @@ export function normalizeRoute(
     expiresIn: upload?.expiresIn,
     guard: route.guard,
     skippedPluginIds: skippedPluginIds(route.plugins),
-    upload,
+    upload: upload ? { ...upload, multipart: resolvedMultipart } : upload,
     download,
     delete: deleteFeature,
-    multipart,
   };
 }
 

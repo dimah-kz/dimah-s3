@@ -6,17 +6,14 @@ export const FEATURE_HOOK_KEYS = {
   upload: ["guard", "onPresigned", "confirmGuard", "onConfirmed"],
   download: ["guard", "onPresigned"],
   delete: ["guard", "onDeleted"],
-  multipart: [
-    "initGuard",
-    "partGuard",
-    "completeGuard",
-    "abortGuard",
-    "listGuard",
-    "onInit",
-    "onComplete",
-    "onAbort",
-    "onList",
-  ],
 } as const;
+
+/** Nested under `upload.multipart` — init/complete share upload hooks. */
+export const MULTIPART_HOOK_KEYS = [
+  "onInit",
+  "guard",
+  "onAbort",
+  "onList",
+] as const;
 
 export type FeatureName = keyof typeof FEATURE_HOOK_KEYS;

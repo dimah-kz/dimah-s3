@@ -27,12 +27,13 @@ async function handleAbort(
   const { key, bucket } = resolveStoredTarget(route, input.key);
   const uploadId = input.uploadId;
 
-  await runHook(route.multipart?.abortGuard, {
+  await runHook(route.upload?.multipart?.guard, {
     request,
     route: route.name,
     key,
     bucket,
     uploadId,
+    action: "abort",
   });
 
   await sendOrObjectNotFound(() =>
@@ -45,7 +46,7 @@ async function handleAbort(
     ),
   );
 
-  await runLifecycleHook(route.multipart?.onAbort, {
+  await runLifecycleHook(route.upload?.multipart?.onAbort, {
     request,
     route: route.name,
     key,
