@@ -42,7 +42,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   plugins: [audit],
   routes: {
-    uploads: route({ upload: { prefix: "uploads" } }),
+    uploads: route({}),
   },
 });
 
@@ -83,7 +83,7 @@ s3.audit.log("ready");
   }}
 />
 
-`method` / `prefix` / `object` / `acl` stay on
+`method` / `object` / `acl` stay on
 `DimahS3Config` — plugins cannot override them. You still turn features on
 and set key policy yourself. Hook context types import from
 `@dimah-s3/server/plugins`.
@@ -116,7 +116,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: {
-        prefix: "uploads",
         guard: chainHooks(quotaGuard, rateLimitGuard),
       },
     }),

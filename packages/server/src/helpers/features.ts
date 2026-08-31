@@ -82,7 +82,6 @@ export function normalizeRoute(
     bucket,
     fileTypes: upload?.fileTypes,
     maxFileSize: upload?.maxFileSize,
-    prefix: upload?.prefix,
     object: upload?.object,
     acl: upload?.acl,
     method: upload?.method,

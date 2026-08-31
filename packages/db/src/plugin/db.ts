@@ -52,7 +52,7 @@ export type DbPluginContext = {
  *   ],
  *   routes: {
      *     uploads: route({
-     *       upload: { prefix: "uploads" },
+     *       upload: true,
      *       download: true,
      *       delete: true,
      *     }),

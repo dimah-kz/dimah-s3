@@ -13,10 +13,9 @@ Do not treat this monorepo as the app guide. Use
 [the docs](https://dimah-s3.vercel.app/docs).
 
 - Never expose S3 credentials to the client.
-- The client sends a route name; the server owns keys. Scope keys with
- `prefix` / `object` on the route. `prefix` may be a string or an
- async factory (`ObjectContext`) that returns the folder to prepend.
- `object` returns `{ key?, metadata?, acl? }`.
+- The client sends a route name; the server owns keys. Default key is
+ `{route}/{uuid}/{name}`. Return `{ prefix? }` or `{ key? }` from
+ `upload.object` (`metadata` / `acl` optional).
 - Trust `onConfirmed` (HeadObject) for size and type, not the presign body.
 
 ## Workflow

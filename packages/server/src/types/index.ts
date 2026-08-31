@@ -29,7 +29,6 @@ export type {
   DownloadConfig,
   DeleteConfig,
   FeatureToggle,
-  KeyPrefix,
   MultipartConfig,
   ResolvedDimahS3Config,
   ResolvedRoutePolicy,

@@ -27,15 +27,6 @@ import type { DimahS3Plugin } from "@/plugin/types";
 
 export type { ObjectContext, ObjectInfo };
 
-/**
- * Static folder, or a factory that returns one from {@link ObjectContext}.
- * The return value is prepended — it is not the full object key. Use
- * {@link UploadConfig.object} when you need the key, metadata, or ACL
- * together.
- */
-export type KeyPrefix =
-  string | ((context: ObjectContext) => string | Promise<string>);
-
 /** Upload policy: constraints, object identity, and lifecycle hooks. */
 export type UploadConfig = {
   /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
@@ -43,13 +34,10 @@ export type UploadConfig = {
   /** Max declared and HeadObject size in bytes. */
   maxFileSize?: number;
   /**
-   * Folder prepended when generating keys on upload / multipart init.
-   * A string or an async factory ({@link ObjectContext}).
-   */
-  prefix?: KeyPrefix;
-  /**
-   * Server-owned object identity. Return `key` to replace the generated
-   * key, plus optional S3 `metadata` and `acl`. Runs on upload / init only.
+   * Server-owned object identity. Return `prefix` for a folder,
+   * `key` for the full key, plus optional S3 `metadata` and `acl`.
+   * Runs on upload / multipart init only. Default key is
+   * `{route}/{uuid}/{name}`.
    */
   object?: (
     context: ObjectContext,
@@ -137,7 +125,7 @@ export type DimahS3RouteConfig = {
  *   bucket: "my-bucket",
  *   routes: {
  *     uploads: route({
- *       upload: { prefix: "uploads", fileTypes: ["image/*"] },
+ *       upload: { fileTypes: ["image/*"] },
  *       download: true,
  *     }),
  *   },
@@ -194,7 +182,6 @@ export type ResolvedRoutePolicy = {
   bucket: string;
   fileTypes?: string[];
   maxFileSize?: number;
-  prefix?: KeyPrefix;
   object?: UploadConfig["object"];
   acl?: S3ObjectAcl;
   method?: UploadPresignMethod;

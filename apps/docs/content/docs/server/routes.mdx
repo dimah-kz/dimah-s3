@@ -32,7 +32,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: {
-        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
@@ -55,7 +54,6 @@ export const s3 = dimahS3({
     }),
     videos: route({
       upload: {
-        prefix: "videos",
         fileTypes: ["video/*"],
         maxFileSize: 500 * 1024 * 1024,
       },
@@ -77,8 +75,8 @@ inference — `s3.$Infer.routes` is the union of those keys.
   `resolveObjectAcl`, `maxExpiresIn` (clamp).
 - **Route:** optional `client` / `bucket` override, optional `guard` for
   every op, nested features.
-- **Upload:** `fileTypes`, `maxFileSize`, `prefix`, `object`, `acl`,
-  `method`, `expiresIn`, and upload hooks.
+- **Upload:** `fileTypes`, `maxFileSize`, `object`, `acl`, `method`,
+  `expiresIn`, and upload hooks.
 - Do not put `basePath` or `plugins` on a route. Plugin opt-out is
   `plugins: { db: false }` on the route.
 
@@ -92,28 +90,27 @@ Upload is **on** if `upload` is omitted, `true`, or an object. `download`,
 operation off throws at init. `upload: false` is a download/delete-only
 route; `multipart: true` with `upload: false` throws.
 
-`multipart: true` uses the same `prefix` / `object` / `acl` as upload. It
-does not turn on automatically with upload.
+`multipart: true` uses the same `object` / `acl` as upload. It does not
+turn on automatically with upload.
 
 ## Keys and object identity
 
-The client does not send `key` on upload or multipart init. Generation:
+The client does not send `key` on upload or multipart init. Default:
 
-- string `prefix` → `{prefix}/{uuid}/{sanitize(fileName)}`
-- `prefix` factory → same, with the returned folder
-- `object` returning `key` → that key (wins)
-- `object` without `key` → prefix / default, plus optional `metadata` / `acl`
-- neither → `{routeName}/{uuid}/{sanitize(fileName)}`
+`{routeName}/{uuid}/{sanitize(fileName)}`
 
-`prefix` is only the **folder**. The library still appends a UUID and the
-sanitized file name. Use `object` when you need the full key, S3 metadata,
-or a per-file ACL.
+`object` runs on upload / init and may return:
+
+- `prefix` — folder only; the library still appends `{uuid}/{name}`
+- `key` — full key (wins over `prefix`)
+- `metadata` — S3 user metadata
+- `acl` — per-object override
 
 ```ts
 route({
   upload: {
-    prefix: "images",
     object: ({ request, clientMetadata }) => ({
+      prefix: `users/${userId(request)}`,
       metadata: { author: userId(request), title: clientMetadata?.title ?? "" },
     }),
   },
@@ -124,10 +121,8 @@ Client `metadata` on the request is **not** written to S3 unless `object`
 copies it.
 
 Confirm, multipart follow-ups, download, and delete send the **stored**
-key from the presign response, plus the same route name. A string `prefix`
-namespaces later ops (the key must stay under that prefix). A function
-`prefix` / `object` is not re-run on confirm — route `guard` / db
-ownership authorizes.
+key from the presign response, plus the same route name. `object` is not
+re-run — authorize with route `guard` / db ownership.
 
 ## Constraints
 
@@ -175,7 +170,7 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     upload: {
       type: "boolean | UploadConfig",
       description:
-        "On when omitted, true, or an object. The object holds prefix, fileTypes, maxFileSize, object, acl, method, expiresIn, and upload hooks.",
+        "On when omitted, true, or an object. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, and upload hooks.",
     },
     download: {
       type: "boolean | DownloadConfig",
@@ -188,7 +183,7 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     multipart: {
       type: "boolean",
       description:
-        "Opt-in. Default false. Requires upload. Uses the same prefix, object, and acl.",
+        "Opt-in. Default false. Requires upload. Uses the same object and acl.",
       default: "false",
     },
   }}

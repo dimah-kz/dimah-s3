@@ -51,7 +51,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: {
-        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
@@ -260,7 +259,7 @@ export default function Page() {
 ```
 
 Selecting a file uploads directly to S3. The server generates the object key
-under the route `prefix` (`uploads/` in `lib/s3.ts`).
+as `{route}/{uuid}/{filename}` (`uploads/…` for this route).
 
 <Callout>
   Deeper guides: [Server setup](/docs/server/setup), [Client

@@ -24,7 +24,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      upload: { prefix: "uploads", fileTypes: ["image/*"] },
+      upload: { fileTypes: ["image/*"] },
       download: true,
       delete: true,
     }),

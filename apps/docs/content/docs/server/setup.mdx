@@ -41,7 +41,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: {
-        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
@@ -70,10 +69,10 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
 <Callout type="warn">
   The server owns object keys. The client sends a route name, never a key on
-  upload. Scope keys with `upload.prefix` or `upload.object`. `prefix` may
-  be a string or an async factory (`ObjectContext`) that returns the folder
-  to prepend. Uploads are `private` unless `upload.acl` is set or
-  `object` returns one. Full rules: [Security](/docs/server/security).
+  upload. Default key is `{route}/{uuid}/{name}`. Return `{ prefix? }` or
+  `{ key? }` from `upload.object`. Uploads are `private` unless
+  `upload.acl` is set or `object` returns one. Full rules:
+  [Security](/docs/server/security).
 </Callout>
 
 A plain `Error` in `guard` / `*Guard` becomes **403**. The same throw in

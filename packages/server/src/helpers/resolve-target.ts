@@ -1,7 +1,6 @@
 import { sanitizeFileName } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import type {
-  KeyPrefix,
   ObjectContext,
   ObjectInfo,
   ResolvedRoutePolicy,
@@ -40,44 +39,21 @@ function applyPrefix(prefix: string, key: string): string {
   return `${p}/${k}`;
 }
 
-async function resolvePrefixValue(
-  prefix: KeyPrefix | undefined,
+/** Generate a key from an optional folder plus uuid/filename. */
+export function generateObjectKey(
+  prefix: string | undefined,
   context: ObjectContext,
-): Promise<string | undefined> {
-  if (prefix === undefined) return undefined;
-  if (typeof prefix === "function") return prefix(context);
-  return prefix;
-}
-
-/** Generate a key from `prefix` (or the route name) plus uuid/filename. */
-export async function generateObjectKey(
-  prefix: KeyPrefix | undefined,
-  context: ObjectContext,
-): Promise<string> {
+): string {
   const leaf = `${crypto.randomUUID()}/${sanitizeFileName(context.file.name)}`;
-  const folder = await resolvePrefixValue(prefix, context);
-  if (folder) {
-    return applyPrefix(folder, leaf);
+  if (prefix) {
+    return applyPrefix(prefix, leaf);
   }
   return assertSafeObjectKey(`${context.route}/${leaf}`);
 }
 
-/**
- * Confirm / download / delete / multipart follow-ups: trust the stored key,
- * but reject keys outside a string `prefix` namespace.
- */
-export function assertStoredKey(
-  prefix: KeyPrefix | undefined,
-  key: string,
-): string {
-  const safe = assertSafeObjectKey(key);
-  if (typeof prefix === "string") {
-    const folder = assertSafeObjectKey(prefix);
-    if (safe !== folder && !safe.startsWith(`${folder}/`)) {
-      throw errors.invalidKey();
-    }
-  }
-  return safe;
+/** Confirm / download / delete / multipart follow-ups: trust the stored key. */
+export function assertStoredKey(key: string): string {
+  return assertSafeObjectKey(key);
 }
 
 export function resolveRouteBucket(route: ResolvedRoutePolicy): string {
@@ -100,7 +76,7 @@ async function resolveObject(
   const info = (await route.object?.(objectContext)) ?? undefined;
   const key = info?.key
     ? assertSafeObjectKey(info.key)
-    : await generateObjectKey(route.prefix, objectContext);
+    : generateObjectKey(info?.prefix, objectContext);
   return {
     key,
     bucket,
@@ -128,7 +104,7 @@ export function resolveStoredTarget(
   key: string,
 ): { key: string; bucket: string } {
   return {
-    key: assertStoredKey(route.prefix, key),
+    key: assertStoredKey(key),
     bucket: route.bucket,
   };
 }

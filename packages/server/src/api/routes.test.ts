@@ -163,17 +163,35 @@ describe("upload", () => {
     ).resolves.toMatchObject({ bucket: "cdn-bucket" });
   });
 
-  it("prefixes the generated object key", async () => {
+  it("defaults the generated object key to route/uuid/filename", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
     const s3 = createInstance({
-      routes: { uploads: allFeaturesRoute({ upload: { prefix: "uploads" } }) },
+      routes: { uploads: allFeaturesRoute() },
     });
     await expect(
       s3.api.upload({ body: defaultUploadBody }),
     ).resolves.toMatchObject({
       key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
+    });
+  });
+
+  it("uses object.prefix when generating the key", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: { object: () => ({ prefix: "media" }) },
+        }),
+      },
+    });
+    await expect(
+      s3.api.upload({ body: defaultUploadBody }),
+    ).resolves.toMatchObject({
+      key: "media/11111111-1111-1111-1111-111111111111/a.png",
     });
   });
 
@@ -342,16 +360,6 @@ describe("confirm", () => {
     });
   });
 
-  it("rejects stored keys outside a string prefix", async () => {
-    const s3 = createInstance({
-      routes: { uploads: allFeaturesRoute({ upload: { prefix: "uploads" } }) },
-    });
-    await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "other/a.png" } }),
-    ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.INVALID_KEY.code,
-    });
-  });
 });
 
 describe("download / delete", () => {

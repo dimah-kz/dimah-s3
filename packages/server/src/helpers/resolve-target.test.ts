@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { S3_ERROR_CODES } from "@dimah-s3/core";
 import {
   assertSafeObjectKey,
   assertStoredKey,
@@ -45,52 +44,32 @@ describe("assertSafeObjectKey", () => {
 });
 
 describe("generateObjectKey", () => {
-  it("prefixes a generated uuid/filename leaf", async () => {
+  it("prefixes a generated uuid/filename leaf", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
-    await expect(generateObjectKey("uploads", ctx())).resolves.toBe(
+    expect(generateObjectKey("uploads", ctx())).toBe(
       "uploads/11111111-1111-1111-1111-111111111111/a.png",
     );
   });
 
-  it("defaults to route/uuid/filename when no prefix is set", async () => {
+  it("defaults to route/uuid/filename when no prefix is set", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
-    await expect(generateObjectKey(undefined, ctx())).resolves.toBe(
+    expect(generateObjectKey(undefined, ctx())).toBe(
       "uploads/11111111-1111-1111-1111-111111111111/a.png",
     );
-  });
-
-  it("applies an async prefix factory", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    const prefix = async ({ request: req }: ObjectContext) => {
-      const userId = req.headers.get("x-user-id") ?? "anon";
-      return `users/${userId}`;
-    };
-    await expect(
-      generateObjectKey(
-        prefix,
-        ctx({
-          request: new Request("http://localhost", {
-            headers: { "x-user-id": "42" },
-          }),
-        }),
-      ),
-    ).resolves.toBe("users/42/11111111-1111-1111-1111-111111111111/a.png");
   });
 });
 
 describe("resolveUploadTarget", () => {
-  it("lets object.key win over prefix", async () => {
+  it("lets object.key win over object.prefix", async () => {
     await expect(
       resolveUploadTarget(
         route({
-          prefix: "uploads",
           object: ({ file }: ObjectContext) => ({
+            prefix: "uploads",
             key: `users/1/${file.name}`,
           }),
         }),
@@ -99,20 +78,22 @@ describe("resolveUploadTarget", () => {
     ).resolves.toMatchObject({ key: "users/1/a.png", bucket: "bucket" });
   });
 
-  it("keeps the generated key when object only returns metadata", async () => {
+  it("uses object.prefix when key is omitted", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
     await expect(
       resolveUploadTarget(
         route({
-          prefix: "uploads",
-          object: () => ({ metadata: { author: "user_123" } }),
+          object: () => ({
+            prefix: "media",
+            metadata: { author: "user_123" },
+          }),
         }),
         ctx(),
       ),
     ).resolves.toEqual({
-      key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
+      key: "media/11111111-1111-1111-1111-111111111111/a.png",
       bucket: "bucket",
       metadata: { author: "user_123" },
       acl: "private",
@@ -133,22 +114,7 @@ describe("resolveUploadTarget", () => {
 });
 
 describe("assertStoredKey", () => {
-  it("allows keys under a string prefix", () => {
-    expect(assertStoredKey("uploads", "uploads/a.png")).toBe("uploads/a.png");
-  });
-
-  it("rejects keys outside a string prefix", () => {
-    try {
-      assertStoredKey("uploads", "other/a.png");
-      throw new Error("expected throw");
-    } catch (err) {
-      expect(err).toMatchObject({ code: S3_ERROR_CODES.INVALID_KEY.code });
-    }
-  });
-
-  it("does not namespace-check a prefix factory", () => {
-    expect(assertStoredKey(async () => "uploads", "anything/a.png")).toBe(
-      "anything/a.png",
-    );
+  it("normalizes a safe stored key", () => {
+    expect(assertStoredKey("uploads/a.png")).toBe("uploads/a.png");
   });
 });

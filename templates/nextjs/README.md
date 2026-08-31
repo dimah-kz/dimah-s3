@@ -14,7 +14,7 @@ npx @dimah-s3/cli@latest create my-app
 
 | Path                              | Role                                                  |
 | --------------------------------- | ----------------------------------------------------- |
-| `src/lib/s3.ts`                   | `awsS3` + `dimahS3({ routes })` (`prefix: "uploads"`) |
+| `src/lib/s3.ts`                   | `awsS3` + `dimahS3({ routes })`                       |
 | `src/lib/s3-client.ts`            | `createS3Client()` + `S3Provider`                     |
 | `src/app/api/s3/[...s3]/route.ts` | Next.js adapter (`GET`/`POST`/`PUT`/`PATCH`/`DELETE`) |
 | `src/app/layout.tsx`              | `S3Provider` + `Toaster`                              |

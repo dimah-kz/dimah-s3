@@ -30,7 +30,6 @@ export type {
   DownloadPresignGuardContext,
   FeatureToggle,
   GuardContext,
-  KeyPrefix,
   MultipartAbortGuardContext,
   MultipartCompleteGuardContext,
   MultipartConfig,

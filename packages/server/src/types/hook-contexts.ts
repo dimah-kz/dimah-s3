@@ -31,7 +31,7 @@ export type ObjectFile = {
 };
 
 /**
- * Input to `prefix` and `object` on upload / multipart init.
+ * Input to `object` on upload / multipart init.
  * `clientMetadata` is what the client sent — it is not written to S3
  * unless `object` copies it into {@link ObjectInfo.metadata}.
  */
@@ -45,7 +45,12 @@ export type ObjectContext = {
 
 /** Server-owned S3 object identity from route `object`. */
 export type ObjectInfo = {
-  /** Full object key. If omitted, `prefix` / `{route}/{uuid}/{name}` is used. */
+  /**
+   * Folder prepended to `{uuid}/{sanitize(name)}`.
+   * Ignored when {@link key} is set.
+   */
+  prefix?: string;
+  /** Full object key. If omitted, `{prefix|route}/{uuid}/{name}` is used. */
   key?: string;
   /** S3 user metadata (`x-amz-meta-*`). */
   metadata?: Record<string, string>;

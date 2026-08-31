@@ -38,7 +38,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: {
-        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
         onConfirmed: async ({ key, contentLength }) => {
@@ -57,9 +56,10 @@ export const s3 = dimahS3({
 </Callout>
 
 <Callout type="warn">
-  The client does not send a key on upload. The server generates it from
-  `upload.prefix` or `upload.object`. Object ACL is `private` unless you set
-  `upload.acl` or return one from `object`.
+  The client does not send a key on upload. The server generates
+  `{route}/{uuid}/{name}` unless `upload.object` returns `prefix` or `key`.
+  Object ACL is `private` unless you set `upload.acl` or return one from
+  `object`.
 </Callout>
 
 ## Guard

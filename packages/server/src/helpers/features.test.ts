@@ -22,15 +22,13 @@ describe("normalizeFeature / routes", () => {
   });
 
   it("defaults upload on and other features off", () => {
-    const resolved = normalizeRoute(
-      "uploads",
-      route({ upload: { prefix: "uploads" } }),
-      { client, bucket: "bucket" },
-    );
+    const resolved = normalizeRoute("uploads", route({}), {
+      client,
+      bucket: "bucket",
+    });
     expect(resolved.upload?.enabled).toBe(true);
     expect(resolved.download?.enabled).toBeUndefined();
     expect(resolved.multipart?.enabled).toBe(false);
-    expect(resolved.prefix).toBe("uploads");
   });
 
   it("keeps file constraints on the upload policy", () => {
@@ -38,7 +36,6 @@ describe("normalizeFeature / routes", () => {
       "uploads",
       route({
         upload: {
-          prefix: "uploads",
           fileTypes: ["image/*"],
           maxFileSize: 1024,
           acl: "public-read",

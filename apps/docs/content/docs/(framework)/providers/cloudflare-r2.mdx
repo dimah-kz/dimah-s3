@@ -26,7 +26,6 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       upload: {
-        prefix: "uploads",
         method: "PUT", // R2 does not accept Presigned POST
       },
       download: true,

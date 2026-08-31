@@ -258,17 +258,17 @@ describe("applyPlugins merge", () => {
           hooks: {
             upload: {
               guard: () => undefined,
-              prefix: "plugin",
+              acl: "public-read",
             } as never,
           },
         }),
       ]),
       routes: {
-        uploads: route({ upload: { prefix: "uploads" } }),
+        uploads: route({ upload: { acl: "private" } }),
       },
     });
 
-    expect(merged.config.routes.uploads.prefix).toBe("uploads");
+    expect(merged.config.routes.uploads.acl).toBe("private");
   });
 
   it("requires at least one route", () => {

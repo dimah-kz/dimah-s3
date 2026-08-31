@@ -16,7 +16,7 @@ npx @dimah-s3/cli@latest create my-app --template hono
 
 | Path                   | Role                                                  |
 | ---------------------- | ----------------------------------------------------- |
-| `src/lib/s3.ts`        | `awsS3` + `dimahS3({ routes })` (`prefix: "uploads"`)  |
+| `src/lib/s3.ts`        | `awsS3` + `dimahS3({ routes })`                        |
 | `src/lib/s3-client.ts` | `createS3Client()` (same origin via the `/api` proxy) |
 | `src/server.ts`        | Hono app (`toHonoHandler` + static after build)       |
 | `src/main.tsx`         | `s3Client.Provider` + `Toaster`                       |
