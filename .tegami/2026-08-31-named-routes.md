@@ -1,6 +1,6 @@
 ---
 packages:
-  group:dimah-s3: major
+  group:dimah-s3: minor
 ---
 
 ## Named file routes
