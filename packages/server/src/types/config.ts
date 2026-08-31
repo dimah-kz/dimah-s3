@@ -82,7 +82,10 @@ export type UploadConfig = {
 
 /** Download feature. A config object (or `true`) enables the feature. */
 export type DownloadConfig = {
-  /** Presign TTL in seconds. Falls back to the route `expiresIn`. */
+  /**
+   * Presign TTL in seconds. Defaults to `S3_DEFAULT_EXPIRES_IN` (600).
+   * Independent of {@link UploadConfig.expiresIn}.
+   */
   expiresIn?: number;
   guard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
