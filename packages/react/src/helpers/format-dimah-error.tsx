@@ -52,8 +52,6 @@ export function useFormatDimahError(): (err: unknown) => string {
           });
         case S3_ERROR_CODES.INVALID_KEY.code:
           return t("Object key is invalid", { note: "API error" });
-        case S3_ERROR_CODES.INVALID_BUCKET.code:
-          return t("Storage is misconfigured", { note: "API error" });
         case S3_ERROR_CODES.UNKNOWN_ROUTE.code:
           return t("Unknown file route", { note: "API error" });
         case S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.code:

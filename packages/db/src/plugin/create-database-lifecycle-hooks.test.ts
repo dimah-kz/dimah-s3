@@ -105,6 +105,7 @@ describe("createDatabaseLifecycleHooks", () => {
         ...ctx,
         action: "part",
         partNumber: 1,
+        partSize: 1024,
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(

@@ -7,20 +7,17 @@ import {
 } from "@dimah-s3/core";
 import {
   assertVerifiedConstraints,
-  getResolvedRoute,
   headObjectOrNotFound,
+  openStoredTarget,
   requireContentLength,
   resolveObjectAcl,
-  resolveStoredTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
-import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function deleteBestEffort(
-  config: ResolvedDimahS3Config,
   bucket: string,
   key: string,
   client: ResolvedDimahS3Config["routes"][string]["client"],
@@ -37,13 +34,14 @@ async function handleConfirm(
   input: typeof confirmBodySchema._output,
   request: Request,
 ): Promise<UploadConfirmResponse> {
-  const route = getResolvedRoute(config, input.route);
-  assertFeatureEnabled(route, "upload");
-  await runHook(route.guard, { request, route: route.name });
+  const { route, key, bucket } = await openStoredTarget(
+    config,
+    input,
+    request,
+    "upload",
+  );
 
-  const { key, bucket } = resolveStoredTarget(route, input.key);
-
-  await runHook(route.upload?.confirmGuard, {
+  await runHook(route.upload.confirmGuard, {
     request,
     route: route.name,
     key,
@@ -61,7 +59,7 @@ async function handleConfirm(
       contentLength,
     });
   } catch (err) {
-    await deleteBestEffort(config, bucket, key, route.client);
+    await deleteBestEffort(bucket, key, route.client);
     throw err;
   }
 
@@ -84,7 +82,7 @@ async function handleConfirm(
     lastModified: head.LastModified?.toISOString(),
   };
 
-  await runLifecycleHook(route.upload?.onConfirmed, context);
+  await runLifecycleHook(route.upload.onConfirmed, context);
 
   return {
     key,

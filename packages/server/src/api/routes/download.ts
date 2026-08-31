@@ -7,15 +7,13 @@ import {
   type PresignResponse,
 } from "@dimah-s3/core";
 import {
-  getResolvedRoute,
   headObjectOrNotFound,
   normalizeExpiresIn,
-  resolveStoredTarget,
+  openStoredTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
-import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleDownload(
@@ -23,18 +21,19 @@ async function handleDownload(
   input: typeof downloadQuerySchema._output,
   request: Request,
 ): Promise<PresignResponse> {
-  const route = getResolvedRoute(config, input.route);
-  assertFeatureEnabled(route, "download");
-  await runHook(route.guard, { request, route: route.name });
-
-  const { key, bucket } = resolveStoredTarget(route, input.key);
+  const { route, key, bucket } = await openStoredTarget(
+    config,
+    input,
+    request,
+    "download",
+  );
   const expiresIn = normalizeExpiresIn(
-    route.download?.expiresIn,
+    route.download.expiresIn,
     config.maxExpiresIn,
   );
   const fileName = input.fileName;
 
-  await runHook(route.download?.guard, {
+  await runHook(route.download.guard, {
     request,
     route: route.name,
     key,
@@ -56,7 +55,7 @@ async function handleDownload(
     { expiresIn },
   );
 
-  await runLifecycleHook(route.download?.onPresigned, {
+  await runLifecycleHook(route.download.onPresigned, {
     request,
     route: route.name,
     key,

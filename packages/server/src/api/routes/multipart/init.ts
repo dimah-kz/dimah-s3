@@ -11,13 +11,12 @@ import {
 import { errors } from "@/errors";
 import {
   assertDeclaredConstraints,
-  getResolvedRoute,
+  openRoute,
   resolveUploadTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
-import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleMultipartInit(
@@ -25,9 +24,7 @@ async function handleMultipartInit(
   input: typeof multipartInitBodySchema._output,
   request: Request,
 ): Promise<MultipartInitResponse> {
-  const route = getResolvedRoute(config, input.route);
-  assertFeatureEnabled(route, "multipart");
-  await runHook(route.guard, { request, route: route.name });
+  const route = await openRoute(config, input.route, request, "multipart");
 
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
@@ -48,7 +45,7 @@ async function handleMultipartInit(
     clientMetadata: input.metadata,
   });
 
-  await runHook(route.upload?.guard, {
+  await runHook(route.upload.guard, {
     request,
     route: route.name,
     key,
@@ -76,7 +73,7 @@ async function handleMultipartInit(
     throw errors.internalError();
   }
 
-  await runLifecycleHook(route.upload?.multipart?.onInit, {
+  await runLifecycleHook(route.upload.multipart.onInit, {
     request,
     route: route.name,
     key,

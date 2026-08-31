@@ -4,14 +4,12 @@ import {
   type MultipartListPartsResponse,
 } from "@dimah-s3/core";
 import {
-  getResolvedRoute,
   listAllParts,
-  resolveStoredTarget,
+  openStoredTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
-import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleListParts(
@@ -19,14 +17,15 @@ async function handleListParts(
   input: typeof multipartListPartsQuerySchema._output,
   request: Request,
 ): Promise<MultipartListPartsResponse> {
-  const route = getResolvedRoute(config, input.route);
-  assertFeatureEnabled(route, "multipart");
-  await runHook(route.guard, { request, route: route.name });
-
-  const { key, bucket } = resolveStoredTarget(route, input.key);
+  const { route, key, bucket } = await openStoredTarget(
+    config,
+    input,
+    request,
+    "multipart",
+  );
   const uploadId = input.uploadId;
 
-  await runHook(route.upload?.multipart?.sessionGuard, {
+  await runHook(route.upload.multipart.sessionGuard, {
     request,
     route: route.name,
     key,
@@ -43,7 +42,7 @@ async function handleListParts(
     eTag: (p.ETag ?? "").replace(/"/g, ""),
   }));
 
-  await runLifecycleHook(route.upload?.multipart?.onList, {
+  await runLifecycleHook(route.upload.multipart.onList, {
     request,
     route: route.name,
     key,

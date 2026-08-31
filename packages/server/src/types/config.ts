@@ -186,7 +186,7 @@ export type ResolvedFeature<T> = T & { enabled: boolean };
 
 export type ResolvedUploadConfig = Omit<UploadConfig, "multipart"> & {
   enabled: boolean;
-  multipart?: ResolvedFeature<MultipartConfig>;
+  multipart: ResolvedFeature<MultipartConfig>;
 };
 
 /** One named route after {@link dimahS3} normalizes booleans, inheritance, and plugin hooks. */
@@ -198,9 +198,9 @@ export type ResolvedRoutePolicy = {
   keyPrefix: string | false;
   guard?: DimahS3RouteConfig["guard"];
   skippedPluginIds: ReadonlySet<string>;
-  upload?: ResolvedUploadConfig;
-  download?: ResolvedFeature<DownloadConfig>;
-  delete?: ResolvedFeature<DeleteConfig>;
+  upload: ResolvedUploadConfig;
+  download: ResolvedFeature<DownloadConfig>;
+  delete: ResolvedFeature<DeleteConfig>;
 };
 
 /** Instance config after {@link dimahS3} normalizes routes and plugins. */

@@ -31,7 +31,9 @@ function route(
     bucket: "bucket",
     keyPrefix: "uploads",
     skippedPluginIds: new Set(),
-    upload: { enabled: true },
+    upload: { enabled: true, multipart: { enabled: false } },
+    download: { enabled: false },
+    delete: { enabled: false },
     ...overrides,
   };
 }
@@ -48,30 +50,12 @@ describe("assertSafeObjectKey", () => {
 });
 
 describe("generateObjectKey", () => {
-  it("prefixes a generated uuid/filename leaf", () => {
+  it("joins a folder with a uuid/filename leaf", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
-    expect(generateObjectKey("uploads", ctx())).toBe(
+    expect(generateObjectKey("uploads", "a.png")).toBe(
       "uploads/11111111-1111-1111-1111-111111111111/a.png",
-    );
-  });
-
-  it("defaults to keyPrefix/uuid/filename when no prefix is set", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    expect(generateObjectKey(undefined, ctx())).toBe(
-      "uploads/11111111-1111-1111-1111-111111111111/a.png",
-    );
-  });
-
-  it("nests a custom prefix under keyPrefix", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    expect(generateObjectKey("media", ctx())).toBe(
-      "uploads/media/11111111-1111-1111-1111-111111111111/a.png",
     );
   });
 });
@@ -83,6 +67,7 @@ describe("resolveUploadTarget", () => {
         route({
           upload: {
             enabled: true,
+            multipart: { enabled: false },
             object: ({ file }: ObjectContext) => ({
               prefix: "uploads",
               key: `users/1/${file.name}`,
@@ -106,6 +91,7 @@ describe("resolveUploadTarget", () => {
         route({
           upload: {
             enabled: true,
+            multipart: { enabled: false },
             object: () => ({
               prefix: "media",
               metadata: { author: "user_123" },
@@ -122,12 +108,22 @@ describe("resolveUploadTarget", () => {
     });
   });
 
+  it("defaults to keyPrefix/uuid/filename", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    await expect(resolveUploadTarget(route(), ctx())).resolves.toMatchObject({
+      key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
+    });
+  });
+
   it("does not double-prefix a key already under keyPrefix", async () => {
     await expect(
       resolveUploadTarget(
         route({
           upload: {
             enabled: true,
+            multipart: { enabled: false },
             object: () => ({ key: "uploads/stable.png" }),
           },
         }),
@@ -142,6 +138,7 @@ describe("resolveUploadTarget", () => {
         route({
           upload: {
             enabled: true,
+            multipart: { enabled: false },
             acl: "private",
             object: () => ({ key: "a.png", acl: "public-read" }),
           },
@@ -154,12 +151,24 @@ describe("resolveUploadTarget", () => {
     });
   });
 
+  it("uses the route name as folder when keyPrefix is false", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    await expect(
+      resolveUploadTarget(route({ keyPrefix: false }), ctx()),
+    ).resolves.toMatchObject({
+      key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
+    });
+  });
+
   it("maps a plain Error from object() to FORBIDDEN", async () => {
     await expect(
       resolveUploadTarget(
         route({
           upload: {
             enabled: true,
+            multipart: { enabled: false },
             object: () => {
               throw new Error("not signed in");
             },
@@ -180,6 +189,7 @@ describe("resolveUploadTarget", () => {
         route({
           upload: {
             enabled: true,
+            multipart: { enabled: false },
             object: () => {
               throw errors.unauthorized();
             },

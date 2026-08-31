@@ -8,11 +8,7 @@ import type {
   ResolvedRoutePolicy,
 } from "@/types";
 import { chainHooks } from "./chain-hooks";
-import {
-  FEATURE_HOOK_KEYS,
-  MULTIPART_HOOK_KEYS,
-  type FeatureName,
-} from "./hook-registry";
+import { FEATURE_HOOK_KEYS, MULTIPART_HOOK_KEYS } from "./hook-registry";
 import {
   RESERVED_PLUGIN_IDS,
   type AppliedPlugins,
@@ -21,6 +17,7 @@ import {
 } from "./types";
 
 type HookFn = ((context: never) => Promise<void> | void) | undefined;
+type HookBag = Record<string, HookFn>;
 
 function mergeHookField(
   pluginHooks: HookFn[],
@@ -34,57 +31,21 @@ function mergeHookField(
   return chainHooks(...present) as HookFn;
 }
 
-function mergeFeatureHooks<F extends FeatureName>(
-  feature: F,
-  keys: readonly (typeof FEATURE_HOOK_KEYS)[F][number][],
+function mergeHooks<T extends object>(
+  keys: readonly string[],
   plugins: readonly DimahS3Plugin[],
-  userFeature: ResolvedRoutePolicy[F],
-): ResolvedRoutePolicy[F] {
-  if (!userFeature && plugins.every((p) => !p.hooks?.[feature])) {
-    return userFeature;
-  }
-
-  const merged: Record<string, unknown> = { ...(userFeature ?? {}) };
-
+  userFeature: T,
+  pick: (plugin: DimahS3Plugin) => HookBag | undefined,
+): T {
+  const merged: HookBag = { ...(userFeature as HookBag) };
   for (const key of keys) {
-    const fromPlugins = plugins.map(
-      (p) => (p.hooks?.[feature] as Record<string, HookFn> | undefined)?.[key],
+    const next = mergeHookField(
+      plugins.map((plugin) => pick(plugin)?.[key]),
+      (userFeature as HookBag)[key],
     );
-    const userHook = (userFeature as Record<string, HookFn> | undefined)?.[key];
-    const next = mergeHookField(fromPlugins, userHook);
-    if (next !== undefined) {
-      merged[key] = next;
-    }
+    if (next !== undefined) merged[key] = next;
   }
-
-  return merged as ResolvedRoutePolicy[F];
-}
-
-function mergeMultipartHooks(
-  plugins: readonly DimahS3Plugin[],
-  userFeature: NonNullable<ResolvedRoutePolicy["upload"]>["multipart"],
-): NonNullable<ResolvedRoutePolicy["upload"]>["multipart"] {
-  if (!userFeature && plugins.every((p) => !p.hooks?.upload?.multipart)) {
-    return userFeature;
-  }
-
-  const merged: Record<string, unknown> = { ...(userFeature ?? {}) };
-
-  for (const key of MULTIPART_HOOK_KEYS) {
-    const fromPlugins = plugins.map(
-      (p) =>
-        (p.hooks?.upload?.multipart as Record<string, HookFn> | undefined)?.[
-          key
-        ],
-    );
-    const userHook = (userFeature as Record<string, HookFn> | undefined)?.[key];
-    const next = mergeHookField(fromPlugins, userHook);
-    if (next !== undefined) {
-      merged[key] = next;
-    }
-  }
-
-  return merged as NonNullable<ResolvedRoutePolicy["upload"]>["multipart"];
+  return merged as T;
 }
 
 function applyHooksToRoute(
@@ -92,28 +53,53 @@ function applyHooksToRoute(
   plugins: readonly DimahS3Plugin[],
 ): ResolvedRoutePolicy {
   const active = plugins.filter((p) => !route.skippedPluginIds.has(p.id));
-  const next: ResolvedRoutePolicy = { ...route };
-  for (const feature of Object.keys(FEATURE_HOOK_KEYS) as FeatureName[]) {
-    next[feature] = mergeFeatureHooks(
-      feature,
-      FEATURE_HOOK_KEYS[feature],
-      active,
-      next[feature],
-    );
-  }
-  if (next.upload) {
-    next.upload = {
-      ...next.upload,
-      multipart: mergeMultipartHooks(active, next.upload.multipart),
-    };
-  }
-  return next;
+
+  const upload = route.upload.enabled
+    ? {
+        ...mergeHooks(
+          FEATURE_HOOK_KEYS.upload,
+          active,
+          route.upload,
+          (p) => p.hooks?.upload as HookBag | undefined,
+        ),
+        multipart: route.upload.multipart.enabled
+          ? mergeHooks(
+              MULTIPART_HOOK_KEYS,
+              active,
+              route.upload.multipart,
+              (p) => p.hooks?.upload?.multipart as HookBag | undefined,
+            )
+          : route.upload.multipart,
+      }
+    : route.upload;
+
+  return {
+    ...route,
+    upload,
+    download: route.download.enabled
+      ? mergeHooks(
+          FEATURE_HOOK_KEYS.download,
+          active,
+          route.download,
+          (p) => p.hooks?.download as HookBag | undefined,
+        )
+      : route.download,
+    delete: route.delete.enabled
+      ? mergeHooks(
+          FEATURE_HOOK_KEYS.delete,
+          active,
+          route.delete,
+          (p) => p.hooks?.delete as HookBag | undefined,
+        )
+      : route.delete,
+  };
 }
 
 /**
  * Validate plugins, build context map, collect endpoints, run `init`,
  * and merge hooks into each route.
  * Plugin hooks run in array order; user hooks run last.
+ * Hooks are not merged onto a feature that is off for that route.
  */
 export function applyPlugins<
   const P extends readonly DimahS3Plugin[],

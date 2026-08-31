@@ -10,7 +10,7 @@ export type ResolvedObject = {
   acl: S3ObjectAcl;
 };
 
-export type RouteKeyPrefix = string | false;
+type RouteKeyPrefix = ResolvedRoutePolicy["keyPrefix"];
 
 /**
  * Strip leading/trailing slashes and reject `.` / `..` / empty segments,
@@ -66,30 +66,22 @@ export function assertStoredKey(
   throw errors.invalidKey();
 }
 
-/** Generate a key from an optional folder plus uuid/filename. */
-export function generateObjectKey(
-  prefix: string | undefined,
-  context: ObjectContext,
-  keyPrefix: RouteKeyPrefix = context.keyPrefix,
-): string {
-  const leaf = `${crypto.randomUUID()}/${sanitizeFileName(context.file.name)}`;
-  const folder =
-    prefix != null && prefix !== ""
-      ? nestKeyUnderPrefix(keyPrefix, prefix)
-      : keyPrefix === false
-        ? context.route
-        : keyPrefix;
-  return applyPrefix(folder, leaf);
+/** `{folder}/{uuid}/{sanitizedName}` — `folder` is already namespaced. */
+export function generateObjectKey(folder: string, fileName: string): string {
+  return applyPrefix(
+    folder,
+    `${crypto.randomUUID()}/${sanitizeFileName(fileName)}`,
+  );
 }
 
 function resolveAcl(
   info: ObjectInfo | void,
   route: ResolvedRoutePolicy,
 ): ResolvedObject["acl"] {
-  return info?.acl ?? route.upload?.acl ?? "private";
+  return info?.acl ?? route.upload.acl ?? "private";
 }
 
-async function resolveObject(
+export async function resolveUploadTarget(
   route: ResolvedRoutePolicy,
   context: Omit<ObjectContext, "bucket" | "keyPrefix">,
 ): Promise<ResolvedObject> {
@@ -100,23 +92,23 @@ async function resolveObject(
     keyPrefix: route.keyPrefix,
   };
   const info =
-    (await runObjectHook(route.upload?.object, objectContext)) ?? undefined;
+    (await runObjectHook(route.upload.object, objectContext)) ?? undefined;
   const key = info?.key
     ? nestKeyUnderPrefix(route.keyPrefix, info.key)
-    : generateObjectKey(info?.prefix, objectContext, route.keyPrefix);
+    : generateObjectKey(
+        info?.prefix != null && info.prefix !== ""
+          ? nestKeyUnderPrefix(route.keyPrefix, info.prefix)
+          : route.keyPrefix === false
+            ? context.route
+            : route.keyPrefix,
+        context.file.name,
+      );
   return {
     key,
     bucket,
     metadata: info?.metadata,
     acl: resolveAcl(info, route),
   };
-}
-
-export async function resolveUploadTarget(
-  route: ResolvedRoutePolicy,
-  context: Omit<ObjectContext, "bucket" | "keyPrefix">,
-): Promise<ResolvedObject> {
-  return resolveObject(route, context);
 }
 
 export function resolveStoredTarget(

@@ -203,13 +203,13 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    await merged.config.routes.uploads.upload?.guard?.({
+    await merged.config.routes.uploads.upload.guard?.({
       request: new Request("http://localhost"),
       route: "uploads",
       key: "a.png",
       bucket: "bucket",
     });
-    expect(merged.config.routes.uploads.upload?.enabled).toBe(true);
+    expect(merged.config.routes.uploads.upload.enabled).toBe(true);
     expect(order).toEqual(["plugin", "user"]);
   });
 
@@ -230,8 +230,8 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    expect(merged.config.routes.uploads.upload?.guard).toBe(pluginGuard);
-    expect(merged.config.routes.scratch.upload?.guard).toBeUndefined();
+    expect(merged.config.routes.uploads.upload.guard).toBe(pluginGuard);
+    expect(merged.config.routes.scratch.upload.guard).toBeUndefined();
   });
 
   it("builds context and runs init", () => {
@@ -268,7 +268,7 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    expect(merged.config.routes.uploads.upload?.acl).toBe("private");
+    expect(merged.config.routes.uploads.upload.acl).toBe("private");
   });
 
   it("merges nested upload.multipart hooks plugins-first", async () => {
@@ -301,15 +301,41 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    await merged.config.routes.uploads.upload?.multipart?.onAbort?.({
+    await merged.config.routes.uploads.upload.multipart.onAbort?.({
       request: new Request("http://localhost"),
       route: "uploads",
       key: "a.bin",
       bucket: "bucket",
       uploadId: "up-1",
     });
-    expect(merged.config.routes.uploads.upload?.multipart?.enabled).toBe(true);
+    expect(merged.config.routes.uploads.upload.multipart.enabled).toBe(true);
     expect(order).toEqual(["plugin", "user"]);
+  });
+
+  it("does not merge plugin hooks onto a disabled feature", () => {
+    const downloadGuard = vi.fn();
+    const multipartAbort = vi.fn();
+    const merged = applyPlugins({
+      ...config([
+        definePlugin({
+          id: "p",
+          hooks: {
+            download: { guard: downloadGuard },
+            upload: {
+              multipart: { onAbort: multipartAbort },
+            },
+          },
+        }),
+      ]),
+      routes: {
+        uploads: route({ upload: true }),
+      },
+    });
+
+    expect(merged.config.routes.uploads.download.enabled).toBe(false);
+    expect(merged.config.routes.uploads.download.guard).toBeUndefined();
+    expect(merged.config.routes.uploads.upload.multipart.enabled).toBe(false);
+    expect(merged.config.routes.uploads.upload.multipart.onAbort).toBeUndefined();
   });
 
   it("requires at least one route", () => {

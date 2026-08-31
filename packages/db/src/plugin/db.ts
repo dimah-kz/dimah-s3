@@ -69,7 +69,7 @@ export function db(options: DbPluginOptions) {
   return definePlugin({
     id: "db",
     init({ config }) {
-      const routes = Object.values(config.routes ?? {});
+      const routes = Object.values(config.routes);
       const hasLifecycle = routes.some(
         (r) => r.upload !== false || Boolean(r.download) || Boolean(r.delete),
       );

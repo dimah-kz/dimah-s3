@@ -5,6 +5,7 @@ import type {
   DownloadConfig,
   FeatureToggle,
   MultipartConfig,
+  ResolvedFeature,
   ResolvedRoutePolicy,
   UploadConfig,
 } from "@/types";
@@ -25,12 +26,14 @@ function resolveKeyPrefix(
   return normalized;
 }
 
+/** `true` / options → enabled; omit / `false` → disabled. */
 export function normalizeFeature<T extends object>(
   value: FeatureToggle<T> | undefined,
-): (T & { enabled: boolean }) | undefined {
-  if (value === undefined) return undefined;
-  if (value === false) return { enabled: false } as T & { enabled: boolean };
-  if (value === true) return { enabled: true } as T & { enabled: boolean };
+): ResolvedFeature<T> {
+  if (value === undefined || value === false) {
+    return { enabled: false } as ResolvedFeature<T>;
+  }
+  if (value === true) return { enabled: true } as ResolvedFeature<T>;
   return { ...value, enabled: true };
 }
 
@@ -83,20 +86,9 @@ export function normalizeRoute(
   const upload = normalizeFeature(uploadInput);
   const download = normalizeFeature<DownloadConfig>(route.download);
   const deleteFeature = normalizeFeature<DeleteConfig>(route.delete);
-  const multipart = normalizeFeature<MultipartConfig>(
-    multipartInput === undefined ? false : multipartInput,
-  );
+  const multipart = normalizeFeature<MultipartConfig>(multipartInput);
 
-  const resolvedMultipart =
-    upload?.enabled === true
-      ? multipart
-      : ({ enabled: false } as MultipartConfig & { enabled: boolean });
-
-  if (
-    upload?.enabled !== true &&
-    download?.enabled !== true &&
-    deleteFeature?.enabled !== true
-  ) {
+  if (!upload.enabled && !download.enabled && !deleteFeature.enabled) {
     throw new Error(
       `dimahS3 route "${name}": enable upload, download, or delete.`,
     );
@@ -109,7 +101,10 @@ export function normalizeRoute(
     keyPrefix: resolveKeyPrefix(name, route.keyPrefix),
     guard: route.guard,
     skippedPluginIds: skippedPluginIds(route.plugins),
-    upload: upload ? { ...upload, multipart: resolvedMultipart } : upload,
+    upload: {
+      ...upload,
+      multipart: upload.enabled ? multipart : { enabled: false },
+    },
     download,
     delete: deleteFeature,
   };
@@ -118,7 +113,7 @@ export function normalizeRoute(
 export function normalizeRoutes(
   config: DimahS3Config,
 ): Record<string, ResolvedRoutePolicy> {
-  const entries = Object.entries(config.routes ?? {});
+  const entries = Object.entries(config.routes);
   if (entries.length === 0) {
     throw new Error("dimahS3: at least one route is required.");
   }

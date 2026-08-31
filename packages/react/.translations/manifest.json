@@ -40,7 +40,6 @@
     "Pause(upload control)",
     "Preparing…(upload status)",
     "Something went wrong(API error)",
-    "Storage is misconfigured(API error)",
     "Unauthorized(API error)",
     "Unknown error(fallback)",
     "Unknown file route(API error)",

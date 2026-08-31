@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildContentDisposition } from "./build-content-disposition";
 import { buildObjectKey } from "./build-object-key";
-import { defaultObjectKey } from "./default-object-key";
 import { formatFileSize } from "./format-file-size";
 import { getFileExtension } from "./get-file-extension";
 import { parseFileName } from "./parse-file-name";
@@ -71,15 +70,6 @@ describe("getFileExtension", () => {
     [".gitignore", ""],
   ])("%s → %s", (name, ext) => {
     expect(getFileExtension(name)).toBe(ext);
-  });
-});
-
-describe("defaultObjectKey", () => {
-  it("prefixes a UUID and sanitizes the file name", () => {
-    const key = defaultObjectKey(new File(["x"], 'a"b.png'));
-    expect(key).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/a_b\.png$/i,
-    );
   });
 });
 

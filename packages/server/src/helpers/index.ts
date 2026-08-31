@@ -13,7 +13,13 @@ export {
   resolveUploadTarget,
 } from "./resolve-target";
 export type { ResolvedObject } from "./resolve-target";
-export { getResolvedRoute } from "./resolve-route";
+export {
+  assertFeatureEnabled,
+  getResolvedRoute,
+  openRoute,
+  openStoredTarget,
+} from "./resolve-route";
+export type { FeatureFlag } from "./resolve-route";
 export {
   assertDeclaredConstraints,
   assertVerifiedConstraints,

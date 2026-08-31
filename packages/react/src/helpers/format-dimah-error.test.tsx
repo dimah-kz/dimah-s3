@@ -55,9 +55,6 @@ describe("useFormatDimahError", () => {
       ),
     ).toBe("File type is not allowed");
     expect(
-      format(DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.INVALID_BUCKET)),
-    ).toBe("Storage is misconfigured");
-    expect(
       format(
         DimahS3Error.from("BAD_REQUEST", {
           ...S3_ERROR_CODES.MULTIPART_PART_MISSING,

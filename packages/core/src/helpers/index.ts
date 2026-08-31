@@ -6,5 +6,4 @@ export { parseFileName } from "./parse-file-name";
 export { formatFileSize } from "./format-file-size";
 export { buildContentDisposition } from "./build-content-disposition";
 export { sanitizeFileName } from "./sanitize-file-name";
-export { defaultObjectKey } from "./default-object-key";
 export { truncateFileName } from "./truncate-file-name";

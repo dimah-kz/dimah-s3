@@ -27,7 +27,6 @@ export const S3_ERROR_CODES = defineErrorCodes({
   OBJECT_NOT_FOUND: "Object not found",
   FEATURE_DISABLED: "{feature} is disabled",
   INVALID_KEY: "Object key is invalid",
-  INVALID_BUCKET: "Bucket is not allowed",
   UNKNOWN_ROUTE: "Unknown file route",
   FILE_TYPE_NOT_ALLOWED: "File type is not allowed",
   S3_NETWORK_ERROR:

@@ -32,7 +32,6 @@ export {
   DimahS3Error,
   S3_ERROR_CODES,
   buildObjectKey,
-  defaultObjectKey,
   formatFileSize,
   isAPIError,
   isDimahS3Error,

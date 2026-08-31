@@ -44,13 +44,6 @@ export const errors = {
   invalidKey: () =>
     DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY),
 
-  invalidBucket: (bucket: string) =>
-    DimahS3Error.from("FORBIDDEN", {
-      code: S3_ERROR_CODES.INVALID_BUCKET.code,
-      message: S3_ERROR_CODES.INVALID_BUCKET.message,
-      params: { bucket },
-    }),
-
   unknownRoute: (route: string) =>
     DimahS3Error.from("NOT_FOUND", {
       code: S3_ERROR_CODES.UNKNOWN_ROUTE.code,

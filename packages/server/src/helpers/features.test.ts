@@ -10,7 +10,8 @@ describe("normalizeFeature / routes", () => {
     expect(normalizeFeature(true)).toEqual({ enabled: true });
   });
 
-  it("treats a bare false as disabled", () => {
+  it("treats omit or false as disabled", () => {
+    expect(normalizeFeature(undefined)).toEqual({ enabled: false });
     expect(normalizeFeature(false)).toEqual({ enabled: false });
   });
 
@@ -26,9 +27,10 @@ describe("normalizeFeature / routes", () => {
       client,
       bucket: "bucket",
     });
-    expect(resolved.upload?.enabled).toBe(true);
-    expect(resolved.download?.enabled).toBeUndefined();
-    expect(resolved.upload?.multipart?.enabled).toBe(false);
+    expect(resolved.upload.enabled).toBe(true);
+    expect(resolved.download.enabled).toBe(false);
+    expect(resolved.delete.enabled).toBe(false);
+    expect(resolved.upload.multipart.enabled).toBe(false);
   });
 
   it("keeps file constraints on the upload policy", () => {
@@ -44,10 +46,10 @@ describe("normalizeFeature / routes", () => {
       }),
       { client, bucket: "bucket" },
     );
-    expect(resolved.upload?.fileTypes).toEqual(["image/*"]);
-    expect(resolved.upload?.maxFileSize).toBe(1024);
-    expect(resolved.upload?.acl).toBe("public-read");
-    expect(resolved.upload?.method).toBe("PUT");
+    expect(resolved.upload.fileTypes).toEqual(["image/*"]);
+    expect(resolved.upload.maxFileSize).toBe(1024);
+    expect(resolved.upload.acl).toBe("public-read");
+    expect(resolved.upload.method).toBe("PUT");
     expect(resolved).not.toHaveProperty("fileTypes");
     expect(resolved).not.toHaveProperty("expiresIn");
     expect(resolved.keyPrefix).toBe("uploads");
@@ -91,7 +93,7 @@ describe("normalizeFeature / routes", () => {
       route({ upload: { multipart: false } }),
       { client, bucket: "bucket" },
     );
-    expect(resolved.upload?.multipart?.enabled).toBe(false);
+    expect(resolved.upload.multipart.enabled).toBe(false);
   });
 
   it("enables multipart on the upload policy", () => {
@@ -100,8 +102,8 @@ describe("normalizeFeature / routes", () => {
       route({ upload: { multipart: true } }),
       { client, bucket: "bucket" },
     );
-    expect(resolved.upload?.enabled).toBe(true);
-    expect(resolved.upload?.multipart?.enabled).toBe(true);
+    expect(resolved.upload.enabled).toBe(true);
+    expect(resolved.upload.multipart.enabled).toBe(true);
   });
 
   it("keeps multipart off when upload is disabled", () => {
@@ -110,8 +112,8 @@ describe("normalizeFeature / routes", () => {
       route({ upload: false, download: true }),
       { client, bucket: "bucket" },
     );
-    expect(resolved.upload?.enabled).toBe(false);
-    expect(resolved.upload?.multipart?.enabled).toBe(false);
+    expect(resolved.upload.enabled).toBe(false);
+    expect(resolved.upload.multipart.enabled).toBe(false);
   });
 
   it("rejects a route with every operation off", () => {

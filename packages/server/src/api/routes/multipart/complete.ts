@@ -14,18 +14,16 @@ import { errors } from "@/errors";
 import {
   assertVerifiedConstraints,
   assertWithinMaxFileSize,
-  getResolvedRoute,
   headObjectAfterMultipartComplete,
   listAllParts,
+  openStoredTarget,
   requireContentLength,
   resolveObjectAcl,
-  resolveStoredTarget,
   runHook,
   runLifecycleHook,
   sendOrObjectNotFound,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
-import { assertFeatureEnabled } from "@/api/assert-feature-enabled";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleComplete(
@@ -33,18 +31,19 @@ async function handleComplete(
   input: typeof multipartCompleteBodySchema._output,
   request: Request,
 ): Promise<MultipartCompleteResponse> {
-  const route = getResolvedRoute(config, input.route);
-  assertFeatureEnabled(route, "multipart");
-  await runHook(route.guard, { request, route: route.name });
-
-  const { key, bucket } = resolveStoredTarget(route, input.key);
+  const { route, key, bucket } = await openStoredTarget(
+    config,
+    input,
+    request,
+    "multipart",
+  );
   const uploadId = input.uploadId;
   const parts = input.parts
     .map(({ partNumber }) => partNumber)
     .sort((a, b) => a - b);
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
-  await runHook(route.upload?.confirmGuard, {
+  await runHook(route.upload.confirmGuard, {
     request,
     route: route.name,
     key,
@@ -70,7 +69,7 @@ async function handleComplete(
   });
 
   try {
-    assertWithinMaxFileSize(route.upload?.maxFileSize, assembledBytes);
+    assertWithinMaxFileSize(route.upload.maxFileSize, assembledBytes);
   } catch (err) {
     try {
       await route.client.send(
@@ -133,7 +132,7 @@ async function handleComplete(
     ? await resolveObjectAcl(route.client, bucket, key)
     : undefined;
 
-  await runLifecycleHook(route.upload?.onConfirmed, {
+  await runLifecycleHook(route.upload.onConfirmed, {
     request,
     route: route.name,
     key,

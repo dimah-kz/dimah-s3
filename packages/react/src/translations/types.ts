@@ -39,7 +39,6 @@ export type Translations = {
   "Pause(upload control)": string;
   "Preparing…(upload status)": string;
   "Something went wrong(API error)": string;
-  "Storage is misconfigured(API error)": string;
   "Unauthorized(API error)": string;
   "Unknown error(fallback)": string;
   "Unknown file route(API error)": string;
