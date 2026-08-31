@@ -86,7 +86,7 @@ Templates stay outside the monorepo workspace. Root scripts:
 | `pnpm examples:drift`   | Shared app source must match `examples/with-*`    |
 | `pnpm deps:update`      | `pnpm -r update --latest` then `templates:update` |
 
-Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`. Framework template twins live in `examples/with-{nextjs,vite,hono}`; keep shared source identical (`pnpm examples:drift`). `examples/with-db` is not a template twin.
+Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`. Framework template twins live in `examples/with-{nextjs,vite}`; keep shared source identical (`pnpm examples:drift`). `templates/hono` has no example twin. `examples/with-db` is not a template twin.
 
 ## Adding a template
 

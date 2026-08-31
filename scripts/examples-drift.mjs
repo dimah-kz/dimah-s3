@@ -39,7 +39,6 @@ function shouldIgnoreName(name) {
 const PAIRS = [
   { template: "nextjs", example: "with-nextjs" },
   { template: "vite", example: "with-vite" },
-  { template: "hono", example: "with-hono" },
 ];
 
 /**

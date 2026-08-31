@@ -31,7 +31,7 @@
 | Scaffold CLI (`dimah-s3 create`)                                                                                                                   | `packages/cli/`                                               |
 | shadcn manifests                                                                                                                                   | `packages/ui/scripts/registry-items.ts`; root `registry.json` |
 | Docs site copy                                                                                                                                     | `apps/docs/`                                                  |
-| Runnable demo (same as template, `workspace:*`)                                                                                                    | `examples/with-{nextjs,vite,hono}/`                           |
+| Runnable demo (same as template, `workspace:*`)                                                                                                    | `examples/with-{nextjs,vite}/`                                |
 | Runnable demo + `@dimah-s3/db`                                                                                                                     | `examples/with-db/`                                           |
 | User-facing app starters (`@dimah-s3/cli` snapshot source)                                                                                         | `templates/<id>/`                                             |
 | Shared ESLint / TSConfig                                                                                                                           | `tooling/{eslint,typescript}-config/`                         |
