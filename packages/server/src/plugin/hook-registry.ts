@@ -1,12 +1,26 @@
+import type {
+  DeleteConfig,
+  DownloadConfig,
+  MultipartConfig,
+  RouteFeature,
+  UploadConfig,
+} from "@/types/config";
+
 /**
- * Single source of truth for which hook keys plugins may contribute per
- * feature. {@link applyPlugins} merges these ahead of user config hooks.
+ * Hook keys a plugin may contribute per route feature.
+ * {@link applyPlugins} merges these ahead of user config hooks.
  */
 export const FEATURE_HOOK_KEYS = {
   upload: ["guard", "onPresigned", "confirmGuard", "onConfirmed"],
   download: ["guard", "onPresigned"],
   delete: ["guard", "onDeleted"],
-} as const;
+} as const satisfies {
+  [K in RouteFeature]: readonly (keyof (K extends "upload"
+    ? UploadConfig
+    : K extends "download"
+      ? DownloadConfig
+      : DeleteConfig))[];
+};
 
 /** Nested under `upload.multipart` — init/complete share upload hooks. */
 export const MULTIPART_HOOK_KEYS = [
@@ -14,6 +28,7 @@ export const MULTIPART_HOOK_KEYS = [
   "sessionGuard",
   "onAbort",
   "onList",
-] as const;
+] as const satisfies readonly (keyof MultipartConfig)[];
 
-export type FeatureName = keyof typeof FEATURE_HOOK_KEYS;
+export type FeatureHookKeyMap = typeof FEATURE_HOOK_KEYS;
+export type MultipartHookKey = (typeof MULTIPART_HOOK_KEYS)[number];

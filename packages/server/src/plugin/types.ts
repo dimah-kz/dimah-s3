@@ -7,24 +7,22 @@ import type {
   DimahS3Config,
   ResolvedDimahS3Config,
 } from "@/types/config";
+import type { FeatureHookKeyMap, MultipartHookKey } from "./hook-registry";
+
+type HookFields<T, K extends keyof T> = Pick<T, K>;
 
 /**
  * Hook fields a plugin may contribute. Scalars like `method` /
- * `object` / `acl` stay user-owned on the route `upload` policy.
+ * `object` / `acl` stay user-owned on the route `upload` feature.
+ * Keys come from {@link FEATURE_HOOK_KEYS} / {@link MULTIPART_HOOK_KEYS}.
  */
 export type DimahS3PluginHooks = {
   guard?: DimahS3Config["guard"];
-  upload?: Pick<
-    UploadConfig,
-    "guard" | "onPresigned" | "confirmGuard" | "onConfirmed"
-  > & {
-    multipart?: Pick<
-      MultipartConfig,
-      "onInit" | "sessionGuard" | "onAbort" | "onList"
-    >;
+  upload?: HookFields<UploadConfig, FeatureHookKeyMap["upload"][number]> & {
+    multipart?: HookFields<MultipartConfig, MultipartHookKey>;
   };
-  download?: Pick<DownloadConfig, "guard" | "onPresigned">;
-  delete?: Pick<DeleteConfig, "guard" | "onDeleted">;
+  download?: HookFields<DownloadConfig, FeatureHookKeyMap["download"][number]>;
+  delete?: HookFields<DeleteConfig, FeatureHookKeyMap["delete"][number]>;
 };
 
 /**

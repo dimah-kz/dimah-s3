@@ -3,6 +3,7 @@ import { definePlugin } from "@/index";
 import { applyPlugins } from "./apply-plugins";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 import { route } from "@/route";
+import { isEnabled } from "@/helpers/features";
 import type { DimahS3Config } from "@/types";
 
 function config(
@@ -203,13 +204,15 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    await merged.config.routes.uploads.upload.guard?.({
+    const upload = merged.config.routes.uploads.upload;
+    if (!isEnabled(upload)) throw new Error("expected upload");
+    await upload.guard?.({
       request: new Request("http://localhost"),
       route: "uploads",
       key: "a.png",
       bucket: "bucket",
     });
-    expect(merged.config.routes.uploads.upload.enabled).toBe(true);
+    expect(upload.enabled).toBe(true);
     expect(order).toEqual(["plugin", "user"]);
   });
 
@@ -230,8 +233,13 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    expect(merged.config.routes.uploads.upload.guard).toBe(pluginGuard);
-    expect(merged.config.routes.scratch.upload.guard).toBeUndefined();
+    const uploads = merged.config.routes.uploads.upload;
+    const scratch = merged.config.routes.scratch.upload;
+    if (!isEnabled(uploads) || !isEnabled(scratch)) {
+      throw new Error("expected upload");
+    }
+    expect(uploads.guard).toBe(pluginGuard);
+    expect(scratch.guard).toBeUndefined();
   });
 
   it("builds context and runs init", () => {
@@ -268,7 +276,9 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    expect(merged.config.routes.uploads.upload.acl).toBe("private");
+    const upload = merged.config.routes.uploads.upload;
+    if (!isEnabled(upload)) throw new Error("expected upload");
+    expect(upload.acl).toBe("private");
   });
 
   it("merges nested upload.multipart hooks plugins-first", async () => {
@@ -301,14 +311,18 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    await merged.config.routes.uploads.upload.multipart.onAbort?.({
+    const upload = merged.config.routes.uploads.upload;
+    if (!isEnabled(upload) || !isEnabled(upload.multipart)) {
+      throw new Error("expected multipart");
+    }
+    await upload.multipart.onAbort?.({
       request: new Request("http://localhost"),
       route: "uploads",
       key: "a.bin",
       bucket: "bucket",
       uploadId: "up-1",
     });
-    expect(merged.config.routes.uploads.upload.multipart.enabled).toBe(true);
+    expect(upload.multipart.enabled).toBe(true);
     expect(order).toEqual(["plugin", "user"]);
   });
 
@@ -333,9 +347,11 @@ describe("applyPlugins merge", () => {
     });
 
     expect(merged.config.routes.uploads.download.enabled).toBe(false);
-    expect(merged.config.routes.uploads.download.guard).toBeUndefined();
-    expect(merged.config.routes.uploads.upload.multipart.enabled).toBe(false);
-    expect(merged.config.routes.uploads.upload.multipart.onAbort).toBeUndefined();
+    expect("guard" in merged.config.routes.uploads.download).toBe(false);
+    const upload = merged.config.routes.uploads.upload;
+    if (!isEnabled(upload)) throw new Error("expected upload");
+    expect(upload.multipart.enabled).toBe(false);
+    expect("onAbort" in upload.multipart).toBe(false);
   });
 
   it("requires at least one route", () => {

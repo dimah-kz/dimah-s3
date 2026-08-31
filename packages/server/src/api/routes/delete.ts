@@ -18,19 +18,14 @@ async function handleDelete(
   input: typeof deleteQuerySchema._output,
   request: Request,
 ): Promise<DeleteResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
     "delete",
   );
 
-  await runHook(route.delete.guard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
-  });
+  await runHook(route.delete.guard, stored);
 
   await headObjectOrNotFound(route.client, bucket, key);
 
@@ -38,12 +33,7 @@ async function handleDelete(
     new DeleteObjectCommand({ Bucket: bucket, Key: key }),
   );
 
-  await runLifecycleHook(route.delete.onDeleted, {
-    request,
-    route: route.name,
-    key,
-    bucket,
-  });
+  await runLifecycleHook(route.delete.onDeleted, stored);
 
   return { success: true, bucket, key };
 }

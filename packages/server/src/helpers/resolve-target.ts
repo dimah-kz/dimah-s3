@@ -1,7 +1,12 @@
 import { sanitizeFileName, type S3ObjectAcl } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import { runObjectHook } from "@/helpers/hooks";
-import type { ObjectContext, ObjectInfo, ResolvedRoutePolicy } from "@/types";
+import type {
+  OpenedRoute,
+  ResolvedRoute,
+  UploadObjectContext,
+  UploadObjectInfo,
+} from "@/types";
 
 export type ResolvedObject = {
   key: string;
@@ -10,7 +15,7 @@ export type ResolvedObject = {
   acl: S3ObjectAcl;
 };
 
-type RouteKeyPrefix = ResolvedRoutePolicy["keyPrefix"];
+type RouteKeyPrefix = ResolvedRoute["keyPrefix"];
 
 /**
  * Strip leading/trailing slashes and reject `.` / `..` / empty segments,
@@ -75,18 +80,18 @@ export function generateObjectKey(folder: string, fileName: string): string {
 }
 
 function resolveAcl(
-  info: ObjectInfo | void,
-  route: ResolvedRoutePolicy,
+  info: UploadObjectInfo | void,
+  route: OpenedRoute<"upload" | "multipart">,
 ): ResolvedObject["acl"] {
   return info?.acl ?? route.upload.acl ?? "private";
 }
 
 export async function resolveUploadTarget(
-  route: ResolvedRoutePolicy,
-  context: Omit<ObjectContext, "bucket" | "keyPrefix">,
+  route: OpenedRoute<"upload" | "multipart">,
+  context: Omit<UploadObjectContext, "bucket" | "keyPrefix">,
 ): Promise<ResolvedObject> {
   const bucket = route.bucket;
-  const objectContext: ObjectContext = {
+  const objectContext: UploadObjectContext = {
     ...context,
     bucket,
     keyPrefix: route.keyPrefix,
@@ -112,7 +117,7 @@ export async function resolveUploadTarget(
 }
 
 export function resolveStoredTarget(
-  route: ResolvedRoutePolicy,
+  route: ResolvedRoute,
   key: string,
 ): { key: string; bucket: string } {
   return {

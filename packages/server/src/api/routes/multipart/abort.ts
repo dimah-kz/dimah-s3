@@ -18,7 +18,7 @@ async function handleAbort(
   input: typeof multipartAbortBodySchema._output,
   request: Request,
 ): Promise<MultipartAbortResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
@@ -27,10 +27,7 @@ async function handleAbort(
   const uploadId = input.uploadId;
 
   await runHook(route.upload.multipart.sessionGuard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
     action: "abort",
   });
@@ -46,10 +43,7 @@ async function handleAbort(
   );
 
   await runLifecycleHook(route.upload.multipart.onAbort, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
   });
 

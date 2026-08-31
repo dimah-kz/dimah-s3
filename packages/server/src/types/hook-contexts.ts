@@ -16,7 +16,12 @@ export type RouteGuardContext = GuardContext & {
   route: string;
 };
 
-type StoredObjectContext = RouteGuardContext & {
+/**
+ * Shared hook context once an object key is assigned — generated on
+ * upload / multipart init, or supplied on confirm / download / delete /
+ * multipart session ops.
+ */
+export type StoredObjectContext = RouteGuardContext & {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
@@ -31,11 +36,11 @@ export type ObjectFile = {
 };
 
 /**
- * Input to `object` on upload / multipart init.
+ * Input to `upload.object` on presign / multipart init.
  * `clientMetadata` is what the client sent — it is not written to S3
- * unless `object` copies it into {@link ObjectInfo.metadata}.
+ * unless `object` copies it into {@link UploadObjectInfo.metadata}.
  */
-export type ObjectContext = {
+export type UploadObjectContext = {
   request: Request;
   route: string;
   file: ObjectFile;
@@ -48,17 +53,17 @@ export type ObjectContext = {
   clientMetadata?: Record<string, string>;
 };
 
-/** Server-owned S3 object identity from route `object`. */
-export type ObjectInfo = {
+/** Server-owned S3 object identity from `upload.object`. */
+export type UploadObjectInfo = {
   /**
-   * Extra folder under the route {@link ObjectContext.keyPrefix}.
+   * Extra folder under the route {@link UploadObjectContext.keyPrefix}.
    * Nested as `{keyPrefix}/{prefix}/{uuid}/{name}` unless `keyPrefix` is
    * `false`. Ignored when {@link key} is set.
    */
   prefix?: string;
   /**
-   * Object key, nested under {@link ObjectContext.keyPrefix} unless the
-   * key is already inside that prefix or `keyPrefix` is `false`.
+   * Object key, nested under {@link UploadObjectContext.keyPrefix} unless
+   * the key is already inside that prefix or `keyPrefix` is `false`.
    * If omitted, `{keyPrefix|prefix}/{uuid}/{name}` is used.
    */
   key?: string;
@@ -73,7 +78,7 @@ export type ObjectInfo = {
  * Runs on single-shot presign and multipart init.
  * Client-declared values are not verified by S3.
  */
-export type UploadPresignGuardContext = StoredObjectContext & {
+export type UploadGuardContext = StoredObjectContext & {
   /** MIME type the client sent — not verified until `onConfirmed`. */
   contentType?: string;
   /** Size the client sent — not verified until `onConfirmed`. */
@@ -89,7 +94,7 @@ export type UploadPresignGuardContext = StoredObjectContext & {
 };
 
 /** Context for `upload.onPresigned` (single-shot only). */
-export type UploadOnPresignedContext = UploadPresignGuardContext & {
+export type UploadOnPresignedContext = UploadGuardContext & {
   /** Presigned upload URL. */
   url: string;
   /** Validity in seconds. */
@@ -112,11 +117,7 @@ export type UploadConfirmGuardContext = StoredObjectContext & {
  * `contentLength` and `eTag` are verified by S3 via HeadObject.
  * Runs after single-shot confirm and multipart complete.
  */
-export type UploadOnConfirmedContext = RouteGuardContext & {
-  /** S3 object key. */
-  key: string;
-  /** Target bucket. */
-  bucket: string;
+export type UploadOnConfirmedContext = StoredObjectContext & {
   /** MIME type from HeadObject. */
   contentType?: string;
   /** Size from HeadObject — trust this, not the presign `fileSize`. */
@@ -138,13 +139,13 @@ export type UploadOnConfirmedContext = RouteGuardContext & {
 };
 
 /** Context for `download.guard`. */
-export type DownloadPresignGuardContext = StoredObjectContext & {
+export type DownloadGuardContext = StoredObjectContext & {
   /** Download filename for Content-Disposition. */
   fileName?: string;
 };
 
 /** Context for `download.onPresigned`. */
-export type DownloadOnPresignedContext = DownloadPresignGuardContext & {
+export type DownloadOnPresignedContext = DownloadGuardContext & {
   /** Presigned GET URL. */
   url: string;
   /** Validity in seconds. */
@@ -164,7 +165,7 @@ export type MultipartUploadContext = StoredObjectContext & {
 };
 
 /** Context for `upload.multipart.onInit`. */
-export type MultipartOnInitContext = UploadPresignGuardContext & {
+export type MultipartOnInitContext = UploadGuardContext & {
   /** Multipart upload ID. */
   uploadId: string;
 };

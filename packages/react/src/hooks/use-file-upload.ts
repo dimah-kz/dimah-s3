@@ -14,7 +14,7 @@ import {
 import { useLiveRef } from "@/internal-helpers";
 import { useImmerState } from "@/store/use-immer-state";
 import type {
-  UploadConfig,
+  FileUploadConfig,
   UploadFileInfo,
   UploadHooks,
   UploadPhase,
@@ -27,7 +27,7 @@ import { uploadFile } from "@/upload";
 import { hookBlockedError, toHookError } from "@/types/error";
 
 /** Options for {@link useFileUpload}. */
-export type UseFileUploadOptions = UploadConfig &
+export type UseFileUploadOptions = FileUploadConfig &
   UploadHooks & {
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;

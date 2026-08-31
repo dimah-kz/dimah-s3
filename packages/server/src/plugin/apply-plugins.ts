@@ -1,11 +1,11 @@
 import { S3_API_ROUTES } from "@dimah-s3/core";
 import type { Endpoint } from "better-call";
 import { CORE_ENDPOINT_NAMES } from "@/api/routes";
-import { normalizeRoutes } from "@/helpers/features";
+import { isEnabled, normalizeRoutes } from "@/helpers/features";
 import type {
   DimahS3Config,
   ResolvedDimahS3Config,
-  ResolvedRoutePolicy,
+  ResolvedRoute,
 } from "@/types";
 import { chainHooks } from "./chain-hooks";
 import { FEATURE_HOOK_KEYS, MULTIPART_HOOK_KEYS } from "./hook-registry";
@@ -49,12 +49,12 @@ function mergeHooks<T extends object>(
 }
 
 function applyHooksToRoute(
-  route: ResolvedRoutePolicy,
+  route: ResolvedRoute,
   plugins: readonly DimahS3Plugin[],
-): ResolvedRoutePolicy {
+): ResolvedRoute {
   const active = plugins.filter((p) => !route.skippedPluginIds.has(p.id));
 
-  const upload = route.upload.enabled
+  const upload = isEnabled(route.upload)
     ? {
         ...mergeHooks(
           FEATURE_HOOK_KEYS.upload,
@@ -62,7 +62,7 @@ function applyHooksToRoute(
           route.upload,
           (p) => p.hooks?.upload as HookBag | undefined,
         ),
-        multipart: route.upload.multipart.enabled
+        multipart: isEnabled(route.upload.multipart)
           ? mergeHooks(
               MULTIPART_HOOK_KEYS,
               active,
@@ -76,7 +76,7 @@ function applyHooksToRoute(
   return {
     ...route,
     upload,
-    download: route.download.enabled
+    download: isEnabled(route.download)
       ? mergeHooks(
           FEATURE_HOOK_KEYS.download,
           active,
@@ -84,7 +84,7 @@ function applyHooksToRoute(
           (p) => p.hooks?.download as HookBag | undefined,
         )
       : route.download,
-    delete: route.delete.enabled
+    delete: isEnabled(route.delete)
       ? mergeHooks(
           FEATURE_HOOK_KEYS.delete,
           active,
@@ -207,7 +207,7 @@ export function applyPlugins<
   }
 
   const normalized = normalizeRoutes(rest);
-  const routes: Record<string, ResolvedRoutePolicy> = {};
+  const routes: Record<string, ResolvedRoute> = {};
   for (const [name, route] of Object.entries(normalized)) {
     routes[name] = applyHooksToRoute(route, plugins);
   }

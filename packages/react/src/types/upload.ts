@@ -110,8 +110,8 @@ export type RetryConfig = {
   baseDelay?: number;
 };
 
-/** Upload engine configuration for `useFileUpload` and `useMultiFileUpload`. */
-export type UploadConfig = {
+/** Engine configuration for `useFileUpload` and `useMultiFileUpload`. */
+export type FileUploadConfig = {
   /**
    * Named server route (`dimahS3({ routes })`). Required — the server
    * generates the object key from this route's policy.
@@ -148,7 +148,7 @@ export type UploadConfig = {
 };
 
 /** Extra engine configuration for multi-file uploads. */
-export type MultiUploadConfig = UploadConfig & {
+export type MultiFileUploadConfig = FileUploadConfig & {
   /** Max number of files in a batch. */
   maxFiles?: number;
   /** Number of files uploaded concurrently. */

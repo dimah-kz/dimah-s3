@@ -9,13 +9,7 @@ import {
   type MultipartInitResponse,
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
-import {
-  assertDeclaredConstraints,
-  openRoute,
-  resolveUploadTarget,
-  runHook,
-  runLifecycleHook,
-} from "@/helpers";
+import { openUploadTarget, runHook, runLifecycleHook } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
@@ -24,32 +18,23 @@ async function handleMultipartInit(
   input: typeof multipartInitBodySchema._output,
   request: Request,
 ): Promise<MultipartInitResponse> {
-  const route = await openRoute(config, input.route, request, "multipart");
-
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  assertDeclaredConstraints(route.upload, {
-    fileName,
-    fileSize,
-    contentType: input.contentType,
-  });
-
-  const { key, bucket, metadata, acl } = await resolveUploadTarget(route, {
-    request,
-    route: route.name,
-    file: {
-      name: fileName,
-      size: fileSize,
-      type: input.contentType,
+  const { route, key, bucket, metadata, acl, stored } = await openUploadTarget(
+    config,
+    {
+      route: input.route,
+      fileName,
+      fileSize,
+      contentType: input.contentType,
+      metadata: input.metadata,
     },
-    clientMetadata: input.metadata,
-  });
+    request,
+    "multipart",
+  );
 
   await runHook(route.upload.guard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     fileSize,
     contentType: input.contentType,
     metadata,
@@ -74,10 +59,7 @@ async function handleMultipartInit(
   }
 
   await runLifecycleHook(route.upload.multipart.onInit, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId: UploadId,
     contentType: input.contentType,
     fileSize,

@@ -17,7 +17,7 @@ async function handleListParts(
   input: typeof multipartListPartsQuerySchema._output,
   request: Request,
 ): Promise<MultipartListPartsResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
@@ -26,10 +26,7 @@ async function handleListParts(
   const uploadId = input.uploadId;
 
   await runHook(route.upload.multipart.sessionGuard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
     action: "list",
   });
@@ -43,10 +40,7 @@ async function handleListParts(
   }));
 
   await runLifecycleHook(route.upload.multipart.onList, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
     parts,
   });

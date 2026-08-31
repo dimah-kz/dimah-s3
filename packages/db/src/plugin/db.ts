@@ -1,4 +1,4 @@
-import { definePlugin } from "@dimah-s3/server";
+import { definePlugin, isFeatureOn } from "@dimah-s3/server";
 import {
   type DimahS3DbClient,
   type StorageObjectStore,
@@ -71,7 +71,10 @@ export function db(options: DbPluginOptions) {
     init({ config }) {
       const routes = Object.values(config.routes);
       const hasLifecycle = routes.some(
-        (r) => r.upload !== false || Boolean(r.download) || Boolean(r.delete),
+        (r) =>
+          isFeatureOn(r.upload, true) ||
+          isFeatureOn(r.download) ||
+          isFeatureOn(r.delete),
       );
       if (!hasLifecycle) {
         throw new Error(

@@ -1,5 +1,5 @@
 import type {
-  UploadConfig,
+  FileUploadConfig,
   UploadProgress,
   UploadResult,
   UploadRequestOptions,
@@ -35,7 +35,7 @@ export type UploadEngineCallbacks = {
 export async function uploadFile(
   api: S3Api,
   file: File,
-  config: UploadConfig,
+  config: FileUploadConfig,
   callbacks: UploadEngineCallbacks = {},
   signal?: AbortSignal,
   requestOptions?: UploadRequestOptions,

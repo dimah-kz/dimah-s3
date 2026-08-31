@@ -34,19 +34,14 @@ async function handleConfirm(
   input: typeof confirmBodySchema._output,
   request: Request,
 ): Promise<UploadConfirmResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
     "upload",
   );
 
-  await runHook(route.upload.confirmGuard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
-  });
+  await runHook(route.upload.confirmGuard, stored);
 
   const head = await headObjectOrNotFound(route.client, bucket, key);
   const contentLength = requireContentLength(head);
@@ -68,10 +63,7 @@ async function handleConfirm(
     : undefined;
 
   const context = {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     contentType: head.ContentType,
     contentLength,
     eTag: head.ETag?.replace(/"/g, ""),

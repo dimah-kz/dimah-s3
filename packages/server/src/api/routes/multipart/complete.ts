@@ -31,7 +31,7 @@ async function handleComplete(
   input: typeof multipartCompleteBodySchema._output,
   request: Request,
 ): Promise<MultipartCompleteResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
@@ -44,10 +44,7 @@ async function handleComplete(
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
   await runHook(route.upload.confirmGuard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
     parts: partRefs,
   });
@@ -133,10 +130,7 @@ async function handleComplete(
     : undefined;
 
   await runLifecycleHook(route.upload.onConfirmed, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
     contentLength,
     contentType,

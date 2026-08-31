@@ -2,6 +2,13 @@ export { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
 export { resolveObjectAcl } from "./resolve-object-acl";
 export { normalizeExpiresIn } from "./expires";
 export { runHook, runLifecycleHook, runObjectHook } from "./hooks";
+export {
+  isEnabled,
+  isFeatureOn,
+  normalizeFeature,
+  normalizeRoute,
+  normalizeRoutes,
+} from "./features";
 export { requestFromHeaders } from "./request";
 export {
   assertSafeObjectKey,
@@ -18,8 +25,14 @@ export {
   getResolvedRoute,
   openRoute,
   openStoredTarget,
+  openUploadTarget,
+  storedObjectContext,
 } from "./resolve-route";
-export type { FeatureFlag } from "./resolve-route";
+export type {
+  OpenedTarget,
+  OpenedUploadTarget,
+  OpenUploadInput,
+} from "./resolve-route";
 export {
   assertDeclaredConstraints,
   assertVerifiedConstraints,
@@ -31,4 +44,3 @@ export {
   requireContentLength,
 } from "./head-object";
 export { listAllParts, listedPartsByteSize } from "./list-parts";
-export { normalizeFeature, normalizeRoute, normalizeRoutes } from "./features";

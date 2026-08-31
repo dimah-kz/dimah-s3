@@ -21,7 +21,7 @@ async function handleSignPart(
   input: typeof multipartSignPartBodySchema._output,
   request: Request,
 ): Promise<MultipartPartResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
@@ -36,10 +36,7 @@ async function handleSignPart(
   const partSize = Math.floor(input.partSize);
 
   await runHook(route.upload.multipart.sessionGuard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     uploadId,
     action: "part",
     partNumber,

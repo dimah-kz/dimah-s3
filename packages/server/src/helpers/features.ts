@@ -3,14 +3,22 @@ import type {
   DimahS3Config,
   DimahS3RouteConfig,
   DownloadConfig,
+  EnabledFeature,
   FeatureToggle,
   MultipartConfig,
   ResolvedFeature,
-  ResolvedRoutePolicy,
+  ResolvedRoute,
+  ResolvedUploadConfig,
   UploadConfig,
 } from "@/types";
 import { normalizeObjectKey } from "@/helpers/resolve-target";
 import { assertRouteName } from "@/route";
+
+export function isEnabled<T extends { enabled: boolean }>(
+  feature: T,
+): feature is T & { enabled: true } {
+  return feature.enabled;
+}
 
 function resolveKeyPrefix(
   name: string,
@@ -26,14 +34,30 @@ function resolveKeyPrefix(
   return normalized;
 }
 
+/**
+ * `true` / options → on; `false` → off.
+ * `undefined` uses {@link defaultOn} (upload defaults on; others off).
+ */
+export function isFeatureOn<T extends object>(
+  value: FeatureToggle<T> | undefined,
+  defaultOn = false,
+): boolean {
+  if (value === false) return false;
+  if (value === undefined) return defaultOn;
+  return true;
+}
+
 /** `true` / options → enabled; omit / `false` → disabled. */
 export function normalizeFeature<T extends object>(
   value: FeatureToggle<T> | undefined,
+  defaultOn = false,
 ): ResolvedFeature<T> {
-  if (value === undefined || value === false) {
-    return { enabled: false } as ResolvedFeature<T>;
+  if (value === false) return { enabled: false };
+  if (value === undefined) {
+    if (!defaultOn) return { enabled: false };
+    return { enabled: true } as EnabledFeature<T>;
   }
-  if (value === true) return { enabled: true } as ResolvedFeature<T>;
+  if (value === true) return { enabled: true } as EnabledFeature<T>;
   return { ...value, enabled: true };
 }
 
@@ -47,14 +71,11 @@ function skippedPluginIds(plugins: DimahS3RouteConfig["plugins"]): Set<string> {
 }
 
 function splitUpload(upload: DimahS3RouteConfig["upload"]): {
-  upload: FeatureToggle<Omit<UploadConfig, "multipart">>;
+  upload: FeatureToggle<Omit<UploadConfig, "multipart">> | undefined;
   multipart: FeatureToggle<MultipartConfig> | undefined;
 } {
-  if (upload === undefined || upload === true) {
-    return { upload: true, multipart: undefined };
-  }
-  if (upload === false) {
-    return { upload: false, multipart: undefined };
+  if (upload === undefined || typeof upload === "boolean") {
+    return { upload, multipart: undefined };
   }
   const { multipart, ...rest } = upload;
   return { upload: rest, multipart };
@@ -64,7 +85,7 @@ export function normalizeRoute(
   name: string,
   route: DimahS3RouteConfig,
   instance: Pick<DimahS3Config, "client" | "bucket">,
-): ResolvedRoutePolicy {
+): ResolvedRoute {
   assertRouteName(name);
 
   const client = route.client ?? instance.client;
@@ -83,7 +104,7 @@ export function normalizeRoute(
   const { upload: uploadInput, multipart: multipartInput } = splitUpload(
     route.upload,
   );
-  const upload = normalizeFeature(uploadInput);
+  const upload = normalizeFeature(uploadInput, true);
   const download = normalizeFeature<DownloadConfig>(route.download);
   const deleteFeature = normalizeFeature<DeleteConfig>(route.delete);
   const multipart = normalizeFeature<MultipartConfig>(multipartInput);
@@ -94,6 +115,10 @@ export function normalizeRoute(
     );
   }
 
+  const resolvedUpload: ResolvedUploadConfig = upload.enabled
+    ? { ...upload, multipart }
+    : { enabled: false, multipart: { enabled: false } };
+
   return {
     name,
     client,
@@ -101,10 +126,7 @@ export function normalizeRoute(
     keyPrefix: resolveKeyPrefix(name, route.keyPrefix),
     guard: route.guard,
     skippedPluginIds: skippedPluginIds(route.plugins),
-    upload: {
-      ...upload,
-      multipart: upload.enabled ? multipart : { enabled: false },
-    },
+    upload: resolvedUpload,
     download,
     delete: deleteFeature,
   };
@@ -112,12 +134,12 @@ export function normalizeRoute(
 
 export function normalizeRoutes(
   config: DimahS3Config,
-): Record<string, ResolvedRoutePolicy> {
+): Record<string, ResolvedRoute> {
   const entries = Object.entries(config.routes);
   if (entries.length === 0) {
     throw new Error("dimahS3: at least one route is required.");
   }
-  const routes: Record<string, ResolvedRoutePolicy> = {};
+  const routes: Record<string, ResolvedRoute> = {};
   for (const [name, route] of entries) {
     routes[name] = normalizeRoute(name, route, config);
   }

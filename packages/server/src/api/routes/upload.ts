@@ -8,10 +8,8 @@ import {
   type UploadPresignResponse,
 } from "@dimah-s3/core";
 import {
-  assertDeclaredConstraints,
   normalizeExpiresIn,
-  openRoute,
-  resolveUploadTarget,
+  openUploadTarget,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -34,36 +32,27 @@ async function handleUpload(
   input: typeof uploadBodySchema._output,
   request: Request,
 ): Promise<UploadPresignResponse> {
-  const route = await openRoute(config, input.route, request, "upload");
-
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  assertDeclaredConstraints(route.upload, {
-    fileName,
-    fileSize,
-    contentType: input.contentType,
-  });
-
-  const { key, bucket, metadata, acl } = await resolveUploadTarget(route, {
-    request,
-    route: route.name,
-    file: {
-      name: fileName,
-      size: fileSize,
-      type: input.contentType,
+  const { route, key, bucket, metadata, acl, stored } = await openUploadTarget(
+    config,
+    {
+      route: input.route,
+      fileName,
+      fileSize,
+      contentType: input.contentType,
+      metadata: input.metadata,
     },
-    clientMetadata: input.metadata,
-  });
+    request,
+    "upload",
+  );
   const expiresIn = normalizeExpiresIn(
     route.upload.expiresIn,
     config.maxExpiresIn,
   );
   const contentType = input.contentType ?? "application/octet-stream";
   const hookCtx = {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     contentType: input.contentType,
     fileSize,
     metadata,

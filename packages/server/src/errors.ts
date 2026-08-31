@@ -5,6 +5,7 @@ import {
   isDimahS3Error,
   isS3ErrorCode,
 } from "@dimah-s3/core";
+import type { RouteOperation } from "@/types/config";
 
 export {
   DimahS3Error,
@@ -31,7 +32,7 @@ export const errors = {
   objectNotFound: () =>
     DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND),
 
-  featureDisabled: (feature: string) =>
+  featureDisabled: (feature: RouteOperation) =>
     DimahS3Error.from("NOT_FOUND", {
       code: S3_ERROR_CODES.FEATURE_DISABLED.code,
       message: S3_ERROR_CODES.FEATURE_DISABLED.message.replaceAll(

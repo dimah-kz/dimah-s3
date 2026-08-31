@@ -1,6 +1,10 @@
 import { DimahS3Error, isAPIError } from "@dimah-s3/core";
 import { errors } from "@/errors";
-import type { ObjectContext, ObjectInfo, UploadConfig } from "@/types";
+import type {
+  UploadConfig,
+  UploadObjectContext,
+  UploadObjectInfo,
+} from "@/types";
 
 function mapGuardError(err: unknown): never {
   if (isAPIError(err)) throw err;
@@ -36,8 +40,8 @@ export async function runHook<T extends { request: Request }>(
  */
 export async function runObjectHook(
   hook: UploadConfig["object"],
-  context: ObjectContext,
-): Promise<ObjectInfo | void> {
+  context: UploadObjectContext,
+): Promise<UploadObjectInfo | void> {
   if (!hook) return;
   try {
     return await hook(context);

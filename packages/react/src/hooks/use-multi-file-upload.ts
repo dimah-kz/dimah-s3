@@ -14,7 +14,7 @@ import {
 import { useLiveRef } from "@/internal-helpers";
 import { useImmerState } from "@/store/use-immer-state";
 import type {
-  MultiUploadConfig,
+  MultiFileUploadConfig,
   UploadProgress,
   UploadRequestOptions,
   MultiUploadPhase,
@@ -26,7 +26,7 @@ import { uploadFiles } from "@/upload";
 import { hookBlockedError, toHookError } from "@/types/error";
 
 /** Options for {@link useMultiFileUpload}. */
-export type UseMultiFileUploadOptions = MultiUploadConfig &
+export type UseMultiFileUploadOptions = MultiFileUploadConfig &
   MultiUploadHooks & {
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;

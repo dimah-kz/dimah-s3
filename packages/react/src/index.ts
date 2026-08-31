@@ -9,8 +9,8 @@ export type {
   UploadTransport,
   S3ApiUploadTransport,
   RetryConfig,
-  UploadConfig,
-  MultiUploadConfig,
+  FileUploadConfig,
+  MultiFileUploadConfig,
 } from "./types/upload";
 export type { StoredUpload, UploadStore } from "./types/upload-store";
 export type {

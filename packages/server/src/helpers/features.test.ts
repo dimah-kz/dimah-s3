@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizeFeature, normalizeRoute, normalizeRoutes } from "./features";
+import {
+  isEnabled,
+  isFeatureOn,
+  normalizeFeature,
+  normalizeRoute,
+  normalizeRoutes,
+} from "./features";
 import { route } from "@/route";
 import type { DimahS3Config } from "@/types";
 
@@ -13,6 +19,11 @@ describe("normalizeFeature / routes", () => {
   it("treats omit or false as disabled", () => {
     expect(normalizeFeature(undefined)).toEqual({ enabled: false });
     expect(normalizeFeature(false)).toEqual({ enabled: false });
+  });
+
+  it("honors defaultOn when the toggle is omitted", () => {
+    expect(normalizeFeature(undefined, true)).toEqual({ enabled: true });
+    expect(normalizeFeature(false, true)).toEqual({ enabled: false });
   });
 
   it("treats an options object as enabled", () => {
@@ -30,6 +41,7 @@ describe("normalizeFeature / routes", () => {
     expect(resolved.upload.enabled).toBe(true);
     expect(resolved.download.enabled).toBe(false);
     expect(resolved.delete.enabled).toBe(false);
+    if (!isEnabled(resolved.upload)) throw new Error("expected upload");
     expect(resolved.upload.multipart.enabled).toBe(false);
   });
 
@@ -46,6 +58,7 @@ describe("normalizeFeature / routes", () => {
       }),
       { client, bucket: "bucket" },
     );
+    if (!isEnabled(resolved.upload)) throw new Error("expected upload");
     expect(resolved.upload.fileTypes).toEqual(["image/*"]);
     expect(resolved.upload.maxFileSize).toBe(1024);
     expect(resolved.upload.acl).toBe("public-read");
@@ -93,6 +106,7 @@ describe("normalizeFeature / routes", () => {
       route({ upload: { multipart: false } }),
       { client, bucket: "bucket" },
     );
+    if (!isEnabled(resolved.upload)) throw new Error("expected upload");
     expect(resolved.upload.multipart.enabled).toBe(false);
   });
 
@@ -103,6 +117,7 @@ describe("normalizeFeature / routes", () => {
       { client, bucket: "bucket" },
     );
     expect(resolved.upload.enabled).toBe(true);
+    if (!isEnabled(resolved.upload)) throw new Error("expected upload");
     expect(resolved.upload.multipart.enabled).toBe(true);
   });
 
@@ -116,7 +131,7 @@ describe("normalizeFeature / routes", () => {
     expect(resolved.upload.multipart.enabled).toBe(false);
   });
 
-  it("rejects a route with every operation off", () => {
+  it("rejects a route with every feature off", () => {
     expect(() =>
       normalizeRoute("empty", route({ upload: false }), {
         client,
@@ -145,6 +160,14 @@ describe("normalizeFeature / routes", () => {
     expect(() =>
       normalizeRoute("uploads", route({ upload: true }), { client }),
     ).toThrow(/set bucket/);
+  });
+
+  it("isFeatureOn matches upload-on / others-off defaults", () => {
+    expect(isFeatureOn(undefined, true)).toBe(true);
+    expect(isFeatureOn(undefined)).toBe(false);
+    expect(isFeatureOn(false, true)).toBe(false);
+    expect(isFeatureOn(true)).toBe(true);
+    expect(isFeatureOn({ expiresIn: 60 })).toBe(true);
   });
 
   it("requires at least one named route", () => {

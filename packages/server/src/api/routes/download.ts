@@ -21,7 +21,7 @@ async function handleDownload(
   input: typeof downloadQuerySchema._output,
   request: Request,
 ): Promise<PresignResponse> {
-  const { route, key, bucket } = await openStoredTarget(
+  const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
     request,
@@ -34,10 +34,7 @@ async function handleDownload(
   const fileName = input.fileName;
 
   await runHook(route.download.guard, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     fileName,
   });
 
@@ -56,10 +53,7 @@ async function handleDownload(
   );
 
   await runLifecycleHook(route.download.onPresigned, {
-    request,
-    route: route.name,
-    key,
-    bucket,
+    ...stored,
     fileName,
     url,
     expiresIn,

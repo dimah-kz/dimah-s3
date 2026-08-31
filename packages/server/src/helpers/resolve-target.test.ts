@@ -7,11 +7,13 @@ import {
   resolveUploadTarget,
 } from "./resolve-target";
 import { errors } from "@/errors";
-import type { ObjectContext, ResolvedRoutePolicy } from "@/types";
+import type { OpenedRoute, UploadObjectContext } from "@/types";
 
 const request = new Request("http://localhost");
 
-function ctx(overrides: Partial<ObjectContext> = {}): ObjectContext {
+function ctx(
+  overrides: Partial<UploadObjectContext> = {},
+): UploadObjectContext {
   return {
     request,
     route: "uploads",
@@ -23,11 +25,11 @@ function ctx(overrides: Partial<ObjectContext> = {}): ObjectContext {
 }
 
 function route(
-  overrides: Partial<ResolvedRoutePolicy> = {},
-): ResolvedRoutePolicy {
+  overrides: Partial<OpenedRoute<"upload">> = {},
+): OpenedRoute<"upload"> {
   return {
     name: "uploads",
-    client: {} as ResolvedRoutePolicy["client"],
+    client: {} as OpenedRoute<"upload">["client"],
     bucket: "bucket",
     keyPrefix: "uploads",
     skippedPluginIds: new Set(),
@@ -68,7 +70,7 @@ describe("resolveUploadTarget", () => {
           upload: {
             enabled: true,
             multipart: { enabled: false },
-            object: ({ file }: ObjectContext) => ({
+            object: ({ file }: UploadObjectContext) => ({
               prefix: "uploads",
               key: `users/1/${file.name}`,
             }),

@@ -170,12 +170,14 @@ Register with `createS3Client({ plugins: [auditClient()] })` — see
 ## `dependsOn` and `init`
 
 ```ts
+import { definePlugin, isFeatureOn } from "@dimah-s3/server";
+
 const quota = definePlugin({
   id: "quota",
   dependsOn: ["db"],
   init({ config }) {
-    const hasUpload = Object.values(config.routes).some(
-      (r) => r.upload !== false,
+    const hasUpload = Object.values(config.routes).some((r) =>
+      isFeatureOn(r.upload, true),
     );
     if (!hasUpload) {
       throw new Error("quota plugin requires upload enabled on a route");

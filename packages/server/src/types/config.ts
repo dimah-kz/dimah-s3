@@ -3,27 +3,43 @@ import type { S3ObjectAcl, UploadPresignMethod } from "@dimah-s3/core";
 import type {
   DeleteGuardContext,
   DeleteOnDeletedContext,
+  DownloadGuardContext,
   DownloadOnPresignedContext,
-  DownloadPresignGuardContext,
   GuardContext,
   MultipartSessionGuardContext,
   MultipartOnAbortContext,
   MultipartOnInitContext,
   MultipartOnListContext,
-  ObjectContext,
-  ObjectInfo,
   RouteGuardContext,
   UploadConfirmGuardContext,
+  UploadGuardContext,
+  UploadObjectContext,
+  UploadObjectInfo,
   UploadOnConfirmedContext,
   UploadOnPresignedContext,
-  UploadPresignGuardContext,
 } from "./hook-contexts";
 import type { DimahS3Plugin } from "@/plugin/types";
 
-export type { ObjectContext, ObjectInfo };
+export type { UploadObjectContext, UploadObjectInfo };
+
+/** The three nested features on a named route. */
+export const ROUTE_FEATURES = ["upload", "download", "delete"] as const;
+export type RouteFeature = (typeof ROUTE_FEATURES)[number];
+
+/**
+ * Endpoint operations. Multipart is nested under upload — it is not a
+ * fourth route feature.
+ */
+export const ROUTE_OPERATIONS = [...ROUTE_FEATURES, "multipart"] as const;
+export type RouteOperation = (typeof ROUTE_OPERATIONS)[number];
 
 /** `true` or an options object enables the feature; omit or `false` disables it. */
 export type FeatureToggle<T> = boolean | T;
+
+export type DisabledFeature = { enabled: false };
+export type EnabledFeature<T extends object> = T & { enabled: true };
+export type ResolvedFeature<T extends object> =
+  EnabledFeature<T> | DisabledFeature;
 
 /**
  * Multipart-only hooks. Init and complete share `upload.guard` /
@@ -40,7 +56,7 @@ export type MultipartConfig = {
   onList?: (context: MultipartOnListContext) => Promise<void> | void;
 };
 
-/** Upload policy: constraints, object identity, and lifecycle hooks. */
+/** Upload feature: constraints, object identity, and lifecycle hooks. */
 export type UploadConfig = {
   /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
   fileTypes?: string[];
@@ -57,8 +73,8 @@ export type UploadConfig = {
    * `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name).
    */
   object?: (
-    context: ObjectContext,
-  ) => ObjectInfo | void | Promise<ObjectInfo | void>;
+    context: UploadObjectContext,
+  ) => UploadObjectInfo | void | Promise<UploadObjectInfo | void>;
   /**
    * Server-forced ACL when `object` does not return one.
    * @default "private"
@@ -69,7 +85,7 @@ export type UploadConfig = {
   /** Presign TTL in seconds. Clamped by instance `maxExpiresIn`. */
   expiresIn?: number;
   /** Presign and multipart init. */
-  guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
+  guard?: (context: UploadGuardContext) => Promise<void> | void;
   /** After a single-shot URL is signed. Multipart uses `multipart.onInit`. */
   onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
   /** Confirm and multipart complete. */
@@ -87,7 +103,7 @@ export type DownloadConfig = {
    * Independent of {@link UploadConfig.expiresIn}.
    */
   expiresIn?: number;
-  guard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
+  guard?: (context: DownloadGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
 };
 
@@ -98,7 +114,7 @@ export type DeleteConfig = {
 };
 
 /**
- * Named file-route policy — a mini {@link DimahS3Config} under `routes`.
+ * Named file route — a mini {@link DimahS3Config} under `routes`.
  * Upload is on when omitted; download, delete, and `upload.multipart` are off.
  */
 export type DimahS3RouteConfig = {
@@ -182,15 +198,17 @@ export type DimahS3Config = {
   routes: Record<string, DimahS3RouteConfig>;
 };
 
-export type ResolvedFeature<T> = T & { enabled: boolean };
+type UploadFields = Omit<UploadConfig, "multipart">;
 
-export type ResolvedUploadConfig = Omit<UploadConfig, "multipart"> & {
-  enabled: boolean;
+export type EnabledUploadConfig = EnabledFeature<UploadFields> & {
   multipart: ResolvedFeature<MultipartConfig>;
 };
 
-/** One named route after {@link dimahS3} normalizes booleans, inheritance, and plugin hooks. */
-export type ResolvedRoutePolicy = {
+export type ResolvedUploadConfig =
+  EnabledUploadConfig | (DisabledFeature & { multipart: DisabledFeature });
+
+/** One named route after {@link dimahS3} normalizes toggles and plugin hooks. */
+export type ResolvedRoute = {
   name: string;
   client: S3Client;
   bucket: string;
@@ -203,10 +221,28 @@ export type ResolvedRoutePolicy = {
   delete: ResolvedFeature<DeleteConfig>;
 };
 
+/**
+ * A {@link ResolvedRoute} after the named operation has been asserted on.
+ * `route.upload.fileTypes` is typed as present only after opening `"upload"`.
+ */
+export type OpenedRoute<F extends RouteOperation> = F extends "multipart"
+  ? ResolvedRoute & {
+      upload: EnabledUploadConfig & {
+        multipart: EnabledFeature<MultipartConfig>;
+      };
+    }
+  : F extends "upload"
+    ? ResolvedRoute & { upload: EnabledUploadConfig }
+    : F extends "download"
+      ? ResolvedRoute & { download: EnabledFeature<DownloadConfig> }
+      : F extends "delete"
+        ? ResolvedRoute & { delete: EnabledFeature<DeleteConfig> }
+        : never;
+
 /** Instance config after {@link dimahS3} normalizes routes and plugins. */
 export type ResolvedDimahS3Config = Omit<
   DimahS3Config,
   "routes" | "plugins"
 > & {
-  routes: Record<string, ResolvedRoutePolicy>;
+  routes: Record<string, ResolvedRoute>;
 };
