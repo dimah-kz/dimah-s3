@@ -9,7 +9,7 @@ export const multipartSignPartBodySchema = z.object({
   key: trimmedString,
   uploadId: trimmedString,
   partNumber: z.number().int().positive(),
-  partSize: z.number().positive(),
+  partSize: z.number().int().positive(),
 });
 
 export const multipartListPartsQuerySchema = z.object({

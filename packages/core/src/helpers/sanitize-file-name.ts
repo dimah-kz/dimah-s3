@@ -1,4 +1,4 @@
-/** Sanitizes a file name for safe use in URL query parameters. */
+/** Sanitizes a file name for Content-Disposition, query params, and object keys. */
 export function sanitizeFileName(fileName: string): string {
-  return fileName.replace(/["\\\r\n]/g, "_");
+  return fileName.replace(/["\\\r\n\0]/g, "_");
 }

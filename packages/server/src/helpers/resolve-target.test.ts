@@ -60,6 +60,18 @@ describe("generateObjectKey", () => {
       "uploads/11111111-1111-1111-1111-111111111111/a.png",
     );
   });
+
+  it("strips path segments from the generated filename leaf", () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    expect(generateObjectKey("uploads", "../secret.png")).toBe(
+      "uploads/11111111-1111-1111-1111-111111111111/secret.png",
+    );
+    expect(generateObjectKey("uploads", "foo/bar.png")).toBe(
+      "uploads/11111111-1111-1111-1111-111111111111/bar.png",
+    );
+  });
 });
 
 describe("resolveUploadTarget", () => {

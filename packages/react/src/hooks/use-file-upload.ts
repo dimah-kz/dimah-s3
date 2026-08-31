@@ -156,6 +156,8 @@ export function useFileUpload(
   const activeUploadRef = useRef<ActiveUpload | null>(null);
   /** Set before aborting so the AbortError catch skips cancel callbacks. */
   const detachingRef = useRef(false);
+  /** Set by `reset()` so AbortError does not fire `onCancel`. */
+  const resettingRef = useRef(false);
   const previewUrlRef = useRef<string | null>(null);
   const speedUpdaterRef = useRef(
     createThrottledSpeedUpdater(createSpeedTracker()),
@@ -215,9 +217,32 @@ export function useFileUpload(
         return;
       }
 
+      const mergedOptions = mergeRequestOptions(opts, file, requestOptions);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      activeUploadRef.current = {
+        file,
+        resumeKey: multipartResumeKey(opts.route, file),
+        serverKey: "",
+        requestOptions: mergedOptions,
+      };
+
+      const stopIfAborted = (): boolean => {
+        if (!controller.signal.aborted) return false;
+        abortRef.current = null;
+        activeUploadRef.current = null;
+        if (detachingRef.current) detachingRef.current = false;
+        else if (resettingRef.current) resettingRef.current = false;
+        else opts.onCancel?.(file);
+        return true;
+      };
+
       if (opts.beforeUpload) {
         const allowed = await opts.beforeUpload(file);
+        if (stopIfAborted()) return;
         if (!allowed) {
+          abortRef.current = null;
+          activeUploadRef.current = null;
           patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
@@ -229,21 +254,13 @@ export function useFileUpload(
         }
       }
 
+      if (stopIfAborted()) return;
+
       speedUpdaterRef.current.reset();
       patch((draft) => {
         draft.phase = "presigning";
       });
       opts.onUploadStart?.(file);
-
-      const mergedOptions = mergeRequestOptions(opts, file, requestOptions);
-      const controller = new AbortController();
-      abortRef.current = controller;
-      activeUploadRef.current = {
-        file,
-        resumeKey: multipartResumeKey(opts.route, file),
-        serverKey: "",
-        requestOptions: mergedOptions,
-      };
 
       try {
         const result = await uploadFile(
@@ -296,6 +313,10 @@ export function useFileUpload(
         if ((err as Error).name === "AbortError") {
           if (detachingRef.current) {
             detachingRef.current = false;
+            return;
+          }
+          if (resettingRef.current) {
+            resettingRef.current = false;
             return;
           }
           opts.onCancel?.(file);
@@ -353,6 +374,7 @@ export function useFileUpload(
   }, [clearToIdle]);
 
   const reset = useCallback(() => {
+    resettingRef.current = true;
     abortRef.current?.abort();
     clearToIdle();
   }, [clearToIdle]);

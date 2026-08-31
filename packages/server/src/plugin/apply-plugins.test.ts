@@ -354,13 +354,16 @@ describe("applyPlugins merge", () => {
     expect("onAbort" in upload.multipart).toBe(false);
   });
 
-  it("requires at least one route", () => {
+  it("requires at least one route before plugin init", () => {
+    const init = vi.fn();
     expect(() =>
       applyPlugins({
         client: {} as DimahS3Config["client"],
         bucket: "bucket",
         routes: {},
+        plugins: [definePlugin({ id: "audit", init })],
       }),
     ).toThrow(/at least one route/);
+    expect(init).not.toHaveBeenCalled();
   });
 });

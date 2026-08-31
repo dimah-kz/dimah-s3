@@ -173,9 +173,20 @@ export function useMultiFileUpload(
         }
       }
 
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       if (opts.beforeUpload) {
         const allowed = await opts.beforeUpload(files);
+        if (controller.signal.aborted) {
+          abortRef.current = null;
+          if (detachingRef.current) detachingRef.current = false;
+          else if (resettingRef.current) resettingRef.current = false;
+          else opts.onCancel?.();
+          return;
+        }
         if (!allowed) {
+          abortRef.current = null;
           patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
@@ -185,6 +196,14 @@ export function useMultiFileUpload(
           opts.onError?.(new Error("blocked"));
           return;
         }
+      }
+
+      if (controller.signal.aborted) {
+        abortRef.current = null;
+        if (detachingRef.current) detachingRef.current = false;
+        else if (resettingRef.current) resettingRef.current = false;
+        else opts.onCancel?.();
+        return;
       }
 
       revokeAllPreviews();
@@ -241,9 +260,6 @@ export function useMultiFileUpload(
         );
       }
       totalSpeedUpdaterRef.current.reset();
-
-      const controller = new AbortController();
-      abortRef.current = controller;
 
       try {
         const results = await uploadFiles(

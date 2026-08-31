@@ -37,13 +37,18 @@ function resolveKeyPrefix(
 /**
  * `true` / options → on; `false` → off.
  * `undefined` uses {@link defaultOn} (upload defaults on; others off).
+ * Resolved `{ enabled }` objects (after `normalizeFeature`) use that flag.
  */
 export function isFeatureOn<T extends object>(
-  value: FeatureToggle<T> | undefined,
+  value: FeatureToggle<T> | ResolvedFeature<T> | undefined,
   defaultOn = false,
 ): boolean {
   if (value === false) return false;
   if (value === undefined) return defaultOn;
+  if (value === true) return true;
+  if ("enabled" in value && typeof value.enabled === "boolean") {
+    return value.enabled;
+  }
   return true;
 }
 

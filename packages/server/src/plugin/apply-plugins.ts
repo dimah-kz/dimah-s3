@@ -96,8 +96,8 @@ function applyHooksToRoute(
 }
 
 /**
- * Validate plugins, build context map, collect endpoints, run `init`,
- * and merge hooks into each route.
+ * Validate plugins, build context map, collect endpoints, validate routes,
+ * run `init`, and merge hooks into each route.
  * Plugin hooks run in array order; user hooks run last.
  * Hooks are not merged onto a feature that is off for that route.
  */
@@ -201,12 +201,11 @@ export function applyPlugins<
   }
 
   const { plugins: _omit, ...rest } = config;
+  const normalized = normalizeRoutes(rest);
 
   for (const plugin of plugins) {
     plugin.init?.({ config: rest, getPlugin });
   }
-
-  const normalized = normalizeRoutes(rest);
   const routes: Record<string, ResolvedRoute> = {};
   for (const [name, route] of Object.entries(normalized)) {
     routes[name] = applyHooksToRoute(route, plugins);

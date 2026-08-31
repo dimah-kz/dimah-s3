@@ -27,7 +27,8 @@ export type DimahS3PluginHooks = {
 
 /**
  * Environment passed to {@link DimahS3Plugin.init}.
- * Config is pre-merge (user config only) — use for feature-flag checks.
+ * Config is pre-merge (user config only) — use `isFeatureOn` for
+ * feature-flag checks. Routes are already validated before `init` runs.
  */
 export type PluginInitEnv = {
   /** User config before plugin hooks are merged — read-only. */

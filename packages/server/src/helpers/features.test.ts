@@ -170,6 +170,12 @@ describe("normalizeFeature / routes", () => {
     expect(isFeatureOn({ expiresIn: 60 })).toBe(true);
   });
 
+  it("isFeatureOn reads resolved { enabled } flags", () => {
+    expect(isFeatureOn({ enabled: false })).toBe(false);
+    expect(isFeatureOn({ enabled: true })).toBe(true);
+    expect(isFeatureOn({ enabled: true, expiresIn: 60 })).toBe(true);
+  });
+
   it("requires at least one named route", () => {
     expect(() =>
       normalizeRoutes({ client, bucket: "bucket", routes: {} }),

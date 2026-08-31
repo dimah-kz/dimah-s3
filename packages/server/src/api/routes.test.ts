@@ -261,6 +261,21 @@ describe("upload", () => {
     });
   });
 
+  it("rejects POST uploads over the S3 POST object limit", async () => {
+    const s3 = createInstance();
+    await expect(
+      s3.api.upload({
+        body: {
+          ...defaultUploadBody,
+          fileSize: 5 * 1024 * 1024 * 1024 + 1,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
+    });
+    expect(createPresignedPost).not.toHaveBeenCalled();
+  });
+
   it("does not let s3.api callers replace bound config", async () => {
     const s3 = createInstance();
     await expect(

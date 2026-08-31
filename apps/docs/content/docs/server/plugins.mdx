@@ -83,9 +83,9 @@ s3.audit.log("ready");
   }}
 />
 
-`method` / `object` / `acl` stay on
-`DimahS3Config` — plugins cannot override them. You still turn features on
-and set key policy yourself. Hook context types import from
+`method` / `object` / `acl` stay on the route **`upload`** feature —
+plugins cannot override them. You still turn features on and set key
+policy yourself. Hook context types import from
 `@dimah-s3/server/plugins`.
 
 Plugin hooks are the same slots as `FEATURE_HOOK_KEYS` (plus nested

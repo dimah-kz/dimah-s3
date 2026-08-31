@@ -71,11 +71,22 @@ export function assertStoredKey(
   throw errors.invalidKey();
 }
 
+/**
+ * Leaf name for a generated object key. Path segments (`../`, `/`) must
+ * not become extra key folders or fail {@link assertSafeObjectKey}.
+ */
+function objectKeyFileName(fileName: string): string {
+  const sanitized = sanitizeFileName(fileName);
+  const leaf = sanitized.split("/").filter((part) => part.length > 0).at(-1);
+  if (!leaf || leaf === "." || leaf === "..") return "file";
+  return leaf;
+}
+
 /** `{folder}/{uuid}/{sanitizedName}` — `folder` is already namespaced. */
 export function generateObjectKey(folder: string, fileName: string): string {
   return applyPrefix(
     folder,
-    `${crypto.randomUUID()}/${sanitizeFileName(fileName)}`,
+    `${crypto.randomUUID()}/${objectKeyFileName(fileName)}`,
   );
 }
 

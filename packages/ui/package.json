@@ -80,12 +80,12 @@
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.1.0",
     "eslint": "catalog:",
-    "lucide-react": "^1.35.0",
+    "lucide-react": "^1.37.0",
     "react": "catalog:",
     "shadcn": "^4.19.0",
     "tsc-alias": "^1.9.2",
     "tsup": "catalog:",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "catalog:"
   },
   "publishConfig": {

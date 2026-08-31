@@ -4,9 +4,11 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
   buildContentDisposition,
   S3_API_ROUTES,
+  S3_MAX_POST_OBJECT_BYTES,
   uploadBodySchema,
   type UploadPresignResponse,
 } from "@dimah-s3/core";
+import { errors } from "@/errors";
 import {
   normalizeExpiresIn,
   openUploadTarget,
@@ -46,6 +48,13 @@ async function handleUpload(
     request,
     "upload",
   );
+  const method = route.upload.method ?? "POST";
+  if (method === "POST" && fileSize > S3_MAX_POST_OBJECT_BYTES) {
+    throw errors.payloadTooLarge(
+      `POST uploads cannot exceed ${S3_MAX_POST_OBJECT_BYTES} bytes. Enable upload.multipart or set upload.method to "PUT".`,
+    );
+  }
+
   const expiresIn = normalizeExpiresIn(
     route.upload.expiresIn,
     config.maxExpiresIn,
@@ -62,8 +71,6 @@ async function handleUpload(
   };
 
   await runHook(route.upload.guard, hookCtx);
-
-  const method = route.upload.method ?? "POST";
 
   if (method === "PUT") {
     const putHeaders: Record<string, string> = {

@@ -56,9 +56,9 @@ export type UploadRequestOptions = {
   contentType?: string;
   /**
    * Original file name sent on presign. Defaults to the browser's `file.name`.
-   * Pass `null` to omit it.
+   * The protocol requires a non-empty name — it cannot be omitted.
    */
-  fileName?: string | null;
+  fileName?: string;
 };
 
 /** Lifecycle hooks for single-file upload. */

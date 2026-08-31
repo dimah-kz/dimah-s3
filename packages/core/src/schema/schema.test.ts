@@ -84,6 +84,12 @@ describe("uploadBodySchema", () => {
     });
   });
 
+  it("rejects a non-integer fileSize", () => {
+    expect(
+      uploadBodySchema.safeParse({ ...uploadBody, fileSize: 1.5 }).success,
+    ).toBe(false);
+  });
+
   it("rejects a client key, bucket, acl, or expiresIn", () => {
     const parsed = uploadBodySchema.parse({
       ...uploadBody,

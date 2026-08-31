@@ -8,7 +8,7 @@ import {
 export const uploadBodySchema = z.object({
   route: routeNameSchema,
   fileName: z.string().trim().min(1),
-  fileSize: z.number().positive(),
+  fileSize: z.number().int().positive(),
   contentType: optionalTrimmedString,
   metadata: metadataSchema.optional(),
 });

@@ -8,8 +8,9 @@ import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
 
 describe("sanitizeFileName", () => {
-  it("replaces quotes, backslashes, and newlines", () => {
+  it("replaces quotes, backslashes, newlines, and NUL", () => {
     expect(sanitizeFileName('a"b\\c\nd')).toBe("a_b_c_d");
+    expect(sanitizeFileName("a\0b")).toBe("a_b");
   });
 });
 
