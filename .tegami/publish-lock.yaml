@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Document `prefix` factories\n\n`prefix` on upload, download, delete, and multipart already accepted an async\nfactory with `ResolveKeyContext` — the same context as `resolveKey`. Docs,\nJSDoc, and the public `@dimah-s3/server` export now make that path obvious.\nUse a factory for per-user or per-tenant folders so confirm and download of a\nstored key stay idempotent. `resolveKey` still replaces the entire key.\n"
-    filename: 2026-08-24-prefix-factory.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Named file routes\n\n`dimahS3()` is route-only. Pass a `routes` map of `route()` policies —\nempty or missing `routes` throws. The instance holds shared defaults\n(`client`, `bucket`, `plugins`, optional `guard`). Each named route\nopts in to `upload`, `download`, and `delete`. Multipart is opt-in\nunder `upload.multipart`. A route may override `client`, `bucket`, or\n`keyPrefix`.\n\nThe client sends a `route` name on every request. Unknown names return\n`UNKNOWN_ROUTE`. Upload and multipart init no longer accept `key` —\nthe server generates it from `upload.object` (or `{keyPrefix}/{uuid}/{name}`).\nFollow-up ops send the stored `key` with the same route.\n\nHooks and UI require `route`: `useUpload({ route: \"uploads\" })`,\n`<UploadButton route=\"uploads\" />`. Upload hooks no longer take\n`objectKey`. Augment `DimahS3Routes` so hook `route` values match\n`dimahS3({ routes })`.\n\n### Configure a route\n\n```ts\nuploads: route({\n  upload: {\n    fileTypes: [\"image/*\"],\n    maxFileSize: 10 * 1024 * 1024,\n  },\n  download: true,\n  delete: true,\n});\n```\n\n- All features default **off**. Set `upload: true` (or an options object)\n  to enable presign — omitting `upload` no longer opens an unconstrained\n  endpoint.\n- Prefer **one feature per named route**. Combine upload / download /\n  delete only when those callers share the key namespace. Nested or\n  identical `keyPrefix` values across routes are rejected at init.\n- `fileTypes`, `maxFileSize`, `acl`, `method`, `expiresIn`, and\n  `multipart` live on `upload`. Init and complete reuse `upload.guard` /\n  `confirmGuard` / `onConfirmed`. Multipart-only hooks are\n  `upload.multipart.onInit`, `.guard` (part / list / abort / complete),\n  `.onAbort`, and `.onList`.\n- `object({ file, request, clientMetadata })` returns\n  `{ folder?, key?, metadata?, acl? }`. Keys nest under route\n  `keyPrefix` (default: the route name). Default key is\n  `{keyPrefix}/{uuid}/{name}`. Confirm / download / delete / multipart\n  follow-ups reject keys outside that prefix. `keyPrefix: false` skips\n  the follow-up check and generates `{uuid}/{name}`. Client `metadata`\n  is not written to S3 unless `object` copies it.\n- `upload.object` maps a plain `Error` to 403, same as `guard`.\n- `fileTypes` matches the S3 `Content-Type` header and filename, not\n  file bytes. Persist size from `onConfirmed` (`contentLength`), not\n  the presign body. Without `db()`, download can presign unconfirmed\n  keys under `keyPrefix`; `db()` download requires status `active`.\n- Standalone `prefix` / `KeyPrefix` and `resolveKey` are removed.\n  Resolved routes keep `fileTypes`, `maxFileSize`, `object`, `acl`,\n  `method`, and `expiresIn` on `upload` only.\n\n### Breaking changes\n\n- Upload and multipart init no longer accept `key`. `bucket`, `acl`,\n  and `expiresIn` are gone from request payloads.\n  `allowClientBucket`, `buckets`, `allowClientAcl`, `requireFileSize`,\n  `defaultObjectKey`, and `INVALID_BUCKET` / `errors.invalidBucket`\n  are removed. Public React `multipartThreshold` / `partSize` are\n  removed.\n- Upload JSON bodies are strict: leftover client `key` / `bucket` /\n  `acl` / `expiresIn` return `VALIDATION_ERROR`.\n- `upload.object` extra directory is `folder`, not `prefix` (that name\n  collided with route `keyPrefix`).\n- `upload.multipart.sessionGuard` is now `upload.multipart.guard`.\n  Complete runs that hook (`action: \"complete\"`) then `confirmGuard`.\n- ACL on confirm comes from the upload policy — `resolveObjectAcl` is\n  gone.\n- `getFileExtension` and `mapStorageObjectRow` are no longer public.\n- Disabled features are a discriminated `{ enabled: false }` — hook\n  fields exist only when the feature is on. `OpenedRoute<\"upload\">`\n  types `route.upload` as enabled.\n- Plugin `init` runs after routes validate, so an empty `routes` map\n  throws the route error instead of a plugin message. Read user\n  toggles with `isFeatureOn` (it understands resolved\n  `{ enabled: false }` objects).\n\n### Keys, TTL, and constraints\n\n- Generated keys take the filename leaf only (`../secret.png` →\n  `…/{uuid}/secret.png`) so a crafted name cannot fail `INVALID_KEY`\n  or nest extra folders. Stored keys are validated on the wire (no\n  `..` segments, S3 part numbers 1–10000, strict query objects).\n- Multipart `signPart` requires `partSize` (locked into\n  `Content-Length`). When `maxFileSize` is set, signPart lists\n  uploaded parts and rejects a part that would exceed the cap.\n  Complete sums listed part sizes and aborts the MPU before assembly\n  if over. Duplicate complete part numbers are ignored.\n  `fileSize` / `partSize` must be integers.\n- POST presign rejects bodies over S3's 5 GiB POST limit.\n- File constraints are checked at presign, on each multipart part,\n  and again after HeadObject (`FILE_TYPE_NOT_ALLOWED`,\n  `PAYLOAD_TOO_LARGE`). `FILE_TYPE_NOT_ALLOWED` params are `fileName`\n  and optional `contentType`. Blank `contentType` is omitted (browser\n  `file.type` is often `\"\"`); the server still defaults to\n  `application/octet-stream`.\n- TTL is `upload.expiresIn` for upload and multipart part URLs, and\n  `download.expiresIn` for download. Each falls back to the protocol\n  default (600s) independently. Both are clamped by instance\n  `maxExpiresIn`.\n\n### Confirm, catalog, and extras\n\n`GET /routes` (`api.catalog()`) publishes each route's upload\nconstraints and which features are on. Upload hooks fill `accept` /\n`maxFileSize` / checksum from that catalog when you omit them.\n\nConfirm and multipart complete now `DeleteObject` if HeadObject checks\nor `onConfirmed` throw, then delete `previousKey` after a successful\nreplace.\n\nDownload can return an inline disposition, a same-origin `GET /file`\nproxy, or per-request `download.resolve` values. `deleteMany` deletes\nup to 100 keys. Server-side uploads that should still run route policy\nuse `s3.put`.\n\n`chainHooks` exports from `@dimah-s3/server`. `S3UploadError` and\n`fileNameFromKey` are public.\n\n### Database plugin\n\nThe `db()` plugin stores a `route` column, lists with cursor /\nfilters, and exposes `getObject`. Optional `quota` and purge can\nabort/delete on S3.\n\nConfirm pending rows only, bind abort / part / complete to the\npending `uploadId`, and list `active` objects by default. Soft-deleted\nkeys no longer block another scope from reusing that key.\n\n`purgeStalePendingObjects` and `createObjectAccessGuard` take\n`client` (same name as `db({ client })`).\n\n### React and UI\n\n- `useObjectUrl` and `@dimah-s3/react/engine` are public.\n  Engine options are `FileUploadConfig` / `MultiFileUploadConfig` so\n  they do not collide with server `UploadConfig`.\n- `useUpload` returns `result`. Multi-file state includes `result`\n  per file. `UploadResult` includes verified `contentLength`.\n- `useDelete` gains `remove(key)` for a one-shot delete without the\n  confirm step. UI download/delete keep the prop name `objectKey`\n  because React reserves `key`.\n- Upload retry no longer re-presigns after bytes have landed. Cancel\n  aborts the in-flight run instead of marking a cancelled batch as\n  success. A second `upload()` / `download()` / `confirmDelete()` no\n  longer races the previous request. `useFileUpload().reset()` no\n  longer fires `onCancel`. Cancel during `beforeUpload` now aborts\n  instead of continuing the upload.\n\n### Naming\n\n- `ResolvedRoute` is the normalized named route (was\n  `ResolvedRoutePolicy`).\n- `RouteFeature` is `upload` | `download` | `delete`. `RouteOperation`\n  adds `multipart` (nested under upload). These replace `FeatureName` /\n  `FeatureFlag`.\n- Guard contexts match the hook names: `UploadGuardContext`,\n  `DownloadGuardContext`, `DeleteGuardContext`. `upload.object` uses\n  `UploadObjectContext` / `UploadObjectInfo`. Confirm / download /\n  delete / multipart session hooks share `StoredObjectContext` once a\n  key is assigned.\n- `upload.guard` / `onPresigned` / multipart `onInit` expose the\n  declared file as `file: { name, size?, type? }` — the same shape as\n  `object`. Multipart part URLs use `url` (same as every other\n  presign response). Download's response type is\n  `DownloadPresignResponse`.\n"
+    filename: 2026-08-31-named-routes.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-08-24-prefix-factory.md
+      - 2026-08-31-named-routes.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-08-24-prefix-factory.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-08-24-prefix-factory.md
-    id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-08-24-prefix-factory.md
+      - 2026-08-31-named-routes.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-08-24-prefix-factory.md
+      - 2026-08-31-named-routes.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-08-31-named-routes.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-08-31-named-routes.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-08-24-prefix-factory.md
+      - 2026-08-31-named-routes.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
+  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/react
-  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
