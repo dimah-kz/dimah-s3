@@ -1,3 +1,11 @@
+## @dimah-s3/server@1.1.1
+
+### Align create templates with named routes
+
+`dimah-s3 create` starters now pin `@dimah-s3/*` 1.1.0 and use
+`dimahS3({ routes })` with `route()` policies and
+`<UploadButton route="uploads" />`.
+
 ## @dimah-s3/server@1.1.0
 
 ### Named file routes
