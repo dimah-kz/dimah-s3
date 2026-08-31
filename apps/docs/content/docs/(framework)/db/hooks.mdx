@@ -27,7 +27,7 @@ The plugin resolves the caller's scope (configured in
 | Feature        | Before                                                                                | After                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Upload         | Reject if a non-deleted row belongs to another scope (soft-deleted keys are reusable) | Row created or updated as `pending`                                                         |
-| Upload confirm | Row must be `pending` (or owned when `upload.replace: "overwrite"`) | Promoted to `active` with HeadObject size (`declaredSize` is the client claim from presign) |
+| Upload confirm | Row must be `pending` (or owned when `upload.replace: "overwrite"`)                   | Promoted to `active` with HeadObject size (`declaredSize` is the client claim from presign) |
 | Multipart      | Pending row + matching `uploadId` for part / list / abort / complete                  | `pending` on start, `active` on complete, pending row removed on abort                      |
 | Download       | File must be `active` (confirmed) and owned                                           | —                                                                                           |
 | Delete         | Row must be `pending` or `active` and owned                                           | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior)                              |

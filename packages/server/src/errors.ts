@@ -90,9 +90,7 @@ export const errors = {
       message,
     }),
 
-  quotaExceeded: (
-    message: string = S3_ERROR_CODES.QUOTA_EXCEEDED.message,
-  ) =>
+  quotaExceeded: (message: string = S3_ERROR_CODES.QUOTA_EXCEEDED.message) =>
     DimahS3Error.from("PAYLOAD_TOO_LARGE", {
       ...S3_ERROR_CODES.QUOTA_EXCEEDED,
       message,

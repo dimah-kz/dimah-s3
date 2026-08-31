@@ -28,8 +28,9 @@ export type S3ApiHeaders = {
   headers?: HeadersInit;
 };
 
-type WithNamedRoute<T> = Omit<T, "route"> & { route: S3RouteName } &
-  S3ApiHeaders;
+type WithNamedRoute<T> = Omit<T, "route"> & {
+  route: S3RouteName;
+} & S3ApiHeaders;
 
 /** Payload for {@link S3Api.upload}. */
 export type UploadPayload = WithNamedRoute<z.infer<typeof uploadBodySchema>>;

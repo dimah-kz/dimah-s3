@@ -69,10 +69,7 @@ async function handleFile(
       : (body as ReadableStream<Uint8Array>);
 
   const headers = new Headers();
-  headers.set(
-    "Content-Type",
-    result.ContentType ?? "application/octet-stream",
-  );
+  headers.set("Content-Type", result.ContentType ?? "application/octet-stream");
   headers.set(
     "Content-Disposition",
     fileName

@@ -31,9 +31,6 @@ export type {
   ConfirmedObjectResponse,
   S3Api,
 } from "./responses";
-export type {
-  RouteCatalogEntry,
-  RouteCatalogResponse,
-} from "@/schema/catalog";
+export type { RouteCatalogEntry, RouteCatalogResponse } from "@/schema/catalog";
 export type { ContentDispositionType } from "@/helpers/build-content-disposition";
 export type { DimahS3Routes, InferS3Routes, S3RouteName } from "./routes";

@@ -21,10 +21,7 @@ const NETWORK_CODES = new Set([
  * better-call `onError`: APIError (including DimahS3Error) serializes
  * natively. Unknown throws become INTERNAL_ERROR / S3_NETWORK_ERROR.
  */
-function onS3RouterError(
-  error: unknown,
-  config?: ResolvedDimahS3Config,
-): void {
+function onS3RouterError(error: unknown, config?: ResolvedDimahS3Config): void {
   if (isAPIError(error)) return;
 
   const code = (error as { code?: string })?.code;
@@ -36,10 +33,7 @@ function onS3RouterError(
     throw networkErr;
   }
 
-  logger.error?.(
-    error instanceof Error ? error.message : String(error),
-    error,
-  );
+  logger.error?.(error instanceof Error ? error.message : String(error), error);
   config?.onError?.(error, {});
   throw errors.internalError();
 }

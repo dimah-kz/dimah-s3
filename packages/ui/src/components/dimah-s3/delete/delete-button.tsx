@@ -3,7 +3,11 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Trash2Icon, LoaderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatFileSize, fileNameFromKey, truncateFileName } from "@dimah-s3/core";
+import {
+  formatFileSize,
+  fileNameFromKey,
+  truncateFileName,
+} from "@dimah-s3/core";
 import type { DeleteHooks } from "@dimah-s3/react";
 import type { S3Api, S3RouteName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildContentDisposition } from "./build-content-disposition";
 import { buildObjectKey } from "./build-object-key";
 import { formatFileSize } from "./format-file-size";
-import { parseFileName, fileNameFromKey, resolveStoredFileName } from "./parse-file-name";
+import {
+  parseFileName,
+  fileNameFromKey,
+  resolveStoredFileName,
+} from "./parse-file-name";
 import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
 import { normalizeObjectKey } from "./normalize-object-key";

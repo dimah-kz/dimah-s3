@@ -8,7 +8,12 @@ import type {
   ResolvedRoute,
 } from "@/types";
 import { chainHooks } from "./chain-hooks";
-import { FEATURE_HOOK_KEYS, MULTIPART_HOOK_KEYS, LIFECYCLE_FEATURE_HOOK_KEYS, LIFECYCLE_MULTIPART_HOOK_KEYS } from "./hook-registry";
+import {
+  FEATURE_HOOK_KEYS,
+  MULTIPART_HOOK_KEYS,
+  LIFECYCLE_FEATURE_HOOK_KEYS,
+  LIFECYCLE_MULTIPART_HOOK_KEYS,
+} from "./hook-registry";
 import {
   RESERVED_PLUGIN_IDS,
   type AppliedPlugins,

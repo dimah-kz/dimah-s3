@@ -19,7 +19,12 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 function fileUrl(
   request: Request,
   basePath: string,
-  query: { route: string; key: string; fileName?: string; disposition?: string },
+  query: {
+    route: string;
+    key: string;
+    fileName?: string;
+    disposition?: string;
+  },
 ): string {
   const url = new URL(request.url);
   const prefix = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;

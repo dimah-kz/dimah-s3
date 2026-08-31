@@ -61,9 +61,9 @@ export type DimahS3<
   /**
    * Server-side upload through the same route policy as presign + confirm.
    */
-  put: (input: PutObjectInput) => Promise<
-    import("@dimah-s3/core").ConfirmedObjectResponse
-  >;
+  put: (
+    input: PutObjectInput,
+  ) => Promise<import("@dimah-s3/core").ConfirmedObjectResponse>;
 } & C;
 
 /**

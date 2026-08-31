@@ -85,7 +85,11 @@ const message = error ? format(error) : null;
 `createS3Client` already sanitizes `fileName` on download requests.
 
 ```ts
-import { sanitizeFileName, parseFileName, fileNameFromKey } from "@dimah-s3/core";
+import {
+  sanitizeFileName,
+  parseFileName,
+  fileNameFromKey,
+} from "@dimah-s3/core";
 
 sanitizeFileName('file"name.pdf'); // file_name.pdf
 parseFileName(res.headers.get("content-disposition")); // "report.pdf" | undefined

@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import type { ContentDispositionType, DimahS3Error, S3Api, S3RouteName } from "@dimah-s3/core";
+import type {
+  ContentDispositionType,
+  DimahS3Error,
+  S3Api,
+  S3RouteName,
+} from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { useLiveRef } from "@/internal-helpers";
 import { toHookError } from "@/types/error";
@@ -121,9 +126,7 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
       });
       if (generation !== generationRef.current) return;
       const ttlMs =
-        result.expiresIn > 0
-          ? result.expiresIn * 1000
-          : 24 * 60 * 60 * 1000;
+        result.expiresIn > 0 ? result.expiresIn * 1000 : 24 * 60 * 60 * 1000;
       cache.set(id, {
         url: result.url,
         expiresIn: result.expiresIn,

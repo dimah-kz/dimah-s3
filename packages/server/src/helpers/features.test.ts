@@ -93,10 +93,14 @@ describe("normalizeFeature / routes", () => {
 
   it("rejects an unsafe keyPrefix at init", () => {
     expect(() =>
-      normalizeRoute("uploads", route({ keyPrefix: "../secret", upload: true }), {
-        client,
-        bucket: "bucket",
-      }),
+      normalizeRoute(
+        "uploads",
+        route({ keyPrefix: "../secret", upload: true }),
+        {
+          client,
+          bucket: "bucket",
+        },
+      ),
     ).toThrow(/keyPrefix is not a valid object-key prefix/);
   });
 

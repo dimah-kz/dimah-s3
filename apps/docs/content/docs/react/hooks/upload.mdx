@@ -128,11 +128,11 @@ await upload(files);
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `route`                              | Required. Named server route (`dimahS3({ routes })`)                                                            |
 | `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                                    |
-| `accept`                             | HTML tokens. Filled from `api.catalog()` when omitted                                                         |
-| `maxFileSize`                        | Bytes. Filled from `api.catalog()` when omitted — server `upload.maxFileSize` still applies                   |
+| `accept`                             | HTML tokens. Filled from `api.catalog()` when omitted                                                           |
+| `maxFileSize`                        | Bytes. Filled from `api.catalog()` when omitted — server `upload.maxFileSize` still applies                     |
 | `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                    |
 | `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`)               |
-| `checksum`                           | Send SHA-256 on presign. Filled from `api.catalog()` when the route sets `upload.checksum`                       |
+| `checksum`                           | Send SHA-256 on presign. Filled from `api.catalog()` when the route sets `upload.checksum`                      |
 | `uploadStore`                        | Resume after refresh                                                                                            |
 | `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key`; enable download / delete on the same route when needed |
 

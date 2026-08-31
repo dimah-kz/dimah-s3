@@ -952,9 +952,7 @@ describe("catalog", () => {
       },
     });
 
-    const res = await s3.handler(
-      new Request("http://localhost/api/s3/routes"),
-    );
+    const res = await s3.handler(new Request("http://localhost/api/s3/routes"));
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
       routes: {
@@ -1023,11 +1021,17 @@ describe("confirm rollback", () => {
     });
 
     const deleted = send.mock.calls
-      .map((call) => call[0] as { constructor: { name: string }; input?: { Key?: string } })
+      .map(
+        (call) =>
+          call[0] as {
+            constructor: { name: string };
+            input?: { Key?: string };
+          },
+      )
       .filter((command) => command.constructor.name === "DeleteObjectCommand");
-    expect(deleted.some((command) => command.input?.Key === "uploads/old.png")).toBe(
-      true,
-    );
+    expect(
+      deleted.some((command) => command.input?.Key === "uploads/old.png"),
+    ).toBe(true);
   });
 });
 

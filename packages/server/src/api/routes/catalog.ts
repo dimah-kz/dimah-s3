@@ -40,9 +40,7 @@ export function buildRouteCatalog(
     routes[name] = {
       upload: catalogUpload(route.upload),
       download: catalogDownload(route.download),
-      delete: isEnabled(route.delete)
-        ? { enabled: true }
-        : { enabled: false },
+      delete: isEnabled(route.delete) ? { enabled: true } : { enabled: false },
     };
   }
   return { routes };

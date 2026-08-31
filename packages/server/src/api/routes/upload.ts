@@ -83,9 +83,7 @@ async function handleUpload(
       "Content-Type": contentType,
       ...objectUserMetadata(metadata),
       "Content-Disposition": buildContentDisposition(fileName),
-      ...(input.checksum
-        ? { "x-amz-checksum-sha256": input.checksum }
-        : {}),
+      ...(input.checksum ? { "x-amz-checksum-sha256": input.checksum } : {}),
     };
 
     const url = await getSignedUrl(

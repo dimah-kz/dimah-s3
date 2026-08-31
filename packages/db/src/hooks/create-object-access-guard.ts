@@ -47,9 +47,7 @@ export type CreateObjectAccessGuardOptions = {
 export function resolveStore(
   client: DimahS3DbClient | StorageObjectStore,
 ): StorageObjectStore {
-  return "upsertPending" in client
-    ? client
-    : createStorageObjectStore(client);
+  return "upsertPending" in client ? client : createStorageObjectStore(client);
 }
 
 /**

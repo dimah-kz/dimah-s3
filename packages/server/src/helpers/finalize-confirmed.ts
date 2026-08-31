@@ -1,7 +1,4 @@
-import type {
-  ConfirmedObjectResponse,
-  S3ObjectAcl,
-} from "@dimah-s3/core";
+import type { ConfirmedObjectResponse, S3ObjectAcl } from "@dimah-s3/core";
 import { resolveStoredFileName } from "@dimah-s3/core";
 import type { HeadObjectCommandOutput, S3Client } from "@aws-sdk/client-s3";
 import { assertVerifiedConstraints } from "@/helpers/constraints";

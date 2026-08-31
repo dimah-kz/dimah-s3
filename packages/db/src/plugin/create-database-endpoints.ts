@@ -67,9 +67,7 @@ export function createDatabaseEndpoints(options: {
         const page = hasMore ? rows.slice(0, limit) : rows;
         const last = page.at(-1);
         const nextCursor =
-          hasMore && last
-            ? encodeListCursor(last.createdAt, last.id)
-            : null;
+          hasMore && last ? encodeListCursor(last.createdAt, last.id) : null;
 
         return {
           scope,
