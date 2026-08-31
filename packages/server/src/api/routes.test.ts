@@ -317,7 +317,9 @@ describe("confirm", () => {
     });
 
     await expect(
-      s3.api.confirm({ body: { route: "uploads", key: "uploads/missing.png" } }),
+      s3.api.confirm({
+        body: { route: "uploads", key: "uploads/missing.png" },
+      }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
@@ -392,14 +394,18 @@ describe("download / delete", () => {
     });
 
     await expect(
-      s3.api.download({ query: { route: "uploads", key: "uploads/missing.png" } }),
+      s3.api.download({
+        query: { route: "uploads", key: "uploads/missing.png" },
+      }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
       statusCode: 404,
     });
     await expect(
-      s3.api.delete({ query: { route: "uploads", key: "uploads/missing.png" } }),
+      s3.api.delete({
+        query: { route: "uploads", key: "uploads/missing.png" },
+      }),
     ).rejects.toMatchObject({
       code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
       status: "NOT_FOUND",
@@ -486,6 +492,15 @@ describe("multipart", () => {
       uploadId: "up-1",
       partSize: 8,
     });
+    expect(getSignedUrl).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        input: expect.objectContaining({ ContentLength: 8 }),
+      }),
+      expect.objectContaining({
+        signableHeaders: new Set(["content-length"]),
+      }),
+    );
   });
 
   it("lists uploaded parts", async () => {

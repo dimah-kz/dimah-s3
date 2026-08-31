@@ -4,7 +4,7 @@
 
 ## When changing the presign protocol
 
-1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`). Every core request schema requires `route`. Upload and multipart init do not accept `key`.
+1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`). Every core request schema requires `route`. Upload and multipart init do not accept `key`. Multipart `signPart` requires `partSize`.
 2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `DimahS3Error`.
 3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds the internal `createS3Router` (HTTP `handler` + `s3.api`). Do not export `createS3Router`.
 4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` uses object args (`api.download({ route, key })`); server `s3.api` is the better-call map (`download({ query, headers })`).
