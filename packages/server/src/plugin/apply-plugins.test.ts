@@ -268,7 +268,7 @@ describe("applyPlugins merge", () => {
       },
     });
 
-    expect(merged.config.routes.uploads.acl).toBe("private");
+    expect(merged.config.routes.uploads.upload?.acl).toBe("private");
   });
 
   it("merges nested upload.multipart hooks plugins-first", async () => {

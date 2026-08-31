@@ -29,7 +29,7 @@ async function handleDownload(
 
   const { key, bucket } = resolveStoredTarget(route, input.key);
   const expiresIn = normalizeExpiresIn(
-    route.download?.expiresIn ?? route.expiresIn,
+    route.download?.expiresIn,
     config.maxExpiresIn,
   );
   const fileName = input.fileName;

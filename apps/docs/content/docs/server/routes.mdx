@@ -193,7 +193,8 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     },
     download: {
       type: "boolean | DownloadConfig",
-      description: "Off unless set. May set expiresIn and download hooks.",
+      description:
+        "Off unless set. May set expiresIn (independent of upload.expiresIn; default 600s) and download hooks.",
     },
     delete: {
       type: "boolean | DeleteConfig",

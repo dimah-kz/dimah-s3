@@ -1,4 +1,4 @@
-import { sanitizeFileName } from "@dimah-s3/core";
+import { sanitizeFileName, type S3ObjectAcl } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import { runObjectHook } from "@/helpers/hooks";
 import type { ObjectContext, ObjectInfo, ResolvedRoutePolicy } from "@/types";
@@ -7,7 +7,7 @@ export type ResolvedObject = {
   key: string;
   bucket: string;
   metadata?: Record<string, string>;
-  acl: NonNullable<ResolvedRoutePolicy["acl"]>;
+  acl: S3ObjectAcl;
 };
 
 export type RouteKeyPrefix = string | false;
@@ -82,15 +82,11 @@ export function generateObjectKey(
   return applyPrefix(folder, leaf);
 }
 
-export function resolveRouteBucket(route: ResolvedRoutePolicy): string {
-  return route.bucket;
-}
-
 function resolveAcl(
   info: ObjectInfo | void,
   route: ResolvedRoutePolicy,
 ): ResolvedObject["acl"] {
-  return info?.acl ?? route.acl ?? "private";
+  return info?.acl ?? route.upload?.acl ?? "private";
 }
 
 async function resolveObject(
@@ -103,7 +99,8 @@ async function resolveObject(
     bucket,
     keyPrefix: route.keyPrefix,
   };
-  const info = (await runObjectHook(route.object, objectContext)) ?? undefined;
+  const info =
+    (await runObjectHook(route.upload?.object, objectContext)) ?? undefined;
   const key = info?.key
     ? nestKeyUnderPrefix(route.keyPrefix, info.key)
     : generateObjectKey(info?.prefix, objectContext, route.keyPrefix);

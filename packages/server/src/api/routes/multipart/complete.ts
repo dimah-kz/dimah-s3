@@ -70,7 +70,7 @@ async function handleComplete(
   });
 
   try {
-    assertWithinMaxFileSize(route.maxFileSize, assembledBytes);
+    assertWithinMaxFileSize(route.upload?.maxFileSize, assembledBytes);
   } catch (err) {
     try {
       await route.client.send(
@@ -108,7 +108,7 @@ async function handleComplete(
   const fileName = parseFileName(head.ContentDisposition);
 
   try {
-    assertVerifiedConstraints(route, {
+    assertVerifiedConstraints(route.upload, {
       fileName,
       contentType,
       contentLength,

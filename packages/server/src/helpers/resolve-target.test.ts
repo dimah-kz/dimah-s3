@@ -81,10 +81,13 @@ describe("resolveUploadTarget", () => {
     await expect(
       resolveUploadTarget(
         route({
-          object: ({ file }: ObjectContext) => ({
-            prefix: "uploads",
-            key: `users/1/${file.name}`,
-          }),
+          upload: {
+            enabled: true,
+            object: ({ file }: ObjectContext) => ({
+              prefix: "uploads",
+              key: `users/1/${file.name}`,
+            }),
+          },
         }),
         ctx(),
       ),
@@ -101,10 +104,13 @@ describe("resolveUploadTarget", () => {
     await expect(
       resolveUploadTarget(
         route({
-          object: () => ({
-            prefix: "media",
-            metadata: { author: "user_123" },
-          }),
+          upload: {
+            enabled: true,
+            object: () => ({
+              prefix: "media",
+              metadata: { author: "user_123" },
+            }),
+          },
         }),
         ctx(),
       ),
@@ -120,7 +126,10 @@ describe("resolveUploadTarget", () => {
     await expect(
       resolveUploadTarget(
         route({
-          object: () => ({ key: "uploads/stable.png" }),
+          upload: {
+            enabled: true,
+            object: () => ({ key: "uploads/stable.png" }),
+          },
         }),
         ctx(),
       ),
@@ -131,8 +140,11 @@ describe("resolveUploadTarget", () => {
     await expect(
       resolveUploadTarget(
         route({
-          acl: "private",
-          object: () => ({ key: "a.png", acl: "public-read" }),
+          upload: {
+            enabled: true,
+            acl: "private",
+            object: () => ({ key: "a.png", acl: "public-read" }),
+          },
         }),
         ctx(),
       ),
@@ -146,8 +158,11 @@ describe("resolveUploadTarget", () => {
     await expect(
       resolveUploadTarget(
         route({
-          object: () => {
-            throw new Error("not signed in");
+          upload: {
+            enabled: true,
+            object: () => {
+              throw new Error("not signed in");
+            },
           },
         }),
         ctx(),
@@ -163,8 +178,11 @@ describe("resolveUploadTarget", () => {
     await expect(
       resolveUploadTarget(
         route({
-          object: () => {
-            throw errors.unauthorized();
+          upload: {
+            enabled: true,
+            object: () => {
+              throw errors.unauthorized();
+            },
           },
         }),
         ctx(),

@@ -44,10 +44,12 @@ describe("normalizeFeature / routes", () => {
       }),
       { client, bucket: "bucket" },
     );
-    expect(resolved.fileTypes).toEqual(["image/*"]);
-    expect(resolved.maxFileSize).toBe(1024);
-    expect(resolved.acl).toBe("public-read");
-    expect(resolved.method).toBe("PUT");
+    expect(resolved.upload?.fileTypes).toEqual(["image/*"]);
+    expect(resolved.upload?.maxFileSize).toBe(1024);
+    expect(resolved.upload?.acl).toBe("public-read");
+    expect(resolved.upload?.method).toBe("PUT");
+    expect(resolved).not.toHaveProperty("fileTypes");
+    expect(resolved).not.toHaveProperty("expiresIn");
     expect(resolved.keyPrefix).toBe("uploads");
   });
 

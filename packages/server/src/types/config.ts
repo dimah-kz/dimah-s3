@@ -166,8 +166,8 @@ export type DimahS3Config = {
    */
   resolveObjectAcl?: boolean;
   /**
-   * Upper bound for route `expiresIn` (seconds). The protocol maximum is
-   * 7 days (604800).
+   * Upper bound for `upload.expiresIn` and `download.expiresIn` (seconds).
+   * The protocol maximum is 7 days (604800).
    * @default 604800
    */
   maxExpiresIn?: number;
@@ -196,12 +196,6 @@ export type ResolvedRoutePolicy = {
   bucket: string;
   /** `false` means follow-up keys are not namespace-checked. */
   keyPrefix: string | false;
-  fileTypes?: string[];
-  maxFileSize?: number;
-  object?: UploadConfig["object"];
-  acl?: S3ObjectAcl;
-  method?: UploadPresignMethod;
-  expiresIn?: number;
   guard?: DimahS3RouteConfig["guard"];
   skippedPluginIds: ReadonlySet<string>;
   upload?: ResolvedUploadConfig;

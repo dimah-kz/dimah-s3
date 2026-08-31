@@ -54,16 +54,16 @@ export const s3 = dimahS3({
 R2 and similar providers need `upload: { method: "PUT" }` —
 see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
-| Option             | Default   | Role                                            |
-| ------------------ | --------- | ----------------------------------------------- |
-| `client`           | \*        | AWS SDK `S3Client` (`awsS3`)                    |
-| `bucket`           | \*        | Default bucket                                  |
-| `routes`           | required  | Named policies — [Routes](/docs/server/routes)  |
-| `maxExpiresIn`     | `604800`  | Clamp route `expiresIn` (SigV4 max)             |
-| `basePath`         | `/api/s3` | Must match `createS3Client({ basePath })`       |
-| `resolveObjectAcl` | `false`   | Extra `GetObjectAcl` on confirm / complete      |
-| `guard`            | —         | [Global Guard](/docs/server/hooks/global-guard) |
-| `plugins`          | —         | e.g. [`db()`](/docs/db)                         |
+| Option             | Default   | Role                                                        |
+| ------------------ | --------- | ----------------------------------------------------------- |
+| `client`           | \*        | AWS SDK `S3Client` (`awsS3`)                                |
+| `bucket`           | \*        | Default bucket                                              |
+| `routes`           | required  | Named policies — [Routes](/docs/server/routes)              |
+| `maxExpiresIn`     | `604800`  | Clamp `upload.expiresIn` / `download.expiresIn` (SigV4 max) |
+| `basePath`         | `/api/s3` | Must match `createS3Client({ basePath })`                   |
+| `resolveObjectAcl` | `false`   | Extra `GetObjectAcl` on confirm / complete                  |
+| `guard`            | —         | [Global Guard](/docs/server/hooks/global-guard)             |
+| `plugins`          | —         | e.g. [`db()`](/docs/db)                                     |
 
 \* Required on the instance unless every route sets the same field.
 

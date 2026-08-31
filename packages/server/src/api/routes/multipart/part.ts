@@ -30,7 +30,10 @@ async function handleSignPart(
   const { key, bucket } = resolveStoredTarget(route, input.key);
   const uploadId = input.uploadId;
   const partNumber = input.partNumber;
-  const expiresIn = normalizeExpiresIn(route.expiresIn, config.maxExpiresIn);
+  const expiresIn = normalizeExpiresIn(
+    route.upload?.expiresIn,
+    config.maxExpiresIn,
+  );
   const partSize = Math.floor(input.partSize);
 
   await runHook(route.upload?.multipart?.sessionGuard, {
@@ -44,11 +47,12 @@ async function handleSignPart(
     partSize,
   });
 
-  assertWithinMaxFileSize(route.maxFileSize, partSize);
-  if (route.maxFileSize) {
+  const maxFileSize = route.upload?.maxFileSize;
+  assertWithinMaxFileSize(maxFileSize, partSize);
+  if (maxFileSize) {
     const listed = await listAllParts(route.client, { bucket, key, uploadId });
     assertWithinMaxFileSize(
-      route.maxFileSize,
+      maxFileSize,
       listedPartsByteSize(listed, partNumber) + partSize,
     );
   }

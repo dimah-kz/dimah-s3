@@ -31,7 +31,7 @@ async function handleMultipartInit(
 
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  assertDeclaredConstraints(route, {
+  assertDeclaredConstraints(route.upload, {
     fileName,
     fileSize,
     contentType: input.contentType,

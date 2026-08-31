@@ -23,7 +23,7 @@ The client sends a **route name**, plus `fileName` / `fileSize` /
 | `route`                        | required                             | Must match a name in `routes` (`UNKNOWN_ROUTE` otherwise)                                            |
 | `key` (upload / init)          | **not sent** — server generates it   | `upload.object` (`prefix` / `key`) nested under `keyPrefix` (default `{route}/{uuid}/{name}`)        |
 | `key` (confirm / later)        | stored key from the presign response | Must stay under route `keyPrefix`; then `guard` / db — `object` is not re-run                        |
-| `bucket` / `acl` / `expiresIn` | never accepted from the client       | Route `bucket` / `upload.acl` / `upload.expiresIn`                                                   |
+| `bucket` / `acl` / `expiresIn` | never accepted from the client       | Route `bucket` / `upload.acl` / `upload.expiresIn` / `download.expiresIn`                            |
 | `fileSize` / `contentType`     | required on upload / init            | Also enforce `fileTypes` / `maxFileSize`; trust HeadObject                                           |
 | `partSize`                     | required on `multipart.signPart`     | Locked into the part URL `Content-Length`; capped by `maxFileSize` (including listed uploaded parts) |
 

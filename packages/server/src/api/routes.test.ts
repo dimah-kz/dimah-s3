@@ -389,6 +389,54 @@ describe("download / delete", () => {
     expect(onPresigned).toHaveBeenCalled();
   });
 
+  it("uses download.expiresIn, not upload.expiresIn", async () => {
+    vi.mocked(getSignedUrl).mockClear();
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: { expiresIn: 60 },
+          download: { expiresIn: 120 },
+        }),
+      },
+    });
+
+    await s3.api.download({
+      query: { route: "uploads", key: storedPngKey },
+    });
+    expect(getSignedUrl).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ expiresIn: 120 }),
+    );
+  });
+
+  it("defaults download TTL when download.expiresIn is omitted", async () => {
+    vi.mocked(getSignedUrl).mockClear();
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: { expiresIn: 60 },
+          download: true,
+        }),
+      },
+    });
+
+    await s3.api.download({
+      query: { route: "uploads", key: storedPngKey },
+    });
+    expect(getSignedUrl).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ expiresIn: 600 }),
+    );
+  });
+
   it("maps missing objects to OBJECT_NOT_FOUND", async () => {
     const missing = vi.fn(async () => {
       throw Object.assign(new Error("missing"), { name: "NoSuchKey" });

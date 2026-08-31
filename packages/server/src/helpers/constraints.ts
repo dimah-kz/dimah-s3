@@ -1,6 +1,9 @@
 import { matchesFileTypes } from "@dimah-s3/core";
 import { errors } from "@/errors";
-import type { ResolvedRoutePolicy } from "@/types";
+import type { UploadConfig } from "@/types";
+
+/** File limits from `upload` (`fileTypes` / `maxFileSize`). */
+export type FileConstraints = Pick<UploadConfig, "fileTypes" | "maxFileSize">;
 
 /** Reject when `size` is over the route cap. No-op when `maxFileSize` is unset. */
 export function assertWithinMaxFileSize(
@@ -13,27 +16,27 @@ export function assertWithinMaxFileSize(
 }
 
 export function assertDeclaredConstraints(
-  route: Pick<ResolvedRoutePolicy, "fileTypes" | "maxFileSize">,
+  constraints: FileConstraints | undefined,
   input: { fileName: string; fileSize: number; contentType?: string },
 ): void {
   if (
-    route.fileTypes?.length &&
-    !matchesFileTypes(input.fileName, input.contentType, route.fileTypes)
+    constraints?.fileTypes?.length &&
+    !matchesFileTypes(input.fileName, input.contentType, constraints.fileTypes)
   ) {
     throw errors.fileTypeNotAllowed(input.fileName);
   }
-  assertWithinMaxFileSize(route.maxFileSize, input.fileSize);
+  assertWithinMaxFileSize(constraints?.maxFileSize, input.fileSize);
 }
 
 export function assertVerifiedConstraints(
-  route: Pick<ResolvedRoutePolicy, "fileTypes" | "maxFileSize">,
+  constraints: FileConstraints | undefined,
   input: { fileName?: string; contentType?: string; contentLength: number },
 ): void {
-  assertWithinMaxFileSize(route.maxFileSize, input.contentLength);
+  assertWithinMaxFileSize(constraints?.maxFileSize, input.contentLength);
   const name = input.fileName ?? "";
   if (
-    route.fileTypes?.length &&
-    !matchesFileTypes(name, input.contentType, route.fileTypes)
+    constraints?.fileTypes?.length &&
+    !matchesFileTypes(name, input.contentType, constraints.fileTypes)
   ) {
     throw errors.fileTypeNotAllowed(name || input.contentType || "unknown");
   }

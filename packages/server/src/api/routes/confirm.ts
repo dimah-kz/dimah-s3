@@ -55,7 +55,7 @@ async function handleConfirm(
   const fileName = parseFileName(head.ContentDisposition);
 
   try {
-    assertVerifiedConstraints(route, {
+    assertVerifiedConstraints(route.upload, {
       fileName,
       contentType: head.ContentType,
       contentLength,

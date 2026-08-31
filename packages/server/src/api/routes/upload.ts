@@ -41,7 +41,7 @@ async function handleUpload(
 
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  assertDeclaredConstraints(route, {
+  assertDeclaredConstraints(route.upload, {
     fileName,
     fileSize,
     contentType: input.contentType,
@@ -57,7 +57,10 @@ async function handleUpload(
     },
     clientMetadata: input.metadata,
   });
-  const expiresIn = normalizeExpiresIn(route.expiresIn, config.maxExpiresIn);
+  const expiresIn = normalizeExpiresIn(
+    route.upload?.expiresIn,
+    config.maxExpiresIn,
+  );
   const contentType = input.contentType ?? "application/octet-stream";
 
   await runHook(route.upload?.guard, {
@@ -73,7 +76,7 @@ async function handleUpload(
     fileName,
   });
 
-  const method = route.method ?? "POST";
+  const method = route.upload?.method ?? "POST";
 
   if (method === "PUT") {
     const putHeaders: Record<string, string> = {

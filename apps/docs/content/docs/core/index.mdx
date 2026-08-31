@@ -10,7 +10,7 @@ Shared protocol types, the isomorphic HTTP client, and pure helpers used by `@di
 ## What lives here
 
 - `S3_API_ROUTES` / `S3_API_BASE_PATH` — route path SSOT
-- `createS3Client` — browser/isomorphic client implementing `S3Api` (+ client plugins). Exposes `$ERROR_CODES`, `$fetch`, `$Infer`. `baseURL` wins over `basePath`. Route `expiresIn` defaults to **600** seconds (`S3_DEFAULT_EXPIRES_IN`) on the server.
+- `createS3Client` — browser/isomorphic client implementing `S3Api` (+ client plugins). Exposes `$ERROR_CODES`, `$fetch`, `$Infer`. `baseURL` wins over `basePath`. Upload and download `expiresIn` default to **600** seconds (`S3_DEFAULT_EXPIRES_IN`) on the server.
 - `DimahS3Error` — extends better-call `APIError` with the same `(status, body)` constructor; JSON `{ message, code?, params? }`. Use `DimahS3Error.from(status, S3_ERROR_CODES.FORBIDDEN)` or `isDimahS3Error` / `isAPIError`. Catalog: [Errors](/docs/server/errors).
 - `s3FetchErrorSchema` — Zod schema for that JSON (better-fetch `errorSchema`)
 - Client plugin helpers — `defineClientPlugin`, `createS3Fetch`, `pluginPath`
