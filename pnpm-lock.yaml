@@ -302,9 +302,6 @@ importers:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@dimah-s3/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@dimah-s3/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -408,9 +405,6 @@ importers:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@dimah-s3/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@dimah-s3/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -490,9 +484,6 @@ importers:
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@dimah-s3/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@dimah-s3/react':
         specifier: workspace:*
         version: link:../../packages/react
