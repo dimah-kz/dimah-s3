@@ -3,7 +3,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Trash2Icon, LoaderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatFileSize, truncateFileName } from "@dimah-s3/core";
+import { formatFileSize, fileNameFromKey, truncateFileName } from "@dimah-s3/core";
 import type { DeleteHooks } from "@dimah-s3/react";
 import type { S3Api } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
@@ -108,7 +108,7 @@ export function DeleteButton({
 }: DeleteButtonProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
-  const displayName = fileName ?? objectKey.split("/").pop() ?? objectKey;
+  const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
   const toastHandlers = useDeleteToast({
     enabled: enableToast,
     displayName,

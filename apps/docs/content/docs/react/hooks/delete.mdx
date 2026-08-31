@@ -1,14 +1,15 @@
 ---
 title: Delete
-description: Two-step delete so you can confirm first.
+description: Confirm-first or one-shot delete.
 ---
 
 `requestDelete` marks a key pending. `confirmDelete` sends the request.
 [Delete Button](/docs/react/ui/components/delete-button) uses this with an
-alert dialog.
+alert dialog. Headless callers that already confirmed can call `remove(key)`
+instead.
 
 **Flow:** `requestDelete` → your confirm UI → `confirmDelete` (or
-`cancelDelete`)
+`cancelDelete`). Or `remove(key)` in one step.
 
 ```tsx
 "use client";
@@ -43,11 +44,11 @@ export function DeleteFile() {
 }
 ```
 
-No dialog? Call both in sequence:
+No dialog? Call `remove`:
 
 ```ts
-requestDelete(storedKey);
-await confirmDelete();
+const { remove } = useDelete({ route: "uploads" });
+await remove(storedKey);
 ```
 
 Wire `onSuccess` to keep your own database in sync. Server-side auth belongs

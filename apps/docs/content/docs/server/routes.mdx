@@ -86,10 +86,10 @@ missing field or `dimahS3()` throws.
 
 ## Defaults
 
-Upload is **on** if `upload` is omitted, `true`, or an object. `download`
-and `delete` are **off** unless set. `upload.multipart` is **off** unless
-set. A route with every operation off throws at init. `upload: false` is a
-download/delete-only route.
+`upload`, `download`, `delete`, and `upload.multipart` are **off** until
+set (`true` or an options object). A route with every operation off throws
+at init. `upload: false` (or omitting `upload`) with `download: true` is a
+download-only route.
 
 `upload.multipart: true` uses the same `object` / `acl` as upload. It does
 not turn on automatically with upload.
@@ -189,7 +189,7 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     upload: {
       type: "boolean | UploadConfig",
       description:
-        "On when omitted, true, or an object. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, upload hooks, and optional multipart.",
+        "Off unless set. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, upload hooks, and optional multipart.",
     },
     download: {
       type: "boolean | DownloadConfig",

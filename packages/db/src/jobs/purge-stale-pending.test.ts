@@ -5,7 +5,7 @@ import { fakeStore, sampleObject } from "@/test/fakes";
 describe("purgeStalePendingObjects", () => {
   it("returns early when nothing is stale", async () => {
     const store = fakeStore();
-    await expect(purgeStalePendingObjects({ db: store })).resolves.toEqual({
+    await expect(purgeStalePendingObjects({ client: store })).resolves.toEqual({
       purged: [],
     });
     expect(store.deleteByIds).not.toHaveBeenCalled();
@@ -19,7 +19,7 @@ describe("purgeStalePendingObjects", () => {
     const onBeforePurge = vi.fn();
 
     await expect(
-      purgeStalePendingObjects({ db: store, onBeforePurge }),
+      purgeStalePendingObjects({ client: store, onBeforePurge }),
     ).resolves.toEqual({ purged: stale });
 
     expect(onBeforePurge).toHaveBeenCalledWith(stale);
@@ -32,7 +32,7 @@ describe("purgeStalePendingObjects", () => {
     });
     await expect(
       purgeStalePendingObjects({
-        db: store,
+        client: store,
         onBeforePurge: () => {
           throw new Error("abort multipart failed");
         },

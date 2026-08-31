@@ -15,10 +15,9 @@ example `/audit/recent`), and typed context on the `dimahS3()` instance
 Keep the plugin **inline** (or `as const`) in `plugins` so `s3.audit` stays
 narrowed. A widened `DimahS3Plugin[]` variable drops the id.
 
-Author helpers (`chainHooks`, hook context types, `applyPlugins`) live on
-[`@dimah-s3/server/plugins`](https://www.npmjs.com/package/@dimah-s3/server).
-`definePlugin` and `createS3Endpoint` are also re-exported from
-`@dimah-s3/server`.
+`definePlugin`, `createS3Endpoint`, and `chainHooks` export from
+`@dimah-s3/server`. Hook context types and `applyPlugins` also live on
+`@dimah-s3/server/plugins`.
 
 ```ts
 import { definePlugin, dimahS3, route } from "@dimah-s3/server";
@@ -42,7 +41,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   plugins: [audit],
   routes: {
-    uploads: route({}),
+    uploads: route({ upload: true }),
   },
 });
 
@@ -106,8 +105,7 @@ With [`db()`](/docs/db) registered, its ownership guard runs before your
 quota check. Stack several **user** hooks on one slot with `chainHooks`:
 
 ```ts
-import { dimahS3, route } from "@dimah-s3/server";
-import { chainHooks } from "@dimah-s3/server/plugins";
+import { chainHooks, dimahS3, route } from "@dimah-s3/server";
 import { db } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
@@ -177,7 +175,7 @@ const quota = definePlugin({
   dependsOn: ["db"],
   init({ config }) {
     const hasUpload = Object.values(config.routes).some((r) =>
-      isFeatureOn(r.upload, true),
+      isFeatureOn(r.upload),
     );
     if (!hasUpload) {
       throw new Error("quota plugin requires upload enabled on a route");

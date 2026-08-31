@@ -6,7 +6,7 @@ import type {
   DownloadGuardContext,
   DownloadOnPresignedContext,
   GuardContext,
-  MultipartSessionGuardContext,
+  MultipartGuardContext,
   MultipartOnAbortContext,
   MultipartOnInitContext,
   MultipartOnListContext,
@@ -43,16 +43,14 @@ export type ResolvedFeature<T extends object> =
 
 /**
  * Multipart-only hooks. Init shares `upload.guard` / `onInit`. Complete
- * runs `sessionGuard` (`action: "complete"`) then `upload.confirmGuard` /
+ * runs `guard` (`action: "complete"`) then `upload.confirmGuard` /
  * `upload.onConfirmed`.
  */
 export type MultipartConfig = {
   /** After `CreateMultipartUpload` — persist `uploadId` for resume. */
   onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
   /** Authorize part, list, abort, and complete. Branch on `action` if needed. */
-  sessionGuard?: (
-    context: MultipartSessionGuardContext,
-  ) => Promise<void> | void;
+  guard?: (context: MultipartGuardContext) => Promise<void> | void;
   onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
   onList?: (context: MultipartOnListContext) => Promise<void> | void;
 };
@@ -118,7 +116,7 @@ export type DeleteConfig = {
 
 /**
  * Named file route — a mini {@link DimahS3Config} under `routes`.
- * Upload is on when omitted; download, delete, and `upload.multipart` are off.
+ * Upload, download, delete, and `upload.multipart` are off until set.
  */
 export type DimahS3RouteConfig = {
   /** Override the instance S3 client for this route. */

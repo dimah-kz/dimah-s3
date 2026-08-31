@@ -20,7 +20,8 @@ export type ObjectAccessGuardContext = {
 };
 
 export type CreateObjectAccessGuardOptions = {
-  db: DimahS3DbClient | StorageObjectStore;
+  /** FumaDB client (`DimahS3DB.client(adapter)`) or a prebuilt objects store. */
+  client: DimahS3DbClient | StorageObjectStore;
   resolveScope: ScopeResolver;
   /**
    * Which rows count as accessible.
@@ -30,7 +31,7 @@ export type CreateObjectAccessGuardOptions = {
   requireStatus?: StorageObjectStatus | "any";
   /**
    * Require `context.uploadId` to match the pending row's `uploadId`.
-   * Use for `upload.multipart.sessionGuard`.
+   * Use for `upload.multipart.guard`.
    */
   requireUploadId?: boolean;
   /**
@@ -44,9 +45,11 @@ export type CreateObjectAccessGuardOptions = {
 };
 
 export function resolveStore(
-  db: DimahS3DbClient | StorageObjectStore,
+  client: DimahS3DbClient | StorageObjectStore,
 ): StorageObjectStore {
-  return "upsertPending" in db ? db : createStorageObjectStore(db);
+  return "upsertPending" in client
+    ? client
+    : createStorageObjectStore(client);
 }
 
 /**
@@ -54,12 +57,12 @@ export function resolveStore(
  * caller's scope. Throws `DimahS3Error` (401 / 404 / 403) to reject.
  *
  * Usable as `download.guard`, `delete.guard`,
- * `upload.confirmGuard`, `upload.multipart.sessionGuard`, or in your own routes.
+ * `upload.confirmGuard`, `upload.multipart.guard`, or in your own routes.
  */
 export function createObjectAccessGuard(
   options: CreateObjectAccessGuardOptions,
 ): (context: ObjectAccessGuardContext) => Promise<void> {
-  const store = resolveStore(options.db);
+  const store = resolveStore(options.client);
   const requireStatus = options.requireStatus ?? "active";
 
   return async (context) => {

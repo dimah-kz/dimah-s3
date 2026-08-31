@@ -30,8 +30,6 @@ export type {
   StorageObjectStore,
   UpsertPendingInput,
 } from "./store/storage-object-store";
-export { mapStorageObjectRow } from "./store/map-row";
-export type { StorageObjectRow } from "./store/map-row";
 
 // Plugin
 export { db } from "./plugin/db";

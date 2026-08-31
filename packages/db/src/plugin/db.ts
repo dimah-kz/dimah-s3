@@ -72,7 +72,7 @@ export function db(options: DbPluginOptions) {
       const routes = Object.values(config.routes);
       const hasLifecycle = routes.some(
         (r) =>
-          isFeatureOn(r.upload, true) ||
+          isFeatureOn(r.upload) ||
           isFeatureOn(r.download) ||
           isFeatureOn(r.delete),
       );

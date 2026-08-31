@@ -9,7 +9,7 @@ const DEFAULT_OLDER_THAN_MS = 24 * 60 * 60 * 1000;
 
 export type PurgeStalePendingOptions = {
   /** FumaDB client (`DimahS3DB.client(adapter)`) or a prebuilt store. */
-  db: DimahS3DbClient | StorageObjectStore;
+  client: DimahS3DbClient | StorageObjectStore;
   /**
    * Fallback age for pending rows that have no `expiresAt`.
    * Rows with `expiresAt` are purged when that timestamp has passed,
@@ -36,7 +36,7 @@ export type PurgeStalePendingResult = {
 export async function purgeStalePendingObjects(
   options: PurgeStalePendingOptions,
 ): Promise<PurgeStalePendingResult> {
-  const store = resolveStore(options.db);
+  const store = resolveStore(options.client);
   const olderThan = new Date(
     Date.now() - (options.olderThanMs ?? DEFAULT_OLDER_THAN_MS),
   );

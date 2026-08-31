@@ -108,8 +108,7 @@ Quotas are app-owned. The db plugin enforces ownership first; your guards
 run after ([hook order](/docs/server/plugins#hook-order)).
 
 ```ts
-import { dimahS3, route } from "@dimah-s3/server";
-import { chainHooks } from "@dimah-s3/server/plugins";
+import { chainHooks, dimahS3, route } from "@dimah-s3/server";
 import { db, forbidden } from "@dimah-s3/db";
 
 export const s3 = dimahS3({
@@ -164,7 +163,7 @@ download: {
 ```
 
 ```ts
-createObjectAccessGuard({ db: dimahS3Db, resolveScope, authorize: myRule });
+createObjectAccessGuard({ client: dimahS3Db, resolveScope, authorize: myRule });
 ```
 
 `authorize` replaces the default `object.scope === scope` check. Use it

@@ -11,7 +11,7 @@ const context = {
 describe("createObjectAccessGuard", () => {
   it("rejects unauthenticated requests", async () => {
     const guard = createObjectAccessGuard({
-      db: fakeStore(),
+      client: fakeStore(),
       resolveScope: async () => null,
     });
     await expect(guard(context)).rejects.toMatchObject({
@@ -23,7 +23,7 @@ describe("createObjectAccessGuard", () => {
 
   it("rejects missing or inactive objects", async () => {
     const guard = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject({ status: "pending" }),
       }),
       resolveScope: async () => "user:1",
@@ -37,7 +37,7 @@ describe("createObjectAccessGuard", () => {
 
   it("treats any as pending or active, not deleted", async () => {
     const deleted = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject({ status: "deleted" }),
       }),
       resolveScope: async () => "user:1",
@@ -48,7 +48,7 @@ describe("createObjectAccessGuard", () => {
     });
 
     const pending = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject({ status: "pending" }),
       }),
       resolveScope: async () => "user:1",
@@ -59,7 +59,7 @@ describe("createObjectAccessGuard", () => {
 
   it("rejects objects owned by another scope", async () => {
     const guard = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject({ scope: "user:2" }),
       }),
       resolveScope: async () => "user:1",
@@ -73,7 +73,7 @@ describe("createObjectAccessGuard", () => {
 
   it("allows the owning scope", async () => {
     const guard = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject(),
       }),
       resolveScope: async () => "user:1",
@@ -83,7 +83,7 @@ describe("createObjectAccessGuard", () => {
 
   it("uses a custom authorize function", async () => {
     const guard = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject({ scope: "user:2" }),
       }),
       resolveScope: async () => "user:1",
@@ -94,7 +94,7 @@ describe("createObjectAccessGuard", () => {
 
   it("requires a matching uploadId when asked", async () => {
     const guard = createObjectAccessGuard({
-      db: fakeStore({
+      client: fakeStore({
         find: async () => sampleObject({ status: "pending", uploadId: "up-1" }),
       }),
       resolveScope: async () => "user:1",

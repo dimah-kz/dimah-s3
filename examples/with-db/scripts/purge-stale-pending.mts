@@ -10,7 +10,7 @@ import { dimahS3Db } from "../src/lib/dimah-s3-db";
 import { awsS3 } from "../src/lib/s3";
 
 const { purged } = await purgeStalePendingObjects({
-  db: dimahS3Db,
+  client: dimahS3Db,
   olderThanMs: 24 * 60 * 60 * 1000,
   onBeforePurge: async (objects) => {
     for (const object of objects) {

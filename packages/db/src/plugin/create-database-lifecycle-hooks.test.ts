@@ -99,7 +99,7 @@ describe("createDatabaseLifecycleHooks", () => {
     };
 
     await expect(
-      hooks.upload?.multipart?.sessionGuard?.({
+      hooks.upload?.multipart?.guard?.({
         ...ctx,
         action: "part",
         partNumber: 1,
@@ -107,7 +107,7 @@ describe("createDatabaseLifecycleHooks", () => {
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(
-      hooks.upload?.multipart?.sessionGuard?.({ ...ctx, action: "list" }),
+      hooks.upload?.multipart?.guard?.({ ...ctx, action: "list" }),
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
@@ -118,7 +118,7 @@ describe("createDatabaseLifecycleHooks", () => {
       }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(
-      hooks.upload?.multipart?.sessionGuard?.({ ...ctx, action: "abort" }),
+      hooks.upload?.multipart?.guard?.({ ...ctx, action: "abort" }),
     ).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
@@ -225,7 +225,7 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     await expect(
-      hooks.upload?.multipart?.sessionGuard?.({
+      hooks.upload?.multipart?.guard?.({
         request,
         route,
         key: "k",
@@ -246,7 +246,7 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     await expect(
-      hooks.upload?.multipart?.sessionGuard?.({
+      hooks.upload?.multipart?.guard?.({
         request,
         route,
         key: "k",

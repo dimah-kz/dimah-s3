@@ -10,7 +10,7 @@ describe("FEATURE_HOOK_KEYS", () => {
     });
     expect(MULTIPART_HOOK_KEYS).toEqual([
       "onInit",
-      "sessionGuard",
+      "guard",
       "onAbort",
       "onList",
     ]);

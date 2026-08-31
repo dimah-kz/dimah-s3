@@ -30,6 +30,8 @@ export type UseDeleteReturn = UseDeleteState & {
   requestDelete: (key: string) => void;
   /** Send the delete request for the pending key. */
   confirmDelete: () => Promise<void>;
+  /** Delete `key` immediately — no confirm step. */
+  remove: (key: string) => Promise<void>;
   /** Cancel confirmation and return to `idle`. */
   cancelDelete: () => void;
   /** Reset state to `idle`. */
@@ -68,60 +70,83 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     [patch],
   );
 
-  const confirmDelete = useCallback(async () => {
-    const key = pendingKeyRef.current;
-    if (!key || inFlightRef.current) return;
-    const opts = optsRef.current;
-    const api = opts.api ?? apiRef.current;
-    if (!api)
-      throw new Error(
-        "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
-      );
+  const executeDelete = useCallback(
+    async (key: string) => {
+      if (inFlightRef.current) return;
+      const opts = optsRef.current;
+      const api = opts.api ?? apiRef.current;
+      if (!api)
+        throw new Error(
+          "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
+        );
 
-    if (opts.beforeDelete) {
-      const allowed = await opts.beforeDelete(key);
-      if (!allowed) {
+      if (opts.beforeDelete) {
+        const allowed = await opts.beforeDelete(key);
+        if (!allowed) {
+          patch((draft) => {
+            draft.phase = "error";
+            draft.error = hookBlockedError(
+              "Delete blocked by beforeDelete hook",
+            );
+            draft.pendingKey = null;
+          });
+          opts.onError?.(key, new Error("blocked"), "confirming");
+          pendingKeyRef.current = null;
+          return;
+        }
+      }
+
+      inFlightRef.current = true;
+      patch((draft) => {
+        draft.phase = "deleting";
+        draft.error = null;
+      });
+      opts.onDeleteStart?.(key);
+
+      try {
+        await api.delete({ route: opts.route, key });
+        pendingKeyRef.current = null;
         patch((draft) => {
-          draft.phase = "error";
-          draft.error = hookBlockedError("Delete blocked by beforeDelete hook");
+          draft.phase = "success";
+          draft.error = null;
           draft.pendingKey = null;
         });
-        opts.onError?.(key, new Error("blocked"), "confirming");
-        pendingKeyRef.current = null;
-        return;
-      }
-    }
-
-    inFlightRef.current = true;
-    patch((draft) => {
-      draft.phase = "deleting";
-      draft.error = null;
-    });
-    opts.onDeleteStart?.(key);
-
-    try {
-      await api.delete({ route: opts.route, key });
-      pendingKeyRef.current = null;
-      patch((draft) => {
-        draft.phase = "success";
-        draft.error = null;
-        draft.pendingKey = null;
-      });
-      try {
-        await opts.onSuccess?.(key);
+        try {
+          await opts.onSuccess?.(key);
+        } catch (err) {
+          opts.onError?.(key, err, "success");
+        }
       } catch (err) {
-        opts.onError?.(key, err, "success");
+        patch((draft) => {
+          draft.phase = "error";
+          draft.error = toHookError(err, "Delete failed");
+        });
+        opts.onError?.(key, err, "deleting");
+      } finally {
+        inFlightRef.current = false;
       }
-    } catch (err) {
+    },
+    [apiRef, optsRef, patch],
+  );
+
+  const confirmDelete = useCallback(async () => {
+    const key = pendingKeyRef.current;
+    if (!key) return;
+    await executeDelete(key);
+  }, [executeDelete]);
+
+  const remove = useCallback(
+    async (key: string) => {
+      if (inFlightRef.current) return;
+      pendingKeyRef.current = key;
       patch((draft) => {
-        draft.phase = "error";
-        draft.error = toHookError(err, "Delete failed");
+        draft.pendingKey = key;
+        draft.error = null;
       });
-      opts.onError?.(key, err, "deleting");
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, [apiRef, optsRef, patch]);
+      await executeDelete(key);
+    },
+    [executeDelete, patch],
+  );
 
   const cancelDelete = useCallback(() => {
     pendingKeyRef.current = null;
@@ -139,6 +164,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     pendingKey: state.pendingKey,
     requestDelete,
     confirmDelete,
+    remove,
     cancelDelete,
     reset,
   };

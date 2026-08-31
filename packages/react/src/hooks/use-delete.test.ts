@@ -81,4 +81,25 @@ describe("useDelete", () => {
     });
     hook.unmount();
   });
+
+  it("removes a key without a confirm step", async () => {
+    const api = fakeS3Api();
+    const onSuccess = vi.fn();
+    const hook = renderHook(() =>
+      useDelete({ api, route: "uploads", onSuccess }),
+    );
+
+    await act(async () => {
+      await hook.current.remove("a.png");
+    });
+
+    expect(api.delete).toHaveBeenCalledWith({
+      route: "uploads",
+      key: "a.png",
+    });
+    expect(onSuccess).toHaveBeenCalledWith("a.png");
+    expect(hook.current.phase).toBe("success");
+    expect(hook.current.pendingKey).toBeNull();
+    hook.unmount();
+  });
 });

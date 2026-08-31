@@ -25,7 +25,7 @@ async function handleListParts(
   );
   const uploadId = input.uploadId;
 
-  await runHook(route.upload.multipart.sessionGuard, {
+  await runHook(route.upload.multipart.guard, {
     ...stored,
     uploadId,
     action: "list",

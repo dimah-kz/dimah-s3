@@ -35,7 +35,7 @@ async function handleSignPart(
   );
   const partSize = Math.floor(input.partSize);
 
-  await runHook(route.upload.multipart.sessionGuard, {
+  await runHook(route.upload.multipart.guard, {
     ...stored,
     uploadId,
     action: "part",

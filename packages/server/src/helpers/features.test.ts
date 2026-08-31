@@ -33,8 +33,8 @@ describe("normalizeFeature / routes", () => {
     });
   });
 
-  it("defaults upload on and other features off", () => {
-    const resolved = normalizeRoute("uploads", route({}), {
+  it("defaults every feature off until set", () => {
+    const resolved = normalizeRoute("uploads", route({ upload: true }), {
       client,
       bucket: "bucket",
     });
@@ -69,7 +69,7 @@ describe("normalizeFeature / routes", () => {
   });
 
   it("uses the route name as keyPrefix by default", () => {
-    const resolved = normalizeRoute("avatars", route({}), {
+    const resolved = normalizeRoute("avatars", route({ upload: true }), {
       client,
       bucket: "bucket",
     });
@@ -78,13 +78,13 @@ describe("normalizeFeature / routes", () => {
 
   it("accepts a custom keyPrefix or false", () => {
     expect(
-      normalizeRoute("uploads", route({ keyPrefix: "users" }), {
+      normalizeRoute("uploads", route({ keyPrefix: "users", upload: true }), {
         client,
         bucket: "bucket",
       }).keyPrefix,
     ).toBe("users");
     expect(
-      normalizeRoute("uploads", route({ keyPrefix: false }), {
+      normalizeRoute("uploads", route({ keyPrefix: false, upload: true }), {
         client,
         bucket: "bucket",
       }).keyPrefix,
@@ -93,7 +93,7 @@ describe("normalizeFeature / routes", () => {
 
   it("rejects an unsafe keyPrefix at init", () => {
     expect(() =>
-      normalizeRoute("uploads", route({ keyPrefix: "../secret" }), {
+      normalizeRoute("uploads", route({ keyPrefix: "../secret", upload: true }), {
         client,
         bucket: "bucket",
       }),
@@ -133,6 +133,12 @@ describe("normalizeFeature / routes", () => {
 
   it("rejects a route with every feature off", () => {
     expect(() =>
+      normalizeRoute("empty", route({}), {
+        client,
+        bucket: "bucket",
+      }),
+    ).toThrow(/enable upload, download, or delete/);
+    expect(() =>
       normalizeRoute("empty", route({ upload: false }), {
         client,
         bucket: "bucket",
@@ -162,7 +168,7 @@ describe("normalizeFeature / routes", () => {
     ).toThrow(/set bucket/);
   });
 
-  it("isFeatureOn matches upload-on / others-off defaults", () => {
+  it("isFeatureOn honors defaultOn when the toggle is omitted", () => {
     expect(isFeatureOn(undefined, true)).toBe(true);
     expect(isFeatureOn(undefined)).toBe(false);
     expect(isFeatureOn(false, true)).toBe(false);
@@ -188,8 +194,8 @@ describe("normalizeFeature / routes", () => {
         client,
         bucket: "bucket",
         routes: {
-          media: route({ keyPrefix: "media" }),
-          privateMedia: route({ keyPrefix: "media/private" }),
+          media: route({ keyPrefix: "media", upload: true }),
+          privateMedia: route({ keyPrefix: "media/private", upload: true }),
         },
       }),
     ).toThrow(/overlapping keyPrefix/);
@@ -201,8 +207,8 @@ describe("normalizeFeature / routes", () => {
         client,
         bucket: "bucket",
         routes: {
-          a: route({ keyPrefix: "shared" }),
-          b: route({ keyPrefix: "shared" }),
+          a: route({ keyPrefix: "shared", upload: true }),
+          b: route({ keyPrefix: "shared", upload: true }),
         },
       }),
     ).toThrow(/overlapping keyPrefix/);

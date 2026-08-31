@@ -1,8 +1,7 @@
 export { matchesFileTypes, validateFile } from "./validate-file";
 export type { ValidateFileError, ValidateFileErrorCode } from "./validate-file";
 export { buildObjectKey } from "./build-object-key";
-export { getFileExtension } from "./get-file-extension";
-export { parseFileName, resolveStoredFileName } from "./parse-file-name";
+export { parseFileName, fileNameFromKey, resolveStoredFileName } from "./parse-file-name";
 export { formatFileSize } from "./format-file-size";
 export { buildContentDisposition } from "./build-content-disposition";
 export { sanitizeFileName } from "./sanitize-file-name";

@@ -7,7 +7,7 @@ export type {
   MultipartOnAbortContext,
   MultipartOnInitContext,
   MultipartOnListContext,
-  MultipartSessionGuardContext,
+  MultipartGuardContext,
   MultipartUploadContext,
   ObjectFile,
   RouteGuardContext,

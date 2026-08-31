@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildContentDisposition } from "./build-content-disposition";
 import { buildObjectKey } from "./build-object-key";
 import { formatFileSize } from "./format-file-size";
-import { getFileExtension } from "./get-file-extension";
-import { parseFileName, resolveStoredFileName } from "./parse-file-name";
+import { parseFileName, fileNameFromKey, resolveStoredFileName } from "./parse-file-name";
 import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
 import { normalizeObjectKey } from "./normalize-object-key";
@@ -37,6 +36,15 @@ describe("buildContentDisposition / parseFileName", () => {
     expect(resolveStoredFileName('attachment; filename="x.txt"', "k")).toBe(
       "x.txt",
     );
+  });
+});
+
+describe("fileNameFromKey", () => {
+  it("returns the last path segment", () => {
+    expect(fileNameFromKey("uploads/uuid/a.png")).toBe("a.png");
+    expect(fileNameFromKey("a.png")).toBe("a.png");
+    expect(fileNameFromKey("/uploads//a.png/")).toBe("a.png");
+    expect(fileNameFromKey("")).toBeUndefined();
   });
 });
 
@@ -76,17 +84,6 @@ describe("truncateFileName", () => {
     const truncated = truncateFileName("a".repeat(80), 10);
     expect(truncated.endsWith("…")).toBe(true);
     expect(truncated.length).toBe(10);
-  });
-});
-
-describe("getFileExtension", () => {
-  it.each([
-    ["photo.PNG", "png"],
-    ["archive.tar.gz", "gz"],
-    ["README", ""],
-    [".gitignore", ""],
-  ])("%s → %s", (name, ext) => {
-    expect(getFileExtension(name)).toBe(ext);
   });
 });
 

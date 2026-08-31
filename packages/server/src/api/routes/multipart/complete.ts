@@ -43,7 +43,7 @@ async function handleComplete(
   ].sort((a, b) => a - b);
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
-  await runHook(route.upload.multipart.sessionGuard, {
+  await runHook(route.upload.multipart.guard, {
     ...stored,
     uploadId,
     action: "complete",

@@ -36,7 +36,7 @@ function resolveKeyPrefix(
 
 /**
  * `true` / options → on; `false` → off.
- * `undefined` uses {@link defaultOn} (upload defaults on; others off).
+ * `undefined` uses {@link defaultOn} (false unless passed).
  * Resolved `{ enabled }` objects (after `normalizeFeature`) use that flag.
  */
 export function isFeatureOn<T extends object>(
@@ -109,7 +109,7 @@ export function normalizeRoute(
   const { upload: uploadInput, multipart: multipartInput } = splitUpload(
     route.upload,
   );
-  const upload = normalizeFeature(uploadInput, true);
+  const upload = normalizeFeature(uploadInput);
   const download = normalizeFeature<DownloadConfig>(route.download);
   const deleteFeature = normalizeFeature<DeleteConfig>(route.delete);
   const multipart = normalizeFeature<MultipartConfig>(multipartInput);

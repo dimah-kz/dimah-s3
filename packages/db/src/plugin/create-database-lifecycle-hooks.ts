@@ -103,23 +103,23 @@ export function createDatabaseLifecycleHooks(
   }
 
   const pendingObjectGuard = createObjectAccessGuard({
-    db: objects,
+    client: objects,
     resolveScope: options.resolveScope,
     requireStatus: "pending",
   });
   const multipartSessionGuard = createObjectAccessGuard({
-    db: objects,
+    client: objects,
     resolveScope: options.resolveScope,
     requireStatus: "pending",
     requireUploadId: true,
   });
   const activeObjectGuard = createObjectAccessGuard({
-    db: objects,
+    client: objects,
     resolveScope: options.resolveScope,
     requireStatus: "active",
   });
   const ownedObjectGuard = createObjectAccessGuard({
-    db: objects,
+    client: objects,
     resolveScope: options.resolveScope,
     requireStatus: "any",
   });
@@ -134,7 +134,7 @@ export function createDatabaseLifecycleHooks(
         onConfirmed: trackConfirmed,
         multipart: {
           onInit: trackPending,
-          sessionGuard: multipartSessionGuard,
+          guard: multipartSessionGuard,
           onAbort: async (context) => {
             await objects.deletePending({
               bucket: context.bucket,

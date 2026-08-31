@@ -14,7 +14,7 @@ export type { ServerErrors } from "./errors";
 export { createS3Endpoint, createS3Middleware } from "./api";
 export type { S3EndpointContext } from "./api";
 
-export { definePlugin } from "./plugin";
+export { chainHooks, definePlugin } from "./plugin";
 export type {
   DimahS3Plugin,
   DimahS3PluginHooks,
@@ -43,7 +43,7 @@ export type {
   MultipartOnAbortContext,
   MultipartOnInitContext,
   MultipartOnListContext,
-  MultipartSessionGuardContext,
+  MultipartGuardContext,
   MultipartUploadContext,
   ObjectFile,
   OpenedRoute,

@@ -26,12 +26,14 @@ export type {
   FetchDownloadHooks,
 } from "./types/download";
 export type { DeletePhase, DeleteHooks } from "./types/delete";
+export { S3UploadError } from "./types/error";
 
 // ─── Protocol helpers (so React apps rarely need @dimah-s3/core) ─────────────
 export {
   DimahS3Error,
   S3_ERROR_CODES,
   buildObjectKey,
+  fileNameFromKey,
   formatFileSize,
   isAPIError,
   isDimahS3Error,

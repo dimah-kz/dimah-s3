@@ -3,8 +3,8 @@ title: Upload
 description: Presign, confirm, and persist verified metadata.
 ---
 
-Enable on a [named route](/docs/server/routes) with `upload: true`, an
-options object, or by omitting `upload` (it defaults on). Default method is
+Enable on a [named route](/docs/server/routes) with `upload: true` or an
+options object. Upload is **off** until you set it. Default method is
 `"POST"`. Use `"PUT"` when the provider has no Presigned POST
 ([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is **off**
 until you set `upload.multipart: true`.
