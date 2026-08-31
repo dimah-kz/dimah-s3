@@ -46,7 +46,7 @@ export type MultipartAbortResponse = {
 };
 
 /** Presigned GET URL for download. */
-export type PresignResponse = {
+export type DownloadPresignResponse = {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
@@ -88,7 +88,7 @@ export type MultipartInitResponse = {
 /** Presigned URL for a single multipart part. */
 export type MultipartPartResponse = {
   /** Presigned PUT URL for this part. */
-  presignedUrl: string;
+  url: string;
   /** 1-based part number. */
   partNumber: number;
   /** Multipart upload ID. */
@@ -149,7 +149,7 @@ export type UploadConfirmResponse = {
 export type S3Api = {
   upload: (payload: UploadPayload) => Promise<UploadPresignResponse>;
   confirm: (payload: ConfirmPayload) => Promise<UploadConfirmResponse>;
-  download: (payload: DownloadPayload) => Promise<PresignResponse>;
+  download: (payload: DownloadPayload) => Promise<DownloadPresignResponse>;
   delete: (payload: DeletePayload) => Promise<DeleteResponse>;
   multipart: {
     init: (payload: MultipartInitPayload) => Promise<MultipartInitResponse>;

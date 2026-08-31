@@ -2,6 +2,7 @@ import type {
   UploadProgress,
   UploadRequestOptions,
   RetryConfig,
+  UploadResult,
 } from "@/types";
 import type { S3Api } from "@dimah-s3/core";
 import type { UploadStore } from "@/types/upload-store";
@@ -34,8 +35,10 @@ export async function uploadMultipart(
   uploadStore?: UploadStore | false,
   onPartUpload?: (partNumber: number, totalParts: number) => void,
   onMultipartInit?: (uploadId: string, key: string) => void,
-): Promise<string | undefined> {
-  const contentType = requestOptions?.contentType ?? file.type;
+): Promise<UploadResult> {
+  const rawContentType = requestOptions?.contentType ?? file.type;
+  const contentType =
+    rawContentType.trim() === "" ? undefined : rawContentType;
   const fileName = requestOptions?.fileName || file.name;
   const resumeKey = multipartResumeKey(route, file);
 
@@ -152,7 +155,7 @@ export async function uploadMultipart(
         batch.push(
           withRetry(
             async () => {
-              const { presignedUrl } = await api.multipart.signPart({
+              const { url } = await api.multipart.signPart({
                 route,
                 key,
                 uploadId,
@@ -164,7 +167,7 @@ export async function uploadMultipart(
 
               await uploadPart(
                 blob,
-                presignedUrl,
+                url,
                 partProgress[i],
                 reportProgress,
                 signal,
@@ -196,7 +199,13 @@ export async function uploadMultipart(
     await store?.delete(resumeKey);
 
     onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
-    return result.eTag;
+    return {
+      key,
+      eTag: result.eTag,
+      contentLength: result.contentLength,
+      contentType: result.contentType,
+      fileName: result.fileName,
+    };
   } catch (err) {
     if (store === null) {
       // Resumability is disabled — clean up the S3 multipart upload immediately.

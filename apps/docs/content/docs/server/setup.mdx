@@ -69,10 +69,11 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
 <Callout type="warn">
   The server owns object keys. The client sends a route name, never a key on
-  upload. Default key is `{route}/{uuid}/{name}` under `keyPrefix`. Return
-  `{ prefix? }` or `{ key? }` from `upload.object`. Follow-up keys must stay
-  under `keyPrefix`. Uploads are `private` unless `upload.acl` is set or
-  `object` returns one. Full rules: [Security](/docs/server/security).
+  upload. Default key is `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to
+  the route name). Return `{ folder? }` or `{ key? }` from `upload.object`.
+  Follow-up keys must stay under `keyPrefix` (`false` generates `{uuid}/{name}`
+  and skips the follow-up check). Uploads are `private` unless `upload.acl` is
+  set or `object` returns one. Full rules: [Security](/docs/server/security).
 </Callout>
 
 A plain `Error` in `guard` / `*Guard` / `object` becomes **403**. The same

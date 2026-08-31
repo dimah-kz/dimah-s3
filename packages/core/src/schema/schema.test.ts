@@ -47,9 +47,11 @@ describe("trimmedString", () => {
 });
 
 describe("optionalTrimmedString", () => {
-  it("accepts omitted values and rejects blank strings", () => {
+  it("omits missing, empty, and whitespace-only values", () => {
     expect(optionalTrimmedString.parse(undefined)).toBeUndefined();
-    expect(optionalTrimmedString.safeParse("").success).toBe(false);
+    expect(optionalTrimmedString.parse("")).toBeUndefined();
+    expect(optionalTrimmedString.parse("   ")).toBeUndefined();
+    expect(optionalTrimmedString.parse(" image/png ")).toBe("image/png");
   });
 });
 
@@ -91,17 +93,26 @@ describe("uploadBodySchema", () => {
   });
 
   it("rejects a client key, bucket, acl, or expiresIn", () => {
-    const parsed = uploadBodySchema.parse({
-      ...uploadBody,
-      key: "a.png",
-      bucket: "other",
-      acl: "public-read",
-      expiresIn: 600,
-    });
-    expect(parsed).not.toHaveProperty("key");
-    expect(parsed).not.toHaveProperty("bucket");
-    expect(parsed).not.toHaveProperty("acl");
-    expect(parsed).not.toHaveProperty("expiresIn");
+    expect(
+      uploadBodySchema.safeParse({
+        ...uploadBody,
+        key: "a.png",
+      }).success,
+    ).toBe(false);
+    expect(
+      uploadBodySchema.safeParse({
+        ...uploadBody,
+        bucket: "other",
+        acl: "public-read",
+        expiresIn: 600,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("omits a blank contentType", () => {
+    expect(
+      uploadBodySchema.parse({ ...uploadBody, contentType: "" }).contentType,
+    ).toBeUndefined();
   });
 });
 

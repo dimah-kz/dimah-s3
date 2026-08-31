@@ -6,3 +6,4 @@ export {
   type MultiUploadCallbacks,
 } from "./upload-files";
 export { multipartResumeKey } from "./resume-key";
+export { DEFAULT_MULTIPART_THRESHOLD } from "./constants";

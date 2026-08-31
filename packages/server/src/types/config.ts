@@ -66,11 +66,13 @@ export type UploadConfig = {
    */
   maxFileSize?: number;
   /**
-   * Server-owned object identity. Return `prefix` for a folder under
+   * Server-owned object identity. Return `folder` for a directory under
    * the route `keyPrefix`, `key` for the rest of the key (also nested
    * under `keyPrefix`), plus optional S3 `metadata` and `acl`.
    * Runs on upload / multipart init only. Default key is
    * `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name).
+   * `keyPrefix: false` generates `{uuid}/{name}` and skips the follow-up
+   * namespace check.
    */
   object?: (
     context: UploadObjectContext,

@@ -4,7 +4,7 @@ import { routeNameSchema, trimmedString } from "./shared";
 
 export const multipartInitBodySchema = uploadBodySchema;
 
-export const multipartSignPartBodySchema = z.object({
+export const multipartSignPartBodySchema = z.strictObject({
   route: routeNameSchema,
   key: trimmedString,
   uploadId: trimmedString,
@@ -18,14 +18,16 @@ export const multipartListPartsQuerySchema = z.object({
   uploadId: trimmedString,
 });
 
-export const multipartCompleteBodySchema = z.object({
+export const multipartCompleteBodySchema = z.strictObject({
   route: routeNameSchema,
   key: trimmedString,
   uploadId: trimmedString,
-  parts: z.array(z.object({ partNumber: z.number().int().positive() })).min(1),
+  parts: z
+    .array(z.strictObject({ partNumber: z.number().int().positive() }))
+    .min(1),
 });
 
-export const multipartAbortBodySchema = z.object({
+export const multipartAbortBodySchema = z.strictObject({
   route: routeNameSchema,
   key: trimmedString,
   uploadId: trimmedString,

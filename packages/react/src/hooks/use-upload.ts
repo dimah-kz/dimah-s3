@@ -1,7 +1,12 @@
 "use client";
 
 import type { DimahS3Error } from "@dimah-s3/core";
-import type { UploadFileInfo, UploadPhase, UploadProgress } from "@/types";
+import type {
+  UploadFileInfo,
+  UploadPhase,
+  UploadProgress,
+  UploadResult,
+} from "@/types";
 import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
 import {
   useFileIntake,
@@ -44,6 +49,8 @@ export type UseUploadReturn = {
   progress: UploadProgress;
   /** Last error, or `null`. */
   error: DimahS3Error | null;
+  /** Result after success, or `null`. */
+  result: UploadResult | null;
   /** `true` while bytes are transferring (`phase === "uploading"`). */
   isUploading: boolean;
   /**
@@ -106,6 +113,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     fileInfo: single.fileInfo,
     progress: single.progress,
     error: single.error,
+    result: single.result,
     isUploading: single.isUploading,
     isPending: single.isPending,
     handleFiles,

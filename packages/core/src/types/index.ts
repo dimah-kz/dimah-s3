@@ -17,7 +17,7 @@ export type {
   DeleteResponse,
   MultipartCompleteResponse,
   MultipartAbortResponse,
-  PresignResponse,
+  DownloadPresignResponse,
   UploadPresignResponse,
   MultipartInitResponse,
   MultipartPartResponse,

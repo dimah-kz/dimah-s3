@@ -11,6 +11,8 @@ export type MultiUploadFileState = UploadFileInfo & {
   status: "pending" | "uploading" | "success" | "error";
   progress: UploadProgress;
   error: DimahS3Error | null;
+  /** Set after this file succeeds. */
+  result: UploadResult | null;
 };
 
 /** Lifecycle hooks for multi-file upload. */

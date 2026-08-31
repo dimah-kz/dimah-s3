@@ -62,12 +62,14 @@ async function handleUpload(
   const contentType = input.contentType ?? "application/octet-stream";
   const hookCtx = {
     ...stored,
-    contentType: input.contentType,
-    fileSize,
+    file: {
+      name: fileName,
+      size: fileSize,
+      type: input.contentType,
+    },
     metadata,
     clientMetadata: input.metadata,
     acl,
-    fileName,
   };
 
   await runHook(route.upload.guard, hookCtx);

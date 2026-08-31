@@ -7,7 +7,7 @@ export function DownloadButtonDemo() {
     <DownloadButton
       className="w-fit self-start"
       route="uploads"
-      objectKey="reports/annual-2024.pdf"
+      objectKey="uploads/11111111-1111-1111-1111-111111111111/annual-2024.pdf"
       fileName="Annual Report 2024.pdf"
     />
   );

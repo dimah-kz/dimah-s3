@@ -23,7 +23,7 @@ export function assertDeclaredConstraints(
     constraints?.fileTypes?.length &&
     !matchesFileTypes(input.fileName, input.contentType, constraints.fileTypes)
   ) {
-    throw errors.fileTypeNotAllowed(input.fileName);
+    throw errors.fileTypeNotAllowed(input.fileName, input.contentType);
   }
   assertWithinMaxFileSize(constraints?.maxFileSize, input.fileSize);
 }
@@ -38,6 +38,6 @@ export function assertVerifiedConstraints(
     constraints?.fileTypes?.length &&
     !matchesFileTypes(name, input.contentType, constraints.fileTypes)
   ) {
-    throw errors.fileTypeNotAllowed(name || input.contentType || "unknown");
+    throw errors.fileTypeNotAllowed(name || "unknown", input.contentType);
   }
 }

@@ -182,14 +182,14 @@ describe("upload", () => {
     });
   });
 
-  it("uses object.prefix when generating the key", async () => {
+  it("uses object.folder when generating the key", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
     const s3 = createInstance({
       routes: {
         uploads: allFeaturesRoute({
-          upload: { object: () => ({ prefix: "media" }) },
+          upload: { object: () => ({ folder: "media" }) },
         }),
       },
     });
@@ -554,7 +554,7 @@ describe("multipart", () => {
         },
       }),
     ).resolves.toMatchObject({
-      presignedUrl: "https://s3.test/signed",
+      url: "https://s3.test/signed",
       partNumber: 1,
       uploadId: "up-1",
       partSize: 8,

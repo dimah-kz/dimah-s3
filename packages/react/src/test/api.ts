@@ -52,7 +52,7 @@ export function fakeS3Api(
         uploadId: "up-1",
       })),
       signPart: vi.fn(async (payload) => ({
-        presignedUrl: "https://s3.test/part",
+        url: "https://s3.test/part",
         partNumber: payload.partNumber,
         uploadId: payload.uploadId,
         bucket,

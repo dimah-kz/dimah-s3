@@ -14,6 +14,7 @@ call.
 <Flow
   label="Multipart complete"
   steps={[
+    { name: "object", kind: "hook" },
     { name: "upload.guard", kind: "hook" },
     { name: "onInit", kind: "hook" },
     { name: "sessionGuard", kind: "hook", note: "each part" },

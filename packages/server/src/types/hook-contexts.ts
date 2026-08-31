@@ -46,8 +46,9 @@ export type UploadObjectContext = {
   file: ObjectFile;
   bucket: string;
   /**
-   * Namespace this route writes under. `false` means keys are not nested
-   * or checked against a prefix.
+   * Namespace this route writes under. `false` skips the follow-up
+   * namespace check and generates `{uuid}/{name}` when `object` omits
+   * `folder` / `key`.
    */
   keyPrefix: string | false;
   clientMetadata?: Record<string, string>;
@@ -57,14 +58,15 @@ export type UploadObjectContext = {
 export type UploadObjectInfo = {
   /**
    * Extra folder under the route {@link UploadObjectContext.keyPrefix}.
-   * Nested as `{keyPrefix}/{prefix}/{uuid}/{name}` unless `keyPrefix` is
-   * `false`. Ignored when {@link key} is set.
+   * Nested as `{keyPrefix}/{folder}/{uuid}/{name}` unless `keyPrefix` is
+   * `false` (`{folder}/{uuid}/{name}`). Ignored when {@link key} is set.
    */
-  prefix?: string;
+  folder?: string;
   /**
    * Object key, nested under {@link UploadObjectContext.keyPrefix} unless
    * the key is already inside that prefix or `keyPrefix` is `false`.
-   * If omitted, `{keyPrefix|prefix}/{uuid}/{name}` is used.
+   * If omitted, `{keyPrefix}/{folder}/{uuid}/{name}` is used
+   * (`{uuid}/{name}` when `keyPrefix` is `false` and `folder` is omitted).
    */
   key?: string;
   /** S3 user metadata (`x-amz-meta-*`). */
@@ -75,22 +77,19 @@ export type UploadObjectInfo = {
 
 /**
  * Context for `upload.guard`.
- * Runs on single-shot presign and multipart init.
+ * Runs on single-shot presign and multipart init **after** `upload.object`
+ * so `key` is already assigned (plugins like `db()` check ownership here).
  * Client-declared values are not verified by S3.
  */
 export type UploadGuardContext = StoredObjectContext & {
-  /** MIME type the client sent — not verified until `onConfirmed`. */
-  contentType?: string;
-  /** Size the client sent — not verified until `onConfirmed`. */
-  fileSize?: number;
+  /** Declared file from the presign body — same shape as `upload.object`. */
+  file: ObjectFile;
   /** S3 object metadata from route `object`. */
   metadata?: Record<string, string>;
   /** Client extras from the request — not written to S3 automatically. */
   clientMetadata?: Record<string, string>;
   /** Resolved ACL. */
   acl?: S3ObjectAcl;
-  /** Original filename for `Content-Disposition`. */
-  fileName?: string;
 };
 
 /** Context for `upload.onPresigned` (single-shot only). */

@@ -123,6 +123,11 @@ export const RESERVED_PLUGIN_IDS = [
   "getPlugin",
   "$ERROR_CODES",
   "$Infer",
+  "upload",
+  "confirm",
+  "download",
+  "delete",
+  "multipart",
 ] as const;
 
 export type ReservedPluginId = (typeof RESERVED_PLUGIN_IDS)[number];

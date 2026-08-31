@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 
 export type DownloadToastOptions = {
   enabled?: boolean;
+  /** S3 object key — named `objectKey` because React reserves `key`. */
   objectKey: string;
   fileName?: string;
   fileSize?: number;

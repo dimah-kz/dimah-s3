@@ -18,9 +18,7 @@ describe("createDatabaseLifecycleHooks", () => {
       route,
       key: "k",
       bucket: "b",
-      contentType: "text/plain",
-      fileSize: 10,
-      fileName: "a.txt",
+      file: { name: "a.txt", size: 10, type: "text/plain" },
       url: "https://s3.test",
       expiresIn: 600,
     });
@@ -156,7 +154,7 @@ describe("createDatabaseLifecycleHooks", () => {
       key: "k",
       bucket: "b",
       uploadId: "up-1",
-      fileSize: 100,
+      file: { name: "a.bin", size: 100 },
     });
 
     expect(store.upsertPending).toHaveBeenCalledWith(
@@ -180,6 +178,7 @@ describe("createDatabaseLifecycleHooks", () => {
         route,
         key: "k",
         bucket: "b",
+        file: { name: "a.txt" },
       }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });

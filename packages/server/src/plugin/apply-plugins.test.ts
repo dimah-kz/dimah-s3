@@ -211,6 +211,7 @@ describe("applyPlugins merge", () => {
       route: "uploads",
       key: "a.png",
       bucket: "bucket",
+      file: { name: "a.png", size: 10 },
     });
     expect(upload.enabled).toBe(true);
     expect(order).toEqual(["plugin", "user"]);

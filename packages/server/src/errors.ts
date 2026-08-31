@@ -52,11 +52,14 @@ export const errors = {
       params: { route },
     }),
 
-  fileTypeNotAllowed: (type: string) =>
+  fileTypeNotAllowed: (fileName: string, contentType?: string) =>
     DimahS3Error.from("BAD_REQUEST", {
       code: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.code,
       message: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.message,
-      params: { type },
+      params: {
+        fileName,
+        ...(contentType ? { contentType } : {}),
+      },
     }),
 
   s3NetworkError: (code: string) =>

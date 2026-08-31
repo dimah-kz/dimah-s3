@@ -82,12 +82,14 @@ function objectKeyFileName(fileName: string): string {
   return leaf;
 }
 
-/** `{folder}/{uuid}/{sanitizedName}` — `folder` is already namespaced. */
-export function generateObjectKey(folder: string, fileName: string): string {
-  return applyPrefix(
-    folder,
-    `${crypto.randomUUID()}/${objectKeyFileName(fileName)}`,
-  );
+/** `{folder}/{uuid}/{sanitizedName}` — omit `folder` (`false`) for `{uuid}/{name}`. */
+export function generateObjectKey(
+  folder: string | false,
+  fileName: string,
+): string {
+  const leaf = `${crypto.randomUUID()}/${objectKeyFileName(fileName)}`;
+  if (folder === false) return assertSafeObjectKey(leaf);
+  return applyPrefix(folder, leaf);
 }
 
 function resolveAcl(
@@ -112,10 +114,10 @@ export async function resolveUploadTarget(
   const key = info?.key
     ? nestKeyUnderPrefix(route.keyPrefix, info.key)
     : generateObjectKey(
-        info?.prefix != null && info.prefix !== ""
-          ? nestKeyUnderPrefix(route.keyPrefix, info.prefix)
+        info?.folder != null && info.folder !== ""
+          ? nestKeyUnderPrefix(route.keyPrefix, info.folder)
           : route.keyPrefix === false
-            ? context.route
+            ? false
             : route.keyPrefix,
         context.file.name,
       );

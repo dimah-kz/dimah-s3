@@ -88,9 +88,10 @@ export function MultiUploader() {
 }
 ```
 
-The server generates each object key. `files` on the return value is the
-per-file list (`name`, `size`, `type`, `previewUrl`, plus `id` / `status` /
-`progress` / `error`).
+The server generates each object key. After success, `useUpload` exposes
+`result` (`key`, `contentLength`, …). `useMultiUpload` puts the same object
+on each `files[]` entry (`result`). Persist `result.key` for download and
+delete.
 
 `multipart` splits **one** large file into parts. It is not multi-file
 upload. To resume after a refresh, pass an
@@ -127,9 +128,9 @@ await upload(files);
 | `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions |
 | `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                        |
 | `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                              |
-| `multipart`                          | Split files ≥ 50 MB into parts (server route must set `upload.multipart: true`)           |
+| `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`) |
 | `uploadStore`                        | Resume after refresh                                                                      |
-| `onSuccess`                          | Called with the uploaded key                                                              |
+| `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key` for download / delete             |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full

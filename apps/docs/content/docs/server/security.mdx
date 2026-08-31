@@ -33,11 +33,12 @@ The server generates keys on upload and multipart init. Confirm, download,
 and delete reuse the stored key — they do not re-run `object`. Follow-up
 keys must stay under the route **`keyPrefix`** (default: the route name) or
 the request fails with `INVALID_KEY`. That stops `uploads` from targeting
-`avatars/…` on the same bucket. `keyPrefix: false` turns the bound off.
+`avatars/…` on the same bucket. `keyPrefix: false` turns the follow-up
+check off and generates `{uuid}/{name}` (no route folder).
 
 - Default key is `{keyPrefix}/{uuid}/{sanitize(fileName)}`.
-- `object` returns `{ prefix?, key?, metadata?, acl? }` on upload / init
-  only. `prefix` and `key` are nested under `keyPrefix` unless they already
+- `object` returns `{ folder?, key?, metadata?, acl? }` on upload / init
+  only. `folder` and `key` are nested under `keyPrefix` unless they already
   sit inside it. Store and send back the `key` from the response. Client
   `metadata` is not written to S3 unless `object` copies it.
 - A plain `Error` from `object` is **403**, same as `guard`.
@@ -77,7 +78,7 @@ export const s3 = dimahS3({
         object: async ({ request }) => {
           const session = await getSession(request); // your auth
           if (!session) throw errors.unauthorized();
-          return { prefix: `users/${session.userId}` };
+          return { folder: `users/${session.userId}` };
           // key: uploads/users/{userId}/{uuid}/{name}
         },
       },

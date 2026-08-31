@@ -47,8 +47,11 @@ npx shadcn@latest add @dimah-s3/progress-download-button
 ## Usage
 
 ```tsx
-<ProgressDownloadButton route="uploads" objectKey="uploads/report.pdf" />
+<ProgressDownloadButton route="uploads" objectKey={storedKey} />
 ```
+
+`objectKey` is the stored S3 key (`result.key` from upload). The prop is not
+named `key` because React reserves that for lists.
 
 ## Props
 

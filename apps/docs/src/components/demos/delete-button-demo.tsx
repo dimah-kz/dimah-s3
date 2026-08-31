@@ -6,7 +6,7 @@ export function DeleteButtonDemo() {
   return (
     <DeleteButton
       route="uploads"
-      objectKey="uploads/photo.jpg"
+      objectKey="uploads/11111111-1111-1111-1111-111111111111/photo.jpg"
       fileName="photo.jpg"
       fileSize={1_024_000}
     />

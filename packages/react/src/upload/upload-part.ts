@@ -2,14 +2,14 @@ import { sendXhrUpload } from "./xhr-upload";
 
 export function uploadPart(
   blob: Blob,
-  presignedUrl: string,
+  url: string,
   partLoaded: { bytes: number },
   reportProgress: () => void,
   signal?: AbortSignal,
 ): Promise<void> {
   return sendXhrUpload({
     method: "PUT",
-    url: presignedUrl,
+    url,
     body: blob,
     signal,
     errorLabel: "Part upload",

@@ -49,12 +49,15 @@ npx shadcn@latest add @dimah-s3/delete-button
 ```tsx
 <DeleteButton
   route="uploads"
-  objectKey="uploads/report.pdf"
+  objectKey={storedKey}
   onSuccess={() => {
     /* sync your database */
   }}
 />
 ```
+
+`objectKey` is the stored S3 key (`result.key` from upload). The prop is not
+named `key` because React reserves that for lists.
 
 ## Props
 

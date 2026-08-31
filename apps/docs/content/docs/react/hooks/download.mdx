@@ -6,6 +6,9 @@ description: Presign a GET URL — native download, or fetch with progress.
 Ask the API for a short-lived GET URL, then let the browser take the file.
 Your server never streams the body.
 
+Pass the **stored** key from upload (`result.key`) — a bare filename is
+outside the route `keyPrefix` and returns `INVALID_KEY`.
+
 | Hook                             | UI                                                                                                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `useDownload()`                  | [Download Button](/docs/react/ui/components/download-button) — native download, no progress                       |
@@ -26,9 +29,11 @@ import { useDownload } from "@dimah-s3/react";
 
 export function DownloadFile() {
   const { download, phase } = useDownload({ route: "uploads" });
+  // Persist `result.key` from upload — not the original filename.
+  const storedKey = "uploads/11111111-1111-1111-1111-111111111111/photo.jpg";
 
   return (
-    <button type="button" onClick={() => void download("photo.jpg")}>
+    <button type="button" onClick={() => void download(storedKey)}>
       {phase === "presigning" ? "Preparing…" : "Download"}
     </button>
   );
@@ -39,7 +44,9 @@ Need the URL only — preview, embed, or your own link:
 
 ```tsx
 const { presign } = useDownload({ route: "uploads" });
-const result = await presign("photo.jpg");
+const result = await presign(
+  "uploads/11111111-1111-1111-1111-111111111111/photo.jpg",
+);
 ```
 
 ## Fetch with progress
@@ -57,10 +64,11 @@ export function DownloadFile() {
     route: "uploads",
     mode: "fetch",
   });
+  const storedKey = "uploads/11111111-1111-1111-1111-111111111111/photo.jpg";
 
   return (
     <div>
-      <button type="button" onClick={() => void download("photo.jpg")}>
+      <button type="button" onClick={() => void download(storedKey)}>
         {phase === "downloading" ? `${progress.percent}%` : "Download"}
       </button>
       <button type="button" onClick={cancel}>

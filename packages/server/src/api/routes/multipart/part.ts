@@ -53,7 +53,7 @@ async function handleSignPart(
     );
   }
 
-  const presignedUrl = await getSignedUrl(
+  const url = await getSignedUrl(
     route.client,
     new UploadPartCommand({
       Bucket: bucket,
@@ -69,7 +69,7 @@ async function handleSignPart(
   );
 
   return {
-    presignedUrl,
+    url,
     partNumber,
     uploadId,
     bucket,

@@ -7,6 +7,7 @@ vi.mock("./upload-file", () => ({
   uploadFile: vi.fn(async (_api, file: File) => ({
     key: `uploads/${file.name}`,
     eTag: "e",
+    contentLength: 1,
   })),
 }));
 
@@ -36,7 +37,11 @@ describe("uploadFiles", () => {
 
   it("records per-file errors without failing the batch", async () => {
     vi.mocked(uploadFile)
-      .mockResolvedValueOnce({ key: "uploads/a.txt", eTag: "e" })
+      .mockResolvedValueOnce({
+        key: "uploads/a.txt",
+        eTag: "e",
+        contentLength: 1,
+      })
       .mockRejectedValueOnce(new Error("boom"));
 
     const results = await uploadFiles(fakeS3Api(), [item("a"), item("b")], {

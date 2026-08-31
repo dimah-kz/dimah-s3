@@ -6,13 +6,17 @@ import { renderHook } from "@/test/render-hook";
 import { uploadFile } from "@/upload";
 
 vi.mock("@/upload", () => ({
-  uploadFile: vi.fn(async () => ({ key: "k", eTag: "e" })),
+  uploadFile: vi.fn(async () => ({ key: "k", eTag: "e", contentLength: 1 })),
 }));
 
 describe("useFileUpload", () => {
   beforeEach(() => {
     vi.mocked(uploadFile).mockReset();
-    vi.mocked(uploadFile).mockResolvedValue({ key: "k", eTag: "e" });
+    vi.mocked(uploadFile).mockResolvedValue({
+      key: "k",
+      eTag: "e",
+      contentLength: 1,
+    });
   });
   it("rejects a disallowed type before calling the engine", async () => {
     const hook = renderHook(() =>
@@ -57,7 +61,11 @@ describe("useFileUpload", () => {
     });
     expect(hook.current.isPending).toBe(false);
     expect(hook.current.isUploading).toBe(false);
-    expect(hook.current.result).toEqual({ key: "k", eTag: "e" });
+    expect(hook.current.result).toEqual({
+      key: "k",
+      eTag: "e",
+      contentLength: 1,
+    });
     hook.unmount();
   });
 

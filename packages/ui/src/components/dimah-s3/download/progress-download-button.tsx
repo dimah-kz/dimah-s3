@@ -30,7 +30,10 @@ export type ProgressDownloadButtonProps = FetchDownloadHooks &
     route: string;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
-    /** S3 object key to download. */
+    /**
+     * S3 object key (`api.download({ route, key })`).
+     * Named `objectKey` because React reserves the `key` prop.
+     */
     objectKey: string;
     /** Download filename for Content-Disposition. */
     fileName?: string;

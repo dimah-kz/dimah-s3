@@ -72,10 +72,19 @@ describe("generateObjectKey", () => {
       "uploads/11111111-1111-1111-1111-111111111111/bar.png",
     );
   });
+
+  it("omits a folder when keyPrefix is unbound", () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    expect(generateObjectKey(false, "a.png")).toBe(
+      "11111111-1111-1111-1111-111111111111/a.png",
+    );
+  });
 });
 
 describe("resolveUploadTarget", () => {
-  it("lets object.key win over object.prefix and nests under keyPrefix", async () => {
+  it("lets object.key win over object.folder and nests under keyPrefix", async () => {
     await expect(
       resolveUploadTarget(
         route({
@@ -83,7 +92,7 @@ describe("resolveUploadTarget", () => {
             enabled: true,
             multipart: { enabled: false },
             object: ({ file }: UploadObjectContext) => ({
-              prefix: "uploads",
+              folder: "uploads",
               key: `users/1/${file.name}`,
             }),
           },
@@ -96,7 +105,7 @@ describe("resolveUploadTarget", () => {
     });
   });
 
-  it("uses object.prefix when key is omitted", async () => {
+  it("uses object.folder when key is omitted", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
@@ -107,7 +116,7 @@ describe("resolveUploadTarget", () => {
             enabled: true,
             multipart: { enabled: false },
             object: () => ({
-              prefix: "media",
+              folder: "media",
               metadata: { author: "user_123" },
             }),
           },
@@ -165,14 +174,35 @@ describe("resolveUploadTarget", () => {
     });
   });
 
-  it("uses the route name as folder when keyPrefix is false", async () => {
+  it("generates uuid/filename when keyPrefix is false", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(
       "11111111-1111-1111-1111-111111111111",
     );
     await expect(
-      resolveUploadTarget(route({ keyPrefix: false }), ctx()),
+      resolveUploadTarget(route({ keyPrefix: false }), ctx({ keyPrefix: false })),
     ).resolves.toMatchObject({
-      key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
+      key: "11111111-1111-1111-1111-111111111111/a.png",
+    });
+  });
+
+  it("uses object.folder without a route folder when keyPrefix is false", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "11111111-1111-1111-1111-111111111111",
+    );
+    await expect(
+      resolveUploadTarget(
+        route({
+          keyPrefix: false,
+          upload: {
+            enabled: true,
+            multipart: { enabled: false },
+            object: () => ({ folder: "media" }),
+          },
+        }),
+        ctx({ keyPrefix: false }),
+      ),
+    ).resolves.toMatchObject({
+      key: "media/11111111-1111-1111-1111-111111111111/a.png",
     });
   });
 

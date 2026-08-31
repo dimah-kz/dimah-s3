@@ -224,6 +224,7 @@ export function useMultiFileUpload(
           status: "pending",
           progress: { loaded: 0, total: file.size, percent: 0 },
           error: null,
+          result: null,
         });
       }
 
@@ -293,6 +294,7 @@ export function useMultiFileUpload(
                 const fileState = draft.files.find((f) => f.id === id);
                 if (fileState) {
                   fileState.status = "success";
+                  fileState.result = result;
                   fileState.progress = {
                     loaded: fileState.size,
                     total: fileState.size,

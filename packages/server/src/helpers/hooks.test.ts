@@ -71,8 +71,8 @@ describe("runObjectHook", () => {
 
   it("returns object identity", async () => {
     await expect(
-      runObjectHook(() => ({ prefix: "media" }), objectContext),
-    ).resolves.toEqual({ prefix: "media" });
+      runObjectHook(() => ({ folder: "media" }), objectContext),
+    ).resolves.toEqual({ folder: "media" });
   });
 
   it("wraps plain Errors as FORBIDDEN", async () => {

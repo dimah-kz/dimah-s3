@@ -18,9 +18,13 @@ function file(size: number) {
 describe("uploadMultipart", () => {
   it("inits, signs each part, then completes", async () => {
     const api = fakeS3Api();
-    const eTag = await uploadMultipart(api, file(8), "videos", 4, 2);
+    const result = await uploadMultipart(api, file(8), "videos", 4, 2);
 
-    expect(eTag).toBe("abc");
+    expect(result).toMatchObject({
+      key: "videos/a.bin",
+      eTag: "abc",
+      contentLength: 1,
+    });
     expect(api.multipart.init).toHaveBeenCalledWith(
       expect.objectContaining({
         route: "videos",

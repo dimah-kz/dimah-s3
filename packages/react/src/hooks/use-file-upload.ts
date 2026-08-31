@@ -261,6 +261,7 @@ export function useFileUpload(
         draft.phase = "presigning";
       });
       opts.onUploadStart?.(file);
+      let errorPhase: UploadPhase = "presigning";
 
       try {
         const result = await uploadFile(
@@ -281,10 +282,12 @@ export function useFileUpload(
               });
               opts.onProgress?.(file, p);
             },
-            onPhaseChange: (phase) =>
+            onPhaseChange: (phase) => {
+              errorPhase = phase;
               patch((draft) => {
                 draft.phase = phase;
-              }),
+              });
+            },
             onPartUpload: (partNumber, totalParts) =>
               opts.onPartUpload?.(file, partNumber, totalParts),
             onMultipartInit: (uploadId, serverKey) => {
@@ -328,7 +331,7 @@ export function useFileUpload(
           draft.phase = "error";
           draft.error = toHookError(err, message);
         });
-        opts.onError?.(file, err, "uploading");
+        opts.onError?.(file, err, errorPhase);
       } finally {
         abortRef.current = null;
         activeUploadRef.current = null;

@@ -5,7 +5,7 @@ import type {
   MultipartInitResponse,
   MultipartListPartsResponse,
   MultipartPartResponse,
-  PresignResponse,
+  DownloadPresignResponse,
   S3Api,
   UploadConfirmResponse,
   UploadPresignResponse,
@@ -67,7 +67,7 @@ function createCoreApi($fetch: S3Fetch): S3Api {
 
     download(payload) {
       const { route, key, fileName } = withoutHeaders(payload);
-      return $fetch<PresignResponse>(S3_API_ROUTES.download, {
+      return $fetch<DownloadPresignResponse>(S3_API_ROUTES.download, {
         method: "GET",
         query: {
           route,

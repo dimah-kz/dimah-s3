@@ -44,14 +44,15 @@ export async function uploadFile(
   const useMultipart =
     config.multipart === true && file.size >= DEFAULT_MULTIPART_THRESHOLD;
   const concurrentParts = config.concurrentParts ?? DEFAULT_CONCURRENT_PARTS;
-  const contentType = requestOptions?.contentType ?? file.type;
+  const rawContentType = requestOptions?.contentType ?? file.type;
+  const contentType =
+    rawContentType.trim() === "" ? undefined : rawContentType;
   const fileName = requestOptions?.fileName || file.name;
 
   try {
     if (useMultipart) {
       callbacks.onPhaseChange?.("uploading");
-      let key = "";
-      const eTag = await uploadMultipart(
+      return await uploadMultipart(
         api,
         file,
         route,
@@ -64,11 +65,9 @@ export async function uploadFile(
         config.uploadStore,
         callbacks.onPartUpload,
         (uploadId, serverKey) => {
-          key = serverKey;
           callbacks.onMultipartInit?.(uploadId, serverKey);
         },
       );
-      return { key, eTag };
     }
 
     return await withRetry(
@@ -111,7 +110,13 @@ export async function uploadFile(
           route,
           key: presign.key,
         });
-        return { key: presign.key, eTag: confirmed.eTag };
+        return {
+          key: confirmed.key,
+          eTag: confirmed.eTag,
+          contentLength: confirmed.contentLength,
+          contentType: confirmed.contentType,
+          fileName: confirmed.fileName,
+        };
       },
       config.retry,
       signal,

@@ -46,7 +46,10 @@ export type DeleteButtonProps = DeleteHooks &
     route: string;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
-    /** S3 object key to delete. */
+    /**
+     * S3 object key (`api.delete({ route, key })`).
+     * Named `objectKey` because React reserves the `key` prop.
+     */
     objectKey: string;
     /** Display file name in the confirmation dialog. */
     fileName?: string;

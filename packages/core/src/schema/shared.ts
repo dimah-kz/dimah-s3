@@ -15,8 +15,15 @@ export const ROUTE_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 /** Non-empty trimmed string. */
 export const trimmedString = z.string().trim().min(1);
 
-/** Optional non-empty trimmed string (empty / missing → omitted). */
-export const optionalTrimmedString = z.string().trim().min(1).optional();
+/** Optional trimmed string. Blank or whitespace-only values are omitted. */
+export const optionalTrimmedString = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed === "" ? undefined : trimmed;
+  },
+  z.string().optional(),
+);
 
 export const routeNameSchema = trimmedString.regex(
   ROUTE_NAME_PATTERN,

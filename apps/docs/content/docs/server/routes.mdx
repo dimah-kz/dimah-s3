@@ -103,11 +103,11 @@ The client does not send `key` on upload or multipart init. Default:
 `keyPrefix` defaults to the route name. Confirm, download, delete, and
 multipart follow-ups reject keys outside that prefix (`INVALID_KEY`). Set
 `keyPrefix: "users"` to write under `users/…`, or `keyPrefix: false` to
-allow any safe key in the bucket.
+skip the follow-up check and generate `{uuid}/{name}` (no route folder).
 
 `object` runs on upload / init and may return:
 
-- `prefix` — extra folder under `keyPrefix`; the library still appends
+- `folder` — extra directory under `keyPrefix`; the library still appends
   `{uuid}/{name}`
 - `key` — rest of the key, nested under `keyPrefix` unless it already
   starts with that prefix
@@ -120,7 +120,7 @@ A plain `Error` from `object` is **403**, same as `guard`.
 route({
   upload: {
     object: ({ request, clientMetadata }) => ({
-      prefix: `users/${userId(request)}`,
+      folder: `users/${userId(request)}`,
       // uploads/users/{id}/{uuid}/{name}
       metadata: { author: userId(request), title: clientMetadata?.title ?? "" },
     }),

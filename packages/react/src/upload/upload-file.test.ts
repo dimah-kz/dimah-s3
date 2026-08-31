@@ -15,7 +15,11 @@ vi.mock("./multipart", () => ({
     const onInit = args[11] as
       ((uploadId: string, key: string) => void) | undefined;
     onInit?.("up-1", "videos/a.bin");
-    return "etag-mp";
+    return {
+      key: "videos/a.bin",
+      eTag: "etag-mp",
+      contentLength: DEFAULT_MULTIPART_THRESHOLD,
+    };
   }),
 }));
 
@@ -47,7 +51,7 @@ describe("uploadFile", () => {
         { route: "uploads" },
         { onPhaseChange: (p) => phases.push(p) },
       ),
-    ).resolves.toEqual({ key: "uploads/a.png", eTag: "abc" });
+    ).resolves.toEqual({ key: "uploads/a.png", eTag: "abc", contentLength: 1 });
 
     expect(api.upload).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -63,6 +67,19 @@ describe("uploadFile", () => {
       key: "uploads/a.png",
     });
     expect(phases).toEqual(["presigning", "uploading", "finalizing"]);
+  });
+
+  it("omits a blank browser contentType", async () => {
+    const api = fakeS3Api();
+    const unknown = new File(["x"], "a.bin", { type: "" });
+    await uploadFile(api, unknown, { route: "uploads" });
+    expect(api.upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        route: "uploads",
+        fileName: "a.bin",
+      }),
+    );
+    expect(vi.mocked(api.upload).mock.calls[0]?.[0]?.contentType).toBeUndefined();
   });
 
   it("uses PUT when the presign says so", async () => {
@@ -86,7 +103,11 @@ describe("uploadFile", () => {
     const big = oversizedFile();
     await expect(
       uploadFile(api, big, { route: "videos", multipart: true }),
-    ).resolves.toEqual({ key: "videos/a.bin", eTag: "etag-mp" });
+    ).resolves.toEqual({
+      key: "videos/a.bin",
+      eTag: "etag-mp",
+      contentLength: DEFAULT_MULTIPART_THRESHOLD,
+    });
 
     expect(uploadMultipart).toHaveBeenCalledOnce();
     expect(api.upload).not.toHaveBeenCalled();

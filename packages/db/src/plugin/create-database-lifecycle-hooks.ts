@@ -60,11 +60,9 @@ export function createDatabaseLifecycleHooks(
     request: Request;
     bucket: string;
     key: string;
-    contentType?: string;
-    fileSize?: number;
+    file: { name: string; size?: number; type?: string };
     metadata?: Record<string, string>;
     acl?: string;
-    fileName?: string;
     uploadId?: string;
   }): Promise<void> {
     const scope = await requireScope(context.request);
@@ -72,11 +70,11 @@ export function createDatabaseLifecycleHooks(
       scope,
       bucket: context.bucket,
       key: context.key,
-      contentType: context.contentType ?? null,
-      declaredSize: context.fileSize ?? null,
+      contentType: context.file.type ?? null,
+      declaredSize: context.file.size ?? null,
       metadata: context.metadata ?? null,
       acl: context.acl ?? null,
-      filename: context.fileName ?? null,
+      filename: context.file.name,
       uploadId: context.uploadId ?? null,
       expiresAt: new Date(Date.now() + pendingTtlMs),
     });

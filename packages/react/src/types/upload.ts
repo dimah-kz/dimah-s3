@@ -7,6 +7,12 @@ export type UploadResult = {
   key: string;
   /** Object ETag from S3. */
   eTag?: string;
+  /** Verified size from HeadObject / multipart complete. */
+  contentLength: number;
+  /** MIME type from HeadObject. */
+  contentType?: string;
+  /** Stored filename. */
+  fileName?: string;
 };
 
 /** Byte transfer progress for upload and fetch-download. */
@@ -120,6 +126,7 @@ export type FileUploadConfig = {
   /**
    * Attempt multipart when the file is at least 50 MB. The server must
    * enable `multipart` on the route or init returns `FEATURE_DISABLED`.
+   * The threshold is not configurable.
    */
   multipart?: boolean;
   /**
