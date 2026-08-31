@@ -15,21 +15,42 @@ describe("normalizeFeature / routes", () => {
   });
 
   it("treats an options object as enabled", () => {
-    expect(normalizeFeature({ prefix: "uploads" })).toEqual({
-      prefix: "uploads",
+    expect(normalizeFeature({ expiresIn: 60 })).toEqual({
+      expiresIn: 60,
       enabled: true,
     });
   });
 
   it("defaults upload on and other features off", () => {
-    const resolved = normalizeRoute("uploads", route({ prefix: "uploads" }), {
-      client,
-      bucket: "bucket",
-    });
+    const resolved = normalizeRoute(
+      "uploads",
+      route({ upload: { prefix: "uploads" } }),
+      { client, bucket: "bucket" },
+    );
     expect(resolved.upload?.enabled).toBe(true);
     expect(resolved.download?.enabled).toBeUndefined();
     expect(resolved.multipart?.enabled).toBe(false);
     expect(resolved.prefix).toBe("uploads");
+  });
+
+  it("keeps file constraints on the upload policy", () => {
+    const resolved = normalizeRoute(
+      "uploads",
+      route({
+        upload: {
+          prefix: "uploads",
+          fileTypes: ["image/*"],
+          maxFileSize: 1024,
+          acl: "public-read",
+          method: "PUT",
+        },
+      }),
+      { client, bucket: "bucket" },
+    );
+    expect(resolved.fileTypes).toEqual(["image/*"]);
+    expect(resolved.maxFileSize).toBe(1024);
+    expect(resolved.acl).toBe("public-read");
+    expect(resolved.method).toBe("PUT");
   });
 
   it("does not enable multipart unless opted in", () => {
@@ -39,21 +60,6 @@ describe("normalizeFeature / routes", () => {
       { client, bucket: "bucket" },
     );
     expect(resolved.multipart?.enabled).toBe(false);
-  });
-
-  it("inherits upload ACL onto multipart when opted in", () => {
-    const resolved = normalizeRoute(
-      "uploads",
-      route({
-        prefix: "uploads",
-        upload: { acl: "public-read" },
-        multipart: true,
-      }),
-      { client, bucket: "bucket" },
-    );
-    expect(resolved.multipart?.enabled).toBe(true);
-    expect(resolved.multipart?.acl).toBe("public-read");
-    expect(resolved.multipart?.prefix).toBe("uploads");
   });
 
   it("rejects multipart without upload", () => {

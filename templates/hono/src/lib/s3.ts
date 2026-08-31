@@ -15,8 +15,8 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      prefix: "uploads",
       upload: {
+        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },

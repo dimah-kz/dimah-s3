@@ -1,33 +1,33 @@
 import { matchesFileTypes } from "@dimah-s3/core";
 import { errors } from "@/errors";
-import type { UploadConfig } from "@/types";
+import type { ResolvedRoutePolicy } from "@/types";
 
 export function assertDeclaredConstraints(
-  upload: UploadConfig | undefined,
+  route: Pick<ResolvedRoutePolicy, "fileTypes" | "maxFileSize">,
   input: { fileName: string; fileSize: number; contentType?: string },
 ): void {
   if (
-    upload?.fileTypes?.length &&
-    !matchesFileTypes(input.fileName, input.contentType, upload.fileTypes)
+    route.fileTypes?.length &&
+    !matchesFileTypes(input.fileName, input.contentType, route.fileTypes)
   ) {
     throw errors.fileTypeNotAllowed(input.fileName);
   }
-  if (upload?.maxFileSize && input.fileSize > upload.maxFileSize) {
+  if (route.maxFileSize && input.fileSize > route.maxFileSize) {
     throw errors.payloadTooLarge();
   }
 }
 
 export function assertVerifiedConstraints(
-  upload: UploadConfig | undefined,
+  route: Pick<ResolvedRoutePolicy, "fileTypes" | "maxFileSize">,
   input: { fileName?: string; contentType?: string; contentLength: number },
 ): void {
-  if (upload?.maxFileSize && input.contentLength > upload.maxFileSize) {
+  if (route.maxFileSize && input.contentLength > route.maxFileSize) {
     throw errors.payloadTooLarge();
   }
   const name = input.fileName ?? "";
   if (
-    upload?.fileTypes?.length &&
-    !matchesFileTypes(name, input.contentType, upload.fileTypes)
+    route.fileTypes?.length &&
+    !matchesFileTypes(name, input.contentType, route.fileTypes)
   ) {
     throw errors.fileTypeNotAllowed(name || input.contentType || "unknown");
   }

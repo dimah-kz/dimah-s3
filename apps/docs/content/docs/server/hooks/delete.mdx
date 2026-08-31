@@ -31,7 +31,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      prefix: "uploads",
+      upload: { prefix: "uploads" },
       delete: {
         guard: async ({ key, request }) => {
           if (!request.headers.get("authorization")) {

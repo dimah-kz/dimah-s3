@@ -5,7 +5,7 @@ icon: Shield
 ---
 
 dimah-s3 signs URLs. It does not authenticate users, enforce quotas, or pick
-object keys. Those stay in your `guard`, `prefix`, and `resolveKey` hooks.
+object keys. Those stay in your `guard`, `prefix`, and `object` hooks.
 
 <Callout type="warn">
   Never put S3 credentials in the browser. Keep the AWS SDK `S3Client` on the
@@ -21,29 +21,29 @@ The client sends a **route name**, plus `fileName` / `fileSize` /
 | Field                      | Default                                         | How to scope it                                             |
 | -------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
 | `route`                    | required                                        | Must match a name in `routes` (`UNKNOWN_ROUTE` otherwise)   |
-| `key` (upload / init)      | **not sent** — server generates it              | Route `prefix` or `resolveKey`                              |
+| `key` (upload / init)      | **not sent** — server generates it              | `upload.prefix` or `upload.object`                          |
 | `key` (confirm / later)    | stored key from the presign response            | String `prefix` namespace check; then `guard` / db          |
-| `bucket` / `acl` / `expiresIn` | never accepted from the client              | Route `bucket` / `upload.acl` / `expiresIn`                 |
+| `bucket` / `acl` / `expiresIn` | never accepted from the client              | Route `bucket` / `upload.acl` / `upload.expiresIn`          |
 | `fileSize` / `contentType` | required on upload / init                       | Also enforce `fileTypes` / `maxFileSize`; trust HeadObject  |
 
 ## Keys
 
 The server generates keys on upload and multipart init. Confirm, download,
-and delete reuse the stored key — they do not re-run `resolveKey`.
+and delete reuse the stored key — they do not re-run `object`.
 
-- `prefix` is a string **or** an async factory (`GenerateKeyContext`:
-  `request`, `route`, `fileName`, `contentType`, `fileSize`, `bucket`). The
+- `prefix` is a string **or** an async factory (`ObjectContext`:
+  `request`, `route`, `file`, `bucket`, `clientMetadata`). The
   factory returns the folder to prepend, not the full key.
 - A string prefix namespaces later ops: the stored key must stay under that
   prefix. That is not authorization — `guard` still has to reject the
   request. Prefer a `prefix` factory for per-user / per-tenant folders.
-- `resolveKey` replaces the entire key on upload / init only. Store and send
-  back the `key` from the response.
+- `object` returns `{ key?, metadata?, acl? }` on upload / init only. Store
+  and send back the `key` from the response. Client `metadata` is not
+  written to S3 unless `object` copies it.
 - Unsafe keys fail with `INVALID_KEY`: empty, backslash, NUL, `.` / `..`
   segments, or empty path segments.
 
-Put `prefix` on the **route** so upload, download, and delete inherit it.
-See [Routes](/docs/server/routes).
+Put `prefix` / `object` on **upload**. See [Routes](/docs/server/routes).
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -51,8 +51,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      prefix: "uploads",
-      upload: true,
+      upload: { prefix: "uploads" },
       download: true,
       delete: true,
     }),
@@ -64,9 +63,9 @@ Per-user (or per-tenant) folders:
 
 ```ts title="lib/s3.ts"
 import { dimahS3, errors, route } from "@dimah-s3/server";
-import type { GenerateKeyContext } from "@dimah-s3/server";
+import type { ObjectContext } from "@dimah-s3/server";
 
-const userPrefix = async ({ request }: GenerateKeyContext) => {
+const userPrefix = async ({ request }: ObjectContext) => {
   const session = await getSession(request); // your auth
   if (!session) throw errors.unauthorized();
   return `users/${session.userId}`;
@@ -77,8 +76,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      prefix: userPrefix,
-      upload: true,
+      upload: { prefix: userPrefix },
       download: true,
       delete: true,
     }),
@@ -86,23 +84,25 @@ export const s3 = dimahS3({
 });
 ```
 
-<AutoTypeTable path="packages/server/src/types/config.ts" name="KeyPolicy" />
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="ObjectContext"
+/>
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
-  name="GenerateKeyContext"
+  name="ObjectInfo"
 />
 
 ## Bucket and ACL
 
 The client cannot pick a bucket or ACL. Each route uses the instance
 `bucket` unless the route sets its own. Uploads are `private` unless the
-route sets `upload.acl`:
+route sets `upload.acl` (or `object` returns one):
 
 ```ts
 uploads: route({
-  prefix: "uploads",
-  upload: { acl: "public-read" },
+  upload: { prefix: "uploads", acl: "public-read" },
 })
 ```
 
@@ -115,7 +115,7 @@ Simple uploads call `confirm` after the bytes land. Multipart calls
 in `upload.onConfirmed` **and** `multipart.onComplete`. Both see size and
 type from `HeadObject`.
 
-Set `upload.fileTypes` and `upload.maxFileSize` on the route. The server
+Set `fileTypes` and `maxFileSize` on `upload`. The server
 checks them at presign and again after HeadObject. Oversize after landing
 rejects confirm and best-effort `DeleteObject`.
 
@@ -127,8 +127,8 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      prefix: "uploads",
       upload: {
+        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
         onConfirmed: async ({ key, contentLength }) => {

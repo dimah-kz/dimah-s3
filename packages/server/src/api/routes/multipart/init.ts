@@ -13,7 +13,6 @@ import {
   assertDeclaredConstraints,
   getResolvedRoute,
   resolveMultipartInitTarget,
-  resolveRequestAcl,
   runHook,
   runLifecycleHook,
 } from "@/helpers";
@@ -32,20 +31,25 @@ async function handleMultipartInit(
 
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  assertDeclaredConstraints(route.upload, {
+  assertDeclaredConstraints(route, {
     fileName,
     fileSize,
     contentType: input.contentType,
   });
 
-  const { key, bucket } = await resolveMultipartInitTarget(route, {
-    request,
-    route: route.name,
-    fileName,
-    contentType: input.contentType,
-    fileSize,
-  });
-  const acl = resolveRequestAcl(route.multipart ?? route.upload);
+  const { key, bucket, metadata, acl } = await resolveMultipartInitTarget(
+    route,
+    {
+      request,
+      route: route.name,
+      file: {
+        name: fileName,
+        size: fileSize,
+        type: input.contentType,
+      },
+      clientMetadata: input.metadata,
+    },
+  );
 
   await runHook(route.multipart?.initGuard, {
     request,
@@ -54,7 +58,8 @@ async function handleMultipartInit(
     bucket,
     fileSize,
     contentType: input.contentType,
-    metadata: input.metadata,
+    metadata,
+    clientMetadata: input.metadata,
     acl,
     fileName,
   });
@@ -65,7 +70,7 @@ async function handleMultipartInit(
       Key: key,
       ContentType: input.contentType,
       ContentDisposition: buildContentDisposition(fileName),
-      Metadata: input.metadata,
+      Metadata: metadata,
       ACL: acl,
     }),
   )) as CreateMultipartUploadCommandOutput;
@@ -82,7 +87,8 @@ async function handleMultipartInit(
     uploadId: UploadId,
     contentType: input.contentType,
     fileSize,
-    metadata: input.metadata,
+    metadata,
+    clientMetadata: input.metadata,
     acl,
     fileName,
   });

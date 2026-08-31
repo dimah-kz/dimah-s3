@@ -47,7 +47,10 @@ export type UploadFileInfo = {
 
 /** Per-upload options passed to the presign API. */
 export type UploadRequestOptions = {
-  /** Custom S3 object metadata (`x-amz-meta-*`). */
+  /**
+   * Client extras sent to the server `object` callback as `clientMetadata`.
+   * Not written to S3 unless the route copies them into `object().metadata`.
+   */
   metadata?: Record<string, string>;
   /** Override auto-detected content type. */
   contentType?: string;
@@ -122,12 +125,12 @@ export type UploadConfig = {
   /**
    * HTML `accept` tokens: MIME types (`image/*`, `application/pdf`) and/or
    * extensions (`.pdf`). Client-side UX only — the server enforces
-   * `upload.fileTypes`.
+   * route `fileTypes`.
    */
   accept?: string[];
   /**
    * Max file size in bytes. Client-side UX only — the server enforces
-   * `upload.maxFileSize`.
+   * route `maxFileSize`.
    */
   maxFileSize?: number;
   /** Number of parts uploaded concurrently (multipart). */

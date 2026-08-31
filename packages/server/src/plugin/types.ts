@@ -10,7 +10,7 @@ import type {
 
 /**
  * Hook fields a plugin may contribute. Scalars like `method` /
- * `prefix` / `resolveKey` / `acl` stay user-owned on {@link DimahS3Config}.
+ * `prefix` / `object` / `acl` stay user-owned on the route `upload` policy.
  */
 export type DimahS3PluginHooks = {
   guard?: DimahS3Config["guard"];

@@ -250,7 +250,7 @@ describe("applyPlugins merge", () => {
     expect(init).toHaveBeenCalledWith("audit", "bucket");
   });
 
-  it("does not merge plugin prefix onto user key policy", () => {
+  it("does not merge plugin scalars onto user key policy", () => {
     const merged = applyPlugins({
       ...config([
         definePlugin({
@@ -264,7 +264,7 @@ describe("applyPlugins merge", () => {
         }),
       ]),
       routes: {
-        uploads: route({ prefix: "uploads", upload: true }),
+        uploads: route({ upload: { prefix: "uploads" } }),
       },
     });
 

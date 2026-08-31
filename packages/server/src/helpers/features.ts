@@ -76,19 +76,17 @@ export function normalizeRoute(
     );
   }
 
-  if (multipart?.enabled && upload?.enabled) {
-    multipart.prefix = multipart.prefix ?? upload.prefix ?? route.prefix;
-    multipart.resolveKey =
-      multipart.resolveKey ?? upload.resolveKey ?? route.resolveKey;
-    multipart.acl = multipart.acl ?? upload.acl;
-  }
-
   return {
     name,
     client,
     bucket,
-    prefix: route.prefix,
-    resolveKey: route.resolveKey,
+    fileTypes: upload?.fileTypes,
+    maxFileSize: upload?.maxFileSize,
+    prefix: upload?.prefix,
+    object: upload?.object,
+    acl: upload?.acl,
+    method: upload?.method,
+    expiresIn: upload?.expiresIn,
     guard: route.guard,
     skippedPluginIds: skippedPluginIds(route.plugins),
     upload,

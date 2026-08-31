@@ -5,7 +5,6 @@ import type {
   DeleteOnDeletedContext,
   DownloadOnPresignedContext,
   DownloadPresignGuardContext,
-  GenerateKeyContext,
   GuardContext,
   MultipartAbortGuardContext,
   MultipartCompleteGuardContext,
@@ -16,6 +15,8 @@ import type {
   MultipartOnInitContext,
   MultipartOnListContext,
   MultipartPartGuardContext,
+  ObjectContext,
+  ObjectInfo,
   RouteGuardContext,
   UploadConfirmGuardContext,
   UploadOnConfirmedContext,
@@ -24,63 +25,60 @@ import type {
 } from "./hook-contexts";
 import type { DimahS3Plugin } from "@/plugin/types";
 
-export type { GenerateKeyContext };
+export type { ObjectContext, ObjectInfo };
 
 /**
- * Static folder, or a factory that returns one from {@link GenerateKeyContext}.
+ * Static folder, or a factory that returns one from {@link ObjectContext}.
  * The return value is prepended — it is not the full object key. Use
- * {@link KeyPolicy.resolveKey} when you need to replace the key entirely.
+ * {@link UploadConfig.object} when you need the key, metadata, or ACL
+ * together.
  */
 export type KeyPrefix =
-  string | ((context: GenerateKeyContext) => string | Promise<string>);
+  string | ((context: ObjectContext) => string | Promise<string>);
 
-export type KeyPolicy = {
+/** Upload policy: constraints, object identity, and lifecycle hooks. */
+export type UploadConfig = {
+  /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
+  fileTypes?: string[];
+  /** Max declared and HeadObject size in bytes. */
+  maxFileSize?: number;
   /**
    * Folder prepended when generating keys on upload / multipart init.
-   * A string or an async factory (`GenerateKeyContext`).
+   * A string or an async factory ({@link ObjectContext}).
    */
   prefix?: KeyPrefix;
   /**
-   * Full control over the object key. Wins over {@link prefix}.
-   * Only runs on upload / multipart init — confirm, download, and delete
-   * use the stored key from the presign response.
+   * Server-owned object identity. Return `key` to replace the generated
+   * key, plus optional S3 `metadata` and `acl`. Runs on upload / init only.
    */
-  resolveKey?: (context: GenerateKeyContext) => string | Promise<string>;
-};
-
-export type AclPolicy = {
+  object?: (
+    context: ObjectContext,
+  ) => ObjectInfo | void | Promise<ObjectInfo | void>;
   /**
-   * Server-forced ACL.
+   * Server-forced ACL when `object` does not return one.
    * @default "private"
    */
   acl?: S3ObjectAcl;
+  /** Presign verb. Use `"PUT"` on R2 (no Presigned POST). @default "POST" */
+  method?: UploadPresignMethod;
+  /** Presign TTL in seconds. Clamped by instance `maxExpiresIn`. */
+  expiresIn?: number;
+  guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
+  onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
+  confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
+  onConfirmed?: (context: UploadOnConfirmedContext) => Promise<void> | void;
 };
 
-/** Upload feature. A config object (or `true`) enables the feature. */
-export type UploadConfig = KeyPolicy &
-  AclPolicy & {
-    /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
-    fileTypes?: string[];
-    /** Max declared and HeadObject size in bytes. */
-    maxFileSize?: number;
-    method?: UploadPresignMethod;
-    /** Presign TTL in seconds. Clamped by instance `maxExpiresIn`. */
-    expiresIn?: number;
-    guard?: (context: UploadPresignGuardContext) => Promise<void> | void;
-    onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
-    confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
-    onConfirmed?: (context: UploadOnConfirmedContext) => Promise<void> | void;
-  };
-
 /** Download feature. A config object (or `true`) enables the feature. */
-export type DownloadConfig = KeyPolicy & {
+export type DownloadConfig = {
+  /** Presign TTL in seconds. Falls back to the route `expiresIn`. */
   expiresIn?: number;
   guard?: (context: DownloadPresignGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
 };
 
 /** Delete feature. A config object (or `true`) enables the feature. */
-export type DeleteConfig = KeyPolicy & {
+export type DeleteConfig = {
   guard?: (context: DeleteGuardContext) => Promise<void> | void;
   onDeleted?: (context: DeleteOnDeletedContext) => Promise<void> | void;
 };
@@ -89,20 +87,19 @@ export type DeleteConfig = KeyPolicy & {
  * Multipart lifecycle hooks. Consumers enable multipart with `multipart: true`
  * on the route; plugins may still contribute these fields.
  */
-export type MultipartConfig = KeyPolicy &
-  AclPolicy & {
-    initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
-    partGuard?: (context: MultipartPartGuardContext) => Promise<void> | void;
-    completeGuard?: (
-      context: MultipartCompleteGuardContext,
-    ) => Promise<void> | void;
-    abortGuard?: (context: MultipartAbortGuardContext) => Promise<void> | void;
-    listGuard?: (context: MultipartListGuardContext) => Promise<void> | void;
-    onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
-    onComplete?: (context: MultipartOnCompleteContext) => Promise<void> | void;
-    onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
-    onList?: (context: MultipartOnListContext) => Promise<void> | void;
-  };
+export type MultipartConfig = {
+  initGuard?: (context: MultipartInitGuardContext) => Promise<void> | void;
+  partGuard?: (context: MultipartPartGuardContext) => Promise<void> | void;
+  completeGuard?: (
+    context: MultipartCompleteGuardContext,
+  ) => Promise<void> | void;
+  abortGuard?: (context: MultipartAbortGuardContext) => Promise<void> | void;
+  listGuard?: (context: MultipartListGuardContext) => Promise<void> | void;
+  onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
+  onComplete?: (context: MultipartOnCompleteContext) => Promise<void> | void;
+  onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
+  onList?: (context: MultipartOnListContext) => Promise<void> | void;
+};
 
 /** `true` or an options object enables the feature; omit or `false` disables it. */
 export type FeatureToggle<T> = boolean | T;
@@ -111,7 +108,7 @@ export type FeatureToggle<T> = boolean | T;
  * Named file-route policy — a mini {@link DimahS3Config} under `routes`.
  * Upload is on when omitted; download, delete, and multipart are off.
  */
-export type DimahS3RouteConfig = KeyPolicy & {
+export type DimahS3RouteConfig = {
   /** Override the instance S3 client for this route. */
   client?: S3Client;
   /** Override the instance bucket for this route. */
@@ -140,8 +137,7 @@ export type DimahS3RouteConfig = KeyPolicy & {
  *   bucket: "my-bucket",
  *   routes: {
  *     uploads: route({
- *       prefix: "uploads",
- *       upload: { fileTypes: ["image/*"] },
+ *       upload: { prefix: "uploads", fileTypes: ["image/*"] },
  *       download: true,
  *     }),
  *   },
@@ -196,8 +192,13 @@ export type ResolvedRoutePolicy = {
   name: string;
   client: S3Client;
   bucket: string;
+  fileTypes?: string[];
+  maxFileSize?: number;
   prefix?: KeyPrefix;
-  resolveKey?: KeyPolicy["resolveKey"];
+  object?: UploadConfig["object"];
+  acl?: S3ObjectAcl;
+  method?: UploadPresignMethod;
+  expiresIn?: number;
   guard?: DimahS3RouteConfig["guard"];
   skippedPluginIds: ReadonlySet<string>;
   upload?: ResolvedFeature<UploadConfig>;

@@ -24,13 +24,10 @@ async function handleSignPart(
   assertFeatureEnabled(route, "multipart");
   await runHook(route.guard, { request, route: route.name });
 
-  const { key, bucket } = resolveStoredTarget(route, "multipart", input.key);
+  const { key, bucket } = resolveStoredTarget(route, input.key);
   const uploadId = input.uploadId;
   const partNumber = input.partNumber;
-  const expiresIn = normalizeExpiresIn(
-    route.upload?.expiresIn,
-    config.maxExpiresIn,
-  );
+  const expiresIn = normalizeExpiresIn(route.expiresIn, config.maxExpiresIn);
   const partSize =
     typeof input.partSize === "number" && input.partSize > 0
       ? Math.floor(input.partSize)

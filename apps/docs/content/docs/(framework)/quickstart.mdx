@@ -50,8 +50,8 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     uploads: route({
-      prefix: "uploads",
       upload: {
+        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
       },
@@ -65,7 +65,7 @@ export const s3 = dimahS3({
 Any S3-compatible provider works — details in [Providers](/docs/providers).
 
 <Callout title="Cloudflare R2">
-  Set `method: "PUT"` on the route's `upload`. R2 does not accept Presigned POST. See
+  Set `upload: { method: "PUT" }`. R2 does not accept Presigned POST. See
   [Cloudflare R2](/docs/providers/cloudflare-r2).
 </Callout>
 

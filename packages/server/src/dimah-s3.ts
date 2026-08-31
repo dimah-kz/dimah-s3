@@ -71,7 +71,7 @@ export type DimahS3<
  *   client: awsS3,
  *   bucket: "my-bucket",
  *   routes: {
- *     uploads: route({ prefix: "uploads", download: true }),
+ *     uploads: route({ upload: { prefix: "uploads", fileTypes: ["image/*"] }, download: true }),
  *   },
  * });
  *

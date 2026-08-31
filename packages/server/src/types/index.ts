@@ -1,8 +1,9 @@
 export type {
   GuardContext,
   RouteGuardContext,
-  GenerateKeyContext,
-  ResolveKeyContext,
+  ObjectContext,
+  ObjectFile,
+  ObjectInfo,
   UploadPresignGuardContext,
   UploadOnPresignedContext,
   UploadConfirmGuardContext,
@@ -23,13 +24,11 @@ export type {
   MultipartOnListContext,
 } from "./hook-contexts";
 export type {
-  AclPolicy,
   DimahS3Config,
   DimahS3RouteConfig,
   DownloadConfig,
   DeleteConfig,
   FeatureToggle,
-  KeyPolicy,
   KeyPrefix,
   MultipartConfig,
   ResolvedDimahS3Config,

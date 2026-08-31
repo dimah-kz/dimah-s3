@@ -41,7 +41,7 @@ async function handleConfirm(
   assertFeatureEnabled(route, "upload");
   await runHook(route.guard, { request, route: route.name });
 
-  const { key, bucket } = resolveStoredTarget(route, "upload", input.key);
+  const { key, bucket } = resolveStoredTarget(route, input.key);
 
   await runHook(route.upload?.confirmGuard, {
     request,
@@ -55,7 +55,7 @@ async function handleConfirm(
   const fileName = parseFileName(head.ContentDisposition);
 
   try {
-    assertVerifiedConstraints(route.upload, {
+    assertVerifiedConstraints(route, {
       fileName,
       contentType: head.ContentType,
       contentLength,

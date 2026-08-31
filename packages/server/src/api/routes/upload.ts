@@ -11,7 +11,6 @@ import {
   assertDeclaredConstraints,
   getResolvedRoute,
   normalizeExpiresIn,
-  resolveRequestAcl,
   resolveUploadTarget,
   runHook,
   runLifecycleHook,
@@ -42,24 +41,23 @@ async function handleUpload(
 
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  assertDeclaredConstraints(route.upload, {
+  assertDeclaredConstraints(route, {
     fileName,
     fileSize,
     contentType: input.contentType,
   });
 
-  const { key, bucket } = await resolveUploadTarget(route, {
+  const { key, bucket, metadata, acl } = await resolveUploadTarget(route, {
     request,
     route: route.name,
-    fileName,
-    contentType: input.contentType,
-    fileSize,
+    file: {
+      name: fileName,
+      size: fileSize,
+      type: input.contentType,
+    },
+    clientMetadata: input.metadata,
   });
-  const expiresIn = normalizeExpiresIn(
-    route.upload?.expiresIn,
-    config.maxExpiresIn,
-  );
-  const acl = resolveRequestAcl(route.upload);
+  const expiresIn = normalizeExpiresIn(route.expiresIn, config.maxExpiresIn);
   const contentType = input.contentType ?? "application/octet-stream";
 
   await runHook(route.upload?.guard, {
@@ -69,17 +67,18 @@ async function handleUpload(
     bucket,
     contentType: input.contentType,
     fileSize,
-    metadata: input.metadata,
+    metadata,
+    clientMetadata: input.metadata,
     acl,
     fileName,
   });
 
-  const method = route.upload?.method ?? "POST";
+  const method = route.method ?? "POST";
 
   if (method === "PUT") {
     const putHeaders: Record<string, string> = {
       "Content-Type": contentType,
-      ...putMetadataHeaders(input.metadata),
+      ...putMetadataHeaders(metadata),
     };
     putHeaders["Content-Disposition"] = buildContentDisposition(fileName);
 
@@ -90,7 +89,7 @@ async function handleUpload(
         Key: key,
         ContentType: contentType,
         ACL: acl,
-        Metadata: input.metadata,
+        Metadata: metadata,
         ContentDisposition: buildContentDisposition(fileName),
         ContentLength: fileSize,
       }),
@@ -107,7 +106,8 @@ async function handleUpload(
       bucket,
       contentType: input.contentType,
       fileSize,
-      metadata: input.metadata,
+      metadata,
+      clientMetadata: input.metadata,
       acl,
       fileName,
       url,
@@ -127,8 +127,8 @@ async function handleUpload(
   const fields: Record<string, string> = { acl, "Content-Type": contentType };
   fields["Content-Disposition"] = buildContentDisposition(fileName);
 
-  if (input.metadata) {
-    for (const [k, v] of Object.entries(input.metadata)) {
+  if (metadata) {
+    for (const [k, v] of Object.entries(metadata)) {
       fields[`x-amz-meta-${k}`] = v;
     }
   }
@@ -151,7 +151,8 @@ async function handleUpload(
     bucket,
     contentType: input.contentType,
     fileSize,
-    metadata: input.metadata,
+    metadata,
+    clientMetadata: input.metadata,
     acl,
     fileName,
     url,

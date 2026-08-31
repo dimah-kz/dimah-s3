@@ -16,37 +16,54 @@ export type RouteGuardContext = GuardContext & {
   route: string;
 };
 
-type ObjectContext = RouteGuardContext & {
+type StoredObjectContext = RouteGuardContext & {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
   bucket: string;
 };
 
-/**
- * Input to `prefix` (string or factory) and `resolveKey` on upload / init.
- */
-export type GenerateKeyContext = {
-  request: Request;
-  route: string;
-  fileName: string;
-  contentType?: string;
-  fileSize?: number;
-  bucket: string;
+/** Declared file on upload / multipart init. */
+export type ObjectFile = {
+  name: string;
+  size?: number;
+  type?: string;
 };
 
-/** @deprecated Use {@link GenerateKeyContext}. */
-export type ResolveKeyContext = GenerateKeyContext;
+/**
+ * Input to `prefix` and `object` on upload / multipart init.
+ * `clientMetadata` is what the client sent — it is not written to S3
+ * unless `object` copies it into {@link ObjectInfo.metadata}.
+ */
+export type ObjectContext = {
+  request: Request;
+  route: string;
+  file: ObjectFile;
+  bucket: string;
+  clientMetadata?: Record<string, string>;
+};
+
+/** Server-owned S3 object identity from route `object`. */
+export type ObjectInfo = {
+  /** Full object key. If omitted, `prefix` / `{route}/{uuid}/{name}` is used. */
+  key?: string;
+  /** S3 user metadata (`x-amz-meta-*`). */
+  metadata?: Record<string, string>;
+  /** Override the route ACL for this object. */
+  acl?: S3ObjectAcl;
+};
 
 /** Context for `upload.guard`. Client-declared values are not verified by S3. */
-export type UploadPresignGuardContext = ObjectContext & {
+export type UploadPresignGuardContext = StoredObjectContext & {
   /** MIME type the client sent — not verified until `onConfirmed`. */
   contentType?: string;
   /** Size the client sent — not verified until `onConfirmed`. */
   fileSize?: number;
-  /** Custom object metadata. */
+  /** S3 object metadata from route `object`. */
   metadata?: Record<string, string>;
-  /** Requested ACL. */
+  /** Client extras from the request — not written to S3 automatically. */
+  clientMetadata?: Record<string, string>;
+  /** Resolved ACL. */
   acl?: S3ObjectAcl;
   /** Original filename for `Content-Disposition`. */
   fileName?: string;
@@ -61,7 +78,7 @@ export type UploadOnPresignedContext = UploadPresignGuardContext & {
 };
 
 /** Context for `upload.confirmGuard`. */
-export type UploadConfirmGuardContext = ObjectContext;
+export type UploadConfirmGuardContext = StoredObjectContext;
 
 /**
  * Context for `upload.onConfirmed`.
@@ -91,7 +108,7 @@ export type UploadOnConfirmedContext = RouteGuardContext & {
 };
 
 /** Context for `download.guard`. */
-export type DownloadPresignGuardContext = ObjectContext & {
+export type DownloadPresignGuardContext = StoredObjectContext & {
   /** Download filename for Content-Disposition. */
   fileName?: string;
 };
@@ -105,25 +122,27 @@ export type DownloadOnPresignedContext = DownloadPresignGuardContext & {
 };
 
 /** Context for `delete.guard`. */
-export type DeleteGuardContext = ObjectContext;
+export type DeleteGuardContext = StoredObjectContext;
 
 /** Context for `delete.onDeleted`. */
-export type DeleteOnDeletedContext = ObjectContext;
+export type DeleteOnDeletedContext = StoredObjectContext;
 
 /** Shared base for multipart operations that already have an upload id. */
-export type MultipartUploadContext = ObjectContext & {
+export type MultipartUploadContext = StoredObjectContext & {
   /** Multipart upload ID. */
   uploadId: string;
 };
 
 /** Context for `multipart.initGuard`. */
-export type MultipartInitGuardContext = ObjectContext & {
+export type MultipartInitGuardContext = StoredObjectContext & {
   /** Declared byte size of the file — available during init only. */
   fileSize?: number;
   /** MIME type the client sent — not verified until `onComplete`. */
   contentType?: string;
-  /** Custom object metadata. */
+  /** S3 object metadata from route `object`. */
   metadata?: Record<string, string>;
+  /** Client extras from the request — not written to S3 automatically. */
+  clientMetadata?: Record<string, string>;
   /** Resolved ACL that will be applied at init. */
   acl?: S3ObjectAcl;
   /** Original filename for `Content-Disposition`. */

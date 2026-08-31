@@ -24,7 +24,7 @@ async function handleAbort(
   assertFeatureEnabled(route, "multipart");
   await runHook(route.guard, { request, route: route.name });
 
-  const { key, bucket } = resolveStoredTarget(route, "multipart", input.key);
+  const { key, bucket } = resolveStoredTarget(route, input.key);
   const uploadId = input.uploadId;
 
   await runHook(route.multipart?.abortGuard, {

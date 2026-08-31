@@ -101,7 +101,36 @@ describe("upload", () => {
     );
   });
 
-  it("signs PUT metadata onto the command and response headers", async () => {
+  it("signs object() metadata onto the PUT command and response headers", async () => {
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            method: "PUT",
+            object: ({ clientMetadata }) => ({
+              metadata: { author: clientMetadata?.author ?? "anon" },
+            }),
+          },
+        }),
+      },
+    });
+
+    await expect(
+      s3.api.upload({
+        body: { ...defaultUploadBody, metadata: { author: "user_123" } },
+      }),
+    ).resolves.toMatchObject({
+      method: "PUT",
+      headers: expect.objectContaining({ "x-amz-meta-author": "user_123" }),
+    });
+
+    const command = vi.mocked(getSignedUrl).mock.calls.at(-1)?.[1] as {
+      input?: { Metadata?: Record<string, string> };
+    };
+    expect(command.input?.Metadata).toEqual({ author: "user_123" });
+  });
+
+  it("does not write client metadata to S3 unless object() copies it", async () => {
     const s3 = createInstance({
       routes: {
         uploads: allFeaturesRoute({ upload: { method: "PUT" } }),
@@ -114,13 +143,13 @@ describe("upload", () => {
       }),
     ).resolves.toMatchObject({
       method: "PUT",
-      headers: expect.objectContaining({ "x-amz-meta-source": "web" }),
+      headers: expect.not.objectContaining({ "x-amz-meta-source": "web" }),
     });
 
     const command = vi.mocked(getSignedUrl).mock.calls.at(-1)?.[1] as {
       input?: { Metadata?: Record<string, string> };
     };
-    expect(command.input?.Metadata).toEqual({ source: "web" });
+    expect(command.input?.Metadata).toBeUndefined();
   });
 
   it("uses the route bucket override", async () => {
@@ -139,7 +168,7 @@ describe("upload", () => {
       "11111111-1111-1111-1111-111111111111",
     );
     const s3 = createInstance({
-      routes: { uploads: allFeaturesRoute({ prefix: "uploads" }) },
+      routes: { uploads: allFeaturesRoute({ upload: { prefix: "uploads" } }) },
     });
     await expect(
       s3.api.upload({ body: defaultUploadBody }),
@@ -315,7 +344,7 @@ describe("confirm", () => {
 
   it("rejects stored keys outside a string prefix", async () => {
     const s3 = createInstance({
-      routes: { uploads: allFeaturesRoute({ prefix: "uploads" }) },
+      routes: { uploads: allFeaturesRoute({ upload: { prefix: "uploads" } }) },
     });
     await expect(
       s3.api.confirm({ body: { route: "uploads", key: "other/a.png" } }),

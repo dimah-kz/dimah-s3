@@ -24,7 +24,7 @@ async function handleDelete(
   assertFeatureEnabled(route, "delete");
   await runHook(route.guard, { request, route: route.name });
 
-  const { key, bucket } = resolveStoredTarget(route, "delete", input.key);
+  const { key, bucket } = resolveStoredTarget(route, input.key);
 
   await runHook(route.delete?.guard, {
     request,

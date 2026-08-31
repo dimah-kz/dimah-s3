@@ -13,8 +13,7 @@ function instance(
     plugins: [db({ client: store, resolveScope })],
     routes: {
       uploads: route({
-        prefix: "uploads",
-        upload: true,
+        upload: { prefix: "uploads" },
         download: true,
         delete: true,
       }),

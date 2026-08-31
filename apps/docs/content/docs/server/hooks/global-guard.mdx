@@ -28,7 +28,7 @@ export const s3 = dimahS3({
     if (!session) throw errors.unauthorized();
   },
   routes: {
-    uploads: route({ prefix: "uploads" }),
+    uploads: route({ upload: { prefix: "uploads" } }),
   },
 });
 ```

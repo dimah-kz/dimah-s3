@@ -51,12 +51,11 @@ export type DbPluginContext = {
  *     db({ client: dimahS3Db, resolveScope }),
  *   ],
  *   routes: {
- *     uploads: route({
- *       prefix: "uploads",
- *       upload: true,
- *       download: true,
- *       delete: true,
- *     }),
+     *     uploads: route({
+     *       upload: { prefix: "uploads" },
+     *       download: true,
+     *       delete: true,
+     *     }),
  *   },
  * });
  *

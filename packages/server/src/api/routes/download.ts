@@ -27,9 +27,9 @@ async function handleDownload(
   assertFeatureEnabled(route, "download");
   await runHook(route.guard, { request, route: route.name });
 
-  const { key, bucket } = resolveStoredTarget(route, "download", input.key);
+  const { key, bucket } = resolveStoredTarget(route, input.key);
   const expiresIn = normalizeExpiresIn(
-    route.download?.expiresIn,
+    route.download?.expiresIn ?? route.expiresIn,
     config.maxExpiresIn,
   );
   const fileName = input.fileName;

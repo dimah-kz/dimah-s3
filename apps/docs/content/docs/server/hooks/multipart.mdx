@@ -37,8 +37,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     videos: route({
-      prefix: "videos",
-      upload: true,
+      upload: { prefix: "videos" },
       multipart: true,
     }),
   },
@@ -50,8 +49,8 @@ export const s3 = dimahS3({
   comes from `HeadObject`.
 </Callout>
 
-Set `multipart: true` on the route. Multipart inherits `prefix`,
-`resolveKey`, and `acl` from upload. Plugins still receive the granular
+Set `multipart: true` on the route. Multipart uses the same `prefix`,
+`object`, and `acl` as upload. Plugins still receive the granular
 `initGuard` / `onComplete` / … hooks.
 
 The complete body only sends `partNumber`s. The server lists parts from S3

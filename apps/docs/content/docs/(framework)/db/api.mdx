@@ -118,8 +118,8 @@ export const s3 = dimahS3({
   plugins: [db({ client: dimahS3Db, resolveScope })],
   routes: {
     uploads: route({
-      prefix: "uploads",
       upload: {
+        prefix: "uploads",
         guard: quotaGuard,
         // or stack several: chainHooks(quotaGuard, rateLimitGuard),
       },

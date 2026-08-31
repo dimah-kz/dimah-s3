@@ -45,7 +45,7 @@ export function uploadSimple(
 /**
  * Uploads a file directly to S3 using a presigned PUT URL.
  *
- * Use this when the server is configured with `upload.method = "PUT"` — for
+ * Use this when the server is configured with `method: "PUT"` — for
  * example with Cloudflare R2 which does not support presigned POST.
  */
 export function uploadPut(

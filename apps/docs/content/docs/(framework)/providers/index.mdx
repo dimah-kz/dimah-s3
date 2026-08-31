@@ -45,8 +45,7 @@ export const s3 = dimahS3({
   resolveObjectAcl: false,
   routes: {
     uploads: route({
-      prefix: "uploads",
-      upload: { method: "PUT" },
+      upload: { prefix: "uploads", method: "PUT" },
     }),
   },
 });

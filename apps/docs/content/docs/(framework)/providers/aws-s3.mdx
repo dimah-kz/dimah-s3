@@ -4,7 +4,7 @@ description: Bucket CORS for browser uploads to AWS S3.
 ---
 
 Amazon S3 is the reference target for dimah-s3. Defaults already fit:
-`upload.method` is POST, and you do not need a custom `endpoint` or
+`method` is POST, and you do not need a custom `endpoint` or
 `forcePathStyle`.
 
 Set up the client once in [Quickstart](/docs/quickstart). The extra step for
@@ -29,7 +29,7 @@ route are correct.
 ```
 
 Allow POST for the default upload method. Add PUT if you switch to
-`upload.method: "PUT"`. Narrow origins and headers in production.
+`method: "PUT"`. Narrow origins and headers in production.
 
 <Callout title="Object ACL">
   `private` / `public-read` and `resolveObjectAcl` are supported on S3. Enable

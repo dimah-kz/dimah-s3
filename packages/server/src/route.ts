@@ -8,7 +8,7 @@ const ROUTE_NAME_RE = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
  *
  * ```ts
  * routes: {
- *   uploads: route({ prefix: "uploads", download: true }),
+ *   uploads: route({ upload: { prefix: "uploads", fileTypes: ["image/*"] }, download: true }),
  * }
  * ```
  */

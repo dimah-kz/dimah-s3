@@ -39,8 +39,8 @@ localized string.
 | `UNAUTHORIZED`                 | 401  | Helper for your auth hooks                                          |
 | `FORBIDDEN`                    | 403  | Guard rejection (`errors.forbidden()` / a plain `Error` in a guard) |
 | `CONFLICT`                     | 409  | Helper for your hooks                                               |
-| `PAYLOAD_TOO_LARGE`            | 413  | Oversize vs `upload.maxFileSize`, or `errors.payloadTooLarge()`     |
-| `FILE_TYPE_NOT_ALLOWED`        | 400  | Declared or HeadObject type not in `upload.fileTypes`               |
+| `PAYLOAD_TOO_LARGE`            | 413  | Oversize vs route `maxFileSize`, or `errors.payloadTooLarge()`      |
+| `FILE_TYPE_NOT_ALLOWED`        | 400  | Declared or HeadObject type not in route `fileTypes`                |
 | `VALIDATION_ERROR`             | 400  | Zod / request shape                                                 |
 | `INVALID_KEY`                  | 400  | Unsafe object key (empty, `\`, NUL, `.` / `..` / empty segments)    |
 | `INVALID_BUCKET`               | 403  | Route has no bucket (internal misconfig)                            |

@@ -1,12 +1,13 @@
 ---
 title: Routes
-description: Named file routes — server-owned keys, constraints, and inheritance.
+description: Named file routes — server-owned keys, constraints, and object identity.
 icon: Route
 ---
 
 A **route** is a named policy, not an HTTP path. The instance holds shared
-infra (`client`, `bucket`, `plugins`, optional `guard`). Each route is a
-mini config with nested `upload` / `download` / `delete` / `multipart`.
+infra (`client`, `bucket`, `plugins`, optional `guard`). Each route nests
+`upload` / `download` / `delete` — upload owns constraints and object
+identity; the other features are toggles (or hook objects).
 
 The client sends the route name on every request. The server generates
 object keys and enforces file constraints. Protocol paths stay
@@ -30,13 +31,10 @@ export const s3 = dimahS3({
   plugins: [db({ client: dimahS3Db, resolveScope })],
   routes: {
     uploads: route({
-      prefix: "uploads",
       upload: {
+        prefix: "uploads",
         fileTypes: ["image/*", "application/pdf"],
         maxFileSize: 10 * 1024 * 1024,
-        onConfirmed: async ({ key, contentLength }) => {
-          /* persist after HeadObject */
-        },
       },
       download: true,
       delete: true,
@@ -44,17 +42,20 @@ export const s3 = dimahS3({
     avatars: route({
       client: r2,
       bucket: "cdn-bucket",
-      prefix: ({ request }) => `avatars/${userId(request)}`,
       upload: {
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
-        acl: "public-read",
+        object: ({ file, request }) => ({
+          key: `avatars/${userId(request)}/${file.name}`,
+          metadata: { userId: userId(request) },
+          acl: "public-read",
+        }),
       },
       download: true,
     }),
     videos: route({
-      prefix: "videos",
       upload: {
+        prefix: "videos",
         fileTypes: ["video/*"],
         maxFileSize: 500 * 1024 * 1024,
       },
@@ -74,10 +75,10 @@ inference — `s3.$Infer.routes` is the union of those keys.
 - **Instance (required unless every route overrides):** `client`, `bucket`.
   Also `basePath`, `plugins`, optional instance `guard`,
   `resolveObjectAcl`, `maxExpiresIn` (clamp).
-- **Route:** nested features. Optional `client` / `bucket` override that
-  route only. Optional `guard` for every op on that route. Optional
-  `prefix` / `resolveKey` inherited by upload, download, delete, and
-  multipart unless a feature overrides.
+- **Route:** optional `client` / `bucket` override, optional `guard` for
+  every op, nested features.
+- **Upload:** `fileTypes`, `maxFileSize`, `prefix`, `object`, `acl`,
+  `method`, `expiresIn`, and upload hooks.
 - Do not put `basePath` or `plugins` on a route. Plugin opt-out is
   `plugins: { db: false }` on the route.
 
@@ -89,30 +90,48 @@ missing field or `dimahS3()` throws.
 Upload is **on** if `upload` is omitted, `true`, or an object. `download`,
 `delete`, and `multipart` are **off** unless set. A route with every
 operation off throws at init. `upload: false` is a download/delete-only
-route; `fileTypes` / `maxFileSize` / `multipart: true` with `upload: false`
-throws.
+route; `multipart: true` with `upload: false` throws.
 
-`multipart: true` inherits `prefix` / `acl` from upload. It does not turn
-on automatically with upload.
+`multipart: true` uses the same `prefix` / `object` / `acl` as upload. It
+does not turn on automatically with upload.
 
-## Keys
+## Keys and object identity
 
 The client does not send `key` on upload or multipart init. Generation:
 
 - string `prefix` → `{prefix}/{uuid}/{sanitize(fileName)}`
 - `prefix` factory → same, with the returned folder
-- `resolveKey` → full key (wins); only on upload / init
+- `object` returning `key` → that key (wins)
+- `object` without `key` → prefix / default, plus optional `metadata` / `acl`
 - neither → `{routeName}/{uuid}/{sanitize(fileName)}`
+
+`prefix` is only the **folder**. The library still appends a UUID and the
+sanitized file name. Use `object` when you need the full key, S3 metadata,
+or a per-file ACL.
+
+```ts
+route({
+  upload: {
+    prefix: "images",
+    object: ({ request, clientMetadata }) => ({
+      metadata: { author: userId(request), title: clientMetadata?.title ?? "" },
+    }),
+  },
+})
+```
+
+Client `metadata` on the request is **not** written to S3 unless `object`
+copies it.
 
 Confirm, multipart follow-ups, download, and delete send the **stored**
 key from the presign response, plus the same route name. A string `prefix`
 namespaces later ops (the key must stay under that prefix). A function
-`prefix` / `resolveKey` is not re-run on confirm — route `guard` / db
+`prefix` / `object` is not re-run on confirm — route `guard` / db
 ownership authorizes.
 
 ## Constraints
 
-`fileTypes` and `maxFileSize` live on `upload`, not the route root.
+`fileTypes` and `maxFileSize` live on `upload`.
 
 - `fileTypes` — same tokens as HTML `accept`. Checked at presign (declared
   type / name) and again at confirm / multipart complete (HeadObject + key
@@ -132,7 +151,8 @@ useDelete({ route: "uploads" })
 ```
 
 Client `accept` / `maxFileSize` are optional UX only. The server still
-enforces `upload.fileTypes` / `upload.maxFileSize`.
+enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
+(`maxFiles`) stay on the client — each request is one file.
 
 <TypeTable
   type={{
@@ -143,16 +163,6 @@ enforces `upload.fileTypes` / `upload.maxFileSize`.
     bucket: {
       type: "string",
       description: "Override the instance bucket for this route only.",
-    },
-    prefix: {
-      type: "string | ((ctx) => string | Promise<string>)",
-      description:
-        "Folder prepended when generating keys. Inherited by upload, download, delete, and multipart unless a feature overrides.",
-    },
-    resolveKey: {
-      type: "(ctx) => string | Promise<string>",
-      description:
-        "Full object key on upload / init. Wins over prefix. Not re-run on confirm.",
     },
     guard: {
       type: "(ctx) => void",
@@ -165,20 +175,20 @@ enforces `upload.fileTypes` / `upload.maxFileSize`.
     upload: {
       type: "boolean | UploadConfig",
       description:
-        "On when omitted, true, or an object. Holds fileTypes, maxFileSize, method, acl, expiresIn, and upload hooks.",
+        "On when omitted, true, or an object. The object holds prefix, fileTypes, maxFileSize, object, acl, method, expiresIn, and upload hooks.",
     },
     download: {
       type: "boolean | DownloadConfig",
-      description: "Off unless set.",
+      description: "Off unless set. May set expiresIn and download hooks.",
     },
     delete: {
       type: "boolean | DeleteConfig",
-      description: "Off unless set.",
+      description: "Off unless set. Holds delete hooks.",
     },
     multipart: {
       type: "boolean",
       description:
-        "Opt-in. Default false. Requires upload. Inherits prefix and acl from upload.",
+        "Opt-in. Default false. Requires upload. Uses the same prefix, object, and acl.",
       default: "false",
     },
   }}
