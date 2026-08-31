@@ -30,5 +30,18 @@ export const MULTIPART_HOOK_KEYS = [
   "onList",
 ] as const satisfies readonly (keyof MultipartConfig)[];
 
+/** Lifecycle `on*` keys — merged user-first, plugins last (persist last). */
+export const LIFECYCLE_FEATURE_HOOK_KEYS = {
+  upload: ["onPresigned", "onConfirmed"],
+  download: ["onPresigned"],
+  delete: ["onDeleted"],
+} as const;
+
+export const LIFECYCLE_MULTIPART_HOOK_KEYS = [
+  "onInit",
+  "onAbort",
+  "onList",
+] as const;
+
 export type FeatureHookKeyMap = typeof FEATURE_HOOK_KEYS;
 export type MultipartHookKey = (typeof MULTIPART_HOOK_KEYS)[number];

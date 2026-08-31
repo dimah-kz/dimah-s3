@@ -43,6 +43,7 @@ async function handleMultipartInit(
     metadata,
     clientMetadata: input.metadata,
     acl,
+    replace: route.upload.replace,
   });
 
   const { UploadId } = (await route.client.send(
@@ -60,18 +61,23 @@ async function handleMultipartInit(
     throw errors.internalError();
   }
 
-  await runLifecycleHook(route.upload.multipart.onInit, {
-    ...stored,
-    uploadId: UploadId,
-    file: {
-      name: fileName,
-      size: fileSize,
-      type: input.contentType,
+  await runLifecycleHook(
+    route.upload.multipart.onInit,
+    {
+      ...stored,
+      uploadId: UploadId,
+      file: {
+        name: fileName,
+        size: fileSize,
+        type: input.contentType,
+      },
+      metadata,
+      clientMetadata: input.metadata,
+      acl,
+      replace: route.upload.replace,
     },
-    metadata,
-    clientMetadata: input.metadata,
-    acl,
-  });
+    config,
+  );
 
   return { bucket, key, uploadId: UploadId };
 }

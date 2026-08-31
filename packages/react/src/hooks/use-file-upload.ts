@@ -25,6 +25,7 @@ import type {
 import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFile } from "@/upload";
 import { hookBlockedError, isAbortError, toHookError } from "@/types/error";
+import { resolveRouteUploadPolicy } from "@/helpers/load-route-catalog";
 
 /** Options for {@link useFileUpload}. */
 export type UseFileUploadOptions = FileUploadConfig &
@@ -234,9 +235,15 @@ export function useFileUpload(
           "[dimah-s3] No S3Api found. Pass `api` to useFileUpload or wrap with <S3Provider>.",
         );
 
-      const validationError = validateFile(file, {
+      const policy = await resolveRouteUploadPolicy(api, opts.route, {
         accept: opts.accept,
         maxFileSize: opts.maxFileSize,
+        multipart: opts.multipart,
+        checksum: opts.checksum,
+      });
+      const validationError = validateFile(file, {
+        accept: policy.accept,
+        maxFileSize: policy.maxFileSize,
       });
       if (validationError) {
         const message = formatValidateFileError(validationError);
@@ -307,7 +314,8 @@ export function useFileUpload(
           file,
           {
             route: opts.route,
-            multipart: opts.multipart,
+            multipart: policy.multipart,
+            checksum: policy.checksum,
             concurrentParts: opts.concurrentParts,
             retry: opts.retry,
             uploadStore: opts.uploadStore,

@@ -1,11 +1,13 @@
 ---
 title: Download
-description: Authorize before issuing a presigned GET URL.
+description: Authorize before issuing a GET URL — presign or same-origin proxy.
 ---
 
 Enable with `download: true` or an options object on a
-[named route](/docs/server/routes). The server never streams the
-file — it signs a GET URL, then the browser fetches from S3.
+[named route](/docs/server/routes). The default is a short-lived S3 GET
+URL. Set `download.mode: "proxy"` to stream bytes through `GET /file`
+instead (private buckets without CORS, or when the client must not hit
+storage directly).
 
 A download-only route is the usual shape. If these keys were created by
 an upload route, enable `download` on **that** route instead of a second
@@ -16,9 +18,14 @@ The stored `key` must sit under the route `keyPrefix`. That is a folder
 bound, not ownership — add `guard` or [`db()`](/docs/db) so callers cannot
 download another user's object in the same prefix.
 
+`disposition` defaults to `"attachment"`. Use `"inline"` for preview
+(`<img>`, `<video>`, `useObjectUrl`). `download.resolve` can change
+`fileName`, `disposition`, and `expiresIn` per request.
+
 <Flow
   label="Download flow"
   steps={[
+    { name: "resolve", kind: "hook" },
     { name: "guard", kind: "hook" },
     { name: "onPresigned", kind: "hook" },
     { name: "GET object", kind: "s3" },
@@ -37,11 +44,11 @@ export const s3 = dimahS3({
   routes: {
     uploads: route({
       download: {
+        disposition: "inline",
         guard: async ({ key, request }) => {
           if (!request.headers.get("authorization")) {
             throw errors.unauthorized();
           }
-          // then check that `key` is allowed
         },
       },
     }),
@@ -49,7 +56,8 @@ export const s3 = dimahS3({
 });
 ```
 
-`onPresigned` receives the same fields plus `url` and `expiresIn`.
+`onPresigned` receives the same fields plus `url` and `expiresIn`
+(`0` when `mode` is `"proxy"`).
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"

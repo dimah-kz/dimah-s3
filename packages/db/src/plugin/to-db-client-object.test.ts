@@ -9,6 +9,7 @@ describe("toDbClientObject", () => {
       id: "1",
       bucket: "b",
       key: "k",
+      route: "uploads",
       filename: "a.txt",
       contentType: "text/plain",
       size: 10,

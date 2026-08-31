@@ -28,6 +28,7 @@ describe("createDatabaseLifecycleHooks", () => {
         scope: "user:1",
         bucket: "b",
         key: "k",
+        route: "uploads",
         declaredSize: 10,
         filename: "a.txt",
       }),
@@ -168,6 +169,30 @@ describe("createDatabaseLifecycleHooks", () => {
         declaredSize: 100,
       }),
     );
+  });
+
+  it("skips upsertPending when replacing an active object in the same scope", async () => {
+    const store = fakeStore({
+      find: async () =>
+        sampleObject({ status: "active", scope: "user:1", key: "k" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await hooks.upload?.onPresigned?.({
+      request,
+      route,
+      key: "k",
+      bucket: "b",
+      file: { name: "a.txt", size: 10, type: "text/plain" },
+      url: "https://s3.test",
+      expiresIn: 600,
+      replace: "overwrite",
+    });
+
+    expect(store.upsertPending).not.toHaveBeenCalled();
   });
 
   it("rejects unauthenticated uploads", async () => {

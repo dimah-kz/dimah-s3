@@ -100,12 +100,12 @@ CDN URL does not need `download`. Multipart is not a separate job; set
 ## Inheritance
 
 - **Instance (required unless every route overrides):** `client`, `bucket`.
-  Also `basePath`, `plugins`, optional instance `guard`,
-  `resolveObjectAcl`, `maxExpiresIn` (clamp).
+  Also `basePath`, `plugins`, optional instance `guard`, `logger`,
+  `onError`, `maxExpiresIn` (clamp).
 - **Route:** optional `client` / `bucket` / `keyPrefix` override, optional
   `guard` for every op, nested features.
 - **Upload:** `fileTypes`, `maxFileSize`, `object`, `acl`, `method`,
-  `expiresIn`, and upload hooks.
+  `expiresIn`, `checksum`, `replace: "overwrite"`, and upload hooks.
 - Do not put `basePath` or `plugins` on a route. Plugin opt-out is
   `plugins: { db: false }` on the route.
 
@@ -190,9 +190,26 @@ Download or delete of keys created by `uploads` belongs on that same route
 — enable the extra feature there, do not add a second route for the same
 prefix.
 
-Client `accept` / `maxFileSize` are optional UX only. The server still
-enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
-(`maxFiles`) stay on the client — each request is one file.
+Client `accept` / `maxFileSize` are filled from `GET /routes` when omitted
+(`api.catalog()`). The server still enforces `upload.fileTypes` /
+`upload.maxFileSize`. Multi-file limits (`maxFiles`) stay on the client —
+each request is one file.
+
+`GET /routes` is the route catalog: which features are on, plus
+`fileTypes`, `maxFileSize`, `multipart`, `checksum`, `replace`, and
+download `disposition` / `mode`.
+
+To replace an existing key (avatars), set `upload.replace: "overwrite"`
+and return a stable `key` from `object`. `object` may also return
+`previousKey` — after confirm, that object is deleted.
+
+Lock a SHA-256 into the signed PUT/POST with `upload.checksum: true`. The
+React engine sends `sha256File` when the catalog reports checksum.
+
+Download `disposition` defaults to `"attachment"`. `"inline"` is for
+preview. `download.mode: "proxy"` returns a same-origin `/file` URL that
+streams through your server instead of a bucket URL. `download.resolve`
+can override `fileName`, `disposition`, and `expiresIn` per request.
 
 <TypeTable
   type={{
@@ -220,12 +237,12 @@ enforces `upload.fileTypes` / `upload.maxFileSize`. Multi-file limits
     upload: {
       type: "boolean | UploadConfig",
       description:
-        "Off unless set. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, upload hooks, and optional multipart.",
+        "Off unless set. The object holds fileTypes, maxFileSize, object, acl, method, expiresIn, checksum, replace, upload hooks, and optional multipart.",
     },
     download: {
       type: "boolean | DownloadConfig",
       description:
-        "Off unless set. May set expiresIn (independent of upload.expiresIn; default 600s) and download hooks.",
+        "Off unless set. May set expiresIn (independent of upload.expiresIn; default 600s), disposition, mode (presign or proxy), resolve, and download hooks.",
     },
     delete: {
       type: "boolean | DeleteConfig",

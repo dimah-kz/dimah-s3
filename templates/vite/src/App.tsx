@@ -10,12 +10,7 @@ export function App() {
         </p>
       </div>
 
-      <UploadButton
-        route="uploads"
-        accept={["image/*", "application/pdf"]}
-        maxFileSize={10 * 1024 * 1024}
-        label="Upload file"
-      />
+      <UploadButton route="uploads" label="Upload file" />
 
       <p className="max-w-sm text-center text-xs text-muted-foreground">
         Fill the <code className="rounded bg-muted px-1 py-0.5">S3_*</code>{" "}

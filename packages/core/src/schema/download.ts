@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { downloadDispositionSchema } from "./catalog";
 import {
   objectKeySchema,
   optionalTrimmedString,
@@ -10,4 +11,5 @@ export const downloadQuerySchema = z.strictObject({
   route: routeNameSchema,
   key: objectKeySchema,
   fileName: optionalTrimmedString,
+  disposition: downloadDispositionSchema.optional(),
 });

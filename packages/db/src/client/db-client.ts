@@ -1,11 +1,14 @@
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
 import type { db } from "@/plugin/db";
 import type {
+  DbClientGetInput,
   DbClientListInput,
   DbClientListResponse,
+  DbClientObject,
 } from "@/types/storage-object";
 
 export type {
+  DbClientGetInput,
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
@@ -40,6 +43,11 @@ export function dbClient() {
        */
       listObjects: (input?: DbClientListInput) =>
         $fetch<DbClientListResponse>(pluginPath("db", "objects"), {
+          method: "GET",
+          query: input,
+        }),
+      getObject: (input: DbClientGetInput) =>
+        $fetch<{ object: DbClientObject }>(pluginPath("db", "object"), {
           method: "GET",
           query: input,
         }),

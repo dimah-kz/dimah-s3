@@ -26,4 +26,36 @@ describe("dbClient", () => {
       objects: [],
     });
   });
+
+  it("loads one object over GET /db/object", async () => {
+    const fetch = vi.fn(async (input: string | URL | Request) => {
+      expect(String(input)).toContain("/db/object");
+      return new Response(
+        JSON.stringify({
+          object: {
+            id: "1",
+            bucket: "b",
+            key: "k",
+            route: "uploads",
+            filename: "a.txt",
+            contentType: "text/plain",
+            size: 10,
+            declaredSize: null,
+            status: "active",
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const api = createS3Client({
+      fetch,
+      plugins: [dbClient()],
+    });
+
+    await expect(api.db.getObject({ key: "k" })).resolves.toMatchObject({
+      object: { key: "k", route: "uploads" },
+    });
+  });
 });

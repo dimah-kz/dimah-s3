@@ -73,6 +73,11 @@ export type UploadObjectInfo = {
   metadata?: Record<string, string>;
   /** Override the route ACL for this object. */
   acl?: S3ObjectAcl;
+  /**
+   * After confirm succeeds, delete this key (must stay under the route
+   * `keyPrefix`). Use with a new generated key to rotate avatars.
+   */
+  previousKey?: string;
 };
 
 /**
@@ -90,6 +95,8 @@ export type UploadGuardContext = StoredObjectContext & {
   clientMetadata?: Record<string, string>;
   /** Resolved ACL. */
   acl?: S3ObjectAcl;
+  /** Route `upload.replace`. */
+  replace?: "overwrite";
 };
 
 /** Context for `upload.onPresigned` (single-shot only). */
@@ -109,6 +116,8 @@ export type UploadConfirmGuardContext = StoredObjectContext & {
   uploadId?: string;
   /** Parts to assemble. Present on multipart complete. */
   parts?: MultipartCompletedPartRef[];
+  /** Route `upload.replace`. */
+  replace?: "overwrite";
 };
 
 /**
@@ -125,7 +134,7 @@ export type UploadOnConfirmedContext = StoredObjectContext & {
   eTag?: string;
   /** Object metadata. */
   metadata?: Record<string, string>;
-  /** Resolved ACL. Omitted when ACL lookup is disabled or unsupported. */
+  /** ACL from the upload policy (`upload.acl` / `object`). */
   acl?: S3ObjectAcl;
   /** Stored filename. */
   fileName?: string;
@@ -140,6 +149,15 @@ export type UploadOnConfirmedContext = StoredObjectContext & {
 /** Context for `download.guard`. */
 export type DownloadGuardContext = StoredObjectContext & {
   /** Download filename for Content-Disposition. */
+  fileName?: string;
+  /** Client-requested or route default disposition. */
+  disposition?: "inline" | "attachment";
+};
+
+/** Per-request overrides from `download.resolve`. */
+export type DownloadResolveInfo = {
+  disposition?: "inline" | "attachment";
+  expiresIn?: number;
   fileName?: string;
 };
 

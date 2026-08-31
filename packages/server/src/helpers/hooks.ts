@@ -1,6 +1,8 @@
 import { DimahS3Error, isAPIError } from "@dimah-s3/core";
 import { errors } from "@/errors";
+import { resolveLogger } from "@/helpers/logger";
 import type {
+  ResolvedDimahS3Config,
   UploadConfig,
   UploadObjectContext,
   UploadObjectInfo,
@@ -57,13 +59,15 @@ export async function runObjectHook(
 export async function runLifecycleHook<T extends { request: Request }>(
   hook: ((context: T) => Promise<void> | void) | undefined,
   context: T,
+  config?: Pick<ResolvedDimahS3Config, "logger" | "onError">,
 ): Promise<void> {
   if (!hook) return;
   try {
     await hook(context);
   } catch (err) {
     if (isAPIError(err)) throw err;
-    console.error("[S3 API] lifecycle hook failed", err);
+    resolveLogger(config?.logger).error?.("lifecycle hook failed", err);
+    config?.onError?.(err, { request: context.request });
     throw errors.internalError();
   }
 }

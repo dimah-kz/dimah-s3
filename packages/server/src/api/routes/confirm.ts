@@ -1,18 +1,9 @@
+import { confirmBodySchema, S3_API_ROUTES } from "@dimah-s3/core";
 import {
-  confirmBodySchema,
-  resolveStoredFileName,
-  S3_API_ROUTES,
-  type UploadConfirmResponse,
-} from "@dimah-s3/core";
-import {
-  assertVerifiedConstraints,
-  deleteObjectBestEffort,
+  finalizeConfirmedObject,
   headObjectOrNotFound,
   openStoredTarget,
-  requireContentLength,
-  resolveObjectAcl,
   runHook,
-  runLifecycleHook,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
@@ -21,7 +12,7 @@ async function handleConfirm(
   config: ResolvedDimahS3Config,
   input: typeof confirmBodySchema._output,
   request: Request,
-): Promise<UploadConfirmResponse> {
+) {
   const { route, key, bucket, stored } = await openStoredTarget(
     config,
     input,
@@ -29,53 +20,19 @@ async function handleConfirm(
     "upload",
   );
 
-  await runHook(route.upload.confirmGuard, stored);
+  await runHook(route.upload.confirmGuard, {
+    ...stored,
+    replace: route.upload.replace,
+  });
 
   const head = await headObjectOrNotFound(route.client, bucket, key);
-  const contentLength = requireContentLength(head);
-  const fileName = resolveStoredFileName(head.ContentDisposition, key);
-
-  try {
-    assertVerifiedConstraints(route.upload, {
-      fileName,
-      contentType: head.ContentType,
-      contentLength,
-    });
-  } catch (err) {
-    await deleteObjectBestEffort(route.client, bucket, key);
-    throw err;
-  }
-
-  const acl = config.resolveObjectAcl
-    ? await resolveObjectAcl(route.client, bucket, key)
-    : undefined;
-
-  const context = {
-    ...stored,
-    contentType: head.ContentType,
-    contentLength,
-    eTag: head.ETag?.replace(/"/g, ""),
-    metadata: head.Metadata,
-    acl,
-    fileName,
-    versionId: head.VersionId,
-    lastModified: head.LastModified?.toISOString(),
-  };
-
-  await runLifecycleHook(route.upload.onConfirmed, context);
-
-  return {
-    key,
-    bucket,
-    contentType: context.contentType,
-    contentLength: context.contentLength,
-    eTag: context.eTag,
-    metadata: context.metadata ?? {},
-    acl,
-    fileName,
-    versionId: context.versionId,
-    lastModified: context.lastModified,
-  };
+  return finalizeConfirmedObject(route.client, bucket, key, {
+    config,
+    route,
+    stored,
+    head,
+    acl: route.upload.acl,
+  });
 }
 
 export const confirm = createS3Endpoint(

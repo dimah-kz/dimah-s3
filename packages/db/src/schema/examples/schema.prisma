@@ -22,6 +22,7 @@ model StorageObject {
   scope        String    @map("scope")
   bucket       String    @map("bucket")
   key          String    @map("key")
+  route        String    @map("route")
   contentType  String?   @map("content_type")
   size         BigInt?   @map("size")
   eTag         String?   @map("e_tag")
@@ -39,6 +40,7 @@ model StorageObject {
 
   @@unique([bucket, key], map: "storage_object_bucket_key_uk")
   @@index([scope, status, createdAt], map: "storage_object_scope_status_created_idx")
+  @@index([scope, route], map: "storage_object_scope_route_idx")
   @@index([status, expiresAt], map: "storage_object_status_expires_idx")
   @@index([status, createdAt], map: "storage_object_status_created_idx")
   @@map("storage_object")

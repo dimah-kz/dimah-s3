@@ -42,10 +42,14 @@ async function handleAbort(
     ),
   );
 
-  await runLifecycleHook(route.upload.multipart.onAbort, {
-    ...stored,
-    uploadId,
-  });
+  await runLifecycleHook(
+    route.upload.multipart.onAbort,
+    {
+      ...stored,
+      uploadId,
+    },
+    config,
+  );
 
   return { bucket, key, uploadId, aborted: true };
 }

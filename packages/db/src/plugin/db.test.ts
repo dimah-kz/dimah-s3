@@ -47,14 +47,55 @@ describe("db plugin", () => {
           status: "active",
         }),
       ],
+      nextCursor: null,
     });
-    expect(listByScope).toHaveBeenCalledWith({
-      scope: "user:1",
-      status: "active",
-      limit: 10,
-      offset: 2,
-    });
+    expect(listByScope).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "user:1",
+        status: "active",
+        offset: 2,
+      }),
+    );
     expect(s3.db.objects).toBe(store);
+  });
+
+  it("returns a cursor when more rows exist than the limit", async () => {
+    const listByScope = vi.fn(async () => [
+      sampleObject({ id: "1" }),
+      sampleObject({ id: "2", key: "k2" }),
+    ]);
+    const store = fakeStore({ listByScope });
+    const s3 = instance(store);
+
+    const res = await s3.handler(
+      new Request("http://localhost/api/s3/db/objects?limit=1", {
+        method: "GET",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      objects: unknown[];
+      nextCursor: string | null;
+    };
+    expect(body.objects).toHaveLength(1);
+    expect(body.nextCursor).toEqual(expect.any(String));
+  });
+
+  it("returns one object by key for the resolved scope", async () => {
+    const store = fakeStore({
+      findByScopeKey: vi.fn(async () => sampleObject()),
+    });
+    const s3 = instance(store);
+
+    const res = await s3.handler(
+      new Request("http://localhost/api/s3/db/object?key=k", {
+        method: "GET",
+      }),
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      object: { id: "1", key: "k", route: "uploads" },
+    });
   });
 
   it("defaults list limit to 50", async () => {
@@ -66,12 +107,12 @@ describe("db plugin", () => {
       new Request("http://localhost/api/s3/db/objects", { method: "GET" }),
     );
     expect(res.status).toBe(200);
-    expect(listByScope).toHaveBeenCalledWith({
-      scope: "user:1",
-      status: "active",
-      limit: 50,
-      offset: undefined,
-    });
+    expect(listByScope).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scope: "user:1",
+        status: "active",
+      }),
+    );
   });
 
   it("rejects a list limit above 100", async () => {

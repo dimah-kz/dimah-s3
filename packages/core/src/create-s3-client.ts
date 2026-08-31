@@ -1,4 +1,5 @@
 import type {
+  DeleteBatchResponse,
   DeleteResponse,
   MultipartAbortResponse,
   MultipartCompleteResponse,
@@ -9,6 +10,7 @@ import type {
   S3Api,
   UploadConfirmResponse,
   UploadPresignResponse,
+  RouteCatalogResponse,
 } from "./types";
 import { sanitizeFileName } from "./helpers/sanitize-file-name";
 import { S3_ERROR_CODES } from "./error";
@@ -66,14 +68,21 @@ function createCoreApi($fetch: S3Fetch): S3Api {
     },
 
     download(payload) {
-      const { route, key, fileName } = withoutHeaders(payload);
+      const { route, key, fileName, disposition } = withoutHeaders(payload);
       return $fetch<DownloadPresignResponse>(S3_API_ROUTES.download, {
         method: "GET",
         query: {
           route,
           key,
           fileName: fileName ? sanitizeFileName(fileName) : undefined,
+          disposition,
         },
+      });
+    },
+
+    catalog() {
+      return $fetch<RouteCatalogResponse>(S3_API_ROUTES.catalog, {
+        method: "GET",
       });
     },
 
@@ -82,6 +91,13 @@ function createCoreApi($fetch: S3Fetch): S3Api {
       return $fetch<DeleteResponse>(S3_API_ROUTES.delete, {
         method: "DELETE",
         query: { route, key },
+      });
+    },
+
+    deleteMany(payload) {
+      return $fetch<DeleteBatchResponse>(S3_API_ROUTES.deleteBatch, {
+        method: "POST",
+        body: withoutHeaders(payload),
       });
     },
 

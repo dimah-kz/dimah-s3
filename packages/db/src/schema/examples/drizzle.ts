@@ -28,6 +28,7 @@ export const storageObject = sqliteTable(
     scope: text("scope").notNull(),
     bucket: text("bucket").notNull(),
     key: text("key").notNull(),
+    route: text("route").notNull(),
     contentType: text("content_type"),
     size: blob("size", { mode: "bigint" }),
     eTag: text("e_tag"),
@@ -55,6 +56,7 @@ export const storageObject = sqliteTable(
       table.status,
       table.createdAt,
     ),
+    index("storage_object_scope_route_idx").on(table.scope, table.route),
     index("storage_object_status_expires_idx").on(
       table.status,
       table.expiresAt,

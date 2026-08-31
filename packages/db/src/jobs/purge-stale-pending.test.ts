@@ -40,4 +40,24 @@ describe("purgeStalePendingObjects", () => {
     ).rejects.toThrow("abort multipart failed");
     expect(store.deleteByIds).not.toHaveBeenCalled();
   });
+
+  it("aborts multipart and deletes S3 objects when s3 is set", async () => {
+    const stale = [
+      sampleObject({ id: "1", status: "pending", uploadId: "up-1" }),
+    ];
+    const store = fakeStore({
+      findStalePending: vi.fn(async () => stale),
+    });
+    const send = vi.fn(async () => ({}));
+
+    await expect(
+      purgeStalePendingObjects({
+        client: store,
+        s3: { send } as never,
+      }),
+    ).resolves.toEqual({ purged: stale });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(store.deleteByIds).toHaveBeenCalledWith(["1"]);
+  });
 });

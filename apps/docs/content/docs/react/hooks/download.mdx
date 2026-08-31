@@ -1,10 +1,11 @@
 ---
 title: Download
-description: Presign a GET URL — native download, or fetch with progress.
+description: Presign a GET URL — native download, fetch with progress, or preview.
 ---
 
-Ask the API for a short-lived GET URL, then let the browser take the file.
-Your server never streams the body.
+Ask the API for a GET URL, then let the browser take the file. The default
+is a short-lived S3 URL. When the route sets `download.mode: "proxy"`, the
+URL is same-origin (`GET /file`) and your server streams the body.
 
 Pass the **stored** key from upload (`result.key`) — a bare filename is
 outside the route `keyPrefix` and returns `INVALID_KEY`. The route name
@@ -16,6 +17,10 @@ same prefix ([combining features](/docs/server/routes#combining-features)).
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `useDownload()`                  | [Download Button](/docs/react/ui/components/download-button) — native download, no progress                       |
 | `useDownload({ mode: "fetch" })` | [Progress Download Button](/docs/react/ui/components/progress-download-button) — `fetch` with progress and cancel |
+| `useObjectUrl`                   | Preview / `<img>` — caches until shortly before expiry                                                            |
+
+Pass `disposition: "inline"` for preview. The route default is
+`"attachment"` unless you set `download.disposition`.
 
 Hook `error` is a `DimahS3Error` (or `null`). Format it with
 `useFormatDimahError(error)` or read `error.message`.
@@ -46,10 +51,24 @@ export function DownloadFile() {
 Need the URL only — preview, embed, or your own link:
 
 ```tsx
-const { presign } = useDownload({ route: "uploads" });
+const { presign } = useDownload({ route: "uploads", disposition: "inline" });
 const result = await presign(
   "uploads/11111111-1111-1111-1111-111111111111/photo.jpg",
 );
+```
+
+## Object URL (preview)
+
+```tsx
+import { useObjectUrl } from "@dimah-s3/react";
+
+const { url } = useObjectUrl({
+  route: "uploads",
+  objectKey: storedKey,
+  disposition: "inline",
+});
+
+return url ? <img src={url} alt="" /> : null;
 ```
 
 ## Fetch with progress

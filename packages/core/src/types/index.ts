@@ -6,6 +6,8 @@ export type {
   ConfirmPayload,
   DownloadPayload,
   DeletePayload,
+  DeleteBatchPayload,
+  FilePayload,
   MultipartInitPayload,
   MultipartSignPartPayload,
   MultipartListPartsPayload,
@@ -15,6 +17,8 @@ export type {
 } from "./requests";
 export type {
   DeleteResponse,
+  DeleteBatchItemResult,
+  DeleteBatchResponse,
   MultipartCompleteResponse,
   MultipartAbortResponse,
   DownloadPresignResponse,
@@ -27,3 +31,9 @@ export type {
   ConfirmedObjectResponse,
   S3Api,
 } from "./responses";
+export type {
+  RouteCatalogEntry,
+  RouteCatalogResponse,
+} from "@/schema/catalog";
+export type { ContentDispositionType } from "@/helpers/build-content-disposition";
+export type { DimahS3Routes, InferS3Routes, S3RouteName } from "./routes";

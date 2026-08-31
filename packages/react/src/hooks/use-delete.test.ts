@@ -102,4 +102,24 @@ describe("useDelete", () => {
     expect(hook.current.pendingKey).toBeNull();
     hook.unmount();
   });
+
+  it("deletes several keys via deleteMany", async () => {
+    const api = fakeS3Api();
+    const onSuccess = vi.fn();
+    const hook = renderHook(() =>
+      useDelete({ api, route: "uploads", onSuccess }),
+    );
+
+    await act(async () => {
+      await hook.current.removeMany(["a.png", "b.png"]);
+    });
+
+    expect(api.deleteMany).toHaveBeenCalledWith({
+      route: "uploads",
+      keys: ["a.png", "b.png"],
+    });
+    expect(onSuccess).toHaveBeenCalledTimes(2);
+    expect(hook.current.phase).toBe("success");
+    hook.unmount();
+  });
 });

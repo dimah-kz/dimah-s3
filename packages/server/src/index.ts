@@ -1,4 +1,6 @@
 export { dimahS3 } from "./dimah-s3";
+export { putObject } from "./put";
+export type { PutObjectInput } from "./put";
 export type { DimahS3, DimahS3Api, MultipartAliasApi } from "./dimah-s3";
 export { route } from "./route";
 export {
@@ -30,11 +32,13 @@ export type {
   DeleteGuardContext,
   DeleteOnDeletedContext,
   DimahS3Config,
+  DimahS3Logger,
   DimahS3RouteConfig,
   DisabledFeature,
   DownloadConfig,
   DownloadGuardContext,
   DownloadOnPresignedContext,
+  DownloadResolveInfo,
   EnabledFeature,
   EnabledUploadConfig,
   FeatureToggle,

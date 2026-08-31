@@ -1,4 +1,4 @@
-import type { UploadPresignResponse } from "@dimah-s3/core";
+import type { S3RouteName, UploadPresignResponse } from "@dimah-s3/core";
 import type { UploadStore } from "./upload-store";
 
 /** Result returned after a successful upload. */
@@ -65,6 +65,11 @@ export type UploadRequestOptions = {
    * The protocol requires a non-empty name — it cannot be omitted.
    */
   fileName?: string;
+  /**
+   * Unpadded base64 SHA-256. Sent when the route sets `upload.checksum`.
+   * The engine computes this when {@link FileUploadConfig.checksum} is true.
+   */
+  checksum?: string;
 };
 
 /** Lifecycle hooks for single-file upload. */
@@ -122,7 +127,7 @@ export type FileUploadConfig = {
    * Named server route (`dimahS3({ routes })`). Required — the server
    * generates the object key from this route's policy.
    */
-  route: string;
+  route: S3RouteName;
   /**
    * Attempt multipart when the file is at least 50 MB. The server must
    * enable `multipart` on the route or init returns `FEATURE_DISABLED`.
@@ -132,14 +137,19 @@ export type FileUploadConfig = {
   /**
    * HTML `accept` tokens: MIME types (`image/*`, `application/pdf`) and/or
    * extensions (`.pdf`). Client-side UX only — the server enforces
-   * route `fileTypes`.
+   * route `fileTypes`. Omitted values are filled from `api.catalog()`.
    */
   accept?: string[];
   /**
    * Max file size in bytes. Client-side UX only — the server enforces
-   * route `maxFileSize`.
+   * route `maxFileSize`. Omitted values are filled from `api.catalog()`.
    */
   maxFileSize?: number;
+  /**
+   * Compute and send a SHA-256 checksum on presign. Filled from
+   * `api.catalog()` when the route sets `upload.checksum`.
+   */
+  checksum?: boolean;
   /** Number of parts uploaded concurrently (multipart). */
   concurrentParts?: number;
   /** Retry configuration for failed network requests. */

@@ -5,6 +5,7 @@ import {
   S3_API_BASE_PATH,
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
+import { resolveLogger } from "@/helpers/logger";
 import { bindEndpoints } from "./bind-endpoints";
 import type { ResolvedDimahS3Config } from "@/types";
 
@@ -20,17 +21,26 @@ const NETWORK_CODES = new Set([
  * better-call `onError`: APIError (including DimahS3Error) serializes
  * natively. Unknown throws become INTERNAL_ERROR / S3_NETWORK_ERROR.
  */
-function onS3RouterError(error: unknown): void {
+function onS3RouterError(
+  error: unknown,
+  config?: ResolvedDimahS3Config,
+): void {
   if (isAPIError(error)) return;
 
   const code = (error as { code?: string })?.code;
+  const logger = resolveLogger(config?.logger);
   if (typeof code === "string" && NETWORK_CODES.has(code)) {
     const networkErr = errors.s3NetworkError(code);
-    console.error("[S3 API]", networkErr.message, error);
+    logger.error?.(networkErr.message, error);
+    config?.onError?.(error, {});
     throw networkErr;
   }
 
-  console.error("[S3 API]", error);
+  logger.error?.(
+    error instanceof Error ? error.message : String(error),
+    error,
+  );
+  config?.onError?.(error, {});
   throw errors.internalError();
 }
 
@@ -66,7 +76,7 @@ export function createS3Router<E extends Record<string, Endpoint>>(
     basePath,
     routerContext: { config: env.config },
     openapi: { disabled: true },
-    onError: onS3RouterError,
+    onError: (error) => onS3RouterError(error, env.config),
   });
 
   return {

@@ -135,4 +135,33 @@ describe("useFileUpload", () => {
     expect(hook.current.phase).toBe("idle");
     hook.unmount();
   });
+
+  it("fills accept from the route catalog", async () => {
+    const api = fakeS3Api({
+      catalog: vi.fn(async () => ({
+        routes: {
+          uploads: {
+            upload: {
+              enabled: true as const,
+              fileTypes: [".png"],
+              multipart: false,
+            },
+            download: { enabled: false as const },
+            delete: { enabled: false as const },
+          },
+        },
+      })),
+    });
+    const hook = renderHook(() => useFileUpload({ api, route: "uploads" }));
+
+    await act(async () => {
+      await hook.current.upload(
+        new File(["x"], "a.txt", { type: "text/plain" }),
+      );
+    });
+
+    expect(hook.current.phase).toBe("error");
+    expect(uploadFile).not.toHaveBeenCalled();
+    hook.unmount();
+  });
 });

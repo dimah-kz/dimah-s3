@@ -6,7 +6,7 @@ import type {
   S3ApiUploadTransport,
   UploadTransport,
 } from "@/types";
-import type { S3Api } from "@dimah-s3/core";
+import { sha256File, type S3Api } from "@dimah-s3/core";
 import { toUploadError } from "@/types/error";
 import {
   DEFAULT_MULTIPART_THRESHOLD,
@@ -47,6 +47,9 @@ export async function uploadFile(
   const rawContentType = requestOptions?.contentType ?? file.type;
   const contentType = rawContentType.trim() === "" ? undefined : rawContentType;
   const fileName = requestOptions?.fileName || file.name;
+  const checksum =
+    requestOptions?.checksum ??
+    (config.checksum ? await sha256File(file) : undefined);
 
   try {
     if (useMultipart) {
@@ -59,7 +62,7 @@ export async function uploadFile(
         concurrentParts,
         callbacks.onProgress,
         signal,
-        requestOptions,
+        { ...requestOptions, checksum },
         config.retry,
         config.uploadStore,
         callbacks.onPartUpload,
@@ -79,6 +82,7 @@ export async function uploadFile(
           fileSize: file.size,
           fileName,
           metadata: requestOptions?.metadata,
+          checksum,
         }),
       config.retry,
       signal,

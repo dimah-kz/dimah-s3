@@ -49,6 +49,9 @@ async function handleUpload(
     "upload",
   );
   const method = route.upload.method ?? "POST";
+  if (route.upload.checksum && !input.checksum) {
+    throw errors.validationError("Checksum is required for this route");
+  }
   if (method === "POST" && fileSize > S3_MAX_POST_OBJECT_BYTES) {
     throw errors.payloadTooLarge(
       `POST uploads cannot exceed ${S3_MAX_POST_OBJECT_BYTES} bytes. Enable upload.multipart or set upload.method to "PUT".`,
@@ -70,6 +73,7 @@ async function handleUpload(
     metadata,
     clientMetadata: input.metadata,
     acl,
+    replace: route.upload.replace,
   };
 
   await runHook(route.upload.guard, hookCtx);
@@ -79,6 +83,9 @@ async function handleUpload(
       "Content-Type": contentType,
       ...objectUserMetadata(metadata),
       "Content-Disposition": buildContentDisposition(fileName),
+      ...(input.checksum
+        ? { "x-amz-checksum-sha256": input.checksum }
+        : {}),
     };
 
     const url = await getSignedUrl(
@@ -91,18 +98,28 @@ async function handleUpload(
         Metadata: metadata,
         ContentDisposition: buildContentDisposition(fileName),
         ContentLength: fileSize,
+        ...(input.checksum
+          ? { ChecksumSHA256: input.checksum, ChecksumAlgorithm: "SHA256" }
+          : {}),
       }),
       {
         expiresIn,
-        signableHeaders: new Set(["content-length"]),
+        signableHeaders: new Set([
+          "content-length",
+          ...(input.checksum ? ["x-amz-checksum-sha256"] : []),
+        ]),
       },
     );
 
-    await runLifecycleHook(route.upload.onPresigned, {
-      ...hookCtx,
-      url,
-      expiresIn,
-    });
+    await runLifecycleHook(
+      route.upload.onPresigned,
+      {
+        ...hookCtx,
+        url,
+        expiresIn,
+      },
+      config,
+    );
 
     return {
       bucket,
@@ -119,6 +136,7 @@ async function handleUpload(
     "Content-Type": contentType,
     "Content-Disposition": buildContentDisposition(fileName),
     ...objectUserMetadata(metadata),
+    ...(input.checksum ? { "x-amz-checksum-sha256": input.checksum } : {}),
   };
 
   const { url, fields: signedFields } = await createPresignedPost(
@@ -132,11 +150,15 @@ async function handleUpload(
     },
   );
 
-  await runLifecycleHook(route.upload.onPresigned, {
-    ...hookCtx,
-    url,
-    expiresIn,
-  });
+  await runLifecycleHook(
+    route.upload.onPresigned,
+    {
+      ...hookCtx,
+      url,
+      expiresIn,
+    },
+    config,
+  );
 
   return {
     bucket,

@@ -49,11 +49,12 @@ export function DeleteFile() {
 }
 ```
 
-No dialog? Call `remove`:
+No dialog? Call `remove`. Several keys? Call `removeMany` (`POST /delete/batch`).
 
 ```ts
-const { remove } = useDelete({ route: "uploads" });
+const { remove, removeMany } = useDelete({ route: "uploads" });
 await remove(storedKey);
+await removeMany([storedKey, otherKey]);
 ```
 
 Wire `onSuccess` to keep your own database in sync. Server-side auth belongs

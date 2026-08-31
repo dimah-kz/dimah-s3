@@ -58,18 +58,30 @@ export function createDatabaseLifecycleHooks(
 
   async function trackPending(context: {
     request: Request;
+    route: string;
     bucket: string;
     key: string;
     file: { name: string; size?: number; type?: string };
     metadata?: Record<string, string>;
     acl?: string;
     uploadId?: string;
+    replace?: "overwrite";
   }): Promise<void> {
     const scope = await requireScope(context.request);
+    if (context.replace === "overwrite") {
+      const existing = await objects.find({
+        bucket: context.bucket,
+        key: context.key,
+      });
+      if (existing?.status === "active" && existing.scope === scope) {
+        return;
+      }
+    }
     await objects.upsertPending({
       scope,
       bucket: context.bucket,
       key: context.key,
+      route: context.route,
       contentType: context.file.type ?? null,
       declaredSize: context.file.size ?? null,
       metadata: context.metadata ?? null,
@@ -130,7 +142,13 @@ export function createDatabaseLifecycleHooks(
       upload: {
         guard: guardKeyOwnership,
         onPresigned: trackPending,
-        confirmGuard: pendingObjectGuard,
+        confirmGuard: async (context) => {
+          if (context.replace === "overwrite") {
+            await ownedObjectGuard(context);
+            return;
+          }
+          await pendingObjectGuard(context);
+        },
         onConfirmed: trackConfirmed,
         multipart: {
           onInit: trackPending,

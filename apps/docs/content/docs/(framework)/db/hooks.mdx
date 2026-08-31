@@ -7,8 +7,9 @@ The [`db()`](/docs/db/setup) plugin attaches guards and database updates to
 upload, multipart, download, and delete. Enable the feature, register the
 plugin — you do not wire these hooks yourself.
 
-Your own guards and lifecycle hooks on each feature still run after the
-plugin.
+Your own **guards** still run after the plugin. Lifecycle `on*` hooks run
+**before** the plugin so a throw from `onConfirmed` can delete the S3 object
+before `db()` marks the row active.
 
 ## Access rules
 
@@ -26,7 +27,7 @@ The plugin resolves the caller's scope (configured in
 | Feature        | Before                                                                                | After                                                                                       |
 | -------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Upload         | Reject if a non-deleted row belongs to another scope (soft-deleted keys are reusable) | Row created or updated as `pending`                                                         |
-| Upload confirm | Row must be `pending` and match the caller                                            | Promoted to `active` with HeadObject size (`declaredSize` is the client claim from presign) |
+| Upload confirm | Row must be `pending` (or owned when `upload.replace: "overwrite"`) | Promoted to `active` with HeadObject size (`declaredSize` is the client claim from presign) |
 | Multipart      | Pending row + matching `uploadId` for part / list / abort / complete                  | `pending` on start, `active` on complete, pending row removed on abort                      |
 | Download       | File must be `active` (confirmed) and owned                                           | —                                                                                           |
 | Delete         | Row must be `pending` or `active` and owned                                           | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior)                              |

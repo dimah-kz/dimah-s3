@@ -9,6 +9,7 @@ export function toDbClientObject(object: StorageObject): DbClientObject {
     id: object.id,
     bucket: object.bucket,
     key: object.key,
+    route: object.route,
     filename: object.filename,
     contentType: object.contentType,
     size: object.size,

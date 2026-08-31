@@ -13,6 +13,8 @@ export const uploadBodySchema = z.strictObject({
   fileSize: z.number().int().positive(),
   contentType: optionalTrimmedString,
   metadata: metadataSchema.optional(),
+  /** Unpadded base64 SHA-256. Required when the route sets `upload.checksum`. */
+  checksum: optionalTrimmedString,
 });
 
 export const confirmBodySchema = z.strictObject({

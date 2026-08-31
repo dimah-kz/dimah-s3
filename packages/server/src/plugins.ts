@@ -4,6 +4,8 @@ export {
   definePlugin,
   FEATURE_HOOK_KEYS,
   MULTIPART_HOOK_KEYS,
+  LIFECYCLE_FEATURE_HOOK_KEYS,
+  LIFECYCLE_MULTIPART_HOOK_KEYS,
   RESERVED_PLUGIN_IDS,
 } from "./plugin";
 export type {

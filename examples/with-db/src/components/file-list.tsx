@@ -1,32 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { DbClientObject } from "@dimah-s3/db/client";
+import { DeleteButton, DownloadButton } from "@dimah-s3/ui";
 import { s3Client } from "@/lib/s3-client";
 
-type ListedObject = Awaited<
-  ReturnType<(typeof s3Client)["db"]["listObjects"]>
->["objects"][number];
-
-/** Browser listing via `dbClient()` — see /docs/db/api */
+/** Browser listing via `api.db.listObjects` — see /docs/db/api */
 export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
   const api = s3Client.useApi();
-  const [files, setFiles] = useState<ListedObject[]>([]);
+  const [objects, setObjects] = useState<DbClientObject[]>([]);
+
+  const refresh = useCallback(async () => {
+    const page = await api.db.listObjects({ route: "uploads" });
+    setObjects(page.objects);
+  }, [api]);
 
   useEffect(() => {
-    void api.db
-      .listObjects({ status: "active", limit: 50, offset: 0 })
-      .then((result) => setFiles(result.objects));
-  }, [api, refreshToken]);
+    void refresh();
+  }, [refresh, refreshToken]);
 
-  if (files.length === 0) {
-    return <p className="text-sm text-muted-foreground">No files yet.</p>;
+  if (objects.length === 0) {
+    return <p className="text-sm text-muted-foreground">No files</p>;
   }
 
   return (
-    <ul className="list-inside list-disc text-sm">
-      {files.map((file) => (
-        <li key={file.id}>{file.filename ?? file.key}</li>
-      ))}
+    <ul className="flex flex-col gap-2">
+      {objects.map((object) => {
+        const fileName = object.filename ?? object.key;
+        return (
+          <li
+            key={object.id}
+            className="flex w-full min-w-0 items-center gap-2"
+          >
+            <span className="min-w-0 flex-1 truncate text-sm">{fileName}</span>
+            <DownloadButton
+              api={api}
+              route="uploads"
+              objectKey={object.key}
+              fileName={fileName}
+              size="sm"
+              status={false}
+            />
+            <DeleteButton
+              api={api}
+              route="uploads"
+              objectKey={object.key}
+              fileName={fileName}
+              fileSize={object.size ?? undefined}
+              size="sm"
+              status={false}
+              onSuccess={() => void refresh()}
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 }

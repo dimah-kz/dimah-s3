@@ -1,5 +1,6 @@
 import type {
   ConfirmPayload,
+  DeleteBatchPayload,
   DeletePayload,
   DownloadPayload,
   MultipartAbortPayload,
@@ -11,12 +12,26 @@ import type {
   UploadPayload,
   UploadPresignMethod,
 } from "./requests";
+import type { RouteCatalogResponse } from "@/schema/catalog";
+import type { ContentDispositionType } from "@/helpers/build-content-disposition";
 
 /** Response from {@link S3Api.delete}. */
 export type DeleteResponse = {
   success: true;
   bucket: string;
   key: string;
+};
+
+/** Per-key result from {@link S3Api.deleteMany}. */
+export type DeleteBatchItemResult = {
+  key: string;
+  success: boolean;
+  error?: { code: string; message: string };
+};
+
+/** Response from {@link S3Api.deleteMany}. */
+export type DeleteBatchResponse = {
+  results: DeleteBatchItemResult[];
 };
 
 /** Verified object metadata after confirm or multipart complete. */
@@ -33,7 +48,7 @@ export type ConfirmedObjectResponse = {
   eTag?: string;
   /** Object metadata. */
   metadata: Record<string, string>;
-  /** Resolved ACL. Omitted when ACL lookup is disabled or unsupported. */
+  /** ACL from the upload policy (`upload.acl` / `object`). */
   acl?: S3ObjectAcl;
   /** Stored filename. */
   fileName?: string;
@@ -59,16 +74,20 @@ export type MultipartAbortResponse = {
   uploadId: string;
 };
 
-/** Presigned GET URL for download. */
+/** Presigned GET URL for download, or a same-origin proxy URL. */
 export type DownloadPresignResponse = {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
   bucket: string;
-  /** Presigned URL. */
+  /** Presigned URL, or the same-origin `/file` URL when `mode` is `"proxy"`. */
   url: string;
-  /** Validity in seconds. */
+  /** Validity in seconds. `0` when `mode` is `"proxy"` (session-bound). */
   expiresIn: number;
+  /** How the browser should fetch the object. @default "presign" */
+  mode?: "presign" | "proxy";
+  /** Content-Disposition used on the signed / proxied GET. */
+  disposition?: ContentDispositionType;
 };
 
 type UploadPresignBase = {
@@ -148,7 +167,9 @@ export type S3Api = {
   upload: (payload: UploadPayload) => Promise<UploadPresignResponse>;
   confirm: (payload: ConfirmPayload) => Promise<UploadConfirmResponse>;
   download: (payload: DownloadPayload) => Promise<DownloadPresignResponse>;
+  catalog: () => Promise<RouteCatalogResponse>;
   delete: (payload: DeletePayload) => Promise<DeleteResponse>;
+  deleteMany: (payload: DeleteBatchPayload) => Promise<DeleteBatchResponse>;
   multipart: {
     init: (payload: MultipartInitPayload) => Promise<MultipartInitResponse>;
     signPart: (

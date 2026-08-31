@@ -3,7 +3,6 @@ export {
   deleteObjectBestEffort,
 } from "./best-effort";
 export { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
-export { resolveObjectAcl } from "./resolve-object-acl";
 export { normalizeExpiresIn } from "./expires";
 export { runHook, runLifecycleHook, runObjectHook } from "./hooks";
 export {
@@ -48,3 +47,10 @@ export {
   requireContentLength,
 } from "./head-object";
 export { listAllParts, listedPartsByteSize } from "./list-parts";
+export { resolveLogger, defaultLogger } from "./logger";
+export { finalizeConfirmedObject } from "./finalize-confirmed";
+export {
+  DIMAH_PREVIOUS_KEY_META,
+  previousKeyFromMetadata,
+  stripPreviousKeyMeta,
+} from "./previous-key";

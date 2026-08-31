@@ -9,6 +9,7 @@ export type StorageObjectRow = {
   scope: string;
   bucket: string;
   key: string;
+  route: string;
   contentType: string | null;
   size: bigint | null;
   eTag: string | null;
@@ -37,6 +38,7 @@ export function mapStorageObjectRow(row: StorageObjectRow): StorageObject {
     scope: row.scope,
     bucket: row.bucket,
     key: row.key,
+    route: row.route,
     contentType: row.contentType,
     size: toNumber(row.size),
     eTag: row.eTag,

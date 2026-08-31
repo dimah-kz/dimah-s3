@@ -45,11 +45,7 @@ npx shadcn@latest add @dimah-s3/upload-button
 ## Usage
 
 ```tsx
-<UploadButton
-  route="uploads"
-  maxFiles={5}
-  accept={["image/*", "application/pdf"]}
-/>
+<UploadButton route="uploads" maxFiles={5} />
 ```
 
 Control the status row with `status`:
@@ -65,8 +61,10 @@ uses Attachment rows, see
 [Custom UI](/docs/react/ui/customization/custom-ui).
 
 <Callout type="warn">
-  `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
-  limits in `upload.fileTypes` / `upload.maxFileSize` on the server route.
+  Omit `accept` / `maxFileSize` so the button fills them from
+  [`api.catalog()`](/docs/server/routes). The server still enforces
+  `upload.fileTypes` / `upload.maxFileSize`. Explicit hook values override the
+  catalog for client UX only.
 </Callout>
 
 ## Props

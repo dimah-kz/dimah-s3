@@ -3,6 +3,7 @@ export { DimahS3DB, v1 } from "./fuma-db";
 
 // Types
 export type {
+  DbClientGetInput,
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
@@ -41,6 +42,11 @@ export type {
   CreateObjectAccessGuardOptions,
   ObjectAccessGuardContext,
 } from "./hooks/create-object-access-guard";
+export { createQuotaGuard } from "./hooks/create-quota-guard";
+export type {
+  CreateQuotaGuardOptions,
+  QuotaGuardContext,
+} from "./hooks/create-quota-guard";
 
 // Jobs
 export { purgeStalePendingObjects } from "./jobs/purge-stale-pending";

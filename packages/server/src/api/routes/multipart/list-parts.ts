@@ -44,11 +44,15 @@ async function handleListParts(
     ];
   });
 
-  await runLifecycleHook(route.upload.multipart.onList, {
-    ...stored,
-    uploadId,
-    parts,
-  });
+  await runLifecycleHook(
+    route.upload.multipart.onList,
+    {
+      ...stored,
+      uploadId,
+      parts,
+    },
+    config,
+  );
 
   return { parts };
 }

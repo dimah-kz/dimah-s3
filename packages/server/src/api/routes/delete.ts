@@ -33,7 +33,7 @@ async function handleDelete(
     new DeleteObjectCommand({ Bucket: bucket, Key: key }),
   );
 
-  await runLifecycleHook(route.delete.onDeleted, stored);
+  await runLifecycleHook(route.delete.onDeleted, stored, config);
 
   return { success: true, bucket, key };
 }

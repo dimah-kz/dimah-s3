@@ -1,4 +1,5 @@
 import { S3_ERROR_CODES } from "@dimah-s3/core";
+import { putObject, type PutObjectInput } from "./put";
 import {
   applyPlugins,
   type DimahS3Plugin,
@@ -20,6 +21,7 @@ export type MultipartAliasApi = {
 export type DimahS3Api<P extends readonly DimahS3Plugin[] = []> =
   CoreEndpoints & {
     multipart: MultipartAliasApi;
+    deleteMany: CoreEndpoints["deleteBatch"];
   } & PluginEndpointMap<P>;
 
 export type DimahS3<
@@ -56,6 +58,12 @@ export type DimahS3<
     context: C;
     routes: keyof R & string;
   };
+  /**
+   * Server-side upload through the same route policy as presign + confirm.
+   */
+  put: (input: PutObjectInput) => Promise<
+    import("@dimah-s3/core").ConfirmedObjectResponse
+  >;
 } & C;
 
 /**
@@ -103,6 +111,7 @@ export function dimahS3<
 
   const api = {
     ...bound,
+    deleteMany: bound.deleteBatch,
     multipart: {
       init: bound.multipartInit,
       signPart: bound.multipartPart,
@@ -119,6 +128,7 @@ export function dimahS3<
     getPlugin,
     $ERROR_CODES: S3_ERROR_CODES,
     $Infer: {} as DimahS3<P, PluginContextMap<P>, R>["$Infer"],
+    put: (input) => putObject(resolved, input),
     ...context,
   } as DimahS3<P, PluginContextMap<P>, R>;
 }

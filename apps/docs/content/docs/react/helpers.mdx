@@ -50,6 +50,25 @@ formatFileSize(1_500_000); // "1.4 MB"
 truncateFileName("very-long-document-name.pdf"); // "very-long-documen… .pdf"
 ```
 
+## Checksum, magic bytes, and public URLs
+
+Checksum, magic-byte sniffing, and public object URLs also export from
+`@dimah-s3/core` (and from `@dimah-s3/react`). Typed route names are
+`S3RouteName` / `InferS3Routes`.
+
+```ts
+import {
+  sha256File,
+  sniffContentType,
+  matchesMagicBytes,
+  buildPublicObjectUrl,
+} from "@dimah-s3/core";
+
+await sha256File(file);
+sniffContentType(new Uint8Array(await file.slice(0, 16).arrayBuffer()));
+buildPublicObjectUrl({ baseUrl: "https://cdn.example.com", key });
+```
+
 Inside React, map the error with `useFormatValidateFileError()`:
 
 ```tsx

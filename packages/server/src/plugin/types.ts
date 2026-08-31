@@ -126,7 +126,11 @@ export const RESERVED_PLUGIN_IDS = [
   "upload",
   "confirm",
   "download",
+  "catalog",
+  "file",
   "delete",
+  "deleteBatch",
+  "put",
   "multipart",
 ] as const;
 

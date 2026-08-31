@@ -4,23 +4,18 @@ import {
 } from "@aws-sdk/client-s3";
 import {
   multipartCompleteBodySchema,
-  resolveStoredFileName,
   S3_API_ROUTES,
   type MultipartCompleteResponse,
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import {
   abortMultipartBestEffort,
-  assertVerifiedConstraints,
   assertWithinMaxFileSize,
-  deleteObjectBestEffort,
+  finalizeConfirmedObject,
   headObjectAfterMultipartComplete,
   listAllParts,
   openStoredTarget,
-  requireContentLength,
-  resolveObjectAcl,
   runHook,
-  runLifecycleHook,
   sendOrObjectNotFound,
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
@@ -52,6 +47,7 @@ async function handleComplete(
     ...stored,
     uploadId,
     parts: partRefs,
+    replace: route.upload.replace,
   });
 
   const listedParts = await listAllParts(route.client, {
@@ -94,56 +90,19 @@ async function handleComplete(
     bucket,
     key,
   );
-  const contentLength = requireContentLength(head);
-  const contentType = head.ContentType;
-  const fileName = resolveStoredFileName(head.ContentDisposition, key);
-
-  try {
-    assertVerifiedConstraints(route.upload, {
-      fileName,
-      contentType,
-      contentLength,
-    });
-  } catch (err) {
-    await deleteObjectBestEffort(route.client, bucket, key);
-    throw err;
-  }
-
-  const eTag = (head.ETag ?? completeResult.ETag ?? "").replace(/"/g, "");
-  const metadata = head.Metadata ?? {};
-  const versionId = head.VersionId;
-  const lastModified = head.LastModified?.toISOString();
-
-  const acl = config.resolveObjectAcl
-    ? await resolveObjectAcl(route.client, bucket, key)
-    : undefined;
-
-  await runLifecycleHook(route.upload.onConfirmed, {
-    ...stored,
+  const confirmed = await finalizeConfirmedObject(route.client, bucket, key, {
+    config,
+    route,
+    stored,
+    head: {
+      ...head,
+      ETag: head.ETag ?? completeResult.ETag,
+    },
     uploadId,
-    contentLength,
-    contentType,
-    eTag,
-    metadata,
-    acl,
-    fileName,
-    versionId,
-    lastModified,
+    acl: route.upload.acl,
   });
 
-  return {
-    bucket,
-    key,
-    uploadId,
-    contentLength,
-    contentType,
-    eTag,
-    metadata,
-    acl,
-    fileName,
-    versionId,
-    lastModified,
-  };
+  return { ...confirmed, uploadId };
 }
 
 export const multipartComplete = createS3Endpoint(

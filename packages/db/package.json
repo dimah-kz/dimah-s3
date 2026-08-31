@@ -58,15 +58,20 @@
     "zod": "catalog:"
   },
   "peerDependencies": {
+    "@aws-sdk/client-s3": ">=3",
     "@dimah-s3/server": "1.0.2",
     "drizzle-orm": "^0.44.0 || ^0.45.0 || >=1.0.0-rc.1 <2.0.0"
   },
   "peerDependenciesMeta": {
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
     "drizzle-orm": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1121.0",
     "@dimah-s3/server": "workspace:*",
     "@types/node": "^26.4.0",
     "@workspace/eslint-config": "workspace:*",

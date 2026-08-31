@@ -1,9 +1,10 @@
-import { definePlugin, isFeatureOn } from "@dimah-s3/server";
+import { definePlugin, isFeatureOn, chainHooks } from "@dimah-s3/server";
 import {
   type DimahS3DbClient,
   type StorageObjectStore,
 } from "@/store/storage-object-store";
 import type { ScopeResolver } from "@/types/storage-object";
+import { createQuotaGuard } from "@/hooks/create-quota-guard";
 import { createDatabaseEndpoints } from "./create-database-endpoints";
 import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
 
@@ -25,6 +26,14 @@ export type DbPluginOptions = {
    * @default "soft"
    */
   deleteMode?: "soft" | "hard";
+  /**
+   * Optional scope usage caps. Numbers come from you — the plugin only
+   * checks. Wired as `upload.guard` after ownership.
+   */
+  quota?: {
+    maxBytes?: number;
+    maxFiles?: number;
+  };
 };
 
 export type DbPluginContext = {
@@ -39,9 +48,9 @@ export type DbPluginContext = {
  * multipart / download / delete lifecycle and enforces scope ownership.
  *
  * Hooks attach to every route unless the route sets `plugins: { db: false }`.
- * Identity stays `(bucket, key)` — no schema change for named routes.
  *
- * Exposes `GET /db/objects` for browser listing via {@link dbClient}.
+ * Exposes `GET /db/objects` and `GET /db/object` for the browser via
+ * {@link dbClient}.
  *
  * ```ts
  * const s3 = dimahS3({
@@ -63,6 +72,15 @@ export type DbPluginContext = {
  */
 export function db(options: DbPluginOptions) {
   const { objects, hooks } = createDatabaseLifecycleHooks(options);
+  if (options.quota && hooks.upload) {
+    const quotaGuard = createQuotaGuard({
+      client: objects,
+      resolveScope: options.resolveScope,
+      maxBytes: options.quota.maxBytes,
+      maxFiles: options.quota.maxFiles,
+    });
+    hooks.upload.guard = chainHooks(hooks.upload.guard, quotaGuard);
+  }
 
   return definePlugin({
     id: "db",

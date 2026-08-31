@@ -18,10 +18,12 @@ export type {
   UploadObjectInfo,
   UploadOnConfirmedContext,
   UploadOnPresignedContext,
+  DownloadResolveInfo,
 } from "./hook-contexts";
 export type {
   DeleteConfig,
   DimahS3Config,
+  DimahS3Logger,
   DimahS3RouteConfig,
   DisabledFeature,
   DownloadConfig,

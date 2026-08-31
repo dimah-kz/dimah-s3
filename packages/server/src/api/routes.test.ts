@@ -346,15 +346,16 @@ describe("confirm", () => {
     });
   });
 
-  it("resolves ACL when enabled", async () => {
+  it("returns route ACL from the upload policy", async () => {
     const s3 = createInstance({
-      resolveObjectAcl: true,
       client: mockS3(
         sendByCommand({
           HeadObjectCommand: headResult(),
-          GetObjectAclCommand: { Grants: [] },
         }) as never,
       ),
+      routes: {
+        uploads: allFeaturesRoute({ upload: { acl: "private" } }),
+      },
     });
 
     await expect(
@@ -937,5 +938,228 @@ describe("feature guards", () => {
 
     await s3.api.upload({ body: defaultUploadBody });
     expect(order).toEqual(["global", "presign"]);
+  });
+});
+
+describe("catalog", () => {
+  it("lists enabled features per route", async () => {
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: { fileTypes: ["image/*"], maxFileSize: 10, checksum: true },
+          download: { disposition: "inline", mode: "proxy" },
+        }),
+      },
+    });
+
+    const res = await s3.handler(
+      new Request("http://localhost/api/s3/routes"),
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      routes: {
+        uploads: {
+          upload: {
+            enabled: true,
+            fileTypes: ["image/*"],
+            maxFileSize: 10,
+            multipart: true,
+            checksum: true,
+          },
+          download: {
+            enabled: true,
+            disposition: "inline",
+            mode: "proxy",
+          },
+          delete: { enabled: true },
+        },
+      },
+    });
+  });
+});
+
+describe("confirm rollback", () => {
+  it("deletes the object when onConfirmed throws", async () => {
+    const send = sendByCommand({
+      HeadObjectCommand: headResult(),
+      DeleteObjectCommand: {},
+    });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            onConfirmed: () => {
+              throw new Error("persist failed");
+            },
+          },
+        }),
+      },
+    });
+
+    await expect(
+      s3.api.confirm({ body: { route: "uploads", key: storedPngKey } }),
+    ).rejects.toMatchObject({ statusCode: 500 });
+
+    const names = send.mock.calls.map(
+      (call) => (call[0] as { constructor: { name: string } }).constructor.name,
+    );
+    expect(names).toContain("DeleteObjectCommand");
+  });
+
+  it("deletes previousKey after a successful confirm", async () => {
+    const send = sendByCommand({
+      HeadObjectCommand: headResult({
+        Metadata: { "dimah-previous-key": "uploads/old.png" },
+      }),
+      DeleteObjectCommand: {},
+    });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+    });
+
+    await s3.api.confirm({
+      body: { route: "uploads", key: storedPngKey },
+    });
+
+    const deleted = send.mock.calls
+      .map((call) => call[0] as { constructor: { name: string }; input?: { Key?: string } })
+      .filter((command) => command.constructor.name === "DeleteObjectCommand");
+    expect(deleted.some((command) => command.input?.Key === "uploads/old.png")).toBe(
+      true,
+    );
+  });
+});
+
+describe("download proxy / resolve", () => {
+  it("returns a same-origin /file URL when mode is proxy", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ download: { mode: "proxy" } }),
+      },
+    });
+
+    await expect(
+      s3.api.download({
+        query: { route: "uploads", key: storedPngKey },
+      }),
+    ).resolves.toMatchObject({
+      key: storedPngKey,
+      mode: "proxy",
+      expiresIn: 0,
+      url: expect.stringContaining("/file"),
+    });
+  });
+
+  it("streams the object through GET /file", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult(),
+          GetObjectCommand: {
+            ContentType: "image/png",
+            ContentLength: 3,
+            Body: {
+              transformToWebStream: () =>
+                new ReadableStream({
+                  start(controller) {
+                    controller.enqueue(bytes);
+                    controller.close();
+                  },
+                }),
+            },
+          },
+        }) as never,
+      ),
+    });
+
+    const res = await s3.handler(
+      new Request(
+        `http://localhost/api/s3/file?route=uploads&key=${encodeURIComponent(storedPngKey)}`,
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/png");
+    await expect(res.arrayBuffer()).resolves.toEqual(bytes.buffer);
+  });
+});
+
+describe("deleteMany", () => {
+  it("deletes each key and reports per-key results", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult(),
+          DeleteObjectCommand: {},
+        }) as never,
+      ),
+    });
+
+    await expect(
+      s3.api.deleteMany({
+        body: { route: "uploads", keys: [storedPngKey, storedBinKey] },
+      }),
+    ).resolves.toEqual({
+      results: [
+        { key: storedPngKey, success: true },
+        { key: storedBinKey, success: true },
+      ],
+    });
+  });
+});
+
+describe("s3.put", () => {
+  it("uploads through the route policy and confirms", async () => {
+    const send = sendByCommand({
+      PutObjectCommand: {},
+      HeadObjectCommand: headResult(),
+    });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+    });
+
+    await expect(
+      s3.put({
+        route: "uploads",
+        fileName: "a.png",
+        contentType: "image/png",
+        body: "hello",
+      }),
+    ).resolves.toMatchObject({
+      bucket: "bucket",
+      contentLength: 10,
+      contentType: "image/png",
+    });
+
+    const names = send.mock.calls.map(
+      (call) => (call[0] as { constructor: { name: string } }).constructor.name,
+    );
+    expect(names).toContain("PutObjectCommand");
+    expect(names).toContain("HeadObjectCommand");
+  });
+});
+
+describe("upload checksum", () => {
+  it("requires checksum when the route sets upload.checksum", async () => {
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({ upload: { checksum: true } }),
+      },
+    });
+
+    await expect(
+      s3.api.upload({ body: defaultUploadBody }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
+    });
+    await expect(
+      s3.api.upload({
+        body: { ...defaultUploadBody, checksum: "abc" },
+      }),
+    ).resolves.toMatchObject({ url: "https://s3.test/post" });
   });
 });

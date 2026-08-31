@@ -4,6 +4,7 @@ import {
   type S3ObjectAcl,
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
+import { DIMAH_PREVIOUS_KEY_META } from "@/helpers/previous-key";
 import { runObjectHook } from "@/helpers/hooks";
 import type {
   OpenedRoute,
@@ -120,10 +121,17 @@ export async function resolveUploadTarget(
             : route.keyPrefix,
         context.file.name,
       );
+  const metadata = { ...info?.metadata };
+  if (info?.previousKey) {
+    metadata[DIMAH_PREVIOUS_KEY_META] = nestKeyUnderPrefix(
+      route.keyPrefix,
+      info.previousKey,
+    );
+  }
   return {
     key,
     bucket,
-    metadata: info?.metadata,
+    metadata: Object.keys(metadata).length > 0 ? metadata : info?.metadata,
     acl: resolveAcl(info, route),
   };
 }

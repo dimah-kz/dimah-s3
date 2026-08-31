@@ -8,7 +8,7 @@ import type {
   ResolvedRoute,
 } from "@/types";
 import { chainHooks } from "./chain-hooks";
-import { FEATURE_HOOK_KEYS, MULTIPART_HOOK_KEYS } from "./hook-registry";
+import { FEATURE_HOOK_KEYS, MULTIPART_HOOK_KEYS, LIFECYCLE_FEATURE_HOOK_KEYS, LIFECYCLE_MULTIPART_HOOK_KEYS } from "./hook-registry";
 import {
   RESERVED_PLUGIN_IDS,
   type AppliedPlugins,
@@ -22,10 +22,13 @@ type HookBag = Record<string, HookFn>;
 function mergeHookField(
   pluginHooks: HookFn[],
   userHook: HookFn,
+  order: "plugins-first" | "user-first" = "plugins-first",
 ): HookFn | undefined {
-  const present = [...pluginHooks, userHook].filter(
-    (h): h is NonNullable<HookFn> => h != null,
-  );
+  const present = (
+    order === "user-first"
+      ? [userHook, ...pluginHooks]
+      : [...pluginHooks, userHook]
+  ).filter((h): h is NonNullable<HookFn> => h != null);
   if (present.length === 0) return undefined;
   if (present.length === 1) return present[0];
   return chainHooks(...present) as HookFn;
@@ -36,12 +39,14 @@ function mergeHooks<T extends object>(
   plugins: readonly DimahS3Plugin[],
   userFeature: T,
   pick: (plugin: DimahS3Plugin) => HookBag | undefined,
+  lifecycleKeys: ReadonlySet<string> = new Set(),
 ): T {
   const merged: HookBag = { ...(userFeature as HookBag) };
   for (const key of keys) {
     const next = mergeHookField(
       plugins.map((plugin) => pick(plugin)?.[key]),
       (userFeature as HookBag)[key],
+      lifecycleKeys.has(key) ? "user-first" : "plugins-first",
     );
     if (next !== undefined) merged[key] = next;
   }
@@ -61,6 +66,7 @@ function applyHooksToRoute(
           active,
           route.upload,
           (p) => p.hooks?.upload as HookBag | undefined,
+          new Set(LIFECYCLE_FEATURE_HOOK_KEYS.upload),
         ),
         multipart: isEnabled(route.upload.multipart)
           ? mergeHooks(
@@ -68,6 +74,7 @@ function applyHooksToRoute(
               active,
               route.upload.multipart,
               (p) => p.hooks?.upload?.multipart as HookBag | undefined,
+              new Set(LIFECYCLE_MULTIPART_HOOK_KEYS),
             )
           : route.upload.multipart,
       }
@@ -82,6 +89,7 @@ function applyHooksToRoute(
           active,
           route.download,
           (p) => p.hooks?.download as HookBag | undefined,
+          new Set(LIFECYCLE_FEATURE_HOOK_KEYS.download),
         )
       : route.download,
     delete: isEnabled(route.delete)
@@ -90,6 +98,7 @@ function applyHooksToRoute(
           active,
           route.delete,
           (p) => p.hooks?.delete as HookBag | undefined,
+          new Set(LIFECYCLE_FEATURE_HOOK_KEYS.delete),
         )
       : route.delete,
   };
@@ -98,7 +107,11 @@ function applyHooksToRoute(
 /**
  * Validate plugins, build context map, collect endpoints, validate routes,
  * run `init`, and merge hooks into each route.
- * Plugin hooks run in array order; user hooks run last.
+ *
+ * Guard / `*Guard` hooks: plugins first (array order), then user.
+ * Lifecycle `on*` hooks: user first, then plugins, so `db().markActive`
+ * runs last and confirm rollback can still `DeleteObject`.
+ *
  * Hooks are not merged onto a feature that is off for that route.
  */
 export function applyPlugins<

@@ -60,7 +60,8 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 | `routes`           | required  | Named policies — [Routes](/docs/server/routes)              |
 | `maxExpiresIn`     | `604800`  | Clamp `upload.expiresIn` / `download.expiresIn` (SigV4 max) |
 | `basePath`         | `/api/s3` | Must match `createS3Client({ basePath })`                   |
-| `resolveObjectAcl` | `false`   | Extra `GetObjectAcl` on confirm / complete                  |
+| `logger`           | console   | Lifecycle / unmatched errors. `false` silences them          |
+| `onError`          | —         | Called after an unexpected throw is mapped to `INTERNAL_ERROR` |
 | `guard`            | —         | [Global Guard](/docs/server/hooks/global-guard)             |
 | `plugins`          | —         | e.g. [`db()`](/docs/db)                                     |
 
@@ -260,6 +261,28 @@ places:
 | `multipart.listParts`      | `multipart.listParts` / `multipartListParts` | `S3_API_ROUTES.multipartListParts` |
 | `multipart.complete`       | `multipart.complete` / `multipartComplete`   | `S3_API_ROUTES.multipartComplete`  |
 | `multipart.abort`          | `multipart.abort` / `multipartAbort`         | `S3_API_ROUTES.multipartAbort`     |
+
+`GET /file` streams a proxy download (`download.mode: "proxy"`). It is
+not on `S3Api` — the browser follows the URL from `download()`.
+
+`api.catalog()` / `GET /routes` lists enabled features and client
+constraints. `deleteMany` / `deleteBatch` deletes up to 100 keys.
+
+Server-side uploads that should still run `object` / `guard` /
+`onConfirmed` use `s3.put`:
+
+```ts
+await s3.put({
+  route: "uploads",
+  fileName: "note.txt",
+  contentType: "text/plain",
+  body: "hello",
+  headers: await headers(),
+});
+```
+
+ACL on confirm / complete comes from the upload policy (`upload.acl` /
+`object`) — there is no `GetObjectAcl` round-trip.
 
 Failures throw `DimahS3Error` (a better-call `APIError`) with named `.status`
 (`"FORBIDDEN"`), numeric `.statusCode`, and `.code`. Catch with `isAPIError` /

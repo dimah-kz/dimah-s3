@@ -33,6 +33,7 @@ export const S3_ERROR_CODES = defineErrorCodes({
     "S3 endpoint unreachable ({code}): check your endpoint URL and network connectivity",
   MULTIPART_PART_MISSING: "Uploaded part {partNumber} was not found",
   PAYLOAD_TOO_LARGE: "Payload too large",
+  QUOTA_EXCEEDED: "Storage quota exceeded",
   VALIDATION_ERROR: "Validation Error",
 });
 

@@ -11,6 +11,8 @@ export type StorageObject = {
   scope: string;
   bucket: string;
   key: string;
+  /** Named dimah-s3 route. */
+  route: string;
   contentType: string | null;
   /** Verified size in bytes (set on confirm). */
   size: number | null;
@@ -48,6 +50,7 @@ export type DbClientObject = {
   id: string;
   bucket: string;
   key: string;
+  route: string;
   filename: string | null;
   contentType: string | null;
   size: number | null;
@@ -62,6 +65,7 @@ export type DbClientListResponse = {
   scope: string;
   usage: { totalBytes: number; objectCount: number };
   objects: DbClientObject[];
+  nextCursor?: string | null;
 };
 
 /**
@@ -72,4 +76,13 @@ export type DbClientListInput = {
   status?: StorageObjectStatus;
   limit?: number;
   offset?: number;
+  cursor?: string;
+  route?: string;
+  contentType?: string;
+  prefix?: string;
+};
+
+export type DbClientGetInput = {
+  key: string;
+  bucket?: string;
 };

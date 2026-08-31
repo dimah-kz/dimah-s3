@@ -17,6 +17,8 @@ const storageObject = table("storage_object", {
   scope: column("scope", "string"),
   bucket: column("bucket", "string"),
   key: column("key", "string"),
+  /** Named dimah-s3 route that created the object. */
+  route: column("route", "string"),
   contentType: column("content_type", "string").nullable(),
   /** Verified size from HeadObject after confirm. */
   size: column("size", "bigint").nullable(),

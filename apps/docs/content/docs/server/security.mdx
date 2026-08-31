@@ -153,10 +153,10 @@ export const s3 = dimahS3({
 `fileTypes` matches the **S3 `Content-Type` header** and the filename
 (extension tokens like `.pdf`). It does not sniff bytes. A client can
 declare `image/png` and upload other content under that header. If you
-need the real type, `GetObject` after confirm in your app (or a worker),
-check magic bytes, and `DeleteObject` on mismatch. Throw from
-`onConfirmed` only after you have cleaned up — a throw there does not
-delete the object.
+need the real type, sniff magic bytes after confirm (`sniffContentType` /
+`matchesMagicBytes` from `@dimah-s3/core`) and throw from `onConfirmed` —
+that now **deletes** the object. After a successful confirm, `previousKey`
+from `upload.object` is deleted as well.
 
 Until `onConfirmed` runs, do not treat the object as trusted. Without
 [`db()`](/docs/db), `download` will presign any key that exists under

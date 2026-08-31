@@ -16,8 +16,10 @@ these hooks.
 | `useFileUpload`      | You already have a `File`     |
 | `useMultiFileUpload` | You already have `File[]`     |
 
-`accept` and `maxFileSize` are client-side UX only. The server enforces
-[`upload.fileTypes` / `upload.maxFileSize`](/docs/server/routes).
+`accept` and `maxFileSize` are client-side UX. When omitted, hooks fill
+them from [`api.catalog()`](/docs/server/routes) (`GET /routes`). The
+server still enforces [`upload.fileTypes` / `upload.maxFileSize`](/docs/server/routes).
+Prefer omitting them so the catalog is the single source of truth.
 
 `accept` is the HTML list: MIME types (`image/*`, `application/pdf`) and/or
 extensions (`.pdf`). The native picker uses it as the `accept` attribute;
@@ -126,13 +128,17 @@ await upload(files);
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `route`                              | Required. Named server route (`dimahS3({ routes })`)                                                            |
 | `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                                    |
-| `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions                       |
-| `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                                              |
+| `accept`                             | HTML tokens. Filled from `api.catalog()` when omitted                                                         |
+| `maxFileSize`                        | Bytes. Filled from `api.catalog()` when omitted — server `upload.maxFileSize` still applies                   |
 | `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                    |
 | `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`)               |
+| `checksum`                           | Send SHA-256 on presign. Filled from `api.catalog()` when the route sets `upload.checksum`                       |
 | `uploadStore`                        | Resume after refresh                                                                                            |
 | `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key`; enable download / delete on the same route when needed |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
 types: `UseUploadOptions`, `UseMultiUploadOptions`.
+
+Low-level `uploadFile` / `uploadFiles` also export from
+`@dimah-s3/react/engine`.

@@ -84,7 +84,9 @@ on instance `guard` or `route.guard`.
 
 Runs after `HeadObject` on confirm and multipart complete. Use
 `contentLength` and verified type here — not the presign body. Multipart
-adds `uploadId`.
+adds `uploadId`. A throw here deletes the object so you do not leave an
+orphan. After success, `previousKey` from `object` is deleted too. A throw here deletes the object so you do not leave an
+orphan. After success, `previousKey` from `object` is deleted too.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"

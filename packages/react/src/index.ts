@@ -40,9 +40,19 @@ export {
   isS3ErrorCode,
   sanitizeFileName,
   validateFile,
+  sha256Base64,
+  sha256File,
+  matchesMagicBytes,
+  sniffContentType,
+  buildPublicObjectUrl,
+  buildContentDisposition,
   type S3Api,
   type S3ErrorCode,
   type ValidateFileError,
+  type InferS3Routes,
+  type DimahS3Routes,
+  type S3RouteName,
+  type RouteCatalogResponse,
 } from "@dimah-s3/core";
 
 // ─── S3 API factory + React context provider ──────────────────────────────────
@@ -82,7 +92,11 @@ export {
   formatEta,
   useFormatDimahError,
   useFormatValidateFileError,
+  loadRouteCatalog,
+  mergeRouteUploadPolicy,
+  resolveRouteUploadPolicy,
 } from "./helpers";
+export type { RouteUploadPolicy } from "./helpers";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export {
@@ -126,3 +140,12 @@ export {
   type UseDeleteState,
   type UseDeleteReturn,
 } from "./hooks/use-delete";
+export {
+  useRouteUploadPolicy,
+  type UseRouteUploadPolicyOptions,
+} from "./hooks/use-route-upload-policy";
+export {
+  useObjectUrl,
+  type UseObjectUrlOptions,
+  type UseObjectUrlReturn,
+} from "./hooks/use-object-url";

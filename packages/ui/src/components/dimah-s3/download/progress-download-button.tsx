@@ -6,7 +6,7 @@ import { DownloadIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@dimah-s3/core";
 import type { FetchDownloadHooks } from "@dimah-s3/react";
-import type { S3Api } from "@dimah-s3/core";
+import type { S3Api, S3RouteName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDownload, useFormatDimahError } from "@dimah-s3/react";
 import {
@@ -27,7 +27,7 @@ import { useDownloadToast } from "@/hooks/use-download-toast";
 export type ProgressDownloadButtonProps = FetchDownloadHooks &
   AttachmentLayoutAliases & {
     /** Named server route (`dimahS3({ routes })`). */
-    route: string;
+    route: S3RouteName;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
     /**

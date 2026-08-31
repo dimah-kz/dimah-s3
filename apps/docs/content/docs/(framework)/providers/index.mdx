@@ -30,7 +30,6 @@ below only for the extras that defaults do not cover.
 | Presigned POST     |               Yes                |                       No                       |              Yes               |
 | Presigned PUT      |               Yes                |                 Yes (required)                 |              Yes               |
 | Object ACL         |               Yes                |                    Ignored                     |          Use policies          |
-| `resolveObjectAcl` |               Yes                |                       No                       |               No               |
 | Custom `endpoint`  |             Optional             |                    Required                    |            Required            |
 | `forcePathStyle`   |           Usually off            |                      Off                       |            Required            |
 
@@ -42,7 +41,6 @@ import { dimahS3, route } from "@dimah-s3/server";
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  resolveObjectAcl: false,
   routes: {
     uploads: route({
       upload: { method: "PUT" },
@@ -52,9 +50,8 @@ export const s3 = dimahS3({
 ```
 
 The default upload method is POST. Switch to PUT when the provider has no
-Presigned POST (R2 is the usual case). Leave `resolveObjectAcl` off unless
-the provider actually supports object ACL — it adds a GetObjectAcl round-trip
-on confirm.
+Presigned POST (R2 is the usual case). ACL on confirm comes from
+`upload.acl` / `object` — there is no `GetObjectAcl` lookup.
 
 Client hooks and `@dimah-s3/ui` read `method` from the presign response.
 Change it on the server only.

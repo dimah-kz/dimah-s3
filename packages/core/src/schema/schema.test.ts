@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { deleteQuerySchema } from "./delete";
+import { deleteBatchBodySchema, deleteQuerySchema } from "./delete";
 import { downloadQuerySchema } from "./download";
+import { fileQuerySchema } from "./file";
+import { routeCatalogResponseSchema } from "./catalog";
 import { s3FetchErrorSchema } from "./error";
 import {
   multipartAbortBodySchema,
@@ -115,6 +117,12 @@ describe("uploadBodySchema", () => {
     ).toBe(false);
   });
 
+  it("accepts an optional checksum", () => {
+    expect(
+      uploadBodySchema.parse({ ...uploadBody, checksum: "abc" }).checksum,
+    ).toBe("abc");
+  });
+
   it("omits a blank contentType", () => {
     expect(
       uploadBodySchema.parse({ ...uploadBody, contentType: "" }).contentType,
@@ -151,6 +159,46 @@ describe("downloadQuerySchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts disposition", () => {
+    expect(
+      downloadQuerySchema.parse({
+        route: "uploads",
+        key: "a.png",
+        disposition: "inline",
+      }).disposition,
+    ).toBe("inline");
+  });
+});
+
+describe("fileQuerySchema", () => {
+  it("requires route and key", () => {
+    expect(
+      fileQuerySchema.parse({ route: "uploads", key: "a.png" }),
+    ).toMatchObject({ route: "uploads", key: "a.png" });
+  });
+});
+
+describe("routeCatalogResponseSchema", () => {
+  it("accepts a mixed catalog", () => {
+    expect(
+      routeCatalogResponseSchema.parse({
+        routes: {
+          uploads: {
+            upload: {
+              enabled: true,
+              fileTypes: ["image/*"],
+              multipart: true,
+            },
+            download: { enabled: false },
+            delete: { enabled: true },
+          },
+        },
+      }),
+    ).toMatchObject({
+      routes: { uploads: { upload: { enabled: true, multipart: true } } },
+    });
+  });
 });
 
 describe("deleteQuerySchema", () => {
@@ -162,6 +210,20 @@ describe("deleteQuerySchema", () => {
         key: "a.png",
       },
     );
+  });
+});
+
+describe("deleteBatchBodySchema", () => {
+  it("requires 1–100 keys", () => {
+    expect(
+      deleteBatchBodySchema.parse({
+        route: "uploads",
+        keys: ["uploads/a.png"],
+      }),
+    ).toEqual({ route: "uploads", keys: ["uploads/a.png"] });
+    expect(
+      deleteBatchBodySchema.safeParse({ route: "uploads", keys: [] }).success,
+    ).toBe(false);
   });
 });
 

@@ -8,6 +8,18 @@ const unsupported = (action: string) =>
 const pendingUploadSizes = new Map<string, number>();
 const objectSizes = new Map<string, number>();
 
+async function removeDemoKey(key: string) {
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  objectSizes.delete(key);
+  pendingUploadSizes.delete(key);
+  forgetDemoFile(key);
+  return {
+    success: true as const,
+    bucket: "demo",
+    key,
+  };
+}
+
 type DemoS3Api = S3Api & { uploadTransport: typeof simulateDemoUpload };
 
 function demoKey(route: string, fileName: string) {
@@ -73,19 +85,39 @@ export const demoS3Api: DemoS3Api = {
     };
   },
 
-  delete: async (payload) => {
-    const { key } = payload;
-    // Pause so the deleting spinner is visible on fast localhost.
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    objectSizes.delete(key);
-    pendingUploadSizes.delete(key);
-    forgetDemoFile(key);
-    return {
-      success: true as const,
-      bucket: "demo",
-      key,
-    };
-  },
+  delete: async (payload) => removeDemoKey(payload.key),
+
+  deleteMany: async (payload) => ({
+    results: await Promise.all(
+      payload.keys.map(async (key) => {
+        try {
+          await removeDemoKey(key);
+          return { key, success: true as const };
+        } catch {
+          return {
+            key,
+            success: false,
+            error: { code: "INTERNAL_ERROR", message: "Demo delete failed" },
+          };
+        }
+      }),
+    ),
+  }),
+
+  catalog: async () => ({
+    routes: {
+      uploads: {
+        upload: {
+          enabled: true as const,
+          fileTypes: ["image/*", "application/pdf", "video/*"],
+          maxFileSize: 50 * 1024 * 1024,
+          multipart: false,
+        },
+        download: { enabled: true as const },
+        delete: { enabled: true as const },
+      },
+    },
+  }),
 
   multipart: {
     init: () => unsupported("multipart.init"),

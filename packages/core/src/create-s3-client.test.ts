@@ -35,11 +35,24 @@ describe("createS3Client protocol", () => {
         api.download({ route: "uploads", key: "a.png" }),
     },
     {
+      name: "catalog",
+      method: "GET",
+      path: S3_API_ROUTES.catalog,
+      run: (api: ReturnType<typeof createS3Client>) => api.catalog(),
+    },
+    {
       name: "delete",
       method: "DELETE",
       path: S3_API_ROUTES.delete,
       run: (api: ReturnType<typeof createS3Client>) =>
         api.delete({ route: "uploads", key: "a.png" }),
+    },
+    {
+      name: "deleteMany",
+      method: "POST",
+      path: S3_API_ROUTES.deleteBatch,
+      run: (api: ReturnType<typeof createS3Client>) =>
+        api.deleteMany({ route: "uploads", keys: ["uploads/a.png"] }),
     },
     {
       name: "multipart.init",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useRef } from "react";
-import type { DimahS3Error, S3Api } from "@dimah-s3/core";
+import type { DimahS3Error, S3Api, S3RouteName } from "@dimah-s3/core";
 import { parseFileName } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { createSpeedTracker } from "@/helpers/speed-tracker";
@@ -29,7 +29,9 @@ type SharedDownloadOptions = {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
   api?: S3Api;
   /** Named server route (`dimahS3({ routes })`). */
-  route: string;
+  route: S3RouteName;
+  /** Content-Disposition for the GET. */
+  disposition?: "inline" | "attachment";
 };
 
 /** Options for {@link useDownload} in navigate mode (the default). */
@@ -162,6 +164,7 @@ export function useDownload(
           route: opts.route,
           key,
           fileName: downloadName,
+          ...(opts.disposition ? { disposition: opts.disposition } : {}),
         });
         patch((draft) => {
           draft.phase = "idle";
@@ -249,6 +252,7 @@ export function useDownload(
           route: opts.route,
           key,
           fileName: downloadName,
+          ...(opts.disposition ? { disposition: opts.disposition } : {}),
         });
         if (!isCurrent()) return;
         patch((draft) => {

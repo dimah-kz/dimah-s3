@@ -15,8 +15,9 @@ const ref = { bucket: "my-bucket", key: "uploads/photo.jpg" };
 const objects = await s3.db.objects.listByScope({
   scope,
   status: "active",
+  route: "uploads",
   limit: 50,
-  offset: 0,
+  cursor: previous.nextCursor ?? undefined,
 });
 
 const count = await s3.db.objects.countByScope(scope, "active");
@@ -35,26 +36,29 @@ const pending = await s3.db.objects.findPendingMultipart({
 });
 ```
 
-| Method                 | Purpose                                      |
-| ---------------------- | -------------------------------------------- |
-| `listByScope`          | List for a scope — `active` by default       |
-| `countByScope`         | Count with the same filters as `listByScope` |
-| `getScopeUsage`        | Total bytes and count — quota checks         |
-| `find`                 | One row by `bucket` + `key` (any status)     |
-| `findActive`           | One row — only `active`                      |
-| `findPendingMultipart` | Multipart resume lookup                      |
+| Method                 | Purpose                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| `listByScope`          | List for a scope — `active` by default; `route`, `contentType`, `prefix`, `cursor` |
+| `countByScope`         | Count with the same filters as `listByScope`                                       |
+| `getScopeUsage`        | Total bytes and count — quota checks                                               |
+| `find`                 | One row by `bucket` + `key` (any status)                                           |
+| `findByScopeKey`       | One row for a scope + key                                                          |
+| `findActive`           | One row — only `active`                                                            |
+| `findPendingMultipart` | Multipart resume lookup                                                            |
 
 To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
 [delete behavior](/docs/db/setup#delete-behavior).
 
 `GET /db/objects` (browser `listObjects`) defaults to `status: active` and
-`limit: 50`, and rejects a `limit` above `100`. Pass `limit` on
-`listByScope` yourself for server listings.
+`limit: 50`, and rejects a `limit` above `100`. It returns `nextCursor`
+when another page exists. `GET /db/object` (`getObject`) loads one row by
+key. Pass `limit` on `listByScope` yourself for server listings.
 
 ## Browser
 
 Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
-you `api.db.listObjects`:
+you `api.db.listObjects`. Call it and render the list yourself — there is no
+list hook or list component.
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -71,27 +75,46 @@ export const s3Client = createS3Client({
 ```tsx title="components/file-list.tsx"
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { DbClientObject } from "@dimah-s3/db/client";
 import { s3Client } from "@/lib/s3-client";
 
-export function FileList() {
+export function Files() {
   const api = s3Client.useApi();
-  const [files, setFiles] = useState<
-    { id: string; filename: string | null; key: string }[]
-  >([]);
+  const [objects, setObjects] = useState<DbClientObject[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+
+  const load = useCallback(
+    async (cursor?: string) => {
+      const page = await api.db.listObjects({
+        route: "uploads",
+        ...(cursor ? { cursor } : {}),
+      });
+      setObjects((prev) =>
+        cursor ? [...prev, ...page.objects] : page.objects,
+      );
+      setNextCursor(page.nextCursor ?? null);
+    },
+    [api],
+  );
 
   useEffect(() => {
-    api.db
-      .listObjects({ status: "active", limit: 50, offset: 0 })
-      .then((result) => setFiles(result.objects));
-  }, [api]);
+    void load();
+  }, [load]);
 
   return (
-    <ul>
-      {files.map((file) => (
-        <li key={file.id}>{file.filename ?? file.key}</li>
-      ))}
-    </ul>
+    <>
+      <ul>
+        {objects.map((file) => (
+          <li key={file.id}>{file.filename ?? file.key}</li>
+        ))}
+      </ul>
+      {nextCursor ? (
+        <button type="button" onClick={() => void load(nextCursor)}>
+          More
+        </button>
+      ) : null}
+    </>
   );
 }
 ```
@@ -104,38 +127,20 @@ export function FileList() {
 
 ## Quota and extra guards
 
-Quotas are app-owned. The db plugin enforces ownership first; your guards
-run after ([hook order](/docs/server/plugins#hook-order)).
+Quotas are app-owned numbers. Pass them to `db({ quota })` or
+`createQuotaGuard` — the plugin only compares usage.
 
 ```ts
-import { chainHooks, dimahS3, route } from "@dimah-s3/server";
-import { db, forbidden } from "@dimah-s3/db";
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: process.env.S3_BUCKET!,
-  plugins: [db({ client: dimahS3Db, resolveScope })],
-  routes: {
-    uploads: route({
-      upload: {
-        guard: quotaGuard,
-        // or stack several: chainHooks(quotaGuard, rateLimitGuard),
-      },
-    }),
-  },
-});
-
-async function quotaGuard({ request, fileSize }) {
-  const scope = await resolveScope(request);
-  const { totalBytes } = await s3.db.objects.getScopeUsage(scope);
-  if (totalBytes + (fileSize ?? 0) > MAX_BYTES) {
-    throw forbidden("Quota exceeded");
-  }
-}
+plugins: [
+  db({
+    client: dimahS3Db,
+    resolveScope,
+    quota: { maxBytes: 100 * 1024 * 1024, maxFiles: 50 },
+  }),
+],
 ```
 
-Use `chainHooks` when you need more than one user guard on the same hook.
-Ownership stays on the plugin — you only add policy on top.
+Ownership still runs first. Stack more user guards with `chainHooks`:
 
 <Accordions>
 <Accordion title="getScopeUsage on large scopes">

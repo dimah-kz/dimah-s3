@@ -24,6 +24,7 @@ import type {
 import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFiles } from "@/upload";
 import { hookBlockedError, isAbortError, toHookError } from "@/types/error";
+import { resolveRouteUploadPolicy } from "@/helpers/load-route-catalog";
 
 /** Options for {@link useMultiFileUpload}. */
 export type UseMultiFileUploadOptions = MultiFileUploadConfig &
@@ -178,6 +179,13 @@ export function useMultiFileUpload(
         draft.error = null;
       });
 
+      const policy = await resolveRouteUploadPolicy(api, opts.route, {
+        accept: opts.accept,
+        maxFileSize: opts.maxFileSize,
+        multipart: opts.multipart,
+        checksum: opts.checksum,
+      });
+
       if (opts.maxFiles && files.length > opts.maxFiles) {
         const msg = `Too many files. Maximum is ${opts.maxFiles}.`;
         patch((draft) => {
@@ -190,8 +198,8 @@ export function useMultiFileUpload(
 
       for (const file of files) {
         const validationError = validateFile(file, {
-          accept: opts.accept,
-          maxFileSize: opts.maxFileSize,
+          accept: policy.accept,
+          maxFileSize: policy.maxFileSize,
         });
         if (validationError) {
           const detail = formatValidateFileError(validationError);
@@ -306,7 +314,8 @@ export function useMultiFileUpload(
           items,
           {
             route: opts.route,
-            multipart: opts.multipart,
+            multipart: policy.multipart,
+            checksum: policy.checksum,
             concurrentParts: opts.concurrentParts,
             concurrentFiles: opts.concurrentFiles,
             retry: opts.retry,

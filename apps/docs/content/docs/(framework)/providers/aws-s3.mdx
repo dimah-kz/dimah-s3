@@ -32,7 +32,7 @@ Allow POST for the default upload method. Add PUT if you switch to
 `method: "PUT"`. Narrow origins and headers in production.
 
 <Callout title="Object ACL">
-  `private` / `public-read` and `resolveObjectAcl` are supported on S3. Enable
-  them only when you need them — ACL inference adds a GetObjectAcl call on
-  confirm.
+  `private` / `public-read` are supported on S3. Set `upload.acl` or return
+  an ACL from `object` — confirm echoes that policy value, without
+  `GetObjectAcl`.
 </Callout>

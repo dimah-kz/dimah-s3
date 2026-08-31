@@ -135,6 +135,8 @@ provider — [Internationalization](/docs/i18n).
 
 Every hook needs a **route name** that matches `dimahS3({ routes })`. The
 server generates the object key — do not pass `objectKey` on upload.
+Omit `accept` / `maxFileSize` so the hook fills them from
+[`api.catalog()`](/docs/server/routes).
 
 ```tsx title="app/uploader.tsx"
 "use client";
@@ -157,10 +159,29 @@ export function Uploader() {
 
 Need a finished button instead? [Upload Button](/docs/react/ui/components/upload-button).
 
+### Typed routes [step]
+
+`route` is `S3RouteName` — a `string` until you augment `DimahS3Routes`.
+Point that interface at your server instance so a typo is a type error:
+
+```ts title="lib/s3-routes.ts"
+import type { InferS3Routes } from "@dimah-s3/core";
+import type { s3 } from "@/lib/s3";
+
+declare module "@dimah-s3/core" {
+  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {}
+}
+```
+
+Keep this file on both the server and the client (or in a shared types
+package) so hooks and `s3.put` see the same names.
+
 ### Next [step]
 
 Hook reference: [Upload](/docs/react/hooks/upload),
 [Download](/docs/react/hooks/download),
 [Delete](/docs/react/hooks/delete).
+List stored files with [`api.db.listObjects`](/docs/db/api) when the db
+plugin is mounted.
 
 Ready-made controls: [UI](/docs/react/ui).

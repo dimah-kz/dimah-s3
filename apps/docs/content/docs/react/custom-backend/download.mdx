@@ -3,10 +3,12 @@ title: Download
 description: download — return a presigned GET URL for an object key.
 ---
 
-`download` presigns a GET. The hook opens that URL — your backend never
-streams the file.
+`download` returns a GET URL. The default is a short-lived S3 URL. When
+the route uses `download.mode: "proxy"`, the URL is same-origin and the
+server streams the body.
 
-The payload is a single object: `route`, `key`, and optional `fileName`.
+The payload is a single object: `route`, `key`, and optional `fileName` /
+`disposition`.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"

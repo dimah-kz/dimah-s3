@@ -1,16 +1,16 @@
 ---
 title: Purge
-description: Remove stale pending rows from abandoned uploads.
+description: Remove stale pending rows and their S3 objects.
 ---
 
 If a client gets a presign and never confirms, the row stays `pending`. Over
 time that clutters listings and quota counts.
 
-`purgeStalePendingObjects` deletes those stale rows. Run it on a schedule —
-cron, a queue worker, or a script.
+`purgeStalePendingObjects` deletes those stale rows. Pass `s3` to also
+abort in-progress multipart uploads and `DeleteObject` each key. Run it
+on a schedule — cron, a queue worker, or a script.
 
 ```ts title="scripts/purge-stale-pending.ts"
-import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
 import { purgeStalePendingObjects } from "@dimah-s3/db";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
 import { awsS3 } from "@/lib/s3";
@@ -18,18 +18,7 @@ import { awsS3 } from "@/lib/s3";
 const { purged } = await purgeStalePendingObjects({
   client: dimahS3Db,
   olderThanMs: 24 * 60 * 60 * 1000,
-  onBeforePurge: async (objects) => {
-    for (const object of objects) {
-      if (!object.uploadId) continue;
-      await awsS3.send(
-        new AbortMultipartUploadCommand({
-          Bucket: object.bucket,
-          Key: object.key,
-          UploadId: object.uploadId,
-        }),
-      );
-    }
-  },
+  s3: awsS3,
 });
 ```
 
@@ -40,10 +29,8 @@ A row is eligible when it is `pending` and `expiresAt` has passed, or
 24 hours). `db({ pendingTtlMs })` is what sets `expiresAt` on pending
 rows. If `onBeforePurge` throws, the batch is skipped until the next run.
 
-<Callout type="warn" title="Database only, unless you abort multipart">
-  By default purge only deletes database rows. Use `onBeforePurge` to abort open
-  multipart uploads on S3 so orphans do not linger in the bucket.
-</Callout>
+Prefer `s3` unless you need a custom cleanup. `onBeforePurge` still runs
+after the optional S3 delete.
 
 A working script lives in
 [`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)

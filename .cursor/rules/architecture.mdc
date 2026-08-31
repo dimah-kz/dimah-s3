@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Architecture
 
-**Scope:** presign upload / download / delete — no trivial SDK wrappers. Auth / quota → consumer hooks. Optional DB via `@dimah-s3/db` `db()` plugin. Prefer one feature per named route; combine only when those callers share the key namespace.
+**Scope:** presign upload / download / delete — no trivial SDK wrappers (`s3.put` and proxy `GET /file` are the exceptions). Auth → consumer guards. Optional quota checks in `@dimah-s3/db`. Optional DB via `@dimah-s3/db` `db()` plugin. Prefer one feature per named route; combine only when those callers share the key namespace. Client constraints come from `GET /routes`. Hook `route` is `S3RouteName` (augment `DimahS3Routes`).
 
 **Deps:** `core` ← `server` | `react` ← `ui`; `db` → `server` (peer); CLI is separate (scaffold only). UI: Fuma Translate. API errors: stable `code` + English `message` (client-localized). Protocol SSOT: `@dimah-s3/core` (`S3_API_ROUTES`, `createS3Client`). Plugins: `definePlugin` in `server/src/plugin/`; contexts flatten onto `s3[id]`.
 

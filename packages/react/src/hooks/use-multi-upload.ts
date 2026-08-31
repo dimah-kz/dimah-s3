@@ -16,6 +16,7 @@ import {
   type DropzoneRootProps,
   type FileRejection,
 } from "./use-file-intake";
+import { useRouteUploadPolicy } from "./use-route-upload-policy";
 
 export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
 
@@ -83,6 +84,15 @@ export function useMultiUpload(
   const { disabled, noDrag, noClick, noKeyboard, onFileReject, ...multiOpts } =
     options;
 
+  const policy = useRouteUploadPolicy({
+    api: options.api,
+    route: options.route,
+    accept: options.accept,
+    maxFileSize: options.maxFileSize,
+    multipart: options.multipart,
+    checksum: options.checksum,
+  });
+
   const multi = useMultiFileUpload(multiOpts);
 
   const handleFiles = (files: FileList | File[] | null) => {
@@ -93,8 +103,8 @@ export function useMultiUpload(
   };
 
   const intake = useFileIntake({
-    accept: options.accept,
-    maxFileSize: options.maxFileSize,
+    accept: policy.accept,
+    maxFileSize: policy.maxFileSize,
     maxFiles: options.maxFiles,
     multiple: true,
     disabled: Boolean(disabled) || multi.isPending,

@@ -4,7 +4,7 @@
 
 ## When changing the presign protocol
 
-1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`). Every core request schema requires `route`. Upload and multipart init do not accept `key`. Multipart `signPart` requires `partSize`.
+1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`). Every core request schema requires `route`. Upload and multipart init do not accept `key`. Multipart `signPart` requires `partSize`. Catalog is `GET /routes`. Proxy download is `GET /file`. Batch delete is `POST /delete/batch`.
 2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `DimahS3Error`.
 3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds the internal `createS3Router` (HTTP `handler` + `s3.api`). Do not export `createS3Router`.
 4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` uses object args (`api.download({ route, key })`); server `s3.api` is the better-call map (`download({ query, headers })`).
@@ -32,7 +32,7 @@
 3. HTTP endpoints use `createS3Endpoint` with an absolute path under `basePath` (e.g. `/db/objects`) via `pluginPath` from `@dimah-s3/core` (shared with the client). Never duplicate route strings. Do not export raw better-call `createEndpoint`.
 4. Pair browser access with `createS3Client({ plugins })` from `@dimah-s3/react` (returns the API object plus bound `Provider` / typed `useApi`) or the same helper from `@dimah-s3/core` for fetch-only. Client plugins implement `getActions($fetch)` + `$InferServerPlugin`. Ship light `@pkg/client` entries from feature packages so ORM deps stay server-only.
 5. Feature plugins live in their packages (e.g. `db()` / `dbClient()` in `@dimah-s3/db`) and peer-depend on `@dimah-s3/server` (client entry depends on `@dimah-s3/core` only).
-6. Merge once in `dimahS3()` — validate ids / `dependsOn` / reserved keys / endpoint collisions, run `init`, then chain hooks (plugins first in array order, user hooks last). Never merge inside endpoints.
+6. Merge once in `dimahS3()` — validate ids / `dependsOn` / reserved keys / endpoint collisions, run `init`, then chain hooks. Guards run plugins first then user; lifecycle `on*` hooks run user first then plugins (so `db().markActive` is last and confirm rollback can `DeleteObject`). Never merge inside endpoints.
 7. Expose data on `plugin.context` — consumers read `s3.context[id]` or the flattened `s3[id]` (e.g. `s3.db`). Do **not** hardcode per-plugin fields on `DimahS3`.
 8. Tegami changelog — [release.md](./release.md).
 
@@ -41,7 +41,7 @@
 1. Hook in `packages/react/src/hooks/`.
 2. Upload mechanics in `upload/`; shared helpers in `helpers/`.
 3. Depend on `@dimah-s3/core` only — fetch through `S3Api`, not ad-hoc URLs.
-4. Required `route` on hooks that hit core endpoints. Upload does not take `objectKey`.
+4. Required `route` (`S3RouteName`) on hooks that hit core endpoints. Upload does not take `objectKey`. Omit `accept` / `maxFileSize` / `multipart` / `checksum` to fill them from `api.catalog()`. Augment `DimahS3Routes` so route names are not a free `string`.
 5. Export from `src/index.ts` when public.
 
 ## Build & exports

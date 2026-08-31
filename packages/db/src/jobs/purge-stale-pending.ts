@@ -1,3 +1,8 @@
+import {
+  AbortMultipartUploadCommand,
+  DeleteObjectCommand,
+  type S3Client,
+} from "@aws-sdk/client-s3";
 import { resolveStore } from "@/hooks/create-object-access-guard";
 import type {
   DimahS3DbClient,
@@ -12,15 +17,17 @@ export type PurgeStalePendingOptions = {
   client: DimahS3DbClient | StorageObjectStore;
   /**
    * Fallback age for pending rows that have no `expiresAt`.
-   * Rows with `expiresAt` are purged when that timestamp has passed,
-   * independent of this value.
    * @default 86_400_000 (24h)
    */
   olderThanMs?: number;
   /**
-   * Runs before rows are deleted — abort multipart uploads here using each
-   * object's `uploadId` with your own S3 client (this package has no AWS
-   * SDK dependency). Throwing keeps all rows for the next run.
+   * When set, abort in-progress multipart uploads and `DeleteObject` for
+   * each stale pending key before rows are removed.
+   */
+  s3?: S3Client;
+  /**
+   * Runs before rows are deleted. Throwing keeps all rows for the next run.
+   * Prefer `s3` unless you need a custom cleanup.
    */
   onBeforePurge?: (objects: StorageObject[]) => Promise<void> | void;
 };
@@ -28,6 +35,37 @@ export type PurgeStalePendingOptions = {
 export type PurgeStalePendingResult = {
   purged: StorageObject[];
 };
+
+async function abortAndDelete(
+  s3: S3Client,
+  objects: StorageObject[],
+): Promise<void> {
+  for (const object of objects) {
+    if (object.uploadId) {
+      try {
+        await s3.send(
+          new AbortMultipartUploadCommand({
+            Bucket: object.bucket,
+            Key: object.key,
+            UploadId: object.uploadId,
+          }),
+        );
+      } catch {
+        // Best-effort.
+      }
+    }
+    try {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: object.bucket,
+          Key: object.key,
+        }),
+      );
+    } catch {
+      // Best-effort.
+    }
+  }
+}
 
 /**
  * Delete stale `pending` rows — uploads that were presigned but never
@@ -44,6 +82,7 @@ export async function purgeStalePendingObjects(
   const stale = await store.findStalePending({ olderThan });
   if (stale.length === 0) return { purged: [] };
 
+  if (options.s3) await abortAndDelete(options.s3, stale);
   await options.onBeforePurge?.(stale);
   await store.deleteByIds(stale.map((object) => object.id));
 

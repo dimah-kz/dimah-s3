@@ -15,7 +15,18 @@ export {
 } from "./shared";
 export { confirmBodySchema, uploadBodySchema } from "./upload";
 export { downloadQuerySchema } from "./download";
-export { deleteQuerySchema } from "./delete";
+export { deleteBatchBodySchema, deleteQuerySchema, DELETE_BATCH_MAX_KEYS } from "./delete";
+export { fileQuerySchema } from "./file";
+export {
+  downloadDispositionSchema,
+  downloadModeSchema,
+  routeCatalogEntrySchema,
+  routeCatalogResponseSchema,
+} from "./catalog";
+export type {
+  RouteCatalogEntry,
+  RouteCatalogResponse,
+} from "./catalog";
 export {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,

@@ -44,3 +44,8 @@ export {
   type UseDeleteState,
   type UseDeleteReturn,
 } from "./use-delete";
+export {
+  useObjectUrl,
+  type UseObjectUrlOptions,
+  type UseObjectUrlReturn,
+} from "./use-object-url";

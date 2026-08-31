@@ -45,6 +45,21 @@ export function fakeS3Api(
       bucket,
       key: payload.key,
     })),
+    deleteMany: vi.fn(async (payload) => ({
+      results: payload.keys.map((key: string) => ({ key, success: true })),
+    })),
+    catalog: vi.fn(async () => ({
+      routes: {
+        uploads: {
+          upload: {
+            enabled: true as const,
+            multipart: false,
+          },
+          download: { enabled: true as const },
+          delete: { enabled: true as const },
+        },
+      },
+    })),
     multipart: {
       init: vi.fn(async (payload) => ({
         bucket,

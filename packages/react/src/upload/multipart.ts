@@ -56,6 +56,7 @@ export async function uploadMultipart(
       fileSize: file.size,
       fileName,
       metadata: requestOptions?.metadata,
+      checksum: requestOptions?.checksum,
     });
     await store?.set({
       resumeKey,

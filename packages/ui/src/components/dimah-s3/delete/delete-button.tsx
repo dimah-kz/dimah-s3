@@ -5,7 +5,7 @@ import { Trash2Icon, LoaderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize, fileNameFromKey, truncateFileName } from "@dimah-s3/core";
 import type { DeleteHooks } from "@dimah-s3/react";
-import type { S3Api } from "@dimah-s3/core";
+import type { S3Api, S3RouteName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { useDelete, useFormatDimahError } from "@dimah-s3/react";
 import {
@@ -43,7 +43,7 @@ function isolateLtr(value: string): string {
 export type DeleteButtonProps = DeleteHooks &
   AttachmentLayoutAliases & {
     /** Named server route (`dimahS3({ routes })`). */
-    route: string;
+    route: S3RouteName;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
     /**

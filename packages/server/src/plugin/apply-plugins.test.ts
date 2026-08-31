@@ -282,7 +282,7 @@ describe("applyPlugins merge", () => {
     expect(upload.acl).toBe("private");
   });
 
-  it("merges nested upload.multipart hooks plugins-first", async () => {
+  it("merges nested upload.multipart lifecycle hooks user-first", async () => {
     const order: string[] = [];
     const merged = applyPlugins({
       ...config([
@@ -324,7 +324,7 @@ describe("applyPlugins merge", () => {
       uploadId: "up-1",
     });
     expect(upload.multipart.enabled).toBe(true);
-    expect(order).toEqual(["plugin", "user"]);
+    expect(order).toEqual(["user", "plugin"]);
   });
 
   it("does not merge plugin hooks onto a disabled feature", () => {

@@ -59,7 +59,8 @@ s3.audit.log("ready");
       required: true,
     },
     hooks: {
-      description: "Lifecycle hooks — merged before your config hooks.",
+      description:
+        "Lifecycle hooks. Guards merge plugins-first then user; `on*` hooks run user-first then plugins (so `db().markActive` is last).",
       type: "DimahS3PluginHooks",
     },
     endpoints: {
@@ -93,16 +94,22 @@ functions only.
 
 ## Hook order
 
+Guards (`guard` / `*Guard`) run **plugins first**, then your config — so
+[`db()`](/docs/db) ownership runs before a quota check.
+
+Lifecycle `on*` hooks run **your config first**, then plugins — so a throw
+from `upload.onConfirmed` can `DeleteObject` before `db()` marks the row
+active.
+
 <Flow
-  label="Hook merge order"
+  label="Guard merge order"
   steps={[
-    { name: "plugin hooks", kind: "server", note: "plugins array order" },
-    { name: "your hooks", kind: "hook", note: "dimahS3() config" },
+    { name: "plugin guards", kind: "server", note: "plugins array order" },
+    { name: "your guards", kind: "hook", note: "dimahS3() config" },
   ]}
 />
 
-With [`db()`](/docs/db) registered, its ownership guard runs before your
-quota check. Stack several **user** hooks on one slot with `chainHooks`:
+Stack several **user** hooks on one slot with `chainHooks`:
 
 ```ts
 import { chainHooks, dimahS3, route } from "@dimah-s3/server";

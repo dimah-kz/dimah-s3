@@ -3,7 +3,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { DownloadIcon, LoaderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { S3Api } from "@dimah-s3/core";
+import type { S3Api, S3RouteName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import {
   useDownload,
@@ -28,7 +28,7 @@ import { useDownloadToast } from "@/hooks/use-download-toast";
 export type DownloadButtonProps = DownloadHooks &
   AttachmentLayoutAliases & {
     /** Named server route (`dimahS3({ routes })`). */
-    route: string;
+    route: S3RouteName;
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
     /**

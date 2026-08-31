@@ -7,6 +7,7 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
     scope: "user:1",
     bucket: "b",
     key: "k",
+    route: "uploads",
     contentType: "text/plain",
     size: 10n,
     eTag: "abc",

@@ -5,6 +5,7 @@ import type {
   DeleteOnDeletedContext,
   DownloadGuardContext,
   DownloadOnPresignedContext,
+  DownloadResolveInfo,
   GuardContext,
   MultipartGuardContext,
   MultipartOnAbortContext,
@@ -20,7 +21,7 @@ import type {
 } from "./hook-contexts";
 import type { DimahS3Plugin } from "@/plugin/types";
 
-export type { UploadObjectContext, UploadObjectInfo };
+export type { UploadObjectContext, UploadObjectInfo, DownloadResolveInfo };
 
 /** The three nested features on a named route. */
 export const ROUTE_FEATURES = ["upload", "download", "delete"] as const;
@@ -35,6 +36,14 @@ export type RouteOperation = (typeof ROUTE_OPERATIONS)[number];
 
 /** `true` or an options object enables the feature; omit or `false` disables it. */
 export type FeatureToggle<T> = boolean | T;
+
+/** Optional structured logger on {@link DimahS3Config}. */
+export type DimahS3Logger = {
+  debug?: (message: string, ...args: unknown[]) => void;
+  info?: (message: string, ...args: unknown[]) => void;
+  warn?: (message: string, ...args: unknown[]) => void;
+  error?: (message: string, ...args: unknown[]) => void;
+};
 
 export type DisabledFeature = { enabled: false };
 export type EnabledFeature<T extends object> = T & { enabled: true };
@@ -85,6 +94,16 @@ export type UploadConfig = {
   method?: UploadPresignMethod;
   /** Presign TTL in seconds. Clamped by instance `maxExpiresIn`. */
   expiresIn?: number;
+  /**
+   * Require a SHA-256 `checksum` on the presign body and lock it into the
+   * signed PUT/POST.
+   */
+  checksum?: boolean;
+  /**
+   * Overwrite an existing object at the resolved key without flipping a
+   * `db()` row from `active` to `pending` during the new upload.
+   */
+  replace?: "overwrite";
   /** Presign and multipart init. */
   guard?: (context: UploadGuardContext) => Promise<void> | void;
   /** After a single-shot URL is signed. Multipart uses `multipart.onInit`. */
@@ -104,6 +123,22 @@ export type DownloadConfig = {
    * Independent of {@link UploadConfig.expiresIn}.
    */
   expiresIn?: number;
+  /**
+   * Default Content-Disposition. @default "attachment"
+   */
+  disposition?: "inline" | "attachment";
+  /**
+   * `"presign"` (default) returns an S3 URL. `"proxy"` returns a
+   * same-origin `/file` URL that streams through the server.
+   */
+  mode?: "presign" | "proxy";
+  /**
+   * Per-request download options. Return values override route defaults.
+   * The client `disposition` / `fileName` query is a fallback.
+   */
+  resolve?: (
+    context: DownloadGuardContext,
+  ) => DownloadResolveInfo | void | Promise<DownloadResolveInfo | void>;
   guard?: (context: DownloadGuardContext) => Promise<void> | void;
   onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
 };
@@ -177,18 +212,18 @@ export type DimahS3Config = {
    */
   basePath?: string;
   /**
-   * When enabled, confirmation procedures call GetObjectAcl to infer whether
-   * the object is public-read or private.
-   *
-   * @default false
-   */
-  resolveObjectAcl?: boolean;
-  /**
    * Upper bound for `upload.expiresIn` and `download.expiresIn` (seconds).
    * The protocol maximum is 7 days (604800).
    * @default 604800
    */
   maxExpiresIn?: number;
+  /**
+   * Structured logs for lifecycle failures and unmatched router errors.
+   * `false` silences the default `console.error`.
+   */
+  logger?: DimahS3Logger | false;
+  /** Called after an unexpected throw is mapped to `INTERNAL_ERROR`. */
+  onError?: (error: unknown, context: { request?: Request }) => void;
   /** Runs before every operation, before route lookup. Throw to reject. */
   guard?: (context: GuardContext) => Promise<void> | void;
   /**

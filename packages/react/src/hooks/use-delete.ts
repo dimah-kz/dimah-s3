@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useRef } from "react";
-import type { DimahS3Error, S3Api } from "@dimah-s3/core";
+import type { DimahS3Error, S3Api, S3RouteName } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import type { DeletePhase, DeleteHooks } from "@/types";
 import { hookBlockedError, toHookError } from "@/types/error";
@@ -13,7 +13,7 @@ export type UseDeleteOptions = DeleteHooks & {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
   api?: S3Api;
   /** Named server route (`dimahS3({ routes })`). */
-  route: string;
+  route: S3RouteName;
 };
 
 export type UseDeleteState = {
@@ -32,6 +32,8 @@ export type UseDeleteReturn = UseDeleteState & {
   confirmDelete: () => Promise<void>;
   /** Delete `key` immediately — no confirm step. */
   remove: (key: string) => Promise<void>;
+  /** Delete several keys via `api.deleteMany`. */
+  removeMany: (keys: string[]) => Promise<void>;
   /** Cancel confirmation and return to `idle`. */
   cancelDelete: () => void;
   /** Reset state to `idle`. */
@@ -148,6 +150,71 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     [executeDelete, patch],
   );
 
+  const removeMany = useCallback(
+    async (keys: string[]) => {
+      if (inFlightRef.current || keys.length === 0) return;
+      const opts = optsRef.current;
+      const api = opts.api ?? apiRef.current;
+      if (!api)
+        throw new Error(
+          "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
+        );
+
+      inFlightRef.current = true;
+      patch((draft) => {
+        draft.phase = "deleting";
+        draft.error = null;
+      });
+
+      try {
+        const { results } = await api.deleteMany({
+          route: opts.route,
+          keys,
+        });
+        const failed = results.filter((item) => !item.success);
+        for (const item of results) {
+          if (item.success) {
+            try {
+              await opts.onSuccess?.(item.key);
+            } catch (err) {
+              opts.onError?.(item.key, err, "success");
+            }
+          } else {
+            opts.onError?.(
+              item.key,
+              new Error(item.error?.message ?? "Delete failed"),
+              "deleting",
+            );
+          }
+        }
+        if (failed.length > 0) {
+          patch((draft) => {
+            draft.phase = "error";
+            draft.error = toHookError(
+              new Error(failed[0]?.error?.message ?? "Delete failed"),
+              "Delete failed",
+            );
+          });
+          return;
+        }
+        patch((draft) => {
+          draft.phase = "success";
+          draft.error = null;
+          draft.pendingKey = null;
+        });
+      } catch (err) {
+        patch((draft) => {
+          draft.phase = "error";
+          draft.error = toHookError(err, "Delete failed");
+        });
+        opts.onError?.(keys[0] ?? "", err, "deleting");
+      } finally {
+        inFlightRef.current = false;
+      }
+    },
+    [apiRef, optsRef, patch],
+  );
+
   const cancelDelete = useCallback(() => {
     pendingKeyRef.current = null;
     replace(INITIAL_STATE);
@@ -165,6 +232,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     requestDelete,
     confirmDelete,
     remove,
+    removeMany,
     cancelDelete,
     reset,
   };

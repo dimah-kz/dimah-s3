@@ -6,6 +6,15 @@ import type {
   StorageObjectStatus,
 } from "@/types/storage-object";
 import { mapStorageObjectRow } from "./map-row";
+import { decodeListCursor } from "./list-cursor";
+
+/** FumaDB uses `false` as a type-level sentinel for invalid operators. */
+function condition<T>(value: T): Exclude<T, boolean> {
+  if (typeof value === "boolean") {
+    throw new Error("[dimah-s3/db] invalid query condition");
+  }
+  return value as Exclude<T, boolean>;
+}
 
 /** FumaDB client for the @dimah-s3/db schema. */
 export type DimahS3DbClient = InferFumaDB<typeof DimahS3DB>;
@@ -18,6 +27,7 @@ export type ObjectRef = {
 
 export type UpsertPendingInput = ObjectRef & {
   scope: string;
+  route: string;
   contentType?: string | null;
   /** Client-declared size in bytes (quota reservation — not verified). */
   declaredSize?: number | null;
@@ -46,8 +56,13 @@ export type ListByScopeInput = {
    * Filter by exact status. When omitted, only `active` rows are returned.
    */
   status?: StorageObjectStatus;
+  route?: string;
+  contentType?: string;
+  /** Key prefix (filtered after the query when the ORM has no `like`). */
+  prefix?: string;
   limit?: number;
   offset?: number;
+  cursor?: string;
 };
 
 export type ScopeUsage = {
@@ -105,6 +120,12 @@ export type StorageObjectStore = {
   markActive: (input: MarkActiveInput) => Promise<void>;
   /** Load one row by `bucket` + `key` (any status). */
   find: (ref: ObjectRef) => Promise<StorageObject | null>;
+  /** Load one row by scope + key (any status). */
+  findByScopeKey: (input: {
+    scope: string;
+    key: string;
+    bucket?: string;
+  }) => Promise<StorageObject | null>;
   /** Load one row — only when `status` is `active`. */
   findActive: (ref: ObjectRef) => Promise<StorageObject | null>;
   /**
@@ -164,6 +185,7 @@ export function createStorageObjectStore(
       const now = new Date();
       const pendingFields = {
         scope: input.scope,
+        route: input.route,
         contentType: input.contentType ?? null,
         declaredSize: toBigInt(input.declaredSize),
         metadata: input.metadata ?? null,
@@ -194,10 +216,36 @@ export function createStorageObjectStore(
       if (!existing || existing.status === "deleted") {
         throw notFound("No pending object to confirm");
       }
+      const now = new Date();
+      if (existing.status === "active") {
+        await orm.updateMany("storageObject", {
+          where: (b) =>
+            b.and(
+              b("bucket", "=", input.bucket),
+              b("key", "=", input.key),
+              b("status", "=", "active"),
+            ),
+          set: {
+            size: toBigInt(input.size),
+            eTag: input.eTag ?? null,
+            ...(input.contentType !== undefined && {
+              contentType: input.contentType,
+            }),
+            ...(input.acl !== undefined && { acl: input.acl }),
+            ...(input.filename !== undefined && { filename: input.filename }),
+            ...(input.metadata !== undefined && { metadata: input.metadata }),
+            uploadId: null,
+            declaredSize: null,
+            expiresAt: null,
+            confirmedAt: now,
+            updatedAt: now,
+          },
+        });
+        return;
+      }
       if (existing.status !== "pending") {
         throw conflict("Object is not pending confirmation");
       }
-      const now = new Date();
       await orm.updateMany("storageObject", {
         where: (b) =>
           b.and(
@@ -233,6 +281,22 @@ export function createStorageObjectStore(
       return row ? mapStorageObjectRow(row) : null;
     },
 
+    async findByScopeKey(input) {
+      const row = await orm.findFirst("storageObject", {
+        where: (b) => {
+          const parts = [
+            b("scope", "=", input.scope),
+            b("key", "=", input.key),
+          ];
+          if (input.bucket) {
+            parts.push(b("bucket", "=", input.bucket));
+          }
+          return b.and(...parts);
+        },
+      });
+      return row ? mapStorageObjectRow(row) : null;
+    },
+
     async findActive(ref) {
       const row = await orm.findFirst("storageObject", {
         where: (b) =>
@@ -263,14 +327,43 @@ export function createStorageObjectStore(
 
     async listByScope(input) {
       const status = input.status ?? "active";
+      const parsed = input.cursor ? decodeListCursor(input.cursor) : null;
       const rows = await orm.findMany("storageObject", {
-        where: (b) =>
-          b.and(b("scope", "=", input.scope), b("status", "=", status)),
+        where: (b) => {
+          const parts = [
+            b("scope", "=", input.scope),
+            b("status", "=", status),
+          ];
+          if (input.route) parts.push(b("route", "=", input.route));
+          if (input.contentType) {
+            parts.push(b("contentType", "=", input.contentType));
+          }
+          if (parsed) {
+            parts.push(
+              condition(
+                b.or(
+                  condition(b("createdAt", "<", parsed.createdAt)),
+                  condition(
+                    b.and(
+                      b("createdAt", "=", parsed.createdAt),
+                      b("id", "<", parsed.id),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+          return b.and(...parts);
+        },
         orderBy: ["createdAt", "desc"],
         limit: input.limit,
-        offset: input.offset,
+        offset: parsed ? undefined : input.offset,
       });
-      return rows.map(mapStorageObjectRow);
+      let mapped = rows.map(mapStorageObjectRow);
+      if (input.prefix) {
+        mapped = mapped.filter((row) => row.key.startsWith(input.prefix!));
+      }
+      return mapped;
     },
 
     async getScopeUsage(scope) {
@@ -336,7 +429,9 @@ export function createStorageObjectStore(
             b("status", "=", "pending"),
             b.or(
               b("expiresAt", "<", now),
-              b.and(b.isNull("expiresAt"), b("createdAt", "<", olderThan)),
+              condition(
+                b.and(b.isNull("expiresAt"), b("createdAt", "<", olderThan)),
+              ),
             ),
           ),
         orderBy: ["createdAt", "asc"],

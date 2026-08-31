@@ -6,6 +6,9 @@ import { parseFileName, fileNameFromKey, resolveStoredFileName } from "./parse-f
 import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
 import { normalizeObjectKey } from "./normalize-object-key";
+import { matchesMagicBytes, sniffContentType } from "./magic-bytes";
+import { buildPublicObjectUrl } from "./public-object-url";
+import { sha256Base64, sha256File } from "./checksum";
 
 describe("sanitizeFileName", () => {
   it("replaces quotes, backslashes, newlines, and NUL", () => {
@@ -17,9 +20,14 @@ describe("sanitizeFileName", () => {
 describe("buildContentDisposition / parseFileName", () => {
   it("round-trips unicode names via filename*", () => {
     const header = buildContentDisposition("фото.png");
+    expect(header.startsWith("attachment;")).toBe(true);
     expect(header).toContain('filename="____.png"');
     expect(header).toContain("filename*=UTF-8''");
     expect(parseFileName(header)).toBe("фото.png");
+  });
+
+  it("builds an inline disposition", () => {
+    expect(buildContentDisposition("a.png", "inline")).toMatch(/^inline;/);
   });
 
   it("falls back to quoted ASCII filename", () => {
@@ -106,5 +114,36 @@ describe("buildObjectKey", () => {
 
   it("drops empty segments", () => {
     expect(buildObjectKey("", "a", "/", "b")).toBe("a/b");
+  });
+});
+
+describe("sniffContentType / matchesMagicBytes", () => {
+  it("sniffs PNG and PDF prefixes", () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+    const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
+    expect(sniffContentType(png)).toBe("image/png");
+    expect(matchesMagicBytes(png, "image/*")).toBe(true);
+    expect(matchesMagicBytes(pdf, "application/pdf")).toBe(true);
+    expect(matchesMagicBytes(png, "application/pdf")).toBe(false);
+  });
+});
+
+describe("buildPublicObjectUrl", () => {
+  it("joins origin and encoded key segments", () => {
+    expect(
+      buildPublicObjectUrl({
+        baseUrl: "https://cdn.example.com/",
+        key: "uploads/a b.png",
+      }),
+    ).toBe("https://cdn.example.com/uploads/a%20b.png");
+  });
+});
+
+describe("sha256Base64 / sha256File", () => {
+  it("hashes bytes as unpadded base64", async () => {
+    const digest = await sha256Base64(new TextEncoder().encode("hi"));
+    expect(digest).toMatch(/^[A-Za-z0-9+/]+$/);
+    expect(digest.endsWith("=")).toBe(false);
+    await expect(sha256File(new Blob(["hi"]))).resolves.toBe(digest);
   });
 });
