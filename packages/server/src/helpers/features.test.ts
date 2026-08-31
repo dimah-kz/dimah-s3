@@ -61,28 +61,25 @@ describe("normalizeFeature / routes", () => {
 
   it("accepts a custom keyPrefix or false", () => {
     expect(
-      normalizeRoute(
-        "uploads",
-        route({ keyPrefix: "users" }),
-        { client, bucket: "bucket" },
-      ).keyPrefix,
+      normalizeRoute("uploads", route({ keyPrefix: "users" }), {
+        client,
+        bucket: "bucket",
+      }).keyPrefix,
     ).toBe("users");
     expect(
-      normalizeRoute(
-        "uploads",
-        route({ keyPrefix: false }),
-        { client, bucket: "bucket" },
-      ).keyPrefix,
+      normalizeRoute("uploads", route({ keyPrefix: false }), {
+        client,
+        bucket: "bucket",
+      }).keyPrefix,
     ).toBe(false);
   });
 
   it("rejects an unsafe keyPrefix at init", () => {
     expect(() =>
-      normalizeRoute(
-        "uploads",
-        route({ keyPrefix: "../secret" }),
-        { client, bucket: "bucket" },
-      ),
+      normalizeRoute("uploads", route({ keyPrefix: "../secret" }), {
+        client,
+        bucket: "bucket",
+      }),
     ).toThrow(/keyPrefix is not a valid object-key prefix/);
   });
 

@@ -39,6 +39,7 @@ export const s3 = dimahS3({
     videos: route({
       upload: {
         fileTypes: ["video/*"],
+        maxFileSize: 500 * 1024 * 1024,
         multipart: true,
         onConfirmed: async ({ key, contentLength }) => {
           // persist { key, size: contentLength }
@@ -61,7 +62,10 @@ resume cleanup or per-part checks.
 The complete body only sends `partNumber`s. The server lists parts from S3
 for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.
 `signPart` requires `partSize`; that byte length is locked into the
-presigned URL.
+presigned URL. When `maxFileSize` is set, a part that is itself over the
+cap — or that would push **already uploaded** parts over it — is rejected
+with `PAYLOAD_TOO_LARGE`. Complete sums listed part sizes and aborts the
+MPU if over, before assembly.
 
 ## On init
 

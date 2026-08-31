@@ -86,7 +86,9 @@ export function dimahS3<
     string,
     DimahS3RouteConfig
   >,
->(config: DimahS3Config & { plugins?: P; routes: R }): DimahS3<P, PluginContextMap<P>, R> {
+>(
+  config: DimahS3Config & { plugins?: P; routes: R },
+): DimahS3<P, PluginContextMap<P>, R> {
   const {
     config: resolved,
     context,

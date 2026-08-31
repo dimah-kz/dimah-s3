@@ -54,16 +54,16 @@ export const s3 = dimahS3({
 R2 and similar providers need `upload: { method: "PUT" }` —
 see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
-| Option                          | Default   | Role                                              |
-| ------------------------------- | --------- | ------------------------------------------------- |
-| `client`                        | *         | AWS SDK `S3Client` (`awsS3`)                      |
-| `bucket`                        | *         | Default bucket                                    |
-| `routes`                        | required  | Named policies — [Routes](/docs/server/routes)    |
-| `maxExpiresIn`                  | `604800`  | Clamp route `expiresIn` (SigV4 max)               |
-| `basePath`                      | `/api/s3` | Must match `createS3Client({ basePath })`         |
-| `resolveObjectAcl`              | `false`   | Extra `GetObjectAcl` on confirm / complete        |
-| `guard`                         | —         | [Global Guard](/docs/server/hooks/global-guard)   |
-| `plugins`                       | —         | e.g. [`db()`](/docs/db)                           |
+| Option             | Default   | Role                                            |
+| ------------------ | --------- | ----------------------------------------------- |
+| `client`           | \*        | AWS SDK `S3Client` (`awsS3`)                    |
+| `bucket`           | \*        | Default bucket                                  |
+| `routes`           | required  | Named policies — [Routes](/docs/server/routes)  |
+| `maxExpiresIn`     | `604800`  | Clamp route `expiresIn` (SigV4 max)             |
+| `basePath`         | `/api/s3` | Must match `createS3Client({ basePath })`       |
+| `resolveObjectAcl` | `false`   | Extra `GetObjectAcl` on confirm / complete      |
+| `guard`            | —         | [Global Guard](/docs/server/hooks/global-guard) |
+| `plugins`          | —         | e.g. [`db()`](/docs/db)                         |
 
 \* Required on the instance unless every route sets the same field.
 
@@ -247,17 +247,17 @@ browser client (`createS3Client`) still exposes nested `S3Api`
 (`s3Client.download({ route, key })`, `s3Client.multipart.init`). Names differ in a few
 places:
 
-| Browser `S3Api`       | Server `s3.api`                              | Route constant                     |
-| --------------------- | -------------------------------------------- | ---------------------------------- |
-| `upload`              | `upload`                                     | `S3_API_ROUTES.upload`             |
-| `confirm`             | `confirm`                                    | `S3_API_ROUTES.uploadConfirm`      |
-| `download({ route, key })` | `download({ query })`                   | `S3_API_ROUTES.download`           |
-| `delete({ route, key })`   | `delete({ query })`                     | `S3_API_ROUTES.delete`             |
-| `multipart.init`      | `multipart.init` / `multipartInit`           | `S3_API_ROUTES.multipartInit`      |
-| `multipart.signPart`  | `multipart.signPart` / `multipartPart`       | `S3_API_ROUTES.multipartPart`      |
-| `multipart.listParts` | `multipart.listParts` / `multipartListParts` | `S3_API_ROUTES.multipartListParts` |
-| `multipart.complete`  | `multipart.complete` / `multipartComplete`   | `S3_API_ROUTES.multipartComplete`  |
-| `multipart.abort`     | `multipart.abort` / `multipartAbort`         | `S3_API_ROUTES.multipartAbort`     |
+| Browser `S3Api`            | Server `s3.api`                              | Route constant                     |
+| -------------------------- | -------------------------------------------- | ---------------------------------- |
+| `upload`                   | `upload`                                     | `S3_API_ROUTES.upload`             |
+| `confirm`                  | `confirm`                                    | `S3_API_ROUTES.uploadConfirm`      |
+| `download({ route, key })` | `download({ query })`                        | `S3_API_ROUTES.download`           |
+| `delete({ route, key })`   | `delete({ query })`                          | `S3_API_ROUTES.delete`             |
+| `multipart.init`           | `multipart.init` / `multipartInit`           | `S3_API_ROUTES.multipartInit`      |
+| `multipart.signPart`       | `multipart.signPart` / `multipartPart`       | `S3_API_ROUTES.multipartPart`      |
+| `multipart.listParts`      | `multipart.listParts` / `multipartListParts` | `S3_API_ROUTES.multipartListParts` |
+| `multipart.complete`       | `multipart.complete` / `multipartComplete`   | `S3_API_ROUTES.multipartComplete`  |
+| `multipart.abort`          | `multipart.abort` / `multipartAbort`         | `S3_API_ROUTES.multipartAbort`     |
 
 Failures throw `DimahS3Error` (a better-call `APIError`) with named `.status`
 (`"FORBIDDEN"`), numeric `.statusCode`, and `.code`. Catch with `isAPIError` /

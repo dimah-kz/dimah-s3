@@ -33,3 +33,21 @@ export async function listAllParts(
 
   return parts;
 }
+
+/** Sum `Size` on listed parts. Pass `excludePartNumber` when replacing a part. */
+export function listedPartsByteSize(
+  parts: readonly { PartNumber?: number; Size?: number }[],
+  excludePartNumber?: number,
+): number {
+  let total = 0;
+  for (const part of parts) {
+    if (
+      excludePartNumber !== undefined &&
+      part.PartNumber === excludePartNumber
+    ) {
+      continue;
+    }
+    total += part.Size ?? 0;
+  }
+  return total;
+}

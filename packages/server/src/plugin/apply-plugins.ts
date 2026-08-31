@@ -64,10 +64,7 @@ function mergeMultipartHooks(
   plugins: readonly DimahS3Plugin[],
   userFeature: NonNullable<ResolvedRoutePolicy["upload"]>["multipart"],
 ): NonNullable<ResolvedRoutePolicy["upload"]>["multipart"] {
-  if (
-    !userFeature &&
-    plugins.every((p) => !p.hooks?.upload?.multipart)
-  ) {
+  if (!userFeature && plugins.every((p) => !p.hooks?.upload?.multipart)) {
     return userFeature;
   }
 

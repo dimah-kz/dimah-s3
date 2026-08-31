@@ -6,7 +6,10 @@ import {
   type MultipartPartResponse,
 } from "@dimah-s3/core";
 import {
+  assertWithinMaxFileSize,
   getResolvedRoute,
+  listAllParts,
+  listedPartsByteSize,
   normalizeExpiresIn,
   resolveStoredTarget,
   runHook,
@@ -40,6 +43,15 @@ async function handleSignPart(
     partNumber,
     partSize,
   });
+
+  assertWithinMaxFileSize(route.maxFileSize, partSize);
+  if (route.maxFileSize) {
+    const listed = await listAllParts(route.client, { bucket, key, uploadId });
+    assertWithinMaxFileSize(
+      route.maxFileSize,
+      listedPartsByteSize(listed, partNumber) + partSize,
+    );
+  }
 
   const presignedUrl = await getSignedUrl(
     route.client,

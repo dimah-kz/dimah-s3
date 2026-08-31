@@ -1,4 +1,8 @@
-import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  HeadObjectCommand,
+} from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
@@ -503,6 +507,83 @@ describe("multipart", () => {
     );
   });
 
+  it("rejects a part larger than maxFileSize", async () => {
+    vi.mocked(getSignedUrl).mockClear();
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({ upload: { maxFileSize: 5 } }),
+      },
+    });
+    await expect(
+      s3.api.multipartPart({
+        body: {
+          route: "uploads",
+          key: storedBinKey,
+          uploadId: "up-1",
+          partNumber: 1,
+          partSize: 8,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
+    });
+    expect(getSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it("rejects a part that would exceed maxFileSize with uploaded parts", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          ListPartsCommand: {
+            Parts: [{ PartNumber: 1, Size: 15, ETag: '"p1"' }],
+          },
+        }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ upload: { maxFileSize: 20 } }),
+      },
+    });
+    await expect(
+      s3.api.multipartPart({
+        body: {
+          route: "uploads",
+          key: storedBinKey,
+          uploadId: "up-1",
+          partNumber: 2,
+          partSize: 8,
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
+    });
+  });
+
+  it("allows replacing a part when the new size stays under maxFileSize", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          ListPartsCommand: {
+            Parts: [{ PartNumber: 1, Size: 15, ETag: '"p1"' }],
+          },
+        }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ upload: { maxFileSize: 20 } }),
+      },
+    });
+    await expect(
+      s3.api.multipartPart({
+        body: {
+          route: "uploads",
+          key: storedBinKey,
+          uploadId: "up-1",
+          partNumber: 1,
+          partSize: 8,
+        },
+      }),
+    ).resolves.toMatchObject({ partSize: 8 });
+  });
+
   it("lists uploaded parts", async () => {
     const onList = vi.fn();
     const s3 = createInstance({
@@ -557,6 +638,38 @@ describe("multipart", () => {
       eTag: "abc",
     });
     expect(onConfirmed).toHaveBeenCalled();
+  });
+
+  it("rejects complete and aborts when listed part sizes exceed maxFileSize", async () => {
+    const send = sendByCommand({
+      ListPartsCommand: {
+        Parts: [{ PartNumber: 1, ETag: '"p1"', Size: 100 }],
+      },
+      AbortMultipartUploadCommand: {},
+    });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+      routes: {
+        uploads: allFeaturesRoute({ upload: { maxFileSize: 20 } }),
+      },
+    });
+
+    await expect(
+      s3.api.multipartComplete({
+        body: {
+          route: "uploads",
+          key: storedBinKey,
+          uploadId: "up-1",
+          parts: [{ partNumber: 1 }],
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
+    });
+    expect(send).toHaveBeenCalledWith(expect.any(AbortMultipartUploadCommand));
+    expect(send).not.toHaveBeenCalledWith(
+      expect.any(CompleteMultipartUploadCommand),
+    );
   });
 
   it("maps post-complete HeadObject not-found to OBJECT_NOT_FOUND", async () => {

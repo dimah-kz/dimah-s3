@@ -34,9 +34,7 @@ export function normalizeFeature<T extends object>(
   return { ...value, enabled: true };
 }
 
-function skippedPluginIds(
-  plugins: DimahS3RouteConfig["plugins"],
-): Set<string> {
+function skippedPluginIds(plugins: DimahS3RouteConfig["plugins"]): Set<string> {
   const ids = new Set<string>();
   if (!plugins) return ids;
   for (const [id, enabled] of Object.entries(plugins)) {

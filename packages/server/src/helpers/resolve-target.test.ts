@@ -183,9 +183,7 @@ describe("assertStoredKey / resolveStoredTarget", () => {
 
   it("rejects a key outside the route prefix", () => {
     expect(() => assertStoredKey("avatars/a.png", "uploads")).toThrow();
-    expect(() =>
-      resolveStoredTarget(route(), "avatars/a.png"),
-    ).toThrow();
+    expect(() => resolveStoredTarget(route(), "avatars/a.png")).toThrow();
   });
 
   it("allows any safe key when keyPrefix is false", () => {

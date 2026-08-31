@@ -56,7 +56,9 @@ describe("optionalTrimmedString", () => {
 describe("uploadBodySchema", () => {
   it("requires route, fileName, and fileSize", () => {
     expect(uploadBodySchema.safeParse({}).success).toBe(false);
-    expect(uploadBodySchema.safeParse({ route: "uploads" }).success).toBe(false);
+    expect(uploadBodySchema.safeParse({ route: "uploads" }).success).toBe(
+      false,
+    );
     expect(uploadBodySchema.parse(uploadBody)).toMatchObject(uploadBody);
   });
 
@@ -100,10 +102,12 @@ describe("uploadBodySchema", () => {
 describe("confirmBodySchema", () => {
   it("requires route and key", () => {
     expect(confirmBodySchema.safeParse({ key: "a.png" }).success).toBe(false);
-    expect(confirmBodySchema.parse({ route: "uploads", key: "a.png" })).toEqual({
-      route: "uploads",
-      key: "a.png",
-    });
+    expect(confirmBodySchema.parse({ route: "uploads", key: "a.png" })).toEqual(
+      {
+        route: "uploads",
+        key: "a.png",
+      },
+    );
   });
 });
 
@@ -119,10 +123,12 @@ describe("downloadQuerySchema", () => {
 describe("deleteQuerySchema", () => {
   it("requires route and key", () => {
     expect(deleteQuerySchema.safeParse({ key: "a.png" }).success).toBe(false);
-    expect(deleteQuerySchema.parse({ route: "uploads", key: "a.png" })).toEqual({
-      route: "uploads",
-      key: "a.png",
-    });
+    expect(deleteQuerySchema.parse({ route: "uploads", key: "a.png" })).toEqual(
+      {
+        route: "uploads",
+        key: "a.png",
+      },
+    );
   });
 });
 

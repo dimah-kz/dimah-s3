@@ -1,6 +1,7 @@
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
+  AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
+  DeleteObjectCommand,
   type CompleteMultipartUploadCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
@@ -12,6 +13,7 @@ import {
 import { errors } from "@/errors";
 import {
   assertVerifiedConstraints,
+  assertWithinMaxFileSize,
   getResolvedRoute,
   headObjectAfterMultipartComplete,
   listAllParts,
@@ -57,13 +59,32 @@ async function handleComplete(
     uploadId,
   });
 
+  let assembledBytes = 0;
   const completeParts = parts.map((partNumber) => {
     const found = listedParts.find((p) => p.PartNumber === partNumber);
     if (!found?.ETag) {
       throw errors.multipartPartMissing(partNumber);
     }
+    assembledBytes += found.Size ?? 0;
     return { PartNumber: partNumber, ETag: found.ETag };
   });
+
+  try {
+    assertWithinMaxFileSize(route.maxFileSize, assembledBytes);
+  } catch (err) {
+    try {
+      await route.client.send(
+        new AbortMultipartUploadCommand({
+          Bucket: bucket,
+          Key: key,
+          UploadId: uploadId,
+        }),
+      );
+    } catch {
+      // Best-effort cleanup before the object is assembled.
+    }
+    throw err;
+  }
 
   const completeResult: CompleteMultipartUploadCommandOutput =
     await sendOrObjectNotFound(() =>

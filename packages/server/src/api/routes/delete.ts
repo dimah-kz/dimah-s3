@@ -35,7 +35,9 @@ async function handleDelete(
 
   await headObjectOrNotFound(route.client, bucket, key);
 
-  await route.client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  await route.client.send(
+    new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+  );
 
   await runLifecycleHook(route.delete?.onDeleted, {
     request,

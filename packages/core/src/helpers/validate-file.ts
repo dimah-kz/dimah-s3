@@ -1,8 +1,6 @@
 /** Machine-readable codes for client-side file validation failures. */
 export type ValidateFileErrorCode =
-  | "FILE_TYPE_NOT_ALLOWED"
-  | "FILE_EMPTY"
-  | "FILE_TOO_LARGE";
+  "FILE_TYPE_NOT_ALLOWED" | "FILE_EMPTY" | "FILE_TOO_LARGE";
 
 /** Result of {@link validateFile} when the file fails a check. */
 export type ValidateFileError = {

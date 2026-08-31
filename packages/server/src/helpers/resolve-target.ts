@@ -1,11 +1,7 @@
 import { sanitizeFileName } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import { runObjectHook } from "@/helpers/hooks";
-import type {
-  ObjectContext,
-  ObjectInfo,
-  ResolvedRoutePolicy,
-} from "@/types";
+import type { ObjectContext, ObjectInfo, ResolvedRoutePolicy } from "@/types";
 
 export type ResolvedObject = {
   key: string;

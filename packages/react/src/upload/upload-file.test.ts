@@ -13,8 +13,7 @@ vi.mock("./presigned-http", () => ({
 vi.mock("./multipart", () => ({
   uploadMultipart: vi.fn(async (...args: unknown[]) => {
     const onInit = args[11] as
-      | ((uploadId: string, key: string) => void)
-      | undefined;
+      ((uploadId: string, key: string) => void) | undefined;
     onInit?.("up-1", "videos/a.bin");
     return "etag-mp";
   }),

@@ -7,9 +7,7 @@ import { renderHook } from "@/test/render-hook";
 describe("useDownload", () => {
   it("presigns and stores the url", async () => {
     const api = fakeS3Api();
-    const hook = renderHook(() =>
-      useDownload({ api, route: "uploads" }),
-    );
+    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
 
     let result: { url: string; expiresIn: number } | null = null;
     await act(async () => {

@@ -51,11 +51,11 @@ export type DbPluginContext = {
  *     db({ client: dimahS3Db, resolveScope }),
  *   ],
  *   routes: {
-     *     uploads: route({
-     *       upload: true,
-     *       download: true,
-     *       delete: true,
-     *     }),
+ *     uploads: route({
+ *       upload: true,
+ *       download: true,
+ *       delete: true,
+ *     }),
  *   },
  * });
  *
@@ -71,8 +71,7 @@ export function db(options: DbPluginOptions) {
     init({ config }) {
       const routes = Object.values(config.routes ?? {});
       const hasLifecycle = routes.some(
-        (r) =>
-          r.upload !== false || Boolean(r.download) || Boolean(r.delete),
+        (r) => r.upload !== false || Boolean(r.download) || Boolean(r.delete),
       );
       if (!hasLifecycle) {
         throw new Error(

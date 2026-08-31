@@ -44,7 +44,10 @@ export type MultipartConfig = {
 export type UploadConfig = {
   /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
   fileTypes?: string[];
-  /** Max declared and HeadObject size in bytes. */
+  /**
+   * Max declared size, signed part size, listed multipart total, and
+   * HeadObject size in bytes.
+   */
   maxFileSize?: number;
   /**
    * Server-owned object identity. Return `prefix` for a folder under

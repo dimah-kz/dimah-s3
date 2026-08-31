@@ -32,7 +32,8 @@ export type UploadPayload = z.infer<typeof uploadBodySchema> & S3ApiHeaders;
 export type ConfirmPayload = z.infer<typeof confirmBodySchema> & S3ApiHeaders;
 
 /** Payload for {@link S3Api.download}. */
-export type DownloadPayload = z.infer<typeof downloadQuerySchema> & S3ApiHeaders;
+export type DownloadPayload = z.infer<typeof downloadQuerySchema> &
+  S3ApiHeaders;
 
 /** Payload for {@link S3Api.delete}. */
 export type DeletePayload = z.infer<typeof deleteQuerySchema> & S3ApiHeaders;

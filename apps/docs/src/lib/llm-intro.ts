@@ -54,7 +54,7 @@ Closest neighbors: UploadThing (hosted), Better Upload (BYO-bucket, upload-only)
 
 Install: \`npx @dimah-s3/cli@latest create\` or \`npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3\`.
 
-Security (app-owned; the library does not do this): never expose S3 credentials; the client sends a route name and the server owns keys under the route \`keyPrefix\`; scope per-user folders with \`object\` / \`guard\` and ownership with \`db()\` or a download/delete \`guard\`; trust \`onConfirmed\` (HeadObject, including multipart complete) for size and type, not the presign body.
+Security (app-owned; the library does not do this): never expose S3 credentials; the client sends a route name and the server owns keys under the route \`keyPrefix\`; scope per-user folders with \`object\` / \`guard\` and ownership with \`db()\` or a download/delete \`guard\`; trust \`onConfirmed\` (HeadObject, including multipart complete) for size and type, not the presign body. \`fileTypes\` is the S3 Content-Type header and filename, not a byte sniff. Without \`db()\`, download can presign unconfirmed keys under \`keyPrefix\`.
 `;
 }
 

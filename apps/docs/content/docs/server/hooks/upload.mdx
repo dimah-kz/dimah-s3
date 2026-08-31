@@ -52,15 +52,16 @@ export const s3 = dimahS3({
 <Callout>
   `fileSize` / `contentType` on presign are what the client sent. `onConfirmed`
   sees `HeadObject` — use that for quotas and records. Route `fileTypes` /
-  `maxFileSize` are enforced at both steps.
+  `maxFileSize` are enforced at both steps. `fileTypes` is the stored MIME
+  header and filename, not a byte sniff.
 </Callout>
 
 <Callout type="warn">
-  The client does not send a key on upload. The server generates
-  `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name)
-  unless `upload.object` returns `prefix` or `key` — those are nested under
-  `keyPrefix`. Object ACL is `private` unless you set `upload.acl` or return
-  one from `object`. A plain `Error` from `object` is **403**.
+  The client does not send a key on upload. The server generates `{keyPrefix}/
+  {uuid}/{name}` (`keyPrefix` defaults to the route name) unless `upload.object`
+  returns `prefix` or `key` — those are nested under `keyPrefix`. Object ACL is
+  `private` unless you set `upload.acl` or return one from `object`. A plain
+  `Error` from `object` is **403**.
 </Callout>
 
 ## Guard

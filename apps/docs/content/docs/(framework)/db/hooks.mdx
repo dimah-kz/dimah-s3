@@ -23,13 +23,13 @@ The plugin resolves the caller's scope (configured in
 
 ## By feature
 
-| Feature        | Before                                                                 | After                                                          |
-| -------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Upload         | Reject if the key belongs to another scope                             | Row created or updated as `pending`                            |
-| Upload confirm | Row must be `pending` or `active` (not `deleted`) and match the caller | Promoted to `active` with verified size                        |
-| Multipart      | Same ownership check as upload                                         | `pending` on start, `active` on complete, row removed on abort |
-| Download       | File must be `active` and owned                                        | —                                                              |
-| Delete         | Row must be `pending` or `active` and owned                            | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior) |
+| Feature        | Before                                                                 | After                                                                                       |
+| -------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Upload         | Reject if the key belongs to another scope                             | Row created or updated as `pending`                                                         |
+| Upload confirm | Row must be `pending` or `active` (not `deleted`) and match the caller | Promoted to `active` with HeadObject size (`declaredSize` is the client claim from presign) |
+| Multipart      | Same ownership check as upload                                         | `pending` on start, `active` on complete, row removed on abort                              |
+| Download       | File must be `active` (confirmed) and owned                            | —                                                                                           |
+| Delete         | Row must be `pending` or `active` and owned                            | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior)                              |
 
 Delete always removes the file from S3 through the normal
 [`api.delete`](/docs/react) path. The plugin only updates the database row

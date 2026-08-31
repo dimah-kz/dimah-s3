@@ -9,7 +9,7 @@ object keys. Those stay in your `guard` and `object` hooks.
 
 <Callout type="warn">
   Never put S3 credentials in the browser. Keep the AWS SDK `S3Client` on the
-  server and pass it into `dimahS3({ client })`.
+  server and pass it into `dimahS3({client})`.
 </Callout>
 
 ## Untrusted input
@@ -18,14 +18,14 @@ The client sends a **route name**, plus `fileName` / `fileSize` /
 `contentType` / `metadata` on upload. After upload, later ops send the
 **stored** `key` from the presign response. Treat all of them as untrusted.
 
-| Field                      | Default                                         | How to scope it                                             |
-| -------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
-| `route`                    | required                                        | Must match a name in `routes` (`UNKNOWN_ROUTE` otherwise)   |
-| `key` (upload / init)      | **not sent** — server generates it              | `upload.object` (`prefix` / `key`) nested under `keyPrefix` (default `{route}/{uuid}/{name}`) |
-| `key` (confirm / later)    | stored key from the presign response            | Must stay under route `keyPrefix`; then `guard` / db — `object` is not re-run |
-| `bucket` / `acl` / `expiresIn` | never accepted from the client              | Route `bucket` / `upload.acl` / `upload.expiresIn`          |
-| `fileSize` / `contentType` | required on upload / init                       | Also enforce `fileTypes` / `maxFileSize`; trust HeadObject  |
-| `partSize`                 | required on `multipart.signPart`                | Locked into the part URL `Content-Length`                   |
+| Field                          | Default                              | How to scope it                                                                                      |
+| ------------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `route`                        | required                             | Must match a name in `routes` (`UNKNOWN_ROUTE` otherwise)                                            |
+| `key` (upload / init)          | **not sent** — server generates it   | `upload.object` (`prefix` / `key`) nested under `keyPrefix` (default `{route}/{uuid}/{name}`)        |
+| `key` (confirm / later)        | stored key from the presign response | Must stay under route `keyPrefix`; then `guard` / db — `object` is not re-run                        |
+| `bucket` / `acl` / `expiresIn` | never accepted from the client       | Route `bucket` / `upload.acl` / `upload.expiresIn`                                                   |
+| `fileSize` / `contentType`     | required on upload / init            | Also enforce `fileTypes` / `maxFileSize`; trust HeadObject                                           |
+| `partSize`                     | required on `multipart.signPart`     | Locked into the part URL `Content-Length`; capped by `maxFileSize` (including listed uploaded parts) |
 
 ## Keys
 
@@ -107,7 +107,7 @@ route sets `upload.acl` (or `object` returns one):
 ```ts
 uploads: route({
   upload: { acl: "public-read" },
-})
+});
 ```
 
 `INVALID_BUCKET` is only for internal misconfig (a route with no bucket).
@@ -121,7 +121,10 @@ size and type from `HeadObject`.
 
 Set `fileTypes` and `maxFileSize` on `upload`. The server
 checks them at presign and again after HeadObject. Oversize after landing
-rejects confirm and best-effort `DeleteObject`.
+rejects confirm and best-effort `DeleteObject`. Multipart also checks
+`maxFileSize` when signing each part (listed uploaded bytes + this
+`partSize`) and **before** `CompleteMultipartUpload` — oversize aborts
+the in-progress upload instead of assembling it.
 
 ```ts
 import { dimahS3, errors, route } from "@dimah-s3/server";
@@ -143,12 +146,25 @@ export const s3 = dimahS3({
 });
 ```
 
+`fileTypes` matches the **S3 `Content-Type` header** and the filename
+(extension tokens like `.pdf`). It does not sniff bytes. A client can
+declare `image/png` and upload other content under that header. If you
+need the real type, `GetObject` after confirm in your app (or a worker),
+check magic bytes, and `DeleteObject` on mismatch. Throw from
+`onConfirmed` only after you have cleaned up — a throw there does not
+delete the object.
+
+Until `onConfirmed` runs, do not treat the object as trusted. Without
+[`db()`](/docs/db), `download` will presign any key that exists under
+the route `keyPrefix`. `db()` download requires status `active`
+(confirmed).
+
 ## Hook throws
 
-| Where              | Plain `Error`                            | `errors.*` / `DimahS3Error`     |
-| ------------------ | ---------------------------------------- | ------------------------------- |
+| Where                         | Plain `Error`                            | `errors.*` / `DimahS3Error`     |
+| ----------------------------- | ---------------------------------------- | ------------------------------- |
 | `guard` / `*Guard` / `object` | **403**, message kept, no library `code` | the status and `code` you chose |
-| `on*` hooks        | **500**                                  | the status and `code` you chose |
+| `on*` hooks                   | **500**                                  | the status and `code` you chose |
 
 Order: instance `guard` → lookup route → route `guard` → feature `guard`.
 

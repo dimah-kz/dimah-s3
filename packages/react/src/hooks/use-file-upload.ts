@@ -69,10 +69,7 @@ export type UseFileUploadReturn = UseFileUploadState & {
    * the stored `uploadId`, call `listParts`, and resume from the last completed
    * part rather than starting a new multipart upload.
    */
-  upload: (
-    file: File,
-    requestOptions?: UploadRequestOptions,
-  ) => Promise<void>;
+  upload: (file: File, requestOptions?: UploadRequestOptions) => Promise<void>;
   /**
    * Abort the upload and fully clean up all resources.
    *

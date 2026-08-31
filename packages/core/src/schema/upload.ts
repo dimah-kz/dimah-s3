@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { metadataSchema, optionalTrimmedString, routeNameSchema } from "./shared";
+import {
+  metadataSchema,
+  optionalTrimmedString,
+  routeNameSchema,
+} from "./shared";
 
 export const uploadBodySchema = z.object({
   route: routeNameSchema,

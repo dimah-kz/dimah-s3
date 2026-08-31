@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { optionalTrimmedString, routeNameSchema, trimmedString } from "./shared";
+import {
+  optionalTrimmedString,
+  routeNameSchema,
+  trimmedString,
+} from "./shared";
 
 /** Query string — numbers arrive as strings. */
 export const downloadQuerySchema = z.object({

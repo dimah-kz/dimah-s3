@@ -125,7 +125,7 @@ route({
       metadata: { author: userId(request), title: clientMetadata?.title ?? "" },
     }),
   },
-})
+});
 ```
 
 Client `metadata` on the request is **not** written to S3 unless `object`
@@ -141,10 +141,12 @@ or [`db()`](/docs/db) for ownership.
 `fileTypes` and `maxFileSize` live on `upload`.
 
 - `fileTypes` — same tokens as HTML `accept`. Checked at presign (declared
-  type / name) and again at confirm / multipart complete (HeadObject + key
-  suffix).
-- `maxFileSize` — presign `fileSize` and HeadObject `contentLength`.
+  type / name) and again at confirm / multipart complete (HeadObject +
+  filename). Matches the S3 `Content-Type` header and name, not file bytes.
+- `maxFileSize` — presign `fileSize`, each multipart `partSize`, listed
+  uploaded parts + the part being signed, and HeadObject `contentLength`.
   Oversize after landing rejects confirm and best-effort `DeleteObject`.
+  Oversize at multipart complete aborts the in-progress upload.
 
 Upload and multipart init always require `fileName` + `fileSize`.
 
