@@ -6,7 +6,7 @@ import type {
   DownloadOnPresignedContext,
   DownloadPresignGuardContext,
   GuardContext,
-  MultipartGuardContext,
+  MultipartSessionGuardContext,
   MultipartOnAbortContext,
   MultipartOnInitContext,
   MultipartOnListContext,
@@ -33,7 +33,9 @@ export type MultipartConfig = {
   /** After `CreateMultipartUpload` — persist `uploadId` for resume. */
   onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
   /** Authorize part, list, and abort. Branch on `action` if needed. */
-  guard?: (context: MultipartGuardContext) => Promise<void> | void;
+  sessionGuard?: (
+    context: MultipartSessionGuardContext,
+  ) => Promise<void> | void;
   onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
   onList?: (context: MultipartOnListContext) => Promise<void> | void;
 };

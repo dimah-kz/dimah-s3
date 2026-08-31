@@ -32,7 +32,7 @@ export type {
   FeatureToggle,
   GuardContext,
   MultipartConfig,
-  MultipartGuardContext,
+  MultipartSessionGuardContext,
   MultipartOnAbortContext,
   MultipartOnInitContext,
   MultipartOnListContext,

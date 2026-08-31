@@ -33,7 +33,7 @@ async function handleSignPart(
       ? Math.floor(input.partSize)
       : null;
 
-  await runHook(route.upload?.multipart?.guard, {
+  await runHook(route.upload?.multipart?.sessionGuard, {
     request,
     route: route.name,
     key,

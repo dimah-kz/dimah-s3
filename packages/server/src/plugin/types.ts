@@ -18,7 +18,10 @@ export type DimahS3PluginHooks = {
     UploadConfig,
     "guard" | "onPresigned" | "confirmGuard" | "onConfirmed"
   > & {
-    multipart?: Pick<MultipartConfig, "onInit" | "guard" | "onAbort" | "onList">;
+    multipart?: Pick<
+      MultipartConfig,
+      "onInit" | "sessionGuard" | "onAbort" | "onList"
+    >;
   };
   download?: Pick<DownloadConfig, "guard" | "onPresigned">;
   delete?: Pick<DeleteConfig, "guard" | "onDeleted">;

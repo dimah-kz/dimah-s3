@@ -11,7 +11,7 @@ export const FEATURE_HOOK_KEYS = {
 /** Nested under `upload.multipart` — init/complete share upload hooks. */
 export const MULTIPART_HOOK_KEYS = [
   "onInit",
-  "guard",
+  "sessionGuard",
   "onAbort",
   "onList",
 ] as const;

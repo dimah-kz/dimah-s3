@@ -26,7 +26,7 @@ async function handleListParts(
   const { key, bucket } = resolveStoredTarget(route, input.key);
   const uploadId = input.uploadId;
 
-  await runHook(route.upload?.multipart?.guard, {
+  await runHook(route.upload?.multipart?.sessionGuard, {
     request,
     route: route.name,
     key,

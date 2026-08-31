@@ -8,6 +8,11 @@ describe("FEATURE_HOOK_KEYS", () => {
       download: ["guard", "onPresigned"],
       delete: ["guard", "onDeleted"],
     });
-    expect(MULTIPART_HOOK_KEYS).toEqual(["onInit", "guard", "onAbort", "onList"]);
+    expect(MULTIPART_HOOK_KEYS).toEqual([
+      "onInit",
+      "sessionGuard",
+      "onAbort",
+      "onList",
+    ]);
   });
 });

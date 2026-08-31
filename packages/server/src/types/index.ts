@@ -13,7 +13,7 @@ export type {
   DeleteGuardContext,
   DeleteOnDeletedContext,
   MultipartUploadContext,
-  MultipartGuardContext,
+  MultipartSessionGuardContext,
   MultipartOnInitContext,
   MultipartOnAbortContext,
   MultipartOnListContext,

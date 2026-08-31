@@ -16,14 +16,14 @@ call.
   steps={[
     { name: "upload.guard", kind: "hook" },
     { name: "onInit", kind: "hook" },
-    { name: "multipart.guard", kind: "hook", note: "each part" },
+    { name: "sessionGuard", kind: "hook", note: "each part" },
     { name: "confirmGuard", kind: "hook" },
     { name: "HeadObject", kind: "server" },
     { name: "onConfirmed", kind: "hook" },
   ]}
 />
 
-Abort and list are the remaining unique steps: `multipart.guard` (`action:
+Abort and list are the remaining unique steps: `sessionGuard` (`action:
 "abort"` / `"list"`) → `onAbort` / `onList`.
 
 ```ts title="lib/s3.ts"
@@ -50,8 +50,8 @@ export const s3 = dimahS3({
 ```
 
 <Callout>
-  `fileSize` on init is what the client sent. `contentLength` on
-  `onConfirmed` comes from `HeadObject`.
+  `fileSize` on init is what the client sent. `contentLength` on `onConfirmed`
+  comes from `HeadObject`.
 </Callout>
 
 Multipart uses the same `object` and `acl` as upload. Most apps only set
@@ -71,23 +71,24 @@ resume. Init authorization is `upload.guard`.
   name="MultipartOnInitContext"
 />
 
-## Multipart guard
+## Session guard
 
-Runs before each part URL, list, and abort. Branch on `action` if you need
-different rules. Complete uses `upload.confirmGuard` instead.
+Runs before each part URL, list, and abort — an in-progress upload, not
+the start. Branch on `action` if you need different rules. Complete uses
+`upload.confirmGuard` instead.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartGuardContext"
+  name="MultipartSessionGuardContext"
 />
 
 <Accordions type="multiple">
 <Accordion title="Other hooks">
 
-| Hook       | When            | Extra                      |
-| ---------- | --------------- | -------------------------- |
-| `onAbort`  | After abort     | `uploadId`                 |
-| `onList`   | After listing   | `parts`                    |
+| Hook      | When          | Extra      |
+| --------- | ------------- | ---------- |
+| `onAbort` | After abort   | `uploadId` |
+| `onList`  | After listing | `parts`    |
 
 </Accordion>
 </Accordions>

@@ -125,7 +125,7 @@ export function createDatabaseLifecycleHooks(
         onConfirmed: trackConfirmed,
         multipart: {
           onInit: trackPending,
-          guard: ownedObjectGuard,
+          sessionGuard: ownedObjectGuard,
           onAbort: async (context) => {
             await objects.deletePending({
               bucket: context.bucket,

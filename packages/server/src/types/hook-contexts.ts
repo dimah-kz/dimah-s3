@@ -160,11 +160,11 @@ export type MultipartOnInitContext = UploadPresignGuardContext & {
 };
 
 /**
- * Context for `upload.multipart.guard`.
+ * Context for `upload.multipart.sessionGuard`.
  * Runs on part, list, and abort (init uses `upload.guard`; complete uses
  * `upload.confirmGuard`).
  */
-export type MultipartGuardContext =
+export type MultipartSessionGuardContext =
   | (MultipartUploadContext & {
       action: "part";
       /** 1-based part number. */
