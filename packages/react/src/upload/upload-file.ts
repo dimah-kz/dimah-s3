@@ -45,13 +45,12 @@ export async function uploadFile(
     config.multipart === true && file.size >= DEFAULT_MULTIPART_THRESHOLD;
   const concurrentParts = config.concurrentParts ?? DEFAULT_CONCURRENT_PARTS;
   const rawContentType = requestOptions?.contentType ?? file.type;
-  const contentType =
-    rawContentType.trim() === "" ? undefined : rawContentType;
+  const contentType = rawContentType.trim() === "" ? undefined : rawContentType;
   const fileName = requestOptions?.fileName || file.name;
 
   try {
     if (useMultipart) {
-      callbacks.onPhaseChange?.("uploading");
+      callbacks.onPhaseChange?.("presigning");
       return await uploadMultipart(
         api,
         file,
@@ -65,22 +64,29 @@ export async function uploadFile(
         config.uploadStore,
         callbacks.onPartUpload,
         (uploadId, serverKey) => {
+          callbacks.onPhaseChange?.("uploading");
           callbacks.onMultipartInit?.(uploadId, serverKey);
         },
       );
     }
 
-    return await withRetry(
-      async () => {
-        callbacks.onPhaseChange?.("presigning");
-        const presign = await api.upload({
+    callbacks.onPhaseChange?.("presigning");
+    const presign = await withRetry(
+      async () =>
+        api.upload({
           route,
           contentType,
           fileSize: file.size,
           fileName,
           metadata: requestOptions?.metadata,
-        });
-        callbacks.onPhaseChange?.("uploading");
+        }),
+      config.retry,
+      signal,
+    );
+
+    callbacks.onPhaseChange?.("uploading");
+    await withRetry(
+      async () => {
         const transport = getUploadTransport(api);
         if (transport) {
           await transport(file, presign, {
@@ -91,7 +97,7 @@ export async function uploadFile(
           await uploadPut(
             file,
             presign.url,
-            presign.headers ?? {},
+            presign.headers,
             callbacks.onProgress,
             signal,
           );
@@ -99,28 +105,33 @@ export async function uploadFile(
           await uploadSimple(
             file,
             presign.url,
-            presign.fields ?? {},
+            presign.fields,
             callbacks.onProgress,
             signal,
           );
         }
-
-        callbacks.onPhaseChange?.("finalizing");
-        const confirmed = await api.confirm({
-          route,
-          key: presign.key,
-        });
-        return {
-          key: confirmed.key,
-          eTag: confirmed.eTag,
-          contentLength: confirmed.contentLength,
-          contentType: confirmed.contentType,
-          fileName: confirmed.fileName,
-        };
       },
       config.retry,
       signal,
     );
+
+    callbacks.onPhaseChange?.("finalizing");
+    const confirmed = await withRetry(
+      async () =>
+        api.confirm({
+          route,
+          key: presign.key,
+        }),
+      config.retry,
+      signal,
+    );
+    return {
+      key: confirmed.key,
+      eTag: confirmed.eTag,
+      contentLength: confirmed.contentLength,
+      contentType: confirmed.contentType,
+      fileName: confirmed.fileName,
+    };
   } catch (err) {
     throw toUploadError(err, "uploading");
   }

@@ -14,27 +14,41 @@ import type {
 
 /** Response from {@link S3Api.delete}. */
 export type DeleteResponse = {
-  success: boolean;
+  success: true;
   bucket: string;
   key: string;
 };
 
-/** Response from {@link S3Api.multipart.complete}. */
-export type MultipartCompleteResponse = {
+/** Verified object metadata after confirm or multipart complete. */
+export type ConfirmedObjectResponse = {
+  /** S3 object key. */
   key: string;
+  /** Target bucket. */
   bucket: string;
-  uploadId: string;
+  /** MIME type from HeadObject. */
+  contentType?: string;
   /** Verified size in bytes. */
   contentLength: number;
-  contentType?: string;
+  /** ETag from HeadObject. */
   eTag?: string;
+  /** Object metadata. */
   metadata: Record<string, string>;
-  versionId?: string;
-  lastModified?: string;
   /** Resolved ACL. Omitted when ACL lookup is disabled or unsupported. */
   acl?: S3ObjectAcl;
   /** Stored filename. */
   fileName?: string;
+  /** S3 version ID. */
+  versionId?: string;
+  /** Last modified timestamp. */
+  lastModified?: string;
+};
+
+/** Response from {@link S3Api.confirm}. */
+export type UploadConfirmResponse = ConfirmedObjectResponse;
+
+/** Response from {@link S3Api.multipart.complete}. */
+export type MultipartCompleteResponse = ConfirmedObjectResponse & {
+  uploadId: string;
 };
 
 /** Response from {@link S3Api.multipart.abort}. */
@@ -57,8 +71,7 @@ export type DownloadPresignResponse = {
   expiresIn: number;
 };
 
-/** Presigned upload URL and method-specific fields. */
-export type UploadPresignResponse = {
+type UploadPresignBase = {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
@@ -67,13 +80,22 @@ export type UploadPresignResponse = {
   url: string;
   /** Validity in seconds. */
   expiresIn: number;
-  /** HTTP method for the upload request. */
-  method: UploadPresignMethod;
-  /** Present when `method` is `"POST"`. Must be appended to FormData before the file. */
-  fields?: Record<string, string>;
-  /** Present when `method` is `"PUT"`. Must be set as request headers on the PUT request. */
-  headers?: Record<string, string>;
 };
+
+/** Presigned upload URL and method-specific fields. */
+export type UploadPresignResponse = UploadPresignBase &
+  (
+    | {
+        method: Extract<UploadPresignMethod, "POST">;
+        /** Form fields — append to FormData before the file. */
+        fields: Record<string, string>;
+      }
+    | {
+        method: Extract<UploadPresignMethod, "PUT">;
+        /** Request headers for the PUT. */
+        headers: Record<string, string>;
+      }
+  );
 
 /** Response from multipart upload initialization. */
 export type MultipartInitResponse = {
@@ -114,30 +136,6 @@ export type MultipartPartInfo = {
 /** Response from listing uploaded multipart parts. */
 export type MultipartListPartsResponse = {
   parts: MultipartPartInfo[];
-};
-
-/** Verified object metadata after upload confirmation. */
-export type UploadConfirmResponse = {
-  /** S3 object key. */
-  key: string;
-  /** Target bucket. */
-  bucket: string;
-  /** MIME type from HeadObject. */
-  contentType?: string;
-  /** Verified size in bytes. */
-  contentLength: number;
-  /** ETag from HeadObject. */
-  eTag?: string;
-  /** Object metadata. */
-  metadata: Record<string, string>;
-  /** Object ACL. */
-  acl?: S3ObjectAcl;
-  /** Stored filename. */
-  fileName?: string;
-  /** S3 version ID. */
-  versionId?: string;
-  /** Last modified timestamp. */
-  lastModified?: string;
 };
 
 /**

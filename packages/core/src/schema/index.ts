@@ -1,11 +1,15 @@
 export {
   metadataSchema,
+  objectKeySchema,
   optionalTrimmedString,
+  partNumberSchema,
   routeNameSchema,
   ROUTE_NAME_PATTERN,
   s3ObjectAclSchema,
   S3_DEFAULT_EXPIRES_IN,
   S3_MAX_EXPIRES_IN,
+  S3_MAX_METADATA_ENTRIES,
+  S3_MAX_PART_NUMBER,
   S3_MAX_POST_OBJECT_BYTES,
   trimmedString,
 } from "./shared";
@@ -15,6 +19,7 @@ export { deleteQuerySchema } from "./delete";
 export {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,
+  multipartCompletedPartSchema,
   multipartInitBodySchema,
   multipartListPartsQuerySchema,
   multipartSignPartBodySchema,

@@ -1,4 +1,8 @@
-import { sanitizeFileName, type S3ObjectAcl } from "@dimah-s3/core";
+import {
+  normalizeObjectKey,
+  sanitizeFileName,
+  type S3ObjectAcl,
+} from "@dimah-s3/core";
 import { errors } from "@/errors";
 import { runObjectHook } from "@/helpers/hooks";
 import type {
@@ -21,16 +25,7 @@ type RouteKeyPrefix = ResolvedRoute["keyPrefix"];
  * Strip leading/trailing slashes and reject `.` / `..` / empty segments,
  * NUL, and backslashes. Returns `null` when the key is unsafe.
  */
-export function normalizeObjectKey(key: string): string | null {
-  const trimmed = key.replace(/^\/+/u, "").replace(/\/+$/u, "");
-  if (!trimmed) return null;
-  if (trimmed.includes("\\") || trimmed.includes("\0")) return null;
-  const parts = trimmed.split("/");
-  if (parts.some((part) => part === "" || part === "." || part === "..")) {
-    return null;
-  }
-  return parts.join("/");
-}
+export { normalizeObjectKey };
 
 /**
  * Normalize an object key: strip leading slashes, reject `.` / `..` segments,
@@ -45,7 +40,8 @@ export function assertSafeObjectKey(key: string): string {
 function applyPrefix(prefix: string, key: string): string {
   const p = assertSafeObjectKey(prefix);
   const k = assertSafeObjectKey(key);
-  if (k === p || k.startsWith(`${p}/`)) return k;
+  if (k.startsWith(`${p}/`)) return k;
+  if (k === p) throw errors.invalidKey();
   return `${p}/${k}`;
 }
 
@@ -67,7 +63,7 @@ export function assertStoredKey(
   const safe = assertSafeObjectKey(key);
   if (keyPrefix === false) return safe;
   const root = assertSafeObjectKey(keyPrefix);
-  if (safe === root || safe.startsWith(`${root}/`)) return safe;
+  if (safe.startsWith(`${root}/`)) return safe;
   throw errors.invalidKey();
 }
 
@@ -77,7 +73,10 @@ export function assertStoredKey(
  */
 function objectKeyFileName(fileName: string): string {
   const sanitized = sanitizeFileName(fileName);
-  const leaf = sanitized.split("/").filter((part) => part.length > 0).at(-1);
+  const leaf = sanitized
+    .split("/")
+    .filter((part) => part.length > 0)
+    .at(-1);
   if (!leaf || leaf === "." || leaf === "..") return "file";
   return leaf;
 }

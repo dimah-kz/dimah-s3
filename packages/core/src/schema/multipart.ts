@@ -1,34 +1,39 @@
 import { z } from "zod";
 import { uploadBodySchema } from "./upload";
-import { routeNameSchema, trimmedString } from "./shared";
+import {
+  objectKeySchema,
+  partNumberSchema,
+  routeNameSchema,
+  trimmedString,
+} from "./shared";
 
 export const multipartInitBodySchema = uploadBodySchema;
 
-export const multipartSignPartBodySchema = z.strictObject({
+const multipartSessionFields = {
   route: routeNameSchema,
-  key: trimmedString,
+  key: objectKeySchema,
   uploadId: trimmedString,
-  partNumber: z.number().int().positive(),
+};
+
+export const multipartSignPartBodySchema = z.strictObject({
+  ...multipartSessionFields,
+  partNumber: partNumberSchema,
   partSize: z.number().int().positive(),
 });
 
-export const multipartListPartsQuerySchema = z.object({
-  route: routeNameSchema,
-  key: trimmedString,
-  uploadId: trimmedString,
+export const multipartListPartsQuerySchema = z.strictObject({
+  ...multipartSessionFields,
+});
+
+export const multipartCompletedPartSchema = z.strictObject({
+  partNumber: partNumberSchema,
 });
 
 export const multipartCompleteBodySchema = z.strictObject({
-  route: routeNameSchema,
-  key: trimmedString,
-  uploadId: trimmedString,
-  parts: z
-    .array(z.strictObject({ partNumber: z.number().int().positive() }))
-    .min(1),
+  ...multipartSessionFields,
+  parts: z.array(multipartCompletedPartSchema).min(1),
 });
 
 export const multipartAbortBodySchema = z.strictObject({
-  route: routeNameSchema,
-  key: trimmedString,
-  uploadId: trimmedString,
+  ...multipartSessionFields,
 });

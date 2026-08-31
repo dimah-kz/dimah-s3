@@ -79,7 +79,9 @@ describe("uploadFile", () => {
         fileName: "a.bin",
       }),
     );
-    expect(vi.mocked(api.upload).mock.calls[0]?.[0]?.contentType).toBeUndefined();
+    expect(
+      vi.mocked(api.upload).mock.calls[0]?.[0]?.contentType,
+    ).toBeUndefined();
   });
 
   it("uses PUT when the presign says so", async () => {
@@ -136,6 +138,27 @@ describe("uploadFile", () => {
       route: "uploads",
       key: "uploads/a.png",
     });
+  });
+
+  it("retries confirm without requesting a new presign", async () => {
+    const api = fakeS3Api();
+    vi.mocked(api.confirm)
+      .mockRejectedValueOnce(new Error("confirm failed"))
+      .mockResolvedValueOnce({
+        key: "uploads/a.png",
+        bucket: "bucket",
+        contentLength: 1,
+        metadata: {},
+        eTag: "abc",
+      });
+
+    await uploadFile(api, file(), {
+      route: "uploads",
+      retry: { maxRetries: 1, baseDelay: 1 },
+    });
+
+    expect(api.upload).toHaveBeenCalledOnce();
+    expect(api.confirm).toHaveBeenCalledTimes(2);
   });
 
   it("wraps API failures as S3UploadError", async () => {

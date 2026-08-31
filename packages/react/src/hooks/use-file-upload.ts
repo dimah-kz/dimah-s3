@@ -24,7 +24,7 @@ import type {
 } from "@/types";
 import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFile } from "@/upload";
-import { hookBlockedError, toHookError } from "@/types/error";
+import { hookBlockedError, isAbortError, toHookError } from "@/types/error";
 
 /** Options for {@link useFileUpload}. */
 export type UseFileUploadOptions = FileUploadConfig &
@@ -152,6 +152,7 @@ export function useFileUpload(
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
   const abortRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
   /** Tracks the in-flight upload so cancel/detach can access uploadId and key. */
   const activeUploadRef = useRef<ActiveUpload | null>(null);
   /** Set before aborting so the AbortError catch skips cancel callbacks. */
@@ -173,7 +174,37 @@ export function useFileUpload(
     replace(INITIAL_STATE);
   }, [revokeCurrentPreview, replace]);
 
-  useEffect(() => () => revokeCurrentPreview(), [revokeCurrentPreview]);
+  const abortMultipartSession = useCallback(
+    (active: ActiveUpload | null) => {
+      if (!active) return;
+      const opts = optsRef.current;
+      const api = opts.api ?? apiRef.current;
+      const storeOpt = opts.uploadStore;
+      if (storeOpt != null && storeOpt !== false) {
+        void Promise.resolve(storeOpt.delete(active.resumeKey)).catch(() => {});
+      }
+      if (api && active.uploadId && active.serverKey) {
+        api.multipart
+          .abort({
+            route: opts.route,
+            key: active.serverKey,
+            uploadId: active.uploadId,
+          })
+          .catch(() => {});
+      }
+    },
+    [apiRef, optsRef],
+  );
+
+  useEffect(
+    () => () => {
+      generationRef.current += 1;
+      abortRef.current?.abort();
+      abortMultipartSession(activeUploadRef.current);
+      revokeCurrentPreview();
+    },
+    [abortMultipartSession, revokeCurrentPreview],
+  );
 
   const upload = useCallback(
     async (file: File, requestOptions?: UploadRequestOptions) => {
@@ -218,6 +249,10 @@ export function useFileUpload(
       }
 
       const mergedOptions = mergeRequestOptions(opts, file, requestOptions);
+      const previous = activeUploadRef.current;
+      abortRef.current?.abort();
+      abortMultipartSession(previous);
+      const generation = ++generationRef.current;
       const controller = new AbortController();
       abortRef.current = controller;
       activeUploadRef.current = {
@@ -227,8 +262,11 @@ export function useFileUpload(
         requestOptions: mergedOptions,
       };
 
+      const isCurrent = () => generation === generationRef.current;
+
       const stopIfAborted = (): boolean => {
         if (!controller.signal.aborted) return false;
+        if (!isCurrent()) return true;
         abortRef.current = null;
         activeUploadRef.current = null;
         if (detachingRef.current) detachingRef.current = false;
@@ -276,6 +314,7 @@ export function useFileUpload(
           },
           {
             onProgress: (progress) => {
+              if (!isCurrent()) return;
               const p = speedUpdaterRef.current.apply(progress);
               patch((draft) => {
                 draft.progress = p;
@@ -283,6 +322,7 @@ export function useFileUpload(
               opts.onProgress?.(file, p);
             },
             onPhaseChange: (phase) => {
+              if (!isCurrent()) return;
               errorPhase = phase;
               patch((draft) => {
                 draft.phase = phase;
@@ -291,7 +331,7 @@ export function useFileUpload(
             onPartUpload: (partNumber, totalParts) =>
               opts.onPartUpload?.(file, partNumber, totalParts),
             onMultipartInit: (uploadId, serverKey) => {
-              if (activeUploadRef.current) {
+              if (activeUploadRef.current && isCurrent()) {
                 activeUploadRef.current.uploadId = uploadId;
                 activeUploadRef.current.serverKey = serverKey;
               }
@@ -302,6 +342,8 @@ export function useFileUpload(
           mergedOptions,
         );
 
+        if (!isCurrent()) return;
+
         patch((draft) => {
           draft.phase = "success";
           draft.result = result;
@@ -311,9 +353,14 @@ export function useFileUpload(
             percent: 100,
           };
         });
-        await opts.onSuccess?.(file, result);
+        try {
+          await opts.onSuccess?.(file, result);
+        } catch (err) {
+          opts.onError?.(file, err, "success");
+        }
       } catch (err) {
-        if ((err as Error).name === "AbortError") {
+        if (!isCurrent()) return;
+        if (isAbortError(err)) {
           if (detachingRef.current) {
             detachingRef.current = false;
             return;
@@ -333,11 +380,14 @@ export function useFileUpload(
         });
         opts.onError?.(file, err, errorPhase);
       } finally {
-        abortRef.current = null;
-        activeUploadRef.current = null;
+        if (isCurrent()) {
+          abortRef.current = null;
+          activeUploadRef.current = null;
+        }
       }
     },
     [
+      abortMultipartSession,
       apiRef,
       optsRef,
       formatValidateFileError,
@@ -348,37 +398,32 @@ export function useFileUpload(
   );
 
   const cancel = useCallback(() => {
-    const opts = optsRef.current;
-    const api = opts.api ?? apiRef.current;
     const active = activeUploadRef.current;
+    generationRef.current += 1;
     abortRef.current?.abort();
-    if (active && api) {
-      const { resumeKey, serverKey, uploadId } = active;
-      const storeOpt = opts.uploadStore;
-      if (storeOpt != null && storeOpt !== false) {
-        void Promise.resolve(storeOpt.delete(resumeKey)).catch(() => {});
-      }
-      if (uploadId && serverKey) {
-        api.multipart
-          .abort({ route: opts.route, key: serverKey, uploadId })
-          .catch(() => {});
-      }
-    }
+    abortMultipartSession(active);
+    abortRef.current = null;
+    activeUploadRef.current = null;
+    if (active) optsRef.current.onCancel?.(active.file);
     clearToIdle();
-  }, [apiRef, optsRef, clearToIdle]);
+  }, [abortMultipartSession, optsRef, clearToIdle]);
 
   const detach = useCallback(() => {
-    const active = activeUploadRef.current;
-    if (!active) return;
-    // Signal the AbortError catch not to fire onCancel or re-reset state.
+    if (!activeUploadRef.current) return;
     detachingRef.current = true;
+    generationRef.current += 1;
     abortRef.current?.abort();
+    abortRef.current = null;
+    activeUploadRef.current = null;
     clearToIdle();
   }, [clearToIdle]);
 
   const reset = useCallback(() => {
     resettingRef.current = true;
+    generationRef.current += 1;
     abortRef.current?.abort();
+    abortRef.current = null;
+    activeUploadRef.current = null;
     clearToIdle();
   }, [clearToIdle]);
 

@@ -52,4 +52,14 @@ describe("uploadFiles", () => {
     expect(results[1]?.status).toBe("error");
     expect(results[1]?.error?.message).toBe("boom");
   });
+
+  it("rethrows AbortError so the caller can treat the batch as cancelled", async () => {
+    vi.mocked(uploadFile).mockRejectedValueOnce(
+      Object.assign(new Error("aborted"), { name: "AbortError" }),
+    );
+
+    await expect(
+      uploadFiles(fakeS3Api(), [item("a")], { route: "uploads" }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
 });

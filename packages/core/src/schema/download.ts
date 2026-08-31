@@ -1,13 +1,13 @@
 import { z } from "zod";
 import {
+  objectKeySchema,
   optionalTrimmedString,
   routeNameSchema,
-  trimmedString,
 } from "./shared";
 
-/** Query string — numbers arrive as strings. */
-export const downloadQuerySchema = z.object({
+/** Query string — numbers arrive as strings. Extra keys are rejected. */
+export const downloadQuerySchema = z.strictObject({
   route: routeNameSchema,
-  key: trimmedString,
+  key: objectKeySchema,
   fileName: optionalTrimmedString,
 });

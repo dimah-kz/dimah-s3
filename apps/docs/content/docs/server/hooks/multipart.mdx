@@ -17,7 +17,11 @@ call.
     { name: "object", kind: "hook" },
     { name: "upload.guard", kind: "hook" },
     { name: "onInit", kind: "hook" },
-    { name: "sessionGuard", kind: "hook", note: "each part" },
+    {
+      name: "sessionGuard",
+      kind: "hook",
+      note: "part / list / abort / complete",
+    },
     { name: "confirmGuard", kind: "hook" },
     { name: "HeadObject", kind: "server" },
     { name: "onConfirmed", kind: "hook" },
@@ -25,7 +29,8 @@ call.
 />
 
 Abort and list are the remaining unique steps: `sessionGuard` (`action:
-"abort"` / `"list"`) → `onAbort` / `onList`.
+"abort"` / `"list"`) → `onAbort` / `onList`. Complete also runs
+`sessionGuard` (`action: "complete"`) before `confirmGuard`.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -80,9 +85,9 @@ resume. Init authorization is `upload.guard`.
 
 ## Session guard
 
-Runs before each part URL, list, and abort — an in-progress upload, not
-the start. Branch on `action` if you need different rules. Complete uses
-`upload.confirmGuard` instead.
+Runs before each part URL, list, abort, and complete — an in-progress
+upload, not the start. Branch on `action` if you need different rules.
+Complete also runs `upload.confirmGuard`.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"

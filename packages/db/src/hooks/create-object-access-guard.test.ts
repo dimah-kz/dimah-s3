@@ -91,4 +91,21 @@ describe("createObjectAccessGuard", () => {
     });
     await expect(guard(context)).resolves.toBeUndefined();
   });
+
+  it("requires a matching uploadId when asked", async () => {
+    const guard = createObjectAccessGuard({
+      db: fakeStore({
+        find: async () => sampleObject({ status: "pending", uploadId: "up-1" }),
+      }),
+      resolveScope: async () => "user:1",
+      requireStatus: "pending",
+      requireUploadId: true,
+    });
+    await expect(
+      guard({ ...context, uploadId: "up-other" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      guard({ ...context, uploadId: "up-1" }),
+    ).resolves.toBeUndefined();
+  });
 });

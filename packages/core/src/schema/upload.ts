@@ -1,13 +1,15 @@
 import { z } from "zod";
 import {
   metadataSchema,
+  objectKeySchema,
   optionalTrimmedString,
   routeNameSchema,
+  trimmedString,
 } from "./shared";
 
 export const uploadBodySchema = z.strictObject({
   route: routeNameSchema,
-  fileName: z.string().trim().min(1),
+  fileName: trimmedString,
   fileSize: z.number().int().positive(),
   contentType: optionalTrimmedString,
   metadata: metadataSchema.optional(),
@@ -15,5 +17,5 @@ export const uploadBodySchema = z.strictObject({
 
 export const confirmBodySchema = z.strictObject({
   route: routeNameSchema,
-  key: z.string().trim().min(1),
+  key: objectKeySchema,
 });

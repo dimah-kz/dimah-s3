@@ -9,4 +9,11 @@ describe("pluginPath", () => {
   ])("joins %s + %s", (id, path, expected) => {
     expect(pluginPath(id, path)).toBe(expected);
   });
+
+  it("rejects an unsafe plugin id", () => {
+    expect(() => pluginPath("..", "objects")).toThrow(/Invalid plugin id/);
+    expect(() => pluginPath("has space", "objects")).toThrow(
+      /Invalid plugin id/,
+    );
+  });
 });

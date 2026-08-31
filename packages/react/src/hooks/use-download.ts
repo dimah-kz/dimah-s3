@@ -8,7 +8,7 @@ import { createSpeedTracker } from "@/helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
 import { useLiveRef } from "@/internal-helpers";
 import { useImmerState } from "@/store/use-immer-state";
-import { hookBlockedError, toHookError } from "@/types/error";
+import { hookBlockedError, isAbortError, toHookError } from "@/types/error";
 import type { UploadProgress } from "@/types/upload";
 import type {
   DownloadPhase,
@@ -139,6 +139,8 @@ export function useDownload(
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
   const abortRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
+  const downloadKeyRef = useRef<string | null>(null);
   const resettingRef = useRef(false);
   const speedUpdaterRef = useRef(
     createThrottledSpeedUpdater(createSpeedTracker()),
@@ -214,6 +216,7 @@ export function useDownload(
       const opts = optsRef.current as UseFetchDownloadOptions;
       const api = opts.api ?? apiRef.current;
       if (!api) throw new Error(missingApiMessage("useDownload"));
+      downloadKeyRef.current = key;
 
       if (opts.beforeDownload) {
         const allowed = await opts.beforeDownload(key);
@@ -229,6 +232,10 @@ export function useDownload(
         }
       }
 
+      abortRef.current?.abort();
+      const generation = ++generationRef.current;
+      const isCurrent = () => generation === generationRef.current;
+
       patch((draft) => {
         draft.phase = "presigning";
         draft.progress = { ...INITIAL_PROGRESS };
@@ -243,6 +250,7 @@ export function useDownload(
           key,
           fileName: downloadName,
         });
+        if (!isCurrent()) return;
         patch((draft) => {
           draft.phase = "downloading";
         });
@@ -289,6 +297,7 @@ export function useDownload(
             total: contentLength,
             percent,
           });
+          if (!isCurrent()) return;
           patch((draft) => {
             draft.progress = progress;
           });
@@ -303,6 +312,7 @@ export function useDownload(
         anchor.click();
         URL.revokeObjectURL(blobUrl);
 
+        if (!isCurrent()) return;
         patch((draft) => {
           draft.phase = "success";
           draft.fileSize = blob.size;
@@ -312,9 +322,14 @@ export function useDownload(
             percent: 100,
           };
         });
-        await opts.onSuccess?.(key, name ?? fallback);
+        try {
+          await opts.onSuccess?.(key, name ?? fallback);
+        } catch (err) {
+          opts.onError?.(key, err, "success");
+        }
       } catch (err) {
-        if ((err as Error).name === "AbortError") {
+        if (!isCurrent()) return;
+        if (isAbortError(err)) {
           if (!resettingRef.current) opts.onCancel?.(key);
           resettingRef.current = false;
           replace(INITIAL_STATE);
@@ -326,7 +341,7 @@ export function useDownload(
         });
         opts.onError?.(key, err, "downloading");
       } finally {
-        abortRef.current = null;
+        if (isCurrent()) abortRef.current = null;
       }
     },
     [apiRef, optsRef, patch, replace],
@@ -344,13 +359,21 @@ export function useDownload(
   );
 
   const cancel = useCallback(() => {
+    const key = downloadKeyRef.current;
+    generationRef.current += 1;
     abortRef.current?.abort();
+    abortRef.current = null;
+    downloadKeyRef.current = null;
+    const opts = optsRef.current as UseFetchDownloadOptions;
+    if (key && opts.mode === "fetch") opts.onCancel?.(key);
     replace(INITIAL_STATE);
-  }, [replace]);
+  }, [optsRef, replace]);
 
   const reset = useCallback(() => {
     resettingRef.current = true;
+    generationRef.current += 1;
     abortRef.current?.abort();
+    abortRef.current = null;
     replace(INITIAL_STATE);
   }, [replace]);
 

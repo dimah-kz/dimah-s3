@@ -54,6 +54,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
   const optsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
   const pendingKeyRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
 
   const requestDelete = useCallback(
     (key: string) => {
@@ -69,7 +70,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
 
   const confirmDelete = useCallback(async () => {
     const key = pendingKeyRef.current;
-    if (!key) return;
+    if (!key || inFlightRef.current) return;
     const opts = optsRef.current;
     const api = opts.api ?? apiRef.current;
     if (!api)
@@ -91,6 +92,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
       }
     }
 
+    inFlightRef.current = true;
     patch((draft) => {
       draft.phase = "deleting";
       draft.error = null;
@@ -105,13 +107,19 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
         draft.error = null;
         draft.pendingKey = null;
       });
-      await opts.onSuccess?.(key);
+      try {
+        await opts.onSuccess?.(key);
+      } catch (err) {
+        opts.onError?.(key, err, "success");
+      }
     } catch (err) {
       patch((draft) => {
         draft.phase = "error";
         draft.error = toHookError(err, "Delete failed");
       });
       opts.onError?.(key, err, "deleting");
+    } finally {
+      inFlightRef.current = false;
     }
   }, [apiRef, optsRef, patch]);
 

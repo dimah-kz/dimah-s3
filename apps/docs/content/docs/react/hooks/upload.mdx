@@ -121,16 +121,16 @@ await upload(files);
 
 ## Options
 
-| Option                               | Description                                                                               |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                      |
-| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                              |
-| `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions |
-| `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                        |
-| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                              |
+| Option                               | Description                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                              |
+| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                      |
+| `accept`                             | HTML tokens (client UX only): MIME types (`image/*`, `application/pdf`) and/or extensions         |
+| `maxFileSize`                        | Bytes (client UX only — server `upload.maxFileSize` still applies)                                |
+| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                      |
 | `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`) |
-| `uploadStore`                        | Resume after refresh                                                                      |
-| `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key` for download / delete             |
+| `uploadStore`                        | Resume after refresh                                                                              |
+| `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key` for download / delete                     |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full

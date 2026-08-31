@@ -50,4 +50,35 @@ describe("useDelete", () => {
     expect(hook.current.phase).toBe("error");
     hook.unmount();
   });
+
+  it("ignores a second confirmDelete while one is in flight", async () => {
+    const api = fakeS3Api();
+    let release!: () => void;
+    vi.mocked(api.delete).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({ success: true as const, bucket: "bucket", key: "a.png" });
+        }),
+    );
+    const hook = renderHook(() => useDelete({ api, route: "uploads" }));
+    act(() => {
+      hook.current.requestDelete("a.png");
+    });
+
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = hook.current.confirmDelete();
+    });
+    await act(async () => {
+      await hook.current.confirmDelete();
+    });
+    expect(api.delete).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      release();
+      await first;
+    });
+    hook.unmount();
+  });
 });

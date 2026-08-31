@@ -181,4 +181,39 @@ describe("normalizeFeature / routes", () => {
       normalizeRoutes({ client, bucket: "bucket", routes: {} }),
     ).toThrow(/at least one route/);
   });
+
+  it("rejects overlapping keyPrefix values", () => {
+    expect(() =>
+      normalizeRoutes({
+        client,
+        bucket: "bucket",
+        routes: {
+          media: route({ keyPrefix: "media" }),
+          privateMedia: route({ keyPrefix: "media/private" }),
+        },
+      }),
+    ).toThrow(/overlapping keyPrefix/);
+  });
+
+  it("rejects the same keyPrefix on two routes", () => {
+    expect(() =>
+      normalizeRoutes({
+        client,
+        bucket: "bucket",
+        routes: {
+          a: route({ keyPrefix: "shared" }),
+          b: route({ keyPrefix: "shared" }),
+        },
+      }),
+    ).toThrow(/overlapping keyPrefix/);
+  });
+
+  it("rejects maxFileSize that is not a positive number", () => {
+    expect(() =>
+      normalizeRoute("uploads", route({ upload: { maxFileSize: 0 } }), {
+        client,
+        bucket: "bucket",
+      }),
+    ).toThrow(/maxFileSize must be a positive number/);
+  });
 });

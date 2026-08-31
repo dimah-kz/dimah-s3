@@ -5,6 +5,7 @@ import type { deleteQuerySchema } from "@/schema/delete";
 import type {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,
+  multipartCompletedPartSchema,
   multipartInitBodySchema,
   multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
@@ -55,10 +56,9 @@ export type MultipartListPartsPayload = z.infer<
   S3ApiHeaders;
 
 /** A completed multipart part reference for {@link S3Api.multipart.complete}. */
-export type MultipartCompletedPartRef = {
-  /** 1-based part number. */
-  partNumber: number;
-};
+export type MultipartCompletedPartRef = z.infer<
+  typeof multipartCompletedPartSchema
+>;
 
 /** Payload for {@link S3Api.multipart.complete}. */
 export type MultipartCompletePayload = z.infer<

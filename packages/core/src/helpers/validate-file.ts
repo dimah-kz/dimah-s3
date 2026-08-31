@@ -60,7 +60,10 @@ export function validateFile(
     };
   }
 
-  if (options.maxFileSize && file.size > options.maxFileSize) {
+  if (
+    typeof options.maxFileSize === "number" &&
+    file.size > options.maxFileSize
+  ) {
     const maxMB = (options.maxFileSize / (1024 * 1024)).toFixed(1);
     return {
       code: "FILE_TOO_LARGE",

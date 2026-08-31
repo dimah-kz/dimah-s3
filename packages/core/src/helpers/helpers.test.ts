@@ -3,9 +3,10 @@ import { buildContentDisposition } from "./build-content-disposition";
 import { buildObjectKey } from "./build-object-key";
 import { formatFileSize } from "./format-file-size";
 import { getFileExtension } from "./get-file-extension";
-import { parseFileName } from "./parse-file-name";
+import { parseFileName, resolveStoredFileName } from "./parse-file-name";
 import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
+import { normalizeObjectKey } from "./normalize-object-key";
 
 describe("sanitizeFileName", () => {
   it("replaces quotes, backslashes, newlines, and NUL", () => {
@@ -30,6 +31,13 @@ describe("buildContentDisposition / parseFileName", () => {
     expect(parseFileName(null)).toBeUndefined();
     expect(parseFileName("inline")).toBeUndefined();
   });
+
+  it("falls back to the key leaf when disposition is missing", () => {
+    expect(resolveStoredFileName(null, "uploads/uuid/a.png")).toBe("a.png");
+    expect(resolveStoredFileName('attachment; filename="x.txt"', "k")).toBe(
+      "x.txt",
+    );
+  });
 });
 
 describe("formatFileSize", () => {
@@ -40,6 +48,14 @@ describe("formatFileSize", () => {
     [1024 * 1024, "1.0 MB"],
   ])("formats %s", (bytes, expected) => {
     expect(formatFileSize(bytes)).toBe(expected);
+  });
+
+  it("guards non-finite, negative, and oversized values", () => {
+    expect(formatFileSize(-1)).toBe("0 B");
+    expect(formatFileSize(Number.NaN)).toBe("0 B");
+    expect(formatFileSize(Number.POSITIVE_INFINITY)).toBe("0 B");
+    expect(formatFileSize(1024 ** 6)).toBe("1.0 EB");
+    expect(formatFileSize(Number.MAX_VALUE).endsWith(" EB")).toBe(true);
   });
 });
 
@@ -71,6 +87,16 @@ describe("getFileExtension", () => {
     [".gitignore", ""],
   ])("%s → %s", (name, ext) => {
     expect(getFileExtension(name)).toBe(ext);
+  });
+});
+
+describe("normalizeObjectKey", () => {
+  it("strips slashes and rejects unsafe segments", () => {
+    expect(normalizeObjectKey("/a/b.png/")).toBe("a/b.png");
+    expect(normalizeObjectKey("../secret")).toBeNull();
+    expect(normalizeObjectKey("a/../b")).toBeNull();
+    expect(normalizeObjectKey("a\\b")).toBeNull();
+    expect(normalizeObjectKey("a\0b")).toBeNull();
   });
 });
 

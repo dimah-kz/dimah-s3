@@ -81,7 +81,7 @@ export const demoS3Api: DemoS3Api = {
     pendingUploadSizes.delete(key);
     forgetDemoFile(key);
     return {
-      success: true,
+      success: true as const,
       bucket: "demo",
       key,
     };

@@ -32,7 +32,11 @@ export async function headObjectAfterMultipartComplete(
     );
 
   let head = await send();
-  for (let attempt = 0; attempt < 4 && !head.ContentLength; attempt++) {
+  for (
+    let attempt = 0;
+    attempt < 4 && typeof head.ContentLength !== "number";
+    attempt++
+  ) {
     await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
     head = await send();
   }

@@ -24,5 +24,6 @@ export type {
   MultipartPartInfo,
   MultipartListPartsResponse,
   UploadConfirmResponse,
+  ConfirmedObjectResponse,
   S3Api,
 } from "./responses";

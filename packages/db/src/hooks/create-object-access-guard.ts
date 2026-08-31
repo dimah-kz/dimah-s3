@@ -15,6 +15,8 @@ export type ObjectAccessGuardContext = {
   request: Request;
   key: string;
   bucket: string;
+  /** Multipart session id — required when {@link CreateObjectAccessGuardOptions.requireUploadId} is set. */
+  uploadId?: string;
 };
 
 export type CreateObjectAccessGuardOptions = {
@@ -26,6 +28,11 @@ export type CreateObjectAccessGuardOptions = {
    * @default "active"
    */
   requireStatus?: StorageObjectStatus | "any";
+  /**
+   * Require `context.uploadId` to match the pending row's `uploadId`.
+   * Use for `upload.multipart.sessionGuard`.
+   */
+  requireUploadId?: boolean;
   /**
    * Replace the default `object.scope === scope` ownership check —
    * e.g. also allow objects whose metadata marks them public.
@@ -63,16 +70,21 @@ export function createObjectAccessGuard(
       bucket: context.bucket,
       key: context.key,
     });
-    if (!object) throw notFound();
-    const statusOk =
-      requireStatus === "any"
-        ? object.status !== "deleted"
-        : object.status === requireStatus;
-    if (!statusOk) throw notFound();
+    if (!object || object.status === "deleted") throw notFound();
 
     const allowed = options.authorize
       ? await options.authorize(object, { ...context, scope })
       : object.scope === scope;
     if (!allowed) throw forbidden();
+
+    const statusOk =
+      requireStatus === "any" ? true : object.status === requireStatus;
+    if (!statusOk) throw notFound();
+
+    if (options.requireUploadId) {
+      if (!context.uploadId || object.uploadId !== context.uploadId) {
+        throw forbidden("Upload session does not match");
+      }
+    }
   };
 }

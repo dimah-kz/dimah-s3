@@ -15,7 +15,7 @@ type HonoContext = {
  * import { s3 } from "./s3";
  *
  * const app = new Hono();
- * app.on(["GET", "POST", "DELETE"], "/api/s3/*", toHonoHandler(s3));
+ * app.on(["GET", "POST", "PUT", "PATCH", "DELETE"], "/api/s3/*", toHonoHandler(s3));
  * ```
  */
 export function toHonoHandler(s3: DimahS3HandlerSource) {

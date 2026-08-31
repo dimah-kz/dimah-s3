@@ -68,7 +68,7 @@ describe("db plugin", () => {
     expect(res.status).toBe(200);
     expect(listByScope).toHaveBeenCalledWith({
       scope: "user:1",
-      status: undefined,
+      status: "active",
       limit: 50,
       offset: undefined,
     });

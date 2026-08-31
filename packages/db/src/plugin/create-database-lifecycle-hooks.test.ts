@@ -138,7 +138,11 @@ describe("createDatabaseLifecycleHooks", () => {
       bucket: "b",
       uploadId: "up-1",
     });
-    expect(store.deletePending).toHaveBeenCalledWith({ bucket: "b", key: "k" });
+    expect(store.deletePending).toHaveBeenCalledWith({
+      bucket: "b",
+      key: "k",
+      uploadId: "up-1",
+    });
   });
 
   it("tracks multipart init with uploadId", async () => {
@@ -195,5 +199,81 @@ describe("createDatabaseLifecycleHooks", () => {
     await expect(
       hooks.upload?.confirmGuard?.({ request, route, key: "k", bucket: "b" }),
     ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+  });
+
+  it("rejects confirm of an already-active object", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ status: "active" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await expect(
+      hooks.upload?.confirmGuard?.({ request, route, key: "k", bucket: "b" }),
+    ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+  });
+
+  it("rejects a multipart session with the wrong uploadId", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ status: "pending", uploadId: "up-1" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await expect(
+      hooks.upload?.multipart?.sessionGuard?.({
+        request,
+        route,
+        key: "k",
+        bucket: "b",
+        uploadId: "up-other",
+        action: "abort",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("allows a matching multipart session", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ status: "pending", uploadId: "up-1" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await expect(
+      hooks.upload?.multipart?.sessionGuard?.({
+        request,
+        route,
+        key: "k",
+        bucket: "b",
+        uploadId: "up-1",
+        action: "complete",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("lets another scope reuse a soft-deleted key", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ status: "deleted", scope: "user:2" }),
+    });
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+    });
+
+    await expect(
+      hooks.upload?.guard?.({
+        request,
+        route,
+        key: "k",
+        bucket: "b",
+        file: { name: "a.txt" },
+      }),
+    ).resolves.toBeUndefined();
   });
 });

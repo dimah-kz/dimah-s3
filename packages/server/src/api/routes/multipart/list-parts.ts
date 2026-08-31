@@ -33,11 +33,16 @@ async function handleListParts(
 
   const listed = await listAllParts(route.client, { bucket, key, uploadId });
 
-  const parts = listed.map((p) => ({
-    partNumber: p.PartNumber ?? 0,
-    size: p.Size ?? 0,
-    eTag: (p.ETag ?? "").replace(/"/g, ""),
-  }));
+  const parts = listed.flatMap((p) => {
+    if (p.PartNumber == null || p.PartNumber < 1) return [];
+    return [
+      {
+        partNumber: p.PartNumber,
+        size: p.Size ?? 0,
+        eTag: (p.ETag ?? "").replace(/"/g, ""),
+      },
+    ];
+  });
 
   await runLifecycleHook(route.upload.multipart.onList, {
     ...stored,

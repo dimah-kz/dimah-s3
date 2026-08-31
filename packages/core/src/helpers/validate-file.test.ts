@@ -55,6 +55,12 @@ describe("validateFile", () => {
     expect(err?.params).toHaveProperty("size");
   });
 
+  it("treats maxFileSize 0 as a hard cap", () => {
+    expect(
+      validateFile(file("a.txt", "text/plain"), { maxFileSize: 0 })?.code,
+    ).toBe("FILE_TOO_LARGE");
+  });
+
   it("skips type checks when accept is empty", () => {
     expect(
       validateFile(file("a.bin", "application/octet-stream"), {}),

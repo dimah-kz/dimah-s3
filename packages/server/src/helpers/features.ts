@@ -124,6 +124,18 @@ export function normalizeRoute(
     ? { ...upload, multipart }
     : { enabled: false, multipart: { enabled: false } };
 
+  if (resolvedUpload.enabled) {
+    const maxFileSize = resolvedUpload.maxFileSize;
+    if (
+      maxFileSize != null &&
+      (!Number.isFinite(maxFileSize) || maxFileSize <= 0)
+    ) {
+      throw new Error(
+        `dimahS3 route "${name}": maxFileSize must be a positive number.`,
+      );
+    }
+  }
+
   return {
     name,
     client,
@@ -148,5 +160,31 @@ export function normalizeRoutes(
   for (const [name, route] of entries) {
     routes[name] = normalizeRoute(name, route, config);
   }
+  assertDistinctKeyPrefixes(routes);
   return routes;
+}
+
+function prefixesOverlap(a: string, b: string): boolean {
+  return a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+}
+
+/** Nested or identical `keyPrefix` values would let one route access another's keys. */
+function assertDistinctKeyPrefixes(
+  routes: Record<string, ResolvedRoute>,
+): void {
+  const named = Object.entries(routes).filter(
+    (entry): entry is [string, ResolvedRoute & { keyPrefix: string }] =>
+      entry[1].keyPrefix !== false,
+  );
+  for (let i = 0; i < named.length; i++) {
+    for (let j = i + 1; j < named.length; j++) {
+      const [nameA, routeA] = named[i];
+      const [nameB, routeB] = named[j];
+      if (prefixesOverlap(routeA.keyPrefix, routeB.keyPrefix)) {
+        throw new Error(
+          `dimahS3: routes "${nameA}" and "${nameB}" have overlapping keyPrefix values ("${routeA.keyPrefix}" and "${routeB.keyPrefix}").`,
+        );
+      }
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import type { InferFumaDB } from "fumadb";
 import type { DimahS3DB } from "@/fuma-db";
+import { conflict, notFound } from "@/errors";
 import type {
   StorageObject,
   StorageObjectStatus,
@@ -42,8 +43,7 @@ export type MarkActiveInput = ObjectRef & {
 export type ListByScopeInput = {
   scope: string;
   /**
-   * Filter by exact status. When omitted, soft-deleted rows are excluded
-   * and pending + active rows are returned.
+   * Filter by exact status. When omitted, only `active` rows are returned.
    */
   status?: StorageObjectStatus;
   limit?: number;
@@ -101,7 +101,7 @@ export function toPendingMultipartResume(
 export type StorageObjectStore = {
   /** Insert or reset a row to `pending` (presign / multipart init). */
   upsertPending: (input: UpsertPendingInput) => Promise<void>;
-  /** Promote a row to `active` with verified fields (confirm / complete). */
+  /** Promote a pending row to `active` with verified fields (confirm / complete). */
   markActive: (input: MarkActiveInput) => Promise<void>;
   /** Load one row by `bucket` + `key` (any status). */
   find: (ref: ObjectRef) => Promise<StorageObject | null>;
@@ -116,7 +116,7 @@ export type StorageObjectStore = {
   ) => Promise<StorageObject | null>;
   /**
    * List rows for a scope (pass `scope` explicitly — admin routes, jobs, etc.).
-   * Skips `deleted` by default. Server-side listing; browser apps use
+   * Defaults to `active`. Server-side listing; browser apps use
    * `api.db.listObjects` instead (scope from `resolveScope`, no HTTP from server code).
    */
   listByScope: (input: ListByScopeInput) => Promise<StorageObject[]>;
@@ -139,8 +139,8 @@ export type StorageObjectStore = {
    * `"hard"`, or by admin jobs to prune soft-deleted audit rows.
    */
   hardDelete: (ref: ObjectRef) => Promise<void>;
-  /** Remove a `pending` row (multipart abort path). */
-  deletePending: (ref: ObjectRef) => Promise<void>;
+  /** Remove a `pending` row (multipart abort path). Optional `uploadId` must match. */
+  deletePending: (ref: ObjectRef & { uploadId?: string }) => Promise<void>;
   /** Pending rows past `expiresAt`, or with no TTL and `createdAt` before `olderThan`. */
   findStalePending: (input: { olderThan: Date }) => Promise<StorageObject[]>;
   /** Delete rows by ID (used by the purge job after `findStalePending`). */
@@ -190,13 +190,20 @@ export function createStorageObjectStore(
     },
 
     async markActive(input) {
+      const existing = await store.find(input);
+      if (!existing || existing.status === "deleted") {
+        throw notFound("No pending object to confirm");
+      }
+      if (existing.status !== "pending") {
+        throw conflict("Object is not pending confirmation");
+      }
       const now = new Date();
       await orm.updateMany("storageObject", {
         where: (b) =>
           b.and(
             b("bucket", "=", input.bucket),
             b("key", "=", input.key),
-            b("status", "!=", "deleted"),
+            b("status", "=", "pending"),
           ),
         set: {
           status: "active",
@@ -255,14 +262,10 @@ export function createStorageObjectStore(
     },
 
     async listByScope(input) {
+      const status = input.status ?? "active";
       const rows = await orm.findMany("storageObject", {
         where: (b) =>
-          b.and(
-            b("scope", "=", input.scope),
-            input.status
-              ? b("status", "=", input.status)
-              : b("status", "!=", "deleted"),
-          ),
+          b.and(b("scope", "=", input.scope), b("status", "=", status)),
         orderBy: ["createdAt", "desc"],
         limit: input.limit,
         offset: input.offset,
@@ -283,13 +286,9 @@ export function createStorageObjectStore(
       return { totalBytes, objectCount: rows.length };
     },
 
-    async countByScope(scope, status) {
+    async countByScope(scope, status = "active") {
       return orm.count("storageObject", {
-        where: (b) =>
-          b.and(
-            b("scope", "=", scope),
-            status ? b("status", "=", status) : b("status", "!=", "deleted"),
-          ),
+        where: (b) => b.and(b("scope", "=", scope), b("status", "=", status)),
       });
     },
 
@@ -311,12 +310,21 @@ export function createStorageObjectStore(
 
     async deletePending(ref) {
       await orm.deleteMany("storageObject", {
-        where: (b) =>
-          b.and(
+        where: (b) => {
+          if (ref.uploadId != null) {
+            return b.and(
+              b("bucket", "=", ref.bucket),
+              b("key", "=", ref.key),
+              b("status", "=", "pending"),
+              b("uploadId", "=", ref.uploadId),
+            );
+          }
+          return b.and(
             b("bucket", "=", ref.bucket),
             b("key", "=", ref.key),
             b("status", "=", "pending"),
-          ),
+          );
+        },
       });
     },
 

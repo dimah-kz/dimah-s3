@@ -1,3 +1,7 @@
+export {
+  abortMultipartBestEffort,
+  deleteObjectBestEffort,
+} from "./best-effort";
 export { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
 export { resolveObjectAcl } from "./resolve-object-acl";
 export { normalizeExpiresIn } from "./expires";

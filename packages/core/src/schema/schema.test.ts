@@ -9,7 +9,13 @@ import {
   multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
 } from "./multipart";
-import { optionalTrimmedString, trimmedString } from "./shared";
+import {
+  metadataSchema,
+  objectKeySchema,
+  optionalTrimmedString,
+  partNumberSchema,
+  trimmedString,
+} from "./shared";
 import { confirmBodySchema, uploadBodySchema } from "./upload";
 
 const uploadBody = {
@@ -135,6 +141,16 @@ describe("downloadQuerySchema", () => {
       downloadQuerySchema.parse({ route: "uploads", key: "a.png" }),
     ).toMatchObject({ route: "uploads", key: "a.png" });
   });
+
+  it("rejects unknown query keys", () => {
+    expect(
+      downloadQuerySchema.safeParse({
+        route: "uploads",
+        key: "a.png",
+        bucket: "other",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("deleteQuerySchema", () => {
@@ -169,6 +185,15 @@ describe("multipart schemas", () => {
         key: "a.png",
         uploadId: "u",
         partNumber: 1,
+      }).success,
+    ).toBe(false);
+    expect(
+      multipartSignPartBodySchema.safeParse({
+        route: "uploads",
+        key: "a.png",
+        uploadId: "u",
+        partNumber: 10_001,
+        partSize: 8,
       }).success,
     ).toBe(false);
     expect(
@@ -212,5 +237,33 @@ describe("multipart schemas", () => {
         key: "a.png",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("objectKeySchema", () => {
+  it("normalizes slashes and rejects parent segments", () => {
+    expect(objectKeySchema.parse("/uploads/a.png/")).toBe("uploads/a.png");
+    expect(objectKeySchema.safeParse("../secret").success).toBe(false);
+    expect(objectKeySchema.safeParse("a/../b").success).toBe(false);
+  });
+});
+
+describe("metadataSchema", () => {
+  it("accepts http-header-safe keys", () => {
+    expect(metadataSchema.parse({ source: "web" })).toEqual({ source: "web" });
+  });
+
+  it("rejects empty keys and oversized maps", () => {
+    expect(metadataSchema.safeParse({ "": "x" }).success).toBe(false);
+    expect(metadataSchema.safeParse({ "has space": "x" }).success).toBe(false);
+  });
+});
+
+describe("partNumberSchema", () => {
+  it("allows 1 through 10000", () => {
+    expect(partNumberSchema.parse(1)).toBe(1);
+    expect(partNumberSchema.parse(10_000)).toBe(10_000);
+    expect(partNumberSchema.safeParse(0).success).toBe(false);
+    expect(partNumberSchema.safeParse(10_001).success).toBe(false);
   });
 });

@@ -1,12 +1,12 @@
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   confirmBodySchema,
-  parseFileName,
+  resolveStoredFileName,
   S3_API_ROUTES,
   type UploadConfirmResponse,
 } from "@dimah-s3/core";
 import {
   assertVerifiedConstraints,
+  deleteObjectBestEffort,
   headObjectOrNotFound,
   openStoredTarget,
   requireContentLength,
@@ -16,18 +16,6 @@ import {
 } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
-
-async function deleteBestEffort(
-  bucket: string,
-  key: string,
-  client: ResolvedDimahS3Config["routes"][string]["client"],
-) {
-  try {
-    await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-  } catch {
-    // Best-effort cleanup after a failed constraint check.
-  }
-}
 
 async function handleConfirm(
   config: ResolvedDimahS3Config,
@@ -45,7 +33,7 @@ async function handleConfirm(
 
   const head = await headObjectOrNotFound(route.client, bucket, key);
   const contentLength = requireContentLength(head);
-  const fileName = parseFileName(head.ContentDisposition);
+  const fileName = resolveStoredFileName(head.ContentDisposition, key);
 
   try {
     assertVerifiedConstraints(route.upload, {
@@ -54,7 +42,7 @@ async function handleConfirm(
       contentLength,
     });
   } catch (err) {
-    await deleteBestEffort(bucket, key, route.client);
+    await deleteObjectBestEffort(route.client, bucket, key);
     throw err;
   }
 

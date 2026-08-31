@@ -1,19 +1,19 @@
 import {
-  AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
-  DeleteObjectCommand,
   type CompleteMultipartUploadCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
   multipartCompleteBodySchema,
-  parseFileName,
+  resolveStoredFileName,
   S3_API_ROUTES,
   type MultipartCompleteResponse,
 } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import {
+  abortMultipartBestEffort,
   assertVerifiedConstraints,
   assertWithinMaxFileSize,
+  deleteObjectBestEffort,
   headObjectAfterMultipartComplete,
   listAllParts,
   openStoredTarget,
@@ -43,6 +43,11 @@ async function handleComplete(
   ].sort((a, b) => a - b);
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
+  await runHook(route.upload.multipart.sessionGuard, {
+    ...stored,
+    uploadId,
+    action: "complete",
+  });
   await runHook(route.upload.confirmGuard, {
     ...stored,
     uploadId,
@@ -68,17 +73,7 @@ async function handleComplete(
   try {
     assertWithinMaxFileSize(route.upload.maxFileSize, assembledBytes);
   } catch (err) {
-    try {
-      await route.client.send(
-        new AbortMultipartUploadCommand({
-          Bucket: bucket,
-          Key: key,
-          UploadId: uploadId,
-        }),
-      );
-    } catch {
-      // Best-effort cleanup before the object is assembled.
-    }
+    await abortMultipartBestEffort(route.client, bucket, key, uploadId);
     throw err;
   }
 
@@ -101,7 +96,7 @@ async function handleComplete(
   );
   const contentLength = requireContentLength(head);
   const contentType = head.ContentType;
-  const fileName = parseFileName(head.ContentDisposition);
+  const fileName = resolveStoredFileName(head.ContentDisposition, key);
 
   try {
     assertVerifiedConstraints(route.upload, {
@@ -110,13 +105,7 @@ async function handleComplete(
       contentLength,
     });
   } catch (err) {
-    try {
-      await route.client.send(
-        new DeleteObjectCommand({ Bucket: bucket, Key: key }),
-      );
-    } catch {
-      // Best-effort cleanup.
-    }
+    await deleteObjectBestEffort(route.client, bucket, key);
     throw err;
   }
 

@@ -22,6 +22,11 @@ export function sendXhrUpload(options: SendXhrUploadOptions): Promise<void> {
   } = options;
 
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Upload aborted", "AbortError"));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
 
     const onAbort = () => {

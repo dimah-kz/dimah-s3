@@ -42,13 +42,14 @@ export type ResolvedFeature<T extends object> =
   EnabledFeature<T> | DisabledFeature;
 
 /**
- * Multipart-only hooks. Init and complete share `upload.guard` /
- * `upload.confirmGuard` / `upload.onConfirmed`.
+ * Multipart-only hooks. Init shares `upload.guard` / `onInit`. Complete
+ * runs `sessionGuard` (`action: "complete"`) then `upload.confirmGuard` /
+ * `upload.onConfirmed`.
  */
 export type MultipartConfig = {
   /** After `CreateMultipartUpload` — persist `uploadId` for resume. */
   onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
-  /** Authorize part, list, and abort. Branch on `action` if needed. */
+  /** Authorize part, list, abort, and complete. Branch on `action` if needed. */
   sessionGuard?: (
     context: MultipartSessionGuardContext,
   ) => Promise<void> | void;

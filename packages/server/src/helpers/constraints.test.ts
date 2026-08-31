@@ -23,6 +23,17 @@ describe("assertWithinMaxFileSize", () => {
       });
     }
   });
+
+  it("treats maxFileSize 0 as a hard cap", () => {
+    try {
+      assertWithinMaxFileSize(0, 1);
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toMatchObject({
+        code: S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code,
+      });
+    }
+  });
 });
 
 describe("assertDeclaredConstraints", () => {

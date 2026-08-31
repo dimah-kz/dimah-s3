@@ -10,7 +10,7 @@ export function assertWithinMaxFileSize(
   maxFileSize: number | undefined,
   size: number,
 ): void {
-  if (maxFileSize && size > maxFileSize) {
+  if (typeof maxFileSize === "number" && size > maxFileSize) {
     throw errors.payloadTooLarge();
   }
 }

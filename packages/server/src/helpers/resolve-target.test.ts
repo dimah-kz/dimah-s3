@@ -155,6 +155,21 @@ describe("resolveUploadTarget", () => {
     ).resolves.toMatchObject({ key: "uploads/stable.png" });
   });
 
+  it("rejects object.key equal to the route prefix", async () => {
+    await expect(
+      resolveUploadTarget(
+        route({
+          upload: {
+            enabled: true,
+            multipart: { enabled: false },
+            object: () => ({ key: "uploads" }),
+          },
+        }),
+        ctx(),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_KEY" });
+  });
+
   it("lets object override the route ACL", async () => {
     await expect(
       resolveUploadTarget(
@@ -179,7 +194,10 @@ describe("resolveUploadTarget", () => {
       "11111111-1111-1111-1111-111111111111",
     );
     await expect(
-      resolveUploadTarget(route({ keyPrefix: false }), ctx({ keyPrefix: false })),
+      resolveUploadTarget(
+        route({ keyPrefix: false }),
+        ctx({ keyPrefix: false }),
+      ),
     ).resolves.toMatchObject({
       key: "11111111-1111-1111-1111-111111111111/a.png",
     });
@@ -256,6 +274,10 @@ describe("assertStoredKey / resolveStoredTarget", () => {
   it("rejects a key outside the route prefix", () => {
     expect(() => assertStoredKey("avatars/a.png", "uploads")).toThrow();
     expect(() => resolveStoredTarget(route(), "avatars/a.png")).toThrow();
+  });
+
+  it("rejects a key that is the prefix itself", () => {
+    expect(() => assertStoredKey("uploads", "uploads")).toThrow();
   });
 
   it("allows any safe key when keyPrefix is false", () => {

@@ -43,7 +43,7 @@ export function toUploadError(err: unknown, phase?: UploadPhase): DimahS3Error {
     return err;
   }
 
-  if ((err as { name?: string })?.name === "AbortError") {
+  if (isAbortError(err)) {
     throw err;
   }
 
@@ -61,6 +61,18 @@ export function toHookError(
   if (isDimahS3Error(err)) return err;
   const message = err instanceof Error ? err.message : fallback;
   return new DimahS3Error("BAD_REQUEST", { message });
+}
+
+export function isAbortError(err: unknown): boolean {
+  return (
+    (typeof DOMException !== "undefined" &&
+      err instanceof DOMException &&
+      err.name === "AbortError") ||
+    (err instanceof Error && err.name === "AbortError") ||
+    (typeof err === "object" &&
+      err !== null &&
+      (err as { name?: string }).name === "AbortError")
+  );
 }
 
 /** Client-side block from a `before*` hook (`false` return). */

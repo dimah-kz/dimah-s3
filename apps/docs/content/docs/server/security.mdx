@@ -21,7 +21,7 @@ The client sends a **route name**, plus `fileName` / `fileSize` /
 | Field                          | Default                              | How to scope it                                                                                      |
 | ------------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `route`                        | required                             | Must match a name in `routes` (`UNKNOWN_ROUTE` otherwise)                                            |
-| `key` (upload / init)          | **not sent** — server generates it   | `upload.object` (`prefix` / `key`) nested under `keyPrefix` (default `{route}/{uuid}/{name}`)        |
+| `key` (upload / init)          | **not sent** — server generates it   | `upload.object` (`folder` / `key`) nested under `keyPrefix` (default `{route}/{uuid}/{name}`)        |
 | `key` (confirm / later)        | stored key from the presign response | Must stay under route `keyPrefix`; then `guard` / db — `object` is not re-run                        |
 | `bucket` / `acl` / `expiresIn` | never accepted from the client       | Route `bucket` / `upload.acl` / `upload.expiresIn` / `download.expiresIn`                            |
 | `fileSize` / `contentType`     | required on upload / init            | Also enforce `fileTypes` / `maxFileSize`; trust HeadObject                                           |
@@ -33,8 +33,9 @@ The server generates keys on upload and multipart init. Confirm, download,
 and delete reuse the stored key — they do not re-run `object`. Follow-up
 keys must stay under the route **`keyPrefix`** (default: the route name) or
 the request fails with `INVALID_KEY`. That stops `uploads` from targeting
-`avatars/…` on the same bucket. `keyPrefix: false` turns the follow-up
-check off and generates `{uuid}/{name}` (no route folder).
+`avatars/…` on the same bucket. Nested prefixes (`media` vs
+`media/private`) are rejected at init. `keyPrefix: false` turns the
+follow-up check off and generates `{uuid}/{name}` (no route folder).
 
 - Default key is `{keyPrefix}/{uuid}/{sanitize(fileName)}`.
 - `object` returns `{ folder?, key?, metadata?, acl? }` on upload / init

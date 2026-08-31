@@ -45,7 +45,7 @@ async function handleSignPart(
 
   const maxFileSize = route.upload.maxFileSize;
   assertWithinMaxFileSize(maxFileSize, partSize);
-  if (maxFileSize) {
+  if (typeof maxFileSize === "number") {
     const listed = await listAllParts(route.client, { bucket, key, uploadId });
     assertWithinMaxFileSize(
       maxFileSize,

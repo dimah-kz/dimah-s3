@@ -51,7 +51,7 @@ export function createDatabaseLifecycleHooks(
       bucket: context.bucket,
       key: context.key,
     });
-    if (existing && existing.scope !== scope) {
+    if (existing && existing.status !== "deleted" && existing.scope !== scope) {
       throw forbidden("Key belongs to another scope");
     }
   }
@@ -102,15 +102,26 @@ export function createDatabaseLifecycleHooks(
     });
   }
 
-  const ownedObjectGuard = createObjectAccessGuard({
+  const pendingObjectGuard = createObjectAccessGuard({
     db: objects,
     resolveScope: options.resolveScope,
-    requireStatus: "any",
+    requireStatus: "pending",
+  });
+  const multipartSessionGuard = createObjectAccessGuard({
+    db: objects,
+    resolveScope: options.resolveScope,
+    requireStatus: "pending",
+    requireUploadId: true,
   });
   const activeObjectGuard = createObjectAccessGuard({
     db: objects,
     resolveScope: options.resolveScope,
     requireStatus: "active",
+  });
+  const ownedObjectGuard = createObjectAccessGuard({
+    db: objects,
+    resolveScope: options.resolveScope,
+    requireStatus: "any",
   });
 
   return {
@@ -119,15 +130,16 @@ export function createDatabaseLifecycleHooks(
       upload: {
         guard: guardKeyOwnership,
         onPresigned: trackPending,
-        confirmGuard: ownedObjectGuard,
+        confirmGuard: pendingObjectGuard,
         onConfirmed: trackConfirmed,
         multipart: {
           onInit: trackPending,
-          sessionGuard: ownedObjectGuard,
+          sessionGuard: multipartSessionGuard,
           onAbort: async (context) => {
             await objects.deletePending({
               bucket: context.bucket,
               key: context.key,
+              uploadId: context.uploadId,
             });
           },
         },

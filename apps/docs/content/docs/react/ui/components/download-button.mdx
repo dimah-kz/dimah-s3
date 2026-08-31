@@ -45,11 +45,7 @@ npx shadcn@latest add @dimah-s3/download-button
 ## Usage
 
 ```tsx
-<DownloadButton
-  route="uploads"
-  objectKey={storedKey}
-  variant="ghost"
-/>
+<DownloadButton route="uploads" objectKey={storedKey} variant="ghost" />
 ```
 
 `objectKey` is the stored S3 key (`result.key` from upload). The prop is not

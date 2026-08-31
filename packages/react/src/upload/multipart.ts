@@ -37,8 +37,7 @@ export async function uploadMultipart(
   onMultipartInit?: (uploadId: string, key: string) => void,
 ): Promise<UploadResult> {
   const rawContentType = requestOptions?.contentType ?? file.type;
-  const contentType =
-    rawContentType.trim() === "" ? undefined : rawContentType;
+  const contentType = rawContentType.trim() === "" ? undefined : rawContentType;
   const fileName = requestOptions?.fileName || file.name;
   const resumeKey = multipartResumeKey(route, file);
 

@@ -5,7 +5,7 @@ import type {
   UploadRequestOptions,
 } from "@/types";
 import type { DimahS3Error, S3Api } from "@dimah-s3/core";
-import { toHookError } from "@/types/error";
+import { toHookError, isAbortError } from "@/types/error";
 import { DEFAULT_CONCURRENT_FILES } from "./constants";
 import { uploadFile } from "./upload-file";
 
@@ -93,11 +93,7 @@ export async function uploadFiles(
         callbacks.onFileSuccess?.(item.id, result);
         reportTotalProgress();
       } catch (err) {
-        if ((err as Error).name === "AbortError") {
-          item.status = "error";
-          item.error = toHookError(err, "Upload cancelled");
-          return;
-        }
+        if (isAbortError(err)) throw err;
         const error = toHookError(err, "Upload failed");
         item.status = "error";
         item.error = error;

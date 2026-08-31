@@ -35,21 +35,21 @@ const pending = await s3.db.objects.findPendingMultipart({
 });
 ```
 
-| Method                 | Purpose                                       |
-| ---------------------- | --------------------------------------------- |
-| `listByScope`          | List for a scope — skips `deleted` by default |
-| `countByScope`         | Count with the same filters as `listByScope`  |
-| `getScopeUsage`        | Total bytes and count — quota checks          |
-| `find`                 | One row by `bucket` + `key` (any status)      |
-| `findActive`           | One row — only `active`                       |
-| `findPendingMultipart` | Multipart resume lookup                       |
+| Method                 | Purpose                                      |
+| ---------------------- | -------------------------------------------- |
+| `listByScope`          | List for a scope — `active` by default       |
+| `countByScope`         | Count with the same filters as `listByScope` |
+| `getScopeUsage`        | Total bytes and count — quota checks         |
+| `find`                 | One row by `bucket` + `key` (any status)     |
+| `findActive`           | One row — only `active`                      |
+| `findPendingMultipart` | Multipart resume lookup                      |
 
 To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
 [delete behavior](/docs/db/setup#delete-behavior).
 
-`GET /db/objects` (browser `listObjects`) defaults to `limit: 50` and
-rejects anything above `100`. Pass `limit` on `listByScope` yourself for
-server listings.
+`GET /db/objects` (browser `listObjects`) defaults to `status: active` and
+`limit: 50`, and rejects a `limit` above `100`. Pass `limit` on
+`listByScope` yourself for server listings.
 
 ## Browser
 

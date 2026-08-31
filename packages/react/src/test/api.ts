@@ -41,7 +41,7 @@ export function fakeS3Api(
       expiresIn: 600,
     })),
     delete: vi.fn(async (payload) => ({
-      success: true,
+      success: true as const,
       bucket,
       key: payload.key,
     })),

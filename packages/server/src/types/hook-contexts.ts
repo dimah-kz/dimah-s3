@@ -171,8 +171,8 @@ export type MultipartOnInitContext = UploadGuardContext & {
 
 /**
  * Context for `upload.multipart.sessionGuard`.
- * Runs on part, list, and abort (init uses `upload.guard`; complete uses
- * `upload.confirmGuard`).
+ * Runs on part, list, abort, and complete (init uses `upload.guard`).
+ * Complete also runs `upload.confirmGuard`.
  */
 export type MultipartSessionGuardContext =
   | (MultipartUploadContext & {
@@ -183,7 +183,8 @@ export type MultipartSessionGuardContext =
       partSize: number;
     })
   | (MultipartUploadContext & { action: "list" })
-  | (MultipartUploadContext & { action: "abort" });
+  | (MultipartUploadContext & { action: "abort" })
+  | (MultipartUploadContext & { action: "complete" });
 
 /** Context for `upload.multipart.onAbort`. */
 export type MultipartOnAbortContext = MultipartUploadContext;

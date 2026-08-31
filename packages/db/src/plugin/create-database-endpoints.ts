@@ -43,7 +43,7 @@ export function createDatabaseEndpoints(options: {
         const [rows, usage] = await Promise.all([
           options.objects.listByScope({
             scope,
-            status,
+            status: status ?? "active",
             limit,
             offset,
           }),

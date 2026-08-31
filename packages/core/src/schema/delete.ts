@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { routeNameSchema, trimmedString } from "./shared";
+import { objectKeySchema, routeNameSchema } from "./shared";
 
-export const deleteQuerySchema = z.object({
+export const deleteQuerySchema = z.strictObject({
   route: routeNameSchema,
-  key: trimmedString,
+  key: objectKeySchema,
 });
