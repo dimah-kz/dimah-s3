@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/react",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Headless React hooks for presigned S3 file uploads, downloads, and deletes",
   "keywords": [
     "s3",
