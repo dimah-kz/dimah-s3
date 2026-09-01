@@ -25,9 +25,13 @@ export function AvatarUploader() {
     >
       <input {...upload.getInputProps()} />
       {upload.isUploading ? (
-        <p className="text-sm font-medium">Uploading: {upload.progress.percent}%</p>
+        <p className="text-sm font-medium">
+          Uploading: {upload.progress.percent}%
+        </p>
       ) : (
-        <p className="text-sm text-muted-foreground">Click or drop avatar here</p>
+        <p className="text-sm text-muted-foreground">
+          Click or drop avatar here
+        </p>
       )}
     </div>
   );
