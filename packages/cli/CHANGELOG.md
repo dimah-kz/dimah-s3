@@ -1,3 +1,11 @@
+## @dimah-s3/cli@1.2.1
+
+### Align create templates with 1.2.0
+
+`dimah-s3 create` starters now require `@dimah-s3/*` 1.2.0. Call `useUpload`
+in the page and pass the return into `UploadButton` — the control no longer
+takes `route`.
+
 ## @dimah-s3/cli@1.2.0
 
 ### Call the hook, pass the return
