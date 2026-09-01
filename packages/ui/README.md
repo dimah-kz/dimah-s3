@@ -30,15 +30,17 @@ Colors default to your shadcn theme (`--primary`, `--muted`, …). Override
 ## Quick start
 
 ```tsx
-import { createS3Client } from "@dimah-s3/react";
-import { UploadButton, UploadDropzone } from "@dimah-s3/ui";
+import { createS3Client, useUpload } from "@dimah-s3/react";
+import { UploadDropzone } from "@dimah-s3/ui";
 
 export const s3Client = createS3Client();
 
 export function UploadDemo() {
+  const upload = useUpload({ route: "uploads" });
+
   return (
     <s3Client.Provider>
-      <UploadDropzone route="uploads" />
+      <UploadDropzone upload={upload} />
     </s3Client.Provider>
   );
 }
