@@ -1,12 +1,11 @@
 ---
 title: Upload Button
-description: File picker button for single- or multi-file uploads with inline status.
+description: File picker button for single- or multi-file uploads with inline status and toast support.
 ---
 
 import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
-`UploadButton` opens the native file picker. Create the uploader with
-[`useUpload`](/docs/react/hooks/upload) and pass it as `upload`.
+`UploadButton` connects directly to a `useUpload` hook and triggers the native OS file picker.
 
 ## Preview
 
@@ -14,8 +13,7 @@ import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
   <UploadButtonDemo />
 </DemoPreview>
 
-Progress and errors render as
-[`Attachment`](/docs/react/ui/components/attachment) rows.
+---
 
 ## Install
 
@@ -41,6 +39,8 @@ npx shadcn@latest add @dimah-s3/upload-button
 
 </Tabs>
 
+---
+
 ## Usage
 
 ```tsx
@@ -49,35 +49,16 @@ npx shadcn@latest add @dimah-s3/upload-button
 import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
-export function Uploader() {
+export function AvatarUploader() {
   const upload = useUpload({
-    route: "uploads",
-    maxFiles: 5,
+    route: "avatar",
   });
 
-  return <UploadButton upload={upload} />;
+  return <UploadButton upload={upload} label="Choose Avatar" />;
 }
 ```
 
-Control the status row with `status`:
-
-| Value                 | Behavior                    |
-| --------------------- | --------------------------- |
-| `true` (default)      | Render below the button     |
-| `false`               | Hide status                 |
-| `(node) => ReactNode` | Wrap or relocate the status |
-
-Toasts are independent via the `toast` prop. Relocate status with
-[`UploadStatus`](/docs/react/ui/components/upload-dropzone) (`upload` is
-the same instance) or build your own rows — see
-[Custom UI](/docs/react/ui/customization/custom-ui).
-
-<Callout type="warn">
-  Omit `accept` / `maxFileSize` so the hook fills them from
-  [`api.catalog()`](/docs/server/routes). The server still enforces
-  `upload.fileTypes` / `upload.maxFileSize`. Explicit hook values override the
-  catalog for client UX only.
-</Callout>
+---
 
 ## Props
 
@@ -85,3 +66,31 @@ the same instance) or build your own rows — see
   path="packages/ui/src/components/dimah-s3/upload/upload-button.tsx"
   name="UploadButtonProps"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I disable the inline attachment status list?">
+
+Pass `status={false}`:
+
+```tsx
+<UploadButton upload={upload} status={false} />
+```
+
+</Accordion>
+
+<Accordion title="How do I enable toast notifications on completion?">
+
+Pass `toast={true}` (make sure `<Toaster />` is mounted near your app root):
+
+```tsx
+<UploadButton upload={upload} toast={true} />
+```
+
+</Accordion>
+
+</Accordions>

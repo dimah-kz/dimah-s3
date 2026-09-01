@@ -1,22 +1,11 @@
 ---
 title: Global Guard
-description: Request-level policy that runs before every operation.
+description: Request-level policy hook executing before all operations and plugin endpoints.
 ---
 
-`guard` lives on `dimahS3()`. It
-runs first on every request, including plugin endpoints. There is no
-`enabled` flag.
+`guard` is defined on `dimahS3()` and executes on every incoming request prior to route resolution or plugin execution.
 
-Use it for the caller: session, auth, tenancy, whether the request is
-allowed at all. It only sees `{ request }` — the route name is not
-available yet (lookup happens next). Per-object rules belong on the
-feature hooks — those receive `key` and `bucket`.
-
-If some routes are public and others need a session, put auth on
-`route.guard` (or the feature `guard`) instead of the instance `guard`.
-
-Throw to reject. A plain `Error` becomes `403`. Use `APIError` or
-[`errors`](/docs/server/errors) for other codes.
+Use it for system-wide checks like user authentication, IP filtering, or tenant context.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -32,15 +21,65 @@ export const s3 = dimahS3({
     if (!session) throw errors.unauthorized();
   },
   routes: {
-    uploads: route({ upload: true }),
+    avatar: route({
+      upload: {
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
   },
 });
 ```
+
+---
+
+## Guard context
+
+The global guard receives the raw `request` object. Route name and target key are resolved later in the lifecycle.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="GuardContext"
 />
 
-Plugin `guard` hooks still run first. See [hook
-order](/docs/server/plugins#hook-order).
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="When should I use route.guard instead of global guard?">
+
+If your application has public routes (e.g. public media upload) and protected routes (e.g. private invoices), leave the global `guard` empty and apply `guard` on specific routes:
+
+```ts
+export const s3 = dimahS3({
+  routes: {
+    publicMedia: route({
+      upload: true,
+    }),
+    avatar: route({
+      guard: requireUserSession,
+      upload: true,
+    }),
+  },
+});
+```
+
+</Accordion>
+
+<Accordion title="How do I attach custom headers from client requests?">
+
+On the client, pass headers in `createS3Client`:
+
+```ts
+export const s3Client = createS3Client({
+  headers: async () => ({
+    Authorization: `Bearer ${await getToken()}`,
+  }),
+});
+```
+
+</Accordion>
+
+</Accordions>

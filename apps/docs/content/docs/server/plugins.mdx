@@ -41,7 +41,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   plugins: [audit],
   routes: {
-    uploads: route({ upload: true }),
+    avatar: route({ upload: true }),
   },
 });
 
@@ -120,7 +120,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   plugins: [db({ client: dimahS3Db, resolveScope })],
   routes: {
-    uploads: route({
+    avatar: route({
       upload: {
         guard: chainHooks(quotaGuard, rateLimitGuard),
       },

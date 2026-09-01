@@ -106,6 +106,16 @@ export const demoS3Api: DemoS3Api = {
 
   catalog: async () => ({
     routes: {
+      avatar: {
+        upload: {
+          enabled: true as const,
+          fileTypes: ["image/*"],
+          maxFileSize: 2 * 1024 * 1024,
+          multipart: false,
+        },
+        download: { enabled: true as const },
+        delete: { enabled: true as const },
+      },
       uploads: {
         upload: {
           enabled: true as const,

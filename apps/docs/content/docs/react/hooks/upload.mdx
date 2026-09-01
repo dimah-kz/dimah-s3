@@ -1,67 +1,42 @@
 ---
-title: Upload
-description: Headless hook for single- and multi-file uploads.
+title: useUpload
+description: Headless React hook for single and multi-file S3 uploads with progress and retries.
 ---
 
-Pick a file (or drop one), send it to S3, track progress.
-
-[Upload Button](/docs/react/ui/components/upload-button) and
-[Upload Dropzone](/docs/react/ui/components/upload-dropzone) take the
-same `useUpload` return as `upload`.
-
-`accept` and `maxFileSize` are client-side UX. When omitted, the hook fills
-them from [`api.catalog()`](/docs/server/routes) (`GET /routes`). The
-server still enforces [`upload.fileTypes` / `upload.maxFileSize`](/docs/server/routes).
-Prefer omitting them so the catalog is the single source of truth.
-
-`accept` is the HTML list: MIME types (`image/*`, `application/pdf`) and/or
-extensions (`.pdf`). The native picker uses it as the `accept` attribute;
-dropzone and `validateFile` share the same tokens.
-
-`maxFiles` defaults to `1`. Pass a larger number for a multi-file batch.
-State is always `files[]` (`file` is `files[0]`).
-
-## useUpload
+`useUpload` manages the entire client-side upload lifecycle: file selection, validation, presigned URL requests, progress tracking, and confirmation.
 
 ```tsx
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
 
-export function Uploader() {
+export function AvatarUploader() {
   const upload = useUpload({
-    route: "uploads",
+    route: "avatar",
+    onSuccess: (results) => {
+      console.log("Uploaded key:", results[0]?.key);
+    },
   });
 
   return (
-    <div {...upload.getRootProps()}>
+    <div
+      {...upload.getRootProps()}
+      className="border p-4 rounded text-center cursor-pointer"
+    >
       <input {...upload.getInputProps()} />
       {upload.isUploading
-        ? `${upload.progress.percent}%`
-        : "Drop a file or click to upload"}
+        ? `Uploading: ${upload.progress.percent}%`
+        : "Drop an avatar image or click to choose"}
     </div>
   );
 }
 ```
 
-Built on [react-dropzone](https://react-dropzone.js.org/) (already included
-by `@dimah-s3/react`). Spread `getRootProps` / `getInputProps` on a wrapper
-and a hidden file input.
+---
 
-`isUploading` is `true` while bytes are moving (`phase === "uploading"`).
-`isPending` is `true` for the whole in-flight window (`validating`,
-`presigning`, `uploading`, `finalizing`) — use it to disable the dropzone
-or picker.
+## Multi-file uploads
 
-For a picker button instead of a dropzone, use
-[Upload Button](/docs/react/ui/components/upload-button) — or pass
-`noDrag` / `noClick` / `noKeyboard` and call `open()`. `UploadButton` does
-not need those flags; it never binds `getRootProps`.
-
-`isDragActive` / `isDragReject` style the drop target. To map `phase` onto
-status rows, see [Custom UI](/docs/react/ui/customization/custom-ui).
-
-## Several files
+Set `maxFiles` to allow multiple file selections:
 
 ```tsx
 "use client";
@@ -71,10 +46,11 @@ import { UploadDropzone } from "@dimah-s3/ui";
 
 export function GalleryUploader() {
   const upload = useUpload({
-    route: "uploads",
+    route: "gallery",
     maxFiles: 5,
     onSuccess: (results) => {
-      saveKeys(results.map((r) => r.key));
+      const keys = results.map((r) => r.key);
+      saveGalleryKeys(keys);
     },
   });
 
@@ -82,49 +58,97 @@ export function GalleryUploader() {
 }
 ```
 
-The server generates each object key. After success, each `files[]` entry
-has `result` (`key`, `contentLength`, …). Persist `result.key`. Enable
-download or delete on that **same** route when the UI needs them
-([combining features](/docs/server/routes#combining-features)).
+---
 
-`multipart` splits **one** large file into parts. It is not multi-file
-upload. To resume after a refresh, pass an
-[upload store](/docs/react/upload-store).
+## Uploading files programmatically
 
-## Without a picker
-
-Skip dropzone chrome when you already have a `File`:
+If you already have a `File` object (e.g. from canvas, paste, or custom inputs):
 
 ```tsx
-import { useUpload } from "@dimah-s3/react";
+const upload = useUpload({ route: "avatar" });
 
-const upload = useUpload({
-  route: "uploads",
-});
-
-await upload.handleFiles(file);
+await upload.handleFiles(file); // accepts File, File[], or FileList
 ```
 
-`handleFiles` also accepts `File[]` and `FileList`.
+---
 
-## Options
+## Options reference
 
-| Option                               | Description                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                              |
-| `maxFiles`                           | Max files per selection. @default 1                                                               |
-| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                      |
-| `accept`                             | HTML tokens. Filled from `api.catalog()` when omitted                                             |
-| `maxFileSize`                        | Bytes. Filled from `api.catalog()` when omitted — server `upload.maxFileSize` still applies       |
-| `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`) |
-| `checksum`                           | Send SHA-256 on presign. Filled from `api.catalog()` when the route sets `upload.checksum`        |
-| `uploadStore`                        | Resume after refresh                                                                              |
-| `onSuccess`                          | `(results: UploadResult[]) => void` — persist each `key`                                          |
-| `onFileSuccess`                      | `(file, result) => void` — per file, includes the `File`                                          |
+| Option          | Default | Description                                                                   |
+| --------------- | ------- | ----------------------------------------------------------------------------- |
+| `route`         | —       | Required. Named server route (`dimahS3({ routes })`)                          |
+| `maxFiles`      | `1`     | Maximum number of files per upload batch                                      |
+| `accept`        | Auto    | HTML accept filter (automatically populated from route catalog)               |
+| `maxFileSize`   | Auto    | Maximum file size in bytes (automatically populated from route catalog)       |
+| `onSuccess`     | —       | Callback when all files finish uploading: `(results: UploadResult[]) => void` |
+| `onFileSuccess` | —       | Callback per file: `(file: File, result: UploadResult) => void`               |
+| `onError`       | —       | Error callback with typed `APIError`                                          |
+| `checksum`      | Auto    | Enable SHA-256 client hashing before upload                                   |
+| `uploadStore`   | —       | Optional store to persist in-progress uploads across reloads                  |
 
-Hook `error` is a `APIError` (or `null`). Format with
-`useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
-types: `UseUploadOptions`, `UseUploadReturn`.
+---
 
-Low-level `uploadFile` / `uploadFiles` also export from
-`@dimah-s3/react/engine`.
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I display a local image preview before uploading?">
+
+Use the `files` array from `upload` to generate object URLs for preview:
+
+```tsx
+export function AvatarWithPreview() {
+  const upload = useUpload({ route: "avatar" });
+  const activeFile = upload.files[0]?.file;
+  const previewUrl = activeFile ? URL.createObjectURL(activeFile) : null;
+
+  return (
+    <div>
+      <div {...upload.getRootProps()}>
+        <input {...upload.getInputProps()} />
+        {previewUrl ? (
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="size-20 rounded-full"
+          />
+        ) : (
+          <button type="button">Select avatar</button>
+        )}
+      </div>
+      {upload.isUploading && <span>{upload.progress.percent}%</span>}
+    </div>
+  );
+}
+```
+
+</Accordion>
+
+<Accordion title="How do I trigger the file picker from a custom button?">
+
+Call `upload.open()` to open the native OS file picker programmatically:
+
+```tsx
+<button type="button" onClick={() => upload.open()}>
+  Change Avatar
+</button>
+```
+
+</Accordion>
+
+<Accordion title="How do I pass custom metadata along with the upload?">
+
+Use `uploadOptions` or `getUploadOptions`:
+
+```tsx
+const upload = useUpload({
+  route: "avatar",
+  uploadOptions: {
+    metadata: { source: "web-profile" },
+  },
+});
+```
+
+</Accordion>
+
+</Accordions>

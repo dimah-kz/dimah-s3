@@ -47,8 +47,8 @@ export const api = createS3Client({
 });
 
 await api.upload({
-  route: "uploads",
-  fileName: "a.png",
+  route: "avatar",
+  fileName: "avatar.png",
   contentType: "image/png",
   fileSize: 1024,
 });

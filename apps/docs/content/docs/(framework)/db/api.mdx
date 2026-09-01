@@ -10,12 +10,12 @@ checks, and jobs:
 
 ```ts
 const scope = "user:123";
-const ref = { bucket: "my-bucket", key: "uploads/photo.jpg" };
+const ref = { bucket: "my-bucket", key: "avatar/photo.jpg" };
 
 const objects = await s3.db.objects.listByScope({
   scope,
   status: "active",
-  route: "uploads",
+  route: "avatar",
   limit: 50,
   cursor: previous.nextCursor ?? undefined,
 });
@@ -87,7 +87,7 @@ export function Files() {
   const load = useCallback(
     async (cursor?: string) => {
       const page = await api.db.listObjects({
-        route: "uploads",
+        route: "avatar",
         ...(cursor ? { cursor } : {}),
       });
       setObjects((prev) =>

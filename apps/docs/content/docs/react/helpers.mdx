@@ -93,7 +93,7 @@ import {
 
 sanitizeFileName('file"name.pdf'); // file_name.pdf
 parseFileName(res.headers.get("content-disposition")); // "report.pdf" | undefined
-fileNameFromKey("uploads/uuid/photo.jpg"); // "photo.jpg"
+fileNameFromKey("avatar/uuid/photo.jpg"); // "photo.jpg"
 ```
 
 ## API errors
@@ -107,7 +107,7 @@ import { isAPIError, useFormatDimahError } from "@dimah-s3/react";
 const formatError = useFormatDimahError();
 
 try {
-  await api.download({ route: "uploads", key });
+  await api.download({ route: "avatar", key });
 } catch (err) {
   if (isAPIError(err)) toast.error(formatError(err));
 }

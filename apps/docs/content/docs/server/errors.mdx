@@ -1,61 +1,88 @@
 ---
 title: Errors
-description: Stable codes, the errors helper, and how to detect APIError.
+description: Stable error codes, error helpers, and APIError handling.
 icon: CircleAlert
 ---
 
-Failed requests return JSON `{ message, code?, params? }` and an HTTP status.
-Throw with the `errors` helper so the `code` stays in the catalog.
+All failed requests return JSON `{ message, code?, params? }` and standard HTTP status codes.
+
+Use the `errors` helper to throw standard library errors:
 
 ```ts
 import { APIError, errors, isAPIError, isS3ErrorCode } from "@dimah-s3/server";
 
+// Standard helpers
+throw errors.unauthorized();
 throw errors.forbidden();
 throw errors.objectNotFound();
 throw errors.payloadTooLarge();
 throw errors.featureDisabled("download");
-throw errors.unknownRoute("avatars");
+throw errors.unknownRoute("avatar");
 throw errors.fileTypeNotAllowed("application/zip");
 
+// Custom APIError
 throw new APIError("BAD_REQUEST", {
-  message: "Not allowed.",
+  message: "Invalid file payload.",
 });
+```
 
+Catch and inspect errors:
+
+```ts
 if (isAPIError(err)) {
-  // err.status, err.statusCode, err.code, err.message
+  console.log(err.status, err.statusCode, err.code, err.message);
 }
 
 if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
-  // ...
+  // Handle missing object specifically
 }
 ```
 
-`APIError` is better-call's class (same as better-auth). Detect it with
-`isAPIError` or `isS3ErrorCode`. The catalog is `S3_ERROR_CODES` in
-`@dimah-s3/core` — re-exported from `@dimah-s3/server`, and also on
-`s3.$ERROR_CODES`. On the client, `useFormatDimahError` maps each `code` to a
-localized string.
+---
 
-## Catalog
+## Error catalog
 
-| `code`                   | HTTP | When                                                                                                 |
-| ------------------------ | ---- | ---------------------------------------------------------------------------------------------------- |
-| `NOT_FOUND`              | 404  | Unknown HTTP path (empty better-call 404 rewritten to JSON)                                          |
-| `UNKNOWN_ROUTE`          | 404  | `route` is not in `dimahS3({ routes })` (`params.route`)                                             |
-| `FEATURE_DISABLED`       | 404  | That operation is off on the named route (`params.feature`)                                          |
-| `OBJECT_NOT_FOUND`       | 404  | Missing object or multipart upload                                                                   |
-| `UNAUTHORIZED`           | 401  | Helper for your auth hooks                                                                           |
-| `FORBIDDEN`              | 403  | Guard rejection (`errors.forbidden()` / a plain `Error` in a guard)                                  |
-| `CONFLICT`               | 409  | Helper for your hooks                                                                                |
-| `PAYLOAD_TOO_LARGE`      | 413  | Oversize vs route `maxFileSize` (presign, part, complete, HeadObject), or `errors.payloadTooLarge()` |
-| `FILE_TYPE_NOT_ALLOWED`  | 400  | Declared or HeadObject type not in route `fileTypes`                                                 |
-| `VALIDATION_ERROR`       | 400  | Zod / request shape                                                                                  |
-| `INVALID_KEY`            | 400  | Unsafe object key, or a follow-up key outside the route `keyPrefix`                                  |
-| `MULTIPART_PART_MISSING` | 400  | Complete referenced a part S3 does not have (`params.partNumber`)                                    |
-| `S3_NETWORK_ERROR`       | 502  | Unreachable S3 endpoint (`params.code`)                                                              |
-| `INTERNAL_ERROR`         | 500  | Unexpected throw; failed `on*` hook                                                                  |
+| `code`                   | HTTP | Trigger                                                                        |
+| ------------------------ | ---- | ------------------------------------------------------------------------------ |
+| `NOT_FOUND`              | 404  | Unknown API path                                                               |
+| `UNKNOWN_ROUTE`          | 404  | Target `route` is not registered on the server (`params.route`)                |
+| `FEATURE_DISABLED`       | 404  | Target operation (`upload`, `download`, `delete`) is not enabled on this route |
+| `OBJECT_NOT_FOUND`       | 404  | Object key or multipart upload does not exist                                  |
+| `UNAUTHORIZED`           | 401  | Thrown by your auth guards (`errors.unauthorized()`)                           |
+| `FORBIDDEN`              | 403  | Guard rejection or generic unhandled `Error` inside guards                     |
+| `CONFLICT`               | 409  | Resource conflict in lifecycle hooks                                           |
+| `PAYLOAD_TOO_LARGE`      | 413  | File size exceeds route `maxFileSize` (at presign, part upload, or HeadObject) |
+| `FILE_TYPE_NOT_ALLOWED`  | 400  | File type not allowed by route `fileTypes`                                     |
+| `VALIDATION_ERROR`       | 400  | Invalid payload shape or malformed checksum                                    |
+| `INVALID_KEY`            | 400  | Unsafe key or key outside route `keyPrefix`                                    |
+| `MULTIPART_PART_MISSING` | 400  | Complete payload references missing part numbers                               |
+| `S3_NETWORK_ERROR`       | 502  | S3 storage service unreachable                                                 |
+| `INTERNAL_ERROR`         | 500  | Unhandled server exception or failed `on*` hook                                |
 
-Disabled features stay registered and return `FEATURE_DISABLED`, not an empty 404.
+---
 
-A plain `Error` in a guard is **403**. The same throw in an `on*` hook is
-**500**. See [Security](/docs/server/security#hook-throws).
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I display friendly error messages on the client?">
+
+Use `useFormatDimahError` from `@dimah-s3/react` to map error codes to localized user-facing strings:
+
+```tsx
+import { isAPIError, useFormatDimahError } from "@dimah-s3/react";
+
+const formatError = useFormatDimahError();
+
+try {
+  await download(key);
+} catch (err) {
+  if (isAPIError(err)) {
+    toast.error(formatError(err));
+  }
+}
+```
+
+</Accordion>
+
+</Accordions>

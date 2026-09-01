@@ -1,28 +1,30 @@
 ---
 title: Quickstart
-description: A working S3 upload — new app or existing project.
+description: A working S3 upload in minutes — new app or existing project.
 icon: Rocket
 ---
 
-Create a new app with the CLI, or follow the steps below if you already have
-a project. When you are done, picking a file sends it straight to your
-bucket.
-
 ## Create a new project
+
+Scaffold a full-stack project with preconfigured S3 routes and UI:
 
 ```npm
 npx @dimah-s3/cli@latest create
 ```
 
+---
+
 ## Manual installation
 
-### Install [step]
+### 1. Install dependencies [step]
 
 ```npm
 npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3
 ```
 
-### Server config and route [step]
+### 2. Configure S3 and routes [step]
+
+Define your AWS S3 client and instance. In this example, we create an `avatar` route for user profile photos:
 
 ```dotenv title=".env"
 S3_ENDPOINT="https://your-endpoint.example.com"
@@ -49,22 +51,17 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    uploads: route({
+    avatar: route({
       upload: {
-        fileTypes: ["image/*", "application/pdf"],
-        maxFileSize: 10 * 1024 * 1024,
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024, // 2MB
       },
     }),
   },
 });
 ```
 
-Any S3-compatible provider works — details in [Providers](/docs/providers).
-
-<Callout title="Cloudflare R2">
-  Set `upload: { method: "PUT" }`. R2 does not accept Presigned POST. See
-  [Cloudflare R2](/docs/providers/cloudflare-r2).
-</Callout>
+### 3. Mount the route handler [step]
 
 <Tabs items={["Next.js", "Vite", "Express", "Hono", "SvelteKit"]}>
 
@@ -81,9 +78,6 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 
 <Tab value="Vite">
 
-Mount the handler on your Node/Hono API (the Vite starter uses
-`@hono/node-server`). Register PUT and PATCH as well as GET/POST/DELETE.
-
 ```ts title="server/index.ts"
 import { Hono } from "hono";
 import { toHonoHandler } from "@dimah-s3/server/hono";
@@ -97,15 +91,9 @@ app.on(
 );
 ```
 
-Point the browser client at that origin with
-`createS3Client({ baseURL: "http://127.0.0.1:8787/api/s3" })` when the UI and
-API are on different ports.
-
 </Tab>
 
 <Tab value="Express">
-
-Mount before `express.json()` so the body is not consumed early.
 
 ```ts title="server.ts"
 import express from "express";
@@ -113,7 +101,7 @@ import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
-app.all("/api/s3/*", toExpressHandler(s3)); // Express 5: "/api/s3/*splat"
+app.all("/api/s3/*", toExpressHandler(s3));
 app.use(express.json());
 ```
 
@@ -154,9 +142,7 @@ export const DELETE = handler;
 
 </Tabs>
 
-Other runtimes: [Server setup](/docs/server/setup).
-
-### Client [step]
+### 4. Create the client client & provider [step]
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -164,15 +150,10 @@ Other runtimes: [Server setup](/docs/server/setup).
 import { createS3Client } from "@dimah-s3/react";
 
 export const s3Client = createS3Client();
-
-/** Next.js App Router: named Client Component export (not `<s3Client.Provider>`). */
 export const S3Provider = s3Client.Provider;
 ```
 
-### UI [step]
-
-Optional [shadcn](https://ui.shadcn.com) controls. Same one-time work as
-[UI setup](/docs/react/ui).
+### 5. Wrap your application [step]
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -214,9 +195,6 @@ export default function RootLayout({
 npx shadcn@latest add @dimah-s3/upload-button
 ```
 
-If you never install `@dimah-s3/ui`, add the
-[color bridge](/docs/react/ui/customization/theming#registry-only).
-
 ```tsx title="app/layout.tsx"
 import { Toaster } from "@/components/ui/toast";
 import { S3Provider } from "@/lib/s3-client";
@@ -241,10 +219,7 @@ export default function RootLayout({
 
 </Tabs>
 
-### One upload button [step]
-
-Import `UploadButton` from `@dimah-s3/ui`, or from
-`@/components/dimah-s3/upload/upload-button` after a registry install.
+### 6. Add an upload button [step]
 
 ```tsx title="app/page.tsx"
 "use client";
@@ -252,16 +227,129 @@ Import `UploadButton` from `@dimah-s3/ui`, or from
 import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
-export default function Page() {
-  const upload = useUpload({ route: "uploads" });
+export default function AvatarUploadPage() {
+  const upload = useUpload({ route: "avatar" });
+
   return <UploadButton upload={upload} />;
 }
 ```
 
-Selecting a file uploads directly to S3. The server generates the object key
-as `{route}/{uuid}/{filename}` (`uploads/…` for this route).
+Selecting an image presigns a secure URL and uploads directly to your bucket under `avatar/{uuid}/{filename}`.
 
-<Callout>
-  Deeper guides: [Server setup](/docs/server/setup), [Client
-  setup](/docs/react/setup), and [UI setup](/docs/react/ui).
-</Callout>
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I restrict uploads to authenticated users?">
+
+Add a `guard` on the route or instance. Throw `errors.unauthorized()` or `errors.forbidden()` if the session is invalid:
+
+```ts title="lib/s3.ts"
+import { errors, route } from "@dimah-s3/server";
+
+export const s3 = dimahS3({
+  // ...
+  routes: {
+    avatar: route({
+      guard: async ({ request }) => {
+        const session = await getSession(request);
+        if (!session) throw errors.unauthorized();
+      },
+      upload: {
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
+  },
+});
+```
+
+</Accordion>
+
+<Accordion title="How do I save the uploaded avatar key to my database?">
+
+Handle `onConfirmed` on the server or `onSuccess` on the client:
+
+```ts title="Server-side (recommended)"
+avatar: route({
+  upload: {
+    fileTypes: ["image/*"],
+    maxFileSize: 2 * 1024 * 1024,
+    onConfirmed: async ({ key, request }) => {
+      const session = await getSession(request);
+      await db.user.update({
+        where: { id: session.userId },
+        data: { avatarKey: key },
+      });
+    },
+  },
+});
+```
+
+```tsx title="Client-side"
+const upload = useUpload({
+  route: "avatar",
+  onSuccess: (results) => {
+    console.log("Uploaded avatar key:", results[0]?.key);
+  },
+});
+```
+
+</Accordion>
+
+<Accordion title="How do I use Cloudflare R2 instead of AWS S3?">
+
+Cloudflare R2 requires `upload: { method: "PUT" }` because it does not support presigned POST:
+
+```ts title="lib/s3.ts"
+export const s3 = dimahS3({
+  client: r2Client,
+  bucket: process.env.R2_BUCKET!,
+  routes: {
+    avatar: route({
+      upload: {
+        method: "PUT",
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
+  },
+});
+```
+
+See the [Cloudflare R2 guide](/docs/providers/cloudflare-r2) for full details.
+
+</Accordion>
+
+<Accordion title="How do I display or preview the uploaded image?">
+
+Use `useObjectUrl` to generate a temporary display URL, or construct your CDN URL if the bucket is public:
+
+```tsx title="components/avatar-preview.tsx"
+"use client";
+
+import { useObjectUrl } from "@dimah-s3/react";
+
+export function AvatarPreview({ avatarKey }: { avatarKey: string }) {
+  const { url } = useObjectUrl({
+    route: "avatar",
+    objectKey: avatarKey,
+    disposition: "inline",
+  });
+
+  if (!url) return null;
+  return (
+    <img
+      src={url}
+      alt="User avatar"
+      className="size-16 rounded-full object-cover"
+    />
+  );
+}
+```
+
+</Accordion>
+
+</Accordions>

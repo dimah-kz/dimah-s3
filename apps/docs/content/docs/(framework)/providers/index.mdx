@@ -42,7 +42,7 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    uploads: route({
+    avatar: route({
       upload: { method: "PUT" },
     }),
   },

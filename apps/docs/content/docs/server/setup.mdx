@@ -1,6 +1,6 @@
 ---
 title: Setup
-description: Install `@dimah-s3/server`, configure S3, and mount the route.
+description: Install `@dimah-s3/server`, configure S3, and mount your route handler.
 icon: Settings
 ---
 
@@ -10,18 +10,11 @@ icon: Settings
 npm i @dimah-s3/server @aws-sdk/client-s3
 ```
 
-### Config [step]
+## Configure S3 & routes
 
-Pass an AWS SDK `S3Client` as `client` (export it as `awsS3` so jobs and a
-custom backend can reuse it) and a `bucket`. Those are instance defaults —
-a route may override either. Named routes are required: see
-[Routes](/docs/server/routes). `upload` / `download` / `delete` /
-`upload.multipart` stay off until you set them — enable only the
-operations that route needs. Disabled operations return `404` with code
-`FEATURE_DISABLED`.
+Initialize `dimahS3` by passing your `@aws-sdk/client-s3` instance and defining named routes.
 
-Provider-specific wiring (POST vs PUT, ACL, path-style):
-[Providers](/docs/providers).
+Operations (`upload`, `download`, `delete`, `multipart`) are disabled by default. Enable only what each route needs.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -40,52 +33,35 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    uploads: route({
+    avatar: route({
       upload: {
-        fileTypes: ["image/*", "application/pdf"],
-        maxFileSize: 10 * 1024 * 1024,
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024, // 2MB
       },
+      download: true,
+      delete: true,
     }),
   },
 });
 ```
 
-R2 and similar providers need `upload: { method: "PUT" }` —
-see [Cloudflare R2](/docs/providers/cloudflare-r2).
+### Options reference
 
-| Option         | Default   | Role                                                           |
-| -------------- | --------- | -------------------------------------------------------------- |
-| `client`       | \*        | AWS SDK `S3Client` (`awsS3`)                                   |
-| `bucket`       | \*        | Default bucket                                                 |
-| `routes`       | required  | Named policies — [Routes](/docs/server/routes)                 |
-| `maxExpiresIn` | `604800`  | Clamp `upload.expiresIn` / `download.expiresIn` (SigV4 max)    |
-| `basePath`     | `/api/s3` | Must match `createS3Client({ basePath })`                      |
-| `logger`       | console   | Lifecycle / unmatched errors. `false` silences them            |
-| `onError`      | —         | Called after an unexpected throw is mapped to `INTERNAL_ERROR` |
-| `guard`        | —         | [Global Guard](/docs/server/hooks/global-guard)                |
-| `plugins`      | —         | e.g. [`db()`](/docs/db)                                        |
+| Option         | Default     | Description                                                                   |
+| -------------- | ----------- | ----------------------------------------------------------------------------- |
+| `client`       | —           | AWS SDK `S3Client` instance (required unless set per-route)                   |
+| `bucket`       | —           | Target bucket name (required unless set per-route)                            |
+| `routes`       | —           | Map of named route configs — see [Routes](/docs/server/routes)                |
+| `basePath`     | `"/api/s3"` | Route prefix (must match client `basePath`)                                   |
+| `guard`        | —           | Global auth/policy hook — see [Global Guard](/docs/server/hooks/global-guard) |
+| `plugins`      | —           | Optional plugins such as [`db()`](/docs/db)                                   |
+| `maxExpiresIn` | `604800`    | Maximum expiration clamp for signed URLs (7 days)                             |
+| `logger`       | `console`   | Logger instance (`false` to silence)                                          |
+| `onError`      | —           | Error callback for unhandled exceptions                                       |
 
-\* Required on the instance unless every route sets the same field.
+## Mount route handler
 
-<Callout type="warn">
-  The server owns object keys. The client sends a route name, never a key on
-  upload. Default key is `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to
-  the route name). Return `{ folder? }` or `{ key? }` from `upload.object`.
-  Follow-up keys must stay under `keyPrefix` (`false` generates `{uuid}/{name}`
-  and skips the follow-up check). Uploads are `private` unless `upload.acl` is
-  set or `object` returns one. Full rules: [Security](/docs/server/security).
-</Callout>
-
-A plain `Error` in `guard` / `*Guard` / `object` becomes **403**. The same
-throw in `onPresigned` / `onConfirmed` / `onDeleted` / other `on*` hooks
-becomes **500**. Throw `APIError` or use [`errors`](/docs/server/errors)
-when you need a specific status and `code`. Route fields:
-[Routes](/docs/server/routes).
-
-### Route handler [step]
-
-Mount at `/api/s3` by default. Adapters are subpath exports — no framework
-peer dependencies. Any Fetch runtime can call `s3.handler(request)` instead.
+Adapters are available for all major JavaScript runtimes:
 
 <Tabs items={["Next.js", "Express", "Hono", "SvelteKit", "Fastify", "Elysia", "Node", "Web"]}>
 
@@ -102,15 +78,13 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 
 <Tab value="Express">
 
-Mount **before** `express.json()` so the body is not consumed early.
-
 ```ts title="server.ts"
 import express from "express";
 import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
-app.all("/api/s3/*", toExpressHandler(s3)); // Express 5: "/api/s3/*splat"
+app.all("/api/s3/*", toExpressHandler(s3));
 app.use(express.json());
 ```
 
@@ -150,8 +124,6 @@ export const DELETE = handler;
 </Tab>
 
 <Tab value="Fastify">
-
-Register **before** JSON body parsers (or disable parsing for this path).
 
 ```ts title="server.ts"
 import Fastify from "fastify";
@@ -208,23 +180,13 @@ export default {
 };
 ```
 
-Cloudflare Workers, Bun, Remix, TanStack Start — anything that already
-gives you a `Request`.
-
 </Tab>
 
 </Tabs>
 
-Custom base path: set `basePath` on `dimahS3()` and the same value on
-`createS3Client({ basePath })`. Cross-origin apps can pass `baseURL` instead
-(absolute origin + path).
+## Server-side API (`s3.api`)
 
-### Server `api` [step]
-
-Same protocol as the browser client, without HTTP. Pass `headers` so
-`guard` still sees the request. The named route must have `download`
-enabled — the same route as upload when those keys were created there
-([combining features](/docs/server/routes#combining-features)).
+You can invoke S3 actions directly on the server without going through HTTP endpoints. Pass request `headers` so that route guards and auth hooks execute properly:
 
 ```ts title="app/actions.ts"
 "use server";
@@ -232,71 +194,77 @@ enabled — the same route as upload when those keys were created there
 import { headers } from "next/headers";
 import { s3 } from "@/lib/s3";
 
-export async function getDownloadUrl(route: string, key: string) {
+export async function getAvatarDownloadUrl(key: string) {
   return s3.api.download({
-    query: { route, key },
+    query: { route: "avatar", key },
     headers: await headers(),
   });
 }
 ```
 
-On Node / Express, convert headers with `fromNodeHeaders` from
-`@dimah-s3/server/node` (re-exported from `@dimah-s3/server/express`).
-
-`s3.api` is the better-call endpoint map (`upload`, `confirm`, `download`,
-`delete`, `multipartInit`, … plus plugin endpoints). Nested aliases exist for
-multipart: `s3.api.multipart.init` is the same as `s3.api.multipartInit`. The
-browser client (`createS3Client`) still exposes nested `S3Api`
-(`s3Client.download({ route, key })`, `s3Client.multipart.init`). Names differ in a few
-places:
-
-| Browser `S3Api`            | Server `s3.api`                              | Route constant                     |
-| -------------------------- | -------------------------------------------- | ---------------------------------- |
-| `upload`                   | `upload`                                     | `S3_API_ROUTES.upload`             |
-| `confirm`                  | `confirm`                                    | `S3_API_ROUTES.uploadConfirm`      |
-| `download({ route, key })` | `download({ query })`                        | `S3_API_ROUTES.download`           |
-| `delete({ route, key })`   | `delete({ query })`                          | `S3_API_ROUTES.delete`             |
-| `multipart.init`           | `multipart.init` / `multipartInit`           | `S3_API_ROUTES.multipartInit`      |
-| `multipart.signPart`       | `multipart.signPart` / `multipartPart`       | `S3_API_ROUTES.multipartPart`      |
-| `multipart.listParts`      | `multipart.listParts` / `multipartListParts` | `S3_API_ROUTES.multipartListParts` |
-| `multipart.complete`       | `multipart.complete` / `multipartComplete`   | `S3_API_ROUTES.multipartComplete`  |
-| `multipart.abort`          | `multipart.abort` / `multipartAbort`         | `S3_API_ROUTES.multipartAbort`     |
-
-`GET /file` streams a proxy download (`download.mode: "proxy"`). It is
-not on `S3Api` — the browser follows the URL from `download()`.
-
-`api.catalog()` / `GET /routes` lists enabled features and client
-constraints. `deleteMany` / `deleteBatch` deletes up to 100 keys.
-
-Server-side uploads that should still run `object` / `guard` /
-`onConfirmed` use `s3.put`:
+To upload files directly from the server (e.g. background jobs, image processing) while still executing route validation and `onConfirmed` hooks:
 
 ```ts
 await s3.put({
-  route: "uploads",
-  fileName: "note.txt",
-  contentType: "text/plain",
-  body: "hello",
+  route: "avatar",
+  fileName: "profile.png",
+  contentType: "image/png",
+  body: imageBuffer,
   headers: await headers(),
 });
 ```
 
-ACL on confirm / complete comes from the upload policy (`upload.acl` /
-`object`) — there is no `GetObjectAcl` round-trip.
+---
 
-Failures throw `APIError` with named `.status`
-(`"FORBIDDEN"`), numeric `.statusCode`, and `.code`. Catch with `isAPIError` /
-`isS3ErrorCode`. The instance also exposes `$ERROR_CODES`
-and `$Infer`.
+## Frequently asked questions
 
-### Next [step]
+<Accordions>
 
-Hooks: [Routes](/docs/server/routes),
-[Global Guard](/docs/server/hooks/global-guard),
-[Upload](/docs/server/hooks/upload),
-[Download](/docs/server/hooks/download),
-[Delete](/docs/server/hooks/delete),
-[Multipart](/docs/server/hooks/multipart).
-[Security](/docs/server/security) · [Errors](/docs/server/errors).
+<Accordion title="How do error handling and status codes work?">
 
-Browser client: [Client setup](/docs/react/setup).
+All handlers throw typed `APIError` objects with stable string codes and numeric HTTP status codes:
+
+- A plain `Error` thrown in `guard`, `*Guard`, or `object` maps to **403 Forbidden**.
+- A plain `Error` thrown in `onPresigned`, `onConfirmed`, or other `on*` hooks maps to **500 Internal Error**.
+- Use the `errors` helper (e.g. `throw errors.unauthorized()`) to specify exact codes.
+
+See [Errors](/docs/server/errors) for the full list of error codes.
+
+</Accordion>
+
+<Accordion title="How does key generation and prefix isolation work?">
+
+By default, dimah-s3 isolates object keys by route prefix:
+
+```
+avatar/{uuid}/{fileName}
+```
+
+All follow-up operations (confirm, download, delete) must target keys within the route's `keyPrefix`. Any request targeting a key outside its prefix is rejected with `INVALID_KEY`.
+
+To customize the folder or key structure, use `upload.object` in your route definition.
+
+</Accordion>
+
+<Accordion title="How do I change the base path or support cross-origin APIs?">
+
+Set `basePath` when initializing `dimahS3`:
+
+```ts
+export const s3 = dimahS3({
+  basePath: "/api/storage",
+  // ...
+});
+```
+
+Make sure the client specifies the same `basePath` (or full `baseURL` if hosted on a separate domain):
+
+```ts
+export const s3Client = createS3Client({
+  baseURL: "https://api.example.com/api/storage",
+});
+```
+
+</Accordion>
+
+</Accordions>

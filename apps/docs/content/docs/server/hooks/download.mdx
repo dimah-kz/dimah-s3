@@ -1,36 +1,9 @@
 ---
-title: Download
-description: Authorize before issuing a GET URL — presign or same-origin proxy.
+title: Download Hooks
+description: Authorize and sign GET download URLs or proxy streams.
 ---
 
-Enable with `download: true` or an options object on a
-[named route](/docs/server/routes). The default is a short-lived S3 GET
-URL. Set `download.mode: "proxy"` to stream bytes through `GET /file`
-instead (private buckets without CORS, or when the client must not hit
-storage directly).
-
-A download-only route is the usual shape. If these keys were created by
-an upload route, enable `download` on **that** route instead of a second
-name for the same prefix
-([combining features](/docs/server/routes#combining-features)).
-
-The stored `key` must sit under the route `keyPrefix`. That is a folder
-bound, not ownership — add `guard` or [`db()`](/docs/db) so callers cannot
-download another user's object in the same prefix.
-
-`disposition` defaults to `"attachment"`. Use `"inline"` for preview
-(`<img>`, `<video>`, `useObjectUrl`). `download.resolve` can change
-`fileName`, `disposition`, and `expiresIn` per request.
-
-<Flow
-  label="Download flow"
-  steps={[
-    { name: "resolve", kind: "hook" },
-    { name: "guard", kind: "hook" },
-    { name: "onPresigned", kind: "hook" },
-    { name: "GET object", kind: "s3" },
-  ]}
-/>
+Enable download operations with `download: true` or a configuration object on a [named route](/docs/server/routes).
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -42,13 +15,12 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    uploads: route({
+    avatar: route({
       download: {
         disposition: "inline",
         guard: async ({ key, request }) => {
-          if (!request.headers.get("authorization")) {
-            throw errors.unauthorized();
-          }
+          const session = await getSession(request);
+          if (!session) throw errors.unauthorized();
         },
       },
     }),
@@ -56,15 +28,80 @@ export const s3 = dimahS3({
 });
 ```
 
-`onPresigned` receives the same fields plus `url` and `expiresIn`
-(`0` when `mode` is `"proxy"`).
+---
+
+## Download lifecycle flow
+
+<Flow
+  label="Download flow"
+  steps={[
+    { name: "download.resolve", kind: "hook" },
+    { name: "download.guard", kind: "hook" },
+    { name: "onPresigned", kind: "hook" },
+    { name: "Fetch from S3", kind: "s3" },
+  ]}
+/>
+
+1. **`resolve`**: Optionally rewrites download `fileName`, `disposition` (`inline` vs `attachment`), or `expiresIn`.
+2. **`guard`**: Validates request permissions for the specified `key`.
+3. **`onPresigned`**: Receives the signed URL and expiration details.
+
+---
+
+## Download guard context
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="DownloadGuardContext"
 />
 
+---
+
+## Download onPresigned context
+
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="DownloadOnPresignedContext"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I change the filename on download dynamically?">
+
+Use `download.resolve` to set the downloaded file name per request:
+
+```ts
+avatar: route({
+  download: {
+    resolve: async ({ key, request }) => {
+      const user = await getUserByKey(key);
+      return {
+        fileName: `${user.username}-avatar.png`,
+        disposition: "attachment",
+      };
+    },
+  },
+});
+```
+
+</Accordion>
+
+<Accordion title="How do I stream files via same-origin proxy without direct bucket access?">
+
+Set `mode: "proxy"`. The client receives a same-origin URL (`/api/s3/file?key=...`) and your server streams the response:
+
+```ts
+avatar: route({
+  download: {
+    mode: "proxy",
+  },
+});
+```
+
+</Accordion>
+
+</Accordions>

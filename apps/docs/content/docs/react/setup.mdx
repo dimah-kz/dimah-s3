@@ -1,6 +1,6 @@
 ---
 title: Setup
-description: Connect S3Api and use your first hook.
+description: Initialize `@dimah-s3/react`, configure S3Provider, and call your first hook.
 icon: Settings
 ---
 
@@ -10,16 +10,13 @@ icon: Settings
 npm i @dimah-s3/react
 ```
 
-### API client [step]
+## 1. Create client & provider
 
-Hooks only need an `S3Api`. Use `createS3Client` from `@dimah-s3/react` with
-`@dimah-s3/server`, or `defineApi` with your own backend.
+Create the typed client instance using `createS3Client`.
 
-<Tabs items={["@dimah-s3/server", "Your own backend"]}>
+<Tabs items={["@dimah-s3/server", "Custom backend"]}>
 
 <Tab value="@dimah-s3/server">
-
-If the server is mounted at `/api/s3` ([Server setup](/docs/server/setup)):
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -27,40 +24,26 @@ If the server is mounted at `/api/s3` ([Server setup](/docs/server/setup)):
 import { createS3Client } from "@dimah-s3/react";
 
 export const s3Client = createS3Client();
-
-/** Next.js App Router: named Client Component export (not `<s3Client.Provider>`). */
 export const S3Provider = s3Client.Provider;
 ```
 
-Custom base path, absolute `baseURL`, plugins, or auth:
+To configure custom base paths, headers, or credentials:
 
 ```ts
-import { createS3Client } from "@dimah-s3/react";
-import { dbClient } from "@dimah-s3/db/client";
-
 export const s3Client = createS3Client({
-  basePath: "/api/your-path",
-  // baseURL: "https://api.example.com/api/s3",
-  plugins: [dbClient()],
+  basePath: "/api/s3",
   credentials: "include",
   headers: async () => ({
-    Authorization: `Bearer ${await getAccessToken()}`,
+    Authorization: `Bearer ${await getAuthToken()}`,
   }),
 });
 ```
 
-`basePath` must match the server. `baseURL` wins when both are set (Vite /
-Hono when the UI origin differs). Failed API calls throw `APIError`
-(`.code`, `.status` / `.statusCode`). The client also exposes `$ERROR_CODES`,
-`$fetch`, and `$Infer`. Call `s3Client.download({ route, key })` directly, or
-`s3Client.useApi()` inside React.
-
 </Tab>
 
-<Tab value="Your own backend">
+<Tab value="Custom backend">
 
-Implement `S3Api` with `defineApi` and pass it to `S3Provider`. Payload
-shapes: [Bring your own backend](/docs/react/custom-backend).
+If you are using a custom backend API instead of `@dimah-s3/server`, implement `S3Api` using `defineApi`:
 
 ```tsx title="components/s3-provider.tsx"
 "use client";
@@ -73,15 +56,17 @@ export function AppS3Provider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+See [Custom Backend](/docs/react/custom-backend) for protocol specifications.
+
 </Tab>
 
 </Tabs>
 
-### Provider [step]
+## 2. Mount S3Provider
 
-Mount once near the app root. Hooks inside can omit `api`.
+Mount `<S3Provider>` near your application root:
 
-<Tabs items={["Next.js (App Router)", "Vite / other React apps"]}>
+<Tabs items={["Next.js (App Router)", "Vite / SPA"]}>
 
 <Tab value="Next.js (App Router)">
 
@@ -103,23 +88,21 @@ export default function RootLayout({
 }
 ```
 
-App Router cannot render `<s3Client.Provider>` from a Server Component. Re-export `S3Provider` from `s3-client.ts` as in the client snippet above.
-
 </Tab>
 
-<Tab value="Vite / other React apps">
+<Tab value="Vite / SPA">
 
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { s3Client } from "./lib/s3-client";
+import { S3Provider } from "./lib/s3-client";
 import { App } from "./app";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <s3Client.Provider>
+    <S3Provider>
       <App />
-    </s3Client.Provider>
+    </S3Provider>
   </React.StrictMode>,
 );
 ```
@@ -128,43 +111,39 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 </Tabs>
 
-Strings default to English. To localize, pass `translations` on the
-provider — [Internationalization](/docs/i18n).
+## 3. Call your first hook
 
-### First hook [step]
+Use `useUpload` with a route name matching your server config:
 
-Every hook needs a **route name** that matches `dimahS3({ routes })`. The
-server generates the object key — do not pass `objectKey` on upload.
-Omit `accept` / `maxFileSize` so the hook fills them from
-[`api.catalog()`](/docs/server/routes).
-
-```tsx title="app/uploader.tsx"
+```tsx title="app/avatar-uploader.tsx"
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
 
-export function Uploader() {
+export function AvatarUploader() {
   const upload = useUpload({
-    route: "uploads",
+    route: "avatar",
   });
 
   return (
-    <div {...upload.getRootProps()}>
+    <div
+      {...upload.getRootProps()}
+      className="border p-4 rounded text-center cursor-pointer"
+    >
       <input {...upload.getInputProps()} />
       {upload.isUploading
-        ? `${upload.progress.percent}%`
-        : "Drop a file or click to upload"}
+        ? `Uploading: ${upload.progress.percent}%`
+        : "Click or drop avatar here"}
     </div>
   );
 }
 ```
 
-Need a finished button instead? [Upload Button](/docs/react/ui/components/upload-button).
+---
 
-### Typed routes [step]
+## TypeScript route inference
 
-`route` is `S3RouteName` — a `string` until you augment `DimahS3Routes`.
-Point that interface at your server instance so a typo is a type error:
+Enable autocompletion and type checking for route names across hooks and components:
 
 ```ts title="lib/s3-routes.ts"
 import type { InferS3Routes } from "@dimah-s3/core";
@@ -175,15 +154,31 @@ declare module "@dimah-s3/core" {
 }
 ```
 
-Keep this file on both the server and the client (or in a shared types
-package) so hooks and `s3.put` see the same names.
+---
 
-### Next [step]
+## Frequently asked questions
 
-Hook reference: [Upload](/docs/react/hooks/upload),
-[Download](/docs/react/hooks/download),
-[Delete](/docs/react/hooks/delete).
-List stored files with [`api.db.listObjects`](/docs/db/api) when the db
-plugin is mounted.
+<Accordions>
 
-Ready-made controls: [UI](/docs/react/ui).
+<Accordion title="How do I automatically sync file constraints from the server?">
+
+By default, hooks fetch constraints (`fileTypes`, `maxFileSize`) automatically from `GET /routes` (`api.catalog()`). You can omit `accept` and `maxFileSize` on `useUpload` so the server remains the single source of truth.
+
+</Accordion>
+
+<Accordion title="How do I pass auth tokens or cookies to the API?">
+
+Pass an async `headers` function or `credentials: "include"` in `createS3Client`:
+
+```ts
+export const s3Client = createS3Client({
+  credentials: "include",
+  headers: async () => ({
+    Authorization: `Bearer ${getStoredToken()}`,
+  }),
+});
+```
+
+</Accordion>
+
+</Accordions>

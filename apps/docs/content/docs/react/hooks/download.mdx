@@ -1,110 +1,106 @@
 ---
-title: Download
-description: Presign a GET URL — native download, fetch with progress, or preview.
+title: useDownload
+description: Presign GET URLs for direct download, inline preview, or progress tracking.
 ---
 
-Ask the API for a GET URL, then let the browser take the file. The default
-is a short-lived S3 URL. When the route sets `download.mode: "proxy"`, the
-URL is same-origin (`GET /file`) and your server streams the body.
-
-Pass the **stored** key from upload (`result.key`) — a bare filename is
-outside the route `keyPrefix` and returns `INVALID_KEY`. The route name
-must have `download` enabled. Keys from an upload live on that upload
-route — enable `download` there rather than adding a second route for the
-same prefix ([combining features](/docs/server/routes#combining-features)).
-
-[Download Button](/docs/react/ui/components/download-button) and
-[Progress Download Button](/docs/react/ui/components/progress-download-button)
-take the `useDownload` return as `download`. The stored key stays on the
-control as `objectKey`. The hook also exposes `objectKey` for the active
-operation, so a list can share one instance. Narrow fetch vs navigate with
-`download.mode` or `isFetchDownload`.
-
-| Hook                             | UI                                        |
-| -------------------------------- | ----------------------------------------- |
-| `useDownload()`                  | Download Button — native, no progress     |
-| `useDownload({ mode: "fetch" })` | Progress Download Button — fetch + cancel |
-| `useObjectUrl`                   | Preview / `<img>` — caches until expiry   |
-
-Pass `disposition: "inline"` for preview. The route default is
-`"attachment"` unless you set `download.disposition`.
-
-Hook `error` is a `APIError` (or `null`). Format it with
-`useFormatDimahError(error)` or read `error.message`.
-
-## Navigate (default)
-
-Presign, then navigate. There is no byte-level progress — only a
-presigning phase. `isPending` is `true` while `phase === "presigning"`.
+`useDownload` requests a signed GET URL from your API and manages browser navigation, fetch streams, and inline previews.
 
 ```tsx
 "use client";
 
 import { useDownload } from "@dimah-s3/react";
 
-export function DownloadFile() {
-  const { download, phase } = useDownload({ route: "uploads" });
-  // Persist `result.key` from upload — not the original filename.
-  const storedKey = "uploads/11111111-1111-1111-1111-111111111111/photo.jpg";
+export function DownloadAvatar({ avatarKey }: { avatarKey: string }) {
+  const { download, phase } = useDownload({ route: "avatar" });
 
   return (
-    <button type="button" onClick={() => void download(storedKey)}>
-      {phase === "presigning" ? "Preparing…" : "Download"}
+    <button type="button" onClick={() => void download(avatarKey)}>
+      {phase === "presigning" ? "Generating link…" : "Download Avatar"}
     </button>
   );
 }
 ```
 
-Need the URL only — preview, embed, or your own link:
+---
 
-```tsx
-const { presign } = useDownload({ route: "uploads", disposition: "inline" });
-const result = await presign(
-  "uploads/11111111-1111-1111-1111-111111111111/photo.jpg",
-);
-```
+## Preview with `useObjectUrl`
 
-## Object URL (preview)
-
-```tsx
-import { useObjectUrl } from "@dimah-s3/react";
-
-const { url } = useObjectUrl({
-  route: "uploads",
-  objectKey: storedKey,
-  disposition: "inline",
-});
-
-return url ? <img src={url} alt="" /> : null;
-```
-
-## Fetch with progress
-
-Pass `mode: "fetch"` to stream bytes in the browser so you can show progress
-and cancel. `isDownloading` is `true` while bytes are moving.
-`isPending` covers `presigning` and `downloading`.
+For inline preview in `<img>`, `<video>`, or `<iframe>`:
 
 ```tsx
 "use client";
 
-import { useDownload } from "@dimah-s3/react";
+import { useObjectUrl } from "@dimah-s3/react";
 
-export function DownloadFile() {
-  const { download, cancel, progress, phase } = useDownload({
-    route: "uploads",
-    mode: "fetch",
+export function AvatarImage({ avatarKey }: { avatarKey: string }) {
+  const { url, isLoading } = useObjectUrl({
+    route: "avatar",
+    objectKey: avatarKey,
+    disposition: "inline",
   });
-  const storedKey = "uploads/11111111-1111-1111-1111-111111111111/photo.jpg";
+
+  if (isLoading) return <div>Loading...</div>;
+  if (!url) return null;
 
   return (
-    <div>
-      <button type="button" onClick={() => void download(storedKey)}>
-        {phase === "downloading" ? `${progress.percent}%` : "Download"}
-      </button>
-      <button type="button" onClick={cancel}>
-        Cancel
-      </button>
-    </div>
+    <img
+      src={url}
+      alt="User Avatar"
+      className="size-16 rounded-full object-cover"
+    />
   );
 }
 ```
+
+---
+
+## Download modes
+
+| Mode                 | Hook Usage                                        | Description                                             |
+| -------------------- | ------------------------------------------------- | ------------------------------------------------------- |
+| `navigate` (default) | `useDownload({ route: "avatar" })`                | Fast browser navigation directly to presigned URL       |
+| `fetch`              | `useDownload({ route: "avatar", mode: "fetch" })` | Streams bytes with live progress and cancel support     |
+| `inline`             | `useObjectUrl({ route: "avatar", objectKey })`    | Fetches signed inline URL with automatic expiry caching |
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I get just the presigned URL without triggering a download?">
+
+Use the `presign` method from `useDownload`:
+
+```tsx
+const { presign } = useDownload({ route: "avatar", disposition: "inline" });
+
+const result = await presign(avatarKey);
+console.log("Signed URL:", result.url);
+```
+
+</Accordion>
+
+<Accordion title="How do I show download progress with a cancel button?">
+
+Set `mode: "fetch"`:
+
+```tsx
+const { download, cancel, progress, isDownloading } = useDownload({
+  route: "document",
+  mode: "fetch",
+});
+
+return (
+  <div>
+    <button onClick={() => download(documentKey)}>
+      {isDownloading ? `${progress.percent}%` : "Download"}
+    </button>
+    {isDownloading && <button onClick={cancel}>Cancel</button>}
+  </div>
+);
+```
+
+</Accordion>
+
+</Accordions>

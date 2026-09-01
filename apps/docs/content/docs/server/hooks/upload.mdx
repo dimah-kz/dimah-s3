@@ -1,38 +1,13 @@
 ---
-title: Upload
-description: Presign, confirm, and persist verified metadata.
+title: Upload Hooks
+description: Presign, authorize, confirm, and persist verified upload metadata.
 ---
 
-Enable on a [named route](/docs/server/routes) with `upload: true` or an
-options object. Upload is **off** until you set it. Leave download and
-delete off unless this route also serves those objects
-([one job per route](/docs/server/routes#one-job-per-route)). Default method
-is `"POST"`. Use `"PUT"` when the provider has no Presigned POST
-([Cloudflare R2](/docs/providers/cloudflare-r2)). Multipart is **off**
-until you set `upload.multipart: true`.
-
-<Flow
-  label="Upload flow"
-  steps={[
-    { name: "route.guard", kind: "hook" },
-    { name: "object", kind: "hook" },
-    { name: "upload.guard", kind: "hook" },
-    { name: "onPresigned", kind: "hook" },
-    { name: "Upload", kind: "s3" },
-    { name: "confirmGuard", kind: "hook" },
-    { name: "HeadObject", kind: "server" },
-    { name: "onConfirmed", kind: "hook" },
-  ]}
-/>
-
-Simple uploads finish with **`confirm`**. Multipart finishes with
-**`multipart.complete`** — there is no second `confirm`. Both run
-`upload.confirmGuard` then `upload.onConfirmed`. See
-[Multipart](/docs/server/hooks/multipart) and [Security](/docs/server/security).
+Enable on a [named route](/docs/server/routes) with `upload: true` or a configuration object.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, route } from "@dimah-s3/server";
+import { dimahS3, errors, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({/* env */});
 
@@ -40,12 +15,16 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    uploads: route({
+    avatar: route({
       upload: {
-        fileTypes: ["image/*", "application/pdf"],
-        maxFileSize: 10 * 1024 * 1024,
-        onConfirmed: async ({ key, contentLength }) => {
-          // persist { key, size: contentLength }
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+        guard: async ({ request }) => {
+          const session = await getSession(request);
+          if (!session) throw errors.unauthorized();
+        },
+        onConfirmed: async ({ key, contentLength, request }) => {
+          // Persist verified file metadata in database
         },
       },
     }),
@@ -53,42 +32,87 @@ export const s3 = dimahS3({
 });
 ```
 
-<Callout>
-  `fileSize` / `contentType` on presign are what the client sent. `onConfirmed`
-  sees `HeadObject` — use that for quotas and records. Route `fileTypes` /
-  `maxFileSize` are enforced at both steps. `fileTypes` is the stored MIME
-  header and filename, not a byte sniff.
-</Callout>
+---
 
-<Callout type="warn">
-  The client does not send a key on upload. The server generates `{keyPrefix}/
-  {uuid}/{name}` (`keyPrefix` defaults to the route name) unless `upload.object`
-  returns `folder` or `key` — those are nested under `keyPrefix`. Object ACL is
-  `private` unless you set `upload.acl` or return one from `object`. A plain
-  `Error` from `object` is **403**.
-</Callout>
+## Upload lifecycle flow
 
-## Guard
+<Flow
+  label="Upload lifecycle"
+  steps={[
+    { name: "route.guard", kind: "hook" },
+    { name: "object", kind: "hook" },
+    { name: "upload.guard", kind: "hook" },
+    { name: "onPresigned", kind: "hook" },
+    { name: "Upload to S3", kind: "s3" },
+    { name: "confirmGuard", kind: "hook" },
+    { name: "HeadObject", kind: "server" },
+    { name: "onConfirmed", kind: "hook" },
+  ]}
+/>
 
-Runs **after** `upload.object` assigns a key (and after instance / route
-`guard`), on single-shot presign and multipart init. Throw to reject. A
-plain `Error` becomes **403**. Put auth that must run before key generation
-on instance `guard` or `route.guard`.
+1. **`guard`**: Evaluates session and permissions before key generation.
+2. **`object`**: Computes destination folder, key, metadata, or ACL.
+3. **`onPresigned`**: Fires after the presigned URL is created.
+4. **`confirmGuard`**: Authorizes the confirmation request after bytes land in S3.
+5. **`onConfirmed`**: Reads verified metadata from `HeadObject` and persists the record.
+
+---
+
+## Guard context
+
+Runs after `upload.object` assigns the key (and after global / route guards).
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="UploadGuardContext"
 />
 
-## On confirmed
+---
 
-Runs after `HeadObject` on confirm and multipart complete. Use
-`contentLength` and verified type here — not the presign body. Multipart
-adds `uploadId`. A throw here deletes the object so you do not leave an
-orphan. After success, `previousKey` from `object` is deleted too. A throw here deletes the object so you do not leave an
-orphan. After success, `previousKey` from `object` is deleted too.
+## OnConfirmed context
+
+Runs after `HeadObject` validates the uploaded file size and content type.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="UploadOnConfirmedContext"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Why should I record file size in onConfirmed rather than presign?">
+
+Presign payloads represent client-declared values, which can be spoofed. In `onConfirmed`, the server queries S3 with `HeadObject` to obtain the actual byte length and content type.
+
+</Accordion>
+
+<Accordion title="What happens if onConfirmed throws an error?">
+
+If `onConfirmed` throws an error, dimah-s3 automatically performs a best-effort `DeleteObject` to prevent orphaned files in your S3 bucket.
+
+</Accordion>
+
+<Accordion title="How do I attach custom S3 user metadata?">
+
+Return `metadata` from `upload.object`:
+
+```ts
+avatar: route({
+  upload: {
+    object: async ({ request, file }) => ({
+      folder: "avatars",
+      metadata: {
+        originalName: file.name,
+      },
+    }),
+  },
+});
+```
+
+</Accordion>
+
+</Accordions>

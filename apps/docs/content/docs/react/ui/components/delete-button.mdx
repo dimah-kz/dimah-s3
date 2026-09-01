@@ -1,13 +1,11 @@
 ---
 title: Delete Button
-description: Delete an S3 object with a confirmation dialog and inline status.
+description: Button component to remove S3 objects with built-in confirmation dialog.
 ---
 
 import { DeleteButtonDemo } from "@/components/demos/delete-button-demo";
 
-`DeleteButton` removes an S3 object after a confirmation dialog, with inline
-status. Create the deleter with [`useDelete`](/docs/react/hooks/delete) and
-pass it as `delete`.
+`DeleteButton` removes an object from S3 after displaying a confirmation dialog.
 
 ## Preview
 
@@ -15,11 +13,7 @@ pass it as `delete`.
   <DeleteButtonDemo />
 </DemoPreview>
 
-Built on a shadcn
-[Button](https://ui.shadcn.com/docs/components/base/button) and
-[Alert Dialog](https://ui.shadcn.com/docs/components/base/alert-dialog). Status
-uses [`StatusAttachment`](/docs/react/ui/components/attachment). Wire
-`onSuccess` on the hook to keep your database in sync.
+---
 
 ## Install
 
@@ -45,6 +39,8 @@ npx shadcn@latest add @dimah-s3/delete-button
 
 </Tabs>
 
+---
+
 ## Usage
 
 ```tsx
@@ -53,30 +49,21 @@ npx shadcn@latest add @dimah-s3/delete-button
 import { useDelete } from "@dimah-s3/react";
 import { DeleteButton } from "@dimah-s3/ui";
 
-export function RemoveFile({ storedKey }: { storedKey: string }) {
+export function AvatarDeleter({ avatarKey }: { avatarKey: string }) {
   const del = useDelete({
-    route: "uploads",
-    onSuccess: () => {
-      /* sync your database */
+    route: "avatar",
+    onSuccess: (key) => {
+      console.log("Avatar removed:", key);
     },
   });
 
-  return <DeleteButton delete={del} objectKey={storedKey} />;
+  return (
+    <DeleteButton delete={del} objectKey={avatarKey} variant="destructive" />
+  );
 }
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The hook
-`route` must have `delete` enabled — the same route as upload when those
-keys were created there. The prop is not named `key` because React reserves
-that for lists.
-
-Engine options and lifecycle callbacks stay on `useDelete`. The button
-owns the target key, confirmation copy, and chrome (`toast`, `status`,
-`variant`).
-
-A list can share one `useDelete` — the hook tracks `objectKey`, so the
-dialog, spinner, status, and toasts only apply to the matching control. Call
-the hook inside the row when deletes must run in parallel.
+---
 
 ## Props
 
@@ -84,3 +71,38 @@ the hook inside the row when deletes must run in parallel.
   path="packages/ui/src/components/dimah-s3/delete/delete-button.tsx"
   name="DeleteButtonProps"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I customize the confirmation dialog text?">
+
+Use `title` and `description` props:
+
+```tsx
+<DeleteButton
+  delete={del}
+  objectKey={avatarKey}
+  title="Remove profile picture?"
+  description="This action cannot be undone. Your profile will revert to the default avatar."
+/>
+```
+
+</Accordion>
+
+<Accordion title="How do I perform deletion without the confirmation dialog?">
+
+Use the headless `useDelete` hook and call `remove(objectKey)` directly:
+
+```tsx
+const { remove } = useDelete({ route: "avatar" });
+
+<button onClick={() => remove(avatarKey)}>Quick Delete</button>;
+```
+
+</Accordion>
+
+</Accordions>

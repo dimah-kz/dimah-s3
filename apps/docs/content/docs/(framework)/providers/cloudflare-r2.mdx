@@ -1,56 +1,47 @@
 ---
 title: Cloudflare R2
-description: PUT uploads, endpoint, and CORS for Cloudflare R2.
+description: PUT uploads, endpoint configuration, and CORS for Cloudflare R2.
 ---
 
-R2 speaks enough of the S3 API to work with dimah-s3, but it is not a
-drop-in Amazon S3. Two gaps matter for uploads: no Presigned POST, and no
-object ACL.
+Cloudflare R2 is compatible with S3 APIs with two key differences: it requires Presigned `PUT` (it does not support Presigned `POST`), and it ignores object ACLs.
 
-Start from the [Quickstart](/docs/quickstart) client, then apply the
-settings below.
+## 1. Configure upload method
 
-## Upload method
-
-R2 rejects Presigned POST. Set `method: "PUT"`:
+Set `upload: { method: "PUT" }`:
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, route } from "@dimah-s3/server";
 
-export const awsS3 = new S3Client({/* env */});
+export const awsS3 = new S3Client({
+  region: "auto",
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+});
 
 export const s3 = dimahS3({
   client: awsS3,
-  bucket: process.env.S3_BUCKET!,
+  bucket: process.env.R2_BUCKET!,
   routes: {
-    uploads: route({
+    avatar: route({
       upload: {
-        method: "PUT", // R2 does not accept Presigned POST
+        method: "PUT", // Required for Cloudflare R2
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
       },
     }),
   },
 });
 ```
 
-<Callout type="warn" title="Leaving the default POST">
-  This is the most common R2 failure with dimah-s3. The presign succeeds; the
-  browser upload does not.
-</Callout>
+---
 
-## Endpoint
+## 2. Bucket CORS policy
 
-Fill the Quickstart env vars with R2 values:
-
-- `S3_REGION=auto`
-- `S3_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
-
-Create an API token with Object Read & Write in the Cloudflare dashboard.
-
-## CORS
-
-A valid presigned URL is not enough. Without a CORS policy on the bucket,
-the browser still blocks the upload:
+Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
 
 ```json
 [
@@ -64,14 +55,16 @@ the browser still blocks the upload:
 ]
 ```
 
-Headers on the real request must match what was signed. A mismatched
-`Content-Type` often shows up as a 403.
+---
 
-## Public access
+## Frequently asked questions
 
-R2 ignores object ACL. To serve files publicly, turn on bucket public
-access or attach a custom domain / `*.r2.dev` URL. Otherwise keep the
-bucket private and use presigned download.
+<Accordions>
 
-See Cloudflare's [R2 S3 API](https://developers.cloudflare.com/r2/api/s3/api/)
-for the full compatibility matrix.
+<Accordion title="How do I serve R2 files publicly?">
+
+Enable the public access toggle in the R2 bucket settings or connect a custom domain (e.g. `cdn.example.com`). Construct your image URLs directly: `https://cdn.example.com/{avatarKey}`.
+
+</Accordion>
+
+</Accordions>

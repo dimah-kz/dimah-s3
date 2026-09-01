@@ -1,21 +1,10 @@
 ---
-title: Upload store
-description: Persist multipart state to resume uploads after refresh.
+title: Upload Store
+description: Persist multipart upload state to seamlessly resume large uploads after page reload.
 icon: Database
 ---
 
-An `UploadStore` keeps `resumeKey`, `uploadId`, S3 `key`, and `fileSize` so a
-multipart upload can resume after refresh. Use it only with `multipart: true`.
-
-Prefer `createLocalStorageStore()` for same-browser resume. Use a custom
-store (for example DB-backed) for cross-device resume — see
-[DB hooks](/docs/db/hooks).
-
-[Upload Button](/docs/react/ui/components/upload-button) and
-[Upload Dropzone](/docs/react/ui/components/upload-dropzone) read resume
-from the same `useUpload` instance (`uploadStore` on the hook).
-
-## Quick setup
+An `UploadStore` persists `uploadId` and part state so in-flight multipart uploads can resume after a browser reload.
 
 ```ts title="lib/upload-store.ts"
 import { createLocalStorageStore } from "@dimah-s3/react";
@@ -23,86 +12,74 @@ import { createLocalStorageStore } from "@dimah-s3/react";
 export const localStorageStore = createLocalStorageStore();
 ```
 
-```tsx title="app/uploader.tsx"
+```tsx title="app/video-uploader.tsx"
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
 import { localStorageStore } from "@/lib/upload-store";
 
-export function Uploader() {
+export function VideoUploader() {
   const upload = useUpload({
-    route: "uploads",
+    route: "video",
     multipart: true,
     uploadStore: localStorageStore,
   });
 
   return (
-    <div {...upload.getRootProps()}>
+    <div
+      {...upload.getRootProps()}
+      className="border p-4 rounded text-center cursor-pointer"
+    >
       <input {...upload.getInputProps()} />
-      {upload.isUploading ? "Uploading…" : "Drop a file or click to upload"}
+      {upload.isUploading
+        ? `Uploading: ${upload.progress.percent}%`
+        : "Upload large video"}
     </div>
   );
 }
 ```
 
-Resume is keyed by `${route}:${file.name}:${file.size}:${file.lastModified}`.
-The same file on the same route can resume; a different file cannot.
+Resume keys are uniquely hashed by `${route}:${file.name}:${file.size}:${file.lastModified}`.
+
+---
 
 ## Built-in stores
 
-- `createLocalStorageStore()` — survives refresh and reopen
-- `createMemoryStore()` — in-memory; useful for SSR and tests
+- `createLocalStorageStore()` — persists in browser `localStorage` across page reloads.
+- `createMemoryStore()` — in-memory store for unit tests or SSR.
 
 ```ts
-import { createMemoryStore } from "@dimah-s3/react";
+import { createLocalStorageStore, createMemoryStore } from "@dimah-s3/react";
 
-const uploadStore = createMemoryStore();
+const memoryStore = createMemoryStore();
+const localStore = createLocalStorageStore();
 ```
 
-## Custom store
+---
+
+## Custom upload store interface
 
 <AutoTypeTable
   path="packages/react/src/types/upload-store.ts"
   name="UploadStore"
 />
 
-```ts
-import type { UploadStore } from "@dimah-s3/react";
+---
 
-export const uploadStore: UploadStore = {
-  async get(resumeKey, fileSize) {
-    return null;
-  },
-  async set(upload) {
-    // persist uploadId under upload.resumeKey
-  },
-  async delete(resumeKey) {
-    // cleanup after complete / abort
-  },
-};
-```
+## Frequently asked questions
 
-## DB-backed store
+<Accordions>
 
-With [`@dimah-s3/db`](/docs/db) multipart hooks, `onInit` already writes
-`uploadId` on the pending row. The client store only needs `get` —
-`set` / `delete` can be no-ops. Server half: [DB hooks](/docs/db/hooks).
+<Accordion title="Does the upload store work with the @dimah-s3/db plugin?">
 
-```ts title="lib/upload-store-db.ts"
-import type { StoredUpload, UploadStore } from "@dimah-s3/react";
+Yes. When using `@dimah-s3/db`, the server tracks pending multipart uploads in your database. You can implement a store `get` method to fetch active multipart upload IDs across devices.
 
-export const uploadStoreDb: UploadStore = {
-  async get(resumeKey, fileSize) {
-    const res = await fetch(
-      `/api/upload-store?resumeKey=${encodeURIComponent(resumeKey)}&fileSize=${fileSize}`,
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as StoredUpload | null;
-  },
-  async set() {},
-  async delete() {},
-};
-```
+</Accordion>
 
-The store recovers `uploadId`. The browser still needs the same `File`
-bytes. Skip `uploadStore` for small or one-shot uploads.
+<Accordion title="When should I enable uploadStore?">
+
+Use `uploadStore` for routes with large files (videos, archives, large datasets) where users may refresh or lose connection mid-upload. Small single-part uploads do not need a store.
+
+</Accordion>
+
+</Accordions>

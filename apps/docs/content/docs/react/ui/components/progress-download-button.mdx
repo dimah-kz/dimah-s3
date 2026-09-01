@@ -1,14 +1,11 @@
 ---
 title: Progress Download Button
-description: Fetch download with live progress and cancel.
+description: Download button with animated progress indicator and in-flight cancellation.
 ---
 
 import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
 
-`ProgressDownloadButton` downloads through fetch with a live progress fill
-and cancel support. Create the downloader with
-[`useDownload({ mode: "fetch" })`](/docs/react/hooks/download#fetch-with-progress)
-and pass it as `download`.
+`ProgressDownloadButton` streams the download in the browser via fetch, displaying real-time progress percentages with cancel capability.
 
 ## Preview
 
@@ -16,9 +13,7 @@ and pass it as `download`.
   <ProgressDownloadDemo />
 </DemoPreview>
 
-Built on a shadcn [Button](https://ui.shadcn.com/docs/components/base/button).
-On failure, a [`StatusAttachment`](/docs/react/ui/components/attachment) row
-appears below.
+---
 
 ## Install
 
@@ -44,6 +39,8 @@ npx shadcn@latest add @dimah-s3/progress-download-button
 
 </Tabs>
 
+---
+
 ## Usage
 
 ```tsx
@@ -52,24 +49,14 @@ npx shadcn@latest add @dimah-s3/progress-download-button
 import { useDownload } from "@dimah-s3/react";
 import { ProgressDownloadButton } from "@dimah-s3/ui";
 
-export function SaveFile({ storedKey }: { storedKey: string }) {
-  const download = useDownload({ route: "uploads", mode: "fetch" });
+export function DocumentDownloader({ documentKey }: { documentKey: string }) {
+  const download = useDownload({ route: "document", mode: "fetch" });
 
-  return <ProgressDownloadButton download={download} objectKey={storedKey} />;
+  return <ProgressDownloadButton download={download} objectKey={documentKey} />;
 }
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The hook
-`route` must have `download` enabled — the same route as upload when those
-keys were created there. The prop is not named `key` because React reserves
-that for lists.
-
-The `download` prop must be a fetch-mode return — TypeScript rejects a
-navigate-mode instance. Clicking while in-flight cancels.
-
-A list can share one `useDownload({ mode: "fetch" })` — progress, cancel,
-and toasts only apply to the matching `objectKey`. Call the hook inside the
-row when downloads must run in parallel.
+---
 
 ## Props
 
@@ -77,3 +64,23 @@ row when downloads must run in parallel.
   path="packages/ui/src/components/dimah-s3/download/progress-download-button.tsx"
   name="ProgressDownloadButtonProps"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How does cancellation work?">
+
+Clicking the button while an active download is in progress immediately aborts the underlying fetch stream and resets the button state.
+
+</Accordion>
+
+<Accordion title="Does this work with private buckets?">
+
+Yes. `useDownload` requests a signed URL before initiating the fetch stream, respecting any route guards or bucket policies.
+
+</Accordion>
+
+</Accordions>

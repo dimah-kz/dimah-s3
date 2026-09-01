@@ -1,12 +1,11 @@
 ---
 title: Upload Dropzone
-description: Drag-and-drop upload area for single- or multi-file uploads.
+description: Drag-and-drop surface for single- or multi-file uploads with file queue list.
 ---
 
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
-`UploadDropzone` is a drag-and-drop surface. Create the uploader with
-[`useUpload`](/docs/react/hooks/upload) and pass it as `upload`.
+`UploadDropzone` provides an accessible drag-and-drop file target bound to `useUpload`.
 
 ## Preview
 
@@ -14,11 +13,7 @@ import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
   <UploadDropzoneDemo />
 </DemoPreview>
 
-Progress and errors use [`Attachment`](/docs/react/ui/components/attachment)
-rows.
-
-Intake is [react-dropzone](https://react-dropzone.js.org/). Do not install
-it separately — `@dimah-s3/react` already includes it.
+---
 
 ## Install
 
@@ -44,44 +39,26 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 
 </Tabs>
 
-## Usage
+---
 
-Set `maxFiles` above `1` on the hook for multi-file uploads. `children`
-replace the idle chrome only; `status` works like `UploadButton`.
+## Usage
 
 ```tsx
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import { UploadDropzone, UploadStatus } from "@dimah-s3/ui";
+import { UploadDropzone } from "@dimah-s3/ui";
 
-export function Uploader() {
+export function AvatarDropzone() {
   const upload = useUpload({
-    route: "uploads",
-    maxFiles: 5,
+    route: "avatar",
   });
 
-  return (
-    <>
-      <UploadDropzone upload={upload} attachmentSize="xs" status={false}>
-        <div className="flex flex-1 items-center justify-center p-8">
-          Drop files here
-        </div>
-      </UploadDropzone>
-      <UploadStatus upload={upload} attachmentSize="xs" />
-    </>
-  );
+  return <UploadDropzone upload={upload} />;
 }
 ```
 
-To own the entire interior, set `status={false}` and render `UploadStatus`
-yourself — see [Custom UI](/docs/react/ui/customization/custom-ui).
-
-<Callout type="warn">
-  `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
-  limits in `upload.fileTypes` / `upload.maxFileSize` on the server route, or
-  omit them on the hook so [`api.catalog()`](/docs/server/routes) fills them.
-</Callout>
+---
 
 ## Props
 
@@ -89,3 +66,47 @@ yourself — see [Custom UI](/docs/react/ui/customization/custom-ui).
   path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
   name="UploadDropzoneProps"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I separate the dropzone area from the uploaded files status list?">
+
+Pass `status={false}` to `UploadDropzone` and render `UploadStatus` separately:
+
+```tsx
+import { UploadDropzone, UploadStatus } from "@dimah-s3/ui";
+
+export function CustomDropzone() {
+  const upload = useUpload({ route: "gallery", maxFiles: 5 });
+
+  return (
+    <div className="space-y-4">
+      <UploadDropzone upload={upload} status={false} />
+      <UploadStatus upload={upload} />
+    </div>
+  );
+}
+```
+
+</Accordion>
+
+<Accordion title="How do I provide custom interior placeholder content?">
+
+Pass React children to `UploadDropzone`:
+
+```tsx
+<UploadDropzone upload={upload}>
+  <div className="flex flex-col items-center justify-center p-6 text-muted-foreground">
+    <p className="text-sm font-medium">Drag avatar image here</p>
+    <p className="text-xs">PNG, JPG or WebP up to 2MB</p>
+  </div>
+</UploadDropzone>
+```
+
+</Accordion>
+
+</Accordions>

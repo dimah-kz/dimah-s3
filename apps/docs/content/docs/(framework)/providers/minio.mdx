@@ -1,43 +1,62 @@
 ---
 title: MinIO
-description: Path-style endpoint and CORS for MinIO.
+description: Self-hosted S3 storage with path-style addressing and server CORS.
 ---
 
-MinIO is a self-hosted S3-compatible server. Most of the Quickstart wiring
-is the same, but path-style addressing is required, and CORS is handled at
-the server — not as AWS-style per-bucket rules.
+MinIO is a lightweight, self-hosted S3-compatible object store.
 
-Set the shared `S3_*` env vars in [Quickstart](/docs/quickstart), then apply
-the extras below.
+## Configuration
 
-## Path style
+Set `forcePathStyle: true` on the S3Client so object URLs format as `http://host:9000/bucket/key`:
 
-Add `forcePathStyle: true` to the Quickstart `awsS3`. Without it, typical
-MinIO installs fail because object URLs must look like
-`http://host:9000/bucket/key`.
+```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+import { dimahS3, route } from "@dimah-s3/server";
 
-<Callout title="API port, not the console">
-  Point `S3_ENDPOINT` at the API (for example `http://localhost:9000`), not the
-  console UI. For local MinIO, `S3_REGION` is usually `us-east-1`.
-</Callout>
+export const awsS3 = new S3Client({
+  region: "us-east-1",
+  endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
+  forcePathStyle: true, // Required for MinIO
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || "minioadmin",
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "minioadmin",
+  },
+});
 
-## CORS
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: "my-bucket",
+  routes: {
+    avatar: route({
+      upload: {
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
+  },
+});
+```
 
-Community MinIO does not rely on AWS-style per-bucket CORS. Origins are
-allowed with a server env var:
+---
+
+## MinIO CORS configuration
+
+Set the `MINIO_API_CORS_ALLOW_ORIGIN` environment variable on your MinIO server:
 
 ```bash
 MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example
 ```
 
-The default is `*`, which is fine for local development. Set an explicit
-origin when the app and MinIO run on different hosts, or when you lock CORS
-down.
+---
 
-An `https://…` app talking to `http://localhost:9000` is still
-cross-origin, so the browser enforces CORS either way.
+## Frequently asked questions
 
-## Access control
+<Accordions>
 
-Do not expect AWS-style object ACL. Prefer a bucket policy for public
-reads, or keep objects private and use presigned download.
+<Accordion title="Why is my browser upload failing with a network error on localhost?">
+
+Ensure `S3_ENDPOINT` points to the MinIO API port (typically `9000`), not the web console port (typically `9001`).
+
+</Accordion>
+
+</Accordions>

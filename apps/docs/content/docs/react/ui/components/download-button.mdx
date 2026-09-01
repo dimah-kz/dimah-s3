@@ -1,13 +1,11 @@
 ---
 title: Download Button
-description: Presign and trigger a native browser download.
+description: Button component to trigger native browser downloads from S3.
 ---
 
 import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
 
-`DownloadButton` requests a presigned URL and starts a native browser
-download. Create the downloader with
-[`useDownload`](/docs/react/hooks/download) and pass it as `download`.
+`DownloadButton` requests a presigned GET URL and triggers a native browser download.
 
 ## Preview
 
@@ -15,10 +13,7 @@ download. Create the downloader with
   <DownloadButtonDemo />
 </DemoPreview>
 
-Built on a shadcn
-[Button](https://ui.shadcn.com/docs/components/base/button). There is no
-progress fill — only a spinner while the URL is signed. On failure, a
-[`StatusAttachment`](/docs/react/ui/components/attachment) row appears below.
+---
 
 ## Install
 
@@ -44,6 +39,8 @@ npx shadcn@latest add @dimah-s3/download-button
 
 </Tabs>
 
+---
+
 ## Usage
 
 ```tsx
@@ -52,27 +49,20 @@ npx shadcn@latest add @dimah-s3/download-button
 import { useDownload } from "@dimah-s3/react";
 import { DownloadButton } from "@dimah-s3/ui";
 
-export function SaveFile({ storedKey }: { storedKey: string }) {
-  const download = useDownload({ route: "uploads" });
+export function AvatarDownloader({ avatarKey }: { avatarKey: string }) {
+  const download = useDownload({ route: "avatar" });
 
   return (
-    <DownloadButton download={download} objectKey={storedKey} variant="ghost" />
+    <DownloadButton
+      download={download}
+      objectKey={avatarKey}
+      variant="outline"
+    />
   );
 }
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The hook
-`route` must have `download` enabled — the same route as upload when those
-keys were created there. The prop is not named `key` because React reserves
-that for lists.
-
-Pass a navigate-mode return (`useDownload()` without `mode: "fetch"`). For
-progress and cancel, use
-[Progress Download Button](/docs/react/ui/components/progress-download-button).
-
-A list can share one `useDownload` — the hook tracks `objectKey`, so spinner,
-status, and toasts only apply to the matching control. Call the hook inside
-the row when downloads must run in parallel.
+---
 
 ## Props
 
@@ -80,3 +70,23 @@ the row when downloads must run in parallel.
   path="packages/ui/src/components/dimah-s3/download/download-button.tsx"
   name="DownloadButtonProps"
 />
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can multiple list items share a single useDownload hook?">
+
+Yes. `useDownload` tracks `objectKey` internally so loading states and status toasts only affect the button matching the active key.
+
+</Accordion>
+
+<Accordion title="How do I show download progress instead of a spinner?">
+
+Use the [`ProgressDownloadButton`](/docs/react/ui/components/progress-download-button) component paired with `useDownload({ route, mode: "fetch" })`.
+
+</Accordion>
+
+</Accordions>
