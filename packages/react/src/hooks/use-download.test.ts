@@ -24,6 +24,7 @@ describe("useDownload", () => {
       phase: "idle",
       url: "https://s3.test/dl",
       error: null,
+      isPending: false,
     });
     hook.unmount();
   });
@@ -57,6 +58,8 @@ describe("useDownload", () => {
       total: 0,
       percent: 0,
     });
+    expect(hook.current.isPending).toBe(false);
+    expect(hook.current.isDownloading).toBe(false);
     expect(typeof hook.current.cancel).toBe("function");
     hook.unmount();
   });

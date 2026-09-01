@@ -18,6 +18,9 @@ describe("useDelete", () => {
     expect(hook.current).toMatchObject({
       phase: "confirming",
       pendingKey: "a.png",
+      isConfirming: true,
+      isDeleting: false,
+      isPending: true,
     });
 
     await act(async () => {
@@ -30,6 +33,7 @@ describe("useDelete", () => {
     });
     expect(onSuccess).toHaveBeenCalledWith("a.png");
     expect(hook.current.phase).toBe("success");
+    expect(hook.current.isPending).toBe(false);
     hook.unmount();
   });
 

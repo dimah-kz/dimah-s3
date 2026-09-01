@@ -1,74 +1,65 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { useLayoutEffect, useRef } from "react";
 import { DownloadIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@dimah-s3/core";
-import type { FetchDownloadHooks } from "@dimah-s3/react";
-import type { S3Api, S3RouteName } from "@dimah-s3/core";
+import type { UseFetchDownloadReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
-import { useDownload, useFormatDimahError } from "@dimah-s3/react";
 import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,
   type StatusSlot,
 } from "@/lib/attachment-layout";
 import { Button } from "@/components/ui/button";
-import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useDownloadToast } from "@/hooks/use-download-toast";
+import { useDownloadUi } from "@/components/dimah-s3/download/download-wired";
 
-/** Props for {@link ProgressDownloadButton}. */
-export type ProgressDownloadButtonProps = FetchDownloadHooks &
-  AttachmentLayoutAliases & {
-    /** Named server route (`dimahS3({ routes })`). */
-    route: S3RouteName;
-    /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
-    api?: S3Api;
-    /**
-     * S3 object key (`api.download({ route, key })`).
-     * Named `objectKey` because React reserves the `key` prop.
-     */
-    objectKey: string;
-    /** Download filename for Content-Disposition. */
-    fileName?: string;
-    /** Total file size in bytes (used for progress display). */
-    fileSize?: number;
-    /** Button label. */
-    label?: string;
-    /** Custom button content. Replaces default icon + label / progress text. */
-    children?: ReactNode;
-    className?: string;
-    fillClassName?: string;
-    disabled?: boolean;
-    tooltipText?: string;
-    /** Tooltip while downloading (click cancels). @default "Cancel download" */
-    cancelTooltipText?: string;
-    /** Show toasts during download. @default true */
-    toast?: boolean;
-    /**
-     * Inline status control.
-     * - `true` (default): render below the button
-     * - `false`: hide status
-     * - `(node) => ReactNode`: wrap or relocate the status node
-     */
-    status?: StatusSlot;
-    /** Button variant. @default "outline" */
-    variant?: ComponentProps<typeof Button>["variant"];
-    /** Button size. @default "default" */
-    size?: ComponentProps<typeof Button>["size"];
-    /** Extra classes on the trigger button element. */
-    buttonClassName?: string;
-  };
+/** Props for {@link ProgressDownloadButton}. Pass a {@link UseFetchDownloadReturn} as `download`. */
+export type ProgressDownloadButtonProps = AttachmentLayoutAliases & {
+  download: UseFetchDownloadReturn;
+  /**
+   * S3 object key (`api.download({ route, key })`).
+   * Named `objectKey` because React reserves the `key` prop.
+   */
+  objectKey: string;
+  /** Download filename for Content-Disposition. */
+  fileName?: string;
+  /** Total file size in bytes (used for progress display). */
+  fileSize?: number;
+  /** Button label. */
+  label?: string;
+  /** Custom button content. Replaces default icon + label / progress text. */
+  children?: ReactNode;
+  className?: string;
+  fillClassName?: string;
+  disabled?: boolean;
+  tooltipText?: string;
+  /** Tooltip while downloading (click cancels). @default "Cancel download" */
+  cancelTooltipText?: string;
+  /** Show toasts during download. @default true */
+  toast?: boolean;
+  /**
+   * Inline status control.
+   * - `true` (default): render below the button
+   * - `false`: hide status
+   * - `(node) => ReactNode`: wrap or relocate the status node
+   */
+  status?: StatusSlot;
+  /** Button variant. @default "outline" */
+  variant?: ComponentProps<typeof Button>["variant"];
+  /** Button size. @default "default" */
+  size?: ComponentProps<typeof Button>["size"];
+  /** Extra classes on the trigger button element. */
+  buttonClassName?: string;
+};
 
 export function ProgressDownloadButton({
-  api,
-  route,
+  download,
   objectKey,
   fileName,
   fileSize,
@@ -86,98 +77,48 @@ export function ProgressDownloadButton({
   buttonClassName,
   attachmentSize,
   attachmentOrientation,
-  beforeDownload,
-  onDownloadStart,
-  onProgress,
-  onSuccess,
-  onError,
-  onCancel,
 }: ProgressDownloadButtonProps) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
-  const dlRef = useRef<{ cancel: () => void } | null>(null);
-  const toastHandlers = useDownloadToast({
-    enabled: enableToast,
+  const { statusNode } = useDownloadUi(download, {
+    toast: enableToast,
+    status: statusSlot,
     objectKey,
     fileName,
     fileSize,
-    cancel: () => dlRef.current?.cancel(),
+    attachmentSize,
+    attachmentOrientation,
   });
-
-  const dl = useDownload({
-    mode: "fetch",
-    api,
-    route,
-    beforeDownload,
-    onDownloadStart: (key) => {
-      toastHandlers.onDownloadStart();
-      onDownloadStart?.(key);
-    },
-    onProgress: (key, progress) => {
-      toastHandlers.onProgress(key, progress);
-      onProgress?.(key, progress);
-    },
-    onSuccess: (key, actualFileName) => {
-      toastHandlers.onSuccess(key, actualFileName);
-      onSuccess?.(key, actualFileName);
-    },
-    onError: (key, error, phase) => {
-      toastHandlers.onError(key, error, phase);
-      onError?.(key, error, phase);
-    },
-    onCancel: (key) => {
-      toastHandlers.onCancel(key);
-      onCancel?.(key);
-    },
-  });
-  useLayoutEffect(() => {
-    dlRef.current = dl;
-  });
-
-  const isDownloading = dl.phase === "downloading" || dl.phase === "presigning";
 
   const handleClick = () => {
-    if (isDownloading) {
-      dl.cancel();
+    if (download.isPending) {
+      download.cancel();
       return;
     }
-    dl.download(objectKey, fileName);
+    download.download(objectKey, fileName);
   };
 
   const computedPercentFromFileSize =
     fileSize && fileSize > 0
-      ? Math.min(100, Math.round((dl.progress.loaded / fileSize) * 100))
+      ? Math.min(100, Math.round((download.progress.loaded / fileSize) * 100))
       : null;
 
   const fillPercent =
-    dl.phase === "presigning"
+    download.phase === "presigning"
       ? 12
-      : dl.progress.total > 0
-        ? dl.progress.percent
+      : download.progress.total > 0
+        ? download.progress.percent
         : computedPercentFromFileSize;
 
-  const isIndeterminateFill =
-    isDownloading && fillPercent == null && dl.phase === "downloading";
+  const isIndeterminateFill = download.isDownloading && fillPercent == null;
 
   const buttonContent = children ?? (
     <>
-      {!isDownloading && <DownloadIcon data-icon="inline-start" />}
-      {isDownloading
-        ? formatFileSize(dl.progress.loaded)
+      {!download.isPending && <DownloadIcon data-icon="inline-start" />}
+      {download.isPending
+        ? formatFileSize(download.progress.loaded)
         : (label ?? t("Download", { note: "button" }))}
     </>
   );
-
-  const statusNode =
-    dl.phase === "error" ? (
-      <StatusAttachment
-        state="error"
-        title={t("Download failed", { note: "status" })}
-        description={dl.error ? formatError(dl.error) : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    ) : null;
 
   return (
     <div className={cn("inline-flex flex-col items-center gap-2", className)}>
@@ -196,7 +137,7 @@ export function ProgressDownloadButton({
             />
           }
         >
-          {isDownloading && (
+          {download.isPending && (
             <span
               className={cn(
                 "absolute inset-y-0 start-0 bg-dimah-s3-primary/15",
@@ -216,7 +157,7 @@ export function ProgressDownloadButton({
           </span>
         </TooltipTrigger>
         <TooltipContent>
-          {isDownloading
+          {download.isPending
             ? (cancelTooltipText ?? t("Cancel download", { note: "tooltip" }))
             : (tooltipText ?? t("Download file", { note: "tooltip" }))}
         </TooltipContent>

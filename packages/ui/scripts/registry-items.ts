@@ -197,6 +197,11 @@ export const components = [
         target: "@components/dimah-s3/download/download-button.tsx",
       },
       {
+        path: "components/dimah-s3/download/download-wired.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/download/download-wired.tsx",
+      },
+      {
         path: "hooks/use-download-toast.tsx",
         type: "registry:hook",
         target: "@hooks/use-download-toast.tsx",
@@ -221,6 +226,11 @@ export const components = [
         path: "components/dimah-s3/download/progress-download-button.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/download/progress-download-button.tsx",
+      },
+      {
+        path: "components/dimah-s3/download/download-wired.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/download/download-wired.tsx",
       },
       {
         path: "hooks/use-download-toast.tsx",
@@ -248,6 +258,11 @@ export const components = [
         path: "components/dimah-s3/delete/delete-button.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/delete/delete-button.tsx",
+      },
+      {
+        path: "components/dimah-s3/delete/delete-wired.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/delete/delete-wired.tsx",
       },
       {
         path: "hooks/use-delete-toast.tsx",

@@ -6,7 +6,8 @@ description: Delete an S3 object with a confirmation dialog and inline status.
 import { DeleteButtonDemo } from "@/components/demos/delete-button-demo";
 
 `DeleteButton` removes an S3 object after a confirmation dialog, with inline
-status.
+status. Create the deleter with [`useDelete`](/docs/react/hooks/delete) and
+pass it as `delete`.
 
 ## Preview
 
@@ -14,11 +15,11 @@ status.
   <DeleteButtonDemo />
 </DemoPreview>
 
-Built on [`useDelete`](/docs/react/hooks/delete), a shadcn
-[Button](https://ui.shadcn.com/docs/components/base/button), and
+Built on a shadcn
+[Button](https://ui.shadcn.com/docs/components/base/button) and
 [Alert Dialog](https://ui.shadcn.com/docs/components/base/alert-dialog). Status
 uses [`StatusAttachment`](/docs/react/ui/components/attachment). Wire
-`onSuccess` to keep your database in sync.
+`onSuccess` on the hook to keep your database in sync.
 
 ## Install
 
@@ -47,19 +48,34 @@ npx shadcn@latest add @dimah-s3/delete-button
 ## Usage
 
 ```tsx
-<DeleteButton
-  route="uploads"
-  objectKey={storedKey}
-  onSuccess={() => {
-    /* sync your database */
-  }}
-/>
+"use client";
+
+import { useDelete } from "@dimah-s3/react";
+import { DeleteButton } from "@dimah-s3/ui";
+
+export function RemoveFile({ storedKey }: { storedKey: string }) {
+  const del = useDelete({
+    route: "uploads",
+    onSuccess: () => {
+      /* sync your database */
+    },
+  });
+
+  return <DeleteButton delete={del} objectKey={storedKey} />;
+}
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The `route`
-must have `delete` enabled — the same route as upload when those keys
-were created there. The prop is not named `key` because React reserves
+`objectKey` is the stored S3 key (`result.key` from upload). The hook
+`route` must have `delete` enabled — the same route as upload when those
+keys were created there. The prop is not named `key` because React reserves
 that for lists.
+
+Engine options and lifecycle callbacks stay on `useDelete`. The button
+owns the target key, confirmation copy, and chrome (`toast`, `status`,
+`variant`).
+
+In a list, call `useDelete` inside the row so each object has its own
+phase.
 
 ## Props
 

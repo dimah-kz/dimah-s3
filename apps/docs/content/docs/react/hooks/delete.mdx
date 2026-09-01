@@ -4,9 +4,9 @@ description: Confirm-first or one-shot delete.
 ---
 
 `requestDelete` marks a key pending. `confirmDelete` sends the request.
-[Delete Button](/docs/react/ui/components/delete-button) uses this with an
-alert dialog. Headless callers that already confirmed can call `remove(key)`
-instead.
+[Delete Button](/docs/react/ui/components/delete-button) takes the same
+`useDelete` return as `delete`. Headless callers that already confirmed can
+call `remove(key)` instead.
 
 The route name must have `delete` enabled. Keys from an upload live on
 that upload route — enable `delete` there rather than adding a second
@@ -59,3 +59,7 @@ await removeMany([storedKey, otherKey]);
 
 Wire `onSuccess` to keep your own database in sync. Server-side auth belongs
 in [`delete.guard`](/docs/server/hooks/delete).
+
+`isConfirming` is `true` while a key is awaiting the dialog
+(`phase === "confirming"`). `isDeleting` is `true` while the request is in
+flight. `isPending` is either.

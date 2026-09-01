@@ -26,6 +26,12 @@ export type UseDeleteState = {
 export type UseDeleteReturn = UseDeleteState & {
   /** Key awaiting confirmation, or `null`. */
   pendingKey: string | null;
+  /** `true` while the confirm dialog should be open (`phase === "confirming"`). */
+  isConfirming: boolean;
+  /** `true` while the delete request is in flight (`phase === "deleting"`). */
+  isDeleting: boolean;
+  /** `true` while confirming or deleting. */
+  isPending: boolean;
   /** Move to the `confirming` phase for the given key. */
   requestDelete: (key: string) => void;
   /** Send the delete request for the pending key. */
@@ -225,10 +231,16 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     replace(INITIAL_STATE);
   }, [replace]);
 
+  const isConfirming = state.phase === "confirming";
+  const isDeleting = state.phase === "deleting";
+
   return {
     phase: state.phase,
     error: state.error,
     pendingKey: state.pendingKey,
+    isConfirming,
+    isDeleting,
+    isPending: isConfirming || isDeleting,
     requestDelete,
     confirmDelete,
     remove,

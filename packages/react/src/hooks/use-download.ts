@@ -65,6 +65,8 @@ export type UseNavigateDownloadState = {
 };
 
 export type UseNavigateDownloadReturn = UseNavigateDownloadState & {
+  /** `true` while the URL is being signed (`phase === "presigning"`). */
+  isPending: boolean;
   /** Presign and trigger a native browser download. */
   download: (key: string, downloadName?: string) => Promise<void>;
   /** Fetch the presigned URL without triggering a browser download. */
@@ -90,6 +92,12 @@ export type UseFetchDownloadState = {
 };
 
 export type UseFetchDownloadReturn = UseFetchDownloadState & {
+  /** `true` while bytes are transferring (`phase === "downloading"`). */
+  isDownloading: boolean;
+  /**
+   * `true` while the download is in-flight (`presigning` or `downloading`).
+   */
+  isPending: boolean;
   /** Presign, fetch bytes, and save via the browser. */
   download: (key: string, downloadName?: string) => Promise<void>;
   /** Abort the active download. */
@@ -382,12 +390,17 @@ export function useDownload(
   }, [replace]);
 
   if (options.mode === "fetch") {
+    const isDownloading = state.phase === "downloading";
+    const isPending =
+      state.phase === "presigning" || state.phase === "downloading";
     return {
       phase: state.phase,
       progress: state.progress,
       error: state.error,
       fileName: state.fileName,
       fileSize: state.fileSize,
+      isDownloading,
+      isPending,
       download,
       cancel,
       reset,
@@ -399,6 +412,7 @@ export function useDownload(
     error: state.error,
     url: state.url,
     expiresIn: state.expiresIn,
+    isPending: state.phase === "presigning",
     download,
     presign,
     reset,

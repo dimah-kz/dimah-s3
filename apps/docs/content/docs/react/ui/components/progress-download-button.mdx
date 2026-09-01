@@ -5,8 +5,10 @@ description: Fetch download with live progress and cancel.
 
 import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
 
-`ProgressDownloadButton` downloads through fetch with a live progress fill and
-cancel support.
+`ProgressDownloadButton` downloads through fetch with a live progress fill
+and cancel support. Create the downloader with
+[`useDownload({ mode: "fetch" })`](/docs/react/hooks/download#fetch-with-progress)
+and pass it as `download`.
 
 ## Preview
 
@@ -14,10 +16,8 @@ cancel support.
   <ProgressDownloadDemo />
 </DemoPreview>
 
-Built on
-[`useDownload({ mode: "fetch" })`](/docs/react/hooks/download#fetch-with-progress)
-and a shadcn [Button](https://ui.shadcn.com/docs/components/base/button). On
-failure, a [`StatusAttachment`](/docs/react/ui/components/attachment) row
+Built on a shadcn [Button](https://ui.shadcn.com/docs/components/base/button).
+On failure, a [`StatusAttachment`](/docs/react/ui/components/attachment) row
 appears below.
 
 ## Install
@@ -47,13 +47,28 @@ npx shadcn@latest add @dimah-s3/progress-download-button
 ## Usage
 
 ```tsx
-<ProgressDownloadButton route="uploads" objectKey={storedKey} />
+"use client";
+
+import { useDownload } from "@dimah-s3/react";
+import { ProgressDownloadButton } from "@dimah-s3/ui";
+
+export function SaveFile({ storedKey }: { storedKey: string }) {
+  const download = useDownload({ route: "uploads", mode: "fetch" });
+
+  return <ProgressDownloadButton download={download} objectKey={storedKey} />;
+}
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The `route`
-must have `download` enabled — the same route as upload when those keys
-were created there. The prop is not named `key` because React reserves
+`objectKey` is the stored S3 key (`result.key` from upload). The hook
+`route` must have `download` enabled — the same route as upload when those
+keys were created there. The prop is not named `key` because React reserves
 that for lists.
+
+The `download` prop must be a fetch-mode return — TypeScript rejects a
+navigate-mode instance. Clicking while in-flight cancels.
+
+In a list, call `useDownload` inside the row so each object has its own
+progress.
 
 ## Props
 

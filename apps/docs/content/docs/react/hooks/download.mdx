@@ -13,11 +13,16 @@ must have `download` enabled. Keys from an upload live on that upload
 route — enable `download` there rather than adding a second route for the
 same prefix ([combining features](/docs/server/routes#combining-features)).
 
-| Hook                             | UI                                                                                                                |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `useDownload()`                  | [Download Button](/docs/react/ui/components/download-button) — native download, no progress                       |
-| `useDownload({ mode: "fetch" })` | [Progress Download Button](/docs/react/ui/components/progress-download-button) — `fetch` with progress and cancel |
-| `useObjectUrl`                   | Preview / `<img>` — caches until shortly before expiry                                                            |
+[Download Button](/docs/react/ui/components/download-button) and
+[Progress Download Button](/docs/react/ui/components/progress-download-button)
+take the `useDownload` return as `download`. The stored key stays on the
+control as `objectKey`.
+
+| Hook                             | UI                                        |
+| -------------------------------- | ----------------------------------------- |
+| `useDownload()`                  | Download Button — native, no progress     |
+| `useDownload({ mode: "fetch" })` | Progress Download Button — fetch + cancel |
+| `useObjectUrl`                   | Preview / `<img>` — caches until expiry   |
 
 Pass `disposition: "inline"` for preview. The route default is
 `"attachment"` unless you set `download.disposition`.
@@ -28,7 +33,7 @@ Hook `error` is a `DimahS3Error` (or `null`). Format it with
 ## Navigate (default)
 
 Presign, then navigate. There is no byte-level progress — only a
-presigning phase.
+presigning phase. `isPending` is `true` while `phase === "presigning"`.
 
 ```tsx
 "use client";
@@ -74,7 +79,8 @@ return url ? <img src={url} alt="" /> : null;
 ## Fetch with progress
 
 Pass `mode: "fetch"` to stream bytes in the browser so you can show progress
-and cancel.
+and cancel. `isDownloading` is `true` while bytes are moving.
+`isPending` covers `presigning` and `downloading`.
 
 ```tsx
 "use client";

@@ -5,7 +5,9 @@ description: Presign and trigger a native browser download.
 
 import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
 
-`DownloadButton` requests a presigned URL and starts a native browser download.
+`DownloadButton` requests a presigned URL and starts a native browser
+download. Create the downloader with
+[`useDownload`](/docs/react/hooks/download) and pass it as `download`.
 
 ## Preview
 
@@ -13,7 +15,7 @@ import { DownloadButtonDemo } from "@/components/demos/download-button-demo";
   <DownloadButtonDemo />
 </DemoPreview>
 
-Built on [`useDownload`](/docs/react/hooks/download) and a shadcn
+Built on a shadcn
 [Button](https://ui.shadcn.com/docs/components/base/button). There is no
 progress fill — only a spinner while the URL is signed. On failure, a
 [`StatusAttachment`](/docs/react/ui/components/attachment) row appears below.
@@ -45,13 +47,31 @@ npx shadcn@latest add @dimah-s3/download-button
 ## Usage
 
 ```tsx
-<DownloadButton route="uploads" objectKey={storedKey} variant="ghost" />
+"use client";
+
+import { useDownload } from "@dimah-s3/react";
+import { DownloadButton } from "@dimah-s3/ui";
+
+export function SaveFile({ storedKey }: { storedKey: string }) {
+  const download = useDownload({ route: "uploads" });
+
+  return (
+    <DownloadButton download={download} objectKey={storedKey} variant="ghost" />
+  );
+}
 ```
 
-`objectKey` is the stored S3 key (`result.key` from upload). The `route`
-must have `download` enabled — the same route as upload when those keys
-were created there. The prop is not named `key` because React reserves
+`objectKey` is the stored S3 key (`result.key` from upload). The hook
+`route` must have `download` enabled — the same route as upload when those
+keys were created there. The prop is not named `key` because React reserves
 that for lists.
+
+Pass a navigate-mode return (`useDownload()` without `mode: "fetch"`). For
+progress and cancel, use
+[Progress Download Button](/docs/react/ui/components/progress-download-button).
+
+In a list, call `useDownload` inside the row so each object has its own
+phase.
 
 ## Props
 

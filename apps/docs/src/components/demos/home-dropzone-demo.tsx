@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useUpload } from "@dimah-s3/react";
+import { useDelete, useDownload, useUpload } from "@dimah-s3/react";
 import {
   DeleteButton,
   FileAttachment,
@@ -43,6 +43,9 @@ function DemoObjectRow({
   object: DemoObject;
   onDeleted: () => void;
 }) {
+  const download = useDownload({ route: "uploads", mode: "fetch" });
+  const del = useDelete({ route: "uploads", onSuccess: onDeleted });
+
   return (
     <div
       className={cn("flex w-full flex-col gap-2 p-3 text-start", reveal)}
@@ -61,7 +64,7 @@ function DemoObjectRow({
       >
         <ProgressDownloadButton
           className="w-fit"
-          route="uploads"
+          download={download}
           objectKey={object.key}
           fileName={object.name}
           fileSize={object.size}
@@ -70,13 +73,12 @@ function DemoObjectRow({
         />
         <DeleteButton
           className="w-fit"
-          route="uploads"
+          delete={del}
           objectKey={object.key}
           fileName={object.name}
           fileSize={object.size}
           size="sm"
           status={false}
-          onSuccess={onDeleted}
         />
       </div>
     </div>
