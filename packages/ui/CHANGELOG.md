@@ -1,3 +1,12 @@
+## @dimah-s3/ui@1.3.0
+
+### Use better-call `APIError`
+
+Protocol errors are `APIError` — the same class name as better-call and
+better-auth. `DimahS3Error` and `isDimahS3Error` are removed; detect with
+`isAPIError` or `isS3ErrorCode`. Throw `APIError.from(status, S3_ERROR_CODES.*)`
+or `errors.*` as before.
+
 ## @dimah-s3/ui@1.2.1
 
 ### Align create templates with 1.2.0

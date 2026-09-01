@@ -1,30 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Align create templates with 1.2.0\n\n`dimah-s3 create` starters now require `@dimah-s3/*` 1.2.0. Call `useUpload`\nin the page and pass the return into `UploadButton` — the control no longer\ntakes `route`.\n"
-    filename: 2026-09-01-t1mpl8.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Use better-call `APIError`\n\nProtocol errors are `APIError` — the same class name as better-call and\nbetter-auth. `DimahS3Error` and `isDimahS3Error` are removed; detect with\n`isAPIError` or `isS3ErrorCode`. Throw `APIError.from(status, S3_ERROR_CODES.*)`\nor `errors.*` as before.\n"
+    filename: 2026-09-01-apierr.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-01-t1mpl8.md
+      - 2026-09-01-apierr.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-01-t1mpl8.md
+      - 2026-09-01-apierr.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-01-t1mpl8.md
+      - 2026-09-01-apierr.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-01-t1mpl8.md
+      - 2026-09-01-apierr.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-01-t1mpl8.md
+      - 2026-09-01-apierr.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-01-t1mpl8.md
+      - 2026-09-01-apierr.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
