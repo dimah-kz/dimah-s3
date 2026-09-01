@@ -9,16 +9,17 @@ import { toast } from "@/components/ui/toast";
 
 export type DeleteToastOptions = {
   enabled?: boolean;
+  objectKey: string;
   displayName: string;
 };
 
 /**
  * Drives toasts from {@link UseDeleteReturn} phase changes.
- * Shared by {@link DeleteButton}.
+ * Only the control whose `objectKey` matches the hook's active key toasts.
  */
 export function useDeleteToast(
   del: UseDeleteReturn,
-  { enabled = true, displayName }: DeleteToastOptions,
+  { enabled = true, objectKey, displayName }: DeleteToastOptions,
 ) {
   const t = useTranslations();
   const formatDimahError = useFormatDimahError();
@@ -27,7 +28,7 @@ export function useDeleteToast(
   useEffect(() => {
     if (prevPhaseRef.current === del.phase) return;
     prevPhaseRef.current = del.phase;
-    if (!enabled) return;
+    if (!enabled || del.objectKey !== objectKey) return;
 
     if (del.phase === "success") {
       toast.add({
@@ -47,5 +48,14 @@ export function useDeleteToast(
         ),
       });
     }
-  }, [enabled, del.phase, del.error, displayName, t, formatDimahError]);
+  }, [
+    enabled,
+    del.phase,
+    del.error,
+    del.objectKey,
+    objectKey,
+    displayName,
+    t,
+    formatDimahError,
+  ]);
 }

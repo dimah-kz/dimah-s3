@@ -67,8 +67,9 @@ that for lists.
 The `download` prop must be a fetch-mode return — TypeScript rejects a
 navigate-mode instance. Clicking while in-flight cancels.
 
-In a list, call `useDownload` inside the row so each object has its own
-progress.
+A list can share one `useDownload({ mode: "fetch" })` — progress, cancel,
+and toasts only apply to the matching `objectKey`. Call the hook inside the
+row when downloads must run in parallel.
 
 ## Props
 

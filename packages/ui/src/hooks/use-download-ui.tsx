@@ -1,37 +1,33 @@
 "use client";
 
-import {
-  useFormatDimahError,
-  type UseFetchDownloadReturn,
-  type UseNavigateDownloadReturn,
-} from "@dimah-s3/react";
+import { useFormatDimahError, type UseDownloadReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { useDownloadToast } from "@/hooks/use-download-toast";
-import type {
-  AttachmentLayoutAliases,
-  StatusSlot,
-} from "@/lib/attachment-layout";
+import type { AttachmentLayoutAliases } from "@/lib/attachment-layout";
 
-type DownloadLayout = AttachmentLayoutAliases & {
+export type UseDownloadUiOptions = AttachmentLayoutAliases & {
   toast?: boolean;
-  status?: StatusSlot;
   objectKey: string;
   fileName?: string;
   fileSize?: number;
 };
 
+/**
+ * Toasts + error status for a `useDownload` return.
+ * Status only renders for the matching `objectKey` so a list can share
+ * one hook instance.
+ */
 export function useDownloadUi(
-  download: UseNavigateDownloadReturn | UseFetchDownloadReturn,
+  download: UseDownloadReturn,
   {
     toast: enableToast = true,
-    status: statusSlot = true,
     objectKey,
     fileName,
     fileSize,
     attachmentSize,
     attachmentOrientation,
-  }: DownloadLayout,
+  }: UseDownloadUiOptions,
 ) {
   useDownloadToast(download, {
     enabled: enableToast,
@@ -42,9 +38,10 @@ export function useDownloadUi(
 
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const isThis = download.objectKey === objectKey;
 
   const statusNode =
-    statusSlot === false || download.phase !== "error" ? null : (
+    !isThis || download.phase !== "error" ? null : (
       <StatusAttachment
         state="error"
         title={t("Download failed", { note: "status" })}

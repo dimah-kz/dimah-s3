@@ -9,6 +9,7 @@ export {
 } from "./use-upload";
 export {
   useDownload,
+  isFetchDownload,
   type DownloadPhase,
   type DownloadHooks,
   type FetchDownloadPhase,

@@ -35,5 +35,10 @@ If you have not already, complete [UI setup](/docs/react/ui)
 Same pattern for download and delete:
 [`useDownload`](/docs/react/hooks/download) /
 [`useDelete`](/docs/react/hooks/delete). Pass the return as `download` /
-`delete`. The target key stays on the control as `objectKey`. For multiple
-files, pass `maxFiles` on [`useUpload`](/docs/react/hooks/upload).
+`delete`. The target key stays on the control as `objectKey`. A list can
+share one hook — status and toasts follow the hook's `objectKey`. For
+multiple files, pass `maxFiles` on [`useUpload`](/docs/react/hooks/upload).
+
+Stock toasts and status rows are also exported: `useUploadUi`,
+`useDownloadUi`, `useDeleteUi`, plus the toast hooks if you only want
+those.

@@ -5,6 +5,7 @@ import {
   S3_API_ROUTES,
   type MultipartPartResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import {
   assertWithinMaxFileSize,
   listAllParts,
@@ -18,7 +19,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleSignPart(
   config: ResolvedDimahS3Config,
-  input: typeof multipartSignPartBodySchema._output,
+  input: z.output<typeof multipartSignPartBodySchema>,
   request: Request,
 ): Promise<MultipartPartResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(

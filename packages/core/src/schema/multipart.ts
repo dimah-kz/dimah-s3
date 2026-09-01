@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { uploadBodySchema } from "./upload";
 import {
   objectKeySchema,
@@ -18,7 +18,7 @@ const multipartSessionFields = {
 export const multipartSignPartBodySchema = z.strictObject({
   ...multipartSessionFields,
   partNumber: partNumberSchema,
-  partSize: z.number().int().positive(),
+  partSize: z.int().positive(),
 });
 
 export const multipartListPartsQuerySchema = z.strictObject({

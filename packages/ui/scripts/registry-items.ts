@@ -35,9 +35,9 @@ const uploadSupportFiles = [
     target: "@components/dimah-s3/upload/multi-upload-status.tsx",
   },
   {
-    path: "components/dimah-s3/upload/upload-wired.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/upload/upload-wired.tsx",
+    path: "hooks/use-upload-ui.tsx",
+    type: "registry:hook",
+    target: "@hooks/use-upload-ui.tsx",
   },
   {
     path: "components/dimah-s3/attachment/file-attachment.tsx",
@@ -197,9 +197,9 @@ export const components = [
         target: "@components/dimah-s3/download/download-button.tsx",
       },
       {
-        path: "components/dimah-s3/download/download-wired.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/download/download-wired.tsx",
+        path: "hooks/use-download-ui.tsx",
+        type: "registry:hook",
+        target: "@hooks/use-download-ui.tsx",
       },
       {
         path: "hooks/use-download-toast.tsx",
@@ -228,9 +228,9 @@ export const components = [
         target: "@components/dimah-s3/download/progress-download-button.tsx",
       },
       {
-        path: "components/dimah-s3/download/download-wired.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/download/download-wired.tsx",
+        path: "hooks/use-download-ui.tsx",
+        type: "registry:hook",
+        target: "@hooks/use-download-ui.tsx",
       },
       {
         path: "hooks/use-download-toast.tsx",
@@ -260,9 +260,9 @@ export const components = [
         target: "@components/dimah-s3/delete/delete-button.tsx",
       },
       {
-        path: "components/dimah-s3/delete/delete-wired.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/delete/delete-wired.tsx",
+        path: "hooks/use-delete-ui.tsx",
+        type: "registry:hook",
+        target: "@hooks/use-delete-ui.tsx",
       },
       {
         path: "hooks/use-delete-toast.tsx",

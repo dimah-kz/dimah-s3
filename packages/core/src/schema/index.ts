@@ -1,6 +1,7 @@
 export {
   metadataSchema,
   objectKeySchema,
+  optionalChecksumSchema,
   optionalTrimmedString,
   partNumberSchema,
   routeNameSchema,
@@ -11,6 +12,7 @@ export {
   S3_MAX_METADATA_ENTRIES,
   S3_MAX_PART_NUMBER,
   S3_MAX_POST_OBJECT_BYTES,
+  sha256ChecksumSchema,
   trimmedString,
 } from "./shared";
 export { confirmBodySchema, uploadBodySchema } from "./upload";

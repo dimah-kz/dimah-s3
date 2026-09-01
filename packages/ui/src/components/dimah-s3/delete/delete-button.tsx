@@ -33,7 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useDeleteUi } from "@/components/dimah-s3/delete/delete-wired";
+import { useDeleteUi } from "@/hooks/use-delete-ui";
 
 /** Keep LTR file names and sizes readable inside RTL confirmation copy. */
 function isolateLtr(value: string): string {
@@ -100,12 +100,12 @@ export function DeleteButton({
 }: DeleteButtonProps) {
   const t = useTranslations();
   const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
-  const isThisDelete = del.pendingKey === objectKey;
-  const isDeletingThis = del.isDeleting && isThisDelete;
-  const isDisabled = Boolean(disabled) || isDeletingThis;
+  const isThis = del.objectKey === objectKey;
+  const isDeletingThis = del.isDeleting && isThis;
+  const isDisabled = Boolean(disabled) || del.isDeleting;
   const { statusNode } = useDeleteUi(del, {
     toast: enableToast,
-    status: statusSlot,
+    objectKey,
     displayName,
     attachmentSize,
     attachmentOrientation,
@@ -141,7 +141,7 @@ export function DeleteButton({
     <div className={cn("inline-flex flex-col gap-2", className)}>
       <div className="inline-flex items-center gap-2">
         <AlertDialog
-          open={del.isConfirming && isThisDelete}
+          open={del.isConfirming && isThis}
           onOpenChange={(open) => {
             if (!open) del.cancelDelete();
           }}

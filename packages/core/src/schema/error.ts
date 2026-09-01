@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 /** `params` bag on API error JSON. */
 export const s3ErrorParamsSchema = z.record(
@@ -16,4 +16,4 @@ export const s3FetchErrorSchema = z.object({
   params: s3ErrorParamsSchema.optional(),
 });
 
-export type S3FetchError = z.infer<typeof s3FetchErrorSchema>;
+export type S3FetchError = z.output<typeof s3FetchErrorSchema>;

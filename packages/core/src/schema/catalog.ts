@@ -1,5 +1,6 @@
-import { z } from "zod";
+import * as z from "zod";
 import type { S3RouteName } from "@/types/routes";
+import { routeNameSchema } from "./shared";
 
 export const downloadDispositionSchema = z.enum(["inline", "attachment"]);
 export const downloadModeSchema = z.enum(["presign", "proxy"]);
@@ -8,7 +9,7 @@ export const routeCatalogUploadSchema = z.discriminatedUnion("enabled", [
   z.strictObject({
     enabled: z.literal(true),
     fileTypes: z.array(z.string()).optional(),
-    maxFileSize: z.number().int().positive().optional(),
+    maxFileSize: z.int().positive().optional(),
     multipart: z.boolean(),
     checksum: z.boolean().optional(),
     replace: z.literal("overwrite").optional(),
@@ -37,10 +38,10 @@ export const routeCatalogEntrySchema = z.strictObject({
 });
 
 export const routeCatalogResponseSchema = z.strictObject({
-  routes: z.record(z.string(), routeCatalogEntrySchema),
+  routes: z.record(routeNameSchema, routeCatalogEntrySchema),
 });
 
-export type RouteCatalogEntry = z.infer<typeof routeCatalogEntrySchema>;
+export type RouteCatalogEntry = z.output<typeof routeCatalogEntrySchema>;
 export type RouteCatalogResponse = {
   routes: Record<S3RouteName, RouteCatalogEntry>;
 };

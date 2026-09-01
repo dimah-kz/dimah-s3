@@ -1,4 +1,5 @@
 import { confirmBodySchema, S3_API_ROUTES } from "@dimah-s3/core";
+import type * as z from "zod";
 import {
   finalizeConfirmedObject,
   headObjectOrNotFound,
@@ -10,7 +11,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleConfirm(
   config: ResolvedDimahS3Config,
-  input: typeof confirmBodySchema._output,
+  input: z.output<typeof confirmBodySchema>,
   request: Request,
 ) {
   const { route, key, bucket, stored } = await openStoredTarget(

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import {
   normalizeObjectKey,
   S3_MAX_OBJECT_KEY_LENGTH,
@@ -26,7 +26,7 @@ export const ROUTE_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
 export const trimmedString = z.string().trim().min(1);
 
 /** Optional trimmed string. Blank or whitespace-only values are omitted. */
-export const optionalTrimmedString = z.preprocess((value) => {
+export const optionalTrimmedString = z.preprocess((value: unknown) => {
   if (typeof value !== "string") return value;
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
@@ -40,15 +40,37 @@ export const routeNameSchema = trimmedString.regex(
 /** Stored object key — normalized, no `.` / `..` / NUL / backslash segments. */
 export const objectKeySchema = trimmedString
   .max(S3_MAX_OBJECT_KEY_LENGTH)
-  .refine((value) => normalizeObjectKey(value) != null, {
-    message: "Invalid object key",
-  })
-  .transform((value) => normalizeObjectKey(value)!);
+  .transform((value, ctx) => {
+    const normalized = normalizeObjectKey(value);
+    if (normalized == null) {
+      ctx.issues.push({
+        code: "custom",
+        message: "Invalid object key",
+        input: value,
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
 
 /** 1-based S3 multipart part number. */
-export const partNumberSchema = z.number().int().min(1).max(S3_MAX_PART_NUMBER);
+export const partNumberSchema = z.int().min(1).max(S3_MAX_PART_NUMBER);
 
 export const s3ObjectAclSchema = z.enum(["private", "public-read"]);
+
+/**
+ * S3 `ChecksumSHA256` — 32-byte SHA-256 as standard base64 (padding optional).
+ * Matches `sha256Base64()` output and the padded form AWS also accepts.
+ */
+export const sha256ChecksumSchema = z.stringFormat(
+  "sha256-base64",
+  /^[A-Za-z0-9+/]{43}=?$/,
+);
+
+/** Optional checksum; blank / whitespace-only values are omitted. */
+export const optionalChecksumSchema = optionalTrimmedString.pipe(
+  sha256ChecksumSchema.optional(),
+);
 
 const metadataKeySchema = z
   .string()

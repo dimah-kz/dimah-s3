@@ -1162,7 +1162,10 @@ describe("upload checksum", () => {
     });
     await expect(
       s3.api.upload({
-        body: { ...defaultUploadBody, checksum: "abc" },
+        body: {
+          ...defaultUploadBody,
+          checksum: "j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ",
+        },
       }),
     ).resolves.toMatchObject({ url: "https://s3.test/post" });
   });

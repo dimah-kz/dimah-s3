@@ -5,9 +5,8 @@ import { useTranslations } from "@fuma-translate/react";
 import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type {
   DimahS3Error,
-  UploadFileInfo,
+  UploadFileState,
   UploadPhase,
-  UploadProgress,
   UseUploadReturn,
 } from "@dimah-s3/react";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
@@ -20,9 +19,8 @@ import type {
 
 export type UploadFileStatusProps = AttachmentLayoutProps & {
   phase: UploadPhase;
-  progress: UploadProgress;
   error: DimahS3Error | null;
-  fileInfo: UploadFileInfo | null;
+  file: UploadFileState | null;
   onCancel?: () => void;
   /** When set (typically with an `uploadStore`), shows a pause control. */
   onPause?: () => void;
@@ -32,9 +30,8 @@ export type UploadFileStatusProps = AttachmentLayoutProps & {
 /** Presentational row for a single file. Prefer {@link UploadStatus} with `upload`. */
 export function UploadFileStatus({
   phase,
-  progress,
   error,
-  fileInfo,
+  file,
   onCancel,
   onPause,
   size,
@@ -45,26 +42,25 @@ export function UploadFileStatus({
   const formatError = useFormatDimahError();
   const errorText = error ? formatError(error) : null;
   const layout = { size, orientation, className };
+  const progress = file?.progress;
 
   if (phase === "idle") return null;
 
-  if (phase === "uploading" && fileInfo) {
+  if (phase === "uploading" && file) {
     const eta =
-      progress.speed && progress.total
+      progress?.speed && progress.total
         ? formatEta(progress.total - progress.loaded, progress.speed)
         : null;
 
     return (
       <FileAttachment
         state="uploading"
-        fileName={fileInfo.name}
-        fileSize={fileInfo.size}
-        fileType={fileInfo.type}
-        previewUrl={fileInfo.previewUrl}
-        percent={progress.percent}
-        description={
-          eta ? `${formatFileSize(fileInfo.size)} · ${eta}` : undefined
-        }
+        fileName={file.name}
+        fileSize={file.size}
+        fileType={file.type}
+        previewUrl={file.previewUrl}
+        percent={progress?.percent}
+        description={eta ? `${formatFileSize(file.size)} · ${eta}` : undefined}
         onCancel={onCancel}
         onPause={onPause}
         {...layout}
@@ -72,28 +68,28 @@ export function UploadFileStatus({
     );
   }
 
-  if (phase === "success" && fileInfo) {
+  if (phase === "success" && file) {
     return (
       <FileAttachment
         state="done"
-        fileName={fileInfo.name}
-        fileSize={fileInfo.size}
-        fileType={fileInfo.type}
-        previewUrl={fileInfo.previewUrl}
+        fileName={file.name}
+        fileSize={file.size}
+        fileType={file.type}
+        previewUrl={file.previewUrl}
         {...layout}
       />
     );
   }
 
   if (phase === "error") {
-    if (fileInfo) {
+    if (file) {
       return (
         <FileAttachment
           state="error"
-          fileName={fileInfo.name}
-          fileSize={fileInfo.size}
-          fileType={fileInfo.type}
-          previewUrl={fileInfo.previewUrl}
+          fileName={file.name}
+          fileSize={file.size}
+          fileType={file.type}
+          previewUrl={file.previewUrl}
           error={errorText}
           {...layout}
         />
@@ -115,14 +111,14 @@ export function UploadFileStatus({
     phase === "presigning" ||
     phase === "finalizing"
   ) {
-    if (fileInfo) {
+    if (file) {
       return (
         <FileAttachment
           state="processing"
-          fileName={fileInfo.name}
-          fileSize={fileInfo.size}
-          fileType={fileInfo.type}
-          previewUrl={fileInfo.previewUrl}
+          fileName={file.name}
+          fileSize={file.size}
+          fileType={file.type}
+          previewUrl={file.previewUrl}
           description={
             phase === "finalizing"
               ? t("Finishing…", { note: "upload status" })
@@ -172,13 +168,10 @@ export function UploadStatus({
   if (upload.files.length > 1) {
     return (
       <MultiUploadStatus
-        phase={upload.phase}
-        files={upload.files}
-        progress={upload.progress}
-        error={upload.error}
-        onCancel={onCancel}
-        onPause={onPause}
-        {...layout}
+        upload={upload}
+        attachmentSize={attachmentSize}
+        attachmentOrientation={attachmentOrientation}
+        className={className}
       />
     );
   }
@@ -186,9 +179,8 @@ export function UploadStatus({
   return (
     <UploadFileStatus
       phase={upload.phase}
-      progress={upload.file?.progress ?? upload.progress}
       error={upload.file?.error ?? upload.error}
-      fileInfo={upload.file}
+      file={upload.file}
       onCancel={onCancel}
       onPause={onPause}
       {...layout}

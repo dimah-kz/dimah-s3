@@ -105,6 +105,7 @@ export {
 } from "./hooks/use-upload";
 export {
   useDownload,
+  isFetchDownload,
   type UseDownloadOptions,
   type UseDownloadReturn,
   type UseNavigateDownloadOptions,

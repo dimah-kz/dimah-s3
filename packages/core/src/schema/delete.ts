@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { objectKeySchema, routeNameSchema } from "./shared";
 
 export const DELETE_BATCH_MAX_KEYS = 100;

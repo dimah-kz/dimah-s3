@@ -3,6 +3,7 @@ import {
   S3_API_ROUTES,
   type MultipartListPartsResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import {
   listAllParts,
   openStoredTarget,
@@ -14,7 +15,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleListParts(
   config: ResolvedDimahS3Config,
-  input: typeof multipartListPartsQuerySchema._output,
+  input: z.output<typeof multipartListPartsQuerySchema>,
   request: Request,
 ): Promise<MultipartListPartsResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(

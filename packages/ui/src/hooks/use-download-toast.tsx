@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { formatFileSize, truncateFileName } from "@dimah-s3/core";
+import {
+  formatFileSize,
+  fileNameFromKey,
+  truncateFileName,
+} from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { useFormatDimahError } from "@dimah-s3/react";
-import type {
-  UseFetchDownloadReturn,
-  UseNavigateDownloadReturn,
+import {
+  isFetchDownload,
+  useFormatDimahError,
+  type UseDownloadReturn,
 } from "@dimah-s3/react";
 
 import { toast } from "@/components/ui/toast";
 
-export type DownloadToastTarget =
-  UseNavigateDownloadReturn | UseFetchDownloadReturn;
+export type DownloadToastTarget = UseDownloadReturn;
 
 export type DownloadToastOptions = {
   enabled?: boolean;
@@ -22,15 +25,11 @@ export type DownloadToastOptions = {
   fileSize?: number;
 };
 
-function isFetchDownload(
-  download: DownloadToastTarget,
-): download is UseFetchDownloadReturn {
-  return "progress" in download && "cancel" in download;
-}
-
 /**
  * Drives toasts from a `useDownload` return.
  * Shared by DownloadButton and ProgressDownloadButton.
+ * Only the control whose `objectKey` matches the hook's active key toasts,
+ * so a list can share one hook instance.
  */
 export function useDownloadToast(
   download: DownloadToastTarget,
@@ -38,7 +37,7 @@ export function useDownloadToast(
 ) {
   const t = useTranslations();
   const formatDimahError = useFormatDimahError();
-  const displayName = fileName ?? objectKey.split("/").pop() ?? objectKey;
+  const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
   const toastIdRef = useRef<string | null>(null);
   const prevPhaseRef = useRef(download.phase);
   const cancelRef = useRef(
@@ -54,12 +53,13 @@ export function useDownloadToast(
   const url = fetchMode ? null : download.url;
   const resolvedFileName = fetchMode ? download.fileName : null;
   const progress = fetchMode ? download.progress : null;
+  const activeKey = download.objectKey;
 
   useEffect(() => {
     if (prevPhaseRef.current === phase) return;
     const prev = prevPhaseRef.current;
     prevPhaseRef.current = phase;
-    if (!enabled) return;
+    if (!enabled || activeKey !== objectKey) return;
 
     const errorNode = (value: unknown) => (
       <span dir="auto" className="block [overflow-wrap:anywhere]">
@@ -165,12 +165,21 @@ export function useDownloadToast(
     resolvedFileName,
     displayName,
     fileSize,
+    activeKey,
+    objectKey,
     t,
     formatDimahError,
   ]);
 
   useEffect(() => {
-    if (!enabled || phase !== "downloading" || !progress) return;
+    if (
+      !enabled ||
+      activeKey !== objectKey ||
+      phase !== "downloading" ||
+      !progress
+    ) {
+      return;
+    }
     if (!toastIdRef.current) return;
 
     toast.update(toastIdRef.current, {
@@ -188,5 +197,5 @@ export function useDownloadToast(
         onClick: () => cancelRef.current?.(),
       },
     });
-  }, [enabled, phase, progress, t]);
+  }, [enabled, phase, progress, t, activeKey, objectKey]);
 }

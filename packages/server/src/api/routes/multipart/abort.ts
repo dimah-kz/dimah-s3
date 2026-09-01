@@ -4,6 +4,7 @@ import {
   S3_API_ROUTES,
   type MultipartAbortResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import {
   openStoredTarget,
   runHook,
@@ -15,7 +16,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleAbort(
   config: ResolvedDimahS3Config,
-  input: typeof multipartAbortBodySchema._output,
+  input: z.output<typeof multipartAbortBodySchema>,
   request: Request,
 ): Promise<MultipartAbortResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(

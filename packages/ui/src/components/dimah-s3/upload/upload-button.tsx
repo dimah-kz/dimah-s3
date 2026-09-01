@@ -16,7 +16,7 @@ import {
   type AttachmentLayoutAliases,
   type StatusSlot,
 } from "@/lib/attachment-layout";
-import { useUploadUi } from "@/components/dimah-s3/upload/upload-wired";
+import { useUploadUi } from "@/hooks/use-upload-ui";
 
 /** Props for {@link UploadButton}. Pass a {@link UseUploadReturn} as `upload`. */
 export type UploadButtonProps = AttachmentLayoutAliases & {
@@ -64,7 +64,6 @@ export function UploadButton({
   const isDisabled = Boolean(disabled) || upload.isPending;
   const { statusNode } = useUploadUi(upload, {
     toast: enableToast,
-    status: statusSlot,
     attachmentSize,
     attachmentOrientation,
   });

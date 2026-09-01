@@ -74,8 +74,9 @@ Engine options and lifecycle callbacks stay on `useDelete`. The button
 owns the target key, confirmation copy, and chrome (`toast`, `status`,
 `variant`).
 
-In a list, call `useDelete` inside the row so each object has its own
-phase.
+A list can share one `useDelete` — the hook tracks `objectKey`, so the
+dialog, spinner, status, and toasts only apply to the matching control. Call
+the hook inside the row when deletes must run in parallel.
 
 ## Props
 

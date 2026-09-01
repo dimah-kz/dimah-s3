@@ -1,6 +1,6 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { useDownload } from "./use-download";
+import { isFetchDownload, useDownload } from "./use-download";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
 
@@ -22,6 +22,8 @@ describe("useDownload", () => {
     expect(result).toEqual({ url: "https://s3.test/dl", expiresIn: 600 });
     expect(hook.current).toMatchObject({
       phase: "idle",
+      mode: "navigate",
+      objectKey: "a.png",
       url: "https://s3.test/dl",
       error: null,
       isPending: false,
@@ -43,6 +45,7 @@ describe("useDownload", () => {
 
     expect(hook.current).toMatchObject({
       phase: "error",
+      objectKey: "missing.png",
       error: expect.objectContaining({ message: "blocked" }),
       url: null,
     });
@@ -58,9 +61,22 @@ describe("useDownload", () => {
       total: 0,
       percent: 0,
     });
+    expect(hook.current.mode).toBe("fetch");
+    expect(hook.current.objectKey).toBeNull();
     expect(hook.current.isPending).toBe(false);
     expect(hook.current.isDownloading).toBe(false);
     expect(typeof hook.current.cancel).toBe("function");
+    expect(isFetchDownload(hook.current)).toBe(true);
+    hook.unmount();
+  });
+
+  it("defaults to navigate mode", () => {
+    const hook = renderHook(() =>
+      useDownload({ api: fakeS3Api(), route: "uploads" }),
+    );
+    expect(hook.current.mode).toBe("navigate");
+    expect(hook.current.objectKey).toBeNull();
+    expect(isFetchDownload(hook.current)).toBe(false);
     hook.unmount();
   });
 });

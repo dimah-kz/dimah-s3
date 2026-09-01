@@ -1,4 +1,5 @@
 import { createEndpoint, type EndpointOptions } from "better-call";
+import * as z from "zod";
 import { errors } from "@/errors";
 import { s3ContextMiddleware } from "./create-s3-middleware";
 
@@ -6,9 +7,20 @@ const createEndpointWithContext = createEndpoint.create({
   use: [s3ContextMiddleware],
 });
 
+function compileIfZod<T>(schema: T): T {
+  if (schema !== null && typeof schema === "object" && "_zod" in schema) {
+    return z.compile(schema as unknown as z.ZodType) as T;
+  }
+  return schema;
+}
+
 function withS3Validation<O extends EndpointOptions>(options: O): O {
   return {
     ...options,
+    ...(options.body !== undefined ? { body: compileIfZod(options.body) } : {}),
+    ...(options.query !== undefined
+      ? { query: compileIfZod(options.query) }
+      : {}),
     onValidationError:
       options.onValidationError ??
       (({ message }: { message: string }) => {
@@ -25,7 +37,9 @@ type CreateS3Endpoint = typeof createEndpointWithContext;
  * Paths are absolute under `basePath` (e.g. `/db/objects`). Context
  * (`config`, `request`) is injected by the router / `s3.api`.
  * Zod failures throw `DimahS3Error` (`VALIDATION_ERROR`) via
- * better-call `onValidationError`.
+ * better-call `onValidationError`. Zod `body` / `query` schemas are
+ * compiled with `z.compile()` (Zod 4.5) so valid requests skip the
+ * interpreter; unsupported schemas fall back to the runtime parser.
  *
  * ```ts
  * endpoints: {

@@ -8,6 +8,7 @@ import {
   S3_API_ROUTES,
   type MultipartInitResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import { errors } from "@/errors";
 import { openUploadTarget, runHook, runLifecycleHook } from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
@@ -15,7 +16,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleMultipartInit(
   config: ResolvedDimahS3Config,
-  input: typeof multipartInitBodySchema._output,
+  input: z.output<typeof multipartInitBodySchema>,
   request: Request,
 ): Promise<MultipartInitResponse> {
   const fileSize = Math.floor(input.fileSize);

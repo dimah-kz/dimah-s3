@@ -6,6 +6,7 @@ import {
   S3_API_ROUTES,
   type DownloadPresignResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import {
   headObjectOrNotFound,
   normalizeExpiresIn,
@@ -39,7 +40,7 @@ function fileUrl(
 
 async function handleDownload(
   config: ResolvedDimahS3Config,
-  input: typeof downloadQuerySchema._output,
+  input: z.output<typeof downloadQuerySchema>,
   request: Request,
 ): Promise<DownloadPresignResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(

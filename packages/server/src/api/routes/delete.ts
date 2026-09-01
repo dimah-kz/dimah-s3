@@ -4,6 +4,7 @@ import {
   S3_API_ROUTES,
   type DeleteResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import {
   headObjectOrNotFound,
   openStoredTarget,
@@ -15,7 +16,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleDelete(
   config: ResolvedDimahS3Config,
-  input: typeof deleteQuerySchema._output,
+  input: z.output<typeof deleteQuerySchema>,
   request: Request,
 ): Promise<DeleteResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(

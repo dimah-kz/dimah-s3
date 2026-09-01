@@ -5,6 +5,7 @@ import {
   resolveStoredFileName,
   S3_API_ROUTES,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import { errors } from "@/errors";
 import {
   headObjectOrNotFound,
@@ -17,7 +18,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleFile(
   config: ResolvedDimahS3Config,
-  input: typeof fileQuerySchema._output,
+  input: z.output<typeof fileQuerySchema>,
   request: Request,
 ): Promise<Response> {
   const { route, key, bucket, stored } = await openStoredTarget(

@@ -17,7 +17,7 @@ describe("useDelete", () => {
     });
     expect(hook.current).toMatchObject({
       phase: "confirming",
-      pendingKey: "a.png",
+      objectKey: "a.png",
       isConfirming: true,
       isDeleting: false,
       isPending: true,
@@ -34,6 +34,7 @@ describe("useDelete", () => {
     expect(onSuccess).toHaveBeenCalledWith("a.png");
     expect(hook.current.phase).toBe("success");
     expect(hook.current.isPending).toBe(false);
+    expect(hook.current.objectKey).toBe("a.png");
     hook.unmount();
   });
 
@@ -52,6 +53,7 @@ describe("useDelete", () => {
 
     expect(api.delete).not.toHaveBeenCalled();
     expect(hook.current.phase).toBe("error");
+    expect(hook.current.objectKey).toBe("a.png");
     hook.unmount();
   });
 
@@ -103,7 +105,7 @@ describe("useDelete", () => {
     });
     expect(onSuccess).toHaveBeenCalledWith("a.png");
     expect(hook.current.phase).toBe("success");
-    expect(hook.current.pendingKey).toBeNull();
+    expect(hook.current.objectKey).toBe("a.png");
     hook.unmount();
   });
 

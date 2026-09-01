@@ -54,8 +54,16 @@ export type UseDownloadOptions =
   UseNavigateDownloadOptions | UseFetchDownloadOptions;
 
 export type UseNavigateDownloadState = {
+  /** Discriminant — omit `mode` or pass `"navigate"` on the hook. */
+  mode: "navigate";
   /** Current download phase. */
   phase: DownloadPhase;
+  /**
+   * Object this operation is targeting. Set when `download` / `presign`
+   * starts; kept through success/error/cancel until `reset()` or the next
+   * key. Lets a list of controls share one hook instance.
+   */
+  objectKey: string | null;
   /** Last error, or `null`. */
   error: DimahS3Error | null;
   /** Presigned URL — set after a successful presign, cleared on reset. */
@@ -79,8 +87,15 @@ export type UseNavigateDownloadReturn = UseNavigateDownloadState & {
 };
 
 export type UseFetchDownloadState = {
+  /** Discriminant — pass `{ mode: "fetch" }` on the hook. */
+  mode: "fetch";
   /** Current download phase. */
   phase: FetchDownloadPhase;
+  /**
+   * Object this operation is targeting. Set when `download` starts; kept
+   * through success/error/cancel until `reset()` or the next key.
+   */
+  objectKey: string | null;
   /** Byte transfer progress. */
   progress: UploadProgress;
   /** Last error, or `null`. */
@@ -106,11 +121,20 @@ export type UseFetchDownloadReturn = UseFetchDownloadState & {
   reset: () => void;
 };
 
-/** Default (navigate) return. Fetch mode is {@link UseFetchDownloadReturn}. */
-export type UseDownloadReturn = UseNavigateDownloadReturn;
+/** Return of {@link useDownload} — narrow with {@link isFetchDownload}. */
+export type UseDownloadReturn =
+  UseNavigateDownloadReturn | UseFetchDownloadReturn;
+
+/** `true` when the hook was created with `{ mode: "fetch" }`. */
+export function isFetchDownload(
+  download: UseDownloadReturn,
+): download is UseFetchDownloadReturn {
+  return download.mode === "fetch";
+}
 
 type InternalState = {
   phase: FetchDownloadPhase;
+  objectKey: string | null;
   error: DimahS3Error | null;
   url: string | null;
   expiresIn: number | null;
@@ -123,6 +147,7 @@ const INITIAL_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 
 const INITIAL_STATE: InternalState = {
   phase: "idle",
+  objectKey: null,
   error: null,
   url: null,
   expiresIn: null,
@@ -130,6 +155,10 @@ const INITIAL_STATE: InternalState = {
   fileName: null,
   fileSize: null,
 };
+
+function idleKeepingKey(objectKey: string | null): InternalState {
+  return { ...INITIAL_STATE, objectKey };
+}
 
 function missingApiMessage(hook: string) {
   return `[dimah-s3] No S3Api found. Pass \`api\` to ${hook} or wrap with <S3Provider>.`;
@@ -163,6 +192,7 @@ export function useDownload(
       if (!api) throw new Error(missingApiMessage("useDownload"));
       patch((draft) => {
         draft.phase = "presigning";
+        draft.objectKey = key;
         draft.error = null;
         draft.url = null;
         draft.expiresIn = null;
@@ -203,6 +233,7 @@ export function useDownload(
         if (!allowed) {
           patch((draft) => {
             draft.phase = "error";
+            draft.objectKey = key;
             draft.error = hookBlockedError(
               "Download blocked by beforeDownload hook",
             );
@@ -234,6 +265,7 @@ export function useDownload(
         if (!allowed) {
           patch((draft) => {
             draft.phase = "error";
+            draft.objectKey = key;
             draft.error = hookBlockedError(
               "Download blocked by beforeDownload hook",
             );
@@ -249,6 +281,7 @@ export function useDownload(
 
       patch((draft) => {
         draft.phase = "presigning";
+        draft.objectKey = key;
         draft.progress = { ...INITIAL_PROGRESS };
         draft.error = null;
         draft.fileName = downloadName ?? null;
@@ -344,7 +377,7 @@ export function useDownload(
         if (isAbortError(err)) {
           if (!resettingRef.current) opts.onCancel?.(key);
           resettingRef.current = false;
-          replace(INITIAL_STATE);
+          replace(idleKeepingKey(key));
           return;
         }
         patch((draft) => {
@@ -378,7 +411,7 @@ export function useDownload(
     downloadKeyRef.current = null;
     const opts = optsRef.current as UseFetchDownloadOptions;
     if (key && opts.mode === "fetch") opts.onCancel?.(key);
-    replace(INITIAL_STATE);
+    replace(idleKeepingKey(key));
   }, [optsRef, replace]);
 
   const reset = useCallback(() => {
@@ -394,7 +427,9 @@ export function useDownload(
     const isPending =
       state.phase === "presigning" || state.phase === "downloading";
     return {
+      mode: "fetch",
       phase: state.phase,
+      objectKey: state.objectKey,
       progress: state.progress,
       error: state.error,
       fileName: state.fileName,
@@ -408,7 +443,9 @@ export function useDownload(
   }
 
   return {
+    mode: "navigate",
     phase: state.phase as DownloadPhase,
+    objectKey: state.objectKey,
     error: state.error,
     url: state.url,
     expiresIn: state.expiresIn,

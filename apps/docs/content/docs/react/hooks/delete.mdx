@@ -22,15 +22,21 @@ route for the same prefix
 import { useDelete } from "@dimah-s3/react";
 
 export function DeleteFile() {
-  const { pendingKey, requestDelete, confirmDelete, cancelDelete } = useDelete({
+  const {
+    isConfirming,
+    objectKey,
+    requestDelete,
+    confirmDelete,
+    cancelDelete,
+  } = useDelete({
     route: "uploads",
   });
   const storedKey = "uploads/11111111-1111-1111-1111-111111111111/photo.jpg";
 
-  if (pendingKey) {
+  if (isConfirming) {
     return (
       <div>
-        <p>Delete {pendingKey}?</p>
+        <p>Delete {objectKey}?</p>
         <button type="button" onClick={() => void confirmDelete()}>
           Confirm
         </button>
@@ -62,4 +68,6 @@ in [`delete.guard`](/docs/server/hooks/delete).
 
 `isConfirming` is `true` while a key is awaiting the dialog
 (`phase === "confirming"`). `isDeleting` is `true` while the request is in
-flight. `isPending` is either.
+flight. `isPending` is either. `objectKey` is the object this instance is
+acting on — kept through success/error until `reset()` / `cancelDelete()`
+or the next key, so a list of controls can share one hook.

@@ -16,7 +16,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useDownloadUi } from "@/components/dimah-s3/download/download-wired";
+import { useDownloadUi } from "@/hooks/use-download-ui";
 
 /** Props for {@link DownloadButton}. Pass a {@link UseNavigateDownloadReturn} as `download`. */
 export type DownloadButtonProps = AttachmentLayoutAliases & {
@@ -70,10 +70,11 @@ export function DownloadButton({
   attachmentOrientation,
 }: DownloadButtonProps) {
   const t = useTranslations();
-  const isDisabled = Boolean(disabled) || download.isPending;
+  const isThis = download.objectKey === objectKey;
+  const isPendingThis = download.isPending && isThis;
+  const isDisabled = Boolean(disabled) || isPendingThis;
   const { statusNode } = useDownloadUi(download, {
     toast: enableToast,
-    status: statusSlot,
     objectKey,
     fileName,
     attachmentSize,
@@ -82,7 +83,7 @@ export function DownloadButton({
 
   const buttonContent = children ?? (
     <>
-      {download.isPending ? (
+      {isPendingThis ? (
         <LoaderIcon className="animate-spin" data-icon="inline-start" />
       ) : (
         <DownloadIcon data-icon="inline-start" />

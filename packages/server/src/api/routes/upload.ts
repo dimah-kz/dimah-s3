@@ -8,6 +8,7 @@ import {
   uploadBodySchema,
   type UploadPresignResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import { errors } from "@/errors";
 import {
   normalizeExpiresIn,
@@ -31,7 +32,7 @@ function objectUserMetadata(
 
 async function handleUpload(
   config: ResolvedDimahS3Config,
-  input: typeof uploadBodySchema._output,
+  input: z.output<typeof uploadBodySchema>,
   request: Request,
 ): Promise<UploadPresignResponse> {
   const fileSize = Math.floor(input.fileSize);

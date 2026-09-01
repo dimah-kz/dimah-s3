@@ -7,6 +7,7 @@ import {
   S3_API_ROUTES,
   type MultipartCompleteResponse,
 } from "@dimah-s3/core";
+import type * as z from "zod";
 import { errors } from "@/errors";
 import {
   abortMultipartBestEffort,
@@ -23,7 +24,7 @@ import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
 async function handleComplete(
   config: ResolvedDimahS3Config,
-  input: typeof multipartCompleteBodySchema._output,
+  input: z.output<typeof multipartCompleteBodySchema>,
   request: Request,
 ): Promise<MultipartCompleteResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(

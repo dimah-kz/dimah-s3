@@ -3,16 +3,12 @@
 import { PauseIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { formatEta, useFormatDimahError } from "@dimah-s3/react";
-import type {
-  DimahS3Error,
-  UploadPhase,
-  UploadProgress,
-  UploadFileState,
-} from "@dimah-s3/react";
+import type { UploadFileState, UseUploadReturn } from "@dimah-s3/react";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { AttachmentAction } from "@/components/ui/attachment";
 import type {
+  AttachmentLayoutAliases,
   AttachmentLayoutProps,
   AttachmentState,
 } from "@/lib/attachment-layout";
@@ -23,32 +19,27 @@ import {
 } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-export type MultiUploadStatusProps = AttachmentLayoutProps & {
-  phase: UploadPhase;
-  files: UploadFileState[];
-  progress: UploadProgress;
-  error: DimahS3Error | null;
-  onCancel?: () => void;
-  /** When set (typically with an `uploadStore`), shows a pause control. */
-  onPause?: () => void;
+export type MultiUploadStatusProps = AttachmentLayoutAliases & {
+  upload: UseUploadReturn;
   className?: string;
 };
 
 export function MultiUploadStatus({
-  phase,
-  files,
-  progress,
-  error,
-  onCancel,
-  onPause,
-  size,
-  orientation,
+  upload,
+  attachmentSize,
+  attachmentOrientation,
   className,
 }: MultiUploadStatusProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const { phase, files, progress, error } = upload;
+  const onCancel = upload.cancel;
+  const onPause = upload.resumable ? upload.detach : undefined;
   const errorText = error ? formatError(error) : null;
-  const layout = { size, orientation };
+  const layout = {
+    size: attachmentSize,
+    orientation: attachmentOrientation,
+  };
 
   if (phase === "idle") return null;
 

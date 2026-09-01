@@ -16,7 +16,9 @@ same prefix ([combining features](/docs/server/routes#combining-features)).
 [Download Button](/docs/react/ui/components/download-button) and
 [Progress Download Button](/docs/react/ui/components/progress-download-button)
 take the `useDownload` return as `download`. The stored key stays on the
-control as `objectKey`.
+control as `objectKey`. The hook also exposes `objectKey` for the active
+operation, so a list can share one instance. Narrow fetch vs navigate with
+`download.mode` or `isFetchDownload`.
 
 | Hook                             | UI                                        |
 | -------------------------------- | ----------------------------------------- |

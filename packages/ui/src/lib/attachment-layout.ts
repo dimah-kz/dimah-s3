@@ -60,12 +60,17 @@ export const ATTACHMENT_TITLE_CLASS =
  */
 export type StatusSlot = boolean | ((node: ReactNode) => ReactNode);
 
-/** Resolve a {@link StatusSlot} against a built status node. */
+/**
+ * Resolve a {@link StatusSlot} against a built status node.
+ * `wrap` only applies to the default slot (`true`), not a relocate function.
+ */
 export function resolveStatusSlot(
   slot: StatusSlot = true,
   node: ReactNode,
+  wrap?: (node: ReactNode) => ReactNode,
 ): ReactNode {
   if (slot === false) return null;
   if (typeof slot === "function") return slot(node);
-  return node;
+  if (node == null) return null;
+  return wrap ? wrap(node) : node;
 }

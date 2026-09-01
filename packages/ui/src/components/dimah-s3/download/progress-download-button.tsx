@@ -17,7 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useDownloadUi } from "@/components/dimah-s3/download/download-wired";
+import { useDownloadUi } from "@/hooks/use-download-ui";
 
 /** Props for {@link ProgressDownloadButton}. Pass a {@link UseFetchDownloadReturn} as `download`. */
 export type ProgressDownloadButtonProps = AttachmentLayoutAliases & {
@@ -79,9 +79,10 @@ export function ProgressDownloadButton({
   attachmentOrientation,
 }: ProgressDownloadButtonProps) {
   const t = useTranslations();
+  const isThis = download.objectKey === objectKey;
+  const isPendingThis = download.isPending && isThis;
   const { statusNode } = useDownloadUi(download, {
     toast: enableToast,
-    status: statusSlot,
     objectKey,
     fileName,
     fileSize,
@@ -90,7 +91,7 @@ export function ProgressDownloadButton({
   });
 
   const handleClick = () => {
-    if (download.isPending) {
+    if (isPendingThis) {
       download.cancel();
       return;
     }
@@ -102,19 +103,20 @@ export function ProgressDownloadButton({
       ? Math.min(100, Math.round((download.progress.loaded / fileSize) * 100))
       : null;
 
-  const fillPercent =
-    download.phase === "presigning"
+  const fillPercent = !isPendingThis
+    ? null
+    : download.phase === "presigning"
       ? 12
       : download.progress.total > 0
         ? download.progress.percent
         : computedPercentFromFileSize;
 
-  const isIndeterminateFill = download.isDownloading && fillPercent == null;
+  const isIndeterminateFill = isPendingThis && fillPercent == null;
 
   const buttonContent = children ?? (
     <>
-      {!download.isPending && <DownloadIcon data-icon="inline-start" />}
-      {download.isPending
+      {!isPendingThis && <DownloadIcon data-icon="inline-start" />}
+      {isPendingThis
         ? formatFileSize(download.progress.loaded)
         : (label ?? t("Download", { note: "button" }))}
     </>
@@ -137,7 +139,7 @@ export function ProgressDownloadButton({
             />
           }
         >
-          {download.isPending && (
+          {isPendingThis && (
             <span
               className={cn(
                 "absolute inset-y-0 start-0 bg-dimah-s3-primary/15",
@@ -157,7 +159,7 @@ export function ProgressDownloadButton({
           </span>
         </TooltipTrigger>
         <TooltipContent>
-          {download.isPending
+          {isPendingThis
             ? (cancelTooltipText ?? t("Cancel download", { note: "tooltip" }))
             : (tooltipText ?? t("Download file", { note: "tooltip" }))}
         </TooltipContent>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as z from "zod";
 import { deleteBatchBodySchema, deleteQuerySchema } from "./delete";
 import { downloadQuerySchema } from "./download";
 import { fileQuerySchema } from "./file";
@@ -7,6 +8,7 @@ import { s3FetchErrorSchema } from "./error";
 import {
   multipartAbortBodySchema,
   multipartCompleteBodySchema,
+  multipartCompletedPartSchema,
   multipartInitBodySchema,
   multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
@@ -14,8 +16,10 @@ import {
 import {
   metadataSchema,
   objectKeySchema,
+  optionalChecksumSchema,
   optionalTrimmedString,
   partNumberSchema,
+  sha256ChecksumSchema,
   trimmedString,
 } from "./shared";
 import { confirmBodySchema, uploadBodySchema } from "./upload";
@@ -25,6 +29,9 @@ const uploadBody = {
   fileName: "a.png",
   fileSize: 10,
 };
+
+/** SHA-256("hi") as unpadded standard base64. */
+const SHA256_HI = "j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ";
 
 describe("s3FetchErrorSchema", () => {
   it("accepts the API error JSON body", () => {
@@ -42,8 +49,8 @@ describe("s3FetchErrorSchema", () => {
   });
 
   it("requires message and rejects non-objects", () => {
-    expect(s3FetchErrorSchema.safeParse({ code: "X" }).success).toBe(false);
-    expect(s3FetchErrorSchema.safeParse("not json").success).toBe(false);
+    expect(z.validate(s3FetchErrorSchema, { code: "X" })).toBe(false);
+    expect(z.validate(s3FetchErrorSchema, "not json")).toBe(false);
   });
 });
 
@@ -117,10 +124,22 @@ describe("uploadBodySchema", () => {
     ).toBe(false);
   });
 
-  it("accepts an optional checksum", () => {
+  it("accepts an optional SHA-256 checksum", () => {
     expect(
-      uploadBodySchema.parse({ ...uploadBody, checksum: "abc" }).checksum,
-    ).toBe("abc");
+      uploadBodySchema.parse({ ...uploadBody, checksum: SHA256_HI }).checksum,
+    ).toBe(SHA256_HI);
+    expect(
+      uploadBodySchema.parse({
+        ...uploadBody,
+        checksum: `${SHA256_HI}=`,
+      }).checksum,
+    ).toBe(`${SHA256_HI}=`);
+  });
+
+  it("rejects a checksum that is not SHA-256 base64", () => {
+    expect(
+      z.validate(uploadBodySchema, { ...uploadBody, checksum: "abc" }),
+    ).toBe(false);
   });
 
   it("omits a blank contentType", () => {
@@ -325,7 +344,52 @@ describe("partNumberSchema", () => {
   it("allows 1 through 10000", () => {
     expect(partNumberSchema.parse(1)).toBe(1);
     expect(partNumberSchema.parse(10_000)).toBe(10_000);
-    expect(partNumberSchema.safeParse(0).success).toBe(false);
-    expect(partNumberSchema.safeParse(10_001).success).toBe(false);
+    expect(z.validate(partNumberSchema, 0)).toBe(false);
+    expect(z.validate(partNumberSchema, 10_001)).toBe(false);
+  });
+});
+
+describe("sha256ChecksumSchema", () => {
+  it("accepts padded and unpadded SHA-256 base64", () => {
+    expect(sha256ChecksumSchema.parse(SHA256_HI)).toBe(SHA256_HI);
+    expect(sha256ChecksumSchema.parse(`${SHA256_HI}=`)).toBe(`${SHA256_HI}=`);
+    expect(z.validate(sha256ChecksumSchema, "abc")).toBe(false);
+  });
+
+  it("omits a blank optional checksum", () => {
+    expect(optionalChecksumSchema.parse("")).toBeUndefined();
+    expect(optionalChecksumSchema.parse("   ")).toBeUndefined();
+    expect(optionalChecksumSchema.parse(SHA256_HI)).toBe(SHA256_HI);
+  });
+});
+
+describe("z.compile", () => {
+  it("compiles every protocol schema", () => {
+    const schemas = [
+      trimmedString,
+      optionalTrimmedString,
+      objectKeySchema,
+      partNumberSchema,
+      metadataSchema,
+      sha256ChecksumSchema,
+      optionalChecksumSchema,
+      uploadBodySchema,
+      confirmBodySchema,
+      downloadQuerySchema,
+      fileQuerySchema,
+      deleteQuerySchema,
+      deleteBatchBodySchema,
+      multipartInitBodySchema,
+      multipartSignPartBodySchema,
+      multipartListPartsQuerySchema,
+      multipartCompletedPartSchema,
+      multipartCompleteBodySchema,
+      multipartAbortBodySchema,
+      routeCatalogResponseSchema,
+      s3FetchErrorSchema,
+    ];
+    for (const schema of schemas) {
+      expect(() => z.compile(schema, { strict: true })).not.toThrow();
+    }
   });
 });

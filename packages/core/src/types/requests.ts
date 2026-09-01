@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type * as z from "zod";
 import type { confirmBodySchema, uploadBodySchema } from "@/schema/upload";
 import type { downloadQuerySchema } from "@/schema/download";
 import type { deleteBatchBodySchema, deleteQuerySchema } from "@/schema/delete";
@@ -17,7 +17,7 @@ import type { s3ObjectAclSchema } from "@/schema/shared";
 export type { UploadPresignMethod } from "./upload-presign-method";
 
 /** S3 object ACL. */
-export type S3ObjectAcl = z.infer<typeof s3ObjectAclSchema>;
+export type S3ObjectAcl = z.output<typeof s3ObjectAclSchema>;
 
 /**
  * Server-side auth context for `dimahS3().api` calls (guards / db scope).
@@ -33,53 +33,53 @@ type WithNamedRoute<T> = Omit<T, "route"> & {
 } & S3ApiHeaders;
 
 /** Payload for {@link S3Api.upload}. */
-export type UploadPayload = WithNamedRoute<z.infer<typeof uploadBodySchema>>;
+export type UploadPayload = WithNamedRoute<z.output<typeof uploadBodySchema>>;
 
 /** Payload for {@link S3Api.confirm}. */
-export type ConfirmPayload = WithNamedRoute<z.infer<typeof confirmBodySchema>>;
+export type ConfirmPayload = WithNamedRoute<z.output<typeof confirmBodySchema>>;
 
 /** Payload for {@link S3Api.download}. */
 export type DownloadPayload = WithNamedRoute<
-  z.infer<typeof downloadQuerySchema>
+  z.output<typeof downloadQuerySchema>
 >;
 
 /** Payload for {@link S3Api.delete}. */
-export type DeletePayload = WithNamedRoute<z.infer<typeof deleteQuerySchema>>;
+export type DeletePayload = WithNamedRoute<z.output<typeof deleteQuerySchema>>;
 
 /** Payload for {@link S3Api.deleteMany}. */
 export type DeleteBatchPayload = WithNamedRoute<
-  z.infer<typeof deleteBatchBodySchema>
+  z.output<typeof deleteBatchBodySchema>
 >;
 
 /** Payload for {@link S3Api.file} (proxy download query). */
-export type FilePayload = WithNamedRoute<z.infer<typeof fileQuerySchema>>;
+export type FilePayload = WithNamedRoute<z.output<typeof fileQuerySchema>>;
 
 /** Payload for {@link S3Api.multipart.init}. */
 export type MultipartInitPayload = WithNamedRoute<
-  z.infer<typeof multipartInitBodySchema>
+  z.output<typeof multipartInitBodySchema>
 >;
 
 /** Payload for {@link S3Api.multipart.signPart}. */
 export type MultipartSignPartPayload = WithNamedRoute<
-  z.infer<typeof multipartSignPartBodySchema>
+  z.output<typeof multipartSignPartBodySchema>
 >;
 
 /** Payload for {@link S3Api.multipart.listParts}. */
 export type MultipartListPartsPayload = WithNamedRoute<
-  z.infer<typeof multipartListPartsQuerySchema>
+  z.output<typeof multipartListPartsQuerySchema>
 >;
 
 /** A completed multipart part reference for {@link S3Api.multipart.complete}. */
-export type MultipartCompletedPartRef = z.infer<
+export type MultipartCompletedPartRef = z.output<
   typeof multipartCompletedPartSchema
 >;
 
 /** Payload for {@link S3Api.multipart.complete}. */
 export type MultipartCompletePayload = WithNamedRoute<
-  z.infer<typeof multipartCompleteBodySchema>
+  z.output<typeof multipartCompleteBodySchema>
 >;
 
 /** Payload for {@link S3Api.multipart.abort}. */
 export type MultipartAbortPayload = WithNamedRoute<
-  z.infer<typeof multipartAbortBodySchema>
+  z.output<typeof multipartAbortBodySchema>
 >;

@@ -41,7 +41,7 @@ export type UseUploadOptions = FileUploadConfig &
     disabled?: boolean;
     /**
      * Disable drag interactions on the root (button-style custom UIs).
-     * Wired `UploadButton` does not need this — it never binds `getRootProps`.
+     * `UploadButton` does not bind `getRootProps` — it only uses `open()`.
      * @default false
      */
     noDrag?: boolean;

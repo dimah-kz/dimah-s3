@@ -2,20 +2,25 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { DbClientObject } from "@dimah-s3/db/client";
-import { useDelete, useDownload } from "@dimah-s3/react";
+import {
+  useDelete,
+  useDownload,
+  type UseDeleteReturn,
+  type UseNavigateDownloadReturn,
+} from "@dimah-s3/react";
 import { DeleteButton, DownloadButton } from "@dimah-s3/ui";
 import { s3Client } from "@/lib/s3-client";
 
 function FileRow({
   object,
-  onDeleted,
+  download,
+  del,
 }: {
   object: DbClientObject;
-  onDeleted: () => void;
+  download: UseNavigateDownloadReturn;
+  del: UseDeleteReturn;
 }) {
   const fileName = object.filename ?? object.key;
-  const download = useDownload({ route: "uploads" });
-  const del = useDelete({ route: "uploads", onSuccess: onDeleted });
 
   return (
     <li className="flex w-full min-w-0 items-center gap-2">
@@ -53,6 +58,9 @@ export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
     void refresh();
   }, [refresh, refreshToken]);
 
+  const download = useDownload({ route: "uploads" });
+  const del = useDelete({ route: "uploads", onSuccess: () => void refresh() });
+
   if (objects.length === 0) {
     return <p className="text-sm text-muted-foreground">No files</p>;
   }
@@ -63,7 +71,8 @@ export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
         <FileRow
           key={object.id}
           object={object}
-          onDeleted={() => void refresh()}
+          download={download}
+          del={del}
         />
       ))}
     </ul>

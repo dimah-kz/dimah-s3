@@ -5,34 +5,41 @@ import { useFormatDimahError, type UseDeleteReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { useDeleteToast } from "@/hooks/use-delete-toast";
-import type {
-  AttachmentLayoutAliases,
-  StatusSlot,
-} from "@/lib/attachment-layout";
+import type { AttachmentLayoutAliases } from "@/lib/attachment-layout";
 
-type DeleteLayout = AttachmentLayoutAliases & {
+export type UseDeleteUiOptions = AttachmentLayoutAliases & {
   toast?: boolean;
-  status?: StatusSlot;
+  objectKey: string;
   displayName: string;
 };
 
+/**
+ * Toasts + success/error status for a `useDelete` return.
+ * Status only renders for the matching `objectKey` so a list can share
+ * one hook instance.
+ */
 export function useDeleteUi(
   del: UseDeleteReturn,
   {
     toast: enableToast = true,
-    status: statusSlot = true,
+    objectKey,
     displayName,
     attachmentSize,
     attachmentOrientation,
-  }: DeleteLayout,
+  }: UseDeleteUiOptions,
 ) {
-  useDeleteToast(del, { enabled: enableToast, displayName });
+  useDeleteToast(del, { enabled: enableToast, objectKey, displayName });
 
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const isThis = del.objectKey === objectKey;
+
+  if (!isThis) {
+    return { statusNode: null };
+  }
 
   const statusNode =
-    statusSlot === false ? null : del.phase === "success" ? (
+    del.phase === "success" ? (
       <StatusAttachment
         state="done"
         title={t('"{name}" deleted', {

@@ -70,8 +70,9 @@ Pass a navigate-mode return (`useDownload()` without `mode: "fetch"`). For
 progress and cancel, use
 [Progress Download Button](/docs/react/ui/components/progress-download-button).
 
-In a list, call `useDownload` inside the row so each object has its own
-phase.
+A list can share one `useDownload` — the hook tracks `objectKey`, so spinner,
+status, and toasts only apply to the matching control. Call the hook inside
+the row when downloads must run in parallel.
 
 ## Props
 

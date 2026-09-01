@@ -112,9 +112,9 @@
           "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "src/components/dimah-s3/upload/upload-wired.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/upload/upload-wired.tsx"
+          "path": "src/hooks/use-upload-ui.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-upload-ui.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
@@ -209,9 +209,9 @@
           "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "src/components/dimah-s3/upload/upload-wired.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/upload/upload-wired.tsx"
+          "path": "src/hooks/use-upload-ui.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-upload-ui.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
@@ -290,9 +290,9 @@
           "target": "@components/dimah-s3/download/download-button.tsx"
         },
         {
-          "path": "src/components/dimah-s3/download/download-wired.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/download/download-wired.tsx"
+          "path": "src/hooks/use-download-ui.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-download-ui.tsx"
         },
         {
           "path": "src/hooks/use-download-toast.tsx",
@@ -356,9 +356,9 @@
           "target": "@components/dimah-s3/download/progress-download-button.tsx"
         },
         {
-          "path": "src/components/dimah-s3/download/download-wired.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/download/download-wired.tsx"
+          "path": "src/hooks/use-download-ui.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-download-ui.tsx"
         },
         {
           "path": "src/hooks/use-download-toast.tsx",
@@ -428,9 +428,9 @@
           "target": "@components/dimah-s3/delete/delete-button.tsx"
         },
         {
-          "path": "src/components/dimah-s3/delete/delete-wired.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/delete/delete-wired.tsx"
+          "path": "src/hooks/use-delete-ui.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-delete-ui.tsx"
         },
         {
           "path": "src/hooks/use-delete-toast.tsx",

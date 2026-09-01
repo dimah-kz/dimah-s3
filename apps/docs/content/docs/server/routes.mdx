@@ -206,7 +206,9 @@ and return a stable `key` from `object`. `object` may also return
 `previousKey` — after confirm, that object is deleted.
 
 Lock a SHA-256 into the signed PUT/POST with `upload.checksum: true`. The
-React engine sends `sha256File` when the catalog reports checksum.
+React engine sends `sha256File` when the catalog reports checksum. The
+presign body must be a SHA-256 digest as standard base64 (padding
+optional); anything else is `VALIDATION_ERROR`.
 
 Download `disposition` defaults to `"attachment"`. `"inline"` is for
 preview. `download.mode: "proxy"` returns a same-origin `/file` URL that
