@@ -1,30 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Call the hook, pass the return\n\nUpload, download, and delete UI no longer own the route client. Call\n`useUpload`, `useDownload`, or `useDelete` in your component, then pass\nthat return into the control.\n\n### One `useUpload` — `maxFiles` is the switch\n\n`maxFiles` (default `1`) is the only switch between one file and a batch.\nThe return is always `files[]` (`file` is `files[0]`). Pass the instance\nas `upload`.\n\n```tsx\nconst upload = useUpload({\n  route: \"images\",\n  maxFiles: 4,\n  onSuccess: (results) => saveKeys(results.map((r) => r.key)),\n});\n\nreturn <UploadDropzone upload={upload} />;\n```\n\nThe same instance drives `UploadButton`, `UploadStatus`, or a custom\nsurface (`getRootProps` / `open` / `handleFiles`). Programmatic upload is\n`await upload.handleFiles(file)` (`File`, `File[]`, or `FileList`).\n\nLifecycle callbacks always use arrays: `onSuccess(results)`,\n`beforeUpload(files)`, `onUploadStart(files)`, `onCancel()`. Per-file:\n`onFileSuccess(file, result)`, `onFileProgress`, `onFileError`.\n`onError(error, phase)` no longer receives a `File`.\n\n### Download and delete — hook is the route, button is the object\n\nThe control still takes `objectKey` (and display `fileName` / `fileSize`).\nThe hook is the route client; the button is the object.\n\n```tsx\nconst download = useDownload({ route: \"uploads\", mode: \"fetch\" });\nconst del = useDelete({\n  route: \"uploads\",\n  onSuccess: () => refetch(),\n});\n\nreturn (\n  <>\n    <ProgressDownloadButton download={download} objectKey={storedKey} />\n    <DeleteButton delete={del} objectKey={storedKey} />\n  </>\n);\n```\n\n`DownloadButton` takes a navigate-mode return; `ProgressDownloadButton`\ntakes `{ mode: \"fetch\" }`. Narrow with `download.mode` or\n`isFetchDownload(download)`. Lifecycle callbacks stay on the hook.\n\nA list can share one download or delete hook: the return includes\n`objectKey` for the active operation (kept through success/error until\n`reset()`). Status, spinner, dialog, and toasts only apply to the matching\ncontrol. Call the hook inside the row when operations must run in\nparallel.\n\n```tsx\nconst download = useDownload({ route: \"uploads\" });\nconst del = useDelete({ route: \"uploads\", onSuccess: refetch });\n\nreturn files.map((file) => (\n  <li key={file.key}>\n    <DownloadButton download={download} objectKey={file.key} />\n    <DeleteButton delete={del} objectKey={file.key} />\n  </li>\n));\n```\n\n## Compiled Zod 4.5 request validation\n\nServer endpoints compile Zod `body` / `query` schemas with `z.compile()`\non registration. Valid requests take the generated fast path; schemas\nthat cannot compile (for example `z.coerce`) keep the runtime parser.\n\nUnknown keys on protocol bodies and queries are rejected. Integers use\n`z.int()`. Upload `checksum` must be a SHA-256 digest as standard base64\n(padding optional). Garbage values return `VALIDATION_ERROR` instead of\nbeing forwarded to S3.\n\n## Removed\n\n- `useMultiUpload`, `useFileUpload`, `useMultiFileUpload`\n- `route` / engine options / lifecycle callbacks on `UploadButton`,\n  `UploadDropzone`, `DownloadButton`, `ProgressDownloadButton`, and\n  `DeleteButton`\n- `fileInfo`, `result`, and `totalProgress` on the hook return — use\n  `file`, `file.result`, and `progress`\n- `useDelete().pendingKey` — use `objectKey` + `isConfirming`\n- `useDeleteToast` now requires `objectKey` (same matching rule as the\n  button)\n- `UploadFileStatus` `fileInfo` / `progress` — pass `file`\n- `MultiUploadStatus` unpacked `phase` / `files` / `progress` — pass\n  `upload`\n- `UseDownloadReturn` is navigate | fetch — narrow with `download.mode`\n  or `isFetchDownload(download)`\n- `UploadStatusBlock`\n- `MultiFileUploadConfig`, `MultiUploadPhase`, `MultiUploadFileState`,\n  `MultiUploadHooks`\n"
-    filename: 2026-09-01-e7b4a2.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Align create templates with 1.2.0\n\n`dimah-s3 create` starters now require `@dimah-s3/*` 1.2.0. Call `useUpload`\nin the page and pass the return into `UploadButton` — the control no longer\ntakes `route`.\n"
+    filename: 2026-09-01-t1mpl8.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-01-e7b4a2.md
+      - 2026-09-01-t1mpl8.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-01-e7b4a2.md
+      - 2026-09-01-t1mpl8.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-01-e7b4a2.md
+      - 2026-09-01-t1mpl8.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-01-e7b4a2.md
+      - 2026-09-01-t1mpl8.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-01-e7b4a2.md
+      - 2026-09-01-t1mpl8.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-01-e7b4a2.md
+      - 2026-09-01-t1mpl8.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
