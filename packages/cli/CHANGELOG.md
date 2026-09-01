@@ -1,3 +1,109 @@
+## @dimah-s3/cli@1.2.0
+
+### Call the hook, pass the return
+
+Upload, download, and delete UI no longer own the route client. Call
+`useUpload`, `useDownload`, or `useDelete` in your component, then pass
+that return into the control.
+
+### One `useUpload` — `maxFiles` is the switch
+
+`maxFiles` (default `1`) is the only switch between one file and a batch.
+The return is always `files[]` (`file` is `files[0]`). Pass the instance
+as `upload`.
+
+```tsx
+const upload = useUpload({
+  route: "images",
+  maxFiles: 4,
+  onSuccess: (results) => saveKeys(results.map((r) => r.key)),
+});
+
+return <UploadDropzone upload={upload} />;
+```
+
+The same instance drives `UploadButton`, `UploadStatus`, or a custom
+surface (`getRootProps` / `open` / `handleFiles`). Programmatic upload is
+`await upload.handleFiles(file)` (`File`, `File[]`, or `FileList`).
+
+Lifecycle callbacks always use arrays: `onSuccess(results)`,
+`beforeUpload(files)`, `onUploadStart(files)`, `onCancel()`. Per-file:
+`onFileSuccess(file, result)`, `onFileProgress`, `onFileError`.
+`onError(error, phase)` no longer receives a `File`.
+
+### Download and delete — hook is the route, button is the object
+
+The control still takes `objectKey` (and display `fileName` / `fileSize`).
+The hook is the route client; the button is the object.
+
+```tsx
+const download = useDownload({ route: "uploads", mode: "fetch" });
+const del = useDelete({
+  route: "uploads",
+  onSuccess: () => refetch(),
+});
+
+return (
+  <>
+    <ProgressDownloadButton download={download} objectKey={storedKey} />
+    <DeleteButton delete={del} objectKey={storedKey} />
+  </>
+);
+```
+
+`DownloadButton` takes a navigate-mode return; `ProgressDownloadButton`
+takes `{ mode: "fetch" }`. Narrow with `download.mode` or
+`isFetchDownload(download)`. Lifecycle callbacks stay on the hook.
+
+A list can share one download or delete hook: the return includes
+`objectKey` for the active operation (kept through success/error until
+`reset()`). Status, spinner, dialog, and toasts only apply to the matching
+control. Call the hook inside the row when operations must run in
+parallel.
+
+```tsx
+const download = useDownload({ route: "uploads" });
+const del = useDelete({ route: "uploads", onSuccess: refetch });
+
+return files.map((file) => (
+  <li key={file.key}>
+    <DownloadButton download={download} objectKey={file.key} />
+    <DeleteButton delete={del} objectKey={file.key} />
+  </li>
+));
+```
+
+### Compiled Zod 4.5 request validation
+
+Server endpoints compile Zod `body` / `query` schemas with `z.compile()`
+on registration. Valid requests take the generated fast path; schemas
+that cannot compile (for example `z.coerce`) keep the runtime parser.
+
+Unknown keys on protocol bodies and queries are rejected. Integers use
+`z.int()`. Upload `checksum` must be a SHA-256 digest as standard base64
+(padding optional). Garbage values return `VALIDATION_ERROR` instead of
+being forwarded to S3.
+
+### Removed
+
+- `useMultiUpload`, `useFileUpload`, `useMultiFileUpload`
+- `route` / engine options / lifecycle callbacks on `UploadButton`,
+  `UploadDropzone`, `DownloadButton`, `ProgressDownloadButton`, and
+  `DeleteButton`
+- `fileInfo`, `result`, and `totalProgress` on the hook return — use
+  `file`, `file.result`, and `progress`
+- `useDelete().pendingKey` — use `objectKey` + `isConfirming`
+- `useDeleteToast` now requires `objectKey` (same matching rule as the
+  button)
+- `UploadFileStatus` `fileInfo` / `progress` — pass `file`
+- `MultiUploadStatus` unpacked `phase` / `files` / `progress` — pass
+  `upload`
+- `UseDownloadReturn` is navigate | fetch — narrow with `download.mode`
+  or `isFetchDownload(download)`
+- `UploadStatusBlock`
+- `MultiFileUploadConfig`, `MultiUploadPhase`, `MultiUploadFileState`,
+  `MultiUploadHooks`
+
 ## @dimah-s3/cli@1.1.1
 
 ### Align create templates with named routes
