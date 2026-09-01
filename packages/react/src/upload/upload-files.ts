@@ -1,5 +1,6 @@
 import type {
-  MultiFileUploadConfig,
+  FileUploadConfig,
+  UploadPhase,
   UploadProgress,
   UploadResult,
   UploadRequestOptions,
@@ -27,12 +28,17 @@ export type MultiUploadCallbacks = {
   onTotalProgress?: (progress: UploadProgress) => void;
   /** Called once after multipart init for a file (id → uploadId, server key). */
   onMultipartInit?: (id: string, uploadId: string, key: string) => void;
+  onFilePhaseChange?: (
+    id: string,
+    phase: Extract<UploadPhase, "presigning" | "uploading" | "finalizing">,
+  ) => void;
+  onPartUpload?: (id: string, partNumber: number, totalParts: number) => void;
 };
 
 export async function uploadFiles(
   api: S3Api,
   items: Array<{ id: string; file: File }>,
-  config: MultiFileUploadConfig,
+  config: FileUploadConfig,
   callbacks: MultiUploadCallbacks = {},
   signal?: AbortSignal,
   getRequestOptions?: (file: File) => UploadRequestOptions,
@@ -75,6 +81,12 @@ export async function uploadFiles(
               item.progress = progress;
               callbacks.onFileProgress?.(item.id, progress);
               reportTotalProgress();
+            },
+            onPhaseChange: (phase) => {
+              callbacks.onFilePhaseChange?.(item.id, phase);
+            },
+            onPartUpload: (partNumber, totalParts) => {
+              callbacks.onPartUpload?.(item.id, partNumber, totalParts);
             },
             onMultipartInit: (uploadId, key) => {
               callbacks.onMultipartInit?.(item.id, uploadId, key);

@@ -1,22 +1,15 @@
 ---
 title: Upload
-description: Headless hooks for single- and multi-file uploads.
+description: Headless hook for single- and multi-file uploads.
 ---
 
 Pick a file (or drop one), send it to S3, track progress.
 
 [Upload Button](/docs/react/ui/components/upload-button) and
-[Upload Dropzone](/docs/react/ui/components/upload-dropzone) are built on
-these hooks.
+[Upload Dropzone](/docs/react/ui/components/upload-dropzone) take the
+same `useUpload` return as `upload`.
 
-| Hook                 | Use when                      |
-| -------------------- | ----------------------------- |
-| `useUpload`          | One file — picker or dropzone |
-| `useMultiUpload`     | Many files                    |
-| `useFileUpload`      | You already have a `File`     |
-| `useMultiFileUpload` | You already have `File[]`     |
-
-`accept` and `maxFileSize` are client-side UX. When omitted, hooks fill
+`accept` and `maxFileSize` are client-side UX. When omitted, the hook fills
 them from [`api.catalog()`](/docs/server/routes) (`GET /routes`). The
 server still enforces [`upload.fileTypes` / `upload.maxFileSize`](/docs/server/routes).
 Prefer omitting them so the catalog is the single source of truth.
@@ -24,6 +17,9 @@ Prefer omitting them so the catalog is the single source of truth.
 `accept` is the HTML list: MIME types (`image/*`, `application/pdf`) and/or
 extensions (`.pdf`). The native picker uses it as the `accept` attribute;
 dropzone and `validateFile` share the same tokens.
+
+`maxFiles` defaults to `1`. Pass a larger number for a multi-file batch.
+State is always `files[]` (`file` is `files[0]`).
 
 ## useUpload
 
@@ -33,14 +29,16 @@ dropzone and `validateFile` share the same tokens.
 import { useUpload } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { getRootProps, getInputProps, isUploading, progress } = useUpload({
+  const upload = useUpload({
     route: "uploads",
   });
 
   return (
-    <div {...getRootProps()}>
-      <input {...getInputProps()} />
-      {isUploading ? `${progress.percent}%` : "Drop a file or click to upload"}
+    <div {...upload.getRootProps()}>
+      <input {...upload.getInputProps()} />
+      {upload.isUploading
+        ? `${upload.progress.percent}%`
+        : "Drop a file or click to upload"}
     </div>
   );
 }
@@ -57,43 +55,36 @@ or picker.
 
 For a picker button instead of a dropzone, use
 [Upload Button](/docs/react/ui/components/upload-button) — or pass
-`noDrag` / `noClick` / `noKeyboard` and call `open()`.
+`noDrag` / `noClick` / `noKeyboard` and call `open()`. Wired
+`UploadButton` does not need those flags; it never binds `getRootProps`.
 
 `isDragActive` / `isDragReject` style the drop target. To map `phase` onto
 status rows, see [Custom UI](/docs/react/ui/customization/custom-ui).
 
-## useMultiUpload
-
-Same intake, for several files. The UI components above switch to this
-when `maxFiles` is greater than 1.
+## Several files
 
 ```tsx
 "use client";
 
-import { useMultiUpload } from "@dimah-s3/react";
+import { useUpload } from "@dimah-s3/react";
+import { UploadDropzone } from "@dimah-s3/ui";
 
-export function MultiUploader() {
-  const { getRootProps, getInputProps, isUploading, totalProgress } =
-    useMultiUpload({
-      route: "uploads",
-      maxFiles: 5,
-    });
+export function GalleryUploader() {
+  const upload = useUpload({
+    route: "uploads",
+    maxFiles: 5,
+    onSuccess: (results) => {
+      saveKeys(results.map((r) => r.key));
+    },
+  });
 
-  return (
-    <div {...getRootProps()}>
-      <input {...getInputProps()} />
-      {isUploading
-        ? `${totalProgress.percent}%`
-        : "Drop files or click to upload"}
-    </div>
-  );
+  return <UploadDropzone upload={upload} />;
 }
 ```
 
-The server generates each object key. After success, `useUpload` exposes
-`result` (`key`, `contentLength`, …). `useMultiUpload` puts the same object
-on each `files[]` entry (`result`). Persist `result.key`. Enable download
-or delete on that **same** route when the UI needs them
+The server generates each object key. After success, each `files[]` entry
+has `result` (`key`, `contentLength`, …). Persist `result.key`. Enable
+download or delete on that **same** route when the UI needs them
 ([combining features](/docs/server/routes#combining-features)).
 
 `multipart` splits **one** large file into parts. It is not multi-file
@@ -102,43 +93,38 @@ upload. To resume after a refresh, pass an
 
 ## Without a picker
 
-Skip dropzone when you already have a `File`.
+Skip dropzone chrome when you already have a `File`:
 
 ```tsx
-import { useFileUpload } from "@dimah-s3/react";
+import { useUpload } from "@dimah-s3/react";
 
-const { upload, progress, phase, fileInfo } = useFileUpload({
+const upload = useUpload({
   route: "uploads",
 });
 
-await upload(file);
+await upload.handleFiles(file);
 ```
 
-```tsx
-const { upload, totalProgress, phase } = useMultiFileUpload({
-  route: "uploads",
-});
-
-await upload(files);
-```
+`handleFiles` also accepts `File[]` and `FileList`.
 
 ## Options
 
-| Option                               | Description                                                                                                     |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                                            |
-| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                                    |
-| `accept`                             | HTML tokens. Filled from `api.catalog()` when omitted                                                           |
-| `maxFileSize`                        | Bytes. Filled from `api.catalog()` when omitted — server `upload.maxFileSize` still applies                     |
-| `maxFiles`                           | `useMultiUpload` / `useMultiFileUpload` only                                                                    |
-| `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`)               |
-| `checksum`                           | Send SHA-256 on presign. Filled from `api.catalog()` when the route sets `upload.checksum`                      |
-| `uploadStore`                        | Resume after refresh                                                                                            |
-| `onSuccess`                          | Called with `{ key, contentLength, … }` — persist `key`; enable download / delete on the same route when needed |
+| Option                               | Description                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `route`                              | Required. Named server route (`dimahS3({ routes })`)                                              |
+| `maxFiles`                           | Max files per selection. @default 1                                                               |
+| `uploadOptions` / `getUploadOptions` | Extra presign fields (`metadata`, `contentType`, `fileName`)                                      |
+| `accept`                             | HTML tokens. Filled from `api.catalog()` when omitted                                             |
+| `maxFileSize`                        | Bytes. Filled from `api.catalog()` when omitted — server `upload.maxFileSize` still applies       |
+| `multipart`                          | Split files ≥ 50 MB into parts (fixed threshold — server route must set `upload.multipart: true`) |
+| `checksum`                           | Send SHA-256 on presign. Filled from `api.catalog()` when the route sets `upload.checksum`        |
+| `uploadStore`                        | Resume after refresh                                                                              |
+| `onSuccess`                          | `(results: UploadResult[]) => void` — persist each `key`                                          |
+| `onFileSuccess`                      | `(file, result) => void` — per file, includes the `File`                                          |
 
 Hook `error` is a `DimahS3Error` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
-types: `UseUploadOptions`, `UseMultiUploadOptions`.
+types: `UseUploadOptions`, `UseUploadReturn`.
 
 Low-level `uploadFile` / `uploadFiles` also export from
 `@dimah-s3/react/engine`.

@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 import { FileList } from "@/components/file-list";
 
 export default function Home() {
   const [refreshToken, setRefreshToken] = useState(0);
+  const upload = useUpload({
+    route: "uploads",
+    onSuccess: () => setRefreshToken((token) => token + 1),
+  });
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
@@ -18,11 +23,7 @@ export default function Home() {
         </p>
       </div>
 
-      <UploadButton
-        route="uploads"
-        label="Upload file"
-        onSuccess={() => setRefreshToken((token) => token + 1)}
-      />
+      <UploadButton upload={upload} label="Upload file" />
 
       <section className="flex w-full max-w-sm flex-col gap-2">
         <h2 className="text-sm font-medium">Your files</h2>

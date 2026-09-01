@@ -41,7 +41,7 @@
 1. Hook in `packages/react/src/hooks/`.
 2. Upload mechanics in `upload/`; shared helpers in `helpers/`.
 3. Depend on `@dimah-s3/core` only — fetch through `S3Api`, not ad-hoc URLs.
-4. Required `route` (`S3RouteName`) on hooks that hit core endpoints. Upload does not take `objectKey`. Omit `accept` / `maxFileSize` / `multipart` / `checksum` to fill them from `api.catalog()`. Augment `DimahS3Routes` so route names are not a free `string`.
+4. Required `route` (`S3RouteName`) on hooks that hit core endpoints. Public upload is `useUpload` only (`maxFiles` for a batch; UI takes the return as `upload`). Upload does not take `objectKey`. Omit `accept` / `maxFileSize` / `multipart` / `checksum` to fill them from `api.catalog()`. Augment `DimahS3Routes` so route names are not a free `string`.
 5. Export from `src/index.ts` when public.
 
 ## Build & exports

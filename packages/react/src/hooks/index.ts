@@ -1,28 +1,12 @@
 export {
-  useFileUpload,
-  type UseFileUploadOptions,
-  type UseFileUploadState,
-  type UseFileUploadReturn,
-} from "./use-file-upload";
-export {
-  useMultiFileUpload,
-  type UseMultiFileUploadOptions,
-  type UseMultiFileUploadState,
-  type UseMultiFileUploadReturn,
-} from "./use-multi-file-upload";
-export {
   useUpload,
   type UseUploadOptions,
   type UseUploadReturn,
+  type UploadPolicy,
   type FileRejection,
   type DropzoneRootProps,
   type DropzoneInputProps,
 } from "./use-upload";
-export {
-  useMultiUpload,
-  type UseMultiUploadOptions,
-  type UseMultiUploadReturn,
-} from "./use-multi-upload";
 export {
   useDownload,
   type DownloadPhase,
@@ -49,3 +33,7 @@ export {
   type UseObjectUrlOptions,
   type UseObjectUrlReturn,
 } from "./use-object-url";
+export {
+  useRouteUploadPolicy,
+  type UseRouteUploadPolicyOptions,
+} from "./use-route-upload-policy";

@@ -1,13 +1,15 @@
 "use client";
 
-import type { DimahS3Error } from "@dimah-s3/core";
+import type { DimahS3Error, S3Api } from "@dimah-s3/core";
 import type {
-  UploadFileInfo,
+  UploadFileState,
   UploadPhase,
   UploadProgress,
-  UploadResult,
+  FileUploadConfig,
+  UploadHooks,
+  UploadRequestOptions,
 } from "@/types";
-import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
+import { useFileUpload } from "./use-file-upload";
 import {
   useFileIntake,
   type DropzoneInputProps,
@@ -15,43 +17,59 @@ import {
   type FileRejection,
 } from "./use-file-intake";
 import { useRouteUploadPolicy } from "./use-route-upload-policy";
+import { DEFAULT_MAX_FILES } from "@/upload/constants";
+import type { RouteUploadPolicy } from "@/helpers/load-route-catalog";
 
 export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
 
-/** Options for {@link useUpload}. */
-export type UseUploadOptions = UseFileUploadOptions & {
-  /** Disable all intake interactions. */
-  disabled?: boolean;
-  /**
-   * Disable drag interactions on the root (button-style UIs).
-   * @default false
-   */
-  noDrag?: boolean;
-  /**
-   * Disable click-to-open on the root (when opening via `open()` on a button).
-   * @default false
-   */
-  noClick?: boolean;
-  /**
-   * Disable keyboard activation on the root.
-   * @default false
-   */
-  noKeyboard?: boolean;
-  /** Called when dropzone soft-rejects files (type/size). */
-  onFileReject?: (rejections: readonly FileRejection[]) => void;
+/** Catalog constraints plus the client `maxFiles` cap. */
+export type UploadPolicy = RouteUploadPolicy & {
+  /** Max files per selection. @default 1 */
+  maxFiles: number;
 };
 
+/** Options for {@link useUpload}. */
+export type UseUploadOptions = FileUploadConfig &
+  UploadHooks & {
+    /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
+    api?: S3Api;
+    /** Static request options applied to every file. */
+    uploadOptions?: UploadRequestOptions;
+    /** Per-file request options (overrides `uploadOptions`). */
+    getUploadOptions?: (file: File) => UploadRequestOptions;
+    /** Disable all intake interactions. */
+    disabled?: boolean;
+    /**
+     * Disable drag interactions on the root (button-style custom UIs).
+     * Wired `UploadButton` does not need this — it never binds `getRootProps`.
+     * @default false
+     */
+    noDrag?: boolean;
+    /**
+     * Disable click-to-open on the root (when opening via `open()` on a button).
+     * @default false
+     */
+    noClick?: boolean;
+    /**
+     * Disable keyboard activation on the root.
+     * @default false
+     */
+    noKeyboard?: boolean;
+    /** Called when dropzone soft-rejects files (type/size/count). */
+    onFileReject?: (rejections: readonly FileRejection[]) => void;
+  };
+
 export type UseUploadReturn = {
-  /** Current upload phase. */
+  /** Per-file states in the current batch. */
+  files: UploadFileState[];
+  /** First file; handy when `maxFiles` is 1. Same as `files[0] ?? null`. */
+  file: UploadFileState | null;
+  /** Batch phase. Single-file batches also surface `presigning` / `finalizing`. */
   phase: UploadPhase;
-  /** Info about the selected file. */
-  fileInfo: UploadFileInfo | null;
-  /** Byte transfer progress. */
+  /** Aggregate byte transfer progress. */
   progress: UploadProgress;
-  /** Last error, or `null`. */
+  /** Batch-level error, or `null`. */
   error: DimahS3Error | null;
-  /** Result after success, or `null`. */
-  result: UploadResult | null;
   /** `true` while bytes are transferring (`phase === "uploading"`). */
   isUploading: boolean;
   /**
@@ -59,14 +77,23 @@ export type UseUploadReturn = {
    * `uploading`, or `finalizing`).
    */
   isPending: boolean;
-  /** Handle files programmatically (bypasses dropzone). */
-  handleFiles: (files: FileList | File[] | null) => void;
+  /**
+   * Resolved client constraints: catalog values plus hook overrides,
+   * and `maxFiles` (default 1).
+   */
+  policy: UploadPolicy;
+  /** `true` when an `uploadStore` is configured (pause/resume). */
+  resumable: boolean;
+  /**
+   * Start an upload from a picker, drop, paste, or a `File` you already have.
+   */
+  handleFiles: (files: FileList | File[] | File | null) => Promise<void>;
   /** Open the native file picker. */
   open: () => void;
   /** Abort and reset to idle. */
   cancel: () => void;
   /**
-   * Soft-stop: preserves S3 parts and store entry so a future `upload()` can
+   * Soft-stop: preserves S3 parts and store entry so a future upload can
    * resume. For non-resumable uploads, identical to `cancel()`.
    */
   detach: () => void;
@@ -83,11 +110,21 @@ export type UseUploadReturn = {
   fileRejections: readonly FileRejection[];
 };
 
+function toFileArray(files: FileList | File[] | File | null): File[] {
+  if (files == null) return [];
+  if (files instanceof File) return [files];
+  return Array.from(files);
+}
+
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
   const { disabled, noDrag, noClick, noKeyboard, onFileReject, ...uploadOpts } =
     options;
 
-  const policy = useRouteUploadPolicy({
+  const maxFiles = options.maxFiles ?? DEFAULT_MAX_FILES;
+  const resumable =
+    options.uploadStore != null && options.uploadStore !== false;
+
+  const catalogPolicy = useRouteUploadPolicy({
     api: options.api,
     route: options.route,
     accept: options.accept,
@@ -96,41 +133,44 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     checksum: options.checksum,
   });
 
-  const single = useFileUpload(uploadOpts);
+  const engine = useFileUpload(uploadOpts);
 
-  const handleFiles = (files: FileList | File[] | null) => {
-    const list = files == null ? [] : Array.from(files);
-    const file = list[0];
-    if (!file) return;
-    void single.upload(file);
+  const handleFiles = (files: FileList | File[] | File | null) => {
+    const list = toFileArray(files);
+    if (list.length === 0) return Promise.resolve();
+    return engine.upload(list);
   };
 
   const intake = useFileIntake({
-    accept: policy.accept,
-    maxFileSize: policy.maxFileSize,
-    maxFiles: 1,
-    multiple: false,
-    disabled: Boolean(disabled) || single.isPending,
+    accept: catalogPolicy.accept,
+    maxFileSize: catalogPolicy.maxFileSize,
+    maxFiles,
+    multiple: maxFiles > 1,
+    disabled: Boolean(disabled) || engine.isPending,
     noDrag,
     noClick,
     noKeyboard,
-    onAccept: (files) => handleFiles(files),
+    onAccept: (files) => {
+      void handleFiles(files);
+    },
     onReject: onFileReject,
   });
 
   return {
-    phase: single.phase,
-    fileInfo: single.fileInfo,
-    progress: single.progress,
-    error: single.error,
-    result: single.result,
-    isUploading: single.isUploading,
-    isPending: single.isPending,
+    files: engine.files,
+    file: engine.file,
+    phase: engine.phase,
+    progress: engine.progress,
+    error: engine.error,
+    isUploading: engine.isUploading,
+    isPending: engine.isPending,
+    policy: { ...catalogPolicy, maxFiles },
+    resumable,
     handleFiles,
     open: intake.open,
-    cancel: single.cancel,
-    detach: single.detach,
-    reset: single.reset,
+    cancel: engine.cancel,
+    detach: engine.detach,
+    reset: engine.reset,
     getRootProps: intake.getRootProps,
     getInputProps: intake.getInputProps,
     isDragActive: intake.isDragActive,

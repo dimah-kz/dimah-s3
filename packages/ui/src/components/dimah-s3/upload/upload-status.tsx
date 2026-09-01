@@ -8,12 +8,17 @@ import type {
   UploadFileInfo,
   UploadPhase,
   UploadProgress,
+  UseUploadReturn,
 } from "@dimah-s3/react";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
-import type { AttachmentLayoutProps } from "@/lib/attachment-layout";
+import { MultiUploadStatus } from "@/components/dimah-s3/upload/multi-upload-status";
+import type {
+  AttachmentLayoutAliases,
+  AttachmentLayoutProps,
+} from "@/lib/attachment-layout";
 
-export type UploadStatusProps = AttachmentLayoutProps & {
+export type UploadFileStatusProps = AttachmentLayoutProps & {
   phase: UploadPhase;
   progress: UploadProgress;
   error: DimahS3Error | null;
@@ -24,7 +29,8 @@ export type UploadStatusProps = AttachmentLayoutProps & {
   className?: string;
 };
 
-export function UploadStatus({
+/** Presentational row for a single file. Prefer {@link UploadStatus} with `upload`. */
+export function UploadFileStatus({
   phase,
   progress,
   error,
@@ -34,7 +40,7 @@ export function UploadStatus({
   size,
   orientation,
   className,
-}: UploadStatusProps) {
+}: UploadFileStatusProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
   const errorText = error ? formatError(error) : null;
@@ -141,4 +147,51 @@ export function UploadStatus({
   }
 
   return null;
+}
+
+export type UploadStatusProps = AttachmentLayoutAliases & {
+  upload: UseUploadReturn;
+  className?: string;
+};
+
+/** Maps `upload` onto attachment rows (one file or a batch). */
+export function UploadStatus({
+  upload,
+  attachmentSize,
+  attachmentOrientation,
+  className,
+}: UploadStatusProps) {
+  const layout = {
+    size: attachmentSize,
+    orientation: attachmentOrientation,
+    className,
+  };
+  const onCancel = upload.cancel;
+  const onPause = upload.resumable ? upload.detach : undefined;
+
+  if (upload.files.length > 1) {
+    return (
+      <MultiUploadStatus
+        phase={upload.phase}
+        files={upload.files}
+        progress={upload.progress}
+        error={upload.error}
+        onCancel={onCancel}
+        onPause={onPause}
+        {...layout}
+      />
+    );
+  }
+
+  return (
+    <UploadFileStatus
+      phase={upload.phase}
+      progress={upload.file?.progress ?? upload.progress}
+      error={upload.file?.error ?? upload.error}
+      fileInfo={upload.file}
+      onCancel={onCancel}
+      onPause={onPause}
+      {...layout}
+    />
+  );
 }

@@ -5,8 +5,8 @@ description: Drag-and-drop upload area for single- or multi-file uploads.
 
 import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
 
-`UploadDropzone` is a drag-and-drop surface with the same upload options as
-[Upload Button](/docs/react/ui/components/upload-button).
+`UploadDropzone` is a drag-and-drop surface. Create the uploader with
+[`useUpload`](/docs/react/hooks/upload) and pass it as `upload`.
 
 ## Preview
 
@@ -14,9 +14,8 @@ import { UploadDropzoneDemo } from "@/components/demos/upload-dropzone-demo";
   <UploadDropzoneDemo />
 </DemoPreview>
 
-Built on [`useUpload`](/docs/react/hooks/upload) /
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload). Progress and
-errors use [`Attachment`](/docs/react/ui/components/attachment) rows.
+Progress and errors use [`Attachment`](/docs/react/ui/components/attachment)
+rows.
 
 Intake is [react-dropzone](https://react-dropzone.js.org/). Do not install
 it separately — `@dimah-s3/react` already includes it.
@@ -47,22 +46,32 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 
 ## Usage
 
-Set `maxFiles` above `1` for multi-file uploads. `children` replace the idle
-chrome only; `status` works like `UploadButton`.
+Set `maxFiles` above `1` on the hook for multi-file uploads. `children`
+replace the idle chrome only; `status` works like `UploadButton`.
 
 ```tsx
-<UploadDropzone
-  route="uploads"
-  maxFiles={5}
-  attachmentSize="xs"
-  status={(node) => (
-    <div className="w-full border-t border-dashed p-3">{node}</div>
-  )}
->
-  <div className="flex flex-1 items-center justify-center p-8">
-    Drop files here
-  </div>
-</UploadDropzone>
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { UploadDropzone, UploadStatus } from "@dimah-s3/ui";
+
+export function Uploader() {
+  const upload = useUpload({
+    route: "uploads",
+    maxFiles: 5,
+  });
+
+  return (
+    <>
+      <UploadDropzone upload={upload} attachmentSize="xs" status={false}>
+        <div className="flex flex-1 items-center justify-center p-8">
+          Drop files here
+        </div>
+      </UploadDropzone>
+      <UploadStatus upload={upload} attachmentSize="xs" />
+    </>
+  );
+}
 ```
 
 To own the entire interior, set `status={false}` and render `UploadStatus`
@@ -70,7 +79,8 @@ yourself — see [Custom UI](/docs/react/ui/customization/custom-ui).
 
 <Callout type="warn">
   `accept` and `maxFileSize` are enforced **client-side only**. Mirror the same
-  limits in `upload.fileTypes` / `upload.maxFileSize` on the server route.
+  limits in `upload.fileTypes` / `upload.maxFileSize` on the server route, or
+  omit them on the hook so [`api.catalog()`](/docs/server/routes) fills them.
 </Callout>
 
 ## Props

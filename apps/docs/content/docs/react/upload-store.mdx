@@ -12,8 +12,8 @@ store (for example DB-backed) for cross-device resume — see
 [DB hooks](/docs/db/hooks).
 
 [Upload Button](/docs/react/ui/components/upload-button) and
-[Upload Dropzone](/docs/react/ui/components/upload-dropzone) take the same
-`uploadStore` prop as the hooks.
+[Upload Dropzone](/docs/react/ui/components/upload-dropzone) read resume
+from the same `useUpload` instance (`uploadStore` on the hook).
 
 ## Quick setup
 
@@ -30,16 +30,16 @@ import { useUpload } from "@dimah-s3/react";
 import { localStorageStore } from "@/lib/upload-store";
 
 export function Uploader() {
-  const { getRootProps, getInputProps, isUploading } = useUpload({
+  const upload = useUpload({
     route: "uploads",
     multipart: true,
     uploadStore: localStorageStore,
   });
 
   return (
-    <div {...getRootProps()}>
-      <input {...getInputProps()} />
-      {isUploading ? "Uploading…" : "Drop a file or click to upload"}
+    <div {...upload.getRootProps()}>
+      <input {...upload.getInputProps()} />
+      {upload.isUploading ? "Uploading…" : "Drop a file or click to upload"}
     </div>
   );
 }

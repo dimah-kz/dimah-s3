@@ -35,11 +35,6 @@ const uploadSupportFiles = [
     target: "@components/dimah-s3/upload/multi-upload-status.tsx",
   },
   {
-    path: "components/dimah-s3/upload/upload-status-block.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/upload/upload-status-block.tsx",
-  },
-  {
     path: "components/dimah-s3/upload/upload-wired.tsx",
     type: "registry:component",
     target: "@components/dimah-s3/upload/upload-wired.tsx",

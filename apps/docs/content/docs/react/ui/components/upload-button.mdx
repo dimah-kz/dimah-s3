@@ -5,7 +5,8 @@ description: File picker button for single- or multi-file uploads with inline st
 
 import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
 
-`UploadButton` opens the native file picker and uploads one or many files.
+`UploadButton` opens the native file picker. Create the uploader with
+[`useUpload`](/docs/react/hooks/upload) and pass it as `upload`.
 
 ## Preview
 
@@ -13,10 +14,8 @@ import { UploadButtonDemo } from "@/components/demos/upload-button-demo";
   <UploadButtonDemo />
 </DemoPreview>
 
-Built on [`useUpload`](/docs/react/hooks/upload) /
-[`useMultiUpload`](/docs/react/hooks/upload#usemultiupload) and a shadcn
-[Button](https://ui.shadcn.com/docs/components/base/button). Progress and
-errors render as [`Attachment`](/docs/react/ui/components/attachment) rows.
+Progress and errors render as
+[`Attachment`](/docs/react/ui/components/attachment) rows.
 
 ## Install
 
@@ -45,7 +44,19 @@ npx shadcn@latest add @dimah-s3/upload-button
 ## Usage
 
 ```tsx
-<UploadButton route="uploads" maxFiles={5} />
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { UploadButton } from "@dimah-s3/ui";
+
+export function Uploader() {
+  const upload = useUpload({
+    route: "uploads",
+    maxFiles: 5,
+  });
+
+  return <UploadButton upload={upload} />;
+}
 ```
 
 Control the status row with `status`:
@@ -56,12 +67,13 @@ Control the status row with `status`:
 | `false`               | Hide status                 |
 | `(node) => ReactNode` | Wrap or relocate the status |
 
-Toasts are independent via the `toast` prop. For a custom trigger that still
-uses Attachment rows, see
+Toasts are independent via the `toast` prop. Relocate status with
+[`UploadStatus`](/docs/react/ui/components/upload-dropzone) (`upload` is
+the same instance) or build your own rows — see
 [Custom UI](/docs/react/ui/customization/custom-ui).
 
 <Callout type="warn">
-  Omit `accept` / `maxFileSize` so the button fills them from
+  Omit `accept` / `maxFileSize` so the hook fills them from
   [`api.catalog()`](/docs/server/routes). The server still enforces
   `upload.fileTypes` / `upload.maxFileSize`. Explicit hook values override the
   catalog for client UX only.

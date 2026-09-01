@@ -1,4 +1,8 @@
-import type { S3RouteName, UploadPresignResponse } from "@dimah-s3/core";
+import type {
+  DimahS3Error,
+  S3RouteName,
+  UploadPresignResponse,
+} from "@dimah-s3/core";
 import type { UploadStore } from "./upload-store";
 
 /** Result returned after a successful upload. */
@@ -36,6 +40,9 @@ export type UploadPhase =
   | "success"
   | "error";
 
+/** Per-file status inside a batch (`pending` before bytes start). */
+export type UploadFileStatus = "pending" | "uploading" | "success" | "error";
+
 /** Display metadata for a file in upload UI (no raw `File`). */
 export type UploadFileInfo = {
   /** Display file name. */
@@ -49,6 +56,17 @@ export type UploadFileInfo = {
    * Created/revoked by upload hooks — do not revoke manually while hooks own it.
    */
   previewUrl: string | null;
+};
+
+/** Per-file state in `useUpload` (`files[]`; `file` is `files[0]`). */
+export type UploadFileState = UploadFileInfo & {
+  /** Unique ID for this file in the batch. */
+  id: string;
+  status: UploadFileStatus;
+  progress: UploadProgress;
+  error: DimahS3Error | null;
+  /** Set after this file succeeds. */
+  result: UploadResult | null;
 };
 
 /** Per-upload options passed to the presign API. */
@@ -72,24 +90,34 @@ export type UploadRequestOptions = {
   checksum?: string;
 };
 
-/** Lifecycle hooks for single-file upload. */
+/**
+ * Lifecycle hooks for `useUpload`.
+ * Callbacks that receive `File[]` / `UploadResult[]` always use arrays
+ * (a single file is `[file]` / `[result]`).
+ */
 export type UploadHooks = {
   /** Runs before the upload starts. Return `false` to block it. */
-  beforeUpload?: (file: File) => Promise<boolean> | boolean;
+  beforeUpload?: (files: File[]) => Promise<boolean> | boolean;
   /** Fires after validation passes and the upload begins. */
-  onUploadStart?: (file: File) => void;
-  /** Fires continuously while bytes are transferred. */
-  onProgress?: (file: File, progress: UploadProgress) => void;
+  onUploadStart?: (files: File[]) => void;
+  /** Fires continuously with aggregate progress across the batch. */
+  onProgress?: (progress: UploadProgress) => void;
+  /** Fires continuously for one file while its bytes are transferred. */
+  onFileProgress?: (file: File, progress: UploadProgress) => void;
   /** Fires after each part is successfully uploaded to S3 (multipart only). */
   onPartUpload?: (file: File, partNumber: number, totalParts: number) => void;
   /** Fires once after `CreateMultipartUpload` succeeds (multipart only). */
   onMultipartInit?: (file: File, uploadId: string) => void;
-  /** Fires when the upload finishes successfully. */
-  onSuccess?: (file: File, result: UploadResult) => Promise<void> | void;
-  /** Fires when the upload fails with an unrecoverable error. */
-  onError?: (file: File | null, error: unknown, phase: UploadPhase) => void;
+  /** Fires when one file in the batch finishes successfully. */
+  onFileSuccess?: (file: File, result: UploadResult) => void;
+  /** Fires when one file in the batch fails. */
+  onFileError?: (file: File, error: DimahS3Error) => void;
+  /** Fires when every file in the batch succeeds. */
+  onSuccess?: (results: UploadResult[]) => Promise<void> | void;
+  /** Fires when the batch fails (validation, block, or one or more file errors). */
+  onError?: (error: unknown, phase: UploadPhase) => void;
   /** Fires when the upload is cancelled via `cancel()`. */
-  onCancel?: (file: File | null) => void;
+  onCancel?: () => void;
 };
 
 /**
@@ -121,7 +149,7 @@ export type RetryConfig = {
   baseDelay?: number;
 };
 
-/** Engine configuration for `useFileUpload` and `useMultiFileUpload`. */
+/** Engine configuration for `useUpload`. */
 export type FileUploadConfig = {
   /**
    * Named server route (`dimahS3({ routes })`). Required — the server
@@ -146,12 +174,18 @@ export type FileUploadConfig = {
    */
   maxFileSize?: number;
   /**
+   * Max number of files per selection. @default 1
+   */
+  maxFiles?: number;
+  /**
    * Compute and send a SHA-256 checksum on presign. Filled from
    * `api.catalog()` when the route sets `upload.checksum`.
    */
   checksum?: boolean;
   /** Number of parts uploaded concurrently (multipart). */
   concurrentParts?: number;
+  /** Number of files uploaded concurrently when `maxFiles` is greater than 1. */
+  concurrentFiles?: number;
   /** Retry configuration for failed network requests. */
   retry?: RetryConfig;
   /**
@@ -162,12 +196,4 @@ export type FileUploadConfig = {
    * - Custom `UploadStore` — persist `uploadId` across sessions.
    */
   uploadStore?: UploadStore | false;
-};
-
-/** Extra engine configuration for multi-file uploads. */
-export type MultiFileUploadConfig = FileUploadConfig & {
-  /** Max number of files in a batch. */
-  maxFiles?: number;
-  /** Number of files uploaded concurrently. */
-  concurrentFiles?: number;
 };

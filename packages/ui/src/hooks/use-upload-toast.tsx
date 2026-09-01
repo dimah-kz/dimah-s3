@@ -3,26 +3,9 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { useFormatDimahError } from "@dimah-s3/react";
-import type {
-  DimahS3Error,
-  UploadFileInfo,
-  UploadProgress,
-  MultiUploadFileState,
-} from "@dimah-s3/react";
+import { useFormatDimahError, type UseUploadReturn } from "@dimah-s3/react";
 
 import { toast } from "@/components/ui/toast";
-
-export type UploadToastCtrl = {
-  mode: "single" | "multi";
-  phase: string;
-  fileInfo?: UploadFileInfo | null;
-  progress?: UploadProgress;
-  files?: MultiUploadFileState[];
-  totalProgress?: UploadProgress;
-  error: DimahS3Error | null;
-  cancel: () => void;
-};
 
 function sizeNode(size: number) {
   return (
@@ -44,32 +27,25 @@ function progressNode(loaded: number, total: number) {
  * Drives toasts for upload progress/success/error.
  * Shared between UploadButton and UploadDropzone.
  */
-export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
+export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
   const toastIdRef = useRef<string | null>(null);
-  const prevPhaseRef = useRef(ctrl.phase);
-  const cancelRef = useRef(ctrl.cancel);
+  const prevPhaseRef = useRef(upload.phase);
+  const cancelRef = useRef(upload.cancel);
   useLayoutEffect(() => {
-    cancelRef.current = ctrl.cancel;
+    cancelRef.current = upload.cancel;
   });
 
-  const { mode, phase, fileInfo, progress, files, totalProgress, error } = ctrl;
+  const { phase, file, files, progress, error } = upload;
 
-  // Phase-transition toasts (once per phase change)
   useEffect(() => {
     if (prevPhaseRef.current === phase) return;
     prevPhaseRef.current = phase;
     if (!enabled) return;
 
-    const fileList = files ?? [];
-    const isMulti = mode === "multi" && fileList.length > 1;
-    const file =
-      fileInfo ??
-      (fileList.length === 1
-        ? { name: fileList[0].name, size: fileList[0].size }
-        : null);
-    const total = totalProgress?.total ?? 0;
+    const isMulti = files.length > 1;
+    const total = progress.total;
 
     if (phase === "idle" && toastIdRef.current) {
       toast.close(toastIdRef.current);
@@ -82,7 +58,7 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
           type: "success",
           title: t("{count} file(s) uploaded", {
             note: "toast",
-            variables: { count: String(fileList.length) },
+            variables: { count: String(files.length) },
           }),
           description: sizeNode(total),
         });
@@ -97,9 +73,9 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
     }
     if (phase === "error") {
       if (toastIdRef.current) toast.close(toastIdRef.current);
-      if (isMulti && fileList.length > 0) {
-        const succeeded = fileList.filter((f) => f.status === "success").length;
-        const failed = fileList.filter((f) => f.status === "error").length;
+      if (isMulti && files.length > 0) {
+        const succeeded = files.filter((f) => f.status === "success").length;
+        const failed = files.filter((f) => f.status === "error").length;
         toast.add({
           type: "error",
           title: t("Upload finished with errors", { note: "toast" }),
@@ -126,8 +102,8 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
             <span dir="auto" className="block [overflow-wrap:anywhere]">
               {error
                 ? formatError(error)
-                : fileList[0]?.error
-                  ? formatError(fileList[0].error)
+                : file?.error
+                  ? formatError(file.error)
                   : t("Unknown error", { note: "fallback" })}
             </span>
           ),
@@ -135,35 +111,13 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
       }
       toastIdRef.current = null;
     }
-  }, [
-    enabled,
-    phase,
-    mode,
-    fileInfo,
-    files,
-    totalProgress,
-    error,
-    t,
-    formatError,
-  ]);
+  }, [enabled, phase, file, files, progress, error, t, formatError]);
 
-  // Progress toast (updated on each progress tick)
   useEffect(() => {
     if (!enabled || phase !== "uploading") return;
 
-    const fileList = files ?? [];
-    const isMulti = mode === "multi" && fileList.length > 1;
-    const file =
-      fileInfo ??
-      (fileList.length === 1
-        ? { name: fileList[0].name, size: fileList[0].size }
-        : null);
-    const total = totalProgress ?? { loaded: 0, total: 0, percent: 0 };
-    const singleProgress =
-      progress ??
-      (fileList.length === 1
-        ? fileList[0].progress
-        : { loaded: 0, total: 0, percent: 0 });
+    const isMulti = files.length > 1;
+    const singleProgress = file?.progress ?? progress;
 
     const payload = isMulti
       ? {
@@ -172,13 +126,11 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
           title: t("Uploading {done}/{total}", {
             note: "toast",
             variables: {
-              done: String(
-                fileList.filter((f) => f.status === "success").length,
-              ),
-              total: String(fileList.length),
+              done: String(files.filter((f) => f.status === "success").length),
+              total: String(files.length),
             },
           }),
-          description: progressNode(total.loaded, total.total),
+          description: progressNode(progress.loaded, progress.total),
           actionProps: {
             children: t("Cancel", { note: "toast action" }),
             onClick: () => cancelRef.current(),
@@ -204,5 +156,5 @@ export function useUploadToast(ctrl: UploadToastCtrl, enabled: boolean) {
     } else {
       toastIdRef.current = toast.add(payload);
     }
-  }, [enabled, phase, mode, fileInfo, files, progress, totalProgress, t]);
+  }, [enabled, phase, file, files, progress, t]);
 }

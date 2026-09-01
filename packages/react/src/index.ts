@@ -4,20 +4,15 @@ export type {
   UploadProgress,
   UploadPhase,
   UploadFileInfo,
+  UploadFileState,
   UploadRequestOptions,
   UploadHooks,
   UploadTransport,
   S3ApiUploadTransport,
   RetryConfig,
   FileUploadConfig,
-  MultiFileUploadConfig,
 } from "./types/upload";
 export type { StoredUpload, UploadStore } from "./types/upload-store";
-export type {
-  MultiUploadPhase,
-  MultiUploadFileState,
-  MultiUploadHooks,
-} from "./types/multi-upload";
 export type {
   DownloadPhase,
   DownloadHooks,
@@ -100,30 +95,14 @@ export type { RouteUploadPolicy } from "./helpers";
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export {
-  useFileUpload,
-  type UseFileUploadOptions,
-  type UseFileUploadState,
-  type UseFileUploadReturn,
-} from "./hooks/use-file-upload";
-export {
-  useMultiFileUpload,
-  type UseMultiFileUploadOptions,
-  type UseMultiFileUploadState,
-  type UseMultiFileUploadReturn,
-} from "./hooks/use-multi-file-upload";
-export {
   useUpload,
   type UseUploadOptions,
   type UseUploadReturn,
+  type UploadPolicy,
   type FileRejection,
   type DropzoneRootProps,
   type DropzoneInputProps,
 } from "./hooks/use-upload";
-export {
-  useMultiUpload,
-  type UseMultiUploadOptions,
-  type UseMultiUploadReturn,
-} from "./hooks/use-multi-upload";
 export {
   useDownload,
   type UseDownloadOptions,

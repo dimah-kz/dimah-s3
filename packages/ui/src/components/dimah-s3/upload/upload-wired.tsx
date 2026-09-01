@@ -3,13 +3,7 @@
 import type { ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
-import {
-  formatAcceptLabels,
-  type UseUploadOptions,
-  type UseMultiUploadOptions,
-  type UseUploadReturn,
-  type UseMultiUploadReturn,
-} from "@dimah-s3/react";
+import { formatAcceptLabels, type UseUploadReturn } from "@dimah-s3/react";
 import { formatFileSize } from "@dimah-s3/core";
 import { cn } from "@/lib/utils";
 import {
@@ -17,37 +11,29 @@ import {
   type AttachmentLayoutAliases,
   type StatusSlot,
 } from "@/lib/attachment-layout";
-import { UploadStatusBlock } from "@/components/dimah-s3/upload/upload-status-block";
-import { useUploadToast, type UploadToastCtrl } from "@/hooks/use-upload-toast";
+import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
+import { useUploadToast } from "@/hooks/use-upload-toast";
 import { useFileRejectToast } from "@/hooks/use-file-reject-toast";
 
-export function canPauseUpload(
-  uploadStore: UseUploadOptions["uploadStore"],
-): boolean {
-  return uploadStore != null && uploadStore !== false;
-}
-
 export function dropzoneHints(
-  options: UseUploadOptions | UseMultiUploadOptions,
+  policy: UseUploadReturn["policy"],
   t: ReturnType<typeof useTranslations>,
 ) {
-  const acceptLabels = formatAcceptLabels(options.accept);
-  const maxFiles = (options as UseMultiUploadOptions).maxFiles;
+  const acceptLabels = formatAcceptLabels(policy.accept);
+  const maxFiles = policy.maxFiles;
   const limitParts: string[] = [];
-  if (maxFiles != null && maxFiles > 0) {
+  if (maxFiles > 1) {
     limitParts.push(
-      maxFiles === 1
-        ? t("You can upload a file", { note: "dropzone hint" })
-        : t("You can upload {count} files", {
-            note: "dropzone hint",
-            variables: { count: String(maxFiles) },
-          }),
+      t("You can upload {count} files", {
+        note: "dropzone hint",
+        variables: { count: String(maxFiles) },
+      }),
     );
   }
-  if (options.maxFileSize != null) {
-    const size = formatFileSize(options.maxFileSize);
+  if (policy.maxFileSize != null) {
+    const size = formatFileSize(policy.maxFileSize);
     limitParts.push(
-      maxFiles != null && maxFiles > 1
+      maxFiles > 1
         ? t("Each up to {size}", {
             note: "dropzone hint",
             variables: { size },
@@ -131,13 +117,14 @@ export function DropzoneFrame({
     <div
       {...getRootProps({
         "aria-label": ariaLabel,
+        "aria-disabled": isDisabled || undefined,
         className: cn(
           "rounded-lg border-2 border-dashed transition-colors",
           hasCustomChrome
             ? "flex flex-col items-stretch justify-stretch gap-3 p-0"
             : "flex flex-col items-center justify-center gap-3 p-6 text-center",
           isDisabled
-            ? "cursor-not-allowed border-dimah-s3-muted-foreground/25"
+            ? "pointer-events-none cursor-not-allowed border-dimah-s3-muted-foreground/25"
             : "cursor-pointer border-dimah-s3-muted-foreground/25 hover:border-dimah-s3-primary/50",
           !isDisabled &&
             isDragReject &&
@@ -154,7 +141,7 @@ export function DropzoneFrame({
         ),
       })}
     >
-      <input {...getInputProps()} />
+      <input {...getInputProps({ disabled: isDisabled })} />
       {chrome}
       {status}
     </div>
@@ -166,78 +153,24 @@ type StatusLayout = AttachmentLayoutAliases & {
   status?: StatusSlot;
 };
 
-export function useSingleUploadUi(
-  ctrl: UseUploadReturn,
+export function useUploadUi(
+  upload: UseUploadReturn,
   {
     toast: enableToast = true,
     status: statusSlot = true,
     attachmentSize,
     attachmentOrientation,
-    canPause,
-  }: StatusLayout & { canPause: boolean },
+  }: StatusLayout,
 ) {
-  const toastCtrl: UploadToastCtrl = {
-    mode: "single",
-    phase: ctrl.phase,
-    fileInfo: ctrl.fileInfo,
-    progress: ctrl.progress,
-    error: ctrl.error,
-    cancel: ctrl.cancel,
-  };
-  useUploadToast(toastCtrl, enableToast);
-  useFileRejectToast(ctrl.fileRejections, enableToast);
+  useUploadToast(upload, enableToast);
+  useFileRejectToast(upload.fileRejections, enableToast);
 
   const statusNode =
     statusSlot === false ? null : (
-      <UploadStatusBlock
-        mode="single"
-        phase={ctrl.phase}
-        progress={ctrl.progress}
-        error={ctrl.error}
-        fileInfo={ctrl.fileInfo}
-        onCancel={ctrl.cancel}
-        onPause={canPause ? ctrl.detach : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    );
-
-  return { statusNode, statusSlot };
-}
-
-export function useMultiUploadUi(
-  ctrl: UseMultiUploadReturn,
-  {
-    toast: enableToast = true,
-    status: statusSlot = true,
-    attachmentSize,
-    attachmentOrientation,
-    canPause,
-  }: StatusLayout & { canPause: boolean },
-) {
-  const toastCtrl: UploadToastCtrl = {
-    mode: "multi",
-    phase: ctrl.phase,
-    files: ctrl.files,
-    totalProgress: ctrl.totalProgress,
-    error: ctrl.error,
-    cancel: ctrl.cancel,
-  };
-  useUploadToast(toastCtrl, enableToast);
-  useFileRejectToast(ctrl.fileRejections, enableToast);
-
-  const statusNode =
-    statusSlot === false ? null : (
-      <UploadStatusBlock
-        mode="multi"
-        phase={ctrl.phase}
-        files={ctrl.files}
-        totalProgress={ctrl.totalProgress}
-        error={ctrl.error}
-        onCancel={ctrl.cancel}
-        onPause={canPause ? ctrl.detach : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
+      <UploadStatus
+        upload={upload}
+        attachmentSize={attachmentSize}
+        attachmentOrientation={attachmentOrientation}
       />
     );
 

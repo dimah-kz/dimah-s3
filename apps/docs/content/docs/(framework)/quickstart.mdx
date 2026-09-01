@@ -249,10 +249,12 @@ Import `UploadButton` from `@dimah-s3/ui`, or from
 ```tsx title="app/page.tsx"
 "use client";
 
+import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
 export default function Page() {
-  return <UploadButton route="uploads" />;
+  const upload = useUpload({ route: "uploads" });
+  return <UploadButton upload={upload} />;
 }
 ```
 

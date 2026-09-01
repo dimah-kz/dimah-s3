@@ -15,43 +15,39 @@ import { useLiveRef } from "@/internal-helpers";
 import { useImmerState } from "@/store/use-immer-state";
 import type {
   FileUploadConfig,
-  UploadFileInfo,
-  UploadHooks,
-  UploadPhase,
   UploadProgress,
-  UploadResult,
   UploadRequestOptions,
+  UploadPhase,
+  UploadFileState,
+  UploadHooks,
 } from "@/types";
 import { multipartResumeKey } from "@/upload/resume-key";
-import { uploadFile } from "@/upload";
+import { uploadFiles } from "@/upload";
+import { DEFAULT_MAX_FILES } from "@/upload/constants";
 import { hookBlockedError, isAbortError, toHookError } from "@/types/error";
 import { resolveRouteUploadPolicy } from "@/helpers/load-route-catalog";
 
-/** Options for {@link useFileUpload}. */
+/** @internal Options for the upload engine used by {@link useUpload}. */
 export type UseFileUploadOptions = FileUploadConfig &
   UploadHooks & {
     /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
     api?: S3Api;
-    /** Static request options applied to the upload. */
+    /** Static request options applied to all files. */
     uploadOptions?: UploadRequestOptions;
-    /** Per-upload request options override. */
+    /** Per-file request options (overrides `uploadOptions`). */
     getUploadOptions?: (file: File) => UploadRequestOptions;
   };
 
 export type UseFileUploadState = {
-  /** Current upload phase. */
   phase: UploadPhase;
-  /** Byte transfer progress. */
+  files: UploadFileState[];
   progress: UploadProgress;
-  /** Last error, or `null`. */
   error: DimahS3Error | null;
-  /** Result after success, or `null`. */
-  result: UploadResult | null;
-  /** Display metadata for the selected file, or `null`. */
-  fileInfo: UploadFileInfo | null;
 };
 
 export type UseFileUploadReturn = UseFileUploadState & {
+  /** First file in the batch, or `null`. */
+  file: UploadFileState | null;
   /** `true` while bytes are transferring (`phase === "uploading"`). */
   isUploading: boolean;
   /**
@@ -59,49 +55,17 @@ export type UseFileUploadReturn = UseFileUploadState & {
    * `uploading`, or `finalizing`).
    */
   isPending: boolean;
+  /** Upload one or more files. The server generates each object key. */
+  upload: (files: File | File[]) => Promise<void>;
   /**
-   * Start an upload.
-   *
-   * Safe to call again after `success`, `error`, or `cancel` — state is reset
-   * automatically before the new upload begins.
-   *
-   * If `uploadStore` is configured and a previous upload for the same
-   * file identity was interrupted (e.g. via `detach()`), the engine will find
-   * the stored `uploadId`, call `listParts`, and resume from the last completed
-   * part rather than starting a new multipart upload.
-   */
-  upload: (file: File, requestOptions?: UploadRequestOptions) => Promise<void>;
-  /**
-   * Abort the upload and fully clean up all resources.
-   *
-   * - Stops the in-flight network request immediately.
-   * - For multipart uploads: calls `AbortMultipartUpload` on S3 so incomplete
-   *   parts are freed right away (instead of waiting for the bucket lifecycle
-   *   policy to expire them).
-   * - Removes the `uploadStore` entry if one was provided.
-   * - Resets state to `idle`.
-   *
-   * Use this for a "Cancel" button that the user explicitly clicks to abandon
-   * the upload entirely.
+   * Abort all in-flight uploads and clean up multipart / store resources.
    */
   cancel: () => void;
   /**
-   * Soft-stop: preserves S3 parts and store entry so a future `upload()` can
-   * resume. For non-resumable uploads, identical to `cancel()`.
-   * See `UseFileUploadReturn.detach` for full semantics.
+   * Stop uploads but preserve multipart store entries for resume.
    */
   detach: () => void;
-  /**
-   * Reset UI state to `idle` without touching any S3 or store resources.
-   *
-   * - Stops the in-flight network request if one is active.
-   * - Does **not** call `AbortMultipartUpload`.
-   * - Does **not** modify `uploadStore`.
-   * - Does **not** fire `onCancel`.
-   *
-   * Use this to clear an error or success state from the UI, or when you
-   * handle cleanup yourself outside this hook.
-   */
+  /** Reset state to `idle`. */
   reset: () => void;
 };
 
@@ -109,10 +73,9 @@ const INITIAL_PROGRESS: UploadProgress = { loaded: 0, total: 0, percent: 0 };
 
 const INITIAL_STATE: UseFileUploadState = {
   phase: "idle",
+  files: [],
   progress: INITIAL_PROGRESS,
   error: null,
-  result: null,
-  fileInfo: null,
 };
 
 const PENDING_PHASES: ReadonlySet<UploadPhase> = new Set([
@@ -122,28 +85,21 @@ const PENDING_PHASES: ReadonlySet<UploadPhase> = new Set([
   "finalizing",
 ]);
 
-function mergeRequestOptions(
-  hook: UseFileUploadOptions,
-  file: File,
-  requestOptions?: UploadRequestOptions,
-): UploadRequestOptions | undefined {
-  const merged = {
-    ...hook.uploadOptions,
-    ...hook.getUploadOptions?.(file),
-    ...requestOptions,
-  };
-  return Object.keys(merged).length > 0 ? merged : undefined;
+function generateId() {
+  return crypto.randomUUID();
+}
+
+function normalizeFiles(files: File | File[]): File[] {
+  return Array.isArray(files) ? files : [files];
 }
 
 type ActiveUpload = {
-  file: File;
   resumeKey: string;
-  /** S3 key as returned by the server. */
   serverKey: string;
   uploadId?: string;
-  requestOptions?: UploadRequestOptions;
 };
 
+/** @internal Engine for {@link useUpload}. Not a public hook. */
 export function useFileUpload(
   options: UseFileUploadOptions,
 ): UseFileUploadReturn {
@@ -154,35 +110,37 @@ export function useFileUpload(
   const apiRef = useLiveRef(contextApi);
   const abortRef = useRef<AbortController | null>(null);
   const generationRef = useRef(0);
-  /** Tracks the in-flight upload so cancel/detach can access uploadId and key. */
-  const activeUploadRef = useRef<ActiveUpload | null>(null);
-  /** Set before aborting so the AbortError catch skips cancel callbacks. */
-  const detachingRef = useRef(false);
-  /** Set by `reset()` so AbortError does not fire `onCancel`. */
   const resettingRef = useRef(false);
-  const previewUrlRef = useRef<string | null>(null);
-  const speedUpdaterRef = useRef(
-    createThrottledSpeedUpdater(createSpeedTracker()),
+  const detachingRef = useRef(false);
+  const fileMapRef = useRef<Map<string, File>>(new Map());
+  const activeUploadsRef = useRef<Map<string, ActiveUpload>>(new Map());
+  const previewUrlsRef = useRef<string[]>([]);
+  const fileSpeedUpdatersRef = useRef<
+    Map<string, ReturnType<typeof createThrottledSpeedUpdater>>
+  >(new Map());
+  const totalSpeedUpdaterRef = useRef(
+    createThrottledSpeedUpdater(createSpeedTracker(), 1000),
   );
 
-  const revokeCurrentPreview = useCallback(() => {
-    revokePreviewUrl(previewUrlRef.current);
-    previewUrlRef.current = null;
+  const revokeAllPreviews = useCallback(() => {
+    for (const url of previewUrlsRef.current) revokePreviewUrl(url);
+    previewUrlsRef.current = [];
   }, []);
 
   const clearToIdle = useCallback(() => {
-    revokeCurrentPreview();
+    revokeAllPreviews();
     replace(INITIAL_STATE);
-  }, [revokeCurrentPreview, replace]);
+  }, [revokeAllPreviews, replace]);
 
-  const abortMultipartSession = useCallback(
-    (active: ActiveUpload | null) => {
-      if (!active) return;
-      const opts = optsRef.current;
-      const api = opts.api ?? apiRef.current;
-      const storeOpt = opts.uploadStore;
-      if (storeOpt != null && storeOpt !== false) {
-        void Promise.resolve(storeOpt.delete(active.resumeKey)).catch(() => {});
+  const abortMultipartSessions = useCallback(() => {
+    const opts = optsRef.current;
+    const api = opts.api ?? apiRef.current;
+    const uploadStore = opts.uploadStore;
+    for (const active of activeUploadsRef.current.values()) {
+      if (uploadStore != null && uploadStore !== false) {
+        void Promise.resolve(uploadStore.delete(active.resumeKey)).catch(
+          () => {},
+        );
       }
       if (api && active.uploadId && active.serverKey) {
         api.multipart
@@ -193,47 +151,36 @@ export function useFileUpload(
           })
           .catch(() => {});
       }
-    },
-    [apiRef, optsRef],
-  );
+    }
+    activeUploadsRef.current.clear();
+  }, [apiRef, optsRef]);
 
   useEffect(
     () => () => {
       generationRef.current += 1;
       abortRef.current?.abort();
-      abortMultipartSession(activeUploadRef.current);
-      revokeCurrentPreview();
+      abortMultipartSessions();
+      revokeAllPreviews();
     },
-    [abortMultipartSession, revokeCurrentPreview],
+    [abortMultipartSessions, revokeAllPreviews],
   );
 
   const upload = useCallback(
-    async (file: File, requestOptions?: UploadRequestOptions) => {
-      revokeCurrentPreview();
-      const previewUrl = createImagePreviewUrl(file);
-      previewUrlRef.current = previewUrl;
-
-      const fileInfo: UploadFileInfo = {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        previewUrl,
-      };
-
-      patch((draft) => {
-        draft.phase = "validating";
-        draft.progress = { ...INITIAL_PROGRESS };
-        draft.error = null;
-        draft.result = null;
-        draft.fileInfo = fileInfo;
-      });
-
+    async (input: File | File[]) => {
+      const files = normalizeFiles(input);
       const opts = optsRef.current;
       const api = opts.api ?? apiRef.current;
       if (!api)
         throw new Error(
-          "[dimah-s3] No S3Api found. Pass `api` to useFileUpload or wrap with <S3Provider>.",
+          "[dimah-s3] No S3Api found. Pass `api` to useUpload or wrap with <S3Provider>.",
         );
+
+      const maxFiles = opts.maxFiles ?? DEFAULT_MAX_FILES;
+
+      patch((draft) => {
+        draft.phase = "validating";
+        draft.error = null;
+      });
 
       const policy = await resolveRouteUploadPolicy(api, opts.route, {
         accept: opts.accept,
@@ -241,130 +188,285 @@ export function useFileUpload(
         multipart: opts.multipart,
         checksum: opts.checksum,
       });
-      const validationError = validateFile(file, {
-        accept: policy.accept,
-        maxFileSize: policy.maxFileSize,
-      });
-      if (validationError) {
-        const message = formatValidateFileError(validationError);
+
+      if (maxFiles > 0 && files.length > maxFiles) {
+        const msg = `Too many files. Maximum is ${maxFiles}.`;
         patch((draft) => {
           draft.phase = "error";
-          draft.error = new DimahS3Error("BAD_REQUEST", { message });
+          draft.error = new DimahS3Error("BAD_REQUEST", { message: msg });
         });
-        opts.onError?.(file, new Error(message), "validating");
+        opts.onError?.(new Error(msg), "validating");
         return;
       }
 
-      const mergedOptions = mergeRequestOptions(opts, file, requestOptions);
-      const previous = activeUploadRef.current;
+      for (const file of files) {
+        const validationError = validateFile(file, {
+          accept: policy.accept,
+          maxFileSize: policy.maxFileSize,
+        });
+        if (validationError) {
+          const detail = formatValidateFileError(validationError);
+          const msg = `${file.name}: ${detail}`;
+          const error = new DimahS3Error("BAD_REQUEST", { message: msg });
+          revokeAllPreviews();
+          const previewUrl = createImagePreviewUrl(file);
+          if (previewUrl) previewUrlsRef.current = [previewUrl];
+          patch((draft) => {
+            draft.phase = "error";
+            draft.error = error;
+            draft.files = [
+              {
+                id: generateId(),
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                previewUrl,
+                status: "error",
+                progress: { loaded: 0, total: file.size, percent: 0 },
+                error,
+                result: null,
+              },
+            ];
+          });
+          opts.onError?.(new Error(msg), "validating");
+          return;
+        }
+      }
+
       abortRef.current?.abort();
-      abortMultipartSession(previous);
+      abortMultipartSessions();
       const generation = ++generationRef.current;
       const controller = new AbortController();
       abortRef.current = controller;
-      activeUploadRef.current = {
-        file,
-        resumeKey: multipartResumeKey(opts.route, file),
-        serverKey: "",
-        requestOptions: mergedOptions,
-      };
-
       const isCurrent = () => generation === generationRef.current;
 
-      const stopIfAborted = (): boolean => {
-        if (!controller.signal.aborted) return false;
-        if (!isCurrent()) return true;
-        abortRef.current = null;
-        activeUploadRef.current = null;
-        if (detachingRef.current) detachingRef.current = false;
-        else if (resettingRef.current) resettingRef.current = false;
-        else opts.onCancel?.(file);
-        return true;
-      };
-
       if (opts.beforeUpload) {
-        const allowed = await opts.beforeUpload(file);
-        if (stopIfAborted()) return;
+        const allowed = await opts.beforeUpload(files);
+        if (controller.signal.aborted) {
+          if (!isCurrent()) return;
+          abortRef.current = null;
+          if (detachingRef.current) detachingRef.current = false;
+          else if (resettingRef.current) resettingRef.current = false;
+          else opts.onCancel?.();
+          return;
+        }
         if (!allowed) {
           abortRef.current = null;
-          activeUploadRef.current = null;
           patch((draft) => {
             draft.phase = "error";
             draft.error = hookBlockedError(
               "Upload blocked by beforeUpload hook",
             );
           });
-          opts.onError?.(file, new Error("blocked"), "validating");
+          opts.onError?.(new Error("blocked"), "validating");
           return;
         }
       }
 
-      if (stopIfAborted()) return;
+      if (controller.signal.aborted) {
+        if (!isCurrent()) return;
+        abortRef.current = null;
+        if (detachingRef.current) detachingRef.current = false;
+        else if (resettingRef.current) resettingRef.current = false;
+        else opts.onCancel?.();
+        return;
+      }
 
-      speedUpdaterRef.current.reset();
+      revokeAllPreviews();
+      const nextPreviewUrls: string[] = [];
+      const items: Array<{ id: string; file: File }> = [];
+      const fileStates: UploadFileState[] = [];
+      const fileMap = new Map<string, File>();
+
+      for (const file of files) {
+        const id = generateId();
+        const previewUrl = createImagePreviewUrl(file);
+        if (previewUrl) nextPreviewUrls.push(previewUrl);
+        items.push({ id, file });
+        fileMap.set(id, file);
+        fileStates.push({
+          id,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          previewUrl,
+          status: "pending",
+          progress: { loaded: 0, total: file.size, percent: 0 },
+          error: null,
+          result: null,
+        });
+      }
+
+      previewUrlsRef.current = nextPreviewUrls;
+      fileMapRef.current = fileMap;
+      activeUploadsRef.current = new Map(
+        items.map((item) => [
+          item.id,
+          {
+            resumeKey: multipartResumeKey(opts.route, item.file),
+            serverKey: "",
+          },
+        ]),
+      );
+
+      const singleFile = items.length === 1;
       patch((draft) => {
-        draft.phase = "presigning";
+        draft.phase = singleFile ? "presigning" : "uploading";
+        draft.files = fileStates;
+        draft.progress = {
+          loaded: 0,
+          total: files.reduce((s, f) => s + f.size, 0),
+          percent: 0,
+        };
+        draft.error = null;
       });
-      opts.onUploadStart?.(file);
-      let errorPhase: UploadPhase = "presigning";
+
+      opts.onUploadStart?.(files);
+
+      fileSpeedUpdatersRef.current.clear();
+      for (const item of items) {
+        fileSpeedUpdatersRef.current.set(
+          item.id,
+          createThrottledSpeedUpdater(createSpeedTracker()),
+        );
+      }
+      totalSpeedUpdaterRef.current.reset();
+
+      let errorPhase: UploadPhase = singleFile ? "presigning" : "uploading";
 
       try {
-        const result = await uploadFile(
+        const results = await uploadFiles(
           api,
-          file,
+          items,
           {
             route: opts.route,
             multipart: policy.multipart,
             checksum: policy.checksum,
             concurrentParts: opts.concurrentParts,
+            concurrentFiles: opts.concurrentFiles,
             retry: opts.retry,
             uploadStore: opts.uploadStore,
           },
           {
-            onProgress: (progress) => {
+            onFileProgress: (id, progress) => {
               if (!isCurrent()) return;
-              const p = speedUpdaterRef.current.apply(progress);
+              const updater = fileSpeedUpdatersRef.current.get(id);
+              const p = updater ? updater.apply(progress) : progress;
+              patch((draft) => {
+                const fileState = draft.files.find((f) => f.id === id);
+                if (fileState) {
+                  fileState.status = "uploading";
+                  fileState.progress = p;
+                }
+              });
+              const file = fileMap.get(id);
+              if (file) opts.onFileProgress?.(file, p);
+            },
+            onFilePhaseChange: (_id, phase) => {
+              if (!isCurrent()) return;
+              errorPhase = phase;
+              if (singleFile) {
+                patch((draft) => {
+                  draft.phase = phase;
+                });
+              }
+            },
+            onPartUpload: (id, partNumber, totalParts) => {
+              const file = fileMap.get(id);
+              if (file) opts.onPartUpload?.(file, partNumber, totalParts);
+            },
+            onFileSuccess: (id, result) => {
+              if (!isCurrent()) return;
+              activeUploadsRef.current.delete(id);
+              patch((draft) => {
+                const fileState = draft.files.find((f) => f.id === id);
+                if (fileState) {
+                  fileState.status = "success";
+                  fileState.result = result;
+                  fileState.progress = {
+                    loaded: fileState.size,
+                    total: fileState.size,
+                    percent: 100,
+                  };
+                }
+              });
+              const file = fileMap.get(id);
+              if (file) opts.onFileSuccess?.(file, result);
+            },
+            onFileError: (id, error) => {
+              if (!isCurrent()) return;
+              patch((draft) => {
+                const fileState = draft.files.find((f) => f.id === id);
+                if (fileState) {
+                  fileState.status = "error";
+                  fileState.error = error;
+                }
+              });
+              const file = fileMap.get(id);
+              if (file) opts.onFileError?.(file, error);
+            },
+            onTotalProgress: (progress) => {
+              if (!isCurrent()) return;
+              const p = totalSpeedUpdaterRef.current.apply(progress);
               patch((draft) => {
                 draft.progress = p;
               });
-              opts.onProgress?.(file, p);
+              opts.onProgress?.(p);
             },
-            onPhaseChange: (phase) => {
-              if (!isCurrent()) return;
-              errorPhase = phase;
-              patch((draft) => {
-                draft.phase = phase;
-              });
-            },
-            onPartUpload: (partNumber, totalParts) =>
-              opts.onPartUpload?.(file, partNumber, totalParts),
-            onMultipartInit: (uploadId, serverKey) => {
-              if (activeUploadRef.current && isCurrent()) {
-                activeUploadRef.current.uploadId = uploadId;
-                activeUploadRef.current.serverKey = serverKey;
+            onMultipartInit: (id, uploadId, serverKey) => {
+              const active = activeUploadsRef.current.get(id);
+              if (active) {
+                active.uploadId = uploadId;
+                active.serverKey = serverKey;
               }
-              opts.onMultipartInit?.(file, uploadId);
+              const file = fileMap.get(id);
+              if (file) opts.onMultipartInit?.(file, uploadId);
             },
           },
           controller.signal,
-          mergedOptions,
+          (file) => {
+            const perFile = opts.getUploadOptions?.(file);
+            if (!opts.uploadOptions) return perFile ?? {};
+            return { ...opts.uploadOptions, ...perFile };
+          },
         );
 
         if (!isCurrent()) return;
 
+        const hasErrors = results.some((r) => r.status === "error");
+        const successResults = results
+          .filter((r) => r.result !== null)
+          .map((r) => r.result!);
+
         patch((draft) => {
-          draft.phase = "success";
-          draft.result = result;
-          draft.progress = {
-            loaded: file.size,
-            total: file.size,
-            percent: 100,
-          };
+          draft.phase = hasErrors ? "error" : "success";
+          draft.error = hasErrors
+            ? new DimahS3Error("BAD_REQUEST", {
+                message: `${results.filter((r) => r.status === "error").length} file(s) failed`,
+              })
+            : null;
+          if (!hasErrors) {
+            draft.progress = {
+              loaded: draft.progress.total,
+              total: draft.progress.total,
+              percent: 100,
+            };
+          }
         });
-        try {
-          await opts.onSuccess?.(file, result);
-        } catch (err) {
-          opts.onError?.(file, err, "success");
+
+        if (hasErrors) {
+          opts.onError?.(
+            new Error(
+              `${results.filter((r) => r.status === "error").length} file(s) failed`,
+            ),
+            errorPhase,
+          );
+        } else {
+          try {
+            await opts.onSuccess?.(successResults);
+          } catch (err) {
+            opts.onError?.(err, "success");
+          }
         }
       } catch (err) {
         if (!isCurrent()) return;
@@ -373,56 +475,52 @@ export function useFileUpload(
             detachingRef.current = false;
             return;
           }
-          if (resettingRef.current) {
-            resettingRef.current = false;
-            return;
-          }
-          opts.onCancel?.(file);
+          if (!resettingRef.current) opts.onCancel?.();
+          resettingRef.current = false;
           clearToIdle();
           return;
         }
-        const message = err instanceof Error ? err.message : "Upload failed";
         patch((draft) => {
           draft.phase = "error";
-          draft.error = toHookError(err, message);
+          draft.error = toHookError(err, "Upload failed");
         });
-        opts.onError?.(file, err, errorPhase);
+        opts.onError?.(err, errorPhase);
       } finally {
         if (isCurrent()) {
           abortRef.current = null;
-          activeUploadRef.current = null;
+          activeUploadsRef.current.clear();
         }
       }
     },
     [
-      abortMultipartSession,
+      abortMultipartSessions,
       apiRef,
       optsRef,
       formatValidateFileError,
-      revokeCurrentPreview,
+      revokeAllPreviews,
       clearToIdle,
       patch,
     ],
   );
 
   const cancel = useCallback(() => {
-    const active = activeUploadRef.current;
+    const hadWork =
+      abortRef.current != null || activeUploadsRef.current.size > 0;
     generationRef.current += 1;
     abortRef.current?.abort();
-    abortMultipartSession(active);
+    abortMultipartSessions();
     abortRef.current = null;
-    activeUploadRef.current = null;
-    if (active) optsRef.current.onCancel?.(active.file);
+    if (hadWork) optsRef.current.onCancel?.();
     clearToIdle();
-  }, [abortMultipartSession, optsRef, clearToIdle]);
+  }, [abortMultipartSessions, optsRef, clearToIdle]);
 
   const detach = useCallback(() => {
-    if (!activeUploadRef.current) return;
+    if (activeUploadsRef.current.size === 0 && !abortRef.current) return;
     detachingRef.current = true;
     generationRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
-    activeUploadRef.current = null;
+    activeUploadsRef.current.clear();
     clearToIdle();
   }, [clearToIdle]);
 
@@ -431,12 +529,13 @@ export function useFileUpload(
     generationRef.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
-    activeUploadRef.current = null;
+    activeUploadsRef.current.clear();
     clearToIdle();
   }, [clearToIdle]);
 
   return {
     ...state,
+    file: state.files[0] ?? null,
     isUploading: state.phase === "uploading",
     isPending: PENDING_PHASES.has(state.phase),
     upload,

@@ -1,6 +1,9 @@
+import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
 export function App() {
+  const upload = useUpload({ route: "uploads" });
+
   return (
     <main className="flex min-h-full flex-1 flex-col items-center justify-center gap-8 p-8">
       <div className="text-center">
@@ -10,7 +13,7 @@ export function App() {
         </p>
       </div>
 
-      <UploadButton route="uploads" label="Upload file" />
+      <UploadButton upload={upload} label="Upload file" />
 
       <p className="max-w-sm text-center text-xs text-muted-foreground">
         Fill the <code className="rounded bg-muted px-1 py-0.5">S3_*</code>{" "}

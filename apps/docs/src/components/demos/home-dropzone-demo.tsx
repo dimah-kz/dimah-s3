@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useUpload } from "@dimah-s3/react";
 import {
   DeleteButton,
   FileAttachment,
@@ -113,40 +114,44 @@ export function HomeDropzoneDemo() {
 
   const idle = object == null && !uploading && !failed;
 
+  const upload = useUpload({
+    route: "uploads",
+    accept: ["image/*", "application/pdf", "video/*"],
+    maxFiles: 1,
+    maxFileSize: 75 * 1024 * 1024,
+    onUploadStart: () => {
+      setUploading(true);
+      setFailed(false);
+      replaceObject(null);
+    },
+    onFileSuccess: (file, result) => {
+      rememberDemoFile(result.key, file);
+      setUploading(false);
+      setFailed(false);
+      replaceObject({
+        key: result.key,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        previewUrl: previewFromFile(file),
+      });
+    },
+    onError: () => {
+      setUploading(false);
+      setFailed(true);
+    },
+    onCancel: () => {
+      setUploading(false);
+      setFailed(false);
+    },
+  });
+
   return (
     <>
       {idle ? <TryDemoHint className={cn(enter, "delay-700")} /> : null}
       <UploadDropzone
-        route="uploads"
-        accept={["image/*", "application/pdf", "video/*"]}
-        maxFiles={1}
-        maxFileSize={75 * 1024 * 1024}
+        upload={upload}
         className="w-full"
-        onUploadStart={() => {
-          setUploading(true);
-          setFailed(false);
-          replaceObject(null);
-        }}
-        onSuccess={(file, result) => {
-          rememberDemoFile(result.key, file);
-          setUploading(false);
-          setFailed(false);
-          replaceObject({
-            key: result.key,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            previewUrl: previewFromFile(file),
-          });
-        }}
-        onError={() => {
-          setUploading(false);
-          setFailed(true);
-        }}
-        onCancel={() => {
-          setUploading(false);
-          setFailed(false);
-        }}
         status={(node) => {
           if (object && !uploading) {
             return (

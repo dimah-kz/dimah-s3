@@ -54,7 +54,7 @@ export type UseFileIntakeReturn = {
  * {@link validateFile} (same HTML `accept` tokens as programmatic upload).
  * The native input gets the HTML `accept` attribute directly.
  *
- * @internal — prefer {@link useUpload} / {@link useMultiUpload}.
+ * @internal — prefer {@link useUpload}.
  */
 export function useFileIntake(
   options: UseFileIntakeOptions,

@@ -183,7 +183,9 @@ Upload and multipart init always require `fileName` + `fileSize`.
 ```ts
 useUpload({ route: "uploads" })
 useDownload({ route: "invoices" })  // download(storedKey)
-<UploadButton route="uploads" />
+
+const upload = useUpload({ route: "uploads" })
+<UploadButton upload={upload} />
 ```
 
 Download or delete of keys created by `uploads` belongs on that same route

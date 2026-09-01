@@ -20,7 +20,7 @@ function attachmentState(phase: UploadPhase) {
 
 /** Headless upload + stock shadcn Attachment from the docs app. */
 export function CustomUploadDemo() {
-  const { open, phase, progress, error, fileInfo, getInputProps } = useUpload({
+  const upload = useUpload({
     route: "uploads",
     maxFileSize: 75 * 1024 * 1024,
     noDrag: true,
@@ -28,31 +28,31 @@ export function CustomUploadDemo() {
     noKeyboard: true,
   });
 
-  const busy =
-    phase === "uploading" ||
-    phase === "presigning" ||
-    phase === "validating" ||
-    phase === "finalizing";
-
   return (
     <div className="flex w-full max-w-sm flex-col gap-2">
-      <input {...getInputProps()} />
-      <Button type="button" size="sm" onClick={() => open()}>
+      <input {...upload.getInputProps()} />
+      <Button type="button" size="sm" onClick={() => upload.open()}>
         Choose file
       </Button>
 
-      {phase !== "idle" ? (
-        <Attachment state={attachmentState(phase)} size="sm">
+      {upload.phase !== "idle" ? (
+        <Attachment state={attachmentState(upload.phase)} size="sm">
           <AttachmentMedia>
-            {busy ? <LoaderIcon className="animate-spin" /> : <FileIcon />}
+            {upload.isPending ? (
+              <LoaderIcon className="animate-spin" />
+            ) : (
+              <FileIcon />
+            )}
           </AttachmentMedia>
           <AttachmentContent>
-            <AttachmentTitle>{fileInfo?.name ?? "Uploading…"}</AttachmentTitle>
+            <AttachmentTitle>
+              {upload.file?.name ?? "Uploading…"}
+            </AttachmentTitle>
             <AttachmentDescription>
-              {phase === "error"
-                ? (error?.message ?? "Upload failed")
-                : phase === "uploading"
-                  ? `${progress.percent}%`
+              {upload.phase === "error"
+                ? (upload.error?.message ?? "Upload failed")
+                : upload.phase === "uploading"
+                  ? `${upload.progress.percent}%`
                   : "Preparing…"}
             </AttachmentDescription>
           </AttachmentContent>

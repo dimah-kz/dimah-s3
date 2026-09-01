@@ -5,9 +5,9 @@ import { useTranslations } from "@fuma-translate/react";
 import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type {
   DimahS3Error,
+  UploadPhase,
   UploadProgress,
-  MultiUploadFileState,
-  MultiUploadPhase,
+  UploadFileState,
 } from "@dimah-s3/react";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
@@ -24,9 +24,9 @@ import {
 import { cn } from "@/lib/utils";
 
 export type MultiUploadStatusProps = AttachmentLayoutProps & {
-  phase: MultiUploadPhase;
-  files: MultiUploadFileState[];
-  totalProgress: UploadProgress;
+  phase: UploadPhase;
+  files: UploadFileState[];
+  progress: UploadProgress;
   error: DimahS3Error | null;
   onCancel?: () => void;
   /** When set (typically with an `uploadStore`), shows a pause control. */
@@ -37,7 +37,7 @@ export type MultiUploadStatusProps = AttachmentLayoutProps & {
 export function MultiUploadStatus({
   phase,
   files,
-  totalProgress,
+  progress,
   error,
   onCancel,
   onPause,
@@ -54,17 +54,14 @@ export function MultiUploadStatus({
 
   if (phase === "uploading") {
     const eta =
-      totalProgress.speed && totalProgress.total
-        ? formatEta(
-            totalProgress.total - totalProgress.loaded,
-            totalProgress.speed,
-          )
+      progress.speed && progress.total
+        ? formatEta(progress.total - progress.loaded, progress.speed)
         : null;
 
     return (
       <div className={cn("flex w-full flex-col gap-2", className)}>
         <div className="flex w-full items-center gap-1.5">
-          <Progress value={totalProgress.percent} className="flex-1">
+          <Progress value={progress.percent} className="flex-1">
             <ProgressLabel>
               {t("{done}/{total} files", {
                 note: "upload progress",
@@ -159,7 +156,7 @@ export function MultiUploadStatus({
 }
 
 function fileAttachmentState(
-  status: MultiUploadFileState["status"],
+  status: UploadFileState["status"],
 ): AttachmentState {
   switch (status) {
     case "pending":
@@ -170,6 +167,10 @@ function fileAttachmentState(
       return "error";
     case "success":
       return "done";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
   }
 }
 
@@ -177,7 +178,7 @@ function FileList({
   files,
   size,
   orientation,
-}: AttachmentLayoutProps & { files: MultiUploadFileState[] }) {
+}: AttachmentLayoutProps & { files: UploadFileState[] }) {
   return (
     <div className="flex w-full flex-col gap-2">
       {files.map((f) => (

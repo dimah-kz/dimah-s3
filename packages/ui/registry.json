@@ -112,11 +112,6 @@
           "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
         },
         {
-          "path": "src/components/dimah-s3/upload/upload-status-block.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/upload/upload-status-block.tsx"
-        },
-        {
           "path": "src/components/dimah-s3/upload/upload-wired.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-wired.tsx"
@@ -212,11 +207,6 @@
           "path": "src/components/dimah-s3/upload/multi-upload-status.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
-        },
-        {
-          "path": "src/components/dimah-s3/upload/upload-status-block.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/upload/upload-status-block.tsx"
         },
         {
           "path": "src/components/dimah-s3/upload/upload-wired.tsx",

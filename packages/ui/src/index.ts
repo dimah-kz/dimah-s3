@@ -8,16 +8,14 @@ export {
 } from "@/components/dimah-s3/upload/upload-dropzone";
 export {
   UploadStatus,
+  UploadFileStatus,
   type UploadStatusProps,
+  type UploadFileStatusProps,
 } from "@/components/dimah-s3/upload/upload-status";
 export {
   MultiUploadStatus,
   type MultiUploadStatusProps,
 } from "@/components/dimah-s3/upload/multi-upload-status";
-export {
-  UploadStatusBlock,
-  type UploadStatusBlockProps,
-} from "@/components/dimah-s3/upload/upload-status-block";
 export {
   DownloadButton,
   type DownloadButtonProps,

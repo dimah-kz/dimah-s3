@@ -144,14 +144,16 @@ Omit `accept` / `maxFileSize` so the hook fills them from
 import { useUpload } from "@dimah-s3/react";
 
 export function Uploader() {
-  const { getRootProps, getInputProps, isUploading, progress } = useUpload({
+  const upload = useUpload({
     route: "uploads",
   });
 
   return (
-    <div {...getRootProps()}>
-      <input {...getInputProps()} />
-      {isUploading ? `${progress.percent}%` : "Drop a file or click to upload"}
+    <div {...upload.getRootProps()}>
+      <input {...upload.getInputProps()} />
+      {upload.isUploading
+        ? `${upload.progress.percent}%`
+        : "Drop a file or click to upload"}
     </div>
   );
 }
