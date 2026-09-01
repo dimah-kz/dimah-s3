@@ -1,115 +1,85 @@
 ---
 title: Introduction
-description: Full-stack S3 toolkit for the React ecosystem — server, client, optional shadcn UI and DB.
+description: Full-stack S3 toolkit for the React ecosystem — server handlers, client hooks, shadcn UI, and database tracking.
 icon: House
 ---
 
-dimah-s3 is a full-stack S3 toolkit for the React ecosystem. It ships server
-handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com) UI, and
-an optional database plugin for object tracking. You pass in your own AWS SDK
-`S3Client`.
+**dimah-s3** is a modular, full-stack S3 toolkit for React and Node.js runtimes. It provides typed server handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com) UI components, and a database plugin for object tracking.
 
-It is presign-first: the server signs, the browser talks to the bucket, and
-credentials never leave the backend.
+It follows a **presign-first** architecture: the backend generates short-lived signed URLs, the browser communicates directly with your S3-compatible storage, and AWS credentials never leave your server.
+
+## Architecture flow
 
 <Flow
-  label="Presign-first"
+  label="Presign-first architecture"
   steps={[
-    { name: "Browser", kind: "client", note: "asks for a URL" },
-    { name: "Server", kind: "server", note: "signs and runs hooks" },
-    { name: "Bucket", kind: "s3", note: "receives the bytes" },
+    { name: "Browser", kind: "client", note: "requests signed URL" },
+    { name: "Server", kind: "server", note: "executes guards & signs URL" },
+    { name: "S3 Bucket", kind: "s3", note: "receives direct upload bytes" },
   ]}
 />
 
-<Accordions>
-<Accordion title="Upload, download, and delete">
+---
 
-Upload and download are presigned — the browser talks to the bucket.
-Multipart is part of upload.
+## Key features
 
-<Callout title="Delete is not presigned">
-  Delete goes to your API. After `guard`, the server calls `DeleteObject`. The
-  browser never talks to the bucket for this step.
-</Callout>
+- **Complete file lifecycle**: Presigned upload, download (redirect or stream), and server-mediated deletion.
+- **Strict security**: Server owns key generation (`avatar/{uuid}/{fileName}`), with namespace isolation and HeadObject metadata verification.
+- **Headless & UI ready**: Pure hooks (`useUpload`, `useDownload`, `useDelete`) or plug-and-play shadcn components.
+- **Provider agnostic**: Works seamlessly with AWS S3, Cloudflare R2, MinIO, and any S3-compatible backend.
+- **Optional database layer**: Scope isolation, object ownership, and listing APIs via `@dimah-s3/db`.
 
-</Accordion>
-</Accordions>
+---
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
-in your own code with the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
-
-Amazon S3, Cloudflare R2, MinIO, and other S3-compatible stores work — see
-[Providers](/docs/providers).
-
-Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
-
-## What you get
-
-- Fast setup — a working upload in minutes, not a week of wiring
-- Full stack — server, client, and optional shadcn UI; not a client uploader you
-  have to back yourself
-- Full lifecycle — upload, download, and delete, including multipart
-- Server hooks — auth, quotas, confirm, and cleanup where they belong
-- Optional database — ownership, listings, and resumable uploads when you
-  need them
-
-## Why I built this
-
-Every new app needed the same S3 stack: a presign-only backend, a client that
-talks to the bucket, some UI, and often a table of who owns which file. That
-is not hard once. It is expensive every time.
-
-Most people start with a client uploader like
-[Uppy](https://uppy.io/docs/aws-s3/) and write the presign API themselves.
-The uploader is the easy part. A correct, secure presign-only backend is
-not. The flow is small, easy to get wrong, and it holds the keys. Then you
-still need UI, object tracking, and the rest of the file flows.
-
-dimah-s3 is that backend, written once. The standard pieces are there. You
-extend it with hooks and plugins.
-
-## Get started
+## Explore documentation
 
 <Cards>
   <Card
     title="Quickstart"
     href="/docs/quickstart"
-    description="A working upload in a new app, or in one you already have."
+    description="Get a working upload flow running in under 5 minutes."
   />
   <Card
-    title="Comparison"
-    href="/docs/comparison"
-    description="When dimah-s3 fits — and when it does not."
-  />
-  <Card
-    title="Server"
+    title="Server Guide"
     href="/docs/server"
-    description="Route handler and lifecycle hooks for auth and DB rules."
+    description="Configure routes, lifecycle hooks, guards, and runtimes."
   />
   <Card
-    title="Client"
+    title="React Client"
     href="/docs/react"
-    description="Standalone headless React client for S3 file flows."
+    description="Headless hooks for upload, download, and delete."
   />
   <Card
-    title="UI"
+    title="UI Components"
     href="/docs/react/ui"
-    description="Ready-made shadcn controls for upload, download, and delete."
+    description="Prebuilt shadcn components for buttons, dropzones, and status."
   />
   <Card
     title="Providers"
     href="/docs/providers"
-    description="AWS S3, Cloudflare R2, MinIO — POST vs PUT, ACL, and CORS."
+    description="Setup guides for AWS S3, Cloudflare R2, and MinIO."
   />
   <Card
-    title="Database"
+    title="Database Plugin"
     href="/docs/db"
-    description="Optional object tracking with ready-made hooks."
-  />
-  <Card
-    title="Next.js example"
-    href="https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-nextjs"
-    description="A complete Next.js app you can clone and run."
+    description="Track object metadata, ownership scopes, and file listings."
   />
 </Cards>
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How does delete work compared to upload and download?">
+
+Upload and download are presigned (the client communicates directly with S3). Deletion is executed server-side: the client sends a delete request to your API, the server runs your `delete.guard`, issues `DeleteObjectCommand` via the AWS SDK, and triggers `onDeleted` cleanup.
+
+</Accordion>
+
+<Accordion title="Can I use dimah-s3 with Cloudflare R2 or MinIO?">
+
+Yes. Any S3-compatible storage works out of the box. For Cloudflare R2, configure `upload: { method: "PUT" }`. For MinIO, pass `forcePathStyle: true` in your S3Client.
+
+</Accordion>
+
+</Accordions>

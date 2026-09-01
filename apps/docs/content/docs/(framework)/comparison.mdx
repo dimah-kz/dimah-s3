@@ -1,59 +1,40 @@
 ---
 title: Comparison
-description: When to pick dimah-s3 versus Better Upload, Uppy, or a hosted service.
+description: Compare dimah-s3 with Better Upload, UploadThing, and Uppy.
 icon: Scale
 ---
 
-dimah-s3 is the server, the React client, and optional shadcn UI for files in
-a bucket you control — upload, download, and delete. You pass your own
-`S3Client`. Auth and quotas live in hooks. List, copy, and tags stay in your
-app.
+dimah-s3 provides a full-stack file management solution for S3-compatible storage you control — covering server handlers, client hooks, and optional shadcn UI for upload, download, and deletion.
 
-That is a different job from a hosted service, an upload-only library, or a
-dashboard you still have to back yourself.
+## Feature comparison
 
-[UploadThing](https://uploadthing.com) stores the files for you.
-[Better Upload](https://better-upload.com) covers upload to your bucket.
-[Uppy](https://uppy.io) is an upload dashboard; you write the server.
+| Feature                  |          dimah-s3           | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io) |
+| ------------------------ | :-------------------------: | :----------------------------------------: | :------------------------------------: | :---------------------: |
+| **Server handlers**      |          Built-in           |                Uploads only                |              Hosted SaaS               |       None (DIY)        |
+| **S3 Storage ownership** |         Your bucket         |                Your bucket                 |             Hosted bucket              |       Your bucket       |
+| **Upload lifecycle**     | Presign + HeadObject verify |                  Presign                   |               Hosted API               |       Client-only       |
+| **Download & Preview**   |   Presign, Proxy & Inline   |                    DIY                     |              Hosted URLs               |           DIY           |
+| **Object Deletion**      | Server-mediated with guards |                    DIY                     |               Hosted API               |           DIY           |
+| **Database tracking**    |  Optional (`@dimah-s3/db`)  |                    None                    |            Hosted dashboard            |          None           |
+| **Client UI**            |      Headless + shadcn      |              shadcn uploaders              |            React components            |     Dashboard modal     |
 
-|                 | dimah-s3                        | [Better Upload](https://better-upload.com) | [Uppy](https://uppy.io) |
-| --------------- | ------------------------------- | ------------------------------------------ | ----------------------- |
-| Server          | Included                        | Uploads only                               | You write it            |
-| Upload          | Yes, then confirms it is there  | Yes                                        | You connect S3          |
-| Download        | Included                        | You add it                                 | You add it              |
-| Delete          | Included                        | You add it                                 | You add it              |
-| Save to your DB | After the file is in the bucket | Before the file is uploaded                | You add it              |
-| Auth            | Hooks on every step             | Before the URL is signed                   | You add it              |
-| Named routes    | Yes                             | Yes                                        | You add it              |
-| Large files     | Resume, abort, and checks       | Opt-in on the named route                  | You sign each part      |
-| File database   | Optional                        | —                                          | —                       |
-| Headless client | Upload, download, and delete    | Upload                                     | —                       |
-| Ready-made UI   | shadcn for all three            | shadcn for upload                          | Dashboard and plugins   |
-| Webcam / Drive  | —                               | —                                          | Yes                     |
+---
 
-## Pick dimah-s3 if
+## Why choose dimah-s3?
 
-- You want named file routes with server-owned keys — upload, download, and
-  delete as separate policies, or together when the same objects need them
-- Upload, download, and delete should follow the same rules
-- You save a row only after the file is really in the bucket
-- Auth lives in hooks, and the rest of S3 uses your `S3Client`
-- You want an optional database for ownership and listings
-- You want shadcn UI, or headless hooks if you build your own
+- **Unified lifecycle**: Manage upload, download, and delete under cohesive route policies.
+- **Server-owned keys**: Prevent key injection and namespace pollution.
+- **Verified metadata**: Rely on `HeadObject` for verified sizes and MIME types instead of trusting client claims.
+- **Zero lock-in**: Connect any S3-compatible backend (AWS S3, Cloudflare R2, MinIO, Wasabi, ArvanCloud).
 
-## Pick something else if
-
-- Hosted uploads, no bucket of yours — [UploadThing](https://uploadthing.com)
-- Uploads only — [Better Upload](https://better-upload.com) (named routes are also in dimah-s3)
-- A dashboard with webcam or Drive — [Uppy](https://uppy.io)
-- Image or video transforms — Cloudinary, ImageKit, or similar
+## Frequently asked questions
 
 <Accordions>
-<Accordion title="Can Uppy sit in front of dimah-s3?">
 
-Yes. Uppy can stay as the dashboard while dimah-s3 signs URLs and owns
-download, delete, and hooks. That glue is yours to write — there is no
-first-class Uppy plugin.
+<Accordion title="Can I use Uppy or Dropzone with dimah-s3?">
+
+Yes. You can connect third-party client uploaders to the `@dimah-s3/server` presign endpoints, or implement custom clients using `defineApi`.
 
 </Accordion>
+
 </Accordions>

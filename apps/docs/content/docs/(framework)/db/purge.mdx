@@ -1,37 +1,34 @@
 ---
-title: Purge
-description: Remove stale pending rows and their S3 objects.
+title: Purge Stale Uploads
+description: Clean up unconfirmed pending database rows and incomplete S3 uploads.
 ---
 
-If a client gets a presign and never confirms, the row stays `pending`. Over
-time that clutters listings and quota counts.
+When clients request a presigned upload but fail to upload or confirm, database rows remain in `status: "pending"`.
 
-`purgeStalePendingObjects` deletes those stale rows. Pass `s3` to also
-abort in-progress multipart uploads and `DeleteObject` each key. Run it
-on a schedule — cron, a queue worker, or a script.
+`purgeStalePendingObjects` cleans up expired rows and aborts any incomplete multipart uploads.
 
-```ts title="scripts/purge-stale-pending.ts"
+```ts title="scripts/purge-stale.ts"
 import { purgeStalePendingObjects } from "@dimah-s3/db";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
 import { awsS3 } from "@/lib/s3";
 
 const { purged } = await purgeStalePendingObjects({
   client: dimahS3Db,
-  olderThanMs: 24 * 60 * 60 * 1000,
+  olderThanMs: 24 * 60 * 60 * 1000, // 24 hours
   s3: awsS3,
 });
+
+console.log(`Purged ${purged.length} stale uploads.`);
 ```
 
-The return value is `{ purged }` — the rows removed from the database.
+## Frequently asked questions
 
-A row is eligible when it is `pending` and `expiresAt` has passed, or
-`expiresAt` is null and `createdAt` is older than `olderThanMs` (default
-24 hours). `db({ pendingTtlMs })` is what sets `expiresAt` on pending
-rows. If `onBeforePurge` throws, the batch is skipped until the next run.
+<Accordions>
 
-Prefer `s3` unless you need a custom cleanup. `onBeforePurge` still runs
-after the optional S3 delete.
+<Accordion title="How do I schedule the purge script?">
 
-A working script lives in
-[`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
-(`pnpm db:purge-stale`).
+Run it on a daily cron job (e.g. Vercel Cron, GitHub Actions, or Node cron workers).
+
+</Accordion>
+
+</Accordions>

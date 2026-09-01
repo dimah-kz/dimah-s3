@@ -5,18 +5,17 @@ import { UploadButton } from "@dimah-s3/ui";
 
 export function UploadButtonDemo() {
   const upload = useUpload({
-    route: "uploads",
-    maxFiles: 5,
-    concurrentFiles: 2,
-    maxFileSize: 75 * 1024 * 1024,
+    route: "avatar",
+    maxFiles: 1,
+    maxFileSize: 2 * 1024 * 1024,
   });
 
   return (
     <UploadButton
       upload={upload}
-      label="Upload files"
+      label="Upload avatar"
       toast={true}
-      tooltipText="Upload up to 5 files"
+      tooltipText="Upload profile image"
     />
   );
 }

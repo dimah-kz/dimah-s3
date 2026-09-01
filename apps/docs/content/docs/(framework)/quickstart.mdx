@@ -16,13 +16,13 @@ npx @dimah-s3/cli@latest create
 
 ## Manual installation
 
-### 1. Install dependencies [step]
+### Install dependencies [step]
 
 ```npm
 npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3
 ```
 
-### 2. Configure S3 and routes [step]
+### Configure S3 and routes [step]
 
 Define your AWS S3 client and instance. In this example, we create an `avatar` route for user profile photos:
 
@@ -61,7 +61,7 @@ export const s3 = dimahS3({
 });
 ```
 
-### 3. Mount the route handler [step]
+### Mount the route handler [step]
 
 <Tabs items={["Next.js", "Vite", "Express", "Hono", "SvelteKit"]}>
 
@@ -142,7 +142,7 @@ export const DELETE = handler;
 
 </Tabs>
 
-### 4. Create the client client & provider [step]
+### Create the client client & provider [step]
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -153,7 +153,7 @@ export const s3Client = createS3Client();
 export const S3Provider = s3Client.Provider;
 ```
 
-### 5. Wrap your application [step]
+### Wrap your application [step]
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -219,7 +219,7 @@ export default function RootLayout({
 
 </Tabs>
 
-### 6. Add an upload button [step]
+### Add an upload button [step]
 
 ```tsx title="app/page.tsx"
 "use client";
@@ -235,8 +235,6 @@ export default function AvatarUploadPage() {
 ```
 
 Selecting an image presigns a secure URL and uploads directly to your bucket under `avatar/{uuid}/{filename}`.
-
----
 
 ## Frequently asked questions
 

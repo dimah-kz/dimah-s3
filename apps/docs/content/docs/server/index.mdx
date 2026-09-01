@@ -1,93 +1,83 @@
 ---
-title: Introduction
-description: Presign handlers and lifecycle hooks for S3 upload, download, and delete.
+title: Server Overview
+description: Backend handlers, route policies, and lifecycle hooks for S3 file flows.
 icon: Server
 ---
 
-[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the
-backend for dimah-s3. It signs short-lived URLs, runs your hooks, and keeps
-credentials on the server.
+[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the backend engine for dimah-s3. It manages signed URLs, enforces route constraints, authorizes requests through guards, and triggers lifecycle callbacks.
+
+## Server architecture
 
 <Flow
-  label="Presign-first"
+  label="Server-managed presign flow"
   steps={[
-    { name: "Browser", kind: "client", note: "asks for a URL" },
-    { name: "Server", kind: "server", note: "signs + hooks" },
-    { name: "S3", kind: "s3", note: "bytes stay here" },
+    { name: "Browser", kind: "client", note: "requests operation on route" },
+    {
+      name: "Server",
+      kind: "server",
+      note: "runs guards, signs URL / runs S3 op",
+    },
+    { name: "S3 Storage", kind: "s3", note: "stores or serves file bytes" },
   ]}
 />
 
-Upload and download are presigned. Delete is not — after `guard`, the server
-calls `DeleteObject`.
+- **Upload & Download**: Presigned URLs (direct client-to-bucket transfer).
+- **Deletion**: Handled securely on the server via `DeleteObjectCommand`.
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
-in your code with the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+---
 
-## What you get
+## Core capabilities
 
-- **One instance** — `dimahS3()` gives an HTTP `handler` and a typed `api`
-- **Lifecycle hooks** — auth, quotas, and DB writes at each step
-- **Verified uploads** — `HeadObject` before you trust size or type
-- **Any runtime** — adapters for Next.js, Express, Hono, and others, or a
-  plain `Request` / `Response` handler
+- **Single configuration**: `dimahS3()` exports both an HTTP route `handler` and a direct typed server `api`.
+- **Lifecycle hooks**: Inject auth, database logging, or quota checks at presign, confirmation, and deletion.
+- **HeadObject verification**: Real file sizes and MIME headers are confirmed from S3 before committing to databases.
+- **Zero-dependency adapters**: Built-in handlers for Next.js, Hono, Express, Fastify, SvelteKit, Elysia, and standard Fetch.
 
-## Documentation
+---
+
+## Server documentation
 
 <Cards>
   <Card
-    title="Setup"
+    title="Setup & Adapters"
     href="/docs/server/setup"
-    description="Install, configure, and mount the route."
+    description="Mount the route handler in Next.js, Express, Hono, etc."
   />
   <Card
-    title="Routes"
+    title="Route Definitions"
     href="/docs/server/routes"
-    description="Named file routes — keys, constraints, and inheritance."
+    description="Define routes, constraints, namespaces, and operations."
   />
   <Card
-    title="Security"
+    title="Security & Auth"
     href="/docs/server/security"
-    description="Server-owned keys, ACL, and what to trust after HeadObject."
+    description="Key generation, access control, and HeadObject validation."
   />
   <Card
-    title="Errors"
+    title="Error Handling"
     href="/docs/server/errors"
-    description="Stable codes and the errors helper."
+    description="Error codes and APIError handling."
   />
   <Card
-    title="Global Guard"
-    href="/docs/server/hooks/global-guard"
-    description="Request-level policy before every operation."
-  />
-  <Card
-    title="Upload"
+    title="Lifecycle Hooks"
     href="/docs/server/hooks/upload"
-    description="Presign, confirm, persist metadata."
-  />
-  <Card
-    title="Download"
-    href="/docs/server/hooks/download"
-    description="Authorize before issuing GET URLs."
-  />
-  <Card
-    title="Delete"
-    href="/docs/server/hooks/delete"
-    description="Guard and clean up after removal."
-  />
-  <Card
-    title="Multipart"
-    href="/docs/server/hooks/multipart"
-    description="Large-file upload lifecycle."
+    description="Upload, Download, Delete, and Multipart lifecycle hooks."
   />
   <Card
     title="Plugins"
     href="/docs/server/plugins"
-    description="definePlugin — hooks, endpoints, and context."
-  />
-  <Card
-    title="Database"
-    href="/docs/db"
-    description="Optional object tracking with db()."
+    description="Extend server functionality with definePlugin."
   />
 </Cards>
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can I call S3 actions directly from Server Actions without HTTP?">
+
+Yes. Use `s3.api` (e.g. `s3.api.download({ query: { route: 'avatar', key } })` or `s3.put({ route: 'avatar', ... })`).
+
+</Accordion>
+
+</Accordions>

@@ -1,159 +1,67 @@
 ---
 title: Plugins
-description: Extend dimahS3 with definePlugin — hooks, endpoints, and context.
+description: Extend dimahS3 with definePlugin — custom endpoints, lifecycle hooks, and typed context.
 icon: Puzzle
 ---
 
-Official plugins ship in their own packages — start with
-[`db()`](/docs/db) for object tracking. This page is for plugins you write
-with `definePlugin`.
+Use `definePlugin` to create reusable server extensions (like [`db()`](/docs/db)). Plugins can contribute lifecycle hooks, HTTP endpoints under your `basePath`, and typed instance context (`s3[id]`).
 
-A plugin can add lifecycle hooks, HTTP routes under paths it owns (for
-example `/audit/recent`), and typed context on the `dimahS3()` instance
-(`s3[id]`).
+```ts title="lib/s3-audit-plugin.ts"
+import { definePlugin, createS3Endpoint } from "@dimah-s3/server";
 
-Keep the plugin **inline** (or `as const`) in `plugins` so `s3.audit` stays
-narrowed. A widened `DimahS3Plugin[]` variable drops the id.
-
-`definePlugin`, `createS3Endpoint`, and `chainHooks` export from
-`@dimah-s3/server`. Hook context types and `applyPlugins` also live on
-`@dimah-s3/server/plugins`.
-
-```ts
-import { definePlugin, dimahS3, route } from "@dimah-s3/server";
-
-const audit = definePlugin({
+export const auditPlugin = definePlugin({
   id: "audit",
   hooks: {
     upload: {
       onConfirmed: async ({ key }) => {
-        console.log("uploaded", key);
+        console.log("[audit] Upload confirmed:", key);
       },
     },
   },
+  endpoints: {
+    stats: createS3Endpoint("/audit/stats", { method: "GET" }, async () => ({
+      status: "ok",
+    })),
+  },
   context: {
-    log: (message: string) => console.log("[audit]", message),
+    log: (msg: string) => console.log("[audit]", msg),
   },
 });
+```
+
+Register the plugin in your instance:
+
+```ts title="lib/s3.ts"
+import { dimahS3, route } from "@dimah-s3/server";
+import { auditPlugin } from "./s3-audit-plugin";
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  plugins: [audit],
+  plugins: [auditPlugin],
   routes: {
     avatar: route({ upload: true }),
   },
 });
 
-s3.audit.log("ready");
+// Access plugin context
+s3.audit.log("Storage ready");
 ```
 
-## Contract
+---
 
-<TypeTable
-  type={{
-    id: {
-      description:
-        "Unique string. Reserved: `handler`, `api`, `context`, `getPlugin`, `$ERROR_CODES`, `$Infer`.",
-      type: "string",
-      required: true,
-    },
-    hooks: {
-      description:
-        "Lifecycle hooks. Guards merge plugins-first then user; `on*` hooks run user-first then plugins (so `db().markActive` is last).",
-      type: "DimahS3PluginHooks",
-    },
-    endpoints: {
-      description:
-        "better-call routes via `createS3Endpoint`. Paths are absolute under `basePath` (e.g. `/audit/recent`).",
-      type: "Record<string, Endpoint>",
-    },
-    context: {
-      description: "Data exposed as `s3[id]` and `s3.context[id]`.",
-      type: "object",
-    },
-    dependsOn: {
-      description: "Plugin ids that must be registered first.",
-      type: "string[]",
-    },
-    init: {
-      description: "Sync validation after the context map is built.",
-      type: "(env) => void",
-    },
-  }}
-/>
+## Hook execution order
 
-`method` / `object` / `acl` stay on the route **`upload`** feature —
-plugins cannot override them. You still turn features on and set key
-policy yourself. Hook context types import from
-`@dimah-s3/server/plugins`.
+- **Guards**: Plugins execute first in registration order, followed by user config guards.
+- **Lifecycle hooks (`onConfirmed`, `onDeleted`)**: User config hooks execute first, followed by plugin hooks.
 
-Plugin hooks are the same slots as `FEATURE_HOOK_KEYS` (plus nested
-`upload.multipart` via `MULTIPART_HOOK_KEYS`): feature `guard` / `on*`
-functions only.
+## Frequently asked questions
 
-## Hook order
+<Accordions>
 
-Guards (`guard` / `*Guard`) run **plugins first**, then your config — so
-[`db()`](/docs/db) ownership runs before a quota check.
+<Accordion title="How do I create a client-side companion for my server plugin?">
 
-Lifecycle `on*` hooks run **your config first**, then plugins — so a throw
-from `upload.onConfirmed` can `DeleteObject` before `db()` marks the row
-active.
-
-<Flow
-  label="Guard merge order"
-  steps={[
-    { name: "plugin guards", kind: "server", note: "plugins array order" },
-    { name: "your guards", kind: "hook", note: "dimahS3() config" },
-  ]}
-/>
-
-Stack several **user** hooks on one slot with `chainHooks`:
-
-```ts
-import { chainHooks, dimahS3, route } from "@dimah-s3/server";
-import { db } from "@dimah-s3/db";
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: process.env.S3_BUCKET!,
-  plugins: [db({ client: dimahS3Db, resolveScope })],
-  routes: {
-    avatar: route({
-      upload: {
-        guard: chainHooks(quotaGuard, rateLimitGuard),
-      },
-    }),
-  },
-});
-```
-
-## Endpoints
-
-```ts
-import { definePlugin, createS3Endpoint } from "@dimah-s3/server";
-
-definePlugin({
-  id: "audit",
-  endpoints: {
-    recent: createS3Endpoint("/audit/recent", { method: "GET" }, async () => ({
-      events: [],
-    })),
-  },
-});
-
-// GET /api/s3/audit/recent
-```
-
-- Path: the plugin owns the full path under `basePath` (`pluginPath` in `@dimah-s3/core`)
-- Global `guard` runs first (HTTP and `s3.api`)
-- Paths must start with `/` and must not collide with core routes or another plugin
-
-Use `context` for server-side access; endpoints are the HTTP surface for
-browsers. The same handlers are on `s3.api` (here `s3.api.recent()`).
-
-## Client plugin
+Use `defineClientPlugin` from `@dimah-s3/core`:
 
 ```ts
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
@@ -162,35 +70,25 @@ export function auditClient() {
   return defineClientPlugin({
     id: "audit",
     getActions: ($fetch) => ({
-      recent: () => $fetch(pluginPath("audit", "recent"), { method: "GET" }),
+      getStats: () => $fetch(pluginPath("audit", "stats"), { method: "GET" }),
     }),
   });
 }
 ```
 
-Register with `createS3Client({ plugins: [auditClient()] })` — see
-[Client setup](/docs/react/setup). Official packages use a light entry
-(e.g. `@dimah-s3/db/client`) so ORM deps stay server-only.
+</Accordion>
 
-## `dependsOn` and `init`
+<Accordion title="Can a route opt out of a global plugin?">
+
+Yes. Set `plugins: { [pluginId]: false }` in your route definition:
 
 ```ts
-import { definePlugin, isFeatureOn } from "@dimah-s3/server";
-
-const quota = definePlugin({
-  id: "quota",
-  dependsOn: ["db"],
-  init({ config }) {
-    const hasUpload = Object.values(config.routes).some((r) =>
-      isFeatureOn(r.upload),
-    );
-    if (!hasUpload) {
-      throw new Error("quota plugin requires upload enabled on a route");
-    }
-  },
-  hooks: { upload: { guard: quotaGuard } },
-});
+avatar: route({
+  upload: true,
+  plugins: { audit: false },
+}),
 ```
 
-List dependencies before dependents in the `plugins` array. Merge order
-follows that array — it is not topological.
+</Accordion>
+
+</Accordions>

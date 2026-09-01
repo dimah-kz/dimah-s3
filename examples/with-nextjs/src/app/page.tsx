@@ -4,18 +4,18 @@ import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
 export default function Home() {
-  const upload = useUpload({ route: "uploads" });
+  const upload = useUpload({ route: "avatar" });
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">dimah-s3</h1>
         <p className="mt-2 text-muted-foreground">
-          Next.js starter — pick a file to upload to your bucket
+          Next.js starter — pick an avatar to upload to your bucket
         </p>
       </div>
 
-      <UploadButton upload={upload} label="Upload file" />
+      <UploadButton upload={upload} label="Upload avatar" />
 
       <p className="max-w-sm text-center text-xs text-muted-foreground">
         Fill the <code className="rounded bg-muted px-1 py-0.5">S3_*</code>{" "}

@@ -26,10 +26,10 @@ export const s3 = dimahS3({
     }),
   ],
   routes: {
-    uploads: route({
+    avatar: route({
       upload: {
-        fileTypes: ["image/*", "application/pdf"],
-        maxFileSize: 10 * 1024 * 1024,
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
       },
       download: true,
       delete: true,

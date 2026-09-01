@@ -1,25 +1,18 @@
 ---
 title: Amazon S3
-description: Bucket CORS for browser uploads to AWS S3.
+description: Configuration, CORS, and bucket policies for AWS S3.
 ---
 
-Amazon S3 is the reference target for dimah-s3. Defaults already fit:
-`method` is POST, and you do not need a custom `endpoint` or
-`forcePathStyle`.
+Amazon S3 is fully supported with all native features (presigned POST, presigned PUT, object ACLs, and multipart uploads).
 
-Set up the client once in [Quickstart](/docs/quickstart). The extra step for
-browser uploads is bucket CORS.
+## 1. Bucket CORS configuration
 
-## CORS
-
-Uploads go from the browser straight to S3, not through your API. If the
-bucket has no CORS rule, the request fails even when credentials and the
-route are correct.
+Because uploads occur directly from the browser to your AWS S3 bucket, you must configure a CORS policy on your S3 bucket:
 
 ```json
 [
   {
-    "AllowedOrigins": ["https://your-app.example"],
+    "AllowedOrigins": ["https://your-app.example", "http://localhost:3000"],
     "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag", "Content-Type"],
@@ -28,10 +21,58 @@ route are correct.
 ]
 ```
 
-Allow POST for the default upload method. Add PUT if you switch to
-`method: "PUT"`. Narrow origins and headers in production.
+## 2. Server configuration
 
-<Callout title="Object ACL">
-  `private` / `public-read` are supported on S3. Set `upload.acl` or return an
-  ACL from `object` — confirm echoes that policy value, without `GetObjectAcl`.
-</Callout>
+```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+import { dimahS3, route } from "@dimah-s3/server";
+
+export const awsS3 = new S3Client({
+  region: process.env.S3_REGION!,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+});
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  routes: {
+    avatar: route({
+      upload: {
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
+  },
+});
+```
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I make uploaded files publicly accessible?">
+
+Set `upload: { acl: "public-read" }` in your route definition (ensure Object Ownership and ACLs are enabled in your S3 bucket settings):
+
+```ts
+avatar: route({
+  upload: {
+    acl: "public-read",
+    fileTypes: ["image/*"],
+    maxFileSize: 2 * 1024 * 1024,
+  },
+});
+```
+
+</Accordion>
+
+<Accordion title="How do I troubleshoot 403 Forbidden CORS errors?">
+
+Ensure `AllowedOrigins` includes your frontend port (e.g. `http://localhost:3000`) and that `ExposeHeaders` contains `ETag` and `Content-Type`.
+
+</Accordion>
+
+</Accordions>

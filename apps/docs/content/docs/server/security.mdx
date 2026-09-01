@@ -11,8 +11,6 @@ dimah-s3 follows a **presign-first** security model: AWS credentials remain on t
   always run server-side.
 </Callout>
 
----
-
 ## Security model
 
 1. **Server owns keys**: The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
@@ -88,8 +86,6 @@ avatar: route({
 | -------------------------------------------------- | ---------------------- | ----------------------- |
 | `guard` / `*Guard` / `object`                      | **403 Forbidden**      | Custom status & code    |
 | `on*` lifecycle hooks (`onConfirmed`, `onDeleted`) | **500 Internal Error** | Custom status & code    |
-
----
 
 ## Frequently asked questions
 

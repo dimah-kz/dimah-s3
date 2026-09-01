@@ -1,34 +1,15 @@
 ---
 title: Attachment
-description: Shared status rows for wired controls — and reusable in your own UI.
+description: Reusable status rows for file previews, progress indicators, and error feedback.
 ---
 
 import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
 
-`FileAttachment` and `StatusAttachment` are the shared status rows used by the
-wired controls. They are built on shadcn
-[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment), and you
-can render them next to a headless hook as well.
+`FileAttachment` and `StatusAttachment` are status row components built on top of shadcn UI primitives.
 
 ## Preview
 
 <AttachmentPlaygroundPreview />
-
-[Upload Button](/docs/react/ui/components/upload-button) and
-[Upload Dropzone](/docs/react/ui/components/upload-dropzone) use them for
-inline progress and file info.
-[Download Button](/docs/react/ui/components/download-button),
-[Progress Download Button](/docs/react/ui/components/progress-download-button),
-and [Delete Button](/docs/react/ui/components/delete-button) use
-`StatusAttachment` for error and status feedback.
-
-For a custom trigger with the same rows, see
-[Custom UI](/docs/react/ui/customization/custom-ui).
-
-| Component          | Use when                                                       |
-| ------------------ | -------------------------------------------------------------- |
-| `FileAttachment`   | File name, size, preview, and upload progress                  |
-| `StatusAttachment` | Generic status — preparing, deleting, or a plain error message |
 
 ## Install
 
@@ -39,12 +20,7 @@ For a custom trigger with the same rows, see
 <Tab value="npm package">
 
 ```tsx
-import {
-  FileAttachment,
-  StatusAttachment,
-  type FileAttachmentProps,
-  type StatusAttachmentProps,
-} from "@dimah-s3/ui";
+import { FileAttachment, StatusAttachment } from "@dimah-s3/ui";
 ```
 
 </Tab>
@@ -55,42 +31,32 @@ import {
 npx shadcn@latest add @dimah-s3/file-attachment
 ```
 
-Also pulled in automatically with upload, download, and delete registry items.
-
 </Tab>
 
 </Tabs>
 
+---
+
 ## Usage
 
 ```tsx
-<FileAttachment
-  state="uploading"
-  fileName="quarterly-report.pdf"
-  fileSize={2_400_000}
-  percent={64}
-  onCancel={() => {}}
-/>
+import { FileAttachment, StatusAttachment } from "@dimah-s3/ui";
 
+// Uploading avatar row
 <FileAttachment
   state="uploading"
   fileName="avatar.png"
   fileType="image/png"
   fileSize={180_000}
+  percent={65}
   previewUrl="/dimah-avatar.jpg"
-  percent={42}
 />
 
-<StatusAttachment state="processing" title="Preparing…" />
+// Generic status row
+<StatusAttachment state="processing" title="Presigning URL…" />
 ```
 
-Wired controls expose `attachmentSize` / `attachmentOrientation` so row density
-stays independent of Button `size`.
-
-For a hook-driven row that maps upload phase automatically, use
-[`UploadStatus`](/docs/react/ui/components/upload-dropzone) with the same
-`upload` instance as shown in
-[Custom UI](/docs/react/ui/customization/custom-ui).
+---
 
 ## Props
 

@@ -1,114 +1,82 @@
 ---
 title: Helpers
-description: Progress text, file size, validation, and error formatting.
+description: Formatting utilities, validation functions, and error helpers.
 icon: Wrench
 ---
 
-Import display helpers from `@dimah-s3/react`. File helpers live in
-`@dimah-s3/core` — the upload hooks already call them for you.
+`@dimah-s3/react` and `@dimah-s3/core` export utilities for formatting file sizes, progress labels, hashing, and error localization.
 
-## Progress
+## Progress and speed formatting
 
 ```ts
 import { formatUploadProgress, formatSpeed, formatEta } from "@dimah-s3/react";
 
-formatUploadProgress(1_200_000, 5_600_000, 21);
-// "1.2 MB / 5.6 MB (21%)"
-
+formatUploadProgress(1_200_000, 2_000_000, 60); // "1.2 MB / 2 MB (60%)"
 formatSpeed(1_200_000); // "1.2 MB/s"
-formatEta(4_400_000, 450_000); // "9s"
+formatEta(800_000, 200_000); // "4s"
 ```
 
-`onProgress` from the hooks already includes `speed` when it is measurable.
+---
 
-## Accept labels
-
-Short labels from HTML `accept` entries — no sentences, so you can localize
-the copy. [Upload Dropzone](/docs/react/ui/components/upload-dropzone) uses
-this for its hint.
+## File size and validation
 
 ```ts
-import { formatAcceptLabels } from "@dimah-s3/react";
-
-formatAcceptLabels(["image/*", ".pdf", ".txt"]);
-// ["Images", "PDF", "TXT"]
-```
-
-## Validation and size
-
-`validateFile` returns `null` or `{ code, message, params }`. Client checks
-are not a security boundary — mirror them in
-[`upload.fileTypes` / `upload.maxFileSize`](/docs/server/routes).
-
-```ts
-import { validateFile, formatFileSize, truncateFileName } from "@dimah-s3/core";
-
-validateFile(file, { accept: ["image/*"], maxFileSize: 10 * 1024 * 1024 });
-// null | { code: "FILE_TYPE_NOT_ALLOWED", message, params }
+import { formatFileSize, truncateFileName, validateFile } from "@dimah-s3/core";
 
 formatFileSize(1_500_000); // "1.4 MB"
-truncateFileName("very-long-document-name.pdf"); // "very-long-documen… .pdf"
+truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-pro… .png"
+
+const error = validateFile(file, {
+  accept: ["image/*"],
+  maxFileSize: 2 * 1024 * 1024,
+});
+// returns null if valid, or { code: "FILE_TYPE_NOT_ALLOWED", message }
 ```
 
-## Checksum, magic bytes, and public URLs
+---
 
-Checksum, magic-byte sniffing, and public object URLs also export from
-`@dimah-s3/core` (and from `@dimah-s3/react`). Typed route names are
-`S3RouteName` / `InferS3Routes`.
+## Checksums and public URLs
 
 ```ts
 import {
-  sha256File,
-  sniffContentType,
-  matchesMagicBytes,
   buildPublicObjectUrl,
+  matchesMagicBytes,
+  sha256File,
 } from "@dimah-s3/core";
 
-await sha256File(file);
-sniffContentType(new Uint8Array(await file.slice(0, 16).arrayBuffer()));
-buildPublicObjectUrl({ baseUrl: "https://cdn.example.com", key });
+// SHA-256 base64 digest
+const hash = await sha256File(file);
+
+// Public CDN URL helper
+const url = buildPublicObjectUrl({
+  baseUrl: "https://cdn.example.com",
+  key: "avatar/uuid/avatar.png",
+});
 ```
 
-Inside React, map the error with `useFormatValidateFileError()`:
+## Frequently asked questions
 
-```tsx
-import { useFormatValidateFileError } from "@dimah-s3/react";
-import { validateFile } from "@dimah-s3/core";
+<Accordions>
 
-const format = useFormatValidateFileError();
-const error = validateFile(file, { accept: ["image/*"] });
-const message = error ? format(error) : null;
-```
+<Accordion title="How do I format API errors in toast notifications?">
 
-## File names
-
-`createS3Client` already sanitizes `fileName` on download requests.
-
-```ts
-import {
-  sanitizeFileName,
-  parseFileName,
-  fileNameFromKey,
-} from "@dimah-s3/core";
-
-sanitizeFileName('file"name.pdf'); // file_name.pdf
-parseFileName(res.headers.get("content-disposition")); // "report.pdf" | undefined
-fileNameFromKey("avatar/uuid/photo.jpg"); // "photo.jpg"
-```
-
-## API errors
-
-Failed `S3Api` calls throw `APIError`. Format them for the UI with
-`useFormatDimahError` (keys off `.code`). Catch with `isAPIError`:
+Use `useFormatDimahError`:
 
 ```tsx
 import { isAPIError, useFormatDimahError } from "@dimah-s3/react";
 
-const formatError = useFormatDimahError();
+export function AvatarUploader() {
+  const formatError = useFormatDimahError();
 
-try {
-  await api.download({ route: "avatar", key });
-} catch (err) {
-  if (isAPIError(err)) toast.error(formatError(err));
+  const upload = useUpload({
+    route: "avatar",
+    onError: (err) => {
+      toast.error(formatError(err));
+    },
+  });
 }
 ```
+
+</Accordion>
+
+</Accordions>

@@ -8,7 +8,7 @@ import { FileList } from "@/components/file-list";
 export default function Home() {
   const [refreshToken, setRefreshToken] = useState(0);
   const upload = useUpload({
-    route: "uploads",
+    route: "avatar",
     onSuccess: () => setRefreshToken((token) => token + 1),
   });
 
@@ -23,7 +23,7 @@ export default function Home() {
         </p>
       </div>
 
-      <UploadButton upload={upload} label="Upload file" />
+      <UploadButton upload={upload} label="Upload avatar" />
 
       <section className="flex w-full max-w-sm flex-col gap-2">
         <h2 className="text-sm font-medium">Your files</h2>

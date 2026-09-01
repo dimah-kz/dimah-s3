@@ -59,6 +59,8 @@ export const s3 = dimahS3({
 | `logger`       | `console`   | Logger instance (`false` to silence)                                          |
 | `onError`      | —           | Error callback for unhandled exceptions                                       |
 
+---
+
 ## Mount route handler
 
 Adapters are available for all major JavaScript runtimes:
@@ -184,6 +186,8 @@ export default {
 
 </Tabs>
 
+---
+
 ## Server-side API (`s3.api`)
 
 You can invoke S3 actions directly on the server without going through HTTP endpoints. Pass request `headers` so that route guards and auth hooks execute properly:
@@ -213,8 +217,6 @@ await s3.put({
   headers: await headers(),
 });
 ```
-
----
 
 ## Frequently asked questions
 

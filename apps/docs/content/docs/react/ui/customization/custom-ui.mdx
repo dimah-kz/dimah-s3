@@ -1,13 +1,11 @@
 ---
 title: Custom UI
-description: Build your own controls — or fork registry items and edit them.
+description: Build bespoke upload interfaces using headless hooks and custom components.
 ---
 
 import { CustomUploadDemo } from "@/components/demos/custom-upload-demo";
 
-The wired controls are a starting point. Build your own UI on
-`@dimah-s3/react` hooks, install a registry item and edit the source in your
-app, or use both as a reference.
+Combine `@dimah-s3/react` hooks with your own components or custom shadcn primitives.
 
 ## Preview
 
@@ -15,30 +13,48 @@ app, or use both as a reference.
   <CustomUploadDemo />
 </DemoPreview>
 
-This example pairs [`useUpload`](/docs/react/hooks/upload) with shadcn
-[`Attachment`](https://ui.shadcn.com/docs/components/base/attachment) from
-your app. Map `phase` onto `state`, and hide the row while `phase` is `idle`.
+## Example: Headless Avatar Uploader
 
-If you have not already, complete [UI setup](/docs/react/ui)
-(stylesheet and toaster).
+```tsx
+"use client";
 
-## When to use what
+import { useUpload } from "@dimah-s3/react";
+import { Button } from "@/components/ui/button";
 
-| Goal                               | Use                                                                                                              |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Finished control                   | [Upload Button](/docs/react/ui/components/upload-button) / [Dropzone](/docs/react/ui/components/upload-dropzone) |
-| Install and customize              | Registry item, then edit the generated source                                                                    |
-| Custom trigger + shadcn chrome     | Hook + your own shadcn components (this page)                                                                    |
-| Custom trigger + dimah status rows | Hook + [`FileAttachment`](/docs/react/ui/components/attachment) / `UploadStatus`                                 |
-| Fully custom chrome                | Hook only — [Upload hooks](/docs/react/hooks/upload)                                                             |
+export function CustomAvatarPicker() {
+  const upload = useUpload({
+    route: "avatar",
+    noDrag: true,
+    noClick: true,
+  });
 
-Same pattern for download and delete:
-[`useDownload`](/docs/react/hooks/download) /
-[`useDelete`](/docs/react/hooks/delete). Pass the return as `download` /
-`delete`. The target key stays on the control as `objectKey`. A list can
-share one hook — status and toasts follow the hook's `objectKey`. For
-multiple files, pass `maxFiles` on [`useUpload`](/docs/react/hooks/upload).
+  return (
+    <div className="flex items-center gap-4">
+      <input {...upload.getInputProps()} />
+      <Button type="button" onClick={() => upload.open()}>
+        {upload.isUploading
+          ? `Uploading ${upload.progress.percent}%`
+          : "Select Avatar"}
+      </Button>
+    </div>
+  );
+}
+```
 
-Stock toasts and status rows are also exported: `useUploadUi`,
-`useDownloadUi`, `useDeleteUi`, plus the toast hooks if you only want
-those.
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="How do I access low-level state like transfer speed or bytes remaining?">
+
+`upload.progress` exposes detailed progress metrics:
+
+```tsx
+const { progress } = useUpload({ route: "avatar" });
+
+console.log(progress.loaded, progress.total, progress.percent);
+```
+
+</Accordion>
+
+</Accordions>

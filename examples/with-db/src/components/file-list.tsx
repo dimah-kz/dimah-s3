@@ -50,7 +50,7 @@ export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
   const [objects, setObjects] = useState<DbClientObject[]>([]);
 
   const refresh = useCallback(async () => {
-    const page = await api.db.listObjects({ route: "uploads" });
+    const page = await api.db.listObjects({ route: "avatar" });
     setObjects(page.objects);
   }, [api]);
 
@@ -58,8 +58,8 @@ export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
     void refresh();
   }, [refresh, refreshToken]);
 
-  const download = useDownload({ route: "uploads" });
-  const del = useDelete({ route: "uploads", onSuccess: () => void refresh() });
+  const download = useDownload({ route: "avatar" });
+  const del = useDelete({ route: "avatar", onSuccess: () => void refresh() });
 
   if (objects.length === 0) {
     return <p className="text-sm text-muted-foreground">No files</p>;

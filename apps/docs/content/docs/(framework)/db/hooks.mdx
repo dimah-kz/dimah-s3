@@ -1,46 +1,37 @@
 ---
-title: Hooks
-description: Guards and row updates the db plugin adds to each lifecycle step.
+title: Database Hooks
+description: Automatic lifecycle synchronization and ownership validation by @dimah-s3/db.
 ---
 
-The [`db()`](/docs/db/setup) plugin attaches guards and database updates to
-upload, multipart, download, and delete. Enable the feature, register the
-plugin — you do not wire these hooks yourself.
+The [`db()`](/docs/db/setup) plugin automatically attaches guards and synchronization actions across upload, download, and delete flows.
 
-Your own **guards** still run after the plugin. Lifecycle `on*` hooks run
-**before** the plugin so a throw from `onConfirmed` can delete the S3 object
-before `db()` marks the row active.
+## Access & scope validation
 
-## Access rules
+Before executing operations, `@dimah-s3/db` resolves the active session scope via `resolveScope(request)`:
 
-The plugin resolves the caller's scope (configured in
-[Setup](/docs/db/setup)) and rejects:
+| Situation                                   | Response Status      | Error Code         |
+| ------------------------------------------- | -------------------- | ------------------ |
+| `resolveScope` returns `null`               | **401 Unauthorized** | `UNAUTHORIZED`     |
+| Target key belongs to another scope         | **403 Forbidden**    | `FORBIDDEN`        |
+| Target object row not found or soft-deleted | **404 Not Found**    | `OBJECT_NOT_FOUND` |
 
-| Situation                       | Response                   |
-| ------------------------------- | -------------------------- |
-| No scope (unauthenticated)      | `401` (`UNAUTHORIZED`)     |
-| File owned by another scope     | `403` (`FORBIDDEN`)        |
-| Expected row missing or deleted | `404` (`OBJECT_NOT_FOUND`) |
+---
 
-## By feature
+## Lifecycle behavior by operation
 
-| Feature        | Before                                                                                | After                                                                                       |
-| -------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Upload         | Reject if a non-deleted row belongs to another scope (soft-deleted keys are reusable) | Row created or updated as `pending`                                                         |
-| Upload confirm | Row must be `pending` (or owned when `upload.replace: "overwrite"`)                   | Promoted to `active` with HeadObject size (`declaredSize` is the client claim from presign) |
-| Multipart      | Pending row + matching `uploadId` for part / list / abort / complete                  | `pending` on start, `active` on complete, pending row removed on abort                      |
-| Download       | File must be `active` (confirmed) and owned                                           | —                                                                                           |
-| Delete         | Row must be `pending` or `active` and owned                                           | Row updated per [`deleteMode`](/docs/db/setup#delete-behavior)                              |
+- **Upload**: Inserts a new row with `status: "pending"`.
+- **Upload Confirmation**: Verifies `pending` state, records verified `contentLength` from `HeadObject`, and transitions status to `"active"`.
+- **Download**: Enforces that the object has `status: "active"` and matches the caller's scope.
+- **Delete**: Runs S3 `DeleteObjectCommand`, then updates row status to `"deleted"` (soft delete) or removes it (hard delete).
 
-Delete always removes the file from S3 through the normal
-[`api.delete`](/docs/react) path. The plugin only updates the database row
-afterward.
+## Frequently asked questions
 
-## Multipart resume
+<Accordions>
 
-To resume a large upload after a refresh, load the pending row with
-`s3.db.objects.findPendingMultipart`, map it with
-`toPendingMultipartResume`, and return it from a custom
-[`UploadStore`](/docs/react/upload-store) on the client.
+<Accordion title="How do my custom route guards interact with db plugin hooks?">
 
-See [API](/docs/db/api) for store methods.
+Plugin guards run **first** to verify scope ownership. Your custom route and feature guards run **second** for application-specific authorization.
+
+</Accordion>
+
+</Accordions>

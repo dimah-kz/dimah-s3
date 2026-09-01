@@ -1,76 +1,30 @@
 ---
 title: Theming
-description: Color tokens for @dimah-s3/ui — inherit shadcn by default, override when needed.
+description: Customize color tokens and styling for @dimah-s3/ui components.
 ---
 
-Dimah-owned chrome uses prefixed utilities (`bg-dimah-s3-primary`,
-`text-dimah-s3-muted-foreground`, …) so you can theme this library without
-changing the rest of the app.
+`@dimah-s3/ui` components use CSS variable-based tokens (`--color-dimah-s3-*`) that map directly to standard shadcn theme tokens by default.
 
-By default every token points at the matching shadcn CSS variable. A normal
-shadcn theme already styles progress rings, dropzone accents, and overlays.
+## Token mapping
 
-Stock shadcn primitives used inside the package (`Button`, `Toast`, …) keep
-using your app tokens (`bg-primary`, `bg-card`, …).
+| Token                                 | Default Value               |
+| ------------------------------------- | --------------------------- |
+| `--color-dimah-s3-background`         | `var(--background)`         |
+| `--color-dimah-s3-foreground`         | `var(--foreground)`         |
+| `--color-dimah-s3-card`               | `var(--card)`               |
+| `--color-dimah-s3-primary`            | `var(--primary)`            |
+| `--color-dimah-s3-primary-foreground` | `var(--primary-foreground)` |
+| `--color-dimah-s3-muted`              | `var(--muted)`              |
+| `--color-dimah-s3-muted-foreground`   | `var(--muted-foreground)`   |
+| `--color-dimah-s3-destructive`        | `var(--destructive)`        |
+| `--color-dimah-s3-border`             | `var(--border)`             |
+| `--color-dimah-s3-ring`               | `var(--ring)`               |
 
-## Token map
+---
 
-The [UI setup](/docs/react/ui) stylesheet imports `css/shadcn.css`, which
-maps:
+## Customizing colors
 
-| Token                                   | Maps to                  |
-| --------------------------------------- | ------------------------ |
-| `--color-dimah-s3-background`           | `--background`           |
-| `--color-dimah-s3-foreground`           | `--foreground`           |
-| `--color-dimah-s3-card`                 | `--card`                 |
-| `--color-dimah-s3-card-foreground`      | `--card-foreground`      |
-| `--color-dimah-s3-primary`              | `--primary`              |
-| `--color-dimah-s3-primary-foreground`   | `--primary-foreground`   |
-| `--color-dimah-s3-secondary`            | `--secondary`            |
-| `--color-dimah-s3-secondary-foreground` | `--secondary-foreground` |
-| `--color-dimah-s3-muted`                | `--muted`                |
-| `--color-dimah-s3-muted-foreground`     | `--muted-foreground`     |
-| `--color-dimah-s3-accent`               | `--accent`               |
-| `--color-dimah-s3-accent-foreground`    | `--accent-foreground`    |
-| `--color-dimah-s3-destructive`          | `--destructive`          |
-| `--color-dimah-s3-border`               | `--border`               |
-| `--color-dimah-s3-ring`                 | `--ring`                 |
-
-Utilities follow the usual Tailwind pattern: `bg-dimah-s3-primary`,
-`text-dimah-s3-muted-foreground`, `border-dimah-s3-destructive/20`, and other
-opacity modifiers.
-
-The same map is exported as `@dimah-s3/ui/css/shadcn.css`.
-
-### Registry only
-
-`shadcn add @dimah-s3/…` writes these tokens into your CSS via `cssVars.theme`.
-If an older install skipped that, paste the bridge into `globals.css` (or import
-`@dimah-s3/ui/css/shadcn.css`):
-
-```css title="app/globals.css"
-@theme {
-  --color-dimah-s3-background: var(--background);
-  --color-dimah-s3-foreground: var(--foreground);
-  --color-dimah-s3-card: var(--card);
-  --color-dimah-s3-card-foreground: var(--card-foreground);
-  --color-dimah-s3-primary: var(--primary);
-  --color-dimah-s3-primary-foreground: var(--primary-foreground);
-  --color-dimah-s3-secondary: var(--secondary);
-  --color-dimah-s3-secondary-foreground: var(--secondary-foreground);
-  --color-dimah-s3-muted: var(--muted);
-  --color-dimah-s3-muted-foreground: var(--muted-foreground);
-  --color-dimah-s3-accent: var(--accent);
-  --color-dimah-s3-accent-foreground: var(--accent-foreground);
-  --color-dimah-s3-destructive: var(--destructive);
-  --color-dimah-s3-border: var(--border);
-  --color-dimah-s3-ring: var(--ring);
-}
-```
-
-## Custom colors
-
-Override after the import to theme **only** dimah-s3:
+To customize styling for dimah-s3 components independently from your global theme, override the tokens in your CSS:
 
 ```css title="app/globals.css"
 @import "@dimah-s3/ui/styles.css";
@@ -81,13 +35,20 @@ Override after the import to theme **only** dimah-s3:
 }
 ```
 
-Light and dark follow your shadcn `:root` / `.dark` values unless you override
-`--color-dimah-s3-*` directly.
+## Frequently asked questions
 
-Scope to a subtree:
+<Accordions>
+
+<Accordion title="How do I style a specific upload area differently?">
+
+Scope the CSS variables to a container class:
 
 ```css
-.uploads-panel {
+.avatar-panel {
   --color-dimah-s3-primary: oklch(0.6 0.14 250);
 }
 ```
+
+</Accordion>
+
+</Accordions>

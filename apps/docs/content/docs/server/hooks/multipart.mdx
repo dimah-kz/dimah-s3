@@ -1,36 +1,9 @@
 ---
-title: Multipart
-description: Large-file uploads as an opt-in under upload.
+title: Multipart Hooks
+description: Large-file multipart upload lifecycle, part authorization, and assembly.
 ---
 
-Enable with `upload.multipart: true` on a [named route](/docs/server/routes).
-Default is **off** — it does not turn on with upload. Pair it with client
-`multipart: true` — see [Upload](/docs/react/hooks/upload).
-
-Init and complete reuse upload hooks. Persist in `upload.onConfirmed` for
-both simple confirm and multipart complete — there is no second `confirm`
-call.
-
-<Flow
-  label="Multipart complete"
-  steps={[
-    { name: "object", kind: "hook" },
-    { name: "upload.guard", kind: "hook" },
-    { name: "onInit", kind: "hook" },
-    {
-      name: "multipart.guard",
-      kind: "hook",
-      note: "part / list / abort / complete",
-    },
-    { name: "confirmGuard", kind: "hook" },
-    { name: "HeadObject", kind: "server" },
-    { name: "onConfirmed", kind: "hook" },
-  ]}
-/>
-
-Abort and list are the remaining unique steps: `multipart.guard` (`action:
-"abort"` / `"list"`) → `onAbort` / `onList`. Complete also runs
-`multipart.guard` (`action: "complete"`) before `confirmGuard`.
+Enable multipart support on large-file routes by setting `upload.multipart: true`.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -42,13 +15,13 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
-    videos: route({
+    video: route({
       upload: {
         fileTypes: ["video/*"],
-        maxFileSize: 500 * 1024 * 1024,
+        maxFileSize: 500 * 1024 * 1024, // 500MB
         multipart: true,
         onConfirmed: async ({ key, contentLength }) => {
-          // persist { key, size: contentLength }
+          // Triggered on successful multipart completion
         },
       },
     }),
@@ -56,51 +29,48 @@ export const s3 = dimahS3({
 });
 ```
 
-<Callout>
-  `fileSize` on init is what the client sent. `contentLength` on `onConfirmed`
-  comes from `HeadObject`.
-</Callout>
+## Multipart lifecycle flow
 
-Multipart uses the same `object` and `acl` as upload. Most apps only set
-`multipart: true`. Unique hooks live on the same object when you need
-resume cleanup or per-part checks.
+<Flow
+  label="Multipart upload flow"
+  steps={[
+    { name: "upload.guard", kind: "hook", note: "Init validation" },
+    { name: "CreateMultipartUpload", kind: "s3" },
+    { name: "multipart.guard", kind: "hook", note: "Authorizes each part" },
+    { name: "CompleteMultipartUpload", kind: "s3" },
+    { name: "HeadObject", kind: "server" },
+    { name: "onConfirmed", kind: "hook", note: "Final metadata" },
+  ]}
+/>
 
-The complete body only sends `partNumber`s. The server lists parts from S3
-for ETags and rejects a missing part with `MULTIPART_PART_MISSING`.
-`signPart` requires `partSize`; that byte length is locked into the
-presigned URL. When `maxFileSize` is set, a part that is itself over the
-cap — or that would push **already uploaded** parts over it — is rejected
-with `PAYLOAD_TOO_LARGE`. Complete sums listed part sizes and aborts the
-MPU if over, before assembly.
+---
 
-## On init
-
-Runs after `CreateMultipartUpload`. Use this to store `uploadId` for
-resume. Init authorization is `upload.guard`.
+## Multipart hook contexts
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartOnInitContext"
 />
 
-## Guard
-
-Runs before each part URL, list, abort, and complete — an in-progress
-upload, not the start. Branch on `action` if you need different rules.
-Complete also runs `upload.confirmGuard`.
-
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartGuardContext"
 />
 
-<Accordions type="multiple">
-<Accordion title="Other hooks">
+## Frequently asked questions
 
-| Hook      | When          | Extra      |
-| --------- | ------------- | ---------- |
-| `onAbort` | After abort   | `uploadId` |
-| `onList`  | After listing | `parts`    |
+<Accordions>
+
+<Accordion title="Does multipart upload require a second confirm call?">
+
+No. The final assembly step (`multipart.complete`) internally runs `upload.confirmGuard`, queries `HeadObject`, and calls `upload.onConfirmed`.
 
 </Accordion>
+
+<Accordion title="How do I enforce part size and total size bounds?">
+
+The server automatically validates each part size during `signPart` and sums uploaded part sizes before calling `CompleteMultipartUpload`. If total parts exceed `maxFileSize`, the upload is aborted with `PAYLOAD_TOO_LARGE`.
+
+</Accordion>
+
 </Accordions>
