@@ -98,18 +98,17 @@ fileNameFromKey("uploads/uuid/photo.jpg"); // "photo.jpg"
 
 ## API errors
 
-Failed `S3Api` calls throw `DimahS3Error`. Format them for the UI with
-`useFormatDimahError` (keys off `.code`). Catch with `isDimahS3Error`:
+Failed `S3Api` calls throw `APIError`. Format them for the UI with
+`useFormatDimahError` (keys off `.code`). Catch with `isAPIError`:
 
 ```tsx
-import { useFormatDimahError } from "@dimah-s3/react";
-import { isDimahS3Error } from "@dimah-s3/core";
+import { isAPIError, useFormatDimahError } from "@dimah-s3/react";
 
 const formatError = useFormatDimahError();
 
 try {
   await api.download({ route: "uploads", key });
 } catch (err) {
-  if (isDimahS3Error(err)) toast.error(formatError(err));
+  if (isAPIError(err)) toast.error(formatError(err));
 }
 ```

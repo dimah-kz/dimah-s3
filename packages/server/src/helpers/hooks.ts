@@ -1,4 +1,4 @@
-import { DimahS3Error, isAPIError } from "@dimah-s3/core";
+import { APIError, isAPIError } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import { resolveLogger } from "@/helpers/logger";
 import type {
@@ -11,7 +11,7 @@ import type {
 function mapGuardError(err: unknown): never {
   if (isAPIError(err)) throw err;
   if (err instanceof Error && err.message.trim()) {
-    throw new DimahS3Error("FORBIDDEN", {
+    throw new APIError("FORBIDDEN", {
       message: err.message,
       cause: err,
     });

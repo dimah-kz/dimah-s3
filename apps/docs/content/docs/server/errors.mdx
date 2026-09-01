@@ -1,6 +1,6 @@
 ---
 title: Errors
-description: Stable codes, the errors helper, and how to detect DimahS3Error.
+description: Stable codes, the errors helper, and how to detect APIError.
 icon: CircleAlert
 ---
 
@@ -8,7 +8,7 @@ Failed requests return JSON `{ message, code?, params? }` and an HTTP status.
 Throw with the `errors` helper so the `code` stays in the catalog.
 
 ```ts
-import { errors, isDimahS3Error, isS3ErrorCode } from "@dimah-s3/server";
+import { APIError, errors, isAPIError, isS3ErrorCode } from "@dimah-s3/server";
 
 throw errors.forbidden();
 throw errors.objectNotFound();
@@ -17,13 +17,21 @@ throw errors.featureDisabled("download");
 throw errors.unknownRoute("avatars");
 throw errors.fileTypeNotAllowed("application/zip");
 
+throw new APIError("BAD_REQUEST", {
+  message: "Not allowed.",
+});
+
+if (isAPIError(err)) {
+  // err.status, err.statusCode, err.code, err.message
+}
+
 if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
   // ...
 }
 ```
 
-`DimahS3Error` extends better-call `APIError`. Detect it with `isAPIError`,
-`isDimahS3Error`, or `isS3ErrorCode`. The catalog is `S3_ERROR_CODES` in
+`APIError` is better-call's class (same as better-auth). Detect it with
+`isAPIError` or `isS3ErrorCode`. The catalog is `S3_ERROR_CODES` in
 `@dimah-s3/core` — re-exported from `@dimah-s3/server`, and also on
 `s3.$ERROR_CODES`. On the client, `useFormatDimahError` maps each `code` to a
 localized string.

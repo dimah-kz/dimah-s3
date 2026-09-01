@@ -1,5 +1,5 @@
 import type {
-  DimahS3Error,
+  APIError,
   S3RouteName,
   UploadPresignResponse,
 } from "@dimah-s3/core";
@@ -64,7 +64,7 @@ export type UploadFileState = UploadFileInfo & {
   id: string;
   status: UploadFileStatus;
   progress: UploadProgress;
-  error: DimahS3Error | null;
+  error: APIError | null;
   /** Set after this file succeeds. */
   result: UploadResult | null;
 };
@@ -111,7 +111,7 @@ export type UploadHooks = {
   /** Fires when one file in the batch finishes successfully. */
   onFileSuccess?: (file: File, result: UploadResult) => void;
   /** Fires when one file in the batch fails. */
-  onFileError?: (file: File, error: DimahS3Error) => void;
+  onFileError?: (file: File, error: APIError) => void;
   /** Fires when every file in the batch succeeds. */
   onSuccess?: (results: UploadResult[]) => Promise<void> | void;
   /** Fires when the batch fails (validation, block, or one or more file errors). */

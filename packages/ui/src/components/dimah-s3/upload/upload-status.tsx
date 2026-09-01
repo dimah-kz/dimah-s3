@@ -4,7 +4,7 @@ import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type {
-  DimahS3Error,
+  APIError,
   UploadFileState,
   UploadPhase,
   UseUploadReturn,
@@ -19,7 +19,7 @@ import type {
 
 export type UploadFileStatusProps = AttachmentLayoutProps & {
   phase: UploadPhase;
-  error: DimahS3Error | null;
+  error: APIError | null;
   file: UploadFileState | null;
   onCancel?: () => void;
   /** When set (typically with an `uploadStore`), shows a pause control. */

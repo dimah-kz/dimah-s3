@@ -165,7 +165,7 @@ the route `keyPrefix`. `db()` download requires status `active`
 
 ## Hook throws
 
-| Where                         | Plain `Error`                            | `errors.*` / `DimahS3Error`     |
+| Where                         | Plain `Error`                            | `errors.*` / `APIError`         |
 | ----------------------------- | ---------------------------------------- | ------------------------------- |
 | `guard` / `*Guard` / `object` | **403**, message kept, no library `code` | the status and `code` you chose |
 | `on*` hooks                   | **500**                                  | the status and `code` you chose |

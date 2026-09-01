@@ -2,15 +2,11 @@ export * from "./types";
 export * from "./helpers";
 export * from "./schema";
 export {
-  DimahS3Error,
+  APIError,
   defineErrorCodes,
   isAPIError,
-  isDimahS3Error,
   isS3ErrorCode,
   S3_ERROR_CODES,
-  type DimahS3ErrorBody,
-  type DimahS3ErrorParams,
-  type DimahS3ErrorStatus,
   type S3ErrorCode,
 } from "./error";
 export {

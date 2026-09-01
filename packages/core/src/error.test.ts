@@ -1,19 +1,13 @@
-import { APIError } from "better-call/error";
+import { APIError as BetterCallAPIError } from "better-call/error";
 import { describe, expect, it } from "vitest";
-import {
-  DimahS3Error,
-  S3_ERROR_CODES,
-  isAPIError,
-  isDimahS3Error,
-  isS3ErrorCode,
-} from "./error";
+import { APIError, S3_ERROR_CODES, isAPIError, isS3ErrorCode } from "./error";
 
-describe("DimahS3Error", () => {
+describe("APIError", () => {
   it("uses the better-call (status, body) constructor", () => {
-    const err = new DimahS3Error("BAD_REQUEST", { message: "bad request" });
-    expect(err).toBeInstanceOf(APIError);
+    const err = new APIError("BAD_REQUEST", { message: "bad request" });
+    expect(err).toBeInstanceOf(BetterCallAPIError);
     expect(err).toMatchObject({
-      name: "DimahS3Error",
+      name: "APIError",
       message: "bad request",
       status: "BAD_REQUEST",
       statusCode: 400,
@@ -24,7 +18,7 @@ describe("DimahS3Error", () => {
 
   it("stores status, code, params, and cause on the APIError body", () => {
     const cause = new Error("root");
-    const err = new DimahS3Error("BAD_REQUEST", {
+    const err = new APIError("BAD_REQUEST", {
       message: "name is required",
       code: S3_ERROR_CODES.VALIDATION_ERROR.code,
       params: { name: "key" },
@@ -45,29 +39,26 @@ describe("DimahS3Error", () => {
     });
   });
 
-  it("fromStatus builds a DimahS3Error", () => {
-    const err = DimahS3Error.fromStatus("FORBIDDEN", { message: "nope" });
-    expect(err).toBeInstanceOf(DimahS3Error);
+  it("fromStatus builds an APIError", () => {
+    const err = APIError.fromStatus("FORBIDDEN", { message: "nope" });
+    expect(err).toBeInstanceOf(APIError);
     expect(err.statusCode).toBe(403);
   });
 });
 
-describe("isAPIError / isDimahS3Error", () => {
-  it("recognizes DimahS3Error, APIError, and duck-typed names", () => {
-    const dimah = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
-    const api = new APIError("UNAUTHORIZED", { message: "no" });
+describe("isAPIError", () => {
+  it("recognizes APIError, better-call copies, and duck-typed names", () => {
+    const ours = APIError.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+    const base = new BetterCallAPIError("UNAUTHORIZED", { message: "no" });
 
-    expect(isDimahS3Error(dimah)).toBe(true);
-    expect(isAPIError(dimah)).toBe(true);
-    expect(isAPIError(api)).toBe(true);
-    expect(isDimahS3Error(api)).toBe(false);
+    expect(isAPIError(ours)).toBe(true);
+    expect(isAPIError(base)).toBe(true);
     expect(isAPIError({ name: "APIError" })).toBe(true);
-    expect(isDimahS3Error({ name: "DimahS3Error" })).toBe(true);
     expect(isAPIError(new Error("x"))).toBe(false);
   });
 
   it("narrows catalog codes with isS3ErrorCode", () => {
-    const err = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+    const err = APIError.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
     expect(isS3ErrorCode(err, "FORBIDDEN")).toBe(true);
     expect(isS3ErrorCode(err, "NOT_FOUND")).toBe(false);
     expect(isS3ErrorCode(new Error("x"), "FORBIDDEN")).toBe(false);

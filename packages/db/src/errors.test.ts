@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DimahS3Error } from "@dimah-s3/core";
+import { APIError } from "@dimah-s3/core";
 import { conflict, forbidden, notFound, unauthorized } from "./errors";
 
 describe("db errors", () => {
@@ -10,7 +10,7 @@ describe("db errors", () => {
     [conflict, 409, "CONFLICT"],
   ] as const)("%s maps to %s / %s", (factory, statusCode, code) => {
     const err = factory();
-    expect(err).toBeInstanceOf(DimahS3Error);
+    expect(err).toBeInstanceOf(APIError);
     expect(err.statusCode).toBe(statusCode);
     expect(err.code).toBe(code);
   });

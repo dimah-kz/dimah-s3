@@ -16,7 +16,7 @@ describe("runHook", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("rethrows DimahS3Error as-is", async () => {
+  it("rethrows APIError as-is", async () => {
     const thrown = errors.forbidden();
     await expect(
       runHook(
@@ -107,7 +107,7 @@ describe("runLifecycleHook", () => {
     spy.mockRestore();
   });
 
-  it("preserves DimahS3Error from lifecycle hooks", async () => {
+  it("preserves APIError from lifecycle hooks", async () => {
     const thrown = errors.objectNotFound();
     await expect(
       runLifecycleHook(

@@ -78,7 +78,7 @@ see [Cloudflare R2](/docs/providers/cloudflare-r2).
 
 A plain `Error` in `guard` / `*Guard` / `object` becomes **403**. The same
 throw in `onPresigned` / `onConfirmed` / `onDeleted` / other `on*` hooks
-becomes **500**. Throw `DimahS3Error` or use [`errors`](/docs/server/errors)
+becomes **500**. Throw `APIError` or use [`errors`](/docs/server/errors)
 when you need a specific status and `code`. Route fields:
 [Routes](/docs/server/routes).
 
@@ -284,9 +284,9 @@ await s3.put({
 ACL on confirm / complete comes from the upload policy (`upload.acl` /
 `object`) — there is no `GetObjectAcl` round-trip.
 
-Failures throw `DimahS3Error` (a better-call `APIError`) with named `.status`
+Failures throw `APIError` with named `.status`
 (`"FORBIDDEN"`), numeric `.statusCode`, and `.code`. Catch with `isAPIError` /
-`isDimahS3Error` / `isS3ErrorCode`. The instance also exposes `$ERROR_CODES`
+`isS3ErrorCode`. The instance also exposes `$ERROR_CODES`
 and `$Infer`.
 
 ### Next [step]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
+import { APIError, S3_ERROR_CODES } from "@dimah-s3/core";
 import { errors } from "./errors";
 
 describe("errors", () => {
@@ -13,7 +13,7 @@ describe("errors", () => {
     ["payloadTooLarge", 413, S3_ERROR_CODES.PAYLOAD_TOO_LARGE.code],
   ] as const)("%s → %s / %s", (name, statusCode, code) => {
     const err = errors[name]();
-    expect(err).toBeInstanceOf(DimahS3Error);
+    expect(err).toBeInstanceOf(APIError);
     expect(err).toMatchObject({ statusCode, code });
   });
 

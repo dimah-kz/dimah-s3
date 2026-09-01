@@ -18,8 +18,8 @@ const NETWORK_CODES = new Set([
 ]);
 
 /**
- * better-call `onError`: APIError (including DimahS3Error) serializes
- * natively. Unknown throws become INTERNAL_ERROR / S3_NETWORK_ERROR.
+ * better-call `onError`: `APIError` serializes natively. Unknown throws
+ * become INTERNAL_ERROR / S3_NETWORK_ERROR.
  */
 function onS3RouterError(error: unknown, config?: ResolvedDimahS3Config): void {
   if (isAPIError(error)) return;
@@ -40,7 +40,7 @@ function onS3RouterError(error: unknown, config?: ResolvedDimahS3Config): void {
 
 /**
  * Unmatched routes never hit `onError` — better-call returns an empty 404.
- * Re-serialize those as DimahS3Error JSON. JSON 404s from endpoints pass through.
+ * Re-serialize those as APIError JSON. JSON 404s from endpoints pass through.
  */
 function withUnmatchedRouteJson(
   handler: (request: Request) => Promise<Response>,

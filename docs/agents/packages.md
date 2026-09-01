@@ -5,7 +5,7 @@
 ## When changing the presign protocol
 
 1. Types + Zod schemas + `S3_API_ROUTES` in `packages/core/src/` (paths always start with `/`). Every core request schema requires `route`. Upload and multipart init do not accept `key`. Multipart `signPart` requires `partSize`. Catalog is `GET /routes`. Proxy download is `GET /file`. Batch delete is `POST /delete/batch`.
-2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `DimahS3Error`.
+2. `createS3Client` in core — same paths as the server router; optional `fetch` / `credentials` / `headers`. `createS3Fetch` uses better-fetch `throw: true` + `s3FetchErrorSchema` and maps non-OK JSON onto `APIError`.
 3. Endpoints in `packages/server/src/api/routes/` via `createS3Endpoint`; `dimahS3()` builds the internal `createS3Router` (HTTP `handler` + `s3.api`). Do not export `createS3Router`.
 4. React client via `createS3Client` from `@dimah-s3/react` / hooks — no duplicate route strings. Browser `S3Api` uses object args (`api.download({ route, key })`); server `s3.api` is the better-call map (`download({ query, headers })`).
 5. Tegami changelog — [release.md](./release.md).
@@ -14,7 +14,7 @@
 
 1. Static `t("…")` / `useTranslations()` from `@fuma-translate/react` in `react` / `ui` (do not re-export the hook). English source text is the default.
 2. `pnpm --filter @dimah-s3/react compile:translations` — keep exported `Translations` in sync. Code→string mappers must call `useTranslations()` themselves (`useFormatDimahError`, `useFormatValidateFileError`).
-3. Server: `DimahS3Error` extends better-call `APIError` with `(status, body)` + `S3_ERROR_CODES` (`{ code, message }`) + optional `params`. Prefer `errors.*` / `DimahS3Error.from`. Detect with `isAPIError` / `isDimahS3Error`. Do not wrap `APIError` in a custom HTTP serializer — throw `DimahS3Error` and let the router `toResponse`.
+3. Server: throw `APIError` (better-call) with `S3_ERROR_CODES` (`{ code, message }`) + optional `params`. Prefer `errors.*` / `APIError.from`. Detect with `isAPIError` / `isS3ErrorCode`. Do not wrap it in a custom HTTP serializer — throw `APIError` and let the router `toResponse`.
 4. Tegami changelog — [release.md](./release.md).
 
 ## When adding or changing a server endpoint

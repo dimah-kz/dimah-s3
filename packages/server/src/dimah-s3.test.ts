@@ -1,6 +1,6 @@
 import { S3_API_ROUTES, S3_ERROR_CODES } from "@dimah-s3/core";
 import { describe, expect, it, vi } from "vitest";
-import { DimahS3Error } from "./errors";
+import { APIError } from "./errors";
 import { createS3Endpoint, definePlugin } from "./index";
 import { route } from "./route";
 import {
@@ -70,7 +70,7 @@ describe("HTTP envelope", () => {
   it("runs the global guard before the endpoint", async () => {
     const s3 = createInstance({
       guard: () => {
-        throw DimahS3Error.from("FORBIDDEN", {
+        throw APIError.from("FORBIDDEN", {
           ...S3_ERROR_CODES.FORBIDDEN,
           message: "blocked",
         });
@@ -86,10 +86,10 @@ describe("HTTP envelope", () => {
     });
   });
 
-  it("serializes DimahS3Error params through native APIError JSON", async () => {
+  it("serializes APIError params through native APIError JSON", async () => {
     const s3 = createInstance({
       guard: () => {
-        throw new DimahS3Error("FORBIDDEN", {
+        throw new APIError("FORBIDDEN", {
           message: "quota",
           code: "QUOTA",
           params: { used: 12 },
@@ -197,12 +197,12 @@ describe("HTTP envelope", () => {
 });
 
 describe("s3.api", () => {
-  it("throws DimahS3Error on validation failures", async () => {
+  it("throws APIError on validation failures", async () => {
     const s3 = createInstance();
     await expect(
       s3.api.download({ query: { route: "uploads", key: "" } }),
     ).rejects.toMatchObject({
-      name: "DimahS3Error",
+      name: "APIError",
       code: S3_ERROR_CODES.VALIDATION_ERROR.code,
       status: "BAD_REQUEST",
       statusCode: 400,

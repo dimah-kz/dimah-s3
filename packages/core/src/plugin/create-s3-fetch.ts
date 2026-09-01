@@ -1,6 +1,5 @@
 import { createFetch } from "@better-fetch/fetch";
-import type { Status } from "better-call/error";
-import { DimahS3Error } from "@/error";
+import { APIError } from "@/error";
 import { s3FetchErrorSchema } from "@/schema/error";
 import type { S3ClientFetchOptions, S3Fetch } from "./types";
 
@@ -26,31 +25,30 @@ function fallbackMessage(error: {
  * better-fetch `onError` receives the JSON body spread with `status` /
  * `statusText` — not a `BetterFetchError` instance.
  */
-function dimahErrorFromFetch(error: {
+function apiErrorFromFetch(error: {
   status: number;
   statusText: string;
   error?: unknown;
-}): DimahS3Error {
-  const status = error.status as Status;
+}): APIError {
   const parsed = s3FetchErrorSchema.safeParse(error);
   if (parsed.success) {
     const { message, code, params } = parsed.data;
-    return new DimahS3Error(status, {
+    return new APIError(error.status, {
       message,
       ...(code !== undefined ? { code } : {}),
       ...(params !== undefined ? { params } : {}),
     });
   }
-  return new DimahS3Error(status, { message: fallbackMessage(error) });
+  return new APIError(error.status, { message: fallbackMessage(error) });
 }
 
 /**
  * Shared `$fetch` for core routes and client plugins.
  * `base` is a normalized API prefix (e.g. `/api/s3`).
  *
- * Non-OK JSON matching {@link s3FetchErrorSchema} throws {@link DimahS3Error}.
+ * Non-OK JSON matching {@link s3FetchErrorSchema} throws {@link APIError}.
  * `throw: true` is the better-fetch flag; `onError` maps onto the same class
- * the server throws so `instanceof DimahS3Error` works in the browser.
+ * the server throws so `instanceof APIError` works in the browser.
  */
 export function createS3Fetch(
   base: string,
@@ -72,7 +70,7 @@ export function createS3Fetch(
       return { ...ctx, headers };
     },
     onError: (ctx) => {
-      throw dimahErrorFromFetch(ctx.error);
+      throw apiErrorFromFetch(ctx.error);
     },
   });
 }

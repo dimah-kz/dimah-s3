@@ -48,7 +48,7 @@ packages:
   group:dimah-s3: minor
 ---
 
-## Add optional `cause` to `DimahS3Error`
+## Add optional `cause` to `APIError`
 
 Support error chaining for consumers.
 ```

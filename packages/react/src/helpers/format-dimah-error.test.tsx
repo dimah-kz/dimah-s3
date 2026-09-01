@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
+import { APIError, S3_ERROR_CODES } from "@dimah-s3/core";
 import { useFormatDimahError } from "./format-dimah-error";
 import { renderHookWithI18n } from "@/test/render-hook";
 
@@ -7,14 +7,11 @@ describe("useFormatDimahError", () => {
   it("maps coded errors to English source strings", () => {
     const format = renderHookWithI18n(useFormatDimahError);
     expect(
-      format(DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND)),
+      format(APIError.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND)),
     ).toBe("File not found");
     expect(
       format(
-        DimahS3Error.from(
-          "PAYLOAD_TOO_LARGE",
-          S3_ERROR_CODES.PAYLOAD_TOO_LARGE,
-        ),
+        APIError.from("PAYLOAD_TOO_LARGE", S3_ERROR_CODES.PAYLOAD_TOO_LARGE),
       ),
     ).toBe("File is too large");
   });
@@ -23,7 +20,7 @@ describe("useFormatDimahError", () => {
     const format = renderHookWithI18n(useFormatDimahError);
     expect(
       format(
-        DimahS3Error.from("BAD_GATEWAY", {
+        APIError.from("BAD_GATEWAY", {
           ...S3_ERROR_CODES.S3_NETWORK_ERROR,
           params: { code: "ECONNREFUSED" },
         }),
@@ -37,26 +34,26 @@ describe("useFormatDimahError", () => {
     expect(format("x")).toBe("Unknown error");
     expect(
       format(
-        DimahS3Error.from("NOT_FOUND", {
+        APIError.from("NOT_FOUND", {
           ...S3_ERROR_CODES.FEATURE_DISABLED,
           params: { feature: "download" },
         }),
       ),
     ).toBe("download is disabled");
     expect(
-      format(DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY)),
+      format(APIError.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY)),
     ).toBe("Object key is invalid");
     expect(
-      format(DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.UNKNOWN_ROUTE)),
+      format(APIError.from("NOT_FOUND", S3_ERROR_CODES.UNKNOWN_ROUTE)),
     ).toBe("Unknown file route");
     expect(
       format(
-        DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED),
+        APIError.from("BAD_REQUEST", S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED),
       ),
     ).toBe("File type is not allowed");
     expect(
       format(
-        DimahS3Error.from("BAD_REQUEST", {
+        APIError.from("BAD_REQUEST", {
           ...S3_ERROR_CODES.MULTIPART_PART_MISSING,
           params: { partNumber: 3 },
         }),
@@ -64,7 +61,7 @@ describe("useFormatDimahError", () => {
     ).toBe("Uploaded part 3 was not found");
     expect(
       format(
-        new DimahS3Error("BAD_REQUEST", {
+        new APIError("BAD_REQUEST", {
           message: "custom",
           code: "CUSTOM",
         }),

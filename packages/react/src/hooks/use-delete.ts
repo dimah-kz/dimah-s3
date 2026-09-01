@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useRef } from "react";
-import type { DimahS3Error, S3Api, S3RouteName } from "@dimah-s3/core";
+import type { APIError, S3Api, S3RouteName } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import type { DeletePhase, DeleteHooks } from "@/types";
 import { hookBlockedError, toHookError } from "@/types/error";
@@ -26,7 +26,7 @@ export type UseDeleteState = {
    */
   objectKey: string | null;
   /** Last error, or `null`. */
-  error: DimahS3Error | null;
+  error: APIError | null;
 };
 
 export type UseDeleteReturn = UseDeleteState & {
@@ -52,7 +52,7 @@ export type UseDeleteReturn = UseDeleteState & {
 
 type InternalState = {
   phase: DeletePhase;
-  error: DimahS3Error | null;
+  error: APIError | null;
   objectKey: string | null;
 };
 

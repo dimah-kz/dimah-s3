@@ -1,20 +1,16 @@
 "use client";
 
 import { useCallback } from "react";
-import { DimahS3Error, S3_ERROR_CODES, isDimahS3Error } from "@dimah-s3/core";
+import { type APIError, S3_ERROR_CODES, isAPIError } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 
-function param(
-  params: DimahS3Error["params"],
-  key: string,
-  fallback = "",
-): string {
+function param(params: APIError["params"], key: string, fallback = ""): string {
   const value = params?.[key];
   return value === undefined ? fallback : String(value);
 }
 
 /**
- * Localized {@link DimahS3Error} → string.
+ * Localized {@link APIError} → string.
  *
  * `t("…")` call sites are nested under `useTranslations()` so fuma-translate
  * can extract keys (it cannot see `t` passed into a plain helper).
@@ -24,7 +20,7 @@ export function useFormatDimahError(): (err: unknown) => string {
 
   return useCallback(
     (err: unknown): string => {
-      if (!isDimahS3Error(err) || err.code === undefined) {
+      if (!isAPIError(err) || err.code === undefined) {
         return err instanceof Error
           ? err.message
           : t("Unknown error", { note: "fallback" });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
+import { APIError, S3_ERROR_CODES } from "@dimah-s3/core";
 import { S3UploadError, toHookError, toUploadError } from "./error";
 
 describe("S3UploadError", () => {
@@ -21,8 +21,8 @@ describe("toUploadError", () => {
     expect(toUploadError(err)).toBe(err);
   });
 
-  it("preserves DimahS3Error code and does not wrap as API_ERROR", () => {
-    const original = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+  it("preserves APIError code and does not wrap as API_ERROR", () => {
+    const original = APIError.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
     expect(toUploadError(original, "presigning")).toBe(original);
   });
 
@@ -43,14 +43,14 @@ describe("toUploadError", () => {
 });
 
 describe("toHookError", () => {
-  it("preserves DimahS3Error", () => {
-    const original = DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
+  it("preserves APIError", () => {
+    const original = APIError.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN);
     expect(toHookError(original)).toBe(original);
   });
 
-  it("wraps plain Errors as DimahS3Error", () => {
+  it("wraps plain Errors as APIError", () => {
     expect(toHookError(new Error("boom"))).toMatchObject({
-      name: "DimahS3Error",
+      name: "APIError",
       message: "boom",
     });
   });

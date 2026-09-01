@@ -8,7 +8,7 @@ export const s3ErrorParamsSchema = z.record(
 
 /**
  * better-fetch `errorSchema` — same `{ message, code?, params? }` body
- * better-call serializes from `DimahS3Error`.
+ * better-call serializes from `APIError`.
  */
 export const s3FetchErrorSchema = z.object({
   message: z.string(),

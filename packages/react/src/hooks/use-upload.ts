@@ -1,6 +1,6 @@
 "use client";
 
-import type { DimahS3Error, S3Api } from "@dimah-s3/core";
+import type { APIError, S3Api } from "@dimah-s3/core";
 import type {
   UploadFileState,
   UploadPhase,
@@ -69,7 +69,7 @@ export type UseUploadReturn = {
   /** Aggregate byte transfer progress. */
   progress: UploadProgress;
   /** Batch-level error, or `null`. */
-  error: DimahS3Error | null;
+  error: APIError | null;
   /** `true` while bytes are transferring (`phase === "uploading"`). */
   isUploading: boolean;
   /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createS3Client } from "./create-s3-client";
-import { DimahS3Error, S3_ERROR_CODES } from "./error";
+import { APIError, S3_ERROR_CODES } from "./error";
 import { defineClientPlugin } from "./plugin/define-client-plugin";
 import { pluginPath } from "./plugin/plugin-path";
 import { S3_API_ROUTES } from "./routes";
@@ -161,7 +161,7 @@ describe("createS3Client protocol", () => {
 });
 
 describe("createS3Client errors", () => {
-  it("maps non-OK JSON onto DimahS3Error", async () => {
+  it("maps non-OK JSON onto APIError", async () => {
     const fetch = async () =>
       jsonResponse(
         {
@@ -176,7 +176,7 @@ describe("createS3Client errors", () => {
     await expect(
       api.delete({ route: "uploads", key: "a.png" }),
     ).rejects.toMatchObject({
-      name: "DimahS3Error",
+      name: "APIError",
       status: 403,
       code: S3_ERROR_CODES.FORBIDDEN.code,
       message: "blocked",
@@ -184,10 +184,10 @@ describe("createS3Client errors", () => {
     });
     await expect(
       api.download({ route: "uploads", key: "missing" }),
-    ).rejects.toBeInstanceOf(DimahS3Error);
+    ).rejects.toBeInstanceOf(APIError);
   });
 
-  it("maps non-JSON failures onto DimahS3Error without a code", async () => {
+  it("maps non-JSON failures onto APIError without a code", async () => {
     const fetch = async () =>
       new Response("<html>oops</html>", {
         status: 502,
@@ -199,7 +199,7 @@ describe("createS3Client errors", () => {
     await expect(
       api.download({ route: "uploads", key: "a.png" }),
     ).rejects.toMatchObject({
-      name: "DimahS3Error",
+      name: "APIError",
       status: 502,
       message: "Bad Gateway",
     });

@@ -29,7 +29,7 @@ operation, so a list can share one instance. Narrow fetch vs navigate with
 Pass `disposition: "inline"` for preview. The route default is
 `"attachment"` unless you set `download.disposition`.
 
-Hook `error` is a `DimahS3Error` (or `null`). Format it with
+Hook `error` is a `APIError` (or `null`). Format it with
 `useFormatDimahError(error)` or read `error.message`.
 
 ## Navigate (default)

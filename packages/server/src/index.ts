@@ -4,10 +4,9 @@ export type { PutObjectInput } from "./put";
 export type { DimahS3, DimahS3Api, MultipartAliasApi } from "./dimah-s3";
 export { route } from "./route";
 export {
-  DimahS3Error,
+  APIError,
   errors,
   isAPIError,
-  isDimahS3Error,
   isS3ErrorCode,
   S3_ERROR_CODES,
 } from "./errors";

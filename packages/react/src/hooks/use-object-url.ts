@@ -3,7 +3,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type {
   ContentDispositionType,
-  DimahS3Error,
+  APIError,
   S3Api,
   S3RouteName,
 } from "@dimah-s3/core";
@@ -29,7 +29,7 @@ export type UseObjectUrlReturn = {
   url: string | null;
   /** Validity in seconds. `0` for proxy downloads. */
   expiresIn: number | null;
-  error: DimahS3Error | null;
+  error: APIError | null;
   isLoading: boolean;
   /** Drop the cache entry and presign again. */
   refresh: () => void;
@@ -75,7 +75,7 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
   const generationRef = useRef(0);
   const [url, setUrl] = useState<string | null>(null);
   const [expiresIn, setExpiresIn] = useState<number | null>(null);
-  const [error, setError] = useState<DimahS3Error | null>(null);
+  const [error, setError] = useState<APIError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [tick, setTick] = useState(0);
 

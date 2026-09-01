@@ -1,9 +1,9 @@
-import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
+import { APIError, S3_ERROR_CODES } from "@dimah-s3/core";
 
 export function unauthorized(
   message: string = S3_ERROR_CODES.UNAUTHORIZED.message,
-): DimahS3Error {
-  return DimahS3Error.from("UNAUTHORIZED", {
+): APIError {
+  return APIError.from("UNAUTHORIZED", {
     ...S3_ERROR_CODES.UNAUTHORIZED,
     message,
   });
@@ -11,8 +11,8 @@ export function unauthorized(
 
 export function forbidden(
   message: string = S3_ERROR_CODES.FORBIDDEN.message,
-): DimahS3Error {
-  return DimahS3Error.from("FORBIDDEN", {
+): APIError {
+  return APIError.from("FORBIDDEN", {
     ...S3_ERROR_CODES.FORBIDDEN,
     message,
   });
@@ -20,8 +20,8 @@ export function forbidden(
 
 export function notFound(
   message: string = S3_ERROR_CODES.OBJECT_NOT_FOUND.message,
-): DimahS3Error {
-  return DimahS3Error.from("NOT_FOUND", {
+): APIError {
+  return APIError.from("NOT_FOUND", {
     ...S3_ERROR_CODES.OBJECT_NOT_FOUND,
     message,
   });
@@ -29,8 +29,8 @@ export function notFound(
 
 export function conflict(
   message: string = S3_ERROR_CODES.CONFLICT.message,
-): DimahS3Error {
-  return DimahS3Error.from("CONFLICT", {
+): APIError {
+  return APIError.from("CONFLICT", {
     ...S3_ERROR_CODES.CONFLICT,
     message,
   });

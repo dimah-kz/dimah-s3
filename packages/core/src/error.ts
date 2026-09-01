@@ -1,4 +1,4 @@
-import { APIError } from "better-call/error";
+import { APIError as BetterCallAPIError } from "better-call/error";
 import { type S3ErrorCode } from "./error-codes";
 
 export {
@@ -7,39 +7,31 @@ export {
   type S3ErrorCode,
 } from "./error-codes";
 
-export type DimahS3ErrorParams = Record<string, string | number>;
-
-export type DimahS3ErrorStatus = NonNullable<
-  ConstructorParameters<typeof APIError>[0]
->;
-
-export type DimahS3ErrorBody = {
-  message?: string;
-  code?: string;
+type NamedStatus = ConstructorParameters<typeof BetterCallAPIError>[0];
+type APIErrorStatus = NamedStatus | number;
+type APIErrorBody = ConstructorParameters<typeof BetterCallAPIError>[1] & {
+  params?: Record<string, string | number>;
   cause?: unknown;
-  params?: DimahS3ErrorParams;
-} & Record<string, unknown>;
-
-type RawError = {
-  code: string;
-  message: string;
-  params?: DimahS3ErrorParams;
 };
 
 /**
- * Typed API error. Same constructor as better-call {@link APIError}
- * (`status`, `body`) so `ctx.error(...)` and `DimahS3Error.from(...)` share
- * a shape. HTTP serializes `{ message, code?, params? }` via native `toResponse`.
+ * better-call `APIError` — same name and `(status, body)` constructor as
+ * `ctx.error(...)`. HTTP serializes `{ message, code?, params? }` via native
+ * `toResponse`.
  */
-export class DimahS3Error extends APIError {
+export class APIError extends BetterCallAPIError {
   constructor(
-    status: DimahS3ErrorStatus = "BAD_REQUEST",
-    body?: DimahS3ErrorBody,
+    status: APIErrorStatus = "BAD_REQUEST",
+    body?: APIErrorBody,
     headers?: HeadersInit,
   ) {
     const { cause, ...rest } = body ?? {};
-    super(status, Object.keys(rest).length > 0 ? rest : undefined, headers);
-    this.name = "DimahS3Error";
+    super(
+      status as NamedStatus,
+      Object.keys(rest).length > 0 ? rest : undefined,
+      headers,
+    );
+    this.name = "APIError";
     if (cause !== undefined) {
       this.cause = cause;
     }
@@ -49,45 +41,44 @@ export class DimahS3Error extends APIError {
     return this.body?.code;
   }
 
-  get params(): DimahS3ErrorParams | undefined {
-    return this.body?.params as DimahS3ErrorParams | undefined;
+  get params(): Record<string, string | number> | undefined {
+    return this.body?.params as Record<string, string | number> | undefined;
   }
 
   /** Throw a catalog (or custom) `{ code, message }` with an HTTP status. */
-  static from(status: DimahS3ErrorStatus, error: RawError): DimahS3Error {
-    return new DimahS3Error(status, {
+  static from(
+    status: APIErrorStatus,
+    error: {
+      code: string;
+      message: string;
+      params?: Record<string, string | number>;
+    },
+  ): APIError {
+    return new APIError(status, {
       message: error.message,
       code: error.code,
       ...(error.params !== undefined ? { params: error.params } : {}),
     });
   }
 
-  static fromStatus(
-    status: DimahS3ErrorStatus,
-    body?: DimahS3ErrorBody,
-  ): DimahS3Error {
-    return new DimahS3Error(status, body);
+  static fromStatus(status: APIErrorStatus, body?: APIErrorBody): APIError {
+    return new APIError(status, body);
   }
 }
 
-/** True for {@link DimahS3Error} and better-call `APIError` (including duck-typed copies). */
+/** True for {@link APIError} and better-call copies (including duck-typed). */
 export function isAPIError(error: unknown): error is APIError {
-  if (error instanceof APIError) return true;
-  const name = (error as { name?: string } | null)?.name;
-  return name === "APIError" || name === "DimahS3Error";
-}
-
-export function isDimahS3Error(error: unknown): error is DimahS3Error {
   return (
-    error instanceof DimahS3Error ||
-    (error as { name?: string } | null)?.name === "DimahS3Error"
+    error instanceof BetterCallAPIError ||
+    error instanceof APIError ||
+    (error as { name?: string } | null)?.name === "APIError"
   );
 }
 
-/** True when `error` is a {@link DimahS3Error} with this catalog `code`. */
+/** True when `error` is an {@link APIError} with this catalog `code`. */
 export function isS3ErrorCode<C extends S3ErrorCode>(
   error: unknown,
   code: C,
-): error is DimahS3Error & { code: C } {
-  return isDimahS3Error(error) && error.code === code;
+): error is APIError & { code: C } {
+  return isAPIError(error) && error.code === code;
 }

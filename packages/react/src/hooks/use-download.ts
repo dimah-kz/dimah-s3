@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useRef } from "react";
-import type { DimahS3Error, S3Api, S3RouteName } from "@dimah-s3/core";
+import type { APIError, S3Api, S3RouteName } from "@dimah-s3/core";
 import { parseFileName } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { createSpeedTracker } from "@/helpers/speed-tracker";
@@ -65,7 +65,7 @@ export type UseNavigateDownloadState = {
    */
   objectKey: string | null;
   /** Last error, or `null`. */
-  error: DimahS3Error | null;
+  error: APIError | null;
   /** Presigned URL — set after a successful presign, cleared on reset. */
   url: string | null;
   /** Validity window in seconds for the presigned URL. */
@@ -99,7 +99,7 @@ export type UseFetchDownloadState = {
   /** Byte transfer progress. */
   progress: UploadProgress;
   /** Last error, or `null`. */
-  error: DimahS3Error | null;
+  error: APIError | null;
   /** Resolved download filename. */
   fileName: string | null;
   /** Total file size in bytes. */
@@ -135,7 +135,7 @@ export function isFetchDownload(
 type InternalState = {
   phase: FetchDownloadPhase;
   objectKey: string | null;
-  error: DimahS3Error | null;
+  error: APIError | null;
   url: string | null;
   expiresIn: number | null;
   progress: UploadProgress;

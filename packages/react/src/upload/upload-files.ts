@@ -5,7 +5,7 @@ import type {
   UploadResult,
   UploadRequestOptions,
 } from "@/types";
-import type { DimahS3Error, S3Api } from "@dimah-s3/core";
+import type { APIError, S3Api } from "@dimah-s3/core";
 import { toHookError, isAbortError } from "@/types/error";
 import { DEFAULT_CONCURRENT_FILES } from "./constants";
 import { uploadFile } from "./upload-file";
@@ -18,13 +18,13 @@ export type FileItem = {
   status: FileItemStatus;
   progress: UploadProgress;
   result: UploadResult | null;
-  error: DimahS3Error | null;
+  error: APIError | null;
 };
 
 export type MultiUploadCallbacks = {
   onFileProgress?: (id: string, progress: UploadProgress) => void;
   onFileSuccess?: (id: string, result: UploadResult) => void;
-  onFileError?: (id: string, error: DimahS3Error) => void;
+  onFileError?: (id: string, error: APIError) => void;
   onTotalProgress?: (progress: UploadProgress) => void;
   /** Called once after multipart init for a file (id → uploadId, server key). */
   onMultipartInit?: (id: string, uploadId: string, key: string) => void;

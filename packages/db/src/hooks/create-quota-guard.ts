@@ -1,4 +1,4 @@
-import { DimahS3Error, S3_ERROR_CODES } from "@dimah-s3/core";
+import { APIError, S3_ERROR_CODES } from "@dimah-s3/core";
 import { unauthorized } from "@/errors";
 import { resolveStore } from "@/hooks/create-object-access-guard";
 import type {
@@ -21,7 +21,7 @@ export type QuotaGuardContext = {
 };
 
 function quotaExceeded(message: string) {
-  return DimahS3Error.from("PAYLOAD_TOO_LARGE", {
+  return APIError.from("PAYLOAD_TOO_LARGE", {
     ...S3_ERROR_CODES.QUOTA_EXCEEDED,
     message,
   });

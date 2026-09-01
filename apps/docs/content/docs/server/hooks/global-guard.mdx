@@ -15,7 +15,7 @@ feature hooks — those receive `key` and `bucket`.
 If some routes are public and others need a session, put auth on
 `route.guard` (or the feature `guard`) instead of the instance `guard`.
 
-Throw to reject. A plain `Error` becomes `403`. Use `DimahS3Error` or
+Throw to reject. A plain `Error` becomes `403`. Use `APIError` or
 [`errors`](/docs/server/errors) for other codes.
 
 ```ts title="lib/s3.ts"

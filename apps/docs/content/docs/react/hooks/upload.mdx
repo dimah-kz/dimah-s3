@@ -122,7 +122,7 @@ await upload.handleFiles(file);
 | `onSuccess`                          | `(results: UploadResult[]) => void` — persist each `key`                                          |
 | `onFileSuccess`                      | `(file, result) => void` — per file, includes the `File`                                          |
 
-Hook `error` is a `DimahS3Error` (or `null`). Format with
+Hook `error` is a `APIError` (or `null`). Format with
 `useFormatDimahError`. `api` is optional under `s3Client.Provider`. Full
 types: `UseUploadOptions`, `UseUploadReturn`.
 

@@ -245,7 +245,7 @@ describe("resolveUploadTarget", () => {
     });
   });
 
-  it("preserves DimahS3Error from object()", async () => {
+  it("preserves APIError from object()", async () => {
     await expect(
       resolveUploadTarget(
         route({

@@ -14,7 +14,7 @@ pnpm add @dimah-s3/core
 ## Minimal setup
 
 ```ts
-import { createS3Client, DimahS3Error } from "@dimah-s3/core";
+import { createS3Client, APIError } from "@dimah-s3/core";
 
 export const api = createS3Client({
   // optional: auth for core routes + client plugins
@@ -25,7 +25,7 @@ export const api = createS3Client({
 try {
   await api.download({ route: "uploads", key });
 } catch (err) {
-  if (err instanceof DimahS3Error)
+  if (err instanceof APIError)
     console.error(err.statusCode, err.code, err.message);
 }
 ```

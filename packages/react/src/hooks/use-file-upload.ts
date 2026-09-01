@@ -2,7 +2,7 @@
 
 import { useCallback, useContext, useEffect, useRef } from "react";
 import type { S3Api } from "@dimah-s3/core";
-import { DimahS3Error, validateFile } from "@dimah-s3/core";
+import { APIError, validateFile } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { createSpeedTracker } from "@/helpers/speed-tracker";
 import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
@@ -42,7 +42,7 @@ export type UseFileUploadState = {
   phase: UploadPhase;
   files: UploadFileState[];
   progress: UploadProgress;
-  error: DimahS3Error | null;
+  error: APIError | null;
 };
 
 export type UseFileUploadReturn = UseFileUploadState & {
@@ -193,7 +193,7 @@ export function useFileUpload(
         const msg = `Too many files. Maximum is ${maxFiles}.`;
         patch((draft) => {
           draft.phase = "error";
-          draft.error = new DimahS3Error("BAD_REQUEST", { message: msg });
+          draft.error = new APIError("BAD_REQUEST", { message: msg });
         });
         opts.onError?.(new Error(msg), "validating");
         return;
@@ -207,7 +207,7 @@ export function useFileUpload(
         if (validationError) {
           const detail = formatValidateFileError(validationError);
           const msg = `${file.name}: ${detail}`;
-          const error = new DimahS3Error("BAD_REQUEST", { message: msg });
+          const error = new APIError("BAD_REQUEST", { message: msg });
           revokeAllPreviews();
           const previewUrl = createImagePreviewUrl(file);
           if (previewUrl) previewUrlsRef.current = [previewUrl];
@@ -441,7 +441,7 @@ export function useFileUpload(
         patch((draft) => {
           draft.phase = hasErrors ? "error" : "success";
           draft.error = hasErrors
-            ? new DimahS3Error("BAD_REQUEST", {
+            ? new APIError("BAD_REQUEST", {
                 message: `${results.filter((r) => r.status === "error").length} file(s) failed`,
               })
             : null;

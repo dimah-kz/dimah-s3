@@ -36,7 +36,7 @@ type CreateS3Endpoint = typeof createEndpointWithContext;
  *
  * Paths are absolute under `basePath` (e.g. `/db/objects`). Context
  * (`config`, `request`) is injected by the router / `s3.api`.
- * Zod failures throw `DimahS3Error` (`VALIDATION_ERROR`) via
+ * Zod failures throw `APIError` (`VALIDATION_ERROR`) via
  * better-call `onValidationError`. Zod `body` / `query` schemas are
  * compiled with `z.compile()` (Zod 4.5) so valid requests skip the
  * interpreter; unsupported schemas fall back to the runtime parser.

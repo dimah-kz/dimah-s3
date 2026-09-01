@@ -1,7 +1,7 @@
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   deleteBatchBodySchema,
-  isDimahS3Error,
+  isAPIError,
   S3_API_ROUTES,
   type DeleteBatchResponse,
 } from "@dimah-s3/core";
@@ -51,7 +51,7 @@ export const deleteBatch = createS3Endpoint(
         results.push({
           key,
           success: false,
-          error: isDimahS3Error(err)
+          error: isAPIError(err)
             ? { code: err.code ?? "INTERNAL_ERROR", message: err.message }
             : { code: "INTERNAL_ERROR", message: "Internal server error" },
         });

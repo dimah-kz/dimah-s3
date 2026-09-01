@@ -1,39 +1,32 @@
 import {
-  DimahS3Error,
+  APIError,
   S3_ERROR_CODES,
   isAPIError,
-  isDimahS3Error,
   isS3ErrorCode,
 } from "@dimah-s3/core";
 import type { RouteOperation } from "@/types/config";
 
-export {
-  DimahS3Error,
-  S3_ERROR_CODES,
-  isAPIError,
-  isDimahS3Error,
-  isS3ErrorCode,
-};
+export { APIError, S3_ERROR_CODES, isAPIError, isS3ErrorCode };
 
 /** English API errors with stable codes for client-side localization. */
 export const errors = {
-  notFound: () => DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.NOT_FOUND),
+  notFound: () => APIError.from("NOT_FOUND", S3_ERROR_CODES.NOT_FOUND),
 
   unauthorized: () =>
-    DimahS3Error.from("UNAUTHORIZED", S3_ERROR_CODES.UNAUTHORIZED),
+    APIError.from("UNAUTHORIZED", S3_ERROR_CODES.UNAUTHORIZED),
 
-  forbidden: () => DimahS3Error.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN),
+  forbidden: () => APIError.from("FORBIDDEN", S3_ERROR_CODES.FORBIDDEN),
 
-  conflict: () => DimahS3Error.from("CONFLICT", S3_ERROR_CODES.CONFLICT),
+  conflict: () => APIError.from("CONFLICT", S3_ERROR_CODES.CONFLICT),
 
   internalError: () =>
-    DimahS3Error.from("INTERNAL_SERVER_ERROR", S3_ERROR_CODES.INTERNAL_ERROR),
+    APIError.from("INTERNAL_SERVER_ERROR", S3_ERROR_CODES.INTERNAL_ERROR),
 
   objectNotFound: () =>
-    DimahS3Error.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND),
+    APIError.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND),
 
   featureDisabled: (feature: RouteOperation) =>
-    DimahS3Error.from("NOT_FOUND", {
+    APIError.from("NOT_FOUND", {
       code: S3_ERROR_CODES.FEATURE_DISABLED.code,
       message: S3_ERROR_CODES.FEATURE_DISABLED.message.replaceAll(
         "{feature}",
@@ -42,18 +35,17 @@ export const errors = {
       params: { feature },
     }),
 
-  invalidKey: () =>
-    DimahS3Error.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY),
+  invalidKey: () => APIError.from("BAD_REQUEST", S3_ERROR_CODES.INVALID_KEY),
 
   unknownRoute: (route: string) =>
-    DimahS3Error.from("NOT_FOUND", {
+    APIError.from("NOT_FOUND", {
       code: S3_ERROR_CODES.UNKNOWN_ROUTE.code,
       message: S3_ERROR_CODES.UNKNOWN_ROUTE.message,
       params: { route },
     }),
 
   fileTypeNotAllowed: (fileName: string, contentType?: string) =>
-    DimahS3Error.from("BAD_REQUEST", {
+    APIError.from("BAD_REQUEST", {
       code: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.code,
       message: S3_ERROR_CODES.FILE_TYPE_NOT_ALLOWED.message,
       params: {
@@ -63,7 +55,7 @@ export const errors = {
     }),
 
   s3NetworkError: (code: string) =>
-    DimahS3Error.from("BAD_GATEWAY", {
+    APIError.from("BAD_GATEWAY", {
       code: S3_ERROR_CODES.S3_NETWORK_ERROR.code,
       message: S3_ERROR_CODES.S3_NETWORK_ERROR.message.replaceAll(
         "{code}",
@@ -73,7 +65,7 @@ export const errors = {
     }),
 
   multipartPartMissing: (partNumber: number) =>
-    DimahS3Error.from("BAD_REQUEST", {
+    APIError.from("BAD_REQUEST", {
       code: S3_ERROR_CODES.MULTIPART_PART_MISSING.code,
       message: S3_ERROR_CODES.MULTIPART_PART_MISSING.message.replaceAll(
         "{partNumber}",
@@ -85,19 +77,19 @@ export const errors = {
   payloadTooLarge: (
     message: string = S3_ERROR_CODES.PAYLOAD_TOO_LARGE.message,
   ) =>
-    DimahS3Error.from("PAYLOAD_TOO_LARGE", {
+    APIError.from("PAYLOAD_TOO_LARGE", {
       ...S3_ERROR_CODES.PAYLOAD_TOO_LARGE,
       message,
     }),
 
   quotaExceeded: (message: string = S3_ERROR_CODES.QUOTA_EXCEEDED.message) =>
-    DimahS3Error.from("PAYLOAD_TOO_LARGE", {
+    APIError.from("PAYLOAD_TOO_LARGE", {
       ...S3_ERROR_CODES.QUOTA_EXCEEDED,
       message,
     }),
 
   validationError: (message: string) =>
-    DimahS3Error.from("BAD_REQUEST", {
+    APIError.from("BAD_REQUEST", {
       code: S3_ERROR_CODES.VALIDATION_ERROR.code,
       message,
     }),

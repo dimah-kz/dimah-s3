@@ -5,7 +5,7 @@ import { AlertCircleIcon, PauseIcon, XIcon } from "lucide-react";
 import {
   formatFileSize,
   truncateFileName,
-  type DimahS3Error,
+  type APIError,
 } from "@dimah-s3/core";
 import { useFormatDimahError } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
@@ -54,7 +54,7 @@ export type FileAttachmentProps = {
   percent?: number;
   /** Secondary line; defaults to size, or error text when `state="error"`. */
   description?: ReactNode;
-  error?: string | DimahS3Error | null;
+  error?: string | APIError | null;
   onCancel?: () => void;
   onPause?: () => void;
   className?: string;

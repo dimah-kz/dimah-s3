@@ -50,7 +50,7 @@ export const s3Client = createS3Client({
 ```
 
 `basePath` must match the server. `baseURL` wins when both are set (Vite /
-Hono when the UI origin differs). Failed API calls throw `DimahS3Error`
+Hono when the UI origin differs). Failed API calls throw `APIError`
 (`.code`, `.status` / `.statusCode`). The client also exposes `$ERROR_CODES`,
 `$fetch`, and `$Infer`. Call `s3Client.download({ route, key })` directly, or
 `s3Client.useApi()` inside React.

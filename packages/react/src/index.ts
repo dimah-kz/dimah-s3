@@ -25,13 +25,12 @@ export { S3UploadError } from "./types/error";
 
 // ─── Protocol helpers (so React apps rarely need @dimah-s3/core) ─────────────
 export {
-  DimahS3Error,
+  APIError,
   S3_ERROR_CODES,
   buildObjectKey,
   fileNameFromKey,
   formatFileSize,
   isAPIError,
-  isDimahS3Error,
   isS3ErrorCode,
   sanitizeFileName,
   validateFile,
