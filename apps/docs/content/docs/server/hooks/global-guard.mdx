@@ -37,6 +37,10 @@ export const s3 = dimahS3({
 
 The global guard receives the raw `request` object. Route name and target key are resolved later in the lifecycle.
 
+```ts
+import type { GuardContext, RouteGuardContext } from "@dimah-s3/server";
+```
+
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="GuardContext"

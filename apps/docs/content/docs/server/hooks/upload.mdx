@@ -64,6 +64,17 @@ export const s3 = dimahS3({
 
 ## Type reference
 
+```ts
+import type {
+  UploadGuardContext,
+  UploadOnConfirmedContext,
+  UploadConfirmGuardContext,
+  UploadObjectContext,
+  UploadObjectInfo,
+  UploadOnPresignedContext,
+} from "@dimah-s3/server";
+```
+
 ### UploadGuardContext
 
 Runs after `upload.object` assigns the key (and after global / route guards).
