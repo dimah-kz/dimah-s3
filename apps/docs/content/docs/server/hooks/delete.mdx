@@ -3,7 +3,7 @@ title: Delete Hooks
 description: Authorize deletion and execute cleanup after S3 removes the object.
 ---
 
-Enable object deletion with `delete: true` or a configuration object on a [named route](/docs/server/routes).
+Enable object deletion with `delete: true` or a `DeleteConfig` object on a [named route](/docs/server/routes).
 
 <Callout>
   Unlike upload and download, object deletion is executed directly on your
@@ -43,6 +43,8 @@ export const s3 = dimahS3({
 });
 ```
 
+---
+
 ## Delete lifecycle flow
 
 <Flow
@@ -56,7 +58,9 @@ export const s3 = dimahS3({
 
 ---
 
-## Delete guard context
+## Type reference
+
+### DeleteGuardContext
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
@@ -65,7 +69,7 @@ export const s3 = dimahS3({
 
 ---
 
-## Delete onDeleted context
+### DeleteOnDeletedContext
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"

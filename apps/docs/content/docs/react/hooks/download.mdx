@@ -1,21 +1,28 @@
 ---
 title: useDownload
-description: Presign GET URLs for direct download, inline preview, or progress tracking.
+description: Headless React hook for presigned S3 downloads with browser navigation, fetch streams, and inline preview.
 ---
 
-`useDownload` requests a signed GET URL from your API and manages browser navigation, fetch streams, and inline previews.
+`useDownload` requests signed GET URLs from your server and handles browser-native downloads or client-side fetch streaming with live progress tracking.
 
-```tsx
+```tsx title="components/download-avatar.tsx"
 "use client";
 
 import { useDownload } from "@dimah-s3/react";
 
 export function DownloadAvatar({ avatarKey }: { avatarKey: string }) {
-  const { download, phase } = useDownload({ route: "avatar" });
+  const { download, isPending } = useDownload({
+    route: "avatar",
+  });
 
   return (
-    <button type="button" onClick={() => void download(avatarKey)}>
-      {phase === "presigning" ? "Generating link…" : "Download Avatar"}
+    <button
+      type="button"
+      onClick={() => void download(avatarKey)}
+      disabled={isPending}
+      className="btn"
+    >
+      {isPending ? "Generating link…" : "Download Avatar"}
     </button>
   );
 }
@@ -23,23 +30,79 @@ export function DownloadAvatar({ avatarKey }: { avatarKey: string }) {
 
 ---
 
-## Preview with `useObjectUrl`
+## Download modes
 
-For inline preview in `<img>`, `<video>`, or `<iframe>`:
+### 1. Browser navigation (`mode: "navigate"`, default)
+
+Requests a presigned GET URL and navigates the browser directly to S3. S3 immediately responds with the binary file stream and triggers the browser's native file save dialog.
 
 ```tsx
+const { download, presign, phase, isPending } = useDownload({
+  route: "avatar",
+  onInitiated: (key) => {
+    console.log("Browser handed download URL for:", key);
+  },
+});
+
+// Trigger download
+await download(avatarKey);
+
+// Or get the presigned URL directly without triggering browser navigation
+const { url, expiresIn } = await presign(avatarKey);
+```
+
+### 2. Fetch streaming (`mode: "fetch"`)
+
+Fetches the object bytes through a client-side `fetch` stream. Provides fine-grained byte progress, speed calculation, and abortable cancellation.
+
+```tsx
+const { download, cancel, progress, isDownloading, isPending } = useDownload({
+  route: "document",
+  mode: "fetch",
+  onProgress: (key, progress) => {
+    console.log(
+      `Downloaded ${progress.percent}% (${progress.loaded}/${progress.total})`,
+    );
+  },
+  onSuccess: (key, fileName) => {
+    console.log(`Saved ${fileName} to disk`);
+  },
+});
+
+return (
+  <div>
+    <button onClick={() => void download(documentKey)} disabled={isPending}>
+      {isDownloading ? `Downloading: ${progress.percent}%` : "Download File"}
+    </button>
+    {isDownloading && (
+      <button type="button" onClick={cancel}>
+        Cancel
+      </button>
+    )}
+  </div>
+);
+```
+
+---
+
+## Inline preview with `useObjectUrl`
+
+For displaying private S3 files inline (e.g. `<img>`, `<video>`, `<audio>`, or `<iframe>`), use `useObjectUrl`. It requests a signed URL with `disposition: "inline"` and automatically caches the signed URL in memory until shortly before its expiration window.
+
+```tsx title="components/avatar-image.tsx"
 "use client";
 
 import { useObjectUrl } from "@dimah-s3/react";
 
 export function AvatarImage({ avatarKey }: { avatarKey: string }) {
-  const { url, isLoading } = useObjectUrl({
+  const { url, isLoading, refresh } = useObjectUrl({
     route: "avatar",
     objectKey: avatarKey,
     disposition: "inline",
   });
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading)
+    return <div className="size-16 rounded-full bg-muted animate-pulse" />;
   if (!url) return null;
 
   return (
@@ -54,50 +117,83 @@ export function AvatarImage({ avatarKey }: { avatarKey: string }) {
 
 ---
 
-## Download modes
+## Type reference
 
-| Mode                 | Hook Usage                                        | Description                                             |
-| -------------------- | ------------------------------------------------- | ------------------------------------------------------- |
-| `navigate` (default) | `useDownload({ route: "avatar" })`                | Fast browser navigation directly to presigned URL       |
-| `fetch`              | `useDownload({ route: "avatar", mode: "fetch" })` | Streams bytes with live progress and cancel support     |
-| `inline`             | `useObjectUrl({ route: "avatar", objectKey })`    | Fetches signed inline URL with automatic expiry caching |
+### UseNavigateDownloadOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-download.ts"
+  name="UseNavigateDownloadOptions"
+/>
+
+---
+
+### UseFetchDownloadOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-download.ts"
+  name="UseFetchDownloadOptions"
+/>
+
+---
+
+### UseNavigateDownloadReturn
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-download.ts"
+  name="UseNavigateDownloadReturn"
+/>
+
+---
+
+### UseFetchDownloadReturn
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-download.ts"
+  name="UseFetchDownloadReturn"
+/>
+
+---
+
+### UseObjectUrlOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-url.ts"
+  name="UseObjectUrlOptions"
+/>
+
+---
+
+### UseObjectUrlReturn
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-url.ts"
+  name="UseObjectUrlReturn"
+/>
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do I get just the presigned URL without triggering a download?">
+<Accordion title="How do I specify a custom download filename from the client?">
 
-Use the `presign` method from `useDownload`:
+Pass the filename as the second argument to `download` or `presign`:
 
 ```tsx
-const { presign } = useDownload({ route: "avatar", disposition: "inline" });
-
-const result = await presign(avatarKey);
-console.log("Signed URL:", result.url);
+await download(avatarKey, "custom-avatar-name.png");
 ```
 
 </Accordion>
 
-<Accordion title="How do I show download progress with a cancel button?">
+<Accordion title="Can multiple buttons share a single useDownload instance?">
 
-Set `mode: "fetch"`:
+Yes. `useDownload` tracks `objectKey` internally so loading states, errors, and progress indicators stay scoped to the button matching the active key.
 
-```tsx
-const { download, cancel, progress, isDownloading } = useDownload({
-  route: "document",
-  mode: "fetch",
-});
+</Accordion>
 
-return (
-  <div>
-    <button onClick={() => download(documentKey)}>
-      {isDownloading ? `${progress.percent}%` : "Download"}
-    </button>
-    {isDownloading && <button onClick={cancel}>Cancel</button>}
-  </div>
-);
-```
+<Accordion title="How does useObjectUrl cache presigned URLs?">
+
+`useObjectUrl` caches signed URLs in memory indexed by route, key, disposition, and filename. The cached URL is returned instantly on subsequent renders until 15 seconds before its `expiresIn` TTL. Calling `refresh()` invalidates the cache and requests a fresh URL.
 
 </Accordion>
 

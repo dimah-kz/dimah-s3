@@ -3,7 +3,7 @@ title: Download Hooks
 description: Authorize and sign GET download URLs or proxy streams.
 ---
 
-Enable download operations with `download: true` or a configuration object on a [named route](/docs/server/routes).
+Enable download operations with `download: true` or a `DownloadConfig` object on a [named route](/docs/server/routes).
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -28,6 +28,8 @@ export const s3 = dimahS3({
 });
 ```
 
+---
+
 ## Download lifecycle flow
 
 <Flow
@@ -46,7 +48,9 @@ export const s3 = dimahS3({
 
 ---
 
-## Download guard context
+## Type reference
+
+### DownloadGuardContext
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
@@ -55,11 +59,20 @@ export const s3 = dimahS3({
 
 ---
 
-## Download onPresigned context
+### DownloadOnPresignedContext
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="DownloadOnPresignedContext"
+/>
+
+---
+
+### DownloadResolveInfo
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DownloadResolveInfo"
 />
 
 ## Frequently asked questions

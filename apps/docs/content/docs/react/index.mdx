@@ -1,48 +1,21 @@
 ---
 title: Introduction
-description: Headless React client for S3 upload, download, and delete.
+description: Headless React client for S3 upload, download, and delete flows.
 icon: Atom
 ---
 
-[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is a
-standalone, headless S3 client for React. It handles file intake, progress,
-retry, cancel, and multipart. You build the UI.
+[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is a headless S3 client for React. It manages file intake, validation, progress tracking, retry, cancellation, and multipart transfers — leaving full UI control to you.
 
-Like [Uppy AWS S3](https://uppy.io/docs/aws-s3/), it works as a standalone
-client. It is also the React client used by dimah-s3.
+Upload and download streams run directly between the browser and the bucket, keeping credentials secure on the server.
 
-Upload and download go straight between the browser and the bucket.
-Credentials stay on the server.
+## Key features
 
-<Flow
-  label="Presign-first"
-  steps={[
-    { name: "Browser", kind: "client", note: "asks for a URL" },
-    { name: "Server", kind: "server", note: "signs and runs hooks" },
-    { name: "Bucket", kind: "s3", note: "receives the bytes" },
-  ]}
-/>
-
-<Accordions>
-<Accordion title="Upload, download, and delete">
-
-Upload and download are presigned — the hooks talk to the bucket with a
-short-lived URL. Multipart is part of upload.
-
-<Callout title="Delete is not presigned">
-  `useDelete` calls your API. The server removes the object. The browser never
-  talks to the bucket for this step.
-</Callout>
-
-</Accordion>
-</Accordions>
-
-## What you get
-
-- Headless — behavior and state without markup
-- Standalone — works with any backend through `S3Api`
-- Full flows — upload, multipart, download, and delete
-- Optional UI — ready-made [shadcn controls](/docs/react/ui)
+- **Headless architecture** — Full state management and accessible DOM props without imposing markup or styles.
+- **Direct-to-bucket transfers** — Fast, signed uploads and downloads that bypass your application server.
+- **Multipart support** — Automatic chunking for large files with resumable state via `UploadStore`.
+- **Automatic constraint sync** — Infers file size and MIME type constraints directly from server route definitions.
+- **Ready-made UI** — Optional accessible [shadcn components](/docs/react/ui) for instant drop-in controls.
+- **Backend agnostic** — Works seamlessly with `@dimah-s3/server` or any custom API implementing `S3Api`.
 
 ## Documentation
 
@@ -50,41 +23,41 @@ short-lived URL. Multipart is part of upload.
   <Card
     title="Setup"
     href="/docs/react/setup"
-    description="Connect S3Api and use your first hook."
+    description="Initialize createS3Client, configure S3Provider, and call your first hook."
   />
   <Card
     title="Upload"
     href="/docs/react/hooks/upload"
-    description="useUpload — one hook for one file or many."
+    description="useUpload — single and multi-file uploads with progress tracking."
   />
   <Card
     title="Download"
     href="/docs/react/hooks/download"
-    description="useDownload — navigate or fetch."
+    description="useDownload — direct downloads and progress streams."
   />
   <Card
     title="Delete"
     href="/docs/react/hooks/delete"
-    description="useDelete — confirm, then remove."
+    description="useDelete — confirm and remove objects through your API."
   />
   <Card
-    title="UI"
+    title="UI Components"
     href="/docs/react/ui"
-    description="Optional shadcn buttons and dropzones on these hooks."
+    description="Ready-made shadcn buttons and dropzones built on these hooks."
   />
   <Card
-    title="Upload store"
+    title="Upload Store"
     href="/docs/react/upload-store"
-    description="Resume multipart uploads after a refresh."
+    description="Persist and resume in-progress multipart uploads across page reloads."
   />
   <Card
     title="Helpers"
     href="/docs/react/helpers"
-    description="Progress text, file size, and validation."
+    description="Pure utilities for progress formatting, file sizing, and validation."
   />
   <Card
-    title="Bring your own backend"
+    title="Custom Backend"
     href="/docs/react/custom-backend"
-    description="Connect the hooks to your existing API."
+    description="Connect the headless hooks to any existing REST or RPC backend."
   />
 </Cards>

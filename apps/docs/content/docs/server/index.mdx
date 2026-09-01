@@ -1,83 +1,52 @@
 ---
-title: Server Overview
+title: Introduction
 description: Backend handlers, route policies, and lifecycle hooks for S3 file flows.
 icon: Server
 ---
 
-[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the backend engine for dimah-s3. It manages signed URLs, enforces route constraints, authorizes requests through guards, and triggers lifecycle callbacks.
+[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the backend engine for dimah-s3. It generates presigned URLs, enforces route constraints, authorizes requests through guards, and coordinates lifecycle callbacks.
 
-## Server architecture
+Upload and download operate directly between the client and the bucket via short-lived signed URLs. S3 credentials remain on the server, while deletion is handled securely server-side.
 
-<Flow
-  label="Server-managed presign flow"
-  steps={[
-    { name: "Browser", kind: "client", note: "requests operation on route" },
-    {
-      name: "Server",
-      kind: "server",
-      note: "runs guards, signs URL / runs S3 op",
-    },
-    { name: "S3 Storage", kind: "s3", note: "stores or serves file bytes" },
-  ]}
-/>
+## Key features
 
-- **Upload & Download**: Presigned URLs (direct client-to-bucket transfer).
-- **Deletion**: Handled securely on the server via `DeleteObjectCommand`.
+- **Unified configuration** — `dimahS3()` exports both an HTTP route handler and a typed server-side `api`.
+- **Server-owned keys** — Keys follow `{keyPrefix}/{uuid}/{name}` namespaces to prevent bucket tampering.
+- **HeadObject verification** — Real file sizes and MIME types are verified directly from S3 on upload confirmation.
+- **Lifecycle hooks** — Inject auth, database records, or quota checks at presign, confirmation, and deletion.
+- **Universal adapters** — Native handlers for Next.js, Hono, Express, Fastify, SvelteKit, Elysia, and standard Fetch.
 
----
-
-## Core capabilities
-
-- **Single configuration**: `dimahS3()` exports both an HTTP route `handler` and a direct typed server `api`.
-- **Lifecycle hooks**: Inject auth, database logging, or quota checks at presign, confirmation, and deletion.
-- **HeadObject verification**: Real file sizes and MIME headers are confirmed from S3 before committing to databases.
-- **Zero-dependency adapters**: Built-in handlers for Next.js, Hono, Express, Fastify, SvelteKit, Elysia, and standard Fetch.
-
----
-
-## Server documentation
+## Documentation
 
 <Cards>
   <Card
     title="Setup & Adapters"
     href="/docs/server/setup"
-    description="Mount the route handler in Next.js, Express, Hono, etc."
+    description="Install and mount route handlers across modern runtimes."
   />
   <Card
     title="Route Definitions"
     href="/docs/server/routes"
-    description="Define routes, constraints, namespaces, and operations."
+    description="Configure routes, file constraints, operations, and key prefixes."
   />
   <Card
     title="Security & Auth"
     href="/docs/server/security"
-    description="Key generation, access control, and HeadObject validation."
+    description="Guards, key isolation, tenant scoping, and metadata validation."
   />
   <Card
     title="Error Handling"
     href="/docs/server/errors"
-    description="Error codes and APIError handling."
+    description="APIError structure, error codes, and client mapping."
   />
   <Card
     title="Lifecycle Hooks"
     href="/docs/server/hooks/upload"
-    description="Upload, Download, Delete, and Multipart lifecycle hooks."
+    description="Presign, confirmation, download, and delete lifecycle events."
   />
   <Card
     title="Plugins"
     href="/docs/server/plugins"
-    description="Extend server functionality with definePlugin."
+    description="Extend server capabilities with plugins like @dimah-s3/db."
   />
 </Cards>
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="Can I call S3 actions directly from Server Actions without HTTP?">
-
-Yes. Use `s3.api` (e.g. `s3.api.download({ query: { route: 'avatar', key } })` or `s3.put({ route: 'avatar', ... })`).
-
-</Accordion>
-
-</Accordions>

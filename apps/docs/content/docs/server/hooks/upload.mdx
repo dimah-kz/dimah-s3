@@ -3,7 +3,7 @@ title: Upload Hooks
 description: Presign, authorize, confirm, and persist verified upload metadata.
 ---
 
-Enable on a [named route](/docs/server/routes) with `upload: true` or a configuration object.
+Enable upload operations on a [named route](/docs/server/routes) with `upload: true` or an `UploadConfig` object.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -24,13 +24,19 @@ export const s3 = dimahS3({
           if (!session) throw errors.unauthorized();
         },
         onConfirmed: async ({ key, contentLength, request }) => {
-          // Persist verified file metadata in database
+          const session = await getSession(request);
+          await db.user.update({
+            where: { id: session.userId },
+            data: { avatarKey: key, avatarSize: contentLength },
+          });
         },
       },
     }),
   },
 });
 ```
+
+---
 
 ## Upload lifecycle flow
 
@@ -56,7 +62,9 @@ export const s3 = dimahS3({
 
 ---
 
-## Guard context
+## Type reference
+
+### UploadGuardContext
 
 Runs after `upload.object` assigns the key (and after global / route guards).
 
@@ -67,13 +75,35 @@ Runs after `upload.object` assigns the key (and after global / route guards).
 
 ---
 
-## OnConfirmed context
+### UploadOnConfirmedContext
 
 Runs after `HeadObject` validates the uploaded file size and content type.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="UploadOnConfirmedContext"
+/>
+
+---
+
+### UploadConfirmGuardContext
+
+Runs before `HeadObject` when confirming single-shot uploads or completing multipart uploads.
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadConfirmGuardContext"
+/>
+
+---
+
+### UploadObjectContext
+
+Input passed to `upload.object` to generate custom destination keys and metadata.
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadObjectContext"
 />
 
 ## Frequently asked questions

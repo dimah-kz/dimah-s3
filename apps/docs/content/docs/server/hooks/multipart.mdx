@@ -3,7 +3,7 @@ title: Multipart Hooks
 description: Large-file multipart upload lifecycle, part authorization, and assembly.
 ---
 
-Enable multipart support on large-file routes by setting `upload.multipart: true`.
+Enable multipart support on large-file routes by setting `upload.multipart: true` or passing a `MultipartConfig` object.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -29,6 +29,8 @@ export const s3 = dimahS3({
 });
 ```
 
+---
+
 ## Multipart lifecycle flow
 
 <Flow
@@ -45,16 +47,49 @@ export const s3 = dimahS3({
 
 ---
 
-## Multipart hook contexts
+## Type reference
+
+### MultipartConfig
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="MultipartConfig"
+/>
+
+---
+
+### MultipartOnInitContext
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartOnInitContext"
 />
 
+---
+
+### MultipartGuardContext
+
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
   name="MultipartGuardContext"
+/>
+
+---
+
+### MultipartOnAbortContext
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="MultipartOnAbortContext"
+/>
+
+---
+
+### MultipartOnListContext
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="MultipartOnListContext"
 />
 
 ## Frequently asked questions

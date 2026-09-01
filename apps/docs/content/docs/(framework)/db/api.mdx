@@ -36,15 +36,12 @@ const pending = await s3.db.objects.findPendingMultipart({
 });
 ```
 
-| Method                 | Purpose                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| `listByScope`          | List for a scope — `active` by default; `route`, `contentType`, `prefix`, `cursor` |
-| `countByScope`         | Count with the same filters as `listByScope`                                       |
-| `getScopeUsage`        | Total bytes and count — quota checks                                               |
-| `find`                 | One row by `bucket` + `key` (any status)                                           |
-| `findByScopeKey`       | One row for a scope + key                                                          |
-| `findActive`           | One row — only `active`                                                            |
-| `findPendingMultipart` | Multipart resume lookup                                                            |
+### StorageObjectStore
+
+<AutoTypeTable
+  path="packages/db/src/store/storage-object-store.ts"
+  name="StorageObjectStore"
+/>
 
 To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
 [delete behavior](/docs/db/setup#delete-behavior).

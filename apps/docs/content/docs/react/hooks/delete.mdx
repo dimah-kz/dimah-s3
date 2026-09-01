@@ -1,11 +1,11 @@
 ---
 title: useDelete
-description: Headless hook for single, batch, and confirmation-driven object deletion.
+description: Headless React hook for single, batch, and confirmation-driven object deletion.
 ---
 
-`useDelete` coordinates object deletion with optional two-step confirmation flows.
+`useDelete` coordinates object deletion with your server API, featuring built-in support for confirmation dialog flows, single-step deletion, and batch operations.
 
-```tsx
+```tsx title="components/delete-avatar.tsx"
 "use client";
 
 import { useDelete } from "@dimah-s3/react";
@@ -20,61 +20,98 @@ export function DeleteAvatar({ avatarKey }: { avatarKey: string }) {
   } = useDelete({
     route: "avatar",
     onSuccess: (key) => {
-      console.log("Deleted key:", key);
+      console.log("Deleted avatar key:", key);
     },
   });
 
   if (isConfirming) {
     return (
       <div className="flex items-center gap-2">
-        <span>Are you sure?</span>
-        <button onClick={() => void confirmDelete()} disabled={isDeleting}>
-          Confirm
+        <span className="text-sm">Delete avatar?</span>
+        <button
+          type="button"
+          onClick={() => void confirmDelete()}
+          disabled={isDeleting}
+          className="text-destructive font-medium"
+        >
+          {isDeleting ? "Deleting…" : "Confirm"}
         </button>
-        <button onClick={cancelDelete}>Cancel</button>
+        <button type="button" onClick={cancelDelete}>
+          Cancel
+        </button>
       </div>
     );
   }
 
   return (
-    <button onClick={() => requestDelete(avatarKey)}>Delete Avatar</button>
+    <button type="button" onClick={() => requestDelete(avatarKey)}>
+      Delete Avatar
+    </button>
   );
 }
 ```
 
 ---
 
-## One-step deletion
+## Deletion workflows
 
-If your UI handles confirmation with its own modal or skips confirmation:
+### 1. Two-step confirmation flow
+
+Use `requestDelete(key)` to enter the `confirming` state for that specific key. This keeps the pending key in state until the user approves (`confirmDelete()`) or cancels (`cancelDelete()`).
 
 ```tsx
-const { remove, removeMany } = useDelete({ route: "avatar" });
+const { isConfirming, requestDelete, confirmDelete, cancelDelete } = useDelete({
+  route: "avatar",
+});
+```
 
-// Single object removal
+### 2. Immediate deletion (`remove`)
+
+If your UI manages its own modal dialog or requires direct execution without internal confirmation state, call `remove(key)`:
+
+```tsx
+const { remove, isDeleting } = useDelete({ route: "avatar" });
+
 await remove(avatarKey);
+```
 
-// Batch object removal
-await removeMany([avatarKey1, avatarKey2]);
+### 3. Batch deletion (`removeMany`)
+
+Delete multiple keys in a single request via S3 `DeleteObjects`:
+
+```tsx
+const { removeMany } = useDelete({ route: "avatar" });
+
+await removeMany([key1, key2, key3]);
 ```
 
 ---
 
-## Options reference
+## Type reference
 
-| Option      | Default | Description                                              |
-| ----------- | ------- | -------------------------------------------------------- |
-| `route`     | —       | Required. Named server route (`dimahS3({ routes })`)     |
-| `onSuccess` | —       | Callback on successful deletion: `(key: string) => void` |
-| `onError`   | —       | Callback on failure with typed `APIError`                |
+### UseDeleteOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-delete.ts"
+  name="UseDeleteOptions"
+/>
+
+---
+
+### UseDeleteReturn
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-delete.ts"
+  name="UseDeleteReturn"
+/>
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do I ensure only the owner can delete an avatar?">
+<Accordion title="How do I ensure only the object owner can delete it?">
 
-Authorization runs on the server in `delete.guard`:
+Authorization runs securely on your server in `delete.guard`:
 
 ```ts title="lib/s3.ts"
 avatar: route({
@@ -86,15 +123,18 @@ avatar: route({
       const isOwner = await checkOwnership(session.userId, key);
       if (!isOwner) throw errors.forbidden();
     },
+    onDeleted: async ({ key, request }) => {
+      // Database record cleanup
+    },
   },
 });
 ```
 
 </Accordion>
 
-<Accordion title="How do I reset delete state after an error?">
+<Accordion title="How do I clear error states after a failed deletion?">
 
-Call `reset()` from the hook:
+Call `reset()` to return the hook back to the `idle` phase:
 
 ```tsx
 const { reset, error } = useDelete({ route: "avatar" });
@@ -102,8 +142,10 @@ const { reset, error } = useDelete({ route: "avatar" });
 if (error) {
   return (
     <div>
-      <p>Error: {error.message}</p>
-      <button onClick={reset}>Try Again</button>
+      <p className="text-destructive">{error.message}</p>
+      <button type="button" onClick={reset}>
+        Try Again
+      </button>
     </div>
   );
 }

@@ -45,20 +45,6 @@ export const s3 = dimahS3({
 });
 ```
 
-### Options reference
-
-| Option         | Default     | Description                                                                   |
-| -------------- | ----------- | ----------------------------------------------------------------------------- |
-| `client`       | —           | AWS SDK `S3Client` instance (required unless set per-route)                   |
-| `bucket`       | —           | Target bucket name (required unless set per-route)                            |
-| `routes`       | —           | Map of named route configs — see [Routes](/docs/server/routes)                |
-| `basePath`     | `"/api/s3"` | Route prefix (must match client `basePath`)                                   |
-| `guard`        | —           | Global auth/policy hook — see [Global Guard](/docs/server/hooks/global-guard) |
-| `plugins`      | —           | Optional plugins such as [`db()`](/docs/db)                                   |
-| `maxExpiresIn` | `604800`    | Maximum expiration clamp for signed URLs (7 days)                             |
-| `logger`       | `console`   | Logger instance (`false` to silence)                                          |
-| `onError`      | —           | Error callback for unhandled exceptions                                       |
-
 ---
 
 ## Mount route handler
@@ -217,6 +203,17 @@ await s3.put({
   headers: await headers(),
 });
 ```
+
+---
+
+## Type reference
+
+### DimahS3Config
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="DimahS3Config"
+/>
 
 ## Frequently asked questions
 

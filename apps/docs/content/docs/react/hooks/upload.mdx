@@ -3,9 +3,9 @@ title: useUpload
 description: Headless React hook for single and multi-file S3 uploads with progress and retries.
 ---
 
-`useUpload` manages the entire client-side upload lifecycle: file selection, validation, presigned URL requests, progress tracking, and confirmation.
+`useUpload` manages the complete client-side upload lifecycle: file selection, validation against server constraints, presigned URL acquisition, chunked progress tracking, and final server confirmation.
 
-```tsx
+```tsx title="components/avatar-uploader.tsx"
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
@@ -14,19 +14,21 @@ export function AvatarUploader() {
   const upload = useUpload({
     route: "avatar",
     onSuccess: (results) => {
-      console.log("Uploaded key:", results[0]?.key);
+      console.log("Uploaded object key:", results[0]?.key);
     },
   });
 
   return (
     <div
       {...upload.getRootProps()}
-      className="border p-4 rounded text-center cursor-pointer"
+      className="border border-dashed p-6 rounded-lg text-center cursor-pointer hover:border-primary transition-colors"
     >
       <input {...upload.getInputProps()} />
-      {upload.isUploading
-        ? `Uploading: ${upload.progress.percent}%`
-        : "Drop an avatar image or click to choose"}
+      {upload.isUploading ? (
+        <p className="text-sm font-medium">Uploading: {upload.progress.percent}%</p>
+      ) : (
+        <p className="text-sm text-muted-foreground">Click or drop avatar here</p>
+      )}
     </div>
   );
 }
@@ -34,57 +36,83 @@ export function AvatarUploader() {
 
 ---
 
-## Multi-file uploads
+## File selection and intake
 
-Set `maxFiles` to allow multiple file selections:
+`useUpload` provides native bindings for drag-and-drop surfaces and file input elements:
+
+- **`getRootProps()`**: Spread onto your container element to bind drag-and-drop and click-to-browse handlers.
+- **`getInputProps()`**: Spread onto a hidden `<input type="file" />`.
+- **`open()`**: Programmatically trigger the OS file dialog from a custom button.
+- **`handleFiles(files)`**: Manually submit `File`, `File[]`, or `FileList` (e.g. from clipboard paste, webcam capture, or canvas blob).
 
 ```tsx
-"use client";
+const upload = useUpload({
+  route: "avatar",
+  noClick: true, // Prevents container click from opening file picker
+});
 
-import { useUpload } from "@dimah-s3/react";
-import { UploadDropzone } from "@dimah-s3/ui";
-
-export function GalleryUploader() {
-  const upload = useUpload({
-    route: "gallery",
-    maxFiles: 5,
-    onSuccess: (results) => {
-      const keys = results.map((r) => r.key);
-      saveGalleryKeys(keys);
-    },
-  });
-
-  return <UploadDropzone upload={upload} />;
-}
+return (
+  <div {...upload.getRootProps()}>
+    <input {...upload.getInputProps()} />
+    <button type="button" onClick={() => upload.open()}>
+      Choose File
+    </button>
+  </div>
+);
 ```
 
 ---
 
-## Uploading files programmatically
+## Multi-file batch uploads
 
-If you already have a `File` object (e.g. from canvas, paste, or custom inputs):
+Set `maxFiles` to allow multiple file selections. You can control concurrency with `concurrentFiles`:
 
 ```tsx
-const upload = useUpload({ route: "avatar" });
-
-await upload.handleFiles(file); // accepts File, File[], or FileList
+const upload = useUpload({
+  route: "avatar",
+  maxFiles: 5,
+  concurrentFiles: 2,
+  onFileSuccess: (file, result) => {
+    console.log(`Uploaded ${file.name} to ${result.key}`);
+  },
+  onSuccess: (results) => {
+    console.log("All uploads completed:", results);
+  },
+});
 ```
 
 ---
 
-## Options reference
+## Progress and state tracking
 
-| Option          | Default | Description                                                                   |
-| --------------- | ------- | ----------------------------------------------------------------------------- |
-| `route`         | —       | Required. Named server route (`dimahS3({ routes })`)                          |
-| `maxFiles`      | `1`     | Maximum number of files per upload batch                                      |
-| `accept`        | Auto    | HTML accept filter (automatically populated from route catalog)               |
-| `maxFileSize`   | Auto    | Maximum file size in bytes (automatically populated from route catalog)       |
-| `onSuccess`     | —       | Callback when all files finish uploading: `(results: UploadResult[]) => void` |
-| `onFileSuccess` | —       | Callback per file: `(file: File, result: UploadResult) => void`               |
-| `onError`       | —       | Error callback with typed `APIError`                                          |
-| `checksum`      | Auto    | Enable SHA-256 client hashing before upload                                   |
-| `uploadStore`   | —       | Optional store to persist in-progress uploads across reloads                  |
+The hook surfaces detailed reactive state for UI rendering:
+
+- **`phase`**: Current upload phase (`idle` | `validating` | `presigning` | `uploading` | `finalizing` | `success` | `error`).
+- **`progress`**: Aggregate progress object containing `loaded`, `total`, `percent`, and instantaneous `speed` (bytes/sec).
+- **`files`**: Per-file state array containing individual progress, status (`pending`, `uploading`, `success`, `error`), and `previewUrl`.
+- **`file`**: Convenience shorthand for `files[0]` when `maxFiles` is 1.
+- **`isUploading`**: Boolean flag indicating active byte transfer (`phase === "uploading"`).
+- **`isPending`**: Boolean flag indicating in-flight operation from presign to confirmation.
+
+---
+
+## Type reference
+
+### UseUploadOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-upload.ts"
+  name="UseUploadOptions"
+/>
+
+---
+
+### UseUploadReturn
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-upload.ts"
+  name="UseUploadReturn"
+/>
 
 ## Frequently asked questions
 
@@ -92,23 +120,22 @@ await upload.handleFiles(file); // accepts File, File[], or FileList
 
 <Accordion title="How do I display a local image preview before uploading?">
 
-Use the `files` array from `upload` to generate object URLs for preview:
+Use `previewUrl` on individual items in the `upload.files` array or create an object URL from `upload.file`:
 
 ```tsx
 export function AvatarWithPreview() {
   const upload = useUpload({ route: "avatar" });
-  const activeFile = upload.files[0]?.file;
-  const previewUrl = activeFile ? URL.createObjectURL(activeFile) : null;
+  const preview = upload.file?.previewUrl;
 
   return (
     <div>
       <div {...upload.getRootProps()}>
         <input {...upload.getInputProps()} />
-        {previewUrl ? (
+        {preview ? (
           <img
-            src={previewUrl}
-            alt="Preview"
-            className="size-20 rounded-full"
+            src={preview}
+            alt="Selected avatar"
+            className="size-20 rounded-full object-cover"
           />
         ) : (
           <button type="button">Select avatar</button>
@@ -122,29 +149,39 @@ export function AvatarWithPreview() {
 
 </Accordion>
 
-<Accordion title="How do I trigger the file picker from a custom button?">
+<Accordion title="How do I pass custom metadata to the server on upload?">
 
-Call `upload.open()` to open the native OS file picker programmatically:
-
-```tsx
-<button type="button" onClick={() => upload.open()}>
-  Change Avatar
-</button>
-```
-
-</Accordion>
-
-<Accordion title="How do I pass custom metadata along with the upload?">
-
-Use `uploadOptions` or `getUploadOptions`:
+Pass static `uploadOptions` or a dynamic `getUploadOptions` function:
 
 ```tsx
 const upload = useUpload({
   route: "avatar",
-  uploadOptions: {
-    metadata: { source: "web-profile" },
-  },
+  getUploadOptions: (file) => ({
+    metadata: {
+      originalName: file.name,
+      uploadedAt: new Date().toISOString(),
+    },
+  }),
 });
+```
+
+</Accordion>
+
+<Accordion title="How do I pause, resume, or cancel in-flight uploads?">
+
+Use `cancel()` to abort the upload and clean up temporary parts, or `detach()` when an `uploadStore` is configured to pause for later resumption:
+
+```tsx
+const upload = useUpload({
+  route: "avatar",
+  uploadStore: localStorageStore,
+});
+
+// Abort immediately
+upload.cancel();
+
+// Soft-stop to resume on next visit
+upload.detach();
 ```
 
 </Accordion>

@@ -45,6 +45,8 @@ export const s3 = dimahS3({
 });
 ```
 
+---
+
 ## Combining operations
 
 Enable operations on the **same route** when they manage the same objects. For example, if users upload, view, and remove their avatars:
@@ -94,44 +96,35 @@ avatar: route({
 
 ---
 
-## Route options reference
+## Type reference
 
-<TypeTable
-  type={{
-    upload: {
-      type: "boolean | UploadConfig",
-      description:
-        "Enables upload. Configures fileTypes, maxFileSize, object, acl, method, expiresIn, and hooks.",
-    },
-    download: {
-      type: "boolean | DownloadConfig",
-      description:
-        "Enables download. Configures expiresIn (default 600s), disposition, mode (presign | proxy), and hooks.",
-    },
-    delete: {
-      type: "boolean | DeleteConfig",
-      description:
-        "Enables delete. Configures delete guards and cleanup hooks.",
-    },
-    keyPrefix: {
-      type: "string | false",
-      description:
-        "Route namespace prefix. Defaults to route name. Set false to disable bounding.",
-    },
-    guard: {
-      type: "(ctx) => Promise<void> | void",
-      description: "Guard hook running before any operation on this route.",
-    },
-    client: {
-      type: "S3Client",
-      description: "Override S3 client for this route.",
-    },
-    bucket: {
-      type: "string",
-      description: "Override S3 bucket for this route.",
-    },
-  }}
+### DimahS3RouteConfig
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="DimahS3RouteConfig"
 />
+
+---
+
+### UploadConfig
+
+<AutoTypeTable path="packages/server/src/types/config.ts" name="UploadConfig" />
+
+---
+
+### DownloadConfig
+
+<AutoTypeTable
+  path="packages/server/src/types/config.ts"
+  name="DownloadConfig"
+/>
+
+---
+
+### DeleteConfig
+
+<AutoTypeTable path="packages/server/src/types/config.ts" name="DeleteConfig" />
 
 ## Frequently asked questions
 
