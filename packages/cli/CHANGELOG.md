@@ -1,3 +1,9 @@
+## @dimah-s3/cli@1.4.0
+
+### Dismiss completed upload, download, and delete status
+
+Completed and failed attachment rows now include a dismiss action that returns the hook to idle, so status no longer stays on screen until a refresh.
+
 ## @dimah-s3/cli@1.3.0
 
 ### Use better-call `APIError`

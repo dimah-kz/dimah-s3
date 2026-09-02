@@ -1,30 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Use better-call `APIError`\n\nProtocol errors are `APIError` — the same class name as better-call and\nbetter-auth. `DimahS3Error` and `isDimahS3Error` are removed; detect with\n`isAPIError` or `isS3ErrorCode`. Throw `APIError.from(status, S3_ERROR_CODES.*)`\nor `errors.*` as before.\n"
-    filename: 2026-09-01-apierr.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Dismiss completed upload, download, and delete status\n\nCompleted and failed attachment rows now include a dismiss action that returns the hook to idle, so status no longer stays on screen until a refresh.\n"
+    filename: 2026-09-02-7c3a1e.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-01-apierr.md
+      - 2026-09-02-7c3a1e.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-01-apierr.md
+      - 2026-09-02-7c3a1e.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-01-apierr.md
+      - 2026-09-02-7c3a1e.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-01-apierr.md
+      - 2026-09-02-7c3a1e.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-01-apierr.md
+      - 2026-09-02-7c3a1e.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-01-apierr.md
+      - 2026-09-02-7c3a1e.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
