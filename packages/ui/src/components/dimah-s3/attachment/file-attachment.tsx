@@ -99,8 +99,7 @@ export function FileAttachment({
         : null);
 
   const inFlight = state === "uploading" || state === "processing";
-  const showInFlightActions =
-    inFlight && (onCancel != null || onPause != null);
+  const showInFlightActions = inFlight && (onCancel != null || onPause != null);
   const showDismiss =
     (state === "done" || state === "error") && onDismiss != null;
 

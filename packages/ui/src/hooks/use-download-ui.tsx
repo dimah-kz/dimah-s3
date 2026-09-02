@@ -54,9 +54,7 @@ export function useDownloadUi(
         <StatusAttachment
           state="error"
           title={t("Download failed", { note: "status" })}
-          description={
-            download.error ? formatError(download.error) : undefined
-          }
+          description={download.error ? formatError(download.error) : undefined}
           onDismiss={download.reset}
           {...layout}
         />

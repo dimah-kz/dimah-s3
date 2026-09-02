@@ -93,9 +93,7 @@ export function StatusAttachment({
       {actions || onDismiss ? (
         <AttachmentActions>
           {actions}
-          {onDismiss ? (
-            <DismissAttachmentAction onDismiss={onDismiss} />
-          ) : null}
+          {onDismiss ? <DismissAttachmentAction onDismiss={onDismiss} /> : null}
         </AttachmentActions>
       ) : null}
     </Attachment>
