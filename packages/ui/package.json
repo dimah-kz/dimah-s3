@@ -83,7 +83,7 @@
     "lucide-react": "^1.38.0",
     "react": "catalog:",
     "shadcn": "^4.19.1",
-    "tsc-alias": "^1.9.2",
+    "tsc-alias": "^1.9.3",
     "tsup": "catalog:",
     "tsx": "^4.23.13",
     "typescript": "catalog:"

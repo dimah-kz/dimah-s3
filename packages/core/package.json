@@ -50,7 +50,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "tsc-alias": "^1.9.2",
+    "tsc-alias": "^1.9.3",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

@@ -14,7 +14,7 @@
     "check-types": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1121.0",
+    "@aws-sdk/client-s3": "^3.1123.0",
     "@base-ui/react": "^1.7.0",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
