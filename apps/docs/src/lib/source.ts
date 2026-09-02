@@ -1,7 +1,7 @@
 import { docs } from "collections/server";
 import { type InferPageType, loader } from "fumadocs-core/source";
 import { lucideIconsPlugin } from "fumadocs-core/source/lucide-icons";
-import { docsContentRoute, docsImageRoute, docsRoute } from "./shared";
+import { docsImageRoute, docsRoute } from "./shared";
 import { getSiteUrl } from "./site-url";
 import { absolutizeMarkdownUrls, LLM_PAGE_PRIORITY } from "./llm-intro";
 
@@ -21,13 +21,9 @@ export function getPageImage(page: InferPageType<typeof source>) {
   };
 }
 
+/** Markdown twin of a docs page (`/docs/page.md`), per llmstxt.org. */
 export function getPageMarkdownUrl(page: InferPageType<typeof source>) {
-  const segments = [...page.slugs, "content.md"];
-
-  return {
-    segments,
-    url: `${docsContentRoute}/${segments.join("/")}`,
-  };
+  return { url: `${page.url}.md` };
 }
 
 export async function getLLMText(page: InferPageType<typeof source>) {

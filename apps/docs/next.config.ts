@@ -10,11 +10,29 @@ const nextConfig: NextConfig = {
     turbopackRustReactCompiler: true,
   },
   async headers() {
-    const cors = [{ key: "Access-Control-Allow-Origin", value: "*" }];
+    const cors = { key: "Access-Control-Allow-Origin", value: "*" };
+    const describedBy = {
+      key: "Link",
+      value: '</llms.txt>; rel="describedby"',
+    };
 
     return [
-      { source: "/llms.txt", headers: cors },
-      { source: "/llms-full.txt", headers: cors },
+      { source: "/", headers: [describedBy] },
+      { source: "/docs", headers: [describedBy] },
+      { source: "/docs/:path*", headers: [describedBy] },
+      { source: "/llms.txt", headers: [cors] },
+      { source: "/llms-full.txt", headers: [cors] },
+      { source: "/docs.md", headers: [cors, describedBy] },
+      { source: "/docs/:path*.md", headers: [cors, describedBy] },
+      { source: "/llms.mdx/:path*", headers: [cors, describedBy] },
+    ];
+  },
+  async rewrites() {
+    return [
+      { source: "/docs.md", destination: "/llms.mdx/docs" },
+      { source: "/docs.mdx", destination: "/llms.mdx/docs" },
+      { source: "/docs/:path*.md", destination: "/llms.mdx/docs/:path*" },
+      { source: "/docs/:path*.mdx", destination: "/llms.mdx/docs/:path*" },
     ];
   },
   async redirects() {

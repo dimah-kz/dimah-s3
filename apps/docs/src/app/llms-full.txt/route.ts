@@ -1,5 +1,5 @@
 import { getLLMText, orderPagesForLlms, source } from "@/lib/source";
-import { llmDecisionSheet } from "@/lib/llm-intro";
+import { llmDecisionSheet, llmMarkdownHeaders } from "@/lib/llm-intro";
 
 export const revalidate = false;
 
@@ -9,8 +9,6 @@ export async function GET() {
   const scanned = await Promise.all(scan);
 
   return new Response(`${llmDecisionSheet()}\n\n${scanned.join("\n\n")}`, {
-    headers: {
-      "Content-Type": "text/markdown; charset=utf-8",
-    },
+    headers: llmMarkdownHeaders,
   });
 }
