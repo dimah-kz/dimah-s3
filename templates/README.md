@@ -11,7 +11,7 @@ npx @dimah-s3/cli@latest create my-app
 | Templates (this folder) | `templates/<id>/` | Published `@dimah-s3/*` from npm (CLI snapshots + pins versions) |
 | Examples                | `examples/with-*` | Workspace packages (`workspace:*`) for local library development |
 
-Framework twins: `nextjs` ↔ `with-nextjs`, `vite` ↔ `with-vite`. Keep shared app source in sync (`pnpm examples:drift`). `templates/hono` has no example twin. `examples/with-db` is a separate DB demo.
+Framework twin: `nextjs` ↔ `with-nextjs`. Keep shared app source in sync (`pnpm examples:drift`). `templates/vite` and `templates/hono` have no example twins. `examples/with-db` is a separate DB demo.
 
 Do **not** treat these as library packages. They are outside the pnpm workspace. Starters must install cleanly with concrete npm ranges only (no `catalog:`, `workspace:*`, or `@workspace/*`).
 
@@ -47,5 +47,5 @@ npx @dimah-s3/cli@latest create my-app --template vite
 1. Create `templates/<id>/` as a self-contained app (concrete npm ranges only).
 2. Pin `@dimah-s3/*` to published semver ranges (e.g. `^0.4.1`) — the CLI snapshot rewrites them to `^<cliVersion>` on build.
 3. Add the id to [`catalog.json`](./catalog.json).
-4. For framework starters, add `examples/with-<id>/` (`workspace:*`) and run `pnpm examples:drift`.
+4. If the starter needs a monorepo demo, add `examples/with-<id>/` (`workspace:*`) and run `pnpm examples:drift`. Next.js is the only twin today; Vite and Hono stay template-only.
 5. Document the create one-liner in the template `README.md` and docs Quickstart.

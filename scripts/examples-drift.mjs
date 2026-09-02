@@ -1,6 +1,6 @@
 /**
  * Fail when shared app source drifts between templates/<id> and examples/with-<id>.
- * Framework examples mirror starters; with-db is intentionally separate (no template twin).
+ * Next.js example mirrors the starter; with-db is intentionally separate (no template twin).
  */
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -36,10 +36,7 @@ function shouldIgnoreName(name) {
   return false;
 }
 
-const PAIRS = [
-  { template: "nextjs", example: "with-nextjs" },
-  { template: "vite", example: "with-vite" },
-];
+const PAIRS = [{ template: "nextjs", example: "with-nextjs" }];
 
 /**
  * @param {string} dir

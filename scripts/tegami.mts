@@ -37,7 +37,6 @@ const paper = tegami({
     "@dimah-s3/registry",
     "@dimah-s3/example-with-db",
     "@dimah-s3/example-with-nextjs",
-    "@dimah-s3/example-with-vite",
     "@workspace/eslint-config",
     "@workspace/typescript-config",
   ],

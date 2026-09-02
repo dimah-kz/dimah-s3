@@ -38,7 +38,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --filter=dimah-s3...
 
       - name: Download preview
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: tegami-pr-preview
           run-id: ${{ github.event.workflow_run.id }}

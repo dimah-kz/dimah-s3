@@ -86,13 +86,13 @@ Templates stay outside the monorepo workspace. Root scripts:
 | `pnpm examples:drift`   | Shared app source must match `examples/with-*`    |
 | `pnpm deps:update`      | `pnpm -r update --latest` then `templates:update` |
 
-Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`. Framework template twins live in `examples/with-{nextjs,vite}`; keep shared source identical (`pnpm examples:drift`). `templates/hono` has no example twin. `examples/with-db` is not a template twin.
+Optional id filter: `pnpm templates:build -- nextjs`. Scripts live under `scripts/templates-*.mjs` and read ids from `templates/catalog.json`. The Next.js starter has an example twin at `examples/with-nextjs`; keep shared source identical (`pnpm examples:drift`). `templates/vite` and `templates/hono` have no example twins. `examples/with-db` is not a template twin.
 
 ## Adding a template
 
 1. Add `templates/<id>/` (self-contained; concrete npm ranges only — no `workspace:*` / `catalog:` / `@workspace/*`).
 2. Register it in `templates/catalog.json`.
-3. Add a matching `examples/with-<id>/` twin (`workspace:*`) when the starter is a primary framework demo, then run `pnpm examples:drift`.
+3. Add a matching `examples/with-<id>/` twin (`workspace:*`) only when the starter is a monorepo demo (today: Next.js), then run `pnpm examples:drift`.
 4. Document in `templates/README.md` and docs Quickstart if it is a primary starter.
 
 Interactive runs always show the Framework select (default / `initialValue`: first catalog entry — Next.js). Catalog starters today: `nextjs`, `vite`, `hono`. `--template`, `--yes`, and non-TTY sessions skip the prompt and use that default.
