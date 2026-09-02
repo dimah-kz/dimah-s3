@@ -19,6 +19,7 @@ import {
   AttachmentTitle,
 } from "@/components/ui/attachment";
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
+import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismiss-attachment-action";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
   ATTACHMENT_TITLE_CLASS,
@@ -57,6 +58,8 @@ export type FileAttachmentProps = {
   error?: string | APIError | null;
   onCancel?: () => void;
   onPause?: () => void;
+  /** Shown when `state` is `done` or `error`. Typically the hook `reset()`. */
+  onDismiss?: () => void;
   className?: string;
 };
 
@@ -71,6 +74,7 @@ export function FileAttachment({
   error,
   onCancel,
   onPause,
+  onDismiss,
   size = "sm",
   orientation = "horizontal",
   className,
@@ -94,9 +98,11 @@ export function FileAttachment({
         ? formatFileSize(fileSize)
         : null);
 
-  const showActions =
-    (state === "uploading" || state === "processing") &&
-    (onCancel != null || onPause != null);
+  const inFlight = state === "uploading" || state === "processing";
+  const showInFlightActions =
+    inFlight && (onCancel != null || onPause != null);
+  const showDismiss =
+    (state === "done" || state === "error") && onDismiss != null;
 
   const showProgressOverlay =
     state === "uploading" || state === "processing" || state === "idle";
@@ -159,9 +165,9 @@ export function FileAttachment({
           </AttachmentDescription>
         ) : null}
       </AttachmentContent>
-      {showActions ? (
+      {showInFlightActions || showDismiss ? (
         <AttachmentActions>
-          {onPause ? (
+          {showInFlightActions && onPause ? (
             <AttachmentAction
               aria-label={t("Pause", { note: "upload control" })}
               onClick={(e) => {
@@ -172,7 +178,7 @@ export function FileAttachment({
               <PauseIcon />
             </AttachmentAction>
           ) : null}
-          {onCancel ? (
+          {showInFlightActions && onCancel ? (
             <AttachmentAction
               aria-label={t("Cancel", { note: "upload control" })}
               onClick={(e) => {
@@ -182,6 +188,9 @@ export function FileAttachment({
             >
               <XIcon />
             </AttachmentAction>
+          ) : null}
+          {showDismiss && onDismiss ? (
+            <DismissAttachmentAction onDismiss={onDismiss} />
           ) : null}
         </AttachmentActions>
       ) : null}

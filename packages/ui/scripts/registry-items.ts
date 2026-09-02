@@ -15,6 +15,11 @@ const statusSupportFiles = [
     type: "registry:component",
     target: "@components/dimah-s3/attachment/status-attachment.tsx",
   },
+  {
+    path: "components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+    type: "registry:component",
+    target: "@components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+  },
   layoutLibFile,
   {
     path: "lib/file-type-icon.tsx",
@@ -110,6 +115,11 @@ const attachmentFiles = [
     path: "components/dimah-s3/attachment/circle-progress.tsx",
     type: "registry:component",
     target: "@components/dimah-s3/attachment/circle-progress.tsx",
+  },
+  {
+    path: "components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+    type: "registry:component",
+    target: "@components/dimah-s3/attachment/dismiss-attachment-action.tsx",
   },
   layoutLibFile,
   {

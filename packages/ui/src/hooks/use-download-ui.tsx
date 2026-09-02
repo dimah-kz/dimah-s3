@@ -14,9 +14,9 @@ export type UseDownloadUiOptions = AttachmentLayoutAliases & {
 };
 
 /**
- * Toasts + error status for a `useDownload` return.
+ * Toasts + success/error status for a `useDownload` return.
  * Status only renders for the matching `objectKey` so a list can share
- * one hook instance.
+ * one hook instance. Dismiss calls `download.reset()`.
  */
 export function useDownloadUi(
   download: UseDownloadReturn,
@@ -39,17 +39,43 @@ export function useDownloadUi(
   const t = useTranslations();
   const formatError = useFormatDimahError();
   const isThis = download.objectKey === objectKey;
+  const layout = {
+    size: attachmentSize,
+    orientation: attachmentOrientation,
+  };
 
-  const statusNode =
-    !isThis || download.phase !== "error" ? null : (
-      <StatusAttachment
-        state="error"
-        title={t("Download failed", { note: "status" })}
-        description={download.error ? formatError(download.error) : undefined}
-        size={attachmentSize}
-        orientation={attachmentOrientation}
-      />
-    );
+  if (!isThis) {
+    return { statusNode: null };
+  }
 
-  return { statusNode };
+  if (download.phase === "error") {
+    return {
+      statusNode: (
+        <StatusAttachment
+          state="error"
+          title={t("Download failed", { note: "status" })}
+          description={
+            download.error ? formatError(download.error) : undefined
+          }
+          onDismiss={download.reset}
+          {...layout}
+        />
+      ),
+    };
+  }
+
+  if (download.phase === "success") {
+    return {
+      statusNode: (
+        <StatusAttachment
+          state="done"
+          title={t("Download complete", { note: "status" })}
+          onDismiss={download.reset}
+          {...layout}
+        />
+      ),
+    };
+  }
+
+  return { statusNode: null };
 }

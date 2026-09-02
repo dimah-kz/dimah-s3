@@ -24,6 +24,8 @@ export type UploadFileStatusProps = AttachmentLayoutProps & {
   onCancel?: () => void;
   /** When set (typically with an `uploadStore`), shows a pause control. */
   onPause?: () => void;
+  /** Clears a completed or failed row. Typically `upload.reset`. */
+  onDismiss?: () => void;
   className?: string;
 };
 
@@ -34,6 +36,7 @@ export function UploadFileStatus({
   file,
   onCancel,
   onPause,
+  onDismiss,
   size,
   orientation,
   className,
@@ -76,6 +79,7 @@ export function UploadFileStatus({
         fileSize={file.size}
         fileType={file.type}
         previewUrl={file.previewUrl}
+        onDismiss={onDismiss}
         {...layout}
       />
     );
@@ -91,6 +95,7 @@ export function UploadFileStatus({
           fileType={file.type}
           previewUrl={file.previewUrl}
           error={errorText}
+          onDismiss={onDismiss}
           {...layout}
         />
       );
@@ -101,6 +106,7 @@ export function UploadFileStatus({
         state="error"
         title={t("Upload failed", { note: "status" })}
         description={errorText ?? undefined}
+        onDismiss={onDismiss}
         {...layout}
       />
     );
@@ -164,6 +170,7 @@ export function UploadStatus({
   };
   const onCancel = upload.cancel;
   const onPause = upload.resumable ? upload.detach : undefined;
+  const onDismiss = upload.reset;
 
   if (upload.files.length > 1) {
     return (
@@ -183,6 +190,7 @@ export function UploadStatus({
       file={upload.file}
       onCancel={onCancel}
       onPause={onPause}
+      onDismiss={onDismiss}
       {...layout}
     />
   );

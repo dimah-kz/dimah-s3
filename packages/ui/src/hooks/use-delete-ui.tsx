@@ -16,7 +16,7 @@ export type UseDeleteUiOptions = AttachmentLayoutAliases & {
 /**
  * Toasts + success/error status for a `useDelete` return.
  * Status only renders for the matching `objectKey` so a list can share
- * one hook instance.
+ * one hook instance. Dismiss calls `delete.reset()`.
  */
 export function useDeleteUi(
   del: UseDeleteReturn,
@@ -46,6 +46,7 @@ export function useDeleteUi(
           note: "status",
           variables: { name: truncateFileName(displayName) },
         })}
+        onDismiss={del.reset}
         size={attachmentSize}
         orientation={attachmentOrientation}
       />
@@ -54,6 +55,7 @@ export function useDeleteUi(
         state="error"
         title={t("Delete failed", { note: "status" })}
         description={del.error ? formatError(del.error) : undefined}
+        onDismiss={del.reset}
         size={attachmentSize}
         orientation={attachmentOrientation}
       />

@@ -78,6 +78,12 @@ import type { DeleteButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
+<Accordion title="How do I dismiss the status row after delete?">
+
+Completed and failed attachments include a dismiss control that calls `reset()` on the `useDelete` return. You can also call `reset()` yourself.
+
+</Accordion>
+
 <Accordion title="How do I customize the confirmation dialog text?">
 
 Use `title` and `description` props:

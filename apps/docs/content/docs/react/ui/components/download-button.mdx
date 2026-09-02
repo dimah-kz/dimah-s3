@@ -77,6 +77,12 @@ import type { DownloadButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
+<Accordion title="How do I dismiss the status row after download?">
+
+Completed (fetch mode) and failed attachments include a dismiss control that calls `download.reset()`. You can also call `reset()` yourself.
+
+</Accordion>
+
 <Accordion title="Can multiple list items share a single useDownload hook?">
 
 Yes. `useDownload` tracks `objectKey` internally so loading states and status toasts only affect the button matching the active key.

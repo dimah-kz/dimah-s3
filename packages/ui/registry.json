@@ -51,6 +51,11 @@
           "target": "@components/dimah-s3/attachment/circle-progress.tsx"
         },
         {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
           "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
@@ -140,6 +145,11 @@
           "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
         },
         {
           "path": "src/lib/attachment-layout.ts",
@@ -239,6 +249,11 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
           "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
@@ -305,6 +320,11 @@
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
         },
         {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
           "path": "src/lib/attachment-layout.ts",
           "type": "registry:lib",
           "target": "@lib/attachment-layout.ts"
@@ -369,6 +389,11 @@
           "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
         },
         {
           "path": "src/lib/attachment-layout.ts",
@@ -441,6 +466,11 @@
           "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
         },
         {
           "path": "src/lib/attachment-layout.ts",

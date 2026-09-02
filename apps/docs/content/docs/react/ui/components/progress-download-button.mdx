@@ -71,6 +71,12 @@ import type { ProgressDownloadButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
+<Accordion title="How do I dismiss the status row after download?">
+
+Completed and failed attachments include a dismiss control that calls `download.reset()`. You can also call `reset()` yourself.
+
+</Accordion>
+
 <Accordion title="How does cancellation work?">
 
 Clicking the button while an active download is in progress immediately aborts the underlying fetch stream and resets the button state.

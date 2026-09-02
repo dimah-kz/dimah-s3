@@ -73,6 +73,12 @@ import type { UploadButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
+<Accordion title="How do I dismiss the status row after upload?">
+
+Completed and failed attachments include a dismiss control that calls `upload.reset()`. You can also call `reset()` yourself.
+
+</Accordion>
+
 <Accordion title="How do I disable the inline attachment status list?">
 
 Pass `status={false}`:

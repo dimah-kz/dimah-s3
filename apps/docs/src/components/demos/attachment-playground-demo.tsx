@@ -55,6 +55,7 @@ export function AttachmentPlaygroundDemo({ code }: Props) {
   const layout = { size, orientation };
   const uploading = state === "uploading";
   const canCancel = uploading || state === "processing";
+  const canDismiss = state === "done" || state === "error";
   const statusState = state === "idle" ? "processing" : state;
 
   const toolbar = (
@@ -97,6 +98,7 @@ export function AttachmentPlaygroundDemo({ code }: Props) {
         percent={uploading ? 64 : 0}
         error={state === "error" ? "Network error" : null}
         onCancel={canCancel ? () => setState("done") : undefined}
+        onDismiss={canDismiss ? () => setState("idle") : undefined}
       />
       <FileAttachment
         {...layout}
@@ -107,11 +109,13 @@ export function AttachmentPlaygroundDemo({ code }: Props) {
         previewUrl={PREVIEW}
         percent={uploading ? 42 : 0}
         error={state === "error" ? "Network error" : null}
+        onDismiss={canDismiss ? () => setState("idle") : undefined}
       />
       <StatusAttachment
         {...layout}
         state={statusState}
         {...STATUS[statusState]}
+        onDismiss={canDismiss ? () => setState("idle") : undefined}
       />
     </div>
   );

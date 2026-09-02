@@ -39,9 +39,11 @@ function previewFromFile(file: File) {
 function DemoObjectRow({
   object,
   onDeleted,
+  onDismiss,
 }: {
   object: DemoObject;
   onDeleted: () => void;
+  onDismiss: () => void;
 }) {
   const download = useDownload({ route: "avatar", mode: "fetch" });
   const del = useDelete({ route: "avatar", onSuccess: onDeleted });
@@ -58,6 +60,7 @@ function DemoObjectRow({
         fileSize={object.size}
         fileType={object.type}
         previewUrl={object.previewUrl}
+        onDismiss={onDismiss}
       />
       <div
         className={cn("flex flex-wrap items-center gap-2", reveal, "delay-100")}
@@ -89,7 +92,6 @@ function DemoObjectRow({
 export function HomeDropzoneDemo() {
   const [object, setObject] = useState<DemoObject | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [failed, setFailed] = useState(false);
   const keyRef = useRef<string | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
@@ -114,8 +116,6 @@ export function HomeDropzoneDemo() {
     };
   }, []);
 
-  const idle = object == null && !uploading && !failed;
-
   const upload = useUpload({
     route: "avatar",
     accept: ["image/*"],
@@ -123,13 +123,11 @@ export function HomeDropzoneDemo() {
     maxFileSize: 5 * 1024 * 1024,
     onUploadStart: () => {
       setUploading(true);
-      setFailed(false);
       replaceObject(null);
     },
     onFileSuccess: (file, result) => {
       rememberDemoFile(result.key, file);
       setUploading(false);
-      setFailed(false);
       replaceObject({
         key: result.key,
         name: file.name,
@@ -140,13 +138,14 @@ export function HomeDropzoneDemo() {
     },
     onError: () => {
       setUploading(false);
-      setFailed(true);
     },
     onCancel: () => {
       setUploading(false);
-      setFailed(false);
     },
   });
+
+  const failed = upload.phase === "error";
+  const idle = object == null && !uploading && !failed;
 
   return (
     <>
@@ -160,6 +159,10 @@ export function HomeDropzoneDemo() {
               <DemoObjectRow
                 object={object}
                 onDeleted={() => replaceObject(null)}
+                onDismiss={() => {
+                  replaceObject(null);
+                  upload.reset();
+                }}
               />
             );
           }

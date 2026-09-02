@@ -15,7 +15,9 @@ export type Translations = {
   "Delete file?(dialog title)": string;
   "Delete(button)": string;
   "Delete(dialog confirm)": string;
+  "Dismiss(attachment action)": string;
   "Download cancelled(toast)": string;
+  "Download complete(status)": string;
   "Download complete(toast)": string;
   "Download failed(status)": string;
   "Download failed(toast)": string;

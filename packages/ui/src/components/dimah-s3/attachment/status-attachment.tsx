@@ -14,6 +14,7 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from "@/components/ui/attachment";
+import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismiss-attachment-action";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
   ATTACHMENT_TITLE_CLASS,
@@ -33,6 +34,8 @@ export type StatusAttachmentProps = {
   description?: ReactNode;
   media?: ReactNode;
   actions?: ReactNode;
+  /** Dismiss control in `AttachmentActions`. Typically the hook `reset()`. */
+  onDismiss?: () => void;
   className?: string;
 };
 
@@ -46,6 +49,7 @@ export function StatusAttachment({
   description,
   media,
   actions,
+  onDismiss,
   size = "sm",
   orientation = "horizontal",
   className,
@@ -86,7 +90,14 @@ export function StatusAttachment({
           </AttachmentDescription>
         ) : null}
       </AttachmentContent>
-      {actions ? <AttachmentActions>{actions}</AttachmentActions> : null}
+      {actions || onDismiss ? (
+        <AttachmentActions>
+          {actions}
+          {onDismiss ? (
+            <DismissAttachmentAction onDismiss={onDismiss} />
+          ) : null}
+        </AttachmentActions>
+      ) : null}
     </Attachment>
   );
 }

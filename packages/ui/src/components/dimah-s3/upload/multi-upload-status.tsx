@@ -111,6 +111,7 @@ export function MultiUploadStatus({
             note: "status",
             variables: { count: String(files.length) },
           })}
+          onDismiss={upload.reset}
           {...layout}
         />
         <FileList files={files} {...layout} />
@@ -125,6 +126,7 @@ export function MultiUploadStatus({
           state="error"
           title={t("Upload failed", { note: "status" })}
           description={errorText ?? undefined}
+          onDismiss={upload.reset}
           {...layout}
         />
         {files.length > 0 ? <FileList files={files} {...layout} /> : null}
