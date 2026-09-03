@@ -16,7 +16,7 @@ import { StaggeredFadeUp } from "@/lib/framecn/staggered-fade-up";
 import { BRAND_FRAME_STYLE } from "@/lib/frame";
 import { BrandMark } from "@/lib/mark";
 
-const PREVIEW = "/dimah-avatar.jpg";
+const PREVIEW = "/dimah-avatar.png";
 const FPS = 30;
 const DURATION_S = 7;
 const UPLOAD_START_S = 0.7;

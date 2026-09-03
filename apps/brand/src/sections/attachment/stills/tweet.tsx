@@ -5,7 +5,7 @@ import { TWEET_LANDSCAPE } from "@/catalog";
 import { BrandFrame } from "@/lib/frame";
 import { BrandMark } from "@/lib/mark";
 
-const PREVIEW = "/dimah-avatar.jpg";
+const PREVIEW = "/dimah-avatar.png";
 
 export function AttachmentTweetStill() {
   return (

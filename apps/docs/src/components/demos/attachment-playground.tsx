@@ -12,7 +12,7 @@ import { ComponentPreview } from "@/components/component-preview";
 import { PlaygroundOptionTabs } from "@/components/demos/playground-option-tabs";
 import { cn } from "@/lib/utils";
 
-const PREVIEW = "/dimah-avatar.jpg";
+const PREVIEW = "/dimah-avatar.png";
 
 const SIZES = ["default", "sm", "xs"] as const satisfies AttachmentSize[];
 const ORIENTATIONS = [
