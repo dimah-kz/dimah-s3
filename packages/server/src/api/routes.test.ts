@@ -525,6 +525,27 @@ describe("multipart", () => {
     expect(onInit).toHaveBeenCalled();
   });
 
+  it("aborts the multipart upload when onInit fails", async () => {
+    const onInit = vi.fn(() => {
+      throw new Error("persist failed");
+    });
+    const send = sendByCommand({
+      CreateMultipartUploadCommand: { UploadId: "up-1" },
+      AbortMultipartUploadCommand: {},
+    });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+      plugins: [{ id: "mp", hooks: { upload: { multipart: { onInit } } } }],
+    });
+
+    await expect(
+      s3.api.multipartInit({ body: defaultUploadBody }),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.INTERNAL_ERROR.code,
+    });
+    expect(send).toHaveBeenCalledWith(expect.any(AbortMultipartUploadCommand));
+  });
+
   it("runs upload.guard on multipart init", async () => {
     const guard = vi.fn();
     const s3 = createInstance({

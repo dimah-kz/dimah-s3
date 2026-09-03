@@ -40,4 +40,23 @@ describe("withRetry", () => {
     });
     expect(fn).toHaveBeenCalledOnce();
   });
+
+  it("stops waiting when aborted during backoff", async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const fn = vi.fn(async () => {
+      throw new Error("fail");
+    });
+    const pending = withRetry(
+      fn,
+      { maxRetries: 2, baseDelay: 10_000 },
+      controller.signal,
+    );
+
+    await Promise.resolve();
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(fn).toHaveBeenCalledOnce();
+  });
 });

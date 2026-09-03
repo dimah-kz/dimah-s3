@@ -10,7 +10,12 @@ import {
 } from "@dimah-s3/core";
 import type * as z from "zod";
 import { errors } from "@/errors";
-import { openUploadTarget, runHook, runLifecycleHook } from "@/helpers";
+import {
+  abortMultipartBestEffort,
+  openUploadTarget,
+  runHook,
+  runLifecycleHook,
+} from "@/helpers";
 import type { ResolvedDimahS3Config } from "@/types";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
@@ -62,23 +67,28 @@ async function handleMultipartInit(
     throw errors.internalError();
   }
 
-  await runLifecycleHook(
-    route.upload.multipart.onInit,
-    {
-      ...stored,
-      uploadId: UploadId,
-      file: {
-        name: fileName,
-        size: fileSize,
-        type: input.contentType,
+  try {
+    await runLifecycleHook(
+      route.upload.multipart.onInit,
+      {
+        ...stored,
+        uploadId: UploadId,
+        file: {
+          name: fileName,
+          size: fileSize,
+          type: input.contentType,
+        },
+        metadata,
+        clientMetadata: input.metadata,
+        acl,
+        replace: route.upload.replace,
       },
-      metadata,
-      clientMetadata: input.metadata,
-      acl,
-      replace: route.upload.replace,
-    },
-    config,
-  );
+      config,
+    );
+  } catch (err) {
+    await abortMultipartBestEffort(route.client, bucket, key, UploadId);
+    throw err;
+  }
 
   return { bucket, key, uploadId: UploadId };
 }
