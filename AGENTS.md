@@ -44,6 +44,7 @@ pnpm + Turbo monorepo; `@dimah-s3/{core,server,db,react,ui,cli}` (tsup, ESM, Teg
 | [registry.md](docs/agents/registry.md)         | UI component or shadcn registry item  |
 | [cli.md](docs/agents/cli.md)                   | Scaffold CLI or templates catalog     |
 | [release.md](docs/agents/release.md)           | Version bump / Tegami changelog       |
+| [brand.md](docs/agents/brand.md)               | Promo still or video (`apps/brand`)   |
 
 ## Non-negotiables
 

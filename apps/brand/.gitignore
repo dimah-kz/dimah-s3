@@ -1,0 +1,22 @@
+# Accidental `shadcn add @framecn/*` dumps. Studio files live in src/sections/.
+# Agents: docs/agents/brand.md
+/src/components/framecn/
+
+# Local still / video exports — canvases in src/sections are the source of truth.
+# Never commit MP4. Commit a still only when a published surface needs it
+# (`git add -f`). Fixture images at public/*.jpg stay tracked.
+/public/**/stills/**
+/public/**/videos/**
+
+# Next.js
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment
+.env*.local
+
+# Vercel
+.vercel

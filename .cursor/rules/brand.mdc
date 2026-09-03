@@ -1,0 +1,15 @@
+---
+description: Promo stills and framecn videos in the local apps/brand studio
+globs: apps/brand/**/*
+alwaysApply: false
+---
+
+# Brand studio
+
+Local Next app at `apps/brand` (port 3100). Not part of docs — do not add nav links, sitemap entries, or docs Vercel routing.
+
+Stills: `src/sections/{section}/stills/{slug}.tsx` + `catalog.ts` + `registry.ts`. Preview `/{section}/stills/{slug}?export`. Tweet default 1200×675. Use `@dimah-s3/ui`. Do **not** commit PNG / JPG under `public/` unless a published surface (blog, OG) will serve that file (`git add -f`).
+
+Videos: [framecn](https://framecn.dev/docs) in `src/sections/{section}/videos/`. `@framecn` is in `apps/brand/components.json`. Never commit MP4. Do not leave `shadcn add` output or `@editframe/*` in `package.json` / the lockfile unless the human asks. Accidental CLI dumps in `src/components/framecn/` stay gitignored.
+
+**Detail (Read):** [docs/agents/brand.md](docs/agents/brand.md).

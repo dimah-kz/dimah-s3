@@ -2,7 +2,7 @@
   "name": "dimah-s3",
   "private": true,
   "scripts": {
-    "build": "turbo run build --filter=!./examples/*",
+    "build": "turbo run build --filter=!./examples/* --filter=!brand",
     "build:all": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
     "clean:turbo": "turbo daemon clean",

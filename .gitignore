@@ -47,6 +47,15 @@ local.db-journal
 # Cursor / agent artifacts
 skills-lock.json
 
+# Accidental `shadcn add @framecn/*` dumps. Studio files live in apps/brand.
+apps/brand/src/components/framecn/
+
+# Brand studio binaries — canvases in apps/brand/src/sections are the source of truth.
+# Never commit MP4. Commit a still only when a published surface (blog, OG)
+# needs that file (`git add -f`). Fixture images at public/*.jpg stay tracked.
+apps/brand/public/**/stills/**
+apps/brand/public/**/videos/**
+
 # OS
 .DS_Store
 Thumbs.db

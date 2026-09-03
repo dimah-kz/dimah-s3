@@ -9,3 +9,4 @@ Procedural guides — **not** a map of the repo. Explore code for what exists; r
 | [registry.md](./registry.md)         | UI or shadcn registry item      |
 | [cli.md](./cli.md)                   | Scaffold CLI / templates        |
 | [release.md](./release.md)           | Tegami changelog / version bump |
+| [brand.md](./brand.md)               | Brand studio still / video      |

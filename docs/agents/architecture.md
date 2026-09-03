@@ -16,7 +16,7 @@
 @dimah-s3/cli  (scaffold only — no deps on the library chain)
 ```
 
-`apps/docs` and `examples/*` consume workspace packages — not published.
+`apps/docs`, `apps/brand` (local studio), and `examples/*` consume workspace packages — not published.
 `templates/*` are standalone starters (published `@dimah-s3/*` ranges) snapshotted into `@dimah-s3/cli` at build time.
 
 ## Placement {#placement}
@@ -35,6 +35,7 @@
 | Runnable demo + `@dimah-s3/db`                                                                                                                     | `examples/with-db/`                                           |
 | User-facing app starters (`@dimah-s3/cli` snapshot source)                                                                                         | `templates/<id>/`                                             |
 | Shared ESLint / TSConfig                                                                                                                           | `tooling/{eslint,typescript}-config/`                         |
+| Internal brand studio stills / framecn videos (local, not docs)                                                                                    | `apps/brand/` — [brand.md](./brand.md)                        |
 
 **Default:** edit the smallest package that owns the behavior. Shared protocol → `core` first, then wire server + react.
 

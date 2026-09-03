@@ -141,11 +141,11 @@ jobs:
         with:
           ignore-scripts: "false"
 
-      # Dist types come from package builds. Skip docs/examples themselves
-      # (typecheck only; Next production build is Vercel).
+      # Dist types come from package builds. Skip docs/brand/examples themselves
+      # (typecheck only; Next production build is Vercel / local for brand).
       - name: Build workspace dependencies
         if: steps.filter.outputs.apps == 'true'
-        run: pnpm turbo run build --filter=docs... --filter="./examples/*..." --filter=!docs --filter="!./examples/*"
+        run: pnpm turbo run build --filter=docs... --filter=brand... --filter="./examples/*..." --filter=!docs --filter=!brand --filter="!./examples/*"
 
       - name: Typecheck apps and examples
         if: steps.filter.outputs.apps == 'true'
