@@ -1,3 +1,9 @@
+## @dimah-s3/ui@1.4.1
+
+### Clean up failed multipart initialization
+
+Abort multipart uploads when initialization lifecycle hooks fail and cancel retry backoff immediately when an upload is aborted.
+
 ## @dimah-s3/ui@1.4.0
 
 ### Dismiss completed upload, download, and delete status

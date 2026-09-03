@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Dismiss completed upload, download, and delete status\n\nCompleted and failed attachment rows now include a dismiss action that returns the hook to idle, so status no longer stays on screen until a refresh.\n"
-    filename: 2026-09-02-7c3a1e.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n## Clean up failed multipart initialization\n\nAbort multipart uploads when initialization lifecycle hooks fail and cancel retry backoff immediately when an upload is aborted.\n"
+    filename: 2026-09-03-multipart-retry.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-02-7c3a1e.md
+      - 2026-09-03-multipart-retry.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-02-7c3a1e.md
+      - 2026-09-03-multipart-retry.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-02-7c3a1e.md
+      - 2026-09-03-multipart-retry.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-02-7c3a1e.md
-    id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-09-02-7c3a1e.md
+      - 2026-09-03-multipart-retry.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-02-7c3a1e.md
+      - 2026-09-03-multipart-retry.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-09-03-multipart-retry.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
-  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
+  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/ui
