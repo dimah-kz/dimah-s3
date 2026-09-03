@@ -5,7 +5,9 @@ description: Reusable status rows for file previews, progress indicators, and er
 
 import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
 
-`FileAttachment` and `StatusAttachment` are status row components built on top of [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment).
+`FileAttachment` and `StatusAttachment` are status rows built on [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment).
+
+Do not mount them yourself. [Upload Button](/docs/react/ui/components/upload-button), [Upload Dropzone](/docs/react/ui/components/upload-dropzone), [Download Button](/docs/react/ui/components/download-button), [Progress Download Button](/docs/react/ui/components/progress-download-button), and [Delete Button](/docs/react/ui/components/delete-button) already render these rows. Use the playground to inspect sizes, orientations, and states.
 
 ## Preview
 
@@ -40,21 +42,24 @@ npx shadcn@latest add @dimah-s3/file-attachment
 ## Usage
 
 ```tsx
-import { FileAttachment, StatusAttachment } from "@dimah-s3/ui";
+"use client";
 
-// Uploading avatar row
-<FileAttachment
-  state="uploading"
-  fileName="avatar.png"
-  fileType="image/png"
-  fileSize={180_000}
-  percent={65}
-  previewUrl="/dimah-avatar.jpg"
-/>
+import { useUpload } from "@dimah-s3/react";
+import { UploadButton } from "@dimah-s3/ui";
 
-// Generic status row
-<StatusAttachment state="processing" title="Presigning URL…" />
+// Don't use FileAttachment or StatusAttachment directly.
+// Upload, download, and delete components already render them.
+
+export function AvatarUploader() {
+  const upload = useUpload({
+    route: "avatar",
+  });
+
+  return <UploadButton upload={upload} />;
+}
 ```
+
+For custom chrome, compose [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment) with the headless hooks — see [Custom UI](/docs/react/ui/customization/custom-ui).
 
 ---
 

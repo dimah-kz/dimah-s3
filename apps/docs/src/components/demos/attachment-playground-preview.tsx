@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { AttachmentPlaygroundDemo } from "@/components/demos/attachment-playground-demo";
+import { AttachmentPlayground } from "@/components/demos/attachment-playground";
 
 const demosDir = join(process.cwd(), "src/components/demos");
 
@@ -11,5 +11,5 @@ export function AttachmentPlaygroundPreview() {
     "utf-8",
   );
 
-  return <AttachmentPlaygroundDemo code={code} />;
+  return <AttachmentPlayground code={code} />;
 }
