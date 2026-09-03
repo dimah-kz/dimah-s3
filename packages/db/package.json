@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/db",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Optional database plugin for dimah-s3 — track S3 object ownership, listings, and resumable uploads",
   "keywords": [
     "s3",
@@ -59,7 +59,7 @@
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": ">=3",
-    "@dimah-s3/server": "1.4.1",
+    "@dimah-s3/server": "1.4.2",
     "drizzle-orm": "^0.44.0 || ^0.45.0 || >=1.0.0-rc.1 <2.0.0"
   },
   "peerDependenciesMeta": {

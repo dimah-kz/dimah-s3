@@ -1,36 +1,36 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n## Clean up failed multipart initialization\n\nAbort multipart uploads when initialization lifecycle hooks fail and cancel retry backoff immediately when an upload is aborted.\n"
-    filename: 2026-09-03-multipart-retry.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Tighten upload cleanup and client races\n\nConfirm now deletes the object when HeadObject omits `ContentLength`, matching the existing rollback for constraint and `onConfirmed` failures. A failed multipart `onInit` also runs `onAbort`, so plugins like `db()` can drop the pending row.\n\nResuming a multipart upload only starts a new session when S3 reports the old `uploadId` is gone (`OBJECT_NOT_FOUND`). Transient `listParts` errors no longer discard a valid session, and 4xx API errors are not retried. Overwrite quota checks subtract the replaced object's size. Shared download and delete hooks ignore stale completions after `reset()` or a newer call.\n"
+    filename: 2026-09-03-upload-edge-cases.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-03-multipart-retry.md
+      - 2026-09-03-upload-edge-cases.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-03-multipart-retry.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-09-03-multipart-retry.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - changelogIds:
-      - 2026-09-03-multipart-retry.md
-    id: npm:@dimah-s3/server
-    updated: true
-  - changelogIds:
-      - 2026-09-03-multipart-retry.md
+      - 2026-09-03-upload-edge-cases.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-03-multipart-retry.md
+      - 2026-09-03-upload-edge-cases.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-09-03-upload-edge-cases.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-09-03-upload-edge-cases.md
+    id: npm:@dimah-s3/server
+    updated: true
+  - changelogIds:
+      - 2026-09-03-upload-edge-cases.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:@dimah-s3/cli
-  - id: npm:@dimah-s3/core
-  - id: npm:@dimah-s3/db
-  - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/react
+  - id: npm:@dimah-s3/db
+  - id: npm:@dimah-s3/core
+  - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
