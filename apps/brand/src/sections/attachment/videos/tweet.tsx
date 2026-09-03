@@ -18,9 +18,11 @@ import { BrandMark } from "@/lib/mark";
 
 const PREVIEW = "/dimah-avatar.jpg";
 const FPS = 30;
-const DURATION_S = 6;
-const UPLOAD_START_S = 1.5;
-const UPLOAD_END_S = 4;
+const DURATION_S = 7;
+const UPLOAD_START_S = 0.7;
+/** Progress hits 100% here; stay uploading so the ring can finish before done. */
+const UPLOAD_FULL_S = 5.5;
+const UPLOAD_DONE_S = 5.95;
 
 export const ATTACHMENT_TWEET_VIDEO_ID = itemVideoId({
   section: "attachment",
@@ -61,12 +63,12 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
       <div className="flex size-full flex-col items-center justify-center gap-16">
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
-            <SpringPopIn delayInFrames={8} fps={FPS} durationInFrames={40}>
+            <SpringPopIn delayInFrames={6} fps={FPS} durationInFrames={30}>
               <BrandMark className="size-9 [&_svg]:size-5" />
             </SpringPopIn>
             <StaggeredFadeUp
               text="dimah-s3"
-              delayInFrames={14}
+              delayInFrames={10}
               fps={FPS}
               fontSize={26}
               fontWeight={600}
@@ -76,9 +78,9 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
           </div>
           <BlurReveal
             text="now with shadcn Attachment"
-            delayInFrames={24}
+            delayInFrames={16}
             fps={FPS}
-            durationInFrames={54}
+            durationInFrames={36}
             fontSize={16}
             fontWeight={400}
             color="#71717a"
@@ -88,7 +90,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
 
         <div className="flex h-64 w-160 items-center justify-center">
           <div className="flex origin-center scale-[1.55] items-stretch justify-center gap-6">
-            <SpringPopIn delayInFrames={38} fps={FPS} durationInFrames={48}>
+            <SpringPopIn delayInFrames={20} fps={FPS} durationInFrames={44}>
               <FileCard
                 time={ownCurrentTime}
                 fileName="quarterly-report.pdf"
@@ -96,7 +98,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
                 fileSize={2_400_000}
               />
             </SpringPopIn>
-            <SpringPopIn delayInFrames={46} fps={FPS} durationInFrames={48}>
+            <SpringPopIn delayInFrames={26} fps={FPS} durationInFrames={50}>
               <FileCard
                 time={ownCurrentTime}
                 fileName="avatar.png"
@@ -105,7 +107,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
                 previewUrl={PREVIEW}
               />
             </SpringPopIn>
-            <SpringPopIn delayInFrames={54} fps={FPS} durationInFrames={48}>
+            <SpringPopIn delayInFrames={32} fps={FPS} durationInFrames={56}>
               <StatusCard time={ownCurrentTime} />
             </SpringPopIn>
           </div>
@@ -113,6 +115,25 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
       </div>
     </Timegroup>
   );
+}
+
+function easeOutQuad(t: number) {
+  return 1 - (1 - t) ** 2;
+}
+
+function uploadAt(time: number) {
+  if (time >= UPLOAD_DONE_S) {
+    return { state: "done" as const, percent: 100 };
+  }
+  if (time < UPLOAD_START_S) {
+    return { state: "idle" as const, percent: 0 };
+  }
+  const span = UPLOAD_FULL_S - UPLOAD_START_S;
+  const linear = Math.min(1, (time - UPLOAD_START_S) / span);
+  return {
+    state: "uploading" as const,
+    percent: easeOutQuad(linear) * 100,
+  };
 }
 
 function FileCard({
@@ -128,32 +149,26 @@ function FileCard({
   fileSize: number;
   previewUrl?: string;
 }) {
-  const uploading = time >= UPLOAD_START_S && time < UPLOAD_END_S;
-  const done = time >= UPLOAD_END_S;
-  const span = UPLOAD_END_S - UPLOAD_START_S;
-  const percent = done
-    ? 100
-    : uploading
-      ? Math.min(100, ((time - UPLOAD_START_S) / span) * 100)
-      : 0;
+  const { state, percent } = uploadAt(time);
 
   return (
     <FileAttachment
       size="default"
       orientation="vertical"
-      state={done ? "done" : uploading ? "uploading" : "idle"}
+      state={state}
       fileName={fileName}
       fileType={fileType}
       fileSize={fileSize}
       previewUrl={previewUrl}
       percent={percent}
       onDismiss={() => undefined}
+      className="[&_svg]:transition-none"
     />
   );
 }
 
 function StatusCard({ time }: { time: number }) {
-  const done = time >= UPLOAD_END_S;
+  const done = time >= UPLOAD_DONE_S;
 
   return (
     <StatusAttachment

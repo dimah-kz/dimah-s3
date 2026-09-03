@@ -53,7 +53,7 @@ export const brandItems = [
     kind: "videos",
     slug: "tweet",
     title: "Tweet — shadcn Attachment",
-    caption: "Cards enter, upload, then settle to done. 16:9 landscape.",
+    caption: "Cards enter, fill to 100%, then settle to done. 16:9 landscape.",
     size: TWEET_LANDSCAPE,
     ext: "mp4",
     fps: 30,
