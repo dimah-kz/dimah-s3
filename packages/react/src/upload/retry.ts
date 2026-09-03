@@ -1,5 +1,18 @@
+import { isAPIError } from "@dimah-s3/core";
 import { MAX_RETRIES, RETRY_BASE_DELAY } from "./constants";
 import type { RetryConfig } from "@/types";
+
+function isNonRetryable(err: unknown): boolean {
+  if ((err as Error).name === "AbortError") return true;
+  if (!isAPIError(err)) return false;
+  const status = err.statusCode;
+  return (
+    typeof status === "number" &&
+    status >= 400 &&
+    status < 500 &&
+    status !== 429
+  );
+}
 
 function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
   if (signal?.aborted) {
@@ -33,7 +46,7 @@ export async function withRetry<T>(
     try {
       return await fn();
     } catch (err) {
-      if ((err as Error).name === "AbortError") throw err;
+      if (isNonRetryable(err)) throw err;
       lastError = err;
       if (attempt < maxRetries) {
         const delay = baseDelay * 2 ** attempt;

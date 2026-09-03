@@ -87,6 +87,18 @@ async function handleMultipartInit(
     );
   } catch (err) {
     await abortMultipartBestEffort(route.client, bucket, key, UploadId);
+    try {
+      await runLifecycleHook(
+        route.upload.multipart.onAbort,
+        {
+          ...stored,
+          uploadId: UploadId,
+        },
+        config,
+      );
+    } catch {
+      // Compensation must not mask the original onInit error.
+    }
     throw err;
   }
 

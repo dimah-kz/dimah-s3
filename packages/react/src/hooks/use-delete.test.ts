@@ -128,4 +128,88 @@ describe("useDelete", () => {
     expect(hook.current.phase).toBe("success");
     hook.unmount();
   });
+
+  it("ignores requestDelete while a delete is in flight", async () => {
+    const api = fakeS3Api();
+    let release!: () => void;
+    vi.mocked(api.delete).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({ success: true as const, bucket: "bucket", key: "a.png" });
+        }),
+    );
+    const hook = renderHook(() => useDelete({ api, route: "uploads" }));
+    act(() => {
+      hook.current.requestDelete("a.png");
+    });
+
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = hook.current.confirmDelete();
+    });
+    act(() => {
+      hook.current.requestDelete("b.png");
+    });
+    expect(hook.current).toMatchObject({
+      phase: "deleting",
+      objectKey: "a.png",
+    });
+
+    await act(async () => {
+      release();
+      await first;
+    });
+    hook.unmount();
+  });
+
+  it("does not apply a late success after reset", async () => {
+    const api = fakeS3Api();
+    const onSuccess = vi.fn();
+    let release!: () => void;
+    vi.mocked(api.delete).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({ success: true as const, bucket: "bucket", key: "a.png" });
+        }),
+    );
+    const hook = renderHook(() =>
+      useDelete({ api, route: "uploads", onSuccess }),
+    );
+    act(() => {
+      hook.current.requestDelete("a.png");
+    });
+
+    let pending: Promise<void> = Promise.resolve();
+    await act(async () => {
+      pending = hook.current.confirmDelete();
+    });
+    act(() => {
+      hook.current.reset();
+    });
+    expect(hook.current.phase).toBe("idle");
+
+    await act(async () => {
+      release();
+      await pending;
+    });
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(hook.current.phase).toBe("idle");
+    hook.unmount();
+  });
+
+  it("rejects deleteMany above the batch cap", async () => {
+    const api = fakeS3Api();
+    const hook = renderHook(() => useDelete({ api, route: "uploads" }));
+    const keys = Array.from({ length: 101 }, (_, i) => `k${i}.png`);
+
+    await expect(
+      act(async () => {
+        await hook.current.removeMany(keys);
+      }),
+    ).rejects.toThrow(/at most 100 keys/i);
+    expect(api.deleteMany).not.toHaveBeenCalled();
+    hook.unmount();
+  });
 });

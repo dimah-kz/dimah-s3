@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { APIError, S3_ERROR_CODES } from "@dimah-s3/core";
 import { createMemoryStore } from "@/store/memory-store";
 import { fakeS3Api } from "@/test/api";
 import { multipartResumeKey } from "./resume-key";
@@ -85,6 +86,81 @@ describe("uploadMultipart", () => {
       }),
     );
     expect(await store.get(resumeKey, 8)).toBeNull();
+  });
+
+  it("does not discard a stored session when listParts fails transiently", async () => {
+    const blob = file(8);
+    const resumeKey = multipartResumeKey("videos", blob);
+    const store = createMemoryStore();
+    await store.set({
+      resumeKey,
+      uploadId: "up-resume",
+      key: "videos/uuid/a.bin",
+      fileSize: 8,
+    });
+    const api = fakeS3Api({
+      multipart: {
+        listParts: vi.fn(async () => {
+          throw new Error("network down");
+        }),
+      },
+    });
+
+    await expect(
+      uploadMultipart(
+        api,
+        blob,
+        "videos",
+        4,
+        2,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        store,
+      ),
+    ).rejects.toThrow("network down");
+    expect(api.multipart.init).not.toHaveBeenCalled();
+    expect(await store.get(resumeKey, 8)).toMatchObject({
+      uploadId: "up-resume",
+    });
+  });
+
+  it("starts a fresh upload when the stored session is gone", async () => {
+    const blob = file(8);
+    const resumeKey = multipartResumeKey("videos", blob);
+    const store = createMemoryStore();
+    await store.set({
+      resumeKey,
+      uploadId: "up-expired",
+      key: "videos/uuid/a.bin",
+      fileSize: 8,
+    });
+    const api = fakeS3Api({
+      multipart: {
+        listParts: vi.fn(async () => {
+          throw APIError.from("NOT_FOUND", S3_ERROR_CODES.OBJECT_NOT_FOUND);
+        }),
+      },
+    });
+
+    await uploadMultipart(
+      api,
+      blob,
+      "videos",
+      4,
+      2,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      store,
+    );
+
+    expect(api.multipart.init).toHaveBeenCalled();
+    expect(api.multipart.complete).toHaveBeenCalledWith(
+      expect.objectContaining({ uploadId: "up-1" }),
+    );
   });
 
   it("aborts when resumability is off and a part fails", async () => {

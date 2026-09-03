@@ -4,7 +4,7 @@ import type {
   RetryConfig,
   UploadResult,
 } from "@/types";
-import type { S3Api } from "@dimah-s3/core";
+import { isS3ErrorCode, type S3Api } from "@dimah-s3/core";
 import type { UploadStore } from "@/types/upload-store";
 import { withRetry } from "./retry";
 import { uploadPart } from "./upload-part";
@@ -86,8 +86,9 @@ export async function uploadMultipart(
       key = existing.key;
       for (const p of parts) completedPartNumbers.add(p.partNumber);
       onMultipartInit?.(uploadId, key);
-    } catch {
-      // uploadId is expired or no longer valid — start a fresh upload.
+    } catch (err) {
+      // Only NoSuchUpload / missing object — not a blip or 5xx.
+      if (!isS3ErrorCode(err, "OBJECT_NOT_FOUND")) throw err;
       await store?.delete(resumeKey);
       ({ uploadId, key } = await initUpload());
     }

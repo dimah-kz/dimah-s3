@@ -29,8 +29,8 @@ export type FinalizeConfirmedInput = {
 
 /**
  * HeadObject constraints, `onConfirmed`, then compensating `DeleteObject`
- * (and `previousKey` cleanup) so a thrown lifecycle hook cannot leave an
- * orphan object.
+ * (and `previousKey` cleanup) so a thrown check or lifecycle hook cannot
+ * leave an orphan object.
  */
 export async function finalizeConfirmedObject(
   client: S3Client,
@@ -39,36 +39,32 @@ export async function finalizeConfirmedObject(
   input: FinalizeConfirmedInput,
 ): Promise<ConfirmedObjectResponse> {
   const { config, route, stored, head, uploadId, acl } = input;
-  const contentLength = requireContentLength(head);
-  const fileName = resolveStoredFileName(head.ContentDisposition, key);
   const rawMetadata = head.Metadata ?? {};
+  const fileName = resolveStoredFileName(head.ContentDisposition, key);
+  let context: UploadOnConfirmedContext;
 
   try {
+    const contentLength = requireContentLength(head);
     assertVerifiedConstraints(route.upload, {
       fileName,
       contentType: head.ContentType,
       contentLength,
     });
-  } catch (err) {
-    await deleteObjectBestEffort(client, bucket, key);
-    throw err;
-  }
 
-  const metadata = stripPreviousKeyMeta(rawMetadata);
-  const context: UploadOnConfirmedContext = {
-    ...stored,
-    contentType: head.ContentType,
-    contentLength,
-    eTag: head.ETag?.replace(/"/g, ""),
-    metadata,
-    acl,
-    fileName,
-    versionId: head.VersionId,
-    lastModified: head.LastModified?.toISOString(),
-    uploadId,
-  };
+    const metadata = stripPreviousKeyMeta(rawMetadata);
+    context = {
+      ...stored,
+      contentType: head.ContentType,
+      contentLength,
+      eTag: head.ETag?.replace(/"/g, ""),
+      metadata,
+      acl,
+      fileName,
+      versionId: head.VersionId,
+      lastModified: head.LastModified?.toISOString(),
+      uploadId,
+    };
 
-  try {
     await runLifecycleHook(route.upload.onConfirmed, context, config);
   } catch (err) {
     await deleteObjectBestEffort(client, bucket, key);

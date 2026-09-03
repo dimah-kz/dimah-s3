@@ -16,8 +16,15 @@ export function createLocalStorageStore(): UploadStore {
         const raw = localStorage.getItem(STORAGE_PREFIX + resumeKey);
         if (!raw) return null;
         const stored = JSON.parse(raw) as StoredUpload;
-        // Reject if the stored size doesn't match — different file for the same identity.
-        return stored.fileSize === fileSize ? stored : null;
+        if (
+          stored.resumeKey !== resumeKey ||
+          stored.fileSize !== fileSize ||
+          !stored.uploadId ||
+          !stored.key
+        ) {
+          return null;
+        }
+        return stored;
       } catch {
         return null;
       }

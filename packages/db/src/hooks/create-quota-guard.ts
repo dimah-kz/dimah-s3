@@ -18,6 +18,8 @@ export type QuotaGuardContext = {
   request: Request;
   file?: { size?: number };
   replace?: "overwrite";
+  key?: string;
+  bucket?: string;
 };
 
 function quotaExceeded(message: string) {
@@ -52,9 +54,18 @@ export function createQuotaGuard(
       throw quotaExceeded("File count quota exceeded");
     }
     if (typeof options.maxBytes === "number") {
-      const projected = replacing
-        ? Math.max(usage.totalBytes, incoming)
-        : usage.totalBytes + incoming;
+      let projected = usage.totalBytes + incoming;
+      if (replacing && context.key && context.bucket) {
+        const existing = await objects.find({
+          bucket: context.bucket,
+          key: context.key,
+        });
+        const oldSize =
+          existing && existing.status !== "deleted"
+            ? (existing.size ?? existing.declaredSize ?? 0)
+            : 0;
+        projected = usage.totalBytes - oldSize + incoming;
+      }
       if (projected > options.maxBytes) {
         throw quotaExceeded("Storage byte quota exceeded");
       }

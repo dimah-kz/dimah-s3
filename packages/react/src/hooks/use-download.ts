@@ -185,8 +185,12 @@ export function useDownload(
     createThrottledSpeedUpdater(createSpeedTracker()),
   );
 
-  const presign = useCallback(
-    async (key: string, downloadName?: string) => {
+  const requestDownloadUrl = useCallback(
+    async (
+      key: string,
+      downloadName: string | undefined,
+      generation: number,
+    ) => {
       const opts = optsRef.current as UseNavigateDownloadOptions;
       const api = opts.api ?? apiRef.current;
       if (!api) throw new Error(missingApiMessage("useDownload"));
@@ -204,6 +208,9 @@ export function useDownload(
           fileName: downloadName,
           ...(opts.disposition ? { disposition: opts.disposition } : {}),
         });
+        if (generation !== generationRef.current) {
+          return { url: result.url, expiresIn: result.expiresIn };
+        }
         patch((draft) => {
           draft.phase = "idle";
           draft.error = null;
@@ -212,6 +219,7 @@ export function useDownload(
         });
         return { url: result.url, expiresIn: result.expiresIn };
       } catch (err) {
+        if (generation !== generationRef.current) return null;
         patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Download failed");
@@ -225,11 +233,21 @@ export function useDownload(
     [apiRef, optsRef, patch],
   );
 
+  const presign = useCallback(
+    async (key: string, downloadName?: string) => {
+      const generation = ++generationRef.current;
+      return requestDownloadUrl(key, downloadName, generation);
+    },
+    [requestDownloadUrl],
+  );
+
   const downloadNavigate = useCallback(
     async (key: string, downloadName?: string) => {
       const opts = optsRef.current as UseNavigateDownloadOptions;
+      const generation = ++generationRef.current;
       if (opts.beforeDownload) {
         const allowed = await opts.beforeDownload(key);
+        if (generation !== generationRef.current) return;
         if (!allowed) {
           patch((draft) => {
             draft.phase = "error";
@@ -244,12 +262,12 @@ export function useDownload(
           return;
         }
       }
-      const result = await presign(key, downloadName);
-      if (!result) return;
+      const result = await requestDownloadUrl(key, downloadName, generation);
+      if (!result || generation !== generationRef.current) return;
       window.location.href = result.url;
       opts.onInitiated?.(key);
     },
-    [optsRef, presign, patch],
+    [optsRef, requestDownloadUrl, patch],
   );
 
   const downloadFetch = useCallback(

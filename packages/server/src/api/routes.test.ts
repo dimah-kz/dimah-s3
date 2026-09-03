@@ -1,6 +1,7 @@
 import {
   AbortMultipartUploadCommand,
   CompleteMultipartUploadCommand,
+  DeleteObjectCommand,
   HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
@@ -311,12 +312,12 @@ describe("confirm", () => {
   });
 
   it("rejects confirm when HeadObject omits ContentLength", async () => {
+    const send = sendByCommand({
+      HeadObjectCommand: headResult({ ContentLength: undefined }),
+      DeleteObjectCommand: {},
+    });
     const s3 = createInstance({
-      client: mockS3(
-        sendByCommand({
-          HeadObjectCommand: headResult({ ContentLength: undefined }),
-        }) as never,
-      ),
+      client: mockS3(send as never),
     });
 
     await expect(
@@ -325,6 +326,7 @@ describe("confirm", () => {
       code: S3_ERROR_CODES.INTERNAL_ERROR.code,
       statusCode: 500,
     });
+    expect(send).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
   });
 
   it("maps a missing object to OBJECT_NOT_FOUND", async () => {
@@ -529,13 +531,16 @@ describe("multipart", () => {
     const onInit = vi.fn(() => {
       throw new Error("persist failed");
     });
+    const onAbort = vi.fn();
     const send = sendByCommand({
       CreateMultipartUploadCommand: { UploadId: "up-1" },
       AbortMultipartUploadCommand: {},
     });
     const s3 = createInstance({
       client: mockS3(send as never),
-      plugins: [{ id: "mp", hooks: { upload: { multipart: { onInit } } } }],
+      plugins: [
+        { id: "mp", hooks: { upload: { multipart: { onInit, onAbort } } } },
+      ],
     });
 
     await expect(
@@ -544,6 +549,9 @@ describe("multipart", () => {
       code: S3_ERROR_CODES.INTERNAL_ERROR.code,
     });
     expect(send).toHaveBeenCalledWith(expect.any(AbortMultipartUploadCommand));
+    expect(onAbort).toHaveBeenCalledWith(
+      expect.objectContaining({ uploadId: "up-1" }),
+    );
   });
 
   it("runs upload.guard on multipart init", async () => {

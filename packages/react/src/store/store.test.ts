@@ -98,4 +98,14 @@ describe("createLocalStorageStore", () => {
       await createLocalStorageStore().get("uploads:photo.jpg:10:1", 10),
     ).toBeNull();
   });
+
+  it("rejects a stored payload whose resumeKey does not match", async () => {
+    localStorage.setItem(
+      "dimah-s3:upload:uploads:photo.jpg:10:1",
+      JSON.stringify({ ...sample, resumeKey: "other:file:10:1" }),
+    );
+    expect(
+      await createLocalStorageStore().get("uploads:photo.jpg:10:1", 10),
+    ).toBeNull();
+  });
 });

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { APIError } from "@dimah-s3/core";
 import { withRetry } from "./retry";
 
 describe("withRetry", () => {
@@ -58,5 +59,34 @@ describe("withRetry", () => {
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
     expect(fn).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry 4xx APIError", async () => {
+    const fn = vi.fn(async () => {
+      throw new APIError("BAD_REQUEST", { message: "disabled" });
+    });
+    await expect(
+      withRetry(fn, { maxRetries: 3, baseDelay: 1 }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
+  it("retries 5xx APIError", async () => {
+    vi.useFakeTimers();
+    let attempts = 0;
+    const pending = withRetry(
+      async () => {
+        attempts += 1;
+        if (attempts < 2) {
+          throw new APIError("INTERNAL_SERVER_ERROR", { message: "boom" });
+        }
+        return "ok";
+      },
+      { maxRetries: 2, baseDelay: 10 },
+    );
+
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toBe("ok");
+    expect(attempts).toBe(2);
   });
 });

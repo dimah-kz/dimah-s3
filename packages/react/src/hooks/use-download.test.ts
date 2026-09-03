@@ -1,5 +1,6 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { DownloadPresignResponse } from "@dimah-s3/core";
 import { isFetchDownload, useDownload } from "./use-download";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
@@ -77,6 +78,59 @@ describe("useDownload", () => {
     expect(hook.current.mode).toBe("navigate");
     expect(hook.current.objectKey).toBeNull();
     expect(isFetchDownload(hook.current)).toBe(false);
+    hook.unmount();
+  });
+
+  it("keeps the latest navigate presign when two overlap", async () => {
+    let releaseFirst!: (value: {
+      bucket: string;
+      key: string;
+      url: string;
+      expiresIn: number;
+    }) => void;
+    const api = fakeS3Api({
+      download: vi.fn(async (payload) => {
+        if (payload.key === "a.png") {
+          return new Promise<DownloadPresignResponse>((resolve) => {
+            releaseFirst = resolve;
+          });
+        }
+        return {
+          bucket: "bucket",
+          key: payload.key,
+          url: "https://s3.test/b",
+          expiresIn: 600,
+        };
+      }),
+    });
+    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
+
+    let first: Promise<{ url: string; expiresIn: number } | null> =
+      Promise.resolve(null);
+    await act(async () => {
+      first = hook.current.presign("a.png");
+    });
+    await act(async () => {
+      await hook.current.presign("b.png");
+    });
+    expect(hook.current).toMatchObject({
+      objectKey: "b.png",
+      url: "https://s3.test/b",
+    });
+
+    await act(async () => {
+      releaseFirst({
+        bucket: "bucket",
+        key: "a.png",
+        url: "https://s3.test/a",
+        expiresIn: 600,
+      });
+      await first;
+    });
+    expect(hook.current).toMatchObject({
+      objectKey: "b.png",
+      url: "https://s3.test/b",
+    });
     hook.unmount();
   });
 });

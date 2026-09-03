@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useContext, useRef } from "react";
-import type { APIError, S3Api, S3RouteName } from "@dimah-s3/core";
+import {
+  DELETE_BATCH_MAX_KEYS,
+  type APIError,
+  type S3Api,
+  type S3RouteName,
+} from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import type { DeletePhase, DeleteHooks } from "@/types";
 import { hookBlockedError, toHookError } from "@/types/error";
@@ -69,9 +74,11 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
   const apiRef = useLiveRef(contextApi);
   const objectKeyRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const generationRef = useRef(0);
 
   const requestDelete = useCallback(
     (key: string) => {
+      if (inFlightRef.current) return;
       objectKeyRef.current = key;
       patch((draft) => {
         draft.phase = "confirming";
@@ -92,9 +99,14 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
         );
 
+      const generation = ++generationRef.current;
+      inFlightRef.current = true;
+
       if (opts.beforeDelete) {
         const allowed = await opts.beforeDelete(key);
+        if (generation !== generationRef.current) return;
         if (!allowed) {
+          inFlightRef.current = false;
           objectKeyRef.current = null;
           patch((draft) => {
             draft.phase = "error";
@@ -108,7 +120,6 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
         }
       }
 
-      inFlightRef.current = true;
       patch((draft) => {
         draft.phase = "deleting";
         draft.error = null;
@@ -118,6 +129,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
 
       try {
         await api.delete({ route: opts.route, key });
+        if (generation !== generationRef.current) return;
         objectKeyRef.current = null;
         patch((draft) => {
           draft.phase = "success";
@@ -130,6 +142,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           opts.onError?.(key, err, "success");
         }
       } catch (err) {
+        if (generation !== generationRef.current) return;
         patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Delete failed");
@@ -137,7 +150,9 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
         });
         opts.onError?.(key, err, "deleting");
       } finally {
-        inFlightRef.current = false;
+        if (generation === generationRef.current) {
+          inFlightRef.current = false;
+        }
       }
     },
     [apiRef, optsRef, patch],
@@ -172,10 +187,18 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
         );
 
+      if (keys.length > DELETE_BATCH_MAX_KEYS) {
+        throw new Error(
+          `[dimah-s3] deleteMany accepts at most ${DELETE_BATCH_MAX_KEYS} keys.`,
+        );
+      }
+
+      const generation = ++generationRef.current;
       inFlightRef.current = true;
       patch((draft) => {
         draft.phase = "deleting";
         draft.error = null;
+        draft.objectKey = null;
       });
 
       try {
@@ -183,6 +206,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           route: opts.route,
           keys,
         });
+        if (generation !== generationRef.current) return;
         const failed = results.filter((item) => !item.success);
         for (const item of results) {
           if (item.success) {
@@ -214,24 +238,31 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           draft.error = null;
         });
       } catch (err) {
+        if (generation !== generationRef.current) return;
         patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Delete failed");
         });
         opts.onError?.(keys[0] ?? "", err, "deleting");
       } finally {
-        inFlightRef.current = false;
+        if (generation === generationRef.current) {
+          inFlightRef.current = false;
+        }
       }
     },
     [apiRef, optsRef, patch],
   );
 
   const cancelDelete = useCallback(() => {
+    generationRef.current += 1;
+    inFlightRef.current = false;
     objectKeyRef.current = null;
     replace(INITIAL_STATE);
   }, [replace]);
 
   const reset = useCallback(() => {
+    generationRef.current += 1;
+    inFlightRef.current = false;
     objectKeyRef.current = null;
     replace(INITIAL_STATE);
   }, [replace]);

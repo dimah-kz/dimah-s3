@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
 import { createQuotaGuard } from "./create-quota-guard";
-import { fakeStore } from "@/test/fakes";
+import { fakeStore, sampleObject } from "@/test/fakes";
 
 const request = new Request("http://local");
 
@@ -44,6 +44,39 @@ describe("createQuotaGuard", () => {
     });
 
     await expect(guard({ request, file: { size: 3 } })).rejects.toMatchObject({
+      code: S3_ERROR_CODES.QUOTA_EXCEEDED.code,
+    });
+  });
+
+  it("subtracts the replaced object size from byte usage", async () => {
+    const guard = createQuotaGuard({
+      client: fakeStore({
+        getScopeUsage: async () => ({ totalBytes: 90, objectCount: 1 }),
+        find: async () => sampleObject({ size: 20 }),
+      }),
+      resolveScope: async () => "user:1",
+      maxBytes: 100,
+    });
+
+    await expect(
+      guard({
+        request,
+        file: { size: 25 },
+        replace: "overwrite",
+        key: "k",
+        bucket: "b",
+      }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      guard({
+        request,
+        file: { size: 40 },
+        replace: "overwrite",
+        key: "k",
+        bucket: "b",
+      }),
+    ).rejects.toMatchObject({
       code: S3_ERROR_CODES.QUOTA_EXCEEDED.code,
     });
   });
