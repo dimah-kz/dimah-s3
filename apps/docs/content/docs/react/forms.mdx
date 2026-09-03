@@ -1,0 +1,333 @@
+---
+title: Forms
+description: Integrate confirmed S3 uploads with React Hook Form or TanStack Form.
+icon: FormInput
+---
+
+Keep upload state and form state separate:
+
+- `useUpload` owns browser `File` objects, validation, progress, retries, and confirmation.
+- The form owns a serializable value—usually the confirmed S3 object keys.
+
+Only write a key into the form after `onSuccess` runs. At that point the server
+has accepted the key and verified the uploaded object with `HeadObject`.
+
+## Upload flow
+
+<Flow
+  label="Upload field lifecycle"
+  steps={[
+    { name: "Select files", kind: "client", note: "UploadDropzone" },
+    { name: "Presign", kind: "server", note: "guards and server-owned key" },
+    { name: "Upload bytes", kind: "s3", note: "direct browser transfer" },
+    { name: "Confirm", kind: "server", note: "HeadObject verification" },
+    { name: "onSuccess", kind: "hook", note: "confirmed UploadResult[]" },
+    {
+      name: "Set field value",
+      kind: "client",
+      note: "serializable object keys",
+    },
+  ]}
+/>
+
+`useUpload` remains the source of truth for progress and file UI. The form only
+stores the value that your application submits.
+
+---
+
+## Choose a field value
+
+For most forms, store object keys:
+
+```ts
+type FormValues = {
+  objectKeys: string[];
+};
+```
+
+Map confirmed results to that value in `onSuccess`:
+
+```ts
+onSuccess: (results) => {
+  form.setValue(
+    "objectKeys",
+    results.map((result) => result.key),
+  );
+};
+```
+
+If the submission also needs verified size, content type, or filename, store
+`UploadResult[]` instead:
+
+```ts
+import type { UploadResult } from "@dimah-s3/react";
+
+type FormValues = {
+  attachments: UploadResult[];
+};
+```
+
+Do not store `File[]` in a payload that will be sent to your server. `File`
+objects are browser-only and do not represent a completed upload.
+
+---
+
+## React Hook Form
+
+This example uploads immediately after selection and stores the confirmed keys
+in React Hook Form.
+
+```tsx title="components/attachment-form.tsx"
+"use client";
+
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useFormatDimahError, useUpload } from "@dimah-s3/react";
+import { UploadDropzone } from "@dimah-s3/ui";
+
+const formSchema = z.object({
+  title: z.string().min(1, "Title is required."),
+  objectKeys: z.array(z.string()).min(1, "Upload at least one file."),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+export function AttachmentForm() {
+  const formatError = useFormatDimahError();
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      objectKeys: [],
+    },
+  });
+
+  const upload = useUpload({
+    route: "attachments",
+    maxFiles: 5,
+    onUploadStart: () => {
+      form.clearErrors("objectKeys");
+    },
+    onSuccess: (results) => {
+      form.setValue(
+        "objectKeys",
+        results.map((result) => result.key),
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        },
+      );
+    },
+    onError: (error) => {
+      form.setError("objectKeys", {
+        type: "upload",
+        message: formatError(error),
+      });
+    },
+  });
+
+  const reset = () => {
+    form.reset();
+    upload.reset();
+  };
+
+  return (
+    <form
+      aria-busy={upload.isPending}
+      onSubmit={form.handleSubmit((values) => {
+        console.log(values);
+      })}
+    >
+      <Controller
+        name="objectKeys"
+        control={form.control}
+        render={({ fieldState }) => (
+          <div>
+            <span>Files</span>
+            <UploadDropzone upload={upload} />
+            {fieldState.error ? (
+              <p role="alert">{fieldState.error.message}</p>
+            ) : null}
+          </div>
+        )}
+      />
+
+      <button type="submit" disabled={upload.isPending}>
+        Submit
+      </button>
+      <button type="button" onClick={reset}>
+        Reset
+      </button>
+    </form>
+  );
+}
+```
+
+The `Controller` registers the upload field and exposes its validation state.
+`UploadDropzone` still renders from `upload`, so progress and per-file status do
+not need to be copied into React Hook Form.
+
+---
+
+## TanStack Form
+
+The same boundary applies to TanStack Form: write confirmed keys with
+`setFieldValue`, and render transfer errors from `upload.error`.
+
+```tsx title="components/attachment-form.tsx"
+"use client";
+
+import { useForm } from "@tanstack/react-form";
+import { useFormatDimahError, useUpload } from "@dimah-s3/react";
+import { UploadDropzone } from "@dimah-s3/ui";
+
+export function AttachmentForm() {
+  const formatError = useFormatDimahError();
+  const form = useForm({
+    defaultValues: {
+      objectKeys: [] as string[],
+    },
+    onSubmit: ({ value }) => {
+      console.log(value);
+    },
+  });
+
+  const upload = useUpload({
+    route: "attachments",
+    maxFiles: 5,
+    onSuccess: (results) => {
+      form.setFieldValue(
+        "objectKeys",
+        results.map((result) => result.key),
+      );
+    },
+  });
+
+  const reset = () => {
+    form.reset();
+    upload.reset();
+  };
+
+  return (
+    <form
+      aria-busy={upload.isPending}
+      onSubmit={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        form.handleSubmit();
+      }}
+    >
+      <form.Field
+        name="objectKeys"
+        validators={{
+          onSubmit: ({ value }) =>
+            value.length > 0 ? undefined : "Upload at least one file.",
+        }}
+      >
+        {(field) => {
+          const error =
+            upload.error != null
+              ? formatError(upload.error)
+              : field.state.meta.errors[0];
+
+          return (
+            <div>
+              <span>Files</span>
+              <UploadDropzone upload={upload} />
+              {error ? <p role="alert">{error}</p> : null}
+            </div>
+          );
+        }}
+      </form.Field>
+
+      <button type="submit" disabled={upload.isPending}>
+        Submit
+      </button>
+      <button type="button" onClick={reset}>
+        Reset
+      </button>
+    </form>
+  );
+}
+```
+
+You can use a Standard Schema validator such as Zod at the form level instead.
+That does not change the upload integration.
+
+---
+
+## Single-file fields
+
+For an avatar or cover image, store one nullable key and limit intake to one
+file:
+
+```ts
+const upload = useUpload({
+  route: "avatar",
+  maxFiles: 1,
+  onSuccess: (results) => {
+    form.setValue("avatarKey", results[0]?.key ?? null);
+  },
+});
+```
+
+---
+
+## Integration rules
+
+1. Disable submission while `upload.isPending` is `true`.
+2. Set the field value only from `onSuccess`.
+3. Surface `onError` or `upload.error` next to the field, even when also using a
+   toast.
+4. Call both `form.reset()` and `upload.reset()` when resetting the form.
+5. Render progress, previews, and transfer status from `upload.files`, not from
+   duplicated form state.
+
+<Callout>
+  `maxFiles` is a client-side intake limit on `useUpload`. Server routes enforce
+  each file's type and size, but they do not enforce a form-level attachment
+  count. Validate the submitted key count in your application endpoint.
+</Callout>
+
+---
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can I use UploadButton instead of UploadDropzone?">
+
+Yes. Both components accept the same `UseUploadReturn`, so the form wiring does
+not change:
+
+```tsx
+<UploadButton upload={upload} label="Attach files" />
+```
+
+</Accordion>
+
+<Accordion title="Can I wait until form submission to upload?">
+
+Yes, with a custom file picker. Keep selected `File` objects in local client
+state, then pass them to `upload.handleFiles()` from your submit flow.
+
+The built-in `UploadButton` and `UploadDropzone` use eager uploads by design.
+Eager uploads are the simpler default because the form already has confirmed
+keys when validation and submission run.
+
+</Accordion>
+
+<Accordion title="What happens if the user abandons the form?">
+
+A successfully confirmed upload remains in S3 even if the form is never
+submitted. Delete it explicitly when the user removes or resets the field, or
+track draft attachments in your application and clean them up on a schedule.
+
+`purgeStalePendingObjects` only cleans up uploads that never completed S3
+confirmation. It does not remove successfully uploaded but unreferenced
+objects.
+
+</Accordion>
+
+</Accordions>

@@ -11,6 +11,7 @@
     "---Extra---",
     "helpers",
     "upload-store",
+    "forms",
     "custom-backend"
   ]
 }
