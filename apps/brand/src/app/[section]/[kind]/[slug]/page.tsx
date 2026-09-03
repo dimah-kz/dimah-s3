@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { brandItems, getBrandItem, getBrandSection, itemHref } from "@/catalog";
+import {
+  brandItems,
+  getBrandItem,
+  getBrandSection,
+  itemHref,
+  itemVideoId,
+} from "@/catalog";
 import { BrandAssetDownload } from "@/lib/asset-download";
-import { BrandCanvas, getBrandFrame } from "@/registry";
+import { BrandCanvas } from "@/lib/brand-canvas";
+import { BrandVideoControls } from "@/lib/video-controls";
+import { getBrandFrame } from "@/registry";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +36,7 @@ export default async function BrandItemPage({
   if (exporting) return <BrandCanvas item={item} />;
 
   return (
-    <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-6 py-10">
+    <main className="mx-auto flex w-full max-w-300 flex-col gap-6 px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-zinc-500">
@@ -45,6 +53,7 @@ export default async function BrandItemPage({
           <p className="mt-1 font-mono text-xs text-zinc-400">
             {item.section}/{item.kind}/{item.slug} · {item.size.width}×
             {item.size.height}
+            {"fps" in item && item.fps ? ` · ${String(item.fps)}fps` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -64,6 +73,9 @@ export default async function BrandItemPage({
       </div>
       <div className="overflow-auto rounded-xl border border-zinc-200 bg-white">
         <BrandCanvas item={item} />
+        {item.kind === "videos" ? (
+          <BrandVideoControls target={itemVideoId(item)} />
+        ) : null}
       </div>
     </main>
   );

@@ -1,0 +1,39 @@
+@keyframes framecn-spring-pop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  70% {
+    transform: scale(0.97);
+  }
+  85% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes framecn-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--framecn-distance, 20px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes framecn-blur-reveal {
+  from {
+    opacity: 0;
+    filter: blur(var(--framecn-blur, 10px));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}

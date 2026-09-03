@@ -134,3 +134,25 @@ nextjs-portal,
 .nextjs-toast-errors-parent {
   display: none !important;
 }
+
+.brand-video-controls ef-scrubber {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.brand-video-controls ef-scrubber::part(scrubber) {
+  height: 4px;
+  border-radius: 999px;
+  background: #e4e4e7;
+}
+
+.brand-video-controls ef-scrubber::part(progress) {
+  background: #09090b;
+}
+
+.brand-video-controls ef-scrubber::part(handle) {
+  width: 10px;
+  height: 10px;
+  background: #09090b;
+}

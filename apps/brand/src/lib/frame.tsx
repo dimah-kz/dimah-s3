@@ -2,8 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import type { BrandSize } from "@/catalog";
 import { cn } from "@/lib/utils";
 
-/** Light shadcn tokens on the frame so the still does not pick up page chrome. */
-const LIGHT: CSSProperties = {
+/** Light shadcn tokens on the frame so stills and videos do not pick up page chrome. */
+export const BRAND_FRAME_STYLE: CSSProperties = {
   colorScheme: "light",
   backgroundColor: "#fafafa",
   color: "#09090b",
@@ -41,7 +41,7 @@ export function BrandFrame({
         "flex flex-col items-center justify-center overflow-hidden",
         className,
       )}
-      style={{ width: size.width, height: size.height, ...LIGHT }}
+      style={{ width: size.width, height: size.height, ...BRAND_FRAME_STYLE }}
     >
       {children}
     </div>

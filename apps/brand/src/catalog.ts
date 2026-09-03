@@ -48,10 +48,27 @@ export const brandItems = [
     size: TWEET_LANDSCAPE,
     ext: "png",
   },
+  {
+    section: "attachment",
+    kind: "videos",
+    slug: "tweet",
+    title: "Tweet — shadcn Attachment",
+    caption: "Cards enter, upload, then settle to done. 16:9 landscape.",
+    size: TWEET_LANDSCAPE,
+    ext: "mp4",
+    fps: 30,
+  },
 ] as const satisfies readonly BrandItem[];
 
 export function itemId(item: Pick<BrandItem, "section" | "kind" | "slug">) {
   return `${item.section}/${item.kind}/${item.slug}`;
+}
+
+/** Stable `id` for the Editframe root timegroup (playback controls target). */
+export function itemVideoId(
+  item: Pick<BrandItem, "section" | "kind" | "slug">,
+) {
+  return itemId(item).replaceAll("/", "-");
 }
 
 export function itemHref(item: Pick<BrandItem, "section" | "kind" | "slug">) {
