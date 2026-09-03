@@ -1,9 +1,19 @@
 export const TWEET_LANDSCAPE = { width: 1200, height: 675 } as const;
 
+/** H.264/AVC needs even width and height; tweet stills stay 1200×675. */
+export const TWEET_LANDSCAPE_VIDEO = { width: 1200, height: 676 } as const;
+
 export type BrandSize = {
   width: number;
   height: number;
 };
+
+export function evenAvcSize(size: BrandSize): BrandSize {
+  return {
+    width: Math.round(size.width / 2) * 2,
+    height: Math.round(size.height / 2) * 2,
+  };
+}
 
 export const brandSectionIds = [
   "attachment",
@@ -54,7 +64,7 @@ export const brandItems = [
     slug: "tweet",
     title: "Tweet — shadcn Attachment",
     caption: "Cards enter, fill to 100%, then settle to done. 16:9 landscape.",
-    size: TWEET_LANDSCAPE,
+    size: TWEET_LANDSCAPE_VIDEO,
     ext: "mp4",
     fps: 30,
   },

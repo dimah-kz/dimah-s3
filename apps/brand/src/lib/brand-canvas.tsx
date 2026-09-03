@@ -2,7 +2,7 @@
 
 import { createElement, type ComponentType } from "react";
 import dynamic from "next/dynamic";
-import { itemId, TWEET_LANDSCAPE, type BrandItem } from "@/catalog";
+import { itemId, TWEET_LANDSCAPE_VIDEO, type BrandItem } from "@/catalog";
 import { AttachmentTweetStill } from "@/sections/attachment/stills/tweet";
 
 const AttachmentTweetVideo = dynamic(
@@ -15,8 +15,8 @@ const AttachmentTweetVideo = dynamic(
     loading: () =>
       createElement("div", {
         style: {
-          width: TWEET_LANDSCAPE.width,
-          height: TWEET_LANDSCAPE.height,
+          width: TWEET_LANDSCAPE_VIDEO.width,
+          height: TWEET_LANDSCAPE_VIDEO.height,
           backgroundColor: "#fafafa",
         },
       }),

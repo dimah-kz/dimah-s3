@@ -9,7 +9,7 @@ import {
   useTimingInfo,
 } from "@editframe/react";
 import "@editframe/elements/styles.css";
-import { TWEET_LANDSCAPE, itemVideoId } from "@/catalog";
+import { TWEET_LANDSCAPE_VIDEO, itemVideoId } from "@/catalog";
 import { BlurReveal } from "@/lib/framecn/blur-reveal";
 import { SpringPopIn } from "@/lib/framecn/spring-pop-in";
 import { StaggeredFadeUp } from "@/lib/framecn/staggered-fade-up";
@@ -53,8 +53,8 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
       loop
       className="overflow-hidden"
       style={{
-        width: TWEET_LANDSCAPE.width,
-        height: TWEET_LANDSCAPE.height,
+        width: TWEET_LANDSCAPE_VIDEO.width,
+        height: TWEET_LANDSCAPE_VIDEO.height,
         display: "flex",
         ...BRAND_FRAME_STYLE,
       }}

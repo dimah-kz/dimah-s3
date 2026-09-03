@@ -9,6 +9,7 @@ import {
 } from "@/catalog";
 import { BrandAssetDownload } from "@/lib/asset-download";
 import { BrandCanvas } from "@/lib/brand-canvas";
+import { BrandVideoDownload } from "@/lib/video-download";
 import { BrandVideoControls } from "@/lib/video-controls";
 import { getBrandFrame } from "@/registry";
 import { buttonVariants } from "@/components/ui/button";
@@ -65,10 +66,20 @@ export default async function BrandItemPage({
               Export
             </Link>
           ) : null}
-          <BrandAssetDownload
-            item={item}
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
-          />
+          {item.kind === "videos" ? (
+            <BrandVideoDownload
+              target={itemVideoId(item)}
+              fps={item.fps ?? 30}
+              width={item.size.width}
+              height={item.size.height}
+              filename={`${item.slug}.mp4`}
+            />
+          ) : (
+            <BrandAssetDownload
+              item={item}
+              className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+            />
+          )}
         </div>
       </div>
       <div className="overflow-auto rounded-xl border border-zinc-200 bg-white">
