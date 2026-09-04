@@ -1,41 +1,46 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Align create templates with 1.5.0\n\n`dimah-s3 create` starters now require `@dimah-s3/*` 1.5.0. A fresh scaffold installs the current line, including signed `upload.object` options and catalog status on `useUpload`.\n"
-    filename: 2026-09-04-tmpl15.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Import `cn` from the `cn` package\n\n`@dimah-s3/ui` now imports class names from [`cn`](https://www.npmjs.com/package/cn), matching shadcn's default. There is no `lib/utils.ts` helper. Install `cn` instead of `cnfast`. Registry items declare `cn` so `shadcn add` installs it.\n"
+    filename: 2026-09-04-cn.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-04-tmpl15.md
+      - 2026-09-04-cn.md
     id: npm:brand
     updated: true
   - changelogIds:
-      - 2026-09-04-tmpl15.md
-    id: npm:@dimah-s3/cli
-    updated: true
-  - changelogIds:
-      - 2026-09-04-tmpl15.md
+      - 2026-09-04-cn.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-04-tmpl15.md
+      - 2026-09-04-cn.md
+    id: npm:@dimah-s3/cli
+    updated: true
+  - changelogIds:
+      - 2026-09-04-cn.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-04-tmpl15.md
+      - 2026-09-04-cn.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-04-tmpl15.md
+      - 2026-09-04-cn.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-04-tmpl15.md
+      - 2026-09-04-cn.md
     id: npm:@dimah-s3/ui
+    updated: true
+  - changelogIds:
+      - 2026-09-04-cn.md
+    id: npm:@workspace/vitest-config
     updated: true
 npm:packages:
   - id: npm:brand
-  - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
+  - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
+  - id: npm:@workspace/vitest-config

@@ -1,7 +1,4 @@
----
-packages:
-  group:dimah-s3: patch
----
+## @workspace/vitest-config@0.0.2
 
 ### Import `cn` from the `cn` package
 
