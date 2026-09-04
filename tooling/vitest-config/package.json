@@ -1,0 +1,12 @@
+{
+  "name": "@workspace/vitest-config",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "vitest": "catalog:"
+  }
+}

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { uploadFile } from "./upload-file";
 import { uploadMultipart } from "./multipart";
 import { uploadPut, uploadSimple } from "./presigned-http";
@@ -34,12 +34,6 @@ function oversizedFile() {
 }
 
 describe("uploadFile", () => {
-  beforeEach(() => {
-    vi.mocked(uploadSimple).mockClear();
-    vi.mocked(uploadPut).mockClear();
-    vi.mocked(uploadMultipart).mockClear();
-  });
-
   it("presigns POST, uploads the form, then confirms", async () => {
     const api = fakeS3Api();
     const phases: string[] = [];

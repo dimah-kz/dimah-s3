@@ -1,16 +1,3 @@
-import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { packageConfig } from "@workspace/vitest-config";
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
-  test: {
-    name: "db",
-    environment: "node",
-    include: ["src/**/*.test.ts"],
-    restoreMocks: true,
-  },
-});
+export default packageConfig(import.meta.dirname, { name: "db" });

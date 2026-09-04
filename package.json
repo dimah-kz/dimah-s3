@@ -1,6 +1,7 @@
 {
   "name": "dimah-s3",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "turbo run build --filter=!./examples/* --filter=!brand",
     "build:all": "turbo run build",
@@ -34,7 +35,7 @@
   },
   "packageManager": "pnpm@12.3.1",
   "engines": {
-    "node": ">=22",
+    "node": ">=22.12.0",
     "pnpm": ">=12"
   }
 }

@@ -98,6 +98,7 @@
     "@types/node": "^26.4.1",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
     "eslint": "catalog:",
     "tsc-alias": "^1.9.4",
     "tsup": "catalog:",

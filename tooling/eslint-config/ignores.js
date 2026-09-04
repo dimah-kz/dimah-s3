@@ -7,6 +7,7 @@ export const ignorePatterns = [
   "**/build/**",
   "**/.turbo/**",
   "**/coverage/**",
+  "**/.vitest/**",
   "**/next-env.d.ts",
   // tsup writes ephemeral bundled configs next to tsup.config.ts during builds
   "**/tsup.config.bundled_*.mjs",

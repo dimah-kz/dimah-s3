@@ -65,6 +65,7 @@
     "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
     "eslint": "catalog:",
     "fuma-translate": "^1.0.2",
     "jsdom": "^30.0.1",

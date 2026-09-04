@@ -62,6 +62,7 @@
     "@types/validate-npm-package-name": "^4.0.2",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
     "eslint": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",

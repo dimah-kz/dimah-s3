@@ -7,7 +7,7 @@ import {
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3_ERROR_CODES } from "@dimah-s3/core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   allFeaturesRoute,
   createInstance,
@@ -31,11 +31,6 @@ vi.mock("@aws-sdk/s3-presigned-post", () => ({
 }));
 
 describe("upload", () => {
-  beforeEach(() => {
-    vi.mocked(createPresignedPost).mockClear();
-    vi.mocked(getSignedUrl).mockClear();
-  });
-
   it("presigns POST uploads and runs onPresigned", async () => {
     const onPresigned = vi.fn();
     const s3 = createInstance({
@@ -486,7 +481,6 @@ describe("download / delete", () => {
   });
 
   it("uses download.expiresIn, not upload.expiresIn", async () => {
-    vi.mocked(getSignedUrl).mockClear();
     const s3 = createInstance({
       client: mockS3(
         sendByCommand({ HeadObjectCommand: headResult() }) as never,
@@ -510,7 +504,6 @@ describe("download / delete", () => {
   });
 
   it("defaults download TTL when download.expiresIn is omitted", async () => {
-    vi.mocked(getSignedUrl).mockClear();
     const s3 = createInstance({
       client: mockS3(
         sendByCommand({ HeadObjectCommand: headResult() }) as never,
@@ -727,7 +720,6 @@ describe("multipart", () => {
   });
 
   it("rejects a part larger than maxFileSize", async () => {
-    vi.mocked(getSignedUrl).mockClear();
     const s3 = createInstance({
       routes: {
         uploads: allFeaturesRoute({ upload: { maxFileSize: 5 } }),

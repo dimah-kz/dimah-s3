@@ -27,7 +27,11 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "vitest.config.*"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "vitest.config.*",
+        "../../tooling/vitest-config/**"
+      ]
     },
     "dev": {
       "cache": false,
