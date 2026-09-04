@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   FileAttachment,
-  StatusAttachment,
   type AttachmentOrientation,
   type AttachmentSize,
   type AttachmentState,
@@ -27,20 +26,6 @@ const STATES = [
   "done",
 ] as const satisfies AttachmentState[];
 
-const STATUS = {
-  idle: { title: "Preparing…" },
-  uploading: { title: "Preparing…" },
-  processing: { title: "Preparing…" },
-  error: {
-    title: "Upload failed",
-    description: "Could not reach the server.",
-  },
-  done: { title: "Ready" },
-} as const satisfies Record<
-  AttachmentState,
-  { title: string; description?: string }
->;
-
 type Props = {
   /** Live demo source injected by the docs shell. */
   code?: string;
@@ -57,7 +42,6 @@ export function AttachmentPlayground({ code }: Props) {
   const uploading = state === "uploading";
   const canCancel = uploading || state === "processing";
   const canDismiss = state === "done" || state === "error";
-  const statusState = state === "idle" ? "processing" : state;
 
   const toolbar = (
     <div className="flex flex-col gap-0.5 overflow-hidden rounded-xl border bg-fd-secondary/50 px-3">
@@ -112,10 +96,15 @@ export function AttachmentPlayground({ code }: Props) {
         error={state === "error" ? "Network error" : null}
         onDismiss={canDismiss ? () => setState("idle") : undefined}
       />
-      <StatusAttachment
+      <FileAttachment
         {...layout}
-        state={statusState}
-        {...STATUS[statusState]}
+        state={state}
+        fileName="budget.xlsx"
+        fileType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        fileSize={84_000}
+        percent={uploading ? 28 : 0}
+        error={state === "error" ? "Network error" : null}
+        onCancel={canCancel ? () => setState("done") : undefined}
         onDismiss={canDismiss ? () => setState("idle") : undefined}
       />
     </div>

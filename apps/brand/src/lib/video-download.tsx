@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { DownloadIcon } from "lucide-react";
 import type { EFTimegroupElement } from "@editframe/elements";
+import { createRenderClone, renderTimegroupToVideo } from "@editframe/elements";
 import { evenAvcSize } from "@/catalog";
+import { patchFileGlyphsForExport } from "@/lib/rasterize-file-glyphs";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -38,29 +40,41 @@ export function BrandVideoDownload({
 
     try {
       const size = evenAvcSize({ width, height });
-      const result = await tg.renderToVideo({
-        fps,
+      const handle = await createRenderClone(tg, {
         width: size.width,
         height: size.height,
-        includeAudio: false,
-        progressPreviewInterval: 0,
-        onProgress: ({ frame, totalFrames }) => {
-          setProgress(totalFrames > 0 ? frame / totalFrames : 0);
-        },
+        isolateMedia: true,
       });
-      if (!result.buffer) {
-        throw new Error("Render produced no file.");
+      handle.clone.removeAttribute("loop");
+      const unpatch = patchFileGlyphsForExport(handle.clone);
+      try {
+        const result = await renderTimegroupToVideo(handle.clone, {
+          fps,
+          width: size.width,
+          height: size.height,
+          includeAudio: false,
+          progressPreviewInterval: 0,
+          onProgress: ({ frame, totalFrames }) => {
+            setProgress(totalFrames > 0 ? frame / totalFrames : 0);
+          },
+        });
+        if (!result.buffer) {
+          throw new Error("Render produced no file.");
+        }
+        const blob = new Blob([result.buffer], {
+          type: result.mimeType || "video/mp4",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = Object.assign(document.createElement("a"), {
+          href: url,
+          download: filename,
+        });
+        link.click();
+        URL.revokeObjectURL(url);
+      } finally {
+        unpatch();
+        handle.dispose();
       }
-      const blob = new Blob([result.buffer], {
-        type: result.mimeType || "video/mp4",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = Object.assign(document.createElement("a"), {
-        href: url,
-        download: filename,
-      });
-      link.click();
-      URL.revokeObjectURL(url);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Render failed.");
     } finally {

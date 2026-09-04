@@ -17,7 +17,7 @@ const AttachmentTweetVideo = dynamic(
         style: {
           width: TWEET_LANDSCAPE_VIDEO.width,
           height: TWEET_LANDSCAPE_VIDEO.height,
-          backgroundColor: "#fafafa",
+          backgroundColor: "#f4f4f5",
         },
       }),
   },

@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { FileAttachment, StatusAttachment } from "@dimah-s3/ui";
+import { FileAttachment } from "@dimah-s3/ui";
 import {
   Timegroup,
   TimelineRoot,
   usePlayback,
   useTimingInfo,
 } from "@editframe/react";
-import "@editframe/elements/styles.css";
 import { TWEET_LANDSCAPE_VIDEO, itemVideoId } from "@/catalog";
 import { BlurReveal } from "@/lib/framecn/blur-reveal";
 import { SpringPopIn } from "@/lib/framecn/spring-pop-in";
 import { StaggeredFadeUp } from "@/lib/framecn/staggered-fade-up";
 import { BRAND_FRAME_STYLE } from "@/lib/frame";
 import { BrandMark } from "@/lib/mark";
+import { AttachmentTweetStage } from "@/sections/attachment/tweet-stage";
 
 const PREVIEW = "/dimah-avatar.png";
 const FPS = 30;
@@ -60,58 +60,61 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
       }}
     >
       <PlaybackBoot />
-      <div className="flex size-full flex-col items-center justify-center gap-16">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-3">
-            <SpringPopIn delayInFrames={6} fps={FPS} durationInFrames={30}>
-              <BrandMark className="size-9 [&_svg]:size-5" />
-            </SpringPopIn>
-            <StaggeredFadeUp
-              text="dimah-s3"
-              delayInFrames={10}
-              fps={FPS}
-              fontSize={26}
-              fontWeight={600}
-              color="#09090b"
-              className="tracking-tight"
+      <div className="flex size-full flex-col items-center justify-center gap-8">
+        <AttachmentTweetStage
+          heading={
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex items-center gap-3">
+                <BrandMark className="size-9 [&_svg]:size-5" />
+                <StaggeredFadeUp
+                  text="dimah-s3"
+                  delayInFrames={4}
+                  fps={FPS}
+                  fontSize={26}
+                  fontWeight={600}
+                  color="#09090b"
+                  className="tracking-tight"
+                />
+              </div>
+              <BlurReveal
+                text="now with shadcn Attachment"
+                delayInFrames={10}
+                fps={FPS}
+                durationInFrames={32}
+                fontSize={16}
+                fontWeight={400}
+                color="#71717a"
+                blur={8}
+              />
+            </div>
+          }
+        >
+          <SpringPopIn delayInFrames={20} fps={FPS} durationInFrames={44}>
+            <FileCard
+              time={ownCurrentTime}
+              fileName="quarterly-report.pdf"
+              fileType="application/pdf"
+              fileSize={2_400_000}
             />
-          </div>
-          <BlurReveal
-            text="now with shadcn Attachment"
-            delayInFrames={16}
-            fps={FPS}
-            durationInFrames={36}
-            fontSize={16}
-            fontWeight={400}
-            color="#71717a"
-            blur={8}
-          />
-        </div>
-
-        <div className="flex h-64 w-160 items-center justify-center">
-          <div className="flex origin-center scale-[1.55] items-stretch justify-center gap-6">
-            <SpringPopIn delayInFrames={20} fps={FPS} durationInFrames={44}>
-              <FileCard
-                time={ownCurrentTime}
-                fileName="quarterly-report.pdf"
-                fileType="application/pdf"
-                fileSize={2_400_000}
-              />
-            </SpringPopIn>
-            <SpringPopIn delayInFrames={26} fps={FPS} durationInFrames={50}>
-              <FileCard
-                time={ownCurrentTime}
-                fileName="avatar.png"
-                fileType="image/png"
-                fileSize={180_000}
-                previewUrl={PREVIEW}
-              />
-            </SpringPopIn>
-            <SpringPopIn delayInFrames={32} fps={FPS} durationInFrames={56}>
-              <StatusCard time={ownCurrentTime} />
-            </SpringPopIn>
-          </div>
-        </div>
+          </SpringPopIn>
+          <SpringPopIn delayInFrames={26} fps={FPS} durationInFrames={50}>
+            <FileCard
+              time={ownCurrentTime}
+              fileName="avatar.png"
+              fileType="image/png"
+              fileSize={180_000}
+              previewUrl={PREVIEW}
+            />
+          </SpringPopIn>
+          <SpringPopIn delayInFrames={32} fps={FPS} durationInFrames={56}>
+            <FileCard
+              time={ownCurrentTime}
+              fileName="budget.xlsx"
+              fileType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              fileSize={84_000}
+            />
+          </SpringPopIn>
+        </AttachmentTweetStage>
       </div>
     </Timegroup>
   );
@@ -167,25 +170,13 @@ function FileCard({
   );
 }
 
-function StatusCard({ time }: { time: number }) {
-  const done = time >= UPLOAD_DONE_S;
-
-  return (
-    <StatusAttachment
-      size="default"
-      orientation="vertical"
-      state={done ? "done" : "processing"}
-      title={done ? "Ready" : "Uploading"}
-    />
-  );
-}
-
 function PlaybackBoot() {
   const host = useRef<HTMLDivElement>(null);
   const autoPlayed = useRef(false);
   const playback = usePlayback(host);
 
   useEffect(() => {
+    if (host.current?.closest("[data-render-clone]")) return;
     if (autoPlayed.current) return;
     if (playback.playing) {
       autoPlayed.current = true;
