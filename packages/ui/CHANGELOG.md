@@ -1,3 +1,9 @@
+## @dimah-s3/ui@1.5.1
+
+### Align create templates with 1.5.0
+
+`dimah-s3 create` starters now require `@dimah-s3/*` 1.5.0. A fresh scaffold installs the current line, including signed `upload.object` options and catalog status on `useUpload`.
+
 ## @dimah-s3/ui@1.5.0
 
 ### Sign storage class, cache control, and tags from `upload.object`
