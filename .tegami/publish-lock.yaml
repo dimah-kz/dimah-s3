@@ -1,36 +1,41 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Tighten upload cleanup and client races\n\nConfirm now deletes the object when HeadObject omits `ContentLength`, matching the existing rollback for constraint and `onConfirmed` failures. A failed multipart `onInit` also runs `onAbort`, so plugins like `db()` can drop the pending row.\n\nResuming a multipart upload only starts a new session when S3 reports the old `uploadId` is gone (`OBJECT_NOT_FOUND`). Transient `listParts` errors no longer discard a valid session, and 4xx API errors are not retried. Overwrite quota checks subtract the replaced object's size. Shared download and delete hooks ignore stale completions after `reset()` or a newer call.\n"
-    filename: 2026-09-03-upload-edge-cases.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Sign storage class, cache control, and tags from `upload.object`\n\nReturn `storageClass`, `cacheControl`, or `tagging` from `upload.object`. They are signed into PUT, POST, multipart init, and `putObject` so the browser cannot change them.\n\n## Surface route catalog failures on `useUpload`\n\n`policy.catalogStatus` and `policy.catalogError` report a failed `GET /routes` instead of failing silently. Uploads still run — the server enforces constraints. Pass `accept` / `maxFileSize` on the hook when the catalog is unavailable.\n"
+    filename: 2026-09-04-7e2c91.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-03-upload-edge-cases.md
-    id: npm:@dimah-s3/cli
+      - 2026-09-04-7e2c91.md
+    id: npm:brand
     updated: true
   - changelogIds:
-      - 2026-09-03-upload-edge-cases.md
-    id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-09-03-upload-edge-cases.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - changelogIds:
-      - 2026-09-03-upload-edge-cases.md
+      - 2026-09-04-7e2c91.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-03-upload-edge-cases.md
+      - 2026-09-04-7e2c91.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-09-04-7e2c91.md
+    id: npm:@dimah-s3/cli
+    updated: true
+  - changelogIds:
+      - 2026-09-04-7e2c91.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-09-04-7e2c91.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-03-upload-edge-cases.md
+      - 2026-09-04-7e2c91.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
+  - id: npm:brand
+  - id: npm:@dimah-s3/core
+  - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/react
-  - id: npm:@dimah-s3/db
-  - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
