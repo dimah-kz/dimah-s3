@@ -1,3 +1,13 @@
+## @dimah-s3/db@1.5.0
+
+### Sign storage class, cache control, and tags from `upload.object`
+
+Return `storageClass`, `cacheControl`, or `tagging` from `upload.object`. They are signed into PUT, POST, multipart init, and `putObject` so the browser cannot change them.
+
+### Surface route catalog failures on `useUpload`
+
+`policy.catalogStatus` and `policy.catalogError` report a failed `GET /routes` instead of failing silently. Uploads still run — the server enforces constraints. Pass `accept` / `maxFileSize` on the hook when the catalog is unavailable.
+
 ## @dimah-s3/db@1.4.2
 
 ### Tighten upload cleanup and client races
