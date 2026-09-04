@@ -2,6 +2,8 @@
 
 All `@dimah-s3/*` published packages version **together** (`group: dimah-s3` with `syncBump` / `syncGitTag` in `scripts/tegami.mts`).
 
+Format details: [Tegami changelogs](https://tegami.fuma-nama.dev/changelog). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files directly.
+
 ## When to add a changelog
 
 Add one when any published package changes **behavior, public API, or build output**:
@@ -10,25 +12,24 @@ Add one when any published package changes **behavior, public API, or build outp
 pnpm tegami
 ```
 
-Or write a Markdown file under `.tegami/` — prefer `group:dimah-s3` when the whole line should bump.
+Or write a Markdown file under `.tegami/` as `YYYY-MM-DD-{hash}.md`. Prefer `group:dimah-s3` when the whole line should bump.
 
 Skip for repo-only docs, CI/config, or typos with no package output impact.
 
-## Before opening a PR
+Frontmatter needs `packages`. Body needs at least one `#` / `##` / `###` heading. Write from the **npm consumer** perspective.
 
-```bash
-pnpm build
-pnpm check-types
-pnpm test
+```md
+---
+packages:
+  group:dimah-s3: patch
+---
+
+### Fix button hover state
+
+The hover color now matches the design system.
 ```
 
-When changing `templates/**` or template maintenance scripts, also run:
-
-```bash
-pnpm templates:build
-```
-
-CI posts a Tegami release preview comment on the PR.
+Package references: `"@dimah-s3/core"`, `"npm:@dimah-s3/core"`, or `"group:dimah-s3"` (preferred for line-wide bumps).
 
 ## Bump types
 
@@ -38,20 +39,17 @@ CI posts a Tegami release preview comment on the PR.
 | minor | Backward-compatible feature               |
 | major | Breaking API, types, or consumer contract |
 
-Write the summary from the **npm consumer** perspective — not implementation detail. Body needs at least one heading.
+## Before opening a PR
 
-Example:
-
-```md
----
-packages:
-  group:dimah-s3: minor
----
-
-## Add optional `cause` to `APIError`
-
-Support error chaining for consumers.
+```bash
+pnpm build
+pnpm check-types
+pnpm test
 ```
+
+When changing `templates/**` or template maintenance scripts, also run `pnpm templates:build`.
+
+CI posts a Tegami release preview comment on the PR.
 
 ## Maintainer publish flow
 
@@ -81,5 +79,3 @@ Configure this for every new package under the scope (after the package exists o
 | `pnpm tegami version` | Draft bumps and write the publish lock |
 | `pnpm tegami publish` | Publish from the publish lock          |
 | `pnpm tegami ci`      | Version if pending, otherwise publish  |
-
-See [Tegami changelogs](https://tegami.fuma-nama.dev/changelog) for format details.

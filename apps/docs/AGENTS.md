@@ -10,4 +10,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # apps/docs
 
-Fumadocs site for dimah-s3. Keep docs examples aligned with published APIs. AutoTypeTable reads package `src/` via each package tsconfig — do not map `@dimah-s3/*` to source in this app's tsconfig (Next.js would compile those files with the docs `@/` alias).
+Product docs (Fumadocs). Keep examples aligned with published APIs.
+
+AutoTypeTable reads package `src/` via each package tsconfig — do not map `@dimah-s3/*` to source in this app's tsconfig (Next.js would compile those files with the docs `@/` alias).

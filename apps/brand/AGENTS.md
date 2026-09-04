@@ -10,6 +10,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # apps/brand
 
-Local promo studio for dimah-s3 stills and framecn videos. Not the docs site — do not add it to docs nav, sitemap, or the docs Vercel project.
+Local promo studio — not the docs site. Do not add it to docs nav, sitemap, or the docs Vercel project.
 
-Canvases: `src/sections/{section}/stills|videos/`. Preview: `pnpm --filter brand dev` → http://localhost:3100. Read [brand.md](../../docs/agents/brand.md) before adding a still or video. Do not commit `src/components/framecn/` or Editframe `package.json` / lockfile changes unless asked.
+Read [brand.md](../../docs/agents/brand.md) before adding a still or video.

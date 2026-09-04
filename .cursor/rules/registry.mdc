@@ -1,19 +1,15 @@
 ---
-description: UI source and shadcn registry — open registry.md for detail
+description: UI source and shadcn registry — read registry.md when changing components or items
 globs: packages/ui/**/*,registry.json
 alwaysApply: false
 ---
 
 # Registry & UI
 
-Source: `packages/ui/src/`. Use `@/` imports — the shadcn CLI rewrites them on install. Item manifests: `packages/ui/scripts/registry-items.ts`. Generated catalog: `packages/ui/registry.json` (do not hand-edit). Root `registry.json` `include`s that file.
+Source: `packages/ui/src/`. Short `@/` imports (shadcn rewrites them on install). Item manifests: `packages/ui/scripts/registry-items.ts`. Do not hand-edit `packages/ui/registry.json` or `packages/ui/src/components/ui/`.
 
-**Never edit** `packages/ui/src/components/ui/` (stock shadcn primitives). Own behavior lives under `components/dimah-s3/`, `hooks/`, and `lib/`. Refresh primitives with `pnpm --filter @dimah-s3/ui sync:shadcn` only.
+Own UI under `components/dimah-s3/`, `hooks/`, and `lib/`. Never `lib/attachment.ts` (basename collision with stock Attachment). Colors: `*-dimah-s3-*`, not bare `bg-primary`. Logical CSS (`text-start`, `ms-*`, `ps-*`, `start-*`) unless the physical side is required.
 
-After item or file-list changes: `pnpm registry:validate` (completeness + `shadcn registry validate`), then commit `packages/ui/registry.json` if it changed. `pnpm registry:build` writes `apps/docs/public/r/` (docs `build` depends on it). Layout helpers are `lib/attachment-layout.ts` — never `lib/attachment.ts` (CLI basename collision with the stock Attachment primitive).
+After item or file-list changes: `pnpm registry:validate`, commit `packages/ui/registry.json` if it changed.
 
-Direction-safe styling is required (LTR default, RTL-ready): prefer logical utilities like `text-start/end`, `ms/me`, `ps/pe`, and `start/end` over physical `left/right`, `ml/mr`, `pl/pr`, and `text-left/right` unless physically side-locked behavior is intentional.
-
-Dimah-owned colors use `*-dimah-s3-*` utilities (`bg-dimah-s3-primary`, …) via `packages/ui/css/shadcn.css` — not bare shadcn `bg-primary` in `components/dimah-s3/`.
-
-**Detail (Read):** [docs/agents/registry.md](docs/agents/registry.md).
+**When adding or changing a component or registry item, Read** [docs/agents/registry.md](docs/agents/registry.md). For a local fix, match the surrounding code.

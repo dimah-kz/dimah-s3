@@ -1,17 +1,13 @@
 ---
-description: CLI scaffold package — open cli.md for detail
+description: Scaffold CLI and templates — read cli.md when changing create or the catalog
 globs: packages/cli/**/*,templates/**
 alwaysApply: false
 ---
 
-# CLI (`@dimah-s3/cli`)
+# CLI
 
-Scaffold only — no dimah-s3 business logic. Two phases, never mixed: **resolve** (flags + prompts → `CreateConfig`) then **steps** (all filesystem writes). `create/config.ts` owns every prompt; `create/pipeline.ts` runs `createSteps` and prints next steps.
+Scaffold only — no library-package deps. Two phases, never mixed: **resolve** (flags + prompts) then **steps** (disk writes). The runner owns output — never Clack `tasks()`. Do not hand-edit `dist/templates/`.
 
-Steps implement `CreateStep` (`create/step.ts`): `id`, `title`, `enabled`, `recoverable`, `run(ctx, report)`. The runner owns output (spinner on TTY, plain lines otherwise) — never call Clack `tasks()` (leaks the spinner on throw). Rollback only removes a target dir the run created.
+Templates are not a workspace member: concrete npm ranges only (`catalog:` / `workspace:*` fail the snapshot). Snapshot script is the copy/exclude/rewrite source of truth and must run after tsup (`clean: true`).
 
-Templates SSOT: `templates/<id>/` + `templates/catalog.json` (not a workspace member). Build snapshots into `dist/templates/` (pins `@dimah-s3/*`, rejects `catalog:` / `workspace:*`, renames `.gitignore` → `_gitignore`).
-
-New template → catalog entry + folder. New create option → flag + `CreateConfig` field + a step in `createSteps`. Do not hand-edit `dist/templates/`.
-
-**Detail (Read):** [docs/agents/cli.md](docs/agents/cli.md).
+**When changing `create`, the snapshot, or the template catalog, Read** [docs/agents/cli.md](docs/agents/cli.md). Template-folder landmines: [templates/AGENTS.md](templates/AGENTS.md).
