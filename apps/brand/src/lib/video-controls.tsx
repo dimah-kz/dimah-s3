@@ -3,8 +3,8 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { PauseIcon, PlayIcon } from "lucide-react";
 import { Controls, Scrubber, TimeDisplay, TogglePlay } from "@editframe/react";
+import { cn } from "cn";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type HostProps = {
   target?: string;

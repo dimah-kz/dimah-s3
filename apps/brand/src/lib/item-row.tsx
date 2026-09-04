@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { cn } from "cn";
 import type { BrandItem, BrandKind } from "@/catalog";
 import { itemHref } from "@/catalog";
 import { BrandAssetDownload } from "@/lib/asset-download";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function BrandItemRow({ item }: { item: BrandItem }) {
   return (

@@ -20,8 +20,8 @@
     "@editframe/react": "^0.59.42",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
-    "cnfast": "^0.2.0",
-    "lucide-react": "^1.39.0",
+    "cn": "^0.2.4",
+    "lucide-react": "^1.40.0",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -36,7 +36,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "postcss": "^8.5.26",
+    "postcss": "^8.5.27",
     "tailwindcss": "^4.3.3",
     "typescript": "catalog:"
   }

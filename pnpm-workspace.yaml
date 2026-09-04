@@ -21,11 +21,11 @@ catalog:
   prettier: ^3.9.6
   turbo: ^2.10.12
   tsup: ^8.5.1
-  vitest: ^4.1.11
+  vitest: ^5.0.0
   react: ^19.2.8
   react-dom: ^19.2.8
   "@types/react": ^19.2.18
-  "@types/react-dom": ^19.2.5
+  "@types/react-dom": ^19.2.7
   next: 16.3.4
   zod: ^4.5.4
   better-call: 1.4.0

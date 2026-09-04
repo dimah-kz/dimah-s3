@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Toaster } from "@dimah-s3/ui";
 import { Inter } from "next/font/google";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import { ThemeProvider } from "@/components/theme-provider";
 import { S3Provider } from "@/lib/s3-client";
 import "./globals.css";

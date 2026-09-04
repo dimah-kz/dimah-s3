@@ -138,10 +138,6 @@ for (const item of components) {
       if (!specifier.startsWith("@/")) continue;
       const aliasPath = specifier.slice(2);
 
-      if (aliasPath === "lib/utils" || aliasPath.startsWith("lib/utils/")) {
-        continue;
-      }
-
       if (aliasPath.startsWith("components/ui/")) {
         const primitive = aliasPath.slice("components/ui/".length);
         if (!registryDeps.has(primitive)) {

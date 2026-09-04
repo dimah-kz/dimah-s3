@@ -1,5 +1,5 @@
 import { CloudUpload } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 export function BrandMark({ className }: { className?: string }) {
   return (

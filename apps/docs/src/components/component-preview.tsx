@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
 import { Button } from "@/components/ui/button";
 

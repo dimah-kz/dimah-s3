@@ -2,7 +2,7 @@
 
 import { FileIcon, defaultStyles } from "react-file-icon";
 import type { DefaultExtensionType, FileIconProps } from "react-file-icon";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 /**
  * Curated extensions with colored glyphs via `react-file-icon`.

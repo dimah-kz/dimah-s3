@@ -9,6 +9,7 @@ import {
 } from "@dimah-s3/core";
 import { useFormatDimahError } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
+import { cn } from "cn";
 import {
   Attachment,
   AttachmentAction,
@@ -28,7 +29,6 @@ import {
   type AttachmentState,
 } from "@/lib/attachment-layout";
 import { FileTypeGlyph } from "@/lib/file-type-icon";
-import { cn } from "@/lib/utils";
 
 const PROGRESS_BY_SIZE = {
   default: { size: 20, strokeWidth: 2.5, className: "size-5" },

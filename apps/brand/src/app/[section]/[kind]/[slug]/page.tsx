@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cn } from "cn";
 import {
   brandItems,
   getBrandItem,
@@ -13,7 +14,6 @@ import { BrandVideoDownload } from "@/lib/video-download";
 import { BrandVideoControls } from "@/lib/video-controls";
 import { getBrandFrame } from "@/registry";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export function generateStaticParams() {
   return brandItems.map((item) => ({

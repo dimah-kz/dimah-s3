@@ -5,7 +5,7 @@ import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { formatAcceptLabels, type UseUploadReturn } from "@dimah-s3/react";
 import { formatFileSize } from "@dimah-s3/core";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,

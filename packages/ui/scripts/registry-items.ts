@@ -71,6 +71,7 @@ const componentDependencies = [
   "@dimah-s3/core",
   "@dimah-s3/react",
   "@fuma-translate/react",
+  "cn",
   "lucide-react",
   "react-file-icon",
 ] as const;

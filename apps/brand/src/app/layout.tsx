@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
 import "@editframe/elements/styles.css";
+import { cn } from "cn";
 import "@/lib/framecn/motion.css";
 import "./globals.css";
 

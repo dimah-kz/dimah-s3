@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
+import { cn } from "cn";
 import type { BrandSize } from "@/catalog";
-import { cn } from "@/lib/utils";
 
 /** Light shadcn tokens on the frame so stills and videos do not pick up page chrome. */
 export const BRAND_FRAME_STYLE: CSSProperties = {

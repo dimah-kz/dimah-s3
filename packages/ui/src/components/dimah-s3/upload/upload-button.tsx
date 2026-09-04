@@ -4,13 +4,13 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import type { UseUploadReturn } from "@dimah-s3/react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import {
   resolveStatusSlot,
   type AttachmentLayoutAliases,

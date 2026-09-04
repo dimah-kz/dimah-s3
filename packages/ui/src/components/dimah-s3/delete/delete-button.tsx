@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ReactNode } from "react";
 import { Trash2Icon, LoaderIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import {
   formatFileSize,
   fileNameFromKey,

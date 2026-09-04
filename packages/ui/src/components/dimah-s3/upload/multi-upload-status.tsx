@@ -4,6 +4,7 @@ import { PauseIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { formatEta, useFormatDimahError } from "@dimah-s3/react";
 import type { UploadFileState, UseUploadReturn } from "@dimah-s3/react";
+import { cn } from "cn";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { AttachmentAction } from "@/components/ui/attachment";
@@ -17,7 +18,6 @@ import {
   ProgressLabel,
   ProgressValue,
 } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
 
 export type MultiUploadStatusProps = AttachmentLayoutAliases & {
   upload: UseUploadReturn;

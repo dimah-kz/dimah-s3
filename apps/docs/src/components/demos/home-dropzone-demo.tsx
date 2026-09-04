@@ -8,12 +8,12 @@ import {
   ProgressDownloadButton,
   UploadDropzone,
 } from "@dimah-s3/ui";
+import { cn } from "cn";
 import { TryDemoHint } from "@/components/try-demo-hint";
 import {
   forgetDemoFile,
   rememberDemoFile,
 } from "@/lib/demo/client-object-store";
-import { cn } from "@/lib/utils";
 
 const enter =
   "animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 ease-out";

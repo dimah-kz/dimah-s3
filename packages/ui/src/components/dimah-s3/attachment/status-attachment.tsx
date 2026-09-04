@@ -6,6 +6,7 @@ import {
   CheckCircleIcon,
   LoaderCircleIcon,
 } from "lucide-react";
+import { cn } from "cn";
 import {
   Attachment,
   AttachmentActions,
@@ -22,7 +23,6 @@ import {
   type AttachmentSize,
   type AttachmentState,
 } from "@/lib/attachment-layout";
-import { cn } from "@/lib/utils";
 
 export type StatusAttachmentProps = {
   /** @default "sm" */

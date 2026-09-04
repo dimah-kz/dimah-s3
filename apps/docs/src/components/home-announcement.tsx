@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { KeyRound } from "lucide-react";
+import { cn } from "cn";
 import { docsRoute } from "@/lib/shared";
-import { cn } from "@/lib/utils";
 
 export function HomeAnnouncement({ className }: { className?: string }) {
   return (

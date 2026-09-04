@@ -1,4 +1,4 @@
-import { cn } from "@/lib/cn";
+import { cn } from "cn";
 
 export type FlowKind = "hook" | "server" | "s3" | "client";
 

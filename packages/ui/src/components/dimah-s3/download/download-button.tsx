@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ReactNode } from "react";
 import { DownloadIcon, LoaderIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import type { UseNavigateDownloadReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import {

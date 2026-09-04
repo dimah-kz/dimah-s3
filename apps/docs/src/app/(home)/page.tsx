@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
+import { cn } from "cn";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
 import { HomeDropzoneDemo } from "@/components/demos/home-dropzone-demo";
 import { HomeAnnouncement } from "@/components/home-announcement";
 import { HomeBackground } from "@/components/home-background";
 import { buttonVariants } from "@/components/ui/button";
 import { githubRepoUrl, siteTagline } from "@/lib/shared";
-import { cn } from "@/lib/utils";
 
 const githubUrl = githubRepoUrl();
 

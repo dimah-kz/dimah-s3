@@ -7,9 +7,9 @@ import {
   type AttachmentSize,
   type AttachmentState,
 } from "@dimah-s3/ui";
+import { cn } from "cn";
 import { ComponentPreview } from "@/components/component-preview";
 import { PlaygroundOptionTabs } from "@/components/demos/playground-option-tabs";
-import { cn } from "@/lib/utils";
 
 const PREVIEW = "/dimah-avatar.png";
 

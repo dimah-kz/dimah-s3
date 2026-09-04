@@ -31,7 +31,7 @@ Match existing items in `registry-items.ts`. Landmines:
 - List every file the installer needs in `files[]` (hooks included). `registry:check` fails if a local `@/` import is missing.
 - `registryDependencies`: shadcn primitives only — not other `@dimah-s3` items.
 - **No basename collision** with those primitives. `lib/attachment.ts` is rewritten onto the stock Attachment — layout helpers belong in `lib/attachment-layout.ts`.
-- `dependencies`: every npm import the copied source uses. `@/lib/utils` is the consumer’s `cn` — do not ship `lib/utils.ts`.
+- `dependencies`: every npm import the copied source uses. Import `cn` from `"cn"` and list `cn` here.
 - `cssVars.theme`: `--color-dimah-s3-*` so registry-only apps get utilities without `@dimah-s3/ui`.
 - `files[].target` uses shadcn placeholders (`@components/`, `@hooks/`, `@lib/`).
 

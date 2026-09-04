@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 
 export type SpringPopInProps = {
   children?: ReactNode;
