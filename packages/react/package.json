@@ -70,7 +70,7 @@
     "jsdom": "^30.0.1",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "tsc-alias": "^1.9.3",
+    "tsc-alias": "^1.9.4",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

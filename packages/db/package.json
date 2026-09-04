@@ -71,14 +71,14 @@
     }
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1124.0",
+    "@aws-sdk/client-s3": "^3.1125.0",
     "@dimah-s3/server": "workspace:*",
     "@types/node": "^26.4.1",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "eslint": "catalog:",
-    "tsc-alias": "^1.9.3",
+    "tsc-alias": "^1.9.4",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

@@ -11,11 +11,11 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1124.0",
+    "@aws-sdk/client-s3": "^3.1125.0",
     "@base-ui/react": "^1.7.0",
-    "@dimah-s3/react": "^1.4.0",
-    "@dimah-s3/server": "^1.4.0",
-    "@dimah-s3/ui": "^1.4.0",
+    "@dimah-s3/react": "^1.4.2",
+    "@dimah-s3/server": "^1.4.2",
+    "@dimah-s3/ui": "^1.4.2",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cnfast": "^0.2.0",
@@ -33,7 +33,7 @@
     "@types/react-dom": "^19.2.5",
     "eslint": "^10.9.1",
     "eslint-config-next": "^16.3.4",
-    "shadcn": "^4.19.1",
+    "shadcn": "^4.20.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }
