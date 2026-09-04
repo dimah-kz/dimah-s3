@@ -1,3 +1,9 @@
+## brand@0.1.2
+
+### Import `cn` from the `cn` package
+
+`@dimah-s3/ui` now imports class names from [`cn`](https://www.npmjs.com/package/cn), matching shadcn's default. There is no `lib/utils.ts` helper. Install `cn` instead of `cnfast`. Registry items declare `cn` so `shadcn add` installs it.
+
 ## brand@0.1.1
 
 ### Align create templates with 1.5.0
