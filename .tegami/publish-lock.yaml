@@ -1,41 +1,41 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n## Sign storage class, cache control, and tags from `upload.object`\n\nReturn `storageClass`, `cacheControl`, or `tagging` from `upload.object`. They are signed into PUT, POST, multipart init, and `putObject` so the browser cannot change them.\n\n## Surface route catalog failures on `useUpload`\n\n`policy.catalogStatus` and `policy.catalogError` report a failed `GET /routes` instead of failing silently. Uploads still run — the server enforces constraints. Pass `accept` / `maxFileSize` on the hook when the catalog is unavailable.\n"
-    filename: 2026-09-04-7e2c91.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Align create templates with 1.5.0\n\n`dimah-s3 create` starters now require `@dimah-s3/*` 1.5.0. A fresh scaffold installs the current line, including signed `upload.object` options and catalog status on `useUpload`.\n"
+    filename: 2026-09-04-tmpl15.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-04-7e2c91.md
+      - 2026-09-04-tmpl15.md
     id: npm:brand
     updated: true
   - changelogIds:
-      - 2026-09-04-7e2c91.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-09-04-7e2c91.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - changelogIds:
-      - 2026-09-04-7e2c91.md
+      - 2026-09-04-tmpl15.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-04-7e2c91.md
+      - 2026-09-04-tmpl15.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-09-04-tmpl15.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-09-04-tmpl15.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-04-7e2c91.md
+      - 2026-09-04-tmpl15.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-04-7e2c91.md
+      - 2026-09-04-tmpl15.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - id: npm:brand
+  - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
-  - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
