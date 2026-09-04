@@ -6,7 +6,9 @@ import {
 import { errors } from "@/errors";
 import { DIMAH_PREVIOUS_KEY_META } from "@/helpers/previous-key";
 import { runObjectHook } from "@/helpers/hooks";
+import { normalizeObjectS3 } from "@/helpers/object-s3";
 import type {
+  ObjectS3Headers,
   OpenedRoute,
   ResolvedRoute,
   UploadObjectContext,
@@ -18,7 +20,7 @@ export type ResolvedObject = {
   bucket: string;
   metadata?: Record<string, string>;
   acl: S3ObjectAcl;
-};
+} & ObjectS3Headers;
 
 type RouteKeyPrefix = ResolvedRoute["keyPrefix"];
 
@@ -133,6 +135,7 @@ export async function resolveUploadTarget(
     bucket,
     metadata: Object.keys(metadata).length > 0 ? metadata : info?.metadata,
     acl: resolveAcl(info, route),
+    ...normalizeObjectS3(info),
   };
 }
 

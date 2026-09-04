@@ -10,6 +10,7 @@ export type {
   MultipartGuardContext,
   MultipartUploadContext,
   ObjectFile,
+  ObjectS3Headers,
   RouteGuardContext,
   StoredObjectContext,
   UploadConfirmGuardContext,

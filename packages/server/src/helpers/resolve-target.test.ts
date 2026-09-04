@@ -8,6 +8,7 @@ import {
 } from "./resolve-target";
 import { errors } from "@/errors";
 import type { OpenedRoute, UploadObjectContext } from "@/types";
+import { S3_ERROR_CODES } from "@dimah-s3/core";
 
 const request = new Request("http://localhost");
 
@@ -168,6 +169,73 @@ describe("resolveUploadTarget", () => {
         ctx(),
       ),
     ).rejects.toMatchObject({ code: "INVALID_KEY" });
+  });
+
+  it("forwards storageClass, cacheControl, and tagging from object()", async () => {
+    await expect(
+      resolveUploadTarget(
+        route({
+          upload: {
+            enabled: true,
+            multipart: { enabled: false },
+            object: () => ({
+              key: "a.png",
+              storageClass: "STANDARD_IA",
+              cacheControl: "max-age=60",
+              tagging: { env: "test" },
+            }),
+          },
+        }),
+        ctx(),
+      ),
+    ).resolves.toMatchObject({
+      key: "uploads/a.png",
+      storageClass: "STANDARD_IA",
+      cacheControl: "max-age=60",
+      tagging: { env: "test" },
+    });
+  });
+
+  it("omits blank storage class and empty tagging from object()", async () => {
+    const target = await resolveUploadTarget(
+      route({
+        upload: {
+          enabled: true,
+          multipart: { enabled: false },
+          object: () => ({
+            key: "a.png",
+            storageClass: "  ",
+            tagging: {},
+          }),
+        },
+      }),
+      ctx(),
+    );
+    expect(target).toMatchObject({ key: "uploads/a.png" });
+    expect(target.storageClass).toBeUndefined();
+    expect(target.tagging).toBeUndefined();
+  });
+
+  it("rejects more than 10 object tags", async () => {
+    await expect(
+      resolveUploadTarget(
+        route({
+          upload: {
+            enabled: true,
+            multipart: { enabled: false },
+            object: () => ({
+              key: "a.png",
+              tagging: Object.fromEntries(
+                Array.from({ length: 11 }, (_, i) => [`k${i}`, "v"]),
+              ),
+            }),
+          },
+        }),
+        ctx(),
+      ),
+    ).rejects.toMatchObject({
+      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
+    });
   });
 
   it("lets object override the route ACL", async () => {

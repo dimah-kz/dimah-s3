@@ -132,6 +132,18 @@ import type {
 
 <Accordions>
 
+<Accordion title="What if the route catalog fails to load?">
+
+`useUpload` still works. The server enforces type and size on presign.
+`policy.catalogStatus` is `"error"` and `policy.catalogError` is set so
+you can toast or pass explicit `accept` / `maxFileSize` on the hook.
+In development, a one-time console warning is also printed.
+
+Custom backends that do not implement `GET /routes` should pass those
+constraints on `useUpload` and ignore the catalog status.
+
+</Accordion>
+
 <Accordion title="How do I display a local image preview before uploading?">
 
 Use `previewUrl` on individual items in the `upload.files` array or create an object URL from `upload.file`:

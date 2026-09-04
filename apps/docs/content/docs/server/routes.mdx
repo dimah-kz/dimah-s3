@@ -184,6 +184,27 @@ avatar: route({
 
 </Accordion>
 
+<Accordion title="How do I set storage class, Cache-Control, or object tags?">
+
+Return them from `upload.object`. They are signed into PUT, POST, and
+multipart init (and applied by `s3.put`) so the browser cannot change
+them. Tag values are visible to the client — do not put secrets there.
+
+```ts
+avatar: route({
+  upload: {
+    fileTypes: ["image/*"],
+    object: () => ({
+      storageClass: "STANDARD_IA",
+      cacheControl: "max-age=31536000, immutable",
+      tagging: { purpose: "avatar" },
+    }),
+  },
+}),
+```
+
+</Accordion>
+
 <Accordion title="How do I enforce SHA-256 integrity checksums?">
 
 Set `checksum: true` in your upload config. The React client will automatically compute the SHA-256 hash in the browser and attach it to the presigned request:

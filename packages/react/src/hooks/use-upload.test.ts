@@ -118,6 +118,7 @@ describe("useUpload", () => {
     expect(hook.current.isUploading).toBe(false);
     expect(hook.current.file?.result).toEqual(successResult);
     expect(hook.current.policy.maxFiles).toBe(1);
+    expect(hook.current.policy.catalogStatus).toBe("ready");
     hook.unmount();
   });
 
@@ -260,6 +261,27 @@ describe("useUpload", () => {
 
     expect(hook.current.phase).toBe("error");
     expect(uploadFiles).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("still uploads when the route catalog fails", async () => {
+    const api = fakeS3Api({
+      catalog: vi.fn(async () => {
+        throw new Error("catalog down");
+      }),
+    });
+    const hook = renderHook(() => useUpload({ api, route: "uploads" }));
+
+    await act(async () => {
+      await hook.current.handleFiles(
+        new File(["hello"], "a.txt", { type: "text/plain" }),
+      );
+    });
+
+    expect(hook.current.policy.catalogStatus).toBe("error");
+    expect(hook.current.policy.catalogError?.message).toBe("catalog down");
+    expect(hook.current.phase).toBe("success");
+    expect(uploadFiles).toHaveBeenCalled();
     hook.unmount();
   });
 });

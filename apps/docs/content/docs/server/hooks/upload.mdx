@@ -55,7 +55,7 @@ export const s3 = dimahS3({
 />
 
 1. **`guard`**: Evaluates session and permissions before key generation.
-2. **`object`**: Computes destination folder, key, metadata, or ACL.
+2. **`object`**: Computes destination folder, key, metadata, ACL, storage class, cache control, or tags.
 3. **`onPresigned`**: Fires after the presigned URL is created.
 4. **`confirmGuard`**: Authorizes the confirmation request after bytes land in S3.
 5. **`onConfirmed`**: Reads verified metadata from `HeadObject` and persists the record.

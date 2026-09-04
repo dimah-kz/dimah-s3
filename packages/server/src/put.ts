@@ -4,6 +4,8 @@ import { requestFromHeaders } from "@/helpers/request";
 import {
   finalizeConfirmedObject,
   headObjectOrNotFound,
+  normalizeObjectS3,
+  objectCommandExtras,
   openUploadTarget,
   runHook,
 } from "@/helpers";
@@ -35,7 +37,17 @@ export async function putObject(
   const request = requestFromHeaders(input.headers);
   await runHook(config.guard, { request });
   const fileSize = body.byteLength;
-  const { route, key, bucket, metadata, acl, stored } = await openUploadTarget(
+  const {
+    route,
+    key,
+    bucket,
+    metadata,
+    acl,
+    storageClass,
+    cacheControl,
+    tagging,
+    stored,
+  } = await openUploadTarget(
     config,
     {
       route: input.route,
@@ -48,6 +60,8 @@ export async function putObject(
     "upload",
   );
 
+  const objectS3 = normalizeObjectS3({ storageClass, cacheControl, tagging });
+
   await runHook(route.upload.guard, {
     ...stored,
     file: {
@@ -58,6 +72,7 @@ export async function putObject(
     metadata,
     clientMetadata: input.metadata,
     acl,
+    ...objectS3,
     replace: route.upload.replace,
   });
 
@@ -70,6 +85,7 @@ export async function putObject(
       ContentLength: fileSize,
       Metadata: metadata,
       ACL: acl,
+      ...objectCommandExtras(objectS3),
     }),
   );
 

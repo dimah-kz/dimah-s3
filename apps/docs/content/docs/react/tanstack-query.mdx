@@ -1,0 +1,85 @@
+---
+title: TanStack Query
+description: Invalidate queries after a confirmed upload. Do not wrap useUpload in useMutation.
+icon: RefreshCw
+---
+
+`useUpload` already owns in-flight state (`isPending`, progress, errors,
+retries). Wrapping `handleFiles` in `useMutation` duplicates that and
+drops per-file progress.
+
+Use TanStack Query for **lists and records**. Let `onSuccess` on the
+upload hook invalidate those queries after confirm.
+
+## Invalidate after confirm
+
+```tsx title="components/avatar-uploader.tsx"
+"use client";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useUpload } from "@dimah-s3/react";
+import { UploadButton } from "@dimah-s3/ui";
+
+async function fetchProfile() {
+  const response = await fetch("/api/profile");
+  return response.json() as Promise<{ avatarUrl: string | null }>;
+}
+
+async function saveAvatarKey(key: string) {
+  await fetch("/api/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ avatarKey: key }),
+  });
+}
+
+export function AvatarUploader() {
+  const queryClient = useQueryClient();
+  const profile = useQuery({
+    queryKey: ["profile"],
+    queryFn: fetchProfile,
+  });
+
+  const upload = useUpload({
+    route: "avatar",
+    onSuccess: async (results) => {
+      const key = results[0]?.key;
+      if (!key) return;
+      await saveAvatarKey(key);
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+
+  return (
+    <div>
+      {profile.data?.avatarUrl ? (
+        <img src={profile.data.avatarUrl} alt="" />
+      ) : null}
+      <UploadButton upload={upload} />
+    </div>
+  );
+}
+```
+
+`onSuccess` runs after the server `HeadObject` confirm. That is the
+right time to persist the key and refresh cached profile data.
+
+## Forms
+
+For form fields that store object keys, see [Forms](/docs/react/forms).
+The same rule applies: write keys in `onSuccess`, then let the form
+submit the serializable value.
+
+## What not to do
+
+```tsx
+// Avoid — loses progress and double-tracks pending state
+const mutation = useMutation({
+  mutationFn: (file: File) => upload.handleFiles(file),
+});
+```
+
+`handleFiles` resolves even when validation fails (the hook sets
+`upload.error` instead of throwing). A mutation would report success.
+Keep Query for the data you read back; keep `useUpload` for the
+transfer.

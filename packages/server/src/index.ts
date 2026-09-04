@@ -49,6 +49,7 @@ export type {
   MultipartGuardContext,
   MultipartUploadContext,
   ObjectFile,
+  ObjectS3Headers,
   OpenedRoute,
   ResolvedDimahS3Config,
   ResolvedFeature,

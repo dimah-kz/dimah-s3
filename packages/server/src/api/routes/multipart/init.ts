@@ -12,6 +12,8 @@ import type * as z from "zod";
 import { errors } from "@/errors";
 import {
   abortMultipartBestEffort,
+  normalizeObjectS3,
+  objectCommandExtras,
   openUploadTarget,
   runHook,
   runLifecycleHook,
@@ -26,7 +28,17 @@ async function handleMultipartInit(
 ): Promise<MultipartInitResponse> {
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  const { route, key, bucket, metadata, acl, stored } = await openUploadTarget(
+  const {
+    route,
+    key,
+    bucket,
+    metadata,
+    acl,
+    storageClass,
+    cacheControl,
+    tagging,
+    stored,
+  } = await openUploadTarget(
     config,
     {
       route: input.route,
@@ -39,6 +51,8 @@ async function handleMultipartInit(
     "multipart",
   );
 
+  const objectS3 = normalizeObjectS3({ storageClass, cacheControl, tagging });
+
   await runHook(route.upload.guard, {
     ...stored,
     file: {
@@ -49,6 +63,7 @@ async function handleMultipartInit(
     metadata,
     clientMetadata: input.metadata,
     acl,
+    ...objectS3,
     replace: route.upload.replace,
   });
 
@@ -60,6 +75,7 @@ async function handleMultipartInit(
       ContentDisposition: buildContentDisposition(fileName),
       Metadata: metadata,
       ACL: acl,
+      ...objectCommandExtras(objectS3),
     }),
   )) as CreateMultipartUploadCommandOutput;
 
@@ -81,6 +97,7 @@ async function handleMultipartInit(
         metadata,
         clientMetadata: input.metadata,
         acl,
+        ...objectS3,
         replace: route.upload.replace,
       },
       config,

@@ -12,6 +12,9 @@ import type * as z from "zod";
 import { errors } from "@/errors";
 import {
   normalizeExpiresIn,
+  normalizeObjectS3,
+  objectCommandExtras,
+  objectPutHeaders,
   openUploadTarget,
   runHook,
   runLifecycleHook,
@@ -37,7 +40,17 @@ async function handleUpload(
 ): Promise<UploadPresignResponse> {
   const fileSize = Math.floor(input.fileSize);
   const fileName = input.fileName;
-  const { route, key, bucket, metadata, acl, stored } = await openUploadTarget(
+  const {
+    route,
+    key,
+    bucket,
+    metadata,
+    acl,
+    storageClass,
+    cacheControl,
+    tagging,
+    stored,
+  } = await openUploadTarget(
     config,
     {
       route: input.route,
@@ -49,6 +62,7 @@ async function handleUpload(
     request,
     "upload",
   );
+  const objectS3 = normalizeObjectS3({ storageClass, cacheControl, tagging });
   const method = route.upload.method ?? "POST";
   if (route.upload.checksum && !input.checksum) {
     throw errors.validationError("Checksum is required for this route");
@@ -74,6 +88,7 @@ async function handleUpload(
     metadata,
     clientMetadata: input.metadata,
     acl,
+    ...objectS3,
     replace: route.upload.replace,
   };
 
@@ -84,6 +99,7 @@ async function handleUpload(
       "Content-Type": contentType,
       ...objectUserMetadata(metadata),
       "Content-Disposition": buildContentDisposition(fileName),
+      ...objectPutHeaders(objectS3),
       ...(input.checksum ? { "x-amz-checksum-sha256": input.checksum } : {}),
     };
 
@@ -97,6 +113,7 @@ async function handleUpload(
         Metadata: metadata,
         ContentDisposition: buildContentDisposition(fileName),
         ContentLength: fileSize,
+        ...objectCommandExtras(objectS3),
         ...(input.checksum
           ? { ChecksumSHA256: input.checksum, ChecksumAlgorithm: "SHA256" }
           : {}),
@@ -135,6 +152,7 @@ async function handleUpload(
     "Content-Type": contentType,
     "Content-Disposition": buildContentDisposition(fileName),
     ...objectUserMetadata(metadata),
+    ...objectPutHeaders(objectS3),
     ...(input.checksum ? { "x-amz-checksum-sha256": input.checksum } : {}),
   };
 

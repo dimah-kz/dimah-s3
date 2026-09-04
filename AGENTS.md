@@ -16,7 +16,8 @@ Do not treat this monorepo as the app guide. Use
 - The client sends a route name; the server owns keys. Default key is
   `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name).
   Return `{ folder? }` or `{ key? }` from `upload.object` (`metadata` /
-  `acl` optional). Follow-up keys must stay under `keyPrefix` unless it is
+  `acl` / `storageClass` / `cacheControl` / `tagging` optional).
+  Follow-up keys must stay under `keyPrefix` unless it is
   `false` (then generated keys are `{uuid}/{name}`). Nested or identical
   `keyPrefix` values across routes are rejected at init. Prefer one feature
   per named route; combine upload / download / delete only when those

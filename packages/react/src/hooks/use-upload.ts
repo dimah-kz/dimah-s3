@@ -16,14 +16,16 @@ import {
   type DropzoneRootProps,
   type FileRejection,
 } from "./use-file-intake";
-import { useRouteUploadPolicy } from "./use-route-upload-policy";
+import {
+  useRouteUploadPolicy,
+  type UseRouteUploadPolicyReturn,
+} from "./use-route-upload-policy";
 import { DEFAULT_MAX_FILES } from "@/upload/constants";
-import type { RouteUploadPolicy } from "@/helpers/load-route-catalog";
 
 export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
 
 /** Catalog constraints plus the client `maxFiles` cap. */
-export type UploadPolicy = RouteUploadPolicy & {
+export type UploadPolicy = UseRouteUploadPolicyReturn & {
   /** Max files per selection. @default 1 */
   maxFiles: number;
 };

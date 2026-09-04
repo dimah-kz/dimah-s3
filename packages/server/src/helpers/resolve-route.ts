@@ -1,10 +1,10 @@
-import type { S3ObjectAcl } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import { assertDeclaredConstraints } from "@/helpers/constraints";
 import { runHook } from "@/helpers/hooks";
 import {
   resolveStoredTarget,
   resolveUploadTarget,
+  type ResolvedObject,
 } from "@/helpers/resolve-target";
 import type {
   OpenedRoute,
@@ -22,10 +22,7 @@ export type OpenedTarget<F extends RouteOperation> = {
 };
 
 export type OpenedUploadTarget<F extends "upload" | "multipart"> =
-  OpenedTarget<F> & {
-    metadata?: Record<string, string>;
-    acl: S3ObjectAcl;
-  };
+  OpenedTarget<F> & ResolvedObject;
 
 export type OpenUploadInput = {
   route: string;

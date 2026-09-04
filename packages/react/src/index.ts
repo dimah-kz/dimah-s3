@@ -121,7 +121,9 @@ export {
 } from "./hooks/use-delete";
 export {
   useRouteUploadPolicy,
+  type CatalogLoadStatus,
   type UseRouteUploadPolicyOptions,
+  type UseRouteUploadPolicyReturn,
 } from "./hooks/use-route-upload-policy";
 export {
   useObjectUrl,

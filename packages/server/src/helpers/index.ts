@@ -54,3 +54,9 @@ export {
   previousKeyFromMetadata,
   stripPreviousKeyMeta,
 } from "./previous-key";
+export {
+  encodeObjectTagging,
+  normalizeObjectS3,
+  objectCommandExtras,
+  objectPutHeaders,
+} from "./object-s3";

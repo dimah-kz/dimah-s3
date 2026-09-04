@@ -74,11 +74,32 @@ export type UploadObjectInfo = {
   /** Override the route ACL for this object. */
   acl?: S3ObjectAcl;
   /**
+   * S3 storage class (`STANDARD`, `STANDARD_IA`, `INTELLIGENT_TIERING`, …).
+   * Signed into the upload so the client cannot change it.
+   */
+  storageClass?: string;
+  /**
+   * `Cache-Control` written on the object. Signed into the upload so the
+   * client cannot set an arbitrary value.
+   */
+  cacheControl?: string;
+  /**
+   * S3 object tags (max 10). Signed into the upload. Do not put secrets
+   * here — the values are visible on the client for PUT/POST.
+   */
+  tagging?: Record<string, string>;
+  /**
    * After confirm succeeds, delete this key (must stay under the route
    * `keyPrefix`). Use with a new generated key to rotate avatars.
    */
   previousKey?: string;
 };
+
+/** S3 headers returned from `upload.object` and forwarded onto the upload. */
+export type ObjectS3Headers = Pick<
+  UploadObjectInfo,
+  "storageClass" | "cacheControl" | "tagging"
+>;
 
 /**
  * Context for `upload.guard`.
@@ -86,18 +107,19 @@ export type UploadObjectInfo = {
  * so `key` is already assigned (plugins like `db()` check ownership here).
  * Client-declared values are not verified by S3.
  */
-export type UploadGuardContext = StoredObjectContext & {
-  /** Declared file from the presign body — same shape as `upload.object`. */
-  file: ObjectFile;
-  /** S3 object metadata from route `object`. */
-  metadata?: Record<string, string>;
-  /** Client extras from the request — not written to S3 automatically. */
-  clientMetadata?: Record<string, string>;
-  /** Resolved ACL. */
-  acl?: S3ObjectAcl;
-  /** Route `upload.replace`. */
-  replace?: "overwrite";
-};
+export type UploadGuardContext = StoredObjectContext &
+  ObjectS3Headers & {
+    /** Declared file from the presign body — same shape as `upload.object`. */
+    file: ObjectFile;
+    /** S3 object metadata from route `object`. */
+    metadata?: Record<string, string>;
+    /** Client extras from the request — not written to S3 automatically. */
+    clientMetadata?: Record<string, string>;
+    /** Resolved ACL. */
+    acl?: S3ObjectAcl;
+    /** Route `upload.replace`. */
+    replace?: "overwrite";
+  };
 
 /** Context for `upload.onPresigned` (single-shot only). */
 export type UploadOnPresignedContext = UploadGuardContext & {

@@ -136,6 +136,84 @@ describe("upload", () => {
     expect(command.input?.Metadata).toEqual({ author: "user_123" });
   });
 
+  it("signs object() storage class, cache control, and tagging onto PUT", async () => {
+    const guard = vi.fn();
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            method: "PUT",
+            guard,
+            object: () => ({
+              storageClass: "STANDARD_IA",
+              cacheControl: "max-age=3600",
+              tagging: { env: "prod" },
+            }),
+          },
+        }),
+      },
+    });
+
+    await expect(
+      s3.api.upload({ body: defaultUploadBody }),
+    ).resolves.toMatchObject({
+      method: "PUT",
+      headers: expect.objectContaining({
+        "x-amz-storage-class": "STANDARD_IA",
+        "Cache-Control": "max-age=3600",
+        "x-amz-tagging": "env=prod",
+      }),
+    });
+
+    const command = vi.mocked(getSignedUrl).mock.calls.at(-1)?.[1] as {
+      input?: {
+        StorageClass?: string;
+        CacheControl?: string;
+        Tagging?: string;
+      };
+    };
+    expect(command.input).toMatchObject({
+      StorageClass: "STANDARD_IA",
+      CacheControl: "max-age=3600",
+      Tagging: "env=prod",
+    });
+    expect(guard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storageClass: "STANDARD_IA",
+        cacheControl: "max-age=3600",
+        tagging: { env: "prod" },
+      }),
+    );
+  });
+
+  it("signs object() storage class, cache control, and tagging onto POST fields", async () => {
+    const s3 = createInstance({
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            object: () => ({
+              storageClass: "STANDARD_IA",
+              cacheControl: "max-age=3600",
+              tagging: { env: "prod" },
+            }),
+          },
+        }),
+      },
+    });
+
+    await s3.api.upload({ body: defaultUploadBody });
+    expect(createPresignedPost).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        Fields: expect.objectContaining({
+          "x-amz-storage-class": "STANDARD_IA",
+          "Cache-Control": "max-age=3600",
+          "x-amz-tagging": "env=prod",
+        }),
+      }),
+    );
+  });
+
   it("does not write client metadata to S3 unless object() copies it", async () => {
     const s3 = createInstance({
       routes: {
@@ -569,6 +647,54 @@ describe("multipart", () => {
 
     await s3.api.multipartInit({ body: defaultUploadBody });
     expect(guard).toHaveBeenCalled();
+  });
+
+  it("applies object() storage class, cache control, and tagging on multipart init", async () => {
+    const send = sendByCommand({
+      CreateMultipartUploadCommand: { UploadId: "up-1" },
+    });
+    const onInit = vi.fn();
+    const s3 = createInstance({
+      client: mockS3(send as never),
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            object: () => ({
+              storageClass: "STANDARD_IA",
+              cacheControl: "max-age=3600",
+              tagging: { env: "prod" },
+            }),
+            multipart: { onInit },
+          },
+        }),
+      },
+    });
+
+    await s3.api.multipartInit({ body: defaultUploadBody });
+
+    const command = send.mock.calls.find(
+      (call) =>
+        (call[0] as { constructor: { name: string } }).constructor.name ===
+        "CreateMultipartUploadCommand",
+    )?.[0] as {
+      input?: {
+        StorageClass?: string;
+        CacheControl?: string;
+        Tagging?: string;
+      };
+    };
+    expect(command.input).toMatchObject({
+      StorageClass: "STANDARD_IA",
+      CacheControl: "max-age=3600",
+      Tagging: "env=prod",
+    });
+    expect(onInit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storageClass: "STANDARD_IA",
+        cacheControl: "max-age=3600",
+        tagging: { env: "prod" },
+      }),
+    );
   });
 
   it("signs a part", async () => {
@@ -1173,6 +1299,51 @@ describe("s3.put", () => {
     );
     expect(names).toContain("PutObjectCommand");
     expect(names).toContain("HeadObjectCommand");
+  });
+
+  it("applies object() storage class, cache control, and tagging", async () => {
+    const send = sendByCommand({
+      PutObjectCommand: {},
+      HeadObjectCommand: headResult(),
+    });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+      routes: {
+        uploads: allFeaturesRoute({
+          upload: {
+            object: () => ({
+              storageClass: "STANDARD_IA",
+              cacheControl: "max-age=3600",
+              tagging: { env: "prod" },
+            }),
+          },
+        }),
+      },
+    });
+
+    await s3.put({
+      route: "uploads",
+      fileName: "a.png",
+      contentType: "image/png",
+      body: "hello",
+    });
+
+    const command = send.mock.calls.find(
+      (call) =>
+        (call[0] as { constructor: { name: string } }).constructor.name ===
+        "PutObjectCommand",
+    )?.[0] as {
+      input?: {
+        StorageClass?: string;
+        CacheControl?: string;
+        Tagging?: string;
+      };
+    };
+    expect(command.input).toMatchObject({
+      StorageClass: "STANDARD_IA",
+      CacheControl: "max-age=3600",
+      Tagging: "env=prod",
+    });
   });
 });
 

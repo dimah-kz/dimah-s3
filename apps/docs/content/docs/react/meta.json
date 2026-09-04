@@ -12,6 +12,7 @@
     "helpers",
     "upload-store",
     "forms",
+    "tanstack-query",
     "custom-backend"
   ]
 }

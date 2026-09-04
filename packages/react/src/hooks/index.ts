@@ -36,5 +36,7 @@ export {
 } from "./use-object-url";
 export {
   useRouteUploadPolicy,
+  type CatalogLoadStatus,
   type UseRouteUploadPolicyOptions,
+  type UseRouteUploadPolicyReturn,
 } from "./use-route-upload-policy";
