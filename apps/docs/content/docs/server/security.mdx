@@ -93,33 +93,54 @@ avatar: route({
 
 <Accordion title="How do I verify the true MIME type (magic bytes) of an uploaded file?">
 
-The server checks MIME headers at presign and HeadObject. If you need strict magic-byte validation, use `sniffContentType` / `matchesMagicBytes` in `onConfirmed`. Throwing an error from `onConfirmed` automatically deletes the uploaded object from S3:
+Read the object header with your configured, server-only S3 client and inspect it
+in `onConfirmed`. The hook context contains the bucket and key, but not an S3
+client:
 
-```ts
-import { matchesMagicBytes, sniffContentType } from "@dimah-s3/core";
+```ts title="lib/s3.ts"
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { sniffContentType } from "@dimah-s3/core";
+import { dimahS3, errors, route } from "@dimah-s3/server";
+import { awsS3 } from "./aws-s3";
 
-avatar: route({
-  upload: {
-    onConfirmed: async ({ key, client }) => {
-      // Fetch the first few bytes
-      const res = await client.send(
-        new GetObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Range: "bytes=0-15",
-        }),
-      );
-      const bytes = new Uint8Array(await res.Body.transformToByteArray());
+const bucket = process.env.S3_BUCKET!;
+const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
-      if (
-        !matchesMagicBytes(bytes, ["image/png", "image/jpeg", "image/webp"])
-      ) {
-        throw errors.fileTypeNotAllowed("Invalid image magic bytes");
-      }
-    },
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket,
+  routes: {
+    avatar: route({
+      upload: {
+        fileTypes: ["image/png", "image/jpeg", "image/webp"],
+        onConfirmed: async ({ key, fileName }) => {
+          const response = await awsS3.send(
+            new GetObjectCommand({
+              Bucket: bucket,
+              Key: key,
+              Range: "bytes=0-15",
+            }),
+          );
+          if (!response.Body) throw errors.objectNotFound();
+
+          const bytes = await response.Body.transformToByteArray();
+          const detectedType = sniffContentType(bytes);
+          if (!detectedType || !allowedTypes.has(detectedType)) {
+            throw errors.fileTypeNotAllowed(
+              fileName ?? key,
+              detectedType,
+            );
+          }
+        },
+      },
+    }),
   },
 });
 ```
+
+The normal presign and `HeadObject` checks still run. If this stricter check
+throws, dimah-s3 performs a compensating delete so the rejected object is not
+left in S3.
 
 </Accordion>
 

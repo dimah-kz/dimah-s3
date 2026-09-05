@@ -55,6 +55,7 @@ function DemoObjectRow({
       onKeyDown={keepInsideDemo}
     >
       <FileAttachment
+        size="sm"
         state="done"
         fileName={object.name}
         fileSize={object.size}
@@ -152,6 +153,7 @@ export function HomeDropzoneDemo() {
       {idle ? <TryDemoHint className={cn(enter, "delay-700")} /> : null}
       <UploadDropzone
         upload={upload}
+        attachmentSize="sm"
         className="w-full"
         status={(node) => {
           if (object && !uploading) {
