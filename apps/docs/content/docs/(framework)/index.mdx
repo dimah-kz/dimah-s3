@@ -23,19 +23,17 @@ in your own code with the
 
 It follows a **presign-first** architecture: the backend generates short-lived signed URLs, the browser communicates directly with your S3-compatible storage, and AWS credentials never leave your server.
 
-Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
+**For coding agents** — [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 
 ---
 
 ## What you get
 
-- Fast setup — a working upload in minutes, not a week of wiring
-- Full stack — server, client, and optional shadcn UI; not a client uploader you
-  have to back yourself
-- Full lifecycle — upload, download, and delete, including multipart
-- Server hooks — auth, quotas, confirm, and cleanup where they belong
-- Optional database — ownership, listings, and resumable uploads when you
-  need them
+- **Fast setup** — a working upload in minutes, not a week of wiring
+- **Full stack** — server, client, and optional shadcn UI; not a client uploader you have to back yourself
+- **Full lifecycle** — upload, download, and delete, including multipart
+- **Server hooks** — auth, quotas, confirm, and cleanup where they belong
+- **Optional database** — ownership, listings, and resumable uploads when you need them
 
 ## Frequently asked questions
 
@@ -43,13 +41,19 @@ Coding agents: [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 
 <Accordion title="How does dimah-s3 differ from UploadThing and Better Upload?">
 
-dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own (AWS S3, Cloudflare R2, MinIO). Unlike UploadThing which is a hosted SaaS, dimah-s3 has no SaaS fees and keeps all data in your bucket. Unlike Better Upload which focuses primarily on upload PUTs, dimah-s3 covers the full object lifecycle: presigned upload, HeadObject confirmation, presigned download, server-guarded deletion, multipart resume, optional shadcn UI, and database tracking.
+dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own (AWS S3, Cloudflare R2, MinIO).
+
+**UploadThing** is hosted SaaS — dimah-s3 has no SaaS fees and keeps all data in your bucket.
+
+**Better Upload** focuses on PUT uploads — dimah-s3 covers the full object lifecycle: presigned upload, HeadObject confirmation, presigned download, server-guarded deletion, multipart resume, optional shadcn UI, and database tracking.
 
 </Accordion>
 
 <Accordion title="How does delete work compared to upload and download?">
 
-Upload and download are presigned (the client communicates directly with S3). Deletion is executed server-side: the client sends a delete request to your API, the server runs your `delete.guard`, issues `DeleteObjectCommand` via the AWS SDK, and triggers `onDeleted` cleanup.
+**Upload and download** are presigned — the client talks to S3 directly.
+
+**Delete** runs on your server — the client sends a request, the server runs `delete.guard`, issues `DeleteObjectCommand`, and triggers `onDeleted` cleanup.
 
 </Accordion>
 

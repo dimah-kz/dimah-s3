@@ -40,7 +40,7 @@ const PROGRESS_BY_SIZE = {
 >;
 
 export type FileAttachmentProps = {
-  /** @default "sm" */
+  /** @default "default" */
   size?: AttachmentSize;
   /** @default "horizontal" */
   orientation?: AttachmentOrientation;
@@ -75,7 +75,7 @@ export function FileAttachment({
   onCancel,
   onPause,
   onDismiss,
-  size = "sm",
+  size = "default",
   orientation = "horizontal",
   className,
 }: FileAttachmentProps) {

@@ -54,7 +54,7 @@ export default function HomePage() {
             )}
           >
             <Link
-              href="/docs/quickstart"
+              href="/docs"
               className={cn(
                 buttonVariants({ size: "lg" }),
                 "h-11 rounded-full px-5 shadow-lg shadow-primary/10",

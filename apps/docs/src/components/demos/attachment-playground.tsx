@@ -33,7 +33,7 @@ type Props = {
 
 /** Docs-only playground. Apps should use upload, download, and delete UI instead. */
 export function AttachmentPlayground({ code }: Props) {
-  const [size, setSize] = useState<AttachmentSize>("sm");
+  const [size, setSize] = useState<AttachmentSize>("default");
   const [orientation, setOrientation] =
     useState<AttachmentOrientation>("horizontal");
   const [state, setState] = useState<AttachmentState>("uploading");

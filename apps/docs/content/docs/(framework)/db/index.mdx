@@ -14,12 +14,12 @@ by metadata.
 
 ## What the plugin does
 
-- Tracks objects — writes and updates a row on presign, confirm, and delete
-- Enforces ownership — each file belongs to a scope you define (for example
+- **Tracks objects** — writes and updates a row on presign, confirm, and delete
+- **Enforces ownership** — each file belongs to a scope you define (for example
   `user:123`); download requires a confirmed (`active`) object owned by
   that scope; delete rejects access from another scope
-- Lists files — query by scope on the server and in the browser
-- Handles multipart — records in-progress uploads so you can resume or purge
+- **Lists files** — query by scope on the server and in the browser
+- **Handles multipart** — records in-progress uploads so you can resume or purge
   stale ones
 
 Auth, quotas, and business rules stay in your hooks. The plugin only manages

@@ -25,7 +25,7 @@ import {
 } from "@/lib/attachment-layout";
 
 export type StatusAttachmentProps = {
-  /** @default "sm" */
+  /** @default "default" */
   size?: AttachmentSize;
   /** @default "horizontal" */
   orientation?: AttachmentOrientation;
@@ -50,7 +50,7 @@ export function StatusAttachment({
   media,
   actions,
   onDismiss,
-  size = "sm",
+  size = "default",
   orientation = "horizontal",
   className,
 }: StatusAttachmentProps) {

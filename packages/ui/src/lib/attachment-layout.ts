@@ -31,7 +31,7 @@ export type AttachmentLayoutProps = {
  * Maps to {@link AttachmentLayoutProps} on status rows.
  */
 export type AttachmentLayoutAliases = {
-  /** Attachment size (not the trigger button size). @default "sm" */
+  /** Attachment size (not the trigger button size). @default "default" */
   attachmentSize?: AttachmentSize;
   /** Attachment orientation. @default "horizontal" */
   attachmentOrientation?: AttachmentOrientation;
