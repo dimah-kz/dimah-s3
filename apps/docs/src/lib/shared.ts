@@ -12,7 +12,7 @@ export const siteTitle = `${appName} — ${siteTagline}`;
 export const siteDescription =
   "Upload, download, and delete in your own S3-compatible bucket. Server, React hooks, optional shadcn UI and database — you pass an AWS SDK client.";
 
-/** Short, accurate terms for crawlers and AI search engines that read keywords and meta tags. */
+/** Site-wide terms for the homepage, layout, and JSON-LD — not copied onto every docs page. */
 export const siteKeywords = [
   "s3",
   "s3-compatible",
@@ -20,28 +20,24 @@ export const siteKeywords = [
   "aws sdk v3",
   "cloudflare r2",
   "minio",
-  "wasabi",
-  "digitalocean spaces",
   "dimah s3",
   "dimah-s3",
   "object storage",
   "presigned url",
   "presigned post",
   "file upload",
+  "file download",
   "file uploader",
-  "s3 upload",
   "direct upload to s3",
   "multipart upload",
   "resumable upload",
-  "headless uploader",
+  "headless",
   "react",
   "react hooks",
   "next.js",
   "next.js app router",
   "shadcn",
   "shadcn ui",
-  "shadcn dropzone",
-  "shadcn file upload",
   "hono",
   "express",
   "fastify",
@@ -51,8 +47,26 @@ export const siteKeywords = [
   "uploadthing alternative",
   "better upload alternative",
   "self-hosted uploadthing",
+  "s3 compatible",
   "typescript",
 ];
+
+/** Brand + storage terms for per-page docs meta. */
+export const pageBrandKeywords = [
+  "dimah-s3",
+  "dimah s3",
+  "s3",
+  "s3-compatible",
+] as const;
+
+export function docsPageKeywords(title: string): string[] {
+  const extra = title.toLowerCase().trim();
+  const keywords: string[] = [...pageBrandKeywords];
+  if (extra && !keywords.includes(extra)) {
+    keywords.push(extra);
+  }
+  return keywords;
+}
 
 export const gitConfig = {
   user: "dimah-kz",

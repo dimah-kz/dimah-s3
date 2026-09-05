@@ -11,7 +11,7 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/components/mdx";
 import type { Metadata } from "next";
 import { createRelativeLink } from "fumadocs-ui/mdx";
-import { appName, gitConfig, siteKeywords } from "@/lib/shared";
+import { appName, docsPageKeywords, gitConfig } from "@/lib/shared";
 import { docsArticleJsonLd, serializeJsonLd } from "@/lib/json-ld";
 import { getSiteUrl } from "@/lib/site-url";
 
@@ -77,7 +77,7 @@ export async function generateMetadata(
   return {
     title: page.data.title,
     description: page.data.description,
-    keywords: [...siteKeywords, page.data.title.toLowerCase()],
+    keywords: docsPageKeywords(page.data.title),
     alternates: {
       canonical: page.url,
       types: {
