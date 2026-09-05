@@ -6,10 +6,11 @@ description: Implement the complete S3Api contract for an existing backend.
 `defineApi` type-checks a complete `S3Api` implementation and returns it
 unchanged. Your routes, transport, and server framework are up to you; they do
 not need to match [`@dimah-s3/server`](/docs/server). Mount the result with
-`S3Provider` as shown in [React setup](/docs/react/setup).
+`S3Provider` as shown in [React Setup](/docs/react/setup).
 
 Each `S3Api` method must accept the documented input and return JSON with
-**every field** in the response tables. Missing fields break the hooks.
+every **required field** in the response tables. Optional fields may be omitted;
+missing required fields break the hooks.
 Every object operation includes a required `route` name; `catalog()` is the
 exception. Upload and multipart init do **not** send `key` — your backend
 generates it and returns it.
@@ -21,7 +22,7 @@ Input types: `Parameters<S3Api["upload"]>`. Response types are exported from
 
 | Flow           | Methods                                                             | Doc                                               |
 | -------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
-| Route policies | `catalog`                                                           | [React setup](/docs/react/setup)                  |
+| Route policies | `catalog`                                                           | [React Setup](/docs/react/setup)                  |
 | Simple upload  | `upload` → browser uploads to S3 → `confirm`                        | [Upload](/docs/react/custom-backend/upload)       |
 | Download       | `download`                                                          | [Download](/docs/react/custom-backend/download)   |
 | Delete         | `delete` or `deleteMany`                                            | [Delete](/docs/react/custom-backend/delete)       |

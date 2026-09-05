@@ -85,8 +85,9 @@ browser receives only a short-lived signed request.
 <Accordion title="Does dimah-s3 support resumable multipart uploads?">
 
 Yes. Multipart uploads support chunking, retries, cancellation, and part
-reconciliation. Add a persistent `UploadStore` to resume after a page reload.
-See [Upload Store](/docs/react/upload-store).
+reconciliation. Add a persistent `UploadStore`; after a reload, the user
+reselects the same local file and the client resumes its stored upload. See
+[Upload Store](/docs/react/upload-store).
 
 </Accordion>
 
@@ -106,7 +107,7 @@ provider setup, forms, database tracking, and operations.
     description="Get a working upload flow running in under 5 minutes."
   />
   <Card
-    title="Server Guide"
+    title="Server"
     href="/docs/server"
     description="Configure routes, lifecycle hooks, guards, and runtimes."
   />
@@ -116,7 +117,7 @@ provider setup, forms, database tracking, and operations.
     description="Headless hooks for upload, download, and delete."
   />
   <Card
-    title="UI Components"
+    title="UI Setup"
     href="/docs/react/ui"
     description="Prebuilt shadcn components for buttons, dropzones, and status."
   />
@@ -126,7 +127,7 @@ provider setup, forms, database tracking, and operations.
     description="Setup guides for AWS S3, Cloudflare R2, and MinIO."
   />
   <Card
-    title="Database Plugin"
+    title="Database"
     href="/docs/db"
     description="Track object metadata, ownership scopes, and file listings."
   />
@@ -136,7 +137,7 @@ provider setup, forms, database tracking, and operations.
     description="Compare storage models, lifecycle scope, UI, and operational tradeoffs."
   />
   <Card
-    title="FAQ"
+    title="Frequently Asked Questions"
     href="/docs/faq"
     description="Find concise answers and links to the canonical implementation guides."
   />

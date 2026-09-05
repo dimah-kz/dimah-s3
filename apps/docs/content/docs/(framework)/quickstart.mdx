@@ -61,15 +61,26 @@ export const s3 = dimahS3({
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024, // 2MB
       },
+      download: true,
     }),
   },
 });
 ```
 
+### Configure bucket CORS [step]
+
+Direct browser transfers require a CORS rule on the bucket. Allow your exact
+application origin, the upload method, and the headers used by the signed
+request; expose `ETag` for multipart uploads.
+
+Copy the provider-specific configuration from the [Amazon S3](/docs/providers/aws-s3),
+[Cloudflare R2](/docs/providers/cloudflare-r2), or [MinIO](/docs/providers/minio)
+guide before testing the upload.
+
 ### Mount the route handler [step]
 
 Choose the server runtime that owns your API route. For every supported
-adapter, see [Server setup](/docs/server/setup#mount-route-handler).
+adapter, see [Server Setup](/docs/server/setup#mount-route-handler).
 
 <Tabs items={["Next.js", "Vite + Hono backend", "Express"]}>
 
@@ -110,7 +121,7 @@ serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
 ```
 
 Point the Vite development proxy at port `8787`, or configure the React client
-with the backend's full `baseURL` as shown in [React setup](/docs/react/setup).
+with the backend's full `baseURL` as shown in [React Setup](/docs/react/setup).
 
 </Tab>
 
@@ -234,7 +245,7 @@ Selecting an image presigns a secure URL and uploads directly to your bucket und
 Add a `guard` on the route or instance. Throw `errors.unauthorized()` or `errors.forbidden()` if the session is invalid:
 
 ```ts title="lib/s3.ts"
-import { errors, route } from "@dimah-s3/server";
+import { dimahS3, errors, route } from "@dimah-s3/server";
 
 export const s3 = dimahS3({
   // ...

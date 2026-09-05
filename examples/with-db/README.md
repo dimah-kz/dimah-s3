@@ -1,6 +1,6 @@
 # examples/with-db
 
-Same as [`examples/with-nextjs`](../with-nextjs) / [`templates/nextjs`](../../templates/nextjs), plus **`@dimah-s3/db`** (Drizzle + SQLite) — matching the [Database setup](https://s3.dimah.dev/docs/db/setup) guide.
+Same as [`examples/with-nextjs`](../with-nextjs) / [`templates/nextjs`](../../templates/nextjs), plus **`@dimah-s3/db`** (Drizzle + SQLite) — matching the [Database Setup](https://s3.dimah.dev/docs/db/setup) guide.
 
 ## Setup
 

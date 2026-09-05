@@ -1,6 +1,6 @@
 {
   "title": "React",
-  "description": "Headless S3 client for React",
+  "description": "Headless React client for S3 upload, download, and delete flows.",
   "icon": "Atom",
   "root": true,
   "pages": [

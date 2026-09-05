@@ -50,8 +50,8 @@ multipart resume, private downloads, guarded deletion, or reusable React state.
 Both target S3-compatible buckets you own, and both support React UI and
 multipart uploads. Better Upload is intentionally upload-focused and includes
 standalone S3 helpers. dimah-s3 adds an explicit `HeadObject` confirmation
-boundary, route-native download and delete policies, reload-persistent multipart
-state, and an optional database lifecycle plugin.
+boundary, route-native download and delete policies, reload-persistent metadata
+for same-file multipart resume, and an optional database lifecycle plugin.
 
 Read the detailed [comparison](/docs/comparison#dimah-s3-or-better-upload).
 
@@ -102,7 +102,9 @@ The server does. By default, a route stores objects under
 accept an arbitrary trusted key from the upload client.
 
 Follow-up confirmation, download, and delete requests must remain inside the
-route's key prefix. See [route definitions](/docs/server/routes).
+route's key prefix by default. Setting `keyPrefix: false` removes this namespace
+boundary and should only be used with strict guards. See
+[route definitions](/docs/server/routes).
 
 </Accordion>
 
@@ -201,7 +203,9 @@ part-level retries, cancellation, or resume; presigned POST is capped at
 
 Yes, when multipart is enabled and `useUpload` receives a persistent
 `uploadStore`, such as `createLocalStorageStore()`. The client restores the
-upload ID and reconciles completed parts with the server before continuing.
+upload ID after the user reselects the same local file, then reconciles
+completed parts with the server before continuing. Browsers do not persist the
+`File` itself.
 
 See [Upload Store](/docs/react/upload-store).
 
@@ -209,18 +213,19 @@ See [Upload Store](/docs/react/upload-store).
 
 <Accordion title="What happens when confirmation fails?">
 
-The request fails and dimah-s3 makes a best-effort compensating delete of the
-uploaded object. This also applies when verified constraints fail or
-`onConfirmed` throws, preventing an invalid object from being treated as a
-successful upload.
+If stored metadata violates the route constraints or `onConfirmed` throws,
+dimah-s3 makes a best-effort compensating delete of the uploaded object.
+Failures that occur earlier, such as a rejected `confirmGuard`, return an error
+without this cleanup because finalization has not begun.
 
 </Accordion>
 
 <Accordion title="Can I enforce a SHA-256 checksum?">
 
-Yes. Set `checksum: true` on the upload route. The React client computes the
-checksum and the server locks it into the signed request. Keep confirmation and
-content validation as separate trust checks.
+For single-part uploads, yes. Set `checksum: true` on the upload route; the
+React client computes SHA-256 and the server locks it into the signed POST or
+PUT request. Multipart part signing does not currently enforce this whole-file
+checksum. Keep confirmation and content validation as separate trust checks.
 
 See [route configuration](/docs/server/routes) for the complete upload policy.
 
@@ -288,7 +293,7 @@ Yes. Install individual components from the dimah-s3 shadcn registry when you
 want to own and modify their source. Use the `@dimah-s3/ui` package when you
 prefer package updates and direct imports.
 
-See [UI setup](/docs/react/ui).
+See [UI Setup](/docs/react/ui).
 
 </Accordion>
 
@@ -360,6 +365,8 @@ or video service, a queue and worker, or provider-native processing after
 </Accordion>
 
 </Accordions>
+
+---
 
 <Cards>
   <Card

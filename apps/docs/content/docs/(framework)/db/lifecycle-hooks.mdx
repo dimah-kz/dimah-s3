@@ -32,9 +32,10 @@ through `resolveScope(request)`:
 
 <Accordion title="How do my route guards interact with the database plugin?">
 
-Database plugin guards run **first** to verify scope ownership. Your route and
-operation guards run **second** for application-specific authorization. This
-follows the standard [plugin hook order](/docs/server/plugins#hook-execution-order).
+Your route-level `guard` runs first during route resolution. After that, the
+database plugin's operation guard verifies scope and ownership before your
+operation-specific `upload.guard`, `download.guard`, or `delete.guard`. See the
+standard [plugin hook order](/docs/server/plugins#hook-execution-order).
 
 </Accordion>
 

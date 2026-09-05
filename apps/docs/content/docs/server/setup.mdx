@@ -251,7 +251,10 @@ By default, dimah-s3 isolates object keys by route prefix:
 avatar/{uuid}/{fileName}
 ```
 
-All follow-up operations (confirm, download, delete) must target keys within the route's `keyPrefix`. Any request targeting a key outside its prefix is rejected with `INVALID_KEY`.
+By default, follow-up operations (confirm, download, and delete) must target
+keys within the route's `keyPrefix`; requests outside it return `INVALID_KEY`.
+Setting `keyPrefix: false` disables that namespace boundary and requires strict
+application guards.
 
 To customize the folder or key structure, use `upload.object` in your route definition.
 

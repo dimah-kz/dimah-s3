@@ -22,7 +22,7 @@ npx @dimah-s3/cli@latest create my-app --template vite
 | `src/main.tsx`         | `s3Client.Provider` + `Toaster`                       |
 | `src/App.tsx`          | Sample `UploadButton`                                 |
 
-Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Vite tab), [Server setup](https://s3.dimah.dev/docs/server/setup), [Client setup](https://s3.dimah.dev/docs/react/setup), and [UI setup](https://s3.dimah.dev/docs/react/ui). Cross-origin apps pass `baseURL` instead of relying on the proxy.
+Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Vite tab), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/react/ui). Cross-origin apps pass `baseURL` instead of relying on the proxy.
 
 ## License
 

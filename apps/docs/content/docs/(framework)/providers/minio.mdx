@@ -1,14 +1,14 @@
 ---
 title: MinIO
-description: Self-hosted S3 storage with path-style addressing and server CORS.
+description: Self-hosted S3 storage with local path-style addressing and server CORS.
 ---
 
 MinIO is a lightweight, self-hosted S3-compatible object store.
 
 ## Configuration
 
-Set `forcePathStyle: true` on `S3Client` so object URLs use the
-`http://host:9000/bucket/key` form:
+For the local host-and-port endpoint below, set `forcePathStyle: true` so
+object URLs use the `http://host:9000/bucket/key` form:
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -17,7 +17,7 @@ import { dimahS3, route } from "@dimah-s3/server";
 export const awsS3 = new S3Client({
   region: "us-east-1",
   endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
-  forcePathStyle: true, // Required for MinIO
+  forcePathStyle: true, // Required for this host-and-port setup
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY_ID || "minioadmin",
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "minioadmin",
@@ -37,6 +37,9 @@ export const s3 = dimahS3({
   },
 });
 ```
+
+MinIO can also use virtual-hosted bucket URLs when DNS and TLS are configured
+for bucket subdomains; in that setup, `forcePathStyle` is not required.
 
 ## MinIO CORS configuration
 

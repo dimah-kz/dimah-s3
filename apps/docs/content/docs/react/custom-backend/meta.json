@@ -1,6 +1,6 @@
 {
-  "title": "Bring your own backend",
-  "description": "Connect the React client to your API",
+  "title": "Bring Your Own Backend",
+  "description": "Implement the complete S3Api contract for an existing backend.",
   "defaultOpen": false,
   "pages": ["index", "upload", "download", "delete", "multipart"]
 }

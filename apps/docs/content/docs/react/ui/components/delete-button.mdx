@@ -87,14 +87,14 @@ on the `useDelete` return yourself.
 
 <Accordion title="How do I customize the confirmation dialog text?">
 
-Use `title` and `description` props:
+Use `confirmTitle` and `confirmDescription`:
 
 ```tsx
 <DeleteButton
   delete={del}
   objectKey={avatarKey}
-  title="Remove profile picture?"
-  description="This action cannot be undone. Your profile will revert to the default avatar."
+  confirmTitle="Remove profile picture?"
+  confirmDescription="This action cannot be undone. Your profile will revert to the default avatar."
 />
 ```
 

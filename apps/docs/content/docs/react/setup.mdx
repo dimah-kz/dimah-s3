@@ -14,7 +14,7 @@ npm i @dimah-s3/react
 
 Create the typed React client with `createS3Client`.
 
-<Tabs items={["@dimah-s3/server", "Custom backend"]}>
+<Tabs items={["@dimah-s3/server", "Bring your own backend"]}>
 
 <Tab value="@dimah-s3/server">
 
@@ -41,7 +41,7 @@ export const s3Client = createS3Client({
 
 </Tab>
 
-<Tab value="Custom backend">
+<Tab value="Bring your own backend">
 
 If you are using a custom backend API instead of `@dimah-s3/server`, implement `S3Api` using `defineApi`:
 
@@ -56,7 +56,7 @@ export function AppS3Provider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [Custom Backend](/docs/react/custom-backend) for protocol specifications.
+See [Bring Your Own Backend](/docs/react/custom-backend) for protocol specifications.
 
 </Tab>
 

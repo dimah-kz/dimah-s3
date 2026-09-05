@@ -37,6 +37,7 @@ async download(payload) {
     key: payload.key,
   });
   if (payload.fileName) params.set("fileName", payload.fileName);
+  if (payload.disposition) params.set("disposition", payload.disposition);
 
   const res = await fetch(`/api/files/presign/download?${params}`);
   if (!res.ok) throw new Error(await res.text());

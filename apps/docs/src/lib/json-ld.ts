@@ -24,7 +24,7 @@ const introFaqs = [
   {
     question: "Does dimah-s3 support resumable multipart uploads?",
     answer:
-      "Yes. Multipart uploads support chunking, retries, cancellation, and part reconciliation. Add a persistent UploadStore to resume after a page reload.",
+      "Yes. Multipart uploads support chunking, retries, cancellation, and part reconciliation. With a persistent UploadStore, the user can reselect the same local file after a reload and resume its stored upload.",
   },
 ] as const;
 
@@ -52,7 +52,7 @@ const faqHubFaqs = [
   {
     question: "Can a multipart upload resume after a page reload?",
     answer:
-      "Yes, when multipart is enabled and useUpload receives a persistent UploadStore. The client restores the upload ID and reconciles completed parts before continuing.",
+      "Yes, when multipart is enabled and useUpload receives a persistent UploadStore. After the user reselects the same local file, the client restores the upload ID and reconciles completed parts before continuing.",
   },
   {
     question: "Do I have to use the provided UI components?",

@@ -20,7 +20,8 @@ tracking.
   that scope; delete rejects access from another scope
 - **Lists files** — query by scope on the server and in the browser
 - **Tracks multipart** — records in-progress uploads for ownership and stale
-  cleanup; pair it with a client `UploadStore` for reload-persistent resume
+  cleanup; pair it with a client `UploadStore` to resume after the same local
+  file is reselected
 
 Authentication, quota values, and business rules stay application-owned. The
 plugin manages object metadata and scope isolation, and can compare usage with
@@ -43,13 +44,13 @@ Typical flow: pending → active → deleted. Aborted multipart uploads and
 
 <Cards>
   <Card
-    title="Setup"
+    title="Database Setup"
     href="/docs/db/setup"
     description="Install, add the schema, and register the plugin."
   />
   <Card
-    title="Hooks"
-    href="/docs/db/hooks"
+    title="Database Lifecycle Hooks"
+    href="/docs/db/lifecycle-hooks"
     description="Lifecycle hooks the plugin attaches automatically."
   />
   <Card
@@ -58,7 +59,7 @@ Typical flow: pending → active → deleted. Aborted multipart uploads and
     description="List and query objects from server or browser."
   />
   <Card
-    title="Purge"
+    title="Purge Stale Uploads"
     href="/docs/db/purge"
     description="Remove stale pending uploads."
   />

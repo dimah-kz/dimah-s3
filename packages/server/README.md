@@ -45,7 +45,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 // Node http — @dimah-s3/server/node → toNodeHandler
 ```
 
-See [Server setup](https://s3.dimah.dev/docs/server/setup) for full examples.
+See [Server Setup](https://s3.dimah.dev/docs/server/setup) for full examples.
 
 Server-side (no HTTP):
 

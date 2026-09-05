@@ -136,14 +136,14 @@ export function siteJsonLd(origin: string) {
         },
         featureList: [
           "Presigned S3-compatible direct uploads",
-          "Amazon S3, Cloudflare R2, MinIO, and Wasabi support",
+          "S3-compatible storage, with guides for Amazon S3, Cloudflare R2, and MinIO",
           "Presigned downloads & proxy preview",
           "Server-side deletion with lifecycle guards",
           "Resumable multipart uploads for large files",
           "Headless React hooks with progress & state tracking",
           "Pre-built optional shadcn UI components and dropzone",
           "Next.js App Router, Hono, Express, Fastify, Elysia, and SvelteKit adapters",
-          "Optional database plugin for object tracking (Drizzle ORM)",
+          "Optional database tracking with Drizzle, Prisma, and Kysely setup patterns",
         ],
       },
       {

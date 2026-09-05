@@ -61,6 +61,16 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: "/docs/db/hooks",
+        destination: "/docs/db/lifecycle-hooks",
+        permanent: true,
+      },
+      {
+        source: "/docs/db/hooks.md",
+        destination: "/docs/db/lifecycle-hooks.md",
+        permanent: true,
+      },
+      {
         source: "/docs/server/adapters",
         destination: "/docs/server/setup",
         permanent: true,

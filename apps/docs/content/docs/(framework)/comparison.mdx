@@ -18,6 +18,8 @@ its lifetime.
 
 ## Feature comparison
 
+<div className="hidden md:block">
+
 | Capability                | dimah-s3                          | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io)     |
 | ------------------------- | --------------------------------- | ------------------------------------------ | -------------------------------------- | --------------------------- |
 | **Product model**         | Lifecycle toolkit                 | Upload toolkit                             | Managed file service                   | Client uploader             |
@@ -33,6 +35,13 @@ its lifetime.
 
 The matrix describes first-party product scope. Every option can be extended
 with application code; the sections below explain the practical boundary.
+
+</div>
+
+<p className="md:hidden">
+  On smaller screens, use the product-model cards and pairwise guidance below;
+  they cover the same decision boundaries without a wide matrix.
+</p>
 
 ---
 
@@ -77,8 +86,9 @@ Choose dimah-s3 when the application also needs:
    `onConfirmed` fails.
 2. **One lifecycle policy** — the same named route and key namespace can govern
    upload, private download, proxy delivery, and server-executed deletion.
-3. **Resume across reloads** — multipart state can persist through
-   `UploadStore`, then reconcile uploaded parts with S3.
+3. **Resume across reloads** — `UploadStore` can persist multipart metadata;
+   after the user reselects the same local file, the client reconciles uploaded
+   parts with S3.
 4. **Optional application records** — `@dimah-s3/db` adds scope-based
    ownership, lifecycle state, listings, and quota guards without moving ORM
    behavior into the server package.
@@ -151,8 +161,8 @@ upload-confirm-download-delete lifecycle.
 <Accordion title="Does Better Upload support multipart uploads?">
 
 Yes. Better Upload can automatically use multipart when it is enabled on a
-route. The relevant dimah-s3 distinction is reload-persistent resume through
-`UploadStore`, not multipart support by itself.
+route. The relevant dimah-s3 distinction is reload-persistent metadata and
+same-file resume through `UploadStore`, not multipart support by itself.
 
 </Accordion>
 
@@ -210,7 +220,7 @@ Competitor capabilities change. This comparison was last reviewed on
     description="Configure AWS S3, Cloudflare R2, MinIO, or another compatible service."
   />
   <Card
-    title="Frequently asked questions"
+    title="Frequently Asked Questions"
     href="/docs/faq"
     description="Explore architecture, lifecycle, UI, database, and operations answers."
   />

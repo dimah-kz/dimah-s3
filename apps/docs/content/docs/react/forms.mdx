@@ -9,8 +9,9 @@ Keep upload state and form state separate:
 - **`useUpload`** — owns browser `File` objects, validation, progress, retries, and confirmation.
 - **The form** — owns a serializable value, usually the confirmed S3 object keys.
 
-Only write a key into the form after `onSuccess` runs. At that point the server
-has accepted the key and verified the uploaded object with `HeadObject`.
+Write each key into the form from `onFileSuccess`. At that point the server has
+accepted that object and verified it with `HeadObject`. The batch-level
+`onSuccess` callback runs only when every selected file succeeds.
 
 ## Upload flow
 
@@ -21,7 +22,7 @@ has accepted the key and verified the uploaded object with `HeadObject`.
     { name: "Presign", kind: "server", note: "guards and server-owned key" },
     { name: "Upload bytes", kind: "s3", note: "direct browser transfer" },
     { name: "Confirm", kind: "server", note: "HeadObject verification" },
-    { name: "onSuccess", kind: "hook", note: "confirmed UploadResult[]" },
+    { name: "onFileSuccess", kind: "hook", note: "one confirmed UploadResult" },
     {
       name: "Set field value",
       kind: "client",
@@ -32,6 +33,10 @@ has accepted the key and verified the uploaded object with `HeadObject`.
 
 `useUpload` remains the source of truth for progress and file UI. The form only
 stores the value that your application submits.
+
+If a batch partially fails, successful objects remain confirmed and their keys
+stay in the form. Let the user retry the failed files, or explicitly delete the
+successful objects when discarding the whole batch.
 
 ---
 
@@ -45,14 +50,13 @@ type FormValues = {
 };
 ```
 
-Map confirmed results to that value in `onSuccess`:
+Append each confirmed result in `onFileSuccess` so partial batch success is not
+lost:
 
 ```ts
-onSuccess: (results) => {
-  form.setValue(
-    "objectKeys",
-    results.map((result) => result.key),
-  );
+onFileSuccess: (_file, result) => {
+  const keys = form.getValues("objectKeys");
+  form.setValue("objectKeys", [...keys, result.key]);
 };
 ```
 
@@ -109,15 +113,12 @@ export function AttachmentForm() {
     onUploadStart: () => {
       form.clearErrors("objectKeys");
     },
-    onSuccess: (results) => {
-      form.setValue(
-        "objectKeys",
-        results.map((result) => result.key),
-        {
-          shouldDirty: true,
-          shouldValidate: true,
-        },
-      );
+    onFileSuccess: (_file, result) => {
+      const keys = form.getValues("objectKeys");
+      form.setValue("objectKeys", [...keys, result.key], {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
     },
     onError: (error) => {
       form.setError("objectKeys", {
@@ -196,11 +197,8 @@ export function AttachmentForm() {
   const upload = useUpload({
     route: "attachments",
     maxFiles: 5,
-    onSuccess: (results) => {
-      form.setFieldValue(
-        "objectKeys",
-        results.map((result) => result.key),
-      );
+    onFileSuccess: (_file, result) => {
+      form.setFieldValue("objectKeys", (keys) => [...keys, result.key]);
     },
   });
 
@@ -277,7 +275,8 @@ const upload = useUpload({
 ## Integration rules
 
 1. Disable submission while `upload.isPending` is `true`.
-2. Set the field value only from `onSuccess`.
+2. Set values from confirmed results: `onFileSuccess` for batches or
+   `onSuccess` for an all-or-nothing single-file flow.
 3. Surface `onError` or `upload.error` next to the field, even when also using a
    toast.
 4. Call both `form.reset()` and `upload.reset()` when resetting the form.

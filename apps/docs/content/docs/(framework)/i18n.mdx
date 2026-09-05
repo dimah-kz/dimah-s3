@@ -51,5 +51,7 @@ Missing keys stay English.
 
 ## API errors
 
-The server always responds in English. The React hooks and `@dimah-s3/ui`
-localize those messages with the same `translations` map.
+The server always responds in English. `@dimah-s3/ui` localizes errors with the
+same `translations` map. Headless hooks expose the original `APIError`; pass it
+to [`useFormatDimahError`](/docs/react/helpers) before rendering a localized
+message.

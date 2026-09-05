@@ -65,7 +65,8 @@ avatar: route({
 }),
 ```
 
-Follow-up operations (confirm, download, delete) must target keys within that route's namespace.
+With the default `keyPrefix`, follow-up operations (confirm, download, and
+delete) must target keys within that route's namespace.
 
 ---
 
@@ -78,6 +79,12 @@ By default, the server generates object keys formatted as:
 ```
 
 `keyPrefix` defaults to the route name (e.g. `avatar/…`).
+
+<Callout type="warn" title="Disabling namespace isolation">
+  `keyPrefix: false` allows follow-up operations to target any safe key in the
+  bucket. Use it only when strict route or operation guards enforce the complete
+  access policy.
+</Callout>
 
 To customize key generation or organize files by user/tenant, return `folder` or `key` from `upload.object`:
 
@@ -211,8 +218,9 @@ avatar: route({
 
 <Accordion title="How do I enforce SHA-256 integrity checksums?">
 
-Set `checksum: true` in your upload config. The React client computes the
-SHA-256 hash in the browser and includes it in the presigned request:
+For single-part POST or PUT uploads, set `checksum: true`. The React client
+computes SHA-256 in the browser and the server includes it in the signed
+request:
 
 ```ts
 avatar: route({
@@ -223,6 +231,9 @@ avatar: route({
   },
 }),
 ```
+
+Whole-file checksum enforcement is not currently applied to multipart part
+signing. Confirmation and content inspection remain separate trust checks.
 
 </Accordion>
 

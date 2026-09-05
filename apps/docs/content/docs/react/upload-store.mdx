@@ -1,11 +1,12 @@
 ---
 title: Upload Store
-description: Persist multipart upload state and resume large uploads after a page reload.
+description: Persist multipart identity and resume after the user reselects the same file.
 icon: Database
 ---
 
-An `UploadStore` persists the multipart upload identity so an interrupted
-upload can resume after a browser reload.
+An `UploadStore` persists multipart metadata, not the browser `File`. After a
+reload, the user reselects the same local file and the client uses the stored
+identity to reconcile parts and resume.
 
 ```ts title="lib/upload-store.ts"
 import { createLocalStorageStore } from "@dimah-s3/react";
@@ -40,13 +41,15 @@ export function VideoUploader() {
 }
 ```
 
-Resume keys are uniquely hashed by `${route}:${file.name}:${file.size}:${file.lastModified}`.
+The resume key is derived as
+`${route}:${file.name}:${file.size}:${file.lastModified}`. It is a lookup key,
+not a collision-resistant hash.
 
 ---
 
 ## Built-in stores
 
-- **`createLocalStorageStore()`** — persists in browser `localStorage` across page reloads.
+- **`createLocalStorageStore()`** — persists multipart metadata in browser `localStorage` across page reloads.
 - **`createMemoryStore()`** — in-memory store for unit tests or SSR.
 
 ```ts
@@ -79,14 +82,16 @@ No. [`@dimah-s3/db`](/docs/db) tracks pending uploads on the server, while an
 `UploadStore` maps a browser-side resume identity to the S3 key and upload ID.
 Use `createLocalStorageStore()` for same-browser reloads, or implement the
 [custom store interface](#custom-upload-store-interface) with your own API for
-cross-device resume.
+cross-device metadata lookup. In either case, the browser still needs the user
+to select the same local file.
 
 </Accordion>
 
 <Accordion title="When should I enable an upload store?">
 
 Enable `uploadStore` for large multipart uploads that users may need to resume
-after a refresh or lost connection. Small, single-part uploads do not need one.
+after a refresh or lost connection. After a reload they must reselect the same
+file. Small, single-part uploads do not need a store.
 
 </Accordion>
 

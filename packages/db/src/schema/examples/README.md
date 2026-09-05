@@ -7,4 +7,4 @@ Copy-paste `storage_object` + recommended indexes. Not imported at runtime.
 | [`drizzle.ts`](./drizzle.ts)       | Drizzle (SQLite) |
 | [`schema.prisma`](./schema.prisma) | Prisma           |
 
-Docs: [Setup](https://s3.dimah.dev/docs/db/setup). Drizzle needs `fumadb/cuid` → `@paralleldrive/cuid2` in tsconfig paths.
+Docs: [Database Setup](https://s3.dimah.dev/docs/db/setup). Drizzle needs `fumadb/cuid` → `@paralleldrive/cuid2` in tsconfig paths.
