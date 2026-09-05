@@ -2,8 +2,8 @@
 
 Headless React hooks for S3 upload, download, and delete flows.
 
-Full documentation: [dimah-s3.vercel.app/docs/react](https://dimah-s3.vercel.app/docs/react) ·
-[llms.txt](https://dimah-s3.vercel.app/llms.txt)
+Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) ·
+[llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
 

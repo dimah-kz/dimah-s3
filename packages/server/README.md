@@ -2,8 +2,8 @@
 
 Presigned S3 handlers with HTTP `handler`, direct `api`, and an optional `plugins` array.
 
-Full documentation: [dimah-s3.vercel.app/docs/server](https://dimah-s3.vercel.app/docs/server) ·
-[llms.txt](https://dimah-s3.vercel.app/llms.txt)
+Full documentation: [s3.dimah.dev/docs/server](https://s3.dimah.dev/docs/server) ·
+[llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
 
@@ -45,7 +45,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 // Node http — @dimah-s3/server/node → toNodeHandler
 ```
 
-See [Server setup](https://dimah-s3.vercel.app/docs/server/setup) for full examples.
+See [Server setup](https://s3.dimah.dev/docs/server/setup) for full examples.
 
 Server-side (no HTTP):
 

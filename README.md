@@ -26,9 +26,9 @@ Presign flows only. Anything else stays in your own backend with
 
 ## Docs
 
-[dimah-s3.vercel.app](https://dimah-s3.vercel.app/docs) ·
-[Comparison](https://dimah-s3.vercel.app/docs/comparison) ·
-[llms.txt](https://dimah-s3.vercel.app/llms.txt) (coding agents)
+[s3.dimah.dev](https://s3.dimah.dev/docs) ·
+[Comparison](https://s3.dimah.dev/docs/comparison) ·
+[llms.txt](https://s3.dimah.dev/llms.txt) (coding agents)
 
 ## Create an app
 

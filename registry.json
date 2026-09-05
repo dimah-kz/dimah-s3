@@ -1,6 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "dimah-s3",
-  "homepage": "https://dimah-s3.vercel.app",
+  "homepage": "https://s3.dimah.dev",
   "include": ["packages/ui/registry.json"]
 }

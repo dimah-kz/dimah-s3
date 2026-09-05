@@ -12,7 +12,7 @@ import { installStep } from "./steps/install-deps.js";
 import { initGitStep } from "./steps/init-git.js";
 import { scaffoldStep } from "./steps/scaffold.js";
 
-const DOCS_URL = "https://dimah-s3.vercel.app";
+const DOCS_URL = "https://s3.dimah.dev";
 
 /**
  * Ordered create steps. New options (extra plugins, opt-in features) are added

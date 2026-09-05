@@ -26,7 +26,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/server"
   },
-  "homepage": "https://dimah-s3.vercel.app/docs/server",
+  "homepage": "https://s3.dimah.dev/docs/server",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

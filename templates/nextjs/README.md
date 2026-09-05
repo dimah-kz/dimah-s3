@@ -1,6 +1,6 @@
 # dimah-s3 — Next.js template
 
-Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https://dimah-s3.vercel.app): presign API route, `S3Provider`, and an upload button.
+Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https://s3.dimah.dev): presign API route, `S3Provider`, and an upload button.
 
 ## Create
 
@@ -8,7 +8,7 @@ Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https:/
 npx @dimah-s3/cli@latest create my-app
 ```
 
-`cd my-app`, fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://dimah-s3.vercel.app/docs/providers).
+`cd my-app`, fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://s3.dimah.dev/docs/providers).
 
 ## What’s included
 
@@ -20,7 +20,7 @@ npx @dimah-s3/cli@latest create my-app
 | `src/app/layout.tsx`              | `S3Provider` + `Toaster`                              |
 | `src/app/page.tsx`                | Sample `UploadButton`                                 |
 
-Same layout as [Quickstart](https://dimah-s3.vercel.app/docs/quickstart), [Server setup](https://dimah-s3.vercel.app/docs/server/setup), [Client setup](https://dimah-s3.vercel.app/docs/react/setup), and [UI setup](https://dimah-s3.vercel.app/docs/react/ui). Flatten `src/` with `create --no-src`.
+Same layout as [Quickstart](https://s3.dimah.dev/docs/quickstart), [Server setup](https://s3.dimah.dev/docs/server/setup), [Client setup](https://s3.dimah.dev/docs/react/setup), and [UI setup](https://s3.dimah.dev/docs/react/ui). Flatten `src/` with `create --no-src`.
 
 ## License
 

@@ -1,8 +1,8 @@
 # `@dimah-s3/cli`
 
-Scaffold an official [dimah-s3](https://dimah-s3.vercel.app/docs) starter.
+Scaffold an official [dimah-s3](https://s3.dimah.dev/docs) starter.
 
-[Docs](https://dimah-s3.vercel.app/docs/quickstart) · [llms.txt](https://dimah-s3.vercel.app/llms.txt)
+[Docs](https://s3.dimah.dev/docs/quickstart) · [llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Usage
 

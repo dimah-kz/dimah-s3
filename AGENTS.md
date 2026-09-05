@@ -5,7 +5,7 @@ alwaysApply: true
 
 # dimah-s3
 
-This repository **is the library**, not an app. Consumer integration: [the docs](https://dimah-s3.vercel.app/docs).
+This repository **is the library**, not an app. Consumer integration: [the docs](https://s3.dimah.dev/docs).
 
 Explore `packages/*/src` for how things work. [docs/agents/](docs/agents/) is **checklists for changing published behavior** — not a map of the repo, and not a substitute for reading the code.
 

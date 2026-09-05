@@ -23,7 +23,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://dimah-s3.vercel.app/docs/quickstart",
+  "homepage": "https://s3.dimah.dev/docs/quickstart",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

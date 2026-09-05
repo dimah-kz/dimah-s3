@@ -10,6 +10,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # dimah-s3
 
-Next.js App Router starter with [dimah-s3](https://dimah-s3.vercel.app): `@dimah-s3/server` for presign routes, `@dimah-s3/react` for the client, and `@dimah-s3/ui` for upload UI.
+Next.js App Router starter with [dimah-s3](https://s3.dimah.dev): `@dimah-s3/server` for presign routes, `@dimah-s3/react` for the client, and `@dimah-s3/ui` for upload UI.
 
-Docs: [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) · [Providers](https://dimah-s3.vercel.app/docs/providers)
+Docs: [Quickstart](https://s3.dimah.dev/docs/quickstart) · [Providers](https://s3.dimah.dev/docs/providers)

@@ -1,10 +1,13 @@
+/** Canonical production origin. Preview deploys still use VERCEL_URL. */
+export const PRODUCTION_SITE_ORIGIN = "https://s3.dimah.dev";
+
 /**
  * Canonical site origin for metadata, OG images, and absolute URLs.
  *
  * Resolution order:
- * 1. NEXT_PUBLIC_SITE_URL — optional override (custom domain, local tunnel)
- * 2. VERCEL_PROJECT_PRODUCTION_URL — production deploy on Vercel
- * 3. VERCEL_URL — preview / production *.vercel.app
+ * 1. NEXT_PUBLIC_SITE_URL — optional override (local tunnel, etc.)
+ * 2. PRODUCTION_SITE_ORIGIN — production deploy on Vercel
+ * 3. VERCEL_URL — preview *.vercel.app
  * 4. http://localhost:3000 — local dev
  */
 export function getSiteUrl(): URL {
@@ -13,9 +16,8 @@ export function getSiteUrl(): URL {
     return new URL(explicit.includes("://") ? explicit : `https://${explicit}`);
   }
 
-  const productionHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
-  if (process.env.VERCEL_ENV === "production" && productionHost) {
-    return new URL(`https://${productionHost}`);
+  if (process.env.VERCEL_ENV === "production") {
+    return new URL(PRODUCTION_SITE_ORIGIN);
   }
 
   const vercelHost = process.env.VERCEL_URL?.trim();

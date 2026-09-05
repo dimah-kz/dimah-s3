@@ -1,6 +1,6 @@
 # dimah-s3 — Vite template
 
-Minimal [Vite](https://vitejs.dev) + React starter with [dimah-s3](https://dimah-s3.vercel.app): Hono presign API, `s3Client.Provider`, and an upload button.
+Minimal [Vite](https://vitejs.dev) + React starter with [dimah-s3](https://s3.dimah.dev): Hono presign API, `s3Client.Provider`, and an upload button.
 
 ## Create
 
@@ -8,7 +8,7 @@ Minimal [Vite](https://vitejs.dev) + React starter with [dimah-s3](https://dimah
 npx @dimah-s3/cli@latest create my-app --template vite
 ```
 
-`cd my-app`, fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://dimah-s3.vercel.app/docs/providers).
+`cd my-app`, fill `S3_*` in `.env`. For browser uploads, configure bucket CORS — see [Providers](https://s3.dimah.dev/docs/providers).
 
 `npm run dev` starts the Hono API (`:8787`) and Vite (`:5173`). Open the Vite URL; `/api` is proxied to the API.
 
@@ -22,7 +22,7 @@ npx @dimah-s3/cli@latest create my-app --template vite
 | `src/main.tsx`         | `s3Client.Provider` + `Toaster`                       |
 | `src/App.tsx`          | Sample `UploadButton`                                 |
 
-Same wiring as [Quickstart](https://dimah-s3.vercel.app/docs/quickstart) (Vite tab), [Server setup](https://dimah-s3.vercel.app/docs/server/setup), [Client setup](https://dimah-s3.vercel.app/docs/react/setup), and [UI setup](https://dimah-s3.vercel.app/docs/react/ui). Cross-origin apps pass `baseURL` instead of relying on the proxy.
+Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Vite tab), [Server setup](https://s3.dimah.dev/docs/server/setup), [Client setup](https://s3.dimah.dev/docs/react/setup), and [UI setup](https://s3.dimah.dev/docs/react/ui). Cross-origin apps pass `baseURL` instead of relying on the proxy.
 
 ## License
 

@@ -37,7 +37,7 @@ Match existing items in `registry-items.ts`. Landmines:
 
 ## Serve vs GitHub
 
-- HTTP registry: `shadcn build` → `apps/docs/public/r/{name}.json` (`https://dimah-s3.vercel.app/r/{name}.json`). Prefer this over app routes.
+- HTTP registry: `shadcn build` → `apps/docs/public/r/{name}.json` (`https://s3.dimah.dev/r/{name}.json`). Prefer this over app routes.
 - GitHub registry: root `registry.json` is the catalog. Keep `packages/ui/registry.json` committed so GitHub installs stay in sync.
 
 ## UI conventions
