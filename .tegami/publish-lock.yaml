@@ -1,38 +1,38 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Point docs and registry URLs at s3.dimah.dev\n\nPublished homepage fields, the CLI success link, and scaffolded `components.json` registry entries now use https://s3.dimah.dev.\n"
-    filename: 2026-09-05-docs-domain.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Refresh scaffold starter dependencies\n\n`dimah-s3 create` apps now install AWS SDK 3.1126, Base UI 1.8, shadcn 4.21, and matching lucide/cn ranges. `@dimah-s3/server` uses the same AWS SDK patch.\n"
+    filename: 2026-09-05-templates-deps.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:brand
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@dimah-s3/ui
     updated: true
   - changelogIds:
-      - 2026-09-05-docs-domain.md
+      - 2026-09-05-templates-deps.md
     id: npm:@workspace/vitest-config
     updated: true
 npm:packages:

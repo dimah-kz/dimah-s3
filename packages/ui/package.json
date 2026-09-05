@@ -1,19 +1,20 @@
 {
   "name": "@dimah-s3/ui",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Pre-built React UI components for S3 file upload, download, and delete",
+>>>>>>> 610af17206a4f89bf5975ea440597de8a1a2b19d
   "keywords": [
     "s3",
-    "s3-compatible",
-    "aws-s3",
-    "cloudflare-r2",
-    "react",
-    "ui",
     "shadcn",
     "shadcn-ui",
     "file-upload",
-    "dropzone",
     "file-uploader",
+    "dropzone",
+    "uploadthing-alternative",
+    "better-upload-alternative",
+    "attachment",
+    "progress-bar",
+    "react",
     "nextjs",
     "components"
   ],

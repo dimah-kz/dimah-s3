@@ -1,20 +1,18 @@
 {
   "name": "@dimah-s3/cli",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Scaffold dimah-s3 apps from official templates",
+>>>>>>> 610af17206a4f89bf5975ea440597de8a1a2b19d
   "keywords": [
     "s3",
-    "s3-compatible",
-    "aws-s3",
-    "cloudflare-r2",
-    "minio",
-    "file-upload",
     "cli",
     "scaffold",
-    "create",
+    "create-dimah-s3",
+    "starter",
     "nextjs",
     "vite",
-    "hono"
+    "hono",
+    "file-upload"
   ],
   "author": "Hamidrezakz",
   "license": "MIT",

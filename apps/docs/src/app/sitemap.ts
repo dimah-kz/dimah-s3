@@ -2,41 +2,39 @@ import type { MetadataRoute } from "next";
 import { source } from "@/lib/source";
 import { getSiteUrl } from "@/lib/site-url";
 
-const featuredDocs = ["/docs", "/docs/quickstart", "/docs/comparison"] as const;
-
-/** `/sitemap.xml` — landing first, then intro, quickstart, comparison, then the rest. */
+/** `/sitemap.xml` — 1 home · 0.9 intro/quickstart · 0.8 comparison · then by depth. */
 export default function sitemap(): MetadataRoute.Sitemap {
   const origin = getSiteUrl().origin;
-  const pages = source.getPages();
-  const featured = new Set<string>(featuredDocs);
-  const rest = pages.filter((page) => !featured.has(page.url));
 
   return [
     entry(origin, 1),
-    ...featuredDocs.map((url) => entry(`${origin}${url}`, docsPriority(url))),
-    ...rest.map((page) =>
-      entry(`${origin}${page.url}`, docsPriority(page.url)),
-    ),
-  ];
+    ...source
+      .getPages()
+      .map((page) => entry(`${origin}${page.url}`, docsPriority(page.url))),
+  ].sort(byImportance);
 }
 
 function entry(url: string, priority: number): MetadataRoute.Sitemap[number] {
   return {
     url,
-    lastModified: new Date(),
-    changeFrequency: "weekly",
+    changeFrequency: priority >= 0.8 ? "weekly" : "monthly",
     priority,
   };
 }
 
 function docsPriority(url: string): number {
-  switch (url) {
-    case "/docs":
-    case "/docs/quickstart":
-      return 0.9;
-    case "/docs/comparison":
-      return 0.8;
-    default:
-      return 0.7;
-  }
+  if (url === "/docs" || url === "/docs/quickstart") return 0.9;
+  if (url === "/docs/comparison") return 0.8;
+
+  const depth = url.split("/").filter(Boolean).length;
+  if (depth === 2) return 0.7;
+  if (depth === 3) return 0.5;
+  return 0.3;
+}
+
+function byImportance(
+  a: MetadataRoute.Sitemap[number],
+  b: MetadataRoute.Sitemap[number],
+) {
+  return (b.priority ?? 0) - (a.priority ?? 0) || a.url.localeCompare(b.url);
 }
