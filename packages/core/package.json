@@ -2,12 +2,16 @@
   "name": "@dimah-s3/core",
   "version": "1.5.4",
   "description": "Typed S3 presign protocol and fetch client shared by @dimah-s3/server and @dimah-s3/react",
->>>>>>> 610af17206a4f89bf5975ea440597de8a1a2b19d
   "keywords": [
     "s3",
     "s3-compatible",
+    "aws-s3",
+    "cloudflare-r2",
+    "minio",
     "presigned-url",
+    "presigned-post",
     "s3-client",
+    "file-upload",
     "object-storage",
     "protocol",
     "typescript"

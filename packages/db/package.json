@@ -2,18 +2,20 @@
   "name": "@dimah-s3/db",
   "version": "1.5.4",
   "description": "Optional database plugin for dimah-s3 — track S3 object ownership, listings, and resumable uploads",
->>>>>>> 610af17206a4f89bf5975ea440597de8a1a2b19d
   "keywords": [
     "s3",
+    "s3-compatible",
+    "aws-s3",
     "drizzle",
     "drizzle-orm",
     "object-storage",
     "database",
     "file-upload",
     "resumable-upload",
+    "file-tracking",
+    "object-tracking",
     "prisma",
     "fumadb",
-    "file-tracking",
     "typescript"
   ],
   "author": "Hamidrezakz",

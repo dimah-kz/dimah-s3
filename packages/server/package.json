@@ -2,15 +2,17 @@
   "name": "@dimah-s3/server",
   "version": "1.5.4",
   "description": "Presigned S3 server — dimahS3() with HTTP handler and direct api for upload, download, delete, and multipart",
->>>>>>> 610af17206a4f89bf5975ea440597de8a1a2b19d
   "keywords": [
     "s3",
     "s3-compatible",
     "aws-s3",
     "cloudflare-r2",
     "minio",
+    "wasabi",
     "presigned-url",
+    "presigned-post",
     "file-upload",
+    "direct-upload",
     "uploadthing-alternative",
     "better-upload-alternative",
     "object-storage",

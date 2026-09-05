@@ -2,14 +2,18 @@
   "name": "@dimah-s3/react",
   "version": "1.5.4",
   "description": "Headless React hooks for presigned S3 file uploads, downloads, and deletes",
->>>>>>> 610af17206a4f89bf5975ea440597de8a1a2b19d
   "keywords": [
     "s3",
     "s3-compatible",
+    "aws-s3",
+    "cloudflare-r2",
+    "minio",
     "react",
     "react-hooks",
+    "use-upload",
     "nextjs",
     "file-upload",
+    "file-uploader",
     "uploadthing-alternative",
     "better-upload-alternative",
     "presigned-url",
@@ -17,8 +21,6 @@
     "resumable-upload",
     "dropzone",
     "headless",
-    "cloudflare-r2",
-    "minio",
     "typescript"
   ],
   "author": "Hamidrezakz",
