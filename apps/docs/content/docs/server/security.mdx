@@ -13,10 +13,10 @@ dimah-s3 follows a **presign-first** security model: AWS credentials remain on t
 
 ## Security model
 
-1. **Server owns keys**: The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
-2. **Namespace isolation**: Confirm, download, and delete follow-ups are restricted to the route's `keyPrefix`. Requests referencing keys outside the prefix fail with `INVALID_KEY`.
-3. **Verified metadata via `HeadObject`**: Presign payloads (size/type) are untrusted. Verified file sizes and Content-Types are confirmed server-side via `HeadObject` in `upload.onConfirmed`.
-4. **Guards & Authorization**: Route `guard` and feature guards (`upload.guard`, `download.guard`, `delete.guard`) control per-user authorization.
+1. **Server owns keys** — The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
+2. **Namespace isolation** — Confirm, download, and delete follow-ups are restricted to the route's `keyPrefix`. Requests referencing keys outside the prefix fail with `INVALID_KEY`.
+3. **Verified metadata via `HeadObject`** — Presign payloads (size/type) are untrusted. Verified file sizes and Content-Types are confirmed server-side via `HeadObject` in `upload.onConfirmed`.
+4. **Guards and authorization** — Route `guard` and feature guards (`upload.guard`, `download.guard`, `delete.guard`) control per-user authorization.
 
 ---
 

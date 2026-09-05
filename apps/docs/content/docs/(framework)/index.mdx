@@ -59,13 +59,19 @@ dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own 
 
 <Accordion title="Can I use dimah-s3 with Cloudflare R2 or MinIO?">
 
-Yes. Any S3-compatible storage works out of the box. For Cloudflare R2, configure `upload: { method: "PUT" }`. For MinIO, pass `forcePathStyle: true` in your S3Client.
+Yes. Any S3-compatible storage works out of the box.
+
+**Cloudflare R2** — set `upload: { method: "PUT" }`.
+
+**MinIO** — pass `forcePathStyle: true` on the S3Client.
 
 </Accordion>
 
 <Accordion title="How does dimah-s3 keep S3 credentials secure?">
 
-AWS credentials never leave your backend server. The client only sends a route name; the server validates guards, enforces quotas, and returns a short-lived presigned URL directly to your S3 bucket. Keys are server-owned and confined to the route prefix.
+AWS credentials never leave your server. The client only sends a route name.
+
+The server validates guards, enforces quotas, and returns a short-lived presigned URL. Keys are server-owned and confined to the route prefix.
 
 </Accordion>
 

@@ -6,8 +6,8 @@ icon: FormInput
 
 Keep upload state and form state separate:
 
-- `useUpload` owns browser `File` objects, validation, progress, retries, and confirmation.
-- The form owns a serializable value—usually the confirmed S3 object keys.
+- **`useUpload`** — owns browser `File` objects, validation, progress, retries, and confirmation.
+- **The form** — owns a serializable value, usually the confirmed S3 object keys.
 
 Only write a key into the form after `onSuccess` runs. At that point the server
 has accepted the key and verified the uploaded object with `HeadObject`.

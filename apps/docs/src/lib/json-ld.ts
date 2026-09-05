@@ -4,22 +4,22 @@ const introFaqs = [
   {
     question: "How does dimah-s3 differ from UploadThing and Better Upload?",
     answer:
-      "dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own (AWS S3, Cloudflare R2, MinIO). Unlike UploadThing which is a hosted SaaS, dimah-s3 has no SaaS fees and keeps all data in your bucket. Unlike Better Upload which focuses primarily on upload PUTs, dimah-s3 covers the full object lifecycle: presigned upload, HeadObject confirmation, presigned download, server-guarded deletion, multipart resume, optional shadcn UI, and database tracking.",
+      "dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own (AWS S3, Cloudflare R2, MinIO). UploadThing is hosted SaaS — dimah-s3 has no SaaS fees and keeps all data in your bucket. Better Upload focuses on PUT uploads — dimah-s3 covers the full object lifecycle: presigned upload, HeadObject confirmation, presigned download, server-guarded deletion, multipart resume, optional shadcn UI, and database tracking.",
   },
   {
     question: "How does delete work compared to upload and download?",
     answer:
-      "Upload and download are presigned (the client communicates directly with S3). Deletion is executed server-side: the client sends a delete request to your API, the server runs your delete.guard, issues DeleteObjectCommand via the AWS SDK, and triggers onDeleted cleanup.",
+      "Upload and download are presigned — the client talks to S3 directly. Delete runs on your server — the client sends a request, the server runs delete.guard, issues DeleteObjectCommand, and triggers onDeleted cleanup.",
   },
   {
     question: "Can I use dimah-s3 with Cloudflare R2 or MinIO?",
     answer:
-      'Yes. Any S3-compatible storage works out of the box. For Cloudflare R2, configure upload: { method: "PUT" }. For MinIO, pass forcePathStyle: true in your S3Client.',
+      'Yes. Any S3-compatible storage works out of the box. Cloudflare R2 — set upload: { method: "PUT" }. MinIO — pass forcePathStyle: true on the S3Client.',
   },
   {
     question: "How does dimah-s3 keep S3 credentials secure?",
     answer:
-      "AWS credentials never leave your backend server. The client only sends a route name; the server validates guards, enforces quotas, and returns a short-lived presigned URL directly to your S3 bucket. Keys are server-owned and confined to the route prefix.",
+      "AWS credentials never leave your server. The client only sends a route name. The server validates guards, enforces quotas, and returns a short-lived presigned URL. Keys are server-owned and confined to the route prefix.",
   },
   {
     question: "Does dimah-s3 support resumable multipart uploads?",

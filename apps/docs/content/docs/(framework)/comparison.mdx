@@ -31,10 +31,10 @@ guards, hooks, or UI. dimah-s3 signs `storageClass`, `tagging`, and
 
 ## When to use which
 
-- **dimah-s3 (Full-lifecycle S3 toolkit)** — you need complete object lifecycle management: direct uploads, verified `HeadObject` confirmation, private downloads, server-guarded deletes, resumable multipart, or database-backed quotas in your own S3/R2/MinIO bucket.
-- **Better Upload (Upload-only uploader)** — you need a quick, lightweight file picker into your bucket for simple PUT uploads and will handle confirmation, deletion, and download logic in your own custom backend code.
-- **UploadThing (Hosted SaaS)** — you want a fully managed backend with hosted storage and do not want to manage an AWS account or S3 bucket.
-- **Uppy (Client dashboard)** — you already have custom backend endpoints and only need a client UI modal.
+- **dimah-s3** — full object lifecycle in your own S3/R2/MinIO bucket: direct uploads, `HeadObject` confirm, private downloads, server-guarded deletes, resumable multipart, or database-backed quotas
+- **Better Upload** — a quick PUT picker into your bucket; you handle confirm, delete, and download yourself
+- **UploadThing** — hosted storage and API, if you do not want to run an AWS account or S3 bucket
+- **Uppy** — you already have backend endpoints and only need a client UI modal
 
 ---
 
@@ -42,18 +42,18 @@ guards, hooks, or UI. dimah-s3 signs `storageClass`, `tagging`, and
 
 While both dimah-s3 and Better Upload support bringing your own S3 bucket:
 
-1. **Full Lifecycle vs. Upload-Only**: Better Upload focuses primarily on the initial upload step. dimah-s3 covers upload, confirmation, download, and deletion under a single route definition and key namespace.
-2. **Verified HeadObject Confirmation**: dimah-s3 verifies the actual file size and Content-Type directly against S3 using `HeadObject` during the `onConfirmed` lifecycle step, ensuring malicious clients cannot forge file metadata.
-3. **Resumable Multipart Uploads**: For large files (video, audio, archives), dimah-s3 includes automatic multipart chunking, parallel uploads, and resumption.
-4. **First-Party Database Tracking**: With `@dimah-s3/db`, you get instant object ownership tracking, listings, and quota checks integrated with Drizzle ORM.
+1. **Full lifecycle vs. upload-only** — Better Upload focuses on the initial upload. dimah-s3 covers upload, confirmation, download, and deletion under a single route and key namespace.
+2. **Verified HeadObject confirmation** — dimah-s3 checks size and Content-Type against S3 in `onConfirmed`, so clients cannot forge metadata.
+3. **Resumable multipart uploads** — Large files (video, audio, archives) get automatic chunking, parallel uploads, and resumption.
+4. **First-party database tracking** — `@dimah-s3/db` adds ownership, listings, and quota checks with Drizzle, Prisma, or Kysely.
 
 ---
 
 ## Why choose dimah-s3 over UploadThing?
 
-1. **Zero SaaS Fees & Cost Predictability**: You pay standard cloud storage rates (e.g. AWS S3, Cloudflare R2 with zero egress fees) rather than paying a SaaS markup.
-2. **Complete Data Ownership**: Files reside entirely within your own bucket and infrastructure without vendor lock-in.
-3. **Backend Flexibility**: Works with Next.js, Hono, Express, Fastify, Elysia, and SvelteKit.
+1. **Zero SaaS fees** — You pay standard cloud storage rates (AWS S3, Cloudflare R2 with no egress fees) instead of a SaaS markup.
+2. **Complete data ownership** — Files stay in your bucket, with no vendor lock-in.
+3. **Backend flexibility** — Works with Next.js, Hono, Express, Fastify, Elysia, and SvelteKit.
 
 ---
 
@@ -63,7 +63,11 @@ While both dimah-s3 and Better Upload support bringing your own S3 bucket:
 
 <Accordion title="Is dimah-s3 a full alternative to Better Upload?">
 
-Yes. If your app only needs a quick file picker to PUT an image into S3, Better Upload is lightweight and simple. If you need confirmation hooks, private signed downloads, server-guarded deletion, resumable multipart transfers, or database tracking, dimah-s3 provides the full stack out of the box.
+Yes.
+
+**Better Upload** — if you only need a quick PUT picker into S3.
+
+**dimah-s3** — if you need confirmation hooks, private signed downloads, server-guarded deletion, resumable multipart, or database tracking.
 
 </Accordion>
 

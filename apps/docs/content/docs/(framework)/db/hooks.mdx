@@ -19,10 +19,10 @@ Before executing operations, `@dimah-s3/db` resolves the active session scope vi
 
 ## Lifecycle behavior by operation
 
-- **Upload**: Inserts a new row with `status: "pending"`.
-- **Upload Confirmation**: Verifies `pending` state, records verified `contentLength` from `HeadObject`, and transitions status to `"active"`.
-- **Download**: Enforces that the object has `status: "active"` and matches the caller's scope.
-- **Delete**: Runs S3 `DeleteObjectCommand`, then updates row status to `"deleted"` (soft delete) or removes it (hard delete).
+- **Upload** — Inserts a new row with `status: "pending"`.
+- **Upload confirmation** — Verifies `pending` state, records verified `contentLength` from `HeadObject`, and transitions status to `"active"`.
+- **Download** — Enforces that the object has `status: "active"` and matches the caller's scope.
+- **Delete** — Runs S3 `DeleteObjectCommand`, then updates row status to `"deleted"` (soft delete) or removes it (hard delete).
 
 ## Frequently asked questions
 
