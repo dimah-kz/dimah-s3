@@ -1,8 +1,17 @@
 import type { MetadataRoute } from "next";
-import { getSiteUrl } from "@/lib/site-url";
+import { getSiteUrl, isProductionDeploy } from "@/lib/site-url";
 
-/** `/robots.txt` — allow crawlers and point them at the sitemap. */
+/** `/robots.txt` — allow crawlers on production; keep preview deploys out. */
 export default function robots(): MetadataRoute.Robots {
+  if (!isProductionDeploy()) {
+    return {
+      rules: {
+        userAgent: "*",
+        disallow: "/",
+      },
+    };
+  }
+
   const origin = getSiteUrl().origin;
 
   return {

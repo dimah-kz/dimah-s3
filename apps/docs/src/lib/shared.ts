@@ -65,6 +65,7 @@ export function siteJsonLd(origin: string) {
       },
       {
         "@type": "WebSite",
+        "@id": `${origin}/#website`,
         name: appName,
         url: origin,
         description: siteDescription,

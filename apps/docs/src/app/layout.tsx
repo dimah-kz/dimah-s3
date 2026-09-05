@@ -11,7 +11,8 @@ import {
   siteKeywords,
   siteTitle,
 } from "@/lib/shared";
-import { getSiteUrl } from "@/lib/site-url";
+import { getSiteUrl, isProductionDeploy } from "@/lib/site-url";
+import { serializeJsonLd } from "@/lib/json-ld";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -21,6 +22,7 @@ const fontSans = Geist({
 });
 
 const siteUrl = getSiteUrl();
+const isProduction = isProductionDeploy();
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,
@@ -55,15 +57,15 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@dimahkzx",
     creator: "@dimahkzx",
     title: siteTitle,
     description: siteDescription,
     images: "/og/docs/image.png",
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: isProduction
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 export default function Layout({ children }: LayoutProps<"/">) {
@@ -79,7 +81,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+            __html: serializeJsonLd(jsonLd),
           }}
         />
         <RootProvider

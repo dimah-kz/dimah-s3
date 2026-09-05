@@ -11,7 +11,9 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/components/mdx";
 import type { Metadata } from "next";
 import { createRelativeLink } from "fumadocs-ui/mdx";
-import { gitConfig } from "@/lib/shared";
+import { appName, gitConfig } from "@/lib/shared";
+import { docsArticleJsonLd, serializeJsonLd } from "@/lib/json-ld";
+import { getSiteUrl } from "@/lib/site-url";
 
 export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const params = await props.params;
@@ -20,9 +22,21 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
 
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
+  const jsonLd = docsArticleJsonLd({
+    origin: getSiteUrl().origin,
+    url: page.url,
+    title: page.data.title,
+    description: page.data.description ?? "",
+  });
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeJsonLd(jsonLd),
+        }}
+      />
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">
         {page.data.description}
@@ -73,11 +87,13 @@ export async function generateMetadata(
       title: page.data.title,
       description: page.data.description,
       url: page.url,
+      siteName: appName,
       images: image,
       type: "article",
     },
     twitter: {
       card: "summary_large_image",
+      site: "@dimahkzx",
       creator: "@dimahkzx",
       title: page.data.title,
       description: page.data.description,

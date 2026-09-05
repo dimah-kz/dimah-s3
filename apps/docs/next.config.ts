@@ -1,7 +1,9 @@
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
+import { PRODUCTION_SITE_ORIGIN } from "./src/lib/site-url";
 
 const withMDX = createMDX();
+const legacyVercelHost = "dimah-s3.vercel.app";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
@@ -15,11 +17,15 @@ const nextConfig: NextConfig = {
       key: "Link",
       value: '</llms.txt>; rel="describedby"',
     };
+    const previewRobots =
+      process.env.VERCEL_ENV === "preview"
+        ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
+        : [];
 
     return [
-      { source: "/", headers: [describedBy] },
-      { source: "/docs", headers: [describedBy] },
-      { source: "/docs/:path*", headers: [describedBy] },
+      { source: "/", headers: [describedBy, ...previewRobots] },
+      { source: "/docs", headers: [describedBy, ...previewRobots] },
+      { source: "/docs/:path*", headers: [describedBy, ...previewRobots] },
       { source: "/llms.txt", headers: [cors] },
       { source: "/llms-full.txt", headers: [cors] },
       { source: "/docs.md", headers: [cors, describedBy] },
@@ -37,6 +43,18 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: "/",
+        has: [{ type: "host", value: legacyVercelHost }],
+        destination: PRODUCTION_SITE_ORIGIN,
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: legacyVercelHost }],
+        destination: `${PRODUCTION_SITE_ORIGIN}/:path*`,
+        permanent: true,
+      },
       {
         source: "/docs/react/ui/setup",
         destination: "/docs/react/ui",
