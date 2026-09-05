@@ -37,9 +37,9 @@ Demo scope is hard-coded to `user:demo`. Swap `resolveScope` for your auth sessi
 
 ## Scripts
 
-| Script                | Description                                                                                          |
-| --------------------- | ---------------------------------------------------------------------------------------------------- |
-| `pnpm db:schema`      | `dimah-s3-db generate latest` → `db/dimah-s3.ts`                                                     |
-| `pnpm db:push`        | Push schema to SQLite (`DATABASE_PATH`, default `./local.db`)                                        |
-| `pnpm db:cli`         | Interactive FumaDB CLI                                                                               |
+| Script                | Description                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `pnpm db:schema`      | `dimah-s3-db generate latest` → `db/dimah-s3.ts`                                              |
+| `pnpm db:push`        | Push schema to SQLite (`DATABASE_PATH`, default `./local.db`)                                 |
+| `pnpm db:cli`         | Interactive FumaDB CLI                                                                        |
 | `pnpm db:purge-stale` | Optional — purge stale pending + abort multipart ([docs](https://s3.dimah.dev/docs/db/purge)) |
