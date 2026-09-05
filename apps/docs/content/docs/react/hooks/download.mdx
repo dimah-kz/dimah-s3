@@ -95,7 +95,7 @@ For displaying private S3 files inline (e.g. `<img>`, `<video>`, `<audio>`, or `
 import { useObjectUrl } from "@dimah-s3/react";
 
 export function AvatarImage({ avatarKey }: { avatarKey: string }) {
-  const { url, isLoading, refresh } = useObjectUrl({
+  const { url, isLoading } = useObjectUrl({
     route: "avatar",
     objectKey: avatarKey,
     disposition: "inline",

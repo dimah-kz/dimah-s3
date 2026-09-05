@@ -19,7 +19,7 @@ throw errors.payloadTooLarge();
 throw errors.quotaExceeded();
 throw errors.featureDisabled("download");
 throw errors.unknownRoute("avatar");
-throw errors.fileTypeNotAllowed("application/zip");
+throw errors.fileTypeNotAllowed("archive.zip", "application/zip");
 
 // Custom APIError
 throw new APIError("BAD_REQUEST", {

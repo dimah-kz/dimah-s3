@@ -65,7 +65,7 @@ import type { DeleteBatchPayload, DeleteBatchResponse } from "@dimah-s3/core";
 async deleteMany(payload) {
   const res = await fetch("/api/files/delete-batch", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 

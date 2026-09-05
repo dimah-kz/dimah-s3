@@ -8,17 +8,17 @@ description: Shared protocol routes, isomorphic client, error types, and pure he
 
 ## What lives here
 
-- **`S3_API_ROUTES` / `S3_API_BASE_PATH`** — route path SSOT
+- **`S3_API_ROUTES` / `S3_API_BASE_PATH`** — canonical route paths
 - **`createS3Client`** — browser/isomorphic client implementing `S3Api` (+ client plugins). Exposes `$ERROR_CODES`, `$fetch`, `$Infer`. `baseURL` wins over `basePath`. Upload and download `expiresIn` default to **600** seconds (`S3_DEFAULT_EXPIRES_IN`) on the server.
-- **`APIError`** — better-call class (`status`, `body`); JSON `{ message, code?, params? }`. Use `APIError.from(status, S3_ERROR_CODES.FORBIDDEN)` or `isAPIError`. Catalog: [Errors](/docs/server/errors).
-- **`s3FetchErrorSchema`** — Zod schema for that JSON (better-fetch `errorSchema`)
+- **`APIError`** — error class with `status` and `body`. Serialized as JSON `{ message, code?, params? }`. Use `APIError.from(status, S3_ERROR_CODES.FORBIDDEN)` or `isAPIError`. Catalog: [Errors](/docs/server/errors).
+- **`s3FetchErrorSchema`** — Zod schema for that JSON error body
 - **Client plugin helpers** — `defineClientPlugin`, `createS3Fetch`, `pluginPath`
 - **Pure file helpers** — `validateFile`, `formatFileSize`, `buildContentDisposition`, …
 
 The browser client (`createS3Client`) uses nested calls
 (`api.download({ route, key })`, `api.multipart.init`). The server `s3.api`
-is the better-call map (`s3.api.download({ query })`, plus nested aliases
-`s3.api.multipart.init`).
+uses query-based handlers (`s3.api.download({ query })`) and the same nested
+aliases (`s3.api.multipart.init`).
 The protocol uses these paths under `basePath` (default `/api/s3`):
 
 | Constant             | Method | Path                          |

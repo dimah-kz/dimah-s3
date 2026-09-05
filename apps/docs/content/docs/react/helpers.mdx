@@ -4,7 +4,8 @@ description: Formatting utilities, validation functions, and error helpers.
 icon: Wrench
 ---
 
-`@dimah-s3/react` and `@dimah-s3/core` export utilities for formatting file sizes, progress labels, hashing, and error localization.
+`@dimah-s3/react` and `@dimah-s3/core` export utilities for formatting file
+sizes, progress labels, hashing, and error localization.
 
 ## Progress and speed formatting
 
@@ -38,11 +39,7 @@ const error = validateFile(file, {
 ## Checksums and public URLs
 
 ```ts
-import {
-  buildPublicObjectUrl,
-  matchesMagicBytes,
-  sha256File,
-} from "@dimah-s3/core";
+import { buildPublicObjectUrl, sha256File } from "@dimah-s3/core";
 
 // SHA-256 base64 digest
 const hash = await sha256File(file);

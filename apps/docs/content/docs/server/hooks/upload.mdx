@@ -54,11 +54,12 @@ export const s3 = dimahS3({
   ]}
 />
 
-1. **`guard`**: Evaluates session and permissions before key generation.
+1. **`route.guard`**: Evaluates session and permissions before key generation.
 2. **`object`**: Computes destination folder, key, metadata, ACL, storage class, cache control, or tags.
-3. **`onPresigned`**: Fires after the presigned URL is created.
-4. **`confirmGuard`**: Authorizes the confirmation request after bytes land in S3.
-5. **`onConfirmed`**: Reads verified metadata from `HeadObject` and persists the record.
+3. **`upload.guard`**: Authorizes the upload after the server-owned key is assigned.
+4. **`onPresigned`**: Fires after the presigned URL is created.
+5. **`confirmGuard`**: Authorizes the confirmation request after bytes land in S3.
+6. **`onConfirmed`**: Reads verified metadata from `HeadObject` and persists the record.
 
 ---
 
@@ -70,8 +71,6 @@ import type {
   UploadOnConfirmedContext,
   UploadConfirmGuardContext,
   UploadObjectContext,
-  UploadObjectInfo,
-  UploadOnPresignedContext,
 } from "@dimah-s3/server";
 ```
 

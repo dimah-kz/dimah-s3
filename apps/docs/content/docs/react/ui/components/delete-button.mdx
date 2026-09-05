@@ -107,7 +107,9 @@ Use the headless `useDelete` hook and call `remove(objectKey)` directly:
 ```tsx
 const { remove } = useDelete({ route: "avatar" });
 
-<button onClick={() => remove(avatarKey)}>Quick Delete</button>;
+<button type="button" onClick={() => void remove(avatarKey)}>
+  Quick Delete
+</button>;
 ```
 
 </Accordion>

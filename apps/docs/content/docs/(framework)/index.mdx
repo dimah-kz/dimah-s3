@@ -20,7 +20,7 @@ outside the upload, download, and delete lifecycle.
   label="Presign-first architecture"
   steps={[
     { name: "Browser", kind: "client", note: "requests signed URL" },
-    { name: "Server", kind: "server", note: "executes guards & signs URL" },
+    { name: "Server", kind: "server", note: "executes guards and signs URL" },
     { name: "S3 Bucket", kind: "s3", note: "receives direct upload bytes" },
   ]}
 />
