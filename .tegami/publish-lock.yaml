@@ -1,38 +1,38 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Refresh scaffold starter dependencies\n\n`dimah-s3 create` apps now install AWS SDK 3.1126, Base UI 1.8, shadcn 4.21, and matching lucide/cn ranges. `@dimah-s3/server` uses the same AWS SDK patch.\n"
-    filename: 2026-09-05-templates-deps.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Expand npm package search keywords\n\nKeywords on `@dimah-s3/server`, `@dimah-s3/react`, `@dimah-s3/ui`, `@dimah-s3/db`, `@dimah-s3/cli`, and `@dimah-s3/core` now include targeted search terms (UploadThing / Better Upload alternative, Cloudflare R2 / MinIO, shadcn uploader, multipart resumable upload, and framework adapters).\n"
+    filename: 2026-09-05-package-keywords.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
     id: npm:brand
     updated: true
   - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-05-templates-deps.md
-    id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
     id: npm:@dimah-s3/ui
     updated: true
   - changelogIds:
-      - 2026-09-05-templates-deps.md
+      - 2026-09-05-package-keywords.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-09-05-package-keywords.md
     id: npm:@workspace/vitest-config
     updated: true
 npm:packages:
@@ -41,6 +41,6 @@ npm:packages:
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/server
-  - id: npm:@dimah-s3/react
   - id: npm:@dimah-s3/ui
+  - id: npm:@dimah-s3/react
   - id: npm:@workspace/vitest-config
