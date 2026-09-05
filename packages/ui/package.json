@@ -70,7 +70,7 @@
     "react": ">=18"
   },
   "devDependencies": {
-    "@base-ui/react": "^1.7.0",
+    "@base-ui/react": "^1.8.0",
     "@fuma-translate/react": "^1.0.2",
     "@types/node": "^26.4.1",
     "@types/react": "catalog:",
@@ -78,11 +78,11 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.2.4",
+    "cn": "^0.2.5",
     "eslint": "catalog:",
-    "lucide-react": "^1.40.0",
+    "lucide-react": "^1.41.0",
     "react": "catalog:",
-    "shadcn": "^4.20.1",
+    "shadcn": "^4.21.0",
     "tsc-alias": "^1.9.4",
     "tsup": "catalog:",
     "tsx": "^4.23.13",
