@@ -23,6 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 function entry(url: string, priority: number): MetadataRoute.Sitemap[number] {
   return {
     url,
+    lastModified: new Date(),
     changeFrequency: "weekly",
     priority,
   };
