@@ -1,7 +1,7 @@
 ---
 title: Forms
 description: Integrate confirmed S3 uploads with React Hook Form or TanStack Form.
-icon: FormInput
+icon: FileInput
 ---
 
 Keep upload state and form state separate:
@@ -324,9 +324,9 @@ A successfully confirmed upload remains in S3 even if the form is never
 submitted. Delete it explicitly when the user removes or resets the field, or
 track draft attachments in your application and clean them up on a schedule.
 
-`purgeStalePendingObjects` only cleans up uploads that never completed S3
-confirmation. It does not remove successfully uploaded but unreferenced
-objects.
+[`purgeStalePendingObjects`](/docs/db/purge) only cleans up uploads that never
+completed S3 confirmation. It does not remove successfully uploaded but
+unreferenced objects.
 
 </Accordion>
 

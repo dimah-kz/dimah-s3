@@ -4,9 +4,12 @@ description: Named file routes — server-owned keys, constraints, and object po
 icon: Route
 ---
 
-A **route** is a named storage policy on your server. Each route manages its own constraints, object keys, and enabled operations (`upload`, `download`, `delete`, and `multipart`).
+A **route** is a named storage policy on your server. Each route owns its
+constraints, object keys, and enabled operations (`upload`, `download`,
+`delete`, and `multipart`).
 
-The client specifies the route name on every request. The server enforces file constraints, validates permissions, and generates object keys.
+The browser sends a route name with each request. The server enforces file
+constraints, validates permissions, and generates object keys.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -140,7 +143,7 @@ import type {
 
 <Accordions>
 
-<Accordion title="How do I overwrite an existing avatar key instead of generating new UUIDs?">
+<Accordion title="How do I overwrite the same avatar key instead of generating a UUID?">
 
 Set `replace: "overwrite"` and return a deterministic `key` from `object`:
 
@@ -164,7 +167,8 @@ avatar: route({
 
 <Accordion title="How do I clean up the user's previous avatar after a new upload?">
 
-Return `previousKey` from `upload.object`. Once the new upload confirms successfully, dimah-s3 will automatically delete the old object from S3:
+Return `previousKey` from `upload.object`. After the new upload is confirmed,
+dimah-s3 deletes the previous object from S3:
 
 ```ts
 avatar: route({
@@ -207,7 +211,8 @@ avatar: route({
 
 <Accordion title="How do I enforce SHA-256 integrity checksums?">
 
-Set `checksum: true` in your upload config. The React client will automatically compute the SHA-256 hash in the browser and attach it to the presigned request:
+Set `checksum: true` in your upload config. The React client computes the
+SHA-256 hash in the browser and includes it in the presigned request:
 
 ```ts
 avatar: route({
@@ -223,7 +228,8 @@ avatar: route({
 
 <Accordion title="How do I stream downloads through my server without direct bucket URLs?">
 
-Set `mode: "proxy"` on `download`. The download URL will point to a same-origin `/api/s3/file` endpoint that streams the object through your backend:
+Set `mode: "proxy"` on `download`. The returned URL points to the same-origin
+`/api/s3/file` endpoint, which streams the object through your server:
 
 ```ts
 avatar: route({

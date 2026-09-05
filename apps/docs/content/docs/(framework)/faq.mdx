@@ -1,0 +1,385 @@
+---
+title: Frequently Asked Questions
+description: Practical answers about architecture, security, storage providers, uploads, UI, and database tracking.
+icon: CircleQuestionMark
+---
+
+Start here when you are evaluating dimah-s3 or troubleshooting how its pieces
+fit together. Implementation-specific answers link to the canonical guide so
+the examples and API reference stay in one place.
+
+<Callout title="Looking for a product decision?">
+  Read the [comparison guide](/docs/comparison) for an evidence-based comparison
+  with Better Upload, UploadThing, Uppy, raw S3 presigning, and React Dropzone.
+</Callout>
+
+## Choosing a solution
+
+<Accordions>
+
+<Accordion title="What does dimah-s3 provide?">
+
+dimah-s3 provides a typed, presign-first lifecycle for S3-compatible storage:
+server routes and guards, React transfer state, optional shadcn UI, and optional
+database tracking. Upload and download bytes can move directly between the
+browser and the bucket, while trusted policy remains on your server.
+
+See the [introduction](/docs) for the architecture and package map.
+
+</Accordion>
+
+<Accordion title="Does dimah-s3 replace the AWS SDK?">
+
+No. It owns presign upload, download, and delete flows, including confirmation
+and multipart coordination. Continue to use the AWS SDK for general operations
+such as list, copy, retention, or application-specific tagging.
+
+</Accordion>
+
+<Accordion title="When should I use raw S3 presigned URLs instead?">
+
+Use a small custom implementation when you have one simple flow and are
+comfortable owning its security and maintenance. dimah-s3 becomes useful when
+you also need stable error contracts, server-owned keys, verified confirmation,
+multipart resume, private downloads, guarded deletion, or reusable React state.
+
+</Accordion>
+
+<Accordion title="How does dimah-s3 differ from Better Upload?">
+
+Both target S3-compatible buckets you own, and both support React UI and
+multipart uploads. Better Upload is intentionally upload-focused and includes
+standalone S3 helpers. dimah-s3 adds an explicit `HeadObject` confirmation
+boundary, route-native download and delete policies, reload-persistent multipart
+state, and an optional database lifecycle plugin.
+
+Read the detailed [comparison](/docs/comparison#dimah-s3-or-better-upload).
+
+</Accordion>
+
+<Accordion title="How does dimah-s3 differ from UploadThing?">
+
+The storage model is different. UploadThing is a managed file service;
+dimah-s3 runs in your application and writes to the S3-compatible bucket you
+configure. Choose between managed infrastructure and direct infrastructure
+control rather than comparing upload components alone.
+
+Read the detailed [comparison](/docs/comparison#dimah-s3-or-uploadthing).
+
+</Accordion>
+
+<Accordion title="Can I use Uppy with dimah-s3?">
+
+Not as a drop-in client. Uppy's S3 plugin and dimah-s3 use different signing
+contracts, and dimah-s3 requires the server—not the browser—to own trusted
+object keys. Combining them requires a custom Uppy uploader adapter.
+
+For drag-and-drop intake, `@dimah-s3/react` already uses React Dropzone
+internally and exposes headless props through `useUpload`.
+
+</Accordion>
+
+</Accordions>
+
+## Architecture and security
+
+<Accordions>
+
+<Accordion title="Do S3 credentials ever reach the browser?">
+
+No. Create the AWS SDK `S3Client` on the server. The browser sends a route name
+and file information, then receives a short-lived signed request. Never put S3
+access keys in client code or public environment variables.
+
+See the [security model](/docs/server/security).
+
+</Accordion>
+
+<Accordion title="Who chooses the object key?">
+
+The server does. By default, a route stores objects under
+`{keyPrefix}/{uuid}/{fileName}`. Customize this with `upload.object`; do not
+accept an arbitrary trusted key from the upload client.
+
+Follow-up confirmation, download, and delete requests must remain inside the
+route's key prefix. See [route definitions](/docs/server/routes).
+
+</Accordion>
+
+<Accordion title="What does upload confirmation verify?">
+
+Confirmation reads `HeadObject` from storage, then rechecks the actual stored
+size and Content-Type against the route constraints. The resulting
+`onConfirmed` context is the right place to persist trusted object metadata.
+
+Content-Type is still metadata, not proof of file contents. Use magic-byte
+inspection in `onConfirmed` when content authenticity matters.
+
+</Accordion>
+
+<Accordion title="Does dimah-s3 include authentication?">
+
+No. Authentication and business authorization belong to your application.
+Call your auth provider from an instance guard, route guard, or operation guard,
+then throw a stable dimah-s3 error when access is denied.
+
+See [security and auth](/docs/server/security#scoping-objects--user-tenancy).
+
+</Accordion>
+
+<Accordion title="Can an unconfirmed object be downloaded without the database plugin?">
+
+Potentially. Without `@dimah-s3/db`, a download route checks its guard, key
+prefix, and whether the object exists; it does not know whether your application
+previously confirmed that object. If confirmed-only access matters, enforce it
+in your guard or use the database plugin's active-object checks.
+
+</Accordion>
+
+</Accordions>
+
+## Storage providers and CORS
+
+<Accordions>
+
+<Accordion title="Which storage providers are supported?">
+
+Any provider with the S3 API can work. The documented paths cover Amazon S3,
+Cloudflare R2, and MinIO; the same AWS SDK client configuration can target
+other compatible services.
+
+Provider behavior is not identical. Start with the [provider guide](/docs/providers)
+for upload-method, endpoint, path-style, and CORS differences.
+
+</Accordion>
+
+<Accordion title="Why does Cloudflare R2 use PUT uploads?">
+
+R2 does not support S3 presigned POST uploads. Set
+`upload: { method: "PUT" }` on R2 upload routes. The rest of the dimah-s3
+lifecycle remains the same.
+
+See the [Cloudflare R2 guide](/docs/providers/cloudflare-r2).
+
+</Accordion>
+
+<Accordion title="Why does a browser upload fail while server S3 calls work?">
+
+The usual cause is bucket CORS. Server-to-server calls are not subject to
+browser CORS, but direct uploads and downloads are. Allow the exact application
+origin, required methods and headers, and expose `ETag` for multipart uploads.
+
+Use the provider-specific CORS example rather than a wildcard production
+policy.
+
+</Accordion>
+
+<Accordion title="Can files be public or private?">
+
+Yes. Uploads default to a private ACL. Private objects use signed download URLs
+or same-origin proxy mode. Public objects can use a CDN or provider URL, but
+public access must also be allowed by the bucket policy and provider.
+
+</Accordion>
+
+</Accordions>
+
+## Uploads, confirmation, and resume
+
+<Accordions>
+
+<Accordion title="Should I use presigned POST, PUT, or multipart?">
+
+Use the default POST flow on providers that support it. Use PUT when the
+provider requires it, such as Cloudflare R2. Use multipart for large files,
+part-level retries, cancellation, or resume; presigned POST is capped at
+5 GiB by the protocol and dimah-s3.
+
+</Accordion>
+
+<Accordion title="Can a multipart upload resume after a page reload?">
+
+Yes, when multipart is enabled and `useUpload` receives a persistent
+`uploadStore`, such as `createLocalStorageStore()`. The client restores the
+upload ID and reconciles completed parts with the server before continuing.
+
+See [Upload Store](/docs/react/upload-store).
+
+</Accordion>
+
+<Accordion title="What happens when confirmation fails?">
+
+The request fails and dimah-s3 makes a best-effort compensating delete of the
+uploaded object. This also applies when verified constraints fail or
+`onConfirmed` throws, preventing an invalid object from being treated as a
+successful upload.
+
+</Accordion>
+
+<Accordion title="Can I enforce a SHA-256 checksum?">
+
+Yes. Set `checksum: true` on the upload route. The React client computes the
+checksum and the server locks it into the signed request. Keep confirmation and
+content validation as separate trust checks.
+
+See [route configuration](/docs/server/routes) for the complete upload policy.
+
+</Accordion>
+
+</Accordions>
+
+## Download and delete
+
+<Accordions>
+
+<Accordion title="When should I use a presigned download or proxy mode?">
+
+Use the default presigned mode for efficient browser-to-bucket transfer. Use
+`mode: "proxy"` when clients must not receive a bucket URL or when same-origin
+delivery is operationally more important than sending bytes through your
+application server.
+
+See [download hooks](/docs/server/hooks/download).
+
+</Accordion>
+
+<Accordion title="Why does deletion run on the server?">
+
+Deletion is a destructive action with no payload to transfer, so there is
+little benefit in exposing a signed S3 delete request to the browser. The
+server runs `delete.guard`, executes `DeleteObject`, and then calls
+`onDeleted` for cleanup.
+
+</Accordion>
+
+<Accordion title="How do I prevent cross-user download or deletion?">
+
+Resolve the current user in the relevant guard and verify ownership before the
+S3 operation. For consistent scope-based ownership, `@dimah-s3/db` can enforce
+that the object is active and belongs to the request scope.
+
+</Accordion>
+
+<Accordion title="Can I delete multiple objects in one action?">
+
+Yes. The server exposes a batch delete route and `useDelete().removeMany()`
+uses it. Authorization and lifecycle behavior still run per object, and the
+response reports success or failure for each key.
+
+</Accordion>
+
+</Accordions>
+
+## React, UI, and forms
+
+<Accordions>
+
+<Accordion title="Do I have to use the provided UI components?">
+
+No. `@dimah-s3/react` is headless. Build a custom interface from `useUpload`,
+`useDownload`, and `useDelete`, or install the optional `@dimah-s3/ui`
+components for shadcn-compatible defaults.
+
+</Accordion>
+
+<Accordion title="Can I copy the shadcn components into my application?">
+
+Yes. Install individual components from the dimah-s3 shadcn registry when you
+want to own and modify their source. Use the `@dimah-s3/ui` package when you
+prefer package updates and direct imports.
+
+See [UI setup](/docs/react/ui).
+
+</Accordion>
+
+<Accordion title="Should a form upload before or during submission?">
+
+Prefer eager upload for the built-in button and dropzone: the form stores only
+confirmed object keys and normal submission remains small. A custom picker can
+defer `File` objects until submit, but then your form owns transfer progress,
+retries, and partial failure behavior.
+
+See [form integration](/docs/react/forms).
+
+</Accordion>
+
+<Accordion title="What happens when a user abandons a form after uploading?">
+
+A confirmed object remains in storage even if the form is never submitted.
+Delete it when the field is cleared, or track draft attachments and remove
+unreferenced objects with an application job. The database purge job only
+removes uploads that never became active.
+
+</Accordion>
+
+</Accordions>
+
+## Database and operations
+
+<Accordions>
+
+<Accordion title="Is @dimah-s3/db required?">
+
+No. Add it when you need object ownership, confirmed-only access, lifecycle
+rows, listings, usage totals, or quota guards. Keep it out when your
+application already owns those records or does not need them.
+
+</Accordion>
+
+<Accordion title="Does the server package depend on an ORM?">
+
+No. `@dimah-s3/server` has no ORM integration. The optional database package
+uses its own storage client abstraction, with documented setup patterns for
+Drizzle, Prisma, and Kysely.
+
+</Accordion>
+
+<Accordion title="Does dimah-s3 provide quotas?">
+
+It provides enforcement hooks, not a billing or plan system. Configure fixed
+limits on the database plugin or use `createQuotaGuard` to resolve limits from
+your application. For large scopes, maintain counters instead of scanning all
+object rows on every upload.
+
+</Accordion>
+
+<Accordion title="Is dimah-s3 free to operate?">
+
+There is no separate dimah-s3 SaaS fee, but the system is not cost-free. You
+still pay for object storage, requests, transfer, compute, observability, and
+the engineering work of operating your application.
+
+</Accordion>
+
+<Accordion title="Does dimah-s3 transform images or video?">
+
+No. Media transformation is intentionally out of scope. Use a dedicated image
+or video service, a queue and worker, or provider-native processing after
+`onConfirmed`.
+
+</Accordion>
+
+</Accordions>
+
+<Cards>
+  <Card
+    title="Quickstart"
+    href="/docs/quickstart"
+    description="Build the first upload flow."
+  />
+  <Card
+    title="Comparison"
+    href="/docs/comparison"
+    description="Choose the right product model."
+  />
+  <Card
+    title="Security"
+    href="/docs/server/security"
+    description="Review trust boundaries and authorization."
+  />
+  <Card
+    title="Errors"
+    href="/docs/server/errors"
+    description="Handle stable server and client error codes."
+  />
+</Cards>

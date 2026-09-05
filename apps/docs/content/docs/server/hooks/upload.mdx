@@ -121,15 +121,17 @@ Input passed to `upload.object` to generate custom destination keys and metadata
 
 <Accordions>
 
-<Accordion title="Why should I record file size in onConfirmed rather than presign?">
+<Accordion title="Why should I record file size after confirmation rather than presigning?">
 
-Presign payloads represent client-declared values, which can be spoofed. In `onConfirmed`, the server queries S3 with `HeadObject` to obtain the actual byte length and content type.
+Record it in `onConfirmed`, where `contentLength` comes from S3 `HeadObject`.
+Presign payloads contain browser-declared values and can be spoofed.
 
 </Accordion>
 
-<Accordion title="What happens if onConfirmed throws an error?">
+<Accordion title="What happens if onConfirmed throws?">
 
-If `onConfirmed` throws an error, dimah-s3 automatically performs a best-effort `DeleteObject` to prevent orphaned files in your S3 bucket.
+dimah-s3 attempts a best-effort `DeleteObject` so a failed callback does not
+leave an orphaned file. The original callback error is still returned.
 
 </Accordion>
 

@@ -1,16 +1,16 @@
 ---
-title: Introduction
+title: Database
 description: Optional plugin to track object ownership, lifecycle, and listings in your database.
 ---
 
 [`@dimah-s3/db`](https://www.npmjs.com/package/@dimah-s3/db) is an optional
-plugin for [`dimahS3`](/docs/server/setup). It keeps your database aligned
-with S3 — who owns each file, whether it is still uploading, and when it was
-removed — without custom SQL on every endpoint.
+plugin for [`dimahS3`](/docs/server/setup). It keeps object ownership, upload
+state, and deletion history aligned with S3 without custom SQL on every
+endpoint.
 
 dimah-s3 works without a database. Add this plugin when you need ownership
-checks, usage totals, file listings, or resumable multipart uploads backed
-by metadata.
+checks, usage totals, file listings, or server-side multipart lifecycle
+tracking.
 
 ## What the plugin does
 
@@ -19,11 +19,12 @@ by metadata.
   `user:123`); download requires a confirmed (`active`) object owned by
   that scope; delete rejects access from another scope
 - **Lists files** — query by scope on the server and in the browser
-- **Handles multipart** — records in-progress uploads so you can resume or purge
-  stale ones
+- **Tracks multipart** — records in-progress uploads for ownership and stale
+  cleanup; pair it with a client `UploadStore` for reload-persistent resume
 
-Auth, quotas, and business rules stay in your hooks. The plugin only manages
-object metadata and scope isolation.
+Authentication, quota values, and business rules stay application-owned. The
+plugin manages object metadata and scope isolation, and can compare usage with
+limits supplied by your application.
 
 ## Lifecycle
 

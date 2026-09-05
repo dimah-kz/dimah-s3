@@ -22,7 +22,7 @@ function attachmentState(phase: UploadPhase) {
 export function CustomUploadDemo() {
   const upload = useUpload({
     route: "avatar",
-    maxFileSize: 2 * 1024 * 1024,
+    maxFileSize: 75 * 1024 * 1024,
     noDrag: true,
     noClick: true,
     noKeyboard: true,

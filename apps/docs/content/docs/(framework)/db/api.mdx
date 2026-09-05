@@ -126,10 +126,10 @@ export function Files() {
   call `listByScope` on the server.
 </Callout>
 
-## Quota and extra guards
+## Quota guards
 
-Quotas are app-owned numbers. Pass them to `db({ quota })` or
-`createQuotaGuard` — the plugin only compares usage.
+For the normal `db()` integration, pass app-owned limits through `quota`. The
+plugin runs the check after its ownership guard:
 
 ```ts
 plugins: [
@@ -141,37 +141,90 @@ plugins: [
 ],
 ```
 
-Ownership still runs first. Stack more user guards with `chainHooks`:
+The guard projects the scope's current DB usage plus the incoming file's
+declared size. It rejects a missing scope with `UNAUTHORIZED` and an exceeded
+byte or file-count limit with `QUOTA_EXCEEDED` (HTTP 413).
+
+### createQuotaGuard
+
+Use `createQuotaGuard` when you need the same quota check in a route guard you
+compose yourself. Its signature is
+`createQuotaGuard(options): (context: QuotaGuardContext) => Promise<void>`.
+
+```ts
+import { createQuotaGuard } from "@dimah-s3/db";
+
+const quotaGuard = createQuotaGuard({
+  client: dimahS3Db,
+  resolveScope,
+  maxBytes: 100 * 1024 * 1024,
+  maxFiles: 50,
+});
+
+avatar: route({
+  upload: {
+    guard: quotaGuard,
+  },
+});
+```
+
+When `db()` is also registered, its plugin guard runs before this route guard.
+Use `chainHooks(quotaGuard, anotherGuard)` from `@dimah-s3/server` when the
+route already has another upload guard.
+
+<AutoTypeTable
+  path="packages/db/src/hooks/create-quota-guard.ts"
+  name="CreateQuotaGuardOptions"
+/>
 
 <Accordions>
-<Accordion title="getScopeUsage on large scopes">
+<Accordion title="How should I check quotas for a large scope?">
 
-`getScopeUsage` scans every row for the scope on each call. That is fine
-for demos and light use. For frequent presign checks or large scopes, keep
-a separate quota table (or counter) updated in your hooks instead of
-recounting each time.
+Keep a separate quota table or counter updated by your hooks.
+`getScopeUsage` scans every row for the scope on each call, which is suitable
+for demos and light use but not frequent presign checks on large scopes.
 
 </Accordion>
 </Accordions>
 
-## Custom access
+## Object access guards
 
-For rules beyond same-scope ownership, add a guard on the feature config
-(it runs after the plugin) or use `createObjectAccessGuard` on your own
-routes:
+`db()` already installs object access guards for its routes. Use
+`createObjectAccessGuard` as an escape hatch when you manually compose a
+custom route policy. Its signature is
+`createObjectAccessGuard(options): (context: ObjectAccessGuardContext) => Promise<void>`.
 
-```ts
-download: {
-  guard: async ({ request, bucket, key }) => {
-    // ownership already checked by the db plugin
-  },
-},
-```
+The guard resolves the caller's scope, loads the row by bucket and key, checks
+its status and ownership, and optionally verifies a multipart `uploadId`. It
+throws `UNAUTHORIZED`, `OBJECT_NOT_FOUND`, or `FORBIDDEN` when a check fails.
 
 ```ts
-createObjectAccessGuard({ client: dimahS3Db, resolveScope, authorize: myRule });
+import { createObjectAccessGuard } from "@dimah-s3/db";
+
+const activeObjectGuard = createObjectAccessGuard({
+  client: dimahS3Db,
+  resolveScope,
+  // requireStatus defaults to "active"
+});
+
+documents: route({
+  // This route owns its guard composition; matching DB rows must already exist.
+  plugins: { db: false },
+  download: { guard: activeObjectGuard },
+  delete: { guard: activeObjectGuard },
+});
 ```
 
-`authorize` replaces the default `object.scope === scope` check. Use it
-where you own the full access policy — custom routes, or a guard you wire
-yourself.
+The default `"active"` status fits download and delete. For a new upload's
+manual confirm guard use `requireStatus: "pending"` (an overwrite can use
+`"any"`); for `upload.multipart.guard`, also set `requireUploadId: true`.
+`requireStatus: "any"` accepts pending or active rows, never deleted rows.
+
+`authorize` replaces the default `object.scope === scope` ownership test. A
+custom callback must therefore enforce every ownership or sharing rule your
+application requires.
+
+<AutoTypeTable
+  path="packages/db/src/hooks/create-object-access-guard.ts"
+  name="CreateObjectAccessGuardOptions"
+/>

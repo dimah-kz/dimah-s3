@@ -1,6 +1,6 @@
 ---
-title: Setup
-description: Install @dimah-s3/db, add the schema, and register the db() plugin.
+title: Database Setup
+description: Install @dimah-s3/db, add its schema, and register the db() plugin.
 ---
 
 This guide assumes you already have Drizzle, Prisma, or Kysely connected to
@@ -45,7 +45,7 @@ node --import tsx scripts/db-cli.mts migrate
 </Tab>
 </Tabs>
 
-### Client [step]
+### Database client [step]
 
 Wrap your ORM connection with a FumaDB adapter, then create the dimah-s3 DB
 client:
@@ -213,8 +213,11 @@ db({
 });
 ```
 
+## Frequently asked questions
+
 <Accordions>
-<Accordion title="When to use hard delete">
+
+<Accordion title="When should I use hard delete?">
 
 Use `deleteMode: "hard"` when every delete should also erase the DB row
 (for example GDPR-style erasure). To prune old soft-deleted audit rows
@@ -222,6 +225,7 @@ later, call `s3.db.objects.hardDelete({ bucket, key })` from a script or
 job — that helper only removes the row; it does not delete from S3.
 
 </Accordion>
+
 </Accordions>
 
 ## CLI

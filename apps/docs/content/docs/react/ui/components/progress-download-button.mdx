@@ -5,7 +5,8 @@ description: Download button with animated progress indicator and in-flight canc
 
 import { ProgressDownloadDemo } from "@/components/demos/progress-download-demo";
 
-`ProgressDownloadButton` streams the download in the browser via fetch, displaying real-time progress percentages with cancel capability.
+`ProgressDownloadButton` streams a download with browser `fetch`, displays
+live progress, and supports cancellation.
 
 ## Preview
 
@@ -71,21 +72,25 @@ import type { ProgressDownloadButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
-<Accordion title="How do I dismiss the status row after download?">
+<Accordion title="How do I dismiss the status row after a download?">
 
-Completed and failed attachments include a dismiss control that calls `download.reset()`. You can also call `reset()` yourself.
+Use the dismiss control on a completed or failed attachment, or call
+`download.reset()` yourself.
 
 </Accordion>
 
 <Accordion title="How does cancellation work?">
 
-Clicking the button while an active download is in progress immediately aborts the underlying fetch stream and resets the button state.
+Click the button while a download is active to abort the underlying fetch
+stream and reset the button state.
 
 </Accordion>
 
 <Accordion title="Does this work with private buckets?">
 
-Yes. `useDownload` requests a signed URL before initiating the fetch stream, respecting any route guards or bucket policies.
+Yes. The download request passes through the server route guards and obtains a
+signed URL before the fetch stream starts; the bucket does not need to be
+public.
 
 </Accordion>
 

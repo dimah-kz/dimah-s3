@@ -186,7 +186,7 @@ import type {
 
 <Accordions>
 
-<Accordion title="How do I specify a custom download filename from the client?">
+<Accordion title="How do I set a custom download filename?">
 
 Pass the filename as the second argument to `download` or `presign`:
 
@@ -196,7 +196,7 @@ await download(avatarKey, "custom-avatar-name.png");
 
 </Accordion>
 
-<Accordion title="Can multiple buttons share a single useDownload instance?">
+<Accordion title="Can multiple buttons share one useDownload instance?">
 
 Yes. `useDownload` tracks `objectKey` internally so loading states, errors, and progress indicators stay scoped to the button matching the active key.
 
@@ -204,7 +204,10 @@ Yes. `useDownload` tracks `objectKey` internally so loading states, errors, and 
 
 <Accordion title="How does useObjectUrl cache presigned URLs?">
 
-`useObjectUrl` caches signed URLs in memory indexed by route, key, disposition, and filename. The cached URL is returned instantly on subsequent renders until 15 seconds before its `expiresIn` TTL. Calling `refresh()` invalidates the cache and requests a fresh URL.
+It caches URLs in memory by route, key, disposition, and filename. Presigned
+URLs are reused until 15 seconds before their `expiresIn` window; proxy URLs
+with `expiresIn: 0` are cached for up to 24 hours. Calling `refresh()`
+invalidates the entry and requests a fresh URL.
 
 </Accordion>
 

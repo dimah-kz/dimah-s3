@@ -73,9 +73,10 @@ import type { UploadButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
-<Accordion title="How do I dismiss the status row after upload?">
+<Accordion title="How do I dismiss the status row after an upload?">
 
-Completed and failed attachments include a dismiss control that calls `upload.reset()`. You can also call `reset()` yourself.
+Use the dismiss control on a completed or failed attachment, or call
+`upload.reset()` yourself. Both clear the status row.
 
 </Accordion>
 
@@ -91,7 +92,7 @@ Pass `status={false}`:
 
 <Accordion title="How do I enable toast notifications on completion?">
 
-Pass `toast={true}` (make sure `<Toaster />` is mounted near your app root):
+Pass `toast={true}` and mount `<Toaster />` near your app root:
 
 ```tsx
 <UploadButton upload={upload} toast={true} />

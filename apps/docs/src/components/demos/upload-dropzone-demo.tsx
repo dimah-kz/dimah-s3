@@ -7,7 +7,7 @@ export function UploadDropzoneDemo() {
   const upload = useUpload({
     route: "avatar",
     maxFiles: 1,
-    maxFileSize: 2 * 1024 * 1024,
+    maxFileSize: 75 * 1024 * 1024,
   });
 
   return <UploadDropzone upload={upload} className="w-full max-w-md" />;

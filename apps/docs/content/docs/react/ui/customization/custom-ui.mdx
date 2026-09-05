@@ -45,9 +45,10 @@ export function CustomAvatarPicker() {
 
 <Accordions>
 
-<Accordion title="How do I access low-level state like transfer speed or bytes remaining?">
+<Accordion title="How do I access low-level transfer metrics?">
 
-`upload.progress` exposes detailed progress metrics:
+Read `upload.progress` for loaded bytes, total bytes, percentage, and transfer
+speed:
 
 ```tsx
 const { progress } = useUpload({ route: "avatar" });

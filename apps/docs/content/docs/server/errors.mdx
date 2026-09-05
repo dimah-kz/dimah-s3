@@ -16,6 +16,7 @@ throw errors.unauthorized();
 throw errors.forbidden();
 throw errors.objectNotFound();
 throw errors.payloadTooLarge();
+throw errors.quotaExceeded();
 throw errors.featureDisabled("download");
 throw errors.unknownRoute("avatar");
 throw errors.fileTypeNotAllowed("application/zip");
@@ -52,6 +53,7 @@ if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
 | `FORBIDDEN`              | 403  | Guard rejection or generic unhandled `Error` inside guards                     |
 | `CONFLICT`               | 409  | Resource conflict in lifecycle hooks                                           |
 | `PAYLOAD_TOO_LARGE`      | 413  | File size exceeds route `maxFileSize` (at presign, part upload, or HeadObject) |
+| `QUOTA_EXCEEDED`         | 413  | `db()` or `createQuotaGuard` rejects a scope's byte or file-count projection   |
 | `FILE_TYPE_NOT_ALLOWED`  | 400  | File type not allowed by route `fileTypes`                                     |
 | `VALIDATION_ERROR`       | 400  | Invalid payload shape or malformed checksum                                    |
 | `INVALID_KEY`            | 400  | Unsafe key or key outside route `keyPrefix`                                    |

@@ -1,10 +1,11 @@
 ---
 title: Upload Store
-description: Persist multipart upload state to seamlessly resume large uploads after page reload.
+description: Persist multipart upload state and resume large uploads after a page reload.
 icon: Database
 ---
 
-An `UploadStore` persists `uploadId` and part state so in-flight multipart uploads can resume after a browser reload.
+An `UploadStore` persists the multipart upload identity so an interrupted
+upload can resume after a browser reload.
 
 ```ts title="lib/upload-store.ts"
 import { createLocalStorageStore } from "@dimah-s3/react";
@@ -72,15 +73,20 @@ import type { UploadStore, StoredUpload } from "@dimah-s3/react";
 
 <Accordions>
 
-<Accordion title="Does the upload store work with the @dimah-s3/db plugin?">
+<Accordion title="Does @dimah-s3/db replace an upload store?">
 
-Yes. When using `@dimah-s3/db`, the server tracks pending multipart uploads in your database. You can implement a store `get` method to fetch active multipart upload IDs across devices.
+No. [`@dimah-s3/db`](/docs/db) tracks pending uploads on the server, while an
+`UploadStore` maps a browser-side resume identity to the S3 key and upload ID.
+Use `createLocalStorageStore()` for same-browser reloads, or implement the
+[custom store interface](#custom-upload-store-interface) with your own API for
+cross-device resume.
 
 </Accordion>
 
-<Accordion title="When should I enable uploadStore?">
+<Accordion title="When should I enable an upload store?">
 
-Use `uploadStore` for routes with large files (videos, archives, large datasets) where users may refresh or lose connection mid-upload. Small single-part uploads do not need a store.
+Enable `uploadStore` for large multipart uploads that users may need to resume
+after a refresh or lost connection. Small, single-part uploads do not need one.
 
 </Accordion>
 

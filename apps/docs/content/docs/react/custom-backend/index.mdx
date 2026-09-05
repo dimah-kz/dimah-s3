@@ -1,28 +1,50 @@
 ---
-title: Bring your own backend
-description: Connect the React client to your existing API.
+title: Bring Your Own Backend
+description: Implement the complete S3Api contract for an existing backend.
 ---
 
-Implement `S3Api` with [`defineApi`](/docs/react/setup). Routes, transport, and
-server framework are up to you. They do not need to match
-[`@dimah-s3/server`](/docs/server).
+`defineApi` type-checks a complete `S3Api` implementation and returns it
+unchanged. Your routes, transport, and server framework are up to you; they do
+not need to match [`@dimah-s3/server`](/docs/server). Mount the result with
+`S3Provider` as shown in [React setup](/docs/react/setup).
 
 Each `S3Api` method must accept the documented input and return JSON with
 **every field** in the response tables. Missing fields break the hooks.
-Every request includes a required `route` name. Upload and multipart init
-do **not** send `key` — your backend generates it and returns it.
+Every object operation includes a required `route` name; `catalog()` is the
+exception. Upload and multipart init do **not** send `key` — your backend
+generates it and returns it.
 
 Input types: `Parameters<S3Api["upload"]>`. Response types are exported from
 `@dimah-s3/core`.
 
 ## Flows
 
-| Flow          | Methods                                                             | Doc                                               |
-| ------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
-| Simple upload | `upload` → browser uploads to S3 → `confirm`                        | [Upload](/docs/react/custom-backend/upload)       |
-| Download      | `download`                                                          | [Download](/docs/react/custom-backend/download)   |
-| Delete        | `delete`                                                            | [Delete](/docs/react/custom-backend/delete)       |
-| Multipart     | `init` → `signPart` → `complete` or `abort` · `listParts` to resume | [Multipart](/docs/react/custom-backend/multipart) |
+| Flow           | Methods                                                             | Doc                                               |
+| -------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
+| Route policies | `catalog`                                                           | [React setup](/docs/react/setup)                  |
+| Simple upload  | `upload` → browser uploads to S3 → `confirm`                        | [Upload](/docs/react/custom-backend/upload)       |
+| Download       | `download`                                                          | [Download](/docs/react/custom-backend/download)   |
+| Delete         | `delete` or `deleteMany`                                            | [Delete](/docs/react/custom-backend/delete)       |
+| Multipart      | `init` → `signPart` → `complete` or `abort` · `listParts` to resume | [Multipart](/docs/react/custom-backend/multipart) |
+
+### Route catalog
+
+`catalog()` returns the enabled operations and upload constraints for every
+named route. The upload hook uses this response when `accept`, `maxFileSize`,
+or multipart behavior is not overridden on the client.
+
+<AutoTypeTable
+  path="packages/core/src/schema/catalog.ts"
+  name="RouteCatalogResponse"
+/>
+
+```ts
+async catalog() {
+  const res = await fetch("/api/files/routes");
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+```
 
 ## Skeleton
 
@@ -41,8 +63,14 @@ export const api = defineApi({
   async download(payload) {
     /* see Download */
   },
+  async catalog() {
+    /* return route capabilities and upload constraints */
+  },
   async delete(payload) {
     /* see Delete */
+  },
+  async deleteMany(payload) {
+    /* delete each requested key and return one result per key */
   },
   multipart: {
     async init(payload) {
@@ -63,3 +91,10 @@ export const api = defineApi({
   },
 });
 ```
+
+`catalog` is required because upload hooks use it to discover route
+capabilities, accepted file types, maximum size, and multipart policy.
+`deleteMany` is required by batch deletion and returns an independent result
+for every key (up to 100). The remaining methods are required by their
+corresponding upload, download, delete, and multipart hooks; response shapes
+must match the [core `S3Api` protocol](/docs/core).

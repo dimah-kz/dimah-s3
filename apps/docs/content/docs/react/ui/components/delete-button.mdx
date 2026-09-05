@@ -78,9 +78,10 @@ import type { DeleteButtonProps } from "@dimah-s3/ui";
 
 <Accordions>
 
-<Accordion title="How do I dismiss the status row after delete?">
+<Accordion title="How do I dismiss the status row after deletion?">
 
-Completed and failed attachments include a dismiss control that calls `reset()` on the `useDelete` return. You can also call `reset()` yourself.
+Use the dismiss control on a completed or failed attachment, or call `reset()`
+on the `useDelete` return yourself.
 
 </Accordion>
 
@@ -99,7 +100,7 @@ Use `title` and `description` props:
 
 </Accordion>
 
-<Accordion title="How do I perform deletion without the confirmation dialog?">
+<Accordion title="How do I delete without the confirmation dialog?">
 
 Use the headless `useDelete` hook and call `remove(objectKey)` directly:
 

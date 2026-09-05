@@ -1,14 +1,18 @@
 ---
-title: Introduction
+title: dimah-s3 Documentation
 description: Full-stack S3 toolkit for the React ecosystem — server handlers, client hooks, shadcn UI, and database tracking.
 icon: House
 ---
 
-**dimah-s3** is a modular, full-stack S3 toolkit for React and Node.js runtimes. It provides typed server handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com) UI components, and a database plugin for object tracking.
+**dimah-s3** is a modular, full-stack S3 toolkit for React and Node.js
+runtimes. It provides typed server handlers, headless React hooks, optional
+[shadcn](https://ui.shadcn.com) UI components, and database-backed object
+tracking when your application needs it.
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
-in your own code with the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+It is not a hosted file service or a general S3 SDK wrapper. You keep control
+of the bucket and continue to use the
+[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3) for operations
+outside the upload, download, and delete lifecycle.
 
 ## Architecture flow
 
@@ -21,7 +25,11 @@ in your own code with the
   ]}
 />
 
-It follows a **presign-first** architecture: the backend generates short-lived signed URLs, the browser communicates directly with your S3-compatible storage, and AWS credentials never leave your server.
+The backend generates short-lived signed requests. Uploads and, by default,
+downloads transfer directly between the browser and S3-compatible storage;
+downloads can also use a same-origin proxy. Credentials never leave your
+server, while guards and lifecycle hooks keep authorization and trusted side
+effects on the backend.
 
 **For coding agents** — [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 
@@ -29,59 +37,63 @@ It follows a **presign-first** architecture: the backend generates short-lived s
 
 ## What you get
 
-- **Fast setup** — a working upload in minutes, not a week of wiring
-- **Full stack** — server, client, and optional shadcn UI; not a client uploader you have to back yourself
-- **Full lifecycle** — upload, download, and delete, including multipart
-- **Server hooks** — auth, quotas, confirm, and cleanup where they belong
-- **Optional database** — ownership, listings, and resumable uploads when you need them
+- **Typed setup** — named routes connect server policy to React hooks
+- **Complete lifecycle** — upload, verified confirmation, download, and delete
+- **Large-file support** — multipart transfers, retries, cancellation, and resume
+- **Application-owned policy** — auth, quotas, object keys, and cleanup in hooks
+- **Optional layers** — shadcn UI and database tracking only when you need them
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How does dimah-s3 differ from UploadThing and Better Upload?">
+<Accordion title="When should I choose dimah-s3?">
 
-dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own (AWS S3, Cloudflare R2, MinIO).
+Choose dimah-s3 when your application owns an S3-compatible bucket and needs
+more than an upload picker: server-owned keys, verified confirmation, private
+downloads, guarded deletion, multipart resume, or optional database tracking.
 
-**UploadThing** is hosted SaaS — dimah-s3 has no SaaS fees and keeps all data in your bucket.
-
-**Better Upload** focuses on PUT uploads — dimah-s3 covers the full object lifecycle: presigned upload, HeadObject confirmation, presigned download, server-guarded deletion, multipart resume, optional shadcn UI, and database tracking.
+If you are choosing between managed storage, an upload-focused toolkit, or a
+client uploader, use the [comparison guide](/docs/comparison).
 
 </Accordion>
 
-<Accordion title="How does delete work compared to upload and download?">
+<Accordion title="Does dimah-s3 replace the AWS SDK?">
 
-**Upload and download** are presigned — the client talks to S3 directly.
-
-**Delete** runs on your server — the client sends a request, the server runs `delete.guard`, issues `DeleteObjectCommand`, and triggers `onDeleted` cleanup.
+No. dimah-s3 owns presign upload, download, and delete flows. Use the AWS SDK
+directly for application-specific operations such as list, copy, retention, or
+arbitrary object tagging.
 
 </Accordion>
 
 <Accordion title="Can I use dimah-s3 with Cloudflare R2 or MinIO?">
 
-Yes. Any S3-compatible storage works out of the box.
-
-**Cloudflare R2** — set `upload: { method: "PUT" }`.
-
-**MinIO** — pass `forcePathStyle: true` on the S3Client.
+Yes. Configure an AWS SDK `S3Client` for the provider. Cloudflare R2 upload
+routes use `method: "PUT"`; MinIO commonly needs `forcePathStyle: true`.
+See the [provider guides](/docs/providers) for endpoints and CORS.
 
 </Accordion>
 
 <Accordion title="How does dimah-s3 keep S3 credentials secure?">
 
-AWS credentials never leave your server. The client only sends a route name.
-
-The server validates guards, enforces quotas, and returns a short-lived presigned URL. Keys are server-owned and confined to the route prefix.
+Credentials never leave your server. The browser sends a route name, the
+server runs guards and chooses a key inside that route's namespace, and the
+browser receives only a short-lived signed request.
 
 </Accordion>
 
 <Accordion title="Does dimah-s3 support resumable multipart uploads?">
 
-Yes. For large files, `@dimah-s3/server` and `@dimah-s3/react` provide built-in multipart chunking, parallel part uploads, and resume support for interrupted transfers.
+Yes. Multipart uploads support chunking, retries, cancellation, and part
+reconciliation. Add a persistent `UploadStore` to resume after a page reload.
+See [Upload Store](/docs/react/upload-store).
 
 </Accordion>
 
 </Accordions>
+
+[Browse every common question](/docs/faq), including security boundaries,
+provider setup, forms, database tracking, and operations.
 
 ---
 
@@ -117,5 +129,15 @@ Yes. For large files, `@dimah-s3/server` and `@dimah-s3/react` provide built-in 
     title="Database Plugin"
     href="/docs/db"
     description="Track object metadata, ownership scopes, and file listings."
+  />
+  <Card
+    title="Comparison"
+    href="/docs/comparison"
+    description="Compare storage models, lifecycle scope, UI, and operational tradeoffs."
+  />
+  <Card
+    title="FAQ"
+    href="/docs/faq"
+    description="Find concise answers and links to the canonical implementation guides."
   />
 </Cards>

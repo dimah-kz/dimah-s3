@@ -53,7 +53,7 @@ export function AvatarUploader() {
   return (
     <div>
       {profile.data?.avatarUrl ? (
-        <img src={profile.data.avatarUrl} alt="" />
+        <img src={profile.data.avatarUrl} alt="Current profile avatar" />
       ) : null}
       <UploadButton upload={upload} />
     </div>

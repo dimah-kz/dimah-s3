@@ -2,31 +2,82 @@ import { appName } from "./shared";
 
 const introFaqs = [
   {
-    question: "How does dimah-s3 differ from UploadThing and Better Upload?",
+    question: "When should I choose dimah-s3?",
     answer:
-      "dimah-s3 is a self-hosted, full-stack toolkit for S3-compatible storage you own (AWS S3, Cloudflare R2, MinIO). UploadThing is hosted SaaS — dimah-s3 has no SaaS fees and keeps all data in your bucket. Better Upload focuses on PUT uploads — dimah-s3 covers the full object lifecycle: presigned upload, HeadObject confirmation, presigned download, server-guarded deletion, multipart resume, optional shadcn UI, and database tracking.",
+      "Choose dimah-s3 when your application owns an S3-compatible bucket and needs more than an upload picker: server-owned keys, verified confirmation, private downloads, guarded deletion, multipart resume, or optional database tracking.",
   },
   {
-    question: "How does delete work compared to upload and download?",
+    question: "Does dimah-s3 replace the AWS SDK?",
     answer:
-      "Upload and download are presigned — the client talks to S3 directly. Delete runs on your server — the client sends a request, the server runs delete.guard, issues DeleteObjectCommand, and triggers onDeleted cleanup.",
+      "No. dimah-s3 owns presign upload, download, and delete flows. Use the AWS SDK directly for application-specific operations such as list, copy, retention, or arbitrary object tagging.",
   },
   {
     question: "Can I use dimah-s3 with Cloudflare R2 or MinIO?",
     answer:
-      'Yes. Any S3-compatible storage works out of the box. Cloudflare R2 — set upload: { method: "PUT" }. MinIO — pass forcePathStyle: true on the S3Client.',
+      'Yes. Configure an AWS SDK S3Client for the provider. Cloudflare R2 upload routes use method: "PUT"; MinIO commonly needs forcePathStyle: true.',
   },
   {
     question: "How does dimah-s3 keep S3 credentials secure?",
     answer:
-      "AWS credentials never leave your server. The client only sends a route name. The server validates guards, enforces quotas, and returns a short-lived presigned URL. Keys are server-owned and confined to the route prefix.",
+      "Credentials never leave your server. The browser sends a route name, the server runs guards and chooses a key inside that route's namespace, and the browser receives only a short-lived signed request.",
   },
   {
     question: "Does dimah-s3 support resumable multipart uploads?",
     answer:
-      "Yes. For large files, @dimah-s3/server and @dimah-s3/react provide built-in multipart chunking, parallel part uploads, and resume support for interrupted transfers.",
+      "Yes. Multipart uploads support chunking, retries, cancellation, and part reconciliation. Add a persistent UploadStore to resume after a page reload.",
   },
 ] as const;
+
+const faqHubFaqs = [
+  {
+    question: "What does dimah-s3 provide?",
+    answer:
+      "dimah-s3 provides a typed, presign-first lifecycle for S3-compatible storage: server routes and guards, React transfer state, optional shadcn UI, and optional database tracking.",
+  },
+  {
+    question: "Do S3 credentials ever reach the browser?",
+    answer:
+      "No. The server owns the S3 client and returns only short-lived signed requests. Never put S3 access keys in client code or public environment variables.",
+  },
+  {
+    question: "What does upload confirmation verify?",
+    answer:
+      "Confirmation reads HeadObject from storage and rechecks the stored size and Content-Type against route constraints. Content-Type is metadata, so inspect magic bytes separately when content authenticity matters.",
+  },
+  {
+    question: "Which storage providers are supported?",
+    answer:
+      "Any provider with an S3-compatible API can work. The documentation includes configuration for Amazon S3, Cloudflare R2, and MinIO.",
+  },
+  {
+    question: "Can a multipart upload resume after a page reload?",
+    answer:
+      "Yes, when multipart is enabled and useUpload receives a persistent UploadStore. The client restores the upload ID and reconciles completed parts before continuing.",
+  },
+  {
+    question: "Do I have to use the provided UI components?",
+    answer:
+      "No. @dimah-s3/react is headless. Build a custom interface from its hooks or install the optional @dimah-s3/ui components.",
+  },
+  {
+    question: "Is @dimah-s3/db required?",
+    answer:
+      "No. Add it only when you need object ownership, confirmed-only access, lifecycle rows, listings, usage totals, or quota guards.",
+  },
+  {
+    question: "Is dimah-s3 free to operate?",
+    answer:
+      "There is no separate dimah-s3 SaaS fee, but you still pay for object storage, requests, transfer, compute, observability, and application operations.",
+  },
+] as const;
+
+const faqsByUrl: Record<
+  string,
+  readonly { question: string; answer: string }[]
+> = {
+  "/docs": introFaqs,
+  "/docs/faq": faqHubFaqs,
+};
 
 export function docsArticleJsonLd(input: {
   origin: string;
@@ -55,11 +106,12 @@ export function docsArticleJsonLd(input: {
     },
   ];
 
-  if (input.url === "/docs") {
+  const faqs = faqsByUrl[input.url];
+  if (faqs) {
     graph.push({
       "@type": "FAQPage",
       url: pageUrl,
-      mainEntity: introFaqs.map((faq) => ({
+      mainEntity: faqs.map((faq) => ({
         "@type": "Question",
         name: faq.question,
         acceptedAnswer: {

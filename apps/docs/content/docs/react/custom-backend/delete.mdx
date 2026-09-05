@@ -1,12 +1,13 @@
 ---
 title: Delete
-description: delete — remove an object by key.
+description: Delete one or many objects through your custom backend.
 ---
 
-`delete` removes one object. Unlike upload and download, this is a direct
-mutation — not a presigned client-to-S3 call.
+Deletion is a direct backend mutation, not a presigned client-to-S3 transfer.
 
-The payload is a single object: `route` and `key`.
+## Delete one
+
+`delete` receives a `route` and one object `key`.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
@@ -35,6 +36,39 @@ async delete(payload) {
   });
 
   const res = await fetch(`/api/files/delete?${params}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+```
+
+## Delete many
+
+`deleteMany` receives one route and between 1 and 100 keys. Return one result
+for every input key so the React hook can preserve partial successes and expose
+per-object errors.
+
+<AutoTypeTable
+  path="packages/core/src/types/requests.ts"
+  name="DeleteBatchPayload"
+/>
+
+<AutoTypeTable
+  path="packages/core/src/types/responses.ts"
+  name="DeleteBatchResponse"
+/>
+
+```ts
+import type { DeleteBatchPayload, DeleteBatchResponse } from "@dimah-s3/core";
+```
+
+```ts
+async deleteMany(payload) {
+  const res = await fetch("/api/files/delete-batch", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

@@ -3,11 +3,13 @@ title: Amazon S3
 description: Configuration, CORS, and bucket policies for AWS S3.
 ---
 
-Amazon S3 is fully supported with all native features (presigned POST, presigned PUT, object ACLs, and multipart uploads).
+Amazon S3 supports presigned POST and PUT uploads, object ACLs, and multipart
+uploads.
 
 ## 1. Bucket CORS configuration
 
-Because uploads occur directly from the browser to your AWS S3 bucket, you must configure a CORS policy on your S3 bucket:
+Because the browser uploads directly to your S3 bucket, configure a bucket
+CORS policy:
 
 ```json
 [
@@ -55,7 +57,8 @@ export const s3 = dimahS3({
 
 <Accordion title="How do I make uploaded files publicly accessible?">
 
-Set `upload: { acl: "public-read" }` in your route definition (ensure Object Ownership and ACLs are enabled in your S3 bucket settings):
+If your bucket allows object ACLs, set `upload: { acl: "public-read" }` on the
+route:
 
 ```ts
 avatar: route({
@@ -67,11 +70,18 @@ avatar: route({
 });
 ```
 
+New S3 buckets commonly use **Bucket owner enforced** Object Ownership, which
+disables ACLs. For those buckets, keep uploads private and grant public reads
+through a bucket policy or CDN instead.
+
 </Accordion>
 
-<Accordion title="How do I troubleshoot 403 Forbidden CORS errors?">
+<Accordion title="How do I troubleshoot a 403 or CORS error?">
 
-Ensure `AllowedOrigins` includes your frontend port (e.g. `http://localhost:3000`) and that `ExposeHeaders` contains `ETag` and `Content-Type`.
+First, make sure `AllowedOrigins` exactly matches the browser origin, including
+the scheme and development port. Then allow the upload method and request
+headers used by the presigned request. `ExposeHeaders` does not fix a 403, but
+it must include `ETag` when the browser needs to read multipart responses.
 
 </Accordion>
 

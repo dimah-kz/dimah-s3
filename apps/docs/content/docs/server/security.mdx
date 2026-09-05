@@ -15,7 +15,7 @@ dimah-s3 follows a **presign-first** security model: AWS credentials remain on t
 
 1. **Server owns keys** — The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
 2. **Namespace isolation** — Confirm, download, and delete follow-ups are restricted to the route's `keyPrefix`. Requests referencing keys outside the prefix fail with `INVALID_KEY`.
-3. **Verified metadata via `HeadObject`** — Presign payloads (size/type) are untrusted. Verified file sizes and Content-Types are confirmed server-side via `HeadObject` in `upload.onConfirmed`.
+3. **Verified metadata via `HeadObject`** — Presign payloads (size/type) are untrusted. Stored byte length and `Content-Type` metadata are read server-side via `HeadObject` in `upload.onConfirmed`.
 4. **Guards and authorization** — Route `guard` and feature guards (`upload.guard`, `download.guard`, `delete.guard`) control per-user authorization.
 
 ---
@@ -47,7 +47,7 @@ export const s3 = dimahS3({
           };
         },
         onConfirmed: async ({ key, contentLength, request }) => {
-          // Trusted size & key confirmed from S3 HeadObject
+          // Trusted stored size and server-owned key from S3 HeadObject
           const session = await getSession(request);
           await db.user.update({
             where: { id: session.userId },
@@ -126,10 +126,7 @@ export const s3 = dimahS3({
           const bytes = await response.Body.transformToByteArray();
           const detectedType = sniffContentType(bytes);
           if (!detectedType || !allowedTypes.has(detectedType)) {
-            throw errors.fileTypeNotAllowed(
-              fileName ?? key,
-              detectedType,
-            );
+            throw errors.fileTypeNotAllowed(fileName ?? key, detectedType);
           }
         },
       },

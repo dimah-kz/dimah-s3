@@ -1,5 +1,5 @@
 ---
-title: Setup
+title: Server Setup
 description: Install `@dimah-s3/server`, configure S3, and mount your route handler.
 icon: Settings
 ---
@@ -45,6 +45,13 @@ export const s3 = dimahS3({
 });
 ```
 
+<Callout title="Uploading more than 5 GiB">
+  A single presigned POST cannot exceed **5 GiB**. For larger files, enable
+  `upload.multipart` or set `upload.method` to `"PUT"` when your storage
+  provider supports a single PUT of that size. The route's `maxFileSize` still
+  applies.
+</Callout>
+
 ---
 
 ## Mount route handler
@@ -72,6 +79,7 @@ import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
+// The adapter reads the raw stream, so mount it before JSON middleware.
 app.all("/api/s3/*", toExpressHandler(s3));
 app.use(express.json());
 ```

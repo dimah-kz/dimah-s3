@@ -60,10 +60,11 @@ const url = buildPublicObjectUrl({
 
 <Accordion title="How do I format API errors in toast notifications?">
 
-Use `useFormatDimahError`:
+Format the error with `useFormatDimahError` before passing it to your toast
+library:
 
 ```tsx
-import { isAPIError, useFormatDimahError } from "@dimah-s3/react";
+import { useFormatDimahError, useUpload } from "@dimah-s3/react";
 
 export function AvatarUploader() {
   const formatError = useFormatDimahError();

@@ -114,7 +114,10 @@ No. The final assembly step (`multipart.complete`) internally runs `upload.confi
 
 <Accordion title="How do I enforce part size and total size bounds?">
 
-The server automatically validates each part size during `signPart` and sums uploaded part sizes before calling `CompleteMultipartUpload`. If total parts exceed `maxFileSize`, the upload is aborted with `PAYLOAD_TOO_LARGE`.
+Set `upload.maxFileSize`; the server checks each signed part against the
+remaining allowance and sums uploaded part sizes before
+`CompleteMultipartUpload`. If the total size exceeds the limit, the server
+aborts the multipart upload and returns `PAYLOAD_TOO_LARGE`.
 
 </Accordion>
 

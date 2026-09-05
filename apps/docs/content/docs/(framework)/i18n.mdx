@@ -4,8 +4,8 @@ description: English by default. Pass a partial map to localize.
 icon: Languages
 ---
 
-English needs no setup. To localize, put a map in a file and pass it to
-the provider.
+English needs no setup. To localize the React client, define a partial
+translation map and pass it to the provider.
 
 ```ts title="lib/translations-fa.ts"
 import type { Translations } from "@dimah-s3/react";
@@ -44,10 +44,12 @@ export default function RootLayout({
 }
 ```
 
-Vite / other all-client apps can pass `translations` on `<s3Client.Provider>` instead.
+Vite and other client-only apps can pass `translations` to
+`<s3Client.Provider>` instead.
 
 Missing keys stay English.
 
 ## API errors
 
-The server always responds in English. With `@dimah-s3/ui` or the React hooks you do not need anything else — the same `translations` map localizes those messages.
+The server always responds in English. The React hooks and `@dimah-s3/ui`
+localize those messages with the same `translations` map.

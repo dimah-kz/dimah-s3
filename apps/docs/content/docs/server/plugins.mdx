@@ -4,7 +4,9 @@ description: Extend dimahS3 with definePlugin — custom endpoints, lifecycle ho
 icon: Puzzle
 ---
 
-Use `definePlugin` to create reusable server extensions (like [`db()`](/docs/db)). Plugins can contribute lifecycle hooks, HTTP endpoints under your `basePath`, and typed instance context (`s3[id]`).
+Use `definePlugin` to create reusable server extensions such as
+[`db()`](/docs/db). Plugins can contribute lifecycle hooks, HTTP endpoints
+under your `basePath`, and typed instance context (`s3[id]`).
 
 ```ts title="lib/s3-audit-plugin.ts"
 import { definePlugin, createS3Endpoint } from "@dimah-s3/server";
@@ -59,9 +61,9 @@ s3.audit.log("Storage ready");
 
 <Accordions>
 
-<Accordion title="How do I create a client-side companion for my server plugin?">
+<Accordion title="How do I add client-side actions for a server plugin?">
 
-Use `defineClientPlugin` from `@dimah-s3/core`:
+Create a client plugin with `defineClientPlugin` from `@dimah-s3/core`:
 
 ```ts
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";

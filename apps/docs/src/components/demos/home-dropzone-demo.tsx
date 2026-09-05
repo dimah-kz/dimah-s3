@@ -121,7 +121,7 @@ export function HomeDropzoneDemo() {
     route: "avatar",
     accept: ["image/*"],
     maxFiles: 1,
-    maxFileSize: 5 * 1024 * 1024,
+    maxFileSize: 75 * 1024 * 1024,
     onUploadStart: () => {
       setUploading(true);
       replaceObject(null);

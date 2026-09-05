@@ -7,7 +7,8 @@ MinIO is a lightweight, self-hosted S3-compatible object store.
 
 ## Configuration
 
-Set `forcePathStyle: true` on the S3Client so object URLs format as `http://host:9000/bucket/key`:
+Set `forcePathStyle: true` on `S3Client` so object URLs use the
+`http://host:9000/bucket/key` form:
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -51,7 +52,9 @@ MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example
 
 <Accordion title="Why is my browser upload failing with a network error on localhost?">
 
-Ensure `S3_ENDPOINT` points to the MinIO API port (typically `9000`), not the web console port (typically `9001`).
+First, make sure `S3_ENDPOINT` points to the MinIO API port (typically `9000`),
+not the web console port (typically `9001`). Also allow your app's exact origin
+in `MINIO_API_CORS_ALLOW_ORIGIN`.
 
 </Accordion>
 

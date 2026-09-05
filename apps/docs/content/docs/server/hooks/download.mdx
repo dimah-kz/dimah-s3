@@ -87,7 +87,7 @@ import type {
 
 <Accordions>
 
-<Accordion title="How do I change the filename on download dynamically?">
+<Accordion title="How do I change the download filename dynamically?">
 
 Use `download.resolve` to set the downloaded file name per request:
 
@@ -107,9 +107,11 @@ avatar: route({
 
 </Accordion>
 
-<Accordion title="How do I stream files via same-origin proxy without direct bucket access?">
+<Accordion title="How do I stream downloads through my server?">
 
-Set `mode: "proxy"`. The client receives a same-origin URL (`/api/s3/file?key=...`) and your server streams the response:
+Set `mode: "proxy"`. The browser receives a same-origin URL
+(`/api/s3/file?key=...`), and your server streams the response instead of
+returning a direct bucket URL:
 
 ```ts
 avatar: route({

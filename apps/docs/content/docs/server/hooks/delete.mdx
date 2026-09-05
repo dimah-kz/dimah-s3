@@ -87,9 +87,11 @@ import type {
 
 <Accordions>
 
-<Accordion title="How do I support batch deletion for multiple files?">
+<Accordion title="How do I delete multiple files at once?">
 
-Batch deletion (`deleteMany` / `removeMany`) runs `delete.guard` for each target key, calls S3 `DeleteObjects`, and triggers `onDeleted` for all successfully removed keys:
+Use `deleteMany` on the server API or `removeMany` in the React client. Batch
+deletion runs `delete.guard` and S3 `DeleteObject` for each key, then
+triggers `onDeleted` for each successfully removed key:
 
 ```ts title="Client usage"
 const { removeMany } = useDelete({ route: "avatar" });
@@ -98,9 +100,10 @@ await removeMany([key1, key2]);
 
 </Accordion>
 
-<Accordion title="What happens if the S3 delete fails?">
+<Accordion title="What happens if S3 deletion fails?">
 
-If S3 returns an error during deletion, `onDeleted` does not execute and the endpoint returns an appropriate error response (`502 S3_NETWORK_ERROR` or `INTERNAL_ERROR`).
+`onDeleted` does not run for a failed S3 deletion. The endpoint returns an
+error response such as `502 S3_NETWORK_ERROR` or `INTERNAL_ERROR`.
 
 </Accordion>
 

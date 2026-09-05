@@ -110,7 +110,7 @@ export const demoS3Api: DemoS3Api = {
         upload: {
           enabled: true as const,
           fileTypes: ["image/*"],
-          maxFileSize: 2 * 1024 * 1024,
+          maxFileSize: 75 * 1024 * 1024,
           multipart: false,
         },
         download: { enabled: true as const },
@@ -120,7 +120,7 @@ export const demoS3Api: DemoS3Api = {
         upload: {
           enabled: true as const,
           fileTypes: ["image/*", "application/pdf", "video/*"],
-          maxFileSize: 50 * 1024 * 1024,
+          maxFileSize: 75 * 1024 * 1024,
           multipart: false,
         },
         download: { enabled: true as const },

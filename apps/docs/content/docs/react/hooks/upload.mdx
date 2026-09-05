@@ -132,9 +132,9 @@ import type {
 
 <Accordions>
 
-<Accordion title="What if the route catalog fails to load?">
+<Accordion title="What happens if the route catalog fails to load?">
 
-`useUpload` still works. The server enforces type and size on presign.
+`useUpload` still works because the server enforces type and size on presign.
 `policy.catalogStatus` is `"error"` and `policy.catalogError` is set so
 you can toast or pass explicit `accept` / `maxFileSize` on the hook.
 In development, a one-time console warning is also printed.
@@ -146,7 +146,8 @@ constraints on `useUpload` and ignore the catalog status.
 
 <Accordion title="How do I display a local image preview before uploading?">
 
-Use `previewUrl` on individual items in the `upload.files` array or create an object URL from `upload.file`:
+Read `previewUrl` from an item in `upload.files`; `upload.file?.previewUrl` is
+the single-file shorthand:
 
 ```tsx
 export function AvatarWithPreview() {
@@ -195,7 +196,9 @@ const upload = useUpload({
 
 <Accordion title="How do I pause, resume, or cancel in-flight uploads?">
 
-Use `cancel()` to abort the upload and clean up temporary parts, or `detach()` when an `uploadStore` is configured to pause for later resumption:
+Call `cancel()` to abort the upload and clean up temporary parts. To stop a
+stored multipart upload without aborting it, call `detach()` and resume it on a
+later visit:
 
 ```tsx
 const upload = useUpload({

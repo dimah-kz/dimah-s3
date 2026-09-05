@@ -27,7 +27,9 @@ console.log(`Purged ${purged.length} stale uploads.`);
 
 <Accordion title="How do I schedule the purge script?">
 
-Run it on a daily cron job (e.g. Vercel Cron, GitHub Actions, or Node cron workers).
+Run it as a server-side scheduled job. A daily Vercel Cron, GitHub Actions
+workflow, or Node cron worker is a common starting point; choose an interval
+that matches how long your application should retain pending uploads.
 
 </Accordion>
 

@@ -1,9 +1,10 @@
 ---
 title: Global Guard
-description: Request-level policy hook executing before all operations and plugin endpoints.
+description: Request-level policy hook that runs before all operations and plugin endpoints.
 ---
 
-`guard` is defined on `dimahS3()` and executes on every incoming request prior to route resolution or plugin execution.
+Define `guard` on `dimahS3()` to run it for every incoming request before
+route resolution or plugin execution.
 
 Use it for system-wide checks like user authentication, IP filtering, or tenant context.
 
@@ -52,7 +53,9 @@ import type { GuardContext, RouteGuardContext } from "@dimah-s3/server";
 
 <Accordion title="When should I use route.guard instead of global guard?">
 
-If your application has public routes (e.g. public media upload) and protected routes (e.g. private invoices), leave the global `guard` empty and apply `guard` on specific routes:
+Use `route.guard` when only some routes need the policy. For example, an app
+with public media uploads and private invoices can leave the global `guard`
+unset and protect specific routes:
 
 ```ts
 export const s3 = dimahS3({
@@ -70,9 +73,9 @@ export const s3 = dimahS3({
 
 </Accordion>
 
-<Accordion title="How do I attach custom headers from client requests?">
+<Accordion title="How does the browser send custom request headers?">
 
-On the client, pass headers in `createS3Client`:
+Configure `headers` in `createS3Client`:
 
 ```ts
 export const s3Client = createS3Client({

@@ -1,11 +1,10 @@
 ---
-title: Core
-description: Protocol SSOT — routes, createS3Client, shared helpers and APIError
+title: "@dimah-s3/core"
+description: Shared protocol routes, isomorphic client, error types, and pure helpers.
 ---
 
-# @dimah-s3/core
-
-Shared protocol types, the isomorphic HTTP client, and pure helpers used by `@dimah-s3/server` and `@dimah-s3/react`.
+`@dimah-s3/core` is the protocol source of truth shared by
+`@dimah-s3/server` and `@dimah-s3/react`.
 
 ## What lives here
 
@@ -20,19 +19,25 @@ The browser client (`createS3Client`) uses nested calls
 (`api.download({ route, key })`, `api.multipart.init`). The server `s3.api`
 is the better-call map (`s3.api.download({ query })`, plus nested aliases
 `s3.api.multipart.init`).
-Both share these paths (under `basePath`, default `/api/s3`):
+The protocol uses these paths under `basePath` (default `/api/s3`):
 
 | Constant             | Method | Path                          |
 | -------------------- | ------ | ----------------------------- |
 | `upload`             | POST   | `/presign/upload`             |
 | `uploadConfirm`      | POST   | `/presign/upload/confirm`     |
 | `download`           | GET    | `/presign/download`           |
+| `file`               | GET    | `/file`                       |
+| `catalog`            | GET    | `/routes`                     |
 | `delete`             | DELETE | `/delete`                     |
+| `deleteBatch`        | POST   | `/delete/batch`               |
 | `multipartInit`      | POST   | `/presign/multipart/init`     |
 | `multipartPart`      | POST   | `/presign/multipart/part`     |
 | `multipartListParts` | GET    | `/presign/multipart/parts`    |
 | `multipartComplete`  | POST   | `/presign/multipart/complete` |
 | `multipartAbort`     | POST   | `/presign/multipart/abort`    |
+
+`file` is the server-side proxy target returned by `download` when its mode is
+`"proxy"`; it is not a separate `S3Api` client method.
 
 ## Quick start
 

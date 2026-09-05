@@ -1,21 +1,26 @@
 ---
-title: Introduction
+title: React Client
 description: Headless React client for S3 upload, download, and delete flows.
 icon: Atom
 ---
 
-[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is a headless S3 client for React. It manages file intake, validation, progress tracking, retry, cancellation, and multipart transfers — leaving full UI control to you.
+[`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is the
+headless React client for dimah-s3. It manages file intake, validation,
+progress, retries, cancellation, and multipart transfers while leaving the UI
+to you.
 
-Upload and download streams run directly between the browser and the bucket, keeping credentials secure on the server.
+Uploads and, by default, downloads run directly between the browser and the
+bucket; credentials remain on the server. Downloads can also use the server's
+same-origin proxy mode.
 
 ## Key features
 
-- **Headless architecture** — Full state management and accessible DOM props without imposing markup or styles.
-- **Direct-to-bucket transfers** — Fast, signed uploads and downloads that bypass your application server.
+- **Headless architecture** — Transfer state and accessible DOM props without imposed markup or styles.
+- **Presigned transfers** — Uploads and default-mode downloads bypass your application server.
 - **Multipart support** — Automatic chunking for large files with resumable state via `UploadStore`.
-- **Automatic constraint sync** — Infers file size and MIME type constraints directly from server route definitions.
-- **Ready-made UI** — Optional accessible [shadcn components](/docs/react/ui) for instant drop-in controls.
-- **Backend agnostic** — Works seamlessly with `@dimah-s3/server` or any custom API implementing `S3Api`.
+- **Automatic constraint sync** — Loads file-size and MIME-type constraints from server route definitions.
+- **Ready-made UI** — Optional accessible [shadcn components](/docs/react/ui) for common file controls.
+- **Backend agnostic** — Use `@dimah-s3/server` or a complete custom `S3Api` implementation.
 
 ## Documentation
 

@@ -73,9 +73,10 @@ import type { UploadDropzoneProps } from "@dimah-s3/ui";
 
 <Accordions>
 
-<Accordion title="How do I separate the dropzone area from the uploaded files status list?">
+<Accordion title="How do I render upload status outside the dropzone?">
 
-Pass `status={false}` to `UploadDropzone` and render `UploadStatus` separately:
+Set `status={false}` on `UploadDropzone`, then render `UploadStatus`
+separately:
 
 ```tsx
 import { UploadDropzone, UploadStatus } from "@dimah-s3/ui";
@@ -94,7 +95,7 @@ export function CustomDropzone() {
 
 </Accordion>
 
-<Accordion title="How do I provide custom interior placeholder content?">
+<Accordion title="How do I customize the dropzone placeholder?">
 
 Pass React children to `UploadDropzone`:
 
@@ -102,7 +103,7 @@ Pass React children to `UploadDropzone`:
 <UploadDropzone upload={upload}>
   <div className="flex flex-col items-center justify-center p-6 text-muted-foreground">
     <p className="text-sm font-medium">Drag avatar image here</p>
-    <p className="text-xs">PNG, JPG or WebP up to 2MB</p>
+    <p className="text-xs">PNG, JPG or WebP</p>
   </div>
 </UploadDropzone>
 ```

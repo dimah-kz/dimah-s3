@@ -7,7 +7,7 @@ export function UploadButtonDemo() {
   const upload = useUpload({
     route: "avatar",
     maxFiles: 1,
-    maxFileSize: 2 * 1024 * 1024,
+    maxFileSize: 75 * 1024 * 1024,
   });
 
   return (

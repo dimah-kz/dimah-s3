@@ -1,12 +1,13 @@
 {
   "title": "Framework",
-  "description": "All-in-one, quickstart and features",
+  "description": "Start, evaluate, and configure dimah-s3",
   "icon": "Layers",
   "root": true,
   "pages": [
     "index",
     "quickstart",
     "comparison",
+    "faq",
     "---UI---",
     ".../../react/ui",
     "---Features---",

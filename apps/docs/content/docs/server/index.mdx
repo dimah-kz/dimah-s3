@@ -1,20 +1,24 @@
 ---
-title: Introduction
+title: Server
 description: Backend handlers, route policies, and lifecycle hooks for S3 file flows.
 icon: Server
 ---
 
-[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the backend engine for dimah-s3. It generates presigned URLs, enforces route constraints, authorizes requests through guards, and coordinates lifecycle callbacks.
+[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) generates
+presigned URLs, enforces route constraints, authorizes requests through
+guards, and coordinates lifecycle callbacks.
 
-Upload and download operate directly between the client and the bucket via short-lived signed URLs. S3 credentials remain on the server, while deletion is handled securely server-side.
+Uploads and, by default, downloads travel directly between the browser and the
+bucket through short-lived signed URLs. Downloads can instead use same-origin
+proxy mode. S3 credentials stay on the server, and deletions run server-side.
 
 ## Key features
 
 - **Unified configuration** — `dimahS3()` exports both an HTTP route handler and a typed server-side `api`.
-- **Server-owned keys** — Keys follow `{keyPrefix}/{uuid}/{name}` namespaces to prevent bucket tampering.
-- **HeadObject verification** — Real file sizes and MIME types are verified directly from S3 on upload confirmation.
-- **Lifecycle hooks** — Inject auth, database records, or quota checks at presign, confirmation, and deletion.
-- **Universal adapters** — Native handlers for Next.js, Hono, Express, Fastify, SvelteKit, Elysia, and standard Fetch.
+- **Server-owned keys** — The server generates namespaced object keys instead of trusting browser-provided keys.
+- **HeadObject verification** — Confirmation rechecks stored byte length and `Content-Type` metadata from S3.
+- **Lifecycle hooks** — Run auth, persistence, quotas, and cleanup at defined operation boundaries.
+- **Framework adapters** — Mount handlers in Next.js, Hono, Express, Fastify, SvelteKit, Elysia, and standard Fetch runtimes.
 
 ## Documentation
 

@@ -3,7 +3,8 @@ title: useDelete
 description: Headless React hook for single, batch, and confirmation-driven object deletion.
 ---
 
-`useDelete` coordinates object deletion with your server API, featuring built-in support for confirmation dialog flows, single-step deletion, and batch operations.
+`useDelete` coordinates object deletion with your server API. It supports
+two-step confirmation, immediate deletion, and batch operations.
 
 ```tsx title="components/delete-avatar.tsx"
 "use client";
@@ -77,7 +78,8 @@ await remove(avatarKey);
 
 ### 3. Batch deletion (`removeMany`)
 
-Delete multiple keys in a single request via S3 `DeleteObjects`:
+Delete multiple keys in one dimah-s3 API request. The server authorizes and
+deletes each object independently, so the result can contain partial failures:
 
 ```tsx
 const { removeMany } = useDelete({ route: "avatar" });
@@ -121,7 +123,9 @@ import type {
 
 <Accordion title="How do I ensure only the object owner can delete it?">
 
-Authorization runs securely on your server in `delete.guard`:
+Enforce ownership on the server in `delete.guard`; client-side checks are not
+an authorization boundary. See [Security](/docs/server/security) for the full
+model.
 
 ```ts title="lib/s3.ts"
 avatar: route({

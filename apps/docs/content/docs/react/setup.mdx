@@ -1,6 +1,6 @@
 ---
-title: Setup
-description: Initialize `@dimah-s3/react`, configure S3Provider, and call your first hook.
+title: React Setup
+description: Initialize @dimah-s3/react, configure S3Provider, and call your first hook.
 icon: Settings
 ---
 
@@ -10,9 +10,9 @@ icon: Settings
 npm i @dimah-s3/react
 ```
 
-## 1. Create client & provider
+## 1. Create the React client and provider
 
-Create the typed client instance using `createS3Client`.
+Create the typed React client with `createS3Client`.
 
 <Tabs items={["@dimah-s3/server", "Custom backend"]}>
 
@@ -179,7 +179,9 @@ import type {
 
 <Accordion title="How do I automatically sync file constraints from the server?">
 
-By default, hooks fetch constraints (`fileTypes`, `maxFileSize`) automatically from `GET /routes` (`api.catalog()`). You can omit `accept` and `maxFileSize` on `useUpload` so the server remains the single source of truth.
+Omit `accept` and `maxFileSize` from `useUpload`. By default, the React client
+fetches `fileTypes` and `maxFileSize` from `GET /routes` (`api.catalog()`), so
+the server remains the source of truth.
 
 </Accordion>
 

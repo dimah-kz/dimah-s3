@@ -18,18 +18,21 @@ its lifetime.
 
 ## Feature comparison
 
-| Capability | dimah-s3 | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io) |
-| --- | --- | --- | --- | --- |
-| **Product model** | Full-stack S3 toolkit | Upload-focused S3 toolkit | Managed file service | Client uploader and plugin ecosystem |
-| **Storage** | Your S3-compatible bucket | Your S3-compatible bucket | UploadThing-managed storage and CDN | Your backend, S3-compatible bucket, or a service plugin |
-| **Server policy** | Named routes shared by upload, download, and delete | Upload routes plus standalone S3 helpers | File routes connected to the hosted service | Your signer, temporary credentials endpoint, or Companion |
-| **After upload** | Explicit confirm performs `HeadObject` and rechecks constraints | Upload callback; post-upload verification is app-defined | Managed completion callback | Determined by your backend integration |
-| **Download** | Presigned GET or same-origin proxy, with server and React APIs | Presign/get helpers; app-defined endpoint and client flow | Public or signed managed URLs | App-defined |
-| **Delete** | Server-executed route with guards, hooks, batch API, and React state | Single/batch delete helpers; app-defined route and UI | `UTApi` / hosted API | App-defined |
-| **Multipart and resume** | Multipart plus reload-persistent resume through `UploadStore` | Automatic multipart and retries; persistence is app-defined | Managed pause and resume while the upload URL is valid | Native S3 multipart or Tus; backend/signing integration required |
-| **Ownership and records** | Optional `@dimah-s3/db` scope checks, lifecycle rows, listings, and quotas | Your application | Service file records and dashboard; app authorization remains yours | Your application |
-| **React UI** | Headless hooks plus optional shadcn components | Hooks plus shadcn upload components | Components and hooks | Headless core, Dashboard, and framework packages |
-| **Cost and operations** | Storage, transfer, and your application operations | Storage, transfer, and your application operations | Managed plan and usage pricing | Library is self-hosted; storage/backend costs depend on integration |
+| Capability                | dimah-s3                          | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io)     |
+| ------------------------- | --------------------------------- | ------------------------------------------ | -------------------------------------- | --------------------------- |
+| **Product model**         | Lifecycle toolkit                 | Upload toolkit                             | Managed file service                   | Client uploader             |
+| **Storage**               | Your S3-compatible bucket         | Your S3-compatible bucket                  | Managed storage and CDN                | Your bucket or service      |
+| **Server policy**         | Named lifecycle routes            | Upload routes + S3 helpers                 | Managed file routes                    | Bring your own or Companion |
+| **After upload**          | `HeadObject` confirm              | Client event; app verification             | Managed completion callback            | Your backend                |
+| **Download**              | Signed URL or proxy + React API   | Server helpers                             | Public or signed managed URLs          | Your application            |
+| **Delete**                | Guarded route + batch + React API | Server helpers                             | Hosted API                             | Your application            |
+| **Multipart and resume**  | Multipart + persistent store      | Multipart + retries                        | Managed pause/resume                   | S3 multipart or Tus         |
+| **Ownership and records** | Optional `@dimah-s3/db`           | Your application                           | Service records + app auth             | Your application            |
+| **React UI**              | Headless + optional shadcn        | Hooks + shadcn upload UI                   | Components + hooks                     | Headless core + Dashboard   |
+| **Cost and operations**   | Cloud + application operations    | Cloud + application operations             | Managed plan + usage                   | Backend + destination costs |
+
+The matrix describes first-party product scope. Every option can be extended
+with application code; the sections below explain the practical boundary.
 
 ---
 

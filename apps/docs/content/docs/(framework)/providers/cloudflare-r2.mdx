@@ -3,7 +3,8 @@ title: Cloudflare R2
 description: PUT uploads, endpoint configuration, and CORS for Cloudflare R2.
 ---
 
-Cloudflare R2 is compatible with S3 APIs with two key differences: it requires Presigned `PUT` (it does not support Presigned `POST`), and it ignores object ACLs.
+Cloudflare R2 supports the S3 API with two important differences: presigned
+uploads must use `PUT`, and object ACLs are ignored.
 
 ## 1. Configure upload method
 
@@ -59,7 +60,10 @@ Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
 
 <Accordion title="How do I serve R2 files publicly?">
 
-Enable the public access toggle in the R2 bucket settings or connect a custom domain (e.g. `cdn.example.com`). Construct your image URLs directly: `https://cdn.example.com/{avatarKey}`.
+Enable public access for the bucket or connect a custom domain such as
+`cdn.example.com`. Then build URLs from that public base URL and the
+server-issued object key; [`buildPublicObjectUrl`](/docs/react/helpers#checksums-and-public-urls)
+handles URL encoding for you.
 
 </Accordion>
 
