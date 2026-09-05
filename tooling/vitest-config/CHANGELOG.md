@@ -1,3 +1,9 @@
+## @workspace/vitest-config@0.0.3
+
+### Point docs and registry URLs at s3.dimah.dev
+
+Published homepage fields, the CLI success link, and scaffolded `components.json` registry entries now use https://s3.dimah.dev.
+
 ## @workspace/vitest-config@0.0.2
 
 ### Import `cn` from the `cn` package

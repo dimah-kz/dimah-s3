@@ -1,3 +1,9 @@
+## @dimah-s3/cli@1.5.3
+
+### Point docs and registry URLs at s3.dimah.dev
+
+Published homepage fields, the CLI success link, and scaffolded `components.json` registry entries now use https://s3.dimah.dev.
+
 ## @dimah-s3/cli@1.5.2
 
 ### Import `cn` from the `cn` package
