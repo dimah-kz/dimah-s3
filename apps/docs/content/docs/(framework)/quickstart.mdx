@@ -24,9 +24,6 @@ npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3
 
 ### Configure S3 and routes [step]
 
-Define an AWS SDK client for your S3-compatible provider and create the
-dimah-s3 instance. This example adds an `avatar` route for profile photos:
-
 ```dotenv title=".env"
 S3_ENDPOINT="https://your-endpoint.example.com"
 S3_REGION="auto"
@@ -34,10 +31,6 @@ S3_ACCESS_KEY_ID="your-access-key-id"
 S3_SECRET_ACCESS_KEY="your-secret-access-key"
 S3_BUCKET="your-bucket-name"
 ```
-
-Use the provider's real region for AWS S3 (for example, `us-east-1`).
-`"auto"` is used by regionless providers such as Cloudflare R2. You can omit
-`endpoint` for standard AWS S3 endpoints.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -67,22 +60,17 @@ export const s3 = dimahS3({
 });
 ```
 
-### Configure bucket CORS [step]
+Set bucket CORS for your origin — [Amazon S3](/docs/providers/aws-s3),
+[Cloudflare R2](/docs/providers/cloudflare-r2), or [MinIO](/docs/providers/minio).
 
-Direct browser transfers require a CORS rule on the bucket. Allow your exact
-application origin, the upload method, and the headers used by the signed
-request; expose `ETag` for multipart uploads.
-
-Copy the provider-specific configuration from the [Amazon S3](/docs/providers/aws-s3),
-[Cloudflare R2](/docs/providers/cloudflare-r2), or [MinIO](/docs/providers/minio)
-guide before testing the upload.
+<Callout title="Cloudflare R2">
+  Set `upload.method` to `"PUT"`. See [Cloudflare
+  R2](/docs/providers/cloudflare-r2).
+</Callout>
 
 ### Mount the route handler [step]
 
-Choose the server runtime that owns your API route. For every supported
-adapter, see [Server Setup](/docs/server/setup#mount-route-handler).
-
-<Tabs items={["Next.js", "Vite + Hono backend", "Express"]}>
+<Tabs items={["Next.js", "Vite", "Express", "Hono", "SvelteKit"]}>
 
 <Tab value="Next.js">
 
@@ -95,20 +83,12 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 
 </Tab>
 
-<Tab value="Vite + Hono backend">
-
-Vite serves the React app, not the S3 API. Run a Hono server alongside it and
-proxy `/api/s3` to that server during development:
-
-```npm
-npm i hono @hono/node-server
-```
+<Tab value="Vite">
 
 ```ts title="server/index.ts"
-import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { toHonoHandler } from "@dimah-s3/server/hono";
-import { s3 } from "../lib/s3";
+import { s3 } from "./s3";
 
 const app = new Hono();
 app.on(
@@ -116,12 +96,7 @@ app.on(
   "/api/s3/*",
   toHonoHandler(s3),
 );
-
-serve({ fetch: app.fetch, port: Number(process.env.PORT ?? 8787) });
 ```
-
-Point the Vite development proxy at port `8787`, or configure the React client
-with the backend's full `baseURL` as shown in [React Setup](/docs/react/setup).
 
 </Tab>
 
@@ -133,14 +108,48 @@ import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
-// The adapter reads the raw stream, so mount it before JSON middleware.
 app.all("/api/s3/*", toExpressHandler(s3));
 app.use(express.json());
 ```
 
 </Tab>
 
+<Tab value="Hono">
+
+```ts title="src/index.ts"
+import { Hono } from "hono";
+import { toHonoHandler } from "@dimah-s3/server/hono";
+import { s3 } from "./s3";
+
+const app = new Hono();
+app.on(
+  ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  "/api/s3/*",
+  toHonoHandler(s3),
+);
+```
+
+</Tab>
+
+<Tab value="SvelteKit">
+
+```ts title="src/routes/api/s3/[...path]/+server.ts"
+import { toSvelteKitHandler } from "@dimah-s3/server/svelte-kit";
+import { s3 } from "$lib/s3";
+
+const handler = toSvelteKitHandler(s3);
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
+```
+
+</Tab>
+
 </Tabs>
+
+Other runtimes: [Server Setup](/docs/server/setup).
 
 ### Create the client and provider [step]
 
@@ -227,14 +236,14 @@ export default function RootLayout({
 import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
-export default function AvatarUploadPage() {
+export default function Page() {
   const upload = useUpload({ route: "avatar" });
 
   return <UploadButton upload={upload} />;
 }
 ```
 
-Selecting an image presigns a secure URL and uploads directly to your bucket under `avatar/{uuid}/{filename}`.
+Selecting an image presigns a secure URL and uploads directly to your bucket.
 
 ## Frequently asked questions
 

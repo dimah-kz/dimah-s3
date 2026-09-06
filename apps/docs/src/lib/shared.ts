@@ -90,6 +90,38 @@ export function githubRepoUrl() {
   return `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
 }
 
+export function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+export function docsArticleJsonLd(input: {
+  origin: string;
+  url: string;
+  title: string;
+  description: string;
+}) {
+  const pageUrl = `${input.origin}${input.url}`;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: input.title,
+    description: input.description,
+    url: pageUrl,
+    inLanguage: "en",
+    isPartOf: {
+      "@type": "WebSite",
+      name: appName,
+      url: input.origin,
+    },
+    author: {
+      "@type": "Organization",
+      name: appName,
+      url: input.origin,
+    },
+  };
+}
+
 export function siteJsonLd(origin: string) {
   const repo = githubRepoUrl();
   const orgId = `${origin}/#organization`;

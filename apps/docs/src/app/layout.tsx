@@ -6,13 +6,13 @@ import type { Metadata } from "next";
 import { cn } from "cn";
 import {
   appName,
+  serializeJsonLd,
   siteDescription,
   siteJsonLd,
   siteKeywords,
   siteTitle,
 } from "@/lib/shared";
 import { getSiteUrl, isProductionDeploy } from "@/lib/site-url";
-import { serializeJsonLd } from "@/lib/json-ld";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -77,13 +77,15 @@ export default function Layout({ children }: LayoutProps<"/">) {
       className={cn(fontSans.className, "font-sans", fontSans.variable)}
       suppressHydrationWarning
     >
-      <Body>
+      <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: serializeJsonLd(jsonLd),
           }}
         />
+      </head>
+      <Body>
         <RootProvider
           theme={{
             enabled: true,
