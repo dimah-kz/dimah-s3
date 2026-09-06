@@ -8,10 +8,6 @@ dimah-s3 is a modular, full-stack S3 toolkit for React and Node.js runtimes.
 It provides typed server handlers, headless React hooks, optional shadcn UI components,
 and database plugin for object tracking when your application needs it.
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
-in your own code with the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
-
 ## Architecture flow
 
 <Flow
@@ -38,6 +34,10 @@ your server as a proxy.
 - **Full lifecycle** — upload, download, and delete, including multipart
 - **Server hooks** — auth, quotas, confirm, and cleanup on the server ([Better Auth](https://www.better-auth.com)-like)
 - **Optional database** — ownership and listings when you need them
+
+It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
+in your own code with the
+[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
 ## Frequently asked questions
 
