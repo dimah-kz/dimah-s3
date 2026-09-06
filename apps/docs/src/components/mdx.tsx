@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import * as AccordionComponents from "fumadocs-ui/components/accordion";
 import * as TabsComponents from "fumadocs-ui/components/tabs";
@@ -24,24 +23,9 @@ export function getMDXComponents(components?: MDXComponents) {
     DemoPreview,
     Flow,
     ...AccordionComponents,
-    Accordions: ({
-      className,
-      ...props
-    }: React.ComponentProps<typeof AccordionComponents.Accordions>) => (
-      <AccordionComponents.Accordions
-        className={cn("my-6", className)}
-        {...props}
-      />
-    ),
     ...TabsComponents,
     ...FilesComponents,
     ...CardComponents,
-    Cards: ({
-      className,
-      ...props
-    }: React.ComponentProps<typeof CardComponents.Cards>) => (
-      <CardComponents.Cards className={cn("my-6", className)} {...props} />
-    ),
     ...StepsComponents,
     TypeTable,
     AutoTypeTable: (props: Partial<AutoTypeTableProps>) => (

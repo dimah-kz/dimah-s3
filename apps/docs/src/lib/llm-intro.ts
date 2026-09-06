@@ -19,7 +19,6 @@ export const LLM_PAGE_PRIORITY = [
   "/docs",
   "/docs/quickstart",
   "/docs/comparison",
-  "/docs/faq",
   "/docs/providers",
   "/docs/providers/cloudflare-r2",
   "/docs/server",

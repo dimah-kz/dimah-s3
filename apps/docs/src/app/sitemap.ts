@@ -25,7 +25,7 @@ function entry(url: string, priority: number): MetadataRoute.Sitemap[number] {
 
 function docsPriority(url: string): number {
   if (url === "/docs" || url === "/docs/quickstart") return 0.9;
-  if (url === "/docs/comparison" || url === "/docs/faq") return 0.8;
+  if (url === "/docs/comparison") return 0.8;
 
   const depth = url.split("/").filter(Boolean).length;
   if (depth === 2) return 0.7;

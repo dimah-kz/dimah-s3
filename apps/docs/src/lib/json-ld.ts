@@ -28,55 +28,11 @@ const introFaqs = [
   },
 ] as const;
 
-const faqHubFaqs = [
-  {
-    question: "What does dimah-s3 provide?",
-    answer:
-      "dimah-s3 provides a typed, presign-first lifecycle for S3-compatible storage: server routes and guards, React transfer state, optional shadcn UI, and optional database tracking.",
-  },
-  {
-    question: "Do S3 credentials ever reach the browser?",
-    answer:
-      "No. The server owns the S3 client and returns only short-lived signed requests. Never put S3 access keys in client code or public environment variables.",
-  },
-  {
-    question: "What does upload confirmation verify?",
-    answer:
-      "Confirmation reads HeadObject from storage and rechecks the stored size and Content-Type against route constraints. Content-Type is metadata, so inspect magic bytes separately when content authenticity matters.",
-  },
-  {
-    question: "Which storage providers are supported?",
-    answer:
-      "Any provider with an S3-compatible API can work. The documentation includes configuration for Amazon S3, Cloudflare R2, and MinIO.",
-  },
-  {
-    question: "Can a multipart upload resume after a page reload?",
-    answer:
-      "Yes, when multipart is enabled and useUpload receives a persistent UploadStore. After the user reselects the same local file, the client restores the upload ID and reconciles completed parts before continuing.",
-  },
-  {
-    question: "Do I have to use the provided UI components?",
-    answer:
-      "No. @dimah-s3/react is headless. Build a custom interface from its hooks or install the optional @dimah-s3/ui components.",
-  },
-  {
-    question: "Is @dimah-s3/db required?",
-    answer:
-      "No. Add it only when you need object ownership, confirmed-only access, lifecycle rows, listings, usage totals, or quota guards.",
-  },
-  {
-    question: "Is dimah-s3 free to operate?",
-    answer:
-      "There is no separate dimah-s3 SaaS fee, but you still pay for object storage, requests, transfer, compute, observability, and application operations.",
-  },
-] as const;
-
 const faqsByUrl: Record<
   string,
   readonly { question: string; answer: string }[]
 > = {
   "/docs": introFaqs,
-  "/docs/faq": faqHubFaqs,
 };
 
 export function docsArticleJsonLd(input: {
