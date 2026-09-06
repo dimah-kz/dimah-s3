@@ -4,15 +4,13 @@ description: Full-stack S3 toolkit for the React ecosystem — server handlers, 
 icon: House
 ---
 
-**dimah-s3** is a modular, full-stack S3 toolkit for React and Node.js
-runtimes. It provides typed server handlers, headless React hooks, optional
-[shadcn](https://ui.shadcn.com) UI components, and database-backed object
-tracking when your application needs it.
+dimah-s3 is a modular, full-stack S3 toolkit for React and Node.js runtimes.
+It provides typed server handlers, headless React hooks, optional shadcn UI components,
+and database-backed object tracking when your application needs it.
 
-It is not a hosted file service or a general S3 SDK wrapper. You keep control
-of the bucket and continue to use the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3) for operations
-outside the upload, download, and delete lifecycle.
+It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
+in your own code with the
+[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
 ## Architecture flow
 
@@ -21,15 +19,13 @@ outside the upload, download, and delete lifecycle.
   steps={[
     { name: "Browser", kind: "client", note: "requests signed URL" },
     { name: "Server", kind: "server", note: "executes guards and signs URL" },
-    { name: "S3 Bucket", kind: "s3", note: "receives direct upload bytes" },
+    { name: "S3 Bucket", kind: "s3", note: "receives the upload" },
   ]}
 />
 
-The backend generates short-lived signed requests. Uploads and, by default,
-downloads transfer directly between the browser and S3-compatible storage;
-downloads can also use a same-origin proxy. Credentials never leave your
-server, while guards and lifecycle hooks keep authorization and trusted side
-effects on the backend.
+The backend signs a short-lived URL, the browser talks to your bucket, and
+AWS credentials never leave the server. Downloads can also pass through
+your server as a proxy.
 
 **For coding agents** — [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
 
@@ -37,11 +33,11 @@ effects on the backend.
 
 ## What you get
 
-- **Typed setup** — named routes connect server policy to React hooks
-- **Complete lifecycle** — upload, verified confirmation, download, and delete
-- **Large-file support** — multipart transfers, retries, cancellation, and resume
-- **Application-owned policy** — auth, quotas, object keys, and cleanup in hooks
-- **Optional layers** — shadcn UI and database tracking only when you need them
+- **Fast setup** — a working upload in minutes
+- **Full stack** — server, client, and optional shadcn UI
+- **Full lifecycle** — upload, download, and delete, including multipart
+- **Server hooks** — auth, quotas, confirm, and cleanup on the server
+- **Optional database** — ownership and listings when you need them
 
 ## Frequently asked questions
 
@@ -49,9 +45,9 @@ effects on the backend.
 
 <Accordion title="When should I choose dimah-s3?">
 
-Choose dimah-s3 when your application owns an S3-compatible bucket and needs
-more than an upload picker: server-owned keys, verified confirmation, private
-downloads, guarded deletion, multipart resume, or optional database tracking.
+When you own the S3-compatible bucket and need more than an upload picker:
+server-owned keys, verified confirmation, private downloads, guarded
+deletion, multipart resume, or optional database tracking.
 
 If you are choosing between managed storage, an upload-focused toolkit, or a
 client uploader, use the [comparison guide](/docs/comparison).
@@ -60,9 +56,8 @@ client uploader, use the [comparison guide](/docs/comparison).
 
 <Accordion title="Does dimah-s3 replace the AWS SDK?">
 
-No. dimah-s3 owns presign upload, download, and delete flows. Use the AWS SDK
-directly for application-specific operations such as list, copy, retention, or
-arbitrary object tagging.
+No. dimah-s3 covers presign upload, download, and delete. Use the AWS SDK
+for everything else — list, copy, retention, tagging, and similar work.
 
 </Accordion>
 
@@ -76,9 +71,9 @@ See the [provider guides](/docs/providers) for endpoints and CORS.
 
 <Accordion title="How does dimah-s3 keep S3 credentials secure?">
 
-Credentials never leave your server. The browser sends a route name, the
-server runs guards and chooses a key inside that route's namespace, and the
-browser receives only a short-lived signed request.
+The browser sends a route name. The server runs guards, chooses a key
+inside that route's namespace, and returns a short-lived signed request.
+Credentials never leave the server.
 
 </Accordion>
 
@@ -86,7 +81,7 @@ browser receives only a short-lived signed request.
 
 Yes. Multipart uploads support chunking, retries, cancellation, and part
 reconciliation. Add a persistent `UploadStore`; after a reload, the user
-reselects the same local file and the client resumes its stored upload. See
+reselects the same local file and the client resumes. See
 [Upload Store](/docs/react/upload-store).
 
 </Accordion>
@@ -101,10 +96,10 @@ reselects the same local file and the client resumes its stored upload. See
   <Card
     title="Quickstart"
     href="/docs/quickstart"
-    description="Get a working upload flow running in under 5 minutes."
+    description="Get a working upload running in a few minutes."
   />
   <Card
-    title="Server"
+    title="Server Guide"
     href="/docs/server"
     description="Configure routes, lifecycle hooks, guards, and runtimes."
   />
@@ -114,9 +109,9 @@ reselects the same local file and the client resumes its stored upload. See
     description="Headless hooks for upload, download, and delete."
   />
   <Card
-    title="UI Setup"
+    title="UI Components"
     href="/docs/react/ui"
-    description="Prebuilt shadcn components for buttons, dropzones, and status."
+    description="Prebuilt shadcn buttons, dropzones, and status."
   />
   <Card
     title="Providers"
@@ -124,13 +119,13 @@ reselects the same local file and the client resumes its stored upload. See
     description="Setup guides for AWS S3, Cloudflare R2, and MinIO."
   />
   <Card
-    title="Database"
+    title="Database Plugin"
     href="/docs/db"
-    description="Track object metadata, ownership scopes, and file listings."
+    description="Track files, ownership, and listings."
   />
   <Card
     title="Comparison"
     href="/docs/comparison"
-    description="Compare storage models, lifecycle scope, UI, and operational tradeoffs."
+    description="Compare dimah-s3 with Better Upload, UploadThing, and Uppy."
   />
 </Cards>
