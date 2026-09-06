@@ -1,6 +1,6 @@
 {
   "title": "Server",
-  "description": "Server handlers, routes, security, and lifecycle hooks",
+  "description": "Server handlers, routes and lifecycle hooks",
   "icon": "Server",
   "root": true,
   "pages": [
