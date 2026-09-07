@@ -162,9 +162,12 @@ export type DimahS3RouteConfig = {
   /** Override the instance bucket for this route. */
   bucket?: string;
   /**
-   * Object-key namespace. Generated keys and follow-up ops (confirm,
-   * download, delete, multipart) must stay under it.
-   * Defaults to the route name. `false` disables the bound.
+   * Object-key namespace. Defaults to the route name.
+   * Upload generates keys under it; confirm, download, delete, and
+   * multipart follow-ups reject keys outside it (`INVALID_KEY`).
+   * `false` disables the bound (any safe key in the bucket).
+   * This is route isolation, not per-user ownership — add
+   * `download.guard` / `delete.guard` or `db()`.
    */
   keyPrefix?: string | false;
   /** Runs before every operation on this route. */

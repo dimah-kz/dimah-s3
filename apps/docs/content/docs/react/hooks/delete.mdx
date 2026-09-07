@@ -118,8 +118,9 @@ import type { UseDeleteOptions, UseDeleteReturn } from "@dimah-s3/react";
 <Accordion title="How do I ensure only the object owner can delete it?">
 
 Enforce ownership on the server in `delete.guard`; client-side checks are not
-an authorization boundary. See [Security](/docs/server/security) for the full
-model.
+an authorization boundary. The default `keyPrefix` only keeps keys inside this
+route's folder — it does not know which user owns a file. See
+[Security](/docs/server/security#route-namespace-vs-ownership).
 
 ```ts title="lib/s3.ts"
 avatar: route({

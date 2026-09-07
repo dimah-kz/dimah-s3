@@ -8,6 +8,10 @@ synchronization actions across upload, download, and delete flows.
 
 ## Access and scope validation
 
+Route membership is still the server `keyPrefix` check (`INVALID_KEY`). These
+plugin guards do not compare the stored `route` column to the request route.
+They look up the row by `(bucket, key)` and compare **scope**.
+
 Before an operation runs, `@dimah-s3/db` resolves the active session scope
 through `resolveScope(request)`:
 

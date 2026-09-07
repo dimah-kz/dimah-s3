@@ -5,6 +5,11 @@ description: Authorize and sign GET download URLs or proxy streams.
 
 Enable download operations with `download: true` or a `DownloadConfig` object on a [named route](/docs/server/routes).
 
+The key must sit under this route's `keyPrefix`. That is not ownership — a
+session-only `guard` still lets any signed-in user download any namespaced
+key they know. See
+[Security](/docs/server/security#route-namespace-vs-ownership).
+
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, errors, route } from "@dimah-s3/server";

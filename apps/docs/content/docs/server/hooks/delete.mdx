@@ -11,6 +11,14 @@ Enable object deletion with `delete: true` or a `DeleteConfig` object on a [name
   never deletes from S3 directly.
 </Callout>
 
+<Callout type="warn">
+  `delete: true` turns the endpoint on. It does not check who owns the object.
+  The key must still sit under this route's `keyPrefix` (the route name by
+  default) — that check always runs, with or without [`db()`](/docs/db).
+  Ownership is `delete.guard` or the db plugin. See
+  [Security](/docs/server/security#route-namespace-vs-ownership).
+</Callout>
+
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, errors, route } from "@dimah-s3/server";
@@ -46,6 +54,9 @@ export const s3 = dimahS3({
 ---
 
 ## Delete lifecycle flow
+
+Before `delete.guard`, the server resolves the named route and rejects keys
+outside its `keyPrefix` (`INVALID_KEY`).
 
 <Flow
   label="Delete flow"
@@ -86,6 +97,15 @@ import type {
 ## Frequently asked questions
 
 <Accordions>
+
+<Accordion title="Can anyone delete any object if I enable delete without a guard?">
+
+Anyone who can call the endpoint can delete any **in-namespace** key they
+know — not the whole bucket, and not keys on other routes. A UUID in the path
+is not an access check. Ownership is `delete.guard` or [`db()`](/docs/db). See
+[Security](/docs/server/security#route-namespace-vs-ownership).
+
+</Accordion>
 
 <Accordion title="How do I delete multiple files at once?">
 

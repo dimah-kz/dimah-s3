@@ -65,8 +65,10 @@ avatar: route({
 }),
 ```
 
-With the default `keyPrefix`, follow-up operations (confirm, download, and
-delete) must target keys within that route's namespace.
+With the default `keyPrefix` (the route name), follow-up operations (confirm,
+download, and delete) must target keys within that route's namespace. That is
+route isolation, not per-user ownership — see
+[Security](/docs/server/security#route-namespace-vs-ownership).
 
 ---
 
@@ -78,7 +80,18 @@ By default, the server generates object keys formatted as:
 {keyPrefix}/{uuid}/{sanitizedFileName}
 ```
 
-`keyPrefix` defaults to the route name (e.g. `avatar/…`).
+`keyPrefix` defaults to the **route name** (`avatar` → `avatar/…`, `document`
+→ `document/…`). The same prefix is used twice:
+
+1. **Upload / multipart init** — the server *generates* the key. The client
+   sends a route name, not an object key.
+2. **Confirm, download, delete, multipart follow-ups** — the client *sends* a
+   key. The server accepts it only if it sits under that route's prefix.
+
+So `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is valid, and
+`DELETE ?route=avatar&key=document/{uuid}/cv.pdf` returns `INVALID_KEY`.
+Two routes cannot share or nest prefixes (`files` and `files/images`);
+`dimahS3()` throws at startup.
 
 <Callout type="warn" title="Disabling namespace isolation">
   `keyPrefix: false` allows follow-up operations to target any safe key in the

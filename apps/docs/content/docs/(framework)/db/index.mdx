@@ -17,7 +17,9 @@ tracking.
 - **Tracks objects** — writes and updates a row on presign, confirm, and delete
 - **Enforces ownership** — each file belongs to a scope you define (for example
   `user:123`); download requires a confirmed (`active`) object owned by
-  that scope; delete rejects access from another scope
+  that scope; delete rejects access from another scope. This is per-caller
+  tenancy, not the route `keyPrefix` check — prefix isolation always runs in
+  [`@dimah-s3/server`](/docs/server/security#route-namespace-vs-ownership).
 - **Lists files** — query by scope on the server and in the browser
 - **Tracks multipart** — records in-progress uploads for ownership and stale
   cleanup; pair it with a client `UploadStore` to resume after the same local

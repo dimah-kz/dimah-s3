@@ -245,16 +245,20 @@ See [Errors](/docs/server/errors) for the full list of error codes.
 
 <Accordion title="How does key generation and prefix isolation work?">
 
-By default, dimah-s3 isolates object keys by route prefix:
+By default, dimah-s3 isolates object keys by route prefix (the route name):
 
 ```
 avatar/{uuid}/{fileName}
 ```
 
-By default, follow-up operations (confirm, download, and delete) must target
-keys within the route's `keyPrefix`; requests outside it return `INVALID_KEY`.
+Upload generates that key. Confirm, download, and delete accept a client-sent
+key only if it stays under the same prefix; otherwise they return
+`INVALID_KEY`. That check is always in `@dimah-s3/server` — [`db()`](/docs/db)
+adds per-user scope, not the prefix bound.
+
 Setting `keyPrefix: false` disables that namespace boundary and requires strict
-application guards.
+application guards. See
+[Security](/docs/server/security#route-namespace-vs-ownership).
 
 To customize the folder or key structure, use `upload.object` in your route definition.
 

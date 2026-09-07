@@ -8,6 +8,10 @@ route resolution or plugin execution.
 
 Use it for system-wide checks like user authentication, IP filtering, or tenant context.
 
+A signed-in session here does not prove the caller owns a particular object
+key — that belongs on `download.guard` / `delete.guard` or [`db()`](/docs/db). See
+[Security](/docs/server/security#route-namespace-vs-ownership).
+
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, errors, route } from "@dimah-s3/server";

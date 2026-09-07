@@ -1,6 +1,6 @@
 ---
 title: Security
-description: Server-owned keys, ACL, and verified file metadata.
+description: Server-owned keys, route namespaces vs ownership, ACL, and verified file metadata.
 icon: Shield
 ---
 
@@ -14,14 +14,51 @@ dimah-s3 follows a **presign-first** security model: AWS credentials remain on t
 ## Security model
 
 1. **Server owns keys** — The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
-2. **Namespace isolation** — With the default `keyPrefix`, confirm, download, and delete follow-ups are restricted to the route namespace. Requests outside it fail with `INVALID_KEY`.
+2. **Namespace isolation** — `keyPrefix` defaults to the route name. Upload **generates** keys under it; confirm, download, and delete **reject** keys outside it (`INVALID_KEY`). This check always runs in `@dimah-s3/server`.
 3. **Verified metadata via `HeadObject`** — Presign payloads (size/type) are untrusted. Stored byte length and `Content-Type` metadata are read server-side via `HeadObject` in `upload.onConfirmed`.
-4. **Guards and authorization** — Route `guard` and feature guards (`upload.guard`, `download.guard`, `delete.guard`) control per-user authorization.
+4. **Guards and authorization** — Route `guard` and feature guards (`upload.guard`, `download.guard`, `delete.guard`) control per-user authorization. Namespace isolation is not ownership.
 
 <Callout type="warn" title="Disabling keyPrefix removes route isolation">
   `keyPrefix: false` allows follow-up operations to target any safe key in the
   bucket. Use it only when strict route or operation guards enforce the complete
   ownership policy.
+</Callout>
+
+---
+
+## Route namespace vs ownership
+
+`keyPrefix` and a guard answer different questions:
+
+| Check                        | Runs                          | Answers                                 | Typical failure       |
+| ---------------------------- | ----------------------------- | --------------------------------------- | --------------------- |
+| `keyPrefix`                  | Always, in `@dimah-s3/server` | Is this key inside this route's folder? | `INVALID_KEY`         |
+| Guards or [`db()`](/docs/db) | Only if you add them          | May this caller touch this object?      | `401` / `403` / `404` |
+
+The same prefix is used on the way in and the way out. With two routes:
+
+```ts
+avatar: route({ upload: { fileTypes: ["image/*"] }, delete: true }),
+document: route({ upload: { fileTypes: ["application/pdf"] }, delete: true }),
+```
+
+- Upload on `avatar` creates `avatar/{uuid}/photo.jpg` — the client does not send a key.
+- `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is in-namespace.
+- `DELETE ?route=avatar&key=document/{uuid}/cv.pdf` is `INVALID_KEY`.
+
+[`db()`](/docs/db) does **not** replace that prefix check. It stores a `route` column for listings; its guards look up `(bucket, key)` and compare **scope**. A key from another route is still rejected by the server before those guards run.
+
+<Callout type="warn" title="Enabled delete is not per-user authorization">
+  `delete: true` or `download: true` with no ownership guard means anyone who
+  can call the endpoint and knows a key in that namespace can delete or
+  download that object. A UUID in the path makes keys hard to guess; it is
+  not an access check. Returning `folder: users/{userId}` from `upload.object`
+  only changes the key shape.
+
+A guard that only checks "is the user signed in?" still lets any signed-in
+user target any namespaced key they know. Enforce ownership in
+`download.guard` / `delete.guard`, or attach [`db()`](/docs/db).
+
 </Callout>
 
 ---
@@ -67,6 +104,11 @@ export const s3 = dimahS3({
   },
 });
 ```
+
+Returning `folder: users/{userId}` only shapes the key. The route `guard` above
+requires a session; it does not stop one signed-in user from targeting another
+user's key. Add `download.guard` / `delete.guard` (or [`db()`](/docs/db)) for
+ownership.
 
 ---
 
@@ -149,7 +191,9 @@ left in S3.
 
 <Accordion title="How do I prevent users from deleting or downloading other users' files?">
 
-Use `guard` on download/delete or use the [`@dimah-s3/db`](/docs/db) plugin for automatic scope isolation:
+`keyPrefix` only keeps `avatar` keys off the `document` route. It does not
+know which user owns a file. Use `download.guard` / `delete.guard`, or the
+[`@dimah-s3/db`](/docs/db) plugin for automatic scope isolation:
 
 ```ts
 avatar: route({
