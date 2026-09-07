@@ -83,9 +83,9 @@ By default, the server generates object keys formatted as:
 `keyPrefix` defaults to the **route name** (`avatar` → `avatar/…`, `document`
 → `document/…`). The same prefix is used twice:
 
-1. **Upload / multipart init** — the server *generates* the key. The client
+1. **Upload / multipart init** — the server _generates_ the key. The client
    sends a route name, not an object key.
-2. **Confirm, download, delete, multipart follow-ups** — the client *sends* a
+2. **Confirm, download, delete, multipart follow-ups** — the client _sends_ a
    key. The server accepts it only if it sits under that route's prefix.
 
 So `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is valid, and
