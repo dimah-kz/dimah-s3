@@ -19,7 +19,7 @@
     "@dimah-s3/ui": "workspace:*",
     "@icons-pack/react-simple-icons": "^13.15.1",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.2.5",
+    "cn": "^0.2.6",
     "fumadocs-core": "16.15.7",
     "fumadocs-mdx": "15.4.0",
     "fumadocs-typescript": "^5.4.0",

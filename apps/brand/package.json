@@ -20,7 +20,7 @@
     "@editframe/react": "^0.59.47",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.2.5",
+    "cn": "^0.2.6",
     "lucide-react": "^1.41.0",
     "next": "catalog:",
     "react": "catalog:",

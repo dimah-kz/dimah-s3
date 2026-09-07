@@ -80,7 +80,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.2.5",
+    "cn": "^0.2.6",
     "eslint": "catalog:",
     "lucide-react": "^1.41.0",
     "react": "catalog:",
