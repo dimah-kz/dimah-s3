@@ -209,11 +209,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@editframe/elements':
-        specifier: ^0.59.45
-        version: 0.59.45
+        specifier: ^0.59.47
+        version: 0.59.47
       '@editframe/react':
-        specifier: ^0.59.45
-        version: 0.59.45(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.59.47
+        version: 0.59.47(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@fuma-translate/react':
         specifier: ^1.0.2
         version: 1.0.2(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -1224,11 +1224,11 @@ packages:
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
 
-  '@editframe/elements@0.59.45':
-    resolution: {integrity: sha512-gG/5EY9OASwbj5RICNdIuZ7xbddhiVJvPVF5px2fnv0jjQ7c1Zx7RWlcj57znmcU2ZdrnAIitJEH0owCm6k9kQ==}
+  '@editframe/elements@0.59.47':
+    resolution: {integrity: sha512-e7ydfnXYwJ0S7bRIkAhUqMZXQ6pPjJVtB+6wbPSbu+VR3Z2UF5f1YfRRsc+bvH+ZMtN6mSUOZC9krlmlgfj2jA==}
 
-  '@editframe/react@0.59.45':
-    resolution: {integrity: sha512-5vOYmP3o7E0/KRkDzGLVkIdB5GmbO8snnnLUf8mZ7CqGjnXvFXckZTqUIHQ17bDblBZ/tzrwXb7u19py0T6eKw==}
+  '@editframe/react@0.59.47':
+    resolution: {integrity: sha512-6CSPgZwafAyf8XTQ+5Hkyrn0voT1l8wniEqV2NyJRqPuE/eirMtzpVmlEXy4KIz6/Z7DU3K0x9+SIVXQYg8zFQ==}
     peerDependencies:
       '@react-three/fiber': '>=8.0.0'
       '@react-three/offscreen': '>=0.0.8'
@@ -6944,14 +6944,14 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
-  '@editframe/elements@0.59.45':
+  '@editframe/elements@0.59.47':
     dependencies:
       mediabunny: 1.55.7
       zod: 3.25.76
 
-  '@editframe/react@0.59.45(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@editframe/react@0.59.47(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@editframe/elements': 0.59.45
+      '@editframe/elements': 0.59.47
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
