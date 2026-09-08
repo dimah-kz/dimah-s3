@@ -101,7 +101,7 @@
   },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.0",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",

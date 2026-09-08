@@ -74,7 +74,7 @@
   "devDependencies": {
     "@base-ui/react": "^1.8.0",
     "@fuma-translate/react": "^1.0.2",
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.0",
     "@types/react": "catalog:",
     "@types/react-file-icon": "^1.0.5",
     "@workspace/eslint-config": "workspace:*",
@@ -82,7 +82,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
     "eslint": "catalog:",
-    "lucide-react": "^1.41.0",
+    "lucide-react": "^1.42.0",
     "react": "catalog:",
     "shadcn": "^4.21.0",
     "tsc-alias": "^1.9.4",
