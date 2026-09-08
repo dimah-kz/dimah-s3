@@ -89,7 +89,7 @@ function DemoObjectRow({
   );
 }
 
-/** Homepage dropzone: upload an avatar, then download or delete that same object. */
+/** Homepage dropzone: upload a file, then download or delete that same object. */
 export function HomeDropzoneDemo() {
   const [object, setObject] = useState<DemoObject | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -119,7 +119,6 @@ export function HomeDropzoneDemo() {
 
   const upload = useUpload({
     route: "avatar",
-    accept: ["image/*"],
     maxFiles: 1,
     maxFileSize: 75 * 1024 * 1024,
     onUploadStart: () => {

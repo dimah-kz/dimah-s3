@@ -13,7 +13,7 @@ Combine `@dimah-s3/react` hooks with your own components or custom shadcn primit
   <CustomUploadDemo />
 </DemoPreview>
 
-## Example: Headless Avatar Uploader
+## Example: Headless File Uploader
 
 ```tsx
 "use client";
@@ -21,7 +21,7 @@ Combine `@dimah-s3/react` hooks with your own components or custom shadcn primit
 import { useUpload } from "@dimah-s3/react";
 import { Button } from "@/components/ui/button";
 
-export function CustomAvatarPicker() {
+export function CustomFilePicker() {
   const upload = useUpload({
     route: "avatar",
     noDrag: true,
@@ -34,7 +34,7 @@ export function CustomAvatarPicker() {
       <Button type="button" onClick={() => upload.open()}>
         {upload.isUploading
           ? `Uploading ${upload.progress.percent}%`
-          : "Select Avatar"}
+          : "Choose file"}
       </Button>
     </div>
   );

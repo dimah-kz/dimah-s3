@@ -5,12 +5,12 @@ description: Headless React hook for single and multi-file S3 uploads with progr
 
 `useUpload` manages the complete client-side upload lifecycle: file selection, validation against server constraints, presigned URL acquisition, chunked progress tracking, and final server confirmation.
 
-```tsx title="components/avatar-uploader.tsx"
+```tsx title="components/file-uploader.tsx"
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
 
-export function AvatarUploader() {
+export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
     onSuccess: (results) => {
@@ -30,7 +30,7 @@ export function AvatarUploader() {
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Click or drop avatar here
+          Click or drop files here
         </p>
       )}
     </div>

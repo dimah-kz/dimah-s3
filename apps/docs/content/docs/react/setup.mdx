@@ -115,12 +115,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 Use `useUpload` with a route name matching your server config:
 
-```tsx title="app/avatar-uploader.tsx"
+```tsx title="app/file-uploader.tsx"
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
 
-export function AvatarUploader() {
+export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
   });
@@ -133,7 +133,7 @@ export function AvatarUploader() {
       <input {...upload.getInputProps()} />
       {upload.isUploading
         ? `Uploading: ${upload.progress.percent}%`
-        : "Click or drop avatar here"}
+        : "Click or drop files here"}
     </div>
   );
 }

@@ -10,12 +10,5 @@ export function UploadButtonDemo() {
     maxFileSize: 75 * 1024 * 1024,
   });
 
-  return (
-    <UploadButton
-      upload={upload}
-      label="Upload avatar"
-      toast={true}
-      tooltipText="Upload profile image"
-    />
-  );
+  return <UploadButton upload={upload} toast={true} />;
 }

@@ -47,12 +47,12 @@ npx shadcn@latest add @dimah-s3/upload-button
 import { useUpload } from "@dimah-s3/react";
 import { UploadButton } from "@dimah-s3/ui";
 
-export function AvatarUploader() {
+export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
   });
 
-  return <UploadButton upload={upload} label="Choose Avatar" />;
+  return <UploadButton upload={upload} />;
 }
 ```
 

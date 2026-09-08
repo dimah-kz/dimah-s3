@@ -109,7 +109,7 @@ export const demoS3Api: DemoS3Api = {
       avatar: {
         upload: {
           enabled: true as const,
-          fileTypes: ["image/*"],
+          fileTypes: ["image/*", "application/pdf", "video/*"],
           maxFileSize: 75 * 1024 * 1024,
           multipart: false,
         },

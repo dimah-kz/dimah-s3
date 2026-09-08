@@ -47,7 +47,7 @@ npx shadcn@latest add @dimah-s3/upload-dropzone
 import { useUpload } from "@dimah-s3/react";
 import { UploadDropzone } from "@dimah-s3/ui";
 
-export function AvatarDropzone() {
+export function FileDropzone() {
   const upload = useUpload({
     route: "avatar",
   });
@@ -102,8 +102,8 @@ Pass React children to `UploadDropzone`:
 ```tsx
 <UploadDropzone upload={upload}>
   <div className="flex flex-col items-center justify-center p-6 text-muted-foreground">
-    <p className="text-sm font-medium">Drag avatar image here</p>
-    <p className="text-xs">PNG, JPG or WebP</p>
+    <p className="text-sm font-medium">Drop files here</p>
+    <p className="text-xs">Images, PDF, or video</p>
   </div>
 </UploadDropzone>
 ```
