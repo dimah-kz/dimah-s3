@@ -51,7 +51,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@clack/prompts": "^1.7.0",
+    "@clack/prompts": "^1.8.0",
     "citty": "^0.2.2",
     "nypm": "^0.6.9",
     "pathe": "^2.0.3",
