@@ -8,22 +8,22 @@ describe("transformTemplatePackageJson", () => {
       {
         name: "dimah-s3-nextjs",
         dependencies: {
-          react: "^19.2.8",
+          react: "^19.3.0",
           "@dimah-s3/server": "^0.4.0",
         },
         devDependencies: {
-          "@types/react": "^19.2.18",
+          "@types/react": "^19.3.0",
         },
       },
       { cliVersion: "0.4.1" },
     );
 
     expect(pkg.dependencies).toEqual({
-      react: "^19.2.8",
+      react: "^19.3.0",
       "@dimah-s3/server": "^0.4.1",
     });
     expect(pkg.devDependencies).toEqual({
-      "@types/react": "^19.2.18",
+      "@types/react": "^19.3.0",
     });
     expect(warnings.some((w) => w.includes("@dimah-s3/server"))).toBe(true);
   });

@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  ViewTransition,
+} from "react";
 import { useDelete, useDownload, useUpload } from "@dimah-s3/react";
 import {
   DeleteButton,
@@ -17,8 +23,6 @@ import {
 
 const enter =
   "animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 ease-out";
-const reveal =
-  "animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-300 ease-out";
 
 type DemoObject = {
   key: string;
@@ -50,7 +54,7 @@ function DemoObjectRow({
 
   return (
     <div
-      className={cn("flex w-full flex-col gap-2 p-3 text-start", reveal)}
+      className="flex w-full flex-col gap-2 p-3 text-start"
       onClick={keepInsideDemo}
       onKeyDown={keepInsideDemo}
     >
@@ -63,9 +67,7 @@ function DemoObjectRow({
         previewUrl={object.previewUrl}
         onDismiss={onDismiss}
       />
-      <div
-        className={cn("flex flex-wrap items-center gap-2", reveal, "delay-100")}
-      >
+      <div className="flex flex-wrap items-center gap-2">
         <ProgressDownloadButton
           className="w-fit"
           download={download}
@@ -127,13 +129,15 @@ export function HomeDropzoneDemo() {
     },
     onFileSuccess: (file, result) => {
       rememberDemoFile(result.key, file);
-      setUploading(false);
-      replaceObject({
-        key: result.key,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        previewUrl: previewFromFile(file),
+      startTransition(() => {
+        setUploading(false);
+        replaceObject({
+          key: result.key,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          previewUrl: previewFromFile(file),
+        });
       });
     },
     onError: () => {
@@ -155,25 +159,29 @@ export function HomeDropzoneDemo() {
         attachmentSize="sm"
         className="w-full"
         status={(node) => {
+          let body = null;
           if (object && !uploading) {
-            return (
+            body = (
               <DemoObjectRow
                 object={object}
-                onDeleted={() => replaceObject(null)}
+                onDeleted={() => {
+                  startTransition(() => {
+                    replaceObject(null);
+                  });
+                }}
                 onDismiss={() => {
-                  replaceObject(null);
-                  upload.reset();
+                  startTransition(() => {
+                    replaceObject(null);
+                    upload.reset();
+                  });
                 }}
               />
             );
+          } else if ((uploading || failed) && node != null) {
+            body = <div className="w-full p-3 text-start">{node}</div>;
           }
-          if (uploading || failed) {
-            if (node == null) return null;
-            return (
-              <div className={cn("w-full p-3 text-start", reveal)}>{node}</div>
-            );
-          }
-          return null;
+          if (body == null) return null;
+          return <ViewTransition>{body}</ViewTransition>;
         }}
       >
         {!idle ? (

@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useState,
+  ViewTransition,
+} from "react";
 import type { DbClientObject } from "@dimah-s3/db/client";
 import {
   useDelete,
@@ -51,7 +57,9 @@ export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
 
   const refresh = useCallback(async () => {
     const page = await api.db.listObjects({ route: "avatar" });
-    setObjects(page.objects);
+    startTransition(() => {
+      setObjects(page.objects);
+    });
   }, [api]);
 
   useEffect(() => {
@@ -68,12 +76,9 @@ export function FileList({ refreshToken = 0 }: { refreshToken?: number }) {
   return (
     <ul className="flex flex-col gap-2">
       {objects.map((object) => (
-        <FileRow
-          key={object.id}
-          object={object}
-          download={download}
-          del={del}
-        />
+        <ViewTransition key={object.id}>
+          <FileRow object={object} download={download} del={del} />
+        </ViewTransition>
       ))}
     </ul>
   );

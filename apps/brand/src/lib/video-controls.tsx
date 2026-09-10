@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { Suspense, use, type ComponentType, type ReactNode } from "react";
+import { browser } from "react-dom";
 import { PauseIcon, PlayIcon } from "lucide-react";
 import { Controls, Scrubber, TimeDisplay, TogglePlay } from "@editframe/react";
 import { cn } from "cn";
@@ -16,17 +17,8 @@ const VideoControls = Controls as unknown as ComponentType<HostProps>;
 const VideoTogglePlay = TogglePlay as unknown as ComponentType<HostProps>;
 const VideoTimeDisplay = TimeDisplay as unknown as ComponentType<HostProps>;
 
-export function BrandVideoControls({ target }: { target: string }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="flex h-12 items-center gap-3 border-t border-zinc-200 px-4 py-3" />
-    );
-  }
+function BrandVideoControlsReady({ target }: { target: string }) {
+  use(browser());
 
   return (
     <VideoControls
@@ -54,5 +46,17 @@ export function BrandVideoControls({ target }: { target: string }) {
       <Scrubber className="min-w-0 flex-1" />
       <VideoTimeDisplay className="shrink-0 font-mono text-xs text-zinc-500" />
     </VideoControls>
+  );
+}
+
+export function BrandVideoControls({ target }: { target: string }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-12 items-center gap-3 border-t border-zinc-200 px-4 py-3" />
+      }
+    >
+      <BrandVideoControlsReady target={target} />
+    </Suspense>
   );
 }
