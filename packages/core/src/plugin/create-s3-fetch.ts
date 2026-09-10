@@ -30,16 +30,16 @@ function apiErrorFromFetch(error: {
   statusText: string;
   error?: unknown;
 }): APIError {
-  const parsed = s3FetchErrorSchema.safeParse(error);
-  if (parsed.success) {
-    const { message, code, params } = parsed.data;
-    return new APIError(error.status, {
+  const { status } = error;
+  if (s3FetchErrorSchema.validate(error)) {
+    const { message, code, params } = error;
+    return new APIError(status, {
       message,
       ...(code !== undefined ? { code } : {}),
       ...(params !== undefined ? { params } : {}),
     });
   }
-  return new APIError(error.status, { message: fallbackMessage(error) });
+  return new APIError(status, { message: fallbackMessage(error) });
 }
 
 /**

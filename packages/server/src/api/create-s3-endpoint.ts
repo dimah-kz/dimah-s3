@@ -38,8 +38,9 @@ type CreateS3Endpoint = typeof createEndpointWithContext;
  * (`config`, `request`) is injected by the router / `s3.api`.
  * Zod failures throw `APIError` (`VALIDATION_ERROR`) via
  * better-call `onValidationError`. Zod `body` / `query` schemas are
- * compiled with `z.compile()` (Zod 4.5) so valid requests skip the
- * interpreter; unsupported schemas fall back to the runtime parser.
+ * compiled with `z.compile()` so valid requests skip the interpreter.
+ * Unsupported schemas, and runtimes that reject `new Function`, keep
+ * the runtime parser.
  *
  * ```ts
  * endpoints: {

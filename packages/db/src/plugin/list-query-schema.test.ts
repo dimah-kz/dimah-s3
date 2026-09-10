@@ -28,18 +28,21 @@ describe("dbListQuerySchema", () => {
   });
 
   it("rejects invalid status, zero, and oversized limits", () => {
-    expect(dbListQuerySchema.safeParse({ status: "nope" }).success).toBe(false);
-    expect(dbListQuerySchema.safeParse({ limit: "-1" }).success).toBe(false);
-    expect(dbListQuerySchema.safeParse({ limit: "0" }).success).toBe(false);
+    expect(dbListQuerySchema.validate({ status: "nope" })).toBe(false);
+    expect(dbListQuerySchema.validate({ limit: "-1" })).toBe(false);
+    expect(dbListQuerySchema.validate({ limit: "0" })).toBe(false);
     expect(
-      dbListQuerySchema.safeParse({ limit: String(DB_LIST_MAX_LIMIT + 1) })
-        .success,
+      dbListQuerySchema.validate({ limit: String(DB_LIST_MAX_LIMIT + 1) }),
     ).toBe(false);
-    expect(dbListQuerySchema.safeParse({ limit: "10e2" }).success).toBe(false);
+    expect(dbListQuerySchema.validate({ limit: "10e2" })).toBe(false);
   });
 
   it("compiles list and get query schemas", () => {
-    expect(() => z.compile(dbListQuerySchema, { strict: true })).not.toThrow();
-    expect(() => z.compile(dbGetQuerySchema, { strict: true })).not.toThrow();
+    const list = z.compile(dbListQuerySchema, { strict: true });
+    const get = z.compile(dbGetQuerySchema, { strict: true });
+    expect(list.validate({})).toBe(true);
+    expect(list.validate({ status: "nope" })).toBe(false);
+    expect(get.validate({ key: "a.png" })).toBe(true);
+    expect(get.validate({})).toBe(false);
   });
 });
