@@ -37,3 +37,6 @@ allowBuilds:
   msw: true
   sharp: true
   unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - '@rolldown/binding-openharmony-arm64@1.2.8'

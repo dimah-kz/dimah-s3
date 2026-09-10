@@ -53,7 +53,7 @@
   "dependencies": {
     "@clack/prompts": "^1.8.0",
     "citty": "^0.2.2",
-    "nypm": "^0.6.9",
+    "nypm": "^0.6.10",
     "pathe": "^2.0.3",
     "picocolors": "^1.1.1",
     "validate-npm-package-name": "^8.0.0"
