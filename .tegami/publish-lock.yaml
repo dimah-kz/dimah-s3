@@ -1,46 +1,46 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Expand npm package search keywords\n\nKeywords on `@dimah-s3/server`, `@dimah-s3/react`, `@dimah-s3/ui`, `@dimah-s3/db`, `@dimah-s3/cli`, and `@dimah-s3/core` now include targeted search terms (UploadThing / Better Upload alternative, Cloudflare R2 / MinIO, shadcn uploader, multipart resumable upload, and framework adapters).\n"
-    filename: 2026-09-05-package-keywords.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Zod 4.6\n\n`@dimah-s3/core`, `@dimah-s3/server`, and `@dimah-s3/db` now depend on Zod 4.6. Compiled request schemas pick up the 4.6 compiler; failed client error bodies use `.validate()` instead of allocating a parse result.\n"
+    filename: 2026-09-10-zod-4-6.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
     id: npm:brand
     updated: true
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
+    id: npm:@workspace/vitest-config
+    updated: true
+  - changelogIds:
+      - 2026-09-10-zod-4-6.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
     id: npm:@dimah-s3/ui
     updated: true
   - changelogIds:
-      - 2026-09-05-package-keywords.md
+      - 2026-09-10-zod-4-6.md
     id: npm:@dimah-s3/react
-    updated: true
-  - changelogIds:
-      - 2026-09-05-package-keywords.md
-    id: npm:@workspace/vitest-config
     updated: true
 npm:packages:
   - id: npm:brand
+  - id: npm:@workspace/vitest-config
   - id: npm:@dimah-s3/cli
   - id: npm:@dimah-s3/core
   - id: npm:@dimah-s3/db
   - id: npm:@dimah-s3/server
   - id: npm:@dimah-s3/ui
   - id: npm:@dimah-s3/react
-  - id: npm:@workspace/vitest-config

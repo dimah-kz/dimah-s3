@@ -1,3 +1,9 @@
+## @workspace/vitest-config@0.0.6
+
+### Zod 4.6
+
+`@dimah-s3/core`, `@dimah-s3/server`, and `@dimah-s3/db` now depend on Zod 4.6. Compiled request schemas pick up the 4.6 compiler; failed client error bodies use `.validate()` instead of allocating a parse result.
+
 ## @workspace/vitest-config@0.0.5
 
 ### Expand npm package search keywords
