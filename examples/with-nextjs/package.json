@@ -19,7 +19,7 @@
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
-    "lucide-react": "^1.43.0",
+    "lucide-react": "^1.44.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",
     "react": "catalog:",
