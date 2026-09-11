@@ -56,14 +56,16 @@ describe("dist template snapshot", () => {
       expect(ranges.some((r) => r.startsWith("catalog:"))).toBe(false);
       expect(ranges.some((r) => r.startsWith("workspace:"))).toBe(false);
 
-      for (const [name, range] of Object.entries({
+      const dimahRanges = Object.entries({
         ...pkg.dependencies,
         ...pkg.devDependencies,
-      })) {
-        if (name.startsWith("@dimah-s3/")) {
-          expect(range).toBe(`^${cliPkg.version}`);
-        }
-      }
+      })
+        .filter(([name]) => name.startsWith("@dimah-s3/"))
+        .map(([, range]) => range);
+      expect(dimahRanges.length).toBeGreaterThan(0);
+      expect(dimahRanges.every((range) => range === `^${cliPkg.version}`)).toBe(
+        true,
+      );
     }
   });
 });

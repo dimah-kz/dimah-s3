@@ -1,4 +1,4 @@
-import { globalIgnores } from "@workspace/eslint-config/ignores";
+import { config } from "@workspace/eslint-config/base";
 
-/** Root-level ESLint config (IDE / ad-hoc runs from repo root). */
-export default [globalIgnores];
+/** Root-level ESLint config (IDE / `scripts` / `tooling` / ad-hoc runs from repo root). */
+export default config;

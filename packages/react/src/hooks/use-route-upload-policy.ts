@@ -56,6 +56,14 @@ function hasExplicitConstraints(options: RouteUploadPolicy) {
   return options.accept != null || options.maxFileSize != null;
 }
 
+type CatalogSnapshot = {
+  api: S3Api;
+  route: S3RouteName;
+  policy: RouteUploadPolicy;
+  status: Extract<CatalogLoadStatus, "ready" | "error">;
+  error: Error | null;
+};
+
 /**
  * Client UX constraints for a named upload route.
  * Catalog values fill in omitted `accept` / `maxFileSize` / `multipart` /
@@ -71,36 +79,43 @@ export function useRouteUploadPolicy(
   const contextApi = useContext(S3Context);
   const api = options.api ?? contextApi;
   const optsRef = useLiveRef(options);
-  const [catalogPolicy, setCatalogPolicy] = useState<RouteUploadPolicy>({});
-  const [catalogStatus, setCatalogStatus] = useState<CatalogLoadStatus>(
-    api ? "loading" : "idle",
-  );
-  const [catalogError, setCatalogError] = useState<Error | null>(null);
+  const [snapshot, setSnapshot] = useState<CatalogSnapshot | null>(null);
+  const snapshotMatches =
+    snapshot !== null &&
+    snapshot.api === api &&
+    snapshot.route === options.route;
+
+  const catalogPolicy = snapshotMatches ? snapshot.policy : {};
+  const catalogStatus: CatalogLoadStatus = !api
+    ? "idle"
+    : snapshotMatches
+      ? snapshot.status
+      : "loading";
+  const catalogError = snapshotMatches ? snapshot.error : null;
 
   useEffect(() => {
-    if (!api) {
-      setCatalogPolicy({});
-      setCatalogStatus("idle");
-      setCatalogError(null);
-      return;
-    }
+    if (!api) return;
     let cancelled = false;
-    setCatalogPolicy({});
-    setCatalogStatus("loading");
-    setCatalogError(null);
     void loadRouteCatalog(api)
       .then((catalog) => {
         if (cancelled) return;
-        setCatalogPolicy(
-          mergeRouteUploadPolicy(catalog, optsRef.current.route, {}),
-        );
-        setCatalogStatus("ready");
+        setSnapshot({
+          api,
+          route: options.route,
+          policy: mergeRouteUploadPolicy(catalog, options.route, {}),
+          status: "ready",
+          error: null,
+        });
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
-        const error = toError(cause);
-        setCatalogError(error);
-        setCatalogStatus("error");
+        setSnapshot({
+          api,
+          route: options.route,
+          policy: {},
+          status: "error",
+          error: toError(cause),
+        });
         warnCatalogFailure(
           optsRef.current.route,
           hasExplicitConstraints(optsRef.current),

@@ -12,7 +12,7 @@
     "start": "next start",
     "check-types": "fumadocs-mdx && next typegen && tsc --noEmit",
     "postinstall": "fumadocs-mdx",
-    "lint": "eslint"
+    "lint": "eslint --max-warnings 0"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

@@ -10,7 +10,7 @@
     "clean:next": "node ./scripts/clean-next-artifacts.mjs",
     "clean:build": "pnpm clean:next && pnpm clean:turbo",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "lint": "eslint --max-warnings 0 scripts && turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check-types": "turbo run check-types",
@@ -27,6 +27,7 @@
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
     "prettier": "catalog:",
     "tegami": "^1.5.0",
     "turbo": "catalog:",

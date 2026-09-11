@@ -3,6 +3,7 @@ export const ignorePatterns = [
   "**/node_modules/**",
   "**/dist/**",
   "**/.next/**",
+  "**/.source/**",
   "**/out/**",
   "**/build/**",
   "**/.turbo/**",

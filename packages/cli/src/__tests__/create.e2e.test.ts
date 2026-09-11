@@ -33,7 +33,11 @@ describe("create e2e", () => {
       "--template",
       "nextjs",
     ]);
-    expect(result.exitCode).toBe(0);
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `create failed (${result.exitCode})\n${result.stderr || result.stdout}`,
+      );
+    }
   }, CREATE_TIMEOUT_MS);
 
   it("scaffolds expected files", async () => {

@@ -1,34 +1,56 @@
+// @ts-check
+
+import { defineConfig } from "eslint/config";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
-import { config as baseConfig } from "./base.js";
+import { baseConfig } from "./base.js";
+import { errorifyRules } from "./errorify.js";
 
-/** @type {import("eslint").Linter.Config[]} */
-export const reactConfig = [
+const reactFiles = ["**/*.{js,jsx,ts,tsx}"];
+const reactRecommended = pluginReact.configs.flat.recommended;
+const reactJsxRuntime = pluginReact.configs.flat["jsx-runtime"];
+const reactHooksRecommended =
+  pluginReactHooks.configs.flat["recommended-latest"];
+
+/** React + hooks rules without Prettier — compose into Next, then append Prettier last. */
+export const reactConfig = defineConfig(
   {
-    ...pluginReact.configs.flat.recommended,
+    ...reactRecommended,
+    name: "workspace/react",
+    files: reactFiles,
     languageOptions: {
-      ...pluginReact.configs.flat.recommended.languageOptions,
-      globals: {
-        ...globals.serviceworker,
-        ...globals.browser,
-      },
+      ...reactRecommended.languageOptions,
+      globals: globals.browser,
     },
-  },
-  {
-    plugins: {
-      "react-hooks": pluginReactHooks,
+    settings: {
+      // Pin the version: `detect` uses the legacy ESLint context API and
+      // crashes on ESLint 10 (`context.getFilename is not a function`).
+      react: { version: "19" },
     },
-    settings: { react: { version: "19" } },
     rules: {
-      ...pluginReactHooks.configs.recommended.rules,
-      "react-hooks/set-state-in-effect": "off",
-      "react/react-in-jsx-scope": "off",
+      ...errorifyRules(reactRecommended.rules),
+      // TypeScript owns prop types.
       "react/prop-types": "off",
     },
   },
-];
+  {
+    ...reactJsxRuntime,
+    name: "workspace/react-jsx-runtime",
+    files: reactFiles,
+  },
+  {
+    ...reactHooksRecommended,
+    name: "workspace/react-hooks",
+    files: reactFiles,
+    rules: errorifyRules(reactHooksRecommended.rules),
+  },
+);
 
-/** @type {import("eslint").Linter.Config} */
-export const config = [...baseConfig, ...reactConfig];
+export const config = defineConfig(
+  baseConfig,
+  reactConfig,
+  eslintConfigPrettier,
+);

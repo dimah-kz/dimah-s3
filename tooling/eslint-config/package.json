@@ -9,9 +9,13 @@
     "./next-js": "./next.js",
     "./react": "./react.js"
   },
+  "scripts": {
+    "lint": "eslint --max-warnings 0"
+  },
   "dependencies": {
     "@eslint/js": "catalog:",
     "@next/eslint-plugin-next": "catalog:",
+    "@vitest/eslint-plugin": "catalog:",
     "eslint-config-prettier": "catalog:",
     "eslint-plugin-react": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",

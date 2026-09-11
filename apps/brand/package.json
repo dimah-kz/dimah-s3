@@ -11,7 +11,7 @@
     "dev": "next dev",
     "start": "next start",
     "check-types": "next typegen && tsc --noEmit",
-    "lint": "eslint"
+    "lint": "eslint --max-warnings 0"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

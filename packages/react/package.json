@@ -52,7 +52,7 @@
   "scripts": {
     "compile:translations": "node ./scripts/compile-translations.mjs",
     "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "check-types": "pnpm compile:translations && tsc --noEmit",
     "test": "vitest run"
   },

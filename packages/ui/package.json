@@ -55,7 +55,7 @@
     "registry:check": "tsx scripts/check-registry-items.ts",
     "registry:validate": "pnpm registry:items && pnpm registry:check && shadcn registry validate --cwd ../..",
     "registry:build": "pnpm registry:validate && shadcn build --output apps/docs/public/r --cwd ../..",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json"
   },
   "dependencies": {
