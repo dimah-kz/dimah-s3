@@ -82,10 +82,10 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
     "eslint": "catalog:",
-    "lucide-react": "^1.44.0",
+    "lucide-react": "^1.45.0",
     "react": "catalog:",
     "shadcn": "^4.21.0",
-    "tsc-alias": "^1.9.4",
+    "tsc-alias": "^1.9.5",
     "tsup": "catalog:",
     "tsx": "^4.23.13",
     "typescript": "catalog:"
