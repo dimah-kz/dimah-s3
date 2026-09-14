@@ -213,10 +213,8 @@ function toActiveObject(
         ? input.contentType
         : existing.contentType,
     acl: input.acl !== undefined ? input.acl : existing.acl,
-    filename:
-      input.filename !== undefined ? input.filename : existing.filename,
-    metadata:
-      input.metadata !== undefined ? input.metadata : existing.metadata,
+    filename: input.filename !== undefined ? input.filename : existing.filename,
+    metadata: input.metadata !== undefined ? input.metadata : existing.metadata,
     uploadId: null,
     declaredSize: null,
     expiresAt: null,

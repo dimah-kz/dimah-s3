@@ -53,10 +53,12 @@ function invokeWhere(where: (builder: Record<string, unknown>) => unknown) {
   return { compares, nullChecks };
 }
 
-function createStore(overrides: {
-  returning?: StorageObjectRow;
-  findFirst?: StorageObjectRow | null;
-} = {}) {
+function createStore(
+  overrides: {
+    returning?: StorageObjectRow;
+    findFirst?: StorageObjectRow | null;
+  } = {},
+) {
   const forceReturning = vi.fn(async () => overrides.returning ?? row());
   const upsert = vi.fn(() => ({ forceReturning }));
   const findFirst = vi.fn(async () =>
