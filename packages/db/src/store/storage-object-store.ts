@@ -114,10 +114,16 @@ export function toPendingMultipartResume(
 
 /** Data-access layer for the `storage_object` table. */
 export type StorageObjectStore = {
-  /** Insert or reset a row to `pending` (presign / multipart init). */
-  upsertPending: (input: UpsertPendingInput) => Promise<void>;
-  /** Promote a pending row to `active` with verified fields (confirm / complete). */
-  markActive: (input: MarkActiveInput) => Promise<void>;
+  /**
+   * Insert or reset a row to `pending` (presign / multipart init).
+   * Returns the written row.
+   */
+  upsertPending: (input: UpsertPendingInput) => Promise<StorageObject>;
+  /**
+   * Promote a pending row to `active` with verified fields (confirm / complete).
+   * Also refreshes an already-active row (overwrite). Returns the active row.
+   */
+  markActive: (input: MarkActiveInput) => Promise<StorageObject>;
   /** Load one row by `bucket` + `key` (any status). */
   find: (ref: ObjectRef) => Promise<StorageObject | null>;
   /** Load one row by scope + key (any status). */
@@ -174,6 +180,52 @@ function toBigInt(value: number | null | undefined): bigint | null {
     : BigInt(Math.trunc(value));
 }
 
+function confirmedFields(input: MarkActiveInput, now: Date) {
+  return {
+    size: toBigInt(input.size),
+    eTag: input.eTag ?? null,
+    ...(input.contentType !== undefined && {
+      contentType: input.contentType,
+    }),
+    ...(input.acl !== undefined && { acl: input.acl }),
+    ...(input.filename !== undefined && { filename: input.filename }),
+    ...(input.metadata !== undefined && { metadata: input.metadata }),
+    uploadId: null,
+    declaredSize: null,
+    expiresAt: null,
+    confirmedAt: now,
+    updatedAt: now,
+  };
+}
+
+function toActiveObject(
+  existing: StorageObject,
+  input: MarkActiveInput,
+  now: Date,
+): StorageObject {
+  return {
+    ...existing,
+    status: "active",
+    size: input.size,
+    eTag: input.eTag ?? null,
+    contentType:
+      input.contentType !== undefined
+        ? input.contentType
+        : existing.contentType,
+    acl: input.acl !== undefined ? input.acl : existing.acl,
+    filename:
+      input.filename !== undefined ? input.filename : existing.filename,
+    metadata:
+      input.metadata !== undefined ? input.metadata : existing.metadata,
+    uploadId: null,
+    declaredSize: null,
+    expiresAt: null,
+    confirmedAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  };
+}
+
 /** Create a store bound to schema v1 (`db.orm("1.0.0")`). */
 export function createStorageObjectStore(
   db: DimahS3DbClient,
@@ -199,16 +251,20 @@ export function createStorageObjectStore(
         confirmedAt: null,
         deletedAt: null,
       };
-      await orm.upsert("storageObject", {
-        where: (b) =>
-          b.and(b("bucket", "=", input.bucket), b("key", "=", input.key)),
-        update: { ...pendingFields, updatedAt: now },
-        create: {
-          ...pendingFields,
-          bucket: input.bucket,
-          key: input.key,
-        },
-      });
+      const row = await orm
+        .upsert("storageObject", {
+          where: (b) =>
+            b.and(b("bucket", "=", input.bucket), b("key", "=", input.key)),
+          update: { ...pendingFields, updatedAt: now },
+          create: {
+            ...pendingFields,
+            bucket: input.bucket,
+            key: input.key,
+            updatedAt: now,
+          },
+        })
+        .forceReturning();
+      return mapStorageObjectRow(row);
     },
 
     async markActive(input) {
@@ -217,6 +273,7 @@ export function createStorageObjectStore(
         throw notFound("No pending object to confirm");
       }
       const now = new Date();
+      const fields = confirmedFields(input, now);
       if (existing.status === "active") {
         await orm.updateMany("storageObject", {
           where: (b) =>
@@ -225,23 +282,9 @@ export function createStorageObjectStore(
               b("key", "=", input.key),
               b("status", "=", "active"),
             ),
-          set: {
-            size: toBigInt(input.size),
-            eTag: input.eTag ?? null,
-            ...(input.contentType !== undefined && {
-              contentType: input.contentType,
-            }),
-            ...(input.acl !== undefined && { acl: input.acl }),
-            ...(input.filename !== undefined && { filename: input.filename }),
-            ...(input.metadata !== undefined && { metadata: input.metadata }),
-            uploadId: null,
-            declaredSize: null,
-            expiresAt: null,
-            confirmedAt: now,
-            updatedAt: now,
-          },
+          set: fields,
         });
-        return;
+        return toActiveObject(existing, input, now);
       }
       if (existing.status !== "pending") {
         throw conflict("Object is not pending confirmation");
@@ -254,23 +297,12 @@ export function createStorageObjectStore(
             b("status", "=", "pending"),
           ),
         set: {
-          status: "active",
-          size: toBigInt(input.size),
-          eTag: input.eTag ?? null,
-          ...(input.contentType !== undefined && {
-            contentType: input.contentType,
-          }),
-          ...(input.acl !== undefined && { acl: input.acl }),
-          ...(input.filename !== undefined && { filename: input.filename }),
-          ...(input.metadata !== undefined && { metadata: input.metadata }),
-          uploadId: null,
-          declaredSize: null,
-          expiresAt: null,
-          confirmedAt: now,
+          status: "active" as const,
+          ...fields,
           deletedAt: null,
-          updatedAt: now,
         },
       });
+      return toActiveObject(existing, input, now);
     },
 
     async find(ref) {
@@ -310,19 +342,17 @@ export function createStorageObjectStore(
     },
 
     async findPendingMultipart(input) {
-      const object = await store.find({
-        bucket: input.bucket,
-        key: input.key,
+      const row = await orm.findFirst("storageObject", {
+        where: (b) =>
+          b.and(
+            b("bucket", "=", input.bucket),
+            b("key", "=", input.key),
+            b("status", "=", "pending"),
+            b.isNotNull("uploadId"),
+            b("declaredSize", "=", BigInt(Math.trunc(input.fileSize))),
+          ),
       });
-      if (
-        !object ||
-        object.status !== "pending" ||
-        object.uploadId == null ||
-        object.declaredSize !== input.fileSize
-      ) {
-        return null;
-      }
-      return object;
+      return row ? mapStorageObjectRow(row) : null;
     },
 
     async listByScope(input) {

@@ -25,8 +25,10 @@ through `resolveScope(request)`:
 
 ## Lifecycle behavior by operation
 
-- **Upload** — Inserts a new row with `status: "pending"`.
-- **Upload confirmation** — Verifies `pending` state, records verified `contentLength` from `HeadObject`, and transitions status to `"active"`.
+- **Upload** — Upserts a `pending` row on presign / multipart init.
+- **Upload confirmation** — Verifies `pending` state (or refreshes an
+  already-active overwrite), records verified `contentLength` from
+  `HeadObject`, and returns the `active` row.
 - **Download** — Enforces that the object has `status: "active"` and matches the caller's scope.
 - **Delete** — Runs S3 `DeleteObjectCommand`, then updates row status to `"deleted"` (soft delete) or removes it (hard delete).
 

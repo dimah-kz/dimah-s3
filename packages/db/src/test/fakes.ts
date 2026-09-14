@@ -33,8 +33,8 @@ export function fakeStore(
   overrides: Partial<StorageObjectStore> = {},
 ): StorageObjectStore {
   return {
-    upsertPending: vi.fn(async () => {}),
-    markActive: vi.fn(async () => {}),
+    upsertPending: vi.fn(async () => sampleObject({ status: "pending" })),
+    markActive: vi.fn(async () => sampleObject({ status: "active" })),
     find: vi.fn(async () => null),
     findByScopeKey: vi.fn(async () => null),
     findActive: vi.fn(async () => null),

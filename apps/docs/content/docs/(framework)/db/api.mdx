@@ -34,6 +34,20 @@ const pending = await s3.db.objects.findPendingMultipart({
   key: ref.key,
   fileSize: 1024000,
 });
+
+const written = await s3.db.objects.upsertPending({
+  scope,
+  bucket: ref.bucket,
+  key: ref.key,
+  route: "avatar",
+  declaredSize: 1024000,
+});
+
+const active = await s3.db.objects.markActive({
+  bucket: ref.bucket,
+  key: ref.key,
+  size: 1024000,
+});
 ```
 
 ### StorageObjectStore
