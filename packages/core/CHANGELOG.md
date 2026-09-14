@@ -1,3 +1,17 @@
+## @dimah-s3/core@1.5.7
+
+### Return written rows from pending upsert and confirm
+
+`s3.db.objects.upsertPending()` now returns the written `storage_object` row
+via FumaDB `upsert().forceReturning()`. `markActive()` returns the active row
+after confirm, including overwrite of an already-active object.
+
+Callers no longer need a follow-up `find` after presign, multipart init, or
+confirm. Multipart resume lookup (`findPendingMultipart`) is a single query.
+
+If you implement a custom `StorageObjectStore`, return those records from
+`upsertPending` and `markActive` instead of `void`.
+
 ## @dimah-s3/core@1.5.6
 
 ### Zod 4.6
