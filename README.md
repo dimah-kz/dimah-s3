@@ -13,16 +13,6 @@ Works with Amazon S3, Cloudflare R2, MinIO, and other S3-compatible stores.
 Presign flows only. Anything else stays in your own backend with
 [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3).
 
-## Packages
-
-| Package            | Role                               |
-| ------------------ | ---------------------------------- |
-| `@dimah-s3/core`   | Shared client + protocol           |
-| `@dimah-s3/server` | Presign handlers + lifecycle hooks |
-| `@dimah-s3/react`  | Headless hooks                     |
-| `@dimah-s3/ui`     | Optional shadcn UI                 |
-| `@dimah-s3/db`     | Optional DB tracking               |
-| `@dimah-s3/cli`    | Scaffold official starters         |
 
 ## Docs
 
@@ -33,7 +23,7 @@ Presign flows only. Anything else stays in your own backend with
 ## Create an app
 
 ```bash
-npx @dimah-s3/cli@latest create my-app
+npx @dimah-s3/cli create 
 ```
 
 ## License
