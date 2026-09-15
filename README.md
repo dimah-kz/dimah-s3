@@ -21,12 +21,6 @@ Presign flows only. Anything else stays in your own backend with
 [Comparison](https://s3.dimah.dev/docs/comparison) ·
 [llms.txt](https://s3.dimah.dev/llms.txt) (coding agents)
 
-## Create an app
-
-```bash
-npx @dimah-s3/cli create
-```
-
 ## License
 
 MIT
