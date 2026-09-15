@@ -39,14 +39,19 @@ export function isInteractive(): boolean {
 /**
  * Await a Clack prompt and turn cancellation (Ctrl+C) into a `CliError` so the
  * caller never has to narrow the cancel symbol out of the result.
+ *
+ * Clack 1.8.1+ types cancel as `typeof CANCEL_SYMBOL`, not `symbol`. `T | symbol`
+ * infers `T` as the whole union, so callers still see the cancel sentinel.
  */
-export async function ask<T>(prompt: Promise<T | symbol>): Promise<T> {
+export async function ask<T>(
+  prompt: Promise<T | typeof p.CANCEL_SYMBOL>,
+): Promise<T> {
   const value = await prompt;
   if (p.isCancel(value)) {
     p.cancel("Operation cancelled.");
     throw new CliError("Cancelled", EXIT_CANCEL);
   }
-  return value as T;
+  return value;
 }
 
 export { p };
