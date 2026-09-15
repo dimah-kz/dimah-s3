@@ -1,10 +1,9 @@
 # dimah-s3
 
-[![npm](https://img.shields.io/npm/v/@dimah-s3/server?style=flat&colorA=000000&colorB=000000)](https://www.npmjs.com/package/@dimah-s3/server)
-[![stars](https://img.shields.io/github/stars/dimah-kz/dimah-s3?style=flat&colorA=000000&colorB=000000)](https://github.com/dimah-kz/dimah-s3)
-[![license](https://img.shields.io/github/license/dimah-kz/dimah-s3?style=flat&colorA=000000&colorB=000000)](LICENSE)
-
-[Docs](https://s3.dimah.dev/docs) · [Issues](https://github.com/dimah-kz/dimah-s3/issues)
+[![npm](https://img.shields.io/npm/v/@dimah-s3/server?style=flat&logo=npm&logoColor=white&colorA=000000&colorB=000000)](https://www.npmjs.com/package/@dimah-s3/server)
+[![stars](https://img.shields.io/github/stars/dimah-kz/dimah-s3?style=flat&logo=github&logoColor=white&colorA=000000&colorB=000000)](https://github.com/dimah-kz/dimah-s3)
+[![license](https://img.shields.io/github/license/dimah-kz/dimah-s3?style=flat&logo=opensourceinitiative&logoColor=white&colorA=000000&colorB=000000)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-s3.dimah.dev-000000?style=flat&logo=gitbook&logoColor=white&colorA=000000&colorB=000000)](https://s3.dimah.dev/docs)
 
 **Full-stack S3 toolkit for the React ecosystem.**
 
