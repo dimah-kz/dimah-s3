@@ -75,9 +75,9 @@
     }
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1131.0",
+    "@aws-sdk/client-s3": "^3.1133.0",
     "@dimah-s3/server": "workspace:*",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.1",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",
