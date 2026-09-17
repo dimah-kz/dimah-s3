@@ -25,17 +25,17 @@
     "sveltekit",
     "typescript"
   ],
-  "author": "Hamidrezakz",
-  "license": "MIT",
+  "homepage": "https://s3.dimah.dev/docs/server",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/server"
   },
-  "homepage": "https://s3.dimah.dev/docs/server",
-  "bugs": {
-    "url": "https://github.com/dimah-kz/dimah-s3/issues"
-  },
+  "license": "MIT",
+  "author": "dimah",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -85,8 +85,8 @@
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
-    "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
@@ -96,12 +96,9 @@
     "better-call": "catalog:",
     "zod": "catalog:"
   },
-  "peerDependencies": {
-    "@aws-sdk/client-s3": ">=3"
-  },
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.1133.0",
-    "@types/node": "^26.6.1",
+    "@types/node": "catalog:",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",
@@ -110,6 +107,9 @@
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-s3": ">=3"
   },
   "publishConfig": {
     "access": "public"

@@ -47,8 +47,8 @@ export function syncShadcn(opts = {}) {
 
   if (!opts.skipFormat) {
     blank();
-    // Scope to this package — repo-wide prettier can fail on missing
-    // app CSS paths referenced by prettier-plugin-tailwindcss.
+    // Scope to this package — a repo-wide prettier pass is too broad for a
+    // shadcn component refresh.
     formatRepo({
       cwd: repoRoot,
       paths: [

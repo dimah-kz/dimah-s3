@@ -62,7 +62,7 @@ function resolveLocalTarget(fromFile, specifier) {
 }
 
 function toAliasPath(absPath) {
-  let rel = relative(srcRoot, absPath).replace(/\\/g, "/");
+  let rel = relative(srcRoot, absPath).replaceAll("\\", "/");
   rel = rel.replace(/\.(tsx?|mts|cts|jsx?|mjs|cjs)$/, "");
   rel = rel.replace(/\/index$/, "");
   return rel.length > 0 ? `@/${rel}` : "@";
@@ -83,8 +83,8 @@ function rewriteImports(content, fromFile) {
     return `${prefix}${toAliasPath(target)}${suffix}`;
   };
 
-  const withFrom = content.replace(fromPattern, rewrite);
-  return withFrom.replace(sideEffectPattern, rewrite);
+  const withFrom = content.replaceAll(fromPattern, rewrite);
+  return withFrom.replaceAll(sideEffectPattern, rewrite);
 }
 
 const files = walk(srcRoot);

@@ -1,8 +1,8 @@
 import type { DimahS3PluginHooks } from "@dimah-s3/server";
 import { forbidden, unauthorized } from "@/errors";
-import {
-  type DimahS3DbClient,
-  type StorageObjectStore,
+import type {
+  DimahS3DbClient,
+  StorageObjectStore,
 } from "@/store/storage-object-store";
 import type { ScopeResolver } from "@/types/storage-object";
 import {

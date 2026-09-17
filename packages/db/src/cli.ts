@@ -1,6 +1,6 @@
 import { createCli } from "fumadb/cli";
 import type { InferFumaDB } from "fumadb";
-import { DimahS3DB } from "./fuma-db";
+import type { DimahS3DB } from "./fuma-db";
 
 declare const __DIMAH_S3_DB_VERSION__: string;
 

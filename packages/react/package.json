@@ -23,17 +23,17 @@
     "headless",
     "typescript"
   ],
-  "author": "Hamidrezakz",
-  "license": "MIT",
+  "homepage": "https://s3.dimah.dev/docs/react",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/react"
   },
-  "homepage": "https://s3.dimah.dev/docs/react",
-  "bugs": {
-    "url": "https://github.com/dimah-kz/dimah-s3/issues"
-  },
+  "license": "MIT",
+  "author": "dimah",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -50,10 +50,10 @@
     "dist"
   ],
   "scripts": {
-    "compile:translations": "node ./scripts/compile-translations.mjs",
     "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
-    "lint": "eslint --max-warnings 0",
     "check-types": "pnpm compile:translations && tsc --noEmit",
+    "compile:translations": "node ./scripts/compile-translations.mjs",
+    "lint": "eslint --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
@@ -61,10 +61,6 @@
     "@fuma-translate/react": "^1.0.2",
     "immer": "^11.1.18",
     "react-dropzone": "^20.1.2"
-  },
-  "peerDependencies": {
-    "@fuma-translate/react": "^1.0.2",
-    "react": ">=18"
   },
   "devDependencies": {
     "@types/react": "catalog:",
@@ -81,6 +77,10 @@
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "@fuma-translate/react": "^1.0.2",
+    "react": ">=18"
   },
   "publishConfig": {
     "access": "public"

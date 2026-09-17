@@ -21,7 +21,7 @@ function Arrow({ className }: { className?: string }) {
       aria-hidden
       viewBox="0 0 24 24"
       className={cn(
-        "size-4 shrink-0 justify-self-center self-center text-fd-muted-foreground/45",
+        "size-4 shrink-0 self-center justify-self-center text-fd-muted-foreground/45",
         "my-1 rotate-90 @sm:mx-0.5 @sm:my-0 @sm:rotate-0 @sm:rtl:rotate-180",
         className,
       )}
@@ -48,7 +48,7 @@ export function Flow({
   const wide = steps.length > 2;
 
   return (
-    <figure className="@container not-prose my-6 rounded-xl border bg-fd-muted/40 p-4">
+    <figure className="not-prose @container my-6 rounded-xl border bg-fd-muted/40 p-4">
       <figcaption className="mb-3 text-xs font-medium text-fd-muted-foreground">
         {label}
       </figcaption>

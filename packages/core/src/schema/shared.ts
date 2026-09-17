@@ -20,7 +20,7 @@ export const S3_MAX_PART_NUMBER = 10_000;
 export const S3_MAX_METADATA_ENTRIES = 32;
 
 /** Named file-route identifier (`avatars`, `uploads`, …). */
-export const ROUTE_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/;
+export const ROUTE_NAME_PATTERN = /^[a-z][\w-]{0,63}$/i;
 
 /** Non-empty trimmed string. */
 export const trimmedString = z.string().trim().min(1);
@@ -64,7 +64,7 @@ export const s3ObjectAclSchema = z.enum(["private", "public-read"]);
  */
 export const sha256ChecksumSchema = z.stringFormat(
   "sha256-base64",
-  /^[A-Za-z0-9+/]{43}=?$/,
+  /^[A-Z0-9+/]{43}=?$/i,
 );
 
 /** Optional checksum; blank / whitespace-only values are omitted. */

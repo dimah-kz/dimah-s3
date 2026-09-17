@@ -56,7 +56,7 @@ export async function finalizeConfirmedObject(
       ...stored,
       contentType: head.ContentType,
       contentLength,
-      eTag: head.ETag?.replace(/"/g, ""),
+      eTag: head.ETag?.replaceAll('"', ""),
       metadata,
       acl,
       fileName,

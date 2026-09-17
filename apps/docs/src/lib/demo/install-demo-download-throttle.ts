@@ -16,7 +16,7 @@ function requestSignal(input: RequestInfo | URL, init?: RequestInit) {
 }
 
 function safeFileName(name: string) {
-  return name.replace(/[^\w.\-() ]+/g, "_");
+  return name.replaceAll(/[^\w.\-() ]+/g, "_");
 }
 
 function throttledFileResponse(file: File, signal?: AbortSignal) {

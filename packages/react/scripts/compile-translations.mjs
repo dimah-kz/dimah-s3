@@ -19,8 +19,8 @@ function walk(dir, acc = []) {
       walk(path, acc);
       continue;
     }
-    if (/\.(tsx|ts)$/.test(name) && !name.endsWith(".d.ts")) {
-      acc.push(relative(reactRoot, path).split("\\").join("/"));
+    if (/\.(?:tsx|ts)$/.test(name) && !name.endsWith(".d.ts")) {
+      acc.push(relative(reactRoot, path).replaceAll("\\", "/"));
     }
   }
   return acc;

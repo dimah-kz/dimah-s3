@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "vite build",
+    "check-types": "tsc --noEmit",
     "dev": "concurrently -k -n web,api -c green,blue \"npm:dev:web\" \"npm:dev:api\"",
     "dev:api": "tsx watch --env-file=.env src/server.ts",
     "dev:web": "vite",
-    "build": "vite build",
-    "start": "tsx --env-file=.env src/server.ts",
-    "check-types": "tsc --noEmit"
+    "start": "tsx --env-file=.env src/server.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1132.0",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",

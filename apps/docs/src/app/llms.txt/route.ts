@@ -19,7 +19,10 @@ export function GET() {
     absolutizeMarkdownUrls(
       source
         .getPageTree()
-        .children.map((node) => indexNode(node))
+        .children.map((node) => {
+          const line = indexNode(node);
+          return typeof line === "string" ? line : "";
+        })
         .join("\n"),
       origin,
     ),

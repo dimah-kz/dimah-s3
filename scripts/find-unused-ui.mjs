@@ -18,7 +18,7 @@ function analyze(baseDir, uiDir, srcDirs) {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, ent.name);
       if (ent.isDirectory()) walk(p);
-      else if (/\.(tsx?|mdx)$/.test(ent.name)) findImports(p);
+      else if (/\.(?:tsx?|mdx)$/.test(ent.name)) findImports(p);
     }
   }
 
@@ -27,7 +27,7 @@ function analyze(baseDir, uiDir, srcDirs) {
   let changed = true;
   while (changed) {
     changed = false;
-    for (const name of [...keep]) {
+    for (const name of keep) {
       const fp = path.join(uiDir, `${name}.tsx`);
       if (!fs.existsSync(fp)) continue;
       const content = fs.readFileSync(fp, "utf8");

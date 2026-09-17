@@ -2,6 +2,7 @@
 
 import { defineConfig } from "eslint/config";
 import eslintConfigPrettier from "eslint-config-prettier/flat";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
@@ -34,6 +35,9 @@ export const reactConfig = defineConfig(
       ...errorifyRules(reactRecommended.rules),
       // TypeScript owns prop types.
       "react/prop-types": "off",
+      "react/jsx-no-useless-fragment": ["error", { allowExpressions: true }],
+      "react/no-unstable-nested-components": ["error", { allowAsProps: true }],
+      "react/self-closing-comp": "error",
     },
   },
   {
@@ -46,6 +50,12 @@ export const reactConfig = defineConfig(
     name: "workspace/react-hooks",
     files: reactFiles,
     rules: errorifyRules(reactHooksRecommended.rules),
+  },
+  {
+    ...jsxA11y.flatConfigs.recommended,
+    name: "workspace/jsx-a11y",
+    files: reactFiles,
+    rules: errorifyRules(jsxA11y.flatConfigs.recommended.rules),
   },
 );
 

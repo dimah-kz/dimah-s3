@@ -20,7 +20,7 @@ const PROTOCOL = [
 describe("core protocol", () => {
   it("registers every core endpoint name", () => {
     expect([...CORE_ENDPOINT_NAMES].sort()).toEqual(
-      [...PROTOCOL.map(([name]) => name)].sort(),
+      PROTOCOL.map(([name]) => name).sort(),
     );
   });
 

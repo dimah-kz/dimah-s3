@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "check-types": "next typegen && tsc --noEmit",
+    "dev": "next dev",
     "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "start": "next start"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1133.0",
@@ -29,7 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.6.1",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:*",

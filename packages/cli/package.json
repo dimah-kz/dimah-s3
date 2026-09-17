@@ -17,38 +17,32 @@
     "hono",
     "file-upload"
   ],
-  "author": "Hamidrezakz",
-  "license": "MIT",
+  "homepage": "https://s3.dimah.dev/docs/quickstart",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://s3.dimah.dev/docs/quickstart",
-  "bugs": {
-    "url": "https://github.com/dimah-kz/dimah-s3/issues"
-  },
+  "license": "MIT",
+  "author": "dimah",
   "type": "module",
-  "bin": {
-    "dimah-s3": "./dist/index.js"
-  },
   "exports": {
     ".": "./dist/index.js"
+  },
+  "bin": {
+    "dimah-s3": "./dist/index.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts && node ./scripts/snapshot-templates.mjs",
-    "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0",
     "test": "vitest run"
-  },
-  "engines": {
-    "node": ">=20.19"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
@@ -59,7 +53,7 @@
     "validate-npm-package-name": "^8.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.1",
+    "@types/node": "catalog:",
     "@types/validate-npm-package-name": "^4.0.2",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
@@ -68,5 +62,11 @@
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

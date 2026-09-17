@@ -1,4 +1,4 @@
-import { S3_ERROR_CODES } from "@dimah-s3/core";
+import { S3_ERROR_CODES, type ConfirmedObjectResponse } from "@dimah-s3/core";
 import { putObject, type PutObjectInput } from "./put";
 import {
   applyPlugins,
@@ -61,9 +61,7 @@ export type DimahS3<
   /**
    * Server-side upload through the same route policy as presign + confirm.
    */
-  put: (
-    input: PutObjectInput,
-  ) => Promise<import("@dimah-s3/core").ConfirmedObjectResponse>;
+  put: (input: PutObjectInput) => Promise<ConfirmedObjectResponse>;
 } & C;
 
 /**

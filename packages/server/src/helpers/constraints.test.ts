@@ -7,7 +7,7 @@ import {
 } from "./constraints";
 
 function expectCode(run: () => void, code: string) {
-  expect(run).toThrowError(expect.objectContaining({ code }));
+  expect(run).toThrow(expect.objectContaining({ code }));
 }
 
 describe("assertWithinMaxFileSize", () => {

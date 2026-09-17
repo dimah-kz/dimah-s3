@@ -73,7 +73,7 @@ function listFiles(dir, base = dir) {
 function hashFile(filePath) {
   const buf = readFileSync(filePath);
   // Normalize CRLF so Windows checkouts do not false-positive.
-  const normalized = buf.toString("utf8").replace(/\r\n/g, "\n");
+  const normalized = buf.toString("utf8").replaceAll("\r\n", "\n");
   return createHash("sha256").update(normalized).digest("hex");
 }
 

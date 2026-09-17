@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint --max-warnings 0",
     "check-types": "next typegen && tsc --noEmit",
-    "db:schema": "node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts",
-    "db:push": "drizzle-kit push",
     "db:cli": "node --import tsx scripts/db-cli.mts",
-    "db:purge-stale": "node --import tsx --env-file-if-exists=.env scripts/purge-stale-pending.mts"
+    "db:purge-stale": "node --import tsx --env-file-if-exists=.env scripts/purge-stale-pending.mts",
+    "db:push": "drizzle-kit push",
+    "db:schema": "node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts",
+    "dev": "next dev",
+    "lint": "eslint --max-warnings 0",
+    "start": "next start"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1133.0",
@@ -39,7 +39,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/better-sqlite3": "^9.6.0",
-    "@types/node": "^26.6.1",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:*",

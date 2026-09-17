@@ -18,17 +18,17 @@
     "fumadb",
     "typescript"
   ],
-  "author": "Hamidrezakz",
-  "license": "MIT",
+  "homepage": "https://s3.dimah.dev/docs/db",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/db"
   },
-  "homepage": "https://s3.dimah.dev/docs/db",
-  "bugs": {
-    "url": "https://github.com/dimah-kz/dimah-s3/issues"
-  },
+  "license": "MIT",
+  "author": "dimah",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -51,8 +51,8 @@
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
-    "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
@@ -60,6 +60,20 @@
     "@paralleldrive/cuid2": "^3.3.0",
     "fumadb": "^0.6.0",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1133.0",
+    "@dimah-s3/server": "workspace:*",
+    "@types/node": "catalog:",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "eslint": "catalog:",
+    "tsc-alias": "^1.9.5",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@aws-sdk/client-s3": ">=3",
@@ -73,20 +87,6 @@
     "drizzle-orm": {
       "optional": true
     }
-  },
-  "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1133.0",
-    "@dimah-s3/server": "workspace:*",
-    "@types/node": "^26.6.1",
-    "@workspace/eslint-config": "workspace:*",
-    "@workspace/typescript-config": "workspace:*",
-    "@workspace/vitest-config": "workspace:*",
-    "drizzle-orm": "^0.45.2",
-    "eslint": "catalog:",
-    "tsc-alias": "^1.9.5",
-    "tsup": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
   },
   "publishConfig": {
     "access": "public"

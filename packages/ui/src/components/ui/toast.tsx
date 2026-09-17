@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import type * as React from "react";
 import { Toast as ToastPrimitive } from "@base-ui/react/toast";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";

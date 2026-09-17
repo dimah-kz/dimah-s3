@@ -95,7 +95,7 @@ export function ProgressDownloadButton({
       download.cancel();
       return;
     }
-    download.download(objectKey, fileName);
+    void download.download(objectKey, fileName);
   };
 
   const computedPercentFromFileSize =

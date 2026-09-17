@@ -23,7 +23,7 @@ export function PlaygroundOptionTabs<T extends string>({
       onValueChange={(next) => onChange(next as T)}
       className="w-full"
     >
-      <TabsList className="flex gap-3.5 overflow-x-auto px-1 text-fd-secondary-foreground not-prose">
+      <TabsList className="not-prose flex gap-3.5 overflow-x-auto px-1 text-fd-secondary-foreground">
         <span className="my-auto me-auto text-sm font-medium text-fd-foreground">
           {label}
         </span>

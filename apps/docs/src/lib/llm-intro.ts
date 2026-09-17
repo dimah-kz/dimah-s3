@@ -37,7 +37,7 @@ export const llmMarkdownHeaders = {
 } as const;
 
 export function absolutizeMarkdownUrls(markdown: string, origin: string) {
-  return markdown.replace(/\]\(\//g, `](${origin}/`);
+  return markdown.replaceAll("](/", `](${origin}/`);
 }
 
 /**
@@ -47,14 +47,14 @@ export function absolutizeMarkdownUrls(markdown: string, origin: string) {
 export function toMarkdownTwinUrls(markdown: string, origin: string) {
   const docsBase = `${origin}${docsRoute}`;
 
-  return markdown.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    (full, title: string, url: string) => {
-      if (!url.startsWith(docsBase)) return full;
-      if (/\.(md|mdx|txt)$/i.test(url)) return full;
-      return `[${title}](${url}.md)`;
-    },
-  );
+  return markdown.replaceAll(/\[[^\]]+\]\([^)]+\)/g, (full) => {
+    const splitAt = full.indexOf("](");
+    const title = full.slice(1, splitAt);
+    const url = full.slice(splitAt + 2, -1);
+    if (!url.startsWith(docsBase)) return full;
+    if (/\.(?:md|mdx|txt)$/i.test(url)) return full;
+    return `[${title}](${url}.md)`;
+  });
 }
 
 export function llmDecisionSheet(): string {

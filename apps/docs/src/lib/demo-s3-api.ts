@@ -23,7 +23,7 @@ async function removeDemoKey(key: string) {
 type DemoS3Api = S3Api & { uploadTransport: typeof simulateDemoUpload };
 
 function demoKey(route: string, fileName: string) {
-  const safe = fileName.replace(/[^a-zA-Z0-9._-]+/g, "_") || "file";
+  const safe = fileName.replaceAll(/[^\w.-]+/g, "_") || "file";
   return `${route}/${crypto.randomUUID()}/${safe}`;
 }
 

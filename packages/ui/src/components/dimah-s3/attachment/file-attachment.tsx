@@ -87,7 +87,6 @@ export function FileAttachment({
       : typeof error === "string"
         ? error
         : formatError(error);
-  const hasPreview = Boolean(previewUrl);
   const progress = PROGRESS_BY_SIZE[size];
 
   const resolvedDescription =
@@ -139,9 +138,9 @@ export function FileAttachment({
         className,
       )}
     >
-      {hasPreview ? (
+      {previewUrl ? (
         <AttachmentMedia variant="image">
-          <img src={previewUrl!} alt="" />
+          <img src={previewUrl} alt="" />
           {mediaOverlay}
         </AttachmentMedia>
       ) : (

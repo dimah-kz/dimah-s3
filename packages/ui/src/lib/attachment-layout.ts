@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Attachment } from "@/components/ui/attachment";
+import type { Attachment } from "@/components/ui/attachment";
 
 /**
  * Attachment layout/state types — derived from stock shadcn {@link Attachment}

@@ -125,7 +125,11 @@ describe("createS3Client protocol", () => {
       ...uploadBody,
       headers: { Authorization: "secret" },
     });
-    expect(JSON.parse(String(calls[0]?.init.body))).toEqual(uploadBody);
+    const body = calls[0]?.init.body;
+    if (typeof body !== "string") {
+      throw new TypeError("expected JSON string body");
+    }
+    expect(JSON.parse(body)).toEqual(uploadBody);
   });
 
   it("sanitizes download fileName and forwards the route", async () => {

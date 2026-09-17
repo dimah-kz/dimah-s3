@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUpload } from "./use-upload";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
-import { uploadFiles } from "@/upload";
-import type { FileItem } from "@/upload";
+import { uploadFiles, type FileItem } from "@/upload";
+import type * as uploadModule from "@/upload";
 
 vi.mock("./use-file-intake", () => ({
   useFileIntake: () => ({
@@ -19,7 +19,7 @@ vi.mock("./use-file-intake", () => ({
 }));
 
 vi.mock("@/upload", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/upload")>();
+  const actual = await importOriginal<typeof uploadModule>();
   return {
     ...actual,
     uploadFiles: vi.fn(),

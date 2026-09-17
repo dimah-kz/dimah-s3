@@ -10,7 +10,9 @@ export function buildContentDisposition(
   fileName: string,
   type: ContentDispositionType = "attachment",
 ): string {
-  const ascii = fileName.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+  const ascii = fileName
+    .replaceAll(/[^\x20-\x7E]/g, "_")
+    .replaceAll(/["\\]/g, "_");
   const encoded = encodeURIComponent(fileName);
   return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }

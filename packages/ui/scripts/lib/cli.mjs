@@ -57,7 +57,7 @@ export function parseShadcnOutput(text) {
     }
 
     const fileMatch = lineText.match(
-      /^\s*-\s+(.+\.(?:tsx?|jsx?|css|mjs|cjs))$/i,
+      /^\s*-\s+(\S+\.(?:tsx?|jsx?|css|mjs|cjs))$/i,
     );
     if (fileMatch && mode === "updated") {
       updated.push(normalizePath(fileMatch[1].trim()));
@@ -65,7 +65,11 @@ export function parseShadcnOutput(text) {
     }
     if (fileMatch && mode === "skipped") continue;
 
-    if (/Updating\s+.+\.css/i.test(lineText)) {
+    if (
+      /Updating\s+(?:\S.*|[\t\v\f \xa0\u1680\u2000-\u200a\u202f\u205f\u3000\ufeff])\.css/i.test(
+        lineText,
+      )
+    ) {
       extras.push(
         normalizePath(lineText.replace(/^.*?Updating\s+/i, "").trim()),
       );
@@ -77,7 +81,7 @@ export function parseShadcnOutput(text) {
       /Checking registry|Installing dependencies|Remember to wrap/i.test(
         lineText,
       ) ||
-      /The `?.+`? component has been added/i.test(lineText)
+      /The .+ component has been added/i.test(lineText)
     ) {
       mode = null;
     }
@@ -162,11 +166,11 @@ function line(label, detail) {
 /** @param {string} value */
 function quoteArg(value) {
   if (value.length === 0) return '""';
-  if (/[\s"&<>|^]/.test(value)) return `"${value.replace(/"/g, '\\"')}"`;
+  if (/[\s"&<>|^]/.test(value)) return `"${value.replaceAll('"', '\\"')}"`;
   return value;
 }
 
 /** @param {string} value */
 function normalizePath(value) {
-  return value.replace(/\\/g, "/");
+  return value.replaceAll("\\", "/");
 }

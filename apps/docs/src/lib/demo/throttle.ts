@@ -51,8 +51,13 @@ export async function runTimedDemoTransfer(options: {
       settled = true;
       if (timer != null) clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
-      if (error) reject(error);
-      else resolve();
+      if (error instanceof Error) {
+        reject(error);
+      } else if (error) {
+        reject(new Error("Unknown throttle error"));
+      } else {
+        resolve();
+      }
     };
 
     const onAbort = () => {

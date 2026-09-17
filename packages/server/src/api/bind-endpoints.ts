@@ -1,4 +1,4 @@
-import { type Endpoint } from "better-call";
+import type { Endpoint } from "better-call";
 import type { S3EndpointContext } from "./context";
 import { requestFromHeaders } from "@/helpers";
 

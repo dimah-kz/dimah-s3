@@ -32,7 +32,7 @@ export default function HomePage() {
             id="home-title"
             className={cn(
               enter,
-              "mt-7 max-w-4xl bg-linear-to-b from-fd-foreground from-45% to-fd-foreground/60 bg-clip-text text-balance text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-transparent delay-100 sm:text-5xl lg:max-w-2xl lg:text-[58px]",
+              "mt-7 max-w-4xl bg-linear-to-b from-fd-foreground from-45% to-fd-foreground/60 bg-clip-text text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-balance text-transparent delay-100 sm:text-5xl lg:max-w-2xl lg:text-[58px]",
             )}
           >
             {siteTagline}
@@ -41,7 +41,7 @@ export default function HomePage() {
           <p
             className={cn(
               enter,
-              "mt-6 max-w-xl text-pretty text-base leading-7 text-fd-muted-foreground delay-150 sm:text-lg sm:leading-8",
+              "mt-6 max-w-xl text-base leading-7 text-pretty text-fd-muted-foreground delay-150 sm:text-lg sm:leading-8",
             )}
           >
             Minimal setup, powered by the AWS SDK (v3).
@@ -113,7 +113,7 @@ export default function HomePage() {
         >
           <div className="relative rounded-[1.75rem] border border-fd-border/80 bg-fd-card/75 p-3 shadow-2xl shadow-fd-foreground/5 backdrop-blur-xl sm:p-4">
             <div className="flex h-8 items-center justify-end px-2">
-              <span className="inline-flex -mt-2 items-center gap-1.5 rounded-full border border-fd-border/70 bg-fd-background/60 px-2 py-0.5 font-mono text-[0.625rem] font-medium tracking-wider text-fd-muted-foreground uppercase">
+              <span className="-mt-2 inline-flex items-center gap-1.5 rounded-full border border-fd-border/70 bg-fd-background/60 px-2 py-0.5 font-mono text-[0.625rem] font-medium tracking-wider text-fd-muted-foreground uppercase">
                 <span
                   aria-hidden
                   className="size-1.5 rounded-full bg-fd-primary"

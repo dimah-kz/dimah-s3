@@ -11,17 +11,17 @@
     "protocol",
     "typescript"
   ],
-  "author": "Hamidrezakz",
-  "license": "MIT",
+  "homepage": "https://s3.dimah.dev/docs/core",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/core"
   },
-  "homepage": "https://s3.dimah.dev/docs/core",
-  "bugs": {
-    "url": "https://github.com/dimah-kz/dimah-s3/issues"
-  },
+  "license": "MIT",
+  "author": "dimah",
   "sideEffects": false,
   "type": "module",
   "exports": {
@@ -35,8 +35,8 @@
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
-    "lint": "eslint --max-warnings 0",
     "check-types": "tsc --noEmit",
+    "lint": "eslint --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {

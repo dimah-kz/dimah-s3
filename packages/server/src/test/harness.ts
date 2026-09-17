@@ -3,6 +3,7 @@ import { S3_API_BASE_PATH, type S3ErrorCode } from "@dimah-s3/core";
 import { expect, vi } from "vitest";
 import { dimahS3 } from "@/dimah-s3";
 import { route } from "@/route";
+import type { DimahS3Plugin } from "@/plugin/types";
 import type { DimahS3Config, DimahS3RouteConfig } from "@/types";
 
 export type TestS3 = ReturnType<typeof dimahS3>;
@@ -65,9 +66,9 @@ export function allFeaturesRoute(overrides: DimahS3RouteConfig = {}) {
   });
 }
 
-export function createInstance(
-  overrides: Partial<DimahS3Config> & {
-    plugins?: DimahS3Config["plugins"];
+export function createInstance<const P extends readonly DimahS3Plugin[] = []>(
+  overrides: Partial<Omit<DimahS3Config, "plugins">> & {
+    plugins?: P;
   } = {},
 ) {
   const { client, routes, ...rest } = overrides;

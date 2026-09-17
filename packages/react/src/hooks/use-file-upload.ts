@@ -434,9 +434,9 @@ export function useFileUpload(
         if (!isCurrent()) return;
 
         const hasErrors = results.some((r) => r.status === "error");
-        const successResults = results
-          .filter((r) => r.result !== null)
-          .map((r) => r.result!);
+        const successResults = results.flatMap((r) =>
+          r.result === null ? [] : [r.result],
+        );
 
         patch((draft) => {
           draft.phase = hasErrors ? "error" : "success";

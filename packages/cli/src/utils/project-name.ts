@@ -2,14 +2,14 @@ import validateNpmPackageName from "validate-npm-package-name";
 
 import { CliError } from "./errors.js";
 
-const INVALID_CHARS = /[^a-z0-9._-]+/gi;
+const INVALID_CHARS = /[^\w.-]+/g;
 
 /** Turn a path/dir fragment into a reasonable npm package name. */
 export function sanitizeProjectName(input: string): string {
   const base =
-    input.trim().replace(/\\/g, "/").split("/").filter(Boolean).at(-1) ?? "";
-  const lowered = base.toLowerCase().replace(INVALID_CHARS, "-");
-  const trimmed = lowered.replace(/^[-._]+|[-._]+$/g, "");
+    input.trim().replaceAll("\\", "/").split("/").findLast(Boolean) ?? "";
+  const lowered = base.toLowerCase().replaceAll(INVALID_CHARS, "-");
+  const trimmed = lowered.replaceAll(/^[-._]+|[-._]+$/g, "");
   return trimmed || "my-app";
 }
 

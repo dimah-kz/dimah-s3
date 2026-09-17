@@ -17,7 +17,7 @@ export function baseOptions(): BaseLayoutProps {
         <span className="flex flex-row items-center gap-1.75">
           <Logo />
           {appName}
-          <span className="ms-0.5 rounded-full border border-fd-border bg-fd-muted/80 px-1.5 py-0.5 text-[11px] font-medium tabular-nums tracking-wide text-fd-muted-foreground">
+          <span className="ms-0.5 rounded-full border border-fd-border bg-fd-muted/80 px-1.5 py-0.5 text-[11px] font-medium tracking-wide text-fd-muted-foreground tabular-nums">
             v{packageVersion}
           </span>
         </span>

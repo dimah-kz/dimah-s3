@@ -1,5 +1,5 @@
 import { APIError as BetterCallAPIError } from "better-call/error";
-import { type S3ErrorCode } from "./error-codes";
+import type { S3ErrorCode } from "./error-codes";
 
 export {
   defineErrorCodes,

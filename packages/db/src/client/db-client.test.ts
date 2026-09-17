@@ -2,10 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 import { createS3Client } from "@dimah-s3/core";
 import { dbClient } from "./db-client";
 
+function requestUrl(input: string | URL | Request): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.href;
+  }
+  return input.url;
+}
+
 describe("dbClient", () => {
   it("lists objects over GET /db/objects", async () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
-      expect(String(input)).toContain("/db/objects");
+      expect(requestUrl(input)).toContain("/db/objects");
       return new Response(
         JSON.stringify({
           scope: "user:1",
@@ -29,7 +39,7 @@ describe("dbClient", () => {
 
   it("loads one object over GET /db/object", async () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
-      expect(String(input)).toContain("/db/object");
+      expect(requestUrl(input)).toContain("/db/object");
       return new Response(
         JSON.stringify({
           object: {

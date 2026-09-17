@@ -11,7 +11,7 @@ import { decodeListCursor } from "./list-cursor";
 /** FumaDB uses `false` as a type-level sentinel for invalid operators. */
 function condition<T>(value: T): Exclude<T, boolean> {
   if (typeof value === "boolean") {
-    throw new Error("[dimah-s3/db] invalid query condition");
+    throw new TypeError("[dimah-s3/db] invalid query condition");
   }
   return value as Exclude<T, boolean>;
 }
@@ -388,8 +388,9 @@ export function createStorageObjectStore(
         offset: parsed ? undefined : input.offset,
       });
       let mapped = rows.map(mapStorageObjectRow);
-      if (input.prefix) {
-        mapped = mapped.filter((row) => row.key.startsWith(input.prefix!));
+      const prefix = input.prefix;
+      if (prefix) {
+        mapped = mapped.filter((row) => row.key.startsWith(prefix));
       }
       return mapped;
     },

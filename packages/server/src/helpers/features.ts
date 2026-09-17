@@ -70,7 +70,7 @@ function skippedPluginIds(plugins: DimahS3RouteConfig["plugins"]): Set<string> {
   const ids = new Set<string>();
   if (!plugins) return ids;
   for (const [id, enabled] of Object.entries(plugins)) {
-    if (enabled === false) ids.add(id);
+    if (!enabled) ids.add(id);
   }
   return ids;
 }

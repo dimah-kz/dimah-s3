@@ -55,7 +55,7 @@ async function handleFile(
         Key: key,
         ResponseContentDisposition: fileName
           ? buildContentDisposition(fileName, disposition)
-          : `${disposition}`,
+          : disposition,
       }),
     ),
   );
@@ -73,9 +73,7 @@ async function handleFile(
   headers.set("Content-Type", result.ContentType ?? "application/octet-stream");
   headers.set(
     "Content-Disposition",
-    fileName
-      ? buildContentDisposition(fileName, disposition)
-      : `${disposition}`,
+    fileName ? buildContentDisposition(fileName, disposition) : disposition,
   );
   if (typeof result.ContentLength === "number") {
     headers.set("Content-Length", String(result.ContentLength));

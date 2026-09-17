@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   applicationName: appName,
   category: "technology",
   keywords: [...siteKeywords],
-  authors: [{ name: "Hamidrezakz", url: "https://github.com/dimah-kz" }],
+  authors: [{ name: "dimah", url: "https://github.com/dimah-kz" }],
   creator: "@dimahkzx",
   publisher: appName,
   alternates: {

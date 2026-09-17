@@ -19,17 +19,17 @@
     "nextjs",
     "components"
   ],
-  "author": "Hamidrezakz",
-  "license": "MIT",
+  "homepage": "https://s3.dimah.dev/docs/react/ui",
+  "bugs": {
+    "url": "https://github.com/dimah-kz/dimah-s3/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/ui"
   },
-  "homepage": "https://s3.dimah.dev/docs/react/ui",
-  "bugs": {
-    "url": "https://github.com/dimah-kz/dimah-s3/issues"
-  },
+  "license": "MIT",
+  "author": "dimah",
   "sideEffects": [
     "*.css"
   ],
@@ -49,32 +49,24 @@
   ],
   "scripts": {
     "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
-    "sync:shadcn": "node scripts/sync-shadcn.mjs",
-    "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
-    "registry:items": "tsx scripts/build-registry-items.ts && pnpm -w exec prettier --write packages/ui/registry.json",
-    "registry:check": "tsx scripts/check-registry-items.ts",
-    "registry:validate": "pnpm registry:items && pnpm registry:check && shadcn registry validate --cwd ../..",
-    "registry:build": "pnpm registry:validate && shadcn build --output apps/docs/public/r --cwd ../..",
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json",
     "lint": "eslint --max-warnings 0",
-    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json"
+    "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
+    "registry:build": "pnpm registry:validate && shadcn build --output apps/docs/public/r --cwd ../..",
+    "registry:check": "tsx scripts/check-registry-items.ts",
+    "registry:items": "tsx scripts/build-registry-items.ts && pnpm -w exec prettier --write packages/ui/registry.json",
+    "registry:validate": "pnpm registry:items && pnpm registry:check && shadcn registry validate --cwd ../..",
+    "sync:shadcn": "node scripts/sync-shadcn.mjs"
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "react-file-icon": "^1.6.0"
   },
-  "peerDependencies": {
-    "@base-ui/react": ">=1.0.0",
-    "@fuma-translate/react": "^1.0.2",
-    "class-variance-authority": ">=0.7.0",
-    "cn": ">=0.1.0",
-    "lucide-react": ">=0.400.0",
-    "react": ">=18"
-  },
   "devDependencies": {
     "@base-ui/react": "^1.8.0",
     "@fuma-translate/react": "^1.0.2",
-    "@types/node": "^26.6.1",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-file-icon": "^1.0.5",
     "@workspace/eslint-config": "workspace:*",
@@ -89,6 +81,14 @@
     "tsup": "catalog:",
     "tsx": "^4.23.13",
     "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "@base-ui/react": ">=1.0.0",
+    "@fuma-translate/react": "^1.0.2",
+    "class-variance-authority": ">=0.7.0",
+    "cn": ">=0.1.0",
+    "lucide-react": ">=0.400.0",
+    "react": ">=18"
   },
   "publishConfig": {
     "access": "public"

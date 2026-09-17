@@ -76,10 +76,7 @@ export function assertStoredKey(
  */
 function objectKeyFileName(fileName: string): string {
   const sanitized = sanitizeFileName(fileName);
-  const leaf = sanitized
-    .split("/")
-    .filter((part) => part.length > 0)
-    .at(-1);
+  const leaf = sanitized.split("/").findLast((part) => part.length > 0);
   if (!leaf || leaf === "." || leaf === "..") return "file";
   return leaf;
 }

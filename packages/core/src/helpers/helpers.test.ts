@@ -95,7 +95,7 @@ describe("truncateFileName", () => {
   it("truncates names without an extension", () => {
     const truncated = truncateFileName("a".repeat(80), 10);
     expect(truncated.endsWith("…")).toBe(true);
-    expect(truncated.length).toBe(10);
+    expect(truncated).toHaveLength(10);
   });
 });
 
@@ -146,7 +146,7 @@ describe("buildPublicObjectUrl", () => {
 describe("sha256Base64 / sha256File", () => {
   it("hashes bytes as unpadded base64", async () => {
     const digest = await sha256Base64(new TextEncoder().encode("hi"));
-    expect(digest).toMatch(/^[A-Za-z0-9+/]+$/);
+    expect(digest).toMatch(/^[A-Z0-9+/]+$/i);
     expect(digest.endsWith("=")).toBe(false);
     await expect(sha256File(new Blob(["hi"]))).resolves.toBe(digest);
   });

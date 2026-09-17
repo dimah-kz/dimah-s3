@@ -88,7 +88,11 @@ export async function resolveCreateConfig(
   const target = resolveTarget(dirInput, cwd);
   assertValidPackageName(target.projectName);
 
-  const defaultTemplateId = templates[0]!.id;
+  const firstTemplate = templates[0];
+  if (!firstTemplate) {
+    throw new CliError("No templates found in the catalog.");
+  }
+  const defaultTemplateId = firstTemplate.id;
   const templateId = await resolveOption(flags.template, {
     interactive,
     fallback: defaultTemplateId,

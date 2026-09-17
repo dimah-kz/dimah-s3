@@ -1,8 +1,8 @@
 {
   "name": "@workspace/eslint-config",
   "version": "0.0.1",
-  "type": "module",
   "private": true,
+  "type": "module",
   "exports": {
     "./base": "./base.js",
     "./ignores": "./ignores.js",
@@ -17,9 +17,13 @@
     "@next/eslint-plugin-next": "catalog:",
     "@vitest/eslint-plugin": "catalog:",
     "eslint-config-prettier": "catalog:",
+    "eslint-plugin-import-x": "catalog:",
+    "eslint-plugin-jsx-a11y": "catalog:",
     "eslint-plugin-react": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
+    "eslint-plugin-regexp": "catalog:",
     "eslint-plugin-turbo": "catalog:",
+    "eslint-plugin-unicorn": "catalog:",
     "globals": "catalog:",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "catalog:"

@@ -1,7 +1,7 @@
 import { definePlugin, isFeatureOn, chainHooks } from "@dimah-s3/server";
-import {
-  type DimahS3DbClient,
-  type StorageObjectStore,
+import type {
+  DimahS3DbClient,
+  StorageObjectStore,
 } from "@/store/storage-object-store";
 import type { ScopeResolver } from "@/types/storage-object";
 import { createQuotaGuard } from "@/hooks/create-quota-guard";

@@ -127,6 +127,6 @@
     @apply h-full;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
   }
 }

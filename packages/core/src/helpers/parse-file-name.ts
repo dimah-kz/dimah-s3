@@ -18,10 +18,7 @@ export function parseFileName(
 
 /** Last path segment of an object key (`uploads/uuid/a.png` → `a.png`). */
 export function fileNameFromKey(key: string): string | undefined {
-  return key
-    .split("/")
-    .filter((part) => part.length > 0)
-    .at(-1);
+  return key.split("/").findLast((part) => part.length > 0);
 }
 
 /**

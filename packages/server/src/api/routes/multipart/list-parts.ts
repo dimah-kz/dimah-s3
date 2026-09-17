@@ -40,7 +40,7 @@ async function handleListParts(
       {
         partNumber: p.PartNumber,
         size: p.Size ?? 0,
-        eTag: (p.ETag ?? "").replace(/"/g, ""),
+        eTag: (p.ETag ?? "").replaceAll('"', ""),
       },
     ];
   });

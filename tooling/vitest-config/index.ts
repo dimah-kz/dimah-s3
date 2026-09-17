@@ -2,12 +2,19 @@ import { join } from "node:path";
 import { defineConfig } from "vitest/config";
 
 const defaults = {
-  // Vitest 5 default; set explicitly so package tests can drop per-file mockClear.
+  // Isolate each test file's mocks, spies, and stubbed env/globals.
   clearMocks: true,
   restoreMocks: true,
+  mockReset: true,
+  unstubEnvs: true,
+  unstubGlobals: true,
+  isolate: true,
   fsModuleCache: true,
   environment: "node" as const,
-  include: ["src/**/*.test.ts"],
+  include: ["src/**/*.{test,spec}.{ts,tsx}"],
+  chaiConfig: {
+    truncateThreshold: 80,
+  },
 };
 
 export function packageConfig(

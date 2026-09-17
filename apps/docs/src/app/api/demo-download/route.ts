@@ -5,7 +5,7 @@ const MAX_BYTES = 75 * 1024 * 1024;
 export const runtime = "nodejs";
 
 function safeFileName(name: string) {
-  return name.replace(/[^\w.\-() ]+/g, "_");
+  return name.replaceAll(/[^\w.\-() ]+/g, "_");
 }
 
 export async function GET(request: Request) {

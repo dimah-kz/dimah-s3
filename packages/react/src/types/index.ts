@@ -1,5 +1,5 @@
-export * from "./upload";
-export * from "./upload-store";
+export type * from "./upload";
+export type * from "./upload-store";
 export * from "./error";
-export * from "./download";
-export * from "./delete";
+export type * from "./download";
+export type * from "./delete";

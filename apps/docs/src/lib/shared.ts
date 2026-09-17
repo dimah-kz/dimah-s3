@@ -91,7 +91,7 @@ export function githubRepoUrl() {
 }
 
 export function serializeJsonLd(data: unknown): string {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
+  return JSON.stringify(data).replaceAll("<", "\\u003c");
 }
 
 export function docsArticleJsonLd(input: {

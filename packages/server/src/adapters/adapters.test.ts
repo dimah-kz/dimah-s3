@@ -1,14 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { fromNodeHeaders } from "./node";
+import { fromNodeHeaders, toNodeHandler } from "./node";
 import { toHonoHandler } from "./hono";
 import { toElysiaHandler } from "./elysia";
 import { toSvelteKitHandler } from "./svelte-kit";
 import { toNextJsHandler } from "./next";
 import { toFastifyHandler } from "./fastify";
 import { toExpressHandler } from "./express";
-import { toNodeHandler } from "./node";
 
 describe("fromNodeHeaders", () => {
   it("maps string and array header values", () => {
