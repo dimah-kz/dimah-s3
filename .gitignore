@@ -12,6 +12,10 @@ node_modules/
 coverage/
 .vitest/
 
+# Formatter / linter caches
+.eslintcache
+.prettiercache
+
 # Turbo
 .turbo/
 

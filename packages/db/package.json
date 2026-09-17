@@ -52,7 +52,7 @@
   "scripts": {
     "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
     "check-types": "tsc --noEmit",
-    "lint": "eslint --max-warnings 0",
+    "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {

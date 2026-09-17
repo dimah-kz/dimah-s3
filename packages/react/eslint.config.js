@@ -1,3 +1,1 @@
-import { config } from "@workspace/eslint-config/react";
-
-export default config;
+export { config as default } from "@workspace/eslint-config/react";

@@ -36,6 +36,9 @@ jobs:
       - name: Format
         run: pnpm format:check
 
+      - name: Monorepo versions
+        run: pnpm sherif
+
       - name: Examples / templates drift
         run: pnpm examples:drift
 

@@ -5,6 +5,10 @@ apps/docs/public/r/
 packages/react/.translations/
 packages/react/src/translations/types.ts
 
+# Formatter / linter caches
+.eslintcache
+.prettiercache
+
 # Dependencies
 node_modules/
 

@@ -8,7 +8,7 @@
     "check-types": "fumadocs-mdx && next typegen && tsc --noEmit",
     "dev": "next dev",
     "postinstall": "fumadocs-mdx",
-    "lint": "eslint --max-warnings 0",
+    "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "start": "next start"
   },
   "dependencies": {
@@ -33,7 +33,7 @@
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
-    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/postcss": "catalog:",
     "@types/mdx": "^2.0.14",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -42,7 +42,7 @@
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
     "postcss": "^8.5.28",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "catalog:",
     "typescript": "catalog:"
   },
   "engines": {

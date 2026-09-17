@@ -21,7 +21,7 @@ export function FileUploader() {
   return (
     <div
       {...upload.getRootProps()}
-      className="border border-dashed p-6 rounded-lg text-center cursor-pointer hover:border-primary transition-colors"
+      className="hover:border-primary cursor-pointer rounded-lg border border-dashed p-6 text-center transition-colors"
     >
       <input {...upload.getInputProps()} />
       {upload.isUploading ? (
@@ -29,7 +29,7 @@ export function FileUploader() {
           Uploading: {upload.progress.percent}%
         </p>
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Click or drop files here
         </p>
       )}

@@ -30,7 +30,7 @@ export function VideoUploader() {
   return (
     <div
       {...upload.getRootProps()}
-      className="border p-4 rounded text-center cursor-pointer"
+      className="cursor-pointer rounded border p-4 text-center"
     >
       <input {...upload.getInputProps()} />
       {upload.isUploading

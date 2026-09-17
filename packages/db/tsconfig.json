@@ -1,8 +1,6 @@
 {
   "extends": "@workspace/typescript-config/node-library.json",
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
     "noUncheckedIndexedAccess": false,
     "types": ["node"],
     "outDir": "dist",

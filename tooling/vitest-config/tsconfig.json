@@ -3,7 +3,8 @@
   "compilerOptions": {
     "declaration": false,
     "declarationMap": false,
-    "noEmit": true
+    "noEmit": true,
+    "rootDir": "."
   },
-  "include": ["scripts/**/*.mts", "vitest.config.ts"]
+  "include": ["index.ts"]
 }

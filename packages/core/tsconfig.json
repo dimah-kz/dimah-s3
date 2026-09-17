@@ -1,9 +1,7 @@
 {
   "extends": "@workspace/typescript-config/node-library.json",
   "compilerOptions": {
-    "lib": ["es2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "noUncheckedIndexedAccess": false,
     "outDir": "dist",
     "rootDir": "src",

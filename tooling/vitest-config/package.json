@@ -6,7 +6,17 @@
   "exports": {
     ".": "./index.ts"
   },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "lint": "eslint --cache --cache-strategy content --max-warnings 0"
+  },
   "dependencies": {
     "vitest": "catalog:"
+  },
+  "devDependencies": {
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
   }
 }

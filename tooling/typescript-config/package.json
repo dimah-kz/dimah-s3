@@ -1,5 +1,12 @@
 {
   "name": "@workspace/typescript-config",
   "version": "0.0.1",
-  "private": true
+  "private": true,
+  "exports": {
+    "./base.json": "./base.json",
+    "./bundler-library.json": "./bundler-library.json",
+    "./nextjs.json": "./nextjs.json",
+    "./node-library.json": "./node-library.json",
+    "./react-library.json": "./react-library.json"
+  }
 }

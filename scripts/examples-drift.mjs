@@ -25,6 +25,8 @@ const IGNORE_NAMES = new Set([
   "CHANGELOG.md",
   ".gitignore",
   "favicon.ico",
+  ".eslintcache",
+  ".prettiercache",
 ]);
 
 /** @param {string} name */
@@ -33,6 +35,7 @@ function shouldIgnoreName(name) {
   // Local env files; keep `.env.example` in the compared set.
   if (name.startsWith(".env") && name !== ".env.example") return true;
   if (name.endsWith(".tsbuildinfo")) return true;
+  if (name === ".eslintcache" || name === ".prettiercache") return true;
   return false;
 }
 

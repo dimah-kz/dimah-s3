@@ -113,6 +113,7 @@ export const baseConfig = defineConfig(
     rules: {
       "import-x/first": "error",
       "import-x/newline-after-import": "error",
+      "import-x/no-absolute-path": "error",
       "import-x/no-duplicates": "error",
       "import-x/no-empty-named-blocks": "error",
       "import-x/no-self-import": "error",

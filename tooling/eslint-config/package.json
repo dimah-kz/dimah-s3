@@ -10,7 +10,7 @@
     "./react": "./react.js"
   },
   "scripts": {
-    "lint": "eslint --max-warnings 0"
+    "lint": "eslint --cache --cache-strategy content --max-warnings 0"
   },
   "dependencies": {
     "@eslint/js": "catalog:",

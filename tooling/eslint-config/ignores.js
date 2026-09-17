@@ -10,6 +10,8 @@ export const ignorePatterns = [
   "**/coverage/**",
   "**/.vitest/**",
   "**/.translations/**",
+  "**/.eslintcache",
+  "**/.prettiercache",
   "**/next-env.d.ts",
   // tsup writes ephemeral bundled configs next to tsup.config.ts during builds
   "**/tsup.config.bundled_*.mjs",

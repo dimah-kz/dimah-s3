@@ -102,7 +102,7 @@ export function AvatarImage({ avatarKey }: { avatarKey: string }) {
   });
 
   if (isLoading)
-    return <div className="size-16 rounded-full bg-muted animate-pulse" />;
+    return <div className="bg-muted size-16 animate-pulse rounded-full" />;
   if (!url) return null;
 
   return (

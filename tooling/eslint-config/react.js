@@ -57,6 +57,14 @@ export const reactConfig = defineConfig(
     files: reactFiles,
     rules: errorifyRules(jsxA11y.flatConfigs.recommended.rules),
   },
+  {
+    name: "workspace/shadcn-primitives",
+    files: ["**/components/ui/**/*.{ts,tsx}"],
+    rules: {
+      // shadcn primitives: association happens at the call site.
+      "jsx-a11y/label-has-associated-control": "off",
+    },
+  },
 );
 
 export const config = defineConfig(
