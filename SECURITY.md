@@ -2,17 +2,17 @@
 
 ## Supported Versions
 
-Security updates are provided for the latest published versions of maintained packages in this repository.
+Security updates are provided for the latest published versions of the `@dimah-s3/*` packages.
 
 ## Reporting a Vulnerability
 
-Please do not open public issues for security vulnerabilities.
+Report vulnerabilities privately with [GitHub private vulnerability reporting](https://github.com/dimah-kz/dimah-s3/security/advisories/new). Include:
 
-Instead, report vulnerabilities privately by contacting the repository maintainer and include:
+- A clear description of the issue
+- Steps to reproduce
+- Potential impact
+- Any suggested mitigation
 
-- A clear description of the issue.
-- Steps to reproduce.
-- Potential impact.
-- Any suggested mitigation.
+Do not open a public issue for security vulnerabilities.
 
-We aim to acknowledge reports quickly and provide a remediation plan after triage.
+We aim to acknowledge reports quickly and share a remediation plan after triage.

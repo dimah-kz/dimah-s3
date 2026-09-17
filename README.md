@@ -23,6 +23,10 @@ Presign flows only. Anything else stays in your own backend with
 [Comparison](https://s3.dimah.dev/docs/comparison) ·
 [llms.txt](https://s3.dimah.dev/llms.txt) (coding agents)
 
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Report vulnerabilities via [SECURITY.md](./SECURITY.md).
+
 ## License
 
 MIT

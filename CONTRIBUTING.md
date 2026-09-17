@@ -4,8 +4,8 @@ Thanks for your interest in contributing to this project.
 
 ## Prerequisites
 
-- Node.js 24+
-- pnpm 11+
+- Node.js 24+ (see `.nvmrc`; CI uses Node 24)
+- pnpm 12+
 
 ## Development setup
 
@@ -19,6 +19,7 @@ pnpm install
 pnpm build
 pnpm check-types
 pnpm lint
+pnpm test
 pnpm registry:validate
 ```
 
@@ -60,7 +61,7 @@ Then choose the package(s) / `group:dimah-s3` and bump type:
 - `minor`: new backward-compatible features.
 - `major`: breaking changes.
 
-A changelog file is created in `.tegami/` and must be committed with your PR. CI comments a release preview on the PR.
+A changelog file is created in `.tegami/` and must be committed with your PR. CI comments a release preview on the PR. Dependency-only PRs still need a changelog when they change published package behavior or output.
 
 ## How to choose bump type (SemVer standard)
 
@@ -73,8 +74,11 @@ A changelog file is created in `.tegami/` and must be committed with your PR. CI
 - [ ] Build passes (`pnpm build`)
 - [ ] Type checks pass (`pnpm check-types`)
 - [ ] Lint passes (`pnpm lint`)
+- [ ] Tests pass (`pnpm test`)
 - [ ] Docs updated (if needed)
 - [ ] Changelog added (if package behavior changed)
+
+Security reports go through [GitHub private vulnerability reporting](https://github.com/dimah-kz/dimah-s3/security/advisories/new), not public issues. See [SECURITY.md](./SECURITY.md).
 
 ## Code of Conduct
 

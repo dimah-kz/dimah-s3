@@ -34,11 +34,10 @@ const paper = tegami({
   ignore: [
     "dimah-s3",
     "docs",
+    "brand",
     "@dimah-s3/registry",
-    "@dimah-s3/example-with-db",
-    "@dimah-s3/example-with-nextjs",
-    "@workspace/eslint-config",
-    "@workspace/typescript-config",
+    /^@dimah-s3\/example-/,
+    /^@workspace\//,
   ],
   npm: {
     client: "pnpm",

@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Documentation
+    url: https://s3.dimah.dev/docs
+    about: Usage, API, and examples for the S3 toolkit
   - name: Security reports
     url: https://github.com/dimah-kz/dimah-s3/security/advisories/new
-    about: Please report security vulnerabilities privately.
+    about: Report a vulnerability privately (do not open a public issue)
+  - name: Discussions
+    url: https://github.com/dimah-kz/dimah-s3/discussions
+    about: Questions and ideas that are not a bug report or feature request

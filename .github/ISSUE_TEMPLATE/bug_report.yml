@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible bug in a package
+description: Report a reproducible bug
 title: "[Bug]: "
 labels:
   - bug
@@ -7,13 +7,22 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a bug. Please provide enough detail to reproduce it.
-  - type: input
+        Thanks for reporting a bug. Please include enough detail to reproduce it.
+        Usage questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions) or the [docs](https://s3.dimah.dev/docs).
+  - type: dropdown
     id: package
     attributes:
       label: Package
-      description: Which package is affected?
-      placeholder: "@dimah-s3/core"
+      options:
+        - "@dimah-s3/core"
+        - "@dimah-s3/server"
+        - "@dimah-s3/react"
+        - "@dimah-s3/ui"
+        - "@dimah-s3/db"
+        - "@dimah-s3/cli"
+        - Docs
+        - Templates / examples
+        - Unsure
     validations:
       required: true
   - type: textarea
@@ -27,7 +36,7 @@ body:
     id: reproduce
     attributes:
       label: Steps to reproduce
-      description: Provide a minimal reproduction.
+      description: Minimal reproduction. A small repo or gist helps.
       placeholder: |
         1. Install package
         2. Run code
@@ -44,9 +53,20 @@ body:
     id: version
     attributes:
       label: Package version
-      placeholder: "0.1.x"
+      placeholder: "1.5.7"
+  - type: dropdown
+    id: provider
+    attributes:
+      label: S3 provider
+      options:
+        - Amazon S3
+        - Cloudflare R2
+        - MinIO
+        - Other S3-compatible
+        - Not applicable
   - type: input
     id: environment
     attributes:
       label: Environment
-      placeholder: "Node 22, pnpm 11, Windows 11"
+      description: Node version and OS.
+      placeholder: "Node 24, Windows 11"
