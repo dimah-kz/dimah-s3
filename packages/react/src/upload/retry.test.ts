@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { APIError } from "@dimah-s3/core";
+import { S3UploadError } from "@/types/error";
 import { withRetry } from "./retry";
 
 describe("withRetry", () => {
@@ -68,6 +69,16 @@ describe("withRetry", () => {
     await expect(
       withRetry(fn, { maxRetries: 3, baseDelay: 1 }),
     ).rejects.toMatchObject({ statusCode: 400 });
+    expect(fn).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry 4xx S3UploadError", async () => {
+    const fn = vi.fn(async () => {
+      throw new S3UploadError("http", "HTTP_ERROR", 403, "uploading");
+    });
+    await expect(
+      withRetry(fn, { maxRetries: 3, baseDelay: 1 }),
+    ).rejects.toMatchObject({ statusCode: 403 });
     expect(fn).toHaveBeenCalledOnce();
   });
 

@@ -62,27 +62,17 @@ const config = {
       },
     },
     {
-      files: ["templates/nextjs/**/*.{js,jsx,ts,tsx,css}"],
+      // Templates are not workspace members — their CSS imports cannot resolve
+      // on CI. Use a workspace v4 stylesheet that has the same setup.
+      files: [
+        "templates/nextjs/**/*.{js,jsx,ts,tsx,css}",
+        "templates/vite/**/*.{js,jsx,ts,tsx,css}",
+        "templates/hono/**/*.{js,jsx,ts,tsx,css}",
+      ],
       excludeFiles: ["**/src/components/ui/**"],
       options: {
         tailwindFunctions,
-        tailwindStylesheet: "./templates/nextjs/src/app/globals.css",
-      },
-    },
-    {
-      files: ["templates/vite/**/*.{js,jsx,ts,tsx,css}"],
-      excludeFiles: ["**/src/components/ui/**"],
-      options: {
-        tailwindFunctions,
-        tailwindStylesheet: "./templates/vite/src/index.css",
-      },
-    },
-    {
-      files: ["templates/hono/**/*.{js,jsx,ts,tsx,css}"],
-      excludeFiles: ["**/src/components/ui/**"],
-      options: {
-        tailwindFunctions,
-        tailwindStylesheet: "./templates/hono/src/index.css",
+        tailwindStylesheet: "./apps/docs/src/app/global.css",
       },
     },
     {

@@ -1,11 +1,17 @@
 import { isAPIError } from "@dimah-s3/core";
+import { S3UploadError } from "@/types/error";
 import { MAX_RETRIES, RETRY_BASE_DELAY } from "./constants";
 import type { RetryConfig } from "@/types";
 
+function httpStatus(err: unknown): number | undefined {
+  if (err instanceof S3UploadError) return err.statusCode;
+  if (isAPIError(err)) return err.statusCode;
+  return undefined;
+}
+
 function isNonRetryable(err: unknown): boolean {
   if ((err as Error).name === "AbortError") return true;
-  if (!isAPIError(err)) return false;
-  const status = err.statusCode;
+  const status = httpStatus(err);
   return (
     typeof status === "number" &&
     status >= 400 &&

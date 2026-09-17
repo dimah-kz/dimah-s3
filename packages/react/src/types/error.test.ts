@@ -13,6 +13,12 @@ describe("S3UploadError", () => {
     });
     expect(err.statusCode).toBe(502);
   });
+
+  it("is an Error with name and message", () => {
+    const err: Error = new S3UploadError("failed", "HTTP_ERROR", 400);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).toMatchObject({ name: "S3UploadError", message: "failed" });
+  });
 });
 
 describe("toUploadError", () => {

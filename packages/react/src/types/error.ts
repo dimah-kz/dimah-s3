@@ -7,7 +7,10 @@ import type { UploadPhase } from "./upload";
  * Protocol errors from `S3Api` stay {@link APIError} — do not wrap them
  * or the stable `code` is lost for i18n.
  */
-export class S3UploadError extends APIError {
+export class S3UploadError extends Error {
+  override readonly name = "S3UploadError";
+  readonly code: string;
+  readonly status: number;
   readonly phase: UploadPhase | undefined;
 
   constructor(
@@ -16,9 +19,14 @@ export class S3UploadError extends APIError {
     status = 400,
     phase?: UploadPhase,
   ) {
-    super(status, { message, code });
-    this.name = "S3UploadError";
+    super(message);
+    this.code = code;
+    this.status = status;
     this.phase = phase;
+  }
+
+  get statusCode(): number {
+    return this.status;
   }
 }
 
@@ -26,15 +34,13 @@ export class S3UploadError extends APIError {
  * Normalize unknown throws for the upload engine.
  * Preserves AbortError and {@link APIError}; wraps everything else.
  */
-export function toUploadError(err: unknown, phase?: UploadPhase): APIError {
+export function toUploadError(
+  err: unknown,
+  phase?: UploadPhase,
+): APIError | S3UploadError {
   if (err instanceof S3UploadError) {
     if (phase != null && err.phase == null) {
-      return new S3UploadError(
-        err.message,
-        err.code ?? "UPLOAD_ERROR",
-        err.statusCode,
-        phase,
-      );
+      return new S3UploadError(err.message, err.code, err.statusCode, phase);
     }
     return err;
   }
