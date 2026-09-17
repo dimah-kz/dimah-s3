@@ -65,6 +65,17 @@ export const reactConfig = defineConfig(
       "jsx-a11y/label-has-associated-control": "off",
     },
   },
+  {
+    name: "workspace/react-upload-errors",
+    files: ["**/*.{ts,tsx,mts}"],
+    rules: {
+      // S3UploadError is an Error; CI lint runs before @dimah-s3/core dist exists.
+      "@typescript-eslint/prefer-promise-reject-errors": [
+        "error",
+        { allow: [{ from: "file", name: "S3UploadError" }] },
+      ],
+    },
+  },
 );
 
 export const config = defineConfig(
