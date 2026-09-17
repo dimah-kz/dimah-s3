@@ -1,39 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Refresh create starters and AWS SDK\n\n`dimah-s3 create` apps now install AWS SDK 3.1133, Hono 4.13.8, and lucide-react 1.46. Starters compile to ES2024 and enable `noFallthroughCasesInSwitch`, `noImplicitOverride`, and `noUncheckedSideEffectImports`. `@dimah-s3/server` uses the same AWS SDK patch.\n"
-    filename: 2026-09-17-lt2w89ld.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Treat S3UploadError as a real `Error`\n\nClient upload failures (`S3UploadError`) now extend `Error` directly, so they type-check and lint as Promise rejections. They still expose `code`, `status`, and `statusCode`. Detect them with `instanceof S3UploadError` rather than `instanceof APIError`.\n"
-    filename: 2026-09-17-s3-upload-error.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Test changelog for PR flow\n\nThis entry exists only to preview the Tegami PR comment. Do not merge.\n"
+    filename: 2026-09-17-test-pr-flow.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-09-17-lt2w89ld.md
-      - 2026-09-17-s3-upload-error.md
+      - 2026-09-17-test-pr-flow.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-09-17-lt2w89ld.md
-      - 2026-09-17-s3-upload-error.md
+      - 2026-09-17-test-pr-flow.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-09-17-lt2w89ld.md
-      - 2026-09-17-s3-upload-error.md
+      - 2026-09-17-test-pr-flow.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-09-17-lt2w89ld.md
-      - 2026-09-17-s3-upload-error.md
+      - 2026-09-17-test-pr-flow.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-09-17-lt2w89ld.md
-      - 2026-09-17-s3-upload-error.md
+      - 2026-09-17-test-pr-flow.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-09-17-lt2w89ld.md
-      - 2026-09-17-s3-upload-error.md
+      - 2026-09-17-test-pr-flow.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
