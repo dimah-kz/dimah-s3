@@ -1,3 +1,13 @@
+## @dimah-s3/server@1.5.8
+
+### Refresh create starters and AWS SDK
+
+`dimah-s3 create` apps now install AWS SDK 3.1133, Hono 4.13.8, and lucide-react 1.46. Starters compile to ES2024 and enable `noFallthroughCasesInSwitch`, `noImplicitOverride`, and `noUncheckedSideEffectImports`. `@dimah-s3/server` uses the same AWS SDK patch.
+
+### Treat S3UploadError as a real `Error`
+
+Client upload failures (`S3UploadError`) now extend `Error` directly, so they type-check and lint as Promise rejections. They still expose `code`, `status`, and `statusCode`. Detect them with `instanceof S3UploadError` rather than `instanceof APIError`.
+
 ## @dimah-s3/server@1.5.7
 
 ### Return written rows from pending upsert and confirm
