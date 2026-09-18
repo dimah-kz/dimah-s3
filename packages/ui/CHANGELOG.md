@@ -1,3 +1,13 @@
+## @dimah-s3/ui@1.5.9
+
+### Keep `Error.cause` on wrapped client failures
+
+Upload/hook wrappers (`toUploadError`, `toHookError`) now attach the original throw as `error.cause`.
+
+### Compile to ES2025
+
+Workspace TypeScript presets and `dimah-s3 create` starters now target ES2025 (`lib` / `target`). Published package JS is still bundled with tsup `esnext`.
+
 ## @dimah-s3/ui@1.5.8
 
 ### Refresh create starters and AWS SDK
