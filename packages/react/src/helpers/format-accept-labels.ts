@@ -14,17 +14,5 @@ function formatAcceptLabel(type: string): string {
 /** Normalizes HTML `accept` entries to short display labels (e.g. `".jpeg"` → `"JPEG"`). */
 export function formatAcceptLabels(accept?: string[]): string[] {
   if (!accept?.length) return [];
-
-  const labels: string[] = [];
-  const seen = new Set<string>();
-
-  for (const type of accept) {
-    const label = formatAcceptLabel(type);
-    if (!seen.has(label)) {
-      seen.add(label);
-      labels.push(label);
-    }
-  }
-
-  return labels;
+  return [...new Set(accept.map(formatAcceptLabel))];
 }

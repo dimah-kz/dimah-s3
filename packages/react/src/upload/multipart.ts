@@ -187,13 +187,11 @@ export async function uploadMultipart(
       parts.push(...batchResults);
     }
 
-    parts.sort((a, b) => a.partNumber - b.partNumber);
-
     const result = await api.multipart.complete({
       route,
       key,
       uploadId,
-      parts,
+      parts: parts.toSorted((a, b) => a.partNumber - b.partNumber),
     });
 
     // Upload finished successfully — remove from store.

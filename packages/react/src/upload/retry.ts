@@ -1,5 +1,5 @@
 import { isAPIError } from "@dimah-s3/core";
-import { S3UploadError } from "@/types/error";
+import { isAbortError, S3UploadError } from "@/types/error";
 import { MAX_RETRIES, RETRY_BASE_DELAY } from "./constants";
 import type { RetryConfig } from "@/types";
 
@@ -10,7 +10,7 @@ function httpStatus(err: unknown): number | undefined {
 }
 
 function isNonRetryable(err: unknown): boolean {
-  if ((err as Error).name === "AbortError") return true;
+  if (isAbortError(err)) return true;
   const status = httpStatus(err);
   return (
     typeof status === "number" &&
@@ -25,17 +25,22 @@ function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
     return Promise.reject(new DOMException("Upload aborted", "AbortError"));
   }
 
+  const timeout = AbortSignal.timeout(delay);
+  const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, delay);
     const onAbort = () => {
-      clearTimeout(timeout);
-      signal?.removeEventListener("abort", onAbort);
-      reject(new DOMException("Upload aborted", "AbortError"));
+      if (signal?.aborted) {
+        reject(new DOMException("Upload aborted", "AbortError"));
+        return;
+      }
+      resolve();
     };
-    signal?.addEventListener("abort", onAbort, { once: true });
+    if (combined.aborted) {
+      onAbort();
+      return;
+    }
+    combined.addEventListener("abort", onAbort, { once: true });
   });
 }
 

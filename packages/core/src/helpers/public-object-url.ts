@@ -7,7 +7,7 @@ export function buildPublicObjectUrl(options: {
   baseUrl: string;
   key: string;
 }): string {
-  const base = options.baseUrl.replace(/\/+$/, "");
+  const base = options.baseUrl.replaceAll(/\/+$/g, "");
   const path = options.key
     .split("/")
     .filter((part) => part.length > 0)

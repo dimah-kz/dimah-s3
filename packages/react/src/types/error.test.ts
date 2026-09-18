@@ -33,12 +33,15 @@ describe("toUploadError", () => {
   });
 
   it("wraps plain Errors", () => {
-    expect(toUploadError(new Error("boom"), "uploading")).toMatchObject({
+    const original = new Error("boom");
+    const wrapped = toUploadError(original, "uploading");
+    expect(wrapped).toMatchObject({
       name: "S3UploadError",
       code: "UPLOAD_ERROR",
       status: 500,
       message: "boom",
     });
+    expect(wrapped.cause).toBe(original);
   });
 
   it("rethrows AbortError", () => {
@@ -55,9 +58,12 @@ describe("toHookError", () => {
   });
 
   it("wraps plain Errors as APIError", () => {
-    expect(toHookError(new Error("boom"))).toMatchObject({
+    const original = new Error("boom");
+    const wrapped = toHookError(original);
+    expect(wrapped).toMatchObject({
       name: "APIError",
       message: "boom",
     });
+    expect(wrapped.cause).toBe(original);
   });
 });

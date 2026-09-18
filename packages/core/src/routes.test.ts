@@ -10,6 +10,7 @@ describe("normalizeS3ApiBasePath", () => {
     ["/api/s3/", "/api/s3"],
     ["/api/s3", "/api/s3"],
     ["/s3/", "/s3"],
+    ["/api/s3///", "/api/s3"],
   ])("strips a trailing slash from %s", (input, expected) => {
     expect(normalizeS3ApiBasePath(input)).toBe(expected);
   });

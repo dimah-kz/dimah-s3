@@ -36,7 +36,7 @@ async function handleComplete(
   const uploadId = input.uploadId;
   const parts = [
     ...new Set(input.parts.map(({ partNumber }) => partNumber)),
-  ].sort((a, b) => a - b);
+  ].toSorted((a, b) => a - b);
   const partRefs = parts.map((partNumber) => ({ partNumber }));
 
   await runHook(route.upload.multipart.guard, {

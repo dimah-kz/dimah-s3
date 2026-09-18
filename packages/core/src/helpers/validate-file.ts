@@ -27,7 +27,7 @@ export function matchesFileTypes(
       return fileName.toLowerCase().endsWith(token.toLowerCase());
     }
     if (token.endsWith("/*")) {
-      return type.startsWith(token.replace("/*", "/"));
+      return type.startsWith(token.slice(0, -1));
     }
     return type === token;
   });

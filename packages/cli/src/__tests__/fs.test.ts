@@ -34,6 +34,6 @@ describe("emptyDir", () => {
 
     await emptyDir(dir, { keep: [".git", ".env"] });
 
-    expect((await readdir(dir)).sort()).toEqual([".env", ".git"]);
+    expect((await readdir(dir)).toSorted()).toEqual([".env", ".git"]);
   });
 });

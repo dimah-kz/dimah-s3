@@ -187,7 +187,7 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
         `Client plugin id "${plugin.id}" is reserved on the S3 client.`,
       );
     }
-    if (plugin.id in pluginMethods) {
+    if (Object.hasOwn(pluginMethods, plugin.id)) {
       throw new Error(`Duplicate client plugin id "${plugin.id}".`);
     }
     pluginMethods[plugin.id] = plugin.getActions($fetch);

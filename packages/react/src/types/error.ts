@@ -18,8 +18,9 @@ export class S3UploadError extends Error {
     code: string,
     status = 400,
     phase?: UploadPhase,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.code = code;
     this.status = status;
     this.phase = phase;
@@ -40,7 +41,9 @@ export function toUploadError(
 ): APIError | S3UploadError {
   if (err instanceof S3UploadError) {
     if (phase != null && err.phase == null) {
-      return new S3UploadError(err.message, err.code, err.statusCode, phase);
+      return new S3UploadError(err.message, err.code, err.statusCode, phase, {
+        cause: err,
+      });
     }
     return err;
   }
@@ -52,7 +55,9 @@ export function toUploadError(
   if (isAPIError(err)) return err;
 
   const message = err instanceof Error ? err.message : "Upload failed";
-  return new S3UploadError(message, "UPLOAD_ERROR", 500, phase);
+  return new S3UploadError(message, "UPLOAD_ERROR", 500, phase, {
+    cause: err,
+  });
 }
 
 /** Normalize unknown throws for hook `error` state. */
@@ -62,18 +67,15 @@ export function toHookError(
 ): APIError {
   if (isAPIError(err)) return err;
   const message = err instanceof Error ? err.message : fallback;
-  return new APIError("BAD_REQUEST", { message });
+  return new APIError("BAD_REQUEST", { message, cause: err });
 }
 
 export function isAbortError(err: unknown): boolean {
+  if (err instanceof Error && err.name === "AbortError") return true;
   return (
-    (typeof DOMException !== "undefined" &&
-      err instanceof DOMException &&
-      err.name === "AbortError") ||
-    (err instanceof Error && err.name === "AbortError") ||
-    (typeof err === "object" &&
-      err !== null &&
-      (err as { name?: string }).name === "AbortError")
+    typeof err === "object" &&
+    err !== null &&
+    (err as { name?: string }).name === "AbortError"
   );
 }
 

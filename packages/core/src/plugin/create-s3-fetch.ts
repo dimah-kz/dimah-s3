@@ -64,9 +64,9 @@ export function createS3Fetch(
       const extra = await resolveHeaders(options?.headers);
       if (!extra) return ctx;
       const headers = new Headers(ctx.headers);
-      new Headers(extra).forEach((value, key) => {
+      for (const [key, value] of new Headers(extra)) {
         headers.set(key, value);
-      });
+      }
       return { ...ctx, headers };
     },
     onError: (ctx) => {

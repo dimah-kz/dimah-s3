@@ -29,7 +29,7 @@ function prefixEquals(
  */
 export function sniffContentType(bytes: Uint8Array): string | undefined {
   if (prefixEquals(bytes, [0x52, 0x49, 0x46, 0x46]) && bytes.length >= 12) {
-    const tag = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    const tag = String.fromCharCode(...bytes.subarray(8, 12));
     if (tag === "WEBP") return "image/webp";
   }
   for (const entry of MAGIC) {
@@ -50,7 +50,7 @@ export function matchesMagicBytes(
   const sniffed = sniffContentType(bytes);
   if (!sniffed) return false;
   if (expected.endsWith("/*")) {
-    return sniffed.startsWith(expected.replace("/*", "/"));
+    return sniffed.startsWith(expected.slice(0, -1));
   }
   return sniffed === expected;
 }

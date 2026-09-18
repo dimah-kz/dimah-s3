@@ -24,10 +24,9 @@ export function createSpeedTracker(windowMs = 3000) {
         samples.shift();
       }
 
-      if (samples.length < 2) return 0;
-
       const oldest = samples[0];
-      const newest = samples[samples.length - 1];
+      const newest = samples.at(-1);
+      if (oldest == null || newest == null) return 0;
       const deltaMs = newest.t - oldest.t;
       const deltaBytes = newest.loaded - oldest.loaded;
 

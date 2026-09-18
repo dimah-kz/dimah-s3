@@ -188,7 +188,7 @@ export function applyPlugins<
 
   for (const plugin of plugins) {
     for (const [name, endpoint] of Object.entries(plugin.endpoints ?? {})) {
-      if (reservedNames.has(name) || name in endpoints) {
+      if (reservedNames.has(name) || Object.hasOwn(endpoints, name)) {
         throw new Error(
           `Plugin "${plugin.id}" endpoint "${name}" collides with an existing endpoint.`,
         );

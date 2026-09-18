@@ -2,7 +2,7 @@
 export const S3_API_BASE_PATH = "/api/s3";
 
 export function normalizeS3ApiBasePath(basePath: string): string {
-  return basePath.replace(/\/$/, "");
+  return basePath.replaceAll(/\/+$/g, "");
 }
 
 /** Relative paths under {@link S3_API_BASE_PATH}. Always start with `/`. */

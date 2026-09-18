@@ -11,5 +11,5 @@ export function pluginPath(pluginId: string, path: string): string {
   if (!ROUTE_NAME_PATTERN.test(pluginId)) {
     throw new Error(`Invalid plugin id "${pluginId}"`);
   }
-  return `/${pluginId}/${path.replace(/^\/+/, "")}`;
+  return `/${pluginId}/${path.replaceAll(/^\/+/g, "")}`;
 }

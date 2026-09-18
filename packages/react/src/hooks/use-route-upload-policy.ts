@@ -27,7 +27,7 @@ export type UseRouteUploadPolicyReturn = RouteUploadPolicy & {
 const warnedCatalogKeys = new Set<string>();
 
 function toError(cause: unknown): Error {
-  return cause instanceof Error ? cause : new Error(String(cause));
+  return cause instanceof Error ? cause : new Error(String(cause), { cause });
 }
 
 function isDevelopment() {

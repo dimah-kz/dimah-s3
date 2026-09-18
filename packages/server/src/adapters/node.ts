@@ -32,14 +32,14 @@ export function fromNodeHeaders(nodeHeaders: IncomingHttpHeaders): Headers {
 }
 
 function collectBody(req: IncomingMessage): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer | string) => {
-      chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-    });
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
+  const { promise, resolve, reject } = Promise.withResolvers<Buffer>();
+  const chunks: Buffer[] = [];
+  req.on("data", (chunk: Buffer | string) => {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   });
+  req.on("end", () => resolve(Buffer.concat(chunks)));
+  req.on("error", reject);
+  return promise;
 }
 
 function toWebRequest(req: IncomingMessage, body: Buffer): Request {
@@ -67,9 +67,9 @@ async function writeWebResponse(
   response: Response,
 ): Promise<void> {
   res.statusCode = response.status;
-  response.headers.forEach((value, key) => {
+  for (const [key, value] of response.headers) {
     res.setHeader(key, value);
-  });
+  }
   const buffer = Buffer.from(await response.arrayBuffer());
   res.end(buffer);
 }
