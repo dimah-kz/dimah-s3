@@ -14,7 +14,7 @@ import { awsS3 } from "@/lib/s3";
 
 const { purged } = await purgeStalePendingObjects({
   client: dimahS3Db,
-  olderThanMs: 24 * 60 * 60 * 1000, // 24 hours // [!code highlight]
+  olderThanMs: 24 * 60 * 60 * 1000, // 24 hours
   s3: awsS3,
 });
 

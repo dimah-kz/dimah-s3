@@ -97,19 +97,20 @@ export const s3 = dimahS3({
         object: async ({ request }) => {
           const session = await getSession(request);
           return {
-            folder: `users/${session.userId}`, // [!code highlight]
+            folder: `users/${session.userId}`, // [!code ++]
             // Generates: avatar/users/{userId}/{uuid}/{fileName}
           };
         },
         onConfirmed: async ({ key, contentLength, request }) => {
-          // [!code highlight]
+          // [!code ++]
           // Trusted stored size and server-owned key from S3 HeadObject
-          const session = await getSession(request);
+          const session = await getSession(request); // [!code ++]
           await db.user.update({
-            where: { id: session.userId },
-            data: { avatarKey: key, avatarSize: contentLength },
-          });
-        },
+            // [!code ++]
+            where: { id: session.userId }, // [!code ++]
+            data: { avatarKey: key, avatarSize: contentLength }, // [!code ++]
+          }); // [!code ++]
+        }, // [!code ++]
       },
       download: true,
       delete: true,
@@ -185,9 +186,9 @@ export const s3 = dimahS3({
           if (!response.Body) throw errors.objectNotFound();
 
           const bytes = await response.Body.transformToByteArray();
-          const detectedType = sniffContentType(bytes); // [!code highlight]
+          const detectedType = sniffContentType(bytes);
           if (!detectedType || !allowedTypes.has(detectedType)) {
-            throw errors.fileTypeNotAllowed(fileName ?? key, detectedType); // [!code highlight]
+            throw errors.fileTypeNotAllowed(fileName ?? key, detectedType);
           }
         },
       },

@@ -49,7 +49,10 @@ import { useDownload } from "@dimah-s3/react";
 import { ProgressDownloadButton } from "@dimah-s3/ui";
 
 export function DocumentDownloader({ documentKey }: { documentKey: string }) {
-  const download = useDownload({ route: "document", mode: "fetch" }); // [!code highlight]
+  const download = useDownload({
+    route: "document",
+    mode: "fetch", // [!code ++]
+  });
 
   return <ProgressDownloadButton download={download} objectKey={documentKey} />;
 }

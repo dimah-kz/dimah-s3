@@ -56,7 +56,7 @@ lost:
 ```ts
 onFileSuccess: (_file, result) => {
   const keys = form.getValues("objectKeys");
-  form.setValue("objectKeys", [...keys, result.key]); // [!code highlight]
+  form.setValue("objectKeys", [...keys, result.key]);
 };
 ```
 
@@ -116,9 +116,8 @@ export function AttachmentForm() {
     onFileSuccess: (_file, result) => {
       const keys = form.getValues("objectKeys");
       form.setValue("objectKeys", [...keys, result.key], {
-        // [!code highlight]
-        shouldDirty: true,
-        shouldValidate: true,
+        shouldDirty: true, // [!code ++]
+        shouldValidate: true, // [!code ++]
       });
     },
     onError: (error) => {
@@ -155,7 +154,6 @@ export function AttachmentForm() {
         )}
       />
 
-      {/* [!code highlight] */}
       <button type="submit" disabled={upload.isPending}>
         Submit
       </button>
@@ -200,7 +198,7 @@ export function AttachmentForm() {
     route: "attachments",
     maxFiles: 5,
     onFileSuccess: (_file, result) => {
-      form.setFieldValue("objectKeys", (keys) => [...keys, result.key]); // [!code highlight]
+      form.setFieldValue("objectKeys", (keys) => [...keys, result.key]);
     },
   });
 
@@ -241,7 +239,6 @@ export function AttachmentForm() {
         }}
       </form.Field>
 
-      {/* [!code highlight] */}
       <button type="submit" disabled={upload.isPending}>
         Submit
       </button>
@@ -266,10 +263,11 @@ file:
 ```ts
 const upload = useUpload({
   route: "avatar",
-  maxFiles: 1, // [!code highlight]
+  maxFiles: 1, // [!code ++]
+  // [!code ++]
   onSuccess: (results) => {
-    form.setValue("avatarKey", results[0]?.key ?? null); // [!code highlight]
-  },
+    form.setValue("avatarKey", results[0]?.key ?? null); // [!code ++]
+  }, // [!code ++]
 });
 ```
 

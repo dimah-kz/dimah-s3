@@ -31,12 +31,10 @@ Catch and inspect errors:
 
 ```ts
 if (isAPIError(err)) {
-  // [!code highlight]
   console.log(err.status, err.statusCode, err.code, err.message);
 }
 
 if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
-  // [!code highlight]
   // Handle missing object specifically
 }
 ```
@@ -80,7 +78,7 @@ try {
   await download(key);
 } catch (err) {
   if (isAPIError(err)) {
-    toast.error(formatError(err)); // [!code highlight]
+    toast.error(formatError(err));
   }
 }
 ```

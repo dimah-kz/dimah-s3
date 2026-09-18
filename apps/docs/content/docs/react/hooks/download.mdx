@@ -98,7 +98,7 @@ export function AvatarImage({ avatarKey }: { avatarKey: string }) {
   const { url, isLoading } = useObjectUrl({
     route: "avatar",
     objectKey: avatarKey,
-    disposition: "inline", // [!code highlight]
+    disposition: "inline", // [!code ++]
   });
 
   if (isLoading)
@@ -191,7 +191,7 @@ import type {
 Pass the filename as the second argument to `download` or `presign`:
 
 ```tsx
-await download(avatarKey, "custom-avatar-name.png"); // [!code highlight]
+await download(avatarKey, "custom-avatar-name.png");
 ```
 
 </Accordion>

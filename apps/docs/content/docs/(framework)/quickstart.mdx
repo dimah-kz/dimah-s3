@@ -124,7 +124,7 @@ import { s3 } from "./s3";
 const app = new Hono();
 app.on(
   ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  "/api/s3/*", //
+  "/api/s3/*",
   toHonoHandler(s3),
 );
 ```
@@ -309,9 +309,10 @@ your application submits it to its own API:
 ```tsx title="Client-side form state"
 const upload = useUpload({
   route: "avatar",
+  // [!code ++]
   onSuccess: (results) => {
-    setValue("avatarKey", results[0]?.key); // [!code highlight]
-  },
+    setValue("avatarKey", results[0]?.key); // [!code ++]
+  }, // [!code ++]
 });
 ```
 
@@ -354,7 +355,7 @@ export function AvatarPreview({ avatarKey }: { avatarKey: string }) {
   const { url } = useObjectUrl({
     route: "avatar",
     objectKey: avatarKey,
-    disposition: "inline", // [!code highlight]
+    disposition: "inline", // [!code ++]
   });
 
   if (!url) return null;

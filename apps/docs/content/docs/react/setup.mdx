@@ -24,7 +24,7 @@ Create the typed React client with `createS3Client`.
 import { createS3Client } from "@dimah-s3/react";
 
 export const s3Client = createS3Client();
-export const S3Provider = s3Client.Provider; // [!code highlight]
+export const S3Provider = s3Client.Provider;
 ```
 
 To configure custom base paths, headers, or credentials:
@@ -125,12 +125,12 @@ import { useUpload } from "@dimah-s3/react";
 
 export function FileUploader() {
   const upload = useUpload({
-    route: "avatar", // [!code highlight]
+    route: "avatar",
   });
 
   return (
     <div
-      {...upload.getRootProps()} // [!code highlight]
+      {...upload.getRootProps()}
       className="cursor-pointer rounded border p-4 text-center"
     >
       <input {...upload.getInputProps()} />
@@ -153,8 +153,8 @@ import type { InferS3Routes } from "@dimah-s3/core";
 import type { s3 } from "@/lib/s3";
 
 declare module "@dimah-s3/core" {
-  // [!code highlight]
-  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {} // [!code highlight]
+  // [!code ++]
+  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {} // [!code ++]
 }
 ```
 

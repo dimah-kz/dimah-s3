@@ -14,7 +14,7 @@ export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
     onSuccess: (results) => {
-      console.log("Uploaded object key:", results[0]?.key); // [!code highlight]
+      console.log("Uploaded object key:", results[0]?.key);
     },
   });
 
@@ -59,6 +59,8 @@ return (
   <div {...upload.getRootProps()}>
     <input {...upload.getInputProps()} />
     <button type="button" onClick={() => upload.open()}>
+      {" "}
+      {/* [!code ++] */}
       Choose File
     </button>
   </div>
@@ -146,7 +148,7 @@ the single-file shorthand:
 ```tsx
 export function AvatarWithPreview() {
   const upload = useUpload({ route: "avatar" });
-  const preview = upload.file?.previewUrl; // [!code highlight]
+  const preview = upload.file?.previewUrl;
 
   return (
     <div>

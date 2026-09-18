@@ -104,9 +104,12 @@ Pass React children to `UploadDropzone`:
 ```tsx
 <UploadDropzone upload={upload}>
   <div className="text-muted-foreground flex flex-col items-center justify-center p-6">
-    <p className="text-sm font-medium">Drop files here</p>
-    <p className="text-xs">Images, PDF, or video</p>
-  </div>
+    {" "}
+    {/* [!code ++] */}
+    <p className="text-sm font-medium">Drop files here</p> {/* [!code ++] */}
+    <p className="text-xs">Images, PDF, or video</p> {/* [!code ++] */}
+  </div>{" "}
+  {/* [!code ++] */}
 </UploadDropzone>
 ```
 

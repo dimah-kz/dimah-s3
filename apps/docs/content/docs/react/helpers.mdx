@@ -28,7 +28,6 @@ formatFileSize(1_500_000); // "1.4 MB"
 truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi… .png"
 
 const error = validateFile(file, {
-  // [!code highlight]
   accept: ["image/*"],
   maxFileSize: 2 * 1024 * 1024,
 });
@@ -43,11 +42,10 @@ const error = validateFile(file, {
 import { buildPublicObjectUrl, sha256File } from "@dimah-s3/core";
 
 // SHA-256 base64 digest
-const hash = await sha256File(file); // [!code highlight]
+const hash = await sha256File(file);
 
 // Public CDN URL helper
 const url = buildPublicObjectUrl({
-  // [!code highlight]
   baseUrl: "https://cdn.example.com",
   key: "avatar/uuid/avatar.png",
 });
@@ -71,7 +69,7 @@ export function AvatarUploader() {
   const upload = useUpload({
     route: "avatar",
     onError: (err) => {
-      toast.error(formatError(err)); // [!code highlight]
+      toast.error(formatError(err));
     },
   });
 }

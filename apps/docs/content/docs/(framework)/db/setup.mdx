@@ -162,7 +162,7 @@ export const s3 = dimahS3({
 The same store is available as `s3.db` (and `s3.context.db`):
 
 ```ts
-s3.db.objects.listByScope({ scope: "user:123" }); // [!code highlight]
+s3.db.objects.listByScope({ scope: "user:123" });
 ```
 
 <Callout type="warn" title="Features stay opt-in">
@@ -211,7 +211,7 @@ hide soft-deleted rows by default.
 db({
   client: dimahS3Db,
   resolveScope,
-  deleteMode: "soft", // [!code highlight]
+  deleteMode: "soft", // [!code ++]
 });
 ```
 

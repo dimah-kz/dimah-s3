@@ -24,15 +24,16 @@ import { Button } from "@/components/ui/button";
 export function CustomFilePicker() {
   const upload = useUpload({
     route: "avatar",
-    noDrag: true, // [!code highlight]
-    noClick: true, // [!code highlight]
+    noDrag: true, // [!code ++]
+    noClick: true, // [!code ++]
   });
 
   return (
     <div className="flex items-center gap-4">
       <input {...upload.getInputProps()} />
-      {/* [!code highlight] */}
       <Button type="button" onClick={() => upload.open()}>
+        {" "}
+        {/* [!code ++] */}
         {upload.isUploading
           ? `Uploading ${upload.progress.percent}%`
           : "Choose file"}

@@ -45,7 +45,6 @@ export function DeleteAvatar({ avatarKey }: { avatarKey: string }) {
   }
 
   return (
-    // [!code highlight]
     <button type="button" onClick={() => requestDelete(avatarKey)}>
       Delete Avatar
     </button>
@@ -74,7 +73,7 @@ If your UI manages its own modal dialog or requires direct execution without int
 ```tsx
 const { remove, isDeleting } = useDelete({ route: "avatar" });
 
-await remove(avatarKey); // [!code highlight]
+await remove(avatarKey);
 ```
 
 ### 3. Batch deletion (`removeMany`)
@@ -131,7 +130,7 @@ avatar: route({
       if (!session) throw errors.unauthorized();
 
       const isOwner = await checkOwnership(session.userId, key);
-      if (!isOwner) throw errors.forbidden(); // [!code highlight]
+      if (!isOwner) throw errors.forbidden();
     },
     onDeleted: async ({ key, request }) => {
       // Database record cleanup

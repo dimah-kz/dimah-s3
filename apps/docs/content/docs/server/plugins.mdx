@@ -12,7 +12,7 @@ under your `basePath`, and typed instance context (`s3[id]`).
 import { definePlugin, createS3Endpoint } from "@dimah-s3/server";
 
 export const auditPlugin = definePlugin({
-  id: "audit", // [!code highlight]
+  id: "audit",
   hooks: {
     upload: {
       onConfirmed: async ({ key }) => {

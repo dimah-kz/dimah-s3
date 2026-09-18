@@ -36,16 +36,17 @@ export const s3 = dimahS3({
           if (!session) throw errors.unauthorized();
 
           const isOwner = await checkAvatarOwnership(session.userId, key);
-          if (!isOwner) throw errors.forbidden(); // [!code highlight]
+          if (!isOwner) throw errors.forbidden();
         },
         onDeleted: async ({ key, request }) => {
           // [!code ++]
-          const session = await getSession(request);
+          const session = await getSession(request); // [!code ++]
           await db.user.update({
-            where: { id: session.userId },
-            data: { avatarKey: null },
-          });
-        },
+            // [!code ++]
+            where: { id: session.userId }, // [!code ++]
+            data: { avatarKey: null }, // [!code ++]
+          }); // [!code ++]
+        }, // [!code ++]
       },
     }),
   },

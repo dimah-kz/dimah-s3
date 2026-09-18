@@ -24,13 +24,14 @@ export const s3 = dimahS3({
           if (!session) throw errors.unauthorized();
         },
         onConfirmed: async ({ key, contentLength, request }) => {
-          // [!code highlight]
-          const session = await getSession(request);
+          // [!code ++]
+          const session = await getSession(request); // [!code ++]
           await db.user.update({
-            where: { id: session.userId },
-            data: { avatarKey: key, avatarSize: contentLength },
-          });
-        },
+            // [!code ++]
+            where: { id: session.userId }, // [!code ++]
+            data: { avatarKey: key, avatarSize: contentLength }, // [!code ++]
+          }); // [!code ++]
+        }, // [!code ++]
       },
     }),
   },
