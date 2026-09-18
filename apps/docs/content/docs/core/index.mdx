@@ -47,7 +47,7 @@ import { dbClient } from "@dimah-s3/db/client";
 
 export const api = createS3Client({
   basePath: "/api/s3",
-  credentials: "include",
+  credentials: "include", // [!code ++]
   plugins: [dbClient()], // [!code ++]
 });
 

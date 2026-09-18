@@ -24,7 +24,7 @@ Create the typed React client with `createS3Client`.
 import { createS3Client } from "@dimah-s3/react";
 
 export const s3Client = createS3Client();
-export const S3Provider = s3Client.Provider;
+export const S3Provider = s3Client.Provider; // [!code highlight]
 ```
 
 To configure custom base paths, headers, or credentials:
@@ -72,7 +72,7 @@ Mount `<S3Provider>` near your application root:
 <Tab value="Next.js (App Router)">
 
 ```tsx title="app/layout.tsx"
-import { S3Provider } from "@/lib/s3-client";
+import { S3Provider } from "@/lib/s3-client"; // [!code ++]
 
 export default function RootLayout({
   children,
@@ -82,7 +82,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* [!code highlight] */}
+        {/* [!code ++] */}
         <S3Provider>{children}</S3Provider>
       </body>
     </html>
@@ -97,12 +97,12 @@ export default function RootLayout({
 ```tsx title="src/main.tsx"
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { S3Provider } from "./lib/s3-client";
+import { S3Provider } from "./lib/s3-client"; // [!code ++]
 import { App } from "./app";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* [!code highlight] */}
+    {/* [!code ++] */}
     <S3Provider>
       <App />
     </S3Provider>
@@ -125,12 +125,12 @@ import { useUpload } from "@dimah-s3/react";
 
 export function FileUploader() {
   const upload = useUpload({
-    route: "avatar",
+    route: "avatar", // [!code highlight]
   });
 
   return (
     <div
-      {...upload.getRootProps()}
+      {...upload.getRootProps()} // [!code highlight]
       className="cursor-pointer rounded border p-4 text-center"
     >
       <input {...upload.getInputProps()} />

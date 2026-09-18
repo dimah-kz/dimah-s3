@@ -45,6 +45,7 @@ export function DeleteAvatar({ avatarKey }: { avatarKey: string }) {
   }
 
   return (
+    // [!code highlight]
     <button type="button" onClick={() => requestDelete(avatarKey)}>
       Delete Avatar
     </button>
@@ -73,7 +74,7 @@ If your UI manages its own modal dialog or requires direct execution without int
 ```tsx
 const { remove, isDeleting } = useDelete({ route: "avatar" });
 
-await remove(avatarKey);
+await remove(avatarKey); // [!code highlight]
 ```
 
 ### 3. Batch deletion (`removeMany`)

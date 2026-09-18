@@ -43,7 +43,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     avatar: route({
-      upload: { method: "PUT" },
+      upload: { method: "PUT" }, // [!code ++]
     }),
   },
 });

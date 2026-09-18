@@ -13,7 +13,7 @@ import type { Translations } from "@dimah-s3/react";
 export const fa = {
   "Upload failed(toast)": "آپلود ناموفق بود",
   "Cancel(dialog button)": "لغو",
-} satisfies Partial<Translations>;
+} satisfies Partial<Translations>; // [!code highlight]
 ```
 
 ```ts title="lib/s3-client.ts"
@@ -27,7 +27,7 @@ export const S3Provider = s3Client.Provider;
 
 ```tsx title="app/layout.tsx"
 import { S3Provider } from "@/lib/s3-client";
-import { fa } from "@/lib/translations-fa";
+import { fa } from "@/lib/translations-fa"; // [!code ++]
 
 export default function RootLayout({
   children,

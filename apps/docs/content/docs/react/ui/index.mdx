@@ -40,7 +40,7 @@ Import the UI stylesheet in your global CSS to enable animations and design toke
 Mount `<Toaster />` next to `<S3Provider>` in your root layout:
 
 ```tsx title="app/layout.tsx"
-import { Toaster } from "@dimah-s3/ui";
+import { Toaster } from "@dimah-s3/ui"; // [!code ++]
 import { S3Provider } from "@/lib/s3-client";
 
 export default function RootLayout({

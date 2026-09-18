@@ -49,7 +49,7 @@ import { UploadButton } from "@dimah-s3/ui";
 
 export function FileUploader() {
   const upload = useUpload({
-    route: "avatar",
+    route: "avatar", // [!code highlight]
   });
 
   return <UploadButton upload={upload} />;

@@ -56,7 +56,11 @@ export function AvatarDeleter({ avatarKey }: { avatarKey: string }) {
   });
 
   return (
-    <DeleteButton delete={del} objectKey={avatarKey} variant="destructive" />
+    <DeleteButton
+      delete={del}
+      objectKey={avatarKey} // [!code highlight]
+      variant="destructive"
+    />
   );
 }
 ```

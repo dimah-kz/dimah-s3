@@ -53,7 +53,7 @@ export function AvatarDownloader({ avatarKey }: { avatarKey: string }) {
   return (
     <DownloadButton
       download={download}
-      objectKey={avatarKey}
+      objectKey={avatarKey} // [!code highlight]
       variant="outline"
     />
   );

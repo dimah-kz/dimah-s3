@@ -42,7 +42,7 @@ or multipart behavior is not overridden on the client.
 ```ts
 async catalog() {
   const res = await fetch("/api/files/routes");
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await res.text()); // [!code highlight]
   return res.json();
 }
 ```

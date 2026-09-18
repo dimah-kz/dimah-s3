@@ -31,6 +31,7 @@ export function CustomFilePicker() {
   return (
     <div className="flex items-center gap-4">
       <input {...upload.getInputProps()} />
+      {/* [!code highlight] */}
       <Button type="button" onClick={() => upload.open()}>
         {upload.isUploading
           ? `Uploading ${upload.progress.percent}%`

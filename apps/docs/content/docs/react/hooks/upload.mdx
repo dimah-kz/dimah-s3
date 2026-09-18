@@ -146,7 +146,7 @@ the single-file shorthand:
 ```tsx
 export function AvatarWithPreview() {
   const upload = useUpload({ route: "avatar" });
-  const preview = upload.file?.previewUrl;
+  const preview = upload.file?.previewUrl; // [!code highlight]
 
   return (
     <div>

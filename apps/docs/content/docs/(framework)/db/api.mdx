@@ -102,6 +102,7 @@ export function Files() {
   const load = useCallback(
     async (cursor?: string) => {
       const page = await api.db.listObjects({
+        // [!code highlight]
         route: "avatar",
         ...(cursor ? { cursor } : {}),
       });
@@ -171,8 +172,8 @@ import { createQuotaGuard } from "@dimah-s3/db";
 const quotaGuard = createQuotaGuard({
   client: dimahS3Db,
   resolveScope,
-  maxBytes: 100 * 1024 * 1024,
-  maxFiles: 50,
+  maxBytes: 100 * 1024 * 1024, // [!code highlight]
+  maxFiles: 50, // [!code highlight]
 });
 
 avatar: route({

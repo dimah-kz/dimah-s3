@@ -54,7 +54,7 @@ export const s3 = dimahS3({
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024, // 2MB
       },
-      download: true,
+      download: true, // [!code ++]
     }),
   },
 });
@@ -78,7 +78,7 @@ Set bucket CORS for your origin — [Amazon S3](/docs/providers/aws-s3),
 import { toNextJsHandler } from "@dimah-s3/server/next";
 import { s3 } from "@/lib/s3";
 
-export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
+export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3); // [!code highlight]
 ```
 
 </Tab>
@@ -93,7 +93,7 @@ import { s3 } from "./s3";
 const app = new Hono();
 app.on(
   ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  "/api/s3/*",
+  "/api/s3/*", // [!code highlight]
   toHonoHandler(s3),
 );
 ```
@@ -108,7 +108,7 @@ import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
-app.all("/api/s3/*", toExpressHandler(s3));
+app.all("/api/s3/*", toExpressHandler(s3)); // [!code highlight]
 app.use(express.json());
 ```
 
@@ -124,7 +124,7 @@ import { s3 } from "./s3";
 const app = new Hono();
 app.on(
   ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  "/api/s3/*",
+  "/api/s3/*", // [!code highlight]
   toHonoHandler(s3),
 );
 ```
@@ -175,8 +175,8 @@ npm i @dimah-s3/ui shadcn
 <include>../../_includes/ui/index.mdx#styles</include>
 
 ```tsx title="app/layout.tsx"
-import { Toaster } from "@dimah-s3/ui";
-import { S3Provider } from "@/lib/s3-client";
+import { Toaster } from "@dimah-s3/ui"; // [!code ++]
+import { S3Provider } from "@/lib/s3-client"; // [!code ++]
 
 export default function RootLayout({
   children,
@@ -186,7 +186,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* [!code ++] */}
         <S3Provider>{children}</S3Provider>
+        {/* [!code ++] */}
         <Toaster />
       </body>
     </html>
@@ -205,8 +207,8 @@ npx shadcn@latest add @dimah-s3/upload-button
 ```
 
 ```tsx title="app/layout.tsx"
-import { Toaster } from "@/components/ui/toast";
-import { S3Provider } from "@/lib/s3-client";
+import { Toaster } from "@/components/ui/toast"; // [!code ++]
+import { S3Provider } from "@/lib/s3-client"; // [!code ++]
 
 export default function RootLayout({
   children,
@@ -216,7 +218,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* [!code ++] */}
         <S3Provider>{children}</S3Provider>
+        {/* [!code ++] */}
         <Toaster />
       </body>
     </html>
@@ -306,7 +310,7 @@ your application submits it to its own API:
 const upload = useUpload({
   route: "avatar",
   onSuccess: (results) => {
-    setValue("avatarKey", results[0]?.key);
+    setValue("avatarKey", results[0]?.key); // [!code highlight]
   },
 });
 ```
