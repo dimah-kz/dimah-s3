@@ -1,9 +1,9 @@
 {
   "extends": "@workspace/typescript-config/node-library.json",
   "compilerOptions": {
+    "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    "noEmit": true,
     "rootDir": ".",
     "types": ["node"]
   },

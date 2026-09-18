@@ -31,7 +31,7 @@ Edit the **smallest package that owns the behavior**. Search that package before
 
 Shared protocol changes start in `core`, then wire `server` and `react`. Do not copy a parallel schema or URL string into another package.
 
-Product docs: `apps/docs/`. Shared ESLint / TSConfig: `tooling/`. Registry item manifests: `packages/ui/scripts/` (see [registry.md](./registry.md)).
+Product docs: `apps/docs/`. Shared ESLint / TSConfig / tsup / Vitest: `tooling/`. Registry item manifests: `packages/ui/scripts/` (see [registry.md](./registry.md)).
 
 ## Product shape
 

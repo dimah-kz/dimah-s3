@@ -66,11 +66,12 @@
     "@dimah-s3/server": "workspace:*",
     "@types/node": "catalog:",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "eslint": "catalog:",
-    "tsc-alias": "^1.9.5",
+    "tsc-alias": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

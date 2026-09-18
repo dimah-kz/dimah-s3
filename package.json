@@ -35,7 +35,7 @@
     "prettier-plugin-tailwindcss": "catalog:",
     "sherif": "catalog:",
     "tailwindcss": "catalog:",
-    "tegami": "^1.5.0",
+    "tegami": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

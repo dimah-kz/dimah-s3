@@ -129,9 +129,12 @@ jobs:
               - 'apps/**'
               - 'examples/**'
               - 'packages/**'
+              - 'tooling/**'
               - 'registry.json'
               - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
               - 'turbo.json'
+              - 'package.json'
 
       - name: Resolve Turbo affected range
         if: steps.filter.outputs.apps == 'true'

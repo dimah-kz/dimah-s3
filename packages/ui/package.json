@@ -70,6 +70,7 @@
     "@types/react": "catalog:",
     "@types/react-file-icon": "^1.0.5",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
@@ -78,7 +79,7 @@
     "react": "catalog:",
     "shadcn": "^4.21.0",
     "tailwindcss": "catalog:",
-    "tsc-alias": "^1.9.5",
+    "tsc-alias": "catalog:",
     "tsup": "catalog:",
     "tsx": "^4.23.13",
     "typescript": "catalog:"

@@ -1,25 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { defineConfig } from "tsup";
+import { packageConfig } from "@workspace/tsup-config";
 
 const CLIENT_DIRECTIVE = '"use client";\n';
 
-export default defineConfig({
+export default packageConfig({
   entry: ["src/index.ts"],
-  format: ["esm"],
-  target: "esnext",
-  dts: false,
-  sourcemap: true,
-  clean: true,
-  splitting: false,
-  treeshake: true,
-  outDir: "dist",
-  skipNodeModulesBundle: true,
-  external: [/^[^./]/],
-  esbuildOptions(options) {
-    options.alias = {
-      "@": "./src",
-    };
-  },
   async onSuccess() {
     // esbuild strips module-level "use client" during bundle; restore for Next RSC.
     const file = "dist/index.js";

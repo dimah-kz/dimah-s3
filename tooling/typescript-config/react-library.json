@@ -3,7 +3,7 @@
   "display": "React Library",
   "extends": "./bundler-library.json",
   "compilerOptions": {
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "lib": ["ES2025", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx"
   }
 }

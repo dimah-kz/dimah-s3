@@ -27,7 +27,9 @@ catalog:
   prettier-plugin-packagejson: ^3.0.2
   prettier-plugin-tailwindcss: ^0.8.1
   sherif: ^1.13.0
+  tegami: ^1.5.0
   turbo: ^2.10.13
+  tsc-alias: ^1.9.5
   tsup: ^8.5.1
   vitest: ^5.0.1
   react: ^19.3.0

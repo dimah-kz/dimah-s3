@@ -100,10 +100,11 @@
     "@aws-sdk/client-s3": "^3.1134.0",
     "@types/node": "catalog:",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",
     "eslint": "catalog:",
-    "tsc-alias": "^1.9.5",
+    "tsc-alias": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
