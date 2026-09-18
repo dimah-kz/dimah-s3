@@ -54,7 +54,7 @@ export const s3 = dimahS3({
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024, // 2MB
       },
-      download: true, // [!code ++]
+      download: true,
     }),
   },
 });
@@ -78,7 +78,7 @@ Set bucket CORS for your origin — [Amazon S3](/docs/providers/aws-s3),
 import { toNextJsHandler } from "@dimah-s3/server/next";
 import { s3 } from "@/lib/s3";
 
-export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3); // [!code highlight]
+export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 ```
 
 </Tab>
@@ -93,7 +93,7 @@ import { s3 } from "./s3";
 const app = new Hono();
 app.on(
   ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  "/api/s3/*", // [!code highlight]
+  "/api/s3/*",
   toHonoHandler(s3),
 );
 ```
@@ -108,7 +108,7 @@ import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
-app.all("/api/s3/*", toExpressHandler(s3)); // [!code highlight]
+app.all("/api/s3/*", toExpressHandler(s3));
 app.use(express.json());
 ```
 
@@ -124,7 +124,7 @@ import { s3 } from "./s3";
 const app = new Hono();
 app.on(
   ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  "/api/s3/*", // [!code highlight]
+  "/api/s3/*", //
   toHonoHandler(s3),
 );
 ```
