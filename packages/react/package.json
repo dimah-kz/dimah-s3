@@ -70,7 +70,7 @@
     "@workspace/vitest-config": "workspace:*",
     "eslint": "catalog:",
     "fuma-translate": "^1.0.2",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tsc-alias": "^1.9.5",

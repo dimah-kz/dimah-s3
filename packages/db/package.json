@@ -62,7 +62,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1133.0",
+    "@aws-sdk/client-s3": "^3.1134.0",
     "@dimah-s3/server": "workspace:*",
     "@types/node": "catalog:",
     "@workspace/eslint-config": "workspace:*",

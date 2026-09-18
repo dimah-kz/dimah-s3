@@ -15,7 +15,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1133.0",
+    "@aws-sdk/client-s3": "^3.1134.0",
     "@base-ui/react": "^1.8.0",
     "@dimah-s3/db": "workspace:*",
     "@dimah-s3/react": "workspace:*",
@@ -28,7 +28,7 @@
     "cn": "^0.3.0",
     "drizzle-orm": "^0.45.2",
     "fumadb": "^0.6.0",
-    "lucide-react": "^1.46.0",
+    "lucide-react": "^1.47.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",
     "react": "catalog:",

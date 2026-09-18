@@ -74,7 +74,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "eslint": "catalog:",
-    "lucide-react": "^1.46.0",
+    "lucide-react": "^1.47.0",
     "react": "catalog:",
     "shadcn": "^4.21.0",
     "tailwindcss": "catalog:",
