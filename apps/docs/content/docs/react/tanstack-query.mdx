@@ -46,7 +46,7 @@ export function AvatarUploader() {
       const key = results[0]?.key;
       if (!key) return;
       await saveAvatarKey(key);
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries({ queryKey: ["profile"] }); // [!code highlight]
     },
   });
 
@@ -75,8 +75,9 @@ submit the serializable value.
 ```tsx
 // Avoid — loses progress and double-tracks pending state
 const mutation = useMutation({
-  mutationFn: (file: File) => upload.handleFiles(file),
-});
+  // [!code --]
+  mutationFn: (file: File) => upload.handleFiles(file), // [!code --]
+}); // [!code --]
 ```
 
 `handleFiles` resolves even when validation fails (the hook sets

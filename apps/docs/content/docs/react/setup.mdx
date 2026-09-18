@@ -31,11 +31,12 @@ To configure custom base paths, headers, or credentials:
 
 ```ts
 export const s3Client = createS3Client({
-  basePath: "/api/s3",
-  credentials: "include",
+  basePath: "/api/s3", // [!code ++]
+  credentials: "include", // [!code ++]
   headers: async () => ({
-    Authorization: `Bearer ${await getAuthToken()}`,
-  }),
+    // [!code ++]
+    Authorization: `Bearer ${await getAuthToken()}`, // [!code ++]
+  }), // [!code ++]
 });
 ```
 
@@ -81,6 +82,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* [!code highlight] */}
         <S3Provider>{children}</S3Provider>
       </body>
     </html>
@@ -100,6 +102,7 @@ import { App } from "./app";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    {/* [!code highlight] */}
     <S3Provider>
       <App />
     </S3Provider>
@@ -150,7 +153,8 @@ import type { InferS3Routes } from "@dimah-s3/core";
 import type { s3 } from "@/lib/s3";
 
 declare module "@dimah-s3/core" {
-  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {}
+  // [!code highlight]
+  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {} // [!code highlight]
 }
 ```
 
@@ -187,10 +191,11 @@ Pass an async `headers` function or `credentials: "include"` in `createS3Client`
 
 ```ts
 export const s3Client = createS3Client({
-  credentials: "include",
+  credentials: "include", // [!code ++]
   headers: async () => ({
-    Authorization: `Bearer ${getStoredToken()}`,
-  }),
+    // [!code ++]
+    Authorization: `Bearer ${getStoredToken()}`, // [!code ++]
+  }), // [!code ++]
 });
 ```
 

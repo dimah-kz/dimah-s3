@@ -40,14 +40,13 @@ import { auditPlugin } from "./s3-audit-plugin";
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  plugins: [auditPlugin],
+  plugins: [auditPlugin], // [!code ++]
   routes: {
     avatar: route({ upload: true }),
   },
 });
 
-// Access plugin context
-s3.audit.log("Storage ready");
+s3.audit.log("Storage ready"); // [!code ++]
 ```
 
 ---
@@ -87,7 +86,7 @@ Yes. Set `plugins: { [pluginId]: false }` in your route definition:
 ```ts
 avatar: route({
   upload: true,
-  plugins: { audit: false },
+  plugins: { audit: false }, // [!code ++]
 }),
 ```
 

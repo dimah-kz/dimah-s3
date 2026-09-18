@@ -6,13 +6,14 @@ icon: CircleAlert
 
 All failed requests return JSON `{ message, code?, params? }` and standard HTTP status codes.
 
-Use the `errors` helper to throw standard library errors:
+Use the `errors` helper to throw standard library errors. A plain `Error` has
+no stable `code` — in guards it becomes a generic 403:
 
 ```ts
 import { APIError, errors, isAPIError, isS3ErrorCode } from "@dimah-s3/server";
 
-// Standard helpers
-throw errors.unauthorized();
+throw new Error("Not allowed"); // [!code --]
+throw errors.unauthorized(); // [!code ++]
 throw errors.forbidden();
 throw errors.objectNotFound();
 throw errors.payloadTooLarge();
@@ -21,7 +22,6 @@ throw errors.featureDisabled("download");
 throw errors.unknownRoute("avatar");
 throw errors.fileTypeNotAllowed("archive.zip", "application/zip");
 
-// Custom APIError
 throw new APIError("BAD_REQUEST", {
   message: "Invalid file payload.",
 });
@@ -31,10 +31,12 @@ Catch and inspect errors:
 
 ```ts
 if (isAPIError(err)) {
+  // [!code highlight]
   console.log(err.status, err.statusCode, err.code, err.message);
 }
 
 if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
+  // [!code highlight]
   // Handle missing object specifically
 }
 ```
@@ -78,7 +80,7 @@ try {
   await download(key);
 } catch (err) {
   if (isAPIError(err)) {
-    toast.error(formatError(err));
+    toast.error(formatError(err)); // [!code highlight]
   }
 }
 ```

@@ -86,7 +86,9 @@ export function CustomDropzone() {
 
   return (
     <div className="space-y-4">
+      {/* [!code ++] */}
       <UploadDropzone upload={upload} status={false} />
+      {/* [!code ++] */}
       <UploadStatus upload={upload} />
     </div>
   );

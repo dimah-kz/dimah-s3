@@ -1,4 +1,4 @@
 @import "shadcn/tailwind.css";
-@import "@dimah-s3/ui/styles.css";
+@import "@dimah-s3/ui/styles.css"; /* [!code ++] */
 
-/* + shadcn theme variables (`--primary`, `--muted`, …) */
+/* shadcn theme variables (`--primary`, `--muted`, …) */ /* [!code ++] */

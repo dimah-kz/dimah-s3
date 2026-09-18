@@ -23,8 +23,8 @@ import { localStorageStore } from "@/lib/upload-store";
 export function VideoUploader() {
   const upload = useUpload({
     route: "video",
-    multipart: true,
-    uploadStore: localStorageStore,
+    multipart: true, // [!code ++]
+    uploadStore: localStorageStore, // [!code ++]
   });
 
   return (

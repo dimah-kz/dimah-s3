@@ -35,8 +35,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
+    // [!code ++]
     <html lang="fa" dir="rtl">
       <body>
+        {/* [!code ++] */}
         <S3Provider translations={fa}>{children}</S3Provider>
       </body>
     </html>

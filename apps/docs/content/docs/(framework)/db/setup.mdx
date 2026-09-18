@@ -137,12 +137,14 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   plugins: [
     db({
-      client: dimahS3Db,
+      // [!code ++]
+      client: dimahS3Db, // [!code ++]
       resolveScope: async (request) => {
-        const session = await getSession(request);
-        return session ? `user:${session.userId}` : null;
-      },
-    }),
+        // [!code ++]
+        const session = await getSession(request); // [!code ++]
+        return session ? `user:${session.userId}` : null; // [!code ++]
+      }, // [!code ++]
+    }), // [!code ++]
   ],
   routes: {
     avatar: route({
@@ -160,7 +162,7 @@ export const s3 = dimahS3({
 The same store is available as `s3.db` (and `s3.context.db`):
 
 ```ts
-s3.db.objects.listByScope({ scope: "user:123" });
+s3.db.objects.listByScope({ scope: "user:123" }); // [!code highlight]
 ```
 
 <Callout type="warn" title="Features stay opt-in">
@@ -209,7 +211,7 @@ hide soft-deleted rows by default.
 db({
   client: dimahS3Db,
   resolveScope,
-  deleteMode: "soft", // default — you can omit this line
+  deleteMode: "soft", // [!code highlight]
 });
 ```
 

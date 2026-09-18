@@ -36,7 +36,7 @@ export const s3 = dimahS3({
           if (!session) throw errors.unauthorized();
 
           const isOwner = await checkAvatarOwnership(session.userId, key);
-          if (!isOwner) throw errors.forbidden();
+          if (!isOwner) throw errors.forbidden(); // [!code highlight]
         },
         onDeleted: async ({ key, request }) => {
           const session = await getSession(request);

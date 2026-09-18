@@ -56,7 +56,7 @@ lost:
 ```ts
 onFileSuccess: (_file, result) => {
   const keys = form.getValues("objectKeys");
-  form.setValue("objectKeys", [...keys, result.key]);
+  form.setValue("objectKeys", [...keys, result.key]); // [!code highlight]
 };
 ```
 
@@ -116,6 +116,7 @@ export function AttachmentForm() {
     onFileSuccess: (_file, result) => {
       const keys = form.getValues("objectKeys");
       form.setValue("objectKeys", [...keys, result.key], {
+        // [!code highlight]
         shouldDirty: true,
         shouldValidate: true,
       });
@@ -198,7 +199,7 @@ export function AttachmentForm() {
     route: "attachments",
     maxFiles: 5,
     onFileSuccess: (_file, result) => {
-      form.setFieldValue("objectKeys", (keys) => [...keys, result.key]);
+      form.setFieldValue("objectKeys", (keys) => [...keys, result.key]); // [!code highlight]
     },
   });
 
@@ -263,9 +264,9 @@ file:
 ```ts
 const upload = useUpload({
   route: "avatar",
-  maxFiles: 1,
+  maxFiles: 1, // [!code highlight]
   onSuccess: (results) => {
-    form.setValue("avatarKey", results[0]?.key ?? null);
+    form.setValue("avatarKey", results[0]?.key ?? null); // [!code highlight]
   },
 });
 ```

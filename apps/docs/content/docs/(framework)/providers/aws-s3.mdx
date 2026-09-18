@@ -14,7 +14,7 @@ CORS policy:
 ```json
 [
   {
-    "AllowedOrigins": ["https://your-app.example", "http://localhost:3000"],
+    "AllowedOrigins": ["https://your-app.example", "http://localhost:3000"], // [!code highlight]
     "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag", "Content-Type"],
@@ -63,7 +63,7 @@ route:
 ```ts
 avatar: route({
   upload: {
-    acl: "public-read",
+    acl: "public-read", // [!code ++]
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
   },

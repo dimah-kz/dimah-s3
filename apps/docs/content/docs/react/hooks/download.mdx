@@ -58,7 +58,7 @@ Fetches the object bytes through a client-side `fetch` stream. Provides fine-gra
 ```tsx
 const { download, cancel, progress, isDownloading, isPending } = useDownload({
   route: "document",
-  mode: "fetch",
+  mode: "fetch", // [!code ++]
   onProgress: (key, progress) => {
     console.log(
       `Downloaded ${progress.percent}% (${progress.loaded}/${progress.total})`,
@@ -98,7 +98,7 @@ export function AvatarImage({ avatarKey }: { avatarKey: string }) {
   const { url, isLoading } = useObjectUrl({
     route: "avatar",
     objectKey: avatarKey,
-    disposition: "inline",
+    disposition: "inline", // [!code highlight]
   });
 
   if (isLoading)

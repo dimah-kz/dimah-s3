@@ -42,10 +42,11 @@ const error = validateFile(file, {
 import { buildPublicObjectUrl, sha256File } from "@dimah-s3/core";
 
 // SHA-256 base64 digest
-const hash = await sha256File(file);
+const hash = await sha256File(file); // [!code highlight]
 
 // Public CDN URL helper
 const url = buildPublicObjectUrl({
+  // [!code highlight]
   baseUrl: "https://cdn.example.com",
   key: "avatar/uuid/avatar.png",
 });
@@ -69,7 +70,7 @@ export function AvatarUploader() {
   const upload = useUpload({
     route: "avatar",
     onError: (err) => {
-      toast.error(formatError(err));
+      toast.error(formatError(err)); // [!code highlight]
     },
   });
 }

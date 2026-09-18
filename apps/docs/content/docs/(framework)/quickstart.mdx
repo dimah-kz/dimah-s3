@@ -261,9 +261,10 @@ export const s3 = dimahS3({
   routes: {
     avatar: route({
       guard: async ({ request }) => {
-        const session = await getSession(request);
-        if (!session) throw errors.unauthorized();
-      },
+        // [!code ++]
+        const session = await getSession(request); // [!code ++]
+        if (!session) throw errors.unauthorized(); // [!code ++]
+      }, // [!code ++]
       upload: {
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
@@ -286,12 +287,14 @@ avatar: route({
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
     onConfirmed: async ({ key, request }) => {
-      const session = await getSession(request);
+      // [!code ++]
+      const session = await getSession(request); // [!code ++]
       await db.user.update({
-        where: { id: session.userId },
-        data: { avatarKey: key },
-      });
-    },
+        // [!code ++]
+        where: { id: session.userId }, // [!code ++]
+        data: { avatarKey: key }, // [!code ++]
+      }); // [!code ++]
+    }, // [!code ++]
   },
 });
 ```
@@ -321,7 +324,7 @@ export const s3 = dimahS3({
   routes: {
     avatar: route({
       upload: {
-        method: "PUT",
+        method: "PUT", // [!code ++]
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
       },
@@ -347,7 +350,7 @@ export function AvatarPreview({ avatarKey }: { avatarKey: string }) {
   const { url } = useObjectUrl({
     route: "avatar",
     objectKey: avatarKey,
-    disposition: "inline",
+    disposition: "inline", // [!code highlight]
   });
 
   if (!url) return null;

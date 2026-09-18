@@ -11,6 +11,18 @@ dimah-s3 follows a **presign-first** security model: AWS credentials remain on t
   always run server-side.
 </Callout>
 
+Public `NEXT_PUBLIC_` keys in a browser bundle are a leak, not a configuration
+shortcut:
+
+```ts
+export const awsS3 = new S3Client({
+  credentials: {
+    accessKeyId: process.env.NEXT_PUBLIC_S3_ACCESS_KEY_ID!, // [!code --]
+    secretAccessKey: process.env.NEXT_PUBLIC_S3_SECRET_ACCESS_KEY!, // [!code --]
+  },
+});
+```
+
 ## Security model
 
 1. **Server owns keys** — The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
@@ -85,11 +97,12 @@ export const s3 = dimahS3({
         object: async ({ request }) => {
           const session = await getSession(request);
           return {
-            folder: `users/${session.userId}`,
+            folder: `users/${session.userId}`, // [!code highlight]
             // Generates: avatar/users/{userId}/{uuid}/{fileName}
           };
         },
         onConfirmed: async ({ key, contentLength, request }) => {
+          // [!code highlight]
           // Trusted stored size and server-owned key from S3 HeadObject
           const session = await getSession(request);
           await db.user.update({
@@ -119,7 +132,7 @@ Uploads are `private` by default. Set `acl` on the route or return it dynamicall
 ```ts
 avatar: route({
   upload: {
-    acl: "public-read",
+    acl: "public-read", // [!code ++]
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
   },
@@ -172,9 +185,9 @@ export const s3 = dimahS3({
           if (!response.Body) throw errors.objectNotFound();
 
           const bytes = await response.Body.transformToByteArray();
-          const detectedType = sniffContentType(bytes);
+          const detectedType = sniffContentType(bytes); // [!code highlight]
           if (!detectedType || !allowedTypes.has(detectedType)) {
-            throw errors.fileTypeNotAllowed(fileName ?? key, detectedType);
+            throw errors.fileTypeNotAllowed(fileName ?? key, detectedType); // [!code highlight]
           }
         },
       },
@@ -197,12 +210,16 @@ know which user owns a file. Use `download.guard` / `delete.guard`, or the
 
 ```ts
 avatar: route({
+  delete: true, // [!code --]
+}),
+
+avatar: route({
   delete: {
-    guard: async ({ key, request }) => {
-      const session = await getSession(request);
-      const isOwner = await checkAvatarOwnership(session.userId, key);
-      if (!isOwner) throw errors.forbidden();
-    },
+    guard: async ({ key, request }) => { // [!code ++]
+      const session = await getSession(request); // [!code ++]
+      const isOwner = await checkAvatarOwnership(session.userId, key); // [!code ++]
+      if (!isOwner) throw errors.forbidden(); // [!code ++]
+    }, // [!code ++]
   },
 }),
 ```

@@ -29,7 +29,7 @@ export const s3 = dimahS3({
   routes: {
     avatar: route({
       upload: {
-        method: "PUT", // Required for Cloudflare R2
+        method: "PUT", // Required for Cloudflare R2 // [!code ++]
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
       },
@@ -45,7 +45,7 @@ Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
 ```json
 [
   {
-    "AllowedOrigins": ["https://your-app.example"],
+    "AllowedOrigins": ["https://your-app.example"], // [!code highlight]
     "AllowedMethods": ["GET", "PUT", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag", "Content-Type"],

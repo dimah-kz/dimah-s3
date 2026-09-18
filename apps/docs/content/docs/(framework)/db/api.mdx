@@ -79,11 +79,11 @@ list hook or list component.
 "use client";
 
 import { createS3Client } from "@dimah-s3/react";
-import { dbClient } from "@dimah-s3/db/client";
+import { dbClient } from "@dimah-s3/db/client"; // [!code ++]
 
 export const s3Client = createS3Client({
   basePath: "/api/s3",
-  plugins: [dbClient()],
+  plugins: [dbClient()], // [!code ++]
 });
 ```
 
@@ -150,7 +150,7 @@ plugins: [
   db({
     client: dimahS3Db,
     resolveScope,
-    quota: { maxBytes: 100 * 1024 * 1024, maxFiles: 50 },
+    quota: { maxBytes: 100 * 1024 * 1024, maxFiles: 50 }, // [!code ++]
   }),
 ],
 ```
@@ -223,9 +223,9 @@ const activeObjectGuard = createObjectAccessGuard({
 
 documents: route({
   // This route owns its guard composition; matching DB rows must already exist.
-  plugins: { db: false },
-  download: { guard: activeObjectGuard },
-  delete: { guard: activeObjectGuard },
+  plugins: { db: false }, // [!code highlight]
+  download: { guard: activeObjectGuard }, // [!code ++]
+  delete: { guard: activeObjectGuard }, // [!code ++]
 });
 ```
 

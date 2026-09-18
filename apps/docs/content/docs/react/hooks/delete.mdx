@@ -130,7 +130,7 @@ avatar: route({
       if (!session) throw errors.unauthorized();
 
       const isOwner = await checkOwnership(session.userId, key);
-      if (!isOwner) throw errors.forbidden();
+      if (!isOwner) throw errors.forbidden(); // [!code highlight]
     },
     onDeleted: async ({ key, request }) => {
       // Database record cleanup

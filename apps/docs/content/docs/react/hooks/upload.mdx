@@ -14,7 +14,7 @@ export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
     onSuccess: (results) => {
-      console.log("Uploaded object key:", results[0]?.key);
+      console.log("Uploaded object key:", results[0]?.key); // [!code highlight]
     },
   });
 
@@ -52,7 +52,7 @@ export function FileUploader() {
 ```tsx
 const upload = useUpload({
   route: "avatar",
-  noClick: true, // Prevents container click from opening file picker
+  noClick: true, // Prevents container click from opening file picker // [!code ++]
 });
 
 return (
@@ -74,8 +74,8 @@ Set `maxFiles` to allow multiple file selections. You can control concurrency wi
 ```tsx
 const upload = useUpload({
   route: "avatar",
-  maxFiles: 5,
-  concurrentFiles: 2,
+  maxFiles: 5, // [!code ++]
+  concurrentFiles: 2, // [!code ++]
   onFileSuccess: (file, result) => {
     console.log(`Uploaded ${file.name} to ${result.key}`);
   },
@@ -178,11 +178,13 @@ Pass static `uploadOptions` or a dynamic `getUploadOptions` function:
 const upload = useUpload({
   route: "avatar",
   getUploadOptions: (file) => ({
+    // [!code ++]
     metadata: {
-      originalName: file.name,
-      uploadedAt: new Date().toISOString(),
-    },
-  }),
+      // [!code ++]
+      originalName: file.name, // [!code ++]
+      uploadedAt: new Date().toISOString(), // [!code ++]
+    }, // [!code ++]
+  }), // [!code ++]
 });
 ```
 
@@ -197,7 +199,7 @@ later visit:
 ```tsx
 const upload = useUpload({
   route: "avatar",
-  uploadStore: localStorageStore,
+  uploadStore: localStorageStore, // [!code ++]
 });
 
 // Abort immediately

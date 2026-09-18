@@ -24,8 +24,8 @@ import { Button } from "@/components/ui/button";
 export function CustomFilePicker() {
   const upload = useUpload({
     route: "avatar",
-    noDrag: true,
-    noClick: true,
+    noDrag: true, // [!code highlight]
+    noClick: true, // [!code highlight]
   });
 
   return (

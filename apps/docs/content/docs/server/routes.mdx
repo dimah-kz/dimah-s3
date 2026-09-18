@@ -60,8 +60,8 @@ avatar: route({
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
   },
-  download: true,
-  delete: true,
+  download: true, // [!code highlight]
+  delete: true, // [!code highlight]
 }),
 ```
 
@@ -109,7 +109,7 @@ avatar: route({
     object: async ({ request }) => {
       const session = await getSession(request);
       return {
-        folder: `users/${session.userId}`,
+        folder: `users/${session.userId}`, // [!code ++]
         // Results in: avatar/users/{userId}/{uuid}/{fileName}
       };
     },
@@ -172,11 +172,11 @@ avatar: route({
   upload: {
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
-    replace: "overwrite",
+    replace: "overwrite", // [!code ++]
     object: async ({ request }) => {
       const session = await getSession(request);
       return {
-        key: `avatars/${session.userId}/avatar.png`,
+        key: `avatars/${session.userId}/avatar.png`, // [!code ++]
       };
     },
   },
@@ -199,7 +199,7 @@ avatar: route({
       const user = await getCurrentUser(request);
       return {
         folder: `users/${user.id}`,
-        previousKey: user.currentAvatarKey,
+        previousKey: user.currentAvatarKey, // [!code ++]
       };
     },
   },
@@ -219,9 +219,9 @@ avatar: route({
   upload: {
     fileTypes: ["image/*"],
     object: () => ({
-      storageClass: "STANDARD_IA",
-      cacheControl: "max-age=31536000, immutable",
-      tagging: { purpose: "avatar" },
+      storageClass: "STANDARD_IA", // [!code ++]
+      cacheControl: "max-age=31536000, immutable", // [!code ++]
+      tagging: { purpose: "avatar" }, // [!code ++]
     }),
   },
 }),
@@ -240,7 +240,7 @@ avatar: route({
   upload: {
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
-    checksum: true,
+    checksum: true, // [!code ++]
   },
 }),
 ```
@@ -258,7 +258,7 @@ Set `mode: "proxy"` on `download`. The returned URL points to the same-origin
 ```ts
 avatar: route({
   download: {
-    mode: "proxy",
+    mode: "proxy", // [!code ++]
   },
 }),
 ```

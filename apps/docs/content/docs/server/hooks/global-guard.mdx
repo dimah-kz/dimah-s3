@@ -22,9 +22,10 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   guard: async ({ request }) => {
-    const session = await getSession(request);
-    if (!session) throw errors.unauthorized();
-  },
+    // [!code ++]
+    const session = await getSession(request); // [!code ++]
+    if (!session) throw errors.unauthorized(); // [!code ++]
+  }, // [!code ++]
   routes: {
     avatar: route({
       upload: {
@@ -68,7 +69,7 @@ export const s3 = dimahS3({
       upload: true,
     }),
     avatar: route({
-      guard: requireUserSession,
+      guard: requireUserSession, // [!code ++]
       upload: true,
     }),
   },
@@ -84,8 +85,9 @@ Configure `headers` in `createS3Client`:
 ```ts
 export const s3Client = createS3Client({
   headers: async () => ({
-    Authorization: `Bearer ${await getToken()}`,
-  }),
+    // [!code ++]
+    Authorization: `Bearer ${await getToken()}`, // [!code ++]
+  }), // [!code ++]
 });
 ```
 
