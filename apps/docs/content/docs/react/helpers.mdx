@@ -27,7 +27,8 @@ import { formatFileSize, truncateFileName, validateFile } from "@dimah-s3/core";
 formatFileSize(1_500_000); // "1.4 MB"
 truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi… .png"
 
-const error = validateFile(file, { // [!code highlight]
+const error = validateFile(file, {
+  // [!code highlight]
   accept: ["image/*"],
   maxFileSize: 2 * 1024 * 1024,
 });
