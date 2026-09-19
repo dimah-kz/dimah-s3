@@ -148,13 +148,13 @@
 }
 
 :root {
-  --framework-color: hsl(41, 100%, 40%);
+  --framework-color: hsl(32, 72%, 38%);
   --server-color: hsl(158, 58%, 38%);
   --react-color: hsl(193, 95%, 43%);
 }
 
 .dark {
-  --framework-color: hsl(54, 100%, 76%);
+  --framework-color: hsl(38, 62%, 68%);
   --server-color: hsl(158, 45%, 58%);
   --react-color: hsl(193, 95%, 65%);
 }
