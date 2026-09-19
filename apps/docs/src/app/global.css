@@ -158,3 +158,8 @@
   --server-color: hsl(158, 45%, 58%);
   --react-color: hsl(193, 95%, 65%);
 }
+
+#nd-home-layout {
+  --primary: var(--framework-color);
+  --primary-foreground: var(--color-fd-primary-foreground);
+}

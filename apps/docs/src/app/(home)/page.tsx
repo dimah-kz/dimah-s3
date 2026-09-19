@@ -57,7 +57,7 @@ export default function HomePage() {
               href="/docs"
               className={cn(
                 buttonVariants({ size: "lg" }),
-                "h-11 rounded-full px-5 shadow-lg shadow-primary/10",
+                "h-11 rounded-full border-transparent bg-fd-primary px-5 text-fd-primary-foreground shadow-lg shadow-fd-primary/10 hover:bg-fd-primary/90 hover:text-fd-primary-foreground",
               )}
             >
               Get Started
