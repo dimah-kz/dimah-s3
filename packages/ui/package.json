@@ -73,7 +73,7 @@
     "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
+    "cn": "^0.4.0",
     "eslint": "catalog:",
     "lucide-react": "^1.47.0",
     "react": "catalog:",
@@ -81,7 +81,7 @@
     "tailwindcss": "catalog:",
     "tsc-alias": "catalog:",
     "tsup": "catalog:",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "catalog:"
   },
   "peerDependencies": {

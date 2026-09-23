@@ -11,14 +11,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1136.0",
+    "@aws-sdk/client-s3": "^3.1138.0",
     "@base-ui/react": "^1.8.0",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
     "@dimah-s3/ui": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
+    "cn": "^0.4.0",
     "lucide-react": "^1.47.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",

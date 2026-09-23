@@ -15,7 +15,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1136.0",
+    "@aws-sdk/client-s3": "^3.1138.0",
     "@base-ui/react": "^1.8.0",
     "@dimah-s3/db": "workspace:*",
     "@dimah-s3/react": "workspace:*",
@@ -25,8 +25,8 @@
     "@paralleldrive/cuid2": "^3.3.0",
     "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.3.0",
-    "drizzle-orm": "^0.45.2",
+    "cn": "^0.4.0",
+    "drizzle-orm": "^0.45.3",
     "fumadb": "^0.6.0",
     "lucide-react": "^1.47.0",
     "next": "catalog:",
@@ -45,10 +45,10 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "babel-plugin-react-compiler": "1.0.0",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.31.11",
     "eslint": "catalog:",
     "tailwindcss": "catalog:",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "catalog:"
   }
 }
