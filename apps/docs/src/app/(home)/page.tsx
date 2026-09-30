@@ -55,15 +55,15 @@ export default function HomePage() {
 
       <section
         aria-labelledby="hero-heading"
-        className="mx-auto flex w-full max-w-[75rem] flex-1 flex-col justify-center-safe px-6 py-16 sm:py-20"
+        className="mx-auto flex w-full max-w-284 flex-1 flex-col justify-center-safe px-6 py-16 sm:py-20"
       >
-        <div className="grid w-full items-center gap-14 lg:translate-y-6 lg:grid-cols-[minmax(0,28rem)_minmax(0,32rem)] lg:gap-x-16 xl:grid-cols-[minmax(0,32rem)_32rem] xl:gap-x-32">
+        <div className="grid w-full items-center justify-center gap-14 lg:translate-y-6 lg:grid-cols-[minmax(0,28rem)_minmax(0,26rem)] lg:gap-x-16 xl:grid-cols-[minmax(0,32rem)_28rem] xl:gap-x-32">
           <div className="max-w-xl">
             <h1
               id="hero-heading"
               className={cn(
                 display.className,
-                "text-[2.55rem] leading-[1.02] font-normal tracking-[-0.02em] text-fd-foreground sm:text-6xl lg:text-[3.7rem] xl:text-[4rem]",
+                "text-[2.55rem] leading-[1.02] font-normal tracking-[-0.02em] text-fd-foreground sm:text-5xl lg:text-[3.35rem] xl:text-[3.6rem]",
               )}
             >
               <HeroHeading />
@@ -100,7 +100,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="min-w-0 border-t border-fd-border pt-10 lg:border-t-0 lg:pt-0">
+          <div className="min-w-0">
             <div className="overflow-hidden rounded-xl border border-fd-border bg-fd-muted/40">
               <div className="flex items-center gap-3 border-b border-fd-border/80 px-3.5 py-2.5">
                 <span aria-hidden className="flex items-center gap-1.5">
@@ -127,7 +127,7 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-fd-border">
-        <div className="mx-auto flex w-full max-w-[75rem] flex-col gap-3 px-6 py-5 text-[13px] text-fd-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex w-full max-w-284 flex-col gap-3 px-6 py-5 text-[13px] text-fd-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>Released under the MIT License.</p>
           <nav aria-label="Footer" className="flex items-center gap-5">
             <Link
