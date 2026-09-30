@@ -14,15 +14,10 @@ import {
   ProgressDownloadButton,
   UploadDropzone,
 } from "@dimah-s3/ui";
-import { cn } from "cn";
-import { TryDemoHint } from "@/components/try-demo-hint";
 import {
   forgetDemoFile,
   rememberDemoFile,
 } from "@/lib/demo/client-object-store";
-
-const enter =
-  "animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500 ease-out";
 
 type DemoObject = {
   key: string;
@@ -153,44 +148,41 @@ export function HomeDropzoneDemo() {
   const idle = object == null && !uploading && !failed;
 
   return (
-    <>
-      {idle ? <TryDemoHint className={cn(enter, "delay-700")} /> : null}
-      <UploadDropzone
-        upload={upload}
-        attachmentSize="sm"
-        className="w-full"
-        status={(node) => {
-          let body = null;
-          if (object && !uploading) {
-            body = (
-              <DemoObjectRow
-                object={object}
-                onDeleted={() => {
-                  startTransition(() => {
-                    replaceObject(null);
-                  });
-                }}
-                onDismiss={() => {
-                  startTransition(() => {
-                    replaceObject(null);
-                    upload.reset();
-                  });
-                }}
-              />
-            );
-          } else if ((uploading || failed) && node != null) {
-            body = <div className="w-full p-3 text-start">{node}</div>;
-          }
-          if (body == null) return null;
-          return <ViewTransition>{body}</ViewTransition>;
-        }}
-      >
-        {!idle ? (
-          <span className="sr-only">
-            {object ? "Uploaded file" : "Uploading file"}
-          </span>
-        ) : undefined}
-      </UploadDropzone>
-    </>
+    <UploadDropzone
+      upload={upload}
+      attachmentSize="sm"
+      className="w-full"
+      status={(node) => {
+        let body = null;
+        if (object && !uploading) {
+          body = (
+            <DemoObjectRow
+              object={object}
+              onDeleted={() => {
+                startTransition(() => {
+                  replaceObject(null);
+                });
+              }}
+              onDismiss={() => {
+                startTransition(() => {
+                  replaceObject(null);
+                  upload.reset();
+                });
+              }}
+            />
+          );
+        } else if ((uploading || failed) && node != null) {
+          body = <div className="w-full p-3 text-start">{node}</div>;
+        }
+        if (body == null) return null;
+        return <ViewTransition>{body}</ViewTransition>;
+      }}
+    >
+      {!idle ? (
+        <span className="sr-only">
+          {object ? "Uploaded file" : "Uploading file"}
+        </span>
+      ) : undefined}
+    </UploadDropzone>
   );
 }

@@ -1,135 +1,152 @@
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { Instrument_Serif } from "next/font/google";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { cn } from "cn";
 import { DemoS3Provider } from "@/components/demo-s3-provider";
 import { HomeDropzoneDemo } from "@/components/demos/home-dropzone-demo";
-import { HomeAnnouncement } from "@/components/home-announcement";
-import { HomeBackground } from "@/components/home-background";
-import { buttonVariants } from "@/components/ui/button";
 import { githubRepoUrl, siteTagline } from "@/lib/shared";
+
+const display = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  display: "swap",
+});
 
 const githubUrl = githubRepoUrl();
 
-const enter =
-  "animate-in fade-in slide-in-from-bottom-4 fill-mode-both duration-700 ease-out motion-reduce:animate-none";
+function HeroHeading() {
+  const bridge = " for ";
+  const bridgeAt = siteTagline.indexOf(bridge);
+  const lead = bridgeAt === -1 ? siteTagline : siteTagline.slice(0, bridgeAt);
+  const tail =
+    bridgeAt === -1 ? null : siteTagline.slice(bridgeAt + bridge.length);
+  const accent = "S3";
+  const accentAt = lead.indexOf(accent);
+  const leadNode =
+    accentAt === -1 ? (
+      lead
+    ) : (
+      <>
+        {lead.slice(0, accentAt)}
+        <span className="text-fd-primary italic">{accent}</span>
+        {lead.slice(accentAt + accent.length)}
+      </>
+    );
 
-const highlights = ["Presigned flows", "S3-compatible", "Optional UI"];
+  if (tail == null) return leadNode;
+
+  return (
+    <>
+      <span className="block">{leadNode}</span>
+      <span className="block">for {tail}</span>
+    </>
+  );
+}
 
 export default function HomePage() {
   return (
-    <section
-      aria-labelledby="home-title"
-      className="relative isolate mx-auto flex min-h-[calc(100svh-4rem)] w-full min-w-0 flex-1 items-center overflow-hidden px-4 py-14 sm:px-6 sm:py-16 lg:px-8"
-    >
-      <HomeBackground />
+    <div className="relative flex flex-1 flex-col">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-14 -z-10 h-128 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklab,var(--color-fd-primary)_11%,transparent),transparent_70%)]"
+      />
 
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(22rem,0.92fr)] lg:gap-12 xl:gap-20">
-        <div className="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-start">
-          <HomeAnnouncement className={cn(enter, "delay-75")} />
-
-          <h1
-            id="home-title"
-            className={cn(
-              enter,
-              "mt-7 max-w-4xl bg-linear-to-b from-fd-foreground from-45% to-fd-foreground/60 bg-clip-text text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-balance text-transparent delay-100 sm:text-5xl lg:max-w-2xl lg:text-[58px]",
-            )}
-          >
-            {siteTagline}
-          </h1>
-
-          <p
-            className={cn(
-              enter,
-              "mt-6 max-w-xl text-base leading-7 text-pretty text-fd-muted-foreground delay-150 sm:text-lg sm:leading-8",
-            )}
-          >
-            Minimal setup, powered by the AWS SDK (v3).
-          </p>
-
-          <div
-            className={cn(
-              enter,
-              "mt-8 flex flex-wrap items-center justify-center gap-3 delay-200 lg:justify-start",
-            )}
-          >
-            <Link
-              href="/docs"
+      <section
+        aria-labelledby="hero-heading"
+        className="mx-auto flex w-full max-w-[75rem] flex-1 flex-col justify-center-safe px-6 py-16 sm:py-20"
+      >
+        <div className="grid w-full items-center gap-14 lg:translate-y-6 lg:grid-cols-[minmax(0,28rem)_minmax(0,32rem)] lg:gap-x-16 xl:grid-cols-[minmax(0,32rem)_32rem] xl:gap-x-32">
+          <div className="max-w-xl">
+            <h1
+              id="hero-heading"
               className={cn(
-                buttonVariants({ size: "lg" }),
-                "h-11 rounded-full border-transparent bg-fd-primary px-5 text-fd-primary-foreground shadow-lg shadow-fd-primary/10 hover:bg-fd-primary/90 hover:text-fd-primary-foreground",
+                display.className,
+                "text-[2.55rem] leading-[1.02] font-normal tracking-[-0.02em] text-fd-foreground sm:text-6xl lg:text-[3.7rem] xl:text-[4rem]",
               )}
             >
-              Get Started
-              <ArrowRight data-icon="inline-end" className="rtl:rotate-180" />
-            </Link>
+              <HeroHeading />
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-7 text-pretty text-fd-muted-foreground">
+              Minimal setup, powered by the AWS SDK (v3).
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-2.5">
+              <Link
+                href="/docs/quickstart"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-md bg-fd-primary px-4 text-sm font-medium text-fd-primary-foreground transition-colors hover:bg-fd-primary/90"
+              >
+                Get started
+                <ArrowRight
+                  aria-hidden
+                  strokeWidth={1.75}
+                  className="size-4 transition-transform duration-200 group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5"
+                />
+              </Link>
+              <a
+                href={githubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="group inline-flex h-10 items-center justify-center gap-2 rounded-md border border-fd-border px-4 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-muted"
+              >
+                <SiGithub aria-hidden color="currentColor" className="size-4" />
+                View on GitHub
+                <ArrowUpRight
+                  aria-hidden
+                  strokeWidth={1.75}
+                  className="size-3.5 text-fd-muted-foreground transition-transform duration-200 group-hover:translate-x-px group-hover:-translate-y-px"
+                />
+              </a>
+            </div>
+          </div>
+
+          <div className="min-w-0 border-t border-fd-border pt-10 lg:border-t-0 lg:pt-0">
+            <div className="overflow-hidden rounded-xl border border-fd-border bg-fd-muted/40">
+              <div className="flex items-center gap-3 border-b border-fd-border/80 px-3.5 py-2.5">
+                <span aria-hidden className="flex items-center gap-1.5">
+                  <span className="size-1.75 rounded-full bg-[#ff5f57]" />
+                  <span className="size-1.75 rounded-full bg-[#febc2e]" />
+                  <span className="size-1.75 rounded-full bg-[#28c840]" />
+                </span>
+                <span className="ms-auto inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.14em] text-fd-muted-foreground uppercase">
+                  <span
+                    aria-hidden
+                    className="size-1.5 animate-pulse rounded-full bg-fd-primary motion-reduce:animate-none"
+                  />
+                  Demo
+                </span>
+              </div>
+              <div className="p-4 sm:p-5">
+                <DemoS3Provider>
+                  <HomeDropzoneDemo />
+                </DemoS3Provider>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-fd-border">
+        <div className="mx-auto flex w-full max-w-[75rem] flex-col gap-3 px-6 py-5 text-[13px] text-fd-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <p>Released under the MIT License.</p>
+          <nav aria-label="Footer" className="flex items-center gap-5">
             <Link
+              href="/docs"
+              className="transition-colors hover:text-fd-foreground"
+            >
+              Documentation
+            </Link>
+            <a
               href={githubUrl}
               target="_blank"
               rel="noreferrer"
-              className={cn(
-                buttonVariants({
-                  variant: "outline",
-                  size: "lg",
-                }),
-                "h-11 rounded-full bg-fd-background/70 px-5 backdrop-blur-sm",
-              )}
+              className="transition-colors hover:text-fd-foreground"
             >
-              <SiGithub
-                title=""
-                color="currentColor"
-                aria-hidden
-                data-icon="inline-start"
-              />
-              View on GitHub
-            </Link>
-          </div>
-
-          <ul
-            className={cn(
-              enter,
-              "mt-9 hidden flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs font-medium tracking-wide text-fd-muted-foreground delay-300 sm:flex lg:justify-start",
-            )}
-          >
-            {highlights.map((highlight, index) => (
-              <li key={highlight} className="flex items-center gap-x-4">
-                {index > 0 ? (
-                  <span
-                    aria-hidden
-                    className="size-1 rounded-full bg-fd-muted-foreground/45"
-                  />
-                ) : null}
-                {highlight}
-              </li>
-            ))}
-          </ul>
+              GitHub
+            </a>
+          </nav>
         </div>
-
-        <div
-          className={cn(
-            enter,
-            "relative mx-auto w-full max-w-xl delay-300 lg:delay-200",
-          )}
-        >
-          <div className="relative rounded-[1.75rem] border border-fd-border/80 bg-fd-card/75 p-3 shadow-2xl shadow-fd-foreground/5 backdrop-blur-xl sm:p-4">
-            <div className="flex h-8 items-center justify-end px-2">
-              <span className="-mt-2 inline-flex items-center gap-1.5 rounded-full border border-fd-border/70 bg-fd-background/60 px-2 py-0.5 font-mono text-[0.625rem] font-medium tracking-wider text-fd-muted-foreground uppercase">
-                <span
-                  aria-hidden
-                  className="size-1.5 rounded-full bg-fd-primary"
-                />
-                demo
-              </span>
-            </div>
-
-            <div className="relative rounded-[1.25rem] border border-fd-border/80 bg-fd-background/80 p-4 sm:p-6">
-              <DemoS3Provider>
-                <HomeDropzoneDemo />
-              </DemoS3Provider>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      </footer>
+    </div>
   );
 }
