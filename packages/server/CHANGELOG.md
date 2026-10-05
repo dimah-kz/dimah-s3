@@ -1,3 +1,7 @@
+## @dimah-s3/server@1.5.10
+
+### update deps
+
 ## @dimah-s3/server@1.5.9
 
 ### Keep `Error.cause` on wrapped client failures
