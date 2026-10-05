@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { flushSync } from "react-dom";
 import type { EFTimegroupElement } from "@editframe/elements";
 import { FileAttachment } from "@dimah-s3/ui";
