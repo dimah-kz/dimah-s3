@@ -1,13 +1,13 @@
 import { Badge } from "@/components/og/badge";
 import { BrandMark } from "@/components/og/brand-mark";
-import { Divider } from "@/components/og/divider";
 import { GridLines } from "@/components/og/grid-lines";
 
-const ink = "#1c1b19";
-const muted = "#6f6c66";
-const labelColor = "#8a8680";
-const line = "#e4e0d8";
-const paper = "#f7f6f3";
+const ink = "#f4f3f0";
+const muted = "#a6a29b";
+const labelColor = "#8f8b84";
+const line = "#2e2d2b";
+const canvas = "#121211";
+const mark = "#f4f3f0";
 
 export interface DocsCardProps {
   brand: string;
@@ -30,9 +30,9 @@ export function DocsCard({
   return (
     <div
       style={{
-        backgroundColor: paper,
+        backgroundColor: canvas,
         backgroundImage:
-          "radial-gradient(circle at 50% 0%, rgba(28,27,25,0.045), transparent 58%)",
+          "radial-gradient(circle at 50% 0%, rgba(255,255,255,0.055), transparent 55%)",
         color: ink,
         display: "flex",
         fontFamily: "Geist",
@@ -61,7 +61,7 @@ export function DocsCard({
             gap: 14,
           }}
         >
-          <BrandMark background={ink} radius={12} size={48}>
+          <BrandMark background={mark} radius={12} size={48}>
             <CloudMark />
           </BrandMark>
           <div
@@ -87,18 +87,6 @@ export function DocsCard({
         >
           {label}
         </Badge>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          left: 36,
-          position: "absolute",
-          right: 36,
-          top: 148,
-        }}
-      >
-        <Divider color={line} />
       </div>
 
       <div
@@ -192,7 +180,7 @@ function CloudMark() {
     <svg
       fill="none"
       height="26"
-      stroke="#f7f6f3"
+      stroke="#121211"
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="2"
