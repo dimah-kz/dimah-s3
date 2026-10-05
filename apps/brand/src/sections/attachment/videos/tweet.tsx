@@ -77,7 +77,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
                 />
               </div>
               <BlurReveal
-                text="now with shadcn Attachment"
+                text="Full-stack S3 toolkit for the React ecosystem."
                 delayInFrames={10}
                 fps={FPS}
                 durationInFrames={32}

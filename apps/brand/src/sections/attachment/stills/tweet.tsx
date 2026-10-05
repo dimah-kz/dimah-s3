@@ -21,7 +21,7 @@ export function AttachmentTweetStill() {
               </span>
             </div>
             <p className="text-[16px] text-[#71717a]">
-              now with shadcn Attachment
+              Full-stack S3 toolkit for the React ecosystem.
             </p>
           </div>
         }
