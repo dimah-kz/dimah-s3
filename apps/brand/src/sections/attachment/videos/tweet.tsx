@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
+import type { EFTimegroupElement } from "@editframe/elements";
 import { FileAttachment } from "@dimah-s3/ui";
-import { Timegroup, TimelineRoot, useTimingInfo } from "@editframe/react";
+import { Timegroup, TimelineRoot } from "@editframe/react";
 import { TWEET_LANDSCAPE_VIDEO, itemVideoId } from "@/catalog";
 import { BlurReveal } from "@/lib/framecn/blur-reveal";
 import { SpringPopIn } from "@/lib/framecn/spring-pop-in";
@@ -34,12 +36,42 @@ export function AttachmentTweetVideo() {
   );
 }
 
+function isTimegroup(node: Element | null): node is EFTimegroupElement {
+  return (
+    node instanceof HTMLElement &&
+    "addFrameTask" in node &&
+    typeof node.addFrameTask === "function" &&
+    "currentTime" in node &&
+    typeof node.currentTime === "number"
+  );
+}
+
+/** Subscribe to the enclosing timegroup before paint, including export seeks. */
+function useCompositionTime(host: RefObject<HTMLDivElement | null>) {
+  const [time, setTime] = useState(0);
+
+  useLayoutEffect(() => {
+    const timeline = host.current?.closest("ef-timegroup") ?? null;
+    if (!isTimegroup(timeline)) return;
+
+    const apply = (next: number) => {
+      setTime((prev) => (Object.is(prev, next) ? prev : next));
+    };
+    apply(timeline.currentTime);
+    return timeline.addFrameTask((info) => {
+      flushSync(() => apply(info.ownCurrentTime));
+    });
+  }, [host]);
+
+  return time;
+}
+
 function AttachmentTweetTimeline({ id }: { id: string }) {
-  const { ref, ownCurrentTime } = useTimingInfo();
+  const clock = useRef<HTMLDivElement>(null);
+  const time = useCompositionTime(clock);
 
   return (
     <Timegroup
-      ref={ref}
       id={id}
       data-brand-frame=""
       mode="fixed"
@@ -54,6 +86,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
         ...BRAND_FRAME_STYLE,
       }}
     >
+      <div ref={clock} className="contents" />
       <PlaybackBoot />
       <div className="flex size-full flex-col items-center justify-center gap-8">
         <AttachmentTweetStage
@@ -86,7 +119,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
         >
           <SpringPopIn delayInFrames={20} fps={FPS} durationInFrames={44}>
             <FileCard
-              time={ownCurrentTime}
+              time={time}
               fileName="quarterly-report.pdf"
               fileType="application/pdf"
               fileSize={2_400_000}
@@ -94,7 +127,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
           </SpringPopIn>
           <SpringPopIn delayInFrames={26} fps={FPS} durationInFrames={50}>
             <FileCard
-              time={ownCurrentTime}
+              time={time}
               fileName="avatar.png"
               fileType="image/png"
               fileSize={180_000}
@@ -103,7 +136,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
           </SpringPopIn>
           <SpringPopIn delayInFrames={32} fps={FPS} durationInFrames={56}>
             <FileCard
-              time={ownCurrentTime}
+              time={time}
               fileName="budget.xlsx"
               fileType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               fileSize={84_000}
@@ -160,7 +193,7 @@ function FileCard({
       previewUrl={previewUrl}
       percent={percent}
       onDismiss={() => undefined}
-      className="[&_svg]:transition-none"
+      className="[&_circle]:transition-none"
     />
   );
 }
