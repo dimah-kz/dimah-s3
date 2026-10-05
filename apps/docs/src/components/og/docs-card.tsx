@@ -144,11 +144,11 @@ function CoverTitle({ title }: { title: string }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <Title nowrap size={76}>
+      <Title nowrap size={64}>
         {lead}
       </Title>
       {tail ? (
-        <Title nowrap size={76}>
+        <Title nowrap size={64}>
           {tail}
         </Title>
       ) : null}
@@ -165,41 +165,26 @@ function Title({
   size: number;
   nowrap?: boolean;
 }) {
-  const words = children.split(" ").filter(Boolean);
-
   return (
     <div
       style={{
-        columnGap: "0.28em",
         display: "flex",
-        flexWrap: nowrap ? "nowrap" : "wrap",
-        fontFamily: "Instrument Serif",
         fontSize: size,
-        fontWeight: 400,
-        letterSpacing: "-0.035em",
-        lineHeight: 1.02,
-        rowGap: 4,
+        fontWeight: 500,
+        letterSpacing: "-0.045em",
+        lineHeight: 1.08,
+        ...(nowrap && { whiteSpace: "nowrap" }),
       }}
     >
-      {words.map((word, index) => (
-        <span
-          key={`${word}-${index}`}
-          style={{
-            display: "flex",
-            fontStyle: word === "S3" ? "italic" : "normal",
-          }}
-        >
-          {word}
-        </span>
-      ))}
+      {children}
     </div>
   );
 }
 
 function titleSize(title: string) {
-  if (title.length <= 14) return 84;
-  if (title.length <= 26) return 68;
-  return 56;
+  if (title.length <= 14) return 72;
+  if (title.length <= 26) return 60;
+  return 52;
 }
 
 function CloudMark() {
