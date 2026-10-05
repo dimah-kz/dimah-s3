@@ -2,12 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { FileAttachment } from "@dimah-s3/ui";
-import {
-  Timegroup,
-  TimelineRoot,
-  usePlayback,
-  useTimingInfo,
-} from "@editframe/react";
+import { Timegroup, TimelineRoot, useTimingInfo } from "@editframe/react";
 import { TWEET_LANDSCAPE_VIDEO, itemVideoId } from "@/catalog";
 import { BlurReveal } from "@/lib/framecn/blur-reveal";
 import { SpringPopIn } from "@/lib/framecn/spring-pop-in";
@@ -170,20 +165,23 @@ function FileCard({
   );
 }
 
+function isPlaybackTimeline(
+  node: Element | null,
+): node is HTMLElement & { play: () => void } {
+  if (!(node instanceof HTMLElement) || !("play" in node)) return false;
+  return typeof node.play === "function";
+}
+
 function PlaybackBoot() {
   const host = useRef<HTMLDivElement>(null);
-  const autoPlayed = useRef(false);
-  const playback = usePlayback(host);
 
   useEffect(() => {
-    if (host.current?.closest("[data-render-clone]")) return;
-    if (autoPlayed.current) return;
-    if (playback.playing) {
-      autoPlayed.current = true;
-      return;
-    }
-    playback.play();
-  }, [playback]);
+    const node = host.current;
+    if (!node || node.closest("[data-render-clone]")) return;
+    const timeline = node.closest("ef-timegroup");
+    if (!isPlaybackTimeline(timeline)) return;
+    timeline.play();
+  }, []);
 
   return (
     <div
