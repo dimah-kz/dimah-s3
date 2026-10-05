@@ -119,6 +119,55 @@ function waitForPaint() {
   });
 }
 
+function uploadPhase(time: number, start: number, full: number, done: number) {
+  if (time >= done) return { state: "done" as const, percent: 100 };
+  if (time < start) return { state: "idle" as const, percent: 0 };
+  const span = full - start;
+  const linear = span <= 0 ? 1 : Math.min(1, (time - start) / span);
+  return {
+    state: "uploading" as const,
+    percent: (1 - (1 - linear) ** 2) * 100,
+  };
+}
+
+/**
+ * Export seeks move the timegroup clock without a matching React render in
+ * the offscreen clone. Bake each card's ring from the seek time so the
+ * captured frame shows progress and the finished state.
+ */
+function syncUploadCards(root: ParentNode, time: number) {
+  for (const card of root.querySelectorAll<HTMLElement>("[data-upload-card]")) {
+    const start = Number(card.dataset.uploadStart);
+    const full = Number(card.dataset.uploadFull);
+    const done = Number(card.dataset.uploadDone);
+    if (![start, full, done].every(Number.isFinite)) continue;
+
+    const phase = uploadPhase(time, start, full, done);
+    const attachment = card.querySelector<HTMLElement>(
+      "[data-slot=attachment]",
+    );
+    if (attachment) attachment.dataset.state = phase.state;
+
+    const circle = card.querySelector<SVGCircleElement>(
+      "circle[stroke-dashoffset]",
+    );
+    const overlay = circle?.closest("svg")?.parentElement;
+    if (!circle || !overlay) continue;
+
+    if (phase.state === "done") {
+      overlay.style.display = "none";
+      continue;
+    }
+
+    overlay.style.display = "";
+    const span = Number(circle.getAttribute("stroke-dasharray"));
+    if (!Number.isFinite(span)) continue;
+    const offset = String(span - (phase.percent / 100) * span);
+    circle.style.transition = "none";
+    circle.setAttribute("stroke-dashoffset", offset);
+  }
+}
+
 /**
  * Editframe MP4 capture serializes nested SVG `clipPath="url(#id)"` incorrectly.
  * Flatten file glyphs to PNG in the export clone only — live preview stays SVG.
@@ -133,6 +182,7 @@ export function patchFileGlyphsForExport(timegroup: EFTimegroupElement) {
     await originalSeek(time, options);
     await waitForPaint();
     await rasterizeFileGlyphs(timegroup);
+    syncUploadCards(timegroup, time);
   };
 
   return () => {

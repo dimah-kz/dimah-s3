@@ -42,42 +42,32 @@ export function AttachmentTweetVideo() {
   );
 }
 
-function isTimegroup(node: Element | null): node is EFTimegroupElement {
-  return (
-    node instanceof HTMLElement &&
-    "addFrameTask" in node &&
-    typeof node.addFrameTask === "function" &&
-    "currentTime" in node &&
-    typeof node.currentTime === "number"
-  );
-}
-
-/** Subscribe to the enclosing timegroup before paint, including export seeks. */
-function useCompositionTime(host: RefObject<HTMLDivElement | null>) {
+function useCompositionTime(timeline: RefObject<EFTimegroupElement | null>) {
   const [time, setTime] = useState(0);
 
   useLayoutEffect(() => {
-    const timeline = host.current?.closest("ef-timegroup") ?? null;
-    if (!isTimegroup(timeline)) return;
+    const node = timeline.current;
+    if (!node) return;
 
     const apply = (next: number) => {
       setTime((prev) => (Object.is(prev, next) ? prev : next));
     };
-    apply(timeline.currentTime);
-    return timeline.addFrameTask((info) => {
+    apply(node.currentTime);
+    return node.addFrameTask((info) => {
       flushSync(() => apply(info.ownCurrentTime));
     });
-  }, [host]);
+  }, [timeline]);
 
   return time;
 }
 
 function AttachmentTweetTimeline({ id }: { id: string }) {
-  const clock = useRef<HTMLDivElement>(null);
-  const time = useCompositionTime(clock);
+  const timeline = useRef<EFTimegroupElement>(null);
+  const time = useCompositionTime(timeline);
 
   return (
     <Timegroup
+      ref={timeline}
       id={id}
       data-brand-frame=""
       mode="fixed"
@@ -92,7 +82,6 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
         ...BRAND_FRAME_STYLE,
       }}
     >
-      <div ref={clock} className="contents" />
       <PlaybackBoot />
       <div className="flex size-full flex-col items-center justify-center gap-8">
         <AttachmentTweetStage
@@ -189,18 +178,26 @@ function FileCard({
   const { state, percent } = uploadAt(time);
 
   return (
-    <FileAttachment
-      size="default"
-      orientation="vertical"
-      state={state}
-      fileName={fileName}
-      fileType={fileType}
-      fileSize={fileSize}
-      previewUrl={previewUrl}
-      percent={percent}
-      onDismiss={() => undefined}
-      className="[&_circle]:transition-none"
-    />
+    <div
+      data-upload-card=""
+      data-upload-start={UPLOAD_START_S}
+      data-upload-full={UPLOAD_FULL_S}
+      data-upload-done={UPLOAD_DONE_S}
+      className="contents"
+    >
+      <FileAttachment
+        size="default"
+        orientation="vertical"
+        state={state}
+        fileName={fileName}
+        fileType={fileType}
+        fileSize={fileSize}
+        previewUrl={previewUrl}
+        percent={percent}
+        onDismiss={() => undefined}
+        className="[&_circle]:transition-none"
+      />
+    </div>
   );
 }
 
