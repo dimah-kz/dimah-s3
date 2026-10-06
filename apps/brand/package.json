@@ -33,7 +33,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "postcss": "^8.5.28",
+    "postcss": "^8.5.29",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
   },
