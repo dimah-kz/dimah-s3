@@ -6,9 +6,11 @@ const withMDX = createMDX();
 const legacyVercelHost = "dimah-s3.vercel.app";
 
 const nextConfig: NextConfig = {
-  // Next.js 16.4 model. Docs pages stay fully static via `ensureStatic` on the root layout.
+  // Every docs URL is prerendered (`generateStaticParams` + `ensureStatic =
+  // "navigation"`). Partial prefetching only ships the shared shell and streams
+  // each article on click, so keep the full static prefetch.
   cacheComponents: true,
-  partialPrefetching: true,
+  partialPrefetching: false,
   reactCompiler: true,
   experimental: {
     // Native Rust React Compiler inside Turbopack (default bundler in Next 16).
