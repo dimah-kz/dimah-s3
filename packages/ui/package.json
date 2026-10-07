@@ -77,7 +77,7 @@
     "eslint": "catalog:",
     "lucide-react": "^1.52.0",
     "react": "catalog:",
-    "shadcn": "^4.21.2",
+    "shadcn": "^4.21.3",
     "tailwindcss": "catalog:",
     "tsc-alias": "catalog:",
     "tsup": "catalog:",

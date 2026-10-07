@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { DocsCard } from "@/components/og/docs-card";
 import { ogFonts } from "@/lib/og-fonts";
 import { appName, siteTagline } from "@/lib/shared";
@@ -5,32 +6,56 @@ import { getPageImage, source } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
 
-export const revalidate = false;
-
 export async function GET(
   _req: Request,
   { params }: RouteContext<"/og/docs/[...slug]">,
 ) {
   const { slug } = await params;
-  const page = source.getPage(slug.slice(0, -1));
-  if (!page) notFound();
-
-  const card = ogCard(page.slugs, page.data.title, page.data.description);
+  const payload = await ogPayload(slug);
+  if (!payload) notFound();
 
   return new ImageResponse(
     <DocsCard
-      brand={appName}
-      description={card.description}
-      label={card.label}
-      layout={card.layout}
-      title={card.title}
+      brand={payload.brand}
+      description={payload.description}
+      label={payload.label}
+      layout={payload.layout}
+      title={payload.title}
     />,
     {
-      fonts: await ogFonts(),
+      fonts: payload.fonts.map((font) => ({
+        ...font,
+        data: Buffer.from(font.data, "base64"),
+      })),
       height: 630,
       width: 1200,
     },
   );
+}
+
+async function ogPayload(slug: string[]) {
+  "use cache";
+  cacheLife("max");
+
+  const page = source.getPage(slug.slice(0, -1));
+  if (!page) return null;
+
+  const card = ogCard(page.slugs, page.data.title, page.data.description);
+  const fonts = await ogFonts();
+
+  return {
+    brand: appName,
+    description: card.description,
+    label: card.label,
+    layout: card.layout,
+    title: card.title,
+    fonts: fonts.map((font) => ({
+      name: font.name,
+      data: Buffer.from(font.data).toString("base64"),
+      style: font.style,
+      weight: font.weight,
+    })),
+  };
 }
 
 export function generateStaticParams() {

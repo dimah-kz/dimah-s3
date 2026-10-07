@@ -6,6 +6,9 @@ const withMDX = createMDX();
 const legacyVercelHost = "dimah-s3.vercel.app";
 
 const nextConfig: NextConfig = {
+  // Next.js 16.4 model. Docs pages stay fully static via `ensureStatic` on the root layout.
+  cacheComponents: true,
+  partialPrefetching: true,
   reactCompiler: true,
   experimental: {
     // Native Rust React Compiler inside Turbopack (default bundler in Next 16).

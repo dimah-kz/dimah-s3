@@ -24,6 +24,9 @@ const fontSans = Geist({
 const siteUrl = getSiteUrl();
 const isProduction = isProductionDeploy();
 
+/** Home and docs are prerendered. Request-time rendering fails the build. */
+export const ensureStatic = "navigation";
+
 export const metadata: Metadata = {
   metadataBase: siteUrl,
   title: {

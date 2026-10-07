@@ -2,8 +2,6 @@ import { throttleByteStream } from "@/lib/demo/throttle";
 
 const MAX_BYTES = 75 * 1024 * 1024;
 
-export const runtime = "nodejs";
-
 function safeFileName(name: string) {
   return name.replaceAll(/[^\w.\-() ]+/g, "_");
 }
