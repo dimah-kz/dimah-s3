@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import * as AccordionComponents from "fumadocs-ui/components/accordion";
 import * as TabsComponents from "fumadocs-ui/components/tabs";
@@ -16,6 +17,25 @@ import { Flow } from "@/components/flow";
 import * as StepsComponents from "fumadocs-ui/components/steps";
 import type { MDXComponents } from "mdx/types";
 
+type CachedAutoTypeTableProps = Pick<
+  AutoTypeTableProps,
+  "name" | "path" | "type"
+>;
+
+/** Type extraction reads the filesystem. Cache it so docs pages stay fully static. */
+async function CachedAutoTypeTable(props: CachedAutoTypeTableProps) {
+  "use cache";
+  cacheLife("max");
+
+  return (
+    <AutoTypeTable
+      {...props}
+      generator={typeTableGeneratorFor(props.path)}
+      options={{ basePath: typeTableBasePath }}
+    />
+  );
+}
+
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
@@ -28,13 +48,7 @@ export function getMDXComponents(components?: MDXComponents) {
     ...CardComponents,
     ...StepsComponents,
     TypeTable,
-    AutoTypeTable: (props: Partial<AutoTypeTableProps>) => (
-      <AutoTypeTable
-        {...props}
-        generator={typeTableGeneratorFor(props.path)}
-        options={{ basePath: typeTableBasePath, ...props.options }}
-      />
-    ),
+    AutoTypeTable: CachedAutoTypeTable,
     ...components,
   } satisfies MDXComponents;
 }

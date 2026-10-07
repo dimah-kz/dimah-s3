@@ -2,6 +2,9 @@ import type { MetadataRoute } from "next";
 import { source } from "@/lib/source";
 import { getSiteUrl } from "@/lib/site-url";
 
+/** Captured when the module loads during `next build`, not on each request. */
+const builtAt = new Date();
+
 /** `/sitemap.xml` — 1 home · 0.9 intro/quickstart · 0.8 decision pages · then by depth. */
 export default function sitemap(): MetadataRoute.Sitemap {
   const origin = getSiteUrl().origin;
@@ -17,7 +20,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 function entry(url: string, priority: number): MetadataRoute.Sitemap[number] {
   return {
     url,
-    lastModified: new Date(),
+    lastModified: builtAt,
     changeFrequency: priority >= 0.8 ? "weekly" : "monthly",
     priority,
   };

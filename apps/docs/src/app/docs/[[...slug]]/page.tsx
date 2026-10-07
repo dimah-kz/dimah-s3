@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getPageImage, getPageMarkdownUrl, source } from "@/lib/source";
 import {
   DocsBody,
@@ -20,9 +21,30 @@ import {
 } from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
 
-export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
-  const params = await props.params;
-  const page = source.getPage(params.slug);
+export default function Page(props: PageProps<"/docs/[[...slug]]">) {
+  return (
+    <Suspense fallback={<DocsArticleFallback />}>
+      <DocsArticle params={props.params} />
+    </Suspense>
+  );
+}
+
+function DocsArticleFallback() {
+  return (
+    <div className="flex flex-1 flex-col gap-4 px-8 py-12">
+      <div className="h-8 w-48 animate-pulse rounded-md bg-fd-muted" />
+      <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-fd-muted" />
+    </div>
+  );
+}
+
+async function DocsArticle({
+  params,
+}: {
+  params: PageProps<"/docs/[[...slug]]">["params"];
+}) {
+  const resolved = await params;
+  const page = source.getPage(resolved.slug);
   if (!page) notFound();
 
   const MDX = page.data.body;

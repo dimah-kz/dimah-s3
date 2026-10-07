@@ -69,6 +69,13 @@ import { s3 } from "@/lib/s3";
 export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 ```
 
+<Callout title="Cache Components">
+  Next.js 16.4 enables Cache Components on new apps. This handler reads the
+  request, so presign, download, and delete run on each request. Leave the
+  handler uncached. A `use cache` wrapper would reuse one presign across
+  requests.
+</Callout>
+
 </Tab>
 
 <Tab value="Express">

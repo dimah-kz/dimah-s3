@@ -43,6 +43,7 @@ async function ogPayload(slug: string[]) {
   const card = ogCard(page.slugs, page.data.title, page.data.description);
   const fonts = await ogFonts();
 
+  // `use cache` only keeps plain data. ImageResponse is built by the handler.
   return {
     brand: appName,
     description: card.description,
