@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>dimah-s3 — X Article</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f4f4f5;
+        color: #09090b;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.5rem 4rem;
+      }
+      .how {
+        margin: 0 0 1.5rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid #e4e4e7;
+        border-radius: 0.75rem;
+        background: #fff;
+        font-family: system-ui, sans-serif;
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 0.75rem;
+        border: 0;
+        border-radius: 999px;
+        background: #09090b;
+        color: #fff;
+        font:
+          600 0.9rem system-ui,
+          sans-serif;
+        padding: 0.55rem 0.95rem;
+        cursor: pointer;
+      }
+      article {
+        font-size: 1.125rem;
+        line-height: 1.65;
+      }
+      h2 {
+        margin: 1.75rem 0 0.5rem;
+        font-family: system-ui, sans-serif;
+        font-size: 1.35rem;
+        line-height: 1.3;
+      }
+      p,
+      li {
+        margin: 0.75rem 0;
+      }
+      blockquote {
+        margin: 1rem 0;
+        padding-left: 1rem;
+        border-left: 3px solid #e4e4e7;
+      }
+      a {
+        color: #09090b;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="how">
+        <p>
+          عنوان و زیرعنوان را در فیلدهای خود Article بگذار. تصویر
+          <code>cover.png</code> را جدا آپلود کن. بعد این دکمه را بزن و در بدنه
+          Article پیست کن. فایل مارک‌داون را پیست نکن.
+        </p>
+        <p>
+          <strong>Title.</strong> Direct uploads to an S3 bucket you own<br />
+          <strong>Subtitle.</strong> The server signs a short-lived URL. The
+          browser talks to your S3 bucket. Credentials stay on the server.
+        </p>
+        <button type="button" id="copy">Copy article</button>
+      </div>
+      <article id="article">
+        <p>
+          dimah-s3 is a full-stack S3 toolkit for React and Node.js. You bring
+          an S3-compatible bucket and an AWS SDK client.
+        </p>
+        <p>
+          <a href="https://s3.dimah.dev/blog/direct-uploads"
+            >s3.dimah.dev/blog/direct-uploads</a
+          >
+        </p>
+        <h2>What you get</h2>
+        <ul>
+          <li>
+            <strong>Full lifecycle.</strong> Upload, download, and delete,
+            including multipart, on one named route.
+          </li>
+          <li>
+            <strong>Server hooks.</strong> Auth, quotas, and confirmation stay
+            on the server.
+          </li>
+          <li>
+            <strong>React.</strong> Headless hooks, and optional shadcn UI.
+          </li>
+          <li>
+            <strong>Optional database.</strong> Ownership and listings when an
+            object needs them.
+          </li>
+        </ul>
+        <p>List, copy, and tagging stay in your own code with the AWS SDK.</p>
+        <h2>Setup</h2>
+        <p>
+          The
+          <a href="https://s3.dimah.dev/docs/quickstart">quickstart</a>
+          has the server route, the React hook, and the framework adapter.
+          Scaffold a project with the routes and UI already in place:
+        </p>
+        <blockquote>
+          <p>npx @dimah-s3/cli@latest create my-app</p>
+        </blockquote>
+        <h2>When to use it</h2>
+        <p>
+          Choose dimah-s3 when the bucket is yours and the app needs that
+          lifecycle.
+        </p>
+        <p>
+          Choose Better Upload for a smaller upload-focused toolkit on your own
+          bucket. Choose UploadThing for managed storage. Choose Uppy for a
+          client uploader on a backend you provide.
+        </p>
+        <ul>
+          <li>
+            <a href="https://s3.dimah.dev/docs/comparison">Comparison</a>
+          </li>
+          <li><a href="https://s3.dimah.dev/docs">Docs</a></li>
+          <li>
+            <a href="https://s3.dimah.dev/docs/quickstart">Quickstart</a>
+          </li>
+          <li><a href="https://s3.dimah.dev/llms.txt">Agent index</a></li>
+          <li>
+            <a href="https://github.com/dimah-kz/dimah-s3">Source</a>
+          </li>
+        </ul>
+      </article>
+    </main>
+    <script>
+      document.getElementById("copy").addEventListener("click", async () => {
+        const article = document.getElementById("article");
+        const html = article.innerHTML.trim();
+        const text = article.innerText.trim();
+        const button = document.getElementById("copy");
+
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
+              "text/plain": new Blob([text], { type: "text/plain" }),
+            }),
+          ]);
+        } catch {
+          const range = document.createRange();
+          range.selectNodeContents(article);
+          const selection = getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          document.execCommand("copy");
+          selection.removeAllRanges();
+        }
+
+        button.textContent = "Copied";
+      });
+    </script>
+  </body>
+</html>

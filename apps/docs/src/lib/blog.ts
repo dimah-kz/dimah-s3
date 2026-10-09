@@ -5,7 +5,8 @@ import { absolutizeMarkdownUrls } from "./llm-intro";
 import { appName, blogImageRoute, blogRoute } from "./shared";
 import { getSiteUrl } from "./site-url";
 
-export const blogDescription = "Notes on direct uploads to a bucket you own.";
+export const blogDescription =
+  "Notes on direct uploads to an S3 bucket you own.";
 
 const blogDateFormat = new Intl.DateTimeFormat("en", {
   day: "numeric",
