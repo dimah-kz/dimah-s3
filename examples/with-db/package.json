@@ -15,7 +15,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1147.0",
+    "@aws-sdk/client-s3": "^3.1148.0",
     "@base-ui/react": "^1.8.0",
     "@dimah-s3/db": "workspace:*",
     "@dimah-s3/react": "workspace:*",
@@ -26,9 +26,9 @@
     "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
-    "drizzle-orm": "^0.45.3",
+    "drizzle-orm": "^0.45.4",
     "fumadb": "^0.6.0",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.53.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",
     "react": "catalog:",
