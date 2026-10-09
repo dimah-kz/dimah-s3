@@ -1,0 +1,46 @@
+---
+title: Direct uploads to a bucket you own
+description: The server signs a short-lived URL. The browser talks to your bucket. Credentials stay on the server.
+author:
+  name: dimah
+  url: https://github.com/dimah-kz
+  avatar: /dimah-avatar.png
+date: 2026-10-09
+---
+
+dimah-s3 is a full-stack S3 toolkit for React and Node.js. You bring an S3-compatible bucket and an AWS SDK client.
+
+The server signs a short-lived URL. The browser talks to your bucket. Credentials never leave the backend.
+
+## What you get
+
+- **Full lifecycle** — upload, download, and delete, including multipart
+- **Server hooks** — auth, quotas, and confirmation on the server
+- **React** — headless hooks, and optional shadcn UI
+- **Optional database** — ownership and listings when you need them
+
+List, copy, and tagging stay in your own code with the AWS SDK.
+
+## When to use it
+
+Choose dimah-s3 when the bucket is yours and the app needs that lifecycle.
+
+Choose Better Upload for a smaller upload-focused toolkit on your own bucket. Choose UploadThing for managed storage. Choose Uppy for a client uploader on a backend you provide.
+
+<Cards>
+  <Card
+    title="Quickstart"
+    href="/docs/quickstart"
+    description="Get a working upload running in a few minutes."
+  />
+  <Card
+    title="Comparison"
+    href="/docs/comparison"
+    description="Choose between dimah-s3, Better Upload, UploadThing, and Uppy."
+  />
+  <Card
+    title="Security"
+    href="/docs/server/security"
+    description="Review keys, guards, verified metadata, and ownership boundaries."
+  />
+</Cards>

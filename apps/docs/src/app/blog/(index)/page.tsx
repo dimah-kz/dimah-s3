@@ -77,7 +77,7 @@ export default function Page() {
           __html: serializeJsonLd(jsonLd),
         }}
       />
-      <header className="max-w-xl">
+      <header>
         <h1
           className={cn(
             display.className,
@@ -86,9 +86,6 @@ export default function Page() {
         >
           Blog
         </h1>
-        <p className="mt-4 text-base leading-7 text-pretty text-fd-muted-foreground">
-          {blogDescription}
-        </p>
       </header>
 
       {posts.length === 0 ? (
