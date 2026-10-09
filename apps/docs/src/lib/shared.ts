@@ -7,6 +7,7 @@ export const docsImageRoute = "/og/docs";
 export const docsContentRoute = "/llms.mdx/docs";
 export const blogRoute = "/blog";
 export const blogImageRoute = "/og/blog";
+export const blogContentRoute = "/llms.mdx/blog";
 
 /** Landing H1, browser tab, and Open Graph title — keep these in sync. */
 export const siteTagline = "Full-stack S3 toolkit for the React ecosystem";

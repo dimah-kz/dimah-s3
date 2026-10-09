@@ -1,7 +1,9 @@
 import { blogPosts } from "collections/server";
 import { type InferPageType, loader } from "fumadocs-core/source";
 import { toFumadocsSource } from "fumadocs-mdx/runtime/server";
+import { absolutizeMarkdownUrls } from "./llm-intro";
 import { appName, blogImageRoute, blogRoute } from "./shared";
+import { getSiteUrl } from "./site-url";
 
 export const blogDescription =
   "Notes on presigned uploads, object metadata, and when a database belongs in the stack.";
@@ -31,6 +33,42 @@ export function getBlogPosts() {
 
 export function formatBlogDate(isoDate: string) {
   return blogDateFormat.format(new Date(`${isoDate}T00:00:00Z`));
+}
+
+/** Newest first. Descriptions are the llms.txt blurbs. */
+export function blogNoteLines(origin: string) {
+  return getBlogPosts().map((post) => {
+    const description = post.data.description
+      ? `: ${post.data.description}`
+      : "";
+
+    return `- [${post.data.title}](${origin}${post.url}.md)${description}`;
+  });
+}
+
+export function llmBlogSection(origin = getSiteUrl().origin) {
+  return `## Notes\n\n${blogNoteLines(origin).join("\n")}\n`;
+}
+
+export function getBlogIndexLLMText() {
+  const origin = getSiteUrl().origin;
+
+  return `# Blog (${origin}${blogRoute})
+
+${blogDescription}
+
+${blogNoteLines(origin).join("\n")}
+`;
+}
+
+export async function getBlogLLMText(page: BlogPage) {
+  const processed = await page.data.getText("processed");
+  const origin = getSiteUrl().origin;
+  const absolute = absolutizeMarkdownUrls(processed, origin);
+
+  return `# ${page.data.title} (${origin}${page.url})
+
+${absolute}`;
 }
 
 export function getBlogNeighbors(url: string) {

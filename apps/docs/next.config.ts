@@ -31,10 +31,14 @@ const nextConfig: NextConfig = {
       { source: "/", headers: [describedBy, ...previewRobots] },
       { source: "/docs", headers: [describedBy, ...previewRobots] },
       { source: "/docs/:path*", headers: [describedBy, ...previewRobots] },
+      { source: "/blog", headers: [describedBy, ...previewRobots] },
+      { source: "/blog/:path*", headers: [describedBy, ...previewRobots] },
       { source: "/llms.txt", headers: [cors] },
       { source: "/llms-full.txt", headers: [cors] },
       { source: "/docs.md", headers: [cors, describedBy] },
       { source: "/docs/:path*.md", headers: [cors, describedBy] },
+      { source: "/blog.md", headers: [cors, describedBy] },
+      { source: "/blog/:path*.md", headers: [cors, describedBy] },
       { source: "/llms.mdx/:path*", headers: [cors, describedBy] },
     ];
   },
@@ -44,6 +48,10 @@ const nextConfig: NextConfig = {
       { source: "/docs.mdx", destination: "/llms.mdx/docs" },
       { source: "/docs/:path*.md", destination: "/llms.mdx/docs/:path*" },
       { source: "/docs/:path*.mdx", destination: "/llms.mdx/docs/:path*" },
+      { source: "/blog.md", destination: "/llms.mdx/blog" },
+      { source: "/blog.mdx", destination: "/llms.mdx/blog" },
+      { source: "/blog/:path*.md", destination: "/llms.mdx/blog/:path*" },
+      { source: "/blog/:path*.mdx", destination: "/llms.mdx/blog/:path*" },
     ];
   },
   async redirects() {

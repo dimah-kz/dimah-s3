@@ -1,4 +1,5 @@
 import { cacheLife } from "next/cache";
+import { llmBlogSection } from "@/lib/blog";
 import { source } from "@/lib/source";
 import { llms } from "fumadocs-core/source";
 import { getSiteUrl } from "@/lib/site-url";
@@ -10,7 +11,7 @@ import {
   toMarkdownTwinUrls,
 } from "@/lib/llm-intro";
 
-/** `/llms.txt` — decision sheet + docs index, for coding agents. */
+/** `/llms.txt` — decision sheet, docs index, and notes, for coding agents. */
 export async function GET() {
   return new Response(await llmsIndex(), { headers: llmMarkdownHeaders });
 }
@@ -35,5 +36,5 @@ async function llmsIndex() {
     origin,
   );
 
-  return `${llmDecisionSheet()}\n## Docs\n\n${catalog}\n\n${llmFileLists(origin)}`;
+  return `${llmDecisionSheet()}\n## Docs\n\n${catalog}\n\n${llmBlogSection(origin)}\n${llmFileLists(origin)}`;
 }

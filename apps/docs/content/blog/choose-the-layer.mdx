@@ -1,0 +1,39 @@
+---
+title: Choose the layer before the library
+description: A bucket you control, a managed file service, and a client uploader are different jobs.
+author:
+  name: dimah
+  url: https://github.com/dimah-kz
+  avatar: /dimah-avatar.png
+date: 2026-10-09
+---
+
+File tools sit at different layers. One signs requests for a bucket you already run. One stores and delivers the file for you. One is the uploader on top of a backend you still provide.
+
+The library follows from that choice.
+
+## Your bucket, for the life of the object
+
+Choose dimah-s3 when the bucket is yours and the app needs one policy from upload through delete.
+
+The client sends a route name. The server owns the object key and signs a short-lived request. After the bytes land, `HeadObject` is the size and type you keep. Download and delete use the same route. Multipart can resume after the user reselects the same file. A database row is optional, and only when an object needs an owner, a list, or a quota.
+
+You pass an AWS SDK `S3Client`. Amazon S3, Cloudflare R2, MinIO, and any other S3-compatible store work. List, copy, tagging, and image or video transforms stay in your own SDK code.
+
+## Your bucket, for the upload
+
+Choose Better Upload when you own the bucket and the upload is the product boundary. It is a smaller React toolkit, with multipart and standalone S3 helpers. Moving between the two means adapting server and client code. The contracts differ.
+
+## Storage operated for you
+
+Choose UploadThing when you want storage, delivery, and file URLs operated as a service. You skip provisioning a bucket, an IAM policy, and CORS. The bill is a managed plan. Running the bucket yourself still costs storage, transfer, compute, and maintenance.
+
+## A client uploader
+
+Choose Uppy when a signing backend is already yours, or you are ready to build one, and you want its Dashboard, remote sources, or Tus. Uppy's S3 plugin expects Uppy's signing contract. dimah-s3 expects a route name and a server-owned key.
+
+## One small upload
+
+The AWS SDK is enough for a single presign flow when you want every endpoint in your own code. Confirmation, key isolation, authorized download, and delete become your problem as soon as the flow grows.
+
+The boundaries are written out in [Comparison](/docs/comparison). Keys, confirmation, and ownership are in [Security](/docs/server/security) and [Database](/docs/db).

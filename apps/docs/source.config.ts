@@ -40,6 +40,9 @@ export const blogPosts = defineCollections({
     author: blogAuthor,
     date: blogDate,
   }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
 });
 
 export const docs = defineDocs({
