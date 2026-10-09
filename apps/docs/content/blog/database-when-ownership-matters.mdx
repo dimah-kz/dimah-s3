@@ -1,0 +1,32 @@
+---
+title: Add a database when ownership matters
+description: The toolkit uploads, downloads, and deletes with no database. Add one when a file needs an owner, a list, or a lifecycle.
+author:
+  name: dimah
+  url: https://github.com/dimah-kz
+  avatar: /dimah-avatar.png
+date: 2026-10-02
+---
+
+Most of the library is a signing and guarding layer in front of an S3-compatible bucket. A database is optional, and it stays optional on purpose.
+
+## What works with no tables
+
+Presign, confirm, download, and delete do not need a row. Route guards are yours: a session, a quota, whatever you already have. If the only question is whether this caller may use this route, you do not need `@dimah-s3/db`.
+
+## What the plugin is for
+
+Reach for it when an object has to belong to someone.
+
+- A scope such as `user:123` owns the file
+- Download and delete reject a different scope
+- You want a listing, or usage summed from confirmed sizes
+- Multipart uploads should resume against a recorded upload, not only a client guess
+
+The plugin writes the row. It does not sign you in, and it does not decide your quota. You pass the scope and the limit.
+
+## Status, not a second bucket
+
+An object moves through `pending`, `active`, and `deleted`. `active` means confirm has seen the object in the bucket. The bytes still live in S3. The row is the ownership and lifecycle record beside them.
+
+Start without it. Add [the database plugin](/docs/db) when ownership shows up in the product, not before.

@@ -26,6 +26,19 @@ export function baseOptions(): BaseLayoutProps {
     githubUrl: githubRepoUrl(),
     links: [
       {
+        text: "Docs",
+        url: "/docs",
+        active: "nested-url",
+        // Docs already has the sidebar. Keep this on the top nav only.
+        on: "nav",
+      },
+      {
+        text: "Blog",
+        url: "/blog",
+        active: "nested-url",
+        on: "nav",
+      },
+      {
         type: "icon",
         url: xProfileUrl,
         text: "X",

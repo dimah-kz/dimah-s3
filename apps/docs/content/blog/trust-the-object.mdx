@@ -1,0 +1,27 @@
+---
+title: Trust the object, not the request
+description: Size and content type on the presign body are untrusted. HeadObject after the upload is the record.
+author:
+  name: dimah
+  url: https://github.com/dimah-kz
+  avatar: /dimah-avatar.png
+date: 2026-09-16
+---
+
+A browser can claim a file is small, or that it is an image. That claim is useful as a first check. It is not the size or type you should store.
+
+## The presign body is a hint
+
+Upload requests carry a declared size and content type so the server can reject an obvious mismatch before signing. Those numbers come from the client. Treat them as a filter, not as metadata.
+
+## HeadObject is the record
+
+After the bytes land, `upload.onConfirmed` reads the object with `HeadObject`. Content length and `Content-Type` on the object are what the bucket actually stored. Quota math, database rows, and anything you show to another user should use those values.
+
+If confirm never runs, you do not have a verified object. You have a signature that might have been used.
+
+## Why this is the default
+
+Presigned uploads skip your server on the way to storage. That is the point, and it is also the gap. The confirm step closes it without proxying the file through your process.
+
+See [Security](/docs/server/security) for the check, and [Database](/docs/db) for how a confirmed size is written down when you opt into tracking.

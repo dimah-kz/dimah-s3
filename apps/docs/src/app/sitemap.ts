@@ -1,26 +1,46 @@
 import type { MetadataRoute } from "next";
+import { getBlogPosts } from "@/lib/blog";
 import { source } from "@/lib/source";
+import { blogRoute } from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
 
 /** Captured when the module loads during `next build`, not on each request. */
 const builtAt = new Date();
 
-/** `/sitemap.xml` — 1 home · 0.9 intro/quickstart · 0.8 decision pages · then by depth. */
+/** `/sitemap.xml` — 1 home · 0.9 intro/quickstart · 0.8 decision pages · 0.6 blog · then by depth. */
 export default function sitemap(): MetadataRoute.Sitemap {
   const origin = getSiteUrl().origin;
+  const posts = getBlogPosts();
+  const newest = posts[0]?.data.date;
 
   return [
     entry(origin, 1),
+    entry(
+      `${origin}${blogRoute}`,
+      0.6,
+      newest ? new Date(`${newest}T00:00:00Z`) : builtAt,
+    ),
+    ...posts.map((page) =>
+      entry(
+        `${origin}${page.url}`,
+        0.5,
+        new Date(`${page.data.date}T00:00:00Z`),
+      ),
+    ),
     ...source
       .getPages()
       .map((page) => entry(`${origin}${page.url}`, docsPriority(page.url))),
   ].sort(byImportance);
 }
 
-function entry(url: string, priority: number): MetadataRoute.Sitemap[number] {
+function entry(
+  url: string,
+  priority: number,
+  lastModified = builtAt,
+): MetadataRoute.Sitemap[number] {
   return {
     url,
-    lastModified: builtAt,
+    lastModified,
     changeFrequency: priority >= 0.8 ? "weekly" : "monthly",
     priority,
   };

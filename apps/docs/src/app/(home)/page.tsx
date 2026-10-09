@@ -136,6 +136,12 @@ export default function HomePage() {
             >
               Documentation
             </Link>
+            <Link
+              href="/blog"
+              className="transition-colors hover:text-fd-foreground"
+            >
+              Blog
+            </Link>
             <a
               href={githubUrl}
               target="_blank"
