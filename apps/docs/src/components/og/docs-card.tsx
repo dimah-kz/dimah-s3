@@ -16,6 +16,13 @@ export interface DocsCardProps {
   description?: string;
   /** Index card uses the product tagline as the headline. */
   layout?: "cover" | "page";
+  /**
+   * Multiplier for type and spacing. Open Graph images stay at 1.
+   * Wider canvases, such as a 5:2 article cover, pass width / 1200.
+   */
+  scale?: number;
+  /** Title block inset from the bottom, in the 1200px-wide design. */
+  contentBottom?: number;
 }
 
 export function DocsCard({
@@ -24,8 +31,11 @@ export function DocsCard({
   title,
   description,
   layout = "page",
+  scale = 1,
+  contentBottom = 68,
 }: DocsCardProps) {
   const blurb = description?.trim();
+  const px = (value: number) => Math.round(value * scale);
 
   return (
     <div
@@ -41,33 +51,33 @@ export function DocsCard({
         width: "100%",
       }}
     >
-      <GridLines color={line} inset={36} variant="solid" />
+      <GridLines color={line} inset={px(36)} variant="solid" />
 
       <div
         style={{
           alignItems: "center",
           display: "flex",
           justifyContent: "space-between",
-          left: 84,
+          left: px(84),
           position: "absolute",
-          right: 84,
-          top: 68,
+          right: px(84),
+          top: px(68),
         }}
       >
         <div
           style={{
             alignItems: "center",
             display: "flex",
-            gap: 14,
+            gap: px(14),
           }}
         >
-          <BrandMark background={mark} radius={12} size={48}>
-            <CloudMark />
+          <BrandMark background={mark} radius={px(12)} size={px(48)}>
+            <CloudMark size={px(26)} />
           </BrandMark>
           <div
             style={{
               display: "flex",
-              fontSize: 26,
+              fontSize: px(26),
               fontWeight: 500,
               letterSpacing: "-0.04em",
             }}
@@ -78,7 +88,7 @@ export function DocsCard({
         <Badge
           color={labelColor}
           style={{
-            fontSize: 16,
+            fontSize: px(16),
             fontWeight: 500,
             letterSpacing: "0.16em",
             padding: 0,
@@ -91,29 +101,29 @@ export function DocsCard({
 
       <div
         style={{
-          bottom: 68,
+          bottom: px(contentBottom),
           display: "flex",
           flexDirection: "column",
-          left: 84,
+          left: px(84),
           position: "absolute",
-          right: 84,
+          right: px(84),
         }}
       >
         {layout === "cover" ? (
-          <CoverTitle title={title} />
+          <CoverTitle scale={scale} title={title} />
         ) : (
-          <Title size={titleSize(title)}>{title}</Title>
+          <Title size={px(titleSize(title))}>{title}</Title>
         )}
         {blurb ? (
           <div
             style={{
               color: muted,
               display: "flex",
-              fontSize: 28,
+              fontSize: px(28),
               fontWeight: 400,
               lineHeight: 1.4,
-              marginTop: 24,
-              maxWidth: 880,
+              marginTop: px(24),
+              maxWidth: px(880),
             }}
           >
             {blurb}
@@ -124,19 +134,20 @@ export function DocsCard({
   );
 }
 
-function CoverTitle({ title }: { title: string }) {
+function CoverTitle({ scale, title }: { scale: number; title: string }) {
+  const px = (value: number) => Math.round(value * scale);
   const bridge = " for ";
   const at = title.indexOf(bridge);
   const lead = at === -1 ? title : title.slice(0, at);
   const tail = at === -1 ? null : title.slice(at + 1);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <Title nowrap size={64}>
+    <div style={{ display: "flex", flexDirection: "column", gap: px(6) }}>
+      <Title nowrap size={px(64)}>
         {lead}
       </Title>
       {tail ? (
-        <Title nowrap size={64}>
+        <Title nowrap size={px(64)}>
           {tail}
         </Title>
       ) : null}
@@ -175,17 +186,17 @@ function titleSize(title: string) {
   return 52;
 }
 
-function CloudMark() {
+function CloudMark({ size }: { size: number }) {
   return (
     <svg
       fill="none"
-      height="26"
+      height={size}
       stroke="#121211"
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="2"
       viewBox="0 0 24 24"
-      width="26"
+      width={size}
     >
       <path d="M12 13v8" />
       <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
