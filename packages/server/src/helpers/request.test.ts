@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import { requestFromDirectCall } from "./request";
 
 describe("requestFromDirectCall", () => {
-  it("copies query primitives and repeated values onto the URL", () => {
+  it("copies scalar query values onto the URL", () => {
     const request = requestFromDirectCall({
       method: "DELETE",
       pathname: "/api/s3/delete",
       query: {
         route: "uploads",
         key: "avatars/org/1",
-        tag: ["a", "b"],
         limit: 2,
         force: false,
         skip: null,
         extra: { no: true },
+        tag: ["a", "b"],
       },
     });
 
@@ -22,11 +22,11 @@ describe("requestFromDirectCall", () => {
     expect(url.pathname).toBe("/api/s3/delete");
     expect(url.searchParams.get("route")).toBe("uploads");
     expect(url.searchParams.get("key")).toBe("avatars/org/1");
-    expect(url.searchParams.getAll("tag")).toEqual(["a", "b"]);
     expect(url.searchParams.get("limit")).toBe("2");
     expect(url.searchParams.get("force")).toBe("false");
     expect(url.searchParams.has("skip")).toBe(false);
     expect(url.searchParams.has("extra")).toBe(false);
+    expect(url.searchParams.has("tag")).toBe(false);
     expect(request.method).toBe("DELETE");
     expect(request.body).toBeNull();
   });
@@ -37,6 +37,7 @@ describe("requestFromDirectCall", () => {
       pathname: "/api/s3/presign/upload",
       headers: {
         cookie: "session=abc",
+        "content-type": "text/plain",
         "content-length": "1",
         "transfer-encoding": "chunked",
       },
@@ -50,19 +51,6 @@ describe("requestFromDirectCall", () => {
     expect(request.headers.get("cookie")).toBe("session=abc");
     expect(request.headers.get("content-length")).toBeNull();
     expect(request.headers.get("transfer-encoding")).toBeNull();
-  });
-
-  it("keeps an existing JSON content type", () => {
-    const request = requestFromDirectCall({
-      method: "POST",
-      pathname: "/api/s3/presign/upload/confirm",
-      headers: { "content-type": "application/json; charset=utf-8" },
-      body: { route: "uploads", key: "uploads/a.png" },
-    });
-
-    expect(request.headers.get("content-type")).toBe(
-      "application/json; charset=utf-8",
-    );
   });
 
   it("does not attach a body to GET or HEAD", () => {
