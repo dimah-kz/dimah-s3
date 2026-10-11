@@ -1,10 +1,15 @@
 import type { Endpoint } from "better-call";
+import { normalizeS3ApiBasePath, S3_API_BASE_PATH } from "@dimah-s3/core";
+import { requestFromDirectCall } from "@/helpers/request";
 import type { S3EndpointContext } from "./context";
-import { requestFromHeaders } from "@/helpers";
 
 /**
  * Wrap better-call endpoints so `s3.api.upload({ body, headers })` injects
  * `routerContext` the same way HTTP `createRouter` does.
+ *
+ * The synthetic `Request` includes method, pathname, `query`, and a JSON
+ * `body`, so guards see the same request an HTTP call would. A `request`
+ * argument is passed through unchanged.
  */
 export function bindEndpoints<E extends Record<string, Endpoint>>(
   endpoints: E,
@@ -15,11 +20,19 @@ export function bindEndpoints<E extends Record<string, Endpoint>>(
   for (const [key, endpoint] of Object.entries(endpoints)) {
     const bound = (async (input: Record<string, unknown> = {}) => {
       const headers = input.headers as HeadersInit | undefined;
+      const provided = input.request as Request | undefined;
       const request =
-        (input.request as Request | undefined) ?? requestFromHeaders(headers);
+        provided ??
+        requestFromDirectCall({
+          method: endpointMethod(endpoint),
+          pathname: endpointPathname(endpoint, context.config.basePath),
+          headers,
+          query: input.query,
+          body: input.body,
+        });
       return endpoint({
         ...input,
-        headers: headers ?? request.headers,
+        headers: provided ? (headers ?? request.headers) : request.headers,
         request,
         context,
       });
@@ -31,4 +44,21 @@ export function bindEndpoints<E extends Record<string, Endpoint>>(
   }
 
   return api;
+}
+
+function endpointMethod(endpoint: Endpoint): string {
+  const method = endpoint.options?.method;
+  if (Array.isArray(method)) return method[0] ?? "GET";
+  if (typeof method === "string" && method !== "*") return method;
+  return "GET";
+}
+
+function endpointPathname(
+  endpoint: Endpoint,
+  basePath: string | undefined,
+): string {
+  const prefix = normalizeS3ApiBasePath(basePath ?? S3_API_BASE_PATH);
+  const path = endpoint.path ?? "/";
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${prefix}${suffix}` || "/";
 }

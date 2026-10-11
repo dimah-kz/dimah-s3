@@ -29,4 +29,16 @@ describe("core protocol", () => {
     expect(endpoint.path).toBe(path);
     expect(endpoint.options.method).toBe(method);
   });
+
+  it("clones JSON bodies so hooks can read them again", () => {
+    for (const endpoint of Object.values(coreEndpoints)) {
+      const options = endpoint.options as {
+        body?: unknown;
+        cloneRequest?: boolean;
+      };
+      expect(options.cloneRequest).toBe(
+        options.body === undefined ? undefined : true,
+      );
+    }
+  });
 });

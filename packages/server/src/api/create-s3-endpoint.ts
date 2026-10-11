@@ -21,6 +21,11 @@ function withS3Validation<O extends EndpointOptions>(options: O): O {
     ...(options.query !== undefined
       ? { query: compileIfZod(options.query) }
       : {}),
+    // better-call reads the body before hooks. Clone first so
+    // `request.clone().json()` in guard / resolveScope still works.
+    ...(options.body !== undefined && options.cloneRequest === undefined
+      ? { cloneRequest: true }
+      : {}),
     onValidationError:
       options.onValidationError ??
       (({ message }: { message: string }) => {
@@ -37,8 +42,9 @@ type CreateS3Endpoint = typeof createEndpointWithContext;
  * Paths are absolute under `basePath` (e.g. `/db/objects`). Context
  * (`config`, `request`) is injected by the router / `s3.api`.
  * Zod failures throw `APIError` (`VALIDATION_ERROR`) via
- * better-call `onValidationError`. Zod `body` / `query` schemas are
- * compiled with `z.compile()` so valid requests skip the interpreter.
+ * better-call `onValidationError`. Endpoints with a `body` set
+ * `cloneRequest` so hooks can still read that JSON. Zod `body` / `query`
+ * schemas are compiled with `z.compile()` so valid requests skip the interpreter.
  * Unsupported schemas, and runtimes that reject `new Function`, keep
  * the runtime parser.
  *

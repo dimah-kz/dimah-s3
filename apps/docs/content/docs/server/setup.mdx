@@ -207,6 +207,8 @@ export async function getAvatarDownloadUrl(key: string) {
 }
 ```
 
+Guards and `resolveScope` see that call as a `Request`: `headers` are copied, `query` is on the URL, and a JSON `body` stays readable with `request.clone().json()`. Pass `request` only when you already have the incoming one — that object is used as-is.
+
 To upload files directly from the server (e.g. background jobs, image processing) while still executing route validation and `onConfirmed` hooks:
 
 ```ts
