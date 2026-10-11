@@ -11,14 +11,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@base-ui/react": "^1.8.0",
+    "@base-ui/react": "^1.9.0",
     "@dimah-s3/ui": "workspace:*",
-    "@editframe/elements": "^0.60.29",
-    "@editframe/react": "^0.60.29",
+    "@editframe/elements": "^0.60.31",
+    "@editframe/react": "^0.60.31",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
-    "lucide-react": "^1.53.0",
+    "lucide-react": "^1.55.0",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

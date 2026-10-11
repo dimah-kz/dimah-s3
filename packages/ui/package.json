@@ -64,7 +64,7 @@
     "react-file-icon": "^1.6.0"
   },
   "devDependencies": {
-    "@base-ui/react": "^1.8.0",
+    "@base-ui/react": "^1.9.0",
     "@fuma-translate/react": "^1.0.2",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -75,7 +75,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "eslint": "catalog:",
-    "lucide-react": "^1.53.0",
+    "lucide-react": "^1.55.0",
     "react": "catalog:",
     "shadcn": "^4.21.4",
     "tailwindcss": "catalog:",
