@@ -1,30 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n## update deps\n"
-    filename: 2026-10-05-muv83npq.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Keep the hook request readable\n\nHTTP handlers clone a JSON body before reading it, so `guard` and `resolveScope` can still call `request.clone().json()`. Direct `s3.api` calls copy `query` onto the request URL and replay a JSON `body`, using that endpoint's method and path. A `request` you pass in is left unchanged.\n"
+    filename: 2026-10-12-hook-request.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-10-05-muv83npq.md
+      - 2026-10-12-hook-request.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-10-05-muv83npq.md
+      - 2026-10-12-hook-request.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-10-05-muv83npq.md
+      - 2026-10-12-hook-request.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-10-05-muv83npq.md
+      - 2026-10-12-hook-request.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-10-05-muv83npq.md
+      - 2026-10-12-hook-request.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-10-05-muv83npq.md
+      - 2026-10-12-hook-request.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
