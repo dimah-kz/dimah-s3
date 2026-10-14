@@ -1,7 +1,9 @@
-import { docs } from "collections/server";
+import { blogPosts, docs } from "collections/server";
 import { type InferPageType, loader } from "fumadocs-core/source";
 import { lucideIconsPlugin } from "fumadocs-core/source/lucide-icons";
-import { docsImageRoute, docsRoute } from "./shared";
+import { toFumadocsSource } from "fumadocs-mdx/runtime/server";
+import type { BlogAuthor } from "@/lib/blog";
+import { blogRoute, docsImageRoute, docsRoute } from "./shared";
 import { getSiteUrl } from "./site-url";
 import { absolutizeMarkdownUrls, LLM_PAGE_PRIORITY } from "./llm-intro";
 
@@ -11,6 +13,19 @@ export const source = loader({
   source: docs.toFumadocsSource(),
   plugins: [lucideIconsPlugin()],
 });
+
+export const blogSource = loader({
+  baseUrl: blogRoute,
+  source: toFumadocsSource(blogPosts, []),
+});
+
+export const blogAuthors: Record<string, BlogAuthor> = {
+  dimah: {
+    name: "dimah",
+    url: "https://github.com/dimah-kz",
+    image: "/dimah-avatar.png",
+  },
+};
 
 export function getPageImage(page: InferPageType<typeof source>) {
   const segments = [...page.slugs, "image.png"];

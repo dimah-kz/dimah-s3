@@ -1,131 +1,155 @@
-import { blogPosts } from "collections/server";
-import { type InferPageType, loader } from "fumadocs-core/source";
-import { toFumadocsSource } from "fumadocs-mdx/runtime/server";
-import { absolutizeMarkdownUrls } from "./llm-intro";
-import { appName, blogImageRoute, blogRoute } from "./shared";
-import { getSiteUrl } from "./site-url";
+import { createGetUrl } from "fumadocs-core/source";
+import { pageSchema } from "fumadocs-core/source/schema";
+import { z } from "zod";
 
-export const blogDescription =
-  "Notes on direct uploads to an S3 bucket you own.";
-
-const blogDateFormat = new Intl.DateTimeFormat("en", {
-  day: "numeric",
-  month: "short",
-  timeZone: "UTC",
-  year: "numeric",
+export const blogPageSchema = pageSchema.extend({
+  /** publish date, posts are sorted by it */
+  date: z.iso.date().or(z.date()).optional(),
+  tags: z.array(z.string()).optional(),
+  /** keys of the authors passed to `getPosts()` */
+  authors: z.array(z.string()).optional(),
+  /** cover image URL */
+  image: z.string().optional(),
 });
 
-export const blog = loader({
-  baseUrl: blogRoute,
-  source: toFumadocsSource(blogPosts, []),
-});
-
-export type BlogPage = InferPageType<typeof blog>;
-
-/** Newest first. Posts are flat files; order comes from frontmatter `date`. */
-export function getBlogPosts() {
-  return blog.getPages().sort((a, b) => {
-    const byDate = b.data.date.localeCompare(a.data.date);
-    if (byDate !== 0) return byDate;
-    return a.url.localeCompare(b.url);
-  });
+export interface BlogAuthor {
+  name: string;
+  /** role or job title */
+  title?: string;
+  /** link to profile or website */
+  url?: string;
+  /** avatar URL */
+  image?: string;
 }
 
-export function formatBlogDate(isoDate: string) {
-  return blogDateFormat.format(new Date(`${isoDate}T00:00:00Z`));
-}
-
-/** Newest first. Descriptions are the llms.txt blurbs. */
-export function blogNoteLines(origin: string) {
-  return getBlogPosts().map((post) => {
-    const description = post.data.description
-      ? `: ${post.data.description}`
-      : "";
-
-    return `- [${post.data.title}](${origin}${post.url}.md)${description}`;
-  });
-}
-
-export function llmBlogSection(origin = getSiteUrl().origin) {
-  return `## Notes\n\n${blogNoteLines(origin).join("\n")}\n`;
-}
-
-export function getBlogIndexLLMText() {
-  const origin = getSiteUrl().origin;
-
-  return `# Blog (${origin}${blogRoute})
-
-${blogDescription}
-
-${blogNoteLines(origin).join("\n")}
-`;
-}
-
-export async function getBlogLLMText(page: BlogPage) {
-  const processed = await page.data.getText("processed");
-  const origin = getSiteUrl().origin;
-  const absolute = absolutizeMarkdownUrls(processed, origin);
-
-  return `# ${page.data.title} (${origin}${page.url})
-
-${absolute}`;
-}
-
-export function getBlogNeighbors(url: string) {
-  const posts = getBlogPosts();
-  const index = posts.findIndex((post) => post.url === url);
-
-  return {
-    newer: index > 0 ? posts[index - 1] : undefined,
-    older:
-      index !== -1 && index < posts.length - 1 ? posts[index + 1] : undefined,
-  };
-}
-
-export function getBlogPageImage(page: BlogPage) {
-  const segments = [...page.slugs, "image.png"];
-
-  return {
-    segments,
-    url: `${blogImageRoute}/${segments.join("/")}`,
-  };
-}
-
-export type BlogAuthor = BlogPage["data"]["author"];
-
-export function blogPostingJsonLd(input: {
-  author: BlogAuthor;
-  date: string;
-  description: string;
-  image: string;
-  origin: string;
-  title: string;
+export interface BlogTag {
+  /** as written in the first post using it */
+  name: string;
+  /** URL segment, see `tagSlug()` */
+  slug: string;
+  /** URL of the tag page */
   url: string;
-}) {
-  const pageUrl = `${input.origin}${input.url}`;
-  const avatar = input.author.avatar
-    ? new URL(input.author.avatar, input.origin).href
-    : undefined;
+}
+
+export interface BlogPost {
+  url: string;
+  title: string;
+  description?: string;
+  date?: Date;
+  /** cover image URL */
+  image?: string;
+  tags: BlogTag[];
+  authors: BlogAuthor[];
+}
+
+interface BlogPage {
+  url: string;
+  locale?: string;
+  data: z.output<typeof blogPageSchema>;
+}
+
+/**
+ * URL of blog routes, like `getBlogUrl(['tags'], locale)` for the tags page.
+ *
+ * With i18n, pass your config to it: `createGetUrl('/blog', i18n)`.
+ */
+export const getBlogUrl = createGetUrl("/blog");
+
+/** lowercase, whitespace replaced by `-` */
+export function tagSlug(tag: string): string {
+  return tag.toLowerCase().replaceAll(/\s+/g, "-");
+}
+
+/**
+ * Posts of blog pages, newest first, undated posts on top.
+ *
+ * @param authors - authors by their keys in frontmatter, unknown keys are shown as names
+ */
+export function getPosts(
+  pages: BlogPage[],
+  authors: Record<string, BlogAuthor> = {},
+): BlogPost[] {
+  const posts: BlogPost[] = [];
+
+  for (const { url, locale, data } of pages) {
+    const post: BlogPost = {
+      url,
+      title: data.title,
+      description: data.description,
+      date: data.date === undefined ? undefined : new Date(data.date),
+      image: data.image,
+      tags: [],
+      authors: [],
+    };
+
+    for (const name of data.tags ?? []) {
+      const slug = tagSlug(name);
+      post.tags.push({ name, slug, url: getBlogUrl(["tags", slug], locale) });
+    }
+    for (const id of data.authors ?? [])
+      post.authors.push(authors[id] ?? { name: id });
+    posts.push(post);
+  }
+
+  return posts.sort(
+    (a, b) =>
+      (b.date?.getTime() ?? Number.POSITIVE_INFINITY) -
+      (a.date?.getTime() ?? Number.POSITIVE_INFINITY),
+  );
+}
+
+/** the post of `url`, and the posts published right after (`newer`) and before (`older`) it */
+export function findPost(
+  posts: BlogPost[],
+  url: string,
+): { post: BlogPost; newer?: BlogPost; older?: BlogPost } | undefined {
+  const index = posts.findIndex((post) => post.url === url);
+  if (index === -1) return;
 
   return {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    author: {
-      "@type": "Person",
-      name: input.author.name,
-      ...(input.author.url ? { url: input.author.url } : {}),
-      ...(avatar ? { image: avatar } : {}),
-    },
-    datePublished: input.date,
-    description: input.description,
-    headline: input.title,
-    image: `${input.origin}${input.image}`,
-    mainEntityOfPage: pageUrl,
-    publisher: {
-      "@type": "Organization",
-      name: appName,
-      url: input.origin,
-    },
-    url: pageUrl,
+    post: posts[index],
+    newer: posts[index - 1],
+    older: posts[index + 1],
   };
+}
+
+/** tags of posts with their number of posts, most used first */
+export function getTags(posts: BlogPost[]): (BlogTag & { count: number })[] {
+  const tags = new Map<string, BlogTag & { count: number }>();
+
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      const info = tags.get(tag.slug);
+      if (info) info.count++;
+      else tags.set(tag.slug, { ...tag, count: 1 });
+    }
+  }
+
+  return Array.from(tags.values()).sort((a, b) => b.count - a.count);
+}
+
+/** a tag and its posts, `undefined` when no post has it */
+export function getTagPosts(posts: BlogPost[], slug: string) {
+  const key = decode(slug);
+  let tag: BlogTag | undefined;
+  const tagged: BlogPost[] = [];
+
+  for (const post of posts) {
+    const match = post.tags.find((item) => item.slug === key);
+    if (!match) continue;
+
+    tag ??= match;
+    tagged.push(post);
+  }
+
+  if (tag) return { tag, posts: tagged };
+}
+
+/** routers may pass the slug URI encoded */
+function decode(slug: string) {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
 }

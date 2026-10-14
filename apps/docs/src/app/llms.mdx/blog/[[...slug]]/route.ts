@@ -1,21 +1,20 @@
 import { cacheLife } from "next/cache";
 import { notFound } from "next/navigation";
-import { blog, getBlogIndexLLMText, getBlogLLMText } from "@/lib/blog";
-import { llmMarkdownHeaders } from "@/lib/llm-intro";
+import { getBlogIndexLLMText, getBlogLLMText } from "@/lib/blog-content";
+import { markdownPageHeaders } from "@/lib/llm-intro";
+import { blogSource } from "@/lib/source";
+import { blogRoute } from "@/lib/shared";
 
 export async function GET(
   _req: Request,
   { params }: RouteContext<"/llms.mdx/blog/[[...slug]]">,
 ) {
   const { slug } = await params;
-  const text = await pageMarkdown(slug);
-  if (text == null) notFound();
+  const page = await pageMarkdown(slug);
+  if (page == null) notFound();
 
-  return new Response(text, {
-    headers: {
-      ...llmMarkdownHeaders,
-      Vary: "Accept",
-    },
+  return new Response(page.text, {
+    headers: markdownPageHeaders(page.htmlPath),
   });
 }
 
@@ -23,15 +22,21 @@ async function pageMarkdown(slug: string[] | undefined) {
   "use cache";
   cacheLife("max");
 
-  if (!slug?.length) return getBlogIndexLLMText();
+  if (!slug?.length) {
+    return { htmlPath: blogRoute, text: getBlogIndexLLMText() };
+  }
 
-  const page = blog.getPage(slug);
+  const page = blogSource.getPage(slug);
   if (!page) return null;
-  return getBlogLLMText(page);
+
+  return {
+    htmlPath: page.url,
+    text: await getBlogLLMText(page),
+  };
 }
 
 export function generateStaticParams() {
-  const params = blog.generateParams();
+  const params = blogSource.generateParams();
   const hasIndex = params.some((entry) => !entry.slug?.length);
 
   return hasIndex ? params : [{ slug: [] }, ...params];

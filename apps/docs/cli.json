@@ -1,3 +1,6 @@
 {
-  "uiLibrary": "base-ui"
+  "uiLibrary": "base-ui",
+  "aliases": {
+    "utils": "cn"
+  }
 }

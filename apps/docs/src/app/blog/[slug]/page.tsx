@@ -1,105 +1,60 @@
-import { createRelativeLink } from "fumadocs-ui/mdx";
-import {
-  DocsBody,
-  DocsDescription,
-  DocsPage,
-  DocsTitle,
-} from "fumadocs-ui/layouts/docs/page";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BlogAuthor } from "@/components/blog-author";
+import {
+  BlogAuthors,
+  BlogBackLink,
+  BlogBody,
+  BlogDate,
+  BlogDescription,
+  BlogHeader,
+  BlogPage,
+  BlogPostNav,
+  BlogTags,
+  BlogTitle,
+} from "@/components/blog";
 import { getMDXComponents } from "@/components/mdx";
-import { Separator } from "@/components/ui/separator";
-import {
-  blog,
-  blogPostingJsonLd,
-  getBlogNeighbors,
-  getBlogPageImage,
-  type BlogPage,
-} from "@/lib/blog";
-import {
-  appName,
-  blogRoute,
-  docsPageKeywords,
-  serializeJsonLd,
-} from "@/lib/shared";
-import { getSiteUrl } from "@/lib/site-url";
+import { findPost, getPosts } from "@/lib/blog";
+import { getBlogPageImage } from "@/lib/blog-content";
+import { blogAuthors, blogSource } from "@/lib/source";
+import { appName, docsPageKeywords } from "@/lib/shared";
 
 export default async function Page(props: PageProps<"/blog/[slug]">) {
-  const params = await props.params;
-  const page = blog.getPage([params.slug]);
-  if (!page) notFound();
+  const { slug } = await props.params;
+  const page = blogSource.getPage([slug]);
+  const found =
+    page && findPost(getPosts(blogSource.getPages(), blogAuthors), page.url);
+  if (!page || !found) notFound();
 
+  const { post, newer, older } = found;
   const MDX = page.data.body;
-  const image = getBlogPageImage(page).url;
-  const neighbors = getBlogNeighbors(page.url);
-  const jsonLd = blogPostingJsonLd({
-    author: page.data.author,
-    date: page.data.date,
-    description: page.data.description ?? "",
-    image,
-    origin: getSiteUrl().origin,
-    title: page.data.title,
-    url: page.url,
-  });
 
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(jsonLd),
-        }}
-      />
-      <DocsPage
-        breadcrumb={{
-          enabled: false,
-        }}
-        footer={{
-          items: {
-            next: footerItem(neighbors.newer, "Newer"),
-            previous: footerItem(neighbors.older, "Older"),
-          },
-        }}
-        toc={page.data.toc}
-      >
-        <Link
-          href={blogRoute}
-          className="text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground"
-        >
-          Blog
-        </Link>
-        <DocsTitle>{page.data.title}</DocsTitle>
-        <DocsDescription className="mb-0">
-          {page.data.description}
-        </DocsDescription>
-        <BlogAuthor author={page.data.author} date={page.data.date} />
-        <Separator />
-        <DocsBody>
-          <MDX
-            components={getMDXComponents({
-              a: createRelativeLink(blog, page),
-            })}
-          />
-        </DocsBody>
-      </DocsPage>
-    </>
+    <BlogPage toc={page.data.toc}>
+      <BlogHeader>
+        <BlogBackLink href="/blog" />
+        <BlogTitle>{post.title}</BlogTitle>
+        <BlogDescription>{post.description}</BlogDescription>
+        <BlogAuthors authors={post.authors} />
+        <div className="flex w-full flex-row flex-wrap items-center gap-2">
+          <BlogTags tags={post.tags} />
+          {post.date ? (
+            <BlogDate
+              date={post.date}
+              className="ms-auto text-sm text-fd-muted-foreground"
+            />
+          ) : null}
+        </div>
+      </BlogHeader>
+      <BlogBody>
+        <MDX components={getMDXComponents()} />
+      </BlogBody>
+      <BlogPostNav newer={newer} older={older} />
+    </BlogPage>
   );
 }
 
-function footerItem(post: BlogPage | undefined, label: string) {
-  if (!post) return undefined;
-
-  return {
-    description: label,
-    name: post.data.title,
-    url: post.url,
-  };
-}
-
-export function generateStaticParams() {
-  return blog.getPages().flatMap((page) => {
+export function generateStaticParams(): { slug: string }[] {
+  return blogSource.getPages().flatMap((page) => {
     const slug = page.slugs[0];
     return slug ? [{ slug }] : [];
   });
@@ -108,23 +63,30 @@ export function generateStaticParams() {
 export async function generateMetadata(
   props: PageProps<"/blog/[slug]">,
 ): Promise<Metadata> {
-  const params = await props.params;
-  const page = blog.getPage([params.slug]);
+  const { slug } = await props.params;
+  const page = blogSource.getPage([slug]);
   if (!page) notFound();
 
   const image = getBlogPageImage(page).url;
+  const authors = page.data.authors ?? [];
 
   return {
     alternates: {
       canonical: page.url,
+      types: {
+        "text/markdown": `${page.url}.md`,
+      },
     },
     description: page.data.description,
     keywords: ["blog", ...docsPageKeywords(page.data.title)],
     openGraph: {
-      authors: [page.data.author.name],
+      authors,
       description: page.data.description,
       images: image,
-      publishedTime: page.data.date,
+      publishedTime:
+        page.data.date instanceof Date
+          ? page.data.date.toISOString()
+          : page.data.date,
       siteName: appName,
       title: page.data.title,
       type: "article",

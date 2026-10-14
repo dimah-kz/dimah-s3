@@ -1,6 +1,7 @@
 import { cacheLife } from "next/cache";
 import { DocsCard } from "@/components/og/docs-card";
-import { blog, blogDescription, getBlogPageImage } from "@/lib/blog";
+import { blogDescription, getBlogPageImage } from "@/lib/blog-content";
+import { blogSource as blog } from "@/lib/source";
 import { ogFonts } from "@/lib/og-fonts";
 import { appName } from "@/lib/shared";
 import { notFound } from "next/navigation";

@@ -1,5 +1,5 @@
 import { cacheLife } from "next/cache";
-import { llmBlogSection } from "@/lib/blog";
+import { llmBlogSection } from "@/lib/blog-content";
 import { source } from "@/lib/source";
 import { llms } from "fumadocs-core/source";
 import { getSiteUrl } from "@/lib/site-url";
