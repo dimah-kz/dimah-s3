@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
       process.env.VERCEL_ENV === "preview"
         ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
         : [];
+    const corpusRobots = { key: "X-Robots-Tag", value: "noindex" };
 
     return [
       { source: "/", headers: [describedBy, ...previewRobots] },
@@ -33,13 +34,16 @@ const nextConfig: NextConfig = {
       { source: "/docs/:path*", headers: [describedBy, ...previewRobots] },
       { source: "/blog", headers: [describedBy, ...previewRobots] },
       { source: "/blog/:path*", headers: [describedBy, ...previewRobots] },
-      { source: "/llms.txt", headers: [cors] },
-      { source: "/llms-full.txt", headers: [cors] },
-      { source: "/docs.md", headers: [cors, describedBy] },
-      { source: "/docs/:path*.md", headers: [cors, describedBy] },
+      { source: "/llms.txt", headers: [cors, corpusRobots] },
+      { source: "/llms-full.txt", headers: [cors, corpusRobots] },
+      { source: "/docs.md", headers: [cors] },
+      { source: "/docs/:path*.md", headers: [cors] },
       { source: "/blog.md", headers: [cors, describedBy] },
       { source: "/blog/:path*.md", headers: [cors, describedBy] },
-      { source: "/llms.mdx/:path*", headers: [cors, describedBy] },
+      { source: "/llms.mdx/docs", headers: [cors] },
+      { source: "/llms.mdx/docs/:path*", headers: [cors] },
+      { source: "/llms.mdx/blog", headers: [cors, describedBy] },
+      { source: "/llms.mdx/blog/:path*", headers: [cors, describedBy] },
     ];
   },
   async rewrites() {

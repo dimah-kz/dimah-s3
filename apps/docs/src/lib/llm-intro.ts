@@ -36,6 +36,23 @@ export const llmMarkdownHeaders = {
   "Access-Control-Allow-Origin": "*",
 } as const;
 
+/** Agent indexes are not search documents. */
+export const llmCorpusHeaders = {
+  ...llmMarkdownHeaders,
+  "X-Robots-Tag": "noindex",
+} as const;
+
+/** Markdown twin of one HTML page. Canonical keeps Google on the HTML URL. */
+export function markdownPageHeaders(htmlPathname: string) {
+  const canonical = new URL(htmlPathname, getSiteUrl().origin).href;
+
+  return {
+    ...llmMarkdownHeaders,
+    Link: `<${canonical}>; rel="canonical", </llms.txt>; rel="describedby"`,
+    Vary: "Accept",
+  };
+}
+
 export function absolutizeMarkdownUrls(markdown: string, origin: string) {
   return markdown.replaceAll("](/", `](${origin}/`);
 }

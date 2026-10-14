@@ -5,15 +5,15 @@ import { llms } from "fumadocs-core/source";
 import { getSiteUrl } from "@/lib/site-url";
 import {
   absolutizeMarkdownUrls,
+  llmCorpusHeaders,
   llmDecisionSheet,
   llmFileLists,
-  llmMarkdownHeaders,
   toMarkdownTwinUrls,
 } from "@/lib/llm-intro";
 
 /** `/llms.txt` — decision sheet, docs index, and notes, for coding agents. */
 export async function GET() {
-  return new Response(await llmsIndex(), { headers: llmMarkdownHeaders });
+  return new Response(await llmsIndex(), { headers: llmCorpusHeaders });
 }
 
 async function llmsIndex() {

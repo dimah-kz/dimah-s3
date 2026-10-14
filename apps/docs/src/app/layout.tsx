@@ -42,12 +42,6 @@ export const metadata: Metadata = {
   publisher: appName,
   alternates: {
     canonical: "/",
-    types: {
-      "text/markdown": [
-        { url: "/llms.txt", title: "llms.txt" },
-        { url: "/llms-full.txt", title: "llms-full.txt" },
-      ],
-    },
   },
   openGraph: {
     type: "website",
