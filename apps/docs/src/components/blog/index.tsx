@@ -96,7 +96,7 @@ export function BlogPage({ toc, className, ...props }: BlogPageProps) {
     <article
       {...props}
       className={cn(
-        "mx-auto flex w-full max-w-[900px] flex-col gap-6 px-4 py-8",
+        "mx-auto flex w-full max-w-225 flex-col gap-6 px-4 py-8",
         // room for the panel
         toc && "pb-24",
         className,

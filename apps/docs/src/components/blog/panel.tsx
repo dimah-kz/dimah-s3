@@ -28,7 +28,7 @@ export function BlogPanel() {
     <Collapsible
       open={open}
       onOpenChange={setOpen}
-      className="fixed bottom-2 left-1/2 z-20 w-full max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-xl border bg-fd-secondary/80 p-1 text-sm shadow-md backdrop-blur-sm sm:bottom-4 sm:max-w-[400px]"
+      className="fixed bottom-2 left-1/2 z-20 w-full max-w-[calc(100%-1rem)] -translate-x-1/2 rounded-xl border bg-fd-secondary/80 p-1 text-sm shadow-md backdrop-blur-sm sm:bottom-4 sm:max-w-100"
     >
       <CollapsibleContent>
         <TOCScrollArea className="max-h-[min(600px,calc(100vh-7.5rem))]">
