@@ -13,8 +13,8 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@dimah-s3/ui": "workspace:*",
-    "@editframe/elements": "^0.60.31",
-    "@editframe/react": "^0.60.31",
+    "@editframe/elements": "^0.60.33",
+    "@editframe/react": "^0.60.33",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
@@ -33,7 +33,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.30",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
   },
