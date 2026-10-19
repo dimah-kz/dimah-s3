@@ -30,7 +30,7 @@ catalog:
   tegami: ^1.5.0
   turbo: ^2.11.7
   tsc-alias: ^1.9.7
-  tsup: ^8.5.1
+  tsup: ^9.0.0
   vitest: ^5.0.4
   react: ^19.3.0
   react-dom: ^19.3.0
