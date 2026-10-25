@@ -3,22 +3,21 @@ import { getPosts, getTags } from "@/lib/blog";
 import { getBlogPages } from "@/lib/blog-content";
 import { blogAuthors, blogSource, source } from "@/lib/source";
 import { blogRoute } from "@/lib/shared";
-import { getSiteUrl } from "@/lib/site-url";
+import { canonicalUrl } from "@/lib/site-url";
 
 /** `/sitemap.xml` — 1 home · 0.9 intro/quickstart · 0.8 decision pages · 0.6 blog · then by depth. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const origin = getSiteUrl().origin;
   const tags = getTags(getPosts(blogSource.getPages(), blogAuthors));
 
   return [
-    entry(origin, 1),
-    entry(`${origin}${blogRoute}`, 0.6),
-    entry(`${origin}${blogRoute}/tags`, 0.4),
-    ...tags.map((tag) => entry(`${origin}${tag.url}`, 0.4)),
-    ...getBlogPages().map((page) => entry(`${origin}${page.url}`, 0.5)),
+    entry(canonicalUrl("/"), 1),
+    entry(canonicalUrl(blogRoute), 0.6),
+    entry(canonicalUrl(`${blogRoute}/tags`), 0.4),
+    ...tags.map((tag) => entry(canonicalUrl(tag.url), 0.4)),
+    ...getBlogPages().map((page) => entry(canonicalUrl(page.url), 0.5)),
     ...source
       .getPages()
-      .map((page) => entry(`${origin}${page.url}`, docsPriority(page.url))),
+      .map((page) => entry(canonicalUrl(page.url), docsPriority(page.url))),
   ].sort(byImportance);
 }
 

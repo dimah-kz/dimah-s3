@@ -1,5 +1,6 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Instrument_Serif } from "next/font/google";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { cn } from "cn";
@@ -15,6 +16,10 @@ const display = Instrument_Serif({
 });
 
 const githubUrl = githubRepoUrl();
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 function HeroHeading() {
   const bridge = " for ";

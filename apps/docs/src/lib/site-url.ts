@@ -34,3 +34,16 @@ export function getSiteUrl(): URL {
   const port = process.env.PORT ?? "3000";
   return new URL(`http://localhost:${port}`);
 }
+
+/**
+ * Absolute URL that should be indexed.
+ * Paths have no trailing slash. `/` is the bare origin, matching the
+ * canonical Next resolves for `alternates.canonical: "/"`.
+ */
+export function canonicalUrl(pathname = "/"): string {
+  const origin = getSiteUrl().origin;
+  if (pathname === "" || pathname === "/") return origin;
+
+  const path = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return `${origin}${path.replace(/\/+$/, "")}`;
+}

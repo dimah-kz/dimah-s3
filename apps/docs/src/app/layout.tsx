@@ -40,9 +40,6 @@ export const metadata: Metadata = {
   authors: [{ name: "dimah", url: "https://github.com/dimah-kz" }],
   creator: "@dimahkzx",
   publisher: appName,
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
     locale: "en_US",

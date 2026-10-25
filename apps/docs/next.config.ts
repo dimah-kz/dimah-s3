@@ -3,9 +3,72 @@ import type { NextConfig } from "next";
 import { PRODUCTION_SITE_ORIGIN } from "./src/lib/site-url";
 
 const withMDX = createMDX();
-const legacyVercelHost = "dimah-s3.vercel.app";
+
+/** Hosts that must not be indexed. One 308 to the canonical origin. */
+const alternateHosts = ["dimah-s3.vercel.app", "www.s3.dimah.dev"] as const;
+
+/**
+ * Old docs paths. Each variant (slash and `.md`) goes straight to the final
+ * URL so Google does not have to follow a redirect chain.
+ */
+const movedDocs = [
+  ["/docs/react/ui/setup", "/docs/react/ui"],
+  ["/docs/db/hooks", "/docs/db/lifecycle-hooks"],
+  ["/docs/server/adapters", "/docs/server/setup"],
+  ["/docs/server/helpers", "/docs/server/setup"],
+  ["/docs/server/custom-plugins", "/docs/server/plugins"],
+  ["/docs/server/hooks/composition", "/docs/server/plugins"],
+  ["/docs/server/hooks/guard", "/docs/server/hooks/global-guard"],
+] as const;
+
+type PermanentRedirect = {
+  source: string;
+  destination: string;
+  permanent: true;
+  has?: [{ type: "host"; value: string }];
+};
+
+function permanent(
+  source: string,
+  destination: string,
+  host?: string,
+): PermanentRedirect {
+  return {
+    source,
+    destination,
+    permanent: true,
+    ...(host ? { has: [{ type: "host", value: host }] } : {}),
+  };
+}
+
+function movedRedirects(from: string, to: string, host?: string) {
+  const html = host ? `${PRODUCTION_SITE_ORIGIN}${to}` : to;
+  const markdown = host ? `${PRODUCTION_SITE_ORIGIN}${to}.md` : `${to}.md`;
+
+  return [
+    permanent(from, html, host),
+    permanent(`${from}/`, html, host),
+    permanent(`${from}.md`, markdown, host),
+    permanent(`${from}.md/`, markdown, host),
+  ];
+}
+
+function alternateHostRedirects(host: string): PermanentRedirect[] {
+  return [
+    ...movedDocs.flatMap(([from, to]) => movedRedirects(from, to, host)),
+    permanent("/:path+/", `${PRODUCTION_SITE_ORIGIN}/:path+`, host),
+    permanent("/", PRODUCTION_SITE_ORIGIN, host),
+    permanent("/:path+", `${PRODUCTION_SITE_ORIGIN}/:path+`, host),
+  ];
+}
 
 const nextConfig: NextConfig = {
+  // Indexable URLs have no trailing slash (`/docs`, not `/docs/`).
+  trailingSlash: false,
+  // The built-in slash redirect runs before these rules and would turn
+  // `/old/` into `/old` and then into the new page (two hops). Own the
+  // slash redirect so a moved URL resolves in one 308.
+  skipTrailingSlashRedirect: true,
   // Every docs URL is prerendered (`generateStaticParams` + `ensureStatic =
   // "navigation"`). Partial prefetching only ships the shared shell and streams
   // each article on click, so keep the full static prefetch.
@@ -60,58 +123,9 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      {
-        source: "/",
-        has: [{ type: "host", value: legacyVercelHost }],
-        destination: PRODUCTION_SITE_ORIGIN,
-        permanent: true,
-      },
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: legacyVercelHost }],
-        destination: `${PRODUCTION_SITE_ORIGIN}/:path*`,
-        permanent: true,
-      },
-      {
-        source: "/docs/react/ui/setup",
-        destination: "/docs/react/ui",
-        permanent: true,
-      },
-      {
-        source: "/docs/db/hooks",
-        destination: "/docs/db/lifecycle-hooks",
-        permanent: true,
-      },
-      {
-        source: "/docs/db/hooks.md",
-        destination: "/docs/db/lifecycle-hooks.md",
-        permanent: true,
-      },
-      {
-        source: "/docs/server/adapters",
-        destination: "/docs/server/setup",
-        permanent: true,
-      },
-      {
-        source: "/docs/server/helpers",
-        destination: "/docs/server/setup",
-        permanent: true,
-      },
-      {
-        source: "/docs/server/custom-plugins",
-        destination: "/docs/server/plugins",
-        permanent: true,
-      },
-      {
-        source: "/docs/server/hooks/composition",
-        destination: "/docs/server/plugins",
-        permanent: true,
-      },
-      {
-        source: "/docs/server/hooks/guard",
-        destination: "/docs/server/hooks/global-guard",
-        permanent: true,
-      },
+      ...alternateHosts.flatMap(alternateHostRedirects),
+      ...movedDocs.flatMap(([from, to]) => movedRedirects(from, to)),
+      permanent("/:path+/", "/:path+"),
     ];
   },
 };
