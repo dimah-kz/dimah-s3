@@ -22,9 +22,9 @@ catalog:
   eslint-plugin-turbo: ^2.11.10
   eslint-plugin-unicorn: ^79.0.0
   globals: ^17.13.0
-  typescript-eslint: ^8.72.0
+  typescript-eslint: ^8.72.1
   prettier: ^3.9.10
-  prettier-plugin-packagejson: ^3.0.2
+  prettier-plugin-packagejson: ^3.0.3
   prettier-plugin-tailwindcss: ^0.8.1
   sherif: ^1.13.0
   tegami: ^1.5.0

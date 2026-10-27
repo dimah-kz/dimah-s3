@@ -30,7 +30,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/client-s3": "^3.1157.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
@@ -42,7 +42,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "postcss": "^8.5.31",
+    "postcss": "^8.5.32",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
   },
