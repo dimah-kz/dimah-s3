@@ -283,4 +283,33 @@ export const components = [
       ...statusSupportFiles,
     ],
   },
+  {
+    name: "object-list",
+    type: "registry:component",
+    title: "Object List",
+    description:
+      "Headless folder and file list. Pass useObjectList or your own rows.",
+    ...installMeta,
+    registryDependencies: [
+      "breadcrumb",
+      "button",
+      "empty",
+      "item",
+      "separator",
+      "skeleton",
+      "spinner",
+    ],
+    files: [
+      {
+        path: "components/dimah-s3/list/object-list.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list.tsx",
+      },
+      {
+        path: "lib/file-type-icon.tsx",
+        type: "registry:lib",
+        target: "@lib/file-type-icon.tsx",
+      },
+    ],
+  },
 ] as const satisfies Registry["items"];

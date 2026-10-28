@@ -1,0 +1,121 @@
+---
+title: useObjectList
+description: Headless hook that pages a folder catalog from any query you pass in.
+---
+
+`useObjectList` keeps the current folder, the breadcrumb, and cursor
+pagination. It does not know where the rows live and it does not call S3.
+You pass a `query` function.
+
+```tsx title="components/file-browser.tsx"
+"use client";
+
+import { useObjectList } from "@dimah-s3/react";
+
+export function FileBrowser() {
+  const list = useObjectList({
+    query: ({ parent, cursor, signal }) =>
+      fetch(`/api/files?folder=${parent ?? ""}&cursor=${cursor ?? ""}`, {
+        signal,
+      }).then((response) => response.json()),
+    queryKey: ["files"],
+  });
+
+  return (
+    <ul>
+      {list.folders.map((folder) => (
+        <li key={folder.id}>
+          <button type="button" onClick={() => list.openFolder(folder)}>
+            {folder.name}
+          </button>
+        </li>
+      ))}
+      {list.items.map((file) => (
+        <li key={file.id}>{file.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+The query receives:
+
+- `parent` — folder id, or `null` at the root. The id is opaque. A database id, a path, or a key prefix are all valid.
+- `cursor` — `null` on the first page. Return `nextCursor: null` on the last page.
+- `signal` — aborted when the folder changes, `refresh()` runs, or the hook unmounts.
+
+Return `folders` only from the first page. Later pages append `items`. Changing `queryKey` clears the list and loads the first page again. Use it for filters such as the route name.
+
+Omit `parent` and the hook owns navigation. Pass `parent` and `onParentChange` together when the URL owns it. `parent={null}` is the controlled root. `defaultTrail` labels the starting path. The last id should match `defaultParent`.
+
+```tsx
+const list = useObjectList({
+  query,
+  parent: folderId,
+  onParentChange: setFolderId,
+});
+```
+
+`readObjectListLevel` splits a flat list into the folders and files at one level. `getFolder` returns a `/`-separated path, or `null` for the root. Pass the full set for that listing. A single unrelated page cannot be grouped after the fact.
+
+```ts
+import { readObjectListLevel } from "@dimah-s3/react";
+
+const level = readObjectListLevel(records, {
+  parent,
+  getFolder: (record) => record.folder,
+});
+```
+
+## With `db()`
+
+`dbObjectQuery` adapts `api.db.listObjects`. `parent` is sent as the key `prefix`. The adapter does not invent folder rows: generated keys contain a uuid segment, so splitting the key is not a folder tree. Return `folders` from your own query when the catalog has them.
+
+```tsx title="components/db-files.tsx"
+"use client";
+
+import { dbClient, dbObjectQuery } from "@dimah-s3/db/client";
+import { createS3Client, useObjectList } from "@dimah-s3/react";
+
+const s3Client = createS3Client({
+  basePath: "/api/s3",
+  plugins: [dbClient()],
+});
+
+export function DbFiles() {
+  const api = s3Client.useApi();
+  const list = useObjectList({
+    query: dbObjectQuery(api.db.listObjects, { route: "docs" }),
+    queryKey: ["docs"],
+  });
+
+  return list.items.map((file) => (
+    <p key={file.id}>{file.filename ?? file.key}</p>
+  ));
+}
+```
+
+Scope still comes from the server `resolveScope`. The query does not accept a scope.
+
+## UI
+
+[`ObjectList`](/docs/react/ui/components/object-list) renders this state. It does not call the hook. Skip it and render `list.items` yourself when you want different markup.
+
+## Props
+
+```ts
+import type {
+  UseObjectListOptions,
+  UseObjectListReturn,
+} from "@dimah-s3/react";
+```
+
+<AutoTypeTable
+  path="packages/react/src/list/types.ts"
+  name="UseObjectListOptions"
+/>
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-list.ts"
+  name="UseObjectListReturn"
+/>

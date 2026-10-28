@@ -118,6 +118,29 @@ describe("createStorageObjectStore", () => {
     });
   });
 
+  it("filters a scope listing by key prefix in the query", async () => {
+    const { store, orm } = createStore();
+
+    await store.listByScope({
+      scope: "user:1",
+      prefix: "docs/",
+      limit: 20,
+    });
+
+    const [, options] = orm.findMany.mock.calls[0] as unknown as [
+      string,
+      { where: (builder: Record<string, unknown>) => unknown },
+    ];
+    const { compares } = invokeWhere(options.where);
+    expect(compares).toEqual(
+      expect.arrayContaining([
+        ["scope", "=", "user:1"],
+        ["status", "=", "active"],
+        ["key", "starts with", "docs/"],
+      ]),
+    );
+  });
+
   it("finds a pending multipart row in one query", async () => {
     const { store, orm } = createStore({
       findFirst: row({ declaredSize: 1024n }),

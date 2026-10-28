@@ -40,11 +40,16 @@ export function dbClient() {
       /**
        * List the caller's objects and usage. Scope comes from server `resolveScope`
        * — not a parameter here. For another scope, use `listByScope` on the server.
+       * Pass `init.signal` to cancel the request.
        */
-      listObjects: (input?: DbClientListInput) =>
+      listObjects: (
+        input?: DbClientListInput,
+        init?: { signal?: AbortSignal },
+      ) =>
         $fetch<DbClientListResponse>(pluginPath("db", "objects"), {
           method: "GET",
           query: input,
+          signal: init?.signal,
         }),
       getObject: (input: DbClientGetInput) =>
         $fetch<{ object: DbClientObject }>(pluginPath("db", "object"), {

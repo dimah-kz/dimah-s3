@@ -8,6 +8,7 @@ export type Translations = {
   "Cancel(toast action)": string;
   "Cancel(upload control)": string;
   "Conflict(API error)": string;
+  "Could not load files(object list)": string;
   "Could not reach storage ({code})(API error)": string;
   "Delete failed(status)": string;
   "Delete failed(toast)": string;
@@ -34,13 +35,19 @@ export type Translations = {
   "File size exceeds {size} limit(file validation)": string;
   "File type \"{type}\" is not allowed(file validation)": string;
   "File type is not allowed(API error)": string;
+  "Files and folders you add here will show up in this list.(object list)": string;
+  "Files(object list)": string;
   "Finishing…(upload status)": string;
   "Invalid request(API error)": string;
+  "Load more(object list)": string;
+  "Loading files(object list)": string;
   "Not found(API error)": string;
   "Object key is invalid(API error)": string;
   "Pause(upload control)": string;
   "Preparing…(upload status)": string;
+  "Retry(object list)": string;
   "Something went wrong(API error)": string;
+  "This folder is empty(object list)": string;
   "Unauthorized(API error)": string;
   "Unknown error(fallback)": string;
   "Unknown file route(API error)": string;

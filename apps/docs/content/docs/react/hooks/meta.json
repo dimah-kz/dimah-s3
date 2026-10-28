@@ -1,4 +1,4 @@
 {
   "title": "Hooks",
-  "pages": ["upload", "download", "delete"]
+  "pages": ["upload", "download", "delete", "object-list"]
 }

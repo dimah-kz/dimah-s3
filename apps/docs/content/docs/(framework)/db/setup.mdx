@@ -53,31 +53,34 @@ client:
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
 
-drizzle-orm 0.44 / 0.45 and 1.x (RC) are both supported. 1.x needs FumaDB
-0.6 or later.
+drizzle-orm 1.x (the schema above) and 0.44 / 0.45 are both supported. 1.x
+needs FumaDB 0.6 or later, and the client takes `relations` from
+`defineRelations()`.
 
-<Tabs items={["0.x", "1.x"]}>
+<Tabs items={["1.x", "0.x"]}>
+<Tab value="1.x">
+
+```ts title="lib/db.ts"
+import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
+import { relations } from "./db/dimah-s3";
+
+export const db = drizzle({
+  client,
+  relations,
+});
+```
+
+</Tab>
 <Tab value="0.x">
+
+On 0.44 / 0.45, drop the `relations` export from the schema file.
+`import * as schema` would otherwise treat it as a table.
 
 ```ts title="lib/db.ts"
 import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
 import * as schema from "./db/dimah-s3";
 
 export const db = drizzle(client, { schema });
-```
-
-</Tab>
-<Tab value="1.x">
-
-```ts title="lib/db.ts"
-import { defineRelations } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
-import { storageObject, private_dimah_s3_settings } from "./db/dimah-s3";
-
-export const db = drizzle({
-  client,
-  relations: defineRelations({ storageObject, private_dimah_s3_settings }),
-});
 ```
 
 </Tab>
@@ -249,10 +252,13 @@ node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts
 ```
 
 `generate` overwrites the output file. Re-add secondary indexes afterward,
-or keep them in a separate migration.
+or keep them in a separate migration. On drizzle-orm 1.x, also replace
+`.defaultNow()` with ``sql`(unixepoch())``. `defaultNow()` is deprecated and
+stores milliseconds, while `mode: "timestamp"` reads seconds.
 
 | Index                                     | Columns                        |
 | ----------------------------------------- | ------------------------------ |
 | `storage_object_scope_status_created_idx` | `scope`, `status`, `createdAt` |
+| `storage_object_scope_route_idx`          | `scope`, `route`               |
 | `storage_object_status_expires_idx`       | `status`, `expiresAt`          |
 | `storage_object_status_created_idx`       | `status`, `createdAt`          |

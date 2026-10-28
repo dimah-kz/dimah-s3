@@ -35,6 +35,15 @@ export {
   type UseObjectUrlReturn,
 } from "./use-object-url";
 export {
+  useObjectList,
+  type UseObjectListOptions,
+  type UseObjectListReturn,
+  type ObjectListFolder,
+  type ObjectListPage,
+  type ObjectListQuery,
+  type ObjectListQueryInput,
+} from "./use-object-list";
+export {
   useRouteUploadPolicy,
   type CatalogLoadStatus,
   type UseRouteUploadPolicyOptions,

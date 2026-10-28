@@ -58,7 +58,7 @@ export type ListByScopeInput = {
   status?: StorageObjectStatus;
   route?: string;
   contentType?: string;
-  /** Key prefix (filtered after the query when the ORM has no `like`). */
+  /** Key prefix. Applied in the query (`starts with`), so pages stay full. */
   prefix?: string;
   limit?: number;
   offset?: number;
@@ -366,6 +366,9 @@ export function createStorageObjectStore(
           if (input.contentType) {
             parts.push(b("contentType", "=", input.contentType));
           }
+          if (input.prefix) {
+            parts.push(b("key", "starts with", input.prefix));
+          }
           if (parsed) {
             parts.push(
               condition(
@@ -387,12 +390,7 @@ export function createStorageObjectStore(
         limit: input.limit,
         offset: parsed ? undefined : input.offset,
       });
-      let mapped = rows.map(mapStorageObjectRow);
-      const prefix = input.prefix;
-      if (prefix) {
-        mapped = mapped.filter((row) => row.key.startsWith(prefix));
-      }
-      return mapped;
+      return rows.map(mapStorageObjectRow);
     },
 
     async getScopeUsage(scope) {

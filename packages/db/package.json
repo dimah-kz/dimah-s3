@@ -69,7 +69,7 @@
     "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",
-    "drizzle-orm": "^0.45.4",
+    "drizzle-orm": "1.0.0-rc.5",
     "eslint": "catalog:",
     "tsc-alias": "catalog:",
     "tsup": "catalog:",

@@ -66,14 +66,17 @@ To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
 
 `GET /db/objects` (browser `listObjects`) defaults to `status: active` and
 `limit: 50`, and rejects a `limit` above `100`. It returns `nextCursor`
-when another page exists. `GET /db/object` (`getObject`) loads one row by
-key. Pass `limit` on `listByScope` yourself for server listings.
+when another page exists. A `prefix` is applied in the query, so a page
+stays full when you filter by key prefix. `GET /db/object` (`getObject`)
+loads one row by key. Pass `limit` on `listByScope` yourself for server
+listings.
 
 ## Browser
 
 Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
-you `api.db.listObjects`. Call it and render the list yourself — there is no
-list hook or list component.
+you `api.db.listObjects`. [`useObjectList`](/docs/react/hooks/object-list)
+pages that response. `dbObjectQuery` sends the open folder id as `prefix`.
+It does not turn keys into folders.
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -90,49 +93,41 @@ export const s3Client = createS3Client({
 ```tsx title="components/file-list.tsx"
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { DbClientObject } from "@dimah-s3/db/client";
+import { dbObjectQuery } from "@dimah-s3/db/client";
+import { useObjectList } from "@dimah-s3/react";
 import { s3Client } from "@/lib/s3-client";
 
 export function Files() {
   const api = s3Client.useApi();
-  const [objects, setObjects] = useState<DbClientObject[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const list = useObjectList({
+    query: dbObjectQuery(api.db.listObjects, { route: "avatar" }),
+    queryKey: ["avatar"],
+  });
 
-  const load = useCallback(
-    async (cursor?: string) => {
-      const page = await api.db.listObjects({
-        route: "avatar",
-        ...(cursor ? { cursor } : {}),
-      });
-      setObjects((prev) =>
-        cursor ? [...prev, ...page.objects] : page.objects,
-      );
-      setNextCursor(page.nextCursor ?? null);
-    },
-    [api],
-  );
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  if (list.isLoading) return <p>Loading…</p>;
 
   return (
-    <>
-      <ul>
-        {objects.map((file) => (
-          <li key={file.id}>{file.filename ?? file.key}</li>
-        ))}
-      </ul>
-      {nextCursor ? (
-        <button type="button" onClick={() => void load(nextCursor)}>
-          More
-        </button>
+    <ul>
+      {list.items.map((file) => (
+        <li key={file.id}>{file.filename ?? file.key}</li>
+      ))}
+      {list.hasMore ? (
+        <li>
+          <button type="button" onClick={() => void list.loadMore()}>
+            More
+          </button>
+        </li>
       ) : null}
-    </>
+    </ul>
   );
 }
 ```
+
+[`ObjectList`](/docs/react/ui/components/object-list) renders the same state
+if you want the folder chrome. Call `listObjects` yourself when you do not
+want the hook. To list another scope, call `listByScope` on the server.
+
+````
 
 <Callout title="Scope is resolved on the server">
   `listObjects` is the browser wrapper for `GET /db/objects`. It does not take a
@@ -153,7 +148,7 @@ plugins: [
     quota: { maxBytes: 100 * 1024 * 1024, maxFiles: 50 }, // [!code ++]
   }),
 ],
-```
+````
 
 The guard projects the scope's current DB usage plus the incoming file's
 declared size. It rejects a missing scope with `UNAUTHORIZED` and an exceeded

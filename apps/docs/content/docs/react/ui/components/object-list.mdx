@@ -1,0 +1,104 @@
+---
+title: Object List
+description: Folder and file list that renders useObjectList or any matching state.
+---
+
+import { ObjectListDemo } from "@/components/demos/object-list-demo";
+
+`ObjectList` renders a folder catalog. Pass the object returned by
+[`useObjectList`](/docs/react/hooks/object-list) as `list`. The component
+does not fetch and does not call the hook. A server payload or your own
+store works when it has the same fields.
+
+## Preview
+
+<DemoPreview name="object-list-demo.tsx">
+  <ObjectListDemo />
+</DemoPreview>
+
+The preview groups an in-memory list with `readObjectListLevel`. Swap
+`query` for your API, or for `dbObjectQuery`, without changing the component.
+
+## Install
+
+<include>../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import { ObjectList } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/object-list
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import {
+  useDownload,
+  useObjectList,
+  type ObjectListQuery,
+} from "@dimah-s3/react";
+import { DownloadButton, ObjectList } from "@dimah-s3/ui";
+
+type LibraryFile = {
+  id: string;
+  name: string;
+  key: string;
+  sizeLabel: string;
+  type: string;
+};
+
+export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
+  const list = useObjectList({ query });
+  const download = useDownload({ route: "docs" });
+
+  return (
+    <ObjectList
+      list={list}
+      getKey={(file) => file.id}
+      getLabel={(file) => file.name}
+      getDescription={(file) => file.sizeLabel}
+      getFileType={(file) => file.type}
+      renderActions={(file) => (
+        <DownloadButton
+          download={download}
+          objectKey={file.key}
+          fileName={file.name}
+        />
+      )}
+    />
+  );
+}
+```
+
+`getKey` and `getLabel` are the only required accessors. `renderItem` replaces a file row. `renderFolder` replaces a folder row. `header` is the trailing slot in the path bar, for an upload button or a filter.
+
+`trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object.
+
+## Props
+
+```ts
+import type { ObjectListProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/list/object-list.tsx"
+  name="ObjectListProps"
+/>

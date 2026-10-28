@@ -94,6 +94,7 @@ Install: \`npx @dimah-s3/cli@latest create my-app\` or \`npm i @dimah-s3/server 
 - Scope per-user folders with \`upload.object\` / \`guard\`. Enforce ownership with \`db()\` or a download/delete \`guard\`.
 - Trust \`onConfirmed\` (HeadObject, including multipart complete) for size and type, not the presign body. \`fileTypes\` is the S3 Content-Type header and filename, not a byte sniff.
 - Without \`db()\`, download can presign unconfirmed keys under \`keyPrefix\`. Auth and quota stay in consumer hooks.
+- File catalogs use \`useObjectList\` with your own query, or \`dbObjectQuery\` from \`@dimah-s3/db/client\` when \`db()\` is installed. That hook does not call S3 ListObjects.
 `;
 }
 
@@ -101,7 +102,7 @@ export function llmFileLists(origin = getSiteUrl().origin): string {
   return `## Packages
 
 - [@dimah-s3/server](${npmPackageUrls[0]}): presign handlers, hooks, and adapters
-- [@dimah-s3/react](${npmPackageUrls[1]}): headless upload, download, and delete hooks
+- [@dimah-s3/react](${npmPackageUrls[1]}): headless upload, download, delete, and object-list hooks
 - [@dimah-s3/ui](${npmPackageUrls[2]}): optional shadcn components
 - [@dimah-s3/core](${npmPackageUrls[3]}): protocol SSOT (\`S3_API_ROUTES\`, \`createS3Client\`)
 - [@dimah-s3/db](${npmPackageUrls[4]}): optional object tracking plugin

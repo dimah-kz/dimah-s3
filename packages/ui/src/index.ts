@@ -29,6 +29,11 @@ export {
   type DeleteButtonProps,
 } from "@/components/dimah-s3/delete/delete-button";
 export {
+  ObjectList,
+  type ObjectListProps,
+  type ObjectListView,
+} from "@/components/dimah-s3/list/object-list";
+export {
   FileAttachment,
   type FileAttachmentProps,
 } from "@/components/dimah-s3/attachment/file-attachment";

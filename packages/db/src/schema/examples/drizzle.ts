@@ -1,6 +1,15 @@
 /**
- * Reference Drizzle schema — same shape as FumaDB `generate` (SQLite), plus
- * the recommended secondary indexes. Not imported by `@dimah-s3/db` at runtime.
+ * Reference Drizzle schema — same shape as FumaDB `generate` (SQLite) on
+ * drizzle-orm 1.x, plus the recommended secondary indexes. Not imported by
+ * `@dimah-s3/db` at runtime.
+ *
+ * 1.x discovers tables through `relations`. Pass that object to
+ * `drizzle({ client, relations })`. Column names stay explicit so they match
+ * `generate` (re-add the indexes below after regenerating).
+ *
+ * `.defaultNow()` is deprecated in 1.x and writes milliseconds, while
+ * `mode: "timestamp"` reads seconds. `generate` still emits `.defaultNow()` —
+ * replace it with `default(sql`(unixepoch())`)` after regenerating.
  *
  * `fumadb/cuid` is not a real fumadb export; map it to `@paralleldrive/cuid2`
  * in tsconfig (this package and `examples/with-db` already do).
@@ -8,6 +17,7 @@
  * @see ../v1.ts
  * @see ./schema.prisma
  */
+import { defineRelations, sql } from "drizzle-orm";
 import {
   sqliteTable,
   text,
@@ -42,10 +52,10 @@ export const storageObject = sqliteTable(
     expiresAt: integer("expires_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
+      .default(sql`(unixepoch())`),
     updatedAt: integer("updated_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
+      .default(sql`(unixepoch())`),
     deletedAt: integer("deleted_at", { mode: "timestamp" }),
   },
   (table) => [
@@ -75,3 +85,8 @@ export const private_dimah_s3_settings = sqliteTable(
     version: text("version", { length: 255 }).notNull().default("1.0.0"),
   },
 );
+
+export const relations = defineRelations({
+  storageObject,
+  private_dimah_s3_settings,
+});
