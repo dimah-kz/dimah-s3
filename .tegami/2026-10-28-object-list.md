@@ -5,4 +5,4 @@ packages:
 
 ### Page a file catalog from your own query
 
-`useObjectList` loads folders and files from a query you pass in. `ObjectList` renders that state. `dbObjectQuery` adapts `api.db.listObjects` when you use the database plugin, and a key `prefix` filter now applies inside the list query so pages stay full.
+`useObjectList` loads folders and files from a query you pass in. `ObjectList` renders that state, and `ObjectListMenu` adds download, delete, and a temporary link on each row. `dbObjectQuery` adapts `api.db.listObjects` when you use the database plugin, and a key `prefix` filter now applies inside the list query so pages stay full.

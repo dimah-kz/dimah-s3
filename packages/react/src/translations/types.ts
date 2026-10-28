@@ -8,6 +8,9 @@ export type Translations = {
   "Cancel(toast action)": string;
   "Cancel(upload control)": string;
   "Conflict(API error)": string;
+  "Copy link(object list menu)": string;
+  "Copy(object list menu)": string;
+  "Could not copy link(object list menu)": string;
   "Could not load files(object list)": string;
   "Could not reach storage ({code})(API error)": string;
   "Delete failed(status)": string;
@@ -27,6 +30,13 @@ export type Translations = {
   "Download(button)": string;
   "Downloading(toast)": string;
   "Drag and drop files here(dropzone)": string;
+  "Expires in 1 hour(object list menu)": string;
+  "Expires in 1 minute(object list menu)": string;
+  "Expires in 1 second(object list menu)": string;
+  "Expires in {count} hours(object list menu)": string;
+  "Expires in {count} minutes(object list menu)": string;
+  "Expires in {count} seconds(object list menu)": string;
+  "File actions(object list menu)": string;
   "File deleted(toast)": string;
   "File is empty(file validation)": string;
   "File is too large(API error)": string;
@@ -39,6 +49,7 @@ export type Translations = {
   "Files(object list)": string;
   "Finishing…(upload status)": string;
   "Invalid request(API error)": string;
+  "Link copied(object list menu)": string;
   "Load more(object list)": string;
   "Loading files(object list)": string;
   "Not found(API error)": string;
@@ -47,6 +58,7 @@ export type Translations = {
   "Preparing…(upload status)": string;
   "Retry(object list)": string;
   "Something went wrong(API error)": string;
+  "Temporary link(object list menu)": string;
   "This folder is empty(object list)": string;
   "Unauthorized(API error)": string;
   "Unknown error(fallback)": string;

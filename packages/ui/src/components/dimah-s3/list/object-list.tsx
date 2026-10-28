@@ -360,7 +360,7 @@ function FolderRow({
       >
         <ItemMedia
           variant="icon"
-          className="size-8 rounded-lg bg-dimah-s3-accent text-dimah-s3-accent-foreground"
+          className="size-9 rounded-lg border border-dimah-s3-border bg-dimah-s3-secondary text-dimah-s3-foreground"
         >
           <FolderIcon />
         </ItemMedia>
@@ -394,13 +394,13 @@ function FileRow({
   return (
     <Item role="listitem" size="sm" className="hover:bg-dimah-s3-muted">
       {previewUrl ? (
-        <ItemMedia variant="image" className="size-8 rounded-lg">
+        <ItemMedia variant="image" className="size-9 rounded-lg">
           <img src={previewUrl} alt="" />
         </ItemMedia>
       ) : (
         <ItemMedia
           variant="icon"
-          className="size-8 rounded-lg bg-dimah-s3-muted"
+          className="size-9 rounded-lg border border-dimah-s3-border bg-dimah-s3-muted"
         >
           <FileTypeGlyph fileName={fileName} fileType={fileType} />
         </ItemMedia>
@@ -419,7 +419,7 @@ function ObjectListSkeleton() {
     <div className="flex flex-col gap-0.5 px-1.5 py-1.5">
       {["a", "b", "c", "d"].map((key) => (
         <div key={key} className="flex items-center gap-2.5 px-3 py-2.5">
-          <Skeleton className="size-8 rounded-lg" />
+          <Skeleton className="size-9 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Skeleton className="h-3.5 w-40 max-w-full" />
             <Skeleton className="h-3 w-24 max-w-full" />

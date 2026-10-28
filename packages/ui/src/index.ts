@@ -34,6 +34,10 @@ export {
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list";
 export {
+  ObjectListMenu,
+  type ObjectListMenuProps,
+} from "@/components/dimah-s3/list/object-list-menu";
+export {
   FileAttachment,
   type FileAttachmentProps,
 } from "@/components/dimah-s3/attachment/file-attachment";

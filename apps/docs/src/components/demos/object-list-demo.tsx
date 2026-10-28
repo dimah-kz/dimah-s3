@@ -3,10 +3,12 @@
 import { formatFileSize } from "@dimah-s3/core";
 import {
   readObjectListLevel,
+  useDelete,
+  useDownload,
   useObjectList,
   type ObjectListQueryInput,
 } from "@dimah-s3/react";
-import { ObjectList } from "@dimah-s3/ui";
+import { ObjectList, ObjectListMenu } from "@dimah-s3/ui";
 
 type LibraryFile = {
   id: string;
@@ -93,6 +95,9 @@ function query({ parent, cursor }: ObjectListQueryInput) {
 
 export function ObjectListDemo() {
   const list = useObjectList({ query });
+  const download = useDownload({ route: "docs" });
+  const share = useDownload({ route: "docs", disposition: "inline" });
+  const remove = useDelete({ route: "docs" });
 
   return (
     <ObjectList
@@ -101,6 +106,16 @@ export function ObjectListDemo() {
       getLabel={(file) => file.name}
       getDescription={(file) => formatFileSize(file.size)}
       getFileType={(file) => file.type}
+      renderActions={(file) => (
+        <ObjectListMenu
+          objectKey={`docs/${file.id}/${file.name}`}
+          fileName={file.name}
+          fileSize={file.size}
+          download={download}
+          share={share}
+          delete={remove}
+        />
+      )}
       className="mx-auto max-w-lg"
     />
   );

@@ -288,22 +288,40 @@ export const components = [
     type: "registry:component",
     title: "Object List",
     description:
-      "Headless folder and file list. Pass useObjectList or your own rows.",
+      "Folder and file list with a row menu for download, delete, and a temporary link.",
     ...installMeta,
     registryDependencies: [
+      "alert-dialog",
       "breadcrumb",
       "button",
+      "dropdown-menu",
       "empty",
       "item",
       "separator",
       "skeleton",
       "spinner",
+      "toast",
     ],
     files: [
       {
         path: "components/dimah-s3/list/object-list.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/list/object-list.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-menu.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-menu.tsx",
+      },
+      {
+        path: "hooks/use-download-toast.tsx",
+        type: "registry:hook",
+        target: "@hooks/use-download-toast.tsx",
+      },
+      {
+        path: "hooks/use-delete-toast.tsx",
+        type: "registry:hook",
+        target: "@hooks/use-delete-toast.tsx",
       },
       {
         path: "lib/file-type-icon.tsx",

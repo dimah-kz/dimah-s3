@@ -50,12 +50,8 @@ npx shadcn@latest add @dimah-s3/object-list
 ```tsx
 "use client";
 
-import {
-  useDownload,
-  useObjectList,
-  type ObjectListQuery,
-} from "@dimah-s3/react";
-import { DownloadButton, ObjectList } from "@dimah-s3/ui";
+import { useDelete, useDownload, useObjectList, type ObjectListQuery } from "@dimah-s3/react";
+import { ObjectList, ObjectListMenu } from "@dimah-s3/ui";
 
 type LibraryFile = {
   id: string;
@@ -68,6 +64,8 @@ type LibraryFile = {
 export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
   const list = useObjectList({ query });
   const download = useDownload({ route: "docs" });
+  const share = useDownload({ route: "docs", disposition: "inline" });
+  const remove = useDelete({ route: "docs" });
 
   return (
     <ObjectList
@@ -77,10 +75,12 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
       getDescription={(file) => file.sizeLabel}
       getFileType={(file) => file.type}
       renderActions={(file) => (
-        <DownloadButton
-          download={download}
+        <ObjectListMenu
           objectKey={file.key}
           fileName={file.name}
+          download={download}
+          share={share}
+          delete={remove}
         />
       )}
     />
@@ -88,9 +88,20 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
 }
 ```
 
-`getKey` and `getLabel` are the only required accessors. `renderItem` replaces a file row. `renderFolder` replaces a folder row. `header` is the trailing slot in the path bar, for an upload button or a filter.
+`getKey` and `getLabel` are the only required accessors. `renderActions` is where row controls go. `ObjectListMenu` calls the download and delete hooks you pass in. `share` is a second `useDownload` with `disposition: "inline"` so Copy link opens in a browser while Download stays an attachment. Omit `share` and the copied URL uses the download hook. `renderItem` replaces a file row. `header` is the trailing slot in the path bar.
 
 `trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object.
+
+## Menu
+
+```ts
+import type { ObjectListMenuProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/list/object-list-menu.tsx"
+  name="ObjectListMenuProps"
+/>
 
 ## Props
 
