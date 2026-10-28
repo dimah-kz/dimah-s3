@@ -50,7 +50,12 @@ npx shadcn@latest add @dimah-s3/object-list
 ```tsx
 "use client";
 
-import { useDelete, useDownload, useObjectList, type ObjectListQuery } from "@dimah-s3/react";
+import {
+  useDelete,
+  useDownload,
+  useObjectList,
+  type ObjectListQuery,
+} from "@dimah-s3/react";
 import { ObjectList, ObjectListMenu } from "@dimah-s3/ui";
 
 type LibraryFile = {
@@ -74,6 +79,9 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
       getLabel={(file) => file.name}
       getDescription={(file) => file.sizeLabel}
       getFileType={(file) => file.type}
+      download={download}
+      delete={remove}
+      getObjectKey={(file) => file.key}
       renderActions={(file) => (
         <ObjectListMenu
           objectKey={file.key}
@@ -88,7 +96,7 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
 }
 ```
 
-`getKey` and `getLabel` are the only required accessors. `renderActions` is where row controls go. `ObjectListMenu` calls the download and delete hooks you pass in. `share` is a second `useDownload` with `disposition: "inline"` so Copy link opens in a browser while Download stays an attachment. Omit `share` and the copied URL uses the download hook. `renderItem` replaces a file row. `header` is the trailing slot in the path bar.
+`getKey` and `getLabel` are the only required accessors. Pass `download` or `delete` to select the loaded rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. The header then switches to a bar with download and delete. `download` is navigate-mode `useDownload`. `getObjectKey` is the stored object key when it differs from `getKey`. `resolveFolderKeys` supplies the keys inside a checked folder; without it, checked folders stay in the list and are not downloaded or deleted. `renderActions` is where the row menu goes. `share` is a second `useDownload` with `disposition: "inline"` so Copy link opens in a browser while Download stays an attachment.
 
 `trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object.
 

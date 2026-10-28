@@ -82,6 +82,18 @@ export type UseNavigateDownloadReturn = UseNavigateDownloadState & {
     key: string,
     downloadName?: string,
   ) => Promise<{ url: string; expiresIn: number } | null>;
+  /**
+   * Presign many files without changing `phase` or `objectKey`.
+   * A shared single-file control therefore does not react to each key.
+   * `beforeDownload` rejections and request errors are listed in `failed`.
+   * This does not hand the URLs to the browser.
+   */
+  presignMany: (
+    files: readonly { key: string; fileName?: string }[],
+  ) => Promise<{
+    signed: { key: string; url: string }[];
+    failed: string[];
+  }>;
   /** Reset state to `idle`. */
   reset: () => void;
 };
@@ -239,6 +251,44 @@ export function useDownload(
       return requestDownloadUrl(key, downloadName, generation);
     },
     [requestDownloadUrl],
+  );
+
+  const presignMany = useCallback(
+    async (files: readonly { key: string; fileName?: string }[]) => {
+      const signed: { key: string; url: string }[] = [];
+      const failed: string[] = [];
+      if (files.length === 0) return { signed, failed };
+
+      const opts = optsRef.current as UseNavigateDownloadOptions;
+      const api = opts.api ?? apiRef.current;
+      if (!api) throw new Error(missingApiMessage("useDownload"));
+
+      for (const file of files) {
+        if (opts.beforeDownload) {
+          const allowed = await opts.beforeDownload(file.key);
+          if (!allowed) {
+            failed.push(file.key);
+            opts.onError?.(file.key, new Error("blocked"));
+            continue;
+          }
+        }
+        try {
+          const result = await api.download({
+            route: opts.route,
+            key: file.key,
+            fileName: file.fileName,
+            ...(opts.disposition ? { disposition: opts.disposition } : {}),
+          });
+          signed.push({ key: file.key, url: result.url });
+        } catch (err) {
+          failed.push(file.key);
+          opts.onError?.(file.key, err);
+        }
+      }
+
+      return { signed, failed };
+    },
+    [apiRef, optsRef],
   );
 
   const downloadNavigate = useCallback(
@@ -470,6 +520,7 @@ export function useDownload(
     isPending: state.phase === "presigning",
     download,
     presign,
+    presignMany,
     reset,
   };
 }

@@ -116,9 +116,15 @@ describe("useDelete", () => {
       useDelete({ api, route: "uploads", onSuccess }),
     );
 
+    let result: { deleted: string[]; failed: string[] } = {
+      deleted: [],
+      failed: [],
+    };
     await act(async () => {
-      await hook.current.removeMany(["a.png", "b.png"]);
+      result = await hook.current.removeMany(["a.png", "b.png"]);
     });
+
+    expect(result).toEqual({ deleted: ["a.png", "b.png"], failed: [] });
 
     expect(api.deleteMany).toHaveBeenCalledWith({
       route: "uploads",

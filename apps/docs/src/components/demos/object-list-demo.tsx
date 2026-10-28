@@ -93,6 +93,10 @@ function query({ parent, cursor }: ObjectListQueryInput) {
   });
 }
 
+function fileObjectKey(file: LibraryFile) {
+  return `docs/${file.id}/${file.name}`;
+}
+
 export function ObjectListDemo() {
   const list = useObjectList({ query });
   const download = useDownload({ route: "docs" });
@@ -103,12 +107,22 @@ export function ObjectListDemo() {
     <ObjectList
       list={list}
       getKey={(file) => file.id}
+      getObjectKey={fileObjectKey}
       getLabel={(file) => file.name}
       getDescription={(file) => formatFileSize(file.size)}
       getFileType={(file) => file.type}
+      download={download}
+      delete={remove}
+      resolveFolderKeys={async (folder) =>
+        FILES.filter(
+          (file) =>
+            file.folder === folder.id ||
+            file.folder?.startsWith(`${folder.id}/`),
+        ).map(fileObjectKey)
+      }
       renderActions={(file) => (
         <ObjectListMenu
-          objectKey={`docs/${file.id}/${file.name}`}
+          objectKey={fileObjectKey(file)}
           fileName={file.name}
           fileSize={file.size}
           download={download}

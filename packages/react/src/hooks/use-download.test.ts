@@ -133,4 +133,86 @@ describe("useDownload", () => {
     });
     hook.unmount();
   });
+
+  it("presigns many files without changing single-file state", async () => {
+    const api = fakeS3Api({
+      download: vi.fn(async (payload) => ({
+        bucket: "bucket",
+        key: payload.key,
+        url: `https://s3.test/${payload.key}`,
+        expiresIn: 600,
+      })),
+    });
+    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
+
+    let signed: { key: string; url: string }[] = [];
+    await act(async () => {
+      const result = await hook.current.presignMany([
+        { key: "a.png", fileName: "A.png" },
+        { key: "b.png" },
+      ]);
+      signed = result.signed;
+      expect(result.failed).toEqual([]);
+    });
+
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(api.download).toHaveBeenCalledWith({
+      route: "uploads",
+      key: "a.png",
+      fileName: "A.png",
+    });
+    expect(signed).toEqual([
+      { key: "a.png", url: "https://s3.test/a.png" },
+      { key: "b.png", url: "https://s3.test/b.png" },
+    ]);
+    expect(hook.current).toMatchObject({
+      phase: "idle",
+      objectKey: null,
+      url: null,
+      isPending: false,
+    });
+    hook.unmount();
+  });
+
+  it("keeps going when one presignMany key fails or is blocked", async () => {
+    const api = fakeS3Api({
+      download: vi.fn(async (payload) => {
+        if (payload.key === "bad.png") throw new Error("nope");
+        return {
+          bucket: "bucket",
+          key: payload.key,
+          url: "https://s3.test/ok",
+          expiresIn: 600,
+        };
+      }),
+    });
+    const onError = vi.fn();
+    const hook = renderHook(() =>
+      useDownload({
+        api,
+        route: "uploads",
+        onError,
+        beforeDownload: async (key) => key !== "skip.png",
+      }),
+    );
+
+    await act(async () => {
+      const result = await hook.current.presignMany([
+        { key: "skip.png" },
+        { key: "bad.png" },
+        { key: "ok.png" },
+      ]);
+      expect(result.failed).toEqual(["skip.png", "bad.png"]);
+      expect(result.signed).toEqual([
+        { key: "ok.png", url: "https://s3.test/ok" },
+      ]);
+    });
+
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenCalledWith("skip.png", expect.any(Error));
+    expect(onError).toHaveBeenCalledWith("bad.png", expect.any(Error));
+    expect(hook.current.phase).toBe("idle");
+    expect(hook.current.objectKey).toBeNull();
+    hook.unmount();
+  });
 });

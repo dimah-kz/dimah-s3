@@ -288,12 +288,13 @@ export const components = [
     type: "registry:component",
     title: "Object List",
     description:
-      "Folder and file list with a row menu for download, delete, and a temporary link.",
+      "Folder and file list with row selection, bulk download and delete, and a row menu.",
     ...installMeta,
     registryDependencies: [
       "alert-dialog",
       "breadcrumb",
       "button",
+      "checkbox",
       "dropdown-menu",
       "empty",
       "item",
@@ -312,6 +313,11 @@ export const components = [
         path: "components/dimah-s3/list/object-list-menu.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/list/object-list-menu.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-selection.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-selection.tsx",
       },
       {
         path: "hooks/use-download-toast.tsx",

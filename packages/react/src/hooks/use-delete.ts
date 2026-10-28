@@ -48,7 +48,9 @@ export type UseDeleteReturn = UseDeleteState & {
   /** Delete `key` immediately — no confirm step. */
   remove: (key: string) => Promise<void>;
   /** Delete several keys via `api.deleteMany`. */
-  removeMany: (keys: string[]) => Promise<void>;
+  removeMany: (
+    keys: string[],
+  ) => Promise<{ deleted: string[]; failed: string[] }>;
   /** Cancel confirmation and return to `idle`. */
   cancelDelete: () => void;
   /** Reset state to `idle`. */
@@ -179,7 +181,8 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
 
   const removeMany = useCallback(
     async (keys: string[]) => {
-      if (inFlightRef.current || keys.length === 0) return;
+      const empty = { deleted: [] as string[], failed: [] as string[] };
+      if (inFlightRef.current || keys.length === 0) return empty;
       const opts = optsRef.current;
       const api = opts.api ?? apiRef.current;
       if (!api)
@@ -201,21 +204,24 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
         draft.objectKey = null;
       });
 
+      const deleted: string[] = [];
+      const failed: string[] = [];
       try {
         const { results } = await api.deleteMany({
           route: opts.route,
           keys,
         });
-        if (generation !== generationRef.current) return;
-        const failed = results.filter((item) => !item.success);
+        if (generation !== generationRef.current) return { deleted, failed };
         for (const item of results) {
           if (item.success) {
+            deleted.push(item.key);
             try {
               await opts.onSuccess?.(item.key);
             } catch (err) {
               opts.onError?.(item.key, err, "success");
             }
           } else {
+            failed.push(item.key);
             opts.onError?.(
               item.key,
               new Error(item.error?.message ?? "Delete failed"),
@@ -227,23 +233,31 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           patch((draft) => {
             draft.phase = "error";
             draft.error = toHookError(
-              new Error(failed[0]?.error?.message ?? "Delete failed"),
+              new Error(
+                results.find((item) => !item.success)?.error?.message ??
+                  "Delete failed",
+              ),
               "Delete failed",
             );
           });
-          return;
+          return { deleted, failed };
         }
         patch((draft) => {
           draft.phase = "success";
           draft.error = null;
         });
+        return { deleted, failed };
       } catch (err) {
-        if (generation !== generationRef.current) return;
+        if (generation !== generationRef.current) return { deleted, failed };
         patch((draft) => {
           draft.phase = "error";
           draft.error = toHookError(err, "Delete failed");
         });
         opts.onError?.(keys[0] ?? "", err, "deleting");
+        return {
+          deleted,
+          failed: keys.filter((key) => !deleted.includes(key)),
+        };
       } finally {
         if (generation === generationRef.current) {
           inFlightRef.current = false;

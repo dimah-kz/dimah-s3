@@ -494,7 +494,7 @@
       "name": "object-list",
       "type": "registry:component",
       "title": "Object List",
-      "description": "Folder and file list with a row menu for download, delete, and a temporary link.",
+      "description": "Folder and file list with row selection, bulk download and delete, and a row menu.",
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
@@ -527,6 +527,7 @@
         "alert-dialog",
         "breadcrumb",
         "button",
+        "checkbox",
         "dropdown-menu",
         "empty",
         "item",
@@ -545,6 +546,11 @@
           "path": "src/components/dimah-s3/list/object-list-menu.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-menu.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-selection.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-selection.tsx"
         },
         {
           "path": "src/hooks/use-download-toast.tsx",
