@@ -5,6 +5,7 @@ import { DELETE_BATCH_MAX_KEYS } from "@dimah-s3/core";
 import type { UseDeleteReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { Trash2Icon } from "lucide-react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -33,6 +34,8 @@ export type ObjectListSelectionProps = {
   /** Object keys to delete, plus folders left out because keys were not provided. */
   prepare: () => Promise<ObjectListSelectionPlan>;
   removeMany?: UseDeleteReturn["removeMany"];
+  /** Extra controls beside Delete. Hidden from clicks while a delete is running. */
+  actions?: ReactNode;
   onDeleted?: (result: { deleted: string[]; failed: string[] }) => void;
 };
 
@@ -46,6 +49,7 @@ export function ObjectListSelection({
   onClear,
   prepare,
   removeMany,
+  actions,
   onDeleted,
 }: ObjectListSelectionProps) {
   const t = useTranslations();
@@ -174,6 +178,16 @@ export function ObjectListSelection({
             ) : null}
           </p>
           <div className="flex shrink-0 items-center gap-1">
+            {actions ? (
+              <div
+                className={cn(
+                  "flex items-center gap-1",
+                  busy && "pointer-events-none opacity-60",
+                )}
+              >
+                {actions}
+              </div>
+            ) : null}
             {removeMany ? (
               <Button
                 variant="destructive"

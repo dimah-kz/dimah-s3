@@ -1,6 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { fileNameFromKey, type APIError } from "@dimah-s3/core";
 import type { ObjectListFolder, UseDeleteReturn } from "@dimah-s3/react";
@@ -62,6 +69,12 @@ export type ObjectListView<TItem> = {
   parent?: string | null;
 };
 
+/** Checked rows on the loaded page. */
+export type ObjectListSelectionChange<TItem> = {
+  items: readonly TItem[];
+  folders: readonly ObjectListFolder[];
+};
+
 /** Props for {@link ObjectList}. Pass a list view as `list`. */
 export type ObjectListProps<TItem> = {
   list: ObjectListView<TItem>;
@@ -79,6 +92,11 @@ export type ObjectListProps<TItem> = {
   renderFolder?: (folder: ObjectListFolder) => ReactNode;
   /** Trailing controls for a file, such as download and delete. */
   renderActions?: (item: TItem) => ReactNode;
+  /**
+   * Extra content beside the file name, such as a status.
+   * Ignored when {@link ObjectListProps.renderItem} replaces the row.
+   */
+  renderMeta?: (item: TItem) => ReactNode;
   /**
    * Called when the default file row is clicked.
    * Ignored when {@link ObjectListProps.renderItem} replaces the row.
@@ -114,6 +132,16 @@ export type ObjectListProps<TItem> = {
   resolveFolderKeys?: (folder: ObjectListFolder) => Promise<readonly string[]>;
   /** Selection bar delete. Implies {@link ObjectListProps.selectable}. */
   delete?: UseDeleteReturn;
+  /**
+   * Called when the checked rows change, including when the folder changes
+   * and the selection clears. `items` and `folders` are from the loaded page.
+   */
+  onSelectionChange?: (selection: ObjectListSelectionChange<TItem>) => void;
+  /**
+   * Extra controls on the selection bar, beside Delete.
+   * Implies {@link ObjectListProps.selectable}.
+   */
+  selectionActions?: ReactNode;
   /** Called after a bulk delete, including keys that failed. */
   onDeleted?: (result: { deleted: string[]; failed: string[] }) => void;
 };
@@ -137,6 +165,7 @@ function ObjectListFrame<TItem>({
   renderItem,
   renderFolder,
   renderActions,
+  renderMeta,
   onOpenItem,
   renderFolderActions,
   header,
@@ -149,11 +178,13 @@ function ObjectListFrame<TItem>({
   getObjectKey,
   resolveFolderKeys,
   delete: remove,
+  onSelectionChange,
+  selectionActions,
   onDeleted,
 }: ObjectListProps<TItem>) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
-  const folders = list.folders ?? [];
+  const folders = useMemo(() => list.folders ?? [], [list.folders]);
   const trail = list.trail ?? [];
   const isLoading = list.isLoading === true;
   const isRefreshing = list.isRefreshing === true;
@@ -162,7 +193,11 @@ function ObjectListFrame<TItem>({
   const showRows = folders.length > 0 || list.items.length > 0;
   const showEmpty = !isLoading && !list.error && !showRows;
   const showInitialError = !isLoading && list.error != null && !showRows;
-  const canSelect = selectable || remove != null;
+  const canSelect =
+    selectable ||
+    remove != null ||
+    selectionActions != null ||
+    onSelectionChange != null;
   const filesSelectable = canSelect && renderItem == null;
   const foldersSelectable =
     canSelect && resolveFolderKeys != null && renderFolder == null;
@@ -177,6 +212,28 @@ function ObjectListFrame<TItem>({
     : [];
   const selectedFileKeys = visibleFileKeys.filter((key) => fileKeys.has(key));
   const selectedFolderIds = visibleFolderIds.filter((id) => folderIds.has(id));
+  const selectedFileKeySig = JSON.stringify(selectedFileKeys);
+  const selectedFolderIdSig = JSON.stringify(selectedFolderIds);
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const getKeyRef = useRef(getKey);
+
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange;
+    getKeyRef.current = getKey;
+  }, [getKey, onSelectionChange]);
+
+  useEffect(() => {
+    const notify = onSelectionChangeRef.current;
+    if (!notify) return;
+    const fileSet = new Set<string>(JSON.parse(selectedFileKeySig) as string[]);
+    const folderSet = new Set<string>(
+      JSON.parse(selectedFolderIdSig) as string[],
+    );
+    notify({
+      items: list.items.filter((item) => fileSet.has(getKeyRef.current(item))),
+      folders: folders.filter((folder) => folderSet.has(folder.id)),
+    });
+  }, [folders, list.items, selectedFileKeySig, selectedFolderIdSig]);
   const selectedCount = selectedFileKeys.length + selectedFolderIds.length;
   const visibleCount = visibleFileKeys.length + visibleFolderIds.length;
   const allSelected = visibleCount > 0 && selectedCount === visibleCount;
@@ -312,6 +369,7 @@ function ObjectListFrame<TItem>({
               onClear={clearSelection}
               prepare={prepareSelection}
               removeMany={remove?.removeMany}
+              actions={selectionActions}
               onDeleted={(result) => {
                 clearSelection();
                 onDeleted?.(result);
@@ -463,6 +521,7 @@ function ObjectListFrame<TItem>({
                   )
                 }
                 actions={renderActions?.(item)}
+                meta={renderMeta?.(item)}
                 selected={fileKeys.has(key)}
                 selectable={filesSelectable}
                 selectLabel={t("Select {name}", {
@@ -589,6 +648,7 @@ function ObjectListRow({
   description,
   media,
   actions,
+  meta,
   selected,
   selectable,
   selectLabel,
@@ -599,6 +659,7 @@ function ObjectListRow({
   description?: ReactNode;
   media: ReactNode;
   actions?: ReactNode;
+  meta?: ReactNode;
   selected: boolean;
   selectable: boolean;
   selectLabel: string;
@@ -637,9 +698,14 @@ function ObjectListRow({
       >
         {media}
         <ItemContent className="min-w-0 gap-0">
-          <ItemTitle className="w-full max-w-full min-w-0 font-normal">
-            {title}
-          </ItemTitle>
+          <div className="flex min-w-0 items-center gap-2">
+            <ItemTitle className="w-auto min-w-0 shrink font-normal">
+              {title}
+            </ItemTitle>
+            {meta != null && meta !== false && meta !== "" ? (
+              <div className="shrink-0">{meta}</div>
+            ) : null}
+          </div>
           {described ? (
             <ItemDescription className="text-xs leading-4 text-dimah-s3-muted-foreground">
               {description}
