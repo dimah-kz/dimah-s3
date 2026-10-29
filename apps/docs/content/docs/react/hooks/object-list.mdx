@@ -56,7 +56,7 @@ const list = useObjectList({
 });
 ```
 
-`readObjectListLevel` splits a flat list into the folders and files at one level. `getFolder` returns a `/`-separated path, or `null` for the root. Pass the full set for that listing. A single unrelated page cannot be grouped after the fact.
+`readObjectListLevel` splits a flat list into the folders and files at one level. `getFolder` returns a `/`-separated path, or `null` for the root. Pass the full set for that listing. A single page of a database query cannot be grouped after the fact. A paged tree returns `folders` from your own query. See [Folders](/docs/react/ui/components/object-list#folders).
 
 ```ts
 import { readObjectListLevel } from "@dimah-s3/react";
@@ -69,7 +69,7 @@ const level = readObjectListLevel(records, {
 
 ## With `db()`
 
-`dbObjectQuery` adapts `api.db.listObjects`. `parent` is sent as the key `prefix`. The adapter does not invent folder rows: generated keys contain a uuid segment, so splitting the key is not a folder tree. Return `folders` from your own query when the catalog has them. `dbObjectListAccessors` maps each row onto `ObjectList`: row id, object key, filename, content type, and verified size.
+`dbObjectQuery` adapts `api.db.listObjects` for a flat catalog. `parent` is sent as the key `prefix`. The adapter does not invent folder rows: generated keys contain a uuid segment, so splitting the key is not a folder tree. `dbObjectListAccessors` maps each row onto `ObjectList`: row id, object key, filename, content type, and verified size.
 
 ```tsx title="components/db-files.tsx"
 "use client";

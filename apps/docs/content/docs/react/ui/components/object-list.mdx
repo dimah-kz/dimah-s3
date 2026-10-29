@@ -93,6 +93,7 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
           download={download}
           share={share}
           delete={remove}
+          onDeleted={() => void list.refresh()}
         />
       )}
     />
@@ -102,13 +103,13 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
 
 `getKey` and `getLabel` are the only required accessors. Pass `delete`, `selectable`, `selectionActions`, or `onSelectionChange` to select the loaded file rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. `getObjectKey` is the stored object key when it differs from `getKey`. Pass `resolveFolderKeys` to give a folder a checkbox; bulk delete includes the keys it returns. Without it, folders stay navigation-only. `onOpenItem` runs when a file row is clicked. `renderMeta` sits beside the file name. `renderActions` is where the row menu goes. `renderItem` replaces the whole row, including the checkbox and `renderMeta`.
 
-`onSelectionChange` receives the checked files and folders from the loaded page. It also runs when the open folder changes and the selection clears. `selectionActions` renders on the selection bar beside Delete. Those controls are inert while a bulk delete is running.
+The header checkbox selects rows loaded so far. When `list.hasMore` is set, its name is "Select this page" and the bar says the count is on this page. Rows on the next page stay unchecked. `onSelectionChange` receives the checked files and folders from the loaded page. It also runs when the open folder changes and the selection clears. `selectionActions` renders on the selection bar beside Delete. Those controls are inert while a bulk delete is running.
 
-`ObjectListMenu` downloads, deletes, and copies a link. Copy link signs through `share` when you pass it, otherwise through `download`, then writes the URL to the clipboard. Pass `share` as a second `useDownload` with `disposition: "inline"` when the link should open in a browser while Download stays an attachment. Pass `expiresIn` to ask for a shorter TTL than the route cap. The server signs the shorter of that value and `download.expiresIn`, and the toast shows the TTL that was actually signed. Signing a link does not start a download.
+`ObjectListMenu` downloads, deletes, and copies a link. Pass `onDeleted` to reload after that row is deleted. Leave `useDelete`'s `onSuccess` for your own work: a bulk delete calls `onSuccess` once per key, and the selection bar already reloads once. Copy link signs through `share` when you pass it, otherwise through `download`, then writes the URL to the clipboard. Pass `share` as a second `useDownload` with `disposition: "inline"` when the link should open in a browser while Download stays an attachment. Pass `expiresIn` to ask for a shorter TTL than the route cap. The server signs the shorter of that value and `download.expiresIn`, and the toast shows the TTL that was actually signed. Signing a link does not start a download.
 
 ## Filter
 
-Keep the search box outside `ObjectList`. Put the text in `query`, and in `queryKey` so the first page loads again.
+Keep the search box outside `ObjectList`. Put the text in `query`, and in `queryKey` so the first page loads again. When the filter matches nothing, pass `emptyTitle` and `emptyDescription`. Otherwise the empty state says the folder is empty.
 
 ```tsx
 const [search, setSearch] = useState("");
@@ -121,11 +122,14 @@ const list = useObjectList({
 
 ## Upload into the open folder
 
-Put the upload control in `header`. After a successful upload, reload the page with `list.refresh()`. `list.parent` is the folder that is open. The library does not write that id into the object key. Store it on your own record when the new file should appear in that folder.
+Put the upload control in `header`. After a successful upload, reload the page with `list.refresh()`. `list.parent` is the folder that is open. Send it as metadata. Read `clientMetadata.folderId` in `upload.object` or `upload.guard` and store it on your file row. The library does not write that id into the object key.
 
 ```tsx
 const upload = useUpload({
   route: "docs",
+  getUploadOptions: () => ({
+    metadata: { folderId: list.parent ?? "" },
+  }),
   onSuccess: () => void list.refresh(),
 });
 
@@ -137,7 +141,28 @@ const upload = useUpload({
 />;
 ```
 
-`trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object.
+`trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object. A path longer than the root plus two folders collapses the earlier folders into a menu.
+
+## Folders
+
+`ObjectList` does not invent folders. The first page of `query` returns them. [`dbObjectQuery`](/docs/react/hooks/object-list#with-db) lists objects and sends `parent` as a key prefix. Generated keys contain a uuid segment, so that prefix is not a folder tree. Use it for a flat catalog.
+
+For a tree, keep folders in your own table and return them from `query`. Return `folders` only on the first page. Later pages append `items`.
+
+```tsx
+const list = useObjectList({
+  query: async ({ parent, cursor, signal }) => {
+    const page = await loadLibrary({ folderId: parent, cursor, signal });
+    return {
+      folders: cursor ? undefined : page.folders,
+      items: page.files,
+      nextCursor: page.nextCursor,
+    };
+  },
+});
+```
+
+`readObjectListLevel` groups a complete in-memory list. Pass the full set for that listing. One page of a database query cannot be grouped after the fact. Upload into the open folder from the section above.
 
 ## Menu
 

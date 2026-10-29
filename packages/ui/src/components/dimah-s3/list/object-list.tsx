@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, MoreHorizontalIcon } from "lucide-react";
 import { fileNameFromKey, type APIError } from "@dimah-s3/core";
 import type { ObjectListFolder, UseDeleteReturn } from "@dimah-s3/react";
 import { useFormatDimahError } from "@dimah-s3/react";
@@ -23,6 +23,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty,
@@ -116,6 +123,7 @@ export type ObjectListProps<TItem> = {
   /**
    * Checkboxes for the file rows loaded so far. The selection clears when
    * `list.parent` changes. Rows on the next page are not selected.
+   * When `list.hasMore` is set, the header checkbox selects this page.
    * A folder gets a checkbox only when {@link ObjectListProps.resolveFolderKeys}
    * is set.
    */
@@ -335,12 +343,17 @@ function ObjectListFrame<TItem>({
     return { entries, skippedFolders };
   }
 
+  const pageLimited = list.hasMore === true;
   const selectAll =
     rowsSelectable && showRows ? (
       <SelectCheckbox
         checked={allSelected}
         indeterminate={selectedCount > 0 && !allSelected}
-        label={t("Select all", { note: "object list selection" })}
+        label={
+          pageLimited
+            ? t("Select this page", { note: "object list selection" })
+            : t("Select all", { note: "object list selection" })
+        }
         onCheckedChange={(checked) => toggleAll(checked)}
       />
     ) : null;
@@ -370,6 +383,7 @@ function ObjectListFrame<TItem>({
               prepare={prepareSelection}
               removeMany={remove?.removeMany}
               actions={selectionActions}
+              onThisPage={pageLimited}
               onDeleted={(result) => {
                 clearSelection();
                 onDeleted?.(result);
@@ -584,6 +598,19 @@ function ObjectListFrame<TItem>({
   );
 }
 
+/** Trailing folders kept inline. Earlier ones collapse into a menu. */
+const VISIBLE_TRAIL = 2;
+
+function splitObjectListTrail(trail: readonly ObjectListFolder[]) {
+  if (trail.length <= VISIBLE_TRAIL) {
+    return { hidden: [] as readonly ObjectListFolder[], visible: trail };
+  }
+  return {
+    hidden: trail.slice(0, -VISIBLE_TRAIL),
+    visible: trail.slice(-VISIBLE_TRAIL),
+  };
+}
+
 function ObjectListBreadcrumb({
   list,
   rootLabel,
@@ -593,7 +620,9 @@ function ObjectListBreadcrumb({
   rootLabel: string;
   trail: readonly ObjectListFolder[];
 }) {
+  const t = useTranslations();
   const atRoot = trail.length === 0;
+  const { hidden, visible } = splitObjectListTrail(trail);
 
   return (
     <Breadcrumb className="min-w-0 flex-1">
@@ -613,8 +642,46 @@ function ObjectListBreadcrumb({
             </BreadcrumbLink>
           )}
         </BreadcrumbItem>
-        {trail.map((folder, index) => {
-          const current = index === trail.length - 1;
+        {hidden.length > 0 ? (
+          <Fragment>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button type="button" variant="ghost" size="icon-xs" />
+                  }
+                >
+                  <MoreHorizontalIcon />
+                  <span className="sr-only">
+                    {t("Earlier folders", { note: "object list" })}
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="max-w-64 min-w-48"
+                >
+                  <DropdownMenuGroup>
+                    {hidden.map((folder, index) => (
+                      <DropdownMenuItem
+                        key={folder.id}
+                        disabled={list.navigate == null}
+                        onClick={() =>
+                          list.navigate?.(trail.slice(0, index + 1))
+                        }
+                      >
+                        <span className="truncate">{folder.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </BreadcrumbItem>
+          </Fragment>
+        ) : null}
+        {visible.map((folder, index) => {
+          const trailIndex = hidden.length + index;
+          const current = trailIndex === trail.length - 1;
           return (
             <Fragment key={folder.id}>
               <BreadcrumbSeparator />
@@ -627,7 +694,9 @@ function ObjectListBreadcrumb({
                   <BreadcrumbLink
                     className="max-w-40 truncate sm:max-w-56"
                     render={<button type="button" />}
-                    onClick={() => list.navigate?.(trail.slice(0, index + 1))}
+                    onClick={() =>
+                      list.navigate?.(trail.slice(0, trailIndex + 1))
+                    }
                   >
                     {folder.name}
                   </BreadcrumbLink>

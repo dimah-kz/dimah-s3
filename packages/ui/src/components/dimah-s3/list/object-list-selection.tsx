@@ -36,6 +36,11 @@ export type ObjectListSelectionProps = {
   removeMany?: UseDeleteReturn["removeMany"];
   /** Extra controls beside Delete. Hidden from clicks while a delete is running. */
   actions?: ReactNode;
+  /**
+   * The loaded page is not the whole catalog.
+   * The count then says the selection is on this page.
+   */
+  onThisPage?: boolean;
   onDeleted?: (result: { deleted: string[]; failed: string[] }) => void;
 };
 
@@ -50,6 +55,7 @@ export function ObjectListSelection({
   prepare,
   removeMany,
   actions,
+  onThisPage = false,
   onDeleted,
 }: ObjectListSelectionProps) {
   const t = useTranslations();
@@ -166,10 +172,15 @@ export function ObjectListSelection({
             className="min-w-0 flex-1 truncate text-sm text-dimah-s3-foreground"
           >
             <span className="font-medium tabular-nums">
-              {t("{count} selected", {
-                note: "object list selection",
-                variables: { count: String(selectedCount) },
-              })}
+              {onThisPage
+                ? t("{count} selected on this page", {
+                    note: "object list selection",
+                    variables: { count: String(selectedCount) },
+                  })
+                : t("{count} selected", {
+                    note: "object list selection",
+                    variables: { count: String(selectedCount) },
+                  })}
             </span>
             {visibleNote ? (
               <span className="ms-2 font-normal text-dimah-s3-muted-foreground">

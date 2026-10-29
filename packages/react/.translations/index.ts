@@ -35,6 +35,7 @@ export type Translations = {
   "Download(button)": string;
   "Downloading(toast)": string;
   "Drag and drop files here(dropzone)": string;
+  "Earlier folders(object list)": string;
   "Expires in 1 day(object list menu)": string;
   "Expires in 1 hour(object list menu)": string;
   "Expires in 1 minute(object list menu)": string;
@@ -66,6 +67,7 @@ export type Translations = {
   "Preparing…(upload status)": string;
   "Retry(object list)": string;
   "Select all(object list selection)": string;
+  "Select this page(object list selection)": string;
   "Select {name}(object list selection)": string;
   "Selected folders stay in the list.(object list selection)": string;
   "Something went wrong(API error)": string;
@@ -86,6 +88,7 @@ export type Translations = {
   "Uploading(toast)": string;
   "Validating…(upload status)": string;
   "{count} file(s) uploaded(toast)": string;
+  "{count} selected on this page(object list selection)": string;
   "{count} selected(object list selection)": string;
   "{done}/{total} files(upload progress)": string;
   "{feature} is disabled(API error)": string;

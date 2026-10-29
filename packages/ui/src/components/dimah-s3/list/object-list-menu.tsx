@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   formatFileSize,
   fileNameFromKey,
@@ -72,6 +72,12 @@ export type ObjectListMenuProps = {
   expiresIn?: number;
   /** `useDelete`. Adds Delete and the confirmation dialog. */
   delete?: UseDeleteReturn;
+  /**
+   * Called once after this row is deleted.
+   * Reload the list from here (`list.refresh()`). A bulk delete does not
+   * call this; the selection bar reloads once.
+   */
+  onDeleted?: () => void;
 };
 
 /**
@@ -90,11 +96,13 @@ export function ObjectListMenu({
   share,
   expiresIn,
   delete: remove,
+  onDeleted,
 }: ObjectListMenuProps) {
   const t = useTranslations();
   const expiryLabel = useShareExpiryLabel();
   const linkSource = share ?? download;
   const [copying, setCopying] = useState(false);
+  useRowDeleted(remove, objectKey, onDeleted);
   const downloadPending =
     download != null && download.isPending && download.objectKey === objectKey;
   const deleting = remove != null && remove.isDeleting;
@@ -305,4 +313,33 @@ function DeleteConfirm({
 
 function isolateLtr(value: string): string {
   return `\u2066${value}\u2069`;
+}
+
+/**
+ * Fires `onDeleted` when this row's delete reaches `success`.
+ * Bulk delete leaves `objectKey` empty, so it does not match a row.
+ */
+function useRowDeleted(
+  remove: UseDeleteReturn | undefined,
+  objectKey: string,
+  onDeleted: (() => void) | undefined,
+) {
+  const onDeletedRef = useRef(onDeleted);
+  const notified = useRef(false);
+  const phase = remove?.phase;
+  const currentKey = remove?.objectKey;
+
+  useEffect(() => {
+    onDeletedRef.current = onDeleted;
+  }, [onDeleted]);
+
+  useEffect(() => {
+    if (phase !== "success" || currentKey !== objectKey) {
+      notified.current = false;
+      return;
+    }
+    if (notified.current) return;
+    notified.current = true;
+    onDeletedRef.current?.();
+  }, [currentKey, objectKey, phase]);
 }

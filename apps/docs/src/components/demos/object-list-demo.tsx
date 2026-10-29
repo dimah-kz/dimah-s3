@@ -62,6 +62,13 @@ const FILES: LibraryFile[] = [
     type: "image/png",
   },
   {
+    id: "january",
+    name: "January.pdf",
+    folder: "Invoices/2026/January",
+    size: 90_112,
+    type: "application/pdf",
+  },
+  {
     id: "hero",
     name: "Hero.png",
     folder: "Images",
@@ -127,6 +134,7 @@ export function ObjectListDemo() {
           download={download}
           share={share}
           delete={remove}
+          onDeleted={() => void list.refresh()}
         />
       )}
       className="mx-auto max-w-lg"
