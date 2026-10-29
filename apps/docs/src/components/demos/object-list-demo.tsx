@@ -45,6 +45,83 @@ const FILES: LibraryFile[] = [
     type: "text/markdown",
   },
   {
+    id: "roadmap",
+    name: "Roadmap.pdf",
+    folder: null,
+    size: 860_160,
+    type: "application/pdf",
+  },
+  {
+    id: "pricing",
+    name: "Pricing.xlsx",
+    folder: null,
+    size: 48_128,
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  },
+  {
+    id: "kickoff",
+    name: "Kickoff.mp4",
+    folder: null,
+    size: 4_194_304,
+    type: "video/mp4",
+  },
+  {
+    id: "contract",
+    name: "Contract.docx",
+    folder: null,
+    size: 92_160,
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
+  {
+    id: "spec",
+    name: "Product spec.md",
+    folder: null,
+    size: 18_432,
+    type: "text/markdown",
+  },
+  {
+    id: "budget",
+    name: "Q4 budget.xlsx",
+    folder: null,
+    size: 61_440,
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  },
+  {
+    id: "team",
+    name: "Team.jpg",
+    folder: null,
+    size: 1_572_864,
+    type: "image/jpeg",
+  },
+  {
+    id: "release",
+    name: "Release notes.txt",
+    folder: null,
+    size: 6_144,
+    type: "text/plain",
+  },
+  {
+    id: "proposal",
+    name: "Proposal.pdf",
+    folder: null,
+    size: 737_280,
+    type: "application/pdf",
+  },
+  {
+    id: "film",
+    name: "Brand film.mp4",
+    folder: null,
+    size: 6_291_456,
+    type: "video/mp4",
+  },
+  {
+    id: "a11y",
+    name: "Accessibility.md",
+    folder: null,
+    size: 9_216,
+    type: "text/markdown",
+  },
+  {
     id: "q1",
     name: "Q1.pdf",
     folder: "Invoices",
@@ -56,6 +133,20 @@ const FILES: LibraryFile[] = [
     name: "Q2.pdf",
     folder: "Invoices",
     size: 610_304,
+    type: "application/pdf",
+  },
+  {
+    id: "q3",
+    name: "Q3.pdf",
+    folder: "Invoices",
+    size: 487_424,
+    type: "application/pdf",
+  },
+  {
+    id: "q4",
+    name: "Q4.pdf",
+    folder: "Invoices",
+    size: 552_960,
     type: "application/pdf",
   },
   {
@@ -86,12 +177,55 @@ const FILES: LibraryFile[] = [
     size: 12_288,
     type: "image/svg+xml",
   },
+  {
+    id: "icon",
+    name: "Icon.png",
+    folder: "Images",
+    size: 24_576,
+    type: "image/png",
+  },
+  {
+    id: "social",
+    name: "Social.png",
+    folder: "Images",
+    size: 409_600,
+    type: "image/png",
+  },
+  {
+    id: "texture",
+    name: "Texture.jpg",
+    folder: "Images",
+    size: 890_880,
+    type: "image/jpeg",
+  },
+  {
+    id: "wordmark",
+    name: "Wordmark.svg",
+    folder: "Images",
+    size: 8_192,
+    type: "image/svg+xml",
+  },
+  {
+    id: "portrait",
+    name: "Portrait.jpg",
+    folder: "Images",
+    size: 1_245_184,
+    type: "image/jpeg",
+  },
+  {
+    id: "pattern",
+    name: "Pattern.png",
+    folder: "Images",
+    size: 327_680,
+    type: "image/png",
+  },
 ];
 
-const PAGE_SIZE = 2;
+const PAGE_SIZE = 4;
+const PAGE_DELAY_MS = 400;
 const USAGE_LIMITS = {
-  maxBytes: 20 * 1024 * 1024,
-  maxFiles: 30,
+  maxBytes: 32 * 1024 * 1024,
+  maxFiles: 40,
 };
 
 function catalogUsage(files: readonly LibraryFile[]) {
@@ -105,22 +239,47 @@ function fileObjectKey(file: LibraryFile) {
   return file.key ?? `uploads/${file.id}/${file.name}`;
 }
 
+function delay(signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(abortError());
+      return;
+    }
+    const timer = window.setTimeout(finish, PAGE_DELAY_MS);
+    function finish() {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }
+    function onAbort() {
+      window.clearTimeout(timer);
+      reject(abortError());
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+function abortError() {
+  return new DOMException("The operation was aborted.", "AbortError");
+}
+
 export function ObjectListDemo() {
   const catalogRef = useRef(FILES);
   const list = useObjectList({
-    query({ parent, cursor }: ObjectListQueryInput) {
+    query({ parent, cursor, signal }: ObjectListQueryInput) {
       const level = readObjectListLevel(catalogRef.current, {
         parent,
         getFolder: (file) => file.folder,
       });
       const start = cursor ? Number(cursor) : 0;
       const next = start + PAGE_SIZE;
-      return Promise.resolve({
+      const page = {
         folders: level.folders,
         items: level.items.slice(start, next),
         nextCursor: next < level.items.length ? String(next) : null,
         usage: catalogUsage(catalogRef.current),
-      });
+      };
+      if (!cursor) return Promise.resolve(page);
+      return delay(signal).then(() => page);
     },
   });
   const upload = useUpload({
@@ -190,7 +349,7 @@ export function ObjectListDemo() {
         />
       )}
       className="mx-auto max-w-lg"
-      height="18rem"
+      height="27rem"
     />
   );
 }
