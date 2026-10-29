@@ -143,6 +143,16 @@ describe("createS3Client protocol", () => {
     expect(calls[0]?.url).toContain("route=uploads");
   });
 
+  it("forwards download expiresIn", async () => {
+    const { fetch, calls } = captureFetch();
+    await createS3Client({ fetch }).download({
+      route: "uploads",
+      key: "a.png",
+      expiresIn: 900,
+    });
+    expect(calls[0]?.url).toContain("expiresIn=900");
+  });
+
   it("uses a custom basePath", async () => {
     const { fetch, calls } = captureFetch();
     await createS3Client({ fetch, basePath: "/s3/" }).upload(uploadBody);

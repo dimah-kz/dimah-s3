@@ -48,9 +48,11 @@ export const s3 = dimahS3({
   ]}
 />
 
-1. **`resolve`**: Optionally rewrites download `fileName`, `disposition` (`inline` vs `attachment`), or `expiresIn`.
-2. **`guard`**: Validates request permissions for the specified `key`.
+1. **`resolve`**: Optionally rewrites download `fileName`, `disposition` (`inline` vs `attachment`), or `expiresIn`. A returned `expiresIn` replaces the route cap and any client request, then is clamped to `maxExpiresIn`.
+2. **`guard`**: Validates request permissions for the specified `key`. `expiresIn` here is the TTL that will be signed (`0` when `mode` is `"proxy"`).
 3. **`onPresigned`**: Receives the signed URL and expiration details.
+
+A client may send `expiresIn` on the download query. The signed TTL is the shorter of that request and `download.expiresIn` (default 10 minutes) unless `resolve` replaces it. `GET /routes` includes the cap as `download.expiresIn`. Proxy downloads ignore it and return `expiresIn: 0`.
 
 ---
 
@@ -92,6 +94,23 @@ import type {
 ## Frequently asked questions
 
 <Accordions>
+
+<Accordion title="Can the client choose how long a download link lasts?">
+
+Yes, up to the route cap. `download.expiresIn` is the maximum. A shorter
+`expiresIn` on the query is signed as requested. Return `expiresIn` from
+`resolve` when the server should choose a different TTL, including one
+longer than the route cap. That value is still clamped to `maxExpiresIn`.
+
+```ts
+files: route({
+  download: {
+    expiresIn: 60 * 60 * 24, // [!code ++]
+  },
+}),
+```
+
+</Accordion>
 
 <Accordion title="How do I change the download filename dynamically?">
 

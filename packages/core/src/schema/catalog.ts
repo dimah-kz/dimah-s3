@@ -1,6 +1,6 @@
 import * as z from "zod";
 import type { S3RouteName } from "@/types/routes";
-import { routeNameSchema } from "./shared";
+import { routeNameSchema, S3_MAX_EXPIRES_IN } from "./shared";
 
 export const downloadDispositionSchema = z.enum(["inline", "attachment"]);
 export const downloadModeSchema = z.enum(["presign", "proxy"]);
@@ -20,6 +20,11 @@ export const routeCatalogUploadSchema = z.discriminatedUnion("enabled", [
 export const routeCatalogDownloadSchema = z.discriminatedUnion("enabled", [
   z.strictObject({
     enabled: z.literal(true),
+    /**
+     * Maximum presign TTL in seconds. Clients may request a shorter
+     * `expiresIn`. Omitted means the protocol default (600).
+     */
+    expiresIn: z.int().positive().max(S3_MAX_EXPIRES_IN).optional(),
     disposition: downloadDispositionSchema.optional(),
     mode: downloadModeSchema.optional(),
   }),

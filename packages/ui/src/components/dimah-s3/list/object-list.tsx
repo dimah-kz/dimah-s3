@@ -3,11 +3,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertCircleIcon, FolderIcon, FolderOpenIcon } from "lucide-react";
 import { fileNameFromKey, type APIError } from "@dimah-s3/core";
-import type {
-  ObjectListFolder,
-  UseDeleteReturn,
-  UseNavigateDownloadReturn,
-} from "@dimah-s3/react";
+import type { ObjectListFolder, UseDeleteReturn } from "@dimah-s3/react";
 import { useFormatDimahError } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
@@ -85,6 +81,11 @@ export type ObjectListProps<TItem> = {
   renderFolder?: (folder: ObjectListFolder) => ReactNode;
   /** Trailing controls for a file, such as download and delete. */
   renderActions?: (item: TItem) => ReactNode;
+  /**
+   * Called when the default file row is clicked.
+   * Ignored when {@link ObjectListProps.renderItem} replaces the row.
+   */
+  onOpenItem?: (item: TItem) => void;
   /** Trailing controls for a folder. Kept outside the open button. */
   renderFolderActions?: (folder: ObjectListFolder) => ReactNode;
   /** Trailing header content, such as an upload button. */
@@ -97,8 +98,10 @@ export type ObjectListProps<TItem> = {
   emptyDescription?: string;
   className?: string;
   /**
-   * Checkboxes for the rows loaded so far. The selection clears when
+   * Checkboxes for the file rows loaded so far. The selection clears when
    * `list.parent` changes. Rows on the next page are not selected.
+   * A folder gets a checkbox only when {@link ObjectListProps.resolveFolderKeys}
+   * is set.
    */
   selectable?: boolean;
   /**
@@ -107,16 +110,10 @@ export type ObjectListProps<TItem> = {
    */
   getObjectKey?: (item: TItem) => string;
   /**
-   * Object keys stored in a folder. Without it, a checked folder stays
-   * in the list and is not deleted.
+   * Object keys stored in a folder. The folder gets a checkbox only when
+   * this is set, and bulk delete includes the keys it returns.
    */
   resolveFolderKeys?: (folder: ObjectListFolder) => Promise<readonly string[]>;
-  /**
-   * Selection bar download. Implies {@link ObjectListProps.selectable}.
-   * Pass navigate-mode `useDownload`. A checked folder is included only
-   * when {@link ObjectListProps.resolveFolderKeys} is set.
-   */
-  download?: UseNavigateDownloadReturn;
   /** Selection bar delete. Implies {@link ObjectListProps.selectable}. */
   delete?: UseDeleteReturn;
   /** Called after a bulk delete, including keys that failed. */
@@ -142,6 +139,7 @@ function ObjectListFrame<TItem>({
   renderItem,
   renderFolder,
   renderActions,
+  onOpenItem,
   renderFolderActions,
   header,
   rootLabel,
@@ -152,7 +150,6 @@ function ObjectListFrame<TItem>({
   selectable = false,
   getObjectKey,
   resolveFolderKeys,
-  download,
   delete: remove,
   onDeleted,
 }: ObjectListProps<TItem>) {
@@ -167,31 +164,39 @@ function ObjectListFrame<TItem>({
   const showRows = folders.length > 0 || list.items.length > 0;
   const showEmpty = !isLoading && !list.error && !showRows;
   const showInitialError = !isLoading && list.error != null && !showRows;
-  const canSelect = selectable || remove != null || download != null;
+  const canSelect = selectable || remove != null;
+  const filesSelectable = canSelect && renderItem == null;
+  const foldersSelectable =
+    canSelect && resolveFolderKeys != null && renderFolder == null;
   const [fileKeys, setFileKeys] = useState<ReadonlySet<string>>(new Set());
   const [folderIds, setFolderIds] = useState<ReadonlySet<string>>(new Set());
   const anchorRef = useRef<number | null>(null);
-  const visibleFileKeys = list.items.map((item) => getKey(item));
-  const visibleFolderIds = folders.map((folder) => folder.id);
+  const visibleFileKeys = filesSelectable
+    ? list.items.map((item) => getKey(item))
+    : [];
+  const visibleFolderIds = foldersSelectable
+    ? folders.map((folder) => folder.id)
+    : [];
   const selectedFileKeys = visibleFileKeys.filter((key) => fileKeys.has(key));
   const selectedFolderIds = visibleFolderIds.filter((id) => folderIds.has(id));
   const selectedCount = selectedFileKeys.length + selectedFolderIds.length;
   const visibleCount = visibleFileKeys.length + visibleFolderIds.length;
   const allSelected = visibleCount > 0 && selectedCount === visibleCount;
+  const rowsSelectable = filesSelectable || foldersSelectable;
   const showHeader =
-    breadcrumb || header != null || isRefreshing || (canSelect && showRows);
+    breadcrumb ||
+    header != null ||
+    isRefreshing ||
+    (rowsSelectable && showRows);
   const objectKeyOf = getObjectKey ?? getKey;
-  const selecting = canSelect && selectedCount > 0;
-  const canAct =
-    selectedFileKeys.length > 0 ||
-    (selectedFolderIds.length > 0 && resolveFolderKeys != null);
+  const selecting = rowsSelectable && selectedCount > 0;
   const selectionRows: SelectionRow[] = [];
-  if (!renderFolder) {
+  if (foldersSelectable) {
     for (const folder of folders) {
       selectionRows.push({ kind: "folder", id: folder.id });
     }
   }
-  if (!renderItem) {
+  if (filesSelectable) {
     for (const item of list.items) {
       selectionRows.push({ kind: "file", id: getKey(item) });
     }
@@ -276,7 +281,7 @@ function ObjectListFrame<TItem>({
   }
 
   const selectAll =
-    canSelect && showRows ? (
+    rowsSelectable && showRows ? (
       <SelectCheckbox
         checked={allSelected}
         indeterminate={selectedCount > 0 && !allSelected}
@@ -306,10 +311,8 @@ function ObjectListFrame<TItem>({
             <ObjectListSelection
               leading={selectAll}
               selectedCount={selectedCount}
-              canAct={canAct}
               onClear={clearSelection}
               prepare={prepareSelection}
-              download={download}
               removeMany={remove?.removeMany}
               onDeleted={(result) => {
                 clearSelection();
@@ -413,13 +416,13 @@ function ObjectListFrame<TItem>({
                 }
                 actions={renderFolderActions?.(folder)}
                 selected={folderIds.has(folder.id)}
-                selectable={canSelect}
+                selectable={foldersSelectable}
                 selectLabel={t("Select {name}", {
                   note: "object list selection",
                   variables: { name: folder.name },
                 })}
                 onSelect={
-                  canSelect
+                  foldersSelectable
                     ? (checked, shift) =>
                         selectAt(
                           selectionRows.findIndex(
@@ -474,13 +477,14 @@ function ObjectListFrame<TItem>({
                 }
                 actions={renderActions?.(item)}
                 selected={fileKeys.has(key)}
-                selectable={canSelect}
+                selectable={filesSelectable}
                 selectLabel={t("Select {name}", {
                   note: "object list selection",
                   variables: { name: getLabel(item) },
                 })}
+                onOpen={onOpenItem != null ? () => onOpenItem(item) : undefined}
                 onSelect={
-                  canSelect
+                  filesSelectable
                     ? (checked, shift) =>
                         selectAt(
                           selectionRows.findIndex(

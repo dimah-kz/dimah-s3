@@ -50,14 +50,17 @@ await download(avatarKey);
 // Or get the presigned URL directly without triggering browser navigation
 const { url, expiresIn } = await presign(avatarKey);
 
-// Sign several files without changing `phase` or `objectKey`.
-// This does not start the browser downloads.
-const { signed, failed } = await presignMany([
-  { key: avatarKey, fileName: "avatar.png" },
-]);
+// Ask for a shorter link. The server clamps this to the route cap.
+const hour = await presign(avatarKey, "avatar.png", 3600);
 ```
 
-`presignMany` leaves the single-file state alone, so a row of download buttons sharing one hook does not toast for every key. `ObjectList` uses it when you pass `download`.
+`presignMany` signs several files without changing `phase` or `objectKey`, so a row can copy a link without looking like a download in progress. Each entry may set `expiresIn`. The result includes the TTL the server signed.
+
+```tsx
+const { signed, failed } = await presignMany([
+  { key: avatarKey, fileName: "avatar.png", expiresIn: 900 },
+]);
+```
 
 ### 2. Fetch streaming (`mode: "fetch"`)
 

@@ -79,9 +79,13 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
       getLabel={(file) => file.name}
       getDescription={(file) => file.sizeLabel}
       getFileType={(file) => file.type}
-      download={download}
       delete={remove}
       getObjectKey={(file) => file.key}
+      onOpenItem={(file) => {
+        void share.presign(file.key, file.name).then((signed) => {
+          if (signed) window.open(signed.url, "_blank", "noopener,noreferrer");
+        });
+      }}
       renderActions={(file) => (
         <ObjectListMenu
           objectKey={file.key}
@@ -96,7 +100,9 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
 }
 ```
 
-`getKey` and `getLabel` are the only required accessors. Pass `download` or `delete` to select the loaded rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. The header then switches to a bar with download and delete. `download` is navigate-mode `useDownload`. `getObjectKey` is the stored object key when it differs from `getKey`. `resolveFolderKeys` supplies the keys inside a checked folder; without it, checked folders stay in the list and are not downloaded or deleted. `renderActions` is where the row menu goes. `share` is a second `useDownload` with `disposition: "inline"` so Copy link opens in a browser while Download stays an attachment.
+`getKey` and `getLabel` are the only required accessors. Pass `delete` to select the loaded file rows and delete them from the header. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. `getObjectKey` is the stored object key when it differs from `getKey`. Pass `resolveFolderKeys` to give a folder a checkbox; bulk delete includes the keys it returns. Without it, folders stay navigation-only. `onOpenItem` runs when a file row is clicked. `renderActions` is where the row menu goes.
+
+`ObjectListMenu` downloads, deletes, and copies a link. Copy link signs through `share` when you pass it, otherwise through `download`, then writes the URL to the clipboard. Pass `share` as a second `useDownload` with `disposition: "inline"` when the link should open in a browser while Download stays an attachment. Pass `expiresIn` to ask for a shorter TTL than the route cap. The server signs the shorter of that value and `download.expiresIn`, and the toast shows the TTL that was actually signed. Signing a link does not start a download.
 
 `trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object.
 

@@ -526,6 +526,78 @@ describe("download / delete", () => {
     );
   });
 
+  it("signs a shorter client expiresIn and clamps a longer one to the route cap", async () => {
+    const guard = vi.fn();
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({
+          download: { expiresIn: 120, guard },
+        }),
+      },
+    });
+
+    await s3.api.download({
+      query: { route: "uploads", key: storedPngKey, expiresIn: 60 },
+    });
+    await s3.api.download({
+      query: { route: "uploads", key: storedPngKey, expiresIn: 500 },
+    });
+
+    const signedTtls = vi
+      .mocked(getSignedUrl)
+      .mock.calls.slice(-2)
+      .map((call) => (call[2] as { expiresIn?: number }).expiresIn);
+    expect(signedTtls).toEqual([60, 120]);
+    expect(guard).toHaveBeenLastCalledWith(
+      expect.objectContaining({ expiresIn: 120 }),
+    );
+  });
+
+  it("lets download.resolve replace the client TTL", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({
+          download: {
+            expiresIn: 120,
+            resolve: () => ({ expiresIn: 400 }),
+          },
+        }),
+      },
+    });
+
+    await s3.api.download({
+      query: { route: "uploads", key: storedPngKey, expiresIn: 60 },
+    });
+    expect(vi.mocked(getSignedUrl).mock.calls.at(-1)?.[2]).toEqual(
+      expect.objectContaining({ expiresIn: 400 }),
+    );
+  });
+
+  it("reads expiresIn from the query string", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: {
+        uploads: allFeaturesRoute({ download: { expiresIn: 600 } }),
+      },
+    });
+
+    const res = await s3.handler(
+      new Request(
+        `http://localhost/api/s3/presign/download?route=uploads&key=${encodeURIComponent(storedPngKey)}&expiresIn=60`,
+      ),
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ expiresIn: 60 });
+  });
+
   it("maps missing objects to OBJECT_NOT_FOUND", async () => {
     const missing = vi.fn(async () => {
       throw Object.assign(new Error("missing"), { name: "NoSuchKey" });
@@ -1113,6 +1185,7 @@ describe("catalog", () => {
           },
           download: {
             enabled: true,
+            expiresIn: 600,
             disposition: "inline",
             mode: "proxy",
           },

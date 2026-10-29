@@ -288,7 +288,7 @@ export const components = [
     type: "registry:component",
     title: "Object List",
     description:
-      "Folder and file list with row selection, bulk download and delete, and a row menu.",
+      "Folder and file list with row selection, bulk delete, and a row menu.",
     ...installMeta,
     registryDependencies: [
       "alert-dialog",
@@ -313,6 +313,11 @@ export const components = [
         path: "components/dimah-s3/list/object-list-menu.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/list/object-list-menu.tsx",
+      },
+      {
+        path: "lib/format-expires-in.ts",
+        type: "registry:lib",
+        target: "@lib/format-expires-in.ts",
       },
       {
         path: "components/dimah-s3/list/object-list-selection.tsx",

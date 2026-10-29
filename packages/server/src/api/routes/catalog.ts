@@ -3,6 +3,7 @@ import {
   type RouteCatalogEntry,
   type RouteCatalogResponse,
 } from "@dimah-s3/core";
+import { normalizeExpiresIn } from "@/helpers/expires";
 import { isEnabled } from "@/helpers/features";
 import type { ResolvedDimahS3Config } from "@/types";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
@@ -23,10 +24,12 @@ function catalogUpload(
 
 function catalogDownload(
   download: ResolvedDimahS3Config["routes"][string]["download"],
+  maxExpiresIn: number | undefined,
 ): RouteCatalogEntry["download"] {
   if (!isEnabled(download)) return { enabled: false };
   return {
     enabled: true,
+    expiresIn: normalizeExpiresIn(download.expiresIn, maxExpiresIn),
     ...(download.disposition ? { disposition: download.disposition } : {}),
     ...(download.mode ? { mode: download.mode } : {}),
   };
@@ -39,7 +42,7 @@ export function buildRouteCatalog(
   for (const [name, route] of Object.entries(config.routes)) {
     routes[name] = {
       upload: catalogUpload(route.upload),
-      download: catalogDownload(route.download),
+      download: catalogDownload(route.download, config.maxExpiresIn),
       delete: isEnabled(route.delete) ? { enabled: true } : { enabled: false },
     };
   }

@@ -8,8 +8,8 @@ import {
 } from "@dimah-s3/core";
 import type * as z from "zod";
 import {
+  clampDownloadExpiresIn,
   headObjectOrNotFound,
-  normalizeExpiresIn,
   openStoredTarget,
   runHook,
   runLifecycleHook,
@@ -54,6 +54,7 @@ async function handleDownload(
     ...stored,
     fileName: input.fileName,
     disposition: input.disposition ?? route.download.disposition,
+    expiresIn: input.expiresIn,
   });
 
   const fileName = resolved?.fileName ?? input.fileName;
@@ -62,20 +63,25 @@ async function handleDownload(
     input.disposition ??
     route.download.disposition ??
     "attachment";
-  const expiresIn = normalizeExpiresIn(
-    resolved?.expiresIn ?? route.download.expiresIn,
-    config.maxExpiresIn,
-  );
+  const mode = route.download.mode ?? "presign";
+  const expiresIn =
+    mode === "proxy"
+      ? 0
+      : clampDownloadExpiresIn({
+          requested: input.expiresIn,
+          routeExpiresIn: route.download.expiresIn,
+          resolvedExpiresIn: resolved?.expiresIn,
+          maxExpiresIn: config.maxExpiresIn,
+        });
 
   await runHook(route.download.guard, {
     ...stored,
     fileName,
     disposition,
+    expiresIn,
   });
 
   await headObjectOrNotFound(route.client, bucket, key);
-
-  const mode = route.download.mode ?? "presign";
   const contentDisposition = fileName
     ? buildContentDisposition(fileName, disposition)
     : disposition;
@@ -104,7 +110,7 @@ async function handleDownload(
       ...stored,
       fileName,
       url,
-      expiresIn: mode === "proxy" ? 0 : expiresIn,
+      expiresIn,
     },
     config,
   );
@@ -113,7 +119,7 @@ async function handleDownload(
     bucket,
     key,
     url,
-    expiresIn: mode === "proxy" ? 0 : expiresIn,
+    expiresIn,
     mode,
     disposition,
   };

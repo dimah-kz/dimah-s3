@@ -7,8 +7,10 @@ description: Return a signed or proxied download URL from a custom backend.
 the route uses `download.mode: "proxy"`, the URL is same-origin and the
 server streams the body.
 
-The payload is a single object: `route`, `key`, and optional `fileName` /
-`disposition`.
+The payload is a single object: `route`, `key`, and optional `fileName`,
+`disposition`, and `expiresIn`. `expiresIn` is a requested TTL in seconds.
+Sign the shorter of that value and your route cap. Return the TTL you
+actually signed.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
@@ -38,6 +40,9 @@ async download(payload) {
   });
   if (payload.fileName) params.set("fileName", payload.fileName);
   if (payload.disposition) params.set("disposition", payload.disposition);
+  if (payload.expiresIn != null) {
+    params.set("expiresIn", String(payload.expiresIn));
+  }
 
   const res = await fetch(`/api/files/presign/download?${params}`);
   if (!res.ok) throw new Error(await res.text());

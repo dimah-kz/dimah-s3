@@ -17,3 +17,27 @@ export function normalizeExpiresIn(
       : S3_MAX_EXPIRES_IN;
   return Math.min(expires, max);
 }
+
+/**
+ * Signed download TTL.
+ * `download.resolve` wins, then the shorter of the client request and the
+ * route cap. Both are clamped to `maxExpiresIn`.
+ */
+export function clampDownloadExpiresIn(options: {
+  /** Client `expiresIn`, when the query sent one. */
+  requested?: number;
+  /** Route `download.expiresIn`. Omitted uses the protocol default. */
+  routeExpiresIn?: number;
+  /** `download.resolve` return. Replaces the cap and the client request. */
+  resolvedExpiresIn?: number;
+  /** Instance ceiling. Defaults to the SigV4 maximum. */
+  maxExpiresIn?: number;
+}): number {
+  const max = options.maxExpiresIn;
+  if (options.resolvedExpiresIn != null) {
+    return normalizeExpiresIn(options.resolvedExpiresIn, max);
+  }
+  const cap = normalizeExpiresIn(options.routeExpiresIn, max);
+  if (options.requested == null) return cap;
+  return Math.min(normalizeExpiresIn(options.requested, max), cap);
+}

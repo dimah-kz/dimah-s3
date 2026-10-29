@@ -111,7 +111,6 @@ export function ObjectListDemo() {
       getLabel={(file) => file.name}
       getDescription={(file) => formatFileSize(file.size)}
       getFileType={(file) => file.type}
-      download={download}
       delete={remove}
       resolveFolderKeys={async (folder) =>
         FILES.filter(

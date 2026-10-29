@@ -494,7 +494,7 @@
       "name": "object-list",
       "type": "registry:component",
       "title": "Object List",
-      "description": "Folder and file list with row selection, bulk download and delete, and a row menu.",
+      "description": "Folder and file list with row selection, bulk delete, and a row menu.",
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
@@ -546,6 +546,11 @@
           "path": "src/components/dimah-s3/list/object-list-menu.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-menu.tsx"
+        },
+        {
+          "path": "src/lib/format-expires-in.ts",
+          "type": "registry:lib",
+          "target": "@lib/format-expires-in.ts"
         },
         {
           "path": "src/components/dimah-s3/list/object-list-selection.tsx",

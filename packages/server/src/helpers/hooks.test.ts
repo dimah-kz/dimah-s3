@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { S3_ERROR_CODES, S3_MAX_EXPIRES_IN } from "@dimah-s3/core";
 import { errors } from "@/errors";
 import {
+  clampDownloadExpiresIn,
   normalizeExpiresIn,
   requestFromHeaders,
   runHook,
@@ -136,6 +137,38 @@ describe("normalizeExpiresIn", () => {
   it("clamps to maxExpiresIn", () => {
     expect(normalizeExpiresIn(7200, 3600)).toBe(3600);
     expect(normalizeExpiresIn(S3_MAX_EXPIRES_IN + 1)).toBe(S3_MAX_EXPIRES_IN);
+  });
+});
+
+describe("clampDownloadExpiresIn", () => {
+  it("uses the shorter of the request and the route cap", () => {
+    expect(clampDownloadExpiresIn({ requested: 60, routeExpiresIn: 120 })).toBe(
+      60,
+    );
+    expect(
+      clampDownloadExpiresIn({ requested: 500, routeExpiresIn: 120 }),
+    ).toBe(120);
+  });
+
+  it("defaults the cap when the route omits expiresIn", () => {
+    expect(clampDownloadExpiresIn({ requested: 60 })).toBe(60);
+    expect(clampDownloadExpiresIn({})).toBe(600);
+  });
+
+  it("lets resolve replace the cap, then clamps to maxExpiresIn", () => {
+    expect(
+      clampDownloadExpiresIn({
+        requested: 60,
+        routeExpiresIn: 120,
+        resolvedExpiresIn: 400,
+      }),
+    ).toBe(400);
+    expect(
+      clampDownloadExpiresIn({
+        resolvedExpiresIn: 900,
+        maxExpiresIn: 100,
+      }),
+    ).toBe(100);
   });
 });
 

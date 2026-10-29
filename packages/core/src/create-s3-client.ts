@@ -68,7 +68,8 @@ function createCoreApi($fetch: S3Fetch): S3Api {
     },
 
     download(payload) {
-      const { route, key, fileName, disposition } = withoutHeaders(payload);
+      const { route, key, fileName, disposition, expiresIn } =
+        withoutHeaders(payload);
       return $fetch<DownloadPresignResponse>(S3_API_ROUTES.download, {
         method: "GET",
         query: {
@@ -76,6 +77,7 @@ function createCoreApi($fetch: S3Fetch): S3Api {
           key,
           fileName: fileName ? sanitizeFileName(fileName) : undefined,
           disposition,
+          expiresIn,
         },
       });
     },

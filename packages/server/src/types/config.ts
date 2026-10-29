@@ -120,7 +120,9 @@ export type UploadConfig = {
 /** Download feature. A config object (or `true`) enables the feature. */
 export type DownloadConfig = {
   /**
-   * Presign TTL in seconds. Defaults to `S3_DEFAULT_EXPIRES_IN` (600).
+   * Maximum presign TTL in seconds. Defaults to `S3_DEFAULT_EXPIRES_IN` (600).
+   * A client `expiresIn` is signed only when it is shorter.
+   * `resolve` can still choose another TTL, clamped by instance `maxExpiresIn`.
    * Independent of {@link UploadConfig.expiresIn}.
    */
   expiresIn?: number;

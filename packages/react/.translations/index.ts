@@ -10,12 +10,10 @@ export type Translations = {
   "Clear(object list selection)": string;
   "Conflict(API error)": string;
   "Copy link(object list menu)": string;
-  "Copy(object list menu)": string;
   "Could not copy link(object list menu)": string;
+  "Could not create link(object list menu)": string;
   "Could not delete the selection(object list selection)": string;
   "Could not delete {count} files(object list selection)": string;
-  "Could not download the selection(object list selection)": string;
-  "Could not download {count} files(object list selection)": string;
   "Could not load files(object list)": string;
   "Could not reach storage ({code})(API error)": string;
   "Delete failed(status)": string;
@@ -37,9 +35,11 @@ export type Translations = {
   "Download(button)": string;
   "Downloading(toast)": string;
   "Drag and drop files here(dropzone)": string;
+  "Expires in 1 day(object list menu)": string;
   "Expires in 1 hour(object list menu)": string;
   "Expires in 1 minute(object list menu)": string;
   "Expires in 1 second(object list menu)": string;
+  "Expires in {count} days(object list menu)": string;
   "Expires in {count} hours(object list menu)": string;
   "Expires in {count} minutes(object list menu)": string;
   "Expires in {count} seconds(object list menu)": string;
@@ -61,7 +61,6 @@ export type Translations = {
   "Loading files(object list)": string;
   "Not found(API error)": string;
   "Nothing to delete(object list selection)": string;
-  "Nothing to download(object list selection)": string;
   "Object key is invalid(API error)": string;
   "Pause(upload control)": string;
   "Preparing…(upload status)": string;
@@ -70,10 +69,9 @@ export type Translations = {
   "Select {name}(object list selection)": string;
   "Selected folders stay in the list.(object list selection)": string;
   "Something went wrong(API error)": string;
-  "Started {count} downloads(object list selection)": string;
-  "Temporary link(object list menu)": string;
   "This action cannot be undone.(object list selection)": string;
   "This folder is empty(object list)": string;
+  "This link works while you can access this file.(object list menu)": string;
   "Unauthorized(API error)": string;
   "Unknown error(fallback)": string;
   "Unknown file route(API error)": string;
@@ -87,7 +85,6 @@ export type Translations = {
   "Uploading {done}/{total}(toast)": string;
   "Uploading(toast)": string;
   "Validating…(upload status)": string;
-  "Your browser may ask to allow these downloads.(object list selection)": string;
   "{count} file(s) uploaded(toast)": string;
   "{count} selected(object list selection)": string;
   "{done}/{total} files(upload progress)": string;

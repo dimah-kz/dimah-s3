@@ -145,10 +145,10 @@ describe("useDownload", () => {
     });
     const hook = renderHook(() => useDownload({ api, route: "uploads" }));
 
-    let signed: { key: string; url: string }[] = [];
+    let signed: { key: string; url: string; expiresIn: number }[] = [];
     await act(async () => {
       const result = await hook.current.presignMany([
-        { key: "a.png", fileName: "A.png" },
+        { key: "a.png", fileName: "A.png", expiresIn: 900 },
         { key: "b.png" },
       ]);
       signed = result.signed;
@@ -160,10 +160,11 @@ describe("useDownload", () => {
       route: "uploads",
       key: "a.png",
       fileName: "A.png",
+      expiresIn: 900,
     });
     expect(signed).toEqual([
-      { key: "a.png", url: "https://s3.test/a.png" },
-      { key: "b.png", url: "https://s3.test/b.png" },
+      { key: "a.png", url: "https://s3.test/a.png", expiresIn: 600 },
+      { key: "b.png", url: "https://s3.test/b.png", expiresIn: 600 },
     ]);
     expect(hook.current).toMatchObject({
       phase: "idle",
@@ -204,7 +205,7 @@ describe("useDownload", () => {
       ]);
       expect(result.failed).toEqual(["skip.png", "bad.png"]);
       expect(result.signed).toEqual([
-        { key: "ok.png", url: "https://s3.test/ok" },
+        { key: "ok.png", url: "https://s3.test/ok", expiresIn: 600 },
       ]);
     });
 
@@ -213,6 +214,23 @@ describe("useDownload", () => {
     expect(onError).toHaveBeenCalledWith("bad.png", expect.any(Error));
     expect(hook.current.phase).toBe("idle");
     expect(hook.current.objectKey).toBeNull();
+    hook.unmount();
+  });
+
+  it("forwards expiresIn on presign", async () => {
+    const api = fakeS3Api();
+    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
+
+    await act(async () => {
+      await hook.current.presign("a.png", "save.png", 900);
+    });
+
+    expect(api.download).toHaveBeenCalledWith({
+      route: "uploads",
+      key: "a.png",
+      fileName: "save.png",
+      expiresIn: 900,
+    });
     hook.unmount();
   });
 });

@@ -77,21 +77,26 @@ export type UseNavigateDownloadReturn = UseNavigateDownloadState & {
   isPending: boolean;
   /** Presign and trigger a native browser download. */
   download: (key: string, downloadName?: string) => Promise<void>;
-  /** Fetch the presigned URL without triggering a browser download. */
+  /**
+   * Fetch the presigned URL without triggering a browser download.
+   * `expiresIn` requests a shorter TTL. The server clamps it to the route cap.
+   */
   presign: (
     key: string,
     downloadName?: string,
+    expiresIn?: number,
   ) => Promise<{ url: string; expiresIn: number } | null>;
   /**
    * Presign many files without changing `phase` or `objectKey`.
    * A shared single-file control therefore does not react to each key.
+   * `expiresIn` on an entry asks for a shorter TTL. The server clamps it.
    * `beforeDownload` rejections and request errors are listed in `failed`.
    * This does not hand the URLs to the browser.
    */
   presignMany: (
-    files: readonly { key: string; fileName?: string }[],
+    files: readonly { key: string; fileName?: string; expiresIn?: number }[],
   ) => Promise<{
-    signed: { key: string; url: string }[];
+    signed: { key: string; url: string; expiresIn: number }[];
     failed: string[];
   }>;
   /** Reset state to `idle`. */
@@ -202,6 +207,7 @@ export function useDownload(
       key: string,
       downloadName: string | undefined,
       generation: number,
+      expiresIn?: number,
     ) => {
       const opts = optsRef.current as UseNavigateDownloadOptions;
       const api = opts.api ?? apiRef.current;
@@ -219,6 +225,7 @@ export function useDownload(
           key,
           fileName: downloadName,
           ...(opts.disposition ? { disposition: opts.disposition } : {}),
+          ...(expiresIn != null ? { expiresIn } : {}),
         });
         if (generation !== generationRef.current) {
           return { url: result.url, expiresIn: result.expiresIn };
@@ -246,16 +253,18 @@ export function useDownload(
   );
 
   const presign = useCallback(
-    async (key: string, downloadName?: string) => {
+    async (key: string, downloadName?: string, expiresIn?: number) => {
       const generation = ++generationRef.current;
-      return requestDownloadUrl(key, downloadName, generation);
+      return requestDownloadUrl(key, downloadName, generation, expiresIn);
     },
     [requestDownloadUrl],
   );
 
   const presignMany = useCallback(
-    async (files: readonly { key: string; fileName?: string }[]) => {
-      const signed: { key: string; url: string }[] = [];
+    async (
+      files: readonly { key: string; fileName?: string; expiresIn?: number }[],
+    ) => {
+      const signed: { key: string; url: string; expiresIn: number }[] = [];
       const failed: string[] = [];
       if (files.length === 0) return { signed, failed };
 
@@ -278,8 +287,13 @@ export function useDownload(
             key: file.key,
             fileName: file.fileName,
             ...(opts.disposition ? { disposition: opts.disposition } : {}),
+            ...(file.expiresIn != null ? { expiresIn: file.expiresIn } : {}),
           });
-          signed.push({ key: file.key, url: result.url });
+          signed.push({
+            key: file.key,
+            url: result.url,
+            expiresIn: result.expiresIn,
+          });
         } catch (err) {
           failed.push(file.key);
           opts.onError?.(file.key, err);

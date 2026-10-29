@@ -62,6 +62,12 @@ export const demoS3Api: DemoS3Api = {
   },
 
   download: async (payload) => {
+    const cap = 3600;
+    const requested = payload.expiresIn;
+    const expiresIn =
+      requested != null && requested > 0
+        ? Math.min(Math.floor(requested), cap)
+        : cap;
     const { key } = payload;
     const localUrl = getDemoFileUrl(key);
     if (localUrl) {
@@ -69,7 +75,7 @@ export const demoS3Api: DemoS3Api = {
         key,
         bucket: "demo",
         url: localUrl,
-        expiresIn: 3600,
+        expiresIn,
       };
     }
 
@@ -81,7 +87,7 @@ export const demoS3Api: DemoS3Api = {
       key,
       bucket: "demo",
       url: `/api/demo-download?${params}`,
-      expiresIn: 3600,
+      expiresIn,
     };
   },
 

@@ -3,7 +3,7 @@ export {
   deleteObjectBestEffort,
 } from "./best-effort";
 export { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
-export { normalizeExpiresIn } from "./expires";
+export { clampDownloadExpiresIn, normalizeExpiresIn } from "./expires";
 export { runHook, runLifecycleHook, runObjectHook } from "./hooks";
 export {
   isEnabled,

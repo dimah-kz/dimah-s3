@@ -168,17 +168,28 @@ export type UploadOnConfirmedContext = StoredObjectContext & {
   uploadId?: string;
 };
 
-/** Context for `download.guard`. */
+/** Context for `download.resolve` and `download.guard`. */
 export type DownloadGuardContext = StoredObjectContext & {
   /** Download filename for Content-Disposition. */
   fileName?: string;
   /** Client-requested or route default disposition. */
   disposition?: "inline" | "attachment";
+  /**
+   * TTL in seconds.
+   * `download.resolve` sees the client request when one was sent.
+   * `download.guard` sees the TTL that will be signed
+   * (`0` when download `mode` is `"proxy"`).
+   */
+  expiresIn?: number;
 };
 
 /** Per-request overrides from `download.resolve`. */
 export type DownloadResolveInfo = {
   disposition?: "inline" | "attachment";
+  /**
+   * Signed TTL in seconds. Replaces the route cap and any client request.
+   * Still clamped to the instance `maxExpiresIn`. Ignored when `mode` is `"proxy"`.
+   */
   expiresIn?: number;
   fileName?: string;
 };

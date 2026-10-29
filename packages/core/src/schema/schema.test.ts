@@ -183,6 +183,47 @@ describe("downloadQuerySchema", () => {
       }).disposition,
     ).toBe("inline");
   });
+
+  it("accepts expiresIn as a number or a query-string integer", () => {
+    expect(
+      downloadQuerySchema.parse({
+        route: "uploads",
+        key: "a.png",
+        expiresIn: 60,
+      }).expiresIn,
+    ).toBe(60);
+    expect(
+      downloadQuerySchema.parse({
+        route: "uploads",
+        key: "a.png",
+        expiresIn: "900",
+      }).expiresIn,
+    ).toBe(900);
+    expect(
+      downloadQuerySchema.parse({
+        route: "uploads",
+        key: "a.png",
+        expiresIn: "",
+      }).expiresIn,
+    ).toBeUndefined();
+  });
+
+  it("rejects a non-positive or oversized expiresIn", () => {
+    expect(
+      downloadQuerySchema.validate({
+        route: "uploads",
+        key: "a.png",
+        expiresIn: 0,
+      }),
+    ).toBe(false);
+    expect(
+      downloadQuerySchema.validate({
+        route: "uploads",
+        key: "a.png",
+        expiresIn: 604_801,
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("fileQuerySchema", () => {

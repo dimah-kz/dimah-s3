@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   formatFileSize,
   fileNameFromKey,
@@ -40,6 +41,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import { useDeleteToast } from "@/hooks/use-delete-toast";
 import { useDownloadToast } from "@/hooks/use-download-toast";
+import { useShareExpiryLabel } from "@/lib/format-expires-in";
 
 /** Props for {@link ObjectListMenu}. */
 export type ObjectListMenuProps = {
@@ -52,16 +54,22 @@ export type ObjectListMenuProps = {
   /** Shown in the delete confirmation. */
   fileSize?: number;
   /**
-   * Navigate-mode `useDownload`. Adds Download, and Copy link when `share`
-   * is omitted. The copied URL uses this hook's disposition.
+   * Navigate-mode `useDownload`. Adds Download.
+   * Copy link uses this hook when `share` is omitted.
    */
   download?: UseNavigateDownloadReturn;
   /**
-   * Navigate-mode `useDownload` used only for the temporary link.
+   * Navigate-mode `useDownload` used only for the copied link.
    * Pass `{ disposition: "inline" }` when the link should open in a browser
    * while `download` stays an attachment.
    */
   share?: UseNavigateDownloadReturn;
+  /**
+   * Requested TTL in seconds for the copied link.
+   * The server signs the shorter of this value and the route cap.
+   * The toast shows the TTL that was actually signed.
+   */
+  expiresIn?: number;
   /** `useDelete`. Adds Delete and the confirmation dialog. */
   delete?: UseDeleteReturn;
 };
@@ -70,6 +78,9 @@ export type ObjectListMenuProps = {
  * Overflow menu for one object-list row. Pass it through `renderActions`.
  * It calls the download and delete hooks you already have. It does not
  * choose a route or an object key.
+ *
+ * Copy link signs through `share` when set, otherwise `download`, then
+ * writes the URL to the clipboard. Signing does not start a download.
  */
 export function ObjectListMenu({
   objectKey,
@@ -77,69 +88,59 @@ export function ObjectListMenu({
   fileSize,
   download,
   share,
+  expiresIn,
   delete: remove,
 }: ObjectListMenuProps) {
   const t = useTranslations();
+  const expiryLabel = useShareExpiryLabel();
   const linkSource = share ?? download;
+  const [copying, setCopying] = useState(false);
   const downloadPending =
     download != null && download.isPending && download.objectKey === objectKey;
-  const linkPending =
-    linkSource != null &&
-    linkSource.isPending &&
-    linkSource.objectKey === objectKey;
   const deleting = remove != null && remove.isDeleting;
 
-  async function copyLink(source: UseNavigateDownloadReturn) {
-    const signed = await source.presign(objectKey, fileName);
-    if (!signed) return;
-    const seconds = signed.expiresIn;
-    const hours = Math.max(1, Math.round(seconds / 3600));
-    const minutes = Math.max(1, Math.round(seconds / 60));
-    const description =
-      seconds >= 3600
-        ? hours === 1
-          ? t("Expires in 1 hour", { note: "object list menu" })
-          : t("Expires in {count} hours", {
-              note: "object list menu",
-              variables: { count: String(hours) },
-            })
-        : seconds >= 60
-          ? minutes === 1
-            ? t("Expires in 1 minute", { note: "object list menu" })
-            : t("Expires in {count} minutes", {
-                note: "object list menu",
-                variables: { count: String(minutes) },
-              })
-          : seconds === 1
-            ? t("Expires in 1 second", { note: "object list menu" })
-            : t("Expires in {count} seconds", {
-                note: "object list menu",
-                variables: { count: String(Math.max(1, seconds)) },
-              });
-    toast.add({
-      type: "success",
-      title: t("Temporary link", { note: "object list menu" }),
-      description,
-      actionProps: {
-        children: t("Copy", { note: "object list menu" }),
-        onClick: () => {
-          void navigator.clipboard.writeText(signed.url).then(
-            () => {
-              toast.add({
-                type: "success",
-                title: t("Link copied", { note: "object list menu" }),
-              });
-            },
-            () => {
-              toast.add({
-                type: "error",
-                title: t("Could not copy link", { note: "object list menu" }),
-              });
-            },
-          );
+  async function onCopyLink() {
+    if (!linkSource || copying) return;
+    setCopying(true);
+    try {
+      const result = await linkSource.presignMany([
+        {
+          key: objectKey,
+          fileName,
+          ...(expiresIn != null ? { expiresIn } : {}),
         },
-      },
-    });
+      ]);
+      const signed = result.signed[0];
+      if (!signed) {
+        toast.add({
+          type: "error",
+          title: t("Could not create link", { note: "object list menu" }),
+        });
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(signed.url);
+      } catch {
+        toast.add({
+          type: "error",
+          title: t("Could not copy link", { note: "object list menu" }),
+          description: signed.url,
+        });
+        return;
+      }
+      toast.add({
+        type: "success",
+        title: t("Link copied", { note: "object list menu" }),
+        description: expiryLabel(signed.expiresIn),
+      });
+    } catch {
+      toast.add({
+        type: "error",
+        title: t("Could not create link", { note: "object list menu" }),
+      });
+    } finally {
+      setCopying(false);
+    }
   }
 
   if (download == null && linkSource == null && remove == null) return null;
@@ -178,10 +179,10 @@ export function ObjectListMenu({
               ) : null}
               {linkSource ? (
                 <DropdownMenuItem
-                  disabled={linkPending}
-                  onClick={() => void copyLink(linkSource)}
+                  disabled={copying}
+                  onClick={() => void onCopyLink()}
                 >
-                  {linkPending ? (
+                  {copying ? (
                     <LoaderIcon className="animate-spin" />
                   ) : (
                     <LinkIcon />
