@@ -450,7 +450,7 @@ function ObjectListFrame<TItem>({
       ) : null}
 
       {showRows ? (
-        <div role="list" className="flex flex-col px-1 py-1">
+        <div role="list" className="flex flex-col">
           {folders.map((folder) =>
             renderFolder ? (
               <div key={folder.id} role="listitem">
@@ -674,7 +674,7 @@ function ObjectListRow({
       role="listitem"
       data-slot="object-list-row"
       className={cn(
-        "flex min-h-11 min-w-0 items-center gap-2 rounded-md py-1 ps-1.5 pe-1 transition-colors duration-150",
+        "flex min-h-11 min-w-0 items-center gap-2 py-1 ps-1.5 pe-1 transition-colors duration-150",
         selected
           ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
           : "hover:bg-dimah-s3-muted",
@@ -787,7 +787,7 @@ function replaceMember(
 
 function ObjectListSkeleton() {
   return (
-    <div className="flex flex-col px-1 py-1">
+    <div className="flex flex-col">
       {["a", "b", "c", "d"].map((key) => (
         <div
           key={key}
