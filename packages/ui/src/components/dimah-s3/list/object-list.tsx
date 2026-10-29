@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { AlertCircleIcon, MoreHorizontalIcon } from "lucide-react";
+import { AlertCircleIcon } from "lucide-react";
 import { fileNameFromKey, type APIError } from "@dimah-s3/core";
 import type { ObjectListFolder, UseDeleteReturn } from "@dimah-s3/react";
 import { useFormatDimahError } from "@dimah-s3/react";
@@ -16,6 +16,7 @@ import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import {
   Breadcrumb,
+  BreadcrumbEllipsis,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
@@ -647,12 +648,8 @@ function ObjectListBreadcrumb({
             <BreadcrumbSeparator />
             <BreadcrumbItem className="shrink-0">
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button type="button" variant="ghost" size="icon-xs" />
-                  }
-                >
-                  <MoreHorizontalIcon />
+                <DropdownMenuTrigger className="flex items-center gap-1">
+                  <BreadcrumbEllipsis className="size-4" />
                   <span className="sr-only">
                     {t("Earlier folders", { note: "object list" })}
                   </span>
