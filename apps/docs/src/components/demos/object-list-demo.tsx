@@ -25,7 +25,7 @@ type LibraryFile = {
 const FILES: LibraryFile[] = [
   {
     id: "brand",
-    name: "Brand guide.pdf",
+    name: "Brand-guidelines-final-approved-for-print-and-web-Q4-2026-do-not-rename.pdf",
     folder: null,
     size: 2_481_152,
     type: "application/pdf",
@@ -176,7 +176,7 @@ export function ObjectListDemo() {
           onDeleted={() => void list.refresh()}
         />
       )}
-      className="mx-auto max-w-lg"
+      className="mx-auto h-72 max-w-lg **:[[role=list]]:min-h-0 **:[[role=list]]:flex-1 **:[[role=list]]:overflow-y-auto **:[[role=list]]:overscroll-contain"
     />
   );
 }

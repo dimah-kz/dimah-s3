@@ -517,7 +517,7 @@ function ObjectListFrame<TItem>({
       ) : null}
 
       {showRows ? (
-        <div role="list" className="flex flex-col">
+        <div role="list" className="flex min-w-0 flex-col">
           {folders.map((folder) =>
             renderFolder ? (
               <div key={folder.id} role="listitem">
@@ -783,6 +783,28 @@ function ObjectListBreadcrumb({
 
 type SelectionRow = { kind: "file" | "folder"; id: string };
 
+/** A short suffix after the last dot. Longer or odd suffixes stay in the stem. */
+const FILE_EXTENSION = /^\.[a-z0-9]{1,8}$/i;
+
+function splitFileName(name: string) {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return { stem: name, extension: "" };
+  const extension = name.slice(dot);
+  if (!FILE_EXTENSION.test(extension)) return { stem: name, extension: "" };
+  return { stem: name.slice(0, dot), extension };
+}
+
+/** Ellipsis on the stem. The extension stays visible, as on file attachments. */
+function FileNameLabel({ name }: { name: string }) {
+  const { stem, extension } = splitFileName(name);
+  return (
+    <span dir="auto" title={name} className="flex max-w-full min-w-0">
+      <span className="min-w-0 truncate">{stem}</span>
+      {extension ? <span className="shrink-0">{extension}</span> : null}
+    </span>
+  );
+}
+
 function ObjectListRow({
   title,
   description,
@@ -808,13 +830,22 @@ function ObjectListRow({
 }) {
   const described =
     description != null && description !== false && description !== "";
+  const showMeta = meta != null && meta !== false && meta !== "";
+  const columns = selectable
+    ? actions
+      ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+      : "grid-cols-[auto_minmax(0,1fr)]"
+    : actions
+      ? "grid-cols-[minmax(0,1fr)_auto]"
+      : "grid-cols-[minmax(0,1fr)]";
 
   return (
     <div
       role="listitem"
       data-slot="object-list-row"
       className={cn(
-        "flex min-h-11 min-w-0 items-center gap-2 py-1 ps-1.5 pe-1 transition-colors duration-150",
+        "grid min-h-11 min-w-0 items-center gap-2 overflow-hidden py-1 ps-1.5 pe-1 transition-colors duration-150",
+        columns,
         selected
           ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
           : "hover:bg-dimah-s3-muted",
@@ -830,24 +861,24 @@ function ObjectListRow({
       <Item
         size="sm"
         className={cn(
-          "min-w-0 flex-1 flex-nowrap rounded-none bg-transparent p-0 hover:bg-transparent",
+          "w-full min-w-0 flex-nowrap overflow-hidden rounded-none bg-transparent p-0 hover:bg-transparent",
           onOpen && "cursor-pointer self-stretch text-start",
         )}
         render={onOpen ? <button type="button" /> : undefined}
         onClick={onOpen}
       >
-        {media}
-        <ItemContent className="min-w-0 gap-0">
+        <span className="shrink-0">{media}</span>
+        <ItemContent
+          className={cn("min-w-0 gap-0 overflow-hidden", actions && "pe-2")}
+        >
           <div className="flex min-w-0 items-center gap-2">
-            <ItemTitle className="w-auto min-w-0 shrink font-normal">
-              {title}
+            <ItemTitle className="line-clamp-none block w-full min-w-0 overflow-hidden font-normal">
+              <FileNameLabel name={title} />
             </ItemTitle>
-            {meta != null && meta !== false && meta !== "" ? (
-              <div className="shrink-0">{meta}</div>
-            ) : null}
+            {showMeta ? <div className="shrink-0">{meta}</div> : null}
           </div>
           {described ? (
-            <ItemDescription className="text-xs leading-4 text-dimah-s3-muted-foreground">
+            <ItemDescription className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
               {description}
             </ItemDescription>
           ) : null}
