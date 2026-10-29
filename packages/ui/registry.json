@@ -545,6 +545,36 @@
           "target": "@components/dimah-s3/list/object-list.tsx"
         },
         {
+          "path": "src/components/dimah-s3/list/object-list-rows.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-rows.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-breadcrumb.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-breadcrumb.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-states.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-states.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-usage.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-usage.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-upload.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-upload.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-selection-state.ts",
+          "type": "registry:hook",
+          "target": "@components/dimah-s3/list/object-list-selection-state.ts"
+        },
+        {
           "path": "src/components/dimah-s3/list/object-list-menu.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-menu.tsx"

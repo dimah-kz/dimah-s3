@@ -312,6 +312,36 @@ export const components = [
         target: "@components/dimah-s3/list/object-list.tsx",
       },
       {
+        path: "components/dimah-s3/list/object-list-rows.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-rows.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-breadcrumb.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-breadcrumb.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-states.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-states.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-usage.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-usage.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-upload.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-upload.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-selection-state.ts",
+        type: "registry:hook",
+        target: "@components/dimah-s3/list/object-list-selection-state.ts",
+      },
+      {
         path: "components/dimah-s3/list/object-list-menu.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/list/object-list-menu.tsx",

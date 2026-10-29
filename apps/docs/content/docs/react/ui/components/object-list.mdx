@@ -116,11 +116,11 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
 }
 ```
 
-`getKey` and `getLabel` are the only required accessors. Pass `upload` to drop or paste files onto the open folder. Pass `delete`, `selectable`, `selectionActions`, or `onSelectionChange` to select the loaded file rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. `getObjectKey` is the stored object key when it differs from `getKey`. Pass `resolveFolderKeys` to give a folder a checkbox; bulk delete includes the keys it returns. Without it, folders stay navigation-only. `onOpenItem` runs when a file row is clicked. `renderMeta` sits beside the file name. `renderActions` is where the row menu goes. `renderItem` replaces the whole row, including the checkbox and `renderMeta`.
+`getKey` and `getLabel` are the only required accessors. Pass `upload` to drop or paste files onto the open folder. Pass `delete`, `selectable`, `selectionActions`, or `onSelectionChange` to select the loaded file rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. With focus inside the list, Ctrl+A or Cmd+A selects the same rows as the header checkbox. A selected row sets `data-selected`. Files set `data-kind="file"` and folders set `data-kind="folder"`. `getObjectKey` is the stored object key when it differs from `getKey`. Pass `resolveFolderKeys` to give a folder a checkbox; bulk delete includes the keys it returns. Without it, folders stay navigation-only. `onOpenItem` runs when a file row is clicked. `renderMeta` sits beside the file name. `renderActions` is where the row menu goes. `renderItem` replaces the whole row, including the checkbox and `renderMeta`.
 
 The header checkbox selects rows loaded so far. When `list.hasMore` is set, its name is "Select this page" and the bar says the count is on this page. Rows on the next page stay unchecked. `onSelectionChange` receives the checked files and folders from the loaded page. It also runs when the open folder changes and the selection clears. `selectionActions` renders on the selection bar beside Delete. Those controls are inert while a bulk delete is running.
 
-`ObjectListMenu` downloads, deletes, and copies a link. Pass `onDeleted` to reload after that row is deleted. Leave `useDelete`'s `onSuccess` for your own work: a bulk delete calls `onSuccess` once per key, and the selection bar already reloads once. Copy link signs through `share` when you pass it, otherwise through `download`, then writes the URL to the clipboard. Pass `share` as a second `useDownload` with `disposition: "inline"` when the link should open in a browser while Download stays an attachment. Pass `expiresIn` to ask for a shorter TTL than the route cap. The server signs the shorter of that value and `download.expiresIn`, and the toast shows the TTL that was actually signed. Signing a link does not start a download.
+`ObjectListMenu` downloads, deletes, and copies a link. Pass `onDeleted` to reload after that row is deleted. Leave `useDelete`'s `onSuccess` for your own work: a bulk delete calls `onSuccess` once per key, and the selection bar already reloads once. Copy link signs through `share` when you pass it, otherwise through `download`, then writes the URL to the clipboard. Pass `share` as a second `useDownload` with `disposition: "inline"` when the link should open in a browser while Download stays an attachment. Pass `expiresIn` to ask for a shorter TTL than the route cap. The server signs the shorter of that value and `download.expiresIn`, and the toast shows the TTL that was actually signed. Signing a link does not start a download. Pass `actions` for extra rows, such as rename. They render after Copy link and before Delete.
 
 ## Frame
 
@@ -130,7 +130,7 @@ When `list.hasMore` is set, the next page loads as the end of the rows comes int
 
 ## Filter
 
-Keep the search box outside `ObjectList`. Put the text in `query`, and in `queryKey` so the first page loads again. When the filter matches nothing, pass `emptyTitle` and `emptyDescription`. Otherwise the empty state says the folder is empty.
+Keep the search box outside `ObjectList`. Put the text in `query`, and in `queryKey` so the first page loads again. When the filter matches nothing, pass `emptyTitle` and `emptyDescription`. Otherwise the empty state says the folder is empty. Pass `empty` to replace that state.
 
 ```tsx
 const [search, setSearch] = useState("");
@@ -230,6 +230,15 @@ import type { ObjectListMenuProps } from "@dimah-s3/ui";
 <AutoTypeTable
   path="packages/ui/src/components/dimah-s3/list/object-list-menu.tsx"
   name="ObjectListMenuProps"
+/>
+
+```ts
+import type { ObjectListMenuAction } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/list/object-list-menu.tsx"
+  name="ObjectListMenuAction"
 />
 
 ## Props

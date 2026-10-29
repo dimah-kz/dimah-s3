@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   formatFileSize,
   fileNameFromKey,
@@ -43,6 +43,18 @@ import { useDeleteToast } from "@/hooks/use-delete-toast";
 import { useDownloadToast } from "@/hooks/use-download-toast";
 import { useShareExpiryLabel } from "@/lib/format-expires-in";
 
+/** One extra row in {@link ObjectListMenu}. */
+export type ObjectListMenuAction = {
+  /** Row label. */
+  label: string;
+  onClick: () => void;
+  /** Icon before the label. */
+  icon?: ReactNode;
+  disabled?: boolean;
+  /** Destructive color. Stays above Delete, in its own group. */
+  destructive?: boolean;
+};
+
 /** Props for {@link ObjectListMenu}. */
 export type ObjectListMenuProps = {
   /**
@@ -78,6 +90,11 @@ export type ObjectListMenuProps = {
    * call this; the selection bar reloads once.
    */
   onDeleted?: () => void;
+  /**
+   * Extra rows, after Copy link and before Delete.
+   * Use this for actions the menu does not provide, such as rename.
+   */
+  actions?: readonly ObjectListMenuAction[];
 };
 
 /**
@@ -87,6 +104,7 @@ export type ObjectListMenuProps = {
  *
  * Copy link signs through `share` when set, otherwise `download`, then
  * writes the URL to the clipboard. Signing does not start a download.
+ * `actions` adds rows this menu does not know about, such as rename.
  */
 export function ObjectListMenu({
   objectKey,
@@ -97,6 +115,7 @@ export function ObjectListMenu({
   expiresIn,
   delete: remove,
   onDeleted,
+  actions,
 }: ObjectListMenuProps) {
   const t = useTranslations();
   const expiryLabel = useShareExpiryLabel();
@@ -151,7 +170,11 @@ export function ObjectListMenu({
     }
   }
 
-  if (download == null && linkSource == null && remove == null) return null;
+  const extra = actions ?? [];
+  const showTransfer = download != null || linkSource != null;
+  const showExtra = extra.length > 0;
+  const showDelete = remove != null;
+  if (!showTransfer && !showExtra && !showDelete) return null;
 
   return (
     <>
@@ -170,7 +193,7 @@ export function ObjectListMenu({
           </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-44">
-          {download || linkSource ? (
+          {showTransfer ? (
             <DropdownMenuGroup>
               {download ? (
                 <DropdownMenuItem
@@ -200,7 +223,25 @@ export function ObjectListMenu({
               ) : null}
             </DropdownMenuGroup>
           ) : null}
-          {remove && (download || linkSource) ? (
+          {showExtra && showTransfer ? <DropdownMenuSeparator /> : null}
+          {showExtra ? (
+            <DropdownMenuGroup>
+              {extra.map((action, index) => (
+                <DropdownMenuItem
+                  key={`${action.label}-${index}`}
+                  variant={action.destructive ? "destructive" : "default"}
+                  disabled={action.disabled}
+                  onClick={() => {
+                    action.onClick();
+                  }}
+                >
+                  {action.icon}
+                  {action.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          ) : null}
+          {showDelete && (showTransfer || showExtra) ? (
             <DropdownMenuSeparator />
           ) : null}
           {remove ? (

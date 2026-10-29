@@ -37,6 +37,7 @@ export {
 } from "@/components/dimah-s3/list/object-list";
 export {
   ObjectListMenu,
+  type ObjectListMenuAction,
   type ObjectListMenuProps,
 } from "@/components/dimah-s3/list/object-list-menu";
 export {
