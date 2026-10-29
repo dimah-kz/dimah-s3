@@ -1,3 +1,35 @@
+## @dimah-s3/ui@1.6.0
+
+### Page a file catalog from your own query
+
+`useObjectList` loads folders and files from a query you pass in. `ObjectList` renders that state. File checkboxes sit in each row; a folder gets one only when you pass its object keys. After a selection, the header becomes a bar that deletes the loaded page. When another page exists, that checkbox is "Select this page" and the bar says the selection is on this page. `onSelectionChange` reports the checked rows, and `selectionActions` adds your own controls beside Delete. `renderMeta` places your own status beside the file name. `onOpenItem` runs when a file row is clicked. A long name truncates inside the row and keeps a short file extension, the same way attachments do. Hover the name to read it in full. `ObjectListMenu` adds download, delete, and copy link on each row. Pass `onDeleted` to reload after that row is deleted. Copy link signs a URL, copies it, and shows the TTL the server returned. Pass `expiresIn` to ask for a shorter link, and a second `useDownload` with `disposition: "inline"` when that link should open in a browser. A path longer than the root plus two folders collapses the earlier folders into a menu. `dbObjectQuery` adapts `api.db.listObjects` when you use the database plugin, and `dbObjectListAccessors` maps those rows onto the list. A key `prefix` filter now applies inside the list query so pages stay full.
+
+### Choose a shorter share link
+
+Download presign accepts an optional `expiresIn`. The signed TTL is the shorter of that request and the route's `download.expiresIn` (default 10 minutes). `download.resolve` can still choose another TTL, up to `maxExpiresIn`. `GET /routes` reports the cap. `ObjectListMenu` can send that shorter TTL when it copies a link, then shows the TTL the server signed.
+
+### Drop files into the open folder
+
+`ObjectList` accepts a `useUpload` return as `upload`. A drop or paste on the list uploads through that hook into the folder that is open. The list does not open the file picker on click, and it does not choose folder metadata: set `noClick` and `noKeyboard` on the hook, and read `list.parent` in `getUploadOptions`. When the batch settles and at least one file succeeded, the list reloads once, including when other files in the batch failed. Put `UploadButton` in `header` for the picker, with `toast={false}` and `status={false}`, so progress and toasts stay on the list.
+
+### Size the object list frame
+
+`ObjectList` accepts `height` and `maxHeight`. A number is pixels. A string is a CSS length, such as `"18rem"` or `"100%"`. `height` keeps the frame one size. `maxHeight` lets it grow with the folder until that cap. In both cases the header and upload progress stay put, and the rows scroll inside the frame.
+
+### Load the next page from the end of the list
+
+`ObjectList` no longer shows a Load more button. When `list.hasMore` is set, the next page loads as the end of the rows comes into view. A short frame fills itself. Scrolling to the end loads the page after that.
+
+### Object list empty state and row actions
+
+`ObjectList` accepts `empty` when the default empty state is not enough. `emptyTitle` and `emptyDescription` still fill that default. `ObjectListMenu` accepts `actions` for extra rows, such as rename, after Copy link and before Delete.
+
+With focus inside the list, Ctrl+A or Cmd+A selects the same rows as the header checkbox. A selected row sets `data-selected`. Files set `data-kind="file"` and folders set `data-kind="folder"`. Opening another folder after an upload no longer reloads the list a second time.
+
+### Show how full a catalog is
+
+`useObjectList` keeps an optional `usage` from the query: bytes used and file count. A later page can omit it. A refresh or a new folder that omits it clears the value. `dbObjectQuery` forwards the scope `usage` that `listObjects` already returns. `ObjectList` shows that line when `list.usage` is set. Pass `usageLimits` with your own `maxBytes` and `maxFiles` — the same numbers as `db({ quota })` when that plugin enforces the limit — and the line includes the cap and a meter. Without limits, the line is the totals only. Without `usage`, the line stays hidden.
+
 ## @dimah-s3/ui@1.5.11
 
 ### Keep the hook request readable
