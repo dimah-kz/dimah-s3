@@ -288,16 +288,18 @@ export const components = [
     type: "registry:component",
     title: "Object List",
     description:
-      "Folder and file list with row selection, bulk delete, and a row menu.",
+      "Folder and file list with drop upload, row selection, bulk delete, and a row menu.",
     ...installMeta,
     registryDependencies: [
       "alert-dialog",
+      "attachment",
       "breadcrumb",
       "button",
       "checkbox",
       "dropdown-menu",
       "empty",
       "item",
+      "progress",
       "separator",
       "skeleton",
       "spinner",
@@ -334,11 +336,7 @@ export const components = [
         type: "registry:hook",
         target: "@hooks/use-delete-toast.tsx",
       },
-      {
-        path: "lib/file-type-icon.tsx",
-        type: "registry:lib",
-        target: "@lib/file-type-icon.tsx",
-      },
+      ...uploadSupportFiles,
     ],
   },
 ] as const satisfies Registry["items"];

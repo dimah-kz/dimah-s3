@@ -494,7 +494,7 @@
       "name": "object-list",
       "type": "registry:component",
       "title": "Object List",
-      "description": "Folder and file list with row selection, bulk delete, and a row menu.",
+      "description": "Folder and file list with drop upload, row selection, bulk delete, and a row menu.",
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",
@@ -525,12 +525,14 @@
       },
       "registryDependencies": [
         "alert-dialog",
+        "attachment",
         "breadcrumb",
         "button",
         "checkbox",
         "dropdown-menu",
         "empty",
         "item",
+        "progress",
         "separator",
         "skeleton",
         "spinner",
@@ -566,6 +568,56 @@
           "path": "src/hooks/use-delete-toast.tsx",
           "type": "registry:hook",
           "target": "@hooks/use-delete-toast.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/upload-status.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/upload/multi-upload-status.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/upload/multi-upload-status.tsx"
+        },
+        {
+          "path": "src/hooks/use-upload-ui.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-upload-ui.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
+        },
+        {
+          "path": "src/hooks/use-upload-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-upload-toast.tsx"
+        },
+        {
+          "path": "src/hooks/use-file-reject-toast.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-file-reject-toast.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
+          "path": "src/lib/attachment-layout.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-layout.ts"
         },
         {
           "path": "src/lib/file-type-icon.tsx",

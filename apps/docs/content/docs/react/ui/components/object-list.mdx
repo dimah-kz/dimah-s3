@@ -54,9 +54,10 @@ import {
   useDelete,
   useDownload,
   useObjectList,
+  useUpload,
   type ObjectListQuery,
 } from "@dimah-s3/react";
-import { ObjectList, ObjectListMenu } from "@dimah-s3/ui";
+import { ObjectList, ObjectListMenu, UploadButton } from "@dimah-s3/ui";
 
 type LibraryFile = {
   id: string;
@@ -68,6 +69,15 @@ type LibraryFile = {
 
 export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
   const list = useObjectList({ query });
+  const upload = useUpload({
+    route: "docs",
+    maxFiles: 8,
+    noClick: true,
+    noKeyboard: true,
+    getUploadOptions: () => ({
+      metadata: { folderId: list.parent ?? "" },
+    }),
+  });
   const download = useDownload({ route: "docs" });
   const share = useDownload({ route: "docs", disposition: "inline" });
   const remove = useDelete({ route: "docs" });
@@ -79,6 +89,10 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
       getLabel={(file) => file.name}
       getDescription={(file) => file.sizeLabel}
       getFileType={(file) => file.type}
+      upload={upload}
+      header={
+        <UploadButton upload={upload} size="sm" status={false} toast={false} />
+      }
       delete={remove}
       getObjectKey={(file) => file.key}
       onOpenItem={(file) => {
@@ -101,7 +115,7 @@ export function Library({ query }: { query: ObjectListQuery<LibraryFile> }) {
 }
 ```
 
-`getKey` and `getLabel` are the only required accessors. Pass `delete`, `selectable`, `selectionActions`, or `onSelectionChange` to select the loaded file rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. `getObjectKey` is the stored object key when it differs from `getKey`. Pass `resolveFolderKeys` to give a folder a checkbox; bulk delete includes the keys it returns. Without it, folders stay navigation-only. `onOpenItem` runs when a file row is clicked. `renderMeta` sits beside the file name. `renderActions` is where the row menu goes. `renderItem` replaces the whole row, including the checkbox and `renderMeta`.
+`getKey` and `getLabel` are the only required accessors. Pass `upload` to drop or paste files onto the open folder. Pass `delete`, `selectable`, `selectionActions`, or `onSelectionChange` to select the loaded file rows. The checkbox sits inside the row. Shift-click a checkbox to extend from the previous row. Escape clears the selection. `getObjectKey` is the stored object key when it differs from `getKey`. Pass `resolveFolderKeys` to give a folder a checkbox; bulk delete includes the keys it returns. Without it, folders stay navigation-only. `onOpenItem` runs when a file row is clicked. `renderMeta` sits beside the file name. `renderActions` is where the row menu goes. `renderItem` replaces the whole row, including the checkbox and `renderMeta`.
 
 The header checkbox selects rows loaded so far. When `list.hasMore` is set, its name is "Select this page" and the bar says the count is on this page. Rows on the next page stay unchecked. `onSelectionChange` receives the checked files and folders from the loaded page. It also runs when the open folder changes and the selection clears. `selectionActions` renders on the selection bar beside Delete. Those controls are inert while a bulk delete is running.
 
@@ -122,22 +136,31 @@ const list = useObjectList({
 
 ## Upload into the open folder
 
-Put the upload control in `header`. After a successful upload, reload the page with `list.refresh()`. `list.parent` is the folder that is open. Send it as metadata. Read `clientMetadata.folderId` in `upload.object` or `upload.guard` and store it on your file row. The library does not write that id into the object key.
+Pass the same `useUpload` to `upload` and, for the file picker, to `UploadButton` in `header`. Set `noClick` and `noKeyboard` on the hook. The list surface accepts a drop and a paste, and it does not open the picker when a row is clicked.
+
+`getUploadOptions` reads `list.parent` and sends it as `metadata.folderId`. It runs as each file starts, so it sees the folder that is open at that moment. Read `clientMetadata.folderId` in `upload.object` or `upload.guard` and store it on your file row. The library does not write that id into the object key, and it does not retarget a drop onto the folder under the pointer.
+
+When the batch settles and at least one file succeeded, `ObjectList` calls `list.refresh()` once. A batch where some files fail still reloads, then the status strip stays on the failure until `upload.reset()`. Leave `onSuccess` for your own work. A second `list.refresh()` there loads the page twice. Set `toast={false}` and `status={false}` on the header button so the list owns progress and toasts.
 
 ```tsx
 const upload = useUpload({
   route: "docs",
+  maxFiles: 8,
+  noClick: true,
+  noKeyboard: true,
   getUploadOptions: () => ({
     metadata: { folderId: list.parent ?? "" },
   }),
-  onSuccess: () => void list.refresh(),
 });
 
 <ObjectList
   list={list}
   getKey={(file) => file.id}
   getLabel={(file) => file.name}
-  header={<UploadButton upload={upload} />}
+  upload={upload}
+  header={
+    <UploadButton upload={upload} size="sm" status={false} toast={false} />
+  }
 />;
 ```
 

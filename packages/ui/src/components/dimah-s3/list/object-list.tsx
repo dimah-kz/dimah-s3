@@ -10,7 +10,11 @@ import {
 } from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { fileNameFromKey, type APIError } from "@dimah-s3/core";
-import type { ObjectListFolder, UseDeleteReturn } from "@dimah-s3/react";
+import type {
+  ObjectListFolder,
+  UseDeleteReturn,
+  UseUploadReturn,
+} from "@dimah-s3/react";
 import { useFormatDimahError } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
@@ -50,6 +54,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { FileTypeGlyph, FolderGlyph } from "@/lib/file-type-icon";
 import { ObjectListSelection } from "@/components/dimah-s3/list/object-list-selection";
+import { useUploadUi } from "@/hooks/use-upload-ui";
 
 /**
  * List state. `{@link useObjectList}` returns this shape. A server render or
@@ -153,6 +158,18 @@ export type ObjectListProps<TItem> = {
   selectionActions?: ReactNode;
   /** Called after a bulk delete, including keys that failed. */
   onDeleted?: (result: { deleted: string[]; failed: string[] }) => void;
+  /**
+   * Drop and paste files onto this list. Pass `useUpload` with `noClick`
+   * and `noKeyboard`. `getUploadOptions` chooses the folder from
+   * `list.parent`; this component does not write metadata. Clicking the
+   * list does not open the file picker. A paste uploads while focus is
+   * inside the list. The destination is the open folder, including when
+   * the pointer is over a folder row. When the batch settles and at least
+   * one file succeeded, `list.refresh` runs once. A mixed batch still
+   * reloads. Share this hook with `UploadButton` in `header` and set that
+   * button's `toast` and `status` to false so progress stays here.
+   */
+  upload?: UseUploadReturn;
 };
 
 /**
@@ -190,6 +207,7 @@ function ObjectListFrame<TItem>({
   onSelectionChange,
   selectionActions,
   onDeleted,
+  upload,
 }: ObjectListProps<TItem>) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
@@ -345,6 +363,27 @@ function ObjectListFrame<TItem>({
   }
 
   const pageLimited = list.hasMore === true;
+  const busy = isLoading || isRefreshing || list.isLoadingMore === true;
+  const dropLabel = upload?.isDragReject
+    ? t("These files cannot be uploaded", { note: "object list" })
+    : t("Drop to upload into this folder", { note: "object list" });
+  const frameClassName = cn(
+    "relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors",
+    upload?.isDragReject &&
+      "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
+    upload?.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
+    upload?.isDragActive &&
+      !upload.isDragAccept &&
+      !upload.isDragReject &&
+      "border-dimah-s3-primary/50",
+    className,
+  );
+  const frameProps = {
+    "data-slot": "object-list",
+    "aria-label": label,
+    "aria-busy": busy || undefined,
+    className: frameClassName,
+  };
   const selectAll =
     rowsSelectable && showRows ? (
       <SelectCheckbox
@@ -361,13 +400,17 @@ function ObjectListFrame<TItem>({
 
   return (
     <section
-      data-slot="object-list"
-      aria-label={label}
-      aria-busy={isLoading || isRefreshing || list.isLoadingMore === true}
-      className={cn(
-        "flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground",
-        className,
-      )}
+      {...(upload
+        ? upload.getRootProps({
+            ...frameProps,
+            role: "region",
+            tabIndex: undefined,
+            "aria-disabled": undefined,
+            onClick: (event) => {
+              event.stopPropagation();
+            },
+          })
+        : frameProps)}
     >
       {showHeader ? (
         <div
@@ -416,6 +459,10 @@ function ObjectListFrame<TItem>({
         </div>
       ) : null}
 
+      {upload ? (
+        <ObjectListUpload upload={upload} refresh={list.refresh} />
+      ) : null}
+
       {isLoading ? <ObjectListSkeleton /> : null}
 
       {showInitialError ? (
@@ -456,9 +503,14 @@ function ObjectListFrame<TItem>({
             </EmptyTitle>
             <EmptyDescription>
               {emptyDescription ??
-                t("Files and folders you add here will show up in this list.", {
-                  note: "object list",
-                })}
+                (upload
+                  ? t("Drop files here to add them to this folder.", {
+                      note: "object list",
+                    })
+                  : t(
+                      "Files and folders you add here will show up in this list.",
+                      { note: "object list" },
+                    ))}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -593,6 +645,28 @@ function ObjectListFrame<TItem>({
             {list.isLoadingMore ? <Spinner data-icon="inline-start" /> : null}
             {t("Load more", { note: "object list" })}
           </Button>
+        </div>
+      ) : null}
+      {upload?.isDragActive ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-dimah-s3-card/80 p-6"
+        >
+          <p
+            className={cn(
+              "rounded-md border border-dashed px-3 py-2 text-sm",
+              upload.isDragReject
+                ? "border-dimah-s3-destructive text-dimah-s3-destructive"
+                : "border-dimah-s3-primary text-dimah-s3-primary",
+            )}
+          >
+            {dropLabel}
+          </p>
+        </div>
+      ) : null}
+      {upload ? (
+        <div className="sr-only" aria-live="polite">
+          {upload.isDragActive ? dropLabel : ""}
         </div>
       ) : null}
     </section>
@@ -849,6 +923,51 @@ function replaceMember(
   if (checked) next.add(id);
   else next.delete(id);
   return next;
+}
+
+function ObjectListUpload({
+  upload,
+  refresh,
+}: {
+  upload: UseUploadReturn;
+  refresh?: () => void | Promise<void>;
+}) {
+  const { statusNode } = useUploadUi(upload);
+  useRefreshListAfterUpload(upload, refresh);
+  if (upload.phase === "idle" || upload.phase === "success") return null;
+  return (
+    <div className="border-b border-dimah-s3-border px-3 py-2">
+      {statusNode}
+    </div>
+  );
+}
+
+function useRefreshListAfterUpload(
+  upload: UseUploadReturn,
+  refresh: (() => void | Promise<void>) | undefined,
+) {
+  const tokenRef = useRef<string | null>(null);
+  const refreshRef = useRef(refresh);
+  const successIds = upload.files
+    .filter((file) => file.status === "success")
+    .map((file) => file.id)
+    .join("\0");
+  const settled = !upload.isPending && upload.phase !== "idle";
+
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!settled) {
+      tokenRef.current = null;
+      return;
+    }
+    if (!successIds) return;
+    if (tokenRef.current === successIds) return;
+    tokenRef.current = successIds;
+    void refreshRef.current?.();
+  }, [settled, successIds]);
 }
 
 function ObjectListSkeleton() {

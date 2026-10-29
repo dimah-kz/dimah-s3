@@ -35,6 +35,8 @@ export type Translations = {
   "Download(button)": string;
   "Downloading(toast)": string;
   "Drag and drop files here(dropzone)": string;
+  "Drop files here to add them to this folder.(object list)": string;
+  "Drop to upload into this folder(object list)": string;
   "Earlier folders(object list)": string;
   "Expires in 1 day(object list menu)": string;
   "Expires in 1 hour(object list menu)": string;
@@ -71,6 +73,7 @@ export type Translations = {
   "Select {name}(object list selection)": string;
   "Selected folders stay in the list.(object list selection)": string;
   "Something went wrong(API error)": string;
+  "These files cannot be uploaded(object list)": string;
   "This action cannot be undone.(object list selection)": string;
   "This folder is empty(object list)": string;
   "This link works while you can access this file.(object list menu)": string;

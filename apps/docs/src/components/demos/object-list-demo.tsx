@@ -1,14 +1,17 @@
 "use client";
 
+import { useRef } from "react";
 import { formatFileSize } from "@dimah-s3/core";
 import {
   readObjectListLevel,
   useDelete,
   useDownload,
   useObjectList,
+  useUpload,
   type ObjectListQueryInput,
 } from "@dimah-s3/react";
-import { ObjectList, ObjectListMenu } from "@dimah-s3/ui";
+import { ObjectList, ObjectListMenu, UploadButton } from "@dimah-s3/ui";
+import { rememberDemoFile } from "@/lib/demo/client-object-store";
 
 type LibraryFile = {
   id: string;
@@ -16,6 +19,7 @@ type LibraryFile = {
   folder: string | null;
   size: number;
   type: string;
+  key?: string;
 };
 
 const FILES: LibraryFile[] = [
@@ -86,29 +90,53 @@ const FILES: LibraryFile[] = [
 
 const PAGE_SIZE = 2;
 
-function query({ parent, cursor }: ObjectListQueryInput) {
-  const level = readObjectListLevel(FILES, {
-    parent,
-    getFolder: (file) => file.folder,
-  });
-  const start = cursor ? Number(cursor) : 0;
-  const next = start + PAGE_SIZE;
-  return Promise.resolve({
-    folders: level.folders,
-    items: level.items.slice(start, next),
-    nextCursor: next < level.items.length ? String(next) : null,
-  });
-}
-
 function fileObjectKey(file: LibraryFile) {
-  return `docs/${file.id}/${file.name}`;
+  return file.key ?? `uploads/${file.id}/${file.name}`;
 }
 
 export function ObjectListDemo() {
-  const list = useObjectList({ query });
-  const download = useDownload({ route: "docs" });
-  const share = useDownload({ route: "docs", disposition: "inline" });
-  const remove = useDelete({ route: "docs" });
+  const catalogRef = useRef(FILES);
+  const list = useObjectList({
+    query({ parent, cursor }: ObjectListQueryInput) {
+      const level = readObjectListLevel(catalogRef.current, {
+        parent,
+        getFolder: (file) => file.folder,
+      });
+      const start = cursor ? Number(cursor) : 0;
+      const next = start + PAGE_SIZE;
+      return Promise.resolve({
+        folders: level.folders,
+        items: level.items.slice(start, next),
+        nextCursor: next < level.items.length ? String(next) : null,
+      });
+    },
+  });
+  const upload = useUpload({
+    route: "uploads",
+    maxFiles: 8,
+    noClick: true,
+    noKeyboard: true,
+    getUploadOptions: () => ({
+      metadata: { folderId: list.parent ?? "" },
+    }),
+    onFileSuccess: (file, result) => {
+      rememberDemoFile(result.key, file);
+      catalogRef.current = [
+        ...catalogRef.current,
+        {
+          id: result.key,
+          key: result.key,
+          name: file.name,
+          folder: list.parent,
+          size: file.size,
+          type: file.type || "application/octet-stream",
+        },
+      ];
+    },
+  });
+  const download = useDownload({ route: "uploads" });
+  const share = useDownload({ route: "uploads", disposition: "inline" });
+  const remove = useDelete({ route: "uploads" });
 
   return (
     <ObjectList
@@ -118,14 +146,25 @@ export function ObjectListDemo() {
       getLabel={(file) => file.name}
       getDescription={(file) => formatFileSize(file.size)}
       getFileType={(file) => file.type}
+      upload={upload}
+      header={
+        <UploadButton upload={upload} size="sm" status={false} toast={false} />
+      }
       delete={remove}
       resolveFolderKeys={async (folder) =>
-        FILES.filter(
-          (file) =>
-            file.folder === folder.id ||
-            file.folder?.startsWith(`${folder.id}/`),
-        ).map(fileObjectKey)
+        catalogRef.current
+          .filter(
+            (file) =>
+              file.folder === folder.id ||
+              file.folder?.startsWith(`${folder.id}/`),
+          )
+          .map(fileObjectKey)
       }
+      onOpenItem={(file) => {
+        void share.presign(fileObjectKey(file), file.name).then((signed) => {
+          if (signed) window.open(signed.url, "_blank", "noopener,noreferrer");
+        });
+      }}
       renderActions={(file) => (
         <ObjectListMenu
           objectKey={fileObjectKey(file)}

@@ -1,8 +1,9 @@
+import { DimahS3DB } from "@dimah-s3/db";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { drizzleAdapter } from "fumadb/adapters/drizzle";
-import { relations, storageObject } from "../db/dimah-s3.ts";
+import { relations, storageObject } from "../db/dimah-s3";
 
 const config = getTableConfig(storageObject);
 console.log("columns", config.columns.map((column) => column.name).join(", "));
@@ -20,9 +21,15 @@ for (const [name, entry] of Object.entries(rels)) {
   });
 }
 
-const adapter = drizzleAdapter({ db, provider: "sqlite" });
-adapter.namespace = "dimah_s3";
-console.log("getSchemaVersion", await adapter.getSchemaVersion());
+const client = DimahS3DB.client(drizzleAdapter({ db, provider: "sqlite" }));
+try {
+  console.log("schema version", await client.version());
+} catch (error) {
+  console.log(
+    "schema version",
+    error instanceof Error ? error.message : String(error),
+  );
+}
 
 sqlite.exec(`
 CREATE TABLE storage_object (
