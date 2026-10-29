@@ -1,3 +1,13 @@
+/**
+ * Bytes and file count for the catalog.
+ * Scope-wide when the source is `listObjects`. A custom query can use the
+ * same shape for its own totals.
+ */
+export type ObjectListUsage = {
+  totalBytes: number;
+  objectCount: number;
+};
+
 /** One folder the catalog can open. `id` is opaque to the hook. */
 export type ObjectListFolder = {
   /** Sent back as `parent` when this folder is opened. */
@@ -26,6 +36,12 @@ export type ObjectListPage<TItem> = {
   folders?: readonly ObjectListFolder[];
   /** `null` or omit when this is the last page. */
   nextCursor?: string | null;
+  /**
+   * Totals for the catalog. A later page may omit this; the hook keeps the
+   * previous value. A first page, refresh, or folder change that omits it
+   * clears the line.
+   */
+  usage?: ObjectListUsage;
 };
 
 /**

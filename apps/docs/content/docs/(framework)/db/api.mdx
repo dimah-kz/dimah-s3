@@ -124,7 +124,9 @@ export function Files() {
 ```
 
 [`ObjectList`](/docs/react/ui/components/object-list) renders the same state
-if you want the folder chrome. `dbObjectListAccessors()` supplies `getKey`,
+if you want the folder chrome. `list.usage` is the scope total from this
+response. Pass the same caps you gave `db({ quota })` as `usageLimits` on
+`ObjectList`. `dbObjectListAccessors()` supplies `getKey`,
 `getObjectKey`, `getLabel`, `getFileName`, `getFileType`, and `getDescription`
 for a `DbClientObject`. Call `listObjects` yourself when you do not
 want the hook. To list another scope, call `listByScope` on the server.

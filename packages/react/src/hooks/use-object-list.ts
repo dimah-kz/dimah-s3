@@ -6,6 +6,7 @@ import { useLiveRef } from "@/internal-helpers";
 import type {
   ObjectListFolder,
   ObjectListPage,
+  ObjectListUsage,
   UseObjectListOptions,
 } from "@/list/types";
 import { isAbortError, toHookError } from "@/types/error";
@@ -15,6 +16,7 @@ export type {
   ObjectListPage,
   ObjectListQuery,
   ObjectListQueryInput,
+  ObjectListUsage,
   UseObjectListOptions,
 } from "@/list/types";
 
@@ -37,6 +39,11 @@ export type UseObjectListReturn<TItem> = {
   isLoadingMore: boolean;
   /** True while the current folder is reloading and previous rows stay visible. */
   isRefreshing: boolean;
+  /**
+   * Totals from the latest page that sent them. `null` when the source
+   * did not.
+   */
+  usage: ObjectListUsage | null;
   hasMore: boolean;
   loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -122,6 +129,7 @@ export function useObjectList<TItem>(
   const [items, setItems] = useState<readonly TItem[]>([]);
   const [folders, setFolders] = useState<readonly ObjectListFolder[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [usage, setUsage] = useState<ObjectListUsage | null>(null);
   const [error, setError] = useState<APIError | null>(null);
   const [status, setStatus] = useState<Status>(enabled ? "loading" : "ready");
 
@@ -138,9 +146,11 @@ export function useObjectList<TItem>(
     (page: ObjectListPage<TItem>, mode: FetchMode) => {
       if (mode === "append") {
         setItems((current) => [...current, ...page.items]);
+        if (page.usage) setUsage(page.usage);
       } else {
         setItems(page.items);
         setFolders(page.folders ?? []);
+        setUsage(page.usage ?? null);
       }
       const cursor = page.nextCursor ? page.nextCursor : null;
       cursorRef.current = cursor;
@@ -302,6 +312,7 @@ export function useObjectList<TItem>(
     isLoading: enabled && status === "loading",
     isLoadingMore: enabled && status === "loading-more",
     isRefreshing: enabled && status === "refreshing",
+    usage,
     hasMore: nextCursor != null,
     loadMore,
     refresh,

@@ -32,6 +32,7 @@ export {
   ObjectList,
   type ObjectListProps,
   type ObjectListSelectionChange,
+  type ObjectListUsageLimits,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list";
 export {

@@ -78,6 +78,38 @@ describe("useObjectList", () => {
     hook.unmount();
   });
 
+  it("keeps usage until a full reload omits it", async () => {
+    const usage = { totalBytes: 10, objectCount: 1 };
+    const query = vi
+      .fn<(_input: ObjectListQueryInput) => Promise<ObjectListPage<Item>>>()
+      .mockResolvedValueOnce(page(["a"], { nextCursor: "2", usage }))
+      .mockResolvedValueOnce(page(["b"]))
+      .mockResolvedValueOnce(
+        page(["a", "b"], { usage: { totalBytes: 30, objectCount: 2 } }),
+      )
+      .mockResolvedValueOnce(page(["inside"]));
+    const hook = renderHook(() => useObjectList({ query }));
+    await flush();
+    expect(hook.current.usage).toEqual(usage);
+
+    await act(async () => {
+      await hook.current.loadMore();
+    });
+    expect(hook.current.usage).toEqual(usage);
+
+    await act(async () => {
+      await hook.current.refresh();
+    });
+    expect(hook.current.usage).toEqual({ totalBytes: 30, objectCount: 2 });
+
+    await act(async () => {
+      hook.current.openFolder({ id: "photos", name: "Photos" });
+    });
+    await flush();
+    expect(hook.current.usage).toBeNull();
+    hook.unmount();
+  });
+
   it("opens a folder and drops the previous page", async () => {
     let resolveFolder!: (value: ObjectListPage<Item>) => void;
     const folderPage = new Promise<ObjectListPage<Item>>((resolve) => {

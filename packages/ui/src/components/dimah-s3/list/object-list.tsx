@@ -9,9 +9,10 @@ import {
   type ReactNode,
 } from "react";
 import { AlertCircleIcon } from "lucide-react";
-import { fileNameFromKey, type APIError } from "@dimah-s3/core";
+import { fileNameFromKey, formatFileSize, type APIError } from "@dimah-s3/core";
 import type {
   ObjectListFolder,
+  ObjectListUsage,
   UseDeleteReturn,
   UseUploadReturn,
 } from "@dimah-s3/react";
@@ -80,12 +81,31 @@ export type ObjectListView<TItem> = {
    * `useObjectList` sets this.
    */
   parent?: string | null;
+  /**
+   * Catalog totals. Omit it, or pass `null`, and the usage line stays hidden.
+   * `useObjectList` sets this from the query.
+   */
+  usage?: ObjectListUsage | null;
 };
 
 /** Checked rows on the loaded page. */
 export type ObjectListSelectionChange<TItem> = {
   items: readonly TItem[];
   folders: readonly ObjectListFolder[];
+};
+
+/** Caps for the usage line. The list does not read them from the server. */
+export type ObjectListUsageLimits = {
+  /**
+   * Byte cap. Pass the same number as `db({ quota: { maxBytes } })` when
+   * that plugin is what enforces the limit.
+   */
+  maxBytes?: number;
+  /**
+   * File-count cap. Pass the same number as `db({ quota: { maxFiles } })`
+   * when that plugin is what enforces the limit.
+   */
+  maxFiles?: number;
 };
 
 /** Props for {@link ObjectList}. Pass a list view as `list`. */
@@ -126,6 +146,17 @@ export type ObjectListProps<TItem> = {
   emptyTitle?: string;
   emptyDescription?: string;
   className?: string;
+  /**
+   * Fixed frame height. The header stays put and the rows scroll inside.
+   * A number is pixels. A string is a CSS length, such as `"18rem"` or `"100%"`.
+   */
+  height?: number | string;
+  /**
+   * Largest frame height. The list grows with its content until this cap,
+   * then the rows scroll and the header stays put.
+   * A number is pixels. A string is a CSS length.
+   */
+  maxHeight?: number | string;
   /**
    * Checkboxes for the file rows loaded so far. The selection clears when
    * `list.parent` changes. Rows on the next page are not selected.
@@ -170,11 +201,18 @@ export type ObjectListProps<TItem> = {
    * button's `toast` and `status` to false so progress stays here.
    */
   upload?: UseUploadReturn;
+  /**
+   * Caps drawn next to `list.usage`. Ignored when `list.usage` is omitted.
+   * Without this, the line shows the totals and no meter.
+   */
+  usageLimits?: ObjectListUsageLimits;
 };
 
 /**
  * Folder catalog. Renders `list` and does not fetch.
  * File rows stay generic: pass accessors, or replace a row with `renderItem`.
+ * When `list.hasMore` is set, the next page loads as the end of the rows
+ * comes into view.
  */
 export function ObjectList<TItem>(props: ObjectListProps<TItem>) {
   return <ObjectListFrame key={props.list.parent ?? ""} {...props} />;
@@ -200,6 +238,8 @@ function ObjectListFrame<TItem>({
   emptyTitle,
   emptyDescription,
   className,
+  height,
+  maxHeight,
   selectable = false,
   getObjectKey,
   resolveFolderKeys,
@@ -208,6 +248,7 @@ function ObjectListFrame<TItem>({
   selectionActions,
   onDeleted,
   upload,
+  usageLimits,
 }: ObjectListProps<TItem>) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
@@ -367,8 +408,18 @@ function ObjectListFrame<TItem>({
   const dropLabel = upload?.isDragReject
     ? t("These files cannot be uploaded", { note: "object list" })
     : t("Drop to upload into this folder", { note: "object list" });
+  const frameHeight = cssLength(height);
+  const frameMaxHeight = cssLength(maxHeight);
+  const sized = frameHeight != null || frameMaxHeight != null;
+  const frameStyle = sized
+    ? {
+        ...(frameHeight != null ? { height: frameHeight } : {}),
+        ...(frameMaxHeight != null ? { maxHeight: frameMaxHeight } : {}),
+      }
+    : undefined;
   const frameClassName = cn(
     "relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors",
+    sized && "min-h-0",
     upload?.isDragReject &&
       "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
     upload?.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
@@ -398,90 +449,256 @@ function ObjectListFrame<TItem>({
       />
     ) : null;
 
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+
+  const sectionProps = {
+    ...(upload
+      ? upload.getRootProps({
+          ...frameProps,
+          role: "region",
+          tabIndex: undefined,
+          "aria-disabled": undefined,
+          onClick: (event) => {
+            event.stopPropagation();
+          },
+        })
+      : frameProps),
+    ...(frameStyle ? { style: frameStyle } : {}),
+  };
+
   return (
-    <section
-      {...(upload
-        ? upload.getRootProps({
-            ...frameProps,
-            role: "region",
-            tabIndex: undefined,
-            "aria-disabled": undefined,
-            onClick: (event) => {
-              event.stopPropagation();
-            },
-          })
-        : frameProps)}
-    >
-      {showHeader ? (
-        <div
-          className={cn(
-            "border-b border-dimah-s3-border",
-            selecting && "bg-dimah-s3-primary/10",
-          )}
-        >
-          {selecting ? (
-            <ObjectListSelection
-              leading={selectAll}
-              selectedCount={selectedCount}
-              onClear={clearSelection}
-              prepare={prepareSelection}
-              removeMany={remove?.removeMany}
-              actions={selectionActions}
-              onThisPage={pageLimited}
-              onDeleted={(result) => {
-                clearSelection();
-                onDeleted?.(result);
-                if (result.deleted.length > 0) void list.refresh?.();
-              }}
-            />
-          ) : (
-            <div className="flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1">
-              {selectAll}
-              {breadcrumb ? (
-                <ObjectListBreadcrumb
-                  list={list}
-                  rootLabel={label}
-                  trail={trail}
-                />
-              ) : (
-                <div className="min-w-0 flex-1" />
-              )}
-              <div className="flex shrink-0 items-center gap-2">
-                {isRefreshing ? (
-                  <Spinner
-                    aria-label={t("Loading files", { note: "object list" })}
+    <section {...sectionProps}>
+      <div className="shrink-0">
+        {showHeader ? (
+          <div
+            className={cn(
+              "border-b border-dimah-s3-border",
+              selecting && "bg-dimah-s3-primary/10",
+            )}
+          >
+            {selecting ? (
+              <ObjectListSelection
+                leading={selectAll}
+                selectedCount={selectedCount}
+                onClear={clearSelection}
+                prepare={prepareSelection}
+                removeMany={remove?.removeMany}
+                actions={selectionActions}
+                onThisPage={pageLimited}
+                onDeleted={(result) => {
+                  clearSelection();
+                  onDeleted?.(result);
+                  if (result.deleted.length > 0) void list.refresh?.();
+                }}
+              />
+            ) : (
+              <div className="flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1">
+                {selectAll}
+                {breadcrumb ? (
+                  <ObjectListBreadcrumb
+                    list={list}
+                    rootLabel={label}
+                    trail={trail}
                   />
-                ) : null}
-                {header}
+                ) : (
+                  <div className="min-w-0 flex-1" />
+                )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {isRefreshing ? (
+                    <Spinner
+                      aria-label={t("Loading files", { note: "object list" })}
+                    />
+                  ) : null}
+                  {header}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      ) : null}
+            )}
+          </div>
+        ) : null}
 
-      {upload ? (
-        <ObjectListUpload upload={upload} refresh={list.refresh} />
-      ) : null}
+        {list.usage ? (
+          <ObjectListUsageLine usage={list.usage} limits={usageLimits} />
+        ) : null}
 
-      {isLoading ? <ObjectListSkeleton /> : null}
+        {upload ? (
+          <ObjectListUpload upload={upload} refresh={list.refresh} />
+        ) : null}
+      </div>
 
-      {showInitialError ? (
-        <Empty className="border-0">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <AlertCircleIcon />
-            </EmptyMedia>
-            <EmptyTitle>
-              {t("Could not load files", { note: "object list" })}
-            </EmptyTitle>
-            {errorMessage ? (
-              <EmptyDescription className="[overflow-wrap:anywhere]">
-                {errorMessage}
-              </EmptyDescription>
+      <div
+        ref={sized ? setScroller : undefined}
+        className={
+          sized
+            ? cn(
+                "flex min-h-0 flex-col overflow-y-auto overscroll-y-contain",
+                frameHeight != null ? "flex-1" : "flex-auto",
+              )
+            : undefined
+        }
+      >
+        {isLoading ? <ObjectListSkeleton /> : null}
+
+        {showInitialError ? (
+          <Empty className="border-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <AlertCircleIcon />
+              </EmptyMedia>
+              <EmptyTitle>
+                {t("Could not load files", { note: "object list" })}
+              </EmptyTitle>
+              {errorMessage ? (
+                <EmptyDescription className="[overflow-wrap:anywhere]">
+                  {errorMessage}
+                </EmptyDescription>
+              ) : null}
+            </EmptyHeader>
+            {list.refresh ? (
+              <EmptyContent>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void list.refresh?.()}
+                >
+                  {t("Retry", { note: "object list" })}
+                </Button>
+              </EmptyContent>
             ) : null}
-          </EmptyHeader>
-          {list.refresh ? (
-            <EmptyContent>
+          </Empty>
+        ) : null}
+
+        {showEmpty ? (
+          <Empty className="border-0">
+            <EmptyHeader>
+              <FolderGlyph className="mb-1 size-12" />
+              <EmptyTitle>
+                {emptyTitle ??
+                  t("This folder is empty", { note: "object list" })}
+              </EmptyTitle>
+              <EmptyDescription>
+                {emptyDescription ??
+                  (upload
+                    ? t("Drop files here to add them to this folder.", {
+                        note: "object list",
+                      })
+                    : t(
+                        "Files and folders you add here will show up in this list.",
+                        { note: "object list" },
+                      ))}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : null}
+
+        {showRows ? (
+          <div role="list" className="flex min-w-0 flex-col">
+            {folders.map((folder) =>
+              renderFolder ? (
+                <div key={folder.id} role="listitem">
+                  {renderFolder(folder)}
+                </div>
+              ) : (
+                <ObjectListRow
+                  key={folder.id}
+                  title={folder.name}
+                  media={<FolderGlyph />}
+                  actions={renderFolderActions?.(folder)}
+                  selected={folderIds.has(folder.id)}
+                  selectable={foldersSelectable}
+                  selectLabel={t("Select {name}", {
+                    note: "object list selection",
+                    variables: { name: folder.name },
+                  })}
+                  onSelect={
+                    foldersSelectable
+                      ? (checked, shift) =>
+                          selectAt(
+                            selectionRows.findIndex(
+                              (row) =>
+                                row.kind === "folder" && row.id === folder.id,
+                            ),
+                            checked,
+                            shift,
+                          )
+                      : undefined
+                  }
+                  onOpen={
+                    list.openFolder != null
+                      ? () => list.openFolder?.(folder)
+                      : undefined
+                  }
+                />
+              ),
+            )}
+            {list.items.map((item) => {
+              const key = getKey(item);
+              if (renderItem) {
+                return (
+                  <div key={key} role="listitem">
+                    {renderItem(item)}
+                  </div>
+                );
+              }
+              const fileName = getFileName?.(item) ?? getLabel(item);
+              const previewUrl = getPreviewUrl?.(item);
+              return (
+                <ObjectListRow
+                  key={key}
+                  title={getLabel(item)}
+                  description={getDescription?.(item)}
+                  media={
+                    previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt=""
+                        className="size-8 shrink-0 rounded-[4px] object-cover"
+                      />
+                    ) : (
+                      <FileTypeGlyph
+                        layout="icon"
+                        fileName={fileName}
+                        fileType={getFileType?.(item)}
+                      />
+                    )
+                  }
+                  actions={renderActions?.(item)}
+                  meta={renderMeta?.(item)}
+                  selected={fileKeys.has(key)}
+                  selectable={filesSelectable}
+                  selectLabel={t("Select {name}", {
+                    note: "object list selection",
+                    variables: { name: getLabel(item) },
+                  })}
+                  onOpen={
+                    onOpenItem != null ? () => onOpenItem(item) : undefined
+                  }
+                  onSelect={
+                    filesSelectable
+                      ? (checked, shift) =>
+                          selectAt(
+                            selectionRows.findIndex(
+                              (row) => row.kind === "file" && row.id === key,
+                            ),
+                            checked,
+                            shift,
+                          )
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+        ) : null}
+
+        {showRows && errorMessage ? (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 border-t border-dimah-s3-border px-3 py-2"
+          >
+            <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-dimah-s3-destructive">
+              {errorMessage}
+            </p>
+            {list.refresh ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -489,164 +706,19 @@ function ObjectListFrame<TItem>({
               >
                 {t("Retry", { note: "object list" })}
               </Button>
-            </EmptyContent>
-          ) : null}
-        </Empty>
-      ) : null}
+            ) : null}
+          </div>
+        ) : null}
 
-      {showEmpty ? (
-        <Empty className="border-0">
-          <EmptyHeader>
-            <FolderGlyph className="mb-1 size-12" />
-            <EmptyTitle>
-              {emptyTitle ?? t("This folder is empty", { note: "object list" })}
-            </EmptyTitle>
-            <EmptyDescription>
-              {emptyDescription ??
-                (upload
-                  ? t("Drop files here to add them to this folder.", {
-                      note: "object list",
-                    })
-                  : t(
-                      "Files and folders you add here will show up in this list.",
-                      { note: "object list" },
-                    ))}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : null}
-
-      {showRows ? (
-        <div role="list" className="flex min-w-0 flex-col">
-          {folders.map((folder) =>
-            renderFolder ? (
-              <div key={folder.id} role="listitem">
-                {renderFolder(folder)}
-              </div>
-            ) : (
-              <ObjectListRow
-                key={folder.id}
-                title={folder.name}
-                media={<FolderGlyph />}
-                actions={renderFolderActions?.(folder)}
-                selected={folderIds.has(folder.id)}
-                selectable={foldersSelectable}
-                selectLabel={t("Select {name}", {
-                  note: "object list selection",
-                  variables: { name: folder.name },
-                })}
-                onSelect={
-                  foldersSelectable
-                    ? (checked, shift) =>
-                        selectAt(
-                          selectionRows.findIndex(
-                            (row) =>
-                              row.kind === "folder" && row.id === folder.id,
-                          ),
-                          checked,
-                          shift,
-                        )
-                    : undefined
-                }
-                onOpen={
-                  list.openFolder != null
-                    ? () => list.openFolder?.(folder)
-                    : undefined
-                }
-              />
-            ),
-          )}
-          {list.items.map((item) => {
-            const key = getKey(item);
-            if (renderItem) {
-              return (
-                <div key={key} role="listitem">
-                  {renderItem(item)}
-                </div>
-              );
-            }
-            const fileName = getFileName?.(item) ?? getLabel(item);
-            const previewUrl = getPreviewUrl?.(item);
-            return (
-              <ObjectListRow
-                key={key}
-                title={getLabel(item)}
-                description={getDescription?.(item)}
-                media={
-                  previewUrl ? (
-                    <img
-                      src={previewUrl}
-                      alt=""
-                      className="size-8 shrink-0 rounded-[4px] object-cover"
-                    />
-                  ) : (
-                    <FileTypeGlyph
-                      layout="icon"
-                      fileName={fileName}
-                      fileType={getFileType?.(item)}
-                    />
-                  )
-                }
-                actions={renderActions?.(item)}
-                meta={renderMeta?.(item)}
-                selected={fileKeys.has(key)}
-                selectable={filesSelectable}
-                selectLabel={t("Select {name}", {
-                  note: "object list selection",
-                  variables: { name: getLabel(item) },
-                })}
-                onOpen={onOpenItem != null ? () => onOpenItem(item) : undefined}
-                onSelect={
-                  filesSelectable
-                    ? (checked, shift) =>
-                        selectAt(
-                          selectionRows.findIndex(
-                            (row) => row.kind === "file" && row.id === key,
-                          ),
-                          checked,
-                          shift,
-                        )
-                    : undefined
-                }
-              />
-            );
-          })}
-        </div>
-      ) : null}
-
-      {showRows && errorMessage ? (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 border-t border-dimah-s3-border px-3 py-2"
-        >
-          <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-dimah-s3-destructive">
-            {errorMessage}
-          </p>
-          {list.refresh ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void list.refresh?.()}
-            >
-              {t("Retry", { note: "object list" })}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {list.hasMore ? (
-        <div className="flex justify-center px-2 pt-0.5 pb-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={list.isLoadingMore === true || list.loadMore == null}
-            onClick={() => void list.loadMore?.()}
-          >
-            {list.isLoadingMore ? <Spinner data-icon="inline-start" /> : null}
-            {t("Load more", { note: "object list" })}
-          </Button>
-        </div>
-      ) : null}
+        <ObjectListContinue
+          active={list.hasMore === true && list.loadMore != null}
+          pending={list.isLoadingMore === true}
+          blocked={list.error != null}
+          loadMore={list.loadMore}
+          root={sized ? scroller : null}
+          ready={!sized || scroller != null}
+        />
+      </div>
       {upload?.isDragActive ? (
         <div
           aria-hidden
@@ -671,6 +743,70 @@ function ObjectListFrame<TItem>({
       ) : null}
     </section>
   );
+}
+
+/** Loads the next page when the end of the rows is on screen. */
+function ObjectListContinue({
+  active,
+  pending,
+  blocked,
+  loadMore,
+  root,
+  ready,
+}: {
+  active: boolean;
+  pending: boolean;
+  blocked: boolean;
+  loadMore?: () => void | Promise<void>;
+  /** Scroll parent. `null` uses the viewport. */
+  root: HTMLElement | null;
+  ready: boolean;
+}) {
+  const t = useTranslations();
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMore);
+
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !ready || !active || pending || blocked) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        void loadMoreRef.current?.();
+      },
+      { root, rootMargin: "48px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [active, blocked, pending, ready, root]);
+
+  if (!active && !pending) return null;
+
+  return (
+    <div className="flex shrink-0 flex-col">
+      {pending ? (
+        <div className="flex justify-center py-2">
+          <Spinner aria-label={t("Loading files", { note: "object list" })} />
+        </div>
+      ) : null}
+      {active ? (
+        <div ref={sentinelRef} aria-hidden className="h-px w-full shrink-0" />
+      ) : null}
+    </div>
+  );
+}
+
+/** A number is pixels. A blank string is unset. */
+function cssLength(value: number | string | undefined) {
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }
 
 /** Trailing folders kept inline. Earlier ones collapse into a menu. */
@@ -954,6 +1090,95 @@ function replaceMember(
   if (checked) next.add(id);
   else next.delete(id);
   return next;
+}
+
+function ObjectListUsageLine({
+  usage,
+  limits,
+}: {
+  usage: ObjectListUsage;
+  limits?: ObjectListUsageLimits;
+}) {
+  const t = useTranslations();
+  const byteCap = finiteCap(limits?.maxBytes);
+  const fileCap = finiteCap(limits?.maxFiles);
+  const bytesLabel =
+    byteCap == null
+      ? formatFileSize(usage.totalBytes)
+      : t("{used} of {max}", {
+          note: "object list usage",
+          variables: {
+            used: formatFileSize(usage.totalBytes),
+            max: formatFileSize(byteCap),
+          },
+        });
+  const filesLabel =
+    fileCap == null
+      ? usage.objectCount === 1
+        ? t("1 file", { note: "object list usage" })
+        : t("{count} files", {
+            note: "object list usage",
+            variables: { count: String(usage.objectCount) },
+          })
+      : t("{count} of {max} files", {
+          note: "object list usage",
+          variables: {
+            count: String(usage.objectCount),
+            max: String(fileCap),
+          },
+        });
+  const byteRatio = fillRatio(usage.totalBytes, byteCap);
+  const fileRatio = fillRatio(usage.objectCount, fileCap);
+  const tightest = tightestRatio(byteRatio, fileRatio);
+  const over = tightest != null && tightest >= 1;
+  const percent =
+    tightest == null ? null : Math.min(100, Math.round(tightest * 100));
+
+  return (
+    <div className="flex flex-col gap-1.5 border-b border-dimah-s3-border px-3 py-2">
+      <p
+        className={cn(
+          "text-xs tabular-nums",
+          over ? "text-dimah-s3-destructive" : "text-dimah-s3-muted-foreground",
+        )}
+      >
+        {bytesLabel}
+        <span aria-hidden> · </span>
+        {filesLabel}
+      </p>
+      {percent != null ? (
+        <div
+          className="flex h-1 overflow-hidden rounded-full bg-dimah-s3-muted"
+          aria-hidden
+        >
+          <div
+            className={cn(
+              "h-full",
+              over ? "bg-dimah-s3-destructive" : "bg-dimah-s3-primary",
+            )}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function finiteCap(value: number | undefined) {
+  if (value == null || !Number.isFinite(value) || value < 0) return null;
+  return value;
+}
+
+function fillRatio(used: number, max: number | null) {
+  if (max == null) return null;
+  if (max === 0) return used > 0 ? 1 : 0;
+  return used / max;
+}
+
+function tightestRatio(byteRatio: number | null, fileRatio: number | null) {
+  if (byteRatio == null) return fileRatio;
+  if (fileRatio == null) return byteRatio;
+  return Math.max(byteRatio, fileRatio);
 }
 
 function ObjectListUpload({

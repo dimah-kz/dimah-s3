@@ -89,6 +89,17 @@ const FILES: LibraryFile[] = [
 ];
 
 const PAGE_SIZE = 2;
+const USAGE_LIMITS = {
+  maxBytes: 20 * 1024 * 1024,
+  maxFiles: 30,
+};
+
+function catalogUsage(files: readonly LibraryFile[]) {
+  return {
+    totalBytes: files.reduce((sum, file) => sum + file.size, 0),
+    objectCount: files.length,
+  };
+}
 
 function fileObjectKey(file: LibraryFile) {
   return file.key ?? `uploads/${file.id}/${file.name}`;
@@ -108,6 +119,7 @@ export function ObjectListDemo() {
         folders: level.folders,
         items: level.items.slice(start, next),
         nextCursor: next < level.items.length ? String(next) : null,
+        usage: catalogUsage(catalogRef.current),
       });
     },
   });
@@ -147,6 +159,7 @@ export function ObjectListDemo() {
       getDescription={(file) => formatFileSize(file.size)}
       getFileType={(file) => file.type}
       upload={upload}
+      usageLimits={USAGE_LIMITS}
       header={
         <UploadButton upload={upload} size="sm" status={false} toast={false} />
       }
@@ -176,7 +189,8 @@ export function ObjectListDemo() {
           onDeleted={() => void list.refresh()}
         />
       )}
-      className="mx-auto h-72 max-w-lg **:[[role=list]]:min-h-0 **:[[role=list]]:flex-1 **:[[role=list]]:overflow-y-auto **:[[role=list]]:overscroll-contain"
+      className="mx-auto max-w-lg"
+      height="18rem"
     />
   );
 }

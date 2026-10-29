@@ -27,6 +27,8 @@ export type DbObjectQueryInput = {
 export type DbObjectQueryPage = {
   items: DbClientObject[];
   nextCursor: string | null;
+  /** Scope totals from `listObjects`. Not limited to the open folder. */
+  usage: DbClientListResponse["usage"];
 };
 
 /**
@@ -35,7 +37,8 @@ export type DbObjectQueryPage = {
  * `parent` is sent as the key `prefix`. This does not invent folder rows:
  * default object keys contain a uuid segment, so a delimiter over the key
  * is not a folder tree. Return `folders` from your own query when the
- * catalog has them.
+ * catalog has them. `usage` is the scope total from `listObjects`, not the
+ * open folder.
  *
  * ```ts
  * const list = useObjectList({
@@ -63,6 +66,7 @@ export function dbObjectQuery(
     return {
       items: page.objects,
       nextCursor: page.nextCursor ?? null,
+      usage: page.usage,
     };
   };
 }

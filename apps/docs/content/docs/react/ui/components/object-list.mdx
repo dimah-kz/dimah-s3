@@ -121,6 +121,12 @@ The header checkbox selects rows loaded so far. When `list.hasMore` is set, its 
 
 `ObjectListMenu` downloads, deletes, and copies a link. Pass `onDeleted` to reload after that row is deleted. Leave `useDelete`'s `onSuccess` for your own work: a bulk delete calls `onSuccess` once per key, and the selection bar already reloads once. Copy link signs through `share` when you pass it, otherwise through `download`, then writes the URL to the clipboard. Pass `share` as a second `useDownload` with `disposition: "inline"` when the link should open in a browser while Download stays an attachment. Pass `expiresIn` to ask for a shorter TTL than the route cap. The server signs the shorter of that value and `download.expiresIn`, and the toast shows the TTL that was actually signed. Signing a link does not start a download.
 
+## Frame
+
+Pass `height` to keep the header in place and scroll the rows inside a fixed frame. A number is pixels. A string is a CSS length, such as `"18rem"` or `"100%"`. Pass `maxHeight` when the frame should grow with the folder until that cap, then scroll the same way. Upload progress stays with the header.
+
+When `list.hasMore` is set, the next page loads as the end of the rows comes into view. A frame that is not full keeps loading until it is, or until there is no next page. Scrolling to the end loads the page after that.
+
 ## Filter
 
 Keep the search box outside `ObjectList`. Put the text in `query`, and in `queryKey` so the first page loads again. When the filter matches nothing, pass `emptyTitle` and `emptyDescription`. Otherwise the empty state says the folder is empty.
@@ -165,6 +171,33 @@ const upload = useUpload({
 ```
 
 `trail` drives the breadcrumb. `useObjectList` fills it when you open folders with `openFolder` and `navigate`. For a controlled URL, keep the same path in `defaultTrail` on the first render, or pass `trail` on the `list` object. A path longer than the root plus two folders collapses the earlier folders into a menu.
+
+## Storage
+
+Return `usage` from the query when you know how full the catalog is. `useObjectList` keeps it on `list.usage`. A later page can omit it. A refresh or a new folder that omits it clears the line.
+
+`dbObjectQuery` forwards the `usage` already on `listObjects`: bytes and file count for the whole scope, not the open folder. Pass your own caps as `usageLimits`. Those are the same numbers as `db({ quota })` when that plugin enforces the limit. The component does not read the server config. Without `usageLimits`, the line is the totals only. Without `usage`, nothing is shown.
+
+```tsx
+<ObjectList
+  list={list}
+  getKey={(file) => file.id}
+  getLabel={(file) => file.name}
+  usageLimits={{ maxBytes: 100 * 1024 * 1024, maxFiles: 50 }}
+/>
+```
+
+A query you write yourself uses the same shape:
+
+```tsx
+return {
+  items: page.files,
+  nextCursor: page.nextCursor,
+  usage: { totalBytes: page.totalBytes, objectCount: page.fileCount },
+};
+```
+
+The meter follows whichever cap is closer to full. At the cap, the line and the meter use the destructive color.
 
 ## Folders
 

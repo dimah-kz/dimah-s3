@@ -40,6 +40,7 @@ describe("dbObjectQuery", () => {
     ).resolves.toEqual({
       items: page.objects,
       nextCursor: "cursor-2",
+      usage: page.usage,
     });
 
     expect(listObjects).toHaveBeenCalledWith(

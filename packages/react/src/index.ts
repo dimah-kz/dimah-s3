@@ -138,6 +138,7 @@ export {
   type ObjectListPage,
   type ObjectListQuery,
   type ObjectListQueryInput,
+  type ObjectListUsage,
 } from "./hooks/use-object-list";
 export {
   readObjectListLevel,

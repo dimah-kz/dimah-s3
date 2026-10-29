@@ -1,5 +1,6 @@
 export type Translations = {
   "\"{name}\" deleted(status)": string;
+  "1 file(object list usage)": string;
   "Access denied(API error)": string;
   "All {count} file(s) uploaded(status)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
@@ -60,7 +61,6 @@ export type Translations = {
   "Finishing…(upload status)": string;
   "Invalid request(API error)": string;
   "Link copied(object list menu)": string;
-  "Load more(object list)": string;
   "Loading files(object list)": string;
   "Not found(API error)": string;
   "Nothing to delete(object list selection)": string;
@@ -91,10 +91,13 @@ export type Translations = {
   "Uploading(toast)": string;
   "Validating…(upload status)": string;
   "{count} file(s) uploaded(toast)": string;
+  "{count} files(object list usage)": string;
+  "{count} of {max} files(object list usage)": string;
   "{count} selected on this page(object list selection)": string;
   "{count} selected(object list selection)": string;
   "{done}/{total} files(upload progress)": string;
   "{feature} is disabled(API error)": string;
   "{percent}%(progress)": string;
   "{succeeded} succeeded, {failed} failed(toast)": string;
+  "{used} of {max}(object list usage)": string;
 };
