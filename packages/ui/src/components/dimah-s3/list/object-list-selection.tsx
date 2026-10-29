@@ -154,7 +154,7 @@ export function ObjectListSelection({
 
   return (
     <>
-      <div className="flex min-h-11 min-w-0 items-center gap-2.5 py-1.5 ps-4 pe-2">
+      <div className="flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1">
         {leading}
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
           <p

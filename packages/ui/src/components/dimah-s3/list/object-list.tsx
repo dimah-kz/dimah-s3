@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircleIcon, FolderIcon, FolderOpenIcon } from "lucide-react";
+import { AlertCircleIcon } from "lucide-react";
 import { fileNameFromKey, type APIError } from "@dimah-s3/core";
 import type { ObjectListFolder, UseDeleteReturn } from "@dimah-s3/react";
 import { useFormatDimahError } from "@dimah-s3/react";
@@ -29,13 +29,11 @@ import {
   Item,
   ItemContent,
   ItemDescription,
-  ItemGroup,
-  ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { FileTypeGlyph } from "@/lib/file-type-icon";
+import { FileTypeGlyph, FolderGlyph } from "@/lib/file-type-icon";
 import { ObjectListSelection } from "@/components/dimah-s3/list/object-list-selection";
 
 /**
@@ -321,7 +319,7 @@ function ObjectListFrame<TItem>({
               }}
             />
           ) : (
-            <div className="flex min-h-11 min-w-0 items-center gap-2.5 py-1.5 ps-4 pe-2">
+            <div className="flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1">
               {selectAll}
               {breadcrumb ? (
                 <ObjectListBreadcrumb
@@ -379,9 +377,7 @@ function ObjectListFrame<TItem>({
       {showEmpty ? (
         <Empty className="border-0">
           <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FolderOpenIcon />
-            </EmptyMedia>
+            <FolderGlyph className="mb-1 size-12" />
             <EmptyTitle>
               {emptyTitle ?? t("This folder is empty", { note: "object list" })}
             </EmptyTitle>
@@ -396,7 +392,7 @@ function ObjectListFrame<TItem>({
       ) : null}
 
       {showRows ? (
-        <ItemGroup className="gap-0.5 px-1.5 py-1.5">
+        <div role="list" className="flex flex-col px-1 py-1">
           {folders.map((folder) =>
             renderFolder ? (
               <div key={folder.id} role="listitem">
@@ -406,14 +402,7 @@ function ObjectListFrame<TItem>({
               <ObjectListRow
                 key={folder.id}
                 title={folder.name}
-                media={
-                  <ItemMedia
-                    variant="icon"
-                    className="size-9 rounded-lg border border-dimah-s3-border bg-dimah-s3-secondary text-dimah-s3-foreground"
-                  >
-                    <FolderIcon />
-                  </ItemMedia>
-                }
+                media={<FolderGlyph />}
                 actions={renderFolderActions?.(folder)}
                 selected={folderIds.has(folder.id)}
                 selectable={foldersSelectable}
@@ -460,19 +449,17 @@ function ObjectListFrame<TItem>({
                 description={getDescription?.(item)}
                 media={
                   previewUrl ? (
-                    <ItemMedia variant="image" className="size-9 rounded-lg">
-                      <img src={previewUrl} alt="" />
-                    </ItemMedia>
+                    <img
+                      src={previewUrl}
+                      alt=""
+                      className="size-8 shrink-0 rounded-[4px] object-cover"
+                    />
                   ) : (
-                    <ItemMedia
-                      variant="icon"
-                      className="size-9 rounded-lg border border-dimah-s3-border bg-dimah-s3-muted"
-                    >
-                      <FileTypeGlyph
-                        fileName={fileName}
-                        fileType={getFileType?.(item)}
-                      />
-                    </ItemMedia>
+                    <FileTypeGlyph
+                      layout="icon"
+                      fileName={fileName}
+                      fileType={getFileType?.(item)}
+                    />
                   )
                 }
                 actions={renderActions?.(item)}
@@ -498,7 +485,7 @@ function ObjectListFrame<TItem>({
               />
             );
           })}
-        </ItemGroup>
+        </div>
       ) : null}
 
       {showRows && errorMessage ? (
@@ -626,7 +613,7 @@ function ObjectListRow({
       role="listitem"
       data-slot="object-list-row"
       className={cn(
-        "flex min-w-0 items-center gap-2.5 rounded-lg py-1.5 ps-2.5 pe-1.5 transition-colors duration-150",
+        "flex min-h-11 min-w-0 items-center gap-2 rounded-md py-1 ps-1.5 pe-1 transition-colors duration-150",
         selected
           ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
           : "hover:bg-dimah-s3-muted",
@@ -649,9 +636,15 @@ function ObjectListRow({
         onClick={onOpen}
       >
         {media}
-        <ItemContent className="min-w-0">
-          <ItemTitle className="max-w-full min-w-0">{title}</ItemTitle>
-          {described ? <ItemDescription>{description}</ItemDescription> : null}
+        <ItemContent className="min-w-0 gap-0">
+          <ItemTitle className="w-full max-w-full min-w-0 font-normal">
+            {title}
+          </ItemTitle>
+          {described ? (
+            <ItemDescription className="text-xs leading-4 text-dimah-s3-muted-foreground">
+              {description}
+            </ItemDescription>
+          ) : null}
         </ItemContent>
       </Item>
       {actions ? <div className="shrink-0">{actions}</div> : null}
@@ -728,16 +721,16 @@ function replaceMember(
 
 function ObjectListSkeleton() {
   return (
-    <div className="flex flex-col gap-0.5 px-1.5 py-1.5">
+    <div className="flex flex-col px-1 py-1">
       {["a", "b", "c", "d"].map((key) => (
         <div
           key={key}
-          className="flex items-center gap-2.5 py-1.5 ps-2.5 pe-1.5"
+          className="flex min-h-11 items-center gap-2 py-1 ps-1.5 pe-1"
         >
-          <Skeleton className="size-9 rounded-lg" />
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Skeleton className="size-8 rounded-sm" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <Skeleton className="h-3.5 w-40 max-w-full" />
-            <Skeleton className="h-3 w-24 max-w-full" />
+            <Skeleton className="h-3 w-16 max-w-full" />
           </div>
         </div>
       ))}
