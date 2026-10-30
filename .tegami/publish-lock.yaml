@@ -1,66 +1,30 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Delete is idempotent\n\n`api.delete` and `deleteMany` no longer fail with `OBJECT_NOT_FOUND` when the object is not in the bucket, such as an upload that was presigned but never sent, an aborted multipart upload, or an object a lifecycle rule removed. The guards still run, `DeleteObject` is skipped, and `delete.onDeleted` runs with `existed: false`. The response is `{ success: true, existed: false }`, and each `deleteMany` result reports `existed`.\n\nWith `db()`, deleting such a key soft- or hard-deletes its `pending` row, so it stops counting toward quota before `purgeStalePendingObjects` runs. A pending multipart upload is aborted by its `uploadId`.\n"
-    filename: 2026-10-30-idempotent-delete.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Open only allowed types in the browser\n\n`download.inlineTypes` lists the MIME types, or `type/*` wildcards, that a route may serve as `inline`. After the guards, presign and `GET /file` read the object's type from HeadObject. A requested `inline` is kept only for a type on the list; anything else is signed as `attachment`. A wildcard never matches HTML, XML (including `image/svg+xml`), or JavaScript, so `image/*` does not open an SVG; list one of those exactly to allow it. An object stored as `application/octet-stream` is typed from its file name, and that type is signed as `ResponseContentType` so it renders.\n\n`GET /routes` returns the list as `download.inlineTypes`. `resolveInlineDisposition` from `@dimah-s3/core` (also re-exported by `@dimah-s3/react`) applies the same rule, so a client can choose Preview or Download from the route instead of keeping a second list. `GET /file` responses now send `X-Content-Type-Options: nosniff`.\n"
-    filename: 2026-10-30-inline-types.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Sizes and counts in the user's locale\n\n`S3Provider` accepts `locale`, such as `\"fa\"`. The built-in UI then formats sizes, counts, and percentages with that locale's digits: the usage line, upload status, delete confirmation, dropzone hints, and toasts. Unit labels are translation keys (`\"MB(file size unit)\"` and the rest), so a Persian map can show `۱۲٫۴ مگابایت`. Without `locale`, output is unchanged.\n\n`formatFileSize(bytes, { locale, units })` in `@dimah-s3/core` takes the same options, and `formatSpeed` and `formatUploadProgress` pass them through. `useFormatFileSize()` and `useFormatNumber()` in `@dimah-s3/react` follow the provider for your own components. `dbObjectListAccessors({ formatSize })` takes a formatter for the row description.\n"
-    filename: 2026-10-30-locale-numbers.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Object list fixes\n\n- `onSelectionChange` fires only when the selected keys or folder ids change. A parent that rebuilds `list.items` or `list.folders` on every render no longer loops into \"Maximum update depth exceeded\".\n- `ObjectList` renders the `upload` hook's file input, so `upload.open()` from a menu item, a split button, or an empty-state button opens the picker. When several inputs share one `useUpload`, such as the list and an `UploadButton` in its header, `open()` uses one that is still mounted.\n- In a right-to-left page, a Latin file name starts at the row's start edge, like a Persian one. Names are isolated inline, so the row keeps the page direction. Folder names are no longer split into a stem and an extension. Breadcrumb names, delete confirmations, and toasts isolate only the interpolated name, so `Phase 2 (final)` keeps its parentheses and the sentence keeps its alignment.\n"
-    filename: 2026-10-30-object-list-fixes.md
-    v: 0.0.0
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: minor\n---\n\n### Scope context for `resolveScope`\n\n`db({ resolveScope })` receives a second argument: the `operation` (`\"upload\"`, `\"confirm\"`, `\"multipart\"`, `\"download\"`, `\"delete\"`, or `\"list\"`), the `route`, the object `key` the endpoint already validated, and on upload the client's `clientMetadata`. A scope that depends on the key no longer has to parse the request body or URL. A batch delete resolves once per key. One request calls the resolver once per operation and key, so presign no longer resolves the scope separately for the ownership guard, the quota guard, and `onPresigned`. A one-argument resolver keeps working.\n\n`createObjectAccessGuard` now requires `operation`, which it passes to `resolveScope`. Create one guard per hook, such as `\"download\"` for `download.guard` and `\"delete\"` for `delete.guard`.\n"
-    filename: 2026-10-30-scope-context.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Slash trimming stays fast\n\n`normalizeObjectKey`, `buildObjectKey`, `buildPublicObjectUrl`, and `normalizeS3ApiBasePath` still remove the same slashes as before. They no longer use a regular expression, so a long run of `/` in a key, public URL, or API base path cannot stall the process.\n"
+    filename: 2026-10-30-linear-slash-trim.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-10-30-idempotent-delete.md
-      - 2026-10-30-inline-types.md
-      - 2026-10-30-locale-numbers.md
-      - 2026-10-30-object-list-fixes.md
-      - 2026-10-30-scope-context.md
+      - 2026-10-30-linear-slash-trim.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-10-30-idempotent-delete.md
-      - 2026-10-30-inline-types.md
-      - 2026-10-30-locale-numbers.md
-      - 2026-10-30-object-list-fixes.md
-      - 2026-10-30-scope-context.md
+      - 2026-10-30-linear-slash-trim.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-10-30-idempotent-delete.md
-      - 2026-10-30-inline-types.md
-      - 2026-10-30-locale-numbers.md
-      - 2026-10-30-object-list-fixes.md
-      - 2026-10-30-scope-context.md
+      - 2026-10-30-linear-slash-trim.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-10-30-idempotent-delete.md
-      - 2026-10-30-inline-types.md
-      - 2026-10-30-locale-numbers.md
-      - 2026-10-30-object-list-fixes.md
-      - 2026-10-30-scope-context.md
+      - 2026-10-30-linear-slash-trim.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-10-30-idempotent-delete.md
-      - 2026-10-30-inline-types.md
-      - 2026-10-30-locale-numbers.md
-      - 2026-10-30-object-list-fixes.md
-      - 2026-10-30-scope-context.md
+      - 2026-10-30-linear-slash-trim.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-10-30-idempotent-delete.md
-      - 2026-10-30-inline-types.md
-      - 2026-10-30-locale-numbers.md
-      - 2026-10-30-object-list-fixes.md
-      - 2026-10-30-scope-context.md
+      - 2026-10-30-linear-slash-trim.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
