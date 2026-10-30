@@ -1,3 +1,5 @@
+import { stripTrailingSlashes } from "./strip-slashes";
+
 /**
  * Join a public origin (CDN or virtual-hosted S3) with an object key.
  * Does not sign — only for `public-read` objects or a fronting CDN.
@@ -7,7 +9,7 @@ export function buildPublicObjectUrl(options: {
   baseUrl: string;
   key: string;
 }): string {
-  const base = options.baseUrl.replaceAll(/\/+$/g, "");
+  const base = stripTrailingSlashes(options.baseUrl);
   const path = options.key
     .split("/")
     .filter((part) => part.length > 0)

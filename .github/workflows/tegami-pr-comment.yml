@@ -1,6 +1,8 @@
 # Posts the release-preview artifact from `tegami-pr.yml` as a PR comment.
 # Triggered by `workflow_run` so it runs in the base-repo context with write
-# permissions, without executing the PR's code.
+# permissions, without executing the PR's code. The preview file is produced
+# by that untrusted run: download it outside the workspace and check that it
+# is a single regular file before the trusted `tegami` command reads it.
 name: Tegami PR Comment
 
 on:
@@ -46,10 +48,29 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: tegami-pr-preview
+          path: ${{ runner.temp }}/tegami-preview
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
+      - name: Validate preview artifact
+        env:
+          PREVIEW_DIR: ${{ runner.temp }}/tegami-preview
+        run: |
+          shopt -s nullglob dotglob
+          entries=("$PREVIEW_DIR"/*)
+          preview="$PREVIEW_DIR/tegami-pr-preview.md"
+          if [[ ${#entries[@]} -ne 1 || "${entries[0]}" != "$preview" || -L "$preview" || ! -f "$preview" ]]; then
+            echo "::error::Artifact must contain only a regular file named tegami-pr-preview.md"
+            exit 1
+          fi
+          bytes=$(stat -c%s "$preview")
+          if (( bytes > 262144 )); then
+            echo "::error::Preview artifact is larger than 256 KiB"
+            exit 1
+          fi
+
       - name: Post preview comment
-        run: pnpm tegami pr comment tegami-pr-preview.md
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PREVIEW_FILE: ${{ runner.temp }}/tegami-preview/tegami-pr-preview.md
+        run: pnpm tegami pr comment "$PREVIEW_FILE"

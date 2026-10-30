@@ -113,6 +113,10 @@ describe("truncateFileName", () => {
 describe("normalizeObjectKey", () => {
   it("strips slashes and rejects unsafe segments", () => {
     expect(normalizeObjectKey("/a/b.png/")).toBe("a/b.png");
+    expect(
+      normalizeObjectKey(`/${"/".repeat(100_000)}a/b${"/".repeat(100_000)}`),
+    ).toBe("a/b");
+    expect(normalizeObjectKey("/".repeat(100_000))).toBeNull();
     expect(normalizeObjectKey("../secret")).toBeNull();
     expect(normalizeObjectKey("a/../b")).toBeNull();
     expect(normalizeObjectKey("a\\b")).toBeNull();
@@ -129,6 +133,7 @@ describe("buildObjectKey", () => {
 
   it("drops empty segments", () => {
     expect(buildObjectKey("", "a", "/", "b")).toBe("a/b");
+    expect(buildObjectKey(`${"/".repeat(100_000)}a/`, "/b/")).toBe("a/b");
   });
 });
 
@@ -151,6 +156,12 @@ describe("buildPublicObjectUrl", () => {
         key: "uploads/a b.png",
       }),
     ).toBe("https://cdn.example.com/uploads/a%20b.png");
+    expect(
+      buildPublicObjectUrl({
+        baseUrl: `https://cdn.example.com${"/".repeat(100_000)}`,
+        key: "/uploads/a.png/",
+      }),
+    ).toBe("https://cdn.example.com/uploads/a.png");
   });
 });
 
