@@ -1,3 +1,5 @@
+import { stripSurroundingSlashes } from "./strip-slashes";
+
 /** S3 object key maximum (1024 bytes). */
 export const S3_MAX_OBJECT_KEY_LENGTH = 1024;
 
@@ -6,7 +8,7 @@ export const S3_MAX_OBJECT_KEY_LENGTH = 1024;
  * NUL, backslashes, and oversized keys. Returns `null` when the key is unsafe.
  */
 export function normalizeObjectKey(key: string): string | null {
-  const trimmed = key.replaceAll(/^\/+|\/+$/gu, "");
+  const trimmed = stripSurroundingSlashes(key);
   if (!trimmed) return null;
   if (trimmed.length > S3_MAX_OBJECT_KEY_LENGTH) return null;
   if (trimmed.includes("\\") || trimmed.includes("\0")) return null;

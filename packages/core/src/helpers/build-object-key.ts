@@ -1,6 +1,8 @@
+import { stripSurroundingSlashes } from "./strip-slashes";
+
 export function buildObjectKey(...parts: string[]): string {
   return parts
-    .map((p) => p.replaceAll(/^\/+|\/+$/g, ""))
+    .map((part) => stripSurroundingSlashes(part))
     .filter(Boolean)
     .join("/");
 }
