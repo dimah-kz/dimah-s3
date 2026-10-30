@@ -71,13 +71,32 @@ stays full when you filter by key prefix. `GET /db/object` (`getObject`)
 loads one row by key. Pass `limit` on `listByScope` yourself for server
 listings.
 
+`search` keeps rows whose `filename` contains the text. It runs in the
+database (`LIKE` on SQL), so case follows its collation: PostgreSQL matches
+case, MySQL and SQLite usually do not. With the Drizzle and Kysely adapters,
+`%` and `_` in the text act as `LIKE` wildcards. `sort`
+takes `{ field, direction }` with `field` set to `createdAt`, `size`, or
+`filename`; the default is `createdAt` newest first. Ties break on row id,
+and rows without a value (a pending row's `size`) come last in both
+directions. A cursor belongs to its sort: send the same `sort` with it, or
+the listing starts again from the first row.
+
+```ts
+const page = await api.db.listObjects({
+  search: "invoice",
+  sort: { field: "size", direction: "desc" },
+  cursor: previous?.nextCursor ?? undefined,
+});
+```
+
 ## Browser
 
 Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
 you `api.db.listObjects`. [`useObjectList`](/docs/react/hooks/object-list)
-pages that response. `dbObjectSource` sends the open folder id as `prefix`
-and reads each row's name, key, size, and type. It does not turn keys into
-folders, and the endpoint does not sort or search.
+pages that response. `dbObjectSource` sends the open folder id as `prefix`,
+the search text as `search`, and the list's sort as `sort` (`name` →
+`filename`, `updatedAt` → `createdAt`), and reads each row's name, key,
+size, and type. It does not turn keys into folders.
 
 ```ts title="lib/s3-client.ts"
 "use client";

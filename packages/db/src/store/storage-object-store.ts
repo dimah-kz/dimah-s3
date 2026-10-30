@@ -2,11 +2,16 @@ import type { InferFumaDB } from "fumadb";
 import type { DimahS3DB } from "@/fuma-db";
 import { conflict, notFound } from "@/errors";
 import type {
+  DbListSort,
   StorageObject,
   StorageObjectStatus,
 } from "@/types/storage-object";
 import { mapStorageObjectRow } from "./map-row";
-import { decodeListCursor } from "./list-cursor";
+import {
+  decodeListCursor,
+  DEFAULT_LIST_SORT,
+  type ListCursor,
+} from "./list-cursor";
 
 /** FumaDB uses `false` as a type-level sentinel for invalid operators. */
 function condition<T>(value: T): Exclude<T, boolean> {
@@ -18,6 +23,26 @@ function condition<T>(value: T): Exclude<T, boolean> {
 
 /** FumaDB client for the @dimah-s3/db schema. */
 export type DimahS3DbClient = InferFumaDB<typeof DimahS3DB>;
+
+/** `where` callback for `storage_object` (FumaDB does not export the builder type). */
+type StorageObjectWhere = NonNullable<
+  NonNullable<
+    Parameters<ReturnType<DimahS3DbClient["orm"]>["count"]>[1]
+  >["where"]
+>;
+
+/**
+ * One run of a sorted listing. Rows with a value for the sort field come
+ * first; for a nullable field, the rows without one (`nulls`) follow in `id`
+ * order. Splitting the runs keeps pages stable whatever order the database
+ * gives nulls.
+ */
+type ListSegment = { nulls: boolean; after?: ListCursor };
+
+/** A cursor value as the column stores it (`size` is a bigint). */
+function toColumnValue(value: Date | number | string): Date | bigint | string {
+  return typeof value === "number" ? BigInt(value) : value;
+}
 
 /** Identifies one object row — `(bucket, key)` is unique. */
 export type ObjectRef = {
@@ -60,8 +85,16 @@ export type ListByScopeInput = {
   contentType?: string;
   /** Key prefix. Applied in the query (`starts with`), so pages stay full. */
   prefix?: string;
+  /**
+   * Text the `filename` contains (`LIKE` on SQL). Case follows the database
+   * collation; with Drizzle and Kysely, `%` and `_` act as wildcards.
+   */
+  search?: string;
+  /** @default { field: "createdAt", direction: "desc" } */
+  sort?: DbListSort;
   limit?: number;
   offset?: number;
+  /** From `encodeListCursor` under the same `sort`. Another sort's cursor is ignored. */
   cursor?: string;
 };
 
@@ -355,9 +388,17 @@ export function createStorageObjectStore(
 
     async listByScope(input) {
       const status = input.status ?? "active";
-      const parsed = input.cursor ? decodeListCursor(input.cursor) : null;
-      const rows = await orm.findMany("storageObject", {
-        where: (b) => {
+      const sort = input.sort ?? DEFAULT_LIST_SORT;
+      const { field, direction } = sort;
+      const after = direction === "desc" ? "<" : ">";
+      // `createdAt` is never null; `size` (pending rows) and `filename` can be.
+      const nullable = field !== "createdAt";
+      const cursor = input.cursor ? decodeListCursor(input.cursor, sort) : null;
+      const { limit } = input;
+
+      const where =
+        (segment: ListSegment): StorageObjectWhere =>
+        (b) => {
           const parts = [
             b("scope", "=", input.scope),
             b("status", "=", status),
@@ -369,27 +410,76 @@ export function createStorageObjectStore(
           if (input.prefix) {
             parts.push(b("key", "starts with", input.prefix));
           }
-          if (parsed) {
-            parts.push(
-              condition(
-                b.or(
-                  condition(b("createdAt", "<", parsed.createdAt)),
-                  condition(
-                    b.and(
-                      b("createdAt", "=", parsed.createdAt),
-                      b("id", "<", parsed.id),
+          if (input.search) {
+            parts.push(b("filename", "contains", input.search));
+          }
+          if (segment.nulls) {
+            parts.push(b.isNull(field));
+            if (segment.after) parts.push(b("id", after, segment.after.id));
+          } else {
+            if (nullable) parts.push(b.isNotNull(field));
+            const value = segment.after?.value;
+            if (segment.after && value != null) {
+              const at = toColumnValue(value);
+              parts.push(
+                condition(
+                  b.or(
+                    b(field, after, at),
+                    condition(
+                      b.and(
+                        b(field, "=", at),
+                        b("id", after, segment.after.id),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
+              );
+            }
           }
           return b.and(...parts);
-        },
-        orderBy: ["createdAt", "desc"],
-        limit: input.limit,
-        offset: parsed ? undefined : input.offset,
-      });
+        };
+
+      const find = (segment: ListSegment, take?: number, offset?: number) =>
+        orm.findMany("storageObject", {
+          where: where(segment),
+          orderBy: segment.nulls
+            ? [["id", direction]]
+            : [
+                [field, direction],
+                ["id", direction],
+              ],
+          limit: take,
+          offset,
+        });
+
+      if (cursor?.value === null) {
+        // The cursor row had no sort value: continue the null run.
+        const rows = await find({ nulls: true, after: cursor }, limit);
+        return rows.map(mapStorageObjectRow);
+      }
+
+      const offset = cursor ? undefined : input.offset;
+      const rows = await find(
+        { nulls: false, after: cursor ?? undefined },
+        limit,
+        offset,
+      );
+      if (nullable && (limit === undefined || rows.length < limit)) {
+        // The sorted run ended on this page; the null run follows.
+        let tailOffset: number | undefined;
+        if (offset && rows.length === 0) {
+          const sorted = await orm.count("storageObject", {
+            where: where({ nulls: false }),
+          });
+          tailOffset = Math.max(0, offset - sorted);
+        }
+        const tail = await find(
+          { nulls: true },
+          limit === undefined ? undefined : limit - rows.length,
+          tailOffset,
+        );
+        rows.push(...tail);
+      }
       return rows.map(mapStorageObjectRow);
     },
 

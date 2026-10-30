@@ -37,6 +37,34 @@ describe("dbClient", () => {
     });
   });
 
+  it("sends search and sort as query params", async () => {
+    let url = "";
+    const fetch = vi.fn(async (input: string | URL | Request) => {
+      url = requestUrl(input);
+      return new Response(
+        JSON.stringify({
+          scope: "user:1",
+          usage: { totalBytes: 0, objectCount: 0 },
+          objects: [],
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    });
+    const api = createS3Client({ fetch, plugins: [dbClient()] });
+
+    await api.db.listObjects({
+      search: "q3 report",
+      sort: { field: "size", direction: "desc" },
+    });
+
+    const query = new URL(url, "http://localhost").searchParams;
+    expect(query.get("search")).toBe("q3 report");
+    expect(JSON.parse(query.get("sort") ?? "null")).toEqual({
+      field: "size",
+      direction: "desc",
+    });
+  });
+
   it("loads one object over GET /db/object", async () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       expect(requestUrl(input)).toContain("/db/object");

@@ -12,6 +12,8 @@ export type {
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
+  DbListSort,
+  DbListSortField,
 } from "@/types/storage-object";
 
 /**

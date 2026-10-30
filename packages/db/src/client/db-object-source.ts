@@ -3,6 +3,8 @@ import type {
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
+  DbListSort,
+  DbListSortField,
   StorageObjectStatus,
 } from "@/types/storage-object";
 
@@ -25,6 +27,10 @@ export type DbObjectSourceOptions = {
 export type DbObjectQueryInput = {
   parent: string | null;
   cursor: string | null;
+  /** `name`, `size`, or `updatedAt`. Other fields keep the default order. */
+  sort?: { field: string; direction: "asc" | "desc" } | null;
+  /** Trimmed text the filename contains. */
+  search?: string;
   signal: AbortSignal;
 };
 
@@ -55,6 +61,18 @@ export type DbObjectSource = {
   getFile: (object: DbClientObject) => DbObjectFile;
 };
 
+/** `ObjectList` sort fields and the `listObjects` columns they order by. */
+const SORT_FIELDS = new Map<string, DbListSortField>([
+  ["name", "filename"],
+  ["size", "size"],
+  ["updatedAt", "createdAt"],
+]);
+
+function toListSort(sort: DbObjectQueryInput["sort"]): DbListSort | undefined {
+  const field = sort ? SORT_FIELDS.get(sort.field) : undefined;
+  return sort && field ? { field, direction: sort.direction } : undefined;
+}
+
 /** Read a `listObjects` row as an `ObjectList` file. */
 export function dbObjectFile(object: DbClientObject): DbObjectFile {
   return {
@@ -71,8 +89,10 @@ export function dbObjectFile(object: DbClientObject): DbObjectFile {
  *
  * `parent` is sent as the key `prefix`. This does not invent folder rows:
  * default object keys contain a uuid segment, so a delimiter over the key
- * is not a folder tree. The list endpoint does not sort or search, so the
- * query ignores both. `usage` is the scope total, not the open folder.
+ * is not a folder tree. `search` matches the filename on the server. `sort`
+ * maps `name` to `filename` and `updatedAt` to `createdAt`; other fields
+ * keep the default order (newest first). `usage` is the scope total, not
+ * the open folder.
  *
  * ```ts
  * const list = useObjectList({
@@ -92,6 +112,9 @@ export function dbObjectSource(
       const queryInput: DbClientListInput = {};
       if (input.parent) queryInput.prefix = input.parent;
       if (input.cursor) queryInput.cursor = input.cursor;
+      if (input.search) queryInput.search = input.search;
+      const sort = toListSort(input.sort);
+      if (sort) queryInput.sort = sort;
       if (options?.route) queryInput.route = options.route;
       if (options?.status) queryInput.status = options.status;
       if (options?.contentType) queryInput.contentType = options.contentType;

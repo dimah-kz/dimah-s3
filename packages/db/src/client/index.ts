@@ -14,4 +14,6 @@ export type {
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
+  DbListSort,
+  DbListSortField,
 } from "./db-client";

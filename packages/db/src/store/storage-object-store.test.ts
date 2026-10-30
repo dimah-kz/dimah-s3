@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import type { DimahS3DbClient } from "./storage-object-store";
+import { memoryDbClient } from "@/test/fakes";
+import type { DbListSort } from "@/types/storage-object";
+import type {
+  DimahS3DbClient,
+  ListByScopeInput,
+  StorageObjectStore,
+} from "./storage-object-store";
 import { createStorageObjectStore } from "./storage-object-store";
 import type { StorageObjectRow } from "./map-row";
+import { DEFAULT_LIST_SORT, encodeListCursor } from "./list-cursor";
 
 function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
   return {
@@ -246,5 +253,151 @@ describe("createStorageObjectStore", () => {
     await expect(
       deleted.store.markActive({ bucket: "b", key: "k", size: 1 }),
     ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+  });
+});
+
+function day(n: number): Date {
+  return new Date(Date.UTC(2024, 0, n));
+}
+
+/** Active rows for `user:1` with tied dates and sizes and missing values. */
+const listed: StorageObjectRow[] = [
+  { id: "a", filename: "report-q1.pdf", size: 300n, createdAt: day(1) },
+  { id: "b", filename: "Report-q2.pdf", size: 100n, createdAt: day(2) },
+  { id: "c", filename: "report-q3.pdf", size: 300n, createdAt: day(2) },
+  { id: "d", filename: null, size: 200n, createdAt: day(3) },
+  { id: "e", filename: "report-draft.pdf", size: null, createdAt: day(3) },
+  { id: "f", filename: "report-final.pdf", size: null, createdAt: day(4) },
+  { id: "g", filename: "notes.txt", size: 50n, createdAt: day(5) },
+  { id: "h", filename: "report-q3.pdf", size: 100n, createdAt: day(5) },
+  { id: "x", scope: "user:2", filename: "report-x.pdf", createdAt: day(6) },
+  { id: "y", status: "deleted", filename: "report-y.pdf", createdAt: day(6) },
+].map((patch) =>
+  row({ status: "active", uploadId: null, key: patch.id, ...patch }),
+);
+
+/** Page through `listByScope` the way `GET /db/objects` does. */
+async function listPages(
+  store: StorageObjectStore,
+  input: Omit<ListByScopeInput, "scope" | "cursor" | "limit">,
+  pageSize: number,
+): Promise<string[][]> {
+  const pages: string[][] = [];
+  let cursor: string | undefined;
+  do {
+    const rows = await store.listByScope({
+      ...input,
+      scope: "user:1",
+      limit: pageSize + 1,
+      cursor,
+    });
+    const page = rows.slice(0, pageSize);
+    pages.push(page.map((object) => object.id));
+    const last = page.at(-1);
+    cursor =
+      rows.length > pageSize && last
+        ? encodeListCursor(input.sort ?? DEFAULT_LIST_SORT, last)
+        : undefined;
+  } while (cursor && pages.length < 20);
+  return pages;
+}
+
+describe("listByScope order and cursors", () => {
+  const cases: [
+    string,
+    DbListSort | undefined,
+    string | undefined,
+    string[],
+  ][] = [
+    ["default", undefined, undefined, ["h", "g", "f", "e", "d", "c", "b", "a"]],
+    [
+      "createdAt asc",
+      { field: "createdAt", direction: "asc" },
+      "report",
+      ["a", "c", "e", "f", "h"],
+    ],
+    [
+      "size desc",
+      { field: "size", direction: "desc" },
+      "report",
+      ["c", "a", "h", "f", "e"],
+    ],
+    [
+      "size asc",
+      { field: "size", direction: "asc" },
+      "report",
+      ["h", "a", "c", "e", "f"],
+    ],
+    [
+      "size asc, unfiltered",
+      { field: "size", direction: "asc" },
+      undefined,
+      ["g", "b", "h", "d", "a", "c", "e", "f"],
+    ],
+    [
+      "filename asc",
+      { field: "filename", direction: "asc" },
+      undefined,
+      ["b", "g", "e", "f", "a", "c", "h", "d"],
+    ],
+    [
+      "filename desc",
+      { field: "filename", direction: "desc" },
+      "q",
+      ["h", "c", "a", "b"],
+    ],
+  ];
+
+  for (const nulls of ["low", "high"] as const) {
+    for (const [name, sort, search, expected] of cases) {
+      it(`pages ${name} without gaps or repeats (nulls ${nulls})`, async () => {
+        const store = createStorageObjectStore(
+          memoryDbClient(listed, { nulls }),
+        );
+        const pages = await listPages(store, { sort, search }, 2);
+        expect(pages.flat()).toEqual(expected);
+        expect(pages.slice(0, -1).every((page) => page.length === 2)).toBe(
+          true,
+        );
+        const all = await store.listByScope({ scope: "user:1", sort, search });
+        expect(all.map((object) => object.id)).toEqual(expected);
+      });
+    }
+  }
+
+  it("ignores a cursor made under another sort", async () => {
+    const store = createStorageObjectStore(memoryDbClient(listed));
+    const [newest] = await store.listByScope({ scope: "user:1", limit: 1 });
+    if (!newest) throw new Error("expected a row");
+    const cursor = encodeListCursor(DEFAULT_LIST_SORT, newest);
+
+    const rows = await store.listByScope({
+      scope: "user:1",
+      sort: { field: "size", direction: "asc" },
+      search: "report",
+      limit: 2,
+      cursor,
+    });
+    expect(rows.map((object) => object.id)).toEqual(["h", "a"]);
+  });
+
+  it("applies an offset across rows with and without a sort value", async () => {
+    const store = createStorageObjectStore(memoryDbClient(listed));
+    const page = (offset: number) =>
+      store
+        .listByScope({
+          scope: "user:1",
+          sort: { field: "size", direction: "asc" },
+          search: "report",
+          limit: 2,
+          offset,
+        })
+        .then((rows) => rows.map((object) => object.id));
+
+    await expect(page(1)).resolves.toEqual(["a", "c"]);
+    await expect(page(2)).resolves.toEqual(["c", "e"]);
+    await expect(page(3)).resolves.toEqual(["e", "f"]);
+    await expect(page(4)).resolves.toEqual(["f"]);
+    await expect(page(5)).resolves.toEqual([]);
   });
 });

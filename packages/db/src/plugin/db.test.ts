@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { dimahS3, route } from "@dimah-s3/server";
 import { db } from "./db";
-import { fakeStore, sampleObject } from "@/test/fakes";
+import { fakeStore, memoryDbClient, sampleObject } from "@/test/fakes";
+import { createStorageObjectStore } from "@/store/storage-object-store";
+import type { StorageObjectRow } from "@/store/map-row";
 
 function instance(
   store = fakeStore(),
@@ -119,6 +121,64 @@ describe("db plugin", () => {
     const s3 = instance();
     const res = await s3.handler(
       new Request("http://localhost/api/s3/db/objects?limit=101", {
+        method: "GET",
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("pages a searched, sorted listing with stable cursors", async () => {
+    const at = new Date("2024-01-01T00:00:00.000Z");
+    const rows = [
+      ["1", "invoice-a.pdf", 30n],
+      ["2", "photo.png", 10n],
+      ["3", "invoice-b.pdf", 30n],
+      ["4", "invoice-c.pdf", null],
+      ["5", "invoice-d.pdf", 5n],
+      ["6", "invoice-e.pdf", 30n],
+    ].map(([id, filename, size]): StorageObjectRow => ({
+      ...sampleObject({ id: id as string, key: `docs/${id as string}` }),
+      filename: filename as string,
+      size: size as bigint | null,
+      declaredSize: null,
+      status: "active",
+      createdAt: at,
+    }));
+    const s3 = instance(createStorageObjectStore(memoryDbClient(rows)));
+
+    const ids: string[][] = [];
+    let cursor: string | null = null;
+    do {
+      const query = new URLSearchParams({
+        limit: "2",
+        search: " invoice ",
+        sort: JSON.stringify({ field: "size", direction: "desc" }),
+      });
+      if (cursor) query.set("cursor", cursor);
+      const res = await s3.handler(
+        new Request(`http://localhost/api/s3/db/objects?${query}`, {
+          method: "GET",
+        }),
+      );
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        objects: { id: string }[];
+        nextCursor: string | null;
+      };
+      ids.push(body.objects.map((object) => object.id));
+      cursor = body.nextCursor;
+    } while (cursor && ids.length < 10);
+
+    expect(ids).toEqual([["6", "3"], ["1", "5"], ["4"]]);
+  });
+
+  it("rejects an unknown sort field", async () => {
+    const s3 = instance();
+    const query = new URLSearchParams({
+      sort: JSON.stringify({ field: "key", direction: "asc" }),
+    });
+    const res = await s3.handler(
+      new Request(`http://localhost/api/s3/db/objects?${query}`, {
         method: "GET",
       }),
     );

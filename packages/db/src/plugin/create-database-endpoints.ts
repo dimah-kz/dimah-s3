@@ -2,7 +2,7 @@ import { pluginPath } from "@dimah-s3/core";
 import { createS3Endpoint } from "@dimah-s3/server";
 import { notFound, unauthorized } from "@/errors";
 import type { StorageObjectStore } from "@/store/storage-object-store";
-import { encodeListCursor } from "@/store/list-cursor";
+import { DEFAULT_LIST_SORT, encodeListCursor } from "@/store/list-cursor";
 import type {
   DbClientListResponse,
   DbClientObject,
@@ -43,6 +43,8 @@ export function createDatabaseEndpoints(options: {
           route,
           contentType,
           prefix,
+          search,
+          sort = DEFAULT_LIST_SORT,
         } = ctx.query ?? {};
 
         const scope = await options.resolveScope(ctx.context.request, {
@@ -62,6 +64,8 @@ export function createDatabaseEndpoints(options: {
             route,
             contentType,
             prefix,
+            search,
+            sort,
           }),
           options.objects.getScopeUsage(scope),
         ]);
@@ -70,7 +74,7 @@ export function createDatabaseEndpoints(options: {
         const page = hasMore ? rows.slice(0, limit) : rows;
         const last = page.at(-1);
         const nextCursor =
-          hasMore && last ? encodeListCursor(last.createdAt, last.id) : null;
+          hasMore && last ? encodeListCursor(sort, last) : null;
 
         return {
           scope,

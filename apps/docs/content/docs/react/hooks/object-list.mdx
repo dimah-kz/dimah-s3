@@ -110,7 +110,9 @@ One page of a database query cannot be grouped after the fact.
 `dbObjectSource` from `@dimah-s3/db/client` adapts `api.db.listObjects`. The
 open folder is sent as the key `prefix`. It does not invent folder rows:
 generated keys contain a uuid segment, so splitting the key is not a folder
-tree. The endpoint does not sort or search, so leave those controls out.
+tree. Search and sort run on the server: the search text matches the
+filename, `name` sorts by filename, `updatedAt` by creation time, and `size`
+by verified size. Rows without a value sort last.
 
 ```tsx title="components/db-files.tsx"
 "use client";

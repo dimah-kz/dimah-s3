@@ -37,11 +37,45 @@ describe("dbListQuerySchema", () => {
     expect(dbListQuerySchema.validate({ limit: "10e2" })).toBe(false);
   });
 
+  it("trims search and rejects a blank one", () => {
+    expect(dbListQuerySchema.parse({ search: "  invoice " })).toMatchObject({
+      search: "invoice",
+    });
+    expect(dbListQuerySchema.validate({ search: "   " })).toBe(false);
+  });
+
+  it("reads sort as JSON from a query string or as an object", () => {
+    const sort = { field: "size", direction: "asc" } as const;
+    expect(
+      dbListQuerySchema.parse({ sort: JSON.stringify(sort) }),
+    ).toMatchObject({ sort });
+    expect(dbListQuerySchema.parse({ sort })).toMatchObject({ sort });
+  });
+
+  it("rejects an unknown sort field, a missing direction, and bad JSON", () => {
+    expect(
+      dbListQuerySchema.validate({
+        sort: JSON.stringify({ field: "key", direction: "asc" }),
+      }),
+    ).toBe(false);
+    expect(
+      dbListQuerySchema.validate({ sort: { field: "size" } as never }),
+    ).toBe(false);
+    expect(dbListQuerySchema.validate({ sort: "size" })).toBe(false);
+  });
+
   it("compiles list and get query schemas", () => {
     const list = z.compile(dbListQuerySchema, { strict: true });
     const get = z.compile(dbGetQuerySchema, { strict: true });
     expect(list.validate({})).toBe(true);
     expect(list.validate({ status: "nope" })).toBe(false);
+    expect(
+      list.validate({
+        search: "a",
+        sort: '{"field":"filename","direction":"desc"}',
+      }),
+    ).toBe(true);
+    expect(list.validate({ sort: "{" })).toBe(false);
     expect(get.validate({ key: "a.png" })).toBe(true);
     expect(get.validate({})).toBe(false);
   });

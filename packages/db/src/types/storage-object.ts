@@ -95,6 +95,19 @@ export type DbClientListResponse = {
   nextCursor?: string | null;
 };
 
+/** Column a listing can be ordered by. */
+export type DbListSortField = "createdAt" | "size" | "filename";
+
+/**
+ * Listing order. Ties break on row `id` in the same direction. Rows without
+ * a value for the field (a pending row's `size`, a missing `filename`) come
+ * last in both directions.
+ */
+export type DbListSort = {
+  field: DbListSortField;
+  direction: "asc" | "desc";
+};
+
 /**
  * Query params for browser `api.db.listObjects`.
  * Scope is not accepted — the server derives it from `resolveScope` on the request.
@@ -103,10 +116,15 @@ export type DbClientListInput = {
   status?: StorageObjectStatus;
   limit?: number;
   offset?: number;
+  /** `nextCursor` from the previous page, requested with the same `sort`. */
   cursor?: string;
   route?: string;
   contentType?: string;
   prefix?: string;
+  /** Text the `filename` contains. Case follows the database collation. */
+  search?: string;
+  /** @default { field: "createdAt", direction: "desc" } */
+  sort?: DbListSort;
 };
 
 export type DbClientGetInput = {

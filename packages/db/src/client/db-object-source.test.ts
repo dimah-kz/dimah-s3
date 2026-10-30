@@ -3,7 +3,11 @@ import type {
   DbClientListResponse,
   DbClientObject,
 } from "@/types/storage-object";
-import { dbObjectFile, dbObjectSource } from "./db-object-source";
+import {
+  dbObjectFile,
+  dbObjectSource,
+  type DbObjectListSource,
+} from "./db-object-source";
 
 function row(patch: Partial<DbClientObject> = {}): DbClientObject {
   return {
@@ -64,6 +68,45 @@ describe("dbObjectSource", () => {
       }),
     ).resolves.toMatchObject({ nextCursor: null });
 
+    expect(listObjects).toHaveBeenCalledWith({}, expect.any(Object));
+  });
+
+  it("forwards search and maps the list sort to listObjects columns", async () => {
+    const listObjects = vi.fn<DbObjectListSource>(async () => page);
+    const source = dbObjectSource(listObjects);
+    const query = (sort: { field: string; direction: "asc" | "desc" } | null) =>
+      source.query({
+        parent: null,
+        cursor: null,
+        sort,
+        search: "notes",
+        signal: new AbortController().signal,
+      });
+
+    await query({ field: "name", direction: "asc" });
+    await query({ field: "updatedAt", direction: "desc" });
+    await query({ field: "size", direction: "desc" });
+    await query({ field: "owner", direction: "asc" });
+    await query(null);
+
+    expect(listObjects.mock.calls.map(([input]) => input)).toEqual([
+      { search: "notes", sort: { field: "filename", direction: "asc" } },
+      { search: "notes", sort: { field: "createdAt", direction: "desc" } },
+      { search: "notes", sort: { field: "size", direction: "desc" } },
+      { search: "notes" },
+      { search: "notes" },
+    ]);
+  });
+
+  it("omits empty search text", async () => {
+    const listObjects = vi.fn(async () => page);
+    await dbObjectSource(listObjects).query({
+      parent: null,
+      cursor: null,
+      sort: null,
+      search: "",
+      signal: new AbortController().signal,
+    });
     expect(listObjects).toHaveBeenCalledWith({}, expect.any(Object));
   });
 

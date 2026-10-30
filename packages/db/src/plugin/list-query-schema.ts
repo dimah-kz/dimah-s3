@@ -20,6 +20,37 @@ function queryInt(schema: z.ZodInt) {
   );
 }
 
+export const dbListSortSchema = z.object({
+  field: z.enum(["createdAt", "size", "filename"]),
+  direction: z.enum(["asc", "desc"]),
+});
+
+/**
+ * A query string carries `sort` as JSON (better-fetch serializes objects
+ * that way); `s3.api` may pass the object.
+ */
+const dbListSortQuerySchema = z.codec(
+  z.union([z.string(), dbListSortSchema]),
+  dbListSortSchema,
+  {
+    decode: (value, ctx) => {
+      if (typeof value !== "string") return value;
+      try {
+        return JSON.parse(value) as z.input<typeof dbListSortSchema>;
+      } catch {
+        ctx.issues.push({
+          code: "invalid_format",
+          format: "json",
+          input: value,
+          message: "Invalid sort",
+        });
+        return z.NEVER;
+      }
+    },
+    encode: (value) => value,
+  },
+);
+
 export const dbListQuerySchema = z.object({
   status: z.enum(["pending", "active", "deleted"]).optional(),
   limit: queryInt(z.int().min(1).max(DB_LIST_MAX_LIMIT)).default(
@@ -30,6 +61,9 @@ export const dbListQuerySchema = z.object({
   route: routeNameSchema.optional(),
   contentType: trimmedString.optional(),
   prefix: trimmedString.optional(),
+  /** Text the filename contains. */
+  search: trimmedString.optional(),
+  sort: dbListSortQuerySchema.optional(),
 });
 
 export const dbGetQuerySchema = z.object({
