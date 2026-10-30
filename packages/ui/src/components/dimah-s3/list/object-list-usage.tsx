@@ -1,22 +1,29 @@
 "use client";
 
-import {
-  useFormatFileSize,
-  useFormatNumber,
-  type ObjectListUsage,
-} from "@dimah-s3/react";
+import { useFormatFileSize, useFormatNumber } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
-import type { ObjectListUsageLimits } from "@/components/dimah-s3/list/object-list";
+import {
+  useObjectListContext,
+  type ObjectListUsageLimits,
+} from "@/components/dimah-s3/list/object-list-context";
 
-export function ObjectListUsageLine({
-  usage,
-  limits,
+/**
+ * Bytes and file count from `list.usage`, with a meter when `limits` are
+ * set. Renders nothing until the query sends `usage`.
+ */
+export function ObjectListUsage({
+  limits: limitsProp,
+  className,
 }: {
-  usage: ObjectListUsage;
+  /** Defaults to the list's `usageLimits`. */
   limits?: ObjectListUsageLimits;
+  className?: string;
 }) {
   const t = useTranslations();
+  const context = useObjectListContext();
+  const usage = context.list.usage ?? { totalBytes: 0, objectCount: 0 };
+  const limits = limitsProp ?? context.usageLimits;
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
   const byteCap = finiteCap(limits?.maxBytes);
@@ -53,8 +60,17 @@ export function ObjectListUsageLine({
   const percent =
     tightest == null ? null : Math.min(100, Math.round(tightest * 100));
 
+  if (!context.list.usage) return null;
+
   return (
-    <div className="flex flex-col gap-1.5 border-b border-dimah-s3-border px-3 py-2">
+    <div
+      data-slot="object-list-usage"
+      data-over={over ? "" : undefined}
+      className={cn(
+        "flex shrink-0 flex-col gap-1.5 border-b border-dimah-s3-border px-3 py-2",
+        className,
+      )}
+    >
       <p
         className={cn(
           "text-xs tabular-nums",

@@ -1,16 +1,14 @@
 export { dbClient } from "./db-client";
 export {
-  dbObjectQuery,
+  dbObjectFile,
+  dbObjectSource,
+  type DbObjectFile,
   type DbObjectListSource,
   type DbObjectQueryInput,
-  type DbObjectQueryOptions,
   type DbObjectQueryPage,
-} from "./db-object-query";
-export {
-  dbObjectListAccessors,
-  type DbObjectListAccessors,
-  type DbObjectListAccessorsOptions,
-} from "./db-object-list-accessors";
+  type DbObjectSource,
+  type DbObjectSourceOptions,
+} from "./db-object-source";
 export type {
   DbClientGetInput,
   DbClientListInput,

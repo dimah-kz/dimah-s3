@@ -38,11 +38,20 @@ export {
   useObjectList,
   type UseObjectListOptions,
   type UseObjectListReturn,
+  type ObjectListEntry,
+  type ObjectListFile,
   type ObjectListFolder,
   type ObjectListPage,
   type ObjectListQuery,
   type ObjectListQueryInput,
+  type ObjectListSort,
+  type ObjectListSource,
 } from "./use-object-list";
+export {
+  useObjectListSelection,
+  type UseObjectListSelectionOptions,
+  type UseObjectListSelectionReturn,
+} from "./use-object-list-selection";
 export {
   useRouteUploadPolicy,
   type CatalogLoadStatus,

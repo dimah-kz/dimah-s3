@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
 import {
+  objectKeyOf,
   useFormatFileSize,
   type UseDeleteReturn,
   type UseNavigateDownloadReturn,
@@ -36,12 +37,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toast";
+import {
+  useObjectListEntry,
+  useOptionalObjectListContext,
+} from "@/components/dimah-s3/list/object-list-context";
 import { useDeleteToast } from "@/hooks/use-delete-toast";
 import { useDownloadToast } from "@/hooks/use-download-toast";
 import { useShareExpiryLabel } from "@/lib/format-expires-in";
 import { isolateText } from "@/lib/isolate-text";
 
-/** One extra row in {@link ObjectListMenu}. */
+/** One extra row in {@link ObjectListItemMenu}. */
 export type ObjectListMenuAction = {
   /** Row label. */
   label: string;
@@ -53,25 +58,26 @@ export type ObjectListMenuAction = {
   destructive?: boolean;
 };
 
-/** Props for {@link ObjectListMenu}. */
-export type ObjectListMenuProps = {
+/** Props for {@link ObjectListItemMenu}. */
+export type ObjectListItemMenuProps = {
   /**
-   * S3 object key. Named `objectKey` because React reserves `key`.
+   * S3 object key. Inside an `ObjectList` row it defaults to the entry's
+   * `objectKey`. Named `objectKey` because React reserves `key`.
    */
-  objectKey: string;
-  /** Download filename and confirmation label. */
+  objectKey?: string;
+  /** Download filename and confirmation label. Defaults to the entry name. */
   fileName?: string;
-  /** Shown in the delete confirmation. */
-  fileSize?: number;
+  /** Shown in the delete confirmation. Defaults to the entry size. */
+  fileSize?: number | null;
   /**
    * Navigate-mode `useDownload`. Adds Download.
-   * Copy link uses this hook when `share` is omitted.
+   * Inside an `ObjectList` it defaults to the list's `download`.
    */
   download?: UseNavigateDownloadReturn;
   /**
-   * Navigate-mode `useDownload` used only for the copied link.
-   * Pass `{ disposition: "inline" }` when the link should open in a browser
-   * while `download` stays an attachment.
+   * Navigate-mode `useDownload` used only for Copy link. Falls back to
+   * `download`. Pass `{ disposition: "inline" }` when the link should open
+   * in a browser while Download stays an attachment.
    */
   share?: UseNavigateDownloadReturn;
   /**
@@ -80,49 +86,71 @@ export type ObjectListMenuProps = {
    * The toast shows the TTL that was actually signed.
    */
   expiresIn?: number;
-  /** `useDelete`. Adds Delete and the confirmation dialog. */
-  delete?: UseDeleteReturn;
   /**
-   * Called once after this row is deleted.
-   * Reload the list from here (`list.refresh()`). A bulk delete does not
-   * call this; the selection bar reloads once.
+   * `useDelete`. Adds Delete and the confirmation dialog.
+   * Inside an `ObjectList` it defaults to the list's `delete`, and the list
+   * drops the row and reloads after the delete.
    */
+  delete?: UseDeleteReturn;
+  /** Called once after this file is deleted. */
   onDeleted?: () => void;
   /**
    * Extra rows, after Copy link and before Delete.
    * Use this for actions the menu does not provide, such as rename.
    */
   actions?: readonly ObjectListMenuAction[];
+  /** More `DropdownMenuItem`s, after `actions`. */
+  children?: ReactNode;
+  /** Classes on the trigger button. */
+  className?: string;
 };
 
 /**
- * Overflow menu for one object-list row. Pass it through `renderActions`.
+ * Overflow menu for one file: Download, Copy link, your actions, Delete.
  * It calls the download and delete hooks you already have. It does not
- * choose a route or an object key.
+ * choose a route.
+ *
+ * Inside an `ObjectList` row every prop is optional: the key, name, size,
+ * and hooks come from the entry and the list, and the list owns the delete
+ * dialog and toasts. Outside a list, pass `objectKey` and the hooks.
  *
  * Copy link signs through `share` when set, otherwise `download`, then
  * writes the URL to the clipboard. Signing does not start a download.
- * `actions` adds rows this menu does not know about, such as rename.
  */
-export function ObjectListMenu({
-  objectKey,
-  fileName,
-  fileSize,
-  download,
-  share,
+export function ObjectListItemMenu({
+  objectKey: objectKeyProp,
+  fileName: fileNameProp,
+  fileSize: fileSizeProp,
+  download: downloadProp,
+  share: shareProp,
   expiresIn,
-  delete: remove,
+  delete: deleteProp,
   onDeleted,
   actions,
-}: ObjectListMenuProps) {
+  children,
+  className,
+}: ObjectListItemMenuProps) {
   const t = useTranslations();
   const expiryLabel = useShareExpiryLabel();
-  const linkSource = share ?? download;
+  const context = useOptionalObjectListContext();
+  const entry = useObjectListEntry();
+  const file = entry?.kind === "file" ? entry : null;
+  const objectKey = objectKeyProp ?? (file ? objectKeyOf(file) : "");
+  const fileName = fileNameProp ?? file?.file.name;
+  const fileSize = fileSizeProp ?? file?.file.size ?? undefined;
+  const download = downloadProp ?? context?.download ?? undefined;
+  const remove = deleteProp ?? context?.remove ?? undefined;
+  const linkSource = shareProp ?? context?.share ?? download;
+  // The list draws one dialog and one set of toasts for its own hooks.
+  const listDelete =
+    remove != null && remove.requestDelete === context?.remove?.requestDelete;
+  const listDownload =
+    download != null && download.presignMany === context?.download?.presignMany;
   const [copying, setCopying] = useState(false);
-  useRowDeleted(remove, objectKey, onDeleted);
+  useFileDeleted(remove, objectKey, onDeleted);
   const downloadPending =
     download != null && download.isPending && download.objectKey === objectKey;
-  const deleting = remove != null && remove.isDeleting;
+  const deleting = remove?.isDeleting === true;
 
   async function onCopyLink() {
     if (!linkSource || copying) return;
@@ -170,21 +198,31 @@ export function ObjectListMenu({
 
   const extra = actions ?? [];
   const showTransfer = download != null || linkSource != null;
-  const showExtra = extra.length > 0;
-  const showDelete = remove != null;
-  if (!showTransfer && !showExtra && !showDelete) return null;
+  const showExtra = extra.length > 0 || children != null;
+  if (!objectKey || (!showTransfer && !showExtra && remove == null)) {
+    return null;
+  }
 
   return (
     <>
-      {download ? (
-        <DownloadToasts
+      {download && !listDownload ? (
+        <ObjectDownloadToasts
           download={download}
           objectKey={objectKey}
           fileName={fileName}
         />
       ) : null}
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              data-slot="object-list-item-menu"
+              className={className}
+            />
+          }
+        >
           <MoreHorizontalIcon />
           <span className="sr-only">
             {t("File actions", { note: "object list menu" })}
@@ -237,9 +275,10 @@ export function ObjectListMenu({
                   {action.label}
                 </DropdownMenuItem>
               ))}
+              {children}
             </DropdownMenuGroup>
           ) : null}
-          {showDelete && (showTransfer || showExtra) ? (
+          {remove && (showTransfer || showExtra) ? (
             <DropdownMenuSeparator />
           ) : null}
           {remove ? (
@@ -249,7 +288,7 @@ export function ObjectListMenu({
                 disabled={deleting}
                 onClick={() => remove.requestDelete(objectKey)}
               >
-                {remove.isDeleting && remove.objectKey === objectKey ? (
+                {deleting && remove.objectKey === objectKey ? (
                   <LoaderIcon className="animate-spin" />
                 ) : (
                   <Trash2Icon />
@@ -260,59 +299,76 @@ export function ObjectListMenu({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-      {remove ? (
-        <DeleteConfirm
+      {remove && !listDelete ? (
+        <ObjectDeleteDialog
           remove={remove}
-          objectKey={objectKey}
-          fileName={fileName}
-          fileSize={fileSize}
+          target={{ objectKey, fileName, fileSize }}
         />
       ) : null}
     </>
   );
 }
 
-function DownloadToasts({
+/** Toasts for a navigate-mode download of one object. */
+export function ObjectDownloadToasts({
   download,
-  objectKey,
-  fileName,
-}: {
-  download: UseNavigateDownloadReturn;
-  objectKey: string;
-  fileName?: string;
-}) {
-  useDownloadToast(download, { objectKey, fileName });
-  return null;
-}
-
-function DeleteConfirm({
-  remove,
   objectKey,
   fileName,
   fileSize,
 }: {
-  remove: UseDeleteReturn;
+  download: UseNavigateDownloadReturn;
   objectKey: string;
   fileName?: string;
   fileSize?: number;
 }) {
+  useDownloadToast(download, { objectKey, fileName, fileSize });
+  return null;
+}
+
+type DeleteTarget = {
+  objectKey: string;
+  fileName?: string;
+  fileSize?: number | null;
+};
+
+/**
+ * Confirmation and toasts for `remove.requestDelete(target.objectKey)`.
+ * Pass `null` when the target is not known yet.
+ */
+export function ObjectDeleteDialog({
+  remove,
+  target,
+}: {
+  remove: UseDeleteReturn;
+  target: DeleteTarget | null;
+}) {
   const t = useTranslations();
   const formatFileSize = useFormatFileSize();
-  const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
-  const isThis = remove.objectKey === objectKey;
-  useDeleteToast(remove, { objectKey, displayName });
+  const open =
+    remove.isConfirming &&
+    target != null &&
+    remove.objectKey === target.objectKey;
+  // Keep the text while the dialog animates out.
+  const [shown, setShown] = useState<DeleteTarget | null>(null);
+  if (open && target.objectKey !== shown?.objectKey) setShown(target);
+  const current = open ? target : shown;
+  const displayName = displayNameOf(current);
+  useDeleteToast(remove, {
+    objectKey: target?.objectKey ?? "",
+    displayName: displayNameOf(target),
+  });
 
   const name = isolateText(truncateFileName(displayName));
   const fileLabel =
-    fileSize != null
-      ? `${name} (${isolateText(formatFileSize(fileSize))})`
+    current?.fileSize != null
+      ? `${name} (${isolateText(formatFileSize(current.fileSize))})`
       : name;
 
   return (
     <AlertDialog
-      open={remove.isConfirming && isThis}
-      onOpenChange={(open) => {
-        if (!open) remove.cancelDelete();
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) remove.cancelDelete();
       }}
     >
       <AlertDialogContent>
@@ -349,11 +405,18 @@ function DeleteConfirm({
   );
 }
 
+function displayNameOf(target: DeleteTarget | null): string {
+  if (!target) return "";
+  return (
+    target.fileName ?? fileNameFromKey(target.objectKey) ?? target.objectKey
+  );
+}
+
 /**
- * Fires `onDeleted` when this row's delete reaches `success`.
- * Bulk delete leaves `objectKey` empty, so it does not match a row.
+ * Fires `onDeleted` when this file's delete reaches `success`.
+ * Bulk delete leaves `objectKey` empty, so it does not match a file.
  */
-function useRowDeleted(
+function useFileDeleted(
   remove: UseDeleteReturn | undefined,
   objectKey: string,
   onDeleted: (() => void) | undefined,

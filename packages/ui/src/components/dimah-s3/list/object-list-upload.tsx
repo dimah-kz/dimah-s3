@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { UseUploadReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
+import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import { useUploadUi } from "@/hooks/use-upload-ui";
 
 /**
@@ -41,11 +42,33 @@ export function useRefreshListAfterUpload(
   }, [settled, successIds]);
 }
 
-export function ObjectListUpload({ upload }: { upload: UseUploadReturn }) {
+/**
+ * Progress and errors for the list's `upload`, under the header.
+ * Hidden while idle and after a batch that fully succeeded.
+ */
+export function ObjectListUploadStatus({ className }: { className?: string }) {
+  const { upload } = useObjectListContext();
+  if (!upload) return null;
+  return <UploadStatusStrip upload={upload} className={className} />;
+}
+
+function UploadStatusStrip({
+  upload,
+  className,
+}: {
+  upload: UseUploadReturn;
+  className?: string;
+}) {
   const { statusNode } = useUploadUi(upload);
   if (upload.phase === "idle" || upload.phase === "success") return null;
   return (
-    <div className="border-b border-dimah-s3-border px-3 py-2">
+    <div
+      data-slot="object-list-upload-status"
+      className={cn(
+        "shrink-0 border-b border-dimah-s3-border px-3 py-2",
+        className,
+      )}
+    >
       {statusNode}
     </div>
   );

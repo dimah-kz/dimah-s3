@@ -75,8 +75,9 @@ listings.
 
 Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
 you `api.db.listObjects`. [`useObjectList`](/docs/react/hooks/object-list)
-pages that response. `dbObjectQuery` sends the open folder id as `prefix`.
-It does not turn keys into folders.
+pages that response. `dbObjectSource` sends the open folder id as `prefix`
+and reads each row's name, key, size, and type. It does not turn keys into
+folders, and the endpoint does not sort or search.
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -93,14 +94,14 @@ export const s3Client = createS3Client({
 ```tsx title="components/file-list.tsx"
 "use client";
 
-import { dbObjectQuery } from "@dimah-s3/db/client";
+import { dbObjectSource } from "@dimah-s3/db/client";
 import { useObjectList } from "@dimah-s3/react";
 import { s3Client } from "@/lib/s3-client";
 
 export function Files() {
   const api = s3Client.useApi();
   const list = useObjectList({
-    query: dbObjectQuery(api.db.listObjects, { route: "avatar" }),
+    ...dbObjectSource(api.db.listObjects, { route: "avatar" }),
     queryKey: ["avatar"],
   });
 
@@ -108,8 +109,8 @@ export function Files() {
 
   return (
     <ul>
-      {list.items.map((file) => (
-        <li key={file.id}>{file.filename ?? file.key}</li>
+      {list.entries.map((entry) => (
+        <li key={entry.key}>{entry.name}</li>
       ))}
       {list.hasMore ? (
         <li>
@@ -124,12 +125,12 @@ export function Files() {
 ```
 
 [`ObjectList`](/docs/react/ui/components/object-list) renders the same state
-if you want the folder chrome. `list.usage` is the scope total from this
-response. Pass the same caps you gave `db({ quota })` as `usageLimits` on
-`ObjectList`. `dbObjectListAccessors()` supplies `getKey`,
-`getObjectKey`, `getLabel`, `getFileName`, `getFileType`, and `getDescription`
-for a `DbClientObject`. Call `listObjects` yourself when you do not
-want the hook. To list another scope, call `listByScope` on the server.
+if you want the folder chrome: `<ObjectList list={list} />`. `list.usage` is
+the scope total from this response. Pass the same caps you gave
+`db({ quota })` as `usageLimits` on `ObjectList`. `dbObjectFile` is the row
+reader on its own, for a query you write yourself. Call `listObjects`
+yourself when you do not want the hook. To list another scope, call
+`listByScope` on the server.
 
 ````
 

@@ -94,7 +94,7 @@ Install: \`npx @dimah-s3/cli@latest create my-app\` or \`npm i @dimah-s3/server 
 - Scope per-user folders with \`upload.object\` / \`guard\`. Enforce ownership with \`db()\` or a download/delete \`guard\`.
 - Trust \`onConfirmed\` (HeadObject, including multipart complete) for size and type, not the presign body. \`fileTypes\` is the S3 Content-Type header and filename, not a byte sniff.
 - Without \`db()\`, download can presign unconfirmed keys under \`keyPrefix\`. Auth and quota stay in consumer hooks.
-- File catalogs use \`useObjectList\` with your own query, or \`dbObjectQuery\` from \`@dimah-s3/db/client\` when \`db()\` is installed. That hook does not call S3 ListObjects.
+- File catalogs use \`useObjectList\` with a source: your own query plus \`getKey\` / \`getFile\`, \`memoryObjectSource\` for records you hold, or \`dbObjectSource\` from \`@dimah-s3/db/client\` when \`db()\` is installed. That hook does not call S3 ListObjects. \`useObjectListSelection\` adds selection; \`ObjectList\` from \`@dimah-s3/ui\` renders both.
 `;
 }
 

@@ -1,84 +1,122 @@
 ---
 title: useObjectList
-description: Headless hook that pages a folder catalog from any query you pass in.
+description: Headless hooks that page, search, sort, and select a folder catalog from any source.
 ---
 
-`useObjectList` keeps the current folder, the breadcrumb, and cursor
-pagination. It does not know where the rows live and it does not call S3.
-You pass a `query` function.
+`useObjectList` keeps the open folder, the breadcrumb, cursor pages, search,
+and sort. It does not know where the rows live and it does not call S3. You
+pass a **source**: a `query` that loads one page, `getKey` for a stable row
+id, and `getFile` to read a row's name, object key, size, and type.
 
 ```tsx title="components/file-browser.tsx"
 "use client";
 
 import { useObjectList } from "@dimah-s3/react";
 
+type FileRow = { id: string; key: string; name: string; size: number };
+
 export function FileBrowser() {
-  const list = useObjectList({
-    query: ({ parent, cursor, signal }) =>
-      fetch(`/api/files?folder=${parent ?? ""}&cursor=${cursor ?? ""}`, {
-        signal,
-      }).then((response) => response.json()),
-    queryKey: ["files"],
+  const list = useObjectList<FileRow>({
+    query: ({ parent, cursor, sort, search, signal }) =>
+      fetchFiles({ folderId: parent, cursor, sort, search, signal }),
+    getKey: (file) => file.id,
+    getFile: (file) => ({
+      name: file.name,
+      objectKey: file.key,
+      size: file.size,
+    }),
   });
 
   return (
     <ul>
-      {list.folders.map((folder) => (
-        <li key={folder.id}>
-          <button type="button" onClick={() => list.openFolder(folder)}>
-            {folder.name}
-          </button>
+      {list.entries.map((entry) => (
+        <li key={entry.key}>
+          {entry.kind === "folder" ? (
+            <button type="button" onClick={() => list.openFolder(entry.folder)}>
+              {entry.name}/
+            </button>
+          ) : (
+            entry.name
+          )}
         </li>
-      ))}
-      {list.items.map((file) => (
-        <li key={file.id}>{file.name}</li>
       ))}
     </ul>
   );
 }
 ```
 
+`entries` lists folders, then files. Each has a `key` that is unique across
+both kinds, a `name`, and either `folder` or `item` and `file`. `items` and
+`folders` are there too when you want them apart.
+
+Keep the source stable — define it outside the component, or in `useState` /
+`useMemo` — so the entries are not rebuilt on every render. `getFile` should
+be pure.
+
+## Query
+
 The query receives:
 
-- `parent` — folder id, or `null` at the root. The id is opaque. A database id, a path, or a key prefix are all valid.
+- `parent` — folder id, or `null` at the root. The id is opaque: a database id, a path, or a key prefix.
 - `cursor` — `null` on the first page. Return `nextCursor: null` on the last page.
-- `signal` — aborted when the folder changes, `refresh()` runs, or the hook unmounts.
+- `sort` — `{ field, direction }`, or `null` to leave the order to the source.
+- `search` — trimmed text, `""` when nothing is searched.
+- `signal` — aborted when the folder, sort, search, or `queryKey` changes, when the list reloads, or when the hook unmounts.
 
-Return `folders` only from the first page. Later pages append `items`. Changing `queryKey` clears the list and loads the first page again. Use it for filters such as the route name.
+Return `folders` from the first page only. Later pages append `items`.
+Return `usage` (`{ totalBytes, objectCount }`) when you know how full the
+catalog is.
 
-Omit `parent` and the hook owns navigation. Pass `parent` and `onParentChange` together when the URL owns it. `parent={null}` is the controlled root. `defaultTrail` labels the starting path. The last id should match `defaultParent`.
+Changing the folder or `queryKey` clears the rows and shows the loading
+state. Use `queryKey` for filters of your own, such as the route. Changing
+the sort or search keeps the current rows on screen, with `isRefreshing`,
+until the new first page arrives. Opening another folder clears the search.
 
-```tsx
-const list = useObjectList({
-  query,
-  parent: folderId,
-  onParentChange: setFolderId,
-});
-```
+## Sources
 
-`readObjectListLevel` splits a flat list into the folders and files at one level. `getFolder` returns a `/`-separated path, or `null` for the root. Pass the full set for that listing. A single page of a database query cannot be grouped after the fact. A paged tree returns `folders` from your own query. See [Folders](/docs/react/ui/components/object-list#folders).
+`memoryObjectSource` serves records you already hold: folders from a
+`/`-separated path, then search, sort, and pages on the client. Pass a
+function to read the latest records on each request.
 
 ```ts
-import { readObjectListLevel } from "@dimah-s3/react";
+import { memoryObjectSource, useObjectList } from "@dimah-s3/react";
 
-const level = readObjectListLevel(records, {
-  parent,
-  getFolder: (record) => record.folder,
+const source = memoryObjectSource(files, {
+  getKey: (file) => file.id,
+  getFile: (file) => ({
+    name: file.name,
+    objectKey: file.key,
+    size: file.size,
+    updatedAt: file.updatedAt,
+  }),
+  getFolder: (file) => file.folder, // "Invoices/2026", or null for the root
+  pageSize: 50,
+  usage: true,
 });
+
+const list = useObjectList(source);
 ```
 
-## With `db()`
+Search matches the name, ignoring case and accents; pass `matches` to change
+that. Sort understands `name`, `size`, and `updatedAt`; pass `sortValue` for
+other fields. Records without a value sort last.
 
-`dbObjectQuery` adapts `api.db.listObjects` for a flat catalog. `parent` is sent as the key `prefix`. The adapter does not invent folder rows: generated keys contain a uuid segment, so splitting the key is not a folder tree. `dbObjectListAccessors` maps each row onto `ObjectList`: row id, object key, filename, content type, and verified size.
+`readObjectListLevel` is the folder step on its own: it splits a flat list
+into the folders and files at one level. Pass the full set for that listing.
+One page of a database query cannot be grouped after the fact.
+
+### With `db()`
+
+`dbObjectSource` from `@dimah-s3/db/client` adapts `api.db.listObjects`. The
+open folder is sent as the key `prefix`. It does not invent folder rows:
+generated keys contain a uuid segment, so splitting the key is not a folder
+tree. The endpoint does not sort or search, so leave those controls out.
 
 ```tsx title="components/db-files.tsx"
 "use client";
 
-import {
-  dbClient,
-  dbObjectListAccessors,
-  dbObjectQuery,
-} from "@dimah-s3/db/client";
+import { useState } from "react";
+import { dbClient, dbObjectSource } from "@dimah-s3/db/client";
 import { createS3Client, useObjectList } from "@dimah-s3/react";
 import { ObjectList } from "@dimah-s3/ui";
 
@@ -89,21 +127,73 @@ const s3Client = createS3Client({
 
 export function DbFiles() {
   const api = s3Client.useApi();
-  const list = useObjectList({
-    query: dbObjectQuery(api.db.listObjects, { route: "docs" }),
-    queryKey: ["docs"],
-  });
-  const files = dbObjectListAccessors();
+  const [source] = useState(() =>
+    dbObjectSource(api.db.listObjects, { route: "docs" }),
+  );
+  const list = useObjectList({ ...source, queryKey: ["docs"] });
 
-  return <ObjectList list={list} {...files} />;
+  return <ObjectList list={list} />;
 }
 ```
 
-Scope still comes from the server `resolveScope`. The query does not accept a scope.
+Scope still comes from the server `resolveScope`. The query does not accept a
+scope.
+
+## Navigation
+
+Omit `parent` and the hook owns the folder. Pass `parent` and
+`onParentChange` together when the URL owns it. `parent={null}` is the
+controlled root. `defaultTrail` labels the starting path; its last id should
+match `defaultParent`. `sort` / `onSortChange` and `search` /
+`onSearchChange` work the same way, with `defaultSort` and `defaultSearch`
+for uncontrolled starts.
+
+```tsx
+const list = useObjectList({
+  ...source,
+  parent: folderId,
+  onParentChange: setFolderId,
+});
+```
+
+`openFolder`, `navigate(trail)`, and `goUp()` move between folders.
+
+## Loading and edits
+
+- `loadMore()` loads the next page. It is ignored while another request is in flight.
+- `refresh()` reloads every page on screen and swaps them in at once.
+- `retry()` repeats what failed: the next page, or the reload.
+- `status` is `idle`, `loading`, `refreshing`, `loading-more`, `ready`, or `error`. `isLoading`, `isRefreshing`, and `isLoadingMore` mirror it.
+- `setItems(updater)`, `setFolders(updater)`, and `removeItems(keys)` edit the loaded rows without a request, for example after a rename. The next reload replaces them.
+
+## Selection
+
+`useObjectListSelection(list)` adds checkbox state over the loaded entries.
+It is headless: draw your own checkboxes, or pass it to `ObjectList` as
+`selection`.
+
+```tsx
+const selection = useObjectListSelection(list, {
+  mode: "multiple",
+  isSelectable: (entry) => entry.kind === "file",
+  onSelectionChange: (selected) => console.log(selected.length),
+});
+
+selection.toggle(entry.key, { range: event.shiftKey });
+selection.selectAll();
+selection.selectedItems; // your records
+```
+
+By default only files can be selected, and the selection clears when the
+folder changes and drops entries a reload no longer returns. `mode: "single"`
+keeps one entry. `persist: true` keeps entries from other folders, as in a
+picker that collects files from several places.
 
 ## UI
 
-[`ObjectList`](/docs/react/ui/components/object-list) renders this state. Pass `upload` on that component to drop or paste files into the open folder. Pass `usage` from the query and `usageLimits` on the component to show how full the catalog is. It does not call the hook. Skip it and render `list.items` yourself when you want different markup.
+[`ObjectList`](/docs/react/ui/components/object-list) renders the list and
+the selection, with search, sort, a grid view, upload, and a file menu. It
+does not call these hooks.
 
 ## Props
 
@@ -111,6 +201,8 @@ Scope still comes from the server `resolveScope`. The query does not accept a sc
 import type {
   UseObjectListOptions,
   UseObjectListReturn,
+  UseObjectListSelectionOptions,
+  UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 ```
 
@@ -122,4 +214,20 @@ import type {
 <AutoTypeTable
   path="packages/react/src/hooks/use-object-list.ts"
   name="UseObjectListReturn"
+/>
+
+### File
+
+<AutoTypeTable path="packages/react/src/list/types.ts" name="ObjectListFile" />
+
+### Selection
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-list-selection.ts"
+  name="UseObjectListSelectionOptions"
+/>
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-list-selection.ts"
+  name="UseObjectListSelectionReturn"
 />

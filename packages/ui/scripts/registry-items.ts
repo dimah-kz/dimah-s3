@@ -293,7 +293,7 @@ export const components = [
     type: "registry:component",
     title: "Object List",
     description:
-      "Folder and file list with drop upload, row selection, bulk delete, and a row menu.",
+      "Composable file and folder browser: list and grid views, search, sort, selection with bulk delete, drop upload, and a file menu.",
     ...installMeta,
     registryDependencies: [
       "alert-dialog",
@@ -303,9 +303,7 @@ export const components = [
       "checkbox",
       "dropdown-menu",
       "empty",
-      "item",
       "progress",
-      "separator",
       "skeleton",
       "spinner",
       "toast",
@@ -317,14 +315,34 @@ export const components = [
         target: "@components/dimah-s3/list/object-list.tsx",
       },
       {
-        path: "components/dimah-s3/list/object-list-rows.tsx",
+        path: "components/dimah-s3/list/object-list-context.tsx",
         type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-rows.tsx",
+        target: "@components/dimah-s3/list/object-list-context.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-header.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-header.tsx",
       },
       {
         path: "components/dimah-s3/list/object-list-breadcrumb.tsx",
         type: "registry:component",
         target: "@components/dimah-s3/list/object-list-breadcrumb.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-controls.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-controls.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-content.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-content.tsx",
+      },
+      {
+        path: "components/dimah-s3/list/object-list-entry.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-entry.tsx",
       },
       {
         path: "components/dimah-s3/list/object-list-states.tsx",
@@ -342,14 +360,14 @@ export const components = [
         target: "@components/dimah-s3/list/object-list-upload.tsx",
       },
       {
-        path: "components/dimah-s3/list/object-list-selection-state.ts",
-        type: "registry:hook",
-        target: "@components/dimah-s3/list/object-list-selection-state.ts",
+        path: "components/dimah-s3/list/object-list-item-menu.tsx",
+        type: "registry:component",
+        target: "@components/dimah-s3/list/object-list-item-menu.tsx",
       },
       {
-        path: "components/dimah-s3/list/object-list-menu.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-menu.tsx",
+        path: "components/dimah-s3/list/object-list-keyboard.ts",
+        type: "registry:hook",
+        target: "@components/dimah-s3/list/object-list-keyboard.ts",
       },
       {
         path: "lib/format-expires-in.ts",
@@ -360,11 +378,6 @@ export const components = [
         path: "lib/isolate-text.ts",
         type: "registry:lib",
         target: "@lib/isolate-text.ts",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-selection.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-selection.tsx",
       },
       {
         path: "hooks/use-download-toast.tsx",

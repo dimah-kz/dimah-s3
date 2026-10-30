@@ -3,6 +3,7 @@
 import { Fragment } from "react";
 import type { ObjectListFolder } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
+import { cn } from "cn";
 import {
   Breadcrumb,
   BreadcrumbEllipsis,
@@ -12,6 +13,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,24 +35,25 @@ function splitObjectListTrail(trail: readonly ObjectListFolder[]) {
   };
 }
 
-export function ObjectListBreadcrumb({
-  rootLabel,
-  trail,
-  navigate,
-}: {
-  rootLabel: string;
-  trail: readonly ObjectListFolder[];
-  navigate?: (trail: readonly ObjectListFolder[]) => void;
-}) {
+/**
+ * Path from the root to the open folder. Earlier folders collapse into a
+ * menu when the path is deep.
+ */
+export function ObjectListBreadcrumb({ className }: { className?: string }) {
+  const { list, label: rootLabel } = useObjectListContext();
+  const { trail, navigate } = list;
   const t = useTranslations();
   const atRoot = trail.length === 0;
   const { hidden, visible } = splitObjectListTrail(trail);
 
   return (
-    <Breadcrumb className="min-w-0 flex-1">
+    <Breadcrumb
+      data-slot="object-list-breadcrumb"
+      className={cn("min-w-0 flex-1", className)}
+    >
       <BreadcrumbList className="min-w-0 flex-nowrap">
         <BreadcrumbItem className="min-w-0">
-          {atRoot || navigate == null ? (
+          {atRoot ? (
             <BreadcrumbPage className="max-w-40 truncate sm:max-w-56">
               {rootLabel}
             </BreadcrumbPage>
@@ -83,8 +86,7 @@ export function ObjectListBreadcrumb({
                     {hidden.map((folder, index) => (
                       <DropdownMenuItem
                         key={folder.id}
-                        disabled={navigate == null}
-                        onClick={() => navigate?.(trail.slice(0, index + 1))}
+                        onClick={() => navigate(trail.slice(0, index + 1))}
                       >
                         <span className="truncate">
                           <bdi>{folder.name}</bdi>
@@ -104,7 +106,7 @@ export function ObjectListBreadcrumb({
             <Fragment key={folder.id}>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="min-w-0">
-                {current || navigate == null ? (
+                {current ? (
                   <BreadcrumbPage className="max-w-40 truncate sm:max-w-56">
                     <bdi>{folder.name}</bdi>
                   </BreadcrumbPage>
