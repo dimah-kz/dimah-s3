@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   memoryObjectSource,
   useDelete,
@@ -310,11 +310,25 @@ function abortError() {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
+/** The demo's records. Uploads and deletes edit it; each page reads it. */
+function createCatalog() {
+  let files = FILES;
+  return {
+    files: () => files,
+    add(file: LibraryFile) {
+      files = [...files, file];
+    },
+    remove(objectKey: string) {
+      files = files.filter((file) => fileObjectKey(file) !== objectKey);
+    },
+  };
+}
+
 export function ObjectListDemo() {
-  const catalogRef = useRef(FILES);
+  const [catalog] = useState(createCatalog);
   const [source] = useState(() =>
     withPageDelay(
-      memoryObjectSource(() => catalogRef.current, {
+      memoryObjectSource(catalog.files, {
         getKey: (file) => file.id,
         getFile: (file) => ({
           name: file.name,
@@ -346,29 +360,22 @@ export function ObjectListDemo() {
     }),
     onFileSuccess: (file, result) => {
       rememberDemoFile(result.key, file);
-      catalogRef.current = [
-        ...catalogRef.current,
-        {
-          id: result.key,
-          key: result.key,
-          name: file.name,
-          folder: list.parent,
-          size: file.size,
-          type: file.type || "application/octet-stream",
-          updatedAt: new Date().toISOString(),
-        },
-      ];
+      catalog.add({
+        id: result.key,
+        key: result.key,
+        name: file.name,
+        folder: list.parent,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        updatedAt: new Date().toISOString(),
+      });
     },
   });
   const download = useDownload({ route: "uploads" });
   const share = useDownload({ route: "uploads", disposition: "inline" });
   const remove = useDelete({
     route: "uploads",
-    onSuccess: (key) => {
-      catalogRef.current = catalogRef.current.filter(
-        (file) => fileObjectKey(file) !== key,
-      );
-    },
+    onSuccess: (key) => catalog.remove(key),
   });
 
   return (
@@ -381,7 +388,8 @@ export function ObjectListDemo() {
       delete={remove}
       usageLimits={USAGE_LIMITS}
       resolveFolderKeys={async (folder) =>
-        catalogRef.current
+        catalog
+          .files()
           .filter(
             (file) =>
               file.folder === folder.id ||
