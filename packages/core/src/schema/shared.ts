@@ -16,6 +16,24 @@ export const S3_MAX_POST_OBJECT_BYTES = 5 * 1024 * 1024 * 1024;
 /** S3 multipart part number maximum. */
 export const S3_MAX_PART_NUMBER = 10_000;
 
+/** S3 multipart part minimum (5 MiB). Only the last part may be smaller. */
+export const S3_MIN_PART_SIZE = 5 * 1024 * 1024;
+
+/** S3 multipart part maximum (5 GiB). */
+export const S3_MAX_PART_SIZE = 5 * 1024 * 1024 * 1024;
+
+/** Preferred part size when the route sets no `multipart.partSize` (8 MiB). */
+export const S3_DEFAULT_PART_SIZE = 8 * 1024 * 1024;
+
+/** S3 object maximum (5 TiB), in bytes. */
+export const S3_MAX_OBJECT_SIZE = 5 * 1024 ** 4;
+
+/** Wire limit for `name` and `type`, in UTF-8 bytes. */
+const MAX_FILE_FIELD_BYTES = 255;
+
+/** Upload ticket maximum, in characters. */
+const MAX_UPLOAD_TICKET_LENGTH = 8192;
+
 /** Max user-defined metadata entries on an upload body. */
 export const S3_MAX_METADATA_ENTRIES = 32;
 
@@ -31,6 +49,55 @@ export const optionalTrimmedString = z.preprocess((value: unknown) => {
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
 }, z.string().optional());
+
+const utf8 = new TextEncoder();
+
+/** Control characters (C0, DEL, C1). */
+const CONTROL_CHARACTER = /\p{Cc}/u;
+
+function fitsFileField(value: string): boolean {
+  return utf8.encode(value).byteLength <= MAX_FILE_FIELD_BYTES;
+}
+
+function hasNoControlCharacters(value: string): boolean {
+  return !CONTROL_CHARACTER.test(value);
+}
+
+/**
+ * File name on the wire. Trimmed, 1 to 255 UTF-8 bytes, no control
+ * characters (they also bound the upload ticket size).
+ */
+export const fileNameSchema = trimmedString
+  .refine(fitsFileField, {
+    message: `File name exceeds ${MAX_FILE_FIELD_BYTES} bytes`,
+  })
+  .refine(hasNoControlCharacters, {
+    message: "File name contains control characters",
+  });
+
+/** MIME type on the wire. Trimmed, at most 255 UTF-8 bytes, no control characters. */
+export const contentTypeSchema = z
+  .string()
+  .trim()
+  .refine(fitsFileField, {
+    message: `Content type exceeds ${MAX_FILE_FIELD_BYTES} bytes`,
+  })
+  .refine(hasNoControlCharacters, {
+    message: "Content type contains control characters",
+  });
+
+/** Optional file name. Blank or whitespace-only values are omitted. */
+export const optionalFileNameSchema = optionalTrimmedString.pipe(
+  fileNameSchema.optional(),
+);
+
+/** Optional MIME type. Blank or whitespace-only values are omitted. */
+export const optionalContentTypeSchema = optionalTrimmedString.pipe(
+  contentTypeSchema.optional(),
+);
+
+/** Opaque upload ticket from presign or multipart init. Trimmed, 1 to 8192 characters. */
+export const uploadTicketSchema = trimmedString.max(MAX_UPLOAD_TICKET_LENGTH);
 
 export const routeNameSchema = trimmedString.regex(
   ROUTE_NAME_PATTERN,

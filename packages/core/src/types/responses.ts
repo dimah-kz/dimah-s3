@@ -1,44 +1,34 @@
+import type { S3ErrorShape } from "@/error-codes";
 import type {
   ConfirmPayload,
-  DeleteBatchPayload,
+  DeleteManyPayload,
   DeletePayload,
   DownloadPayload,
-  MultipartAbortPayload,
-  MultipartCompletePayload,
   MultipartInitPayload,
-  MultipartListPartsPayload,
   MultipartSignPartPayload,
+  MultipartTicketPayload,
   S3ObjectAcl,
+  S3RequestOptions,
   UploadPayload,
   UploadPresignMethod,
 } from "./requests";
 import type { RouteCatalogResponse } from "@/schema/catalog";
 import type { ContentDispositionType } from "@/helpers/build-content-disposition";
 
-/**
- * Response from {@link S3Api.delete}. Delete is idempotent: a key with no
- * object still succeeds, with `existed: false`.
- */
+/** Response from {@link S3Api.delete}. Delete is idempotent. */
 export type DeleteResponse = {
-  success: true;
+  /** S3 object key. */
+  key: string;
+  /** Target bucket. */
   bucket: string;
-  key: string;
-  /** `false` when the object was never uploaded or is already gone. */
-  existed: boolean;
-};
-
-/** Per-key result from {@link S3Api.deleteMany}. */
-export type DeleteBatchItemResult = {
-  key: string;
-  success: boolean;
-  /** Set when `success` is true. Same meaning as {@link DeleteResponse.existed}. */
-  existed?: boolean;
-  error?: { code: string; message: string };
 };
 
 /** Response from {@link S3Api.deleteMany}. */
-export type DeleteBatchResponse = {
-  results: DeleteBatchItemResult[];
+export type DeleteManyResponse = {
+  /** Keys that were deleted. */
+  deleted: string[];
+  /** Keys that failed, each with its error body. */
+  failed: Array<{ key: string; error: S3ErrorShape }>;
 };
 
 /** Verified object metadata after confirm or multipart complete. */
@@ -47,26 +37,103 @@ export type ConfirmedObjectResponse = {
   key: string;
   /** Target bucket. */
   bucket: string;
+  /** Stored file name. */
+  name?: string;
+  /** Verified size in bytes, from HeadObject. */
+  size: number;
   /** MIME type from HeadObject. */
-  contentType?: string;
-  /** Verified size in bytes. */
-  contentLength: number;
+  type?: string;
   /** ETag from HeadObject. */
   eTag?: string;
-  /** Object metadata. */
-  metadata: Record<string, string>;
-  /** ACL from the upload policy (`upload.acl` / `object`). */
-  acl?: S3ObjectAcl;
-  /** Stored filename. */
-  fileName?: string;
   /** S3 version ID. */
   versionId?: string;
   /** Last modified timestamp. */
   lastModified?: string;
+  /** User metadata, without internal keys. */
+  metadata: Record<string, string>;
+  /** ACL from the upload policy (`upload.acl` / `object`). */
+  acl?: S3ObjectAcl;
 };
 
 /** Response from {@link S3Api.confirm}. */
 export type UploadConfirmResponse = ConfirmedObjectResponse;
+
+type UploadPresignBase = {
+  /** S3 object key. */
+  key: string;
+  /** Target bucket. */
+  bucket: string;
+  /** Presigned upload URL. */
+  url: string;
+  /** URL validity in seconds. */
+  expiresIn: number;
+  /** Upload ticket. Send it to {@link S3Api.confirm}. */
+  ticket: string;
+};
+
+/** Presigned upload URL and method-specific fields. */
+export type UploadPresignResponse = UploadPresignBase &
+  (
+    | {
+        method: Extract<UploadPresignMethod, "POST">;
+        /** Form fields. Append them to FormData before the file. */
+        fields: Record<string, string>;
+      }
+    | {
+        method: Extract<UploadPresignMethod, "PUT">;
+        /** Send exactly these on the PUT, never `Content-Length` or `Host`. */
+        headers: Record<string, string>;
+      }
+  );
+
+/** Response from {@link S3Api.multipart.init}. The server picks the part layout. */
+export type MultipartInitResponse = {
+  /** S3 object key. */
+  key: string;
+  /** Target bucket. */
+  bucket: string;
+  /** S3 multipart upload ID. */
+  uploadId: string;
+  /** Upload ticket. Send it to every later multipart call. */
+  ticket: string;
+  /** Size of every part except the last, in bytes. */
+  partSize: number;
+  /** Number of parts to upload. */
+  partCount: number;
+  /** Every part must send a SHA-256 checksum. */
+  checksum: boolean;
+};
+
+/** Presigned URL for a single multipart part. */
+export type MultipartPartResponse = {
+  /** Presigned PUT URL for this part. */
+  url: string;
+  /** 1-based part number. */
+  partNumber: number;
+  /** Exact byte size signed into this part's URL. */
+  size: number;
+  /** URL validity in seconds. */
+  expiresIn: number;
+  /** Send exactly these on the part PUT. */
+  headers: Record<string, string>;
+};
+
+/** A part already uploaded in a multipart session. */
+export type MultipartPartInfo = {
+  /** 1-based part number. */
+  partNumber: number;
+  /** Part size in bytes. */
+  size: number;
+  /** Part ETag from S3. */
+  eTag: string;
+  /** Base64 SHA-256 of the part, when S3 stored one. */
+  checksum?: string;
+};
+
+/** Response from {@link S3Api.multipart.listParts}. */
+export type MultipartListPartsResponse = {
+  parts: MultipartPartInfo[];
+};
 
 /** Response from {@link S3Api.multipart.complete}. */
 export type MultipartCompleteResponse = ConfirmedObjectResponse & {
@@ -75,9 +142,9 @@ export type MultipartCompleteResponse = ConfirmedObjectResponse & {
 
 /** Response from {@link S3Api.multipart.abort}. */
 export type MultipartAbortResponse = {
-  aborted: boolean;
-  bucket: string;
+  /** S3 object key. */
   key: string;
+  /** Aborted multipart upload ID. */
   uploadId: string;
 };
 
@@ -89,105 +156,54 @@ export type DownloadPresignResponse = {
   bucket: string;
   /** Presigned URL, or the same-origin `/file` URL when `mode` is `"proxy"`. */
   url: string;
-  /** Validity in seconds. `0` when `mode` is `"proxy"` (session-bound). */
-  expiresIn: number;
-  /** How the browser should fetch the object. @default "presign" */
-  mode?: "presign" | "proxy";
-  /** Content-Disposition used on the signed / proxied GET. */
-  disposition?: ContentDispositionType;
-};
-
-type UploadPresignBase = {
-  /** S3 object key. */
-  key: string;
-  /** Target bucket. */
-  bucket: string;
-  /** Presigned upload URL. */
-  url: string;
-  /** Validity in seconds. */
-  expiresIn: number;
-};
-
-/** Presigned upload URL and method-specific fields. */
-export type UploadPresignResponse = UploadPresignBase &
-  (
-    | {
-        method: Extract<UploadPresignMethod, "POST">;
-        /** Form fields — append to FormData before the file. */
-        fields: Record<string, string>;
-      }
-    | {
-        method: Extract<UploadPresignMethod, "PUT">;
-        /** Request headers for the PUT. */
-        headers: Record<string, string>;
-      }
-  );
-
-/** Response from multipart upload initialization. */
-export type MultipartInitResponse = {
-  /** S3 object key. */
-  key: string;
-  /** Target bucket. */
-  bucket: string;
-  /** S3 multipart upload ID. */
-  uploadId: string;
-};
-
-/** Presigned URL for a single multipart part. */
-export type MultipartPartResponse = {
-  /** Presigned PUT URL for this part. */
-  url: string;
-  /** 1-based part number. */
-  partNumber: number;
-  /** Multipart upload ID. */
-  uploadId: string;
-  /** Target bucket. */
-  bucket: string;
-  /** Validity in seconds. */
-  expiresIn: number;
-  /** Exact byte size locked into this part's presigned URL signature. */
-  partSize: number;
-};
-
-/** A part already uploaded in a multipart session. */
-export type MultipartPartInfo = {
-  /** 1-based part number. */
-  partNumber: number;
-  /** Part size in bytes. */
-  size: number;
-  /** Part ETag from S3. */
-  eTag: string;
-};
-
-/** Response from listing uploaded multipart parts. */
-export type MultipartListPartsResponse = {
-  parts: MultipartPartInfo[];
+  /** How the browser fetches the object. */
+  mode: "presign" | "proxy";
+  /** Content-Disposition used on the signed or proxied GET. */
+  disposition: ContentDispositionType;
+  /** URL validity in seconds. Omitted in proxy mode. */
+  expiresIn?: number;
 };
 
 /**
  * Presign API protocol shared by `@dimah-s3/react` hooks and `@dimah-s3/server`.
  *
- * Implement with `createS3Client()` from `@dimah-s3/core` / `@dimah-s3/react`,
- * or any custom backend.
+ * Every method takes per-call `options` last. In the browser they are
+ * {@link S3RequestOptions}. Implement with `createS3Client()` from
+ * `@dimah-s3/core`, or with any custom backend.
  */
-export type S3Api = {
-  upload: (payload: UploadPayload) => Promise<UploadPresignResponse>;
-  confirm: (payload: ConfirmPayload) => Promise<UploadConfirmResponse>;
-  download: (payload: DownloadPayload) => Promise<DownloadPresignResponse>;
-  catalog: () => Promise<RouteCatalogResponse>;
-  delete: (payload: DeletePayload) => Promise<DeleteResponse>;
-  deleteMany: (payload: DeleteBatchPayload) => Promise<DeleteBatchResponse>;
+export type S3Api<O = S3RequestOptions> = {
+  upload(payload: UploadPayload, options?: O): Promise<UploadPresignResponse>;
+  confirm(payload: ConfirmPayload, options?: O): Promise<UploadConfirmResponse>;
+  download(
+    payload: DownloadPayload,
+    options?: O,
+  ): Promise<DownloadPresignResponse>;
+  catalog(options?: O): Promise<RouteCatalogResponse>;
+  delete(payload: DeletePayload, options?: O): Promise<DeleteResponse>;
+  deleteMany(
+    payload: DeleteManyPayload,
+    options?: O,
+  ): Promise<DeleteManyResponse>;
   multipart: {
-    init: (payload: MultipartInitPayload) => Promise<MultipartInitResponse>;
-    signPart: (
+    init(
+      payload: MultipartInitPayload,
+      options?: O,
+    ): Promise<MultipartInitResponse>;
+    signPart(
       payload: MultipartSignPartPayload,
-    ) => Promise<MultipartPartResponse>;
-    listParts: (
-      payload: MultipartListPartsPayload,
-    ) => Promise<MultipartListPartsResponse>;
-    complete: (
-      payload: MultipartCompletePayload,
-    ) => Promise<MultipartCompleteResponse>;
-    abort: (payload: MultipartAbortPayload) => Promise<MultipartAbortResponse>;
+      options?: O,
+    ): Promise<MultipartPartResponse>;
+    listParts(
+      payload: MultipartTicketPayload,
+      options?: O,
+    ): Promise<MultipartListPartsResponse>;
+    complete(
+      payload: MultipartTicketPayload,
+      options?: O,
+    ): Promise<MultipartCompleteResponse>;
+    abort(
+      payload: MultipartTicketPayload,
+      options?: O,
+    ): Promise<MultipartAbortResponse>;
   };
 };

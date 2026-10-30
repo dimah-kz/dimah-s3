@@ -1,16 +1,13 @@
 import type * as z from "zod";
 import type { confirmBodySchema, uploadBodySchema } from "@/schema/upload";
 import type { downloadQuerySchema } from "@/schema/download";
-import type { deleteBatchBodySchema, deleteQuerySchema } from "@/schema/delete";
+import type { deleteManyBodySchema, deleteQuerySchema } from "@/schema/delete";
 import type { fileQuerySchema } from "@/schema/file";
 import type { S3RouteName } from "./routes";
 import type {
-  multipartAbortBodySchema,
-  multipartCompleteBodySchema,
-  multipartCompletedPartSchema,
   multipartInitBodySchema,
-  multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
+  multipartTicketBodySchema,
 } from "@/schema/multipart";
 import type { s3ObjectAclSchema } from "@/schema/shared";
 
@@ -19,67 +16,43 @@ export type { UploadPresignMethod } from "./upload-presign-method";
 /** S3 object ACL. */
 export type S3ObjectAcl = z.output<typeof s3ObjectAclSchema>;
 
-/**
- * Server-side auth context for `dimahS3().api` calls (guards / db scope).
- * Ignored by {@link createS3Client} — never sent over the wire.
- */
-export type S3ApiHeaders = {
-  /** Forwarded into a synthetic `Request` for server-side `api` calls. */
+/** Per-call options for {@link S3Api} methods in the browser. */
+export type S3RequestOptions = {
+  /** Aborts the request. */
+  signal?: AbortSignal;
+  /** Merged over the client headers. Per-call values win. */
   headers?: HeadersInit;
 };
 
-type WithNamedRoute<T> = Omit<T, "route"> & {
-  route: S3RouteName;
-} & S3ApiHeaders;
+type Named<T> = Omit<T, "route"> & { route: S3RouteName };
 
 /** Payload for {@link S3Api.upload}. */
-export type UploadPayload = WithNamedRoute<z.output<typeof uploadBodySchema>>;
+export type UploadPayload = Named<z.output<typeof uploadBodySchema>>;
 
 /** Payload for {@link S3Api.confirm}. */
-export type ConfirmPayload = WithNamedRoute<z.output<typeof confirmBodySchema>>;
+export type ConfirmPayload = z.output<typeof confirmBodySchema>;
 
 /** Payload for {@link S3Api.download}. */
-export type DownloadPayload = WithNamedRoute<
-  z.output<typeof downloadQuerySchema>
->;
+export type DownloadPayload = Named<z.output<typeof downloadQuerySchema>>;
+
+/** Query for the same-origin proxy download (`GET /file`). */
+export type FilePayload = Named<z.output<typeof fileQuerySchema>>;
 
 /** Payload for {@link S3Api.delete}. */
-export type DeletePayload = WithNamedRoute<z.output<typeof deleteQuerySchema>>;
+export type DeletePayload = Named<z.output<typeof deleteQuerySchema>>;
 
 /** Payload for {@link S3Api.deleteMany}. */
-export type DeleteBatchPayload = WithNamedRoute<
-  z.output<typeof deleteBatchBodySchema>
->;
-
-/** Payload for {@link S3Api.file} (proxy download query). */
-export type FilePayload = WithNamedRoute<z.output<typeof fileQuerySchema>>;
+export type DeleteManyPayload = Named<z.output<typeof deleteManyBodySchema>>;
 
 /** Payload for {@link S3Api.multipart.init}. */
-export type MultipartInitPayload = WithNamedRoute<
+export type MultipartInitPayload = Named<
   z.output<typeof multipartInitBodySchema>
 >;
 
 /** Payload for {@link S3Api.multipart.signPart}. */
-export type MultipartSignPartPayload = WithNamedRoute<
-  z.output<typeof multipartSignPartBodySchema>
+export type MultipartSignPartPayload = z.output<
+  typeof multipartSignPartBodySchema
 >;
 
-/** Payload for {@link S3Api.multipart.listParts}. */
-export type MultipartListPartsPayload = WithNamedRoute<
-  z.output<typeof multipartListPartsQuerySchema>
->;
-
-/** A completed multipart part reference for {@link S3Api.multipart.complete}. */
-export type MultipartCompletedPartRef = z.output<
-  typeof multipartCompletedPartSchema
->;
-
-/** Payload for {@link S3Api.multipart.complete}. */
-export type MultipartCompletePayload = WithNamedRoute<
-  z.output<typeof multipartCompleteBodySchema>
->;
-
-/** Payload for {@link S3Api.multipart.abort}. */
-export type MultipartAbortPayload = WithNamedRoute<
-  z.output<typeof multipartAbortBodySchema>
->;
+/** Payload for `listParts`, `complete`, and `abort` in {@link S3Api.multipart}. */
+export type MultipartTicketPayload = z.output<typeof multipartTicketBodySchema>;

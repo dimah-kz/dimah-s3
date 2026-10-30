@@ -1,5 +1,5 @@
 import type {
-  DeleteBatchResponse,
+  DeleteManyResponse,
   DeleteResponse,
   MultipartAbortResponse,
   MultipartCompleteResponse,
@@ -8,6 +8,7 @@ import type {
   MultipartPartResponse,
   DownloadPresignResponse,
   S3Api,
+  S3RequestOptions,
   UploadConfirmResponse,
   UploadPresignResponse,
   RouteCatalogResponse,
@@ -43,103 +44,124 @@ export type CreateS3ClientOptions<
   plugins?: P;
 } & S3ClientFetchOptions;
 
-/** Strip server-only `headers` before sending over HTTP. */
-function withoutHeaders<T extends { headers?: HeadersInit }>(
-  value: T,
-): Omit<T, "headers"> {
-  const { headers: _headers, ...rest } = value;
-  return rest;
+const ABSOLUTE_URL = /^[a-z][a-z\d+.-]*:\/\//i;
+
+/** better-fetch options for one call: the abort signal and per-call headers. */
+function callOptions(options: S3RequestOptions | undefined) {
+  return {
+    signal: options?.signal,
+    headers: options?.headers ? new Headers(options.headers) : undefined,
+  };
 }
 
-function createCoreApi($fetch: S3Fetch): S3Api {
+/**
+ * Resolve a root-relative URL (the `/file` proxy URL) against the origin of
+ * an absolute `base`. Other URLs, and any URL under a relative `base`, are
+ * returned as is.
+ */
+function resolveProxyUrl(url: string, base: string): string {
+  if (!url.startsWith("/") || url.startsWith("//")) return url;
+  if (!ABSOLUTE_URL.test(base)) return url;
+  return new URL(url, base).href;
+}
+
+function createCoreApi($fetch: S3Fetch, base: string): S3Api {
   return {
-    upload(payload) {
+    upload(payload, options) {
       return $fetch<UploadPresignResponse>(S3_API_ROUTES.upload, {
         method: "POST",
-        body: withoutHeaders(payload),
+        body: payload,
+        ...callOptions(options),
       });
     },
 
-    confirm(payload) {
-      return $fetch<UploadConfirmResponse>(S3_API_ROUTES.uploadConfirm, {
+    confirm(payload, options) {
+      return $fetch<UploadConfirmResponse>(S3_API_ROUTES.confirm, {
         method: "POST",
-        body: withoutHeaders(payload),
+        body: payload,
+        ...callOptions(options),
       });
     },
 
-    download(payload) {
-      const { route, key, fileName, disposition, expiresIn } =
-        withoutHeaders(payload);
-      return $fetch<DownloadPresignResponse>(S3_API_ROUTES.download, {
-        method: "GET",
-        query: {
-          route,
-          key,
-          fileName: fileName ? sanitizeFileName(fileName) : undefined,
-          disposition,
-          expiresIn,
+    async download(payload, options) {
+      const { route, key, name, disposition, expiresIn } = payload;
+      const response = await $fetch<DownloadPresignResponse>(
+        S3_API_ROUTES.download,
+        {
+          method: "GET",
+          query: {
+            route,
+            key,
+            name: name ? sanitizeFileName(name) : undefined,
+            disposition,
+            expiresIn,
+          },
+          ...callOptions(options),
         },
-      });
+      );
+      return { ...response, url: resolveProxyUrl(response.url, base) };
     },
 
-    catalog() {
+    catalog(options) {
       return $fetch<RouteCatalogResponse>(S3_API_ROUTES.catalog, {
         method: "GET",
+        ...callOptions(options),
       });
     },
 
-    delete(payload) {
-      const { route, key } = withoutHeaders(payload);
+    delete(payload, options) {
+      const { route, key } = payload;
       return $fetch<DeleteResponse>(S3_API_ROUTES.delete, {
         method: "DELETE",
         query: { route, key },
+        ...callOptions(options),
       });
     },
 
-    deleteMany(payload) {
-      return $fetch<DeleteBatchResponse>(S3_API_ROUTES.deleteBatch, {
+    deleteMany(payload, options) {
+      return $fetch<DeleteManyResponse>(S3_API_ROUTES.deleteMany, {
         method: "POST",
-        body: withoutHeaders(payload),
+        body: payload,
+        ...callOptions(options),
       });
     },
 
     multipart: {
-      init(payload) {
+      init(payload, options) {
         return $fetch<MultipartInitResponse>(S3_API_ROUTES.multipartInit, {
           method: "POST",
-          body: withoutHeaders(payload),
+          body: payload,
+          ...callOptions(options),
         });
       },
 
-      signPart(payload) {
-        return $fetch<MultipartPartResponse>(S3_API_ROUTES.multipartPart, {
+      signPart(payload, options) {
+        return $fetch<MultipartPartResponse>(S3_API_ROUTES.multipartSignPart, {
           method: "POST",
-          body: withoutHeaders(payload),
+          body: payload,
+          ...callOptions(options),
         });
       },
 
-      listParts(payload) {
-        const { route, key, uploadId } = withoutHeaders(payload);
+      listParts(payload, options) {
         return $fetch<MultipartListPartsResponse>(
           S3_API_ROUTES.multipartListParts,
-          { method: "GET", query: { route, key, uploadId } },
+          { method: "POST", body: payload, ...callOptions(options) },
         );
       },
 
-      complete(payload) {
+      complete(payload, options) {
         return $fetch<MultipartCompleteResponse>(
           S3_API_ROUTES.multipartComplete,
-          {
-            method: "POST",
-            body: withoutHeaders(payload),
-          },
+          { method: "POST", body: payload, ...callOptions(options) },
         );
       },
 
-      abort(payload) {
+      abort(payload, options) {
         return $fetch<MultipartAbortResponse>(S3_API_ROUTES.multipartAbort, {
           method: "POST",
-          body: withoutHeaders(payload),
+          body: payload,
+          ...callOptions(options),
         });
       },
     },
@@ -157,6 +179,9 @@ export type CreateS3ClientResult<P extends readonly S3ClientPlugin[] = []> =
 
 /**
  * Browser (or isomorphic) client for the dimah-s3 HTTP API.
+ *
+ * Every method takes per-call `{ signal, headers }` last. Per-call headers
+ * override the client `headers`. Failures throw `APIError`.
  *
  * For React apps prefer `createS3Client` from `@dimah-s3/react` — same options,
  * plus a bound `Provider` / typed `useApi` on the client object.
@@ -180,7 +205,7 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   const base = normalizeS3ApiBasePath(baseURL ?? basePath ?? S3_API_BASE_PATH);
   const $fetch = createS3Fetch(base, fetchOptions);
 
-  const api = createCoreApi($fetch);
+  const api = createCoreApi($fetch, base);
 
   const pluginMethods: Record<string, unknown> = {};
   for (const plugin of plugins ?? []) {

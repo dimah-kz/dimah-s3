@@ -1,5 +1,5 @@
-import { createFetch } from "@better-fetch/fetch";
-import { APIError } from "@/error";
+import { createFetch, type FetchEsque } from "@better-fetch/fetch";
+import { APIError, s3Error } from "@/error";
 import { s3FetchErrorSchema } from "@/schema/error";
 import type { S3ClientFetchOptions, S3Fetch } from "./types";
 
@@ -11,44 +11,40 @@ async function resolveHeaders(
   return headers;
 }
 
-function fallbackMessage(error: {
-  statusText: string;
-  error?: unknown;
-}): string {
-  if (typeof error.error === "string" && error.error.trim()) {
-    return error.error;
-  }
-  return error.statusText || "Request failed";
+/**
+ * Map a non-OK response onto an {@link APIError} that keeps the HTTP status.
+ * A `{ code, message, params? }` body keeps its code. Any other body becomes
+ * `INTERNAL_ERROR` (status ≥ 500) or `UNKNOWN_ERROR`.
+ */
+function apiErrorFromResponse(status: number, body: unknown): APIError {
+  const shape = s3FetchErrorSchema.safeParse(body);
+  if (shape.success) return APIError.fromShape(shape.data, status);
+  const code = status >= 500 ? "INTERNAL_ERROR" : "UNKNOWN_ERROR";
+  return s3Error(code, undefined, { status });
 }
 
 /**
- * better-fetch `onError` receives the JSON body spread with `status` /
- * `statusText` — not a `BetterFetchError` instance.
+ * Wrap `fetch` so a request that never gets a response throws
+ * `NETWORK_ERROR`. An aborted request rethrows the abort reason as is.
  */
-function apiErrorFromFetch(error: {
-  status: number;
-  statusText: string;
-  error?: unknown;
-}): APIError {
-  const { status } = error;
-  if (s3FetchErrorSchema.validate(error)) {
-    const { message, code, params } = error;
-    return new APIError(status, {
-      message,
-      ...(code !== undefined ? { code } : {}),
-      ...(params !== undefined ? { params } : {}),
-    });
-  }
-  return new APIError(status, { message: fallbackMessage(error) });
+function withNetworkErrors(fetchImpl: typeof fetch | undefined): FetchEsque {
+  return async (input, init) => {
+    try {
+      return await (fetchImpl ?? fetch)(input, init);
+    } catch (error) {
+      if (init?.signal?.aborted) throw error;
+      throw s3Error("NETWORK_ERROR", undefined, { cause: error });
+    }
+  };
 }
 
 /**
  * Shared `$fetch` for core routes and client plugins.
  * `base` is a normalized API prefix (e.g. `/api/s3`).
  *
- * Non-OK JSON matching {@link s3FetchErrorSchema} throws {@link APIError}.
- * `throw: true` is the better-fetch flag; `onError` maps onto the same class
- * the server throws so `instanceof APIError` works in the browser.
+ * Client `headers` are applied first and per-call `headers` win.
+ * Every failure throws {@link APIError}: a non-OK response keeps its HTTP
+ * status, and a failed request throws `NETWORK_ERROR`.
  */
 export function createS3Fetch(
   base: string,
@@ -58,19 +54,20 @@ export function createS3Fetch(
     baseURL: base,
     throw: true,
     errorSchema: s3FetchErrorSchema,
-    customFetchImpl: options?.fetch,
+    customFetchImpl: withNetworkErrors(options?.fetch),
     credentials: options?.credentials,
     onRequest: async (ctx) => {
-      const extra = await resolveHeaders(options?.headers);
-      if (!extra) return ctx;
-      const headers = new Headers(ctx.headers);
-      for (const [key, value] of new Headers(extra)) {
+      const clientHeaders = await resolveHeaders(options?.headers);
+      if (!clientHeaders) return ctx;
+      const headers = new Headers(clientHeaders);
+      for (const [key, value] of ctx.headers) {
         headers.set(key, value);
       }
       return { ...ctx, headers };
     },
     onError: (ctx) => {
-      throw apiErrorFromFetch(ctx.error);
+      // better-fetch spreads the parsed JSON body with `status` / `statusText`.
+      throw apiErrorFromResponse(ctx.response.status, ctx.error);
     },
   });
 }

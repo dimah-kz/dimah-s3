@@ -4,10 +4,21 @@ export * from "./schema";
 export {
   APIError,
   defineErrorCodes,
+  formatErrorMessage,
   isAPIError,
   isS3ErrorCode,
+  s3Error,
   S3_ERROR_CODES,
+  type APIErrorBody,
+  type APIErrorStatus,
+  type S3ClientErrorCode,
   type S3ErrorCode,
+  type S3ErrorEntry,
+  type S3ErrorOptions,
+  type S3ErrorParams,
+  type S3ErrorParamsMap,
+  type S3ErrorShape,
+  type S3ServerErrorCode,
 } from "./error";
 export {
   S3_API_BASE_PATH,

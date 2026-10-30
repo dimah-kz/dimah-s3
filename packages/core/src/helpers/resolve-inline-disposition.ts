@@ -1,5 +1,22 @@
 import type { ContentDispositionType } from "./build-content-disposition";
 
+/**
+ * Types that open in the browser by default: raster images, PDF, audio,
+ * video, and plain text. Never HTML, SVG, or other active content.
+ */
+export const DEFAULT_INLINE_TYPES: readonly string[] = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/bmp",
+  "application/pdf",
+  "audio/*",
+  "video/*",
+  "text/plain",
+];
+
 /** Types a browser can render from a name alone, for objects stored without a type. */
 const TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
   avif: "image/avif",
@@ -85,8 +102,9 @@ export type ResolveInlineDispositionInput = {
    * File extensions are not accepted: the name does not decide what renders.
    * A wildcard never matches HTML, XML (including `image/svg+xml`), or
    * JavaScript; list those types exactly to allow them.
+   * Omitted: {@link DEFAULT_INLINE_TYPES}. `false`: never inline.
    */
-  allow: readonly string[];
+  allow?: readonly string[] | false;
   /** Client request or route default. */
   requested?: ContentDispositionType;
 };
@@ -105,17 +123,21 @@ export type ResolveInlineDispositionResult = {
 /**
  * Whether an object may open in the browser. `inline` is kept only when the
  * object's type is on `allow`; anything else is signed as `attachment`.
- * `download.inlineTypes` on a route runs this on presign and `/file`, and a
- * client can call it with the same list to choose Preview or Download.
+ * The server runs this on presign and `/file` with the route's inline list,
+ * and a client can call it with the catalog `inlineTypes` to choose Preview
+ * or Download.
  */
 export function resolveInlineDisposition(
   input: ResolveInlineDispositionInput,
 ): ResolveInlineDispositionResult {
-  if (input.requested !== "inline") return { disposition: "attachment" };
+  const allow = input.allow ?? DEFAULT_INLINE_TYPES;
+  if (input.requested !== "inline" || allow === false) {
+    return { disposition: "attachment" };
+  }
   const stored = baseType(input.contentType);
   const untyped = UNTYPED.has(stored);
   const type = untyped ? typeFromFileName(input.fileName) : stored;
-  if (!type || !isAllowed(type, input.allow)) {
+  if (!type || !isAllowed(type, allow)) {
     return { disposition: "attachment" };
   }
   return untyped

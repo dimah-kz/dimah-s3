@@ -2,7 +2,7 @@ import * as z from "zod";
 import { downloadDispositionSchema } from "./catalog";
 import {
   objectKeySchema,
-  optionalTrimmedString,
+  optionalFileNameSchema,
   routeNameSchema,
 } from "./shared";
 
@@ -10,6 +10,7 @@ import {
 export const fileQuerySchema = z.strictObject({
   route: routeNameSchema,
   key: objectKeySchema,
-  fileName: optionalTrimmedString,
+  /** Download file name. A blank value is omitted. */
+  name: optionalFileNameSchema,
   disposition: downloadDispositionSchema.optional(),
 });

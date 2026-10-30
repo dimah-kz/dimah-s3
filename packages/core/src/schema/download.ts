@@ -2,7 +2,7 @@ import * as z from "zod";
 import { downloadDispositionSchema } from "./catalog";
 import {
   objectKeySchema,
-  optionalTrimmedString,
+  optionalFileNameSchema,
   routeNameSchema,
   S3_MAX_EXPIRES_IN,
 } from "./shared";
@@ -26,11 +26,12 @@ const optionalExpiresInSchema = z.preprocess((value: unknown) => {
 export const downloadQuerySchema = z.strictObject({
   route: routeNameSchema,
   key: objectKeySchema,
-  fileName: optionalTrimmedString,
+  /** Download file name. A blank value is omitted. */
+  name: optionalFileNameSchema,
   disposition: downloadDispositionSchema.optional(),
   /**
-   * Requested TTL in seconds. Signed only when it is shorter than the
-   * route `download.expiresIn`. `download.resolve` can still replace it.
+   * Requested TTL in seconds. Capped by the route `download.maxExpiresIn`.
+   * `download.resolve` can still replace it.
    */
   expiresIn: optionalExpiresInSchema,
 });

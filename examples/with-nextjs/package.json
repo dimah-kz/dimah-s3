@@ -13,6 +13,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1159.0",
     "@base-ui/react": "^1.9.0",
+    "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
     "@dimah-s3/ui": "workspace:*",

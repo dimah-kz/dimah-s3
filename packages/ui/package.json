@@ -59,38 +59,48 @@
     "sync:shadcn": "node scripts/sync-shadcn.mjs"
   },
   "dependencies": {
-    "@dimah-s3/core": "workspace:*",
-    "@dimah-s3/react": "workspace:*",
     "react-file-icon": "^1.6.0"
   },
   "devDependencies": {
     "@base-ui/react": "^1.9.0",
+    "@dimah-s3/core": "workspace:*",
+    "@dimah-s3/react": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@types/react-file-icon": "^1.0.5",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "eslint": "catalog:",
+    "jsdom": "^30.1.3",
     "lucide-react": "^1.63.0",
     "react": "catalog:",
+    "react-dom": "catalog:",
     "shadcn": "^4.23.0",
     "tailwindcss": "catalog:",
     "tsc-alias": "catalog:",
     "tsup": "catalog:",
     "tsx": "^4.23.15",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@base-ui/react": ">=1.0.0",
+    "@dimah-s3/core": "1.7.1",
+    "@dimah-s3/react": "1.7.1",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": ">=0.7.0",
     "cn": ">=0.1.0",
     "lucide-react": ">=0.400.0",
-    "react": ">=18"
+    "react": ">=19"
   },
   "publishConfig": {
     "access": "public"

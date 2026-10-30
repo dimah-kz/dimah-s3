@@ -2,8 +2,11 @@ import type { BetterFetch } from "@better-fetch/fetch";
 
 /**
  * Shared `$fetch` for core routes and client plugins.
- * Always created with `throw: true` and `errorSchema` (`s3FetchErrorSchema`) —
- * non-OK JSON becomes {@link APIError} via `onError`.
+ * Every failure throws {@link APIError}. A `{ code, message, params? }` body
+ * keeps its code and HTTP status. Any other non-OK response becomes
+ * `INTERNAL_ERROR` (status >= 500) or `UNKNOWN_ERROR` with the HTTP status.
+ * A failed request becomes `NETWORK_ERROR`, except an aborted signal, which
+ * rethrows the abort reason. Client headers apply first; per-call headers win.
  */
 export type S3Fetch = BetterFetch<{ throw: true }>;
 

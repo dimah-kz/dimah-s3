@@ -1,39 +1,27 @@
 import * as z from "zod";
 import { uploadBodySchema } from "./upload";
 import {
-  objectKeySchema,
+  optionalChecksumSchema,
   partNumberSchema,
-  routeNameSchema,
-  trimmedString,
+  uploadTicketSchema,
 } from "./shared";
 
-export const multipartInitBodySchema = uploadBodySchema;
-
-const multipartSessionFields = {
-  route: routeNameSchema,
-  key: objectKeySchema,
-  uploadId: trimmedString,
-};
+/** Same fields as upload, minus `checksum`. The server picks the part layout. */
+export const multipartInitBodySchema = uploadBodySchema.omit({
+  checksum: true,
+});
 
 export const multipartSignPartBodySchema = z.strictObject({
-  ...multipartSessionFields,
+  ticket: uploadTicketSchema,
   partNumber: partNumberSchema,
-  partSize: z.int().positive(),
+  /**
+   * Base64 SHA-256 of the part (padding optional), as `sha256Blob` /
+   * `sha256Base64` return it. Required when init returned `checksum: true`.
+   */
+  checksum: optionalChecksumSchema,
 });
 
-export const multipartListPartsQuerySchema = z.strictObject({
-  ...multipartSessionFields,
-});
-
-export const multipartCompletedPartSchema = z.strictObject({
-  partNumber: partNumberSchema,
-});
-
-export const multipartCompleteBodySchema = z.strictObject({
-  ...multipartSessionFields,
-  parts: z.array(multipartCompletedPartSchema).min(1),
-});
-
-export const multipartAbortBodySchema = z.strictObject({
-  ...multipartSessionFields,
+/** Body for `listParts`, `complete`, and `abort`. */
+export const multipartTicketBodySchema = z.strictObject({
+  ticket: uploadTicketSchema,
 });

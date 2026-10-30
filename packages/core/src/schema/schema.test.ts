@@ -1,37 +1,71 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import * as z from "zod";
-import { deleteBatchBodySchema, deleteQuerySchema } from "./delete";
+import type {
+  ConfirmPayload,
+  MultipartTicketPayload,
+  S3RequestOptions,
+  UploadPayload,
+} from "@/types/requests";
+import type { S3Api } from "@/types/responses";
+import {
+  DELETE_MANY_MAX_KEYS,
+  deleteManyBodySchema,
+  deleteQuerySchema,
+} from "./delete";
 import { downloadQuerySchema } from "./download";
 import { fileQuerySchema } from "./file";
 import { routeCatalogResponseSchema } from "./catalog";
 import { s3FetchErrorSchema } from "./error";
 import {
-  multipartAbortBodySchema,
-  multipartCompleteBodySchema,
-  multipartCompletedPartSchema,
   multipartInitBodySchema,
-  multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
+  multipartTicketBodySchema,
 } from "./multipart";
 import {
+  contentTypeSchema,
+  fileNameSchema,
   metadataSchema,
   objectKeySchema,
   optionalChecksumSchema,
   optionalTrimmedString,
   partNumberSchema,
+  S3_DEFAULT_PART_SIZE,
+  S3_MAX_OBJECT_SIZE,
+  S3_MAX_PART_SIZE,
+  S3_MIN_PART_SIZE,
   sha256ChecksumSchema,
   trimmedString,
+  uploadTicketSchema,
 } from "./shared";
 import { confirmBodySchema, uploadBodySchema } from "./upload";
 
 const uploadBody = {
   route: "uploads",
-  fileName: "a.png",
-  fileSize: 10,
+  name: "a.png",
+  size: 10,
 };
 
 /** SHA-256("hi") as unpadded standard base64. */
 const SHA256_HI = "j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ";
+
+/** "é" is 2 UTF-8 bytes, so 127 of them plus "a" is exactly 255 bytes. */
+const NAME_255_BYTES = `${"é".repeat(127)}a`;
+const NAME_256_BYTES = "é".repeat(128);
+
+const TICKET = "v1.eyJpZCI6IngifQ.c2lnbmF0dXJl";
+
+function base64Url(value: string | Uint8Array): string {
+  const bytes =
+    typeof value === "string" ? new TextEncoder().encode(value) : value;
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+}
+
+function randomBytes(length: number) {
+  return crypto.getRandomValues(new Uint8Array(length));
+}
 
 describe("s3FetchErrorSchema", () => {
   it("accepts the API error JSON body", () => {
@@ -48,8 +82,9 @@ describe("s3FetchErrorSchema", () => {
     });
   });
 
-  it("requires message and rejects non-objects", () => {
+  it("requires code and message, and rejects non-objects", () => {
     expect(s3FetchErrorSchema.validate({ code: "X" })).toBe(false);
+    expect(s3FetchErrorSchema.validate({ message: "no code" })).toBe(false);
     expect(s3FetchErrorSchema.validate("not json")).toBe(false);
   });
 });
@@ -70,11 +105,126 @@ describe("optionalTrimmedString", () => {
   });
 });
 
+describe("fileNameSchema", () => {
+  it("trims and accepts up to 255 UTF-8 bytes", () => {
+    expect(fileNameSchema.parse(" a.png ")).toBe("a.png");
+    expect(fileNameSchema.parse(NAME_255_BYTES)).toBe(NAME_255_BYTES);
+  });
+
+  it("rejects an empty name and a 256-byte name", () => {
+    expect(fileNameSchema.validate("  ")).toBe(false);
+    expect(fileNameSchema.validate(NAME_256_BYTES)).toBe(false);
+    expect(fileNameSchema.validate("a".repeat(256))).toBe(false);
+  });
+
+  it("rejects control characters", () => {
+    expect(fileNameSchema.validate("a\u0001.png")).toBe(false);
+    expect(fileNameSchema.validate("a\n.png")).toBe(false);
+    expect(fileNameSchema.validate("a\u007f.png")).toBe(false);
+    expect(fileNameSchema.validate('a "b".png')).toBe(true);
+  });
+});
+
+describe("contentTypeSchema", () => {
+  it("trims and caps the type at 255 UTF-8 bytes", () => {
+    expect(contentTypeSchema.parse(" image/png ")).toBe("image/png");
+    expect(contentTypeSchema.validate(`x/${"a".repeat(253)}`)).toBe(true);
+    expect(contentTypeSchema.validate(`x/${"a".repeat(254)}`)).toBe(false);
+  });
+
+  it("rejects control characters", () => {
+    expect(contentTypeSchema.validate("image/png\u0000")).toBe(false);
+    expect(contentTypeSchema.validate("text/plain;\tcharset=utf-8")).toBe(
+      false,
+    );
+  });
+});
+
+describe("uploadTicketSchema", () => {
+  it("trims and accepts 1 to 8192 characters", () => {
+    expect(uploadTicketSchema.parse(` ${TICKET} `)).toBe(TICKET);
+    expect(uploadTicketSchema.validate("a".repeat(8192))).toBe(true);
+    expect(uploadTicketSchema.validate("a".repeat(8193))).toBe(false);
+    expect(uploadTicketSchema.validate("")).toBe(false);
+  });
+
+  it("fits a worst-case ticket with a 1024-character key and a 255-byte name", async () => {
+    // Largest JSON per accepted value: 3-byte UTF-8 key characters, and
+    // `"` (escaped to 2 bytes) filling the name and type byte caps.
+    const key = "€".repeat(1024);
+    const name = '"'.repeat(255);
+    const type = `x/${'"'.repeat(253)}`;
+    expect(objectKeySchema.parse(key)).toBe(key);
+    expect(fileNameSchema.parse(name)).toBe(name);
+    expect(contentTypeSchema.parse(type)).toBe(type);
+
+    const payload = {
+      id: base64Url(randomBytes(16)),
+      r: `r${"a".repeat(63)}`,
+      k: key,
+      m: "multipart",
+      u: "u".repeat(512),
+      n: name,
+      s: S3_MAX_OBJECT_SIZE,
+      t: type,
+      ps: S3_MAX_PART_SIZE,
+      pc: 10_000,
+      c: 1,
+      sb: base64Url(randomBytes(32)).slice(0, 22),
+      iat: 1_800_000_000,
+      exp: 1_800_086_400,
+    };
+    const payloadB64 = base64Url(JSON.stringify(payload));
+    const hmacKey = await crypto.subtle.importKey(
+      "raw",
+      randomBytes(32),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const signature = base64Url(
+      new Uint8Array(
+        await crypto.subtle.sign(
+          "HMAC",
+          hmacKey,
+          new TextEncoder().encode(`v1.${payloadB64}`),
+        ),
+      ),
+    );
+    const ticket = `v1.${payloadB64}.${signature}`;
+
+    expect(ticket.length).toBeLessThan(8192);
+    expect(uploadTicketSchema.parse(ticket)).toBe(ticket);
+  });
+});
+
+describe("part layout constants", () => {
+  it("matches the S3 multipart limits", () => {
+    expect(S3_MIN_PART_SIZE).toBe(5 * 1024 * 1024);
+    expect(S3_DEFAULT_PART_SIZE).toBe(8 * 1024 * 1024);
+    expect(S3_MAX_PART_SIZE).toBe(5 * 1024 * 1024 * 1024);
+    expect(S3_MAX_OBJECT_SIZE).toBe(5 * 1024 ** 4);
+  });
+});
+
 describe("uploadBodySchema", () => {
-  it("requires route, fileName, and fileSize", () => {
+  it("requires route, name, and size", () => {
     expect(uploadBodySchema.validate({})).toBe(false);
     expect(uploadBodySchema.validate({ route: "uploads" })).toBe(false);
-    expect(uploadBodySchema.parse(uploadBody)).toMatchObject(uploadBody);
+    expect(uploadBodySchema.parse(uploadBody)).toEqual(uploadBody);
+  });
+
+  it("rejects the 1.x field names", () => {
+    expect(
+      uploadBodySchema.validate({
+        route: "uploads",
+        fileName: "a.png",
+        fileSize: 10,
+      }),
+    ).toBe(false);
+    expect(
+      uploadBodySchema.validate({ ...uploadBody, contentType: "image/png" }),
+    ).toBe(false);
   });
 
   it("rejects invalid route names", () => {
@@ -86,23 +236,56 @@ describe("uploadBodySchema", () => {
     ).toBe(false);
   });
 
-  it("accepts optional metadata and contentType", () => {
+  it("accepts optional metadata and type", () => {
     expect(
       uploadBodySchema.parse({
         ...uploadBody,
-        contentType: "image/png",
+        type: "image/png",
         metadata: { source: "web" },
       }),
-    ).toMatchObject({
-      fileSize: 10,
+    ).toEqual({
+      ...uploadBody,
+      type: "image/png",
       metadata: { source: "web" },
     });
   });
 
-  it("rejects a non-integer fileSize", () => {
-    expect(uploadBodySchema.validate({ ...uploadBody, fileSize: 1.5 })).toBe(
-      false,
-    );
+  it("omits a blank type", () => {
+    expect(
+      uploadBodySchema.parse({ ...uploadBody, type: "" }).type,
+    ).toBeUndefined();
+    expect(
+      uploadBodySchema.parse({ ...uploadBody, type: "  " }).type,
+    ).toBeUndefined();
+  });
+
+  it("rejects a 256-byte name or type", () => {
+    expect(
+      uploadBodySchema.validate({ ...uploadBody, name: NAME_255_BYTES }),
+    ).toBe(true);
+    expect(
+      uploadBodySchema.validate({ ...uploadBody, name: NAME_256_BYTES }),
+    ).toBe(false);
+    expect(
+      uploadBodySchema.validate({
+        ...uploadBody,
+        type: `x/${"a".repeat(254)}`,
+      }),
+    ).toBe(false);
+  });
+
+  it("requires a positive integer size up to 5 TiB", () => {
+    expect(uploadBodySchema.validate({ ...uploadBody, size: 1.5 })).toBe(false);
+    expect(uploadBodySchema.validate({ ...uploadBody, size: 0 })).toBe(false);
+    expect(
+      uploadBodySchema.validate({ ...uploadBody, size: S3_MAX_OBJECT_SIZE }),
+    ).toBe(true);
+    expect(
+      uploadBodySchema.validate({
+        ...uploadBody,
+        size: S3_MAX_OBJECT_SIZE + 1,
+      }),
+    ).toBe(false);
   });
 
   it("rejects a client key, bucket, acl, or expiresIn", () => {
@@ -136,23 +319,21 @@ describe("uploadBodySchema", () => {
       false,
     );
   });
-
-  it("omits a blank contentType", () => {
-    expect(
-      uploadBodySchema.parse({ ...uploadBody, contentType: "" }).contentType,
-    ).toBeUndefined();
-  });
 });
 
 describe("confirmBodySchema", () => {
-  it("requires route and key", () => {
-    expect(confirmBodySchema.validate({ key: "a.png" })).toBe(false);
-    expect(confirmBodySchema.parse({ route: "uploads", key: "a.png" })).toEqual(
-      {
+  it("takes only the ticket", () => {
+    expect(confirmBodySchema.parse({ ticket: TICKET })).toEqual({
+      ticket: TICKET,
+    });
+    expect(confirmBodySchema.validate({})).toBe(false);
+    expect(
+      confirmBodySchema.validate({
+        ticket: TICKET,
         route: "uploads",
         key: "a.png",
-      },
-    );
+      }),
+    ).toBe(false);
   });
 });
 
@@ -161,7 +342,35 @@ describe("downloadQuerySchema", () => {
     expect(downloadQuerySchema.validate({ key: "a.png" })).toBe(false);
     expect(
       downloadQuerySchema.parse({ route: "uploads", key: "a.png" }),
-    ).toMatchObject({ route: "uploads", key: "a.png" });
+    ).toEqual({ route: "uploads", key: "a.png" });
+  });
+
+  it("takes name, not fileName", () => {
+    expect(
+      downloadQuerySchema.parse({
+        route: "uploads",
+        key: "a.png",
+        name: " report.pdf ",
+      }).name,
+    ).toBe("report.pdf");
+    expect(
+      downloadQuerySchema.parse({ route: "uploads", key: "a.png", name: "" })
+        .name,
+    ).toBeUndefined();
+    expect(
+      downloadQuerySchema.validate({
+        route: "uploads",
+        key: "a.png",
+        fileName: "report.pdf",
+      }),
+    ).toBe(false);
+    expect(
+      downloadQuerySchema.validate({
+        route: "uploads",
+        key: "a.png",
+        name: NAME_256_BYTES,
+      }),
+    ).toBe(false);
   });
 
   it("rejects unknown query keys", () => {
@@ -228,31 +437,105 @@ describe("downloadQuerySchema", () => {
 
 describe("fileQuerySchema", () => {
   it("requires route and key", () => {
+    expect(fileQuerySchema.parse({ route: "uploads", key: "a.png" })).toEqual({
+      route: "uploads",
+      key: "a.png",
+    });
+  });
+
+  it("takes name, not fileName, and no expiresIn", () => {
     expect(
-      fileQuerySchema.parse({ route: "uploads", key: "a.png" }),
-    ).toMatchObject({ route: "uploads", key: "a.png" });
+      fileQuerySchema.parse({ route: "uploads", key: "a.png", name: "a.png" })
+        .name,
+    ).toBe("a.png");
+    expect(
+      fileQuerySchema.validate({
+        route: "uploads",
+        key: "a.png",
+        fileName: "a.png",
+      }),
+    ).toBe(false);
+    expect(
+      fileQuerySchema.validate({
+        route: "uploads",
+        key: "a.png",
+        expiresIn: 60,
+      }),
+    ).toBe(false);
   });
 });
 
 describe("routeCatalogResponseSchema", () => {
+  const catalog = {
+    routes: {
+      uploads: {
+        upload: {
+          enabled: true,
+          fileTypes: ["image/*"],
+          multipart: true,
+          checksum: false,
+        },
+        download: {
+          enabled: true,
+          maxExpiresIn: 600,
+          disposition: "attachment",
+          inlineTypes: ["image/png"],
+          mode: "presign",
+        },
+        delete: { enabled: true },
+      },
+      avatars: {
+        upload: { enabled: false },
+        download: { enabled: false },
+        delete: { enabled: false },
+      },
+    },
+  };
+
   it("accepts a mixed catalog", () => {
+    expect(routeCatalogResponseSchema.parse(catalog)).toEqual(catalog);
+  });
+
+  it("requires checksum on an enabled upload", () => {
     expect(
-      routeCatalogResponseSchema.parse({
+      routeCatalogResponseSchema.validate({
         routes: {
           uploads: {
-            upload: {
-              enabled: true,
-              fileTypes: ["image/*"],
-              multipart: true,
-            },
-            download: { enabled: false },
-            delete: { enabled: true },
+            ...catalog.routes.uploads,
+            upload: { enabled: true, multipart: false },
           },
         },
       }),
-    ).toMatchObject({
-      routes: { uploads: { upload: { enabled: true, multipart: true } } },
-    });
+    ).toBe(false);
+  });
+
+  it("requires every download field and rejects the 1.x expiresIn", () => {
+    expect(
+      routeCatalogResponseSchema.validate({
+        routes: {
+          uploads: {
+            ...catalog.routes.uploads,
+            download: { enabled: true, expiresIn: 600 },
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects upload.replace", () => {
+    expect(
+      routeCatalogResponseSchema.validate({
+        routes: {
+          uploads: {
+            ...catalog.routes.uploads,
+            upload: {
+              ...catalog.routes.uploads.upload,
+              replace: "overwrite",
+            },
+          },
+        },
+      }),
+    ).toBe(false);
   });
 });
 
@@ -268,90 +551,90 @@ describe("deleteQuerySchema", () => {
   });
 });
 
-describe("deleteBatchBodySchema", () => {
-  it("requires 1–100 keys", () => {
+describe("deleteManyBodySchema", () => {
+  it("requires 1 to DELETE_MANY_MAX_KEYS keys", () => {
     expect(
-      deleteBatchBodySchema.parse({
+      deleteManyBodySchema.parse({
         route: "uploads",
         keys: ["uploads/a.png"],
       }),
     ).toEqual({ route: "uploads", keys: ["uploads/a.png"] });
-    expect(deleteBatchBodySchema.validate({ route: "uploads", keys: [] })).toBe(
+    expect(deleteManyBodySchema.validate({ route: "uploads", keys: [] })).toBe(
       false,
     );
+    const keys = Array.from(
+      { length: DELETE_MANY_MAX_KEYS + 1 },
+      (_, index) => `k${index}`,
+    );
+    expect(deleteManyBodySchema.validate({ route: "uploads", keys })).toBe(
+      false,
+    );
+    expect(
+      deleteManyBodySchema.validate({ route: "uploads", keys: keys.slice(1) }),
+    ).toBe(true);
   });
 });
 
 describe("multipart schemas", () => {
-  it("requires the same fields as upload on init", () => {
+  it("takes the upload fields on init, without checksum or partSize", () => {
     expect(multipartInitBodySchema.parse(uploadBody)).toEqual(uploadBody);
+    expect(
+      multipartInitBodySchema.validate({ ...uploadBody, partSize: 8 }),
+    ).toBe(false);
+    expect(
+      multipartInitBodySchema.validate({ ...uploadBody, checksum: SHA256_HI }),
+    ).toBe(false);
   });
 
-  it("requires a positive partNumber and partSize", () => {
+  it("signs a part from the ticket and part number", () => {
     expect(
-      multipartSignPartBodySchema.validate({
-        route: "uploads",
-        key: "a.png",
-        uploadId: "u",
-        partNumber: 0,
-      }),
-    ).toBe(false);
-    expect(
-      multipartSignPartBodySchema.validate({
-        route: "uploads",
-        key: "a.png",
-        uploadId: "u",
-        partNumber: 1,
-      }),
-    ).toBe(false);
-    expect(
-      multipartSignPartBodySchema.validate({
-        route: "uploads",
-        key: "a.png",
-        uploadId: "u",
-        partNumber: 10_001,
-        partSize: 8,
-      }),
-    ).toBe(false);
+      multipartSignPartBodySchema.parse({ ticket: TICKET, partNumber: 1 }),
+    ).toEqual({ ticket: TICKET, partNumber: 1 });
     expect(
       multipartSignPartBodySchema.parse({
+        ticket: TICKET,
+        partNumber: 2,
+        checksum: SHA256_HI,
+      }).checksum,
+    ).toBe(SHA256_HI);
+  });
+
+  it("rejects an out-of-range part number and the 1.x session fields", () => {
+    expect(
+      multipartSignPartBodySchema.validate({ ticket: TICKET, partNumber: 0 }),
+    ).toBe(false);
+    expect(
+      multipartSignPartBodySchema.validate({
+        ticket: TICKET,
+        partNumber: 10_001,
+      }),
+    ).toBe(false);
+    expect(
+      multipartSignPartBodySchema.validate({
+        ticket: TICKET,
+        partNumber: 1,
+        partSize: 8,
+      }),
+    ).toBe(false);
+    expect(
+      multipartSignPartBodySchema.validate({
         route: "uploads",
         key: "a.png",
         uploadId: "u",
         partNumber: 1,
-        partSize: 8,
       }),
-    ).toEqual({
-      route: "uploads",
-      key: "a.png",
-      uploadId: "u",
-      partNumber: 1,
-      partSize: 8,
+    ).toBe(false);
+  });
+
+  it("takes only the ticket for list, complete, and abort", () => {
+    expect(multipartTicketBodySchema.parse({ ticket: TICKET })).toEqual({
+      ticket: TICKET,
     });
-  });
-
-  it("requires at least one part to complete", () => {
+    expect(multipartTicketBodySchema.validate({})).toBe(false);
     expect(
-      multipartCompleteBodySchema.validate({
-        route: "uploads",
-        key: "a.png",
-        uploadId: "u",
-        parts: [],
-      }),
-    ).toBe(false);
-  });
-
-  it("requires uploadId on abort and list-parts", () => {
-    expect(
-      multipartAbortBodySchema.validate({
-        route: "uploads",
-        key: "a.png",
-      }),
-    ).toBe(false);
-    expect(
-      multipartListPartsQuerySchema.validate({
-        route: "uploads",
-        key: "a.png",
+      multipartTicketBodySchema.validate({
+        ticket: TICKET,
+        parts: [{ partNumber: 1 }],
       }),
     ).toBe(false);
   });
@@ -399,11 +682,52 @@ describe("sha256ChecksumSchema", () => {
   });
 });
 
+describe("protocol types", () => {
+  it("uses wire names and ticket-only payloads", () => {
+    const upload: UploadPayload = uploadBodySchema.parse(uploadBody);
+    const confirm: ConfirmPayload = confirmBodySchema.parse({ ticket: TICKET });
+    expect(upload.name).toBe("a.png");
+    expect(confirm.ticket).toBe(TICKET);
+
+    expectTypeOf<UploadPayload>().not.toHaveProperty("fileName");
+    expectTypeOf<ConfirmPayload>().toEqualTypeOf<{ ticket: string }>();
+    expectTypeOf<MultipartTicketPayload>().toEqualTypeOf<{ ticket: string }>();
+  });
+
+  it("takes per-call options on every S3Api method", async () => {
+    const seen: Array<S3RequestOptions | undefined> = [];
+    const abort: S3Api["multipart"]["abort"] = async (payload, options) => {
+      seen.push(options);
+      return { key: "a.png", uploadId: payload.ticket };
+    };
+    const signal = AbortSignal.abort();
+
+    await expect(abort({ ticket: TICKET }, { signal })).resolves.toEqual({
+      key: "a.png",
+      uploadId: TICKET,
+    });
+    expect(seen).toEqual([{ signal }]);
+
+    expectTypeOf<Parameters<S3Api["upload"]>[1]>().toEqualTypeOf<
+      S3RequestOptions | undefined
+    >();
+    expectTypeOf<Parameters<S3Api["catalog"]>[0]>().toEqualTypeOf<
+      S3RequestOptions | undefined
+    >();
+    expectTypeOf<
+      Parameters<S3Api<{ locals: object }>["deleteMany"]>[1]
+    >().toEqualTypeOf<{ locals: object } | undefined>();
+  });
+});
+
 describe("z.compile", () => {
   it("compiles every protocol schema", () => {
     const schemas = [
       trimmedString,
       optionalTrimmedString,
+      fileNameSchema,
+      contentTypeSchema,
+      uploadTicketSchema,
       objectKeySchema,
       partNumberSchema,
       metadataSchema,
@@ -414,13 +738,10 @@ describe("z.compile", () => {
       downloadQuerySchema,
       fileQuerySchema,
       deleteQuerySchema,
-      deleteBatchBodySchema,
+      deleteManyBodySchema,
       multipartInitBodySchema,
       multipartSignPartBodySchema,
-      multipartListPartsQuerySchema,
-      multipartCompletedPartSchema,
-      multipartCompleteBodySchema,
-      multipartAbortBodySchema,
+      multipartTicketBodySchema,
       routeCatalogResponseSchema,
       s3FetchErrorSchema,
     ];
@@ -432,6 +753,9 @@ describe("z.compile", () => {
   it("compiled schemas validate without building a parse result", () => {
     const compiled = z.compile(uploadBodySchema, { strict: true });
     expect(compiled.validate(uploadBody)).toBe(true);
+    expect(compiled.validate({ ...uploadBody, name: NAME_256_BYTES })).toBe(
+      false,
+    );
     expect(compiled.validate({})).toBe(false);
   });
 });

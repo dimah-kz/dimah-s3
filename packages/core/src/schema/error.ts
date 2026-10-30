@@ -7,12 +7,12 @@ export const s3ErrorParamsSchema = z.record(
 );
 
 /**
- * better-fetch `errorSchema` — same `{ message, code?, params? }` body
- * better-call serializes from `APIError`.
+ * better-fetch `errorSchema`. Matches the `{ code, message, params? }` body
+ * that every API error response carries.
  */
 export const s3FetchErrorSchema = z.object({
+  code: z.string(),
   message: z.string(),
-  code: z.string().optional(),
   params: s3ErrorParamsSchema.optional(),
 });
 
