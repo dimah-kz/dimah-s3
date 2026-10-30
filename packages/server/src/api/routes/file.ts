@@ -8,6 +8,7 @@ import {
 import type * as z from "zod";
 import { errors } from "@/errors";
 import {
+  applyInlineTypes,
   headObjectOrNotFound,
   openStoredTarget,
   runHook,
@@ -46,16 +47,23 @@ async function handleFile(
     disposition,
   });
 
-  await headObjectOrNotFound(route.client, bucket, key);
+  const head = await headObjectOrNotFound(route.client, bucket, key);
+  const signed = applyInlineTypes(route.download.inlineTypes, {
+    key,
+    fileName,
+    disposition,
+    contentType: head.ContentType,
+  });
+  const contentDisposition = fileName
+    ? buildContentDisposition(fileName, signed.disposition)
+    : signed.disposition;
 
   const result = await sendOrObjectNotFound(() =>
     route.client.send(
       new GetObjectCommand({
         Bucket: bucket,
         Key: key,
-        ResponseContentDisposition: fileName
-          ? buildContentDisposition(fileName, disposition)
-          : disposition,
+        ResponseContentDisposition: contentDisposition,
       }),
     ),
   );
@@ -70,11 +78,13 @@ async function handleFile(
       : (body as ReadableStream<Uint8Array>);
 
   const headers = new Headers();
-  headers.set("Content-Type", result.ContentType ?? "application/octet-stream");
   headers.set(
-    "Content-Disposition",
-    fileName ? buildContentDisposition(fileName, disposition) : disposition,
+    "Content-Type",
+    signed.contentType ?? result.ContentType ?? "application/octet-stream",
   );
+  headers.set("Content-Disposition", contentDisposition);
+  // Same-origin bytes: the browser must not guess a type that runs as a page.
+  headers.set("X-Content-Type-Options", "nosniff");
   if (typeof result.ContentLength === "number") {
     headers.set("Content-Length", String(result.ContentLength));
   }

@@ -56,6 +56,38 @@ A client may send `expiresIn` on the download query. The signed TTL is the short
 
 ---
 
+## Open in the browser only for known types
+
+A client can ask for `disposition: "inline"`. Without a limit, any stored
+object — HTML or SVG included — would then render in a browser tab. Set
+`inlineTypes` to the types this route may open inline:
+
+```ts title="lib/s3.ts"
+files: route({
+  download: {
+    inlineTypes: ["image/*", "application/pdf", "video/mp4", "text/plain"], // [!code ++]
+  },
+}),
+```
+
+After the guards, the server reads the object's type from HeadObject:
+
+- On the list (`image/*` matches the same way as `upload.fileTypes`): the
+  requested `inline` is kept.
+- Anything else is signed as `attachment`, whatever the client asked for.
+- A wildcard never matches types that run as a page: HTML, any XML
+  (including `image/svg+xml`), and JavaScript. List one exactly to allow it.
+- An object stored as `application/octet-stream` is typed from its file name.
+  When that type is allowed, it is signed as `ResponseContentType` so the
+  browser renders it.
+
+`GET /routes` returns the list as `download.inlineTypes`. A client can pass it
+to `resolveInlineDisposition` from `@dimah-s3/core` to choose Preview or
+Download with the server's rule. The same helper works inside `resolve`.
+Proxy responses (`GET /file`) also send `X-Content-Type-Options: nosniff`.
+
+---
+
 ## Type reference
 
 ```ts

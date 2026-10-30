@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { validateFile } from "@dimah-s3/core";
 import {
   ErrorCode,
@@ -93,7 +93,8 @@ export function useFileIntake(
   const {
     getRootProps,
     getInputProps: getDropzoneInputProps,
-    open,
+    inputRef,
+    open: openDropzone,
     isDragActive,
     isDragAccept,
     isDragReject,
@@ -111,14 +112,40 @@ export function useFileIntake(
     onDropRejected,
   });
 
+  // Several inputs can share one hook, such as a list and the upload button in
+  // its header. Dropzone's single object ref is cleared when any of them
+  // unmounts, so track every input and open one that is still mounted.
+  const inputsRef = useRef(new Set<HTMLInputElement>());
+  const attachInput = useCallback(
+    (node: HTMLInputElement | null) => {
+      if (!node) return;
+      inputsRef.current.add(node);
+      inputRef.current = node;
+    },
+    [inputRef],
+  );
+
   const getInputProps = useCallback(
     <T extends DropzoneInputProps>(props?: T): T =>
-      getDropzoneInputProps({
-        ...props,
-        ...(htmlAccept != null ? { accept: htmlAccept } : {}),
-      } as T),
-    [getDropzoneInputProps, htmlAccept],
+      ({
+        ...getDropzoneInputProps({
+          ...props,
+          ...(htmlAccept != null ? { accept: htmlAccept } : {}),
+        } as T),
+        ref: attachInput,
+      }) as T,
+    [attachInput, getDropzoneInputProps, htmlAccept],
   );
+
+  const open = useCallback(() => {
+    const inputs = inputsRef.current;
+    for (const node of inputs) {
+      if (!node.isConnected) inputs.delete(node);
+    }
+    const ref = inputRef as { current: HTMLInputElement | null };
+    if (!ref.current?.isConnected) ref.current = [...inputs].at(-1) ?? null;
+    openDropzone();
+  }, [inputRef, openDropzone]);
 
   return {
     getRootProps,

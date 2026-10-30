@@ -16,6 +16,15 @@ export type DbObjectListAccessors = {
   getDescription: (object: DbClientObject) => string | null;
 };
 
+/** Options for {@link dbObjectListAccessors}. */
+export type DbObjectListAccessorsOptions = {
+  /**
+   * Size label for `getDescription`. In React, pass `useFormatFileSize()`
+   * from `@dimah-s3/react` to follow the `S3Provider` `locale`.
+   */
+  formatSize?: (bytes: number) => string;
+};
+
 function displayName(object: DbClientObject): string {
   return object.filename || fileNameFromKey(object.key) || object.key;
 }
@@ -31,7 +40,11 @@ function displayName(object: DbClientObject): string {
  * <ObjectList list={list} {...files} />
  * ```
  */
-export function dbObjectListAccessors(): DbObjectListAccessors {
+export function dbObjectListAccessors(
+  options: DbObjectListAccessorsOptions = {},
+): DbObjectListAccessors {
+  const formatSize =
+    options.formatSize ?? ((bytes: number) => formatFileSize(bytes));
   return {
     getKey: (object) => object.id,
     getObjectKey: (object) => object.key,
@@ -39,6 +52,6 @@ export function dbObjectListAccessors(): DbObjectListAccessors {
     getFileName: displayName,
     getFileType: (object) => object.contentType,
     getDescription: (object) =>
-      object.size != null ? formatFileSize(object.size) : null,
+      object.size != null ? formatSize(object.size) : null,
   };
 }

@@ -3,12 +3,8 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Trash2Icon, LoaderIcon } from "lucide-react";
 import { cn } from "cn";
-import {
-  formatFileSize,
-  fileNameFromKey,
-  truncateFileName,
-} from "@dimah-s3/core";
-import type { UseDeleteReturn } from "@dimah-s3/react";
+import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
+import { useFormatFileSize, type UseDeleteReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   resolveStatusSlot,
@@ -34,11 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useDeleteUi } from "@/hooks/use-delete-ui";
-
-/** Keep LTR file names and sizes readable inside RTL confirmation copy. */
-function isolateLtr(value: string): string {
-  return `\u2066${value}\u2069`;
-}
+import { isolateText } from "@/lib/isolate-text";
 
 /** Props for {@link DeleteButton}. Pass a {@link UseDeleteReturn} as `delete`. */
 export type DeleteButtonProps = AttachmentLayoutAliases & {
@@ -99,6 +91,7 @@ export function DeleteButton({
   attachmentOrientation,
 }: DeleteButtonProps) {
   const t = useTranslations();
+  const formatFileSize = useFormatFileSize();
   const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
   const isThis = del.objectKey === objectKey;
   const isDeletingThis = del.isDeleting && isThis;
@@ -122,10 +115,11 @@ export function DeleteButton({
     </>
   );
 
+  const name = isolateText(truncateFileName(displayName));
   const fileLabel =
     fileSize != null
-      ? `${truncateFileName(displayName)} (${formatFileSize(fileSize)})`
-      : truncateFileName(displayName);
+      ? `${name} (${isolateText(formatFileSize(fileSize))})`
+      : name;
 
   const description =
     confirmDescription ??
@@ -133,7 +127,7 @@ export function DeleteButton({
       'Are you sure you want to delete "{name}"? This action cannot be undone.',
       {
         note: "dialog description",
-        variables: { name: isolateLtr(fileLabel) },
+        variables: { name: fileLabel },
       },
     );
 
@@ -178,10 +172,7 @@ export function DeleteButton({
               <AlertDialogTitle>
                 {confirmTitle ?? t("Delete file?", { note: "dialog title" })}
               </AlertDialogTitle>
-              <AlertDialogDescription
-                dir="auto"
-                className="[overflow-wrap:anywhere]"
-              >
+              <AlertDialogDescription className="[overflow-wrap:anywhere]">
                 {description}
               </AlertDialogDescription>
             </AlertDialogHeader>

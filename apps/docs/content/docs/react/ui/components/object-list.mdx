@@ -143,7 +143,7 @@ const list = useObjectList({
 
 ## Upload into the open folder
 
-Pass the same `useUpload` to `upload` and, for the file picker, to `UploadButton` in `header`. Set `noClick` and `noKeyboard` on the hook. The list surface accepts a drop and a paste, and it does not open the picker when a row is clicked.
+Pass the same `useUpload` to `upload` and, for the file picker, to `UploadButton` in `header`. Set `noClick` and `noKeyboard` on the hook. The list surface accepts a drop and a paste, and it does not open the picker when a row is clicked. The list renders the hook's file input itself, so `upload.open()` from any trigger — a menu item, a split button, or an empty-state call to action — opens the picker.
 
 `getUploadOptions` reads `list.parent` and sends it as `metadata.folderId`. It runs as each file starts, so it sees the folder that is open at that moment. Read `clientMetadata.folderId` in `upload.object` or `upload.guard` and store it on your file row. The library does not write that id into the object key, and it does not retarget a drop onto the folder under the pointer.
 

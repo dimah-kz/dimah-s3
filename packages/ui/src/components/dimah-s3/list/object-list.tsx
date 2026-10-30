@@ -175,7 +175,9 @@ export type ObjectListProps<TItem> = {
    * Drop and paste files onto this list. Pass `useUpload` with `noClick`
    * and `noKeyboard`. `getUploadOptions` chooses the folder from
    * `list.parent`; this component does not write metadata. Clicking the
-   * list does not open the file picker. A paste uploads while focus is
+   * list does not open the file picker. The list renders the hook's file
+   * input, so `upload.open()` from any trigger, such as a menu item or an
+   * empty-state button, opens the picker. A paste uploads while focus is
    * inside the list. The destination is the open folder, including when
    * the pointer is over a folder row. When the batch settles and at least
    * one file succeeded, `list.refresh` runs once. A mixed batch still
@@ -465,7 +467,12 @@ function ObjectListFrame<TItem>({
           ready={!sized || scroller != null}
         />
       </div>
-      {upload ? <ObjectListDropOverlay upload={upload} /> : null}
+      {upload ? (
+        <>
+          <input {...upload.getInputProps()} />
+          <ObjectListDropOverlay upload={upload} />
+        </>
+      ) : null}
     </section>
   );
 }

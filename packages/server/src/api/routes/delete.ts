@@ -4,9 +4,8 @@ import {
   S3_API_ROUTES,
   type DeleteResponse,
 } from "@dimah-s3/core";
-import type * as z from "zod";
 import {
-  headObjectOrNotFound,
+  objectExists,
   openStoredTarget,
   runHook,
   runLifecycleHook,
@@ -14,9 +13,14 @@ import {
 import type { ResolvedDimahS3Config } from "@/types";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
 
-async function handleDelete(
+/**
+ * Idempotent delete. An object that never landed, or is already gone, still
+ * runs the guards and `onDeleted` (with `existed: false`), so a `db()` row
+ * for a pending or expired upload is cleaned up.
+ */
+export async function deleteStoredObject(
   config: ResolvedDimahS3Config,
-  input: z.output<typeof deleteQuerySchema>,
+  input: { route: string; key: string },
   request: Request,
 ): Promise<DeleteResponse> {
   const { route, key, bucket, stored } = await openStoredTarget(
@@ -28,21 +32,30 @@ async function handleDelete(
 
   await runHook(route.delete.guard, stored);
 
-  await headObjectOrNotFound(route.client, bucket, key);
+  const existed = await objectExists(route.client, bucket, key);
+  if (existed) {
+    await route.client.send(
+      new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+    );
+  }
 
-  await route.client.send(
-    new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+  await runLifecycleHook(
+    route.delete.onDeleted,
+    { ...stored, existed },
+    config,
   );
 
-  await runLifecycleHook(route.delete.onDeleted, stored, config);
-
-  return { success: true, bucket, key };
+  return { success: true, bucket, key, existed };
 }
 
 export const deleteObject = createS3Endpoint(
   S3_API_ROUTES.delete,
   { method: "DELETE", query: deleteQuerySchema },
   async (ctx) => {
-    return handleDelete(ctx.context.config, ctx.query, ctx.context.request);
+    return deleteStoredObject(
+      ctx.context.config,
+      ctx.query,
+      ctx.context.request,
+    );
   },
 );

@@ -195,11 +195,20 @@ function splitFileName(name: string) {
   return { stem: name.slice(0, dot), extension };
 }
 
-/** Ellipsis on the stem. The extension stays visible, as on file attachments. */
-function FileNameLabel({ name }: { name: string }) {
-  const { stem, extension } = splitFileName(name);
+/**
+ * An inline isolate: the name starts at the row's start edge whatever its
+ * script, and the row keeps its own direction. A file keeps its extension
+ * visible and puts the ellipsis on the stem, as on file attachments.
+ */
+function NameLabel({ name, kind }: { name: string; kind: "file" | "folder" }) {
+  const { stem, extension } =
+    kind === "file" ? splitFileName(name) : { stem: name, extension: "" };
   return (
-    <span dir="auto" title={name} className="flex max-w-full min-w-0">
+    <span
+      dir="auto"
+      title={name}
+      className="inline-flex max-w-full min-w-0 align-top"
+    >
       <span className="min-w-0 truncate">{stem}</span>
       {extension ? <span className="shrink-0">{extension}</span> : null}
     </span>
@@ -278,7 +287,7 @@ function ObjectListRow({
         >
           <div className="flex min-w-0 items-center gap-2">
             <ItemTitle className="line-clamp-none block w-full min-w-0 overflow-hidden font-normal">
-              <FileNameLabel name={title} />
+              <NameLabel name={title} kind={kind} />
             </ItemTitle>
             {showMeta ? <div className="shrink-0">{meta}</div> : null}
           </div>

@@ -86,7 +86,9 @@ export function ObjectListBreadcrumb({
                         disabled={navigate == null}
                         onClick={() => navigate?.(trail.slice(0, index + 1))}
                       >
-                        <span className="truncate">{folder.name}</span>
+                        <span className="truncate">
+                          <bdi>{folder.name}</bdi>
+                        </span>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>
@@ -104,7 +106,7 @@ export function ObjectListBreadcrumb({
               <BreadcrumbItem className="min-w-0">
                 {current || navigate == null ? (
                   <BreadcrumbPage className="max-w-40 truncate sm:max-w-56">
-                    {folder.name}
+                    <bdi>{folder.name}</bdi>
                   </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink
@@ -112,7 +114,7 @@ export function ObjectListBreadcrumb({
                     render={<button type="button" />}
                     onClick={() => navigate(trail.slice(0, trailIndex + 1))}
                   >
-                    {folder.name}
+                    <bdi>{folder.name}</bdi>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>

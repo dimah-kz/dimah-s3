@@ -16,6 +16,10 @@ export type CreateQuotaGuardOptions = {
 
 export type QuotaGuardContext = {
   request: Request;
+  /** Named route. Passed on to `resolveScope`. */
+  route?: string;
+  /** Client extras from the presign body. Passed on to `resolveScope`. */
+  clientMetadata?: Record<string, string>;
   file?: { size?: number };
   replace?: "overwrite";
   key?: string;
@@ -40,7 +44,12 @@ export function createQuotaGuard(
   const objects = resolveStore(options.client);
 
   return async (context) => {
-    const scope = await options.resolveScope(context.request);
+    const scope = await options.resolveScope(context.request, {
+      operation: "upload",
+      route: context.route,
+      key: context.key,
+      clientMetadata: context.clientMetadata,
+    });
     if (scope === null) throw unauthorized();
     const usage = await objects.getScopeUsage(scope);
     const incoming = context.file?.size ?? 0;

@@ -10,6 +10,7 @@ const objectSizes = new Map<string, number>();
 
 async function removeDemoKey(key: string) {
   await new Promise((resolve) => setTimeout(resolve, 1200));
+  const existed = objectSizes.has(key);
   objectSizes.delete(key);
   pendingUploadSizes.delete(key);
   forgetDemoFile(key);
@@ -17,6 +18,7 @@ async function removeDemoKey(key: string) {
     success: true as const,
     bucket: "demo",
     key,
+    existed,
   };
 }
 
@@ -97,8 +99,8 @@ export const demoS3Api: DemoS3Api = {
     results: await Promise.all(
       payload.keys.map(async (key) => {
         try {
-          await removeDemoKey(key);
-          return { key, success: true as const };
+          const { existed } = await removeDemoKey(key);
+          return { key, success: true as const, existed };
         } catch {
           return {
             key,

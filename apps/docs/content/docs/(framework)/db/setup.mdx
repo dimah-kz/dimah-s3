@@ -168,6 +168,33 @@ The same store is available as `s3.db` (and `s3.context.db`):
 s3.db.objects.listByScope({ scope: "user:123" });
 ```
 
+### Scope context
+
+`resolveScope` receives a second argument with the values the endpoint
+already validated: `operation` (`"upload"`, `"confirm"`, `"multipart"`,
+`"download"`, `"delete"`, or `"list"`), `route`, the object `key`, and, on
+upload, the client's `clientMetadata`. A scope that depends on the key does
+not have to parse the request. A batch delete resolves once per key, and one
+request never calls the resolver twice for the same operation and key.
+
+```ts title="lib/s3.ts"
+db({
+  client: dimahS3Db,
+  resolveScope: async (request, { key }) => {
+    const session = await getSession(request);
+    if (!session) return null;
+    // Keys look like `{route}/{kind}/{id}/…`.
+    const kind = key?.split("/")[1]; // [!code highlight]
+    return kind === "org" ? `org:${session.orgId}` : `user:${session.userId}`;
+  },
+});
+```
+
+<AutoTypeTable
+  path="packages/db/src/types/storage-object.ts"
+  name="ScopeContext"
+/>
+
 <Callout type="warn" title="Features stay opt-in">
   Plugin hooks merge onto every route unless the route sets
   `plugins: { db: false }`. You still enable each operation on the route
@@ -196,6 +223,12 @@ When that path runs:
 
 1. S3 — `DeleteObject` removes the object
 2. Database — controlled by `deleteMode` (default `"soft"`)
+
+Delete is idempotent. A `pending` row whose object never landed (a closed
+tab, a network error, an object a lifecycle rule removed) is cleaned up the
+same way, so it stops counting toward [quota](/docs/db/api#quota-guards)
+before the purge job runs. A pending multipart upload is aborted by its
+`uploadId`.
 
 | `deleteMode` | S3 object           | Database row                                     |
 | ------------ | ------------------- | ------------------------------------------------ |

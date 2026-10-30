@@ -4,6 +4,7 @@ export type Translations = {
   "Access denied(API error)": string;
   "All {count} file(s) uploaded(status)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
+  "B(file size unit)": string;
   "Cancel download(tooltip)": string;
   "Cancel(dialog button)": string;
   "Cancel(toast action)": string;
@@ -38,6 +39,7 @@ export type Translations = {
   "Drag and drop files here(dropzone)": string;
   "Drop files here to add them to this folder.(object list)": string;
   "Drop to upload into this folder(object list)": string;
+  "EB(file size unit)": string;
   "Earlier folders(object list)": string;
   "Expires in 1 day(object list menu)": string;
   "Expires in 1 hour(object list menu)": string;
@@ -59,12 +61,16 @@ export type Translations = {
   "Files and folders you add here will show up in this list.(object list)": string;
   "Files(object list)": string;
   "Finishing…(upload status)": string;
+  "GB(file size unit)": string;
   "Invalid request(API error)": string;
+  "KB(file size unit)": string;
   "Link copied(object list menu)": string;
   "Loading files(object list)": string;
+  "MB(file size unit)": string;
   "Not found(API error)": string;
   "Nothing to delete(object list selection)": string;
   "Object key is invalid(API error)": string;
+  "PB(file size unit)": string;
   "Pause(upload control)": string;
   "Preparing…(upload status)": string;
   "Retry(object list)": string;
@@ -73,6 +79,7 @@ export type Translations = {
   "Select {name}(object list selection)": string;
   "Selected folders stay in the list.(object list selection)": string;
   "Something went wrong(API error)": string;
+  "TB(file size unit)": string;
   "These files cannot be uploaded(object list)": string;
   "This action cannot be undone.(object list selection)": string;
   "This folder is empty(object list)": string;

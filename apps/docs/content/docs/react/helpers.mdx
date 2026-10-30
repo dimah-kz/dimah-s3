@@ -25,6 +25,7 @@ formatEta(800_000, 200_000); // "4s"
 import { formatFileSize, truncateFileName, validateFile } from "@dimah-s3/core";
 
 formatFileSize(1_500_000); // "1.4 MB"
+formatFileSize(1_500_000, { locale: "fa", units: { MB: "مگابایت" } }); // "۱٫۴ مگابایت"
 truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi… .png"
 
 const error = validateFile(file, {
@@ -33,6 +34,11 @@ const error = validateFile(file, {
 });
 // returns null if valid, or { code: "FILE_TYPE_NOT_ALLOWED", message }
 ```
+
+In React, `useFormatFileSize()` and `useFormatNumber()` follow the `locale`
+on `S3Provider` and take unit labels from your translations. The built-in UI
+uses them for sizes, counts, and progress. See
+[Internationalization](/docs/i18n#numbers-and-sizes).
 
 ---
 

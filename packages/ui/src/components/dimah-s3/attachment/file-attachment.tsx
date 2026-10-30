@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { AlertCircleIcon, PauseIcon, XIcon } from "lucide-react";
+import { truncateFileName, type APIError } from "@dimah-s3/core";
 import {
-  formatFileSize,
-  truncateFileName,
-  type APIError,
-} from "@dimah-s3/core";
-import { useFormatDimahError } from "@dimah-s3/react";
+  useFormatDimahError,
+  useFormatFileSize,
+  useFormatNumber,
+} from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import {
@@ -81,6 +81,8 @@ export function FileAttachment({
 }: FileAttachmentProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const formatFileSize = useFormatFileSize();
+  const formatNumber = useFormatNumber();
   const errorText =
     error == null
       ? null
@@ -116,7 +118,7 @@ export function FileAttachment({
           state === "uploading"
             ? t("{percent}%", {
                 note: "progress",
-                variables: { percent: String(Math.round(percent)) },
+                variables: { percent: formatNumber(Math.round(percent)) },
               })
             : undefined
         }

@@ -35,9 +35,6 @@ export function createDatabaseEndpoints(options: {
       pluginPath("db", "objects"),
       { method: "GET", query: dbListQuerySchema },
       async (ctx): Promise<DbClientListResponse> => {
-        const scope = await options.resolveScope(ctx.context.request);
-        if (scope === null) throw unauthorized();
-
         const {
           status,
           limit = DB_LIST_DEFAULT_LIMIT,
@@ -47,6 +44,12 @@ export function createDatabaseEndpoints(options: {
           contentType,
           prefix,
         } = ctx.query ?? {};
+
+        const scope = await options.resolveScope(ctx.context.request, {
+          operation: "list",
+          route,
+        });
+        if (scope === null) throw unauthorized();
 
         const fetchLimit = limit + 1;
         const [rows, usage] = await Promise.all([
@@ -81,7 +84,10 @@ export function createDatabaseEndpoints(options: {
       pluginPath("db", "object"),
       { method: "GET", query: dbGetQuerySchema },
       async (ctx): Promise<{ object: DbClientObject }> => {
-        const scope = await options.resolveScope(ctx.context.request);
+        const scope = await options.resolveScope(ctx.context.request, {
+          operation: "list",
+          key: ctx.query.key,
+        });
         if (scope === null) throw unauthorized();
         const found = await options.objects.findByScopeKey({
           scope,

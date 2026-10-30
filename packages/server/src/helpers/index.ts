@@ -44,9 +44,11 @@ export {
 export {
   headObjectAfterMultipartComplete,
   headObjectOrNotFound,
+  objectExists,
   requireContentLength,
 } from "./head-object";
 export { listAllParts, listedPartsByteSize } from "./list-parts";
+export { applyInlineTypes } from "./inline-types";
 export { resolveLogger, defaultLogger } from "./logger";
 export { finalizeConfirmedObject } from "./finalize-confirmed";
 export {

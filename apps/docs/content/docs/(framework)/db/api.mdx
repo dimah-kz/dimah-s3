@@ -210,21 +210,25 @@ custom route policy. Its signature is
 The guard resolves the caller's scope, loads the row by bucket and key, checks
 its status and ownership, and optionally verifies a multipart `uploadId`. It
 throws `UNAUTHORIZED`, `OBJECT_NOT_FOUND`, or `FORBIDDEN` when a check fails.
+`operation` is passed to `resolveScope` with the route and key, so create one
+guard per hook.
 
 ```ts
 import { createObjectAccessGuard } from "@dimah-s3/db";
 
-const activeObjectGuard = createObjectAccessGuard({
-  client: dimahS3Db,
-  resolveScope,
-  // requireStatus defaults to "active"
-});
+const guardFor = (operation: "download" | "delete") =>
+  createObjectAccessGuard({
+    client: dimahS3Db,
+    resolveScope,
+    operation,
+    // requireStatus defaults to "active"
+  });
 
 documents: route({
   // This route owns its guard composition; matching DB rows must already exist.
   plugins: { db: false }, // [!code ++]
-  download: { guard: activeObjectGuard }, // [!code ++]
-  delete: { guard: activeObjectGuard }, // [!code ++]
+  download: { guard: guardFor("download") }, // [!code ++]
+  delete: { guard: guardFor("delete") }, // [!code ++]
 });
 ```
 

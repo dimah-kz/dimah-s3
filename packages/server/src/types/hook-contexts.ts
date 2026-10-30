@@ -205,8 +205,14 @@ export type DownloadOnPresignedContext = DownloadGuardContext & {
 /** Context for `delete.guard`. */
 export type DeleteGuardContext = StoredObjectContext;
 
-/** Context for `delete.onDeleted`. */
-export type DeleteOnDeletedContext = StoredObjectContext;
+/**
+ * Context for `delete.onDeleted`. Delete is idempotent: this hook also runs
+ * when the object was never uploaded or is already gone.
+ */
+export type DeleteOnDeletedContext = StoredObjectContext & {
+  /** `false` when HeadObject found nothing, so no `DeleteObject` was sent. */
+  existed: boolean;
+};
 
 /** Shared base for multipart operations that already have an upload id. */
 export type MultipartUploadContext = StoredObjectContext & {

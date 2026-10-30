@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import {
-  formatFileSize,
-  fileNameFromKey,
-  truncateFileName,
-} from "@dimah-s3/core";
+import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import {
   isFetchDownload,
   useFormatDimahError,
+  useFormatFileSize,
   type UseDownloadReturn,
 } from "@dimah-s3/react";
 
@@ -36,6 +33,7 @@ export function useDownloadToast(
   { enabled = true, objectKey, fileName, fileSize }: DownloadToastOptions,
 ) {
   const t = useTranslations();
+  const formatFileSize = useFormatFileSize();
   const formatDimahError = useFormatDimahError();
   const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
   const toastIdRef = useRef<string | null>(null);
@@ -62,7 +60,7 @@ export function useDownloadToast(
     if (!enabled || activeKey !== objectKey) return;
 
     const errorNode = (value: unknown) => (
-      <span dir="auto" className="block [overflow-wrap:anywhere]">
+      <span className="block [overflow-wrap:anywhere]">
         {formatDimahError(value)}
       </span>
     );
@@ -81,11 +79,7 @@ export function useDownloadToast(
           type: "loading",
           timeout: 0,
           title: t("Downloading", { note: "toast" }),
-          description: (
-            <span dir="auto">
-              <bdi>{truncateFileName(displayName)}</bdi>
-            </span>
-          ),
+          description: <bdi>{truncateFileName(displayName)}</bdi>,
           actionProps: {
             children: t("Cancel", { note: "toast action" }),
             onClick: () => cancelRef.current?.(),
@@ -106,12 +100,9 @@ export function useDownloadToast(
                 <>
                   {" "}
                   ·{" "}
-                  <span
-                    dir="ltr"
-                    className="inline-block whitespace-nowrap tabular-nums"
-                  >
+                  <bdi className="inline-block whitespace-nowrap tabular-nums">
                     {formatFileSize(fileSize)}
-                  </span>
+                  </bdi>
                 </>
               ) : null}
             </span>
@@ -136,7 +127,7 @@ export function useDownloadToast(
         toast.add({
           type: "info",
           title: t("Download cancelled", { note: "toast" }),
-          description: <span dir="auto">{truncateFileName(displayName)}</span>,
+          description: <bdi>{truncateFileName(displayName)}</bdi>,
         });
       }
       return;
@@ -169,6 +160,7 @@ export function useDownloadToast(
     objectKey,
     t,
     formatDimahError,
+    formatFileSize,
   ]);
 
   useEffect(() => {
@@ -187,15 +179,16 @@ export function useDownloadToast(
       timeout: 0,
       title: t("Downloading", { note: "toast" }),
       description: (
-        <span dir="ltr" className="inline-block whitespace-nowrap tabular-nums">
-          {formatFileSize(progress.loaded)}
-          {progress.total > 0 ? ` / ${formatFileSize(progress.total)}` : null}
-        </span>
+        <bdi className="inline-block whitespace-nowrap tabular-nums">
+          {progress.total > 0
+            ? `${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`
+            : formatFileSize(progress.loaded)}
+        </bdi>
       ),
       actionProps: {
         children: t("Cancel", { note: "toast action" }),
         onClick: () => cancelRef.current?.(),
       },
     });
-  }, [enabled, phase, progress, t, activeKey, objectKey]);
+  }, [enabled, phase, progress, t, activeKey, objectKey, formatFileSize]);
 }

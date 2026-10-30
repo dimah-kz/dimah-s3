@@ -1,14 +1,16 @@
+import { AbortMultipartUploadCommand, type S3Client } from "@aws-sdk/client-s3";
 import type { DimahS3PluginHooks } from "@dimah-s3/server";
 import { forbidden, unauthorized } from "@/errors";
 import type {
   DimahS3DbClient,
   StorageObjectStore,
 } from "@/store/storage-object-store";
-import type { ScopeResolver } from "@/types/storage-object";
+import type { ScopeContext, ScopeResolver } from "@/types/storage-object";
 import {
   createObjectAccessGuard,
   resolveStore,
 } from "@/hooks/create-object-access-guard";
+import { memoizeScopeResolver } from "./memoize-scope-resolver";
 
 const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -17,6 +19,11 @@ export type CreateDatabaseLifecycleHooksOptions = {
   resolveScope: ScopeResolver;
   pendingTtlMs?: number;
   deleteMode?: "soft" | "hard";
+  /**
+   * S3 client for a route. Deleting a pending multipart row aborts its
+   * upload through this client.
+   */
+  s3Client?: (route: string) => S3Client | undefined;
 };
 
 /**
@@ -25,28 +32,47 @@ export type CreateDatabaseLifecycleHooksOptions = {
  */
 export function createDatabaseLifecycleHooks(
   options: CreateDatabaseLifecycleHooksOptions,
-): { objects: StorageObjectStore; hooks: DimahS3PluginHooks } {
+): {
+  objects: StorageObjectStore;
+  hooks: DimahS3PluginHooks;
+  resolveScope: ScopeResolver;
+} {
   const objects = resolveStore(options.client);
   const pendingTtlMs = options.pendingTtlMs ?? DEFAULT_PENDING_TTL_MS;
   const deleteMode = options.deleteMode ?? "soft";
+  const resolveScope = memoizeScopeResolver(options.resolveScope);
 
-  const scopeCache = new WeakMap<Request, string | null>();
-  async function requireScope(request: Request): Promise<string> {
-    let scope = scopeCache.get(request);
-    if (scope === undefined) {
-      scope = await options.resolveScope(request);
-      scopeCache.set(request, scope);
-    }
+  async function requireScope(
+    request: Request,
+    context: ScopeContext,
+  ): Promise<string> {
+    const scope = await resolveScope(request, context);
     if (scope === null) throw unauthorized();
     return scope;
   }
 
+  function uploadScope(context: {
+    request: Request;
+    route: string;
+    key: string;
+    clientMetadata?: Record<string, string>;
+  }): Promise<string> {
+    return requireScope(context.request, {
+      operation: "upload",
+      route: context.route,
+      key: context.key,
+      clientMetadata: context.clientMetadata,
+    });
+  }
+
   async function guardKeyOwnership(context: {
     request: Request;
+    route: string;
     bucket: string;
     key: string;
+    clientMetadata?: Record<string, string>;
   }): Promise<void> {
-    const scope = await requireScope(context.request);
+    const scope = await uploadScope(context);
     const existing = await objects.find({
       bucket: context.bucket,
       key: context.key,
@@ -63,11 +89,12 @@ export function createDatabaseLifecycleHooks(
     key: string;
     file: { name: string; size?: number; type?: string };
     metadata?: Record<string, string>;
+    clientMetadata?: Record<string, string>;
     acl?: string;
     uploadId?: string;
     replace?: "overwrite";
   }): Promise<void> {
-    const scope = await requireScope(context.request);
+    const scope = await uploadScope(context);
     if (context.replace === "overwrite") {
       const existing = await objects.find({
         bucket: context.bucket,
@@ -114,37 +141,70 @@ export function createDatabaseLifecycleHooks(
     });
   }
 
+  /** Delete is idempotent, so the row may be a pending multipart upload. */
+  async function abortPendingMultipart(context: {
+    route: string;
+    bucket: string;
+    key: string;
+  }): Promise<void> {
+    const row = await objects.find({
+      bucket: context.bucket,
+      key: context.key,
+    });
+    if (row?.status !== "pending" || !row.uploadId) return;
+    const s3 = options.s3Client?.(context.route);
+    if (!s3) return;
+    try {
+      await s3.send(
+        new AbortMultipartUploadCommand({
+          Bucket: context.bucket,
+          Key: context.key,
+          UploadId: row.uploadId,
+        }),
+      );
+    } catch {
+      // Best-effort, like the purge job. A lifecycle rule catches the rest.
+    }
+  }
+
+  const guardOptions = { client: objects, resolveScope };
   const pendingObjectGuard = createObjectAccessGuard({
-    client: objects,
-    resolveScope: options.resolveScope,
+    ...guardOptions,
+    operation: "confirm",
     requireStatus: "pending",
   });
+  const ownedObjectConfirmGuard = createObjectAccessGuard({
+    ...guardOptions,
+    operation: "confirm",
+    requireStatus: "any",
+  });
   const multipartSessionGuard = createObjectAccessGuard({
-    client: objects,
-    resolveScope: options.resolveScope,
+    ...guardOptions,
+    operation: "multipart",
     requireStatus: "pending",
     requireUploadId: true,
   });
   const activeObjectGuard = createObjectAccessGuard({
-    client: objects,
-    resolveScope: options.resolveScope,
+    ...guardOptions,
+    operation: "download",
     requireStatus: "active",
   });
-  const ownedObjectGuard = createObjectAccessGuard({
-    client: objects,
-    resolveScope: options.resolveScope,
+  const ownedObjectDeleteGuard = createObjectAccessGuard({
+    ...guardOptions,
+    operation: "delete",
     requireStatus: "any",
   });
 
   return {
     objects,
+    resolveScope,
     hooks: {
       upload: {
         guard: guardKeyOwnership,
         onPresigned: trackPending,
         confirmGuard: async (context) => {
           if (context.replace === "overwrite") {
-            await ownedObjectGuard(context);
+            await ownedObjectConfirmGuard(context);
             return;
           }
           await pendingObjectGuard(context);
@@ -166,8 +226,9 @@ export function createDatabaseLifecycleHooks(
         guard: activeObjectGuard,
       },
       delete: {
-        guard: ownedObjectGuard,
+        guard: ownedObjectDeleteGuard,
         onDeleted: async (context) => {
+          if (!context.existed) await abortPendingMultipart(context);
           const ref = { bucket: context.bucket, key: context.key };
           if (deleteMode === "hard") await objects.hardDelete(ref);
           else await objects.softDelete(ref);
