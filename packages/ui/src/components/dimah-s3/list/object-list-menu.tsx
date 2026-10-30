@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
 import {
-  formatFileSize,
-  fileNameFromKey,
-  truncateFileName,
-} from "@dimah-s3/core";
-import type {
-  UseDeleteReturn,
-  UseNavigateDownloadReturn,
+  useFormatFileSize,
+  type UseDeleteReturn,
+  type UseNavigateDownloadReturn,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
@@ -42,6 +39,7 @@ import { toast } from "@/components/ui/toast";
 import { useDeleteToast } from "@/hooks/use-delete-toast";
 import { useDownloadToast } from "@/hooks/use-download-toast";
 import { useShareExpiryLabel } from "@/lib/format-expires-in";
+import { isolateText } from "@/lib/isolate-text";
 
 /** One extra row in {@link ObjectListMenu}. */
 export type ObjectListMenuAction = {
@@ -299,14 +297,16 @@ function DeleteConfirm({
   fileSize?: number;
 }) {
   const t = useTranslations();
+  const formatFileSize = useFormatFileSize();
   const displayName = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
   const isThis = remove.objectKey === objectKey;
   useDeleteToast(remove, { objectKey, displayName });
 
+  const name = isolateText(truncateFileName(displayName));
   const fileLabel =
     fileSize != null
-      ? `${truncateFileName(displayName)} (${formatFileSize(fileSize)})`
-      : truncateFileName(displayName);
+      ? `${name} (${isolateText(formatFileSize(fileSize))})`
+      : name;
 
   return (
     <AlertDialog
@@ -323,15 +323,12 @@ function DeleteConfirm({
           <AlertDialogTitle>
             {t("Delete file?", { note: "dialog title" })}
           </AlertDialogTitle>
-          <AlertDialogDescription
-            dir="auto"
-            className="[overflow-wrap:anywhere]"
-          >
+          <AlertDialogDescription className="[overflow-wrap:anywhere]">
             {t(
               'Are you sure you want to delete "{name}"? This action cannot be undone.',
               {
                 note: "dialog description",
-                variables: { name: isolateLtr(fileLabel) },
+                variables: { name: fileLabel },
               },
             )}
           </AlertDialogDescription>
@@ -350,10 +347,6 @@ function DeleteConfirm({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
-
-function isolateLtr(value: string): string {
-  return `\u2066${value}\u2069`;
 }
 
 /**

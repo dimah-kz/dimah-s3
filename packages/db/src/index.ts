@@ -7,6 +7,8 @@ export type {
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
+  ScopeContext,
+  ScopeOperation,
   ScopeResolver,
   StorageObject,
   StorageObjectStatus,

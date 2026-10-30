@@ -10,6 +10,9 @@ import type { Translations } from "./translations/types";
  */
 export const S3Context = createContext<S3Api | null>(null);
 
+/** Internal context for the `S3Provider` `locale`. */
+export const S3LocaleContext = createContext<string | undefined>(undefined);
+
 export type S3ProviderProps<TApi extends S3Api = S3Api> = {
   api: TApi;
   /**
@@ -18,6 +21,12 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
    * ([Fuma Translate](https://translate.fuma-nama.dev/) key fallback).
    */
   translations?: Partial<Translations>;
+  /**
+   * BCP 47 locale for sizes and counts in hooks and UI, such as `"fa"`.
+   * Unit labels come from `translations` (`"MB(file size unit)"`).
+   * Omit for Latin digits.
+   */
+  locale?: string;
   children: ReactNode;
 };
 
@@ -45,17 +54,20 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
 export function S3Provider<TApi extends S3Api>({
   api,
   translations,
+  locale,
   children,
 }: S3ProviderProps<TApi>) {
   return (
     <S3Context.Provider value={api}>
-      {translations ? (
-        <TranslationProvider translations={translations}>
-          {children}
-        </TranslationProvider>
-      ) : (
-        children
-      )}
+      <S3LocaleContext.Provider value={locale}>
+        {translations ? (
+          <TranslationProvider translations={translations}>
+            {children}
+          </TranslationProvider>
+        ) : (
+          children
+        )}
+      </S3LocaleContext.Provider>
     </S3Context.Provider>
   );
 }

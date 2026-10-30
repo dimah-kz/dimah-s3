@@ -4,7 +4,22 @@ import {
   type S3Client,
 } from "@aws-sdk/client-s3";
 import { errors } from "@/errors";
-import { sendOrObjectNotFound } from "./is-aws-not-found";
+import { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
+
+/** HeadObject as a yes/no. Errors other than not-found still throw. */
+export async function objectExists(
+  client: S3Client,
+  bucket: string,
+  key: string,
+): Promise<boolean> {
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return true;
+  } catch (err: unknown) {
+    if (isAwsNotFound(err)) return false;
+    throw err;
+  }
+}
 
 /** HeadObject, mapping AWS not-found to `OBJECT_NOT_FOUND`. */
 export async function headObjectOrNotFound(

@@ -31,6 +31,7 @@ function catalogDownload(
     enabled: true,
     expiresIn: normalizeExpiresIn(download.expiresIn, maxExpiresIn),
     ...(download.disposition ? { disposition: download.disposition } : {}),
+    ...(download.inlineTypes ? { inlineTypes: [...download.inlineTypes] } : {}),
     ...(download.mode ? { mode: download.mode } : {}),
   };
 }

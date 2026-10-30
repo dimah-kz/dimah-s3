@@ -131,6 +131,18 @@ export type DownloadConfig = {
    */
   disposition?: "inline" | "attachment";
   /**
+   * MIME types, or `type/*` wildcards, that may open in the browser. When
+   * set, `inline` (requested by the client, the route default, or `resolve`)
+   * is kept only for an object whose HeadObject type is on this list, and
+   * anything else is signed as `attachment`. A wildcard never matches HTML,
+   * XML (including `image/svg+xml`), or JavaScript; list those exactly to
+   * allow them. An object stored as `application/octet-stream` is typed from
+   * its file name, and that type is signed as `ResponseContentType`.
+   * Uses `resolveInlineDisposition` from `@dimah-s3/core`, and the catalog
+   * returns this list so a client can call the same helper.
+   */
+  inlineTypes?: readonly string[];
+  /**
    * `"presign"` (default) returns an S3 URL. `"proxy"` returns a
    * same-origin `/file` URL that streams through the server.
    */

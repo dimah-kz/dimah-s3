@@ -1,4 +1,10 @@
-import { definePlugin, isFeatureOn, chainHooks } from "@dimah-s3/server";
+import type { S3Client } from "@aws-sdk/client-s3";
+import {
+  chainHooks,
+  definePlugin,
+  isFeatureOn,
+  type DimahS3Config,
+} from "@dimah-s3/server";
 import type {
   DimahS3DbClient,
   StorageObjectStore,
@@ -11,7 +17,11 @@ import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks"
 export type DbPluginOptions = {
   /** FumaDB client (`DimahS3DB.client(adapter)`) or a prebuilt objects store. */
   client: DimahS3DbClient | StorageObjectStore;
-  /** Maps a request to its owning scope. `null` rejects with 401. */
+  /**
+   * Maps a request to its owning scope. `null` rejects with 401. The second
+   * argument carries the operation, route, and object key the endpoint
+   * already validated.
+   */
   resolveScope: ScopeResolver;
   /**
    * How long a `pending` row stays valid before the purge job may remove it.
@@ -22,7 +32,9 @@ export type DbPluginOptions = {
    * After a normal server delete (`api.delete` → S3 `DeleteObject`), how the
    * plugin updates the DB row in `onDeleted`: `soft` keeps it with
    * `status = "deleted"`; `hard` removes it. Does not change the S3 delete
-   * path — callers still use `api.delete`, not store helpers.
+   * path — callers still use `api.delete`, not store helpers. Delete also
+   * clears a row whose object never landed, and aborts a pending multipart
+   * upload by its `uploadId`.
    * @default "soft"
    */
   deleteMode?: "soft" | "hard";
@@ -71,11 +83,17 @@ export type DbPluginContext = {
  * ```
  */
 export function db(options: DbPluginOptions) {
-  const { objects, hooks } = createDatabaseLifecycleHooks(options);
+  let config: Readonly<DimahS3Config> | undefined;
+  const s3Client = (route: string): S3Client | undefined =>
+    config?.routes[route]?.client ?? config?.client;
+  const { objects, hooks, resolveScope } = createDatabaseLifecycleHooks({
+    ...options,
+    s3Client,
+  });
   if (options.quota && hooks.upload) {
     const quotaGuard = createQuotaGuard({
       client: objects,
-      resolveScope: options.resolveScope,
+      resolveScope,
       maxBytes: options.quota.maxBytes,
       maxFiles: options.quota.maxFiles,
     });
@@ -84,8 +102,9 @@ export function db(options: DbPluginOptions) {
 
   return definePlugin({
     id: "db",
-    init({ config }) {
-      const routes = Object.values(config.routes);
+    init(env) {
+      config = env.config;
+      const routes = Object.values(env.config.routes);
       const hasLifecycle = routes.some(
         (r) =>
           isFeatureOn(r.upload) ||
@@ -99,10 +118,7 @@ export function db(options: DbPluginOptions) {
       }
     },
     hooks,
-    endpoints: createDatabaseEndpoints({
-      objects,
-      resolveScope: options.resolveScope,
-    }),
+    endpoints: createDatabaseEndpoints({ objects, resolveScope }),
     context: {
       objects,
       client: options.client,

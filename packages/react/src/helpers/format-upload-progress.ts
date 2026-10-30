@@ -1,4 +1,4 @@
-import { formatFileSize } from "@dimah-s3/core";
+import { formatFileSize, type FormatFileSizeOptions } from "@dimah-s3/core";
 
 /**
  * Formats upload progress as a human-readable transfer string.
@@ -6,6 +6,7 @@ import { formatFileSize } from "@dimah-s3/core";
  * @param loaded   Bytes transferred so far.
  * @param total    Total bytes to transfer (0 means unknown).
  * @param percent  Transfer percentage (0–100).
+ * @param options  Locale and unit labels for the sizes.
  *
  * @example
  * ```ts
@@ -20,8 +21,9 @@ export function formatUploadProgress(
   loaded: number,
   total: number,
   percent: number,
+  options?: FormatFileSizeOptions,
 ): string {
-  const loadedStr = formatFileSize(loaded);
+  const loadedStr = formatFileSize(loaded, options);
   if (!total) return loadedStr;
-  return `${loadedStr} / ${formatFileSize(total)} (${Math.round(percent)}%)`;
+  return `${loadedStr} / ${formatFileSize(total, options)} (${Math.round(percent)}%)`;
 }

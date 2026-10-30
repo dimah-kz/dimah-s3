@@ -64,7 +64,12 @@ describe("useDelete", () => {
       () =>
         new Promise((resolve) => {
           release = () =>
-            resolve({ success: true as const, bucket: "bucket", key: "a.png" });
+            resolve({
+              success: true as const,
+              bucket: "bucket",
+              key: "a.png",
+              existed: true,
+            });
         }),
     );
     const hook = renderHook(() => useDelete({ api, route: "uploads" }));
@@ -142,7 +147,12 @@ describe("useDelete", () => {
       () =>
         new Promise((resolve) => {
           release = () =>
-            resolve({ success: true as const, bucket: "bucket", key: "a.png" });
+            resolve({
+              success: true as const,
+              bucket: "bucket",
+              key: "a.png",
+              existed: true,
+            });
         }),
     );
     const hook = renderHook(() => useDelete({ api, route: "uploads" }));
@@ -177,7 +187,12 @@ describe("useDelete", () => {
       () =>
         new Promise((resolve) => {
           release = () =>
-            resolve({ success: true as const, bucket: "bucket", key: "a.png" });
+            resolve({
+              success: true as const,
+              bucket: "bucket",
+              key: "a.png",
+              existed: true,
+            });
         }),
     );
     const hook = renderHook(() =>

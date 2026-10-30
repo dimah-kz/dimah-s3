@@ -77,6 +77,17 @@ describe("formatFileSize", () => {
     expect(formatFileSize(1024 ** 6)).toBe("1.0 EB");
     expect(formatFileSize(Number.MAX_VALUE).endsWith(" EB")).toBe(true);
   });
+
+  it("uses locale digits and unit labels", () => {
+    expect(
+      formatFileSize(1.5 * 1024 * 1024, {
+        locale: "fa",
+        units: { MB: "مگابایت" },
+      }),
+    ).toBe("۱٫۵ مگابایت");
+    expect(formatFileSize(1023, { locale: "de" })).toBe("1023 B");
+    expect(formatFileSize(1536, { locale: "de" })).toBe("1,5 KB");
+  });
 });
 
 describe("truncateFileName", () => {

@@ -280,6 +280,11 @@ export const components = [
         type: "registry:hook",
         target: "@hooks/use-delete-toast.tsx",
       },
+      {
+        path: "lib/isolate-text.ts",
+        type: "registry:lib",
+        target: "@lib/isolate-text.ts",
+      },
       ...statusSupportFiles,
     ],
   },
@@ -350,6 +355,11 @@ export const components = [
         path: "lib/format-expires-in.ts",
         type: "registry:lib",
         target: "@lib/format-expires-in.ts",
+      },
+      {
+        path: "lib/isolate-text.ts",
+        type: "registry:lib",
+        target: "@lib/isolate-text.ts",
       },
       {
         path: "components/dimah-s3/list/object-list-selection.tsx",

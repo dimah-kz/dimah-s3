@@ -51,6 +51,29 @@ Vite and other client-only apps can pass `translations` to
 
 Missing keys stay English.
 
+## Numbers and sizes
+
+Pass `locale` to the provider for native digits in sizes, counts, and
+progress. Unit labels are translation keys, so the same map can rename them:
+
+```ts title="lib/translations-fa.ts"
+export const fa = {
+  "KB(file size unit)": "کیلوبایت", // [!code ++]
+  "MB(file size unit)": "مگابایت", // [!code ++]
+  "GB(file size unit)": "گیگابایت", // [!code ++]
+} satisfies Partial<Translations>;
+```
+
+```tsx title="app/layout.tsx"
+<S3Provider translations={fa} locale="fa">
+  {children}
+</S3Provider>
+```
+
+Sizes then read `۱۲٫۴ مگابایت`. Without `locale`, they read `12.4 MB`. Your
+own components can use the same formatters with `useFormatFileSize()` and
+`useFormatNumber()` from `@dimah-s3/react`.
+
 ## API errors
 
 The server always responds in English. `@dimah-s3/ui` localizes errors with the

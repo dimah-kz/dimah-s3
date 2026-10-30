@@ -469,6 +469,11 @@
           "target": "@hooks/use-delete-toast.tsx"
         },
         {
+          "path": "src/lib/isolate-text.ts",
+          "type": "registry:lib",
+          "target": "@lib/isolate-text.ts"
+        },
+        {
           "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/status-attachment.tsx"
@@ -583,6 +588,11 @@
           "path": "src/lib/format-expires-in.ts",
           "type": "registry:lib",
           "target": "@lib/format-expires-in.ts"
+        },
+        {
+          "path": "src/lib/isolate-text.ts",
+          "type": "registry:lib",
+          "target": "@lib/isolate-text.ts"
         },
         {
           "path": "src/components/dimah-s3/list/object-list-selection.tsx",

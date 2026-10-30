@@ -44,6 +44,7 @@ export function fakeS3Api(
       success: true as const,
       bucket,
       key: payload.key,
+      existed: true,
     })),
     deleteMany: vi.fn(async (payload) => ({
       results: payload.keys.map((key: string) => ({ key, success: true })),

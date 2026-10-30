@@ -8,6 +8,7 @@ import {
 } from "@dimah-s3/core";
 import type * as z from "zod";
 import {
+  applyInlineTypes,
   clampDownloadExpiresIn,
   headObjectOrNotFound,
   openStoredTarget,
@@ -81,10 +82,16 @@ async function handleDownload(
     expiresIn,
   });
 
-  await headObjectOrNotFound(route.client, bucket, key);
+  const head = await headObjectOrNotFound(route.client, bucket, key);
+  const signed = applyInlineTypes(route.download.inlineTypes, {
+    key,
+    fileName,
+    disposition,
+    contentType: head.ContentType,
+  });
   const contentDisposition = fileName
-    ? buildContentDisposition(fileName, disposition)
-    : disposition;
+    ? buildContentDisposition(fileName, signed.disposition)
+    : signed.disposition;
 
   const url =
     mode === "proxy"
@@ -92,7 +99,7 @@ async function handleDownload(
           route: input.route,
           key,
           fileName,
-          disposition,
+          disposition: signed.disposition,
         })
       : await getSignedUrl(
           route.client,
@@ -100,6 +107,7 @@ async function handleDownload(
             Bucket: bucket,
             Key: key,
             ResponseContentDisposition: contentDisposition,
+            ResponseContentType: signed.contentType,
           }),
           { expiresIn },
         );
@@ -121,7 +129,7 @@ async function handleDownload(
     url,
     expiresIn,
     mode,
-    disposition,
+    disposition: signed.disposition,
   };
 }
 

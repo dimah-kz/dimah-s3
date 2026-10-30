@@ -5,6 +5,7 @@ import {
   type StorageObjectStore,
 } from "@/store/storage-object-store";
 import type {
+  ScopeOperation,
   ScopeResolver,
   StorageObject,
   StorageObjectStatus,
@@ -15,6 +16,8 @@ export type ObjectAccessGuardContext = {
   request: Request;
   key: string;
   bucket: string;
+  /** Named route. Passed on to `resolveScope`. */
+  route?: string;
   /** Multipart session id — required when {@link CreateObjectAccessGuardOptions.requireUploadId} is set. */
   uploadId?: string;
 };
@@ -23,6 +26,12 @@ export type CreateObjectAccessGuardOptions = {
   /** FumaDB client (`DimahS3DB.client(adapter)`) or a prebuilt objects store. */
   client: DimahS3DbClient | StorageObjectStore;
   resolveScope: ScopeResolver;
+  /**
+   * The operation this guard protects, passed to `resolveScope`. Create one
+   * guard per hook, such as `"download"` for `download.guard` and
+   * `"delete"` for `delete.guard`.
+   */
+  operation: ScopeOperation;
   /**
    * Which rows count as accessible.
    * `"any"` means pending or active (not deleted).
@@ -64,7 +73,11 @@ export function createObjectAccessGuard(
   const requireStatus = options.requireStatus ?? "active";
 
   return async (context) => {
-    const scope = await options.resolveScope(context.request);
+    const scope = await options.resolveScope(context.request, {
+      operation: options.operation,
+      route: context.route,
+      key: context.key,
+    });
     if (scope === null) throw unauthorized();
 
     const object = await store.find({

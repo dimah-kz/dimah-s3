@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslations } from "@fuma-translate/react";
-import type { FileRejection } from "@dimah-s3/react";
+import { useFormatNumber, type FileRejection } from "@dimah-s3/react";
 
 import { toast } from "@/components/ui/toast";
 
 function rejectionSummary(
   rejections: readonly FileRejection[],
   t: ReturnType<typeof useTranslations>,
-): string {
+  formatNumber: (value: number) => string,
+): ReactNode {
   const first = rejections[0];
   if (!first) {
     return t("Some files were rejected", { note: "toast" });
@@ -18,11 +19,15 @@ function rejectionSummary(
     first.errors[0]?.message ??
     t("File type or size not allowed", { note: "toast" });
   if (rejections.length === 1) {
-    return `${first.file.name}: ${detail}`;
+    return (
+      <>
+        <bdi>{first.file.name}</bdi>: {detail}
+      </>
+    );
   }
   return t("{count} files were rejected", {
     note: "toast",
-    variables: { count: String(rejections.length) },
+    variables: { count: formatNumber(rejections.length) },
   });
 }
 
@@ -35,6 +40,7 @@ export function useFileRejectToast(
   enabled: boolean,
 ) {
   const t = useTranslations();
+  const formatNumber = useFormatNumber();
   const prevRef = useRef<readonly FileRejection[]>([]);
 
   useEffect(() => {
@@ -50,10 +56,10 @@ export function useFileRejectToast(
       type: "error",
       title: t("File not accepted", { note: "toast" }),
       description: (
-        <span dir="auto" className="block [overflow-wrap:anywhere]">
-          {rejectionSummary(fileRejections, t)}
+        <span className="block [overflow-wrap:anywhere]">
+          {rejectionSummary(fileRejections, t, formatNumber)}
         </span>
       ),
     });
-  }, [enabled, fileRejections, t]);
+  }, [enabled, fileRejections, t, formatNumber]);
 }

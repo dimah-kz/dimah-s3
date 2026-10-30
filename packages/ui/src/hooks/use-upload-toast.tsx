@@ -1,25 +1,20 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { useFormatDimahError, type UseUploadReturn } from "@dimah-s3/react";
+import {
+  useFormatDimahError,
+  useFormatFileSize,
+  useFormatNumber,
+  type UseUploadReturn,
+} from "@dimah-s3/react";
 
 import { toast } from "@/components/ui/toast";
 
-function sizeNode(size: number) {
+/** Isolated so localized digits and units keep their own order. */
+function numbersNode(text: string) {
   return (
-    <span dir="ltr" className="inline-block whitespace-nowrap tabular-nums">
-      {formatFileSize(size)}
-    </span>
-  );
-}
-
-function progressNode(loaded: number, total: number) {
-  return (
-    <span dir="ltr" className="inline-block whitespace-nowrap tabular-nums">
-      {formatFileSize(loaded)} / {formatFileSize(total)}
-    </span>
+    <bdi className="inline-block whitespace-nowrap tabular-nums">{text}</bdi>
   );
 }
 
@@ -30,6 +25,8 @@ function progressNode(loaded: number, total: number) {
 export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const formatFileSize = useFormatFileSize();
+  const formatNumber = useFormatNumber();
   const toastIdRef = useRef<string | null>(null);
   const prevPhaseRef = useRef(upload.phase);
   const cancelRef = useRef(upload.cancel);
@@ -58,15 +55,15 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
           type: "success",
           title: t("{count} file(s) uploaded", {
             note: "toast",
-            variables: { count: String(files.length) },
+            variables: { count: formatNumber(files.length) },
           }),
-          description: sizeNode(total),
+          description: numbersNode(formatFileSize(total)),
         });
       } else if (file) {
         toast.add({
           type: "success",
           title: t("Upload complete", { note: "toast" }),
-          description: sizeNode(file.size),
+          description: numbersNode(formatFileSize(file.size)),
         });
       }
       toastIdRef.current = null;
@@ -80,15 +77,12 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
           type: "error",
           title: t("Upload finished with errors", { note: "toast" }),
           description: (
-            <span
-              dir="ltr"
-              className="inline-block whitespace-nowrap tabular-nums"
-            >
+            <span className="tabular-nums">
               {t("{succeeded} succeeded, {failed} failed", {
                 note: "toast",
                 variables: {
-                  succeeded: String(succeeded),
-                  failed: String(failed),
+                  succeeded: formatNumber(succeeded),
+                  failed: formatNumber(failed),
                 },
               })}
             </span>
@@ -99,7 +93,7 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
           type: "error",
           title: t("Upload failed", { note: "toast" }),
           description: (
-            <span dir="auto" className="block [overflow-wrap:anywhere]">
+            <span className="block [overflow-wrap:anywhere]">
               {error
                 ? formatError(error)
                 : file?.error
@@ -111,7 +105,18 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
       }
       toastIdRef.current = null;
     }
-  }, [enabled, phase, file, files, progress, error, t, formatError]);
+  }, [
+    enabled,
+    phase,
+    file,
+    files,
+    progress,
+    error,
+    t,
+    formatError,
+    formatFileSize,
+    formatNumber,
+  ]);
 
   useEffect(() => {
     if (!enabled || phase !== "uploading") return;
@@ -126,11 +131,15 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
           title: t("Uploading {done}/{total}", {
             note: "toast",
             variables: {
-              done: String(files.filter((f) => f.status === "success").length),
-              total: String(files.length),
+              done: formatNumber(
+                files.filter((f) => f.status === "success").length,
+              ),
+              total: formatNumber(files.length),
             },
           }),
-          description: progressNode(progress.loaded, progress.total),
+          description: numbersNode(
+            `${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`,
+          ),
           actionProps: {
             children: t("Cancel", { note: "toast action" }),
             onClick: () => cancelRef.current(),
@@ -141,7 +150,9 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
             type: "loading" as const,
             timeout: 0,
             title: t("Uploading", { note: "toast" }),
-            description: progressNode(singleProgress.loaded, file.size),
+            description: numbersNode(
+              `${formatFileSize(singleProgress.loaded)} / ${formatFileSize(file.size)}`,
+            ),
             actionProps: {
               children: t("Cancel", { note: "toast action" }),
               onClick: () => cancelRef.current(),
@@ -156,5 +167,5 @@ export function useUploadToast(upload: UseUploadReturn, enabled: boolean) {
     } else {
       toastIdRef.current = toast.add(payload);
     }
-  }, [enabled, phase, file, files, progress, t]);
+  }, [enabled, phase, file, files, progress, t, formatFileSize, formatNumber]);
 }

@@ -26,6 +26,8 @@ export const routeCatalogDownloadSchema = z.discriminatedUnion("enabled", [
      */
     expiresIn: z.int().positive().max(S3_MAX_EXPIRES_IN).optional(),
     disposition: downloadDispositionSchema.optional(),
+    /** Types that may open inline. Pass to `resolveInlineDisposition`. */
+    inlineTypes: z.array(z.string()).optional(),
     mode: downloadModeSchema.optional(),
   }),
   z.strictObject({ enabled: z.literal(false) }),

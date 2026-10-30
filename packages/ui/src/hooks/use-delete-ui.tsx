@@ -6,6 +6,7 @@ import { useTranslations } from "@fuma-translate/react";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
 import { useDeleteToast } from "@/hooks/use-delete-toast";
 import type { AttachmentLayoutAliases } from "@/lib/attachment-layout";
+import { isolateText } from "@/lib/isolate-text";
 
 export type UseDeleteUiOptions = AttachmentLayoutAliases & {
   toast?: boolean;
@@ -44,7 +45,7 @@ export function useDeleteUi(
         state="done"
         title={t('"{name}" deleted', {
           note: "status",
-          variables: { name: truncateFileName(displayName) },
+          variables: { name: isolateText(truncateFileName(displayName)) },
         })}
         onDismiss={del.reset}
         size={attachmentSize}

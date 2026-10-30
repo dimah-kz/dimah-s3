@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { AbortMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { describe, expect, it, vi } from "vitest";
 import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
 import { fakeStore, sampleObject } from "@/test/fakes";
 
@@ -74,12 +75,70 @@ describe("createDatabaseLifecycleHooks", () => {
       deleteMode: "hard",
     }).hooks;
 
-    const ctx = { request, route, key: "k", bucket: "b" };
+    const ctx = { request, route, key: "k", bucket: "b", existed: true };
     await softHooks.delete?.onDeleted?.(ctx);
     await hardHooks.delete?.onDeleted?.(ctx);
 
     expect(soft.softDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
     expect(hard.hardDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
+  });
+
+  it("aborts a pending multipart upload when its object never landed", async () => {
+    const store = fakeStore({
+      find: async () => sampleObject({ status: "pending", uploadId: "up-1" }),
+    });
+    const send = vi.fn(async (_command: unknown) => ({}));
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope: async () => "user:1",
+      s3Client: () => ({ send }) as never,
+    });
+
+    await hooks.delete?.onDeleted?.({
+      request,
+      route,
+      key: "k",
+      bucket: "b",
+      existed: false,
+    });
+
+    expect(send).toHaveBeenCalledWith(expect.any(AbortMultipartUploadCommand));
+    expect(send.mock.calls[0]?.[0]).toMatchObject({
+      input: { Bucket: "b", Key: "k", UploadId: "up-1" },
+    });
+    expect(store.softDelete).toHaveBeenCalledWith({ bucket: "b", key: "k" });
+  });
+
+  it("passes the operation, route, and key to resolveScope once per request", async () => {
+    const resolveScope = vi.fn(async () => "user:1");
+    const store = fakeStore();
+    const { hooks } = createDatabaseLifecycleHooks({
+      client: store,
+      resolveScope,
+    });
+    const upload = {
+      request,
+      route,
+      key: "k",
+      bucket: "b",
+      file: { name: "a.txt", size: 10 },
+      clientMetadata: { kind: "org" },
+    };
+
+    await hooks.upload?.guard?.(upload);
+    await hooks.upload?.onPresigned?.({
+      ...upload,
+      url: "https://s3.test",
+      expiresIn: 600,
+    });
+
+    expect(resolveScope).toHaveBeenCalledTimes(1);
+    expect(resolveScope).toHaveBeenCalledWith(request, {
+      operation: "upload",
+      route,
+      key: "k",
+      clientMetadata: { kind: "org" },
+    });
   });
 
   it("guards multipart part/list/abort with ownership", async () => {

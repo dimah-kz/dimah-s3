@@ -1,8 +1,11 @@
 "use client";
 
-import { formatFileSize } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
-import { formatEta, useFormatDimahError } from "@dimah-s3/react";
+import {
+  formatEta,
+  useFormatDimahError,
+  useFormatFileSize,
+} from "@dimah-s3/react";
 import type {
   APIError,
   UploadFileState,
@@ -43,6 +46,7 @@ export function UploadFileStatus({
 }: UploadFileStatusProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const formatFileSize = useFormatFileSize();
   const errorText = error ? formatError(error) : null;
   const layout = { size, orientation, className };
   const progress = file?.progress;

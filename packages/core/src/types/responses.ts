@@ -15,17 +15,24 @@ import type {
 import type { RouteCatalogResponse } from "@/schema/catalog";
 import type { ContentDispositionType } from "@/helpers/build-content-disposition";
 
-/** Response from {@link S3Api.delete}. */
+/**
+ * Response from {@link S3Api.delete}. Delete is idempotent: a key with no
+ * object still succeeds, with `existed: false`.
+ */
 export type DeleteResponse = {
   success: true;
   bucket: string;
   key: string;
+  /** `false` when the object was never uploaded or is already gone. */
+  existed: boolean;
 };
 
 /** Per-key result from {@link S3Api.deleteMany}. */
 export type DeleteBatchItemResult = {
   key: string;
   success: boolean;
+  /** Set when `success` is true. Same meaning as {@link DeleteResponse.existed}. */
+  existed?: boolean;
   error?: { code: string; message: string };
 };
 

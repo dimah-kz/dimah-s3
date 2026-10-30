@@ -3,8 +3,12 @@
 import type { ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
-import { formatAcceptLabels, type UseUploadReturn } from "@dimah-s3/react";
-import { formatFileSize } from "@dimah-s3/core";
+import {
+  formatAcceptLabels,
+  useFormatFileSize,
+  useFormatNumber,
+  type UseUploadReturn,
+} from "@dimah-s3/react";
 import { cn } from "cn";
 import {
   resolveStatusSlot,
@@ -16,6 +20,10 @@ import { useUploadUi } from "@/hooks/use-upload-ui";
 function dropzoneHints(
   policy: UseUploadReturn["policy"],
   t: ReturnType<typeof useTranslations>,
+  format: {
+    fileSize: (bytes: number) => string;
+    number: (value: number) => string;
+  },
 ) {
   const acceptLabels = formatAcceptLabels(policy.accept);
   const maxFiles = policy.maxFiles;
@@ -24,12 +32,12 @@ function dropzoneHints(
     limitParts.push(
       t("You can upload {count} files", {
         note: "dropzone hint",
-        variables: { count: String(maxFiles) },
+        variables: { count: format.number(maxFiles) },
       }),
     );
   }
   if (policy.maxFileSize != null) {
-    const size = formatFileSize(policy.maxFileSize);
+    const size = format.fileSize(policy.maxFileSize);
     limitParts.push(
       maxFiles > 1
         ? t("Each up to {size}", {
@@ -92,7 +100,12 @@ export function UploadDropzone({
   const hasCustomChrome = children != null;
   const dropzoneLabel =
     label ?? t("Drag and drop files here", { note: "dropzone" });
-  const { limitsLine, acceptLine } = dropzoneHints(upload.policy, t);
+  const formatFileSize = useFormatFileSize();
+  const formatNumber = useFormatNumber();
+  const { limitsLine, acceptLine } = dropzoneHints(upload.policy, t, {
+    fileSize: formatFileSize,
+    number: formatNumber,
+  });
   const { statusNode } = useUploadUi(upload, {
     toast: enableToast,
     attachmentSize,

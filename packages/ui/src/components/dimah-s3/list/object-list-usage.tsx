@@ -1,7 +1,10 @@
 "use client";
 
-import { formatFileSize } from "@dimah-s3/core";
-import type { ObjectListUsage } from "@dimah-s3/react";
+import {
+  useFormatFileSize,
+  useFormatNumber,
+  type ObjectListUsage,
+} from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import type { ObjectListUsageLimits } from "@/components/dimah-s3/list/object-list";
@@ -14,6 +17,8 @@ export function ObjectListUsageLine({
   limits?: ObjectListUsageLimits;
 }) {
   const t = useTranslations();
+  const formatFileSize = useFormatFileSize();
+  const formatNumber = useFormatNumber();
   const byteCap = finiteCap(limits?.maxBytes);
   const fileCap = finiteCap(limits?.maxFiles);
   const bytesLabel =
@@ -32,13 +37,13 @@ export function ObjectListUsageLine({
         ? t("1 file", { note: "object list usage" })
         : t("{count} files", {
             note: "object list usage",
-            variables: { count: String(usage.objectCount) },
+            variables: { count: formatNumber(usage.objectCount) },
           })
       : t("{count} of {max} files", {
           note: "object list usage",
           variables: {
-            count: String(usage.objectCount),
-            max: String(fileCap),
+            count: formatNumber(usage.objectCount),
+            max: formatNumber(fileCap),
           },
         });
   const byteRatio = fillRatio(usage.totalBytes, byteCap);

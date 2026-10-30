@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DELETE_BATCH_MAX_KEYS } from "@dimah-s3/core";
-import type { UseDeleteReturn } from "@dimah-s3/react";
+import { useFormatNumber, type UseDeleteReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { Trash2Icon } from "lucide-react";
 import { cn } from "cn";
@@ -59,6 +59,7 @@ export function ObjectListSelection({
   onDeleted,
 }: ObjectListSelectionProps) {
   const t = useTranslations();
+  const formatNumber = useFormatNumber();
   const [phase, setPhase] = useState<"idle" | "prepare" | "confirm" | "delete">(
     "idle",
   );
@@ -141,7 +142,7 @@ export function ObjectListSelection({
         type: "success",
         title: t("Deleted {count} files", {
           note: "object list selection",
-          variables: { count: String(deleted.length) },
+          variables: { count: formatNumber(deleted.length) },
         }),
       });
     }
@@ -150,7 +151,7 @@ export function ObjectListSelection({
         type: "error",
         title: t("Could not delete {count} files", {
           note: "object list selection",
-          variables: { count: String(failed.length) },
+          variables: { count: formatNumber(failed.length) },
         }),
       });
     }
@@ -175,11 +176,11 @@ export function ObjectListSelection({
               {onThisPage
                 ? t("{count} selected on this page", {
                     note: "object list selection",
-                    variables: { count: String(selectedCount) },
+                    variables: { count: formatNumber(selectedCount) },
                   })
                 : t("{count} selected", {
                     note: "object list selection",
-                    variables: { count: String(selectedCount) },
+                    variables: { count: formatNumber(selectedCount) },
                   })}
             </span>
             {visibleNote ? (
@@ -234,7 +235,9 @@ export function ObjectListSelection({
             <AlertDialogTitle>
               {t("Delete {count} files?", {
                 note: "object list selection",
-                variables: { count: String(planned?.entries.length ?? 0) },
+                variables: {
+                  count: formatNumber(planned?.entries.length ?? 0),
+                },
               })}
             </AlertDialogTitle>
             <AlertDialogDescription>

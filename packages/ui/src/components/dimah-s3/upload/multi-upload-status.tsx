@@ -2,7 +2,11 @@
 
 import { PauseIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
-import { formatEta, useFormatDimahError } from "@dimah-s3/react";
+import {
+  formatEta,
+  useFormatDimahError,
+  useFormatNumber,
+} from "@dimah-s3/react";
 import type { UploadFileState, UseUploadReturn } from "@dimah-s3/react";
 import { cn } from "cn";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
@@ -32,6 +36,7 @@ export function MultiUploadStatus({
 }: MultiUploadStatusProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
+  const formatNumber = useFormatNumber();
   const { phase, files, progress, error } = upload;
   const onCancel = upload.cancel;
   const onPause = upload.resumable ? upload.detach : undefined;
@@ -57,10 +62,10 @@ export function MultiUploadStatus({
               {t("{done}/{total} files", {
                 note: "upload progress",
                 variables: {
-                  done: String(
+                  done: formatNumber(
                     files.filter((f) => f.status === "success").length,
                   ),
-                  total: String(files.length),
+                  total: formatNumber(files.length),
                 },
               })}
               {eta ? (
@@ -109,7 +114,7 @@ export function MultiUploadStatus({
           state="done"
           title={t("All {count} file(s) uploaded", {
             note: "status",
-            variables: { count: String(files.length) },
+            variables: { count: formatNumber(files.length) },
           })}
           onDismiss={upload.reset}
           {...layout}

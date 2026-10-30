@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createObjectAccessGuard } from "./create-object-access-guard";
 import { fakeStore, sampleObject } from "@/test/fakes";
 
@@ -13,11 +13,27 @@ describe("createObjectAccessGuard", () => {
     const guard = createObjectAccessGuard({
       client: fakeStore(),
       resolveScope: async () => null,
+      operation: "download",
     });
     await expect(guard(context)).rejects.toMatchObject({
       code: "UNAUTHORIZED",
       status: "UNAUTHORIZED",
       statusCode: 401,
+    });
+  });
+
+  it("passes the operation, route, and key to resolveScope", async () => {
+    const resolveScope = vi.fn(async () => "user:1");
+    const guard = createObjectAccessGuard({
+      client: fakeStore({ find: async () => sampleObject() }),
+      resolveScope,
+      operation: "delete",
+    });
+    await guard({ ...context, route: "uploads" });
+    expect(resolveScope).toHaveBeenCalledWith(context.request, {
+      operation: "delete",
+      route: "uploads",
+      key: "k",
     });
   });
 
@@ -27,6 +43,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject({ status: "pending" }),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
     });
     await expect(guard(context)).rejects.toMatchObject({
       code: "OBJECT_NOT_FOUND",
@@ -41,6 +58,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject({ status: "deleted" }),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
       requireStatus: "any",
     });
     await expect(deleted(context)).rejects.toMatchObject({
@@ -52,6 +70,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject({ status: "pending" }),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
       requireStatus: "any",
     });
     await expect(pending(context)).resolves.toBeUndefined();
@@ -63,6 +82,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject({ scope: "user:2" }),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
     });
     await expect(guard(context)).rejects.toMatchObject({
       code: "FORBIDDEN",
@@ -77,6 +97,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject(),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
     });
     await expect(guard(context)).resolves.toBeUndefined();
   });
@@ -87,6 +108,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject({ scope: "user:2" }),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
       authorize: async () => true,
     });
     await expect(guard(context)).resolves.toBeUndefined();
@@ -98,6 +120,7 @@ describe("createObjectAccessGuard", () => {
         find: async () => sampleObject({ status: "pending", uploadId: "up-1" }),
       }),
       resolveScope: async () => "user:1",
+      operation: "download",
       requireStatus: "pending",
       requireUploadId: true,
     });

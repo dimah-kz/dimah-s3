@@ -35,11 +35,38 @@ export type StorageObject = {
 };
 
 /**
+ * Endpoint a scope is resolved for.
+ * - `upload`: presign and multipart init
+ * - `confirm`: confirm, and the confirm step of multipart complete
+ * - `multipart`: part, list, abort, and complete
+ * - `download`: presigned download and `GET /file`
+ * - `delete`: delete, and each key of a batch delete
+ * - `list`: `GET /db/objects` and `GET /db/object`
+ */
+export type ScopeOperation =
+  "upload" | "confirm" | "multipart" | "download" | "delete" | "list";
+
+/** Values the endpoint already validated, passed to {@link ScopeResolver}. */
+export type ScopeContext = {
+  operation: ScopeOperation;
+  /** Named route. On `list`, set only when the client filtered by route. */
+  route?: string;
+  /** Object key. Absent on `GET /db/objects`. */
+  key?: string;
+  /** Client extras from presign or multipart init. Set on `upload` only. */
+  clientMetadata?: Record<string, string>;
+};
+
+/**
  * Resolves the owning scope for a request (e.g. from a session cookie).
- * Return `null` to reject the request as unauthenticated (401).
+ * `context` carries the operation, route, and key, so a scope that depends
+ * on the object key does not have to parse the request. A batch delete
+ * resolves once per key. Return `null` to reject the request as
+ * unauthenticated (401).
  */
 export type ScopeResolver = (
   request: Request,
+  context: ScopeContext,
 ) => string | null | Promise<string | null>;
 
 /**

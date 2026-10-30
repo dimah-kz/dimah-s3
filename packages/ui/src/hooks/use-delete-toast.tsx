@@ -34,7 +34,7 @@ export function useDeleteToast(
       toast.add({
         type: "success",
         title: t("File deleted", { note: "toast" }),
-        description: <span dir="auto">{truncateFileName(displayName)}</span>,
+        description: <bdi>{truncateFileName(displayName)}</bdi>,
       });
     }
     if (del.phase === "error") {
@@ -42,7 +42,7 @@ export function useDeleteToast(
         type: "error",
         title: t("Delete failed", { note: "toast" }),
         description: (
-          <span dir="auto" className="block [overflow-wrap:anywhere]">
+          <span className="block [overflow-wrap:anywhere]">
             {formatDimahError(del.error)}
           </span>
         ),

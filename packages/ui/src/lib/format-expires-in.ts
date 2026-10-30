@@ -1,3 +1,4 @@
+import { useFormatNumber } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 
 function durationParts(seconds: number): {
@@ -20,6 +21,7 @@ function durationParts(seconds: number): {
 /** "Expires in 1 hour" for a signed link. `0` is a proxy link. */
 export function useShareExpiryLabel() {
   const t = useTranslations();
+  const formatNumber = useFormatNumber();
   return (seconds: number) => {
     if (seconds <= 0) {
       return t("This link works while you can access this file.", {
@@ -27,7 +29,7 @@ export function useShareExpiryLabel() {
       });
     }
     const { unit, count } = durationParts(seconds);
-    const value = String(count);
+    const value = formatNumber(count);
     if (unit === "day") {
       return count === 1
         ? t("Expires in 1 day", { note: "object list menu" })

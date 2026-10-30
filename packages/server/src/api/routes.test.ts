@@ -615,15 +615,33 @@ describe("download / delete", () => {
       status: "NOT_FOUND",
       statusCode: 404,
     });
-    await expect(
-      s3.api.delete({
-        query: { route: "uploads", key: "uploads/missing.png" },
-      }),
-    ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.OBJECT_NOT_FOUND.code,
-      status: "NOT_FOUND",
-      statusCode: 404,
+  });
+
+  it("treats a missing object as already deleted", async () => {
+    const onDeleted = vi.fn();
+    const send = vi.fn(async (command: { constructor: { name: string } }) => {
+      if (command.constructor.name === "HeadObjectCommand") {
+        throw Object.assign(new Error("missing"), { name: "NotFound" });
+      }
+      return {};
     });
+    const s3 = createInstance({
+      client: mockS3(send as never),
+      routes: { uploads: allFeaturesRoute({ delete: { onDeleted } }) },
+    });
+
+    await expect(
+      s3.api.delete({ query: { route: "uploads", key: storedPngKey } }),
+    ).resolves.toEqual({
+      success: true,
+      bucket: "bucket",
+      key: storedPngKey,
+      existed: false,
+    });
+    expect(onDeleted).toHaveBeenCalledWith(
+      expect.objectContaining({ key: storedPngKey, existed: false }),
+    );
+    expect(send).not.toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
   });
 
   it("deletes after a successful head", async () => {
@@ -643,8 +661,11 @@ describe("download / delete", () => {
       success: true,
       bucket: "bucket",
       key: storedPngKey,
+      existed: true,
     });
-    expect(onDeleted).toHaveBeenCalled();
+    expect(onDeleted).toHaveBeenCalledWith(
+      expect.objectContaining({ existed: true }),
+    );
     expect(send).toHaveBeenCalledWith(expect.any(HeadObjectCommand));
   });
 });
@@ -1255,6 +1276,114 @@ describe("confirm rollback", () => {
   });
 });
 
+describe("download inlineTypes", () => {
+  const inlineRoute = allFeaturesRoute({
+    download: { inlineTypes: ["image/*", "application/pdf"] },
+  });
+
+  function signedCommand() {
+    return vi.mocked(getSignedUrl).mock.calls.at(-1)?.[1] as {
+      input: Record<string, unknown>;
+    };
+  }
+
+  it("keeps inline for an allowed type", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({ HeadObjectCommand: headResult() }) as never,
+      ),
+      routes: { uploads: inlineRoute },
+    });
+
+    await expect(
+      s3.api.download({
+        query: { route: "uploads", key: storedPngKey, disposition: "inline" },
+      }),
+    ).resolves.toMatchObject({ disposition: "inline" });
+    expect(signedCommand().input.ResponseContentDisposition).toBe("inline");
+    expect(signedCommand().input.ResponseContentType).toBeUndefined();
+  });
+
+  it("signs attachment for active content the wildcard does not cover", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult({ ContentType: "image/svg+xml" }),
+        }) as never,
+      ),
+      routes: { uploads: inlineRoute },
+    });
+
+    await expect(
+      s3.api.download({
+        query: { route: "uploads", key: storedPngKey, disposition: "inline" },
+      }),
+    ).resolves.toMatchObject({ disposition: "attachment" });
+    expect(signedCommand().input.ResponseContentDisposition).toBe("attachment");
+  });
+
+  it("types an untyped object from its name and signs that type", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult({
+            ContentType: "application/octet-stream",
+          }),
+        }) as never,
+      ),
+      routes: { uploads: inlineRoute },
+    });
+
+    await s3.api.download({
+      query: {
+        route: "uploads",
+        key: storedPngKey,
+        fileName: "plan.pdf",
+        disposition: "inline",
+      },
+    });
+    expect(signedCommand().input).toMatchObject({
+      ResponseContentType: "application/pdf",
+    });
+    expect(String(signedCommand().input.ResponseContentDisposition)).toMatch(
+      /^inline;/,
+    );
+  });
+
+  it("forces attachment on GET /file and sets nosniff", async () => {
+    const s3 = createInstance({
+      client: mockS3(
+        sendByCommand({
+          HeadObjectCommand: headResult({ ContentType: "text/html" }),
+          GetObjectCommand: {
+            ContentType: "text/html",
+            Body: { transformToWebStream: () => new ReadableStream() },
+          },
+        }) as never,
+      ),
+      routes: { uploads: inlineRoute },
+    });
+
+    const res = await s3.handler(
+      new Request(
+        `http://localhost/api/s3/file?route=uploads&disposition=inline&key=${encodeURIComponent(storedPngKey)}`,
+      ),
+    );
+    expect(res.headers.get("content-disposition")).toMatch(/^attachment/);
+    expect(res.headers.get("content-type")).toBe("text/html");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  it("lists inlineTypes in the catalog", async () => {
+    const s3 = createInstance({ routes: { uploads: inlineRoute } });
+    const catalog = await s3.api.catalog();
+    expect(catalog.routes.uploads?.download).toMatchObject({
+      enabled: true,
+      inlineTypes: ["image/*", "application/pdf"],
+    });
+  });
+});
+
 describe("download proxy / resolve", () => {
   it("returns a same-origin /file URL when mode is proxy", async () => {
     const s3 = createInstance({
@@ -1329,8 +1458,8 @@ describe("deleteMany", () => {
       }),
     ).resolves.toEqual({
       results: [
-        { key: storedPngKey, success: true },
-        { key: storedBinKey, success: true },
+        { key: storedPngKey, success: true, existed: true },
+        { key: storedBinKey, success: true, existed: true },
       ],
     });
   });

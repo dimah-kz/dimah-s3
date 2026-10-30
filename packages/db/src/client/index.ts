@@ -9,6 +9,7 @@ export {
 export {
   dbObjectListAccessors,
   type DbObjectListAccessors,
+  type DbObjectListAccessorsOptions,
 } from "./db-object-list-accessors";
 export type {
   DbClientGetInput,

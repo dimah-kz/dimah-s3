@@ -53,6 +53,7 @@ export function useObjectListSelection<TItem>({
   const selectedFolderIdSig = JSON.stringify(selectedFolderIds);
   const onSelectionChangeRef = useRef(onSelectionChange);
   const getKeyRef = useRef(getKey);
+  const rowsRef = useRef({ items, folders });
   const rowsSelectable = filesSelectable || foldersSelectable;
   const selectedCount = selectedFileKeys.length + selectedFolderIds.length;
   const visibleCount = visibleFileKeys.length + visibleFolderIds.length;
@@ -74,8 +75,11 @@ export function useObjectListSelection<TItem>({
   useEffect(() => {
     onSelectionChangeRef.current = onSelectionChange;
     getKeyRef.current = getKey;
-  }, [getKey, onSelectionChange]);
+    rowsRef.current = { items, folders };
+  }, [folders, getKey, items, onSelectionChange]);
 
+  // Keyed on the selected ids only. A parent that rebuilds `items` or
+  // `folders` on every render must not get a call per render.
   useEffect(() => {
     const notify = onSelectionChangeRef.current;
     if (!notify) return;
@@ -83,11 +87,12 @@ export function useObjectListSelection<TItem>({
     const folderSet = new Set<string>(
       JSON.parse(selectedFolderIdSig) as string[],
     );
+    const rows = rowsRef.current;
     notify({
-      items: items.filter((item) => fileSet.has(getKeyRef.current(item))),
-      folders: folders.filter((folder) => folderSet.has(folder.id)),
+      items: rows.items.filter((item) => fileSet.has(getKeyRef.current(item))),
+      folders: rows.folders.filter((folder) => folderSet.has(folder.id)),
     });
-  }, [folders, items, selectedFileKeySig, selectedFolderIdSig]);
+  }, [selectedFileKeySig, selectedFolderIdSig]);
 
   const selectionRows: SelectionRow[] = [];
   if (foldersSelectable) {

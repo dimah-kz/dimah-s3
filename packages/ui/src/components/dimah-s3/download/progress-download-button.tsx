@@ -3,8 +3,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import { DownloadIcon } from "lucide-react";
 import { cn } from "cn";
-import { formatFileSize } from "@dimah-s3/core";
-import type { UseFetchDownloadReturn } from "@dimah-s3/react";
+import {
+  useFormatFileSize,
+  type UseFetchDownloadReturn,
+} from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   resolveStatusSlot,
@@ -79,6 +81,7 @@ export function ProgressDownloadButton({
   attachmentOrientation,
 }: ProgressDownloadButtonProps) {
   const t = useTranslations();
+  const formatFileSize = useFormatFileSize();
   const isThis = download.objectKey === objectKey;
   const isPendingThis = download.isPending && isThis;
   const { statusNode } = useDownloadUi(download, {

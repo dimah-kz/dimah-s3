@@ -64,10 +64,18 @@ outside its `keyPrefix` (`INVALID_KEY`).
   label="Delete flow"
   steps={[
     { name: "delete.guard", kind: "hook" },
-    { name: "DeleteObject in S3", kind: "s3" },
+    { name: "HeadObject in S3", kind: "s3" },
+    { name: "DeleteObject in S3", kind: "s3", note: "Only if it exists" },
     { name: "onDeleted", kind: "hook", note: "Database cleanup" },
   ]}
 />
+
+Delete is idempotent. When HeadObject finds nothing — an upload that was
+presigned but never sent, an aborted multipart upload, or an object a bucket
+lifecycle rule already removed — the server skips `DeleteObject`, still runs
+`onDeleted` with `existed: false`, and responds with
+`{ success: true, existed: false }`. A database row for that key is cleaned up
+the same way as for a stored object.
 
 ---
 
@@ -112,8 +120,8 @@ is not an access check. Ownership is `delete.guard` or [`db()`](/docs/db). See
 <Accordion title="How do I delete multiple files at once?">
 
 Use `deleteMany` on the server API or `removeMany` in the React client. Batch
-deletion runs `delete.guard` and S3 `DeleteObject` for each key, then
-triggers `onDeleted` for each successfully removed key:
+deletion runs the same flow for each key — `delete.guard`, S3 `DeleteObject`
+when the object exists, then `onDeleted` — and each result reports `existed`:
 
 ```ts title="Client usage"
 const { removeMany } = useDelete({ route: "avatar" });
