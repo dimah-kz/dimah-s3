@@ -68,12 +68,13 @@ function typeFromFileName(fileName: string | undefined): string | undefined {
 }
 
 /**
- * Types that run as a page in the browser: HTML, any XML (SVG, XHTML), and
- * JavaScript. Only an exact entry in the allow list renders them inline.
+ * Types that run as a page in the browser: HTML, any XML (SVG, XHTML, XSL),
+ * and JavaScript. Only an exact entry in the allow list renders them inline.
  */
 function isActiveContentType(type: string): boolean {
   return (
     type === "text/html" ||
+    type === "text/xsl" ||
     type.endsWith("/xml") ||
     type.endsWith("+xml") ||
     type.includes("javascript") ||
@@ -100,8 +101,8 @@ export type ResolveInlineDispositionInput = {
   /**
    * MIME types, or `type/*` wildcards, that may open in the browser.
    * File extensions are not accepted: the name does not decide what renders.
-   * A wildcard never matches HTML, XML (including `image/svg+xml`), or
-   * JavaScript; list those types exactly to allow them.
+   * A wildcard never matches HTML, XML (including `image/svg+xml` and
+   * `text/xsl`), or JavaScript; list those types exactly to allow them.
    * Omitted: {@link DEFAULT_INLINE_TYPES}. `false`: never inline.
    */
   allow?: readonly string[] | false;

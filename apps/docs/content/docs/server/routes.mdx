@@ -124,6 +124,16 @@ avatar: route({
 [`locals`](/docs/server/hooks/global-guard#locals) instead of loading the
 session again.
 
+Keys are limited to 1024 UTF-8 bytes. A generated key turns `${` in the file
+name into `_{`. On a `method: "POST"` route, a key from `object` that
+contains `${filename}` returns `KEY_INVALID`, so the presigned form always
+pins the exact key.
+
+Route lifetimes and sizes (`upload.expiresIn`, `upload.confirmWindow`,
+`upload.maxFileSize`, `upload.multipart.partSize`,
+`upload.multipart.ticketExpiresIn`, and `download.maxExpiresIn`) must be
+positive integers. Any other value throws at `dimahS3()`.
+
 ---
 
 ## Type reference
@@ -285,7 +295,9 @@ know to send one.
 
 Set `verifyContent: true`. After confirm, the server reads the first bytes of
 the object and compares their signature with the declared type. A mismatch
-deletes the object and returns `FILE_CONTENT_MISMATCH`:
+deletes the object and returns `FILE_CONTENT_MISMATCH`. An upload without a
+type is checked against the type its name gives, so `x.png` is checked as
+`image/png`:
 
 ```ts
 avatar: route({

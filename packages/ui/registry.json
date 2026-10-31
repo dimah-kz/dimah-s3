@@ -16,40 +16,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "devDependencies": ["@types/react-file-icon"],
@@ -107,40 +95,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "devDependencies": ["@types/react-file-icon"],
@@ -191,6 +167,11 @@
           "path": "src/hooks/use-paste-files.ts",
           "type": "registry:hook",
           "target": "@hooks/use-paste-files.ts"
+        },
+        {
+          "path": "src/hooks/use-own-drag.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-own-drag.ts"
         },
         {
           "path": "src/lib/upload-hints.ts",
@@ -259,40 +240,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "devDependencies": ["@types/react-file-icon"],
@@ -348,6 +317,11 @@
           "path": "src/hooks/use-paste-files.ts",
           "type": "registry:hook",
           "target": "@hooks/use-paste-files.ts"
+        },
+        {
+          "path": "src/hooks/use-own-drag.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-own-drag.ts"
         },
         {
           "path": "src/lib/upload-hints.ts",
@@ -415,40 +389,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "files": [
@@ -487,40 +449,28 @@
       "dependencies": ["@dimah-s3/core", "@dimah-s3/react"],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "files": [
@@ -545,40 +495,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "registryDependencies": ["button", "toast", "tooltip"],
@@ -624,40 +562,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "registryDependencies": ["button", "toast", "tooltip", "alert-dialog"],
@@ -709,40 +635,28 @@
       ],
       "cssVars": {
         "light": {
-          "dimah-s3-background": "var(--background)",
-          "dimah-s3-foreground": "var(--foreground)",
-          "dimah-s3-card": "var(--card)",
-          "dimah-s3-card-foreground": "var(--card-foreground)",
-          "dimah-s3-primary": "var(--primary)",
-          "dimah-s3-primary-foreground": "var(--primary-foreground)",
-          "dimah-s3-muted": "var(--muted)",
-          "dimah-s3-muted-foreground": "var(--muted-foreground)",
-          "dimah-s3-accent": "var(--accent)",
-          "dimah-s3-border": "var(--border)",
-          "dimah-s3-ring": "var(--ring)",
-          "dimah-s3-destructive": "var(--destructive)",
-          "dimah-s3-success": "var(--success, oklch(0.627 0.194 149.214))",
-          "dimah-s3-warning": "var(--warning, oklch(0.769 0.188 70.08))"
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
         },
         "dark": {
-          "dimah-s3-success": "var(--success, oklch(0.723 0.219 149.579))",
-          "dimah-s3-warning": "var(--warning, oklch(0.828 0.189 84.429))"
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
         },
         "theme": {
-          "color-dimah-s3-background": "var(--dimah-s3-background)",
-          "color-dimah-s3-foreground": "var(--dimah-s3-foreground)",
-          "color-dimah-s3-card": "var(--dimah-s3-card)",
-          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground)",
-          "color-dimah-s3-primary": "var(--dimah-s3-primary)",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground)",
-          "color-dimah-s3-muted": "var(--dimah-s3-muted)",
-          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground)",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent)",
-          "color-dimah-s3-border": "var(--dimah-s3-border)",
-          "color-dimah-s3-ring": "var(--dimah-s3-ring)",
-          "color-dimah-s3-destructive": "var(--dimah-s3-destructive)",
-          "color-dimah-s3-success": "var(--dimah-s3-success)",
-          "color-dimah-s3-warning": "var(--dimah-s3-warning)"
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
         }
       },
       "devDependencies": ["@types/react-file-icon"],
@@ -865,6 +779,11 @@
           "path": "src/hooks/use-paste-files.ts",
           "type": "registry:hook",
           "target": "@hooks/use-paste-files.ts"
+        },
+        {
+          "path": "src/hooks/use-own-drag.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-own-drag.ts"
         },
         {
           "path": "src/lib/upload-hints.ts",

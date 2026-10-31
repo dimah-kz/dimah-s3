@@ -5,7 +5,10 @@ import type { S3Api } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { abortable } from "@/internal/abortable";
 import { startBrowserDownload } from "@/internal/browser-download";
-import { runAfterCallback, runBeforeCallback } from "@/internal/callbacks";
+import {
+  reportOperationOutcome,
+  runBeforeCallback,
+} from "@/internal/callbacks";
 import { requireApi, toClientError } from "@/internal/client-error";
 import { useLiveRef, useOperationStore } from "@/internal/hooks";
 import type { OperationClaim } from "@/internal/operations";
@@ -155,7 +158,7 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
       store.run(
         key,
         (call) => navigate(call, fileName),
-        (outcome) => reportOutcome(optionsRef.current, outcome),
+        (outcome) => reportOperationOutcome(optionsRef.current, outcome),
       ),
     [navigate, optionsRef, store],
   );
@@ -176,20 +179,4 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
     cancel,
     reset,
   };
-}
-
-/**
- * Runs the after-callbacks for one settled `download` call, once its key is
- * free, so a callback can download the same key again.
- */
-async function reportOutcome(
-  { onError, onSuccess, onSettled }: UseDownloadOptions,
-  outcome: DownloadOutcome,
-): Promise<void> {
-  if (outcome.status === "error") {
-    await runAfterCallback(onError, outcome.error, outcome.key);
-  } else if (outcome.status === "success") {
-    await runAfterCallback(onSuccess, outcome.data, outcome.key);
-  }
-  await runAfterCallback(onSettled, outcome);
 }

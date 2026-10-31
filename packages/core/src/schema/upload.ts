@@ -12,8 +12,11 @@ import {
 export const uploadBodySchema = z.strictObject({
   route: routeNameSchema,
   name: fileNameSchema,
-  /** Declared size in bytes. Confirm checks it against HeadObject. */
-  size: z.int().positive().max(S3_MAX_OBJECT_SIZE),
+  /**
+   * Declared size in bytes. Confirm checks it against HeadObject. `0` parses
+   * so the server can reject it as `FILE_EMPTY`, as `validateFile` does.
+   */
+  size: z.int().nonnegative().max(S3_MAX_OBJECT_SIZE),
   /** MIME type. A blank value is omitted. */
   type: optionalContentTypeSchema,
   metadata: metadataSchema.optional(),

@@ -321,6 +321,40 @@ describe("createPurge", () => {
         ).resolves.toBeNull();
       });
 
+      it("blocks the overwrite's confirm once claimed, and drops its object and row", async () => {
+        const { client, send } = s3();
+        const { objects, purge, stale } = setup(client);
+        await stale("k", overwrite());
+        const claimStale = objects.claimStale;
+        const confirm = vi.fn(() =>
+          objects.markActive({
+            bucket: "b",
+            key: "k",
+            uploadToken: "t1",
+            size: 10,
+          }),
+        );
+        vi.spyOn(objects, "claimStale").mockImplementation(async (id) => {
+          const row = await claimStale(id);
+          // The confirm lands after the claim, inside its ticket's last second.
+          await expect(confirm()).rejects.toMatchObject({
+            code: "OBJECT_NOT_FOUND",
+          });
+          return row;
+        });
+
+        await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+        expect(confirm).toHaveBeenCalledTimes(1);
+        // The S3 marker carries the upload's own token, not the claim's.
+        expect(commandsOf(send)).toEqual([
+          expect.any(HeadObjectCommand),
+          expect.any(DeleteObjectCommand),
+        ]);
+        await expect(
+          objects.find({ bucket: "b", key: "k" }),
+        ).resolves.toBeNull();
+      });
+
       it("drops the row when the object is gone", async () => {
         const { client } = s3({ head: s3Exception("NotFound", 404) });
         const { objects, purge, stale } = setup(client);

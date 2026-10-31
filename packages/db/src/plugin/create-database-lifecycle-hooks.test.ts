@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createDbStore } from "@/store/create-db-store";
 import { insertObject } from "@/test/databases";
 import { memoryDbClient } from "@/test/fakes";
+import type { DbClientObject } from "@/types/client";
 import type { DbPluginOptions, ScopeContext } from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
 import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
@@ -260,6 +261,41 @@ describe("createDatabaseLifecycleHooks", () => {
       ).resolves.toBeUndefined();
     });
 
+    it("authorizes an overwrite with the object it replaces, in its folder", async () => {
+      const authorize = vi.fn(
+        ({ object }: ScopeContext & { object?: DbClientObject<never> }) =>
+          object?.folder !== "locked",
+      );
+      const { hooks, insert } = setup({ authorize, replace: "overwrite" });
+      await insert({ folder: "locked", size: 5 });
+
+      await expect(
+        defined(hooks.upload?.guard)(
+          startContext({ clientMetadata: { folder: "docs" } }),
+        ),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(authorize).toHaveBeenCalledTimes(1);
+      expect(authorize).toHaveBeenCalledWith(
+        expect.objectContaining({
+          operation: "upload",
+          key: "k",
+          folder: "locked",
+          object: expect.objectContaining({ key: "k", folder: "locked" }),
+        }),
+      );
+    });
+
+    it("rejects an overwrite of another scope's object before authorize", async () => {
+      const authorize = vi.fn(() => true);
+      const { hooks, insert } = setup({ authorize, replace: "overwrite" });
+      await insert({ scope: "user:2" });
+
+      await expect(
+        defined(hooks.upload?.guard)(startContext()),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(authorize).not.toHaveBeenCalled();
+    });
+
     it("rejects a key that purge is cleaning up", async () => {
       const { hooks, insert } = setup({ replace: "overwrite" });
       await insert({ ...pendingRow, status: "purging" });
@@ -493,6 +529,27 @@ describe("createDatabaseLifecycleHooks", () => {
         defined(hooks.upload?.onConfirmed)(confirmedContext()),
       ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
       await expect(row()).resolves.toMatchObject({ status: "purging" });
+    });
+
+    it("rejects an overwrite that purge has claimed", async () => {
+      const { hooks, store, insert, row } = setup({ replace: "overwrite" });
+      const stored = await insert({
+        ...overwrittenRow,
+        expiresAt: new Date(Date.now() - MINUTE),
+      });
+      await store.objects.claimStale(stored.id);
+
+      await expect(
+        defined(hooks.upload?.confirmGuard)(confirmContext()),
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+      await expect(
+        defined(hooks.upload?.onConfirmed)(confirmedContext()),
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+      await expect(row()).resolves.toMatchObject({
+        status: "active",
+        size: 5,
+        uploadToken: "purge:t1",
+      });
     });
 
     it("checks the quota against the verified size and drops the row", async () => {

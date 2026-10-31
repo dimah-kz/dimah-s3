@@ -215,12 +215,22 @@ const url = buildPublicObjectUrl({
 | `buildContentDisposition`, `parseFileName`                 | Builds and reads `Content-Disposition` with Unicode names                    |
 | `formatFileSize`, `truncateFileName`                       | Display text. `formatFileSize` takes a `locale` and unit labels              |
 | `buildObjectKey`, `normalizeObjectKey`                     | Joins key segments, and rejects unsafe keys (`..`, `\`, NUL)                 |
+| `objectKeyByteLength`, `S3_MAX_OBJECT_KEY_BYTES`           | A key's UTF-8 length, and the 1024-byte limit `normalizeObjectKey` enforces  |
+| `fitFileName`, `S3_MAX_FILE_FIELD_BYTES`                   | Fits a file name to the 255-byte wire rule                                   |
 | `buildPublicObjectUrl`                                     | Joins a public origin and an encoded key                                     |
 | `base64UrlEncode`, `base64UrlDecode`                       | base64url without `Buffer`                                                   |
 
 `DEFAULT_INLINE_TYPES` holds raster images, PDF, audio, video, and
-`text/plain`. A wildcard never matches HTML, XML (including SVG), or
-JavaScript.
+`text/plain`. A wildcard never matches HTML, XML (including SVG and
+`text/xsl`), or JavaScript.
+
+`fitFileName(name)` removes control characters, trims, and cuts a longer name
+to 255 UTF-8 bytes on a character boundary. It keeps an extension of up to 32
+bytes and falls back to `"file"`. The React upload engine applies it before
+presign, so a long name uploads under a shortened name.
+
+`sniffContentType` looks past a leading ID3v2 tag, so ID3-tagged FLAC sniffs
+as `audio/flac`.
 
 ---
 

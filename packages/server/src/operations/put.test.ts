@@ -174,7 +174,6 @@ describe("putObject input", () => {
       /size is required/,
     ],
     ["a size that does not match the body", { size: 4 }, /size is 4/],
-    ["an empty body", { body: "" }, /^s3\.put: size: /],
     ["an empty name", { name: " " }, /^s3\.put: name: /],
   ] satisfies [string, Partial<PutInput>, RegExp][])(
     "rejects %s",
@@ -190,6 +189,14 @@ describe("putObject input", () => {
       expect(s3.send).not.toHaveBeenCalled();
     },
   );
+
+  it("rejects an empty body with FILE_EMPTY", async () => {
+    const { s3, config } = setup();
+    await expect(
+      putObject(config, { ...input, body: "" }),
+    ).rejects.toMatchObject({ code: "FILE_EMPTY", statusCode: 400 });
+    expect(s3.send).not.toHaveBeenCalled();
+  });
 
   it("rejects a body over the 5 GiB single-request limit", async () => {
     const { s3, config } = setup();

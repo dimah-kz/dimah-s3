@@ -192,6 +192,14 @@ describe("initMultipart", () => {
     expect(s3.send).not.toHaveBeenCalled();
   });
 
+  it("rejects a declared size of 0 with FILE_EMPTY before S3 is called", async () => {
+    const { s3, config } = setup();
+    await expect(
+      initMultipart(config, { ...defaultUploadBody, size: 0 }),
+    ).rejects.toMatchObject({ code: "FILE_EMPTY", statusCode: 400 });
+    expect(s3.send).not.toHaveBeenCalled();
+  });
+
   it("fails with FEATURE_DISABLED when multipart is off", async () => {
     const { s3, config } = setup({ multipart: { enabled: false } });
     await expect(

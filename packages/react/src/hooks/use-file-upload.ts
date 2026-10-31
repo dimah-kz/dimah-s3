@@ -30,7 +30,7 @@ import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
 import { abortable } from "@/internal/abortable";
 import {
   hookFailed,
-  reportCallbackError,
+  notify,
   runAfterCallback,
   runBeforeCallback,
   runStartCallback,
@@ -425,9 +425,16 @@ function createUploadQueue(
     }
   }
 
-  /** Adds entries, replacing the queue unless `options.queue` is set. */
-  function enqueue(entries: UploadFileState[], options: UseFileUploadOptions) {
-    if (!options.queue) {
+  /**
+   * Adds entries. A call that starts uploading (`replace`) replaces the queue
+   * unless `options.queue` is set; a failed call only appends its rows.
+   */
+  function enqueue(
+    entries: UploadFileState[],
+    options: UseFileUploadOptions,
+    replace: boolean,
+  ) {
+    if (replace && !options.queue) {
       for (const task of tasks.values()) {
         abortTask(task, uploadAbortReason("cancel"));
       }
@@ -446,6 +453,12 @@ function createUploadQueue(
     if (files.length === 0) return settle(batchResult([]));
 
     const controller = new AbortController();
+    if (!options.queue) {
+      // This call replaces the queue, so an older call still preparing must
+      // not enqueue over it once it finishes.
+      const reason = uploadAbortReason("cancel");
+      for (const pending of preparingCalls) pending.abort(reason);
+    }
     preparingCalls.add(controller);
     commit({ preparing: snapshot.preparing + 1 });
     let prepared: Prepared;
@@ -477,6 +490,7 @@ function createUploadQueue(
             error,
           })),
           options,
+          false,
         );
         outcomes = [];
         for (const file of prepared.files) {
@@ -487,7 +501,7 @@ function createUploadQueue(
       }
       case "ready": {
         const entries = prepared.files.map(createEntry);
-        enqueue(entries, options);
+        enqueue(entries, options, true);
         const config: CallConfig = {
           api,
           options,
@@ -644,18 +658,6 @@ function batchResult(
     }
   }
   return result;
-}
-
-/** Runs a progress-style callback. A throw is reported, never rethrown. */
-function notify<TArgs extends unknown[]>(
-  callback: ((...args: TArgs) => void) | undefined,
-  ...args: TArgs
-) {
-  try {
-    callback?.(...args);
-  } catch (error) {
-    reportCallbackError(error);
-  }
 }
 
 /** The queue phase, byte progress and error, derived from its files. */

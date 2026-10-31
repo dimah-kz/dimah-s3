@@ -44,6 +44,7 @@ const uploadPartFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/upload/upload-file-list.tsx"),
   sourceFile("components/dimah-s3/upload/upload-toasts.tsx"),
   sourceFile("hooks/use-paste-files.ts", "registry:hook"),
+  sourceFile("hooks/use-own-drag.ts", "registry:hook"),
   sourceFile("lib/upload-hints.ts", "registry:lib"),
   sourceFile("lib/is-field-target.ts", "registry:lib"),
 ];
@@ -122,7 +123,7 @@ const themeTokens = [
 
 type ThemeToken = (typeof themeTokens)[number];
 
-/** Fallbacks for tokens that most shadcn themes do not define. */
+/** Fallback colors for tokens that most shadcn themes do not define. */
 const fallbacks = {
   light: {
     success: "oklch(0.627 0.194 149.214)",
@@ -137,36 +138,40 @@ const fallbacks = {
   Partial<Record<ThemeToken, string>>
 >;
 
-function tokenDefaults(
+/** `--dimah-s3-<token>-default`: plain colors, so they inherit at any depth. */
+function fallbackDefaults(
   mode: keyof typeof fallbacks,
-  tokens: readonly ThemeToken[],
 ): Record<string, string> {
-  const modeFallbacks: Partial<Record<ThemeToken, string>> = fallbacks[mode];
   return Object.fromEntries(
-    tokens.map((token) => {
-      const fallback = modeFallbacks[token];
-      return [
-        `dimah-s3-${token}`,
-        fallback ? `var(--${token}, ${fallback})` : `var(--${token})`,
-      ];
-    }),
+    Object.entries(fallbacks[mode]).map(([token, color]) => [
+      `dimah-s3-${token}-default`,
+      color,
+    ]),
   );
 }
 
+/** The token, then the shadcn variable, then the plain default if any. */
+function tokenChain(token: ThemeToken): string {
+  const shadcn =
+    token in fallbacks.light
+      ? `var(--${token}, var(--dimah-s3-${token}-default))`
+      : `var(--${token})`;
+  return `var(--dimah-s3-${token}, ${shadcn})`;
+}
+
 /**
- * The same tokens as `css/shadcn.css`: `light` and `dark` set each
- * `--dimah-s3-*` default from the host shadcn theme, and `theme` maps the
- * `color-dimah-s3-*` utilities onto them (Tailwind v4 `@theme inline`).
- * Like the CSS file, `dark` only sets the tokens whose fallback changes.
+ * The same tokens as `css/shadcn.css`. The `--dimah-s3-*` tokens are unset by
+ * default: `theme` maps each `color-dimah-s3-*` utility (Tailwind v4
+ * `@theme inline`) onto the token with the shadcn variable as its fallback,
+ * so the chain resolves on the element that uses it and a nested `.dark` or
+ * theme class reaches the components inside it. `light` and `dark` hold only
+ * the plain `*-default` colors behind `success` and `warning`.
  */
 export const componentCssVars = {
-  light: tokenDefaults("light", themeTokens),
-  dark: tokenDefaults("dark", ["success", "warning"]),
+  light: fallbackDefaults("light"),
+  dark: fallbackDefaults("dark"),
   theme: Object.fromEntries(
-    themeTokens.map((token) => [
-      `color-dimah-s3-${token}`,
-      `var(--dimah-s3-${token})`,
-    ]),
+    themeTokens.map((token) => [`color-dimah-s3-${token}`, tokenChain(token)]),
   ),
 } satisfies RegistryItem["cssVars"];
 

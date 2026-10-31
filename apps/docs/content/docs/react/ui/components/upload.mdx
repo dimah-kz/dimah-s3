@@ -88,8 +88,12 @@ its parts in your own layout.
 | `UploadFileItem` | The card for one file, with its progress, error, and a cancel action      |
 | `UploadToasts`   | Progress, results, and rejected files as toasts. It renders no element    |
 
-`useUploadContext()` returns the `upload` of the nearest `Upload`, for parts
-of your own.
+`useUploadContext()` returns the `upload` of the nearest `Upload` and its
+`isFull` flag, for parts of your own. Pass `isFull` to `Upload` (as a full
+`UploadField` does) to render `UploadTrigger` and `UploadDropzone`
+focusable but `aria-disabled`; it changes only how they render, so the
+`upload` must take no files itself. Queued files show a per-file cancel in
+`UploadStatus` and `UploadFileList`.
 
 ## Dropzone
 

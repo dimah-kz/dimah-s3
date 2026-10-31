@@ -9,6 +9,7 @@ import type { DimahS3Logger } from "@dimah-s3/server";
 import {
   DEFAULT_STALE_LIMIT,
   type StorageObjectStore,
+  uploadTokenOf,
 } from "@/store/object-store";
 import type { StorageObject } from "@/types/storage-object";
 
@@ -140,7 +141,9 @@ async function deleteUploadedObject(
 ): Promise<KeyState> {
   const head = await headObject(client, row);
   if (!head) return "empty";
-  if (head.Metadata?.[UPLOAD_MARKER_META] !== row.uploadToken) return "kept";
+  if (head.Metadata?.[UPLOAD_MARKER_META] !== uploadTokenOf(row)) {
+    return "kept";
+  }
   const input = { Bucket: row.bucket, Key: row.key };
   try {
     await client.send(
@@ -167,7 +170,8 @@ export function createPurge(options: CreatePurgeOptions): Purge {
       key = await deleteUploadedObject(client, row);
     }
     if (row.status === "active" && row.uploadToken !== null) {
-      // An unconfirmed overwrite: the row goes only with its object.
+      // An unconfirmed overwrite: the row goes only with its object. The
+      // claimed token matches the row only while no new upload took it.
       const upload = {
         bucket: row.bucket,
         key: row.key,

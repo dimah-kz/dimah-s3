@@ -78,6 +78,14 @@ describe("nestKeyUnderPrefix", () => {
     );
   });
 
+  it("rejects a nested key over 1024 UTF-8 bytes", () => {
+    const key = "é".repeat(508); // 1016 bytes
+    expect(nestKeyUnderPrefix("abc", key)).toBe(`abc/${key}`);
+    expect(() => nestKeyUnderPrefix("user-uploads", key)).toThrow(
+      expect.objectContaining({ code: "KEY_INVALID" }),
+    );
+  });
+
   it("leaves a safe key alone without a prefix", () => {
     expect(nestKeyUnderPrefix(false, "/a.png")).toBe("a.png");
   });

@@ -318,8 +318,9 @@ Where a file goes comes from the source. When it has `uploadOptions(parent)`,
 every file uploaded into the list sends the options for its folder:
 
 - drops and pastes on the frame use the open folder;
-- a folder row takes drops for that folder, and its menu has "Upload to this
-  folder" as the keyboard path;
+- a folder row takes drops for that folder and announces
+  `Drop to upload into {name}` while a drag is over it, and its menu has
+  "Upload to this folder" as the keyboard path;
 - `UploadTrigger` and `UploadDropzone` inside the list use the open folder.
   Their own `call` merges over it.
 
@@ -346,7 +347,8 @@ With `toasts` on (the default), the list shows toasts for `upload`,
 never reports twice. Mount one `<Toaster />` either way.
 
 Copy link and the bulk delete report their own result. With
-`toasts={false}`, they speak through a polite live region instead.
+`toasts={false}`, they, and every delete result, speak through a polite live
+region instead. The drop overlay follows only drags over the list itself.
 
 ## File menu
 

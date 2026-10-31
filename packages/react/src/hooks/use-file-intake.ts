@@ -38,7 +38,10 @@ export type UseFileIntakeOptions = {
   accept?: readonly string[];
   /** Max files per selection. More than one allows a multiple selection. */
   maxFiles: number;
-  /** Disables every intake interaction. */
+  /**
+   * Disables every intake interaction: the root, drop targets and paste, and
+   * `open()` does nothing.
+   */
   disabled?: boolean;
   /** Disables click-to-open on the root. */
   noClick?: boolean;
@@ -249,8 +252,12 @@ export function useFileIntake(
     [attachInput, getDropzoneInputProps, htmlAccept],
   );
 
+  const { disabled } = options;
   const open = useCallback(
     (call?: UploadCallOptions) => {
+      // Typed as a function, but react-dropzone sets `null` when disabled.
+      const openPicker = openDropzone as (() => void) | null;
+      if (disabled || !openPicker) return;
       pickerCall.current = call;
       const inputs = inputsRef.current;
       for (const node of inputs) {
@@ -258,9 +265,9 @@ export function useFileIntake(
       }
       const ref = inputRef as { current: HTMLInputElement | null };
       if (!ref.current?.isConnected) ref.current = [...inputs].at(-1) ?? null;
-      openDropzone();
+      openPicker();
     },
-    [inputRef, openDropzone],
+    [disabled, inputRef, openDropzone],
   );
 
   return {

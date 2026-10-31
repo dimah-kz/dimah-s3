@@ -109,8 +109,9 @@ export const catalog = (options?: S3RequestOptions) =>
 The browser sends single-shot uploads to `presign.url` itself. To replace that
 transfer, for example with an in-memory backend in tests, add
 `uploadTransport` to the object. It must send `presign.fields` or
-`presign.headers` exactly, and reject with an `APIError` (`UPLOAD_FAILED`
-with S3's status, or `NETWORK_ERROR`) so the engine can retry.
+`presign.headers` exactly, and reject with an `APIError` so the engine can
+retry: `UPLOAD_FAILED` with S3's status, `CHECKSUM_MISMATCH` when S3 rejects
+the bytes' checksum (never retried), or `NETWORK_ERROR`.
 
 <AutoTypeTable
   path="packages/react/src/types/upload.ts"

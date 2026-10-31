@@ -513,7 +513,16 @@ export function memoryS3(): MemoryS3 {
       return getObject(command.input);
     }
     if (command instanceof DeleteObjectCommand) {
-      objects.delete(id(command.input.Bucket, command.input.Key));
+      const { Bucket, Key, IfMatch } = command.input;
+      const object = objects.get(id(Bucket, Key));
+      if (
+        object &&
+        IfMatch !== undefined &&
+        !etagMatches(IfMatch, object.eTag)
+      ) {
+        throw s3Exception("PreconditionFailed", 412);
+      }
+      objects.delete(id(Bucket, Key));
       return {};
     }
     if (command instanceof DeleteObjectsCommand) {

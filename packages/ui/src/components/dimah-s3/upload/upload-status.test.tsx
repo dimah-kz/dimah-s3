@@ -58,6 +58,7 @@ function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
       maxFiles: 5,
     },
     resumable: false,
+    disabled: false,
     handleFiles: vi.fn(),
     open: vi.fn(),
     cancel: vi.fn(),
@@ -154,6 +155,22 @@ describe("UploadStatus", () => {
       screen.getByRole("button", { name: "Cancel all uploads" }),
     );
     expect(upload.cancel).toHaveBeenCalledWith();
+  });
+
+  it("cancels one queued file on its own", async () => {
+    const upload = stubUpload({
+      files: [
+        fileState("a", "uploading"),
+        fileState("b", "uploading"),
+        fileState("c", "queued"),
+      ],
+      phase: "uploading",
+      isPending: true,
+    });
+    renderStatus(upload);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel c.txt" }));
+    expect(upload.cancel).toHaveBeenCalledExactlyOnceWith("c");
   });
 
   it("shows the result of several files with a dismiss action", async () => {

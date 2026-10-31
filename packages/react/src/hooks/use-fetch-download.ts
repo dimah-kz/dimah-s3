@@ -8,8 +8,8 @@ import { createThrottledSpeedUpdater } from "@/helpers/throttled-speed";
 import { abortable } from "@/internal/abortable";
 import { readResponseBlob, saveBlob } from "@/internal/browser-download";
 import {
-  reportCallbackError,
-  runAfterCallback,
+  notify,
+  reportOperationOutcome,
   runBeforeCallback,
   runStartCallback,
 } from "@/internal/callbacks";
@@ -24,6 +24,10 @@ import type {
   UseFetchDownloadOptions,
   UseFetchDownloadReturn,
 } from "@/types/download";
+import type { TransferProgress } from "@/types/operation";
+
+/** The least time between two progress reports while a body streams. */
+const PROGRESS_INTERVAL_MS = 100;
 
 type FetchDownloadOptions = DownloadOptions & { fileSize?: number | null };
 
@@ -94,8 +98,7 @@ export function useFetchDownload(
         if (startError) throw startError;
 
         const response = await fetchObject(url, signal);
-        const total =
-          Number(response.headers.get("content-length")) || fileSize || 0;
+        let total = declaredSize(response, fileSize);
         const name =
           fileName ??
           parseFileName(response.headers.get("content-disposition")) ??
@@ -104,22 +107,33 @@ export function useFetchDownload(
         call.update({ fileName: name, fileSize: total || null });
 
         const speed = createThrottledSpeedUpdater(createSpeedTracker());
-        const blob = await readResponseBlob(response, (loaded) => {
-          const progress = speed.apply(transferProgress(loaded, total));
+        let reported: TransferProgress | null = null;
+        let reportedAt = -Infinity;
+        const report = (progress: TransferProgress) => {
+          reported = progress;
+          reportedAt = Date.now();
           call.update({ progress });
-          try {
-            optionsRef.current.onProgress?.(progress, key);
-          } catch (error) {
-            reportCallbackError(error);
+          notify(optionsRef.current.onProgress, progress, key);
+        };
+        const blob = await readResponseBlob(response, signal, (loaded) => {
+          // A body longer than declared (a decoded gzip body, say) has no
+          // known total from then on.
+          if (total > 0 && loaded > total) total = 0;
+          const progress = speed.apply(transferProgress(loaded, total));
+          // Chunks arrive far faster than a UI can render, so progress is
+          // reported at most every PROGRESS_INTERVAL_MS, and at the end.
+          const done = total > 0 && loaded === total;
+          if (done || Date.now() - reportedAt >= PROGRESS_INTERVAL_MS) {
+            report(progress);
           }
         });
         signal.throwIfAborted();
+        const final = transferProgress(blob.size, blob.size);
+        if (!isSameProgress(reported, final)) {
+          notify(optionsRef.current.onProgress, final, key);
+        }
         saveBlob(blob, name);
-        call.update({
-          phase: "success",
-          fileSize: blob.size,
-          progress: transferProgress(blob.size, blob.size),
-        });
+        call.update({ phase: "success", fileSize: blob.size, progress: final });
         return {
           status: "success",
           key,
@@ -143,7 +157,7 @@ export function useFetchDownload(
       store.run(
         key,
         (call) => transfer(call, fileName, fileSize),
-        (outcome) => reportOutcome(optionsRef.current, outcome),
+        (outcome) => reportOperationOutcome(optionsRef.current, outcome),
       ),
     [optionsRef, store, transfer],
   );
@@ -165,6 +179,25 @@ export function useFetchDownload(
 }
 
 /**
+ * The body size `response` declares, else `fileSize`, else `0` (unknown).
+ * An encoded body (`Content-Encoding` readable and not `identity`) decodes to
+ * another size, so both are ignored then.
+ */
+function declaredSize(response: Response, fileSize: number | null): number {
+  const encoding = response.headers.get("content-encoding")?.trim();
+  if (encoding && encoding.toLowerCase() !== "identity") return 0;
+  return Number(response.headers.get("content-length")) || fileSize || 0;
+}
+
+/** Whether `progress` already reported the byte counts of `next`. */
+function isSameProgress(
+  progress: TransferProgress | null,
+  next: TransferProgress,
+): boolean {
+  return progress?.loaded === next.loaded && progress.total === next.total;
+}
+
+/**
  * Fetches `url`. A failed request becomes `NETWORK_ERROR`, and a non-2xx
  * response `DOWNLOAD_FAILED` with its status. Aborting rejects with the
  * signal's reason.
@@ -182,20 +215,4 @@ async function fetchObject(url: string, signal: AbortSignal) {
     throw s3Error("DOWNLOAD_FAILED", { status }, { status });
   }
   return response;
-}
-
-/**
- * Runs the after-callbacks for one settled `download` call, once its key is
- * free, so a callback can download the same key again.
- */
-async function reportOutcome(
-  { onError, onSuccess, onSettled }: UseFetchDownloadOptions,
-  outcome: FetchDownloadOutcome,
-): Promise<void> {
-  if (outcome.status === "error") {
-    await runAfterCallback(onError, outcome.error, outcome.key);
-  } else if (outcome.status === "success") {
-    await runAfterCallback(onSuccess, outcome.data, outcome.key);
-  }
-  await runAfterCallback(onSettled, outcome);
 }

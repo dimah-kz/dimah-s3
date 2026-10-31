@@ -49,6 +49,7 @@ export type Translations = {
   "Drag and drop files here(dropzone)": string;
   "Drop files here to add them to this folder.(object list)": string;
   "Drop to upload into this folder(object list)": string;
+  "Drop to upload into {name}(object list)": string;
   "Drop to upload(dropzone)": string;
   "EB(file size unit)": string;
   "Each up to {size}(dropzone hint)": string;

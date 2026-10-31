@@ -50,10 +50,11 @@ describe("createScopeResolver", () => {
     const first = new Request("http://localhost/?user=1");
     const second = new Request("http://localhost/?user=2");
 
-    await resolve({ request: first, locals }, { operation: "upload" });
-    await resolve({ request: first, locals }, { operation: "confirm" });
+    // Each call has its own `locals`, as the server creates them.
+    await resolve({ request: first, locals: {} }, { operation: "upload" });
+    await resolve({ request: first, locals: {} }, { operation: "confirm" });
     const other = await resolve(
-      { request: second, locals },
+      { request: second, locals: {} },
       { operation: "upload" },
     );
 
@@ -61,11 +62,11 @@ describe("createScopeResolver", () => {
     expect(other.scope).toBe("user:2");
   });
 
-  it("resolves the scope once per request and target", async () => {
+  it("resolves the scope once per call and target", async () => {
     const request = new Request("http://localhost/");
     const resolveScope = vi.fn(() => "user:1");
     const resolve = createScopeResolver({ resolveScope });
-    const call = { request, locals };
+    const call = { request, locals: { tenant: "acme" } };
 
     await resolve(call, { operation: "upload", key: "k", folder: null });
     await resolve(call, { operation: "upload", key: "k", folder: null });
@@ -73,24 +74,36 @@ describe("createScopeResolver", () => {
 
     await resolve(call, { operation: "upload", key: "k" });
     await resolve(call, { operation: "download", key: "k" });
-    await resolve(
-      { request: new Request("http://localhost/"), locals },
-      { operation: "upload", key: "k", folder: null },
-    );
-    expect(resolveScope).toHaveBeenCalledTimes(4);
+    expect(resolveScope).toHaveBeenCalledTimes(3);
   });
 
-  it("hands each call its own locals, even when the scope is cached", async () => {
-    const request = new Request("http://localhost/");
-    const resolve = createScopeResolver({ resolveScope: () => "user:1" });
-    const later = { tenant: "acme", role: "admin" };
+  it("shares the scope between the hooks of one call", async () => {
+    const resolveScope = vi.fn(() => "user:1");
+    const resolve = createScopeResolver({ resolveScope });
+    const call = {
+      request: new Request("http://localhost/"),
+      locals: { tenant: "acme" },
+    };
+    const target = { operation: "confirm" as const, key: "k" };
 
-    await resolve({ request, locals }, { operation: "confirm", key: "k" });
-    const cached = await resolve(
-      { request, locals: later },
-      { operation: "confirm", key: "k" },
-    );
-    expect(cached.locals).toBe(later);
+    await resolve(call, target);
+    // A later hook of the call spreads the same `locals` into its context.
+    await resolve({ request: call.request, locals: call.locals }, target);
+    expect(resolveScope).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves again for a call with its own locals, even on the same request", async () => {
+    const request = new Request("http://localhost/");
+    const resolve = createScopeResolver({
+      resolveScope: ({ locals }: ScopeContext) =>
+        `org:${(locals as { orgId?: string }).orgId}`,
+    });
+    const target = { operation: "list" as const };
+
+    const first = await resolve({ request, locals: { orgId: "a" } }, target);
+    const second = await resolve({ request, locals: { orgId: "b" } }, target);
+    expect(first.scope).toBe("org:a");
+    expect(second.scope).toBe("org:b");
   });
 
   it("passes no session without getSession", async () => {

@@ -33,10 +33,11 @@ const activeResumeKeys = new Set<string>();
  * Uploads `file` as a multipart upload in the layout the server picks at
  * init, resuming a stored upload when `options.uploadStore` has one.
  *
- * With a store, a request error or an abort with `uploadAbortReason("detach")`
+ * With a store, a request error that may pass later (see
+ * {@link isRetryableError}) or an abort with `uploadAbortReason("detach")`
  * keeps the server upload and its record for resuming. A cancel, any other
- * abort, or any failure without a store aborts the server upload and deletes
- * the record. While one upload of a resume key runs, another upload of the
+ * abort, a failure that retrying cannot fix, or any failure without a store
+ * aborts the server upload and deletes the record. While one upload of a resume key runs, another upload of the
  * same key runs without the store, so the two never share a session.
  */
 export async function uploadMultipart(
@@ -116,8 +117,11 @@ async function runMultipart(
     if (store) await quietly(() => store.delete(resumeKey));
     return result;
   } catch (error) {
+    // The same rule as resumeSession: a failure that retrying cannot fix
+    // would fail every resume the same way.
     const keep =
-      store !== undefined && (!signal?.aborted || isDetached(signal));
+      store !== undefined &&
+      (signal?.aborted ? isDetached(signal) : isRetryableError(error));
     if (!keep) {
       abortQuietly(api, upload.ticket);
       if (store) await quietly(() => store.delete(resumeKey));

@@ -79,19 +79,25 @@ describe("FileAttachment", () => {
     expect(screen.queryByText("2.0 KB")).toBeNull();
   });
 
-  it("offers cancel only while the file is in flight", async () => {
+  it("offers cancel only while the file is queued or in flight", async () => {
     const user = userEvent.setup();
     const onCancel = vi.fn();
     const { rerender } = render(
+      <FileAttachment state="idle" fileName="report.pdf" onCancel={onCancel} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cancel report.pdf" }));
+    expect(onCancel).toHaveBeenCalledOnce();
+
+    rerender(
       <FileAttachment
         state="uploading"
         fileName="report.pdf"
         onCancel={onCancel}
       />,
     );
-
     await user.click(screen.getByRole("button", { name: "Cancel report.pdf" }));
-    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledTimes(2);
 
     rerender(
       <FileAttachment state="done" fileName="report.pdf" onCancel={onCancel} />,

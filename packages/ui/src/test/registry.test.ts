@@ -22,14 +22,24 @@ const registry = JSON.parse(
   readFileSync(new URL("../../registry.json", import.meta.url), "utf8"),
 ) as RegistryJson;
 
-/** Custom properties of the first block after `selector`, without `--`. */
+/**
+ * Custom properties of the first block after `selector`, without `--`, each
+ * value on one line (Prettier wraps long `var()` chains).
+ */
 function declarations(selector: string): Record<string, string> {
   const start = css.indexOf(`${selector} {`);
   expect(start).toBeGreaterThanOrEqual(0);
   const block = css.slice(start, css.indexOf("}", start));
   return Object.fromEntries(
     [...block.matchAll(/--([a-z0-9-]+)\s*:([^;]+);/g)].map(
-      ([, name, value]) => [name, value.trim()],
+      ([, name, value]) => [
+        name,
+        value
+          .replaceAll(/\s+/g, " ")
+          .replaceAll(/\(\s/g, "(")
+          .replaceAll(/\s\)/g, ")")
+          .trim(),
+      ],
     ),
   );
 }

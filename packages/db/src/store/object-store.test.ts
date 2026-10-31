@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { insertObject, testDatabases, useTestDatabase } from "@/test/databases";
 import { createDbStore } from "./create-db-store";
-import { PURGE_CLAIM_MS, type UpsertPendingInput } from "./object-store";
+import {
+  PURGE_CLAIM_MS,
+  uploadTokenOf,
+  type UpsertPendingInput,
+} from "./object-store";
 
 const MINUTE = 60_000;
 const inAMinute = () => new Date(Date.now() + MINUTE);
@@ -544,13 +548,48 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       const overwrite = await store().find({ bucket: "b", key: "overwrite" });
       if (!overwrite) throw new Error("expected the overwrite");
 
-      await expect(store().claimStale(overwrite.id)).resolves.toMatchObject({
+      const claimed = await store().claimStale(overwrite.id);
+      expect(claimed).toMatchObject({
         status: "active",
-        uploadToken: "t-over",
+        uploadToken: "purge:t-over",
         updatedAt: overwrite.updatedAt,
       });
+      expect(claimed && uploadTokenOf(claimed)).toBe("t-over");
       await expect(store().claimStale(overwrite.id)).resolves.toBeNull();
       await expect(store().count({ scope: "user:1" })).resolves.toBe(3);
+    });
+
+    it("blocks the confirm of an overwrite once it is claimed", async () => {
+      await seed();
+      const ref = { bucket: "b", key: "overwrite" };
+      const overwrite = await store().find(ref);
+      if (!overwrite) throw new Error("expected the overwrite");
+      const claimed = await store().claimStale(overwrite.id);
+      if (!claimed?.uploadToken) throw new Error("expected the claim");
+
+      await expect(
+        store().markActive({ ...ref, uploadToken: "t-over", size: 9 }),
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+      await expect(store().find(ref)).resolves.toMatchObject({
+        size: 5,
+        expiresAt: claimed.expiresAt,
+      });
+      // Purge ends the claimed upload by the token it moved aside.
+      await store().discardUpload({ ...ref, uploadToken: claimed.uploadToken });
+      await expect(store().find(ref)).resolves.toBeNull();
+    });
+
+    it("claims a lapsed overwrite claim again, keeping the upload's token", async () => {
+      await seed();
+      const overwrite = await store().find({ bucket: "b", key: "overwrite" });
+      if (!overwrite) throw new Error("expected the overwrite");
+      const claimed = await store().claimStale(overwrite.id);
+
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime((claimed?.expiresAt?.getTime() ?? 0) + MINUTE);
+      const again = await store().claimStale(overwrite.id);
+      expect(again?.uploadToken).toBe("purge:t-over");
+      expect(again && uploadTokenOf(again)).toBe("t-over");
     });
 
     it("makes a claimed row stale again once the claim lapses", async () => {

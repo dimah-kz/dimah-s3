@@ -1,12 +1,9 @@
 /**
  * Drizzle tables for @dimah-s3/db schema 2.0.0 on MySQL 8. They match the
- * columns and indexes of `sql/mysql.sql`, including the prefix indexes on
- * `key`, `folder`, `path` and `parent`.
- *
- * Drizzle cannot set a collation on every supported version, so these tables
- * use the database default. `sql/mysql.sql` compares keys, folders and scopes
- * byte for byte (`utf8mb4_bin`) and file names case-insensitively. Create the
- * tables from that file, or give the database those collations.
+ * columns, collations and indexes of `sql/mysql.sql`, including the prefix
+ * indexes on `key`, `folder`, `path` and `parent`. Keys, folders and
+ * scopes compare byte for byte (`utf8mb4_bin`), and file names
+ * case-insensitively (`utf8mb4_unicode_ci`).
  */
 import { sql } from "drizzle-orm";
 import {
@@ -23,14 +20,15 @@ import {
 import type { StorageObjectStatus } from "@/types/storage-object";
 import { DIMAH_S3_SCHEMA_VERSION, runtimeDefaults } from "./shared";
 
+/** Collation of every text column but `filename`: byte for byte. */
+const BINARY = "utf8mb4_bin";
+
 function id() {
-  return varchar("id", { length: 255 })
-    .primaryKey()
-    .$defaultFn(runtimeDefaults.id);
+  return string("id").primaryKey().$defaultFn(runtimeDefaults.id);
 }
 
 function string(name: string, length = 255) {
-  return varchar(name, { length });
+  return varchar(name, { length }).collate(BINARY);
 }
 
 function timestamp(name: string) {
@@ -53,10 +51,7 @@ function prefix(column: MySqlColumn, length: number) {
   return sql`${column}(${sql.raw(String(length))})`;
 }
 
-/**
- * The `storage_object` table: one row per tracked object. Keys must compare
- * byte for byte, so use a `utf8mb4_bin` database or `sql/mysql.sql`.
- */
+/** The `storage_object` table: one row per tracked object. */
 export const storageObject = mysqlTable(
   "storage_object",
   {
@@ -66,7 +61,9 @@ export const storageObject = mysqlTable(
     key: string("key", 1024).notNull(),
     route: string("route").notNull(),
     folder: string("folder", 1024),
-    filename: string("filename").notNull(),
+    filename: varchar("filename", { length: 255 })
+      .collate("utf8mb4_unicode_ci")
+      .notNull(),
     contentType: string("content_type"),
     size: byteCount("size"),
     declaredSize: byteCount("declared_size"),
@@ -75,7 +72,7 @@ export const storageObject = mysqlTable(
     s3Metadata: json("s3_metadata").$type<Record<string, string>>(),
     attributes: json("attributes"),
     acl: string("acl"),
-    uploadId: text("upload_id"),
+    uploadId: text("upload_id").collate(BINARY),
     uploadToken: string("upload_token", 64),
     expiresAt: timestamp("expires_at"),
     confirmedAt: timestamp("confirmed_at"),
@@ -145,14 +142,16 @@ export const storageFolder = mysqlTable(
  */
 export const dimahS3Settings = mysqlTable("private_dimah_s3_settings", {
   key: string("key").primaryKey(),
-  version: text("value").notNull().default(DIMAH_S3_SCHEMA_VERSION),
+  version: text("value")
+    .collate(BINARY)
+    .notNull()
+    .default(DIMAH_S3_SCHEMA_VERSION),
 });
 
 /**
  * Every @dimah-s3/db table. Spread it into your Drizzle schema and keep its
  * keys, because the FumaDB Drizzle adapter finds tables by them:
- * `drizzle({ client, relations: defineRelations({ ...dimahS3Tables }) })` on
- * drizzle-orm 1.x, or `drizzle({ client, schema: { ...dimahS3Tables } })` on 0.x.
+ * `drizzle({ client, relations: defineRelations({ ...dimahS3Tables }) })`.
  */
 export const dimahS3Tables = {
   storageObject,

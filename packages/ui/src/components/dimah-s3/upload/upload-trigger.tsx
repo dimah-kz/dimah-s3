@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import type { UploadCallOptions } from "@dimah-s3/react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -30,17 +31,21 @@ export type UploadTriggerProps = ComponentProps<typeof Button> & {
  *
  * The default content is an icon and "Upload file" (or "Upload files" when
  * the hook takes more than one). An `onClick` that prevents the default
- * keeps the picker closed.
+ * keeps the picker closed. While the root is full, as in a full
+ * `UploadField`, it stays focusable but is `aria-disabled`.
  */
 export function UploadTrigger({
   call,
   tooltip,
+  disabled,
+  focusableWhenDisabled,
+  className,
   children,
   onClick,
   ...props
 }: UploadTriggerProps) {
   const t = useTranslations();
-  const { upload } = useUploadContext();
+  const { upload, isFull } = useUploadContext();
   const uploadCall = useUploadCall(upload, call);
   const { intakeProps } = useUploadFocus();
 
@@ -48,6 +53,13 @@ export function UploadTrigger({
     <Button
       {...intakeProps}
       {...props}
+      disabled={Boolean(disabled) || isFull}
+      // A full field keeps the trigger reachable, announced as unavailable.
+      focusableWhenDisabled={focusableWhenDisabled ?? isFull}
+      className={cn(
+        "aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+        className,
+      )}
       onClick={(event) => {
         onClick?.(event);
         if (!event.defaultPrevented) upload.open(uploadCall);

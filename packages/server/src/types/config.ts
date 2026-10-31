@@ -122,7 +122,9 @@ export type UploadConfig = {
   checksum?: boolean;
   /**
    * After confirm, read the first bytes of the object and check them against
-   * the declared type. A mismatch deletes the object and returns
+   * the declared type. An upload without a type is checked against the type
+   * its name gives (`x.png` is checked as `image/png`), since downloads serve
+   * it inline as that type. A mismatch deletes the object and returns
    * `FILE_CONTENT_MISMATCH`.
    */
   verifyContent?: boolean;

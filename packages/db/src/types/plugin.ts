@@ -1,4 +1,4 @@
-import type { DimahS3Locals, UploadOnStartContext } from "@dimah-s3/server";
+import type { DimahS3Locals } from "@dimah-s3/server";
 import type { DimahS3DbClient } from "@/fuma-db";
 import type { StandardSchemaV1 } from "@/standard-schema";
 import type { DbClientObject, DbQuota } from "./client";
@@ -40,14 +40,6 @@ export type ScopeContext<TSession = undefined> = {
   folder?: string | null;
   /** Client extras of the upload. Set on `upload` only. */
   clientMetadata?: Record<string, string>;
-};
-
-/** Context of the db upload hooks: the server's `onStart` context plus db state. */
-export type DbUploadContext<TSession = undefined> = UploadOnStartContext & {
-  scope: string;
-  session: TSession;
-  /** Logical folder from `clientMetadata.folder`. `null` is the root. */
-  folder: string | null;
 };
 
 /** Per-route options under `plugins: { db: … }`. */
@@ -99,13 +91,19 @@ export type DbPluginOptions<
   client: DimahS3DbClient;
   /** Loads the session for a request. Called at most once per `Request`. */
   getSession?: (request: Request) => TSession | Promise<TSession>;
-  /** Owning scope of the request. `null` rejects it with `UNAUTHORIZED`. */
+  /**
+   * Owning scope of the request. `null` rejects it with `UNAUTHORIZED`.
+   * Runs once per call and target, so the guard and the lifecycle hooks of
+   * one call share the result.
+   */
   resolveScope: (
     context: ScopeContext<TSession>,
   ) => string | null | Promise<string | null>;
   /**
    * Runs after the scope is resolved. `object` is set when the request
-   * targets a stored object. `false` rejects it with `FORBIDDEN`.
+   * targets a stored object, including an upload that overwrites an active
+   * object; that upload's `folder` is the folder of the object it replaces.
+   * `false` rejects it with `FORBIDDEN`.
    */
   authorize?: (
     context: ScopeContext<TSession> & {

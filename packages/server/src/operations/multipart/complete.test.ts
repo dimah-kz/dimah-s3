@@ -404,6 +404,44 @@ describe("completeMultipart", () => {
     );
   });
 
+  it("finalizes the object when a concurrent call completes the upload first", async () => {
+    const { s3, config } = setup();
+    const upload = await init(config);
+    await uploadParts(s3, config, upload);
+    const real = s3.send.getMockImplementation();
+    if (!real) throw new Error("expected a send implementation");
+    s3.send.mockImplementation(async (command, options) => {
+      if (command instanceof CompleteMultipartUploadCommand) {
+        // The other call wins between our ListParts and our complete, so
+        // ours gets NoSuchUpload.
+        s3.send.mockImplementation(real);
+        await real(command, options);
+      }
+      return real(command, options);
+    });
+
+    await expect(
+      completeMultipart(config, { ticket: upload.ticket }),
+    ).resolves.toMatchObject({ key: upload.key, size: SIZE });
+    expect(s3.get(upload.key)).toBeDefined();
+  });
+
+  it("reports the ACL chosen by object(), not the route default", async () => {
+    const onConfirmed = vi.fn<(context: UploadOnConfirmedContext) => void>();
+    const { s3, config } = setup({
+      acl: "private",
+      object: () => ({ acl: "public-read" }),
+      onConfirmed: [{ hook: onConfirmed }],
+    });
+    const upload = await init(config);
+    await uploadParts(s3, config, upload);
+
+    await expect(
+      completeMultipart(config, { ticket: upload.ticket }),
+    ).resolves.toMatchObject({ acl: "public-read" });
+    expect(onConfirmed.mock.calls[0][0].acl).toBe("public-read");
+  });
+
   it("fails with OBJECT_NOT_FOUND when the upload was aborted", async () => {
     const { s3, config } = setup();
     const upload = await init(config);

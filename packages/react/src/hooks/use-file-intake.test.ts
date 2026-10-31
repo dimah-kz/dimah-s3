@@ -239,6 +239,17 @@ describe("useFileIntake", () => {
     hook.unmount();
   });
 
+  it("does nothing on open when disabled", () => {
+    const onFiles = vi.fn();
+    const hook = renderHook(() =>
+      useFileIntake({ maxFiles: 1, disabled: true, onFiles }),
+    );
+
+    expect(() => hook.current.open()).not.toThrow();
+    expect(onFiles).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
   it("marks the drop target while files are dragged over it", async () => {
     const view = render({ maxFiles: 1, onFiles: vi.fn() }, dropzoneView);
     const row = view.query("row");

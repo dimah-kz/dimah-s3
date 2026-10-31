@@ -77,6 +77,71 @@ describe("createS3Fetch", () => {
     ).rejects.toBe(reason);
   });
 
+  it("keeps a coded error when a params value is not a string or number", async () => {
+    const $fetch = createS3Fetch("/api/s3", {
+      fetch: async () =>
+        jsonResponse(
+          {
+            code: "QUOTA_EXCEEDED",
+            message: "m",
+            params: { limit: "bytes", over: true },
+          },
+          403,
+        ),
+    });
+
+    await expect(
+      $fetch("/upload", { method: "POST", body: {} }),
+    ).rejects.toMatchObject({
+      code: "QUOTA_EXCEEDED",
+      statusCode: 403,
+      body: { params: { limit: "bytes" } },
+    });
+  });
+
+  it.each([
+    [
+      "an HTML fallback page",
+      () =>
+        new Response("<html></html>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        }),
+    ],
+    ["a JSON string", () => jsonResponse("ok")],
+    ["JSON null", () => jsonResponse(null)],
+    [
+      "a binary body",
+      () =>
+        new Response(new Uint8Array([1, 2]), {
+          status: 200,
+          headers: { "content-type": "application/octet-stream" },
+        }),
+    ],
+  ])("throws UNKNOWN_ERROR for a 2xx with %s", async (_label, respond) => {
+    const $fetch = createS3Fetch("/api/s3", { fetch: async () => respond() });
+
+    const error: unknown = await $fetch("/routes", { method: "GET" }).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(APIError);
+    expect(error).toMatchObject({ code: "UNKNOWN_ERROR", statusCode: 200 });
+  });
+
+  it("resolves a 2xx JSON object or array body", async () => {
+    const $fetch = createS3Fetch("/api/s3", {
+      fetch: async () => jsonResponse({ routes: [] }),
+    });
+    await expect($fetch("/routes", { method: "GET" })).resolves.toEqual({
+      routes: [],
+    });
+
+    const list = createS3Fetch("/api/s3", {
+      fetch: async () => jsonResponse([1]),
+    });
+    await expect(list("/routes", { method: "GET" })).resolves.toEqual([1]);
+  });
+
   it("uses the global fetch when none is given", async () => {
     const { fetch, calls } = captureFetch();
     vi.stubGlobal("fetch", fetch);

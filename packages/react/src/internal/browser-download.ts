@@ -1,3 +1,5 @@
+import { s3Error } from "@dimah-s3/core";
+
 /**
  * Some browsers read the blob after `click()` returns, so the object URL is
  * revoked a little later.
@@ -21,15 +23,26 @@ export function saveBlob(blob: Blob, fileName: string): void {
 
 /**
  * Reads a fetch response body into a Blob typed with its `Content-Type`.
- * `onChunk` receives the bytes read so far after each chunk. Aborting the
- * request's signal rejects with the abort reason.
+ * `onChunk` receives the bytes read so far after each chunk. A failed read
+ * becomes `NETWORK_ERROR`; once `signal` is aborted it rejects with the abort
+ * reason instead. A throw from `onChunk` is rethrown as is.
  */
 export async function readResponseBlob(
   response: Response,
+  signal: AbortSignal,
   onChunk?: (loaded: number) => void,
 ): Promise<Blob> {
+  const readBytes = async <T>(read: () => Promise<T>): Promise<T> => {
+    try {
+      return await read();
+    } catch (error) {
+      signal.throwIfAborted();
+      throw s3Error("NETWORK_ERROR", undefined, { cause: error });
+    }
+  };
+
   if (!response.body) {
-    const blob = await response.blob();
+    const blob = await readBytes(() => response.blob());
     onChunk?.(blob.size);
     return blob;
   }
@@ -39,7 +52,7 @@ export async function readResponseBlob(
   const chunks: Uint8Array<ArrayBuffer>[] = [];
   let loaded = 0;
   for (;;) {
-    const { done, value } = await reader.read();
+    const { done, value } = await readBytes(() => reader.read());
     if (done) break;
     chunks.push(value);
     loaded += value.byteLength;

@@ -69,9 +69,15 @@ try {
 
 The client turns every failure into an `APIError`:
 
-- A JSON error body keeps its `code`, `params`, and HTTP status.
+- A JSON error body keeps its `code`, `params`, and HTTP status. A `params`
+  entry that is not a string or number is dropped; the rest of the error is
+  kept.
 - Any other error response becomes `INTERNAL_ERROR` (status 500 or above) or
   `UNKNOWN_ERROR`, with the real HTTP status.
+- A `2xx` response whose body is not a JSON object or array, such as an SPA
+  fallback `index.html`, becomes `UNKNOWN_ERROR` with its status.
+- The browser upload transport raises `CHECKSUM_MISMATCH` when S3 rejects a
+  checksummed PUT or part (`BadDigest` or `XAmzContentChecksumMismatch`).
 - A request that fails before a response becomes `NETWORK_ERROR`.
 - An aborted request rejects with the signal's abort reason, not an
   `APIError`.

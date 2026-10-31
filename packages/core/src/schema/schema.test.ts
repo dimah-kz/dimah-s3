@@ -87,6 +87,26 @@ describe("s3FetchErrorSchema", () => {
     expect(s3FetchErrorSchema.validate({ message: "no code" })).toBe(false);
     expect(s3FetchErrorSchema.validate("not json")).toBe(false);
   });
+
+  it("keeps code and message when a params value is not a string or number", () => {
+    expect(
+      s3FetchErrorSchema.parse({
+        code: "QUOTA_EXCEEDED",
+        message: "m",
+        params: { limit: "bytes", used: 3, over: true, nested: { a: 1 } },
+      }),
+    ).toEqual({
+      code: "QUOTA_EXCEEDED",
+      message: "m",
+      params: { limit: "bytes", used: 3 },
+    });
+    expect(
+      s3FetchErrorSchema.parse({ code: "X", message: "m", params: null }),
+    ).toEqual({ code: "X", message: "m" });
+    expect(
+      s3FetchErrorSchema.parse({ code: "X", message: "m", params: [1] }),
+    ).toEqual({ code: "X", message: "m" });
+  });
 });
 
 describe("trimmedString", () => {
@@ -148,10 +168,10 @@ describe("uploadTicketSchema", () => {
     expect(uploadTicketSchema.validate("")).toBe(false);
   });
 
-  it("fits a worst-case ticket with a 1024-character key and a 255-byte name", async () => {
-    // Largest JSON per accepted value: 3-byte UTF-8 key characters, and
-    // `"` (escaped to 2 bytes) filling the name and type byte caps.
-    const key = "€".repeat(1024);
+  it("fits a worst-case ticket with a 1024-byte key and a 255-byte name", async () => {
+    // Largest JSON per accepted value: `"` (escaped to 2 bytes) filling the
+    // key, name, and type byte caps.
+    const key = '"'.repeat(1024);
     const name = '"'.repeat(255);
     const type = `x/${'"'.repeat(253)}`;
     expect(objectKeySchema.parse(key)).toBe(key);
@@ -274,9 +294,14 @@ describe("uploadBodySchema", () => {
     ).toBe(false);
   });
 
-  it("requires a positive integer size up to 5 TiB", () => {
+  it("requires a non-negative integer size up to 5 TiB", () => {
     expect(uploadBodySchema.validate({ ...uploadBody, size: 1.5 })).toBe(false);
-    expect(uploadBodySchema.validate({ ...uploadBody, size: 0 })).toBe(false);
+    expect(uploadBodySchema.validate({ ...uploadBody, size: -1 })).toBe(false);
+    // 0 parses so the server answers FILE_EMPTY, not VALIDATION_ERROR.
+    expect(uploadBodySchema.validate({ ...uploadBody, size: 0 })).toBe(true);
+    expect(multipartInitBodySchema.validate({ ...uploadBody, size: 0 })).toBe(
+      true,
+    );
     expect(
       uploadBodySchema.validate({ ...uploadBody, size: S3_MAX_OBJECT_SIZE }),
     ).toBe(true);
@@ -645,6 +670,14 @@ describe("objectKeySchema", () => {
     expect(objectKeySchema.parse("/uploads/a.png/")).toBe("uploads/a.png");
     expect(objectKeySchema.validate("../secret")).toBe(false);
     expect(objectKeySchema.validate("a/../b")).toBe(false);
+  });
+
+  it("limits keys to 1024 UTF-8 bytes, not characters", () => {
+    const key1024 = `${"€".repeat(341)}a`;
+    expect(objectKeySchema.parse(key1024)).toBe(key1024);
+    expect(objectKeySchema.validate(`${key1024}a`)).toBe(false);
+    expect(objectKeySchema.validate("あ".repeat(700))).toBe(false);
+    expect(objectKeySchema.validate("a".repeat(1025))).toBe(false);
   });
 });
 

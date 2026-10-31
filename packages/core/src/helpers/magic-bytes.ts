@@ -103,6 +103,34 @@ function isMp3Frame(bytes: Uint8Array): boolean {
   );
 }
 
+/**
+ * Offset just past a leading ID3v2 tag (header, syncsafe-sized body, and
+ * v2.4 footer), or `undefined` when `bytes` do not start with a valid one.
+ * Taggers prepend ID3v2 to FLAC as well as MP3, so the audio starts there.
+ */
+function id3v2End(bytes: Uint8Array): number | undefined {
+  if (bytes.length < 10 || !hasAscii(bytes, "ID3")) return undefined;
+  if (bytes[3] < 2 || bytes[3] > 4) return undefined;
+  const size = bytes.subarray(6, 10);
+  if (size.some((byte) => byte & 0x80)) return undefined;
+  const footer = bytes[5] & 0x10 ? 10 : 0;
+  return (
+    10 + ((size[0] << 21) | (size[1] << 14) | (size[2] << 7) | size[3]) + footer
+  );
+}
+
+/** Bytes after a leading ID3v2 tag; empty when there is none or it runs past `bytes`. */
+function afterId3v2(bytes: Uint8Array): Uint8Array {
+  const end = id3v2End(bytes);
+  return end === undefined ? new Uint8Array() : bytes.subarray(end);
+}
+
+/** An ID3v2 tag that ends at or past the sniffed bytes: the audio after it is unseen. */
+function hasTruncatedId3v2(bytes: Uint8Array): boolean {
+  const end = id3v2End(bytes);
+  return end !== undefined && end >= bytes.length;
+}
+
 function ftypSignature(type: string, aliases?: readonly string[]): Signature {
   return { type, aliases, test: (bytes) => ftypType(bytes) === type };
 }
@@ -133,6 +161,17 @@ const SIGNATURES: readonly Signature[] = [
     type: "video/webm",
     aliases: ["audio/webm"],
     test: (bytes) => startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]),
+  },
+  {
+    type: "audio/flac",
+    aliases: ["audio/x-flac"],
+    test: (bytes) => hasAscii(afterId3v2(bytes), "fLaC"),
+  },
+  {
+    // The tag hides what follows: MP3 is likelier, but FLAC is not ruled out.
+    type: "audio/mpeg",
+    aliases: ["audio/mp3", "audio/flac", "audio/x-flac"],
+    test: hasTruncatedId3v2,
   },
   {
     type: "audio/mpeg",

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useId,
-  useRef,
-  useState,
-  type DragEvent,
-  type HTMLAttributes,
-} from "react";
+import { useId, type DragEvent, type HTMLAttributes } from "react";
 import { CloudUpload } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import type { UploadCallOptions } from "@dimah-s3/react";
@@ -16,6 +10,7 @@ import {
   useUploadContext,
   useUploadFocus,
 } from "@/components/dimah-s3/upload/upload";
+import { useOwnDrag } from "@/hooks/use-own-drag";
 import { useUploadHints } from "@/lib/upload-hints";
 
 /** Props for {@link UploadDropzone}. Other props go to the dropzone element. */
@@ -33,7 +28,8 @@ export type UploadDropzoneProps = HTMLAttributes<HTMLDivElement> & {
  * can be dropped. Its drag state follows only the files over this element,
  * not the whole hook, so other drop targets of the hook stay quiet. It
  * stays usable while files upload, so new files follow the hook's `queue`
- * option.
+ * option. While the root is full, as in a full `UploadField`, it stays
+ * focusable but is `aria-disabled`.
  *
  * `children` replace the icon and text. The dropzone is a button, so do not
  * put controls inside it: render `UploadStatus` next to it instead.
@@ -49,7 +45,7 @@ export function UploadDropzone({
   ...props
 }: UploadDropzoneProps) {
   const t = useTranslations();
-  const { upload } = useUploadContext();
+  const { upload, isFull } = useUploadContext();
   const uploadCall = useUploadCall(upload, call);
   const { intakeProps } = useUploadFocus();
   const drag = useOwnDrag();
@@ -81,6 +77,8 @@ export function UploadDropzone({
                 .filter(Boolean)
                 .join(" ") || undefined,
             "aria-busy": upload.isPending || undefined,
+            // Only when full: an `undefined` would hide the hook's own.
+            ...(isFull ? { "aria-disabled": true } : null),
             "data-slot": "upload-dropzone",
             "data-drag-active": dragActive || undefined,
             "data-drag-reject": dragReject || undefined,
@@ -147,40 +145,5 @@ export function UploadDropzone({
         {dragMessage}
       </div>
     </>
-  );
-}
-
-/**
- * Whether files are dragged over this element, from its own drag events.
- * Children fire their own enter and leave, so it counts the entered nodes.
- */
-function useOwnDrag() {
-  const entered = useRef(new Set<EventTarget>());
-  const [over, setOver] = useState(false);
-
-  return {
-    over,
-    enter(event: DragEvent<HTMLElement>) {
-      if (!hasFiles(event)) return;
-      entered.current.add(event.target);
-      setOver(true);
-    },
-    leave(event: DragEvent<HTMLElement>) {
-      entered.current.delete(event.target);
-      if (entered.current.size === 0) setOver(false);
-    },
-    end() {
-      entered.current.clear();
-      setOver(false);
-    },
-  };
-}
-
-/** Like react-dropzone: a drag carries files when a type or an item says so. */
-function hasFiles({ dataTransfer }: DragEvent<HTMLElement>): boolean {
-  if (!dataTransfer) return false;
-  return (
-    Array.from(dataTransfer.types).includes("Files") ||
-    Array.from(dataTransfer.items).some((item) => item.kind === "file")
   );
 }

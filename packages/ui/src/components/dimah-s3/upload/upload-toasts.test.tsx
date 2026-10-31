@@ -50,6 +50,7 @@ function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
       maxFiles: 5,
     },
     resumable: false,
+    disabled: false,
     handleFiles: vi.fn(),
     open: vi.fn(),
     cancel,

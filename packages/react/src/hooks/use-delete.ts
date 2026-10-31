@@ -4,8 +4,8 @@ import { useCallback, useContext, useId, useRef } from "react";
 import {
   APIError,
   DELETE_MANY_MAX_KEYS,
+  normalizeObjectKey,
   s3Error,
-  type DeleteManyResponse,
   type S3Api,
   type S3RouteName,
 } from "@dimah-s3/core";
@@ -193,7 +193,15 @@ async function runDelete(
   if (hookError) {
     for (const key of keys) report({ status: "error", key, error: hookError });
   } else {
-    await request(report);
+    try {
+      await request(report);
+    } catch (error) {
+      // A request that throws fails every key it has not reported yet.
+      const clientError = toClientError(error);
+      for (const key of keys) {
+        report({ status: "error", key, error: clientError });
+      }
+    }
   }
 
   return keys.map((key) => {
@@ -241,8 +249,10 @@ function deleteOne(api: S3Api, route: S3RouteName, key: string): DeleteRequest {
 
 /**
  * Deletes `keys` with `api.deleteMany`, one request per
- * `DELETE_MANY_MAX_KEYS` keys, in sequence. A failed request fails every key
- * it carried; the next request still runs.
+ * `DELETE_MANY_MAX_KEYS` keys, in sequence. The server answers with
+ * normalized keys, so each one maps back to the key(s) the caller passed. A
+ * failed request or an unreadable response fails every key of its chunk not
+ * reported yet; the next request still runs.
  */
 function deleteMany(
   api: S3Api,
@@ -252,24 +262,41 @@ function deleteMany(
   return async (report) => {
     for (let start = 0; start < keys.length; start += DELETE_MANY_MAX_KEYS) {
       const chunk = keys.slice(start, start + DELETE_MANY_MAX_KEYS);
-      let response: DeleteManyResponse;
+      const sentKeys = groupByNormalizedKey(chunk);
+      const callerKeys = (key: string) => sentKeys.get(key) ?? [key];
       try {
-        response = await api.deleteMany({ route, keys: chunk });
+        const response = await api.deleteMany({ route, keys: chunk });
+        for (const deleted of response.deleted) {
+          for (const key of callerKeys(deleted)) {
+            report({ status: "success", key, data: { key } });
+          }
+        }
+        for (const failed of response.failed) {
+          const error = APIError.fromShape(failed.error);
+          for (const key of callerKeys(failed.key)) {
+            report({ status: "error", key, error });
+          }
+        }
       } catch (error) {
         const clientError = toClientError(error);
         for (const key of chunk) {
           report({ status: "error", key, error: clientError });
         }
-        continue;
-      }
-      for (const key of response.deleted) {
-        report({ status: "success", key, data: { key } });
-      }
-      for (const { key, error } of response.failed) {
-        report({ status: "error", key, error: APIError.fromShape(error) });
       }
     }
   };
+}
+
+/** Maps each key the server will answer with to the keys the caller passed. */
+function groupByNormalizedKey(keys: readonly string[]): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const key of keys) {
+    const normalized = normalizeObjectKey(key.trim()) ?? key;
+    const group = groups.get(normalized);
+    if (group) group.push(key);
+    else groups.set(normalized, [key]);
+  }
+  return groups;
 }
 
 /** Groups outcomes by status, keeping their order. */

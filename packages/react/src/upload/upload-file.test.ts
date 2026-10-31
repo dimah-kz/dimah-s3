@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { s3Error, sha256Blob } from "@dimah-s3/core";
+import {
+  S3_MAX_FILE_FIELD_BYTES,
+  s3Error,
+  sha256Blob,
+  uploadBodySchema,
+} from "@dimah-s3/core";
 import { fakeS3Api } from "@/test/api";
 import type { UploadFileOptions } from "@/types/upload";
 import { DEFAULT_MULTIPART_THRESHOLD } from "./constants";
@@ -158,6 +163,19 @@ describe("uploadFile", () => {
       },
       expect.anything(),
     );
+  });
+
+  it("fits a long file name to the wire limit before presign", async () => {
+    const api = fakeS3Api();
+    const name = `${"文".repeat(100)}.docx`;
+    await uploadFile(api, new File(["x"], name), options());
+
+    const [payload] = vi.mocked(api.upload).mock.calls[0] ?? [];
+    expect(uploadBodySchema.safeParse(payload).success).toBe(true);
+    expect(payload?.name).toMatch(/^文+\.docx$/);
+    expect(
+      new TextEncoder().encode(payload?.name).byteLength,
+    ).toBeLessThanOrEqual(S3_MAX_FILE_FIELD_BYTES);
   });
 
   it("omits a blank browser content type", async () => {

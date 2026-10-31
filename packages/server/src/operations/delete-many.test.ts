@@ -183,6 +183,23 @@ describe("deleteManyObjects hooks", () => {
     expect(deletedContexts).toEqual([expected(A), expected(B)]);
   });
 
+  it("keeps delete.guard locals per key", async () => {
+    const seen: [string, string | undefined][] = [];
+    const { config } = setup({
+      guard: [{ hook: ({ key }) => ({ locals: { userId: `owner ${key}` } }) }],
+      onDeleted: [
+        { hook: ({ key, locals }) => void seen.push([key, locals.userId]) },
+      ],
+    });
+
+    await deleteManyObjects(config, { route: "uploads", keys: [A, B, C] });
+    expect(seen).toEqual([
+      [A, `owner ${A}`],
+      [B, `owner ${B}`],
+      [C, `owner ${C}`],
+    ]);
+  });
+
   it("reports a key that delete.guard rejects and deletes the rest", async () => {
     const onDeleted = vi.fn();
     const { s3, config } = setup({

@@ -177,7 +177,7 @@ function resolveUpload(
   const resolved: ResolvedUpload = {
     enabled: true,
     fileTypes: upload.fileTypes,
-    maxFileSize: optionalPositive(
+    maxFileSize: optionalPositiveInteger(
       env,
       "upload.maxFileSize",
       upload.maxFileSize,
@@ -186,7 +186,7 @@ function resolveUpload(
     acl: upload.acl ?? "private",
     method: upload.method ?? "PUT",
     expiresIn: Math.min(
-      positive(
+      positiveInteger(
         env,
         "upload.expiresIn",
         upload.expiresIn,
@@ -194,7 +194,7 @@ function resolveUpload(
       ),
       env.maxExpiresIn,
     ),
-    confirmWindow: positive(
+    confirmWindow: positiveInteger(
       env,
       "upload.confirmWindow",
       upload.confirmWindow,
@@ -228,12 +228,12 @@ function resolveMultipart(
   const hooks = (plugin: RoutePlugin) => plugin.hooks?.upload?.multipart;
   return {
     enabled: true,
-    partSize: optionalPositive(
+    partSize: optionalPositiveInteger(
       env,
       "upload.multipart.partSize",
       multipart.partSize,
     ),
-    ticketExpiresIn: positive(
+    ticketExpiresIn: positiveInteger(
       env,
       "upload.multipart.ticketExpiresIn",
       multipart.ticketExpiresIn,
@@ -255,7 +255,7 @@ function resolveDownload(
   return {
     enabled: true,
     maxExpiresIn: Math.min(
-      positive(
+      positiveInteger(
         env,
         "download.maxExpiresIn",
         download.maxExpiresIn,
@@ -302,24 +302,25 @@ function routeError(name: string, message: string): Error {
   return new Error(`dimahS3 route "${name}": ${message}`);
 }
 
-/** A positive finite number, or `fallback` when unset. */
-function positive(
+/** A positive safe integer, or `fallback` when unset. */
+function positiveInteger(
   env: RouteEnv,
   field: string,
   value: number | undefined,
   fallback: number,
 ): number {
-  return optionalPositive(env, field, value) ?? fallback;
+  return optionalPositiveInteger(env, field, value) ?? fallback;
 }
 
-function optionalPositive(
+/** A positive safe integer, or `undefined` when unset. Fails at startup. */
+function optionalPositiveInteger(
   env: RouteEnv,
   field: string,
   value: number | undefined,
 ): number | undefined {
   if (value === undefined) return undefined;
-  if (!Number.isFinite(value) || value <= 0) {
-    throw routeError(env.name, `${field} must be a positive number.`);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw routeError(env.name, `${field} must be a positive integer.`);
   }
   return value;
 }

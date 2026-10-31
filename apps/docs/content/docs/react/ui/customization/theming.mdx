@@ -4,13 +4,14 @@ description: Customize color tokens and styling for @dimah-s3/ui components.
 ---
 
 `@dimah-s3/ui` components read their colors from `--dimah-s3-*` CSS
-variables. By default each one points at the matching shadcn variable, so
-the components follow your theme. Override a token to change the components
-without changing your app.
+variables. The tokens are unset by default, and each one falls back to the
+matching shadcn variable where it is used, so the components follow your
+theme, including a nested `.dark` or theme class. Override a token to change
+the components without changing your app.
 
 ## Tokens
 
-| Token                           | Default                         |
+| Token                           | When unset                      |
 | ------------------------------- | ------------------------------- |
 | `--dimah-s3-background`         | `var(--background)`             |
 | `--dimah-s3-foreground`         | `var(--foreground)`             |
@@ -28,11 +29,16 @@ without changing your app.
 | `--dimah-s3-warning`            | `var(--warning)`, else an amber |
 
 shadcn has no `--success` or `--warning`. When your theme defines them, the
-components use them; otherwise they fall back to a green and an amber, with
-lighter shades under `.dark`.
+components use them; otherwise they fall back to
+`--dimah-s3-success-default` and `--dimah-s3-warning-default`, a green and
+an amber with lighter shades under `.dark`.
 
-The defaults sit on `:root` in `@dimah-s3/ui/styles.css`. The shadcn
-registry writes the same values into your CSS when you add an item.
+Each utility resolves the whole chain on the element that uses it:
+`var(--dimah-s3-primary, var(--primary))`, and for success
+`var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))`.
+`@dimah-s3/ui/styles.css` sets only the two `*-default` colors, on `:root`
+and `.dark`, and the shadcn registry writes the same two into your CSS when
+you add an item.
 
 ---
 

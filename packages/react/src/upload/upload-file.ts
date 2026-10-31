@@ -1,4 +1,5 @@
 import {
+  fitFileName,
   sha256Blob,
   type MultipartInitPayload,
   type S3Api,
@@ -92,7 +93,7 @@ function initPayload(
   const type = (request.contentType ?? file.type).trim();
   return {
     route,
-    name: request.fileName || file.name,
+    name: fitFileName(request.fileName || file.name),
     size: file.size,
     ...(type ? { type } : {}),
     ...(request.metadata ? { metadata: request.metadata } : {}),

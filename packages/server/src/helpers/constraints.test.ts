@@ -1,3 +1,4 @@
+import { validateFile } from "@dimah-s3/core";
 import { describe, expect, it } from "vitest";
 import { assertFileConstraints, assertWithinMaxFileSize } from "./constraints";
 
@@ -51,6 +52,15 @@ describe("assertFileConstraints", () => {
     ).toThrow(expect.objectContaining({ code: "FILE_TOO_LARGE" }));
   });
 
+  it("rejects an empty file with FILE_EMPTY, after the type check", () => {
+    expect(() => assertFileConstraints({}, { name: "a.png", size: 0 })).toThrow(
+      expect.objectContaining({ code: "FILE_EMPTY", statusCode: 400 }),
+    );
+    expect(() =>
+      assertFileConstraints(images, { name: "a.exe", size: 0 }),
+    ).toThrow(expect.objectContaining({ code: "FILE_TYPE_NOT_ALLOWED" }));
+  });
+
   it("names the extension and the allow-list when the type is not allowed", () => {
     expect(() =>
       assertFileConstraints(images, {
@@ -82,6 +92,30 @@ describe("assertFileConstraints", () => {
     );
     expect(reject({ size: 1 })).toBe("unknown");
   });
+
+  it.each([
+    ["a.exe", "application/x-msdownload"],
+    ["README", "text/plain"],
+    ["README", ""],
+    ["archive.", "application/zip"],
+    [".env", ""],
+  ])(
+    "names the type of %s (%s) exactly like the browser check",
+    (name, type) => {
+      const fileTypes = ["image/*"];
+      const browser = validateFile(
+        Object.assign(new Blob(["x"], { type }), { name }),
+        { accept: fileTypes },
+      );
+      expect(browser?.code).toBe("FILE_TYPE_NOT_ALLOWED");
+      expect(() =>
+        assertFileConstraints(
+          { fileTypes },
+          { name, size: 1, type: type || undefined },
+        ),
+      ).toThrow(expect.objectContaining({ params: browser?.params }));
+    },
+  );
 
   it("checks HeadObject values at confirm, where the name may be missing", () => {
     expect(() =>

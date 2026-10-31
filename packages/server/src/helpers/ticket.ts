@@ -1,4 +1,10 @@
-import { base64UrlDecode, base64UrlEncode, s3Error } from "@dimah-s3/core";
+import {
+  base64UrlDecode,
+  base64UrlEncode,
+  s3Error,
+  s3ObjectAclSchema,
+  type S3ObjectAcl,
+} from "@dimah-s3/core";
 import * as z from "zod";
 import { ConfigError } from "@/helpers/error-boundary";
 import type {
@@ -43,6 +49,8 @@ type TicketBase = {
   key: string;
   /** File declared at presign or init. */
   file: UploadFile;
+  /** ACL signed at presign or written at init, after `upload.object()`. */
+  acl: S3ObjectAcl;
   /** Whether every upload request must carry a SHA-256 checksum. */
   checksum: boolean;
   expiresAt: Date;
@@ -77,6 +85,7 @@ const payloadBase = {
   n: z.string().min(1),
   s: z.int().nonnegative(),
   t: z.string().optional(),
+  a: s3ObjectAclSchema,
   c: z.union([z.literal(0), z.literal(1)]),
   sb: z.string().length(SUBJECT_HASH_LENGTH).optional(),
   iat: z.int(),
@@ -139,6 +148,7 @@ export async function issueTicket(
     n: input.file.name,
     s: input.file.size,
     t: input.file.type,
+    a: input.acl,
     c: input.checksum ? 1 : 0,
     sb: subject === undefined ? undefined : await subjectHash(key, subject),
     iat: epochSeconds(new Date()),
@@ -250,6 +260,7 @@ function fromPayload(payload: TicketPayload): UploadTicket {
     route: payload.r,
     key: payload.k,
     file: { name: payload.n, size: payload.s, type: payload.t },
+    acl: payload.a,
     checksum: payload.c === 1,
     issuedAt: new Date(payload.iat * 1000),
     expiresAt: new Date(payload.exp * 1000),

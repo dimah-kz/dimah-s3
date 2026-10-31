@@ -133,9 +133,18 @@ export type UseUploadOptions = {
   uploadStore?: UploadStore;
   /** Request options for every file. A call's `uploadOptions` merge over them. */
   uploadOptions?: UploadRequestInput;
-  /** `true` appends new files to the queue instead of replacing it. @default false */
+  /**
+   * `true` appends new files to the queue instead of replacing it. Without it,
+   * a new call cancels the calls still preparing, and replaces the queue once
+   * its files start uploading. A call that is blocked, rejected or fails
+   * before uploading leaves the queue alone.
+   * @default false
+   */
   queue?: boolean;
-  /** Disables every intake interaction. */
+  /**
+   * Disables every intake interaction: the root, drop targets and paste, and
+   * `open()` does nothing. `handleFiles` still uploads what it is given.
+   */
   disabled?: boolean;
   /** Disables drag and drop on the root. */
   noDrag?: boolean;
@@ -178,8 +187,9 @@ export type UseUploadOptions = {
 /**
  * Replaces the PUT or POST to `presign.url` for single-shot uploads, such as
  * for an in-memory backend. It must send `presign.fields` or
- * `presign.headers` exactly, and reject with an `APIError` (`UPLOAD_FAILED`
- * with S3's status, or `NETWORK_ERROR`) so the engine can retry.
+ * `presign.headers` exactly, and reject with an `APIError` so the engine can
+ * retry: `UPLOAD_FAILED` with S3's status, `CHECKSUM_MISMATCH` when S3
+ * rejects the bytes' checksum (never retried), or `NETWORK_ERROR`.
  */
 export type UploadTransport = (
   file: File,

@@ -9,13 +9,18 @@ const PNG = Uint8Array.from([
 ]);
 const key = "uploads/a.png";
 
-function check(type: string | undefined, body: Uint8Array | string) {
+function check(
+  type: string | undefined,
+  body: Uint8Array | string,
+  name?: string,
+) {
   const s3 = memoryS3();
   s3.seed(key, body, { contentType: type });
   const result = assertObjectContent(s3.client, {
     bucket: TEST_BUCKET,
     key,
     type,
+    name,
   });
   return { s3, result };
 }
@@ -61,6 +66,36 @@ describe("assertObjectContent", () => {
     const { s3, result } = check(type, PNG);
     await expect(result).resolves.toBeUndefined();
     expect(s3.send).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "application/octet-stream"])(
+    "checks an untyped object (%s) against the type its name gives",
+    async (type) => {
+      await expect(check(type, PNG, "x.png").result).resolves.toBeUndefined();
+      await expect(
+        check(type, "<html><script>", "x.png").result,
+      ).rejects.toMatchObject({
+        code: "FILE_CONTENT_MISMATCH",
+        params: { type: "image/png", detected: "unknown" },
+      });
+    },
+  );
+
+  it.each([
+    ["a name without a known type", "notes.bin"],
+    ["a name whose type has no signature", "notes.txt"],
+    ["active content", "x.svg"],
+  ])("passes an untyped object with %s without reading it", async (_, name) => {
+    const { s3, result } = check("application/octet-stream", "<svg>", name);
+    await expect(result).resolves.toBeUndefined();
+    expect(s3.send).not.toHaveBeenCalled();
+  });
+
+  it("checks a typed object against its stored type, not its name", async () => {
+    const { result } = check("image/jpeg", PNG, "x.png");
+    await expect(result).rejects.toMatchObject({
+      params: { type: "image/jpeg", detected: "image/png" },
+    });
   });
 
   it("reads only the first bytes when the provider ignores Range", async () => {

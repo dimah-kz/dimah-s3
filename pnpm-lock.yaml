@@ -842,9 +842,6 @@ importers:
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../core
-      immer:
-        specifier: ^11.2.9
-        version: 11.2.9
       react-dropzone:
         specifier: ^20.1.4
         version: 20.1.4(@types/react@19.3.0)(react@19.3.1)
@@ -4575,9 +4572,6 @@ packages:
   ignore@7.0.14:
     resolution: {integrity: sha512-wCBiZ77u1tuWde6G/nfOtLaCTYcFDU5yCzARzK10y+rLhzYoL7a7yEemcopcc2Mzow7gZOIjnV2ym1NYmdiJOQ==}
     engines: {node: '>= 4'}
-
-  immer@11.2.9:
-    resolution: {integrity: sha512-IQ4UEtXjZjyefyWjtLEDXUSrF6T2hwjKPi6BIJl3bY/2XXW24d6cNGdXJSBOA/+KNnuiXkZY6DR0C3efolhitA==}
 
   imurmurhash@0.1.4:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
@@ -9814,8 +9808,6 @@ snapshots:
   ignore@5.3.2: {}
 
   ignore@7.0.14: {}
-
-  immer@11.2.9: {}
 
   imurmurhash@0.1.4: {}
 

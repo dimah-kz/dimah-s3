@@ -129,6 +129,21 @@ describe("confirmUpload", () => {
     expect(onConfirmed.mock.calls[0][0].uploadId).toBeUndefined();
   });
 
+  it("reports the ACL chosen by object(), not the route default", async () => {
+    const onConfirmed = vi.fn<(context: UploadOnConfirmedContext) => void>();
+    const { s3, config } = setup({
+      acl: "private",
+      object: () => ({ acl: "public-read" }),
+      onConfirmed: [{ hook: onConfirmed }],
+    });
+    const presigned = await upload(s3, config);
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).resolves.toMatchObject({ acl: "public-read" });
+    expect(onConfirmed.mock.calls[0][0].acl).toBe("public-read");
+  });
+
   it("confirms a POST upload with kind post", async () => {
     const onConfirmed = vi.fn();
     const { s3, config } = setup({
@@ -375,6 +390,44 @@ describe("confirmUpload verification", () => {
       expect(onConfirmed).not.toHaveBeenCalled();
     });
 
+    it("checks an untyped upload against the type its name gives", async () => {
+      const { s3, config } = verifySetup({ fileTypes: [".png"] });
+      const presigned = await upload(s3, config, {
+        body: {
+          name: "x.png",
+          type: undefined,
+          checksum: await sha256Base64(body),
+        },
+      });
+
+      await expect(
+        confirmUpload(config, { ticket: presigned.ticket }),
+      ).rejects.toMatchObject({
+        code: "FILE_CONTENT_MISMATCH",
+        params: { type: "image/png", detected: "unknown" },
+      });
+      expect(s3.get(presigned.key)).toBeUndefined();
+    });
+
+    it("confirms an untyped upload whose bytes match the type its name gives", async () => {
+      const { s3, config } = verifySetup({ fileTypes: [".png"] });
+      const presigned = await upload(s3, config, {
+        bytes: PNG,
+        body: {
+          name: "x.png",
+          type: undefined,
+          checksum: await sha256Base64(PNG),
+        },
+      });
+
+      await expect(
+        confirmUpload(config, { ticket: presigned.ticket }),
+      ).resolves.toMatchObject({
+        key: presigned.key,
+        type: "application/octet-stream",
+      });
+    });
+
     it("keeps the object when the content read fails, so a retry confirms it", async () => {
       const { s3, config } = verifySetup();
       const presigned = await upload(s3, config, {
@@ -444,6 +497,35 @@ describe("confirmUpload confirmGuard", () => {
     expect(s3.get(presigned.key)).toBeUndefined();
     expect(s3.get("uploads/old.png")).toBeDefined();
     expect(onConfirmed).not.toHaveBeenCalled();
+  });
+
+  it("keeps a newer upload that overwrote the key before the rejection", async () => {
+    const { s3, config } = setup({
+      object: () => ({ key: "avatar.png" }),
+      confirmGuard: [
+        {
+          hook: ({ key }) => {
+            // Another upload lands at the same key after this HeadObject.
+            s3.seed(key, "9876543210", { contentType: "image/png" });
+            throw s3Error("FORBIDDEN");
+          },
+        },
+      ],
+    });
+    const presigned = await upload(s3, config);
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(s3.get(presigned.key)?.body).toEqual(
+      new TextEncoder().encode("9876543210"),
+    );
+    const deletes = s3.send.mock.calls
+      .map(([command]) => command)
+      .filter((command) => command instanceof DeleteObjectCommand);
+    expect(deletes.map((command) => command.input)).toEqual([
+      { Bucket: TEST_BUCKET, Key: presigned.key, IfMatch: expect.any(String) },
+    ]);
   });
 
   it("keeps the object when it throws a plain Error", async () => {

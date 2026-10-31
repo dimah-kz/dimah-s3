@@ -24,6 +24,18 @@ function apiErrorFromResponse(status: number, body: unknown): APIError {
 }
 
 /**
+ * Whether a 2xx body parsed as a JSON object or array. better-fetch returns
+ * the raw text when a body is not JSON (an SPA fallback `index.html`) and a
+ * `Blob` for binary types; neither is an API response.
+ */
+function isJsonBody(data: unknown): boolean {
+  if (Array.isArray(data)) return true;
+  if (data === null || typeof data !== "object") return false;
+  const prototype: unknown = Object.getPrototypeOf(data);
+  return prototype === Object.prototype || prototype === null;
+}
+
+/**
  * Wrap `fetch` so a request that never gets a response throws
  * `NETWORK_ERROR`. An aborted request rethrows the abort reason as is.
  */
@@ -44,7 +56,9 @@ function withNetworkErrors(fetchImpl: typeof fetch | undefined): FetchEsque {
  *
  * Client `headers` are applied first and per-call `headers` win.
  * Every failure throws {@link APIError}: a non-OK response keeps its HTTP
- * status, and a failed request throws `NETWORK_ERROR`.
+ * status, a 2xx response without a JSON object or array body throws
+ * `UNKNOWN_ERROR` with that status, and a failed request throws
+ * `NETWORK_ERROR`.
  */
 export function createS3Fetch(
   base: string,
@@ -64,6 +78,12 @@ export function createS3Fetch(
         headers.set(key, value);
       }
       return { ...ctx, headers };
+    },
+    onSuccess: (ctx) => {
+      if (isJsonBody(ctx.data)) return;
+      throw s3Error("UNKNOWN_ERROR", undefined, {
+        status: ctx.response.status,
+      });
     },
     onError: (ctx) => {
       // better-fetch spreads the parsed JSON body with `status` / `statusText`.

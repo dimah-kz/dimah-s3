@@ -73,7 +73,8 @@ const dbListSortQuerySchema = z.codec(
 export const dbListQuerySchema = z.strictObject({
   folder: z.string().optional(),
   route: routeNameSchema.optional(),
-  status: z.enum(["pending", "active", "deleted", "purging"]).optional(),
+  // Rows that purge has claimed stay internal, as on `GET /db/object`.
+  status: z.enum(["pending", "active", "deleted"]).optional(),
   contentType: optionalContentTypeSchema,
   /** Text the filename contains. */
   search: optionalTrimmedString.pipe(

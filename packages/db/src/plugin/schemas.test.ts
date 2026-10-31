@@ -32,10 +32,13 @@ describe("dbListQuerySchema", () => {
     }
   });
 
-  it("accepts every object status", () => {
-    for (const status of ["pending", "active", "deleted", "purging"]) {
+  it("accepts every object status a client may list", () => {
+    for (const status of ["pending", "active", "deleted"]) {
       expect(dbListQuerySchema.parse({ status })).toMatchObject({ status });
     }
+    expect(dbListQuerySchema.safeParse({ status: "purging" }).success).toBe(
+      false,
+    );
   });
 
   it("trims search and omits blank text filters", () => {

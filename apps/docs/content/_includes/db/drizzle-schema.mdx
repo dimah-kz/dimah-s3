@@ -19,6 +19,6 @@ npx drizzle-kit push
 ```
 
 The tables carry the secondary indexes, so `drizzle-kit` creates those too.
-On MySQL, the tables use the database collation: create them from
-`sql/mysql.sql` instead, or use a `utf8mb4_bin` database, so keys and
-folders compare byte for byte.
+On MySQL, the tables set the same collations as `sql/mysql.sql`:
+`utf8mb4_bin`, so keys and folders compare byte for byte, and
+`utf8mb4_unicode_ci` on `filename`, so search ignores case.

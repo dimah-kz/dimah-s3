@@ -92,8 +92,8 @@ spinner instead.
 
 ## Actions
 
-- `onCancel` adds a `Cancel {name}` action while the card is `uploading` or
-  `processing`.
+- `onCancel` adds a `Cancel {name}` action while the card is `idle`
+  (queued), `uploading`, or `processing`.
 - `onDismiss` adds a `Dismiss {name}` action once it is `done` or `error`.
 - `actions` takes your own `AttachmentAction`s, placed before those two.
 - `trigger` takes an `AttachmentTrigger` that makes the whole card one

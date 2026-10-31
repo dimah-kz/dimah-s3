@@ -462,6 +462,81 @@ describe("useDelete removeMany", () => {
     expect(hook.current.pendingKeys).toEqual([]);
   });
 
+  it.each([
+    ["a response without failed", { deleted: ["a.png"] }],
+    [
+      "a failed entry without an error",
+      { deleted: ["a.png"], failed: [{ key: "b.png", error: undefined }] },
+    ],
+    ["a string body", "Internal Server Error"],
+  ])(
+    "fails the unreported keys of %s with an APIError",
+    async (_, response) => {
+      const api = fakeS3Api();
+      vi.mocked(api.deleteMany).mockResolvedValueOnce(
+        response as unknown as DeleteManyResponse,
+      );
+      const onError = vi.fn();
+      const onSettled = vi.fn();
+      const { hook } = setup({ api, onError, onSettled });
+
+      let result: DeleteResult | undefined;
+      await act(async () => {
+        result = await hook.current.removeMany(["a.png", "b.png"]);
+      });
+
+      const deleted = typeof response === "string" ? [] : ["a.png"];
+      expect(result?.deleted).toEqual(deleted);
+      expect(result?.failed.map(({ key }) => key)).toEqual(
+        ["a.png", "b.png"].filter((key) => !deleted.includes(key)),
+      );
+      for (const { error } of result?.failed ?? []) {
+        expect(error).toBeInstanceOf(APIError);
+        expect(error.code).toBe("UNKNOWN_ERROR");
+      }
+      expect(onError).toHaveBeenCalledTimes(result?.failed.length ?? 0);
+      expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+      expect(hook.current.pendingKeys).toEqual([]);
+      expect(
+        hook.current.operations.every((op) => op.phase !== "deleting"),
+      ).toBe(true);
+    },
+  );
+
+  it("maps the server's normalized keys back to the keys it sent", async () => {
+    const api = fakeS3Api();
+    vi.mocked(api.deleteMany).mockResolvedValueOnce({
+      deleted: ["docs/a.pdf"],
+      failed: [
+        {
+          key: "docs/b.pdf",
+          error: { code: "FORBIDDEN", message: "Forbidden" },
+        },
+      ],
+    });
+    const onSuccess = vi.fn();
+    const { hook } = setup({ api, onSuccess });
+
+    let result: DeleteResult | undefined;
+    await act(async () => {
+      result = await hook.current.removeMany([
+        "/docs/a.pdf",
+        " docs/a.pdf/ ",
+        "docs/b.pdf/",
+      ]);
+    });
+
+    expect(result?.deleted).toEqual(["/docs/a.pdf", " docs/a.pdf/ "]);
+    expect(result?.failed).toHaveLength(1);
+    expect(result?.failed[0].key).toBe("docs/b.pdf/");
+    expect(result?.failed[0].error.code).toBe("FORBIDDEN");
+    expect(onSuccess).toHaveBeenCalledWith(
+      { key: "/docs/a.pdf" },
+      "/docs/a.pdf",
+    );
+    expect(hook.current.get("/docs/a.pdf")?.phase).toBe("success");
+  });
+
   it("joins an in-flight key instead of sending it again", async () => {
     const api = fakeS3Api();
     const request = deferred<DeleteResponse>();

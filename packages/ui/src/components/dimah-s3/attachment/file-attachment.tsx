@@ -37,7 +37,7 @@ export type FileAttachmentProps = Omit<ComponentProps<"div">, "children"> & {
   /** Secondary line. Defaults to the size, or the error text when `state` is `error`. */
   description?: ReactNode;
   error?: string | APIError | null;
-  /** Shows a cancel action while `state` is `uploading` or `processing`. */
+  /** Shows a cancel action while the file is queued or in flight: `state` is `idle`, `uploading` or `processing`. */
   onCancel?: () => void;
   /** Shows a dismiss action when `state` is `done` or `error`. Typically the hook `reset()`. */
   onDismiss?: () => void;
@@ -93,7 +93,8 @@ export function FileAttachment({
         : null);
 
   const showCancel =
-    (state === "uploading" || state === "processing") && onCancel != null;
+    (state === "idle" || state === "uploading" || state === "processing") &&
+    onCancel != null;
   const showDismiss =
     (state === "done" || state === "error") && onDismiss != null;
 

@@ -33,6 +33,7 @@ function describeFileType(file: Blob & { name: string }): string {
  * Client-side accept / empty / size checks before starting an upload.
  * Returns `null` when the file is valid, otherwise a catalog error:
  * `FILE_TYPE_NOT_ALLOWED`, `FILE_EMPTY`, or `FILE_TOO_LARGE`.
+ * The name is not checked: `fitFileName` fits it to the wire rule.
  */
 export function validateFile(
   file: Blob & { name: string },

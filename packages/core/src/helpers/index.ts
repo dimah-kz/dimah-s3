@@ -19,9 +19,11 @@ export type {
 } from "./resolve-inline-disposition";
 export { sanitizeFileName } from "./sanitize-file-name";
 export { truncateFileName } from "./truncate-file-name";
+export { fitFileName } from "./fit-file-name";
 export {
   normalizeObjectKey,
-  S3_MAX_OBJECT_KEY_LENGTH,
+  objectKeyByteLength,
+  S3_MAX_OBJECT_KEY_BYTES,
 } from "./normalize-object-key";
 export { sha256Base64, sha256Blob } from "./checksum";
 export { base64UrlDecode, base64UrlEncode } from "./base64url";

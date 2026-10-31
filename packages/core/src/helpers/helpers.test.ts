@@ -9,7 +9,13 @@ import {
 } from "./parse-file-name";
 import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
-import { normalizeObjectKey } from "./normalize-object-key";
+import {
+  normalizeObjectKey,
+  objectKeyByteLength,
+  S3_MAX_OBJECT_KEY_BYTES,
+} from "./normalize-object-key";
+import { fitFileName } from "./fit-file-name";
+import { fileNameSchema, S3_MAX_FILE_FIELD_BYTES } from "../schema/shared";
 import {
   isSniffableType,
   matchesMagicBytes,
@@ -132,6 +138,87 @@ describe("normalizeObjectKey", () => {
     expect(normalizeObjectKey("a\\b")).toBeNull();
     expect(normalizeObjectKey("a\0b")).toBeNull();
   });
+
+  it("limits keys to 1024 UTF-8 bytes", () => {
+    const key1024 = `${"€".repeat(341)}a`;
+    expect(objectKeyByteLength(key1024)).toBe(S3_MAX_OBJECT_KEY_BYTES);
+    expect(normalizeObjectKey(`/${key1024}/`)).toBe(key1024);
+    expect(normalizeObjectKey(`${key1024}a`)).toBeNull();
+    // 700 characters, 2100 bytes.
+    expect(normalizeObjectKey("あ".repeat(700))).toBeNull();
+  });
+});
+
+describe("fitFileName", () => {
+  /** 100 CJK characters (300 bytes) plus `.docx`. */
+  const LONG_CJK_NAME = `${"文".repeat(100)}.docx`;
+
+  function utf8Bytes(text: string): number {
+    return new TextEncoder().encode(text).byteLength;
+  }
+
+  it("returns a valid name unchanged", () => {
+    for (const name of ["report.pdf", "a b.txt", "文件.docx"]) {
+      expect(fitFileName(name)).toBe(name);
+    }
+    const name255 = `${"é".repeat(125)}a.txt`;
+    expect(utf8Bytes(name255)).toBe(255);
+    expect(fitFileName(name255)).toBe(name255);
+  });
+
+  it("fits a long non-ASCII name to 255 bytes and keeps the extension", () => {
+    expect(utf8Bytes(LONG_CJK_NAME)).toBe(305);
+    const fitted = fitFileName(LONG_CJK_NAME);
+    expect(utf8Bytes(fitted)).toBeLessThanOrEqual(S3_MAX_FILE_FIELD_BYTES);
+    expect(fitted).toBe(`${"文".repeat(83)}.docx`);
+    expect(fileNameSchema.safeParse(LONG_CJK_NAME).success).toBe(false);
+    expect(fileNameSchema.parse(fitted)).toBe(fitted);
+  });
+
+  it("never splits a surrogate pair or an emoji sequence", () => {
+    // "😀" is 4 bytes (two UTF-16 units); 254 bytes of "a" leave 1 byte.
+    const pair = fitFileName(`${"a".repeat(254)}😀😀`);
+    expect(pair).toBe("a".repeat(254));
+    expect(pair.isWellFormed()).toBe(true);
+
+    // A family emoji is one grapheme of 25 bytes: it is dropped whole.
+    const family = "👨‍👩‍👧‍👦";
+    const fitted = fitFileName(`${"a".repeat(240)}${family}.png`);
+    expect(fitted).toBe(`${"a".repeat(240)}.png`);
+  });
+
+  it("removes control characters and trims", () => {
+    const fitted = fitFileName(" \u0007report\u0000.pdf\n ");
+    expect(fitted).toBe("report.pdf");
+    expect(fileNameSchema.parse(fitted)).toBe(fitted);
+    expect(fileNameSchema.safeParse("a\u0007.pdf").success).toBe(false);
+    expect(fileNameSchema.safeParse(fitFileName("a\u0007.pdf")).success).toBe(
+      true,
+    );
+  });
+
+  it("falls back to file when nothing usable is left", () => {
+    expect(fitFileName("")).toBe("file");
+    expect(fitFileName(" \u0001\u0002 ")).toBe("file");
+  });
+
+  it("does not keep a long extension or a dotfile prefix as the extension", () => {
+    const longExtension = `a.${"x".repeat(300)}`;
+    const fitted = fitFileName(longExtension);
+    expect(utf8Bytes(fitted)).toBe(255);
+    expect(fitted.startsWith("a.")).toBe(true);
+
+    const dotfile = `.${"x".repeat(300)}`;
+    expect(fitFileName(dotfile)).toBe(dotfile.slice(0, 255));
+  });
+
+  it("cuts a single oversized grapheme on code points", () => {
+    const zalgo = `a${"́".repeat(200)}.txt`;
+    const fitted = fitFileName(zalgo);
+    expect(utf8Bytes(fitted)).toBeLessThanOrEqual(S3_MAX_FILE_FIELD_BYTES);
+    expect(fitted.endsWith(".txt")).toBe(true);
+    expect(fitted.startsWith("á")).toBe(true);
+  });
 });
 
 describe("buildObjectKey", () => {
@@ -234,6 +321,47 @@ describe("sniffContentType / matchesMagicBytes", () => {
     expect(matchesMagicBytes(m4a, "audio/*")).toBe(true);
     expect(matchesMagicBytes(wav, "video/*")).toBe(false);
     expect(matchesMagicBytes(bytesOf("hello"), "text/*")).toBe(false);
+  });
+
+  it("looks past an ID3v2 tag for FLAC or an MPEG frame", () => {
+    // ID3v2.4 header with a 20-byte (syncsafe) tag body.
+    const tag = bytesOf(
+      "ID3",
+      [0x04, 0, 0, 0, 0, 0, 20],
+      new Array(20).fill(0),
+    );
+    const flac = bytesOf([...tag], "fLaC", [0, 0, 0, 0x22]);
+    expect(sniffContentType(flac)).toBe("audio/flac");
+    expect(matchesMagicBytes(flac, "audio/flac")).toBe(true);
+    expect(matchesMagicBytes(flac, "audio/mpeg")).toBe(false);
+
+    // Footer flag adds 10 bytes after the body.
+    const footer = bytesOf(
+      "ID3",
+      [0x04, 0, 0x10, 0, 0, 0, 20],
+      new Array(30).fill(0),
+      "fLaC",
+    );
+    expect(sniffContentType(footer)).toBe("audio/flac");
+
+    const mp3 = bytesOf([...tag], [0xff, 0xfb, 0x90, 0x64]);
+    expect(sniffContentType(mp3)).toBe("audio/mpeg");
+    expect(matchesMagicBytes(mp3, "audio/flac")).toBe(false);
+
+    const unknown = bytesOf([...tag], "hello");
+    expect(sniffContentType(unknown)).toBe("audio/mpeg");
+    expect(matchesMagicBytes(unknown, "audio/flac")).toBe(false);
+  });
+
+  it("accepts FLAC or MP3 when an ID3v2 tag runs past the sniffed bytes", () => {
+    // Syncsafe size 0x00 0x01 0x00 0x00: a 16384-byte tag body.
+    const bytes = new Uint8Array(4096);
+    bytes.set(bytesOf("ID3", [0x03, 0, 0, 0, 0x01, 0, 0]));
+    expect(sniffContentType(bytes)).toBe("audio/mpeg");
+    expect(matchesMagicBytes(bytes, "audio/mpeg")).toBe(true);
+    expect(matchesMagicBytes(bytes, "audio/flac")).toBe(true);
+    expect(matchesMagicBytes(bytes, "audio/x-flac")).toBe(true);
+    expect(matchesMagicBytes(bytes, "audio/ogg")).toBe(false);
   });
 
   it("knows which declared types it can verify", () => {

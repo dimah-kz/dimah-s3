@@ -78,6 +78,7 @@ describe("readResponseBlob", () => {
 
     const blob = await readResponseBlob(
       new Response(body, { headers: { "content-type": "text/plain" } }),
+      new AbortController().signal,
       onChunk,
     );
 
@@ -89,9 +90,66 @@ describe("readResponseBlob", () => {
   it("reads a response without a body stream", async () => {
     const onChunk = vi.fn();
 
-    const blob = await readResponseBlob(new Response(null), onChunk);
+    const blob = await readResponseBlob(
+      new Response(null),
+      new AbortController().signal,
+      onChunk,
+    );
 
     expect(blob.size).toBe(0);
     expect(onChunk).toHaveBeenCalledWith(0);
+  });
+
+  /** A body that sends one chunk, then fails the next read. */
+  function failingBody(failure: unknown) {
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("par"));
+      },
+      pull(controller) {
+        controller.error(failure);
+      },
+    });
+  }
+
+  it("turns a failed read into NETWORK_ERROR with the cause", async () => {
+    const failure = new TypeError("network error");
+
+    const read = readResponseBlob(
+      new Response(failingBody(failure)),
+      new AbortController().signal,
+    );
+
+    await expect(read).rejects.toMatchObject({
+      code: "NETWORK_ERROR",
+      cause: failure,
+    });
+  });
+
+  it("rejects with the abort reason once the signal is aborted", async () => {
+    const controller = new AbortController();
+    const reason = new DOMException("Aborted", "AbortError");
+    controller.abort(reason);
+
+    const read = readResponseBlob(
+      new Response(failingBody(new TypeError("network error"))),
+      controller.signal,
+    );
+
+    await expect(read).rejects.toBe(reason);
+  });
+
+  it("rethrows a throw from onChunk as is", async () => {
+    const thrown = new Error("progress");
+
+    const read = readResponseBlob(
+      new Response("hello"),
+      new AbortController().signal,
+      () => {
+        throw thrown;
+      },
+    );
+
+    await expect(read).rejects.toBe(thrown);
   });
 });

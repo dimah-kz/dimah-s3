@@ -14,7 +14,6 @@ export type {
   DbPluginOptions,
   DbQuotaOption,
   DbRouteOptions,
-  DbUploadContext,
   ScopeContext,
   ScopeOperation,
 } from "./types/plugin";

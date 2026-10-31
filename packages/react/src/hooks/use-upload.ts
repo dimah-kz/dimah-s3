@@ -61,6 +61,12 @@ export type UseUploadReturn = {
   /** `true` when an `uploadStore` is set, so multipart uploads can resume. */
   resumable: boolean;
   /**
+   * The `disabled` option: the root, drop targets, paste and `open()` do
+   * nothing. Render pickers and paste handlers disabled while it is set;
+   * `handleFiles` still uploads what it is given.
+   */
+  disabled: boolean;
+  /**
    * Validates and uploads files from a picker, a drop, a paste or your own
    * code. Invalid files are rejected without stopping the others. Resolves
    * once every file has ended.
@@ -168,6 +174,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     isPending: engine.isPending,
     policy: { ...routePolicy, maxFiles },
     resumable: options.uploadStore != null,
+    disabled: options.disabled ?? false,
     handleFiles,
     open: intake.open,
     cancel: engine.cancel,

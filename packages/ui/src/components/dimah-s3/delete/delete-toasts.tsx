@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
 import {
   useFormatDimahError,
@@ -16,6 +16,13 @@ import { useToastOwner } from "@/hooks/use-toast-owner";
 export type DeleteToastsProps = {
   /** Return value of `useDelete`. */
   delete: UseDeleteReturn;
+};
+
+/** One delete result message: a toast, or a live message in an ObjectList. */
+export type DeleteToastMessage = {
+  type: "success" | "error";
+  title: string;
+  description?: ReactNode;
 };
 
 /** Settled operations of one call that have not been toasted yet. */
@@ -38,18 +45,24 @@ export function DeleteToasts({ delete: del }: DeleteToastsProps) {
 /**
  * The hook behind {@link DeleteToasts}. `weak` owners (ObjectList built-ins)
  * step aside while a strong owner is mounted for the same hook.
- * Deletes that settled before mount are not toasted.
+ * Deletes that settled before mount are not toasted. `report` replaces
+ * `toast.add`, so an ObjectList with `toasts={false}` can read the same
+ * messages out in its live region.
  *
  * @internal
  */
 export function useDeleteToasts(
   del: UseDeleteReturn,
-  options: { weak?: boolean } = {},
+  options: {
+    weak?: boolean;
+    report?: (message: DeleteToastMessage) => void;
+  } = {},
 ): void {
   const t = useTranslations();
   const formatError = useFormatDimahError();
   const formatNumber = useFormatNumber();
-  const active = useToastOwner(del.instanceId, options);
+  const active = useToastOwner(del.instanceId, { weak: options.weak });
+  const report = options.report ?? addToast;
   /** Operation ids already toasted, or settled before mount. */
   const toastedRef = useRef<Set<string> | null>(null);
 
@@ -65,7 +78,7 @@ export function useDeleteToasts(
     for (const { deleted, failed } of calls) {
       const [firstDeleted] = deleted;
       if (firstDeleted) {
-        toast.add({
+        report({
           type: "success",
           title:
             deleted.length === 1
@@ -86,7 +99,7 @@ export function useDeleteToasts(
         const sameCause = failed.every(
           (operation) => operation.error?.code === firstFailed.error?.code,
         );
-        toast.add({
+        report({
           type: "error",
           title:
             failed.length === 1
@@ -103,7 +116,7 @@ export function useDeleteToasts(
         });
       }
     }
-  }, [active, del.operations, formatError, formatNumber, t]);
+  }, [active, del.operations, formatError, formatNumber, report, t]);
 }
 
 /**
@@ -144,6 +157,10 @@ function takeSettledCalls(
     });
   }
   return settled;
+}
+
+function addToast(message: DeleteToastMessage) {
+  toast.add(message);
 }
 
 function displayName(operation: DeleteOperation): string {

@@ -6,6 +6,7 @@ import {
 import {
   isSniffableType,
   matchesMagicBytes,
+  resolveInlineDisposition,
   s3Error,
   SNIFF_BYTE_LENGTH,
   sniffContentType,
@@ -15,8 +16,10 @@ import { sendOrObjectNotFound } from "@/helpers/is-aws-not-found";
 export type ObjectContentInput = {
   bucket: string;
   key: string;
-  /** Content type to verify, as HeadObject reports it. */
+  /** Content type as HeadObject reports it. */
   type?: string;
+  /** Stored file name. Gives the type of an untyped object. */
+  name?: string;
   signal?: AbortSignal;
 };
 
@@ -25,14 +28,17 @@ export type ObjectContentInput = {
  * ranged GetObject and checks them against the type's magic bytes. A
  * mismatch fails with `FILE_CONTENT_MISMATCH`; the caller deletes the object.
  *
- * Types without a known signature, such as `text/plain`, and objects without
- * a type cannot be verified this way and pass without a read.
+ * An untyped object (no type, or `application/octet-stream`) is checked
+ * against the type downloads infer from its name, since `/file` and the
+ * presigned GET serve it inline as that type. Types without a known
+ * signature, such as `text/plain`, and untyped objects whose name gives no
+ * type cannot be verified this way and pass without a read.
  */
 export async function assertObjectContent(
   client: S3Client,
   input: ObjectContentInput,
 ): Promise<void> {
-  const { type } = input;
+  const type = typeToVerify(input.type, input.name);
   if (type === undefined || !isSniffableType(type)) return;
 
   const bytes = await readObjectStart(client, input);
@@ -41,6 +47,29 @@ export async function assertObjectContent(
     type,
     detected: sniffContentType(bytes) ?? "unknown",
   });
+}
+
+/**
+ * Wildcards wide enough for every sniffable type. A wildcard never matches
+ * active content (SVG, HTML, XML, JavaScript), none of which is sniffable.
+ */
+const SNIFFABLE_FAMILIES = ["image/*", "audio/*", "video/*", "application/*"];
+
+/**
+ * The stored type, or for an untyped object the type a download infers
+ * from its name. Uses the download rule itself so the two cannot drift.
+ */
+function typeToVerify(
+  type: string | undefined,
+  name: string | undefined,
+): string | undefined {
+  const { contentType } = resolveInlineDisposition({
+    contentType: type,
+    fileName: name,
+    allow: SNIFFABLE_FAMILIES,
+    requested: "inline",
+  });
+  return contentType ?? type;
 }
 
 async function readObjectStart(

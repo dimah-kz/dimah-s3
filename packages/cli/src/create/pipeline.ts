@@ -65,32 +65,48 @@ async function rollback(ctx: CreateContext): Promise<void> {
   }
 }
 
-function printNextSteps(ctx: CreateContext): void {
+export type NextSteps = {
+  /** Shell commands to run, in order. */
+  commands: string[];
+  /** Setup reminders shown under the commands. */
+  hints: string[];
+};
+
+export function nextSteps(ctx: CreateContext): NextSteps {
   const { config } = ctx;
-  const lines: string[] = [];
+  const commands: string[] = [];
 
   if (!config.inPlace) {
     const rel = relative(ctx.cwd, config.targetDir) || config.projectName;
-    lines.push(`cd ${rel}`);
+    commands.push(`cd ${rel}`);
   }
   if (!ctx.installed) {
-    lines.push(installCommand(config.packageManager));
+    commands.push(installCommand(config.packageManager));
   }
-  lines.push(runDevCommand(config.packageManager));
+  commands.push(runDevCommand(config.packageManager));
 
+  return {
+    commands,
+    hints: [
+      ...ctx.generatedEnv.map(
+        (key) => `${key} was generated in .env — keep it private`,
+      ),
+      "then fill the S3_* values in .env",
+      'allow browser PUT in bucket CORS (POST only if you set upload.method: "POST")',
+    ],
+  };
+}
+
+function printNextSteps(ctx: CreateContext): void {
+  const { commands, hints } = nextSteps(ctx);
   note(
     [
-      ...lines.map((line) => pc.cyan(line)),
-      ...ctx.generatedEnv.map((key) =>
-        pc.dim(`${key} was generated in .env — keep it private`),
-      ),
-      pc.dim("then fill the S3_* values in .env"),
-      pc.dim("allow browser POST/PUT in bucket CORS"),
-      pc.dim('Cloudflare R2: upload: { method: "PUT" }'),
+      ...commands.map((line) => pc.cyan(line)),
+      ...hints.map((line) => pc.dim(line)),
     ].join("\n"),
     "Next steps",
   );
   outro(
-    `${pc.bold(config.projectName || "Your app")} is ready — docs: ${DOCS_URL}`,
+    `${pc.bold(ctx.config.projectName || "Your app")} is ready — docs: ${DOCS_URL}`,
   );
 }

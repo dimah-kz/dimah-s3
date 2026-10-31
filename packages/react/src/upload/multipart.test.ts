@@ -473,6 +473,66 @@ describe("uploadMultipart", () => {
     expect(api.multipart.abort).toHaveBeenCalledWith({ ticket: "ticket-1" });
   });
 
+  it.each([
+    [
+      "UPLOAD_FAILED 400",
+      s3Error("UPLOAD_FAILED", { status: 400 }, { status: 400 }),
+    ],
+    ["CHECKSUM_MISMATCH", s3Error("CHECKSUM_MISMATCH")],
+    ["FORBIDDEN", s3Error("FORBIDDEN")],
+  ])(
+    "aborts and deletes a stored session when a part fails with %s",
+    async (_label, failure) => {
+      const api = fakeS3Api();
+      const file = bigFile();
+      const store = createMemoryStore();
+      vi.mocked(uploadPart).mockRejectedValue(failure);
+
+      await expect(
+        run(api, file, { uploadStore: store, retry: noRetry }),
+      ).rejects.toBe(failure);
+
+      expect(api.multipart.abort).toHaveBeenCalledWith({ ticket: "ticket-1" });
+      expect(
+        await store.get(multipartResumeKey("videos", file), file.size),
+      ).toBeNull();
+    },
+  );
+
+  it("keeps a stored session when a part fails with a network error", async () => {
+    const api = fakeS3Api();
+    const file = bigFile();
+    const store = createMemoryStore();
+    vi.mocked(uploadPart).mockRejectedValue(s3Error("NETWORK_ERROR"));
+
+    await expect(
+      run(api, file, { uploadStore: store, retry: noRetry }),
+    ).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+
+    expect(api.multipart.abort).not.toHaveBeenCalled();
+    expect(
+      await store.get(multipartResumeKey("videos", file), file.size),
+    ).toMatchObject({ ticket: "ticket-1" });
+  });
+
+  it("aborts and deletes a stored session when complete fails for good", async () => {
+    const api = fakeS3Api();
+    const file = bigFile();
+    const store = createMemoryStore();
+    vi.mocked(api.multipart.complete).mockRejectedValue(
+      s3Error("UPLOAD_TICKET_EXPIRED"),
+    );
+
+    await expect(
+      run(api, file, { uploadStore: store, retry: noRetry }),
+    ).rejects.toMatchObject({ code: "UPLOAD_TICKET_EXPIRED" });
+
+    expect(api.multipart.abort).toHaveBeenCalledWith({ ticket: "ticket-1" });
+    expect(
+      await store.get(multipartResumeKey("videos", file), file.size),
+    ).toBeNull();
+  });
+
   it("stops the other running parts after a part fails", async () => {
     const api = fakeS3Api();
     const signals: AbortSignal[] = [];

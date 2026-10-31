@@ -125,6 +125,115 @@ describe("useFetchDownload", () => {
     hook.unmount();
   });
 
+  describe("progress", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** A body of `count` one-byte chunks; each read moves the clock `stepMs`. */
+    function chunkedResponse(count: number, stepMs: number) {
+      let sent = 0;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (sent === count) {
+            controller.close();
+            return;
+          }
+          vi.setSystemTime(Date.now() + stepMs);
+          sent += 1;
+          controller.enqueue(new Uint8Array(1));
+        },
+      });
+      return new Response(body, { headers: { "content-length": `${count}` } });
+    }
+
+    async function downloadWithProgress(response: Response) {
+      vi.useFakeTimers({ toFake: ["Date"], now: 0 });
+      stubFetch(async () => response);
+      const onProgress = vi.fn();
+      const hook = renderHook(() =>
+        useFetchDownload({ api: fakeS3Api(), route: "uploads", onProgress }),
+      );
+      await act(async () => {
+        await hook.current.download("a.bin");
+      });
+      const progress = hook.current.get("a.bin")?.progress;
+      hook.unmount();
+      return {
+        progress,
+        reports: onProgress.mock.calls.map(([report]) => report),
+      };
+    }
+
+    it("reports a fast body once at its start and once at its end", async () => {
+      const { reports, progress } = await downloadWithProgress(
+        chunkedResponse(1000, 0),
+      );
+
+      expect(reports).toMatchObject([
+        { loaded: 1, total: 1000, percent: 0 },
+        { loaded: 1000, total: 1000, percent: 100 },
+      ]);
+      expect(progress).toMatchObject({ loaded: 1000, percent: 100 });
+    });
+
+    it("reports at most every 100 ms while the body streams", async () => {
+      const { reports } = await downloadWithProgress(chunkedResponse(10, 50));
+
+      expect(reports.map(({ loaded }) => loaded)).toEqual([1, 3, 5, 7, 9, 10]);
+    });
+
+    it("keeps percent at most 100 when the body outgrows content-length", async () => {
+      stubFetch(async () =>
+        streamResponse(["abc", "defgh", "ij"], { "content-length": "4" }),
+      );
+      const onProgress = vi.fn();
+      const hook = renderHook(() =>
+        useFetchDownload({ api: fakeS3Api(), route: "uploads", onProgress }),
+      );
+      await act(async () => {
+        await hook.current.download("a.txt");
+      });
+
+      const reports = onProgress.mock.calls.map(([report]) => report);
+      expect(reports.at(-1)).toMatchObject({
+        loaded: 10,
+        total: 10,
+        percent: 100,
+      });
+      for (const { percent } of reports)
+        expect(percent).toBeLessThanOrEqual(100);
+      expect(hook.current.get("a.txt")?.progress).toMatchObject({
+        loaded: 10,
+        total: 10,
+        percent: 100,
+      });
+      hook.unmount();
+    });
+
+    it("ignores content-length and fileSize for an encoded body", async () => {
+      stubFetch(async () =>
+        streamResponse(["hello world"], {
+          "content-length": "5",
+          "content-encoding": "gzip",
+        }),
+      );
+      const onProgress = vi.fn();
+      const hook = renderHook(() =>
+        useFetchDownload({ api: fakeS3Api(), route: "uploads", onProgress }),
+      );
+      await act(async () => {
+        await hook.current.download("a.txt", { fileSize: 5 });
+      });
+
+      expect(onProgress.mock.calls.map(([report]) => report)).toMatchObject([
+        { loaded: 11, total: 0, percent: 0 },
+        { loaded: 11, total: 11, percent: 100 },
+      ]);
+      hook.unmount();
+    });
+  });
+
   it("names the file from the request, then the key", async () => {
     stubFetch(async () => streamResponse(["abc"]));
     const hook = renderHook(() =>
@@ -332,6 +441,36 @@ describe("useFetchDownload", () => {
       status: "error",
       error: { code: "NETWORK_ERROR" },
     });
+    hook.unmount();
+  });
+
+  it("fails with NETWORK_ERROR when the body read fails", async () => {
+    stubFetch(async () => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode("par"));
+        },
+        pull(controller) {
+          controller.error(new TypeError("network error"));
+        },
+      });
+      return new Response(body);
+    });
+    const hook = renderHook(() =>
+      useFetchDownload({ api: fakeS3Api(), route: "uploads" }),
+    );
+
+    let outcome: FetchDownloadOutcome | undefined;
+    await act(async () => {
+      outcome = await hook.current.download("a.txt");
+    });
+
+    expect(outcome).toMatchObject({
+      status: "error",
+      error: { code: "NETWORK_ERROR" },
+    });
+    expect(hook.current.get("a.txt")?.phase).toBe("error");
+    expect(saveBlob).not.toHaveBeenCalled();
     hook.unmount();
   });
 

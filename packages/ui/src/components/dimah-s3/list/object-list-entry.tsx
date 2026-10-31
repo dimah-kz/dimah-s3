@@ -80,6 +80,7 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
   return (
     <div
       {...parts.dropTarget}
+      data-drop-name={parts.dropTarget ? entry.name : undefined}
       data-slot="object-list-entry"
       data-kind={entry.kind}
       data-view="list"
@@ -142,6 +143,7 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
   return (
     <div
       {...parts.dropTarget}
+      data-drop-name={parts.dropTarget ? entry.name : undefined}
       data-slot="object-list-entry"
       data-kind={entry.kind}
       data-view="grid"

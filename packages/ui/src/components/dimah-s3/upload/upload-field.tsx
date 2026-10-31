@@ -90,11 +90,18 @@ function isUploaded(file: UploadFileState): file is UploadedFile {
  * uploaded before the field mounted are left out. Every key renders as a
  * hidden `<input name={name}>`, so the field submits with its form.
  *
+ * Without `value`, a reset of its form (including React 19's automatic
+ * reset after a `<form action>`) restores `defaultValue` and reports it
+ * through `onValueChange`. Files that already uploaded are not added back;
+ * call `upload.reset()` to clear the status list too. With `value`, reset
+ * the value yourself.
+ *
  * It wraps its children in `Upload`, so `UploadTrigger`, `UploadDropzone`
  * and `UploadStatus` work inside it. With `maxFiles`, their calls take at
  * most the files that still fit (files still uploading count), and the hook
  * rejects the rest with `TOO_MANY_FILES`. Once the field is full, its
- * dropzone is `aria-disabled` and the picker, drops and pastes do nothing.
+ * trigger and dropzone stay focusable but are `aria-disabled`, and the
+ * picker, drops and pastes do nothing.
  *
  * @example
  * ```tsx
@@ -160,6 +167,25 @@ export function UploadField({
     if (change) onValueChangeRef.current?.(change.keys);
   }, [change]);
 
+  // Restores `defaultValue` when the owning form resets, like a native
+  // uncontrolled input. The anchor finds the form even while the value is
+  // empty.
+  const anchorRef = useRef<HTMLInputElement>(null);
+  const defaultValueRef = useRef(defaultValue);
+  useEffect(() => {
+    defaultValueRef.current = defaultValue;
+  });
+  useEffect(() => {
+    if (controlled) return;
+    const form = anchorRef.current?.form;
+    if (!form) return;
+    const onReset = (event: Event) => {
+      if (!event.defaultPrevented) setValue(defaultValueRef.current ?? []);
+    };
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, [controlled, setValue]);
+
   const remove = useCallback(
     (key: string) => setValue(value.filter((item) => item !== key)),
     [setValue, value],
@@ -198,10 +224,14 @@ export function UploadField({
 
   return (
     <UploadFieldContext.Provider value={contextValue}>
+      {/* No `name`, so it never submits. */}
+      <input ref={anchorRef} type="hidden" />
       {value.map((key) => (
         <input key={key} type="hidden" name={name} value={key} />
       ))}
-      <Upload upload={fieldUpload}>{children}</Upload>
+      <Upload upload={fieldUpload} isFull={remaining === 0}>
+        {children}
+      </Upload>
     </UploadFieldContext.Provider>
   );
 }
@@ -298,7 +328,8 @@ function withDetails(
 /**
  * `upload` whose calls take at most `remaining` files. With none left it
  * takes nothing: the picker stays closed, drops and pastes are ignored, and
- * a dropzone is `aria-disabled`.
+ * a dropzone is `aria-disabled`. The dropzone keeps `tabIndex` 0 so it stays
+ * reachable, and focus on it is kept when the field fills.
  */
 function capUpload(
   upload: UseUploadReturn,
@@ -315,8 +346,9 @@ function capUpload(
           aborted: [],
         }),
       open: () => {},
+      // Not `upload.getRootProps`: that would wire the uncapped intake back.
       getRootProps: <T extends DropzoneRootProps>(props?: T) =>
-        ({ ...props, "aria-disabled": true }) as T,
+        ({ tabIndex: 0, ...props, "aria-disabled": true }) as T,
       getDropTargetProps: <T extends object = DropTargetProps>(
         props?: T & DropTargetProps,
       ) => ({ ...props }) as T & DropTargetProps,

@@ -159,10 +159,38 @@ describe("presignUpload with POST", () => {
         { "x-amz-meta-dimah-upload": marker },
         { "Content-Type": "image/png" },
         { key: presigned.key },
+        ["eq", "$key", presigned.key],
       ]),
     );
     expect(presigned.fields).not.toHaveProperty("x-amz-checksum-sha256");
   });
+
+  it("keeps the ${filename} placeholder out of a generated key", async () => {
+    const { config } = setup({ method: "POST" });
+    const presigned = await presignUpload(config, {
+      ...defaultUploadBody,
+      name: "${filename}",
+    });
+
+    if (presigned.method !== "POST") throw new Error("expected POST");
+    expect(presigned.key).toMatch(/^uploads\/[\da-f-]{36}\/_\{filename\}$/);
+    const conditions = policyConditions(presigned.fields);
+    expect(conditions).toContainEqual(["eq", "$key", presigned.key]);
+    expect(conditions).not.toContainEqual(
+      expect.arrayContaining(["starts-with", "$key"]),
+    );
+  });
+
+  it.each([{ key: "a/${filename}" }, { keyFolder: "a${filename}" }])(
+    "rejects an object() key with the ${filename} placeholder: %o",
+    async (info) => {
+      const { s3, config } = setup({ method: "POST", object: () => info });
+      await expect(
+        presignUpload(config, defaultUploadBody),
+      ).rejects.toMatchObject({ code: "KEY_INVALID", statusCode: 400 });
+      expect(s3.send).not.toHaveBeenCalled();
+    },
+  );
 
   it("adds the checksum fields with eq conditions", async () => {
     const checksum = await sha256Base64(body);
@@ -386,6 +414,14 @@ describe("presignUpload checks", () => {
       code: "FILE_TYPE_NOT_ALLOWED",
       params: { type: ".exe", allowed: "image/*" },
     });
+  });
+
+  it("rejects a declared size of 0 with FILE_EMPTY", async () => {
+    const { s3, config } = setup();
+    await expect(
+      presignUpload(config, { ...defaultUploadBody, size: 0 }),
+    ).rejects.toMatchObject({ code: "FILE_EMPTY", statusCode: 400 });
+    expect(s3.send).not.toHaveBeenCalled();
   });
 
   it("rejects a declared size over maxFileSize", async () => {

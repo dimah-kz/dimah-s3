@@ -275,6 +275,116 @@ describe("useObjectUrl", () => {
     hook.unmount();
   });
 
+  it("keeps the URL when a background refresh fails and retries with backoff", async () => {
+    const api = countingApi(600);
+    const { hook } = renderObjectUrl({
+      api,
+      route: "uploads",
+      objectKey: "a",
+      refreshBeforeMs: MINUTE,
+    });
+    await advance();
+    const expiresAt = Date.now() + 600_000;
+
+    vi.mocked(api.download)
+      .mockRejectedValueOnce(s3Error("NETWORK_ERROR"))
+      .mockRejectedValueOnce(s3Error("INTERNAL_ERROR"));
+    await advance(9 * MINUTE);
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(hook.current).toMatchObject({
+      url: "https://s3.test/a?v=1",
+      expiresAt,
+      error: { code: "NETWORK_ERROR" },
+      isLoading: false,
+    });
+
+    await advance(999);
+    expect(api.download).toHaveBeenCalledTimes(2);
+    await advance(1);
+    expect(api.download).toHaveBeenCalledTimes(3);
+    expect(hook.current).toMatchObject({
+      url: "https://s3.test/a?v=1",
+      error: { code: "INTERNAL_ERROR" },
+    });
+
+    await advance(2_000);
+    expect(api.download).toHaveBeenCalledTimes(4);
+    expect(hook.current).toMatchObject({
+      url: "https://s3.test/a?v=2",
+      expiresAt: Date.now() + 600_000,
+      error: null,
+      isLoading: false,
+    });
+    hook.unmount();
+  });
+
+  it("clears the URL once it expires while refreshes keep failing", async () => {
+    const api = countingApi(600);
+    const { hook } = renderObjectUrl({
+      api,
+      route: "uploads",
+      objectKey: "a",
+      refreshBeforeMs: MINUTE,
+    });
+    await advance();
+
+    vi.mocked(api.download).mockRejectedValue(s3Error("NETWORK_ERROR"));
+    await advance(10 * MINUTE - 1);
+    expect(hook.current.url).toBe("https://s3.test/a?v=1");
+    const attempts = vi.mocked(api.download).mock.calls.length;
+
+    await advance(1);
+    expect(api.download).toHaveBeenCalledTimes(attempts + 1);
+    expect(hook.current).toMatchObject({
+      url: null,
+      expiresAt: null,
+      error: { code: "NETWORK_ERROR" },
+      isLoading: false,
+    });
+
+    await advance(60 * MINUTE);
+    expect(api.download).toHaveBeenCalledTimes(attempts + 1);
+    hook.unmount();
+  });
+
+  it("keeps the URL until expiry without retrying a non-transient failure", async () => {
+    const api = countingApi(600);
+    const { hook } = renderObjectUrl({
+      api,
+      route: "uploads",
+      objectKey: "a",
+      refreshBeforeMs: MINUTE,
+    });
+    await advance();
+
+    vi.mocked(api.download).mockRejectedValueOnce(s3Error("FORBIDDEN"));
+    await advance(9 * MINUTE);
+    expect(hook.current).toMatchObject({
+      url: "https://s3.test/a?v=1",
+      error: { code: "FORBIDDEN" },
+    });
+
+    await advance(MINUTE - 1);
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(hook.current.url).toBe("https://s3.test/a?v=1");
+    await advance(1);
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(hook.current).toMatchObject({
+      url: null,
+      error: { code: "FORBIDDEN" },
+    });
+
+    act(() => {
+      hook.current.refresh();
+    });
+    await advance();
+    expect(hook.current).toMatchObject({
+      url: "https://s3.test/a?v=2",
+      error: null,
+    });
+    hook.unmount();
+  });
+
   it("refreshes a short-lived URL at half its lifetime", async () => {
     const api = countingApi(60);
     const { hook } = renderObjectUrl({

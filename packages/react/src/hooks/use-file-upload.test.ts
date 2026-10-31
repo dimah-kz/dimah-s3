@@ -628,6 +628,61 @@ describe("useFileUpload", () => {
     hook.unmount();
   });
 
+  it("keeps running uploads when a new call fails before uploading", async () => {
+    const hook = mount({
+      beforeUpload: ([file]) => {
+        if (file.name === "b.txt") throw new Error("nope");
+        return true;
+      },
+    });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    let second!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      second = await hook.current.upload([txt("b.txt")]);
+    });
+
+    expect(second.failed[0].error.code).toBe("HOOK_FAILED");
+    expect(engineCall("a.txt").options.signal?.aborted).toBe(false);
+    expect(
+      hook.current.files.map(({ fileName, phase }) => [fileName, phase]),
+    ).toEqual([
+      ["a.txt", "queued"],
+      ["b.txt", "error"],
+    ]);
+    hook.unmount();
+  });
+
+  it("cancels an older call still preparing when a new call starts", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const hook = mount({
+      beforeUpload: ([file]) => (file.name === "a.txt" ? gate.promise : true),
+    });
+
+    let first!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      first = hook.current.upload([txt("a.txt")]);
+    });
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      gate.resolve(true);
+    });
+
+    expect((await first).aborted.map(({ name }) => name)).toEqual(["a.txt"]);
+    expect(engineCalls.map(({ file }) => file.name)).toEqual(["b.txt"]);
+    expect(engineCall("b.txt").options.signal?.aborted).toBe(false);
+    expect(hook.current.files.map(({ fileName }) => fileName)).toEqual([
+      "b.txt",
+    ]);
+    hook.unmount();
+  });
+
   it("appends to the queue when queue is true", async () => {
     const hook = mount({ queue: true });
 

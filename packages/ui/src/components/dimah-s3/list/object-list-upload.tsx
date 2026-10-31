@@ -87,22 +87,39 @@ export function ObjectListUploadStatus({ className }: { className?: string }) {
 }
 
 /**
- * Overlay and live message while files are dragged over the list. Both step
- * aside (`hidden`) while a folder row or a dropzone inside the list is the
- * drop target, which shows and announces its own state.
+ * Overlay and live message while files are dragged over the list.
+ *
+ * `active` is the frame's own drag state, so a drag over another drop
+ * target of the same hook stays quiet. `target` is what takes the drag
+ * inside the frame: over a folder row the overlay steps aside and the live
+ * message names `folder`; over a dropzone both step aside, since the
+ * dropzone shows and announces its own state.
  */
 export function ObjectListDropOverlay({
   upload,
-  hidden = false,
+  active,
+  target = "frame",
+  folder = null,
 }: {
   upload: UseUploadReturn;
-  hidden?: boolean;
+  active: boolean;
+  target?: "frame" | "folder" | "dropzone";
+  folder?: string | null;
 }) {
   const t = useTranslations();
-  const shown = upload.isDragActive && !hidden;
+  const shown = active && target === "frame";
   const dropLabel = upload.isDragReject
     ? t("These files cannot be uploaded", { note: "object list" })
     : t("Drop to upload into this folder", { note: "object list" });
+  const message =
+    !active || target === "dropzone"
+      ? ""
+      : target === "folder" && folder && !upload.isDragReject
+        ? t("Drop to upload into {name}", {
+            note: "object list",
+            variables: { name: folder },
+          })
+        : dropLabel;
 
   return (
     <>
@@ -125,7 +142,7 @@ export function ObjectListDropOverlay({
         </div>
       ) : null}
       <div className="sr-only" aria-live="polite">
-        {shown ? dropLabel : ""}
+        {message}
       </div>
     </>
   );

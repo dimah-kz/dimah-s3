@@ -39,6 +39,7 @@ const single: UploadTicketInput = {
   route: "uploads",
   key: "uploads/abc/a.png",
   file: { name: "a.png", size: 10, type: "image/png" },
+  acl: "private",
   checksum: false,
   expiresAt: new Date(NOW.getTime() + HOUR),
 };
@@ -49,6 +50,7 @@ const multipart: UploadTicketInput = {
   route: "uploads",
   key: "uploads/abc/movie.mp4",
   file: { name: "movie.mp4", size: 20_000_000, type: "video/mp4" },
+  acl: "public-read",
   checksum: true,
   uploadId: "upload-1",
   partSize: 8_388_608,
@@ -100,6 +102,7 @@ describe("issueTicket / readTicket", () => {
       partCount: 3,
       checksum: true,
       file: multipart.file,
+      acl: "public-read",
     });
   });
 
@@ -115,6 +118,7 @@ describe("issueTicket / readTicket", () => {
       n: "movie.mp4",
       s: 20_000_000,
       t: "video/mp4",
+      a: "public-read",
       ps: 8_388_608,
       pc: 3,
       c: 1,
@@ -138,6 +142,30 @@ describe("issueTicket / readTicket", () => {
       .update(`${version}.${payload}`)
       .digest("base64url");
     expect(signature).toBe(expected);
+  });
+
+  it("rejects a signed payload whose ACL is not a known value", async () => {
+    const { ticket } = await issueTicket(env(), single);
+    const payload = Buffer.from(
+      JSON.stringify({ ...decodePayload(ticket), a: "public-read-write" }),
+    ).toString("base64url");
+    const key = hkdfSync(
+      "sha256",
+      TEST_SECRET,
+      new Uint8Array(),
+      "dimah-s3/upload/v1",
+      32,
+    );
+    const signature = createHmac("sha256", Buffer.from(key))
+      .update(`v1.${payload}`)
+      .digest("base64url");
+
+    await expect(
+      readTicket(env(), `v1.${payload}.${signature}`, {
+        mode: "single",
+        operation: "confirm",
+      }),
+    ).rejects.toMatchObject({ code: "UPLOAD_TICKET_INVALID" });
   });
 
   it("rounds the expiry down to the second", async () => {

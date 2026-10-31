@@ -24,7 +24,10 @@ import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import { Delete } from "@/components/dimah-s3/delete/delete";
-import { useDeleteToasts } from "@/components/dimah-s3/delete/delete-toasts";
+import {
+  useDeleteToasts,
+  type DeleteToastMessage,
+} from "@/components/dimah-s3/delete/delete-toasts";
 import { Download } from "@/components/dimah-s3/download/download";
 import { BuiltInDownloadToasts } from "@/components/dimah-s3/download/download-toasts";
 import { ObjectListContent } from "@/components/dimah-s3/list/object-list-content";
@@ -50,6 +53,7 @@ import {
 import { ObjectListUsage } from "@/components/dimah-s3/list/object-list-usage";
 import { Upload } from "@/components/dimah-s3/upload/upload";
 import { BuiltInUploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { useOwnDrag } from "@/hooks/use-own-drag";
 import { isFieldTarget } from "@/lib/is-field-target";
 
 /** Props for {@link ObjectList}. */
@@ -90,8 +94,9 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
   /**
    * Show toasts for `upload`, `download`, and `delete`. They step aside for
    * an `UploadToasts`, `DownloadToasts`, or `DeleteToasts` you mount for the
-   * same hook. Off, the list's own controls (Copy link, bulk Delete) report
-   * in a polite live region instead. @default true
+   * same hook. Off, delete results and the list's own controls (Copy link,
+   * bulk Delete) report in a polite live region instead, unless you mount a
+   * `DeleteToasts` for the same hook. @default true
    */
   toasts?: boolean;
   /** Controlled view. Pass it with `onViewChange`. */
@@ -306,7 +311,12 @@ export function ObjectList<TItem>({
           {del ? <ObjectListDeleteToasts delete={del} /> : null}
         </>
       ) : (
-        <ObjectListAnnouncer announcement={announcement} />
+        <>
+          {del ? (
+            <ObjectListDeleteToasts delete={del} report={announce} />
+          ) : null}
+          <ObjectListAnnouncer announcement={announcement} />
+        </>
       )}
     </ObjectListProvider>
   );
@@ -393,16 +403,29 @@ function ObjectListFrame({
   const keyboard = useObjectListKeyboard({ list, selection, view });
   const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
   const call = folderUploadCall(list, list.parent);
-  // A folder row or a dropzone inside the list takes the drag and speaks
-  // for it, so the frame's overlay steps aside.
-  const [innerTarget, setInnerTarget] = useState(false);
+  // The hook's drag state covers all of its drop targets, so the frame
+  // highlights and speaks only while the drag is over the frame itself.
+  const drag = useOwnDrag();
+  const dragActive = upload?.isDragActive === true && drag.over;
+  // A folder row or a dropzone inside the list takes the drag, so the
+  // frame's overlay steps aside. A dropzone announces itself; for a folder
+  // row the frame announces the folder by name.
+  const [innerTarget, setInnerTarget] = useState<InnerDropTarget | null>(null);
+  const [dropFolder, setDropFolder] = useState<string | null>(null);
 
   function trackDragTarget(event: DragEvent<HTMLElement>) {
     const inner =
       event.target instanceof Element
         ? event.target.closest(INNER_DROP_TARGET)
         : null;
-    setInnerTarget(inner != null && event.currentTarget.contains(inner));
+    if (inner == null || !event.currentTarget.contains(inner)) {
+      setInnerTarget(null);
+      setDropFolder(null);
+      return;
+    }
+    const dropzone = inner.matches(DROPZONE);
+    setInnerTarget(dropzone ? "dropzone" : "folder");
+    setDropFolder(dropzone ? null : inner.getAttribute("data-drop-name"));
   }
 
   function onPaste(event: ClipboardEvent<HTMLElement>) {
@@ -427,10 +450,13 @@ function ObjectListFrame({
     className: cn(
       "group/object-list relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors outline-none focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50",
       sizing && "min-h-0",
-      upload?.isDragReject &&
+      dragActive &&
+        upload.isDragReject &&
         "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
-      upload?.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
-      upload?.isDragActive &&
+      dragActive &&
+        upload.isDragAccept &&
+        "border-dimah-s3-primary bg-dimah-s3-primary/5",
+      dragActive &&
         !upload.isDragAccept &&
         !upload.isDragReject &&
         "border-dimah-s3-primary/50",
@@ -439,9 +465,17 @@ function ObjectListFrame({
     style,
     onFocus,
     onPaste,
-    onDragEnter: trackDragTarget,
+    onDragEnter: (event: DragEvent<HTMLElement>) => {
+      drag.enter(event);
+      trackDragTarget(event);
+    },
     onDragOver: trackDragTarget,
-    onDrop: () => setInnerTarget(false),
+    onDragLeave: drag.leave,
+    onDrop: () => {
+      drag.end();
+      setInnerTarget(null);
+      setDropFolder(null);
+    },
     // Keys come from the entries inside; the frame only routes them.
     onKeyDown: keyboard.onKeyDown,
     onKeyUp: keyboard.onKeyUp,
@@ -453,19 +487,36 @@ function ObjectListFrame({
     >
       {children}
       {upload ? (
-        <ObjectListDropOverlay upload={upload} hidden={innerTarget} />
+        <ObjectListDropOverlay
+          upload={upload}
+          active={dragActive}
+          target={innerTarget ?? "frame"}
+          folder={dropFolder}
+        />
       ) : null}
     </section>
   );
 }
 
 /** Drop targets inside the frame that take a drag for themselves. */
-const INNER_DROP_TARGET =
-  "[data-slot=object-list-entry][data-drag-active], [data-slot=upload-dropzone]:not([aria-disabled=true])";
+type InnerDropTarget = "folder" | "dropzone";
 
-/** Delete toasts that step aside for an explicit `DeleteToasts`. */
-function ObjectListDeleteToasts({ delete: del }: { delete: UseDeleteReturn }) {
-  useDeleteToasts(del, { weak: true });
+const DROPZONE = "[data-slot=upload-dropzone]:not([aria-disabled=true])";
+const INNER_DROP_TARGET = `[data-slot=object-list-entry][data-drag-active], ${DROPZONE}`;
+
+/**
+ * Delete toasts that step aside for an explicit `DeleteToasts`. With
+ * `report`, the same messages go there instead, such as the list's live
+ * region while its toasts are off.
+ */
+function ObjectListDeleteToasts({
+  delete: del,
+  report,
+}: {
+  delete: UseDeleteReturn;
+  report?: (message: DeleteToastMessage) => void;
+}) {
+  useDeleteToasts(del, { weak: true, report });
   return null;
 }
 

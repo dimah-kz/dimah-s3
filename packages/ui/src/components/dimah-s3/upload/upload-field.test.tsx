@@ -316,16 +316,48 @@ describe("UploadField", () => {
       </>,
     );
     const click = vi.spyOn(HTMLInputElement.prototype, "click");
+    const user = userEvent.setup();
 
-    await userEvent.click(screen.getByRole("button", { name: "Upload files" }));
+    const trigger = screen.getByRole("button", { name: "Upload files" });
     const dropzone = screen.getByRole("button", { name: "Drop files" });
+    // Both stay in the tab order, announced as unavailable.
+    expect(trigger.getAttribute("aria-disabled")).toBe("true");
+    expect(trigger.hasAttribute("disabled")).toBe(false);
     expect(dropzone.getAttribute("aria-disabled")).toBe("true");
+    expect(dropzone.tabIndex).toBe(0);
+    await user.tab();
+    expect(document.activeElement).toBe(trigger);
+    await user.tab();
+    expect(document.activeElement).toBe(dropzone);
+
+    await user.click(trigger);
+    await user.keyboard("{Enter}");
     await act(async () => {
       dropzone.dispatchEvent(dropEvent([textFile("c.txt")]));
     });
 
     expect(click).not.toHaveBeenCalled();
     expect(api.upload).not.toHaveBeenCalled();
+  });
+
+  it("keeps focus on the dropzone when its pick fills the field", async () => {
+    const { api } = renderField(
+      { name: "files", defaultValue: ["a.txt"], maxFiles: 2 },
+      <UploadDropzone aria-label="Drop files" />,
+    );
+    const dropzone = screen.getByRole("button", { name: "Drop files" });
+    act(() => dropzone.focus());
+    expect(dropzone.hasAttribute("aria-disabled")).toBe(false);
+
+    await pick([textFile("b.txt")]);
+
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["a.txt", "uploads/b.txt"]),
+    );
+    expect(api.upload).toHaveBeenCalledOnce();
+    expect(dropzone.isConnected).toBe(true);
+    expect(dropzone.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(dropzone);
   });
 
   it("caps drops on a dropzone inside it", async () => {
@@ -360,6 +392,69 @@ describe("UploadField", () => {
     rerender({ name: "files", value: ["two.txt"], onValueChange });
     expect(submitted("files")).toEqual(["two.txt"]);
     expect(onValueChange).toHaveBeenCalledOnce();
+  });
+
+  it("restores its default value when the form resets", async () => {
+    const onValueChange = vi.fn();
+    renderField({ name: "files", defaultValue: ["old.txt"], onValueChange });
+    await choose([textFile("a.txt")]);
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["old.txt", "uploads/a.txt"]),
+    );
+
+    act(() => {
+      (screen.getByRole("form", { name: "Post" }) as HTMLFormElement).reset();
+    });
+
+    expect(submitted("files")).toEqual(["old.txt"]);
+    expect(screen.queryByText("a.txt")).toBeNull();
+    expect(screen.getByText("old.txt")).toBeDefined();
+    expect(onValueChange).toHaveBeenLastCalledWith(["old.txt"]);
+
+    // The file that already uploaded is not added back.
+    await choose([textFile("b.txt")]);
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["old.txt", "uploads/b.txt"]),
+    );
+  });
+
+  it("clears after a React form action, which resets the form", async () => {
+    const save = vi.fn<(data: FormData) => Promise<void>>(async () => {});
+    const api = fakeApi();
+    function View() {
+      const upload = useUpload({ api, route: "uploads", maxFiles: 5 });
+      return (
+        <form aria-label="Post" action={save}>
+          <UploadField upload={upload} name="files">
+            <UploadTrigger />
+            <UploadFieldValue />
+          </UploadField>
+          <button type="submit">Save</button>
+        </form>
+      );
+    }
+    render(<View />);
+    await choose([textFile("a.txt")]);
+    await waitFor(() => expect(submitted("files")).toEqual(["uploads/a.txt"]));
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(submitted("files")).toEqual([]));
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0]?.[0].getAll("files")).toEqual(["uploads/a.txt"]);
+    expect(screen.queryByText("a.txt")).toBeNull();
+  });
+
+  it("leaves a controlled value alone when the form resets", () => {
+    const onValueChange = vi.fn();
+    renderField({ name: "files", value: ["one.txt"], onValueChange });
+
+    act(() => {
+      (screen.getByRole("form", { name: "Post" }) as HTMLFormElement).reset();
+    });
+
+    expect(submitted("files")).toEqual(["one.txt"]);
+    expect(onValueChange).not.toHaveBeenCalled();
   });
 
   it("removes a key from its value list", async () => {

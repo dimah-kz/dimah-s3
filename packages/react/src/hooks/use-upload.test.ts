@@ -295,6 +295,23 @@ describe("useUpload", () => {
     plain.unmount();
   });
 
+  it("reports disabled, ignores open() and still uploads through handleFiles", async () => {
+    const hook = mount({ disabled: true });
+    expect(hook.current.disabled).toBe(true);
+    expect(() => hook.current.open()).not.toThrow();
+
+    let result!: Awaited<ReturnType<UseUploadReturn["handleFiles"]>>;
+    await act(async () => {
+      result = await hook.current.handleFiles(txt("a.txt"));
+    });
+    expect(result.uploaded.map(({ file }) => file.name)).toEqual(["a.txt"]);
+    hook.unmount();
+
+    const enabled = mount();
+    expect(enabled.current.disabled).toBe(false);
+    enabled.unmount();
+  });
+
   it("gives drop targets no tabIndex, role, click or keyboard handlers", () => {
     const hook = mount();
     const props = hook.current.getDropTargetProps({ className: "row" });

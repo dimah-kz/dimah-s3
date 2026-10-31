@@ -50,6 +50,7 @@
     "Drag and drop files here(dropzone)",
     "Drop files here to add them to this folder.(object list)",
     "Drop to upload into this folder(object list)",
+    "Drop to upload into {name}(object list)",
     "Drop to upload(dropzone)",
     "EB(file size unit)",
     "Each up to {size}(dropzone hint)",

@@ -113,16 +113,24 @@ With `maxFiles`, each call takes only the files that still fit: `maxFiles`
 minus the keys in the value and the files still uploading. The hook rejects
 the rest with `TOO_MANY_FILES`.
 
-Once the field is full, its dropzone is `aria-disabled`, and the picker,
-drops, and pastes do nothing. The trigger still looks enabled. Read
-`remaining` from `useUploadFieldContext()` to disable it:
+Once the field is full, its `UploadTrigger` and `UploadDropzone` stay
+focusable but are `aria-disabled`, and the picker, drops, and pastes do
+nothing. The field passes `isFull` to its `Upload` root, so your own parts
+can read `useUploadContext().isFull`:
 
 ```tsx
-function AddButton() {
-  const { remaining } = useUploadFieldContext();
-  return <UploadTrigger disabled={remaining === 0} />;
+function FullHint() {
+  const { isFull } = useUploadContext();
+  return isFull ? <p>Remove a file to add another.</p> : null;
 }
 ```
+
+## Form reset
+
+Without `value`, the field restores `defaultValue` when its form resets,
+including React 19's automatic reset after a `<form action>`, and reports
+it through `onValueChange`. Call `upload.reset()` to clear the status list
+too. A controlled field must reset `value` itself.
 
 ## Custom parts
 

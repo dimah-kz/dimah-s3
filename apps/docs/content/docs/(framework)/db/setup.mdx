@@ -198,8 +198,8 @@ validated: the `operation`, the `route`, the object `key`, the target
 your guards set, and `session` is the `getSession` result.
 
 - `getSession` runs at most once per `Request`.
-- `resolveScope` runs once per `Request` and target. It sees the `locals` of
-  the first hook that asks.
+- `resolveScope` runs once per call and target. Two `s3.api` calls that
+  share a `Request` but pass different `locals` resolve separately.
 - The plugin also resolves the scope with no `key` to bind upload tickets.
   Derive the scope from the caller (`session`, `locals`), not from the
   object.
@@ -227,6 +227,10 @@ It gets the scope context plus the resolved `scope`. `object` is set when
 the request targets a stored object: confirm, the multipart calls, download,
 delete, read, and update. `folder` is the target folder of an upload, a
 listing, a move, or a folder endpoint.
+
+An upload on a `replace: "overwrite"` route that replaces an active object
+runs `authorize` with `object` set to that object, and `folder` is that
+object's folder, not `clientMetadata.folder`.
 
 ```ts title="lib/s3.ts"
 const inArchive = (path?: string | null) =>

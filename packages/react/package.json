@@ -58,7 +58,6 @@
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
-    "immer": "^11.2.9",
     "react-dropzone": "^20.1.4"
   },
   "devDependencies": {

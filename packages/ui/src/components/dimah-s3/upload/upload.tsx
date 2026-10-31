@@ -22,11 +22,22 @@ import { useOptionalObjectListContext } from "@/components/dimah-s3/list/object-
 export type UploadProps = {
   /** The `useUpload` return its parts read. */
   upload: UseUploadReturn;
+  /**
+   * Marks the root as full: `UploadTrigger` and `UploadDropzone` stay
+   * focusable but are `aria-disabled`. It only changes how they render, so
+   * `upload` must take no files itself. `UploadField` sets it, with a capped
+   * `upload`, once it is full. @default false
+   */
+  isFull?: boolean;
   children: ReactNode;
 };
 
 /** What {@link Upload} shares with its parts. */
-export type UploadContextValue = { upload: UseUploadReturn };
+export type UploadContextValue = {
+  upload: UseUploadReturn;
+  /** The root takes no more files, as in a full `UploadField`. Parts render `aria-disabled`. */
+  isFull: boolean;
+};
 
 const UploadContext = createContext<UploadContextValue | null>(null);
 
@@ -74,8 +85,8 @@ type FocusHandoff = {
  * <UploadToasts upload={upload} />
  * ```
  */
-export function Upload({ upload, children }: UploadProps) {
-  const value = useMemo(() => ({ upload }), [upload]);
+export function Upload({ upload, isFull = false, children }: UploadProps) {
+  const value = useMemo(() => ({ upload, isFull }), [isFull, upload]);
   const rootId = useId();
   const handoffRef = useRef<FocusHandoff | null>(null);
 

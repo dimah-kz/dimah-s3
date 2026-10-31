@@ -6,7 +6,7 @@ import type {
   S3ErrorShape,
 } from "@dimah-s3/core";
 import { toAPIError } from "@/helpers/error-boundary";
-import { runGuards, runLifecycle } from "@/helpers/hooks";
+import { createLocals, runGuards, runLifecycle } from "@/helpers/hooks";
 import { openRoute } from "@/helpers/resolve-route";
 import { assertStoredKey } from "@/helpers/resolve-target";
 import { runOperation } from "@/operations/run-operation";
@@ -51,7 +51,14 @@ export function deleteManyObjects(
       try {
         const key = assertStoredKey(input, route.keyPrefix);
         if (allowed.has(key)) continue;
-        const context = { ...routeContext, key, bucket: route.bucket };
+        // Each key gets its own locals, so a guard's result reaches only
+        // that key's onDeleted.
+        const context = {
+          ...routeContext,
+          key,
+          bucket: route.bucket,
+          locals: createLocals(routeContext.locals),
+        };
         await runGuards(route.delete.guard, context);
         allowed.set(key, context);
       } catch (error) {

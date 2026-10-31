@@ -88,7 +88,8 @@ required, and a bucket no route uses is a `VALIDATION_ERROR`.
 
 `GET /db/objects` defaults to `status: "active"` and `limit: 50`, and
 rejects a `limit` above `100`. Unknown query keys, such as the 1.x `offset`
-and `prefix`, are a `VALIDATION_ERROR` (`400`).
+and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
+`status=purging`: rows that purge has claimed are never listed.
 
 - `folder` lists one folder: `""` is the root, and a path such as
   `reports/2026` is a folder. Omit it for a flat list of every folder.

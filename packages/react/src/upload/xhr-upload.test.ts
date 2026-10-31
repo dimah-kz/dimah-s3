@@ -5,6 +5,7 @@ import { sendXhrUpload } from "./xhr-upload";
 class FakeXhr {
   static last: FakeXhr | undefined;
   status = 0;
+  responseText = "";
   readonly headers: Record<string, string> = {};
   readonly upload = new EventTarget();
   readonly events = new EventTarget();
@@ -30,8 +31,9 @@ class FakeXhr {
   abort() {
     this.events.dispatchEvent(new Event("abort"));
   }
-  respond(status: number) {
+  respond(status: number, responseText = "") {
     this.status = status;
+    this.responseText = responseText;
     this.events.dispatchEvent(new Event("load"));
   }
 }
@@ -98,6 +100,64 @@ describe("sendXhrUpload", () => {
       code: "UPLOAD_FAILED",
       statusCode: 403,
       params: { status: 403 },
+    });
+  });
+
+  it.each(["BadDigest", "XAmzContentChecksumMismatch"])(
+    "rejects a 400 %s response with CHECKSUM_MISMATCH",
+    async (code) => {
+      const pending = sendXhrUpload({
+        method: "PUT",
+        url: "u",
+        body: new Blob(),
+      });
+      current().respond(
+        400,
+        `<?xml version="1.0" encoding="UTF-8"?><Error><Code>${code}</Code><Message>m</Message></Error>`,
+      );
+
+      await expect(pending).rejects.toMatchObject({
+        code: "CHECKSUM_MISMATCH",
+        statusCode: 400,
+      });
+    },
+  );
+
+  it.each([
+    ["another S3 code", "<Error><Code>InvalidDigest</Code></Error>"],
+    ["an empty body", ""],
+  ])("keeps UPLOAD_FAILED for a 400 with %s", async (_label, body) => {
+    const pending = sendXhrUpload({
+      method: "PUT",
+      url: "u",
+      body: new Blob(),
+    });
+    current().respond(400, body);
+
+    await expect(pending).rejects.toMatchObject({
+      code: "UPLOAD_FAILED",
+      params: { status: 400 },
+    });
+  });
+
+  it("keeps UPLOAD_FAILED when the body cannot be read", async () => {
+    const pending = sendXhrUpload({
+      method: "PUT",
+      url: "u",
+      body: new Blob(),
+    });
+    const xhr = current();
+    Object.defineProperty(xhr, "responseText", {
+      get() {
+        throw new DOMException("Not readable", "InvalidStateError");
+      },
+    });
+    xhr.status = 400;
+    xhr.events.dispatchEvent(new Event("load"));
+
+    await expect(pending).rejects.toMatchObject({
+      code: "UPLOAD_FAILED",
+      params: { status: 400 },
     });
   });
 

@@ -50,6 +50,7 @@ describe("resolveInlineDisposition", () => {
       "text/html",
       "application/xhtml+xml",
       "text/xml",
+      "text/xsl",
       "text/javascript",
     ]) {
       expect(
@@ -64,6 +65,13 @@ describe("resolveInlineDisposition", () => {
       resolveInlineDisposition({
         contentType: "image/svg+xml",
         allow: ["image/svg+xml"],
+        requested: "inline",
+      }),
+    ).toEqual({ disposition: "inline" });
+    expect(
+      resolveInlineDisposition({
+        contentType: "text/xsl",
+        allow: ["text/xsl"],
         requested: "inline",
       }),
     ).toEqual({ disposition: "inline" });

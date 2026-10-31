@@ -94,9 +94,10 @@ function confirmedBy<T>(
  * S3 and check that every call acts on rows of its own scope:
  *
  * - `ticketSubject` binds upload tickets to the scope.
- * - `upload.guard` checks the folder, `authorize`, ownership of the key, and
- *   the quota; `onStart` writes the pending row, then its folders. An
- *   overwrite leaves the active row in place until it is confirmed.
+ * - `upload.guard` checks the folder, ownership of the key, `authorize`
+ *   (with the object an overwrite replaces), and the quota; `onStart` writes
+ *   the pending row, then its folders. An overwrite leaves the active row in
+ *   place until it is confirmed.
  * - `confirmGuard` and `multipart.guard` accept only the row of the ticket's
  *   upload; `onConfirmed` checks the quota against the verified size and
  *   marks the row active.
@@ -133,6 +134,26 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
     if (!live) throw s3Error("OBJECT_NOT_FOUND");
   };
 
+  /**
+   * What an upload writes to: the row at its key, and the scope target. An
+   * overwrite keeps the active row's folder, so that folder is the target.
+   */
+  const uploadWrite = async (context: UploadGuardContext) => {
+    const target = uploadTarget(context);
+    const existing = await objects.find(refOf(context));
+    if (
+      existing?.status !== "active" ||
+      routes.replace(context.route) !== "overwrite"
+    ) {
+      return { target, existing, replaced: null };
+    }
+    return {
+      target: { ...target, folder: existing.folder },
+      existing,
+      replaced: existing,
+    };
+  };
+
   /** Aborts the multipart upload in flight on the row. Best-effort. */
   const abortPendingMultipart = async (context: ObjectContext) => {
     const row = await objects.find(refOf(context));
@@ -164,17 +185,19 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
 
     upload: {
       async guard(context) {
-        const scope = await access.scope(context, uploadTarget(context));
-        const existing = await objects.find(refOf(context));
-        if (existing && existing.status !== "deleted") {
-          if (existing.scope !== scope.scope) throw s3Error("FORBIDDEN");
-          // Purge is cleaning the key up; a retry after it finishes succeeds.
-          if (existing.status === "purging") throw s3Error("CONFLICT");
-          if (
-            existing.status === "active" &&
-            routes.replace(context.route) !== "overwrite"
-          ) {
-            throw s3Error("CONFLICT");
+        const { target, existing, replaced } = await uploadWrite(context);
+        let scope;
+        if (replaced) {
+          // `authorize` sees the object the upload replaces.
+          scope = await resolveScope(context, target);
+          await access.assertOwner(scope, replaced);
+        } else {
+          scope = await access.scope(context, target);
+          if (existing && existing.status !== "deleted") {
+            if (existing.scope !== scope.scope) throw s3Error("FORBIDDEN");
+            // Purge is cleaning the key up; a retry after it finishes succeeds.
+            if (existing.status === "purging") throw s3Error("CONFLICT");
+            if (existing.status === "active") throw s3Error("CONFLICT");
           }
         }
         await quota.assert(scope, {
@@ -184,7 +207,7 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
       },
 
       async onStart(context) {
-        const target = uploadTarget(context);
+        const { target } = await uploadWrite(context);
         const { scope } = await resolveScope(context, target);
         const row = await objects.upsertPending({
           ...refOf(context),

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { s3Error } from "@dimah-s3/core";
 import {
+  notify,
   reportCallbackError,
+  reportOperationOutcome,
   runAfterCallback,
   runBeforeCallback,
   runStartCallback,
@@ -97,6 +100,67 @@ describe("runAfterCallback", () => {
 
     expect(report).toHaveBeenCalledTimes(2);
     expect(report).toHaveBeenCalledWith(cause);
+  });
+});
+
+describe("reportOperationOutcome", () => {
+  function callbacks() {
+    const calls: string[] = [];
+    return {
+      calls,
+      onError: vi.fn(() => void calls.push("onError")),
+      onSuccess: vi.fn(() => void calls.push("onSuccess")),
+      onSettled: vi.fn(() => void calls.push("onSettled")),
+    };
+  }
+
+  it("runs onSuccess, then onSettled, for a success", async () => {
+    const options = callbacks();
+    const outcome = { status: "success", key: "a", data: 1 } as const;
+
+    await reportOperationOutcome(options, outcome);
+
+    expect(options.calls).toEqual(["onSuccess", "onSettled"]);
+    expect(options.onSuccess).toHaveBeenCalledWith(1, "a");
+    expect(options.onSettled).toHaveBeenCalledWith(outcome);
+  });
+
+  it("runs onError, then onSettled, for an error", async () => {
+    const options = callbacks();
+    const error = s3Error("FORBIDDEN");
+
+    await reportOperationOutcome(options, { status: "error", key: "a", error });
+
+    expect(options.calls).toEqual(["onError", "onSettled"]);
+    expect(options.onError).toHaveBeenCalledWith(error, "a");
+  });
+
+  it.each(["blocked", "aborted"] as const)(
+    "runs only onSettled when %s",
+    async (status) => {
+      const options = callbacks();
+
+      await reportOperationOutcome(options, { status, key: "a" });
+
+      expect(options.calls).toEqual(["onSettled"]);
+    },
+  );
+});
+
+describe("notify", () => {
+  it("calls the callback and reports a throw instead of rethrowing", () => {
+    const report = vi.fn();
+    vi.stubGlobal("reportError", report);
+    const cause = new Error("nope");
+    const callback = vi.fn((_value: number) => {
+      throw cause;
+    });
+
+    expect(() => notify(callback, 1)).not.toThrow();
+    expect(() => notify(undefined)).not.toThrow();
+
+    expect(callback).toHaveBeenCalledWith(1);
+    expect(report).toHaveBeenCalledExactlyOnceWith(cause);
   });
 });
 

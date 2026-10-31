@@ -77,6 +77,10 @@ With the SDK default, the first presign logs the problem and returns `500`.
 - In `upload.object`, `folder` is now `keyFolder`.
 - Downloads open inline only for raster images, PDF (presign mode), audio,
   video, and plain text. Set `download.inlineTypes` to change the list.
+- `upload.expiresIn`, `upload.confirmWindow`, `upload.maxFileSize`,
+  `upload.multipart.partSize`, `upload.multipart.ticketExpiresIn`, and
+  `download.maxExpiresIn` must be positive integers. A fractional value now
+  throws at `dimahS3()`.
 
 ### Rewrite guards and errors
 
@@ -412,6 +416,7 @@ message.
 | `QUOTA_EXCEEDED`              | `QUOTA_EXCEEDED` (403) with `{ limit }`       |
 | `APIError.fromStatus(...)`    | `s3Error(code, params)` or `APIError.from`    |
 | `DELETE_BATCH_MAX_KEYS`       | `DELETE_MANY_MAX_KEYS`                        |
+| `S3_MAX_OBJECT_KEY_LENGTH`    | `S3_MAX_OBJECT_KEY_BYTES` (1024 UTF-8 bytes)  |
 | `S3_API_ROUTES.uploadConfirm` | `S3_API_ROUTES.confirm`                       |
 | `S3_API_ROUTES.deleteBatch`   | `S3_API_ROUTES.deleteMany`                    |
 | `S3_API_ROUTES.multipartPart` | `S3_API_ROUTES.multipartSignPart`             |

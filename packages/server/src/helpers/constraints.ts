@@ -17,9 +17,9 @@ export function assertWithinMaxFileSize(
 
 /**
  * Checks a file against the route limits: `FILE_TYPE_NOT_ALLOWED` when it
- * matches none of `fileTypes`, `FILE_TOO_LARGE` when it is over
- * `maxFileSize`. Runs on the declared file at presign, and again on the
- * HeadObject values at confirm.
+ * matches none of `fileTypes`, `FILE_EMPTY` when it has no bytes, and
+ * `FILE_TOO_LARGE` when it is over `maxFileSize`. Runs on the declared file
+ * at presign, and again on the HeadObject values at confirm.
  */
 export function assertFileConstraints(
   constraints: FileConstraints,
@@ -33,10 +33,14 @@ export function assertFileConstraints(
       allowed: fileTypes.join(", "),
     });
   }
+  if (file.size === 0) throw s3Error("FILE_EMPTY");
   assertWithinMaxFileSize(maxFileSize, file.size);
 }
 
-/** The extension (`.exe`), else the MIME type, else `unknown`. Matches the browser check. */
+/**
+ * The extension (`.exe`), else the MIME type, else `unknown`. Must match the
+ * `type` param of core `validateFile`; constraints.test.ts pins the parity.
+ */
 function describeFileType(name: string, type: string | undefined): string {
   const dot = name.lastIndexOf(".");
   if (dot >= 0 && dot < name.length - 1) return name.slice(dot);

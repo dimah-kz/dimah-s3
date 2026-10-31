@@ -39,7 +39,8 @@ function applyPrefix(prefix: string, key: string): string {
   const k = assertSafeObjectKey(key);
   if (k.startsWith(`${p}/`)) return k;
   if (k === p) throw s3Error("KEY_INVALID");
-  return `${p}/${k}`;
+  // Each half fits on its own; the joined key must fit the byte limit too.
+  return assertSafeObjectKey(`${p}/${k}`);
 }
 
 /** Nest `key` under `keyPrefix`. `false` leaves a safe key unchanged. */
@@ -69,10 +70,11 @@ export function assertStoredKey(
 
 /**
  * Leaf name for a generated object key. Path segments (`../`, `/`) must
- * not become extra key folders or fail {@link assertSafeObjectKey}.
+ * not become extra key folders or fail {@link assertSafeObjectKey}. `${`
+ * becomes `_{`, so a key never carries the POST `${filename}` placeholder.
  */
 function objectKeyFileName(fileName: string): string {
-  const sanitized = sanitizeFileName(fileName);
+  const sanitized = sanitizeFileName(fileName).replaceAll("${", "_{");
   const leaf = sanitized.split("/").findLast((part) => part.length > 0);
   if (!leaf || leaf === "." || leaf === "..") return "file";
   return leaf;

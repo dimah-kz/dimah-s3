@@ -1,4 +1,5 @@
 import { s3Error, type APIError } from "@dimah-s3/core";
+import type { OperationOutcome } from "@/types/operation";
 
 /** What a `before*` callback decided. */
 export type BeforeCallbackResult =
@@ -54,6 +55,45 @@ export async function runAfterCallback<TArgs extends unknown[]>(
   if (!callback) return;
   try {
     await callback(...args);
+  } catch (error) {
+    reportCallbackError(error);
+  }
+}
+
+/** The after-callbacks of a hook whose calls settle one key each. */
+export type OperationCallbacks<TData> = {
+  onError?: (error: APIError, key: string) => void | Promise<void>;
+  onSuccess?: (data: TData, key: string) => void | Promise<void>;
+  onSettled?: (outcome: OperationOutcome<TData>) => void | Promise<void>;
+};
+
+/**
+ * Runs the after-callbacks for one settled single-key call: `onError` or
+ * `onSuccess`, then `onSettled`. Call it once the key is free, so a callback
+ * can start the same key again.
+ */
+export async function reportOperationOutcome<TData>(
+  { onError, onSuccess, onSettled }: OperationCallbacks<TData>,
+  outcome: OperationOutcome<TData>,
+): Promise<void> {
+  if (outcome.status === "error") {
+    await runAfterCallback(onError, outcome.error, outcome.key);
+  } else if (outcome.status === "success") {
+    await runAfterCallback(onSuccess, outcome.data, outcome.key);
+  }
+  await runAfterCallback(onSettled, outcome);
+}
+
+/**
+ * Runs a progress-style callback (`onProgress`, `onFileReject`, ...)
+ * synchronously. A throw goes to {@link reportCallbackError}, never rethrown.
+ */
+export function notify<TArgs extends unknown[]>(
+  callback: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+): void {
+  try {
+    callback?.(...args);
   } catch (error) {
     reportCallbackError(error);
   }

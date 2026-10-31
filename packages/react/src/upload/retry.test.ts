@@ -36,6 +36,7 @@ describe("isRetryableError", () => {
       false,
     ],
     ["UPLOAD_FAILED 503 without the status option", transportFailed(503), true],
+    ["CHECKSUM_MISMATCH", s3Error("CHECKSUM_MISMATCH"), false],
     ["INTERNAL_ERROR", s3Error("INTERNAL_ERROR"), false],
     [
       "FILE_TOO_LARGE",

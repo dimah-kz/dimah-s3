@@ -5,6 +5,8 @@ import type { BetterFetch } from "@better-fetch/fetch";
  * Every failure throws {@link APIError}. A `{ code, message, params? }` body
  * keeps its code and HTTP status. Any other non-OK response becomes
  * `INTERNAL_ERROR` (status >= 500) or `UNKNOWN_ERROR` with the HTTP status.
+ * A 2xx response whose body is not a JSON object or array (such as an SPA
+ * fallback `index.html`) throws `UNKNOWN_ERROR` with its status.
  * A failed request becomes `NETWORK_ERROR`, except an aborted signal, which
  * rethrows the abort reason. Client headers apply first; per-call headers win.
  */

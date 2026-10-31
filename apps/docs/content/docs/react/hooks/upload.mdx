@@ -64,7 +64,9 @@ return (
 
 `isDragActive`, `isDragAccept`, and `isDragReject` describe the files dragged
 over a dropzone or drop target. `disabled`, `noDrag`, `noClick`, and
-`noKeyboard` turn intake off.
+`noKeyboard` turn intake off. With `disabled`, `open()` does nothing too, and
+the return's `disabled` field is `true` so your pickers can render disabled.
+`handleFiles` still uploads the files you pass it.
 
 ---
 
@@ -83,8 +85,10 @@ const upload = useUpload({
 ```
 
 By default a new call cancels the files still in flight and replaces the
-queue. With `queue: true`, new files are added to the end and the files in
-flight keep going.
+queue once its own files start uploading. Earlier calls that are still
+preparing are cancelled at once. A call that is blocked, rejected, or fails
+before uploading leaves the queue alone. With `queue: true`, new files are
+added to the end and the files in flight keep going.
 
 Each entry in `upload.files` has:
 

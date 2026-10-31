@@ -44,6 +44,7 @@ file must be at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`).
 2. `detach()`, a closed tab, or an unmount stops the upload but keeps the record and the server session.
 3. When the same file is selected again, the engine finds the record, lists the parts already uploaded, and sends only the rest.
 4. Once the upload completes or is cancelled, the record is deleted.
+5. A failure that may pass on a later try, such as a network error or S3 answering `429` or `5xx`, keeps the record. A failure that retrying cannot fix, such as `FORBIDDEN` or `CHECKSUM_MISMATCH`, aborts the server upload and deletes the record.
 
 If the ticket has expired, or the server no longer knows the upload, the
 engine aborts it, deletes the record, and starts over.

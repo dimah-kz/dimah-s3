@@ -72,6 +72,7 @@ export function presignUpload(
         route: route.name,
         key: object.key,
         file: context.file,
+        acl: object.acl,
         checksum: route.upload.checksum,
         expiresAt: new Date(urlExpiresAt.getTime() + confirmWindow * 1000),
       },
@@ -145,15 +146,26 @@ export function assertSingleUploadSize(size: number): void {
 
 type PolicyCondition = NonNullable<PresignedPostOptions["Conditions"]>[number];
 
+/** The POST form placeholder that S3 replaces with the uploaded file name. */
+const POST_FILENAME_PLACEHOLDER = "${filename}";
+
 /**
  * Presigns a POST form upload. Every field is an exact-match policy
- * condition, the size is pinned with `content-length-range`, and a checksum
- * adds the `x-amz-checksum-*` fields with explicit `eq` conditions.
+ * condition, the key is pinned with an `eq` condition, the size is pinned
+ * with `content-length-range`, and a checksum adds the `x-amz-checksum-*`
+ * fields with explicit `eq` conditions.
+ *
+ * A key that contains the `${filename}` placeholder fails with
+ * `KEY_INVALID`: the SDK would sign it as a `starts-with` condition, and the
+ * client would pick the object key.
  */
 async function presignPost(
   client: S3Client,
   input: PresignPutInput,
 ): Promise<PresignedPost> {
+  if (input.key.includes(POST_FILENAME_PLACEHOLDER)) {
+    throw s3Error("KEY_INVALID");
+  }
   await assertChecksumConfig(client);
   const checksumFields: Record<string, string> = input.checksum
     ? {
@@ -162,6 +174,7 @@ async function presignPost(
       }
     : {};
   const conditions: PolicyCondition[] = [
+    ["eq", "$key", input.key],
     ["content-length-range", input.size, input.size],
     ...Object.entries(checksumFields).map(([name, value]): PolicyCondition => [
       "eq",

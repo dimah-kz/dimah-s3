@@ -26,6 +26,7 @@ import {
   ObjectList,
   type ObjectListProps,
 } from "@/components/dimah-s3/list/object-list";
+import { Upload } from "@/components/dimah-s3/upload/upload";
 import { UploadDropzone } from "@/components/dimah-s3/upload/upload-dropzone";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
@@ -210,7 +211,10 @@ function textFile(name: string) {
 }
 
 /** A drag event carrying `files`, shaped like the browser's. */
-function dragEvent(type: "dragenter" | "dragover" | "drop", files: File[]) {
+function dragEvent(
+  type: "dragenter" | "dragover" | "dragleave" | "drop",
+  files: File[],
+) {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, "dataTransfer", {
     value: {
@@ -413,14 +417,17 @@ describe("ObjectList", () => {
 
       await fire(row, dragEvent("dragenter", [textFile("a.txt")]));
       expect(row.hasAttribute("data-drag-active")).toBe(true);
-      // The list's overlay steps aside, so it does not name the open folder.
+      // The list's overlay steps aside, and the live message names the row.
       expect(
         document.querySelector("[data-slot=object-list-drop-overlay]"),
       ).toBeNull();
-      expect(speakingRegions()).toEqual([]);
+      expect(speakingRegions().map((region) => region.textContent)).toEqual([
+        "Drop to upload into docs",
+      ]);
       await fire(row, dragEvent("drop", [textFile("a.txt")]));
 
       expect(row.hasAttribute("data-drag-active")).toBe(false);
+      expect(speakingRegions()).toEqual([]);
       expect(sentMetadata(api)).toEqual([{ folder: "docs" }]);
     });
 
@@ -537,6 +544,50 @@ describe("ObjectList", () => {
         "Drop to upload",
       ]);
       expect(dropzone.hasAttribute("data-drag-active")).toBe(true);
+    });
+
+    it("stays quiet while files are dragged over another target of its hook", async () => {
+      const { container } = renderList({
+        extra: ({ upload }) => (
+          <Upload upload={upload}>
+            <UploadDropzone aria-label="Outside" />
+          </Upload>
+        ),
+      });
+      await settle();
+      const frame = container.querySelector("[data-slot=object-list]");
+      if (!frame) throw new Error("No frame");
+
+      await fire(
+        screen.getByRole("button", { name: "Outside" }),
+        dragEvent("dragenter", [textFile("a.txt")]),
+      );
+
+      expect(speakingRegions().map((region) => region.textContent)).toEqual([
+        "Drop to upload",
+      ]);
+      expect(
+        container.querySelector("[data-slot=object-list-drop-overlay]"),
+      ).toBeNull();
+      expect(frame.className).not.toContain("border-dimah-s3-primary");
+    });
+
+    it("shows the overlay only while the drag is over the list", async () => {
+      const { container } = renderList();
+      await settle();
+      const frame = container.querySelector("[data-slot=object-list]");
+      if (!frame) throw new Error("No frame");
+
+      await fire(frame, dragEvent("dragenter", [textFile("a.txt")]));
+      expect(
+        container.querySelector("[data-slot=object-list-drop-overlay]"),
+      ).not.toBeNull();
+
+      await fire(frame, dragEvent("dragleave", [textFile("a.txt")]));
+      expect(
+        container.querySelector("[data-slot=object-list-drop-overlay]"),
+      ).toBeNull();
+      expect(speakingRegions()).toEqual([]);
     });
 
     it("reloads once each time the queue settles with new uploads", async () => {
@@ -684,6 +735,56 @@ describe("ObjectList", () => {
       await settle();
 
       expect(toast.add).not.toHaveBeenCalled();
+      expect(
+        document.querySelector("[data-slot=object-list-announcer]")
+          ?.textContent,
+      ).toBe("File deleted a.txt");
+    });
+
+    it("announces a failed delete with toasts off", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      const { api } = renderList({ props: () => ({ toasts: false }) });
+      api.delete.mockRejectedValue(s3Error("FORBIDDEN"));
+      api.deleteMany.mockRejectedValue(s3Error("FORBIDDEN"));
+      await settle();
+
+      const menu = await openMenu("a.txt");
+      await user.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog");
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await settle();
+
+      expect(toast.add).not.toHaveBeenCalled();
+      expect(
+        document.querySelector("[data-slot=object-list-announcer]")
+          ?.textContent,
+      ).toMatch(/^Delete failed /);
+      expect(
+        screen.getByRole("button", { name: startsWith("a.txt") }),
+      ).toBeDefined();
+    });
+
+    it("leaves delete results to an explicit DeleteToasts with toasts off", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      renderList({
+        props: () => ({ toasts: false }),
+        extra: ({ remove }) => <DeleteToasts delete={remove} />,
+      });
+      await settle();
+
+      const menu = await openMenu("a.txt");
+      await user.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog");
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await settle();
+
+      expect(toastTitles()).toEqual(["File deleted"]);
+      expect(
+        document.querySelector("[data-slot=object-list-announcer]")
+          ?.textContent,
+      ).toBe("");
     });
 
     it("moves focus to the entry that takes the deleted row's place", async () => {

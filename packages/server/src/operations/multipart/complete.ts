@@ -32,8 +32,9 @@ import { openMultipart, type MultipartTicketBody } from "./open-multipart";
  * {@link finalizeConfirmed} runs the same checks and hooks as confirm.
  *
  * Like confirm, a retry is safe. When the upload no longer exists because
- * an earlier call completed it, the stored object is finalized again, as
- * long as it carries this upload's marker.
+ * an earlier or concurrent call completed it (at ListParts or at
+ * CompleteMultipartUpload), the stored object is finalized again, as long
+ * as it carries this upload's marker.
  */
 export function completeMultipart(
   config: ResolvedConfig,
@@ -52,16 +53,22 @@ export function completeMultipart(
     const listed = await listPartsOfOpenUpload(route.client, context);
     if (listed) {
       const parts = completedParts(listed, layout, ticket.checksum);
-      await sendOrObjectNotFound(() =>
-        route.client.send(
-          new CompleteMultipartUploadCommand({
-            Bucket: bucket,
-            Key: key,
-            UploadId: uploadId,
-            MultipartUpload: { Parts: parts },
-          }),
-        ),
-      );
+      try {
+        await sendOrObjectNotFound(() =>
+          route.client.send(
+            new CompleteMultipartUploadCommand({
+              Bucket: bucket,
+              Key: key,
+              UploadId: uploadId,
+              MultipartUpload: { Parts: parts },
+            }),
+          ),
+        );
+      } catch (error) {
+        // Another call completed (or aborted) the upload after our
+        // ListParts. HeadObject and the marker check decide.
+        if (!isS3ErrorCode(error, "OBJECT_NOT_FOUND")) throw error;
+      }
     }
 
     const head = await headObjectOrNotFound(route.client, bucket, key);
@@ -72,7 +79,7 @@ export function completeMultipart(
       uploadToken: ticket.id,
       uploadId,
       file: ticket.file,
-      acl: route.upload.acl,
+      acl: ticket.acl,
       head,
     });
     return { ...confirmed, uploadId };

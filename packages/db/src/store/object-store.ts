@@ -199,11 +199,12 @@ export type StorageObjectStore<TAttributes = never> = {
   }) => Promise<StorageObject<TAttributes>[]>;
   /**
    * Exclusive compare-and-set claim for purge, while the row is still stale.
-   * A pending row becomes `purging`; an active row stays active. The claim
-   * moves the deadline {@link PURGE_CLAIM_MS} ahead, so no other run can
-   * claim the row meanwhile. Returns the claimed row, or `null` when it was
-   * confirmed, deleted, written again by a new upload, or claimed by
-   * another run.
+   * A pending row becomes `purging`. An active row stays active, and its
+   * `uploadToken` takes the claim prefix (see {@link uploadTokenOf}).
+   * Either way the upload can no longer confirm the row. The claim moves the
+   * deadline {@link PURGE_CLAIM_MS} ahead, so no other run can claim the row
+   * meanwhile. Returns the claimed row, or `null` when it was confirmed,
+   * deleted, written again by a new upload, or claimed by another run.
    */
   claimStale: (id: string) => Promise<StorageObject<TAttributes> | null>;
   /** Removes a claimed row, only while it is still `purging`. */
@@ -213,9 +214,35 @@ export type StorageObjectStore<TAttributes = never> = {
 };
 
 /**
+ * What purge puts in front of the `uploadToken` of an overwrite it claims.
+ * The confirm presents the bare token, so it no longer matches the row.
+ * Upload tokens are base64url, so they never contain `:`.
+ */
+const CLAIMED_TOKEN_PREFIX = "purge:";
+
+/** The token an overwrite row takes when purge claims it. */
+function claimedToken(token: string): string {
+  // A lapsed claim is claimed again, and keeps its prefix.
+  return token.startsWith(CLAIMED_TOKEN_PREFIX)
+    ? token
+    : CLAIMED_TOKEN_PREFIX + token;
+}
+
+/**
+ * The token of the upload that wrote the row, also once purge has claimed
+ * it. It is the value of the object's upload marker in S3.
+ */
+export function uploadTokenOf(object: StorageObject<unknown>) {
+  const token = object.uploadToken;
+  return token?.startsWith(CLAIMED_TOKEN_PREFIX)
+    ? token.slice(CLAIMED_TOKEN_PREFIX.length)
+    : token;
+}
+
+/**
  * True while an upload is in flight on the row: it is pending, or it is
  * active with the deadline of an overwrite that is not confirmed yet. The
- * row's `uploadToken` is that upload's.
+ * row's `uploadToken` is that upload's, or purge's claim of it.
  */
 export function isUploading(object: StorageObject<unknown>): boolean {
   return (
@@ -643,16 +670,30 @@ export function createObjectStore<TAttributes = never>(
       const deadline = claimDeadline();
       const stale = (b: ObjectConditions) =>
         b.and(b("id", "=", id), staleObject(b, now));
-      await orm.updateMany("storageObject", {
-        where: (b) =>
-          b.and(stale(b), b("status", "in", ["pending", "purging"])),
-        set: { status: "purging", expiresAt: deadline, updatedAt: now },
-      });
-      // An active row keeps its status, and the `updatedAt` listings sort on.
-      await orm.updateMany("storageObject", {
-        where: (b) => b.and(stale(b), b("status", "=", "active")),
-        set: { expiresAt: deadline },
-      });
+      const current = await findById(id);
+      if (!current) return null;
+      if (current.status === "active") {
+        const token = current.uploadToken;
+        if (token === null) return null;
+        // The row keeps its status, and the `updatedAt` listings sort on.
+        // Its token moves aside, so the overwrite cannot confirm it. Matching
+        // on the token leaves a row that a new upload took meanwhile alone.
+        await orm.updateMany("storageObject", {
+          where: (b) =>
+            b.and(
+              stale(b),
+              b("status", "=", "active"),
+              b("uploadToken", "=", token),
+            ),
+          set: { expiresAt: deadline, uploadToken: claimedToken(token) },
+        });
+      } else {
+        await orm.updateMany("storageObject", {
+          where: (b) =>
+            b.and(stale(b), b("status", "in", ["pending", "purging"])),
+          set: { status: "purging", expiresAt: deadline, updatedAt: now },
+        });
+      }
       const row = await findById(id);
       return row?.expiresAt?.getTime() === deadline.getTime() ? row : null;
     },

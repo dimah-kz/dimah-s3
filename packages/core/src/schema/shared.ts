@@ -1,8 +1,5 @@
 import * as z from "zod";
-import {
-  normalizeObjectKey,
-  S3_MAX_OBJECT_KEY_LENGTH,
-} from "@/helpers/normalize-object-key";
+import { normalizeObjectKey } from "@/helpers/normalize-object-key";
 
 /** Fallback when the route omits `expiresIn`. */
 export const S3_DEFAULT_EXPIRES_IN = 600;
@@ -29,7 +26,7 @@ export const S3_DEFAULT_PART_SIZE = 8 * 1024 * 1024;
 export const S3_MAX_OBJECT_SIZE = 5 * 1024 ** 4;
 
 /** Wire limit for `name` and `type`, in UTF-8 bytes. */
-const MAX_FILE_FIELD_BYTES = 255;
+export const S3_MAX_FILE_FIELD_BYTES = 255;
 
 /** Upload ticket maximum, in characters. */
 const MAX_UPLOAD_TICKET_LENGTH = 8192;
@@ -56,7 +53,7 @@ const utf8 = new TextEncoder();
 const CONTROL_CHARACTER = /\p{Cc}/u;
 
 function fitsFileField(value: string): boolean {
-  return utf8.encode(value).byteLength <= MAX_FILE_FIELD_BYTES;
+  return utf8.encode(value).byteLength <= S3_MAX_FILE_FIELD_BYTES;
 }
 
 function hasNoControlCharacters(value: string): boolean {
@@ -69,7 +66,7 @@ function hasNoControlCharacters(value: string): boolean {
  */
 export const fileNameSchema = trimmedString
   .refine(fitsFileField, {
-    message: `File name exceeds ${MAX_FILE_FIELD_BYTES} bytes`,
+    message: `File name exceeds ${S3_MAX_FILE_FIELD_BYTES} bytes`,
   })
   .refine(hasNoControlCharacters, {
     message: "File name contains control characters",
@@ -80,7 +77,7 @@ export const contentTypeSchema = z
   .string()
   .trim()
   .refine(fitsFileField, {
-    message: `Content type exceeds ${MAX_FILE_FIELD_BYTES} bytes`,
+    message: `Content type exceeds ${S3_MAX_FILE_FIELD_BYTES} bytes`,
   })
   .refine(hasNoControlCharacters, {
     message: "Content type contains control characters",
@@ -104,21 +101,22 @@ export const routeNameSchema = trimmedString.regex(
   "Invalid route name",
 );
 
-/** Stored object key — normalized, no `.` / `..` / NUL / backslash segments. */
-export const objectKeySchema = trimmedString
-  .max(S3_MAX_OBJECT_KEY_LENGTH)
-  .transform((value, ctx) => {
-    const normalized = normalizeObjectKey(value);
-    if (normalized == null) {
-      ctx.issues.push({
-        code: "custom",
-        message: "Invalid object key",
-        input: value,
-      });
-      return z.NEVER;
-    }
-    return normalized;
-  });
+/**
+ * Stored object key — normalized, at most 1024 UTF-8 bytes, no `.` / `..` /
+ * NUL / backslash segments.
+ */
+export const objectKeySchema = trimmedString.transform((value, ctx) => {
+  const normalized = normalizeObjectKey(value);
+  if (normalized == null) {
+    ctx.issues.push({
+      code: "custom",
+      message: "Invalid object key",
+      input: value,
+    });
+    return z.NEVER;
+  }
+  return normalized;
+});
 
 /** 1-based S3 multipart part number. */
 export const partNumberSchema = z.int().min(1).max(S3_MAX_PART_NUMBER);

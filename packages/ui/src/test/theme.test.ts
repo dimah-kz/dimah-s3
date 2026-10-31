@@ -10,7 +10,7 @@ const css = readFileSync(
   "utf8",
 ).replaceAll(/\/\*[\s\S]*?\*\//g, "");
 
-const tokens = [
+const shadcnTokens = [
   "background",
   "foreground",
   "card",
@@ -23,46 +23,64 @@ const tokens = [
   "border",
   "ring",
   "destructive",
-  "success",
-  "warning",
 ];
 
-/** Custom property names declared in the first block after `selector`. */
-function declared(selector: string) {
+const fallbackTokens = ["success", "warning"];
+
+const tokens = [...shadcnTokens, ...fallbackTokens];
+
+/** Custom properties of the first block after `selector`, values on one line. */
+function declarations(selector: string): Record<string, string> {
   const start = css.indexOf(`${selector} {`);
   expect(start).toBeGreaterThanOrEqual(0);
   const block = css.slice(start, css.indexOf("}", start));
-  return [...block.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((match) => match[1]);
+  return Object.fromEntries(
+    [...block.matchAll(/(--[a-z0-9-]+)\s*:([^;]+);/g)].map(
+      ([, name, value]) => [
+        name,
+        value
+          .replaceAll(/\s+/g, " ")
+          .replaceAll(/\(\s/g, "(")
+          .replaceAll(/\s\)/g, ")")
+          .trim(),
+      ],
+    ),
+  );
 }
 
 describe("css/shadcn.css", () => {
-  it("gives every token a default on :root", () => {
-    expect(declared(":root")).toEqual(tokens.map((t) => `--dimah-s3-${t}`));
-  });
-
   it("maps a Tailwind color to every token through @theme inline", () => {
-    expect(declared("@theme inline")).toEqual(
+    expect(Object.keys(declarations("@theme inline"))).toEqual(
       tokens.map((t) => `--color-dimah-s3-${t}`),
     );
-    for (const token of tokens) {
-      expect(css).toContain(
-        `--color-dimah-s3-${token}: var(--dimah-s3-${token});`,
+  });
+
+  it("resolves the shadcn fallback where the utility is used", () => {
+    const theme = declarations("@theme inline");
+    for (const token of shadcnTokens) {
+      expect(theme[`--color-dimah-s3-${token}`]).toBe(
+        `var(--dimah-s3-${token}, var(--${token}))`,
+      );
+    }
+    for (const token of fallbackTokens) {
+      expect(theme[`--color-dimah-s3-${token}`]).toBe(
+        `var(--dimah-s3-${token}, var(--${token}, var(--dimah-s3-${token}-default)))`,
       );
     }
   });
 
-  it("points shadcn tokens at the matching shadcn variable", () => {
-    for (const token of tokens.filter(
-      (t) => t !== "success" && t !== "warning",
-    )) {
-      expect(css).toContain(`--dimah-s3-${token}: var(--${token});`);
+  // A custom property holding `var()` is computed where it is declared, so a
+  // token on :root would freeze the root theme for nested `.dark` containers.
+  it("declares only plain default colors on :root and .dark", () => {
+    for (const selector of [":root", ".dark"]) {
+      const block = declarations(selector);
+      expect(Object.keys(block)).toEqual(
+        fallbackTokens.map((t) => `--dimah-s3-${t}-default`),
+      );
+      for (const value of Object.values(block)) {
+        expect(value).toMatch(/^oklch\([^()]+\)$/);
+      }
     }
-  });
-
-  it("sets dark defaults for the tokens shadcn does not define", () => {
-    expect(declared(".dark")).toEqual([
-      "--dimah-s3-success",
-      "--dimah-s3-warning",
-    ]);
+    expect(declarations(":root")).not.toEqual(declarations(".dark"));
   });
 });

@@ -77,6 +77,7 @@ export function initMultipart(
           route: route.name,
           key: object.key,
           file: context.file,
+          acl: object.acl,
           checksum,
           expiresAt: new Date(Date.now() + multipart.ticketExpiresIn * 1000),
           uploadId,

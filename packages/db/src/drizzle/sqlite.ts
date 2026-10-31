@@ -120,8 +120,7 @@ export const dimahS3Settings = sqliteTable("private_dimah_s3_settings", {
 /**
  * Every @dimah-s3/db table. Spread it into your Drizzle schema and keep its
  * keys, because the FumaDB Drizzle adapter finds tables by them:
- * `drizzle({ client, relations: defineRelations({ ...dimahS3Tables }) })` on
- * drizzle-orm 1.x, or `drizzle({ client, schema: { ...dimahS3Tables } })` on 0.x.
+ * `drizzle({ client, relations: defineRelations({ ...dimahS3Tables }) })`.
  */
 export const dimahS3Tables = {
   storageObject,

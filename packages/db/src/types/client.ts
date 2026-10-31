@@ -67,7 +67,8 @@ export type DbClientListInput = {
   /** Folder to list. `""` is the root. Omit for a flat list of every folder. */
   folder?: string;
   route?: string;
-  status?: StorageObjectStatus;
+  /** @default "active". Rows that purge has claimed are never listed. */
+  status?: Exclude<StorageObjectStatus, "purging">;
   contentType?: string;
   /** Text the `filename` contains. Case follows the database collation. */
   search?: string;
@@ -149,7 +150,8 @@ export type DbClientActions<TClientAttributes = never> = {
 /** Filters `dbObjectSource` sends with every page. */
 export type DbObjectSourceOptions = {
   route?: string;
-  status?: StorageObjectStatus;
+  /** @default "active" */
+  status?: Exclude<StorageObjectStatus, "purging">;
   contentType?: string;
   /** Rows per page. The server caps it at 100. */
   limit?: number;

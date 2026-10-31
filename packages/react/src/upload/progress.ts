@@ -1,6 +1,9 @@
 import type { TransferProgress } from "@/types/operation";
 
-/** Progress for `loaded` of `total` bytes, with a whole-number percent. */
+/**
+ * Progress for `loaded` of `total` bytes, with a whole-number percent capped
+ * at 100. A `total` of `0` is unknown, and its percent is `0`.
+ */
 export function transferProgress(
   loaded: number,
   total: number,
@@ -8,6 +11,6 @@ export function transferProgress(
   return {
     loaded,
     total,
-    percent: total > 0 ? Math.round((loaded / total) * 100) : 0,
+    percent: total > 0 ? Math.min(100, Math.round((loaded / total) * 100)) : 0,
   };
 }

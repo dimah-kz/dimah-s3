@@ -58,8 +58,11 @@ object is already running, it joins that request.
 
 ## Errors
 
-A failed request clears `url` and sets `error` to an `APIError`. A failed
-background refresh does the same. Show it with
+A failed first request leaves `url` empty and sets `error` to an `APIError`.
+A failed background refresh sets `error` but keeps the current `url` while it
+still works. A transient failure (status 408, 429, or 500 and up) is retried
+with backoff until the URL expires; any other failure is not retried. Once
+the URL expires, `url` is cleared. Show the error with
 [`useFormatDimahError`](/docs/react/helpers#errors), and call `refresh()` to
 try again.
 

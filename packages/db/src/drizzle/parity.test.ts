@@ -272,6 +272,41 @@ describe.each(dialects)("drizzle/$name", ({ name, module, configs }) => {
   });
 });
 
+/** Collation of each text column of `sql/mysql.sql`, by `table.column`. */
+function mysqlFileCollations(): Map<string, string> {
+  const text = readFileSync(join(SQL_DIR, "mysql.sql"), "utf8");
+  const collations = new Map<string, string>();
+  for (const [, table, body, tableCollation] of text.matchAll(
+    /CREATE TABLE `(\w+)` \(\n([\s\S]*?)\n\)[^;]*COLLATE=(\w+);/g,
+  )) {
+    for (const [, column, collation] of body.matchAll(
+      /^\s*`(\w+)` (?:varchar|text)\b(?:\(\d+\))?(?: COLLATE (\w+))?/gm,
+    )) {
+      collations.set(`${table}.${column}`, collation ?? tableCollation);
+    }
+  }
+  return collations;
+}
+
+it("gives the MySQL text columns the collations of the SQL file", () => {
+  const collations = new Map<string, string | undefined>();
+  for (const table of Object.values(mysql.dimahS3Tables)) {
+    const config = mysqlTableConfig(table);
+    for (const column of config.columns) {
+      if ("collation" in column) {
+        collations.set(
+          `${config.name}.${column.name}`,
+          column.collation as string | undefined,
+        );
+      }
+    }
+  }
+  const expected = mysqlFileCollations();
+  expect(expected.get("storage_object.filename")).toBe("utf8mb4_unicode_ci");
+  expect(expected.get("storage_object.key")).toBe("utf8mb4_bin");
+  expect(collations).toEqual(expected);
+});
+
 it("keeps the shared schema version in sync with FumaDB", () => {
   expect(DIMAH_S3_SCHEMA_VERSION).toBe(DB_SCHEMA_VERSION);
 });

@@ -76,6 +76,8 @@ const CACHE_SIZE = 500;
 const DEFAULT_REFRESH_BEFORE_MS = 60_000;
 /** Longer `setTimeout` delays fire at once. A capped timer re-arms on wake. */
 const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
+/** First retry delay after a failed background refresh; it doubles each time. */
+const RETRY_BASE_DELAY_MS = 1_000;
 
 const caches = new WeakMap<S3Api, UrlCache>();
 
@@ -133,6 +135,12 @@ function refreshAt(entry: CachedUrl, refreshBeforeMs: number): number | null {
   return entry.expiresAt - lead;
 }
 
+/** `true` for a presign failure that may pass when sent again. */
+function isTransient(error: APIError): boolean {
+  const status = error.statusCode;
+  return status >= 500 || status === 408 || status === 429;
+}
+
 /** `true` until `entry` reaches its refresh point. */
 function isFresh(entry: CachedUrl, refreshBeforeMs: number): boolean {
   const at = refreshAt(entry, refreshBeforeMs);
@@ -147,6 +155,9 @@ function isFresh(entry: CachedUrl, refreshBeforeMs: number): boolean {
  * never expire and stay until `refresh()`. `url` is only ever the URL for the
  * current `objectKey`: after the key changes it is `null` until the new URL
  * is signed. A background refresh keeps the old URL until the new one lands.
+ * When it fails, the old URL stays with `error` set until it expires: a
+ * transient failure is retried with backoff until then, and the URL is
+ * cleared once it has expired.
  */
 export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
   const contextApi = useContext(S3Context);
@@ -181,8 +192,20 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
     };
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    /** The last URL this run showed, which a failed refresh keeps. */
+    let shown: CachedUrl | undefined;
+    /** Failed refreshes since `shown`, for the retry backoff. */
+    let retries = 0;
+
+    const arm = (callback: () => void, wait: number) => {
+      clearTimeout(timer);
+      const delay = Math.min(Math.max(wait, 0), MAX_TIMER_DELAY_MS);
+      timer = setTimeout(callback, delay);
+    };
 
     const show = (entry: CachedUrl) => {
+      shown = entry;
+      retries = 0;
       setState({
         api,
         id,
@@ -192,9 +215,45 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
         isLoading: false,
       });
       const at = refreshAt(entry, refreshBeforeMs);
-      if (at === null) return;
-      const wait = Math.min(Math.max(at - Date.now(), 0), MAX_TIMER_DELAY_MS);
-      timer = setTimeout(load, wait);
+      if (at !== null) arm(load, at - Date.now());
+    };
+
+    const clear = (error: APIError) => {
+      shown = undefined;
+      setState({
+        api,
+        id,
+        url: null,
+        expiresAt: null,
+        error,
+        isLoading: false,
+      });
+    };
+
+    const fail = (error: APIError) => {
+      const expiresAt = shown?.expiresAt ?? null;
+      const remaining = expiresAt === null ? 0 : expiresAt - Date.now();
+      if (shown === undefined || expiresAt === null || remaining <= 0) {
+        clear(error);
+        return;
+      }
+      // A failed background refresh keeps the URL while it still works.
+      setState({
+        api,
+        id,
+        url: shown.url,
+        expiresAt,
+        error,
+        isLoading: false,
+      });
+      if (isTransient(error)) {
+        // Retries until the URL expires; the retry at expiry clears it.
+        arm(load, Math.min(RETRY_BASE_DELAY_MS * 2 ** retries++, remaining));
+      } else {
+        arm(() => {
+          if (active) clear(error);
+        }, remaining);
+      }
     };
 
     const load = () => {
@@ -205,7 +264,10 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
         return;
       }
       setState((previous) =>
-        previous !== null && previous.api === api && previous.id === id
+        previous !== null &&
+        previous.api === api &&
+        previous.id === id &&
+        (previous.expiresAt === null || previous.expiresAt > Date.now())
           ? { ...previous, isLoading: true }
           : {
               api,
@@ -221,15 +283,7 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
           if (active) show(entry);
         },
         (error: unknown) => {
-          if (!active) return;
-          setState({
-            api,
-            id,
-            url: null,
-            expiresAt: null,
-            error: toClientError(error),
-            isLoading: false,
-          });
+          if (active) fail(toClientError(error));
         },
       );
     };

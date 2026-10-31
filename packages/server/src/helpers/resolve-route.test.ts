@@ -273,6 +273,7 @@ describe("openTicket", () => {
     route: "uploads",
     key: "uploads/abc/a.png",
     file: { name: "a.png", size: 10, type: "image/png" },
+    acl: "private",
     checksum: false,
     expiresAt: new Date(Date.now() + 60_000),
   };

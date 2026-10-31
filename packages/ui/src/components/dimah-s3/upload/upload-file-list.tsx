@@ -33,8 +33,8 @@ export type UploadFileItemProps = Omit<
 
 /**
  * Card for one file of the nearest `Upload`: its phase, progress and
- * error, with a cancel action while it is in flight. A cancelled file leaves
- * the queue, so focus moves on to the next action.
+ * error, with a cancel action while it is queued or in flight. A cancelled
+ * file leaves the queue, so focus moves on to the next action.
  */
 export function UploadFileItem({
   file,

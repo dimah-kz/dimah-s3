@@ -44,7 +44,7 @@ export function confirmUpload(
       kind: presignKind(route),
       uploadToken: ticket.id,
       file: ticket.file,
-      acl: route.upload.acl,
+      acl: ticket.acl,
       head,
     });
   });

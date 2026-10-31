@@ -36,7 +36,10 @@ export type StorageObject<TAttributes = never> = {
   acl: string | null;
   /** Multipart upload ID while the row is pending. */
   uploadId: string | null;
-  /** Token of the upload ticket that wrote the row. */
+  /**
+   * Token of the upload ticket that wrote the row. While purge cleans up an
+   * unconfirmed overwrite, it carries a `purge:` prefix.
+   */
   uploadToken: string | null;
   /** Confirm deadline of a pending row (the upload ticket's expiry). */
   expiresAt: Date | null;

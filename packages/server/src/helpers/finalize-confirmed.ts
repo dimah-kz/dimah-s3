@@ -32,7 +32,7 @@ export type FinalizeConfirmedInput = {
   uploadId?: string;
   /** File declared at presign, multipart init or `s3.put`. */
   file: UploadFile;
-  /** ACL from the upload policy. */
+  /** Effective ACL written at presign, multipart init or `s3.put`. */
   acl: S3ObjectAcl;
   /** HeadObject of the uploaded key. */
   head: HeadObjectCommandOutput;
@@ -48,12 +48,15 @@ export type FinalizeConfirmedInput = {
  * 2. The HeadObject size must equal the declared size
  *    (`UPLOAD_SIZE_MISMATCH`), and the stored name, type and size must pass
  *    the route limits.
- * 3. With `verifyContent`, the first bytes must match the type.
+ * 3. With `verifyContent`, the first bytes must match the type (for an
+ *    untyped object, the type its name gives on download).
  * 4. `upload.confirmGuard` runs, except for `s3.put`.
  * 5. `upload.onConfirmed` runs: plugins first, then the user hook.
  *
  * A rejection in steps 2 to 4 (a `4xx` `APIError`), or a throw from a plugin
- * `onConfirmed`, deletes the object and returns the error. Any other failure
+ * `onConfirmed`, deletes the object and returns the error. That delete is
+ * conditional on the HeadObject ETag where the provider supports `If-Match`,
+ * so a newer upload at the same key is kept. Any other failure
  * in steps 2 to 4, such as an S3 network error or a guard whose database is
  * down, keeps the object, so the confirm can be retried. A throw from the
  * user `onConfirmed` keeps the object and returns `500 INTERNAL_ERROR`, so a
@@ -70,7 +73,9 @@ export async function finalizeConfirmed(
     throw s3Error("OBJECT_NOT_FOUND");
   }
 
-  const deleteObject = () => deleteObjectBestEffort(route.client, bucket, key);
+  // Conditional on this HEAD, so a newer upload at the same key is kept.
+  const deleteObject = () =>
+    deleteObjectBestEffort(route.client, bucket, key, head.ETag);
   let object: VerifiedObject;
   try {
     object = verifiedObject(head, key, stored.metadata);
@@ -152,6 +157,7 @@ async function verifyUpload(
       bucket: context.bucket,
       key: context.key,
       type: object.type,
+      name: object.name,
     });
   }
   if (kind !== "server") {

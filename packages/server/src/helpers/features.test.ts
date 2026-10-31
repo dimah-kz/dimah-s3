@@ -241,11 +241,23 @@ describe("resolveRoutes: features", () => {
       { upload: { multipart: { ticketExpiresIn: Infinity } } },
     ],
     ["download.maxExpiresIn", { download: { maxExpiresIn: 0 } }],
+    ["upload.maxFileSize", { upload: { maxFileSize: 1024.5 } }],
+    ["upload.expiresIn", { upload: { expiresIn: 90.5 } }],
+    ["upload.confirmWindow", { upload: { confirmWindow: 0.5 } }],
+    [
+      "upload.multipart.partSize",
+      { upload: { multipart: { partSize: 5_242_880.5 } } },
+    ],
+    [
+      "upload.multipart.ticketExpiresIn",
+      { upload: { multipart: { ticketExpiresIn: 3600.25 } } },
+    ],
+    ["download.maxExpiresIn", { download: { maxExpiresIn: 1.5 } }],
   ] satisfies [string, DimahS3RouteConfig][])(
-    "rejects a %s that is not a positive number",
+    "rejects a %s that is not a positive integer",
     (field, config) => {
       expect(() => resolveOne(config)).toThrow(
-        `dimahS3 route "uploads": ${field} must be a positive number.`,
+        `dimahS3 route "uploads": ${field} must be a positive integer.`,
       );
     },
   );
