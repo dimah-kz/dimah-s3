@@ -1,249 +1,169 @@
 import { S3_API_ROUTES } from "@dimah-s3/core";
 import type { Endpoint } from "better-call";
-import { CORE_ENDPOINT_NAMES } from "@/api/routes";
-import { isEnabled, normalizeRoutes } from "@/helpers/features";
+import type { DimahS3Config, DimahS3Logger } from "@/types/config";
 import type {
-  DimahS3Config,
-  ResolvedDimahS3Config,
-  ResolvedRoute,
-} from "@/types";
-import { chainHooks } from "./chain-hooks";
-import {
-  FEATURE_HOOK_KEYS,
-  MULTIPART_HOOK_KEYS,
-  LIFECYCLE_FEATURE_HOOK_KEYS,
-  LIFECYCLE_MULTIPART_HOOK_KEYS,
-} from "./hook-registry";
-import {
-  RESERVED_PLUGIN_IDS,
-  type AppliedPlugins,
-  type DimahS3Plugin,
-  type PluginContextMap,
+  AppliedPlugins,
+  DimahS3Plugin,
+  PluginContextMap,
+  PluginInitEnv,
 } from "./types";
 
-type HookFn = ((context: never) => Promise<void> | void) | undefined;
-type HookBag = Record<string, HookFn>;
+/** Keys of the `dimahS3()` instance. Plugin contexts are spread beside them. */
+const RESERVED_PLUGIN_IDS: ReadonlySet<string> = new Set([
+  "handler",
+  "api",
+  "put",
+  "context",
+  "getPlugin",
+  "$ERROR_CODES",
+  "$Infer",
+]);
 
-function mergeHookField(
-  pluginHooks: HookFn[],
-  userHook: HookFn,
-  order: "plugins-first" | "user-first" = "plugins-first",
-): HookFn | undefined {
-  const present = (
-    order === "user-first"
-      ? [userHook, ...pluginHooks]
-      : [...pluginHooks, userHook]
-  ).filter((h): h is NonNullable<HookFn> => h != null);
-  if (present.length === 0) return undefined;
-  if (present.length === 1) return present[0];
-  return chainHooks(...present) as HookFn;
-}
+/** Core endpoint names. The router mounts plugin endpoints beside them. */
+const CORE_ENDPOINT_NAMES: ReadonlySet<string> = new Set(
+  Object.keys(S3_API_ROUTES),
+);
 
-function mergeHooks<T extends object>(
-  keys: readonly string[],
-  plugins: readonly DimahS3Plugin[],
-  userFeature: T,
-  pick: (plugin: DimahS3Plugin) => HookBag | undefined,
-  lifecycleKeys: ReadonlySet<string> = new Set(),
-): T {
-  const merged: HookBag = { ...(userFeature as HookBag) };
-  for (const key of keys) {
-    const next = mergeHookField(
-      plugins.map((plugin) => pick(plugin)?.[key]),
-      (userFeature as HookBag)[key],
-      lifecycleKeys.has(key) ? "user-first" : "plugins-first",
-    );
-    if (next !== undefined) merged[key] = next;
-  }
-  return merged as T;
-}
-
-function applyHooksToRoute(
-  route: ResolvedRoute,
-  plugins: readonly DimahS3Plugin[],
-): ResolvedRoute {
-  const active = plugins.filter((p) => !route.skippedPluginIds.has(p.id));
-
-  const upload = isEnabled(route.upload)
-    ? {
-        ...mergeHooks(
-          FEATURE_HOOK_KEYS.upload,
-          active,
-          route.upload,
-          (p) => p.hooks?.upload as HookBag | undefined,
-          new Set(LIFECYCLE_FEATURE_HOOK_KEYS.upload),
-        ),
-        multipart: isEnabled(route.upload.multipart)
-          ? mergeHooks(
-              MULTIPART_HOOK_KEYS,
-              active,
-              route.upload.multipart,
-              (p) => p.hooks?.upload?.multipart as HookBag | undefined,
-              new Set(LIFECYCLE_MULTIPART_HOOK_KEYS),
-            )
-          : route.upload.multipart,
-      }
-    : route.upload;
-
-  return {
-    ...route,
-    upload,
-    download: isEnabled(route.download)
-      ? mergeHooks(
-          FEATURE_HOOK_KEYS.download,
-          active,
-          route.download,
-          (p) => p.hooks?.download as HookBag | undefined,
-          new Set(LIFECYCLE_FEATURE_HOOK_KEYS.download),
-        )
-      : route.download,
-    delete: isEnabled(route.delete)
-      ? mergeHooks(
-          FEATURE_HOOK_KEYS.delete,
-          active,
-          route.delete,
-          (p) => p.hooks?.delete as HookBag | undefined,
-          new Set(LIFECYCLE_FEATURE_HOOK_KEYS.delete),
-        )
-      : route.delete,
-  };
-}
+const CORE_ENDPOINT_PATHS: ReadonlySet<string> = new Set(
+  Object.values(S3_API_ROUTES),
+);
 
 /**
- * Validate plugins, build context map, collect endpoints, validate routes,
- * run `init`, and merge hooks into each route.
+ * Checks the plugins, builds the context map, collects the endpoints, and
+ * runs each `init` in plugin order. Throws on a config error, so
+ * `dimahS3()` fails at startup.
  *
- * Guard / `*Guard` hooks: plugins first (array order), then user.
- * Lifecycle `on*` hooks: user first, then plugins, so `db().markActive`
- * runs last and confirm rollback can still `DeleteObject`.
- *
- * Hooks are not merged onto a feature that is off for that route.
+ * Plugin hooks are not merged here: route resolution builds each hook list
+ * with plugin hooks first, then the user hook.
  */
 export function applyPlugins<
   const P extends readonly DimahS3Plugin[],
-  C extends Record<string, unknown> = PluginContextMap<P>,
->(config: DimahS3Config & { plugins?: P }): AppliedPlugins<C> {
-  const plugins = config.plugins ?? [];
-  const seen = new Set<string>();
-  const byId = new Map<string, DimahS3Plugin>();
-  const context = {} as C;
-  const getPlugin = (id: string) => byId.get(id);
+  C = PluginContextMap<P>,
+>(
+  config: DimahS3Config & { plugins?: P },
+  logger: DimahS3Logger,
+): AppliedPlugins<C> {
+  const plugins: readonly DimahS3Plugin[] = config.plugins ?? [];
+  const byId = registerPlugins(plugins);
+  assertDependencies(plugins, byId);
+  const endpoints = collectEndpoints(plugins);
 
+  const context: Record<string, unknown> = {};
   for (const plugin of plugins) {
-    if ((RESERVED_PLUGIN_IDS as readonly string[]).includes(plugin.id)) {
-      throw new Error(
-        `Plugin id "${plugin.id}" is reserved on the dimahS3 instance. Choose a different id.`,
-      );
-    }
-    if (seen.has(plugin.id)) {
-      throw new Error(
-        `Duplicate dimah-s3 plugin id "${plugin.id}". Each plugin id must be unique.`,
-      );
-    }
-    seen.add(plugin.id);
-    byId.set(plugin.id, plugin);
+    if (plugin.context !== undefined) context[plugin.id] = plugin.context;
   }
 
+  const getPlugin = (id: string) => byId.get(id);
   for (const plugin of plugins) {
-    for (const dep of plugin.dependsOn ?? []) {
-      if (!seen.has(dep)) {
+    plugin.init?.(initEnv(plugin.id, config, getPlugin, logger));
+  }
+
+  return { context: context as C, getPlugin, endpoints };
+}
+
+function registerPlugins(
+  plugins: readonly DimahS3Plugin[],
+): Map<string, DimahS3Plugin> {
+  const byId = new Map<string, DimahS3Plugin>();
+  for (const plugin of plugins) {
+    if (RESERVED_PLUGIN_IDS.has(plugin.id)) {
+      throw new Error(
+        `dimahS3: plugin id "${plugin.id}" is reserved on the instance. Choose a different id.`,
+      );
+    }
+    if (byId.has(plugin.id)) {
+      throw new Error(
+        `dimahS3: duplicate plugin id "${plugin.id}". Each plugin id must be unique.`,
+      );
+    }
+    byId.set(plugin.id, plugin);
+  }
+  return byId;
+}
+
+/** Every `dependsOn` id is registered, and the graph has no cycle. */
+function assertDependencies(
+  plugins: readonly DimahS3Plugin[],
+  byId: ReadonlyMap<string, DimahS3Plugin>,
+): void {
+  for (const plugin of plugins) {
+    for (const dependency of plugin.dependsOn ?? []) {
+      if (!byId.has(dependency)) {
         throw new Error(
-          `Plugin "${plugin.id}" depends on "${dep}", which is not registered.`,
+          `dimahS3: plugin "${plugin.id}" depends on "${dependency}", which is not registered.`,
         );
       }
     }
   }
 
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  function visit(id: string, stack: string[]) {
-    if (visited.has(id)) return;
-    if (visiting.has(id)) {
+  const done = new Set<string>();
+  const visit = (id: string, path: readonly string[]): void => {
+    if (done.has(id)) return;
+    if (path.includes(id)) {
       throw new Error(
-        `Circular plugin dependency detected: ${[...stack, id].join(" -> ")}.`,
+        `dimahS3: circular plugin dependency ${[...path, id].join(" -> ")}.`,
       );
     }
-    visiting.add(id);
-    const plugin = byId.get(id);
-    for (const dep of plugin?.dependsOn ?? []) {
-      visit(dep, [...stack, id]);
+    for (const dependency of byId.get(id)?.dependsOn ?? []) {
+      visit(dependency, [...path, id]);
     }
-    visiting.delete(id);
-    visited.add(id);
-  }
-  for (const plugin of plugins) {
-    visit(plugin.id, []);
-  }
+    done.add(id);
+  };
+  for (const plugin of plugins) visit(plugin.id, []);
+}
 
-  for (const plugin of plugins) {
-    if (plugin.context !== undefined) {
-      (context as Record<string, unknown>)[plugin.id] = plugin.context;
-    }
-  }
-
-  const reservedRoutePaths = new Set<string>(Object.values(S3_API_ROUTES));
-  const reservedNames = new Set<string>([...CORE_ENDPOINT_NAMES, "multipart"]);
-  const seenEndpointKeys = new Set<string>();
+/**
+ * Plugin endpoints keyed by name. A name or path may not collide with a
+ * core endpoint, and each name and each method and path pair is unique.
+ */
+function collectEndpoints(
+  plugins: readonly DimahS3Plugin[],
+): Record<string, Endpoint> {
   const endpoints: Record<string, Endpoint> = {};
+  const routes = new Set<string>();
 
   for (const plugin of plugins) {
     for (const [name, endpoint] of Object.entries(plugin.endpoints ?? {})) {
-      if (reservedNames.has(name) || Object.hasOwn(endpoints, name)) {
-        throw new Error(
-          `Plugin "${plugin.id}" endpoint "${name}" collides with an existing endpoint.`,
-        );
+      const label = `dimahS3: plugin "${plugin.id}" endpoint "${name}"`;
+      if (CORE_ENDPOINT_NAMES.has(name) || Object.hasOwn(endpoints, name)) {
+        throw new Error(`${label} reuses an existing endpoint name.`);
       }
-      const path = endpoint.path;
+      const { path } = endpoint;
       if (typeof path !== "string" || !path.startsWith("/")) {
-        throw new Error(
-          `Plugin "${plugin.id}" endpoint "${name}" path must start with "/".`,
-        );
+        throw new Error(`${label} needs a path that starts with "/".`);
       }
-      if (reservedRoutePaths.has(path)) {
-        throw new Error(
-          `Plugin "${plugin.id}" endpoint "${name}" collides with a core route.`,
-        );
+      if (CORE_ENDPOINT_PATHS.has(path)) {
+        throw new Error(`${label} uses the core path ${path}.`);
       }
-      const methods = Array.isArray(endpoint.options.method)
-        ? endpoint.options.method
-        : [endpoint.options.method];
-      for (const method of methods) {
-        const routeKey = `${method} ${path}`;
-        if (seenEndpointKeys.has(routeKey)) {
-          throw new Error(`Duplicate plugin endpoint ${routeKey}.`);
+      const { method } = endpoint.options;
+      for (const verb of Array.isArray(method) ? method : [method]) {
+        const route = `${verb} ${path}`;
+        if (routes.has(route)) {
+          throw new Error(`${label} duplicates ${route}.`);
         }
-        seenEndpointKeys.add(routeKey);
+        routes.add(route);
       }
       endpoints[name] = endpoint;
     }
   }
+  return endpoints;
+}
 
-  const { plugins: _omit, ...rest } = config;
-  const normalized = normalizeRoutes(rest);
-
-  for (const plugin of plugins) {
-    plugin.init?.({ config: rest, getPlugin });
-  }
-  const routes: Record<string, ResolvedRoute> = {};
-  for (const [name, route] of Object.entries(normalized)) {
-    routes[name] = applyHooksToRoute(route, plugins);
-  }
-
-  const guard = mergeHookField(
-    plugins.map((p) => p.hooks?.guard as HookFn),
-    rest.guard as HookFn,
-  ) as ResolvedDimahS3Config["guard"];
-
-  const merged: ResolvedDimahS3Config = {
-    ...rest,
-    routes,
-    ...(guard !== undefined ? { guard } : {}),
-  };
-
+function initEnv(
+  pluginId: string,
+  config: DimahS3Config,
+  getPlugin: PluginInitEnv["getPlugin"],
+  logger: DimahS3Logger,
+): PluginInitEnv {
   return {
-    config: merged,
-    context,
+    config,
     getPlugin,
-    endpoints,
+    routeOptions: <T extends object>(route: string) => {
+      if (!Object.hasOwn(config.routes, route)) return undefined;
+      const options = config.routes[route].plugins;
+      if (!options || !Object.hasOwn(options, pluginId)) return undefined;
+      return options[pluginId] as T | false | undefined;
+    },
+    logger,
   };
 }

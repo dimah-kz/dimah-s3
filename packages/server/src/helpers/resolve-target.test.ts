@@ -1,358 +1,242 @@
-import { describe, expect, it, vi } from "vitest";
+import { s3Error } from "@dimah-s3/core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { testUpload } from "@/test/harness";
+import type {
+  UploadObjectContext,
+  UploadObjectInfo,
+} from "@/types/hook-contexts";
+import type { ResolvedRoute } from "@/types/resolved";
 import {
   assertSafeObjectKey,
   assertStoredKey,
   generateObjectKey,
-  resolveStoredTarget,
-  resolveUploadTarget,
+  nestKeyUnderPrefix,
+  resolveUploadObject,
 } from "./resolve-target";
-import { errors } from "@/errors";
-import type { OpenedRoute, UploadObjectContext } from "@/types";
-import { S3_ERROR_CODES } from "@dimah-s3/core";
 
-const request = new Request("http://localhost");
+const UUID = "11111111-1111-1111-1111-111111111111";
 
-function ctx(
+function context(
   overrides: Partial<UploadObjectContext> = {},
 ): UploadObjectContext {
   return {
-    request,
+    request: new Request("http://localhost"),
+    operation: "upload",
+    locals: Object.create(null),
     route: "uploads",
-    file: { name: "a.png" },
+    file: { name: "a.png", size: 10, type: "image/png" },
     bucket: "bucket",
     keyPrefix: "uploads",
     ...overrides,
   };
 }
 
-function route(
-  overrides: Partial<OpenedRoute<"upload">> = {},
-): OpenedRoute<"upload"> {
-  return {
-    name: "uploads",
-    client: {} as OpenedRoute<"upload">["client"],
-    bucket: "bucket",
-    keyPrefix: "uploads",
-    skippedPluginIds: new Set(),
-    upload: { enabled: true, multipart: { enabled: false } },
-    download: { enabled: false },
-    delete: { enabled: false },
-    ...overrides,
-  };
+function resolveWith(
+  object: (() => UploadObjectInfo | void) | undefined,
+  keyPrefix: ResolvedRoute["keyPrefix"] = "uploads",
+) {
+  return resolveUploadObject(
+    { keyPrefix, upload: testUpload({ object }) },
+    context({ keyPrefix }),
+  );
 }
+
+beforeEach(() => {
+  vi.spyOn(crypto, "randomUUID").mockReturnValue(UUID);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("assertSafeObjectKey", () => {
-  it("strips leading slashes", () => {
-    expect(assertSafeObjectKey("/a/b.png")).toBe("a/b.png");
+  it("strips surrounding slashes", () => {
+    expect(assertSafeObjectKey("/a/b.png/")).toBe("a/b.png");
   });
 
-  it("rejects parent segments", () => {
-    expect(() => assertSafeObjectKey("../secret")).toThrow();
-    expect(() => assertSafeObjectKey("a/../b")).toThrow();
+  it.each(["../secret", "a/../b", "a//b", "a\\b", "a\0b", ""])(
+    "rejects %j with KEY_INVALID",
+    (key) => {
+      expect(() => assertSafeObjectKey(key)).toThrow(
+        expect.objectContaining({ code: "KEY_INVALID", statusCode: 400 }),
+      );
+    },
+  );
+});
+
+describe("nestKeyUnderPrefix", () => {
+  it("nests a key once", () => {
+    expect(nestKeyUnderPrefix("uploads", "a.png")).toBe("uploads/a.png");
+    expect(nestKeyUnderPrefix("uploads", "uploads/a.png")).toBe(
+      "uploads/a.png",
+    );
+  });
+
+  it("rejects the prefix itself", () => {
+    expect(() => nestKeyUnderPrefix("uploads", "uploads")).toThrow(
+      expect.objectContaining({ code: "KEY_INVALID" }),
+    );
+  });
+
+  it("leaves a safe key alone without a prefix", () => {
+    expect(nestKeyUnderPrefix(false, "/a.png")).toBe("a.png");
   });
 });
 
 describe("generateObjectKey", () => {
-  it("joins a folder with a uuid/filename leaf", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    expect(generateObjectKey("uploads", "a.png")).toBe(
-      "uploads/11111111-1111-1111-1111-111111111111/a.png",
-    );
+  it("joins a folder with a uuid/name leaf", () => {
+    expect(generateObjectKey("uploads", "a.png")).toBe(`uploads/${UUID}/a.png`);
   });
 
-  it("strips path segments from the generated filename leaf", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
+  it("strips path segments from the name", () => {
     expect(generateObjectKey("uploads", "../secret.png")).toBe(
-      "uploads/11111111-1111-1111-1111-111111111111/secret.png",
+      `uploads/${UUID}/secret.png`,
     );
     expect(generateObjectKey("uploads", "foo/bar.png")).toBe(
-      "uploads/11111111-1111-1111-1111-111111111111/bar.png",
+      `uploads/${UUID}/bar.png`,
     );
   });
 
-  it("omits a folder when keyPrefix is unbound", () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    expect(generateObjectKey(false, "a.png")).toBe(
-      "11111111-1111-1111-1111-111111111111/a.png",
-    );
+  it("omits the folder when it is false", () => {
+    expect(generateObjectKey(false, "a.png")).toBe(`${UUID}/a.png`);
   });
 });
 
-describe("resolveUploadTarget", () => {
-  it("lets object.key win over object.folder and nests under keyPrefix", async () => {
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: ({ file }: UploadObjectContext) => ({
-              folder: "uploads",
-              key: `users/1/${file.name}`,
-            }),
-          },
-        }),
-        ctx(),
-      ),
-    ).resolves.toMatchObject({
-      key: "uploads/users/1/a.png",
-      bucket: "bucket",
-    });
+describe("assertStoredKey", () => {
+  it("accepts a key under the prefix", () => {
+    expect(assertStoredKey("uploads/a.png", "uploads")).toBe("uploads/a.png");
   });
 
-  it("uses object.folder when key is omitted", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => ({
-              folder: "media",
-              metadata: { author: "user_123" },
-            }),
-          },
-        }),
-        ctx(),
-      ),
-    ).resolves.toEqual({
-      key: "uploads/media/11111111-1111-1111-1111-111111111111/a.png",
+  it.each(["avatars/a.png", "uploads", "uploads-other/a.png"])(
+    "rejects %j outside the prefix",
+    (key) => {
+      expect(() => assertStoredKey(key, "uploads")).toThrow(
+        expect.objectContaining({ code: "KEY_INVALID" }),
+      );
+    },
+  );
+
+  it("accepts any safe key without a prefix", () => {
+    expect(assertStoredKey("avatars/a.png", false)).toBe("avatars/a.png");
+  });
+});
+
+describe("resolveUploadObject", () => {
+  it("defaults to keyPrefix/uuid/name with the route ACL", async () => {
+    await expect(resolveWith(undefined)).resolves.toEqual({
+      key: `uploads/${UUID}/a.png`,
       bucket: "bucket",
-      metadata: { author: "user_123" },
       acl: "private",
     });
   });
 
-  it("defaults to keyPrefix/uuid/filename", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
+  it("passes the upload context to object()", async () => {
+    const object = vi.fn(() => undefined);
+    const ctx = context({ clientMetadata: { folder: "docs" } });
+    await resolveUploadObject(
+      { keyPrefix: "uploads", upload: testUpload({ object }) },
+      ctx,
     );
-    await expect(resolveUploadTarget(route(), ctx())).resolves.toMatchObject({
-      key: "uploads/11111111-1111-1111-1111-111111111111/a.png",
-    });
+    expect(object).toHaveBeenCalledWith(ctx);
   });
 
-  it("does not double-prefix a key already under keyPrefix", async () => {
+  it("lets key win over keyFolder and nests it under keyPrefix", async () => {
     await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => ({ key: "uploads/stable.png" }),
-          },
-        }),
-        ctx(),
-      ),
+      resolveWith(() => ({ keyFolder: "media", key: "users/1/a.png" })),
+    ).resolves.toMatchObject({ key: "uploads/users/1/a.png" });
+  });
+
+  it("does not nest a key already under keyPrefix twice", async () => {
+    await expect(
+      resolveWith(() => ({ key: "uploads/stable.png" })),
     ).resolves.toMatchObject({ key: "uploads/stable.png" });
   });
 
-  it("rejects object.key equal to the route prefix", async () => {
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => ({ key: "uploads" }),
-          },
-        }),
-        ctx(),
-      ),
-    ).rejects.toMatchObject({ code: "INVALID_KEY" });
+  it("rejects a key equal to keyPrefix", async () => {
+    await expect(resolveWith(() => ({ key: "uploads" }))).rejects.toMatchObject(
+      { code: "KEY_INVALID" },
+    );
   });
 
-  it("forwards storageClass, cacheControl, and tagging from object()", async () => {
+  it("puts keyFolder under keyPrefix", async () => {
     await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => ({
-              key: "a.png",
-              storageClass: "STANDARD_IA",
-              cacheControl: "max-age=60",
-              tagging: { env: "test" },
-            }),
-          },
-        }),
-        ctx(),
-      ),
-    ).resolves.toMatchObject({
+      resolveWith(() => ({ keyFolder: "media" })),
+    ).resolves.toMatchObject({ key: `uploads/media/${UUID}/a.png` });
+  });
+
+  it("uses keyFolder alone when keyPrefix is false", async () => {
+    await expect(
+      resolveWith(() => ({ keyFolder: "media" }), false),
+    ).resolves.toMatchObject({ key: `media/${UUID}/a.png` });
+    await expect(resolveWith(undefined, false)).resolves.toMatchObject({
+      key: `${UUID}/a.png`,
+    });
+  });
+
+  it("returns metadata, ACL and S3 headers from object()", async () => {
+    await expect(
+      resolveWith(() => ({
+        key: "a.png",
+        acl: "public-read",
+        metadata: { author: "José" },
+        storageClass: "STANDARD_IA",
+        cacheControl: "max-age=60",
+        tagging: { env: "test" },
+      })),
+    ).resolves.toEqual({
       key: "uploads/a.png",
+      bucket: "bucket",
+      acl: "public-read",
+      metadata: { author: "José" },
       storageClass: "STANDARD_IA",
       cacheControl: "max-age=60",
       tagging: { env: "test" },
     });
   });
 
-  it("omits blank storage class and empty tagging from object()", async () => {
-    const target = await resolveUploadTarget(
-      route({
-        upload: {
-          enabled: true,
-          multipart: { enabled: false },
-          object: () => ({
-            key: "a.png",
-            storageClass: "  ",
-            tagging: {},
-          }),
-        },
-      }),
-      ctx(),
-    );
-    expect(target).toMatchObject({ key: "uploads/a.png" });
-    expect(target.storageClass).toBeUndefined();
-    expect(target.tagging).toBeUndefined();
-  });
-
-  it("rejects more than 10 object tags", async () => {
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => ({
-              key: "a.png",
-              tagging: Object.fromEntries(
-                Array.from({ length: 11 }, (_, i) => [`k${i}`, "v"]),
-              ),
-            }),
-          },
-        }),
-        ctx(),
-      ),
-    ).rejects.toMatchObject({
-      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
-    });
-  });
-
-  it("lets object override the route ACL", async () => {
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            acl: "private",
-            object: () => ({ key: "a.png", acl: "public-read" }),
-          },
-        }),
-        ctx(),
-      ),
-    ).resolves.toMatchObject({
-      key: "uploads/a.png",
-      acl: "public-read",
-    });
-  });
-
-  it("generates uuid/filename when keyPrefix is false", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    await expect(
-      resolveUploadTarget(
-        route({ keyPrefix: false }),
-        ctx({ keyPrefix: false }),
-      ),
-    ).resolves.toMatchObject({
-      key: "11111111-1111-1111-1111-111111111111/a.png",
-    });
-  });
-
-  it("uses object.folder without a route folder when keyPrefix is false", async () => {
-    vi.spyOn(crypto, "randomUUID").mockReturnValue(
-      "11111111-1111-1111-1111-111111111111",
-    );
-    await expect(
-      resolveUploadTarget(
-        route({
-          keyPrefix: false,
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => ({ folder: "media" }),
-          },
-        }),
-        ctx({ keyPrefix: false }),
-      ),
-    ).resolves.toMatchObject({
-      key: "media/11111111-1111-1111-1111-111111111111/a.png",
-    });
-  });
-
-  it("maps a plain Error from object() to FORBIDDEN", async () => {
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => {
-              throw new Error("not signed in");
-            },
-          },
-        }),
-        ctx(),
-      ),
-    ).rejects.toMatchObject({
-      message: "not signed in",
-      status: "FORBIDDEN",
-      statusCode: 403,
-    });
-  });
-
-  it("preserves APIError from object()", async () => {
-    await expect(
-      resolveUploadTarget(
-        route({
-          upload: {
-            enabled: true,
-            multipart: { enabled: false },
-            object: () => {
-              throw errors.unauthorized();
-            },
-          },
-        }),
-        ctx(),
-      ),
-    ).rejects.toMatchObject({
-      code: "UNAUTHORIZED",
-      statusCode: 401,
-    });
-  });
-});
-
-describe("assertStoredKey / resolveStoredTarget", () => {
-  it("normalizes a safe stored key under the prefix", () => {
-    expect(assertStoredKey("uploads/a.png", "uploads")).toBe("uploads/a.png");
-  });
-
-  it("rejects a key outside the route prefix", () => {
-    expect(() => assertStoredKey("avatars/a.png", "uploads")).toThrow();
-    expect(() => resolveStoredTarget(route(), "avatars/a.png")).toThrow();
-  });
-
-  it("rejects a key that is the prefix itself", () => {
-    expect(() => assertStoredKey("uploads", "uploads")).toThrow();
-  });
-
-  it("allows any safe key when keyPrefix is false", () => {
-    expect(assertStoredKey("avatars/a.png", false)).toBe("avatars/a.png");
-    expect(resolveStoredTarget(route({ keyPrefix: false }), "a.png")).toEqual({
+  it("drops blank S3 headers and empty tagging", async () => {
+    const target = await resolveWith(() => ({
       key: "a.png",
-      bucket: "bucket",
-    });
+      storageClass: "  ",
+      tagging: {},
+    }));
+    expect(target).not.toHaveProperty("storageClass");
+    expect(target).not.toHaveProperty("tagging");
+  });
+
+  it("rejects more than 10 tags as a config error", async () => {
+    await expect(
+      resolveWith(() => ({
+        key: "a.png",
+        tagging: Object.fromEntries(
+          Array.from({ length: 11 }, (_, i) => [`k${i}`, "v"]),
+        ),
+      })),
+    ).rejects.toMatchObject({ name: "ConfigError" });
+  });
+
+  it("nests previousKey under keyPrefix", async () => {
+    await expect(
+      resolveWith(() => ({ key: "new.png", previousKey: "old.png" })),
+    ).resolves.toMatchObject({ previousKey: "uploads/old.png" });
+    await expect(
+      resolveWith(() => ({ previousKey: "../escape" })),
+    ).rejects.toMatchObject({ code: "KEY_INVALID" });
+  });
+
+  it("lets errors from object() through unchanged", async () => {
+    const plain = new Error("database down");
+    await expect(
+      resolveWith(() => {
+        throw plain;
+      }),
+    ).rejects.toBe(plain);
+
+    const forbidden = s3Error("FORBIDDEN");
+    await expect(
+      resolveWith(() => {
+        throw forbidden;
+      }),
+    ).rejects.toBe(forbidden);
   });
 });

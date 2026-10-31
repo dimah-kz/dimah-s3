@@ -1,10 +1,9 @@
 import type { StoredUpload, UploadStore } from "@/types/upload-store";
 
 /**
- * In-memory `UploadStore` — safe for SSR and server-component environments.
- *
- * State is cleared on page reload. Useful as a fallback, for testing, or
- * when you want session-scoped resume without touching `localStorage`.
+ * An in-memory `UploadStore`, safe for SSR. Records are lost on reload, so
+ * uploads resume only within the page session. Useful for tests, or for
+ * resuming without `localStorage`.
  *
  * @example
  * ```ts
@@ -13,21 +12,20 @@ import type { StoredUpload, UploadStore } from "@/types/upload-store";
  * ```
  */
 export function createMemoryStore(): UploadStore {
-  const map = new Map<string, StoredUpload>();
+  const uploads = new Map<string, StoredUpload>();
 
   return {
     get(resumeKey, fileSize) {
-      const stored = map.get(resumeKey);
-      if (!stored) return null;
-      return stored.fileSize === fileSize ? stored : null;
+      const stored = uploads.get(resumeKey);
+      return stored?.fileSize === fileSize ? stored : null;
     },
 
     set(upload) {
-      map.set(upload.resumeKey, upload);
+      uploads.set(upload.resumeKey, upload);
     },
 
     delete(resumeKey) {
-      map.delete(resumeKey);
+      uploads.delete(resumeKey);
     },
   };
 }

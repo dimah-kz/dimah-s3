@@ -1,42 +1,36 @@
 import {
   normalizeObjectKey,
   sanitizeFileName,
+  s3Error,
   type S3ObjectAcl,
 } from "@dimah-s3/core";
-import { errors } from "@/errors";
-import { DIMAH_PREVIOUS_KEY_META } from "@/helpers/previous-key";
-import { runObjectHook } from "@/helpers/hooks";
 import { normalizeObjectS3 } from "@/helpers/object-s3";
 import type {
   ObjectS3Headers,
-  OpenedRoute,
-  ResolvedRoute,
   UploadObjectContext,
-  UploadObjectInfo,
-} from "@/types";
-
-export type ResolvedObject = {
-  key: string;
-  bucket: string;
-  metadata?: Record<string, string>;
-  acl: S3ObjectAcl;
-} & ObjectS3Headers;
+} from "@/types/hook-contexts";
+import type { ResolvedRoute, ResolvedUpload } from "@/types/resolved";
 
 type RouteKeyPrefix = ResolvedRoute["keyPrefix"];
 
-/**
- * Strip leading/trailing slashes and reject `.` / `..` / empty segments,
- * NUL, and backslashes. Returns `null` when the key is unsafe.
- */
-export { normalizeObjectKey };
+/** Object identity for a new upload, from `upload.object()` and the route. */
+export type UploadObject = ObjectS3Headers & {
+  key: string;
+  bucket: string;
+  acl: S3ObjectAcl;
+  /** User metadata from `upload.object()`, not yet encoded. */
+  metadata?: Record<string, string>;
+  /** Safe key under the route `keyPrefix` to delete after confirm. */
+  previousKey?: string;
+};
 
 /**
- * Normalize an object key: strip leading slashes, reject `.` / `..` segments,
- * NUL, and backslashes.
+ * Normalizes an object key: strips surrounding slashes and rejects empty,
+ * `.` and `..` segments, NUL and backslashes with `KEY_INVALID`.
  */
 export function assertSafeObjectKey(key: string): string {
   const normalized = normalizeObjectKey(key);
-  if (!normalized) throw errors.invalidKey();
+  if (!normalized) throw s3Error("KEY_INVALID");
   return normalized;
 }
 
@@ -44,7 +38,7 @@ function applyPrefix(prefix: string, key: string): string {
   const p = assertSafeObjectKey(prefix);
   const k = assertSafeObjectKey(key);
   if (k.startsWith(`${p}/`)) return k;
-  if (k === p) throw errors.invalidKey();
+  if (k === p) throw s3Error("KEY_INVALID");
   return `${p}/${k}`;
 }
 
@@ -58,7 +52,10 @@ export function nestKeyUnderPrefix(
   return applyPrefix(keyPrefix, safe);
 }
 
-/** Confirm / download / delete / multipart follow-ups: stored key + namespace. */
+/**
+ * A stored key for confirm, download, delete and multipart calls: safe, and
+ * inside the route namespace. Fails with `KEY_INVALID`.
+ */
 export function assertStoredKey(
   key: string,
   keyPrefix: RouteKeyPrefix,
@@ -67,7 +64,7 @@ export function assertStoredKey(
   if (keyPrefix === false) return safe;
   const root = assertSafeObjectKey(keyPrefix);
   if (safe.startsWith(`${root}/`)) return safe;
-  throw errors.invalidKey();
+  throw s3Error("KEY_INVALID");
 }
 
 /**
@@ -81,7 +78,7 @@ function objectKeyFileName(fileName: string): string {
   return leaf;
 }
 
-/** `{folder}/{uuid}/{sanitizedName}` — omit `folder` (`false`) for `{uuid}/{name}`. */
+/** `{folder}/{uuid}/{sanitizedName}`. A `false` folder gives `{uuid}/{name}`. */
 export function generateObjectKey(
   folder: string | false,
   fileName: string,
@@ -91,57 +88,37 @@ export function generateObjectKey(
   return applyPrefix(folder, leaf);
 }
 
-function resolveAcl(
-  info: UploadObjectInfo | void,
-  route: OpenedRoute<"upload" | "multipart">,
-): ResolvedObject["acl"] {
-  return info?.acl ?? route.upload.acl ?? "private";
-}
+/**
+ * Runs `upload.object()` and resolves the object it describes. `key` wins
+ * over `keyFolder`, and both nest under the route `keyPrefix`. Without
+ * either, the key is `{keyPrefix}/{uuid}/{name}`. Errors from `object()`
+ * propagate unchanged.
+ */
+export async function resolveUploadObject(
+  route: Pick<ResolvedRoute, "keyPrefix"> & { upload: ResolvedUpload },
+  context: UploadObjectContext,
+): Promise<UploadObject> {
+  const info = (await route.upload.object?.(context)) ?? undefined;
+  const { keyPrefix } = route;
 
-export async function resolveUploadTarget(
-  route: OpenedRoute<"upload" | "multipart">,
-  context: Omit<UploadObjectContext, "bucket" | "keyPrefix">,
-): Promise<ResolvedObject> {
-  const bucket = route.bucket;
-  const objectContext: UploadObjectContext = {
-    ...context,
-    bucket,
-    keyPrefix: route.keyPrefix,
-  };
-  const info =
-    (await runObjectHook(route.upload.object, objectContext)) ?? undefined;
-  const key = info?.key
-    ? nestKeyUnderPrefix(route.keyPrefix, info.key)
-    : generateObjectKey(
-        info?.folder != null && info.folder !== ""
-          ? nestKeyUnderPrefix(route.keyPrefix, info.folder)
-          : route.keyPrefix === false
-            ? false
-            : route.keyPrefix,
-        context.file.name,
-      );
-  const metadata = { ...info?.metadata };
-  if (info?.previousKey) {
-    metadata[DIMAH_PREVIOUS_KEY_META] = nestKeyUnderPrefix(
-      route.keyPrefix,
-      info.previousKey,
-    );
+  let key: string;
+  if (info?.key) {
+    key = nestKeyUnderPrefix(keyPrefix, info.key);
+  } else {
+    const folder = info?.keyFolder
+      ? nestKeyUnderPrefix(keyPrefix, info.keyFolder)
+      : keyPrefix;
+    key = generateObjectKey(folder, context.file.name);
   }
+
   return {
     key,
-    bucket,
-    metadata: Object.keys(metadata).length > 0 ? metadata : info?.metadata,
-    acl: resolveAcl(info, route),
+    bucket: context.bucket,
+    acl: info?.acl ?? route.upload.acl,
+    ...(info?.metadata ? { metadata: info.metadata } : {}),
+    ...(info?.previousKey
+      ? { previousKey: nestKeyUnderPrefix(keyPrefix, info.previousKey) }
+      : {}),
     ...normalizeObjectS3(info),
-  };
-}
-
-export function resolveStoredTarget(
-  route: ResolvedRoute,
-  key: string,
-): { key: string; bucket: string } {
-  return {
-    key: assertStoredKey(key, route.keyPrefix),
-    bucket: route.bucket,
   };
 }

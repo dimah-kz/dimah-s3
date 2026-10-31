@@ -1,0 +1,93 @@
+import {
+  GetObjectCommand,
+  type GetObjectCommandOutput,
+  type S3Client,
+} from "@aws-sdk/client-s3";
+import {
+  isSniffableType,
+  matchesMagicBytes,
+  s3Error,
+  SNIFF_BYTE_LENGTH,
+  sniffContentType,
+} from "@dimah-s3/core";
+import { sendOrObjectNotFound } from "@/helpers/is-aws-not-found";
+
+export type ObjectContentInput = {
+  bucket: string;
+  key: string;
+  /** Content type to verify, as HeadObject reports it. */
+  type?: string;
+  signal?: AbortSignal;
+};
+
+/**
+ * `verifyContent`: reads the first {@link SNIFF_BYTE_LENGTH} bytes with a
+ * ranged GetObject and checks them against the type's magic bytes. A
+ * mismatch fails with `FILE_CONTENT_MISMATCH`; the caller deletes the object.
+ *
+ * Types without a known signature, such as `text/plain`, and objects without
+ * a type cannot be verified this way and pass without a read.
+ */
+export async function assertObjectContent(
+  client: S3Client,
+  input: ObjectContentInput,
+): Promise<void> {
+  const { type } = input;
+  if (type === undefined || !isSniffableType(type)) return;
+
+  const bytes = await readObjectStart(client, input);
+  if (matchesMagicBytes(bytes, type)) return;
+  throw s3Error("FILE_CONTENT_MISMATCH", {
+    type,
+    detected: sniffContentType(bytes) ?? "unknown",
+  });
+}
+
+async function readObjectStart(
+  client: S3Client,
+  input: ObjectContentInput,
+): Promise<Uint8Array> {
+  let response: GetObjectCommandOutput;
+  try {
+    response = await sendOrObjectNotFound(() =>
+      client.send(
+        new GetObjectCommand({
+          Bucket: input.bucket,
+          Key: input.key,
+          Range: `bytes=0-${SNIFF_BYTE_LENGTH - 1}`,
+        }),
+        { abortSignal: input.signal },
+      ),
+    );
+  } catch (error) {
+    // S3 answers a range on an empty object with 416.
+    if (isRangeNotSatisfiable(error)) return new Uint8Array();
+    throw error;
+  }
+  if (!response.Body) return new Uint8Array();
+
+  // A provider that ignores Range sends the whole object; stop reading early.
+  const reader = response.Body.transformToWebStream().getReader();
+  const bytes = new Uint8Array(SNIFF_BYTE_LENGTH);
+  let length = 0;
+  try {
+    while (length < SNIFF_BYTE_LENGTH) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = value.subarray(0, SNIFF_BYTE_LENGTH - length);
+      bytes.set(chunk, length);
+      length += chunk.length;
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return bytes.subarray(0, length);
+}
+
+function isRangeNotSatisfiable(error: unknown): boolean {
+  const e = error as {
+    name?: string;
+    $metadata?: { httpStatusCode?: number };
+  } | null;
+  return e?.name === "InvalidRange" || e?.$metadata?.httpStatusCode === 416;
+}

@@ -2,63 +2,17 @@ export {
   abortMultipartBestEffort,
   deleteObjectBestEffort,
 } from "./best-effort";
+export { ConfigError, toAPIError } from "./error-boundary";
+export type { ErrorBoundaryEnv } from "./error-boundary";
+export { isFeatureOn } from "./features";
+export { createLocals, runGuards, runLifecycle } from "./hooks";
+export type { RunLifecycleOptions } from "./hooks";
 export { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
-export { clampDownloadExpiresIn, normalizeExpiresIn } from "./expires";
-export { runHook, runLifecycleHook, runObjectHook } from "./hooks";
-export {
-  isEnabled,
-  isFeatureOn,
-  normalizeFeature,
-  normalizeRoute,
-  normalizeRoutes,
-} from "./features";
-export { requestFromHeaders } from "./request";
-export {
-  assertSafeObjectKey,
-  assertStoredKey,
-  generateObjectKey,
-  nestKeyUnderPrefix,
-  normalizeObjectKey,
-  resolveStoredTarget,
-  resolveUploadTarget,
-} from "./resolve-target";
-export type { ResolvedObject } from "./resolve-target";
-export {
-  assertFeatureEnabled,
-  getResolvedRoute,
-  openRoute,
-  openStoredTarget,
-  openUploadTarget,
-  storedObjectContext,
-} from "./resolve-route";
-export type {
-  OpenedTarget,
-  OpenedUploadTarget,
-  OpenUploadInput,
-} from "./resolve-route";
-export {
-  assertDeclaredConstraints,
-  assertVerifiedConstraints,
-  assertWithinMaxFileSize,
-} from "./constraints";
-export {
-  headObjectAfterMultipartComplete,
-  headObjectOrNotFound,
-  objectExists,
-  requireContentLength,
-} from "./head-object";
-export { listAllParts, listedPartsByteSize } from "./list-parts";
-export { applyInlineTypes } from "./inline-types";
-export { resolveLogger, defaultLogger } from "./logger";
-export { finalizeConfirmedObject } from "./finalize-confirmed";
-export {
-  DIMAH_PREVIOUS_KEY_META,
-  previousKeyFromMetadata,
-  stripPreviousKeyMeta,
-} from "./previous-key";
+export { defaultLogger, resolveLogger } from "./logger";
 export {
   encodeObjectTagging,
   normalizeObjectS3,
   objectCommandExtras,
   objectPutHeaders,
 } from "./object-s3";
+export { syntheticRequest } from "./request";

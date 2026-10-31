@@ -1,67 +1,13 @@
-import {
-  multipartListPartsQuerySchema,
-  S3_API_ROUTES,
-  type MultipartListPartsResponse,
-} from "@dimah-s3/core";
-import type * as z from "zod";
-import {
-  listAllParts,
-  openStoredTarget,
-  runHook,
-  runLifecycleHook,
-} from "@/helpers";
-import type { ResolvedDimahS3Config } from "@/types";
+import { multipartTicketBodySchema, S3_API_ROUTES } from "@dimah-s3/core";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
-
-async function handleListParts(
-  config: ResolvedDimahS3Config,
-  input: z.output<typeof multipartListPartsQuerySchema>,
-  request: Request,
-): Promise<MultipartListPartsResponse> {
-  const { route, key, bucket, stored } = await openStoredTarget(
-    config,
-    input,
-    request,
-    "multipart",
-  );
-  const uploadId = input.uploadId;
-
-  await runHook(route.upload.multipart.guard, {
-    ...stored,
-    uploadId,
-    action: "list",
-  });
-
-  const listed = await listAllParts(route.client, { bucket, key, uploadId });
-
-  const parts = listed.flatMap((p) => {
-    if (p.PartNumber == null || p.PartNumber < 1) return [];
-    return [
-      {
-        partNumber: p.PartNumber,
-        size: p.Size ?? 0,
-        eTag: (p.ETag ?? "").replaceAll('"', ""),
-      },
-    ];
-  });
-
-  await runLifecycleHook(
-    route.upload.multipart.onList,
-    {
-      ...stored,
-      uploadId,
-      parts,
-    },
-    config,
-  );
-
-  return { parts };
-}
+import { resolvedConfig } from "@/api/router-context";
+import { listMultipartParts } from "@/operations/multipart/list-parts";
 
 export const multipartListParts = createS3Endpoint(
   S3_API_ROUTES.multipartListParts,
-  { method: "GET", query: multipartListPartsQuerySchema },
-  async (ctx) => {
-    return handleListParts(ctx.context.config, ctx.query, ctx.context.request);
-  },
+  { method: "POST", body: multipartTicketBodySchema },
+  (ctx) =>
+    listMultipartParts(resolvedConfig(ctx.context), ctx.body, {
+      request: ctx.context.request,
+    }),
 );

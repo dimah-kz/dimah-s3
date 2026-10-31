@@ -62,5 +62,3 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
 
   return Object.assign(api, { Provider, useApi });
 }
-
-export type { CreateS3ClientOptions, CreateS3ClientResult };

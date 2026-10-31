@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { APIError } from "@dimah-s3/core";
-import { useControllableState, useLiveRef } from "@/internal-helpers";
+import { toClientError } from "@/internal/client-error";
+import { useControllableState, useLiveRef } from "@/internal/hooks";
 import { createObjectListEntries } from "@/list/entries";
 import type {
   ObjectListEntry,
@@ -13,7 +14,7 @@ import type {
   ObjectListUsage,
   UseObjectListOptions,
 } from "@/list/types";
-import { isAbortError, toHookError } from "@/types/error";
+import type { UploadRequestOptions } from "@/types/upload";
 
 export type {
   ObjectListEntry,
@@ -98,6 +99,14 @@ export type UseObjectListReturn<TItem> = {
   getKey: (item: TItem) => string;
   /** The `getFile` option, or `{ name: getKey(item) }`. */
   getFile: (item: TItem) => ObjectListFile;
+  /** The source's `uploadOptions`. Set when it supports drop-on-folder. */
+  uploadOptions: ((parent: string | null) => UploadRequestOptions) | undefined;
+  /**
+   * Creates an empty folder in the open folder and adds it to the loaded
+   * folders. Rejects with an `APIError`. Set when the source has
+   * `createFolder`.
+   */
+  createFolder: ((name: string) => Promise<ObjectListFolder>) | undefined;
 };
 
 /** Rows loaded for one request. */
@@ -318,8 +327,8 @@ export function useObjectList<TItem>(
           },
         }));
       } catch (err) {
-        if (!isCurrent() || isAbortError(err)) return;
-        const error = toHookError(err, "Could not load files");
+        if (!isCurrent()) return;
+        const error = toClientError(err);
         update((draft) => ({
           pending: null,
           failure: { mode, error },
@@ -427,6 +436,40 @@ export function useObjectList<TItem>(
     },
     [optionsRef, setItems],
   );
+  const createFolder = useCallback(
+    async (name: string) => {
+      const create = optionsRef.current.createFolder;
+      if (!create) {
+        throw new Error("[dimah-s3] The source has no createFolder.");
+      }
+      const { parent: target, scope } = requestRef.current;
+      let folder: ObjectListFolder;
+      try {
+        folder = await create({ parent: target, name });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      // Skip the insert when the list moved to another folder meanwhile.
+      update((draft) =>
+        draft.snapshot.scope === scope
+          ? {
+              ...draft,
+              snapshot: {
+                ...draft.snapshot,
+                folders: [
+                  ...draft.snapshot.folders.filter(
+                    (entry) => entry.id !== folder.id,
+                  ),
+                  folder,
+                ],
+              },
+            }
+          : draft,
+      );
+      return folder;
+    },
+    [optionsRef, requestRef, update],
+  );
   const setSort = useCallback(
     (next: ObjectListSort | null) => setSortValue(next),
     [setSortValue],
@@ -494,6 +537,8 @@ export function useObjectList<TItem>(
     removeItems,
     getKey,
     getFile,
+    uploadOptions: options.uploadOptions,
+    createFolder: options.createFolder ? createFolder : undefined,
   };
 }
 

@@ -3,65 +3,20 @@ import {
   type HeadObjectCommandOutput,
   type S3Client,
 } from "@aws-sdk/client-s3";
-import { errors } from "@/errors";
-import { isAwsNotFound, sendOrObjectNotFound } from "./is-aws-not-found";
-
-/** HeadObject as a yes/no. Errors other than not-found still throw. */
-export async function objectExists(
-  client: S3Client,
-  bucket: string,
-  key: string,
-): Promise<boolean> {
-  try {
-    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-    return true;
-  } catch (err: unknown) {
-    if (isAwsNotFound(err)) return false;
-    throw err;
-  }
-}
-
-/** HeadObject, mapping AWS not-found to `OBJECT_NOT_FOUND`. */
-export async function headObjectOrNotFound(
-  client: S3Client,
-  bucket: string,
-  key: string,
-): Promise<HeadObjectCommandOutput> {
-  return sendOrObjectNotFound(() =>
-    client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })),
-  );
-}
+import { sendOrObjectNotFound } from "./is-aws-not-found";
 
 /**
- * HeadObject after CompleteMultipartUpload. Some providers briefly omit
- * `ContentLength`; retry a few times with exponential backoff.
+ * HeadObject of a stored object. A missing object fails with
+ * `OBJECT_NOT_FOUND`. `abortSignal` cancels the call, for example when the
+ * client disconnects.
  */
-export async function headObjectAfterMultipartComplete(
+export function headObjectOrNotFound(
   client: S3Client,
   bucket: string,
   key: string,
+  options: { abortSignal?: AbortSignal } = {},
 ): Promise<HeadObjectCommandOutput> {
-  const send = (): Promise<HeadObjectCommandOutput> =>
-    sendOrObjectNotFound(() =>
-      client.send(new HeadObjectCommand({ Bucket: bucket, Key: key })),
-    );
-
-  let head = await send();
-  for (
-    let attempt = 0;
-    attempt < 4 && typeof head.ContentLength !== "number";
-    attempt++
-  ) {
-    await new Promise((r) => setTimeout(r, 250 * 2 ** attempt));
-    head = await send();
-  }
-  return head;
-}
-
-/** Verified size from HeadObject — never invent `0` when S3 omits it. */
-export function requireContentLength(head: HeadObjectCommandOutput): number {
-  if (typeof head.ContentLength !== "number") {
-    throw errors.internalError();
-  }
-  return head.ContentLength;
+  return sendOrObjectNotFound(() =>
+    client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }), options),
+  );
 }

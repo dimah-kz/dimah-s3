@@ -1,30 +1,29 @@
-import type { StoredUpload, UploadStore } from "@/types/upload-store";
+import { isStoredUpload } from "@/upload/stored-upload";
+import type { UploadStore } from "@/types/upload-store";
 
 const STORAGE_PREFIX = "dimah-s3:upload:";
 
 /**
- * Default `UploadStore` implementation backed by `localStorage`.
- * Stores one pending upload per resume identity (`route:name:size:mtime`).
+ * An `UploadStore` backed by `localStorage`, with one pending upload per
+ * resume identity (`multipartResumeKey`). A record with an unknown shape,
+ * such as one written by 1.x, is ignored and deleted.
  *
- * Falls back silently when `localStorage` is unavailable (SSR, private
- * browsing with full quota, or environments without a `window` object).
+ * Does nothing when `localStorage` is unavailable (SSR, private browsing, or
+ * a full quota).
  */
 export function createLocalStorageStore(): UploadStore {
   return {
     get(resumeKey, fileSize) {
       try {
-        const raw = localStorage.getItem(STORAGE_PREFIX + resumeKey);
-        if (!raw) return null;
-        const stored = JSON.parse(raw) as StoredUpload;
-        if (
-          stored.resumeKey !== resumeKey ||
-          stored.fileSize !== fileSize ||
-          !stored.uploadId ||
-          !stored.key
-        ) {
+        const storageKey = STORAGE_PREFIX + resumeKey;
+        const raw = localStorage.getItem(storageKey);
+        if (raw === null) return null;
+        const stored = parseJson(raw);
+        if (!isStoredUpload(stored) || stored.resumeKey !== resumeKey) {
+          localStorage.removeItem(storageKey);
           return null;
         }
-        return stored;
+        return stored.fileSize === fileSize ? stored : null;
       } catch {
         return null;
       }
@@ -37,7 +36,7 @@ export function createLocalStorageStore(): UploadStore {
           JSON.stringify(upload),
         );
       } catch {
-        // localStorage unavailable (SSR, quota exceeded) — silently skip.
+        // localStorage is unavailable or full.
       }
     },
 
@@ -45,8 +44,16 @@ export function createLocalStorageStore(): UploadStore {
       try {
         localStorage.removeItem(STORAGE_PREFIX + resumeKey);
       } catch {
-        // ignore
+        // localStorage is unavailable.
       }
     },
   };
+}
+
+function parseJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
 }

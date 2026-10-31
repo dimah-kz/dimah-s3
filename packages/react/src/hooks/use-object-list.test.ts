@@ -1,5 +1,6 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { s3Error } from "@dimah-s3/core";
 import type {
   ObjectListPage,
   ObjectListQueryInput,
@@ -189,6 +190,21 @@ describe("useObjectList", () => {
     hook.unmount();
   });
 
+  it("passes usage limits through", async () => {
+    const usage = {
+      totalBytes: 10,
+      objectCount: 1,
+      maxBytes: 100,
+      maxFiles: 5,
+    };
+    const query = mockQuery().mockResolvedValue(page(["a"], { usage }));
+    const hook = renderHook(() => useList({ query }));
+    await flush();
+
+    expect(hook.current.usage).toEqual(usage);
+    hook.unmount();
+  });
+
   it("keeps usage until a first page omits it", async () => {
     const usage = { totalBytes: 10, objectCount: 1 };
     const query = mockQuery()
@@ -343,7 +359,8 @@ describe("useObjectList", () => {
     });
 
     expect(hook.current.items).toEqual([{ id: "a" }]);
-    expect(hook.current.error?.message).toBe("offline");
+    expect(hook.current.error?.code).toBe("UNKNOWN_ERROR");
+    expect(hook.current.error?.cause).toEqual(new Error("offline"));
     expect(hook.current.status).toBe("error");
     expect(hook.current.hasMore).toBe(true);
 
@@ -359,9 +376,10 @@ describe("useObjectList", () => {
   });
 
   it("shows the error, not old rows, when a first page fails", async () => {
+    const failure = s3Error("FORBIDDEN");
     const query = mockQuery()
       .mockResolvedValueOnce(page(["a"]))
-      .mockRejectedValueOnce(new Error("down"));
+      .mockRejectedValueOnce(failure);
     const hook = renderHook(() => useList({ query }));
     await flush();
 
@@ -371,8 +389,27 @@ describe("useObjectList", () => {
     await flush();
 
     expect(hook.current.items).toEqual([]);
-    expect(hook.current.error?.message).toBe("down");
+    expect(hook.current.error).toBe(failure);
     expect(hook.current.isLoading).toBe(false);
+    hook.unmount();
+  });
+
+  it("shows an error when the query aborts on its own", async () => {
+    const abort = new DOMException("timeout", "AbortError");
+    const query = mockQuery().mockRejectedValueOnce(abort);
+    const hook = renderHook(() => useList({ query }));
+    await flush();
+
+    expect(hook.current.status).toBe("error");
+    expect(hook.current.error?.code).toBe("UNKNOWN_ERROR");
+    expect(hook.current.error?.cause).toBe(abort);
+
+    query.mockResolvedValueOnce(page(["a"]));
+    await act(async () => {
+      await hook.current.retry();
+    });
+    expect(hook.current.status).toBe("ready");
+    expect(hook.current.items).toEqual([{ id: "a" }]);
     hook.unmount();
   });
 
@@ -476,5 +513,108 @@ describe("useObjectList", () => {
       expect.objectContaining({ parent: "photos" }),
     );
     hook.unmount();
+  });
+
+  describe("source extras", () => {
+    it("leaves uploadOptions and createFolder unset when the source has neither", async () => {
+      const query = mockQuery().mockResolvedValue(page([]));
+      const hook = renderHook(() => useList({ query }));
+      await flush();
+
+      expect(hook.current.uploadOptions).toBeUndefined();
+      expect(hook.current.createFolder).toBeUndefined();
+      hook.unmount();
+    });
+
+    it("returns the source's uploadOptions", async () => {
+      const query = mockQuery().mockResolvedValue(page([]));
+      const uploadOptions = (parent: string | null) => ({
+        metadata: { folder: parent ?? "" },
+      });
+      const hook = renderHook(() => useList({ query, uploadOptions }));
+      await flush();
+
+      expect(hook.current.uploadOptions).toBe(uploadOptions);
+      hook.unmount();
+    });
+
+    it("creates a folder in the open folder and inserts it", async () => {
+      const query = mockQuery().mockResolvedValue(
+        page(["a"], { folders: [{ id: "docs/old", name: "old" }] }),
+      );
+      const createFolder = vi.fn(({ parent, name }) =>
+        Promise.resolve({ id: `${parent}/${name}`, name }),
+      );
+      const hook = renderHook(() =>
+        useList({ query, createFolder, defaultParent: "docs" }),
+      );
+      await flush();
+
+      let created: unknown;
+      await act(async () => {
+        created = await hook.current.createFolder?.("new");
+      });
+
+      expect(createFolder).toHaveBeenCalledWith({
+        parent: "docs",
+        name: "new",
+      });
+      expect(created).toEqual({ id: "docs/new", name: "new" });
+      expect(hook.current.folders).toEqual([
+        { id: "docs/old", name: "old" },
+        { id: "docs/new", name: "new" },
+      ]);
+      expect(query).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    });
+
+    it("does not insert the folder after the list moved to another folder", async () => {
+      const query = mockQuery().mockResolvedValue(page([]));
+      let resolve!: (folder: { id: string; name: string }) => void;
+      const createFolder = vi.fn(
+        () =>
+          new Promise<{ id: string; name: string }>((done) => {
+            resolve = done;
+          }),
+      );
+      const hook = renderHook(() => useList({ query, createFolder }));
+      await flush();
+
+      let pending: Promise<unknown> | undefined;
+      act(() => {
+        pending = hook.current.createFolder?.("new");
+      });
+      act(() => {
+        hook.current.openFolder({ id: "photos", name: "Photos" });
+      });
+      await flush();
+      await act(async () => {
+        resolve({ id: "new", name: "new" });
+        await pending;
+      });
+
+      expect(createFolder).toHaveBeenCalledWith({ parent: null, name: "new" });
+      expect(hook.current.parent).toBe("photos");
+      expect(hook.current.folders).toEqual([]);
+      hook.unmount();
+    });
+
+    it("rejects with an APIError when the source fails", async () => {
+      const query = mockQuery().mockResolvedValue(page([]));
+      const invalid = s3Error("FOLDER_INVALID");
+      const createFolder = vi
+        .fn()
+        .mockRejectedValueOnce(invalid)
+        .mockRejectedValueOnce(new Error("boom"));
+      const hook = renderHook(() => useList({ query, createFolder }));
+      await flush();
+
+      await expect(hook.current.createFolder?.("x")).rejects.toBe(invalid);
+      await expect(hook.current.createFolder?.("y")).rejects.toMatchObject({
+        code: "UNKNOWN_ERROR",
+      });
+      expect(hook.current.folders).toEqual([]);
+      hook.unmount();
+    });
   });
 });

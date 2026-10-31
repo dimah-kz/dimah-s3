@@ -1,130 +1,30 @@
-// ─── Types ───────────────────────────────────────────────────────────────────
-export type {
-  UploadResult,
-  UploadProgress,
-  UploadPhase,
-  UploadFileInfo,
-  UploadFileState,
-  UploadRequestOptions,
-  UploadHooks,
-  UploadTransport,
-  S3ApiUploadTransport,
-  RetryConfig,
-  FileUploadConfig,
-} from "./types/upload";
-export type { StoredUpload, UploadStore } from "./types/upload-store";
-export type {
-  DownloadPhase,
-  DownloadHooks,
-  FetchDownloadPhase,
-  FetchDownloadProgress,
-  FetchDownloadHooks,
-} from "./types/download";
-export type { DeletePhase, DeleteHooks } from "./types/delete";
-export { S3UploadError } from "./types/error";
+// `@dimah-s3/react`: hooks, the provider and types. The build marks this entry
+// "use client". Plain functions ship from `@dimah-s3/react/engine`, and
+// protocol helpers and `APIError` from `@dimah-s3/core`.
 
-// ─── Protocol helpers (so React apps rarely need @dimah-s3/core) ─────────────
-export {
-  APIError,
-  S3_ERROR_CODES,
-  buildObjectKey,
-  fileNameFromKey,
-  formatFileSize,
-  resolveInlineDisposition,
-  isAPIError,
-  isS3ErrorCode,
-  sanitizeFileName,
-  validateFile,
-  sha256Base64,
-  sha256File,
-  matchesMagicBytes,
-  sniffContentType,
-  buildPublicObjectUrl,
-  buildContentDisposition,
-  type FormatFileSizeOptions,
-  type S3Api,
-  type S3ErrorCode,
-  type ValidateFileError,
-  type InferS3Routes,
-  type DimahS3Routes,
-  type S3RouteName,
-  type RouteCatalogResponse,
-} from "@dimah-s3/core";
-
-// ─── S3 API factory + React context provider ──────────────────────────────────
-export { defineApi } from "./api";
-export {
-  createS3Client,
-  type CreateS3ClientOptions,
-  type CreateS3ClientResult,
-  type ReactS3Client,
-} from "./create-s3-client";
+// ─── Provider and client ─────────────────────────────────────────────────────
 export { S3Provider, useApi, type S3ProviderProps } from "./s3-provider";
-
-// ─── Translations (Fuma) ──────────────────────────────────────────────────────
-/** Generated key map — use with `satisfies Partial<Translations>`. */
+export { createS3Client, type ReactS3Client } from "./create-s3-client";
+/** Generated key map. Use it with `satisfies Partial<Translations>`. */
 export type { Translations } from "./translations";
 
-// ─── Upload store implementations ────────────────────────────────────────────
-export { createLocalStorageStore, createMemoryStore } from "./store";
-
-// ─── Low-level upload engine (advanced use) ───────────────────────────────────
-export {
-  uploadFile,
-  uploadFiles,
-  multipartResumeKey,
-  DEFAULT_MULTIPART_THRESHOLD,
-  type UploadEngineCallbacks,
-  type FileItem,
-  type FileItemStatus,
-  type MultiUploadCallbacks,
-} from "./upload";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-export {
-  formatAcceptLabels,
-  formatUploadProgress,
-  formatSpeed,
-  formatEta,
-  useFormatDimahError,
-  useFormatFileSize,
-  useFormatNumber,
-  useFormatDate,
-  useFormatValidateFileError,
-  loadRouteCatalog,
-  mergeRouteUploadPolicy,
-  resolveRouteUploadPolicy,
-} from "./helpers";
-export { toTimestamp } from "./helpers";
-export type { DateInput, RouteUploadPolicy } from "./helpers";
-
-// ─── Hooks ────────────────────────────────────────────────────────────────────
+// ─── Hooks ───────────────────────────────────────────────────────────────────
 export {
   useUpload,
-  type UseUploadOptions,
-  type UseUploadReturn,
-  type UploadPolicy,
-  type FileRejection,
-  type DropzoneRootProps,
+  type DropTargetProps,
   type DropzoneInputProps,
+  type DropzoneRootProps,
+  type UploadPolicy,
+  type UseUploadReturn,
 } from "./hooks/use-upload";
+export { useDownload } from "./hooks/use-download";
+export { useFetchDownload } from "./hooks/use-fetch-download";
+export { useDelete } from "./hooks/use-delete";
 export {
-  useDownload,
-  isFetchDownload,
-  type UseDownloadOptions,
-  type UseDownloadReturn,
-  type UseNavigateDownloadOptions,
-  type UseNavigateDownloadReturn,
-  type UseFetchDownloadOptions,
-  type UseFetchDownloadState,
-  type UseFetchDownloadReturn,
-} from "./hooks/use-download";
-export {
-  useDelete,
-  type UseDeleteOptions,
-  type UseDeleteState,
-  type UseDeleteReturn,
-} from "./hooks/use-delete";
+  useObjectUrl,
+  type UseObjectUrlOptions,
+  type UseObjectUrlReturn,
+} from "./hooks/use-object-url";
 export {
   useRouteUploadPolicy,
   type CatalogLoadStatus,
@@ -132,27 +32,8 @@ export {
   type UseRouteUploadPolicyReturn,
 } from "./hooks/use-route-upload-policy";
 export {
-  useObjectUrl,
-  type UseObjectUrlOptions,
-  type UseObjectUrlReturn,
-} from "./hooks/use-object-url";
-export {
   useObjectList,
-  type UseObjectListOptions,
   type UseObjectListReturn,
-  type ObjectListEntry,
-  type ObjectListFile,
-  type ObjectListFileEntry,
-  type ObjectListFolder,
-  type ObjectListFolderEntry,
-  type ObjectListPage,
-  type ObjectListQuery,
-  type ObjectListQueryInput,
-  type ObjectListSort,
-  type ObjectListSortDirection,
-  type ObjectListSource,
-  type ObjectListStatus,
-  type ObjectListUsage,
 } from "./hooks/use-object-list";
 export {
   useObjectListSelection,
@@ -160,12 +41,24 @@ export {
   type UseObjectListSelectionOptions,
   type UseObjectListSelectionReturn,
 } from "./hooks/use-object-list-selection";
+
+// ─── Formatters ──────────────────────────────────────────────────────────────
 export {
-  readObjectListLevel,
-  type ObjectListLevel,
-} from "./list/read-object-list-level";
-export {
-  memoryObjectSource,
-  type MemoryObjectSourceOptions,
-} from "./list/memory-object-source";
-export { objectListEntryKey, objectKeyOf } from "./list/entries";
+  useFormatDate,
+  useFormatDimahError,
+  useFormatEta,
+  useFormatFileSize,
+  useFormatNumber,
+  useFormatSpeed,
+  type DateInput,
+} from "./helpers";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+export type * from "./types";
+export type * from "./list/types";
+export type {
+  RouteUploadPolicy,
+  RouteUploadPolicyOptions,
+} from "./helpers/load-route-catalog";
+export type { MemoryObjectSourceOptions } from "./list/memory-object-source";
+export type { ObjectListLevel } from "./list/read-object-list-level";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLiveRef } from "@/internal-helpers";
+import { useLiveRef } from "@/internal/hooks";
 import type { ObjectListEntry, ObjectListFolder } from "@/list/types";
 
 export type ObjectListSelectionMode = "single" | "multiple";

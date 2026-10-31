@@ -1,301 +1,292 @@
 "use client";
 
-import { useCallback, useContext, useRef } from "react";
+import { useCallback, useContext, useId, useRef } from "react";
 import {
-  DELETE_BATCH_MAX_KEYS,
-  type APIError,
+  APIError,
+  DELETE_MANY_MAX_KEYS,
+  s3Error,
+  type DeleteManyResponse,
   type S3Api,
   type S3RouteName,
 } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
-import type { DeletePhase, DeleteHooks } from "@/types";
-import { hookBlockedError, toHookError } from "@/types/error";
-import { useLiveRef } from "@/internal-helpers";
-import { useImmerState } from "@/store/use-immer-state";
+import {
+  runAfterCallback,
+  runBeforeCallback,
+  runStartCallback,
+} from "@/internal/callbacks";
+import { requireApi, toClientError } from "@/internal/client-error";
+import { useLiveRef, useOperationStore } from "@/internal/hooks";
+import type { OperationClaim } from "@/internal/operations";
+import type {
+  DeleteOperation,
+  DeleteOutcome,
+  DeleteResult,
+  UseDeleteOptions,
+  UseDeleteReturn,
+} from "@/types/delete";
 
-/** Options for {@link useDelete}. */
-export type UseDeleteOptions = DeleteHooks & {
-  /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
-  api?: S3Api;
-  /** Named server route (`dimahS3({ routes })`). */
-  route: S3RouteName;
-};
+type DeleteClaim = OperationClaim<DeleteOperation, DeleteOutcome>;
 
-export type UseDeleteState = {
-  /** Current delete phase. */
-  phase: DeletePhase;
-  /**
-   * Object this operation is targeting. Set on `requestDelete` / `remove`;
-   * kept through success/error until `reset()` / `cancelDelete()` or the
-   * next key. Lets a list of controls share one hook instance.
-   */
-  objectKey: string | null;
-  /** Last error, or `null`. */
-  error: APIError | null;
-};
+/** A key this call owns, with the display name for its operation. */
+type DeleteTarget = { claim: DeleteClaim; fileName: string | null };
 
-export type UseDeleteReturn = UseDeleteState & {
-  /** `true` while the confirm dialog should be open (`phase === "confirming"`). */
-  isConfirming: boolean;
-  /** `true` while the delete request is in flight (`phase === "deleting"`). */
-  isDeleting: boolean;
-  /** `true` while confirming or deleting. */
-  isPending: boolean;
-  /** Move to the `confirming` phase for the given key. */
-  requestDelete: (key: string) => void;
-  /** Send the delete request for the pending key. */
-  confirmDelete: () => Promise<void>;
-  /** Delete `key` immediately — no confirm step. */
-  remove: (key: string) => Promise<void>;
-  /** Delete several keys via `api.deleteMany`. */
-  removeMany: (
-    keys: string[],
-  ) => Promise<{ deleted: string[]; failed: string[] }>;
-  /** Cancel confirmation and return to `idle`. */
-  cancelDelete: () => void;
-  /** Reset state to `idle`. */
-  reset: () => void;
-};
+/** Sends the delete request(s) and reports each key's outcome once known. */
+type DeleteRequest = (
+  report: (outcome: Exclude<DeleteOutcome, { status: "blocked" }>) => void,
+) => Promise<void>;
 
-type InternalState = {
-  phase: DeletePhase;
-  error: APIError | null;
-  objectKey: string | null;
-};
-
-const INITIAL_STATE: InternalState = {
-  phase: "idle",
-  error: null,
-  objectKey: null,
-};
-
+/**
+ * Deletes objects by key, with one operation per key. `remove` deletes one
+ * key; `removeMany` deletes any number through `deleteMany`. A call for a key
+ * that is already running joins it. Confirmation is the UI's job.
+ */
 export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
-  const [state, patch, replace] = useImmerState(INITIAL_STATE);
+  const instanceId = useId();
   const contextApi = useContext(S3Context);
-  const optsRef = useLiveRef(options);
+  const optionsRef = useLiveRef(options);
   const apiRef = useLiveRef(contextApi);
-  const objectKeyRef = useRef<string | null>(null);
-  const inFlightRef = useRef(false);
-  const generationRef = useRef(0);
+  const batchCountRef = useRef(0);
+  const { store, operations, pendingKeys, get } = useOperationStore<
+    DeleteOperation,
+    DeleteOutcome
+  >();
 
-  const requestDelete = useCallback(
-    (key: string) => {
-      if (inFlightRef.current) return;
-      objectKeyRef.current = key;
-      patch((draft) => {
-        draft.phase = "confirming";
-        draft.error = null;
-        draft.objectKey = key;
-      });
+  const remove = useCallback<UseDeleteReturn["remove"]>(
+    async (key, { fileName } = {}) => {
+      const opts = optionsRef.current;
+      const api = requireApi(opts.api ?? apiRef.current, "useDelete");
+      return store.run(
+        key,
+        async (claim) => {
+          const [outcome] = await runDelete(
+            opts,
+            [{ claim, fileName: fileName ?? null }],
+            null,
+            deleteOne(api, opts.route, key),
+          );
+          return outcome;
+        },
+        async (outcome) => {
+          await reportOutcomes(opts, [outcome]);
+          await runAfterCallback(opts.onSettled, toResult([outcome]));
+        },
+      );
     },
-    [patch],
+    [apiRef, optionsRef, store],
   );
 
-  const executeDelete = useCallback(
-    async (key: string) => {
-      if (inFlightRef.current) return;
-      const opts = optsRef.current;
-      const api = opts.api ?? apiRef.current;
-      if (!api)
-        throw new Error(
-          "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
+  const removeMany = useCallback<UseDeleteReturn["removeMany"]>(
+    async (items) => {
+      const opts = optionsRef.current;
+      const api = requireApi(opts.api ?? apiRef.current, "useDelete");
+
+      // Claim free keys before any await so that concurrent calls join them.
+      const calls = new Map<string, Promise<DeleteOutcome>>();
+      const targets: DeleteTarget[] = [];
+      for (const item of items) {
+        const { key, fileName } =
+          typeof item === "string" ? { key: item } : item;
+        if (calls.has(key)) continue;
+        const joined = store.join(key);
+        if (joined) {
+          calls.set(key, joined);
+          continue;
+        }
+        const claim = store.claim(key);
+        calls.set(key, claim.promise);
+        targets.push({ claim, fileName: fileName ?? null });
+      }
+
+      if (targets.length > 0) {
+        const outcomes = runDelete(
+          opts,
+          targets,
+          String(++batchCountRef.current),
+          deleteMany(
+            api,
+            opts.route,
+            targets.map(({ claim }) => claim.key),
+          ),
         );
-
-      const generation = ++generationRef.current;
-      inFlightRef.current = true;
-
-      if (opts.beforeDelete) {
-        const allowed = await opts.beforeDelete(key);
-        if (generation !== generationRef.current) return;
-        if (!allowed) {
-          inFlightRef.current = false;
-          objectKeyRef.current = null;
-          patch((draft) => {
-            draft.phase = "error";
-            draft.error = hookBlockedError(
-              "Delete blocked by beforeDelete hook",
-            );
-            draft.objectKey = key;
-          });
-          opts.onError?.(key, new Error("blocked"), "confirming");
-          return;
-        }
+        // One report for the whole call, once every key it sent is free.
+        let reported: Promise<void> | undefined;
+        const report = () =>
+          (reported ??= outcomes.then((settled) =>
+            reportOutcomes(opts, settled),
+          ));
+        targets.forEach(({ claim }, index) => {
+          void claim.settle(
+            outcomes.then((settled) => settled[index]),
+            report,
+          );
+        });
       }
 
-      patch((draft) => {
-        draft.phase = "deleting";
-        draft.error = null;
-        draft.objectKey = key;
-      });
-      opts.onDeleteStart?.(key);
-
-      try {
-        await api.delete({ route: opts.route, key });
-        if (generation !== generationRef.current) return;
-        objectKeyRef.current = null;
-        patch((draft) => {
-          draft.phase = "success";
-          draft.error = null;
-          draft.objectKey = key;
-        });
-        try {
-          await opts.onSuccess?.(key);
-        } catch (err) {
-          opts.onError?.(key, err, "success");
-        }
-      } catch (err) {
-        if (generation !== generationRef.current) return;
-        patch((draft) => {
-          draft.phase = "error";
-          draft.error = toHookError(err, "Delete failed");
-          draft.objectKey = key;
-        });
-        opts.onError?.(key, err, "deleting");
-      } finally {
-        if (generation === generationRef.current) {
-          inFlightRef.current = false;
-        }
-      }
+      const result = toResult(await Promise.all(calls.values()));
+      await runAfterCallback(opts.onSettled, result);
+      return result;
     },
-    [apiRef, optsRef, patch],
+    [apiRef, optionsRef, store],
   );
-
-  const confirmDelete = useCallback(async () => {
-    const key = objectKeyRef.current;
-    if (!key) return;
-    await executeDelete(key);
-  }, [executeDelete]);
-
-  const remove = useCallback(
-    async (key: string) => {
-      if (inFlightRef.current) return;
-      objectKeyRef.current = key;
-      patch((draft) => {
-        draft.objectKey = key;
-        draft.error = null;
-      });
-      await executeDelete(key);
-    },
-    [executeDelete, patch],
-  );
-
-  const removeMany = useCallback(
-    async (keys: string[]) => {
-      const empty = { deleted: [] as string[], failed: [] as string[] };
-      if (inFlightRef.current || keys.length === 0) return empty;
-      const opts = optsRef.current;
-      const api = opts.api ?? apiRef.current;
-      if (!api)
-        throw new Error(
-          "[dimah-s3] No S3Api found. Pass `api` to useDelete or wrap with <S3Provider>.",
-        );
-
-      if (keys.length > DELETE_BATCH_MAX_KEYS) {
-        throw new Error(
-          `[dimah-s3] deleteMany accepts at most ${DELETE_BATCH_MAX_KEYS} keys.`,
-        );
-      }
-
-      const generation = ++generationRef.current;
-      inFlightRef.current = true;
-      patch((draft) => {
-        draft.phase = "deleting";
-        draft.error = null;
-        draft.objectKey = null;
-      });
-
-      const deleted: string[] = [];
-      const failed: string[] = [];
-      try {
-        const { results } = await api.deleteMany({
-          route: opts.route,
-          keys,
-        });
-        if (generation !== generationRef.current) return { deleted, failed };
-        for (const item of results) {
-          if (item.success) {
-            deleted.push(item.key);
-            try {
-              await opts.onSuccess?.(item.key);
-            } catch (err) {
-              opts.onError?.(item.key, err, "success");
-            }
-          } else {
-            failed.push(item.key);
-            opts.onError?.(
-              item.key,
-              new Error(item.error?.message ?? "Delete failed"),
-              "deleting",
-            );
-          }
-        }
-        if (failed.length > 0) {
-          patch((draft) => {
-            draft.phase = "error";
-            draft.error = toHookError(
-              new Error(
-                results.find((item) => !item.success)?.error?.message ??
-                  "Delete failed",
-              ),
-              "Delete failed",
-            );
-          });
-          return { deleted, failed };
-        }
-        patch((draft) => {
-          draft.phase = "success";
-          draft.error = null;
-        });
-        return { deleted, failed };
-      } catch (err) {
-        if (generation !== generationRef.current) return { deleted, failed };
-        patch((draft) => {
-          draft.phase = "error";
-          draft.error = toHookError(err, "Delete failed");
-        });
-        opts.onError?.(keys[0] ?? "", err, "deleting");
-        return {
-          deleted,
-          failed: keys.filter((key) => !deleted.includes(key)),
-        };
-      } finally {
-        if (generation === generationRef.current) {
-          inFlightRef.current = false;
-        }
-      }
-    },
-    [apiRef, optsRef, patch],
-  );
-
-  const cancelDelete = useCallback(() => {
-    generationRef.current += 1;
-    inFlightRef.current = false;
-    objectKeyRef.current = null;
-    replace(INITIAL_STATE);
-  }, [replace]);
-
-  const reset = useCallback(() => {
-    generationRef.current += 1;
-    inFlightRef.current = false;
-    objectKeyRef.current = null;
-    replace(INITIAL_STATE);
-  }, [replace]);
-
-  const isConfirming = state.phase === "confirming";
-  const isDeleting = state.phase === "deleting";
 
   return {
-    phase: state.phase,
-    objectKey: state.objectKey,
-    error: state.error,
-    isConfirming,
-    isDeleting,
-    isPending: isConfirming || isDeleting,
-    requestDelete,
-    confirmDelete,
+    instanceId,
+    operations,
+    get,
+    pendingKeys,
+    isPending: pendingKeys.length > 0,
     remove,
     removeMany,
-    cancelDelete,
-    reset,
+    reset: store.reset,
   };
+}
+
+/**
+ * Runs one call for `targets`: `beforeDelete`, `onDeleteStart`, then the
+ * request. Publishes one operation per key unless the call is blocked.
+ * Returns the outcomes in `targets` order; the caller runs the
+ * after-callbacks once the keys are free.
+ */
+async function runDelete(
+  options: UseDeleteOptions,
+  targets: readonly DeleteTarget[],
+  batchId: string | null,
+  request: DeleteRequest,
+): Promise<DeleteOutcome[]> {
+  const keys = targets.map(({ claim }) => claim.key);
+  const before = await runBeforeCallback(
+    "beforeDelete",
+    options.beforeDelete,
+    keys,
+  );
+  if (before.status === "blocked") {
+    return keys.map((key) => ({ status: "blocked", key }));
+  }
+
+  const hookError =
+    before.status === "error"
+      ? before.error
+      : runStartCallback("onDeleteStart", options.onDeleteStart, keys);
+  const claims = new Map<string, DeleteClaim>();
+  for (const { claim, fileName } of targets) {
+    claims.set(claim.key, claim);
+    claim.publish({
+      batchId,
+      fileName,
+      phase: hookError ? "error" : "deleting",
+      error: hookError,
+    });
+  }
+
+  const reported = new Map<string, DeleteOutcome>();
+  const report = (outcome: DeleteOutcome) => {
+    const claim = claims.get(outcome.key);
+    if (!claim || reported.has(outcome.key)) return;
+    reported.set(outcome.key, outcome);
+    claim.update(
+      outcome.status === "error"
+        ? { phase: "error", error: outcome.error }
+        : { phase: "success" },
+    );
+  };
+  if (hookError) {
+    for (const key of keys) report({ status: "error", key, error: hookError });
+  } else {
+    await request(report);
+  }
+
+  return keys.map((key) => {
+    const outcome = reported.get(key);
+    if (outcome) return outcome;
+    // The server left the key out of its response.
+    const missing: DeleteOutcome = {
+      status: "error",
+      key,
+      error: s3Error("UNKNOWN_ERROR"),
+    };
+    report(missing);
+    return missing;
+  });
+}
+
+/** Runs `onError` for every failed key, then `onSuccess` for every deleted key. */
+async function reportOutcomes(
+  options: UseDeleteOptions,
+  outcomes: readonly DeleteOutcome[],
+): Promise<void> {
+  for (const outcome of outcomes) {
+    if (outcome.status === "error") {
+      await runAfterCallback(options.onError, outcome.error, outcome.key);
+    }
+  }
+  for (const outcome of outcomes) {
+    if (outcome.status === "success") {
+      await runAfterCallback(options.onSuccess, outcome.data, outcome.key);
+    }
+  }
+}
+
+/** Deletes `key` with `api.delete`. */
+function deleteOne(api: S3Api, route: S3RouteName, key: string): DeleteRequest {
+  return async (report) => {
+    try {
+      const data = await api.delete({ route, key });
+      report({ status: "success", key, data });
+    } catch (error) {
+      report({ status: "error", key, error: toClientError(error) });
+    }
+  };
+}
+
+/**
+ * Deletes `keys` with `api.deleteMany`, one request per
+ * `DELETE_MANY_MAX_KEYS` keys, in sequence. A failed request fails every key
+ * it carried; the next request still runs.
+ */
+function deleteMany(
+  api: S3Api,
+  route: S3RouteName,
+  keys: readonly string[],
+): DeleteRequest {
+  return async (report) => {
+    for (let start = 0; start < keys.length; start += DELETE_MANY_MAX_KEYS) {
+      const chunk = keys.slice(start, start + DELETE_MANY_MAX_KEYS);
+      let response: DeleteManyResponse;
+      try {
+        response = await api.deleteMany({ route, keys: chunk });
+      } catch (error) {
+        const clientError = toClientError(error);
+        for (const key of chunk) {
+          report({ status: "error", key, error: clientError });
+        }
+        continue;
+      }
+      for (const key of response.deleted) {
+        report({ status: "success", key, data: { key } });
+      }
+      for (const { key, error } of response.failed) {
+        report({ status: "error", key, error: APIError.fromShape(error) });
+      }
+    }
+  };
+}
+
+/** Groups outcomes by status, keeping their order. */
+function toResult(outcomes: readonly DeleteOutcome[]): DeleteResult {
+  const result: DeleteResult = { deleted: [], failed: [], blocked: [] };
+  for (const outcome of outcomes) {
+    switch (outcome.status) {
+      case "success":
+        result.deleted.push(outcome.key);
+        break;
+      case "error":
+        result.failed.push({ key: outcome.key, error: outcome.error });
+        break;
+      case "blocked":
+        result.blocked.push(outcome.key);
+        break;
+    }
+  }
+  return result;
 }

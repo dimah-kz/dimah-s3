@@ -1,85 +1,58 @@
-import { S3UploadError } from "@/types/error";
+import { s3Error, type APIError } from "@dimah-s3/core";
 
 export type SendXhrUploadOptions = {
   method: "POST" | "PUT";
   url: string;
   body: FormData | Blob;
+  /** Sent exactly as given. */
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  errorLabel?: string;
-  onProgress?: (loaded: number, total: number) => void;
+  /** The share of the request body sent so far, from 0 to 1. */
+  onProgress?: (fraction: number) => void;
 };
 
-export function sendXhrUpload(options: SendXhrUploadOptions): Promise<void> {
-  const {
-    method,
-    url,
-    body,
-    headers,
-    signal,
-    errorLabel = "Upload",
-    onProgress,
-  } = options;
+/**
+ * Sends `body` with `XMLHttpRequest`, which reports upload progress.
+ * Rejects with `UPLOAD_FAILED` carrying S3's status on a non-2xx response,
+ * `NETWORK_ERROR` when the request fails, and `signal.reason` on abort.
+ */
+export async function sendXhrUpload(
+  options: SendXhrUploadOptions,
+): Promise<void> {
+  const { method, url, body, headers = {}, signal, onProgress } = options;
+  signal?.throwIfAborted();
 
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new DOMException("Upload aborted", "AbortError"));
-      return;
-    }
-
-    const xhr = new XMLHttpRequest();
-
-    const onAbort = () => {
-      xhr.abort();
-      reject(new DOMException("Upload aborted", "AbortError"));
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        onProgress?.(e.loaded, e.total);
+  const xhr = new XMLHttpRequest();
+  const settled = new Promise<APIError | null>((resolve) => {
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress?.(event.loaded / event.total);
       }
     });
-
     xhr.addEventListener("load", () => {
-      signal?.removeEventListener("abort", onAbort);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-      } else {
-        reject(
-          new S3UploadError(
-            `${errorLabel} failed: ${xhr.status} ${xhr.statusText}`,
-            "HTTP_ERROR",
-            xhr.status,
-            "uploading",
-          ),
-        );
-      }
-    });
-
-    xhr.addEventListener("error", () => {
-      signal?.removeEventListener("abort", onAbort);
-      reject(
-        new S3UploadError(
-          `${errorLabel} failed: network error`,
-          "NETWORK_ERROR",
-          0,
-          "uploading",
-        ),
+      const { status } = xhr;
+      resolve(
+        status >= 200 && status < 300
+          ? null
+          : s3Error("UPLOAD_FAILED", { status }, { status }),
       );
     });
+    xhr.addEventListener("error", () => resolve(s3Error("NETWORK_ERROR")));
+    xhr.addEventListener("abort", () => resolve(s3Error("NETWORK_ERROR")));
+  });
 
-    xhr.addEventListener("abort", () => {
-      signal?.removeEventListener("abort", onAbort);
-      reject(new DOMException("Upload aborted", "AbortError"));
-    });
-
+  const onAbort = () => xhr.abort();
+  signal?.addEventListener("abort", onAbort, { once: true });
+  try {
     xhr.open(method, url);
-    if (headers) {
-      for (const [k, v] of Object.entries(headers)) {
-        xhr.setRequestHeader(k, v);
-      }
+    for (const [name, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(name, value);
     }
     xhr.send(body);
-  });
+    const error = await settled;
+    signal?.throwIfAborted();
+    if (error) throw error;
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+  }
 }

@@ -1,52 +1,47 @@
-// ── StoredUpload ──────────────────────────────────────────────────────────────
-
 /**
- * Minimal state that must be persisted to resume a multipart upload.
+ * What must be persisted to resume a multipart upload. The engine writes one
+ * record after `multipart.init` and deletes it once the upload completes or
+ * is cancelled.
  */
 export type StoredUpload = {
   /**
-   * Client-side resume identity
-   * (`${route}:${file.name}:${file.size}:${file.lastModified}`).
+   * Client-side resume identity from `multipartResumeKey`: the route, the
+   * file, and the request's name, type and metadata.
    */
   resumeKey: string;
-  /** S3 multipart `UploadId` returned by `CreateMultipartUpload`. */
-  uploadId: string;
+  /** Upload ticket from `multipart.init`. Every later multipart call sends it. */
+  ticket: string;
   /** Server-generated S3 object key. */
   key: string;
-  /** Total file size in bytes — used to verify the same file is being resumed. */
+  /** S3 multipart `UploadId`. */
+  uploadId: string;
+  /** Total file size in bytes, so a different file is never resumed. */
   fileSize: number;
+  /** Part size the server chose, in bytes. */
+  partSize: number;
+  /** Number of parts the server chose. */
+  partCount: number;
+  /** Whether every part must send a SHA-256 checksum. */
+  checksum: boolean;
 };
 
-// ── UploadStore interface ─────────────────────────────────────────────────────
-
 /**
- * Storage backend for resumable multipart uploads.
+ * Storage backend for resumable multipart uploads, looked up by
+ * {@link StoredUpload.resumeKey}. `createLocalStorageStore()` and
+ * `createMemoryStore()` are built in. Implement it to keep uploads in any
+ * other storage, such as IndexedDB or a database.
  *
- * Implement this interface to persist `uploadId` state in any storage system
- * (database, Redis, IndexedDB, etc.). The default implementation uses
- * `localStorage` via `createLocalStorageStore()`.
- *
- * Lookup is by {@link StoredUpload.resumeKey}, not the S3 object key.
+ * The engine ignores and deletes a record that is not a valid
+ * {@link StoredUpload}, such as one written by 1.x.
  *
  * @example
  * ```ts
  * const dbStore: UploadStore = {
  *   async get(resumeKey, fileSize) {
- *     const row = await db.uploads.findFirst({ where: { resumeKey, fileSize } });
- *     return row
- *       ? {
- *           resumeKey,
- *           uploadId: row.uploadId,
- *           key: row.key,
- *           fileSize,
- *         }
- *       : null;
+ *     return (await db.uploads.findFirst({ where: { resumeKey, fileSize } })) ?? null;
  *   },
  *   async set(upload) {
- *     await db.uploads.upsert({
- *       where: { resumeKey: upload.resumeKey },
- *       data: upload,
- *     });
+ *     await db.uploads.upsert({ where: { resumeKey: upload.resumeKey }, data: upload });
  *   },
  *   async delete(resumeKey) {
  *     await db.uploads.deleteMany({ where: { resumeKey } });
@@ -55,24 +50,13 @@ export type StoredUpload = {
  * ```
  */
 export type UploadStore = {
-  /**
-   * Look up a pending upload by resume identity and file size.
-   * Returns `null` if no matching upload is found.
-   */
-  get: (
+  /** The pending upload for this resume identity and file size, or `null`. */
+  get(
     resumeKey: string,
     fileSize: number,
-  ) => StoredUpload | null | Promise<StoredUpload | null>;
-
-  /**
-   * Persist a new upload state after `CreateMultipartUpload` succeeds.
-   * Called once per upload, before any parts are sent.
-   */
-  set: (upload: StoredUpload) => void | Promise<void>;
-
-  /**
-   * Remove the upload state after the upload completes or is explicitly
-   * abandoned. Should be a no-op if the key is not found.
-   */
-  delete: (resumeKey: string) => void | Promise<void>;
+  ): StoredUpload | null | Promise<StoredUpload | null>;
+  /** Saves an upload after `multipart.init`, before any part is sent. */
+  set(upload: StoredUpload): void | Promise<void>;
+  /** Removes an upload. Does nothing when the key is unknown. */
+  delete(resumeKey: string): void | Promise<void>;
 };

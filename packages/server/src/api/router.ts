@@ -1,80 +1,92 @@
+import { s3Error } from "@dimah-s3/core";
 import { createRouter, toResponse, type Endpoint } from "better-call";
-import {
-  isAPIError,
-  normalizeS3ApiBasePath,
-  S3_API_BASE_PATH,
-} from "@dimah-s3/core";
-import { errors } from "@/errors";
-import { resolveLogger } from "@/helpers/logger";
-import { bindEndpoints } from "./bind-endpoints";
-import type { ResolvedDimahS3Config } from "@/types";
+import { toAPIError } from "@/helpers/error-boundary";
+import type { DimahS3Config } from "@/types/config";
+import type { ResolvedConfig } from "@/types/resolved";
+import { createRouterContext } from "./router-context";
 
-const NETWORK_CODES = new Set([
-  "EAI_AGAIN",
-  "ECONNREFUSED",
-  "ECONNRESET",
-  "ETIMEDOUT",
-  "ENOTFOUND",
-]);
+/** Body endpoints accept only JSON, so a cross-site form post is refused. */
+const BODY_MEDIA_TYPES = ["application/json"];
 
 /**
- * better-call `onError`: `APIError` serializes natively. Unknown throws
- * become INTERNAL_ERROR / S3_NETWORK_ERROR.
- */
-function onS3RouterError(error: unknown, config?: ResolvedDimahS3Config): void {
-  if (isAPIError(error)) return;
-
-  const code = (error as { code?: string })?.code;
-  const logger = resolveLogger(config?.logger);
-  if (typeof code === "string" && NETWORK_CODES.has(code)) {
-    const networkErr = errors.s3NetworkError(code);
-    logger.error?.(networkErr.message, error);
-    config?.onError?.(error, {});
-    throw networkErr;
-  }
-
-  logger.error?.(error instanceof Error ? error.message : String(error), error);
-  config?.onError?.(error, {});
-  throw errors.internalError();
-}
-
-/**
- * Unmatched routes never hit `onError` — better-call returns an empty 404.
- * Re-serialize those as APIError JSON. JSON 404s from endpoints pass through.
- */
-function withUnmatchedRouteJson(
-  handler: (request: Request) => Promise<Response>,
-): (request: Request) => Promise<Response> {
-  return async (request) => {
-    const response = await handler(request);
-    if (response.status !== 404) return response;
-    const contentType = response.headers.get("content-type") ?? "";
-    if (contentType.includes("application/json")) return response;
-    return toResponse(errors.notFound());
-  };
-}
-
-/**
- * Internal better-call router with dimah-s3 context, OpenAPI off, and native
- * APIError JSON. Not part of the public package surface.
+ * The HTTP router of a dimah-s3 instance. Internal: `dimahS3()` returns its
+ * `handler`.
+ *
+ * - The body is capped at `maxRequestBodySize` before anything parses it.
+ *   A declared `Content-Length` over the cap fails at once, and a body
+ *   without one is counted as it streams. Either way the client gets
+ *   `413 REQUEST_TOO_LARGE`.
+ * - A body that is not `application/json` returns `415
+ *   UNSUPPORTED_MEDIA_TYPE`, for plugin endpoints too.
+ * - Every failure is a JSON `APIError` (see {@link toAPIError}), and a path
+ *   no endpoint serves returns `404 NOT_FOUND`.
  */
 export function createS3Router<E extends Record<string, Endpoint>>(
   endpoints: E,
-  env: { config: ResolvedDimahS3Config },
-) {
-  const basePath = normalizeS3ApiBasePath(
-    env.config.basePath ?? S3_API_BASE_PATH,
-  );
-
+  env: { config: Readonly<DimahS3Config>; resolved: ResolvedConfig },
+): { handler: (request: Request) => Promise<Response> } {
+  const { resolved } = env;
   const router = createRouter(endpoints, {
-    basePath,
-    routerContext: { config: env.config },
+    basePath: resolved.basePath,
+    routerContext: createRouterContext(env.config, resolved),
     openapi: { disabled: true },
-    onError: (error) => onS3RouterError(error, env.config),
+    allowedMediaTypes: BODY_MEDIA_TYPES,
+    onError: (error, request) => {
+      throw toAPIError(error, resolved, request);
+    },
   });
 
   return {
-    endpoints: bindEndpoints(router.endpoints, { config: env.config }),
-    handler: withUnmatchedRouteJson(router.handler),
+    handler: async (request) => {
+      try {
+        const capped = await capRequestBody(
+          request,
+          resolved.maxRequestBodySize,
+        );
+        const response = await router.handler(capped);
+        return isUnmatched(response)
+          ? toResponse(s3Error("NOT_FOUND"))
+          : response;
+      } catch (error) {
+        return toResponse(toAPIError(error, resolved, request));
+      }
+    },
   };
+}
+
+/**
+ * Reads the request body, counting bytes, and returns a request that
+ * carries the bytes read. The request keeps its signal, so a client
+ * disconnect still reaches S3 calls. A request without a body is returned
+ * as it is.
+ */
+async function capRequestBody(
+  request: Request,
+  maxSize: number,
+): Promise<Request> {
+  if (request.body === null) return request;
+
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > maxSize) throw s3Error("REQUEST_TOO_LARGE", { maxSize });
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxSize) {
+      // Stop reading; the client may keep sending, but nothing is buffered.
+      reader.cancel().catch(() => undefined);
+      throw s3Error("REQUEST_TOO_LARGE", { maxSize });
+    }
+    chunks.push(value);
+  }
+  return new Request(request, { body: new Blob(chunks) });
+}
+
+/** better-call answers a path no endpoint serves with an empty 404. */
+function isUnmatched(response: Response): boolean {
+  return response.status === 404 && response.body === null;
 }

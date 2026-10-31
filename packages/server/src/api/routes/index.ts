@@ -1,17 +1,17 @@
+import { catalog } from "./catalog";
 import { confirm } from "./confirm";
 import { deleteObject } from "./delete";
-import { deleteBatch } from "./delete-batch";
+import { deleteMany } from "./delete-many";
 import { download } from "./download";
-import { catalog } from "./catalog";
 import { file } from "./file";
 import { multipartAbort } from "./multipart/abort";
 import { multipartComplete } from "./multipart/complete";
 import { multipartInit } from "./multipart/init";
 import { multipartListParts } from "./multipart/list-parts";
-import { multipartPart } from "./multipart/part";
+import { multipartSignPart } from "./multipart/sign-part";
 import { upload } from "./upload";
 
-/** Core better-call endpoints — keys become `s3.api.*`. */
+/** Core HTTP endpoints, mounted under `basePath` with plugin endpoints. */
 export const coreEndpoints = {
   upload,
   confirm,
@@ -19,16 +19,10 @@ export const coreEndpoints = {
   catalog,
   file,
   delete: deleteObject,
-  deleteBatch,
+  deleteMany,
   multipartInit,
-  multipartPart,
+  multipartSignPart,
   multipartListParts,
   multipartComplete,
   multipartAbort,
 };
-
-export type CoreEndpoints = typeof coreEndpoints;
-
-export const CORE_ENDPOINT_NAMES = Object.keys(
-  coreEndpoints,
-) as (keyof CoreEndpoints)[];

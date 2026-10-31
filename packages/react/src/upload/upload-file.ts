@@ -1,142 +1,117 @@
-import type {
-  FileUploadConfig,
-  UploadProgress,
-  UploadResult,
-  UploadRequestOptions,
-  S3ApiUploadTransport,
-  UploadTransport,
-} from "@/types";
-import { sha256File, type S3Api } from "@dimah-s3/core";
-import { toUploadError } from "@/types/error";
 import {
-  DEFAULT_MULTIPART_THRESHOLD,
-  DEFAULT_CONCURRENT_PARTS,
-  DEFAULT_PART_SIZE,
-} from "./constants";
-import { withRetry } from "./retry";
-import { uploadSimple, uploadPut } from "./presigned-http";
+  sha256Blob,
+  type MultipartInitPayload,
+  type S3Api,
+} from "@dimah-s3/core";
+import { toClientError } from "@/internal/client-error";
+import type {
+  S3ApiUploadTransport,
+  UploadEnginePhase,
+  UploadFileOptions,
+  UploadResult,
+  UploadTransport,
+} from "@/types/upload";
+import { DEFAULT_MULTIPART_THRESHOLD } from "./constants";
 import { uploadMultipart } from "./multipart";
+import { sendPresignedUpload } from "./presigned-http";
+import { transferProgress } from "./progress";
+import { withPresignedRetry, withRetry } from "./retry";
+
+/**
+ * Uploads one file and returns the verified object. Files of at least
+ * `DEFAULT_MULTIPART_THRESHOLD` bytes use multipart when `policy.multipart`
+ * is true; other files are presigned, sent and confirmed in one shot.
+ *
+ * Rejects with an `APIError`, or with `signal.reason` once `signal` aborts.
+ * Phases run `preparing`, `presigning`, `uploading`, then `finalizing`.
+ */
+export async function uploadFile(
+  api: S3Api,
+  file: File,
+  options: UploadFileOptions,
+): Promise<UploadResult> {
+  const { signal, policy } = options;
+  const setPhase = phaseReporter(options.onPhaseChange);
+  try {
+    signal?.throwIfAborted();
+    const payload = initPayload(file, options);
+    if (policy.multipart && file.size >= DEFAULT_MULTIPART_THRESHOLD) {
+      return await uploadMultipart(api, file, payload, options, setPhase);
+    }
+    return await uploadSingle(api, file, payload, options, setPhase);
+  } catch (error) {
+    signal?.throwIfAborted();
+    throw toClientError(error);
+  }
+}
+
+async function uploadSingle(
+  api: S3Api,
+  file: File,
+  payload: MultipartInitPayload,
+  options: UploadFileOptions,
+  setPhase: (phase: UploadEnginePhase) => void,
+): Promise<UploadResult> {
+  const { signal, onProgress } = options;
+  const transport = getUploadTransport(api) ?? sendPresignedUpload;
+
+  setPhase("preparing");
+  const checksum = options.policy.checksum
+    ? await sha256Blob(file, { signal })
+    : undefined;
+
+  const presign = await withPresignedRetry(
+    () => {
+      setPhase("presigning");
+      return api.upload(
+        { ...payload, ...(checksum ? { checksum } : {}) },
+        { signal },
+      );
+    },
+    (signed) => {
+      setPhase("uploading");
+      return transport(file, signed, { onProgress, signal });
+    },
+    options,
+  );
+  onProgress?.(transferProgress(file.size, file.size));
+
+  setPhase("finalizing");
+  return withRetry(
+    () => api.confirm({ ticket: presign.ticket }, { signal }),
+    options,
+  );
+}
+
+/** The presign body shared by single-shot and multipart uploads. */
+function initPayload(
+  file: File,
+  options: UploadFileOptions,
+): MultipartInitPayload {
+  const { route, request = {} } = options;
+  const type = (request.contentType ?? file.type).trim();
+  return {
+    route,
+    name: request.fileName || file.name,
+    size: file.size,
+    ...(type ? { type } : {}),
+    ...(request.metadata ? { metadata: request.metadata } : {}),
+  };
+}
 
 function getUploadTransport(api: S3Api): UploadTransport | undefined {
   const transport = (api as S3Api & S3ApiUploadTransport).uploadTransport;
   return typeof transport === "function" ? transport : undefined;
 }
 
-export type UploadEngineCallbacks = {
-  onProgress?: (progress: UploadProgress) => void;
-  /** Called when the upload transitions between internal phases. */
-  onPhaseChange?: (phase: "presigning" | "uploading" | "finalizing") => void;
-  /** Called after each individual multipart part is successfully uploaded. */
-  onPartUpload?: (partNumber: number, totalParts: number) => void;
-  /** Called once after `CreateMultipartUpload` succeeds with the S3-assigned `uploadId` and final object `key`. */
-  onMultipartInit?: (uploadId: string, key: string) => void;
-};
-
-export async function uploadFile(
-  api: S3Api,
-  file: File,
-  config: FileUploadConfig,
-  callbacks: UploadEngineCallbacks = {},
-  signal?: AbortSignal,
-  requestOptions?: UploadRequestOptions,
-): Promise<UploadResult> {
-  const { route } = config;
-  const useMultipart =
-    config.multipart === true && file.size >= DEFAULT_MULTIPART_THRESHOLD;
-  const concurrentParts = config.concurrentParts ?? DEFAULT_CONCURRENT_PARTS;
-  const rawContentType = requestOptions?.contentType ?? file.type;
-  const contentType = rawContentType.trim() === "" ? undefined : rawContentType;
-  const fileName = requestOptions?.fileName || file.name;
-  const checksum =
-    requestOptions?.checksum ??
-    (config.checksum ? await sha256File(file) : undefined);
-
-  try {
-    if (useMultipart) {
-      callbacks.onPhaseChange?.("presigning");
-      return await uploadMultipart(
-        api,
-        file,
-        route,
-        DEFAULT_PART_SIZE,
-        concurrentParts,
-        callbacks.onProgress,
-        signal,
-        { ...requestOptions, checksum },
-        config.retry,
-        config.uploadStore,
-        callbacks.onPartUpload,
-        (uploadId, serverKey) => {
-          callbacks.onPhaseChange?.("uploading");
-          callbacks.onMultipartInit?.(uploadId, serverKey);
-        },
-      );
-    }
-
-    callbacks.onPhaseChange?.("presigning");
-    const presign = await withRetry(
-      async () =>
-        api.upload({
-          route,
-          contentType,
-          fileSize: file.size,
-          fileName,
-          metadata: requestOptions?.metadata,
-          checksum,
-        }),
-      config.retry,
-      signal,
-    );
-
-    callbacks.onPhaseChange?.("uploading");
-    await withRetry(
-      async () => {
-        const transport = getUploadTransport(api);
-        if (transport) {
-          await transport(file, presign, {
-            onProgress: callbacks.onProgress,
-            signal,
-          });
-        } else if (presign.method === "PUT") {
-          await uploadPut(
-            file,
-            presign.url,
-            presign.headers,
-            callbacks.onProgress,
-            signal,
-          );
-        } else {
-          await uploadSimple(
-            file,
-            presign.url,
-            presign.fields,
-            callbacks.onProgress,
-            signal,
-          );
-        }
-      },
-      config.retry,
-      signal,
-    );
-
-    callbacks.onPhaseChange?.("finalizing");
-    const confirmed = await withRetry(
-      async () =>
-        api.confirm({
-          route,
-          key: presign.key,
-        }),
-      config.retry,
-      signal,
-    );
-    return {
-      key: confirmed.key,
-      eTag: confirmed.eTag,
-      contentLength: confirmed.contentLength,
-      contentType: confirmed.contentType,
-      fileName: confirmed.fileName,
-    };
-  } catch (err) {
-    throw toUploadError(err, "uploading");
-  }
+/** Calls `onPhaseChange` only when the phase changes. */
+function phaseReporter(
+  onPhaseChange: UploadFileOptions["onPhaseChange"],
+): (phase: UploadEnginePhase) => void {
+  let current: UploadEnginePhase | null = null;
+  return (phase) => {
+    if (phase === current) return;
+    current = phase;
+    onPhaseChange?.(phase);
+  };
 }

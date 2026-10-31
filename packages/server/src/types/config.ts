@@ -1,40 +1,38 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { S3ObjectAcl, UploadPresignMethod } from "@dimah-s3/core";
+import type {
+  ContentDispositionType,
+  S3Api,
+  S3ObjectAcl,
+  S3RouteName,
+  UploadPresignMethod,
+} from "@dimah-s3/core";
 import type {
   DeleteGuardContext,
   DeleteOnDeletedContext,
   DownloadGuardContext,
   DownloadOnPresignedContext,
+  DownloadResolveContext,
   DownloadResolveInfo,
   GuardContext,
   MultipartGuardContext,
   MultipartOnAbortContext,
-  MultipartOnInitContext,
-  MultipartOnListContext,
   RouteGuardContext,
   UploadConfirmGuardContext,
   UploadGuardContext,
   UploadObjectContext,
   UploadObjectInfo,
   UploadOnConfirmedContext,
-  UploadOnPresignedContext,
+  UploadOnStartContext,
 } from "./hook-contexts";
+import type {
+  DimahS3Locals,
+  DimahS3RoutePluginOptions,
+  Guard,
+  LifecycleHook,
+} from "./locals";
 import type { DimahS3Plugin } from "@/plugin/types";
 
-export type { UploadObjectContext, UploadObjectInfo, DownloadResolveInfo };
-
-/** The three nested features on a named route. */
-export const ROUTE_FEATURES = ["upload", "download", "delete"] as const;
-export type RouteFeature = (typeof ROUTE_FEATURES)[number];
-
-/**
- * Endpoint operations. Multipart is nested under upload — it is not a
- * fourth route feature.
- */
-export const ROUTE_OPERATIONS = [...ROUTE_FEATURES, "multipart"] as const;
-export type RouteOperation = (typeof ROUTE_OPERATIONS)[number];
-
-/** `true` or an options object enables the feature; omit or `false` disables it. */
+/** `true` or an options object turns the feature on; omit it or pass `false` to keep it off. */
 export type FeatureToggle<T> = boolean | T;
 
 /** Optional structured logger on {@link DimahS3Config}. */
@@ -45,159 +43,170 @@ export type DimahS3Logger = {
   error?: (message: string, ...args: unknown[]) => void;
 };
 
-export type DisabledFeature = { enabled: false };
-export type EnabledFeature<T extends object> = T & { enabled: true };
-export type ResolvedFeature<T extends object> =
-  EnabledFeature<T> | DisabledFeature;
+/**
+ * Subject an upload ticket is bound to, such as a user or tenant id. A ticket
+ * issued for one subject is rejected for another. Return `undefined` to
+ * issue an unbound ticket.
+ *
+ * It runs after the instance and route guards, when a ticket is issued and
+ * each time one is used, so `locals` holds only what those guards returned.
+ * Feature guards such as `upload.guard` have not run yet.
+ */
+export type TicketSubject = (
+  context: RouteGuardContext,
+) => string | undefined | Promise<string | undefined>;
 
 /**
- * Multipart-only hooks. Init shares `upload.guard` / `onInit`. Complete
- * runs `guard` (`action: "complete"`) then `upload.confirmGuard` /
- * `upload.onConfirmed`.
+ * Multipart uploads under `upload.multipart`. Init runs `upload.guard` and
+ * `upload.onStart`. Complete runs `guard` (`action: "complete"`), then
+ * `upload.confirmGuard` and `upload.onConfirmed`.
  */
 export type MultipartConfig = {
-  /** After `CreateMultipartUpload` — persist `uploadId` for resume. */
-  onInit?: (context: MultipartOnInitContext) => Promise<void> | void;
-  /** Authorize part, list, abort, and complete. Branch on `action` if needed. */
-  guard?: (context: MultipartGuardContext) => Promise<void> | void;
-  onAbort?: (context: MultipartOnAbortContext) => Promise<void> | void;
-  onList?: (context: MultipartOnListContext) => Promise<void> | void;
+  /**
+   * Preferred part size in bytes. The server raises it when the file would
+   * need more than 10,000 parts, and keeps it within S3's part limits.
+   * @default 8388608 (8 MiB)
+   */
+  partSize?: number;
+  /**
+   * Seconds a multipart ticket stays valid. Abort accepts an expired ticket
+   * for 7 more days.
+   * @default 86400
+   */
+  ticketExpiresIn?: number;
+  /** Authorizes part signing, list, abort and complete. Branch on `action` if needed. */
+  guard?: Guard<MultipartGuardContext>;
+  onAbort?: LifecycleHook<MultipartOnAbortContext>;
 };
 
-/** Upload feature: constraints, object identity, and lifecycle hooks. */
+/** Upload feature: constraints, object identity and lifecycle hooks. */
 export type UploadConfig = {
   /** HTML `accept` tokens (`image/*`, `.pdf`, `application/pdf`). */
   fileTypes?: string[];
-  /**
-   * Max declared size, signed part size, listed multipart total, and
-   * HeadObject size in bytes.
-   */
+  /** Largest file in bytes. Checked on the declared size and again after HeadObject. */
   maxFileSize?: number;
   /**
-   * Server-owned object identity. Return `folder` for a directory under
-   * the route `keyPrefix`, `key` for the rest of the key (also nested
-   * under `keyPrefix`), plus optional S3 `metadata`, `acl`,
-   * `storageClass`, `cacheControl`, and `tagging`.
-   * Runs on upload / multipart init only. Default key is
-   * `{keyPrefix}/{uuid}/{name}` (`keyPrefix` defaults to the route name).
-   * `keyPrefix: false` generates `{uuid}/{name}` and skips the follow-up
-   * namespace check.
+   * Server-owned object identity. Return `keyFolder` for a path segment
+   * under the route `keyPrefix`, or `key` for the rest of the key, plus
+   * optional S3 `metadata`, `acl`, `storageClass`, `cacheControl` and
+   * `tagging`. The default key is `{keyPrefix}/{uuid}/{name}`.
    */
   object?: (
     context: UploadObjectContext,
   ) => UploadObjectInfo | void | Promise<UploadObjectInfo | void>;
   /**
-   * Server-forced ACL when `object` does not return one.
+   * ACL used when `object` does not return one.
    * @default "private"
    */
   acl?: S3ObjectAcl;
-  /** Presign verb. Use `"PUT"` on R2 (no Presigned POST). @default "POST" */
+  /**
+   * Presign verb. R2 has no presigned POST.
+   * @default "PUT"
+   */
   method?: UploadPresignMethod;
-  /** Presign TTL in seconds. Clamped by instance `maxExpiresIn`. */
+  /**
+   * Presigned URL TTL in seconds, capped by the instance `maxExpiresIn`.
+   * @default 600
+   */
   expiresIn?: number;
   /**
-   * Require a SHA-256 `checksum` on the presign body and lock it into the
-   * signed PUT/POST.
+   * Seconds after the URL expires during which confirm is still accepted.
+   * @default 3600
+   */
+  confirmWindow?: number;
+  /**
+   * Require a SHA-256 `checksum` from the client and sign it into the
+   * upload. `verifyContent` turns it on; `false` together with
+   * `verifyContent` throws.
    */
   checksum?: boolean;
   /**
-   * Overwrite an existing object at the resolved key without flipping a
-   * `db()` row from `active` to `pending` during the new upload.
+   * After confirm, read the first bytes of the object and check them against
+   * the declared type. A mismatch deletes the object and returns
+   * `FILE_CONTENT_MISMATCH`.
    */
-  replace?: "overwrite";
-  /** Presign and multipart init. */
-  guard?: (context: UploadGuardContext) => Promise<void> | void;
-  /** After a single-shot URL is signed. Multipart uses `multipart.onInit`. */
-  onPresigned?: (context: UploadOnPresignedContext) => Promise<void> | void;
-  /** Confirm and multipart complete. */
-  confirmGuard?: (context: UploadConfirmGuardContext) => Promise<void> | void;
-  /** After HeadObject on confirm and multipart complete. */
-  onConfirmed?: (context: UploadOnConfirmedContext) => Promise<void> | void;
-  /** Opt-in multipart. Default off. */
+  verifyContent?: boolean;
+  /** Opt-in multipart uploads. Off by default. */
   multipart?: FeatureToggle<MultipartConfig>;
+  /** Presign, multipart init and `s3.put`. */
+  guard?: Guard<UploadGuardContext>;
+  /** Once the upload can begin. A throw cancels it. */
+  onStart?: LifecycleHook<UploadOnStartContext>;
+  /** Confirm and multipart complete, after HeadObject. A rejection deletes the object. */
+  confirmGuard?: Guard<UploadConfirmGuardContext>;
+  /**
+   * After the object is verified. It runs at least once per upload: dedupe
+   * on `uploadToken`. A plain `Error` returns `500` and keeps the object;
+   * reject content in `confirmGuard` instead.
+   */
+  onConfirmed?: LifecycleHook<UploadOnConfirmedContext>;
 };
 
-/** Download feature. A config object (or `true`) enables the feature. */
+/** Download feature. A config object, or `true`, turns it on. */
 export type DownloadConfig = {
   /**
-   * Maximum presign TTL in seconds. Defaults to `S3_DEFAULT_EXPIRES_IN` (600).
-   * A client `expiresIn` is signed only when it is shorter.
-   * `resolve` can still choose another TTL, clamped by instance `maxExpiresIn`.
-   * Independent of {@link UploadConfig.expiresIn}.
+   * Largest presign TTL in seconds. A shorter client `expiresIn` is used as
+   * is. `resolve` can choose another TTL, capped by the instance
+   * `maxExpiresIn`.
+   * @default 600
    */
-  expiresIn?: number;
+  maxExpiresIn?: number;
+  /** @default "attachment" */
+  disposition?: ContentDispositionType;
   /**
-   * Default Content-Disposition. @default "attachment"
+   * MIME types, or `type/*` wildcards, that may open inline. Anything else
+   * is sent as `attachment`. `false` never opens inline. The default is
+   * `DEFAULT_INLINE_TYPES` from `@dimah-s3/core`, without `application/pdf`
+   * in proxy mode.
    */
-  disposition?: "inline" | "attachment";
+  inlineTypes?: readonly string[] | false;
   /**
-   * MIME types, or `type/*` wildcards, that may open in the browser. When
-   * set, `inline` (requested by the client, the route default, or `resolve`)
-   * is kept only for an object whose HeadObject type is on this list, and
-   * anything else is signed as `attachment`. A wildcard never matches HTML,
-   * XML (including `image/svg+xml`), or JavaScript; list those exactly to
-   * allow them. An object stored as `application/octet-stream` is typed from
-   * its file name, and that type is signed as `ResponseContentType`.
-   * Uses `resolveInlineDisposition` from `@dimah-s3/core`, and the catalog
-   * returns this list so a client can call the same helper.
-   */
-  inlineTypes?: readonly string[];
-  /**
-   * `"presign"` (default) returns an S3 URL. `"proxy"` returns a
-   * same-origin `/file` URL that streams through the server.
+   * `"presign"` returns an S3 URL. `"proxy"` returns a `/file` URL that
+   * streams through the server.
+   * @default "presign"
    */
   mode?: "presign" | "proxy";
-  /**
-   * Per-request download options. Return values override route defaults.
-   * The client `disposition` / `fileName` query is a fallback.
-   */
+  /** Per-request download options. Returned values override route defaults. */
   resolve?: (
-    context: DownloadGuardContext,
+    context: DownloadResolveContext,
   ) => DownloadResolveInfo | void | Promise<DownloadResolveInfo | void>;
-  guard?: (context: DownloadGuardContext) => Promise<void> | void;
-  onPresigned?: (context: DownloadOnPresignedContext) => Promise<void> | void;
+  guard?: Guard<DownloadGuardContext>;
+  onPresigned?: LifecycleHook<DownloadOnPresignedContext>;
 };
 
-/** Delete feature. A config object (or `true`) enables the feature. */
+/** Delete feature. A config object, or `true`, turns it on. */
 export type DeleteConfig = {
-  guard?: (context: DeleteGuardContext) => Promise<void> | void;
-  onDeleted?: (context: DeleteOnDeletedContext) => Promise<void> | void;
+  guard?: Guard<DeleteGuardContext>;
+  onDeleted?: LifecycleHook<DeleteOnDeletedContext>;
 };
 
 /**
- * Named file route — a mini {@link DimahS3Config} under `routes`.
- * Upload, download, delete, and `upload.multipart` are off until set.
- * Prefer one feature per route; combine only when those callers share
- * the key namespace.
+ * Named file route under {@link DimahS3Config.routes}. Upload, download,
+ * delete and `upload.multipart` stay off until set.
  */
 export type DimahS3RouteConfig = {
-  /** Override the instance S3 client for this route. */
+  /** Overrides the instance S3 client for this route. */
   client?: S3Client;
-  /** Override the instance bucket for this route. */
+  /** Overrides the instance bucket for this route. */
   bucket?: string;
   /**
-   * Object-key namespace. Defaults to the route name.
-   * Upload generates keys under it; confirm, download, delete, and
-   * multipart follow-ups reject keys outside it (`INVALID_KEY`).
-   * `false` disables the bound (any safe key in the bucket).
-   * This is route isolation, not per-user ownership — add
-   * `download.guard` / `delete.guard` or `db()`.
+   * Object-key namespace. Defaults to the route name. Uploads write under
+   * it, and every other operation rejects keys outside it (`KEY_INVALID`).
+   * `false` removes the bound. This isolates routes; it does not check who
+   * owns an object.
    */
   keyPrefix?: string | false;
-  /** Runs before every operation on this route. */
-  guard?: (context: RouteGuardContext) => Promise<void> | void;
-  /**
-   * Opt out of instance plugins by id (`{ db: false }`).
-   * Hooks from opted-out plugins are not merged onto this route.
-   */
-  plugins?: { readonly [pluginId: string]: false };
+  /** Runs before every operation on this route, after the instance guard. */
+  guard?: Guard<RouteGuardContext>;
+  /** Per-plugin options for this route. `{ db: false }` turns a plugin off. */
+  plugins?: DimahS3RoutePluginOptions;
   upload?: FeatureToggle<UploadConfig>;
   download?: FeatureToggle<DownloadConfig>;
   delete?: FeatureToggle<DeleteConfig>;
 };
 
 /**
- * Options for {@link dimahS3}.
+ * Options for `dimahS3()`.
  *
  * @example
  * ```ts
@@ -205,99 +214,83 @@ export type DimahS3RouteConfig = {
  *   client: awsS3,
  *   bucket: "my-bucket",
  *   routes: {
- *     uploads: route({
- *       upload: { fileTypes: ["image/*"], multipart: true },
- *     }),
+ *     uploads: route({ upload: { fileTypes: ["image/*"], multipart: true } }),
  *   },
  * });
  * ```
  */
 export type DimahS3Config = {
   /**
-   * Default AWS SDK v3 `S3Client`. Required unless every route sets
-   * {@link DimahS3RouteConfig.client}.
+   * Default AWS SDK v3 `S3Client`. Required unless every route sets one. It
+   * must set `requestChecksumCalculation: "WHEN_REQUIRED"`.
    */
   client?: S3Client;
-  /**
-   * Default bucket. Required unless every route sets
-   * {@link DimahS3RouteConfig.bucket}.
-   */
+  /** Default bucket. Required unless every route sets one. */
   bucket?: string;
   /**
-   * API path prefix for the HTTP `handler`.
-   * Must match `createS3Client({ basePath })` on the client.
+   * API path prefix. Must match `createS3Client({ basePath })`.
    * @default "/api/s3"
    */
   basePath?: string;
   /**
-   * Upper bound for `upload.expiresIn` and `download.expiresIn` (seconds).
-   * The protocol maximum is 7 days (604800).
+   * Absolute API URL, such as `https://app.example.com/api/s3`. Its path
+   * must equal `basePath` when both are set. Proxy download URLs use it,
+   * and in-process calls without a `request` use it as their URL.
+   */
+  baseURL?: string;
+  /**
+   * Upload ticket secret, at least 32 characters. Pass an array to rotate:
+   * the first value signs, and every value verifies. Defaults to the
+   * `DIMAH_S3_SECRET` environment variable.
+   */
+  secret?: string | readonly string[];
+  /** Binds upload tickets to a subject. Defaults to the first plugin that provides one. */
+  ticketSubject?: TicketSubject;
+  /**
+   * Largest presign TTL in seconds for any route.
    * @default 604800
    */
   maxExpiresIn?: number;
   /**
-   * Structured logs for lifecycle failures and unmatched router errors.
-   * `false` silences the default `console.error`.
+   * Largest JSON request body in bytes, counted on the stream.
+   * @default 1048576
    */
+  maxRequestBodySize?: number;
+  /** Logs config errors and unexpected failures. `false` silences the default `console` logger. */
   logger?: DimahS3Logger | false;
-  /** Called after an unexpected throw is mapped to `INTERNAL_ERROR`. */
-  onError?: (error: unknown, context: { request?: Request }) => void;
-  /** Runs before every operation, before route lookup. Throw to reject. */
-  guard?: (context: GuardContext) => Promise<void> | void;
-  /**
-   * Optional server plugins (e.g. `db()` from `@dimah-s3/db`).
-   * Plugin hooks merge onto each route unless the route opts out.
-   */
+  /** Called with every unexpected failure before it becomes `500 INTERNAL_ERROR`. */
+  onError?: (error: unknown, context: { request: Request }) => void;
+  /** Runs before every operation, before route lookup. */
+  guard?: Guard<GuardContext>;
+  /** Server plugins, such as `db()` from `@dimah-s3/db`. */
   plugins?: readonly DimahS3Plugin[];
   /** Named file routes. At least one is required. */
   routes: Record<string, DimahS3RouteConfig>;
 };
 
-type UploadFields = Omit<UploadConfig, "multipart">;
-
-export type EnabledUploadConfig = EnabledFeature<UploadFields> & {
-  multipart: ResolvedFeature<MultipartConfig>;
+/** Options for in-process calls through `s3.api` and `s3.put`. */
+export type S3ServerCallOptions = {
+  /** Headers for the synthetic request. Ignored when `request` is set. */
+  headers?: HeadersInit;
+  /** Request that hooks see. Defaults to one built from `baseURL` (or `basePath`) and `headers`. */
+  request?: Request;
+  /** Trusted values that seed `locals` before guards run. Never read from HTTP. */
+  locals?: Partial<DimahS3Locals>;
 };
 
-export type ResolvedUploadConfig =
-  EnabledUploadConfig | (DisabledFeature & { multipart: DisabledFeature });
+/** `s3.api`: the browser client's shape, plus {@link S3ServerCallOptions}. */
+export type DimahS3Api = S3Api<S3ServerCallOptions>;
 
-/** One named route after {@link dimahS3} normalizes toggles and plugin hooks. */
-export type ResolvedRoute = {
+/** Input to `s3.put`. */
+export type PutInput = {
+  route: S3RouteName;
   name: string;
-  client: S3Client;
-  bucket: string;
-  /** `false` means follow-up keys are not namespace-checked. */
-  keyPrefix: string | false;
-  guard?: DimahS3RouteConfig["guard"];
-  skippedPluginIds: ReadonlySet<string>;
-  upload: ResolvedUploadConfig;
-  download: ResolvedFeature<DownloadConfig>;
-  delete: ResolvedFeature<DeleteConfig>;
-};
-
-/**
- * A {@link ResolvedRoute} after the named operation has been asserted on.
- * `route.upload.fileTypes` is typed as present only after opening `"upload"`.
- */
-export type OpenedRoute<F extends RouteOperation> = F extends "multipart"
-  ? ResolvedRoute & {
-      upload: EnabledUploadConfig & {
-        multipart: EnabledFeature<MultipartConfig>;
-      };
-    }
-  : F extends "upload"
-    ? ResolvedRoute & { upload: EnabledUploadConfig }
-    : F extends "download"
-      ? ResolvedRoute & { download: EnabledFeature<DownloadConfig> }
-      : F extends "delete"
-        ? ResolvedRoute & { delete: EnabledFeature<DeleteConfig> }
-        : never;
-
-/** Instance config after {@link dimahS3} normalizes routes and plugins. */
-export type ResolvedDimahS3Config = Omit<
-  DimahS3Config,
-  "routes" | "plugins"
-> & {
-  routes: Record<string, ResolvedRoute>;
+  type?: string;
+  body: Blob | ReadableStream<Uint8Array> | Uint8Array | ArrayBuffer | string;
+  /** Byte size. Required for a `ReadableStream`. */
+  size?: number;
+  /** S3 user metadata written on the object. */
+  metadata?: Record<string, string>;
+  /** Visible to hooks (for example the db folder). Never written to S3. */
+  clientMetadata?: Record<string, string>;
 };

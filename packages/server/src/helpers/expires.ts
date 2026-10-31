@@ -1,8 +1,9 @@
 import { S3_DEFAULT_EXPIRES_IN, S3_MAX_EXPIRES_IN } from "@dimah-s3/core";
 
 /**
- * Coerce an upload/download `expiresIn` to a positive integer, then clamp
- * to {@link maxExpiresIn} (SigV4 max by default).
+ * Coerces a TTL in seconds to a positive integer, then caps it at
+ * `maxExpiresIn` (the SigV4 maximum by default). A value that is not a
+ * positive number becomes the protocol default.
  */
 export function normalizeExpiresIn(
   value: unknown,
@@ -19,25 +20,24 @@ export function normalizeExpiresIn(
 }
 
 /**
- * Signed download TTL.
- * `download.resolve` wins, then the shorter of the client request and the
- * route cap. Both are clamped to `maxExpiresIn`.
+ * Signed download TTL in seconds. A `download.resolve` value wins, capped
+ * by the instance `maxExpiresIn`. Otherwise the client value is used when
+ * it is shorter than the route `download.maxExpiresIn`, which is the
+ * default.
  */
 export function clampDownloadExpiresIn(options: {
   /** Client `expiresIn`, when the query sent one. */
   requested?: number;
-  /** Route `download.expiresIn`. Omitted uses the protocol default. */
-  routeExpiresIn?: number;
-  /** `download.resolve` return. Replaces the cap and the client request. */
-  resolvedExpiresIn?: number;
-  /** Instance ceiling. Defaults to the SigV4 maximum. */
-  maxExpiresIn?: number;
+  /** `download.resolve` value. Replaces the route cap and the client value. */
+  resolved?: number;
+  /** Route `download.maxExpiresIn`, already capped by the instance. */
+  routeMaxExpiresIn: number;
+  /** Instance `maxExpiresIn`. */
+  maxExpiresIn: number;
 }): number {
-  const max = options.maxExpiresIn;
-  if (options.resolvedExpiresIn != null) {
-    return normalizeExpiresIn(options.resolvedExpiresIn, max);
+  if (options.resolved !== undefined) {
+    return normalizeExpiresIn(options.resolved, options.maxExpiresIn);
   }
-  const cap = normalizeExpiresIn(options.routeExpiresIn, max);
-  if (options.requested == null) return cap;
-  return Math.min(normalizeExpiresIn(options.requested, max), cap);
+  if (options.requested === undefined) return options.routeMaxExpiresIn;
+  return normalizeExpiresIn(options.requested, options.routeMaxExpiresIn);
 }

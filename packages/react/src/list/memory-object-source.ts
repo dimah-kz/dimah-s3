@@ -26,10 +26,13 @@ export type MemoryObjectSourceOptions<TItem> = {
   /** Files per page. @default 50 */
   pageSize?: number;
   /**
-   * Send `usage` with each first page: the byte total from `getFile().size`
-   * and the record count, over every record — not only the open folder.
+   * Send `usage` with each page: the byte total from `getFile().size` and
+   * the record count, over every record — not only the open folder.
+   * @default true when `limits` is set, otherwise false
    */
   usage?: boolean;
+  /** Caps sent as `usage.maxBytes` and `usage.maxFiles`. */
+  limits?: { maxBytes?: number; maxFiles?: number };
   /**
    * Whether a record matches the search text. Defaults to the file name
    * containing it, ignoring case and accents. Folder names always match
@@ -63,8 +66,9 @@ export type MemoryObjectSourceOptions<TItem> = {
 export function memoryObjectSource<TItem>(
   records: readonly TItem[] | (() => readonly TItem[]),
   options: MemoryObjectSourceOptions<TItem>,
-): Required<ObjectListSource<TItem>> {
-  const { getKey, getFile, getFolder, matches, sortValue } = options;
+): ObjectListSource<TItem> & { getFile: (item: TItem) => ObjectListFile } {
+  const { getKey, getFile, getFolder, matches, sortValue, limits } = options;
+  const sendUsage = options.usage ?? limits !== undefined;
   const pageSize = Math.max(
     1,
     Math.floor(options.pageSize ?? DEFAULT_PAGE_SIZE),
@@ -109,7 +113,7 @@ export function memoryObjectSource<TItem>(
         folders: start === 0 ? folders : undefined,
         items: items.slice(start, end),
         nextCursor: end < items.length ? String(end) : null,
-        usage: options.usage ? totals(all, getFile) : undefined,
+        usage: sendUsage ? { ...totals(all, getFile), ...limits } : undefined,
       });
     },
   };

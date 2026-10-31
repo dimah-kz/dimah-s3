@@ -1,236 +1,489 @@
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
-import type { DownloadPresignResponse } from "@dimah-s3/core";
-import { isFetchDownload, useDownload } from "./use-download";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  s3Error,
+  type DownloadPayload,
+  type DownloadPresignResponse,
+  type S3RequestOptions,
+} from "@dimah-s3/core";
+import { abortable } from "@/internal/abortable";
+import type * as browserDownload from "@/internal/browser-download";
+import { startBrowserDownload } from "@/internal/browser-download";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
+import type { DownloadOutcome } from "@/types/download";
+import { useDownload } from "./use-download";
+
+vi.mock("@/internal/browser-download", async (importOriginal) => ({
+  ...(await importOriginal<typeof browserDownload>()),
+  startBrowserDownload: vi.fn(),
+}));
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+function signed(key: string): DownloadPresignResponse {
+  return {
+    key,
+    bucket: "bucket",
+    url: `https://s3.test/dl/${key}`,
+    mode: "presign",
+    disposition: "attachment",
+    expiresIn: 600,
+  };
+}
+
+/** A `download` that settles only by rejecting with the abort reason. */
+function downloadUntilAborted() {
+  return vi.fn((_payload: DownloadPayload, options?: S3RequestOptions) =>
+    abortable(new Promise<DownloadPresignResponse>(() => {}), options?.signal),
+  );
+}
 
 describe("useDownload", () => {
-  it("presigns and stores the url", async () => {
+  it("presigns, hands the URL to the browser and records the operation", async () => {
     const api = fakeS3Api();
-    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
+    const onSuccess = vi.fn();
+    const onSettled = vi.fn();
+    const hook = renderHook(() =>
+      useDownload({
+        api,
+        route: "uploads",
+        disposition: "attachment",
+        onSuccess,
+        onSettled,
+      }),
+    );
 
-    let result: { url: string; expiresIn: number } | null = null;
+    let outcome: DownloadOutcome | undefined;
     await act(async () => {
-      result = await hook.current.presign("a.png", "save.png");
+      outcome = await hook.current.download("a.png", { fileName: "A.png" });
     });
 
-    expect(api.download).toHaveBeenCalledWith({
-      route: "uploads",
-      key: "a.png",
-      fileName: "save.png",
-    });
-    expect(result).toEqual({ url: "https://s3.test/dl", expiresIn: 600 });
+    const data = signed("a.png");
+    expect(api.download).toHaveBeenCalledWith(
+      {
+        route: "uploads",
+        key: "a.png",
+        name: "A.png",
+        disposition: "attachment",
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(startBrowserDownload).toHaveBeenCalledWith(data.url);
+    expect(outcome).toEqual({ status: "success", key: "a.png", data });
+    expect(onSuccess).toHaveBeenCalledExactlyOnceWith(data, "a.png");
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(outcome);
+    expect(hook.current.operations).toEqual([
+      {
+        id: expect.any(String),
+        key: "a.png",
+        fileName: "A.png",
+        phase: "success",
+        error: null,
+        result: data,
+      },
+    ]);
+    expect(hook.current.get("a.png")?.phase).toBe("success");
     expect(hook.current).toMatchObject({
-      phase: "idle",
       mode: "navigate",
-      objectKey: "a.png",
-      url: "https://s3.test/dl",
-      error: null,
+      instanceId: expect.any(String),
+      pendingKeys: [],
       isPending: false,
     });
     hook.unmount();
   });
 
-  it("records API failures", async () => {
+  it("runs keys in parallel and joins a repeated key", async () => {
+    const pending = new Map<
+      string,
+      PromiseWithResolvers<DownloadPresignResponse>
+    >();
     const api = fakeS3Api({
-      download: vi.fn(async () => {
-        throw new Error("blocked");
+      download: vi.fn((payload: DownloadPayload) => {
+        const deferred = Promise.withResolvers<DownloadPresignResponse>();
+        pending.set(payload.key, deferred);
+        return deferred.promise;
       }),
     });
-    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
-
-    await act(async () => {
-      await hook.current.presign("missing.png");
-    });
-
-    expect(hook.current).toMatchObject({
-      phase: "error",
-      objectKey: "missing.png",
-      error: expect.objectContaining({ message: "blocked" }),
-      url: null,
-    });
-    hook.unmount();
-  });
-
-  it("fetch mode exposes progress and cancel", () => {
+    const onSuccess = vi.fn();
+    const onSettled = vi.fn();
     const hook = renderHook(() =>
-      useDownload({ api: fakeS3Api(), route: "uploads", mode: "fetch" }),
+      useDownload({ api, route: "uploads", onSuccess, onSettled }),
     );
-    expect(hook.current.progress).toEqual({
-      loaded: 0,
-      total: 0,
-      percent: 0,
-    });
-    expect(hook.current.mode).toBe("fetch");
-    expect(hook.current.objectKey).toBeNull();
-    expect(hook.current.isPending).toBe(false);
-    expect(hook.current.isDownloading).toBe(false);
-    expect(typeof hook.current.cancel).toBe("function");
-    expect(isFetchDownload(hook.current)).toBe(true);
-    hook.unmount();
-  });
 
-  it("defaults to navigate mode", () => {
-    const hook = renderHook(() =>
-      useDownload({ api: fakeS3Api(), route: "uploads" }),
-    );
-    expect(hook.current.mode).toBe("navigate");
-    expect(hook.current.objectKey).toBeNull();
-    expect(isFetchDownload(hook.current)).toBe(false);
-    hook.unmount();
-  });
-
-  it("keeps the latest navigate presign when two overlap", async () => {
-    let releaseFirst!: (value: {
-      bucket: string;
-      key: string;
-      url: string;
-      expiresIn: number;
-    }) => void;
-    const api = fakeS3Api({
-      download: vi.fn(async (payload) => {
-        if (payload.key === "a.png") {
-          return new Promise<DownloadPresignResponse>((resolve) => {
-            releaseFirst = resolve;
-          });
-        }
-        return {
-          bucket: "bucket",
-          key: payload.key,
-          url: "https://s3.test/b",
-          expiresIn: 600,
-        };
-      }),
-    });
-    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
-
-    let first: Promise<{ url: string; expiresIn: number } | null> =
-      Promise.resolve(null);
+    let first!: Promise<DownloadOutcome>;
+    let again!: Promise<DownloadOutcome>;
     await act(async () => {
-      first = hook.current.presign("a.png");
+      first = hook.current.download("a.png");
+      void hook.current.download("b.png");
+      again = hook.current.download("a.png", { fileName: "other.png" });
     });
-    await act(async () => {
-      await hook.current.presign("b.png");
-    });
-    expect(hook.current).toMatchObject({
-      objectKey: "b.png",
-      url: "https://s3.test/b",
-    });
+
+    expect(again).toBe(first);
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(hook.current.pendingKeys).toEqual(["a.png", "b.png"]);
+    expect(hook.current.isPending).toBe(true);
+    expect(hook.current.operations.map((op) => [op.key, op.phase])).toEqual([
+      ["a.png", "presigning"],
+      ["b.png", "presigning"],
+    ]);
 
     await act(async () => {
-      releaseFirst({
-        bucket: "bucket",
-        key: "a.png",
-        url: "https://s3.test/a",
-        expiresIn: 600,
-      });
+      pending.get("a.png")?.resolve(signed("a.png"));
+      pending.get("b.png")?.resolve(signed("b.png"));
       await first;
     });
-    expect(hook.current).toMatchObject({
-      objectKey: "b.png",
-      url: "https://s3.test/b",
-    });
+
+    expect(onSuccess).toHaveBeenCalledTimes(2);
+    expect(onSettled).toHaveBeenCalledTimes(2);
+    expect(hook.current.isPending).toBe(false);
     hook.unmount();
   });
 
-  it("presigns many files without changing single-file state", async () => {
-    const api = fakeS3Api({
-      download: vi.fn(async (payload) => ({
-        bucket: "bucket",
-        key: payload.key,
-        url: `https://s3.test/${payload.key}`,
-        expiresIn: 600,
-      })),
-    });
-    const hook = renderHook(() => useDownload({ api, route: "uploads" }));
-
-    let signed: { key: string; url: string; expiresIn: number }[] = [];
-    await act(async () => {
-      const result = await hook.current.presignMany([
-        { key: "a.png", fileName: "A.png", expiresIn: 900 },
-        { key: "b.png" },
-      ]);
-      signed = result.signed;
-      expect(result.failed).toEqual([]);
-    });
-
-    expect(api.download).toHaveBeenCalledTimes(2);
-    expect(api.download).toHaveBeenCalledWith({
-      route: "uploads",
-      key: "a.png",
-      fileName: "A.png",
-      expiresIn: 900,
-    });
-    expect(signed).toEqual([
-      { key: "a.png", url: "https://s3.test/a.png", expiresIn: 600 },
-      { key: "b.png", url: "https://s3.test/b.png", expiresIn: 600 },
-    ]);
-    expect(hook.current).toMatchObject({
-      phase: "idle",
-      objectKey: null,
-      url: null,
-      isPending: false,
-    });
-    hook.unmount();
-  });
-
-  it("keeps going when one presignMany key fails or is blocked", async () => {
-    const api = fakeS3Api({
-      download: vi.fn(async (payload) => {
-        if (payload.key === "bad.png") throw new Error("nope");
-        return {
-          bucket: "bucket",
-          key: payload.key,
-          url: "https://s3.test/ok",
-          expiresIn: 600,
-        };
+  it("blocks without an operation when beforeDownload returns false", async () => {
+    const api = fakeS3Api();
+    const onError = vi.fn();
+    const onSettled = vi.fn();
+    const hook = renderHook(() =>
+      useDownload({
+        api,
+        route: "uploads",
+        beforeDownload: () => false,
+        onError,
+        onSettled,
       }),
+    );
+
+    let outcome: DownloadOutcome | undefined;
+    await act(async () => {
+      outcome = await hook.current.download("a.png");
     });
+
+    expect(outcome).toEqual({ status: "blocked", key: "a.png" });
+    expect(api.download).not.toHaveBeenCalled();
+    expect(hook.current.operations).toEqual([]);
+    expect(onError).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(outcome);
+    hook.unmount();
+  });
+
+  it("fails with HOOK_FAILED when beforeDownload throws", async () => {
+    const api = fakeS3Api();
     const onError = vi.fn();
     const hook = renderHook(() =>
       useDownload({
         api,
         route: "uploads",
+        beforeDownload: () => {
+          throw new Error("boom");
+        },
         onError,
-        beforeDownload: async (key) => key !== "skip.png",
       }),
     );
 
     await act(async () => {
-      const result = await hook.current.presignMany([
-        { key: "skip.png" },
-        { key: "bad.png" },
-        { key: "ok.png" },
-      ]);
-      expect(result.failed).toEqual(["skip.png", "bad.png"]);
-      expect(result.signed).toEqual([
-        { key: "ok.png", url: "https://s3.test/ok", expiresIn: 600 },
-      ]);
+      await hook.current.download("a.png");
     });
 
-    expect(api.download).toHaveBeenCalledTimes(2);
-    expect(onError).toHaveBeenCalledWith("skip.png", expect.any(Error));
-    expect(onError).toHaveBeenCalledWith("bad.png", expect.any(Error));
-    expect(hook.current.phase).toBe("idle");
-    expect(hook.current.objectKey).toBeNull();
+    const operation = hook.current.get("a.png");
+    expect(operation?.phase).toBe("error");
+    expect(operation?.error?.code).toBe("HOOK_FAILED");
+    expect(onError).toHaveBeenCalledExactlyOnceWith(operation?.error, "a.png");
+    expect(api.download).not.toHaveBeenCalled();
     hook.unmount();
   });
 
-  it("forwards expiresIn on presign", async () => {
+  it("records API errors with their catalog code", async () => {
+    const api = fakeS3Api({
+      download: vi.fn(async () => {
+        throw s3Error("OBJECT_NOT_FOUND");
+      }),
+    });
+    const onError = vi.fn();
+    const hook = renderHook(() =>
+      useDownload({ api, route: "uploads", onError }),
+    );
+
+    let outcome: DownloadOutcome | undefined;
+    await act(async () => {
+      outcome = await hook.current.download("missing.png");
+    });
+
+    expect(outcome).toMatchObject({
+      status: "error",
+      key: "missing.png",
+      error: { code: "OBJECT_NOT_FOUND" },
+    });
+    expect(hook.current.get("missing.png")).toMatchObject({
+      phase: "error",
+      error: { code: "OBJECT_NOT_FOUND" },
+      result: null,
+    });
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "OBJECT_NOT_FOUND" }),
+      "missing.png",
+    );
+    expect(startBrowserDownload).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("lets onError download the same key again", async () => {
+    const api = fakeS3Api({
+      download: vi
+        .fn()
+        .mockRejectedValueOnce(s3Error("NETWORK_ERROR"))
+        .mockResolvedValueOnce(signed("a.png")),
+    });
+    let retry: Promise<DownloadOutcome> | undefined;
+    const hook = renderHook(() =>
+      useDownload({
+        api,
+        route: "uploads",
+        onError: (_error, key) => {
+          retry = hook.current.download(key);
+        },
+      }),
+    );
+
+    let outcome: DownloadOutcome | undefined;
+    let retried: DownloadOutcome | undefined;
+    await act(async () => {
+      outcome = await hook.current.download("a.png");
+      retried = await retry;
+    });
+
+    expect(outcome).toMatchObject({ status: "error", key: "a.png" });
+    expect(retried).toEqual({
+      status: "success",
+      key: "a.png",
+      data: signed("a.png"),
+    });
+    expect(api.download).toHaveBeenCalledTimes(2);
+    expect(hook.current.pendingKeys).toEqual([]);
+    expect(hook.current.get("a.png")?.phase).toBe("success");
+    hook.unmount();
+  });
+
+  it("aborts the presign on cancel(key)", async () => {
+    const api = fakeS3Api({ download: downloadUntilAborted() });
+    const onError = vi.fn();
+    const onSettled = vi.fn();
+    const hook = renderHook(() =>
+      useDownload({ api, route: "uploads", onError, onSettled }),
+    );
+
+    let pending!: Promise<DownloadOutcome>;
+    await act(async () => {
+      pending = hook.current.download("a.png");
+    });
+    let outcome: DownloadOutcome | undefined;
+    await act(async () => {
+      hook.current.cancel("a.png");
+      outcome = await pending;
+    });
+
+    expect(outcome).toEqual({ status: "aborted", key: "a.png" });
+    expect(hook.current.get("a.png")?.phase).toBe("aborted");
+    expect(startBrowserDownload).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(outcome);
+    hook.unmount();
+  });
+
+  it("resets settled operations with a stable reset", async () => {
     const api = fakeS3Api();
     const hook = renderHook(() => useDownload({ api, route: "uploads" }));
+    const { reset } = hook.current;
 
     await act(async () => {
-      await hook.current.presign("a.png", "save.png", 900);
+      await hook.current.download("a.png");
+      await hook.current.download("b.png");
+    });
+    act(() => hook.current.reset("a.png"));
+
+    expect(hook.current.reset).toBe(reset);
+    expect(hook.current.operations.map((op) => op.key)).toEqual(["b.png"]);
+
+    act(() => hook.current.reset());
+    expect(hook.current.operations).toEqual([]);
+    hook.unmount();
+  });
+
+  it("reports a throwing after-callback without changing the outcome", async () => {
+    const report = vi.fn();
+    vi.stubGlobal("reportError", report);
+    const failure = new Error("callback");
+    const hook = renderHook(() =>
+      useDownload({
+        api: fakeS3Api(),
+        route: "uploads",
+        onSuccess: () => {
+          throw failure;
+        },
+      }),
+    );
+
+    let outcome: DownloadOutcome | undefined;
+    await act(async () => {
+      outcome = await hook.current.download("a.png");
     });
 
-    expect(api.download).toHaveBeenCalledWith({
-      route: "uploads",
-      key: "a.png",
-      fileName: "save.png",
-      expiresIn: 900,
+    expect(outcome?.status).toBe("success");
+    expect(report).toHaveBeenCalledWith(failure);
+    hook.unmount();
+  });
+
+  it("rejects when no S3Api is available", async () => {
+    const hook = renderHook(() => useDownload({ route: "uploads" }));
+
+    await act(async () => {
+      await expect(hook.current.download("a.png")).rejects.toThrow(
+        /No S3Api found/,
+      );
     });
     hook.unmount();
+  });
+
+  describe("presign", () => {
+    it("signs without recording an operation or running result callbacks", async () => {
+      const api = fakeS3Api();
+      const beforeDownload = vi.fn(() => true);
+      const onSuccess = vi.fn();
+      const onSettled = vi.fn();
+      const hook = renderHook(() =>
+        useDownload({
+          api,
+          route: "uploads",
+          beforeDownload,
+          onSuccess,
+          onSettled,
+        }),
+      );
+
+      let outcome: DownloadOutcome | undefined;
+      await act(async () => {
+        outcome = await hook.current.presign("a.png", {
+          fileName: "A.png",
+          expiresIn: 900,
+        });
+      });
+
+      expect(api.download).toHaveBeenCalledWith(
+        { route: "uploads", key: "a.png", name: "A.png", expiresIn: 900 },
+        { signal: undefined },
+      );
+      expect(outcome).toEqual({
+        status: "success",
+        key: "a.png",
+        data: { ...signed("a.png"), expiresIn: 900 },
+      });
+      expect(beforeDownload).toHaveBeenCalledExactlyOnceWith("a.png");
+      expect(startBrowserDownload).not.toHaveBeenCalled();
+      expect(onSuccess).not.toHaveBeenCalled();
+      expect(onSettled).not.toHaveBeenCalled();
+      expect(hook.current.operations).toEqual([]);
+      hook.unmount();
+    });
+
+    it("returns blocked and error outcomes", async () => {
+      const api = fakeS3Api({
+        download: vi.fn(async () => {
+          throw new Error("offline");
+        }),
+      });
+      const hook = renderHook(() =>
+        useDownload({
+          api,
+          route: "uploads",
+          beforeDownload: (key) => key !== "skip.png",
+        }),
+      );
+
+      let blocked: DownloadOutcome | undefined;
+      let failed: DownloadOutcome | undefined;
+      await act(async () => {
+        blocked = await hook.current.presign("skip.png");
+        failed = await hook.current.presign("a.png");
+      });
+
+      expect(blocked).toEqual({ status: "blocked", key: "skip.png" });
+      expect(failed).toMatchObject({
+        status: "error",
+        key: "a.png",
+        error: { code: "UNKNOWN_ERROR" },
+      });
+      hook.unmount();
+    });
+  });
+
+  describe("presignMany", () => {
+    it("sorts keys into signed, failed and blocked", async () => {
+      const api = fakeS3Api({
+        download: vi.fn(async (payload: DownloadPayload) => {
+          if (payload.key === "bad.png") throw s3Error("OBJECT_NOT_FOUND");
+          return signed(payload.key);
+        }),
+      });
+      const onError = vi.fn();
+      const hook = renderHook(() =>
+        useDownload({
+          api,
+          route: "uploads",
+          beforeDownload: (key) => key !== "skip.png",
+          onError,
+        }),
+      );
+
+      const result = await hook.current.presignMany([
+        { key: "a.png", fileName: "A.png", expiresIn: 900 },
+        { key: "skip.png" },
+        { key: "bad.png" },
+        { key: "b.png" },
+      ]);
+
+      expect(api.download).toHaveBeenCalledWith(
+        { route: "uploads", key: "a.png", name: "A.png", expiresIn: 900 },
+        { signal: undefined },
+      );
+      expect(result).toEqual({
+        signed: [signed("a.png"), signed("b.png")],
+        failed: [
+          {
+            key: "bad.png",
+            error: expect.objectContaining({ code: "OBJECT_NOT_FOUND" }),
+          },
+        ],
+        blocked: ["skip.png"],
+      });
+      expect(onError).not.toHaveBeenCalled();
+      expect(hook.current.operations).toEqual([]);
+      hook.unmount();
+    });
+
+    it("signs at most four keys at once", async () => {
+      let active = 0;
+      let peak = 0;
+      const api = fakeS3Api({
+        download: vi.fn(async (payload: DownloadPayload) => {
+          active += 1;
+          peak = Math.max(peak, active);
+          await Promise.resolve();
+          active -= 1;
+          return signed(payload.key);
+        }),
+      });
+      const hook = renderHook(() => useDownload({ api, route: "uploads" }));
+
+      const keys = Array.from({ length: 10 }, (_, index) => `${index}.png`);
+      const result = await hook.current.presignMany(
+        keys.map((key) => ({ key })),
+      );
+
+      expect(peak).toBe(4);
+      expect(result.signed.map(({ key }) => key)).toEqual(keys);
+      hook.unmount();
+    });
   });
 });

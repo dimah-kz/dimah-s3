@@ -1,140 +1,114 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
-import type { S3Api, S3RouteName } from "@dimah-s3/core";
+import { useCallback, useContext, useEffect, useState } from "react";
+import type {
+  APIError,
+  RouteCatalogResponse,
+  S3Api,
+  S3RouteName,
+} from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
-import { useLiveRef } from "@/internal-helpers";
+import { requireApi, toClientError } from "@/internal/client-error";
 import {
   loadRouteCatalog,
   mergeRouteUploadPolicy,
+  resolveRouteUploadPolicy,
   type RouteUploadPolicy,
+  type RouteUploadPolicyOptions,
 } from "@/helpers/load-route-catalog";
 
-export type CatalogLoadStatus = "idle" | "loading" | "ready" | "error";
+/** Where the route catalog (`GET /routes`) is in loading. */
+export type CatalogLoadStatus = "loading" | "ready" | "error";
 
-export type UseRouteUploadPolicyOptions = RouteUploadPolicy & {
+/** Options for {@link useRouteUploadPolicy}. */
+export type UseRouteUploadPolicyOptions = RouteUploadPolicyOptions & {
+  /** Optional when an `<S3Provider>` is in the tree. */
   api?: S3Api;
   route: S3RouteName;
 };
 
+/** The route's upload policy narrowed by the options, plus the catalog state. */
 export type UseRouteUploadPolicyReturn = RouteUploadPolicy & {
-  /** `GET /routes` fetch used to fill omitted `accept` / `maxFileSize`. */
-  catalogStatus: CatalogLoadStatus;
-  /** Set when {@link catalogStatus} is `"error"`. */
-  catalogError: Error | null;
+  status: CatalogLoadStatus;
+  /** Why the catalog failed to load, when `status` is `"error"`. */
+  error: APIError | null;
 };
 
-const warnedCatalogKeys = new Set<string>();
-
-function toError(cause: unknown): Error {
-  return cause instanceof Error ? cause : new Error(String(cause), { cause });
-}
-
-function isDevelopment() {
-  const env = (globalThis as { process?: { env?: { NODE_ENV?: string } } })
-    .process?.env?.NODE_ENV;
-  return env === "development";
-}
-
-function warnCatalogFailure(
-  route: S3RouteName,
-  hasExplicitConstraints: boolean,
-  cause: unknown,
-) {
-  if (!isDevelopment()) return;
-  if (hasExplicitConstraints) return;
-  const key = String(route);
-  if (warnedCatalogKeys.has(key)) return;
-  warnedCatalogKeys.add(key);
-  console.warn(
-    `[@dimah-s3/react] Route catalog failed for "${key}". Pass accept/maxFileSize on useUpload, or check GET /routes. Client-side constraints will not come from the server.`,
-    cause,
-  );
-}
-
-function hasExplicitConstraints(options: RouteUploadPolicy) {
-  return options.accept != null || options.maxFileSize != null;
-}
-
-type CatalogSnapshot = {
+/** One settled catalog load for an `S3Api`. */
+type CatalogState = {
   api: S3Api;
-  route: S3RouteName;
-  policy: RouteUploadPolicy;
-  status: Extract<CatalogLoadStatus, "ready" | "error">;
-  error: Error | null;
+  attempt: number;
+  catalog: RouteCatalogResponse | null;
+  error: APIError | null;
 };
 
 /**
- * Client UX constraints for a named upload route.
- * Catalog values fill in omitted `accept` / `maxFileSize` / `multipart` /
- * `checksum`. Explicit options always win.
+ * The upload policy of a named route: the route catalog narrowed by the
+ * options. The stricter `accept` and `maxFileSize` win, `multipart` needs the
+ * route and an option that is not `false`, and `checksum` follows the route.
  *
- * A failed catalog does not block uploads — the server still enforces
- * constraints. {@link UseRouteUploadPolicyReturn.catalogStatus} is `"error"`
- * so the UI can show that client-side accept/size did not sync.
+ * Until the catalog loads, and when it fails, only the options apply and
+ * neither multipart nor checksums are on. The catalog is cached per `S3Api`,
+ * so every hook for the same API shares one request.
  */
 export function useRouteUploadPolicy(
   options: UseRouteUploadPolicyOptions,
 ): UseRouteUploadPolicyReturn {
-  const contextApi = useContext(S3Context);
-  const api = options.api ?? contextApi;
-  const optsRef = useLiveRef(options);
-  const [snapshot, setSnapshot] = useState<CatalogSnapshot | null>(null);
-  const snapshotMatches =
-    snapshot !== null &&
-    snapshot.api === api &&
-    snapshot.route === options.route;
+  return useRouteUploadPolicyState(options)[0];
+}
 
-  const catalogPolicy = snapshotMatches ? snapshot.policy : {};
-  const catalogStatus: CatalogLoadStatus = !api
-    ? "idle"
-    : snapshotMatches
-      ? snapshot.status
-      : "loading";
-  const catalogError = snapshotMatches ? snapshot.error : null;
+/**
+ * @internal {@link useRouteUploadPolicy} plus a function that loads the
+ * catalog again, such as after it failed.
+ */
+export function useRouteUploadPolicyState(
+  options: UseRouteUploadPolicyOptions,
+): [policy: UseRouteUploadPolicyReturn, reload: () => void] {
+  const contextApi = useContext(S3Context);
+  const api = requireApi(options.api ?? contextApi, "useRouteUploadPolicy");
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<CatalogState | null>(null);
 
   useEffect(() => {
-    if (!api) return;
-    let cancelled = false;
-    void loadRouteCatalog(api)
-      .then((catalog) => {
-        if (cancelled) return;
-        setSnapshot({
-          api,
-          route: options.route,
-          policy: mergeRouteUploadPolicy(catalog, options.route, {}),
-          status: "ready",
-          error: null,
-        });
-      })
-      .catch((cause: unknown) => {
-        if (cancelled) return;
-        setSnapshot({
-          api,
-          route: options.route,
-          policy: {},
-          status: "error",
-          error: toError(cause),
-        });
-        warnCatalogFailure(
-          optsRef.current.route,
-          hasExplicitConstraints(optsRef.current),
-          cause,
-        );
-      });
+    let active = true;
+    loadRouteCatalog(api).then(
+      (catalog) => {
+        if (active) setState({ api, attempt, catalog, error: null });
+      },
+      (error: unknown) => {
+        if (active) {
+          setState({
+            api,
+            attempt,
+            catalog: null,
+            error: toClientError(error),
+          });
+        }
+      },
+    );
     return () => {
-      cancelled = true;
+      active = false;
     };
-  }, [api, options.route, optsRef]);
+  }, [api, attempt]);
 
-  return {
-    ...mergeRouteUploadPolicy(null, options.route, {
-      accept: options.accept ?? catalogPolicy.accept,
-      maxFileSize: options.maxFileSize ?? catalogPolicy.maxFileSize,
-      multipart: options.multipart ?? catalogPolicy.multipart,
-      checksum: options.checksum ?? catalogPolicy.checksum,
-    }),
-    catalogStatus,
-    catalogError,
-  };
+  const reload = useCallback(() => {
+    setAttempt((current) => current + 1);
+  }, []);
+
+  // A load for another API or an older attempt does not count.
+  const settled =
+    state !== null && state.api === api && state.attempt === attempt
+      ? state
+      : null;
+  const policy = mergeRouteUploadPolicy(
+    resolveRouteUploadPolicy(settled?.catalog, options.route),
+    {
+      accept: options.accept,
+      maxFileSize: options.maxFileSize,
+      multipart: options.multipart,
+    },
+  );
+  const status: CatalogLoadStatus =
+    settled === null ? "loading" : settled.error ? "error" : "ready";
+  return [{ ...policy, status, error: settled?.error ?? null }, reload];
 }

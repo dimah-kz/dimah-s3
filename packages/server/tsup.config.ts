@@ -11,6 +11,5 @@ export default packageConfig({
     "src/adapters/fastify.ts",
     "src/adapters/elysia.ts",
     "src/adapters/svelte-kit.ts",
-    "src/api/index.ts",
   ],
 });

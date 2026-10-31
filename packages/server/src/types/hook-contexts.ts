@@ -1,253 +1,255 @@
-import type {
-  MultipartCompletedPartRef,
-  MultipartPartInfo,
-  S3ObjectAcl,
-} from "@dimah-s3/core";
+import type { ContentDispositionType, S3ObjectAcl } from "@dimah-s3/core";
+import type { DimahS3Locals } from "./locals";
 
-/** Context for the instance `guard` hook. */
+/** The call a hook runs in. Plugin endpoints use `"plugin"`. */
+export type S3Operation =
+  | "upload"
+  | "confirm"
+  | "download"
+  | "file"
+  | "delete"
+  | "deleteMany"
+  | "catalog"
+  | "put"
+  | "multipart.init"
+  | "multipart.signPart"
+  | "multipart.listParts"
+  | "multipart.complete"
+  | "multipart.abort"
+  | "plugin";
+
+/**
+ * How the bytes reach S3: a presigned POST or PUT, a multipart upload, or
+ * `s3.put` on the server.
+ */
+export type UploadKind = "post" | "put" | "multipart" | "server";
+
+/** Context for the instance `guard`. Every other context extends it. */
 export type GuardContext = {
-  /** The incoming HTTP request. */
+  /** The incoming request, or a synthetic one for in-process calls. */
   request: Request;
+  operation: S3Operation;
+  /** Values from earlier guards in this call. See {@link DimahS3Locals}. */
+  locals: DimahS3Locals;
 };
 
-/** Context for a route-level `guard` (every operation on that route). */
+/** Context for a route `guard`. It runs before every operation on the route. */
 export type RouteGuardContext = GuardContext & {
   /** Named file route. */
   route: string;
 };
 
-/**
- * Shared hook context once an object key is assigned — generated on
- * upload / multipart init, or supplied on confirm / download / delete /
- * multipart session ops.
- */
-export type StoredObjectContext = RouteGuardContext & {
+/** Shared context once the object key is known. */
+export type ObjectContext = RouteGuardContext & {
   /** S3 object key. */
   key: string;
-  /** Target bucket. */
   bucket: string;
 };
 
-/** Declared file on upload / multipart init. */
-export type ObjectFile = {
+/** File the client declared. S3 has not verified it yet. */
+export type UploadFile = {
   name: string;
-  size?: number;
+  size: number;
   type?: string;
 };
 
 /**
- * Input to `upload.object` on presign / multipart init.
- * `clientMetadata` is what the client sent — it is not written to S3
- * unless `object` copies it into {@link UploadObjectInfo.metadata}.
+ * Input to `upload.object`. `clientMetadata` is what the client sent; it is
+ * written to S3 only when `object` copies it into
+ * {@link UploadObjectInfo.metadata}.
  */
-export type UploadObjectContext = {
-  request: Request;
-  route: string;
-  file: ObjectFile;
+export type UploadObjectContext = RouteGuardContext & {
+  file: UploadFile;
   bucket: string;
   /**
-   * Namespace this route writes under. `false` skips the follow-up
-   * namespace check and generates `{uuid}/{name}` when `object` omits
-   * `folder` / `key`.
+   * Namespace this route writes under. With `false`, the default key is
+   * `{uuid}/{name}` and follow-up keys are not namespace-checked.
    */
   keyPrefix: string | false;
   clientMetadata?: Record<string, string>;
 };
 
-/** Server-owned S3 object identity from `upload.object`. */
+/** Server-owned object identity from `upload.object`. */
 export type UploadObjectInfo = {
   /**
-   * Extra folder under the route {@link UploadObjectContext.keyPrefix}.
-   * Nested as `{keyPrefix}/{folder}/{uuid}/{name}` unless `keyPrefix` is
-   * `false` (`{folder}/{uuid}/{name}`). Ignored when {@link key} is set.
+   * Key path segment under the route `keyPrefix`:
+   * `{keyPrefix}/{keyFolder}/{uuid}/{name}`. Ignored when {@link key} is set.
    */
-  folder?: string;
+  keyFolder?: string;
   /**
-   * Object key, nested under {@link UploadObjectContext.keyPrefix} unless
-   * the key is already inside that prefix or `keyPrefix` is `false`.
-   * If omitted, `{keyPrefix}/{folder}/{uuid}/{name}` is used
-   * (`{uuid}/{name}` when `keyPrefix` is `false` and `folder` is omitted).
+   * Object key, nested under the route `keyPrefix` unless it is already
+   * inside it or `keyPrefix` is `false`.
    */
   key?: string;
-  /** S3 user metadata (`x-amz-meta-*`). */
+  /**
+   * S3 user metadata (`x-amz-meta-*`). Non-ASCII values are RFC 2047-encoded.
+   * Keys and values, including internal keys, are limited to 2048 UTF-8
+   * bytes in total.
+   */
   metadata?: Record<string, string>;
-  /** Override the route ACL for this object. */
+  /** Overrides the route ACL for this object. */
   acl?: S3ObjectAcl;
-  /**
-   * S3 storage class (`STANDARD`, `STANDARD_IA`, `INTELLIGENT_TIERING`, …).
-   * Signed into the upload so the client cannot change it.
-   */
+  /** S3 storage class (`STANDARD_IA`, `INTELLIGENT_TIERING`, …). Signed. */
   storageClass?: string;
-  /**
-   * `Cache-Control` written on the object. Signed into the upload so the
-   * client cannot set an arbitrary value.
-   */
+  /** `Cache-Control` written on the object. Signed. */
   cacheControl?: string;
   /**
-   * S3 object tags (max 10). Signed into the upload. Do not put secrets
-   * here — the values are visible on the client for PUT/POST.
+   * S3 object tags (at most 10), printable ASCII only. Signed, and visible
+   * to the client on presigned uploads, so keep secrets out.
    */
   tagging?: Record<string, string>;
   /**
-   * After confirm succeeds, delete this key (must stay under the route
-   * `keyPrefix`). Use with a new generated key to rotate avatars.
+   * Key to delete after a successful confirm. It must stay under the route
+   * `keyPrefix`. Use it with a new key to replace an avatar.
    */
   previousKey?: string;
 };
 
-/** S3 headers returned from `upload.object` and forwarded onto the upload. */
+/** S3 headers from `upload.object` that are signed into the upload. */
 export type ObjectS3Headers = Pick<
   UploadObjectInfo,
   "storageClass" | "cacheControl" | "tagging"
 >;
 
 /**
- * Context for `upload.guard`.
- * Runs on single-shot presign and multipart init **after** `upload.object`
- * so `key` is already assigned (plugins like `db()` check ownership here).
- * Client-declared values are not verified by S3.
+ * Context for `upload.guard`. It runs on presign, multipart init and
+ * `s3.put`, after `upload.object`, so `key` is already assigned.
  */
-export type UploadGuardContext = StoredObjectContext &
+export type UploadGuardContext = ObjectContext &
   ObjectS3Headers & {
-    /** Declared file from the presign body — same shape as `upload.object`. */
-    file: ObjectFile;
-    /** S3 object metadata from route `object`. */
+    kind: UploadKind;
+    file: UploadFile;
+    acl: S3ObjectAcl;
+    /** S3 metadata from `upload.object`. */
     metadata?: Record<string, string>;
-    /** Client extras from the request — not written to S3 automatically. */
+    /** Client extras. They are never written to S3 automatically. */
     clientMetadata?: Record<string, string>;
-    /** Resolved ACL. */
-    acl?: S3ObjectAcl;
-    /** Route `upload.replace`. */
-    replace?: "overwrite";
   };
 
-/** Context for `upload.onPresigned` (single-shot only). */
-export type UploadOnPresignedContext = UploadGuardContext & {
-  /** Presigned upload URL. */
-  url: string;
-  /** Validity in seconds. */
-  expiresIn: number;
-};
-
 /**
- * Context for `upload.confirmGuard`.
- * Runs on single-shot confirm and multipart complete.
+ * Context for `upload.onStart`. It runs once the upload can begin: after
+ * presign, after `CreateMultipartUpload`, or before `PutObject` for
+ * `s3.put`. A throw cancels the upload.
  */
-export type UploadConfirmGuardContext = StoredObjectContext & {
-  /** Present on multipart complete. */
+export type UploadOnStartContext = UploadGuardContext & {
+  /** Stable id of this upload. Dedupe `onConfirmed` replays on it. */
+  uploadToken: string;
+  /** Multipart only. */
   uploadId?: string;
-  /** Parts to assemble. Present on multipart complete. */
-  parts?: MultipartCompletedPartRef[];
-  /** Route `upload.replace`. */
-  replace?: "overwrite";
+  /** Presigned URL. POST and PUT only. */
+  url?: string;
+  /** When the presigned URL expires. POST and PUT only. */
+  urlExpiresAt?: Date;
+  /** Confirm deadline: the ticket expiry, or 15 minutes for `s3.put`. */
+  expiresAt: Date;
 };
 
 /**
- * Context for `upload.onConfirmed`.
- * `contentLength` and `eTag` are verified by S3 via HeadObject.
- * Runs after single-shot confirm and multipart complete.
+ * Context for `upload.confirmGuard`. It runs on confirm and multipart
+ * complete, after HeadObject. A rejection deletes the object, or aborts the
+ * multipart upload.
  */
-export type UploadOnConfirmedContext = StoredObjectContext & {
-  /** MIME type from HeadObject. */
-  contentType?: string;
-  /** Size from HeadObject — trust this, not the presign `fileSize`. */
-  contentLength: number;
-  /** ETag from HeadObject. */
+export type UploadConfirmGuardContext = ObjectContext & {
+  kind: Exclude<UploadKind, "server">;
+  uploadToken: string;
+  /** Multipart only. */
+  uploadId?: string;
+  /** File declared at presign or init. */
+  file: UploadFile;
+};
+
+/** Object as HeadObject reports it. Trust these values, not the declared file. */
+export type VerifiedObject = {
+  name?: string;
+  size: number;
+  type?: string;
   eTag?: string;
-  /** Object metadata. */
-  metadata?: Record<string, string>;
-  /** ACL from the upload policy (`upload.acl` / `object`). */
-  acl?: S3ObjectAcl;
-  /** Stored filename. */
-  fileName?: string;
-  /** S3 version ID. */
   versionId?: string;
-  /** Last modified timestamp. */
   lastModified?: string;
-  /** Present after multipart complete. */
+  /** User metadata, decoded, without internal keys. */
+  metadata: Record<string, string>;
+};
+
+/**
+ * Context for `upload.onConfirmed`. It runs at least once per upload; a
+ * retried confirm runs it again, so dedupe on `uploadToken`.
+ */
+export type UploadOnConfirmedContext = ObjectContext & {
+  kind: UploadKind;
+  uploadToken: string;
+  /** Multipart only. */
   uploadId?: string;
+  /** ACL from the upload policy. */
+  acl: S3ObjectAcl;
+  object: VerifiedObject;
 };
 
-/** Context for `download.resolve` and `download.guard`. */
-export type DownloadGuardContext = StoredObjectContext & {
-  /** Download filename for Content-Disposition. */
-  fileName?: string;
-  /** Client-requested or route default disposition. */
-  disposition?: "inline" | "attachment";
-  /**
-   * TTL in seconds.
-   * `download.resolve` sees the client request when one was sent.
-   * `download.guard` sees the TTL that will be signed
-   * (`0` when download `mode` is `"proxy"`).
-   */
+/** Context for `download.resolve`. */
+export type DownloadResolveContext = ObjectContext & {
+  mode: "presign" | "proxy";
+  /** Download file name the client asked for. */
+  name?: string;
+  /** Requested disposition, or the route default. */
+  disposition: ContentDispositionType;
+  /** TTL the client asked for. Presign mode only. */
   expiresIn?: number;
 };
 
-/** Per-request overrides from `download.resolve`. */
+/** Per-request download options from `download.resolve`. */
 export type DownloadResolveInfo = {
-  disposition?: "inline" | "attachment";
-  /**
-   * Signed TTL in seconds. Replaces the route cap and any client request.
-   * Still clamped to the instance `maxExpiresIn`. Ignored when `mode` is `"proxy"`.
-   */
+  name?: string;
+  disposition?: ContentDispositionType;
+  /** Signed TTL in seconds, capped by the instance `maxExpiresIn`. Presign mode only. */
   expiresIn?: number;
-  fileName?: string;
+  /** `Cache-Control` on `/file` responses. Proxy mode only. @default "private, no-cache" */
+  cacheControl?: string;
+};
+
+/** Context for `download.guard`, with the values that will be used. */
+export type DownloadGuardContext = ObjectContext & {
+  mode: "presign" | "proxy";
+  name?: string;
+  disposition: ContentDispositionType;
+  /** Signed TTL. `undefined` in proxy mode. */
+  expiresIn?: number;
 };
 
 /** Context for `download.onPresigned`. */
 export type DownloadOnPresignedContext = DownloadGuardContext & {
-  /** Presigned GET URL. */
+  /** Presigned GET URL, or the `/file` URL in proxy mode. */
   url: string;
-  /** Validity in seconds. */
-  expiresIn: number;
 };
 
 /** Context for `delete.guard`. */
-export type DeleteGuardContext = StoredObjectContext;
+export type DeleteGuardContext = ObjectContext;
 
 /**
- * Context for `delete.onDeleted`. Delete is idempotent: this hook also runs
- * when the object was never uploaded or is already gone.
+ * Context for `delete.onDeleted`. Delete is idempotent, so this also runs
+ * when the object did not exist.
  */
-export type DeleteOnDeletedContext = StoredObjectContext & {
-  /** `false` when HeadObject found nothing, so no `DeleteObject` was sent. */
-  existed: boolean;
-};
+export type DeleteOnDeletedContext = ObjectContext;
 
-/** Shared base for multipart operations that already have an upload id. */
-export type MultipartUploadContext = StoredObjectContext & {
-  /** Multipart upload ID. */
+/** Shared context for multipart calls that carry a ticket. */
+export type MultipartUploadContext = ObjectContext & {
   uploadId: string;
-};
-
-/** Context for `upload.multipart.onInit`. */
-export type MultipartOnInitContext = UploadGuardContext & {
-  /** Multipart upload ID. */
-  uploadId: string;
+  uploadToken: string;
+  /** File declared at init. */
+  file: UploadFile;
 };
 
 /**
- * Context for `upload.multipart.guard`.
- * Runs on part, list, abort, and complete (init uses `upload.guard`).
- * Complete also runs `upload.confirmGuard`.
+ * Context for `upload.multipart.guard`. It runs on part signing, list,
+ * abort and complete. Init uses `upload.guard`.
  */
 export type MultipartGuardContext =
   | (MultipartUploadContext & {
       action: "part";
       /** 1-based part number. */
       partNumber: number;
-      /** Byte size locked into the presigned URL signature. */
-      partSize: number;
+      /** Byte size signed into the part URL. */
+      size: number;
     })
-  | (MultipartUploadContext & { action: "list" })
-  | (MultipartUploadContext & { action: "abort" })
-  | (MultipartUploadContext & { action: "complete" });
+  | (MultipartUploadContext & { action: "list" | "abort" | "complete" });
 
 /** Context for `upload.multipart.onAbort`. */
 export type MultipartOnAbortContext = MultipartUploadContext;
-
-/** Context for `upload.multipart.onList`. */
-export type MultipartOnListContext = MultipartUploadContext & {
-  /** Parts already uploaded to S3. */
-  parts: MultipartPartInfo[];
-};

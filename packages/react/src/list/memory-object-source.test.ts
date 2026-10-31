@@ -111,4 +111,29 @@ describe("memoryObjectSource", () => {
     const page = await live.query(input());
     expect(page.items).toEqual(records);
   });
+
+  it("sends limits with usage, and turns usage on when limits are set", async () => {
+    const options = {
+      getKey: (record: Record) => record.id,
+      getFile: (record: Record) => ({ name: record.name, size: record.size }),
+      limits: { maxBytes: 100, maxFiles: 10 },
+    };
+    const limited = memoryObjectSource(RECORDS, options);
+    const page = await limited.query(input());
+    expect(page.usage).toEqual({
+      totalBytes: 31,
+      objectCount: 6,
+      maxBytes: 100,
+      maxFiles: 10,
+    });
+
+    const hidden = memoryObjectSource(RECORDS, { ...options, usage: false });
+    expect((await hidden.query(input())).usage).toBeUndefined();
+
+    const plain = memoryObjectSource(RECORDS, {
+      getKey: options.getKey,
+      getFile: options.getFile,
+    });
+    expect((await plain.query(input())).usage).toBeUndefined();
+  });
 });

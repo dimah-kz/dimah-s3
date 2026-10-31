@@ -5,18 +5,7 @@ import {
   objectCommandExtras,
   objectPutHeaders,
 } from "./object-s3";
-import { S3_ERROR_CODES } from "@dimah-s3/core";
-
-function expectValidation(run: () => void) {
-  try {
-    run();
-    expect.unreachable();
-  } catch (error) {
-    expect(error).toMatchObject({
-      code: S3_ERROR_CODES.VALIDATION_ERROR.code,
-    });
-  }
-}
+import { ConfigError } from "./error-boundary";
 
 describe("encodeObjectTagging", () => {
   it("encodes a single tag", () => {
@@ -31,11 +20,19 @@ describe("encodeObjectTagging", () => {
     const tagging = Object.fromEntries(
       Array.from({ length: 11 }, (_, i) => [`k${i}`, "v"]),
     );
-    expectValidation(() => encodeObjectTagging(tagging));
+    expect(() => encodeObjectTagging(tagging)).toThrow(ConfigError);
   });
 
   it("rejects an empty tag key", () => {
-    expectValidation(() => encodeObjectTagging({ "": "v" }));
+    expect(() => encodeObjectTagging({ "": "v" })).toThrow(ConfigError);
+  });
+
+  it.each([
+    ["key", { café: "v" }],
+    ["value", { owner: "Zoë" }],
+    ["control character", { owner: "a\tb" }],
+  ])("rejects a non-printable-ASCII tag %s", (_, tagging) => {
+    expect(() => encodeObjectTagging(tagging)).toThrow(ConfigError);
   });
 });
 
@@ -63,13 +60,13 @@ describe("normalizeObjectS3", () => {
   });
 
   it("rejects invalid tagging", () => {
-    expectValidation(() =>
+    expect(() =>
       normalizeObjectS3({
         tagging: Object.fromEntries(
           Array.from({ length: 11 }, (_, i) => [`k${i}`, "v"]),
         ),
       }),
-    );
+    ).toThrow(ConfigError);
   });
 });
 

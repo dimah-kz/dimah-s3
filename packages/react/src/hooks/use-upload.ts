@@ -1,183 +1,190 @@
 "use client";
 
-import type { APIError, S3Api } from "@dimah-s3/core";
+import { useCallback, useContext, useId } from "react";
+import type { APIError } from "@dimah-s3/core";
+import { S3Context } from "@/s3-provider";
+import { useLiveRef } from "@/internal/hooks";
+import { requireApi } from "@/internal/client-error";
+import type { TransferProgress } from "@/types/operation";
 import type {
+  FileRejection,
+  UploadBatchResult,
+  UploadCallOptions,
   UploadFileState,
   UploadPhase,
-  UploadProgress,
-  FileUploadConfig,
-  UploadHooks,
-  UploadRequestOptions,
-} from "@/types";
+  UseUploadOptions,
+} from "@/types/upload";
+import { DEFAULT_MAX_FILES } from "@/upload/constants";
 import { useFileUpload } from "./use-file-upload";
 import {
   useFileIntake,
+  type DropTargetProps,
   type DropzoneInputProps,
   type DropzoneRootProps,
-  type FileRejection,
+  type UploadCallInput,
 } from "./use-file-intake";
 import {
-  useRouteUploadPolicy,
+  useRouteUploadPolicyState,
   type UseRouteUploadPolicyReturn,
 } from "./use-route-upload-policy";
-import { DEFAULT_MAX_FILES } from "@/upload/constants";
 
-export type { DropzoneInputProps, DropzoneRootProps, FileRejection };
+export type { DropTargetProps, DropzoneInputProps, DropzoneRootProps };
+export type { FileRejection, UseUploadOptions } from "@/types/upload";
 
-/** Catalog constraints plus the client `maxFiles` cap. */
+/**
+ * The route's upload policy narrowed by the hook options: the stricter
+ * `accept` and `maxFileSize` win, `multipart` needs the route and an option
+ * that is not `false`, and `checksum` follows the route.
+ */
 export type UploadPolicy = UseRouteUploadPolicyReturn & {
-  /** Max files per selection. @default 1 */
+  /** Max files per call. @default 1 */
   maxFiles: number;
 };
 
-/** Options for {@link useUpload}. */
-export type UseUploadOptions = FileUploadConfig &
-  UploadHooks & {
-    /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
-    api?: S3Api;
-    /** Static request options applied to every file. */
-    uploadOptions?: UploadRequestOptions;
-    /** Per-file request options (overrides `uploadOptions`). */
-    getUploadOptions?: (file: File) => UploadRequestOptions;
-    /** Disable all intake interactions. */
-    disabled?: boolean;
-    /**
-     * Disable drag interactions on the root (button-style custom UIs).
-     * `UploadButton` does not bind `getRootProps` — it only uses `open()`.
-     * @default false
-     */
-    noDrag?: boolean;
-    /**
-     * Disable click-to-open on the root (when opening via `open()` on a button).
-     * @default false
-     */
-    noClick?: boolean;
-    /**
-     * Disable keyboard activation on the root.
-     * @default false
-     */
-    noKeyboard?: boolean;
-    /** Called when dropzone soft-rejects files (type/size/count). */
-    onFileReject?: (rejections: readonly FileRejection[]) => void;
-  };
-
+/** What {@link useUpload} returns. */
 export type UseUploadReturn = {
-  /** Per-file states in the current batch. */
-  files: UploadFileState[];
-  /** First file; handy when `maxFiles` is 1. Same as `files[0] ?? null`. */
+  /** Stable for the life of the component. Toast owners use it. */
+  instanceId: string;
+  /** Every file in the queue, in the order it was added. */
+  files: readonly UploadFileState[];
+  /** The first file, or `null`. Handy when `maxFiles` is 1. */
   file: UploadFileState | null;
-  /** Batch phase. Single-file batches also surface `presigning` / `finalizing`. */
+  /** `uploading` while a call is preparing or a file is in flight. */
   phase: UploadPhase;
-  /** Aggregate byte transfer progress. */
-  progress: UploadProgress;
-  /** Batch-level error, or `null`. */
+  /** Bytes sent across every file in the queue. */
+  progress: TransferProgress;
+  /** The one failed file's error, or `PARTIAL_FAILURE` when several failed. */
   error: APIError | null;
-  /** `true` while bytes are transferring (`phase === "uploading"`). */
-  isUploading: boolean;
-  /**
-   * `true` while the upload is in-flight (`validating`, `presigning`,
-   * `uploading`, or `finalizing`).
-   */
+  /** `true` while `phase` is `uploading`. */
   isPending: boolean;
-  /**
-   * Resolved client constraints: catalog values plus hook overrides,
-   * and `maxFiles` (default 1).
-   */
   policy: UploadPolicy;
-  /** `true` when an `uploadStore` is configured (pause/resume). */
+  /** `true` when an `uploadStore` is set, so multipart uploads can resume. */
   resumable: boolean;
   /**
-   * Start an upload from a picker, drop, paste, or a `File` you already have.
+   * Validates and uploads files from a picker, a drop, a paste or your own
+   * code. Invalid files are rejected without stopping the others. Resolves
+   * once every file has ended.
    */
-  handleFiles: (files: FileList | File[] | File | null) => Promise<void>;
-  /** Open the native file picker. */
-  open: () => void;
-  /** Abort and reset to idle. */
-  cancel: () => void;
-  /**
-   * Soft-stop: preserves S3 parts and store entry so a future upload can
-   * resume. For non-resumable uploads, identical to `cancel()`.
-   */
+  handleFiles: (
+    files: FileList | readonly File[] | File | null,
+    call?: UploadCallOptions,
+  ) => Promise<UploadBatchResult>;
+  /** Opens the native file picker. `call` applies to the picked files. */
+  open: (call?: UploadCallOptions) => void;
+  /** Cancels one file by `id`, or every file. */
+  cancel: (id?: string) => void;
+  /** Stops every file but keeps stored multipart uploads for resuming. */
   detach: () => void;
+  /** Removes settled files and rejections. Stable identity. */
   reset: () => void;
-  /** Spread on the dropzone / clickable root element. */
-  getRootProps: <T extends DropzoneRootProps>(props?: T) => T;
+  /**
+   * Spread on a dropzone: drag and drop, paste, click and keyboard to open
+   * the picker. `call` applies to the files it takes in.
+   */
+  getRootProps: <T extends DropzoneRootProps>(
+    props?: T,
+    call?: UploadCallInput,
+  ) => T;
+  /**
+   * Drag and drop handlers only: no `tabIndex`, no click or keyboard, no
+   * `role`. For drop targets that keep their own interactions, such as
+   * folder rows. A drop on a target inside a dropzone uses the target's
+   * `call`.
+   */
+  getDropTargetProps: <T extends object = DropTargetProps>(
+    props?: T & DropTargetProps,
+    call?: UploadCallInput,
+  ) => T & DropTargetProps;
   /** Spread on a hidden `<input type="file">`. */
   getInputProps: <T extends DropzoneInputProps>(props?: T) => T;
-  /** `true` while a drag is over the root. */
+  /** `true` while files are dragged over a dropzone or drop target. */
   isDragActive: boolean;
+  /** `true` while the dragged files match `accept` and `maxFiles`. */
   isDragAccept: boolean;
+  /** `true` while the dragged files break `accept` or `maxFiles`. */
   isDragReject: boolean;
-  /** Soft rejections from the last drop / selection. */
+  /** Files the newest call rejected for their type, size or count. */
   fileRejections: readonly FileRejection[];
 };
 
-function toFileArray(files: FileList | File[] | File | null): File[] {
-  if (files == null) return [];
-  if (files instanceof File) return [files];
-  return Array.from(files);
-}
-
+/**
+ * Uploads files to a named route through a queue.
+ *
+ * Every call validates its files against the route policy from the catalog
+ * and rejects the invalid ones with catalog error codes, so
+ * `useFormatDimahError` can show them. Valid files upload `concurrentFiles`
+ * at a time, and each one can be cancelled with `cancel(id)`. A call's
+ * `uploadOptions` merge over the hook's: call fields win, and `metadata`
+ * merges key by key.
+ */
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
-  const { disabled, noDrag, noClick, noKeyboard, onFileReject, ...uploadOpts } =
-    options;
-
+  const instanceId = useId();
+  const contextApi = useContext(S3Context);
+  const api = requireApi(options.api ?? contextApi, "useUpload");
   const maxFiles = options.maxFiles ?? DEFAULT_MAX_FILES;
-  const resumable =
-    options.uploadStore != null && options.uploadStore !== false;
 
-  const catalogPolicy = useRouteUploadPolicy({
-    api: options.api,
+  const [routePolicy, reloadCatalog] = useRouteUploadPolicyState({
+    api,
     route: options.route,
     accept: options.accept,
     maxFileSize: options.maxFileSize,
     multipart: options.multipart,
-    checksum: options.checksum,
   });
+  const engine = useFileUpload(options);
+  const { upload } = engine;
+  const catalogStatusRef = useLiveRef(routePolicy.status);
 
-  const engine = useFileUpload(uploadOpts);
-
-  const handleFiles = (files: FileList | File[] | File | null) => {
-    const list = toFileArray(files);
-    if (list.length === 0) return Promise.resolve();
-    return engine.upload(list);
-  };
+  const handleFiles = useCallback(
+    (
+      files: FileList | readonly File[] | File | null,
+      call?: UploadCallOptions,
+    ) => {
+      // The upload loads the catalog again, so the policy can recover too.
+      if (catalogStatusRef.current === "error") reloadCatalog();
+      return upload(toFileArray(files), call);
+    },
+    [catalogStatusRef, reloadCatalog, upload],
+  );
 
   const intake = useFileIntake({
-    accept: catalogPolicy.accept,
-    maxFileSize: catalogPolicy.maxFileSize,
+    accept: routePolicy.accept,
     maxFiles,
-    multiple: maxFiles > 1,
-    disabled: Boolean(disabled) || engine.isPending,
-    noDrag,
-    noClick,
-    noKeyboard,
-    onAccept: (files) => {
-      void handleFiles(files);
+    disabled: options.disabled,
+    noDrag: options.noDrag,
+    noClick: options.noClick,
+    noKeyboard: options.noKeyboard,
+    onFiles: (files, call) => {
+      void handleFiles(files, call);
     },
-    onReject: onFileReject,
   });
 
   return {
+    instanceId,
     files: engine.files,
     file: engine.file,
     phase: engine.phase,
     progress: engine.progress,
     error: engine.error,
-    isUploading: engine.isUploading,
     isPending: engine.isPending,
-    policy: { ...catalogPolicy, maxFiles },
-    resumable,
+    policy: { ...routePolicy, maxFiles },
+    resumable: options.uploadStore != null,
     handleFiles,
     open: intake.open,
     cancel: engine.cancel,
     detach: engine.detach,
     reset: engine.reset,
     getRootProps: intake.getRootProps,
+    getDropTargetProps: intake.getDropTargetProps,
     getInputProps: intake.getInputProps,
     isDragActive: intake.isDragActive,
     isDragAccept: intake.isDragAccept,
     isDragReject: intake.isDragReject,
-    fileRejections: intake.fileRejections,
+    fileRejections: engine.fileRejections,
   };
+}
+
+function toFileArray(files: FileList | readonly File[] | File | null): File[] {
+  if (files == null) return [];
+  if (files instanceof File) return [files];
+  return Array.from(files);
 }

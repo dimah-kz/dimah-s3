@@ -1,11 +1,17 @@
+import type { UploadRequestOptions } from "@/types/upload";
+
 /**
- * Bytes and file count for the catalog.
+ * Bytes and file count for the catalog, with the caps the server enforces.
  * Scope-wide when the source is `dbObjectSource`. A custom query can use the
  * same shape for its own totals.
  */
 export type ObjectListUsage = {
   totalBytes: number;
   objectCount: number;
+  /** Byte cap. Omit when there is none. */
+  maxBytes?: number;
+  /** File-count cap. Omit when there is none. */
+  maxFiles?: number;
 };
 
 /** One folder the catalog can open. `id` is opaque to the hook. */
@@ -106,6 +112,16 @@ export type ObjectListSource<TItem> = {
    * Keep it pure. Defaults to `{ name: getKey(item) }`.
    */
   getFile?: (item: TItem) => ObjectListFile;
+  /**
+   * Request options for files uploaded into `parent` (`null` is the root).
+   * Enables drop-on-folder.
+   */
+  uploadOptions?: (parent: string | null) => UploadRequestOptions;
+  /** Creates an empty folder. Enables "New folder". */
+  createFolder?: (input: {
+    parent: string | null;
+    name: string;
+  }) => Promise<ObjectListFolder>;
 };
 
 /** A folder row in {@link ObjectListEntry} order. */

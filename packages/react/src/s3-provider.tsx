@@ -30,10 +30,14 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
   children: ReactNode;
 };
 
+/** Used when `translations` is omitted, so the provider value stays stable. */
+const NO_TRANSLATIONS: Partial<Translations> = {};
+
 /**
  * Provides an `S3Api` (optionally extended with client plugins) to child hooks
- * and UI. When `translations` is set, wraps children in Fuma
- * `TranslationProvider`; otherwise English source keys are used as-is.
+ * and UI. Children are always wrapped in a Fuma `TranslationProvider`, so the
+ * tree keeps its shape when `translations` changes. Its map extends any
+ * `TranslationProvider` above it; without one, English source keys are used.
  *
  * Prefer {@link createS3Client} when using client plugins — it returns the
  * API object itself plus a bound `Provider` / typed `useApi()`.
@@ -60,13 +64,9 @@ export function S3Provider<TApi extends S3Api>({
   return (
     <S3Context.Provider value={api}>
       <S3LocaleContext.Provider value={locale}>
-        {translations ? (
-          <TranslationProvider translations={translations}>
-            {children}
-          </TranslationProvider>
-        ) : (
-          children
-        )}
+        <TranslationProvider translations={translations ?? NO_TRANSLATIONS}>
+          {children}
+        </TranslationProvider>
       </S3LocaleContext.Provider>
     </S3Context.Provider>
   );

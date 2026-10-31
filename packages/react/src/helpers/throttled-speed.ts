@@ -1,4 +1,4 @@
-import type { UploadProgress } from "@/types";
+import type { TransferProgress } from "@/types/operation";
 import type { SpeedTracker } from "./speed-tracker";
 
 /** Throttle speed samples so UI updates stay readable. */
@@ -15,7 +15,7 @@ export function createThrottledSpeedUpdater(
       lastSpeed = undefined;
       lastUpdate = 0;
     },
-    apply(progress: UploadProgress): UploadProgress {
+    apply(progress: TransferProgress): TransferProgress {
       const rawSpeed = tracker.update(progress.loaded);
       const now = Date.now();
       if (rawSpeed > 0 && now - lastUpdate >= intervalMs) {

@@ -1,63 +1,30 @@
-import { act } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "@/test/render-hook";
-import { useImmerState } from "./use-immer-state";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createLocalStorageStore } from "./local-storage-store";
 import { createMemoryStore } from "./memory-store";
+import type { StoredUpload } from "@/types/upload-store";
 
-const sample = {
-  resumeKey: "uploads:photo.jpg:10:1",
-  uploadId: "u1",
+const resumeKey = "uploads:photo.jpg:10:1";
+const storageKey = `dimah-s3:upload:${resumeKey}`;
+
+const sample: StoredUpload = {
+  resumeKey,
+  ticket: "v1.payload.signature",
   key: "uploads/uuid/photo.jpg",
+  uploadId: "u1",
   fileSize: 10,
+  partSize: 8,
+  partCount: 2,
+  checksum: false,
 };
 
-describe("useImmerState", () => {
-  it("supports immer drafts and replace", () => {
-    type State = {
-      phase: "idle" | "uploading";
-      files: Array<{ id: string; progress: number }>;
-    };
-    const initial: State = { phase: "idle", files: [] };
-    const hook = renderHook(() => useImmerState(initial));
-
-    act(() => {
-      hook.current[1]((draft) => {
-        draft.phase = "uploading";
-        draft.files.push({ id: "a", progress: 0 });
-      });
-    });
-    expect(hook.current[0]).toMatchObject({
-      phase: "uploading",
-      files: [{ id: "a", progress: 0 }],
-    });
-
-    act(() => {
-      hook.current[1]((draft) => {
-        const file = draft.files.find((f) => f.id === "a");
-        if (file) file.progress = 42;
-      });
-    });
-    expect(hook.current[0].files[0]?.progress).toBe(42);
-
-    act(() => {
-      hook.current[2](initial);
-    });
-    expect(hook.current[0]).toEqual(initial);
-    hook.unmount();
-  });
-});
-
 describe("createMemoryStore", () => {
-  it("persists only when the size matches", async () => {
+  it("returns a record only for its file size", async () => {
     const store = createMemoryStore();
     await store.set(sample);
-    expect(await store.get("uploads:photo.jpg:10:1", 10)).toMatchObject({
-      uploadId: "u1",
-    });
-    expect(await store.get("uploads:photo.jpg:10:1", 11)).toBeNull();
-    await store.delete("uploads:photo.jpg:10:1");
-    expect(await store.get("uploads:photo.jpg:10:1", 10)).toBeNull();
+    expect(await store.get(resumeKey, 10)).toEqual(sample);
+    expect(await store.get(resumeKey, 11)).toBeNull();
+    await store.delete(resumeKey);
+    expect(await store.get(resumeKey, 10)).toBeNull();
   });
 });
 
@@ -79,33 +46,61 @@ describe("createLocalStorageStore", () => {
     vi.stubGlobal("localStorage", storage);
   });
 
-  afterEach(() => {
-    map.clear();
-  });
-
-  it("round-trips the same key and size", async () => {
+  it("round-trips a record for its file size", async () => {
     const store = createLocalStorageStore();
     await store.set(sample);
-    expect(await store.get("uploads:photo.jpg:10:1", 10)).toEqual(sample);
-    expect(await store.get("uploads:photo.jpg:10:1", 11)).toBeNull();
-    await store.delete("uploads:photo.jpg:10:1");
-    expect(await store.get("uploads:photo.jpg:10:1", 10)).toBeNull();
+    expect(JSON.parse(map.get(storageKey) ?? "")).toEqual(sample);
+    expect(await store.get(resumeKey, 10)).toEqual(sample);
+    expect(await store.get(resumeKey, 11)).toBeNull();
+    expect(map.has(storageKey)).toBe(true);
+    await store.delete(resumeKey);
+    expect(await store.get(resumeKey, 10)).toBeNull();
   });
 
-  it("returns null for invalid JSON", async () => {
-    localStorage.setItem("dimah-s3:upload:uploads:photo.jpg:10:1", "{");
-    expect(
-      await createLocalStorageStore().get("uploads:photo.jpg:10:1", 10),
-    ).toBeNull();
+  it("ignores and deletes a 1.x record", async () => {
+    map.set(
+      storageKey,
+      JSON.stringify({
+        resumeKey,
+        uploadId: "u1",
+        key: "uploads/uuid/photo.jpg",
+        fileSize: 10,
+      }),
+    );
+    expect(await createLocalStorageStore().get(resumeKey, 10)).toBeNull();
+    expect(map.has(storageKey)).toBe(false);
   });
 
-  it("rejects a stored payload whose resumeKey does not match", async () => {
-    localStorage.setItem(
-      "dimah-s3:upload:uploads:photo.jpg:10:1",
+  it("ignores and deletes invalid JSON", async () => {
+    map.set(storageKey, "{");
+    expect(await createLocalStorageStore().get(resumeKey, 10)).toBeNull();
+    expect(map.has(storageKey)).toBe(false);
+  });
+
+  it("ignores and deletes a record stored under another resume key", async () => {
+    map.set(
+      storageKey,
       JSON.stringify({ ...sample, resumeKey: "other:file:10:1" }),
     );
-    expect(
-      await createLocalStorageStore().get("uploads:photo.jpg:10:1", 10),
-    ).toBeNull();
+    expect(await createLocalStorageStore().get(resumeKey, 10)).toBeNull();
+    expect(map.has(storageKey)).toBe(false);
+  });
+
+  it("does nothing when localStorage is unavailable", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {
+        throw new Error("denied");
+      },
+      removeItem: () => {
+        throw new Error("denied");
+      },
+    });
+    const store = createLocalStorageStore();
+    expect(() => store.set(sample)).not.toThrow();
+    expect(store.get(resumeKey, 10)).toBeNull();
+    expect(() => store.delete(resumeKey)).not.toThrow();
   });
 });

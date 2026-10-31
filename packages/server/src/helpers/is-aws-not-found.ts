@@ -1,4 +1,4 @@
-import { errors } from "@/errors";
+import { s3Error } from "@dimah-s3/core";
 
 /** True when an AWS SDK throw means the object or multipart upload does not exist. */
 export function isAwsNotFound(err: unknown): boolean {
@@ -25,7 +25,8 @@ export async function sendOrObjectNotFound<T>(
   try {
     return await send();
   } catch (err: unknown) {
-    if (isAwsNotFound(err)) throw errors.objectNotFound();
+    if (isAwsNotFound(err))
+      throw s3Error("OBJECT_NOT_FOUND", undefined, { cause: err });
     throw err;
   }
 }

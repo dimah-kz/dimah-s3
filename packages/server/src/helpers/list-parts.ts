@@ -6,7 +6,13 @@ import {
 } from "@aws-sdk/client-s3";
 import { sendOrObjectNotFound } from "./is-aws-not-found";
 
-/** Page through ListParts until S3 reports no more parts. */
+/** Parts per ListParts page, the most S3 returns. */
+const LIST_PARTS_PAGE_SIZE = 1000;
+
+/**
+ * Every uploaded part of a multipart upload, reading ListParts page by page
+ * until S3 reports no more. A missing upload fails with `OBJECT_NOT_FOUND`.
+ */
 export async function listAllParts(
   client: S3Client,
   input: { bucket: string; key: string; uploadId: string },
@@ -22,32 +28,20 @@ export async function listAllParts(
           Bucket: input.bucket,
           Key: input.key,
           UploadId: input.uploadId,
-          ...(partNumberMarker ? { PartNumberMarker: partNumberMarker } : {}),
+          MaxParts: LIST_PARTS_PAGE_SIZE,
+          PartNumberMarker: partNumberMarker,
         }),
       ),
     );
     parts.push(...(response.Parts ?? []));
     isTruncated = response.IsTruncated === true;
-    partNumberMarker = isTruncated ? response.NextPartNumberMarker : undefined;
+    partNumberMarker = response.NextPartNumberMarker;
+    if (isTruncated && partNumberMarker === undefined) {
+      throw new Error(
+        `ListParts for "${input.key}" is truncated but has no NextPartNumberMarker.`,
+      );
+    }
   }
 
   return parts;
-}
-
-/** Sum `Size` on listed parts. Pass `excludePartNumber` when replacing a part. */
-export function listedPartsByteSize(
-  parts: readonly { PartNumber?: number; Size?: number }[],
-  excludePartNumber?: number,
-): number {
-  let total = 0;
-  for (const part of parts) {
-    if (
-      excludePartNumber !== undefined &&
-      part.PartNumber === excludePartNumber
-    ) {
-      continue;
-    }
-    total += part.Size ?? 0;
-  }
-  return total;
 }

@@ -1,217 +1,238 @@
+import {
+  isS3ErrorCode,
+  type MultipartInitPayload,
+  type MultipartPartInfo,
+  type S3Api,
+} from "@dimah-s3/core";
+import { reportCallbackError } from "@/internal/callbacks";
 import type {
-  UploadProgress,
-  UploadRequestOptions,
-  RetryConfig,
+  UploadEnginePhase,
+  UploadFileOptions,
   UploadResult,
-} from "@/types";
-import { isS3ErrorCode, type S3Api } from "@dimah-s3/core";
-import type { UploadStore } from "@/types/upload-store";
-import { withRetry } from "./retry";
-import { uploadPart } from "./upload-part";
+} from "@/types/upload";
+import type { StoredUpload, UploadStore } from "@/types/upload-store";
+import { getUploadAbortKind } from "./abort";
+import { layoutPartSize, uploadParts } from "./part-pool";
 import { multipartResumeKey } from "./resume-key";
+import { isRetryableError, withRetry } from "./retry";
+import { isStoredUpload } from "./stored-upload";
 
-/** Returns the byte size of a specific part (last part may be smaller). */
-function resolvePartSize(
-  partIndex: number,
-  totalParts: number,
-  partSize: number,
-  fileSize: number,
-): number {
-  return partIndex === totalParts - 1
-    ? fileSize - partIndex * partSize
-    : partSize;
-}
+type MultipartSession = {
+  upload: StoredUpload;
+  /** Part numbers already uploaded with the expected size. */
+  done: ReadonlySet<number>;
+};
 
+/**
+ * Resume keys of the multipart uploads running with a store in this page.
+ * Module-wide, because two stores can share one backing storage.
+ */
+const activeResumeKeys = new Set<string>();
+
+/**
+ * Uploads `file` as a multipart upload in the layout the server picks at
+ * init, resuming a stored upload when `options.uploadStore` has one.
+ *
+ * With a store, a request error or an abort with `uploadAbortReason("detach")`
+ * keeps the server upload and its record for resuming. A cancel, any other
+ * abort, or any failure without a store aborts the server upload and deletes
+ * the record. While one upload of a resume key runs, another upload of the
+ * same key runs without the store, so the two never share a session.
+ */
 export async function uploadMultipart(
   api: S3Api,
   file: File,
-  route: string,
-  partSize: number,
-  concurrentParts: number,
-  onProgress?: (progress: UploadProgress) => void,
-  signal?: AbortSignal,
-  requestOptions?: UploadRequestOptions,
-  retryConfig?: RetryConfig,
-  uploadStore?: UploadStore | false,
-  onPartUpload?: (partNumber: number, totalParts: number) => void,
-  onMultipartInit?: (uploadId: string, key: string) => void,
+  payload: MultipartInitPayload,
+  options: UploadFileOptions,
+  setPhase: (phase: UploadEnginePhase) => void,
 ): Promise<UploadResult> {
-  const rawContentType = requestOptions?.contentType ?? file.type;
-  const contentType = rawContentType.trim() === "" ? undefined : rawContentType;
-  const fileName = requestOptions?.fileName || file.name;
-  const resumeKey = multipartResumeKey(route, file);
-
-  // Resolve the active store.
-  // null  → resumability disabled (uploadStore omitted, false, or SSR)
-  // store → resumability enabled; persist uploadId across sessions
-  const store: UploadStore | null =
-    uploadStore != null && uploadStore !== false ? uploadStore : null;
-
-  const completedPartNumbers = new Set<number>();
-
-  const initUpload = async () => {
-    const result = await api.multipart.init({
-      route,
-      contentType,
-      fileSize: file.size,
-      fileName,
-      metadata: requestOptions?.metadata,
-      checksum: requestOptions?.checksum,
-    });
-    await store?.set({
-      resumeKey,
-      uploadId: result.uploadId,
-      key: result.key,
-      fileSize: file.size,
-    });
-    onMultipartInit?.(result.uploadId, result.key);
-    return { uploadId: result.uploadId, key: result.key };
-  };
-
-  // ── Attempt to resume an existing upload ─────────────────────────────────
-  const existing = store ? await store.get(resumeKey, file.size) : null;
-
-  let uploadId: string;
-  let key: string;
-
-  if (existing) {
-    try {
-      // Verify the uploadId is still valid on S3 and fetch already-done parts.
-      const { parts } = await api.multipart.listParts({
-        route,
-        key: existing.key,
-        uploadId: existing.uploadId,
-      });
-      uploadId = existing.uploadId;
-      key = existing.key;
-      for (const p of parts) completedPartNumbers.add(p.partNumber);
-      onMultipartInit?.(uploadId, key);
-    } catch (err) {
-      // Only NoSuchUpload / missing object — not a blip or 5xx.
-      if (!isS3ErrorCode(err, "OBJECT_NOT_FOUND")) throw err;
-      await store?.delete(resumeKey);
-      ({ uploadId, key } = await initUpload());
-    }
-  } else {
-    ({ uploadId, key } = await initUpload());
-  }
-
-  // ── Setup progress tracking ───────────────────────────────────────────────
-  const totalParts = Math.ceil(file.size / partSize);
-
-  // Pre-fill progress bytes for already-completed parts.
-  const partProgress: Array<{ bytes: number }> = Array.from(
-    { length: totalParts },
-    (_, i) => ({
-      bytes: completedPartNumbers.has(i + 1)
-        ? resolvePartSize(i, totalParts, partSize, file.size)
-        : 0,
-    }),
-  );
-
-  // Pre-register completed parts so complete() receives a full list.
-  const parts: Array<{ partNumber: number }> = Array.from(
-    completedPartNumbers,
-    (n) => ({ partNumber: n }),
-  );
-
-  const reportProgress = () => {
-    const loaded = partProgress.reduce((sum, p) => sum + p.bytes, 0);
-    onProgress?.({
-      loaded,
-      total: file.size,
-      percent: Math.round((loaded / file.size) * 100),
-    });
-  };
-
-  // Report initial progress for pre-completed parts before uploading starts.
-  if (completedPartNumbers.size > 0) {
-    reportProgress();
-  }
-
-  // ── Upload remaining parts ────────────────────────────────────────────────
+  const resumeKey = multipartResumeKey(options.route, file, options.request);
+  const store = activeResumeKeys.has(resumeKey)
+    ? undefined
+    : options.uploadStore;
+  if (store) activeResumeKeys.add(resumeKey);
   try {
-    for (
-      let batchStart = 0;
-      batchStart < totalParts;
-      batchStart += concurrentParts
-    ) {
-      if (signal?.aborted) {
-        throw new DOMException("Upload aborted", "AbortError");
-      }
-
-      const batchEnd = Math.min(batchStart + concurrentParts, totalParts);
-      const batch: Array<Promise<{ partNumber: number }>> = [];
-
-      for (let i = batchStart; i < batchEnd; i++) {
-        const partNumber = i + 1;
-
-        // Skip parts that were already uploaded in a previous attempt.
-        if (completedPartNumbers.has(partNumber)) continue;
-
-        const start = i * partSize;
-        const end = Math.min(start + partSize, file.size);
-        const blob = file.slice(start, end);
-
-        batch.push(
-          withRetry(
-            async () => {
-              const { url } = await api.multipart.signPart({
-                route,
-                key,
-                uploadId,
-                partNumber,
-                partSize: blob.size,
-              });
-
-              partProgress[i].bytes = 0;
-
-              await uploadPart(
-                blob,
-                url,
-                partProgress[i],
-                reportProgress,
-                signal,
-              );
-
-              onPartUpload?.(partNumber, totalParts);
-              return { partNumber };
-            },
-            retryConfig,
-            signal,
-          ),
-        );
-      }
-
-      const batchResults = await Promise.all(batch);
-      parts.push(...batchResults);
-    }
-
-    const result = await api.multipart.complete({
-      route,
-      key,
-      uploadId,
-      parts: parts.toSorted((a, b) => a.partNumber - b.partNumber),
+    return await runMultipart(api, file, payload, options, setPhase, {
+      store,
+      resumeKey,
     });
+  } finally {
+    if (store) activeResumeKeys.delete(resumeKey);
+  }
+}
 
-    // Upload finished successfully — remove from store.
-    await store?.delete(resumeKey);
+/** The upload itself, with `store` unset when the resume key is taken. */
+async function runMultipart(
+  api: S3Api,
+  file: File,
+  payload: MultipartInitPayload,
+  options: UploadFileOptions,
+  setPhase: (phase: UploadEnginePhase) => void,
+  { store, resumeKey }: { store: UploadStore | undefined; resumeKey: string },
+): Promise<UploadResult> {
+  const { signal } = options;
 
-    onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
-    return {
-      key,
-      eTag: result.eTag,
-      contentLength: result.contentLength,
-      contentType: result.contentType,
-      fileName: result.fileName,
+  setPhase("preparing");
+  const resumed = store
+    ? await resumeSession(api, file, store, resumeKey, options, setPhase)
+    : null;
+
+  let upload: StoredUpload;
+  let done: ReadonlySet<number>;
+  if (resumed) {
+    ({ upload, done } = resumed);
+  } else {
+    setPhase("presigning");
+    const init = await withRetry(
+      () => api.multipart.init(payload, { signal }),
+      options,
+    );
+    upload = {
+      resumeKey,
+      ticket: init.ticket,
+      key: init.key,
+      uploadId: init.uploadId,
+      fileSize: file.size,
+      partSize: init.partSize,
+      partCount: init.partCount,
+      checksum: init.checksum,
     };
-  } catch (err) {
-    if (store === null) {
-      // Resumability is disabled — clean up the S3 multipart upload immediately.
-      api.multipart.abort({ route, key, uploadId }).catch(() => {});
+    done = new Set();
+  }
+
+  try {
+    if (store && !resumed) await quietly(() => store.set(upload));
+    options.onMultipartInit?.({ uploadId: upload.uploadId, key: upload.key });
+
+    setPhase("uploading");
+    await uploadParts(api, file, upload, done, options);
+
+    setPhase("finalizing");
+    // The result is the confirmed object, without the multipart `uploadId`.
+    const { uploadId: _uploadId, ...result } = await withRetry(
+      () => api.multipart.complete({ ticket: upload.ticket }, { signal }),
+      options,
+    );
+    if (store) await quietly(() => store.delete(resumeKey));
+    return result;
+  } catch (error) {
+    const keep =
+      store !== undefined && (!signal?.aborted || isDetached(signal));
+    if (!keep) {
+      abortQuietly(api, upload.ticket);
+      if (store) await quietly(() => store.delete(resumeKey));
     }
-    // With store active: preserve uploadId so the upload can be resumed later.
-    // The S3 multipart upload is left open (expires automatically per bucket policy).
-    throw err;
+    throw error;
+  }
+}
+
+/**
+ * Loads a stored upload and the parts S3 already has. A record with an
+ * unknown shape is deleted. A record whose upload is gone or whose ticket no
+ * longer verifies is aborted and deleted, so the caller starts over.
+ *
+ * Once a valid record is read, a cancel or a failure that retrying cannot fix
+ * also aborts the server upload and deletes the record before rejecting, so
+ * the next upload of the file starts fresh. A detach or a request error that
+ * might pass later keeps both.
+ */
+async function resumeSession(
+  api: S3Api,
+  file: File,
+  store: UploadStore,
+  resumeKey: string,
+  options: UploadFileOptions,
+  setPhase: (phase: UploadEnginePhase) => void,
+): Promise<MultipartSession | null> {
+  const record = await readRecord(store, resumeKey, file.size);
+  if (record === null) return null;
+  if (
+    !isStoredUpload(record) ||
+    record.resumeKey !== resumeKey ||
+    record.fileSize !== file.size
+  ) {
+    await quietly(() => store.delete(resumeKey));
+    return null;
+  }
+
+  try {
+    options.signal?.throwIfAborted();
+    setPhase("presigning");
+    const { parts } = await withRetry(
+      () =>
+        api.multipart.listParts(
+          { ticket: record.ticket },
+          { signal: options.signal },
+        ),
+      options,
+    );
+    return { upload: record, done: completedParts(record, parts) };
+  } catch (error) {
+    const { signal } = options;
+    const keep = signal?.aborted ? isDetached(signal) : isRetryableError(error);
+    if (keep) throw error;
+    abortQuietly(api, record.ticket);
+    await quietly(() => store.delete(resumeKey));
+    if (signal?.aborted || !isSessionGone(error)) throw error;
+    return null;
+  }
+}
+
+function isDetached(signal: AbortSignal): boolean {
+  return getUploadAbortKind(signal.reason) === "detach";
+}
+
+/** The stored record, or `null` when the store has none or fails. */
+async function readRecord(
+  store: UploadStore,
+  resumeKey: string,
+  fileSize: number,
+): Promise<unknown> {
+  try {
+    return await store.get(resumeKey, fileSize);
+  } catch (error) {
+    reportCallbackError(error);
+    return null;
+  }
+}
+
+/** Parts that match the layout, and carry a checksum when one is required. */
+function completedParts(
+  upload: StoredUpload,
+  parts: readonly MultipartPartInfo[],
+): Set<number> {
+  const done = new Set<number>();
+  for (const { partNumber, size, checksum } of parts) {
+    if (
+      partNumber >= 1 &&
+      partNumber <= upload.partCount &&
+      size === layoutPartSize(upload, partNumber) &&
+      (!upload.checksum || checksum !== undefined)
+    ) {
+      done.add(partNumber);
+    }
+  }
+  return done;
+}
+
+function isSessionGone(error: unknown): boolean {
+  return (
+    isS3ErrorCode(error, "UPLOAD_TICKET_EXPIRED") ||
+    isS3ErrorCode(error, "UPLOAD_TICKET_INVALID") ||
+    isS3ErrorCode(error, "OBJECT_NOT_FOUND")
+  );
+}
+
+/** Aborts the server upload in the background. Its error is ignored. */
+function abortQuietly(api: S3Api, ticket: string): void {
+  api.multipart.abort({ ticket }).catch(() => {});
+}
+
+/** Runs a store call. A failure is reported and never fails the upload. */
+async function quietly(run: () => void | Promise<void>): Promise<void> {
+  try {
+    await run();
+  } catch (error) {
+    reportCallbackError(error);
   }
 }
