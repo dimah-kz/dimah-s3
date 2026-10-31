@@ -22,6 +22,7 @@ export const awsS3 = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID || "minioadmin",
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "minioadmin",
   },
+  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
 });
 
 export const s3 = dimahS3({

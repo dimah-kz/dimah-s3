@@ -116,7 +116,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
             <FileCard
               time={time}
               fileName="quarterly-report.pdf"
-              fileType="application/pdf"
+              contentType="application/pdf"
               fileSize={2_400_000}
             />
           </SpringPopIn>
@@ -124,7 +124,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
             <FileCard
               time={time}
               fileName="avatar.png"
-              fileType="image/png"
+              contentType="image/png"
               fileSize={180_000}
               previewUrl={PREVIEW}
             />
@@ -133,7 +133,7 @@ function AttachmentTweetTimeline({ id }: { id: string }) {
             <FileCard
               time={time}
               fileName="budget.xlsx"
-              fileType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              contentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               fileSize={84_000}
             />
           </SpringPopIn>
@@ -165,13 +165,13 @@ function uploadAt(time: number) {
 function FileCard({
   time,
   fileName,
-  fileType,
+  contentType,
   fileSize,
   previewUrl,
 }: {
   time: number;
   fileName: string;
-  fileType: string;
+  contentType: string;
   fileSize: number;
   previewUrl?: string;
 }) {
@@ -186,16 +186,14 @@ function FileCard({
       className="contents"
     >
       <FileAttachment
-        size="default"
-        orientation="vertical"
         state={state}
         fileName={fileName}
-        fileType={fileType}
+        contentType={contentType}
         fileSize={fileSize}
         previewUrl={previewUrl}
         percent={percent}
         onDismiss={() => undefined}
-        className="[&_circle]:transition-none"
+        className="w-30 [&_circle]:transition-none"
       />
     </div>
   );

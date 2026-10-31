@@ -1,32 +1,40 @@
 ---
 title: Plugins
-description: Extend dimahS3 with definePlugin — custom endpoints, lifecycle hooks, and typed context.
+description: Extend dimahS3 with definePlugin — hooks, HTTP endpoints, ticket binding, and typed context.
 icon: Puzzle
 ---
 
-Use `definePlugin` to create reusable server extensions such as
-[`db()`](/docs/db). Plugins can contribute lifecycle hooks, HTTP endpoints
-under your `basePath`, and typed instance context (`s3[id]`).
+Use `definePlugin` to build reusable server extensions such as
+[`db()`](/docs/db). A plugin can add hooks, HTTP endpoints under your
+`basePath`, and a typed context on the instance (`s3[id]`).
 
 ```ts title="lib/s3-audit-plugin.ts"
-import { definePlugin, createS3Endpoint } from "@dimah-s3/server";
+import { createS3Endpoint, definePlugin } from "@dimah-s3/server/plugins";
+import * as z from "zod";
 
 export const auditPlugin = definePlugin({
   id: "audit",
   hooks: {
     upload: {
-      onConfirmed: async ({ key }) => {
-        console.log("[audit] Upload confirmed:", key);
+      onConfirmed: async ({ key, uploadToken }) => {
+        await audit.record({ key, uploadToken });
       },
     },
   },
   endpoints: {
-    stats: createS3Endpoint("/audit/stats", { method: "GET" }, async () => ({
-      status: "ok",
-    })),
+    recent: createS3Endpoint(
+      "/audit/recent",
+      {
+        method: "GET",
+        query: z.object({ limit: z.coerce.number().int().max(100).optional() }),
+      },
+      async (ctx) => ({
+        events: await audit.recent(ctx.context.locals, ctx.query.limit),
+      }),
+    ),
   },
   context: {
-    log: (msg: string) => console.log("[audit]", msg),
+    log: (message: string) => console.log("[audit]", message),
   },
 });
 ```
@@ -49,12 +57,156 @@ export const s3 = dimahS3({
 s3.audit.log("Storage ready"); // [!code ++]
 ```
 
+`definePlugin`, `createS3Endpoint`, `createS3Middleware`, and `isFeatureOn`
+come from `@dimah-s3/server/plugins`. `chainHooks` comes from the main entry.
+
 ---
 
 ## Hook execution order
 
-- **Guards** — Plugins execute first in registration order, followed by user config guards.
-- **Lifecycle hooks (`onConfirmed`, `onDeleted`)** — User config hooks execute first, followed by plugin hooks.
+- **Guards** run instance, then route, then feature (`upload.guard`,
+  `download.guard`, …). At each level, plugin guards run first in plugin
+  order, and your guard runs last.
+- **Lifecycle hooks** (`onStart`, `onConfirmed`, `onPresigned`, `onDeleted`,
+  `onAbort`) also run plugins first, then yours. Your hook sees state the
+  plugins already wrote, such as the `db()` row.
+- A route with `plugins: { [id]: false }` skips that plugin's route hooks.
+
+A throw from a plugin `onConfirmed` deletes the object and returns the error,
+because the plugin's bookkeeping failed. A throw from yours keeps the object.
+See [Upload Hooks](/docs/server/hooks/upload#failure-rules).
+
+### Binding tickets
+
+A plugin can provide `hooks.ticketSubject` to bind
+[upload tickets](/docs/server/upload-tickets#binding-a-ticket-to-a-user)
+when the config sets none. The first plugin that has one is used. `db()`
+binds tickets to the scope this way.
+
+---
+
+## Endpoints
+
+`createS3Endpoint(path, options, handler)` builds a plugin endpoint. The path
+is under `basePath` and must not be a core path.
+
+- `method` is `GET`, `POST`, `PATCH`, or `DELETE`. `GET` and `DELETE` read the
+  `query`. `POST` and `PATCH` read a JSON `body`; any other content type
+  returns `415 UNSUPPORTED_MEDIA_TYPE`.
+- The instance guards run first, with `operation: "plugin"`. The handler
+  reads `ctx.context.request`, `ctx.context.locals` (what those guards
+  returned), and `ctx.context.config`.
+- A schema failure returns `400 VALIDATION_ERROR`. An `APIError` passes
+  through. Anything else is logged, passed to `onError`, and returns
+  `500 INTERNAL_ERROR`.
+- Endpoints are HTTP only. They are not added to `s3.api`; expose server-side
+  functions through `context` instead.
+
+`createS3Middleware` builds a middleware with the same context, for checks
+shared by several endpoints:
+
+```ts
+import { createS3Middleware, createS3Endpoint } from "@dimah-s3/server/plugins";
+import { s3Error } from "@dimah-s3/server";
+
+const requireUser = createS3Middleware(async (ctx) => {
+  if (!ctx.context.locals.userId) throw s3Error("UNAUTHORIZED");
+});
+
+createS3Endpoint(
+  "/audit/export",
+  { method: "POST", use: [requireUser] },
+  async (ctx) => ({ url: await audit.export(ctx.context.locals) }),
+);
+```
+
+`locals.userId` is typed by a [`DimahS3Locals`](/docs/server/hooks/global-guard#locals)
+augmentation.
+
+---
+
+## Startup and route options
+
+`init` runs once at `dimahS3()`, in plugin order, after the routes are
+validated. Throw there to reject the config. `dependsOn` lists plugins that
+must be registered too.
+
+To read per-route options, augment `DimahS3RoutePluginOptions` with your id
+and call `routeOptions(route)`:
+
+```ts
+declare module "@dimah-s3/server" {
+  interface DimahS3RoutePluginOptions {
+    audit?: false | { label: string };
+  }
+}
+
+export const auditPlugin = definePlugin({
+  id: "audit",
+  init: ({ config, routeOptions, logger }) => {
+    for (const name of Object.keys(config.routes)) {
+      const options = routeOptions<{ label: string }>(name);
+      if (options === false) logger.info?.(`audit is off for ${name}`);
+    }
+  },
+});
+```
+
+Routes set them under `plugins`:
+
+```ts
+avatar: route({
+  upload: true,
+  plugins: { audit: { label: "Avatars" } }, // [!code ++]
+}),
+```
+
+---
+
+## Type reference
+
+```ts
+import type {
+  DimahS3Plugin,
+  DimahS3PluginHooks,
+  PluginInitEnv,
+  S3EndpointContext,
+} from "@dimah-s3/server/plugins";
+```
+
+### DimahS3Plugin
+
+<AutoTypeTable
+  path="packages/server/src/plugin/types.ts"
+  name="DimahS3Plugin"
+/>
+
+---
+
+### DimahS3PluginHooks
+
+<AutoTypeTable
+  path="packages/server/src/plugin/types.ts"
+  name="DimahS3PluginHooks"
+/>
+
+---
+
+### PluginInitEnv
+
+<AutoTypeTable
+  path="packages/server/src/plugin/types.ts"
+  name="PluginInitEnv"
+/>
+
+---
+
+### S3EndpointContext
+
+<AutoTypeTable
+  path="packages/server/src/api/context.ts"
+  name="S3EndpointContext"
+/>
 
 ## Frequently asked questions
 
@@ -62,7 +214,8 @@ s3.audit.log("Storage ready"); // [!code ++]
 
 <Accordion title="How do I add client-side actions for a server plugin?">
 
-Create a client plugin with `defineClientPlugin` from `@dimah-s3/core`:
+Create a client plugin with `defineClientPlugin` from `@dimah-s3/core`. Use
+`pluginPath` so the client and server paths match:
 
 ```ts
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
@@ -71,7 +224,11 @@ export function auditClient() {
   return defineClientPlugin({
     id: "audit",
     getActions: ($fetch) => ({
-      getStats: () => $fetch(pluginPath("audit", "stats"), { method: "GET" }),
+      recent: (limit?: number) =>
+        $fetch(pluginPath("audit", "recent"), {
+          method: "GET",
+          query: { limit },
+        }),
     }),
   });
 }
@@ -88,6 +245,22 @@ avatar: route({
   upload: true,
   plugins: { audit: false }, // [!code ++]
 }),
+```
+
+</Accordion>
+
+<Accordion title="How do I combine several guards in one slot?">
+
+Use `chainHooks`. It runs each hook in order and stops at the first throw.
+Each `{ locals }` result is merged before the next hook runs, so chained
+guards behave like separate ones:
+
+```ts
+import { chainHooks } from "@dimah-s3/server";
+
+upload: {
+  guard: chainHooks(requireUser, checkQuota), // [!code ++]
+},
 ```
 
 </Accordion>

@@ -3,7 +3,8 @@ title: Delete
 description: Delete one or many objects through your custom backend.
 ---
 
-Deletion is a direct backend mutation, not a presigned client-to-S3 transfer.
+Deleting is a request to your backend, not a presigned transfer. Delete is
+idempotent: a key that does not exist still succeeds.
 
 ## Delete one
 
@@ -19,57 +20,61 @@ Deletion is a direct backend mutation, not a presigned client-to-S3 transfer.
   name="DeleteResponse"
 />
 
-```ts
-import type { DeletePayload, DeleteResponse } from "@dimah-s3/core";
-```
-
-## Example
-
-Add this to the [`defineApi`](/docs/react/custom-backend) skeleton.
-[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?route=…&key=…`.
-
-```ts
-async delete(payload) {
-  const params = new URLSearchParams({
-    route: payload.route,
-    key: payload.key,
-  });
-
-  const res = await fetch(`/api/files/delete?${params}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-```
-
 ## Delete many
 
-`deleteMany` receives one route and between 1 and 100 keys. Return one result
-for every input key so the React hook can preserve partial successes and expose
-per-object errors.
+`deleteMany` receives one route and between 1 and 100 keys
+(`DELETE_MANY_MAX_KEYS`). `useDelete` splits larger calls into batches of that
+size.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
-  name="DeleteBatchPayload"
+  name="DeleteManyPayload"
 />
+
+Delete each key on its own. Put it in `deleted`, or in `failed` with an error
+body `{ code, message, params? }`. A key you leave out of both fails with
+`UNKNOWN_ERROR`.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
-  name="DeleteBatchResponse"
+  name="DeleteManyResponse"
 />
 
-```ts
-import type { DeleteBatchPayload, DeleteBatchResponse } from "@dimah-s3/core";
-```
+## Example
 
-```ts
-async deleteMany(payload) {
-  const res = await fetch("/api/files/delete-batch", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?route=…&key=…`
+and `POST /api/s3/delete/batch`.
+
+```ts title="lib/s3-api/delete.ts"
+import type {
+  DeleteManyPayload,
+  DeleteManyResponse,
+  DeletePayload,
+  DeleteResponse,
+  S3RequestOptions,
+} from "@dimah-s3/core";
+import { $fetch, call } from "./fetch";
+
+export const deleteObject = (
+  payload: DeletePayload,
+  options?: S3RequestOptions,
+) =>
+  $fetch<DeleteResponse>("/delete", {
+    method: "DELETE",
+    query: payload,
+    ...call(options),
   });
 
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
+export const deleteMany = (
+  payload: DeleteManyPayload,
+  options?: S3RequestOptions,
+) =>
+  $fetch<DeleteManyResponse>("/delete/batch", {
+    method: "POST",
+    body: payload,
+    ...call(options),
+  });
 ```
+
+`$fetch` and `call` come from the
+[skeleton](/docs/react/custom-backend#skeleton).

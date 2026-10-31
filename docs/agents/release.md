@@ -39,17 +39,43 @@ Package references: `"@dimah-s3/core"`, `"npm:@dimah-s3/core"`, or `"group:dimah
 | minor | Backward-compatible feature               |
 | major | Breaking API, types, or consumer contract |
 
+The maintainer picks the bump. A breaking change may ship in a minor (1.8.0 did), but it is never silent:
+
+- List it under a `#### Breaking changes` heading in the package's changelog, with a short migration note (old name → new name, or what to do instead).
+- Write one file per changed package (`"@dimah-s3/<pkg>": minor`), plus one `group:dimah-s3` file with the upgrade overview when the whole line moves.
+- Add or update the docs upgrade page (`apps/docs/content/docs/(framework)/migration-<version>.mdx`) and link it from the group file.
+
+```md
+---
+packages:
+  "@dimah-s3/server": minor
+---
+
+### Signed upload tickets
+
+Presign returns a signed upload ticket, and confirm verifies it.
+
+#### Breaking changes
+
+- **A secret is required for uploads.** Set `DIMAH_S3_SECRET` or pass `dimahS3({ secret })`.
+```
+
+## Exact peers
+
+`@dimah-s3/ui` pins `@dimah-s3/core` and `@dimah-s3/react`, and `@dimah-s3/db` pins `@dimah-s3/server`, to the exact current version (such as `"1.8.0"`, not a range). The Tegami version step rewrites them with the group bump. `pnpm check:dist` fails when an exact `@dimah-s3/*` peer differs from that package's version.
+
 ## Before opening a PR
 
 ```bash
 pnpm build
 pnpm check-types
 pnpm test
+pnpm check:dist
 ```
 
-When changing `templates/**` or template maintenance scripts, also run `pnpm templates:build`.
+When changing `templates/**` or template maintenance scripts, also run `pnpm templates:build`. Before the new version is on npm, use `pnpm templates:build -- --local`, which packs the workspace packages instead.
 
-CI posts a Tegami release preview comment on the PR.
+CI posts a Tegami release preview comment on the PR. `pnpm tegami pr preview --number <pr> --artifact <file>` builds the same preview locally; it reads the pull request from GitHub, so it needs one.
 
 ## Maintainer publish flow
 
@@ -73,9 +99,10 @@ Configure this for every new package under the scope (after the package exists o
 
 ## Local commands
 
-| Command               | Purpose                                |
-| --------------------- | -------------------------------------- |
-| `pnpm tegami`         | Create a changelog interactively       |
-| `pnpm tegami version` | Draft bumps and write the publish lock |
-| `pnpm tegami publish` | Publish from the publish lock          |
-| `pnpm tegami ci`      | Version if pending, otherwise publish  |
+| Command                  | Purpose                                |
+| ------------------------ | -------------------------------------- |
+| `pnpm tegami`            | Create a changelog interactively       |
+| `pnpm tegami pr preview` | Preview the release for a pull request |
+| `pnpm tegami version`    | Draft bumps and write the publish lock |
+| `pnpm tegami publish`    | Publish from the publish lock          |
+| `pnpm tegami ci`         | Version if pending, otherwise publish  |

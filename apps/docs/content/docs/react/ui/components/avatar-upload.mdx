@@ -1,0 +1,124 @@
+---
+title: Avatar Upload
+description: Round image button that shows the current picture and uploads a new one.
+---
+
+import { AvatarUploadDemo } from "@/components/demos/avatar-upload-demo";
+
+`AvatarUpload` shows a stored image and replaces it. A click opens the file
+picker, and an image dropped on it uploads too. It shows the new image while
+it uploads, with a progress ring.
+
+## Preview
+
+<DemoPreview name="avatar-upload-demo.tsx">
+  <AvatarUploadDemo />
+</DemoPreview>
+
+## Install
+
+<include>../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import { AvatarUpload } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/avatar-upload
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { AvatarUpload, UploadToasts } from "@dimah-s3/ui";
+
+export function ProfilePhoto({
+  avatarKey,
+  saveAvatar,
+}: {
+  avatarKey: string | null;
+  saveAvatar: (key: string) => void;
+}) {
+  const upload = useUpload({ route: "avatar", accept: ["image/*"] });
+
+  return (
+    <>
+      <AvatarUpload
+        upload={upload}
+        route="avatar"
+        objectKey={avatarKey}
+        label="Change profile photo"
+        onChange={(result) => saveAvatar(result.key)}
+      />
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+`onChange` runs once for each image that uploads. Store `result.key` and
+pass it back as `objectKey`. Images that uploaded before the avatar mounted
+are not reported.
+
+## What it shows
+
+- While an image uploads, and after it succeeds, the picked file's preview.
+- Otherwise `objectKey`, signed through `route` with
+  [`ObjectImage`](/docs/react/ui/components/object-image).
+- Without a key, or when the image cannot load, a placeholder icon.
+
+`route` is the route that signs the GET for `objectKey`. It is usually the
+same route the hook uploads to. `size` sets the width and height in pixels.
+
+## Accessibility
+
+`label` is required: it is the button's accessible name. A polite live region
+announces the upload: "Preparing…", "Uploading…", "Upload complete", the
+error, or the reason a file was rejected.
+
+## Without a provider
+
+`AvatarUpload` signs the image URL with the API from `<S3Provider>`. Without
+a provider, pass the same `api` to the hook and to the component:
+
+```tsx
+const upload = useUpload({ api, route: "avatar" });
+
+<AvatarUpload
+  api={api}
+  upload={upload}
+  route="avatar"
+  objectKey={avatarKey}
+  label="Change profile photo"
+/>;
+```
+
+---
+
+## Props
+
+```ts
+import type { AvatarUploadProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/upload/avatar-upload.tsx"
+  name="AvatarUploadProps"
+/>

@@ -5,22 +5,38 @@ icon: Atom
 ---
 
 [`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is the
-headless React client for dimah-s3. It manages file intake, validation,
-progress, retries, cancellation, and multipart transfers while leaving the UI
-to you.
+headless React client for dimah-s3. It handles file intake, validation,
+progress, retries, cancel, and multipart transfers, and leaves the UI to you.
 
 Uploads and, by default, downloads run directly between the browser and the
-bucket; credentials remain on the server. Downloads can also use the server's
-same-origin proxy mode.
+bucket. Credentials stay on the server: the client sends a route name, and the
+server picks the object key.
 
 ## Key features
 
-- **Headless architecture** — Transfer state and accessible DOM props without imposed markup or styles.
-- **Presigned transfers** — Uploads and default-mode downloads bypass your application server.
-- **Multipart support** — Automatic chunking for large files with resumable state via `UploadStore`.
-- **Automatic constraint sync** — Loads file-size and MIME-type constraints from server route definitions.
-- **Ready-made UI** — Optional accessible [shadcn components](/docs/react/ui) for common file controls.
-- **Backend agnostic** — Use `@dimah-s3/server` or a complete custom `S3Api` implementation.
+- **Per-key state** — Each file or object key has its own operation, so lists can show many transfers at once.
+- **Outcomes, not throws** — Every action resolves with an outcome or a result. Errors are `APIError`s with stable codes.
+- **Upload queue** — Validated files upload a few at a time, and each can be cancelled on its own.
+- **Multipart and resume** — Large files upload in parts the server lays out, and can resume with an `UploadStore`.
+- **Server-owned policy** — Accepted types, size limits, multipart, and checksums come from the server's route catalog.
+- **Ready-made UI** — Optional accessible [shadcn components](/docs/react/ui) built on these hooks.
+- **Backend agnostic** — Use `@dimah-s3/server`, or implement the `S3Api` contract yourself.
+
+## Entries
+
+The package has two entries:
+
+- **`@dimah-s3/react`** — hooks, `S3Provider`, `createS3Client`, the formatter hooks, and types. Its build is marked `"use client"`.
+- **`@dimah-s3/react/engine`** — plain functions with no React import, such as `uploadFile`, `defineApi`, `memoryObjectSource`, and the stores. Use them in shared or server modules. See [Engine](/docs/react/guides/engine).
+
+`APIError`, `S3_ERROR_CODES`, `validateFile`, and the other protocol helpers
+come from [`@dimah-s3/core`](/docs/core). The React package does not
+re-export them. It needs React 19.
+
+<Callout>
+  Upgrading from 1.7? See [Upgrade to 1.8](/docs/migration-1-8) for the renamed
+  hooks, callbacks, and entries.
+</Callout>
 
 ## Documentation
 
@@ -28,22 +44,27 @@ same-origin proxy mode.
   <Card
     title="React Setup"
     href="/docs/react/setup"
-    description="Initialize createS3Client, configure S3Provider, and call your first hook."
+    description="Create the client, mount S3Provider, and call your first hook."
   />
   <Card
     title="Upload"
     href="/docs/react/hooks/upload"
-    description="useUpload — single and multi-file uploads with progress tracking."
+    description="useUpload — a queue of files with progress, cancel, and multipart."
   />
   <Card
     title="Download"
     href="/docs/react/hooks/download"
-    description="useDownload — direct downloads and progress streams."
+    description="useDownload hands a URL to the browser; useFetchDownload fetches with progress."
   />
   <Card
     title="Delete"
     href="/docs/react/hooks/delete"
-    description="useDelete — confirm and remove objects through your API."
+    description="useDelete — remove one or many objects, with state for each key."
+  />
+  <Card
+    title="Object URL"
+    href="/docs/react/hooks/object-url"
+    description="useObjectUrl — sign, cache, and refresh a URL for a private object."
   />
   <Card
     title="Object list"
@@ -51,19 +72,29 @@ same-origin proxy mode.
     description="useObjectList and useObjectListSelection — page, search, sort, and select a folder catalog."
   />
   <Card
+    title="Outcomes and errors"
+    href="/docs/react/guides/outcomes"
+    description="What actions return, how callbacks run, and how to read errors."
+  />
+  <Card
+    title="Engine"
+    href="/docs/react/guides/engine"
+    description="Plain functions from @dimah-s3/react/engine, such as uploadFile."
+  />
+  <Card
     title="UI Setup"
     href="/docs/react/ui"
-    description="Ready-made shadcn buttons and dropzones built on these hooks."
+    description="Ready-made shadcn components built on these hooks."
   />
   <Card
     title="Upload Store"
     href="/docs/react/upload-store"
-    description="Persist multipart metadata and resume after the same local file is reselected."
+    description="Persist multipart uploads and resume when the same file is selected again."
   />
   <Card
     title="Helpers"
     href="/docs/react/helpers"
-    description="Pure utilities for progress formatting, file sizing, and validation."
+    description="Formatters for sizes, speed, time left, dates, and errors."
   />
   <Card
     title="Forms"

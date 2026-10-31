@@ -1,6 +1,6 @@
 ---
 title: Object List
-description: Composable file browser for useObjectList — list and grid views, search, sort, selection, upload, and a file menu.
+description: Composable file browser for useObjectList — list and grid views, search, sort, selection, folders, upload, and a file menu.
 ---
 
 import { ObjectListDemo } from "@/components/demos/object-list-demo";
@@ -61,22 +61,14 @@ import {
   useUpload,
   type ObjectListSource,
 } from "@dimah-s3/react";
-import { ObjectList, UploadButton } from "@dimah-s3/ui";
+import { ObjectList, UploadTrigger } from "@dimah-s3/ui";
 
 type LibraryFile = { id: string; key: string; name: string; size: number };
 
 export function Library({ source }: { source: ObjectListSource<LibraryFile> }) {
   const list = useObjectList(source);
   const selection = useObjectListSelection(list);
-  const upload = useUpload({
-    route: "docs",
-    maxFiles: 8,
-    noClick: true,
-    noKeyboard: true,
-    getUploadOptions: () => ({
-      metadata: { folderId: list.parent ?? "" },
-    }),
-  });
+  const upload = useUpload({ route: "docs", maxFiles: 8, queue: true });
   const download = useDownload({ route: "docs" });
   const remove = useDelete({ route: "docs" });
 
@@ -87,9 +79,7 @@ export function Library({ source }: { source: ObjectListSource<LibraryFile> }) {
       upload={upload}
       download={download}
       delete={remove}
-      toolbar={
-        <UploadButton upload={upload} size="sm" status={false} toast={false} />
-      }
+      toolbar={<UploadTrigger size="sm" />}
     />
   );
 }
@@ -99,14 +89,21 @@ export function Library({ source }: { source: ObjectListSource<LibraryFile> }) {
 | ----------- | ----------------------------------------------------------------------------- |
 | `selection` | Checkboxes, the selection bar, Shift ranges, Ctrl+A / Cmd+A, Escape, Space    |
 | `upload`    | Drop and paste into the open folder, progress under the header                |
-| `download`  | Download and Copy link in the file menu                                       |
+| `download`  | Download in the file menu. `useDownload` or `useFetchDownload`                |
 | `share`     | Copy link through a second `useDownload`, such as `disposition: "inline"`     |
 | `delete`    | Delete in the file menu with a confirmation, and bulk Delete on the selection |
+| `toasts`    | Toasts for those hooks. On by default; see [Toasts](#toasts)                  |
 
 Rows read `list.getFile(item)`: the name, object key, size, type, date, and
 thumbnail you return from `getFile` on the source. The second line shows the
 size and the date. A file with `previewUrl` shows the image; the name stays
 the accessible label.
+
+The list is the [`Upload`](/docs/react/ui/components/upload),
+[`Download`](/docs/react/ui/components/download), and
+[`Delete`](/docs/react/ui/components/delete) root for its hooks. So
+`UploadTrigger`, `UploadDropzone`, `DownloadTrigger`, and `DeleteTrigger`
+work inside it without their own root.
 
 ## Compose
 
@@ -124,7 +121,7 @@ import {
   ObjectListUploadStatus,
   ObjectListUsage,
   ObjectListViewToggle,
-  UploadButton,
+  UploadTrigger,
 } from "@dimah-s3/ui";
 
 <ObjectList
@@ -138,7 +135,7 @@ import {
     <ObjectListSearch />
     <ObjectListSortMenu />
     <ObjectListViewToggle />
-    <UploadButton upload={upload} size="sm" status={false} toast={false} />
+    <UploadTrigger size="sm" />
   </ObjectListHeader>
   <ObjectListUsage />
   <ObjectListUploadStatus />
@@ -146,21 +143,22 @@ import {
 </ObjectList>;
 ```
 
-| Part                     | Renders                                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------------- |
-| `ObjectListHeader`       | Select-all, the path, a reload spinner, and `children`. The selection bar while selecting |
-| `ObjectListBreadcrumb`   | The path. Earlier folders collapse into a menu past two levels                            |
-| `ObjectListSearch`       | A debounced search box for `list.search`                                                  |
-| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                |
-| `ObjectListViewToggle`   | List and grid buttons                                                                     |
-| `ObjectListSelectAll`    | The select-all checkbox                                                                   |
-| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                  |
-| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                         |
-| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for `usageLimits`                         |
-| `ObjectListUploadStatus` | Upload progress and errors                                                                |
-| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                        |
-| `ObjectListEmpty`        | The empty state, with your own text or a call to action                                   |
-| `ObjectListItemMenu`     | Download, Copy link, your actions, and Delete for one file                                |
+| Part                     | Renders                                                                                               |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `ObjectListHeader`       | Select-all, the path, a reload spinner, New folder, and `children`. The selection bar while selecting |
+| `ObjectListBreadcrumb`   | The path. Earlier folders collapse into a menu past two levels                                        |
+| `ObjectListSearch`       | A debounced search box for `list.search`                                                              |
+| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                            |
+| `ObjectListViewToggle`   | List and grid buttons                                                                                 |
+| `ObjectListSelectAll`    | The select-all checkbox                                                                               |
+| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                              |
+| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                     |
+| `NewFolderControl`       | New folder, when the source has `createFolder`. `ObjectListHeader` already has one                    |
+| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                          |
+| `ObjectListUploadStatus` | Upload progress and errors                                                                            |
+| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                    |
+| `ObjectListEmpty`        | The empty state, with your own text or a call to action                                               |
+| `ObjectListItemMenu`     | Download, Copy link, your actions, and Delete for a file. Upload to this folder for a folder          |
 
 `useObjectListContext()` returns the list, selection, hooks, and view, for
 parts of your own. Inside an entry, `useObjectListEntry()` returns it.
@@ -194,7 +192,7 @@ Change part of every entry with a `render*` prop. Each receives the entry:
 ```
 
 - `onOpenItem` runs when a file is clicked or activated with Enter. Folders always open in place.
-- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, or `delete`. Return `null` to hide it.
+- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, or `delete`, and folders get it when files can be uploaded into them. Return `null` to hide it.
 - `renderDescription` replaces the second line. `renderMeta` sits beside the name.
 - `renderEntry` replaces the whole row or tile. Return `ObjectListRow` or `ObjectListTile` with your own `className`, `media`, or `actions` to keep selection, keyboard, and opening.
 
@@ -269,10 +267,19 @@ const selection = useObjectListSelection(list, { isSelectable: () => true });
 />;
 ```
 
-Deletes run in batches of 100. Deleted files leave the rows at once, then the
-list reloads the pages on screen. `onDeleted` receives the object keys that
-were deleted and those that failed, from the file menu and the selection
-bar alike. Leave `useDelete`'s `onSuccess` for your own work.
+## Delete
+
+The file menus and the selection bar share one confirmation. `removeMany`
+sends the keys in batches of 100. Deleted files leave the rows and the
+selection at once, then the list reloads the pages on screen. Selected
+folders stay selected while they still exist.
+
+`onDeleted` receives the `DeleteResult` of each confirmed delete: the keys
+that were `deleted`, those that `failed`, and those `beforeDelete` blocked. Leave
+`useDelete`'s `onSuccess` for your own work.
+
+After a delete, focus moves to the entry that took the place of the first
+deleted one, else the one before it, else the frame.
 
 ## Keyboard
 
@@ -287,23 +294,13 @@ bar alike. Leave `useDelete`'s `onSuccess` for your own work.
 
 Fields, menus, and dialogs inside the list keep their own keys.
 
-## Upload into the open folder
+## Upload into folders
 
-Pass the same `useUpload` to `upload` and, for the file picker, to
-`UploadButton` in the header. Set `noClick` and `noKeyboard` on the hook.
-The frame accepts a drop and a paste, and it does not open the picker when an
-entry is clicked. The list renders the hook's file input, so `upload.open()`
-from any trigger — a menu item or an empty-state button — opens the picker.
-
-`getUploadOptions` reads `list.parent` and sends it as `metadata.folderId`.
-It runs as each file starts, so it sees the folder that is open at that
-moment. Read `clientMetadata.folderId` in `upload.object` or `upload.guard`
-and store it on your file row. The library does not write that id into the
-object key, and a drop onto a folder entry still goes to the open folder.
-
-When a batch settles and at least one file succeeded, `ObjectList` reloads
-once. Set `toast={false}` and `status={false}` on the header button so the
-list owns progress.
+Pass a `useUpload` as `upload`. The frame takes drops and pastes into the
+open folder. It is a drop target, not a dropzone: clicking it does not open
+the picker, so the hook needs no `noClick` or `noKeyboard`. For the picker,
+put an `UploadTrigger` in the header, the toolbar, or the empty state. It
+uses the list's hook without its own `Upload`.
 
 ```tsx
 <ObjectList
@@ -311,36 +308,67 @@ list owns progress.
   upload={upload}
   empty={
     <ObjectListEmpty>
-      <Button size="sm" onClick={upload.open}>
-        Upload files
-      </Button>
+      <UploadTrigger size="sm" />
     </ObjectListEmpty>
   }
 />
 ```
 
+Where a file goes comes from the source. When it has `uploadOptions(parent)`,
+every file uploaded into the list sends the options for its folder:
+
+- drops and pastes on the frame use the open folder;
+- a folder row takes drops for that folder, and its menu has "Upload to this
+  folder" as the keyboard path;
+- `UploadTrigger` and `UploadDropzone` inside the list use the open folder.
+  Their own `call` merges over it.
+
+`dbObjectSource` sets `uploadOptions` for its folders. With your own source,
+return the folder as metadata, read it as `clientMetadata` in the server's
+upload hook, and store it on your file row:
+
+```tsx
+const list = useObjectList({
+  ...source,
+  uploadOptions: (parent) => ({ metadata: { folderId: parent ?? "" } }),
+});
+```
+
+Without `uploadOptions`, files use the hook's own options, and folder rows
+take no drops. Each time the queue settles with new uploads, the list
+reloads once.
+
+## Toasts
+
+With `toasts` on (the default), the list shows toasts for `upload`,
+`download`, and `delete`. They step aside for an `UploadToasts`,
+`DownloadToasts`, or `DeleteToasts` you mount for the same hook, so a hook
+never reports twice. Mount one `<Toaster />` either way.
+
+Copy link and the bulk delete report their own result. With
+`toasts={false}`, they speak through a polite live region instead.
+
 ## File menu
 
 `ObjectListItemMenu` downloads, copies a link, and deletes one file. Inside a
 list every prop is optional: the object key, name, and size come from the
-entry, and the hooks come from the list. The list draws one delete
-confirmation and one set of toasts for all rows.
+entry, and the hooks come from the list. Delete asks the list's confirmation.
 
-Copy link signs through `share` when the list has it, otherwise through
-`download`, then writes the URL to the clipboard. Pass `expiresIn` to ask for
-a shorter TTL than the route cap; the toast shows the TTL that was signed.
-Pass `actions`, or `DropdownMenuItem` children, for rows such as rename.
-They render after Copy link and before Delete.
+Copy link signs one URL through `share` when the list has it, otherwise
+through a navigate-mode `download`, then writes it to the clipboard. Signing
+does not start a download. Pass `expiresIn` to ask for a shorter TTL than
+the route cap; the message shows the TTL that was signed. Pass `actions`, or
+`DropdownMenuItem` children, for rows such as rename. They render after Copy
+link and before Delete.
 
-Outside a list, pass `objectKey` and the hooks yourself:
+Outside a list the menu has Copy link, with `share`, and your own rows:
 
 ```tsx
 <ObjectListItemMenu
   objectKey={file.key}
   fileName={file.name}
-  download={download}
-  delete={remove}
-  onDeleted={() => reload()}
+  share={share}
+  actions={[{ label: "Rename", onClick: () => rename(file) }]}
 />
 ```
 
@@ -359,20 +387,30 @@ which repeats that page.
 ## Storage
 
 Return `usage` from the query and `useObjectList` keeps it on `list.usage`.
-Pass your caps as `usageLimits`; those are the same numbers as
-`db({ quota })` when that plugin enforces the limit. The meter follows
-whichever cap is closer to full and turns destructive at the cap. Without
-`usage`, nothing is shown. `dbObjectSource` forwards the scope total, not the
-open folder.
+`ObjectListUsage` shows the bytes and the file count. When the usage carries
+`maxBytes` or `maxFiles`, it adds a meter that follows whichever cap is
+closer to full and turns destructive at the cap. Without `usage`, nothing is
+shown.
+
+The caps come from the source: `memoryObjectSource({ limits })`, or the
+`db({ quota })` caps through `dbObjectSource`. `dbObjectSource` sends the
+scope total, not the open folder's.
 
 ## Folders
 
 `ObjectList` does not invent folders. The first page of the query returns
-them. For a tree, keep folders in your own table and return them from your
-query on the first page. `memoryObjectSource` builds them from a
-`/`-separated path with `getFolder`. `dbObjectSource` sends the open folder
-as a key prefix; generated keys contain a uuid segment, so that prefix is not
-a folder tree.
+them.
+
+- `memoryObjectSource` builds them from a `/`-separated path with
+  `getFolder`.
+- `dbObjectSource` lists the folders stored by `db()`, uploads into the open
+  folder, and creates folders with New folder.
+- With your own source, return folders from your query on the first page, and
+  add `createFolder` to enable New folder.
+
+New folder opens a labelled name field. Enter creates the folder through the
+source, and Escape cancels. An invalid or taken name shows a message under
+the field that describes it.
 
 ## Props
 

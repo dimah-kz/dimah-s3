@@ -4,21 +4,24 @@ description: Backend handlers, route policies, and lifecycle hooks for S3 file f
 icon: Server
 ---
 
-[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) generates
-presigned URLs, enforces route constraints, authorizes requests through
-guards, and coordinates lifecycle callbacks.
+[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) presigns
+uploads and downloads, enforces route constraints, runs your guards, and calls
+your lifecycle hooks.
 
-Uploads and, by default, downloads travel directly between the browser and the
-bucket through short-lived signed URLs. Downloads can instead use same-origin
-proxy mode. S3 credentials stay on the server, and deletions run server-side.
+Uploads, and by default downloads, go straight between the browser and the
+bucket through short-lived signed URLs. Downloads can instead stream through
+your server in proxy mode. S3 credentials stay on the server, and deletes run
+there too.
 
 ## Key features
 
-- **Unified configuration** — `dimahS3()` exports both an HTTP route handler and a typed server-side `api`.
-- **Server-owned keys** — The server generates namespaced object keys instead of trusting browser-provided keys.
-- **HeadObject verification** — Confirmation rechecks stored byte length and `Content-Type` metadata from S3.
-- **Lifecycle hooks** — Run auth, persistence, quotas, and cleanup at defined operation boundaries.
-- **Framework adapters** — Mount handlers in Next.js, Hono, Express, Fastify, SvelteKit, Elysia, and standard Fetch runtimes.
+- **One instance** — `dimahS3()` returns an HTTP `handler`, an in-process `api` with the browser client's shape, and `put` for server-side uploads.
+- **Server-owned keys** — The browser sends a route name. The server builds the object key.
+- **Upload tickets** — Presign returns a signed ticket. Confirm and every later multipart call send only that ticket, optionally bound to a user.
+- **HeadObject verification** — Confirm reads the stored size and type from S3, not from the browser.
+- **Guards and locals** — Guards authorize each call and can pass typed `locals` to later hooks.
+- **Hardened proxy** — `GET /file` streams objects with a sandbox CSP, single-range support, and conditional requests.
+- **Framework adapters** — Next.js, Hono, Express, Fastify, SvelteKit, Elysia, Node, and any Fetch runtime.
 
 ## Documentation
 
@@ -26,7 +29,7 @@ proxy mode. S3 credentials stay on the server, and deletions run server-side.
   <Card
     title="Server Setup"
     href="/docs/server/setup"
-    description="Install and mount route handlers across modern runtimes."
+    description="Install, set the ticket secret, and mount the handler."
   />
   <Card
     title="Routes"
@@ -39,18 +42,28 @@ proxy mode. S3 credentials stay on the server, and deletions run server-side.
     description="Guards, key isolation, tenant scoping, and metadata validation."
   />
   <Card
+    title="Upload Tickets"
+    href="/docs/server/upload-tickets"
+    description="The signed ticket behind confirm and multipart, and its secret."
+  />
+  <Card
+    title="File Proxy"
+    href="/docs/server/file-proxy"
+    description="Stream downloads through GET /file with Range and caching."
+  />
+  <Card
     title="Errors"
     href="/docs/server/errors"
-    description="APIError structure, error codes, and client mapping."
+    description="The error catalog, s3Error, and client mapping."
   />
   <Card
     title="Lifecycle Hooks"
     href="/docs/server/hooks/upload"
-    description="Presign, confirmation, download, and delete lifecycle events."
+    description="Start, confirm, download, delete, and multipart hooks."
   />
   <Card
     title="Plugins"
     href="/docs/server/plugins"
-    description="Extend server capabilities with plugins like @dimah-s3/db."
+    description="Extend the server with hooks, endpoints, and context."
   />
 </Cards>

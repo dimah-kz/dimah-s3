@@ -22,19 +22,13 @@ import { useUpload } from "@dimah-s3/react";
 import { Button } from "@/components/ui/button";
 
 export function CustomFilePicker() {
-  const upload = useUpload({
-    route: "avatar",
-    noDrag: true, // [!code ++]
-    noClick: true, // [!code ++]
-  });
+  const upload = useUpload({ route: "avatar" });
 
   return (
     <div className="flex items-center gap-4">
       <input {...upload.getInputProps()} />
       <Button type="button" onClick={() => upload.open()}>
-        {" "}
-        {/* [!code ++] */}
-        {upload.isUploading
+        {upload.isPending
           ? `Uploading ${upload.progress.percent}%`
           : "Choose file"}
       </Button>
@@ -43,19 +37,47 @@ export function CustomFilePicker() {
 }
 ```
 
+## Example: A part of your own
+
+Inside [`Upload`](/docs/react/ui/components/upload), `useUploadContext()`
+returns the root's hook. Build a part that sits next to `UploadTrigger` and
+`UploadStatus`:
+
+```tsx
+"use client";
+
+import { useUploadContext } from "@dimah-s3/ui";
+
+export function UploadCount() {
+  const { upload } = useUploadContext();
+  const done = upload.files.filter((file) => file.phase === "success").length;
+
+  if (upload.files.length === 0) return null;
+  return (
+    <p className="text-muted-foreground text-sm">
+      {done} of {upload.files.length} uploaded
+    </p>
+  );
+}
+```
+
+`useDownloadContext()` and `useDeleteContext()` do the same inside
+`Download` and `Delete`.
+
 ## Frequently asked questions
 
 <Accordions>
 
 <Accordion title="How do I access low-level transfer metrics?">
 
-Read `upload.progress` for loaded bytes, total bytes, percentage, and transfer
-speed:
+Read `upload.progress` for the bytes sent across the queue, and
+`file.progress` for one file:
 
 ```tsx
-const { progress } = useUpload({ route: "avatar" });
+const { progress, files } = useUpload({ route: "avatar" });
 
 console.log(progress.loaded, progress.total, progress.percent);
+console.log(files[0]?.progress.percent);
 ```
 
 </Accordion>

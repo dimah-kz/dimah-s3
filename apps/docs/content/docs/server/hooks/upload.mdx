@@ -1,15 +1,13 @@
 ---
 title: Upload Hooks
-description: Presign, authorize, confirm, and persist verified upload metadata.
+description: Authorize uploads, track them from start to confirm, and persist verified metadata.
 ---
 
 Enable upload operations on a [named route](/docs/server/routes) with `upload: true` or an `UploadConfig` object.
 
 ```ts title="lib/s3.ts"
-import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors, route } from "@dimah-s3/server";
-
-export const awsS3 = new S3Client({/* env */});
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
+import { awsS3 } from "./aws-s3";
 
 export const s3 = dimahS3({
   client: awsS3,
@@ -21,15 +19,15 @@ export const s3 = dimahS3({
         maxFileSize: 2 * 1024 * 1024,
         guard: async ({ request }) => {
           const session = await getSession(request);
-          if (!session) throw errors.unauthorized();
+          if (!session) throw s3Error("UNAUTHORIZED");
         },
-        onConfirmed: async ({ key, contentLength, request }) => {
+        onConfirmed: async ({ key, object, request }) => {
           // [!code ++]
           const session = await getSession(request); // [!code ++]
           await db.user.update({
             // [!code ++]
             where: { id: session.userId }, // [!code ++]
-            data: { avatarKey: key, avatarSize: contentLength }, // [!code ++]
+            data: { avatarKey: key, avatarSize: object.size }, // [!code ++]
           }); // [!code ++]
         }, // [!code ++]
       },
@@ -48,20 +46,79 @@ export const s3 = dimahS3({
     { name: "route.guard", kind: "hook" },
     { name: "object", kind: "hook" },
     { name: "upload.guard", kind: "hook" },
-    { name: "onPresigned", kind: "hook" },
-    { name: "Upload to S3", kind: "s3" },
+    { name: "onStart", kind: "hook" },
+    { name: "Upload to S3", kind: "client" },
+    { name: "HeadObject", kind: "s3" },
     { name: "confirmGuard", kind: "hook" },
-    { name: "HeadObject", kind: "server" },
     { name: "onConfirmed", kind: "hook" },
   ]}
 />
 
-1. **`route.guard`**: Evaluates session and permissions before key generation.
-2. **`object`**: Computes destination folder, key, metadata, ACL, storage class, cache control, or tags.
-3. **`upload.guard`**: Authorizes the upload after the server-owned key is assigned.
-4. **`onPresigned`**: Fires after the presigned URL is created.
-5. **`confirmGuard`**: Authorizes the confirmation request after bytes land in S3.
-6. **`onConfirmed`**: Reads verified metadata from `HeadObject` and persists the record.
+1. **`route.guard`**: Runs after the instance guard, before the key is chosen.
+2. **`object`**: Chooses the key folder or key, S3 metadata, ACL, storage class, cache control, and tags.
+3. **`upload.guard`**: Authorizes the upload once the server-owned key is known.
+4. **`onStart`**: Runs once the upload can begin, with its `uploadToken` and confirm deadline. The presign response, with its [upload ticket](/docs/server/upload-tickets), is returned after it.
+5. **Confirm**: HeadObject reads the stored object. The server checks the upload marker, the size against the declared size (`UPLOAD_SIZE_MISMATCH`), and the route limits. With `verifyContent`, it checks the first bytes too.
+6. **`confirmGuard`**: Authorizes the stored object. A rejection deletes it.
+7. **`onConfirmed`**: Receives the verified `object` from HeadObject. Persist the record here.
+
+`upload.guard` and `onStart` also run for multipart init and `s3.put`. `kind`
+tells them apart: `"put"` or `"post"` for a presigned upload, `"multipart"`,
+or `"server"` for `s3.put`. `s3.put` skips `confirmGuard`.
+
+---
+
+## Tracking an upload
+
+`onStart` is the place to record a pending upload. It receives the absolute
+deadline after which the upload can never be confirmed:
+
+```ts
+upload: {
+  onStart: async ({ uploadToken, key, file, expiresAt, locals }) => {
+    await db.upload.create({
+      data: {
+        token: uploadToken,
+        key,
+        name: file.name,
+        userId: locals.userId,
+        expiresAt, // [!code ++]
+      },
+    });
+  },
+  onConfirmed: async ({ uploadToken, object }) => {
+    await db.upload.updateMany({
+      where: { token: uploadToken, status: "pending" },
+      data: { status: "active", size: object.size },
+    });
+  },
+},
+```
+
+`expiresAt` is the ticket expiry, or 15 minutes from now for `s3.put`.
+Presigned uploads also get `url` and `urlExpiresAt`, and multipart uploads
+get `uploadId`.
+
+---
+
+## Failure rules
+
+| Hook                  | When it throws                                                                  |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `upload.guard`        | The error is returned. Nothing exists in S3.                                    |
+| `onStart`             | The error is returned. A multipart upload is aborted; `s3.put` skips PutObject. |
+| `confirmGuard`        | A rejection (`4xx`) deletes the object, or aborts the multipart upload.         |
+| `onConfirmed`, plugin | The object is deleted and the error is returned.                                |
+| `onConfirmed`, yours  | The object is kept and the call returns `500 INTERNAL_ERROR`.                   |
+
+A confirm that fails for an infrastructure reason, such as an S3 network
+error or a guard whose database is down, keeps the object so the client can
+retry.
+
+`onConfirmed` runs **at least once** per upload. Confirm is stateless, so a
+retried confirm runs every check and hook again with the same
+`uploadToken`. Make the hook safe to replay, and reject content in
+`confirmGuard`, not in `onConfirmed`.
 
 ---
 
@@ -70,15 +127,17 @@ export const s3 = dimahS3({
 ```ts
 import type {
   UploadGuardContext,
-  UploadOnConfirmedContext,
+  UploadOnStartContext,
   UploadConfirmGuardContext,
+  UploadOnConfirmedContext,
   UploadObjectContext,
+  VerifiedObject,
 } from "@dimah-s3/server";
 ```
 
 ### UploadGuardContext
 
-Runs after `upload.object` assigns the key (and after global / route guards).
+Runs after `upload.object` assigns the key (and after the instance and route guards).
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
@@ -87,9 +146,27 @@ Runs after `upload.object` assigns the key (and after global / route guards).
 
 ---
 
-### UploadOnConfirmedContext
+### UploadOnStartContext
 
-Runs after `HeadObject` validates the uploaded file size and content type.
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadOnStartContext"
+/>
+
+---
+
+### UploadConfirmGuardContext
+
+Runs on confirm and multipart complete, after HeadObject and the size checks.
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadConfirmGuardContext"
+/>
+
+---
+
+### UploadOnConfirmedContext
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
@@ -98,13 +175,13 @@ Runs after `HeadObject` validates the uploaded file size and content type.
 
 ---
 
-### UploadConfirmGuardContext
+### VerifiedObject
 
-Runs before `HeadObject` when confirming single-shot uploads or completing multipart uploads.
+The `object` in `onConfirmed`, as HeadObject reports it.
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
-  name="UploadConfirmGuardContext"
+  name="VerifiedObject"
 />
 
 ---
@@ -124,35 +201,43 @@ Input passed to `upload.object` to generate custom destination keys and metadata
 
 <Accordion title="Why should I record file size after confirmation rather than presigning?">
 
-Record it in `onConfirmed`, where `contentLength` comes from S3 `HeadObject`.
-Presign payloads contain browser-declared values and can be spoofed.
+Record it in `onConfirmed`, where `object.size` comes from S3 HeadObject.
+`file` in the earlier hooks holds the values the browser declared. Confirm
+also rejects an object whose stored size differs from the declared one.
 
 </Accordion>
 
 <Accordion title="What happens if onConfirmed throws?">
 
-dimah-s3 attempts a best-effort `DeleteObject` so a failed callback does not
-leave an orphaned file. The original callback error is still returned.
+Your hook's error is logged and passed to `onError`, and the client gets
+`500 INTERNAL_ERROR`. The object is kept, so a retried confirm runs the hook
+again. To refuse an object, throw from `confirmGuard`: the object is deleted
+and the client gets your error.
 
 </Accordion>
 
 <Accordion title="How do I attach custom S3 user metadata?">
 
-Return `metadata` from `upload.object`:
+Return `metadata` from `upload.object`. What the client sends as `metadata`
+arrives as `clientMetadata` and is never written to S3 unless you copy it:
 
 ```ts
 avatar: route({
   upload: {
-    object: async ({ request, file }) => ({
-      folder: "avatars",
+    object: async ({ file, clientMetadata }) => ({
+      keyFolder: "avatars",
       metadata: {
         // [!code ++]
-        originalName: file.name, // [!code ++]
+        "original-name": file.name, // [!code ++]
+        album: clientMetadata?.album ?? "default", // [!code ++]
       }, // [!code ++]
     }),
   },
-});
+}),
 ```
+
+Metadata keys and values share a 2 KB budget. Non-ASCII values are encoded
+for you. In `onConfirmed`, `object.metadata` returns them decoded.
 
 </Accordion>
 

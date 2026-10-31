@@ -1,0 +1,88 @@
+---
+title: Object Image
+description: Image of a stored object, signed and refreshed with useObjectUrl.
+---
+
+import { ObjectImageDemo } from "@/components/demos/object-image-demo";
+
+`ObjectImage` renders an `<img>` for a private object. It signs an inline URL
+with [`useObjectUrl`](/docs/react/hooks/object-url), which refreshes the URL
+before it expires and shares it with other images of the same object.
+
+## Preview
+
+<DemoPreview name="object-image-demo.tsx">
+  <ObjectImageDemo />
+</DemoPreview>
+
+## Install
+
+<include>../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import { ObjectImage } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/object-image
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import { ObjectImage } from "@dimah-s3/ui";
+
+export function CoverImage({ coverKey }: { coverKey: string | null }) {
+  return (
+    <ObjectImage
+      route="covers"
+      objectKey={coverKey}
+      alt="Album cover"
+      className="size-40 rounded-md object-cover"
+      fallback={<div className="bg-muted size-40 rounded-md" />}
+    />
+  );
+}
+```
+
+`alt` is required. Pass `alt=""` when the image is decorative, such as next
+to a name that already describes it. Other `<img>` props pass through.
+
+## Fallback
+
+`fallback` renders in place of the image while there is no key, while the URL
+is being signed, when signing fails, and when the image fails to load. It
+defaults to nothing. A failed image is not signed again; the next refresh
+signs a new URL. Your `onError` still runs.
+
+The route's server [download hooks](/docs/server/hooks/download) decide who
+may read the object, as they do for any download.
+
+---
+
+## Props
+
+```ts
+import type { ObjectImageProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/preview/object-image.tsx"
+  name="ObjectImageProps"
+/>

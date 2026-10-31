@@ -11,8 +11,11 @@ description: Install shadcn-compatible upload, download, and delete UI component
 
 <Tab value="npm package">
 
+`@dimah-s3/core`, `@dimah-s3/react`, and `@fuma-translate/react` are peer
+dependencies. Install them with the package:
+
 ```npm
-npm i @dimah-s3/ui shadcn
+npm i @dimah-s3/ui @dimah-s3/core @dimah-s3/react @fuma-translate/react shadcn
 ```
 
 </Tab>
@@ -22,8 +25,11 @@ npm i @dimah-s3/ui shadcn
 <include>../../../_includes/ui/index.mdx#registry-config</include>
 
 ```npm
-npx shadcn@latest add @dimah-s3/upload-button
+npx shadcn@latest add @dimah-s3/upload
 ```
+
+The registry copies the component source into your project and installs the
+packages it needs.
 
 </Tab>
 
@@ -37,7 +43,7 @@ Import the UI stylesheet in your global CSS to enable animations and design toke
 
 ## 3. Mount Toaster
 
-Mount `<Toaster />` next to `<S3Provider>` in your root layout:
+Mount one `<Toaster />` next to `<S3Provider>` in your root layout:
 
 ```tsx title="app/layout.tsx"
 import { Toaster } from "@dimah-s3/ui"; // [!code ++]
@@ -60,50 +66,90 @@ export default function RootLayout({
 }
 ```
 
+## 4. Render a component
+
+Each family has a root that holds one hook, and parts that read it. Toasts
+are separate: mount `UploadToasts`, `DownloadToasts`, or `DeleteToasts` once
+per hook.
+
+```tsx title="components/avatar-uploader.tsx"
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import {
+  Upload,
+  UploadToasts,
+  UploadTrigger,
+  UploadStatus,
+} from "@dimah-s3/ui";
+
+export function AvatarUploader() {
+  const upload = useUpload({ route: "avatar" });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadTrigger />
+        <UploadStatus />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+Components never toast on their own. A second toast owner for the same hook
+renders nothing and warns in development.
+
 ---
 
 ## Explore UI components
 
 <Cards>
   <Card
-    title="Attachment"
-    href="/docs/react/ui/components/attachment"
-    description="Reusable file and transfer status rows with previews, progress, and errors."
+    title="Upload"
+    href="/docs/react/ui/components/upload"
+    description="File picker, dropzone, queue status, and toasts for useUpload."
   />
   <Card
-    title="Upload Button"
-    href="/docs/react/ui/components/upload-button"
-    description="Trigger native file picker with inline progress rows."
+    title="Upload Field"
+    href="/docs/react/ui/components/upload-field"
+    description="Form field whose value is the uploaded object keys."
   />
   <Card
-    title="Upload Dropzone"
-    href="/docs/react/ui/components/upload-dropzone"
-    description="Drag-and-drop surface for single and multi-file queue."
+    title="Avatar Upload"
+    href="/docs/react/ui/components/avatar-upload"
+    description="Round image button that shows and replaces a picture."
   />
   <Card
-    title="Download Button"
-    href="/docs/react/ui/components/download-button"
-    description="One-click presigned download trigger."
+    title="Object Image"
+    href="/docs/react/ui/components/object-image"
+    description="Image of a private object with a signed, refreshed URL."
   />
   <Card
-    title="Progress Download Button"
-    href="/docs/react/ui/components/progress-download-button"
-    description="Live stream progress indicator with cancellation."
+    title="Download"
+    href="/docs/react/ui/components/download"
+    description="Download buttons and fetch progress for one download hook."
   />
   <Card
-    title="Delete Button"
-    href="/docs/react/ui/components/delete-button"
-    description="Confirmation dialog and delete executor."
+    title="Delete"
+    href="/docs/react/ui/components/delete"
+    description="Delete buttons with one confirm dialog per root."
   />
   <Card
     title="Object List"
     href="/docs/react/ui/components/object-list"
-    description="Composable file browser for useObjectList: list and grid views, search, sort, and selection."
+    description="Composable file browser for useObjectList: list and grid views, search, sort, selection, and folders."
+  />
+  <Card
+    title="Attachment"
+    href="/docs/react/ui/components/attachment"
+    description="File cards, status rows, progress rings, and type glyphs."
   />
   <Card
     title="Theming"
     href="/docs/react/ui/customization/theming"
-    description="Customize colors with Tailwind and shadcn variables."
+    description="Override the --dimah-s3-* tokens on :root or any container."
   />
 </Cards>
 
@@ -111,9 +157,22 @@ export default function RootLayout({
 
 <Accordions>
 
-<Accordion title="Can I use shadcn components without installing the @dimah-s3/ui package?">
+<Accordion title="Can I use the components without installing the @dimah-s3/ui package?">
 
-Yes. Use the shadcn registry command (`npx shadcn@latest add @dimah-s3/upload-button`) to copy component source directly into your codebase.
+Yes. Add items from the shadcn registry to copy their source into your
+codebase. The items are `upload`, `upload-field`, `avatar-upload`,
+`object-image`, `download`, `delete`, `object-list`, and `file-attachment`:
+
+```npm
+npx shadcn@latest add @dimah-s3/upload @dimah-s3/delete
+```
+
+</Accordion>
+
+<Accordion title="How do I translate the components?">
+
+The components read their strings through `@fuma-translate/react`. See
+[Internationalization](/docs/i18n).
 
 </Accordion>
 

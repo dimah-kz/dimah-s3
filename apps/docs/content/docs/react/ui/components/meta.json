@@ -1,14 +1,15 @@
 {
   "title": "Components",
-  "description": "Upload, download, delete, and status rows",
+  "description": "Upload, download, delete, and file browsing",
   "defaultOpen": true,
   "pages": [
-    "attachment",
-    "upload-button",
-    "upload-dropzone",
-    "download-button",
-    "progress-download-button",
-    "delete-button",
-    "object-list"
+    "upload",
+    "upload-field",
+    "avatar-upload",
+    "object-image",
+    "download",
+    "delete",
+    "object-list",
+    "attachment"
   ]
 }

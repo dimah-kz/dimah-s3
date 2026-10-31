@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "check-types": "next typegen && tsc --noEmit",
-    "db:purge-stale": "node --import tsx --env-file-if-exists=.env scripts/purge-stale-pending.mts",
+    "db:purge": "node --import tsx --env-file-if-exists=.env scripts/purge.mts",
     "db:push": "drizzle-kit push",
     "dev": "next dev",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",

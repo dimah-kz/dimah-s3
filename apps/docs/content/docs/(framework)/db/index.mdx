@@ -1,46 +1,52 @@
 ---
 title: Database
-description: Optional plugin to track object ownership, lifecycle, and listings in your database.
+description: Optional plugin to track object ownership, folders, lifecycle, and listings in your database.
 ---
 
 [`@dimah-s3/db`](https://www.npmjs.com/package/@dimah-s3/db) is an optional
 plugin for [`dimahS3`](/docs/server/setup). It keeps object ownership, upload
-state, and deletion history aligned with S3 without custom SQL on every
-endpoint.
+state, folders, and deletion history aligned with S3 without custom SQL on
+every endpoint.
 
 dimah-s3 works without a database. Add this plugin when you need ownership
-checks, usage totals, file listings, or server-side multipart lifecycle
-tracking.
+checks, usage totals and quotas, file listings with folders, or server-side
+tracking of each upload.
 
 ## What the plugin does
 
-- **Tracks objects** — writes and updates a row on presign, confirm, and delete
-- **Enforces ownership** — each file belongs to a scope you define (for example
-  `user:123`); download requires a confirmed (`active`) object owned by
-  that scope; delete rejects access from another scope. This is per-caller
-  tenancy, not the route `keyPrefix` check — prefix isolation always runs in
+- **Tracks objects**: writes a row when an upload starts, marks it active on
+  confirm, and updates it on delete.
+- **Enforces ownership**: each file belongs to a scope you define (for
+  example `user:123`), and upload tickets are bound to it. Download requires
+  a confirmed (`active`) object owned by that scope, and delete rejects
+  another scope. This is per-caller tenancy, not the route `keyPrefix`
+  check: prefix isolation always runs in
   [`@dimah-s3/server`](/docs/server/security#route-namespace-vs-ownership).
-- **Lists files** — query by scope on the server and in the browser
-- **Tracks multipart** — records in-progress uploads for ownership and stale
-  cleanup; pair it with a client `UploadStore` to resume after the same local
-  file is reselected
+- **Lists files**: by scope on the server, and by folder, search, and sort
+  in the browser.
+- **Adds folders**: logical folders, renames, moves, and typed attributes
+  per object. Folders never change the S3 key.
+- **Caps usage**: checks a quota at upload and again with the verified size
+  at confirm.
 
-Authentication, quota values, and business rules stay application-owned. The
-plugin manages object metadata and scope isolation, and can compare usage with
-limits supplied by your application.
+Authentication, quota values, and business rules stay application-owned.
+The plugin manages object metadata and scope isolation, and compares usage
+with the limits your application supplies.
 
 ## Lifecycle
 
-Each object moves through three statuses:
+Each object moves through these statuses:
 
-| Status    | Meaning                                |
-| --------- | -------------------------------------- |
-| `pending` | Upload started, not confirmed          |
-| `active`  | Confirmed in S3 — verified size stored |
-| `deleted` | Removed from S3                        |
+| Status    | Meaning                                               |
+| --------- | ----------------------------------------------------- |
+| `pending` | Upload started, not confirmed                         |
+| `active`  | Confirmed in S3, with the verified size stored        |
+| `deleted` | Removed from S3, row kept (soft delete)               |
+| `purging` | Expired before confirm, and being cleaned up by purge |
 
-Typical flow: pending → active → deleted. Aborted multipart uploads and
-[purge](/docs/db/purge) clean up rows that never reached `active`.
+Typical flow: pending → active → deleted. A pending row expires with its
+upload ticket, and [purge](/docs/db/purge) cleans up rows that never reached
+`active`.
 
 ## Next steps
 
@@ -48,26 +54,31 @@ Typical flow: pending → active → deleted. Aborted multipart uploads and
   <Card
     title="Database Setup"
     href="/docs/db/setup"
-    description="Install, add the schema, and register the plugin."
+    description="Install, create the tables, and register the plugin."
   />
   <Card
     title="Database Lifecycle Hooks"
     href="/docs/db/lifecycle-hooks"
-    description="Lifecycle hooks the plugin attaches automatically."
+    description="Guards and hooks the plugin attaches to each route."
   />
   <Card
     title="API"
     href="/docs/db/api"
-    description="List and query objects from server or browser."
+    description="List, move, and annotate objects, manage folders, set quotas."
   />
   <Card
     title="Purge Stale Uploads"
     href="/docs/db/purge"
-    description="Remove stale pending uploads."
+    description="Clean up uploads that never confirmed."
+  />
+  <Card
+    title="Upgrade the Schema"
+    href="/docs/db/upgrade"
+    description="Move a 1.x database to schema 2.0.0."
   />
   <Card
     title="Full example"
     href="https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db"
-    description="Minimal Next.js + Drizzle setup with upload and listing."
+    description="Next.js + Drizzle file manager with folders and a quota."
   />
 </Cards>

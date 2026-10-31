@@ -3,18 +3,18 @@
     {
       "id": "nextjs",
       "title": "Next.js",
-      "hint": "App Router + presign route + UploadButton",
+      "hint": "App Router + presign route + Upload trigger",
       "srcLayout": true
     },
     {
       "id": "vite",
       "title": "Vite",
-      "hint": "React SPA + Hono API + UploadButton"
+      "hint": "React SPA + Hono API + Upload trigger"
     },
     {
       "id": "hono",
       "title": "Hono",
-      "hint": "Hono API + Vite React + UploadButton"
+      "hint": "Hono API + Vite React + Upload trigger"
     }
   ]
 }

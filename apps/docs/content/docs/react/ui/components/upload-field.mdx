@@ -1,0 +1,185 @@
+---
+title: Upload Field
+description: Form field whose value is the object keys of the files uploaded through it.
+---
+
+import { UploadFieldDemo } from "@/components/demos/upload-field-demo";
+
+`UploadField` turns uploads into a form value. Each file that uploads adds
+its object key, and every key submits as a hidden `<input name>`. The upload
+parts go inside it, as they would inside [`Upload`](/docs/react/ui/components/upload).
+
+## Preview
+
+<DemoPreview name="upload-field-demo.tsx">
+  <UploadFieldDemo />
+</DemoPreview>
+
+## Install
+
+<include>../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import { UploadField, UploadFieldValue } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/upload-field
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import {
+  UploadDropzone,
+  UploadField,
+  UploadFieldValue,
+  UploadStatus,
+  UploadToasts,
+} from "@dimah-s3/ui";
+
+export function TicketForm({
+  save,
+}: {
+  save: (formData: FormData) => void | Promise<void>;
+}) {
+  const upload = useUpload({ route: "attachments", maxFiles: 5 });
+
+  return (
+    <form action={save} className="space-y-4">
+      <UploadField upload={upload} name="attachments" maxFiles={5}>
+        <UploadDropzone />
+        <UploadStatus />
+        <UploadFieldValue />
+      </UploadField>
+      <UploadToasts upload={upload} />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+```
+
+On the server, read the keys with `formData.getAll("attachments")`.
+`maxFiles` is a client-side limit, so check the keys and their count in your
+own endpoint. See [Forms](/docs/react/forms) for the rest of the flow.
+
+## Value
+
+- A file adds its key once it uploads. Files that fail, are cancelled, or
+  are still in flight add nothing.
+- The value grows across calls, even though the hook replaces its queue.
+- Files that uploaded before the field mounted are left out.
+- `UploadFieldValue` lists the keys, each with a `Remove {name}` action.
+  Removing a key does not delete the object.
+
+Keep the value yourself with `value` and `onValueChange`, or start from
+`defaultValue`. `onValueChange` runs after the change commits. Keys the field
+did not upload show the last segment of the key as their name.
+
+```tsx
+const [keys, setKeys] = useState<string[]>(post.attachmentKeys);
+
+<UploadField
+  upload={upload}
+  name="attachments"
+  value={keys}
+  onValueChange={setKeys}
+>
+  <UploadTrigger />
+  <UploadFieldValue />
+</UploadField>;
+```
+
+## Limit
+
+With `maxFiles`, each call takes only the files that still fit: `maxFiles`
+minus the keys in the value and the files still uploading. The hook rejects
+the rest with `TOO_MANY_FILES`.
+
+Once the field is full, its dropzone is `aria-disabled`, and the picker,
+drops, and pastes do nothing. The trigger still looks enabled. Read
+`remaining` from `useUploadFieldContext()` to disable it:
+
+```tsx
+function AddButton() {
+  const { remaining } = useUploadFieldContext();
+  return <UploadTrigger disabled={remaining === 0} />;
+}
+```
+
+## Custom parts
+
+`useUploadFieldContext()` returns `name`, `value`, `items` (the keys with
+the file name, size, and type the field knows), `remaining`, and `remove`.
+Pass a function to `UploadFieldValue` to render each item yourself:
+
+```tsx
+function AttachmentNames() {
+  const { remove } = useUploadFieldContext();
+
+  return (
+    <UploadFieldValue>
+      {(item) => (
+        <span>
+          {item.fileName}
+          <button type="button" onClick={() => remove(item.key)}>
+            Remove
+          </button>
+        </span>
+      )}
+    </UploadFieldValue>
+  );
+}
+```
+
+Render custom parts inside `UploadField`.
+
+---
+
+## Props
+
+```ts
+import type {
+  UploadFieldProps,
+  UploadFieldValueProps,
+  UploadFieldContextValue,
+} from "@dimah-s3/ui";
+```
+
+### UploadField
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/upload/upload-field.tsx"
+  name="UploadFieldProps"
+/>
+
+### UploadFieldValue
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/upload/upload-field.tsx"
+  name="UploadFieldValueProps"
+/>
+
+### useUploadFieldContext
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/upload/upload-field.tsx"
+  name="UploadFieldContextValue"
+/>

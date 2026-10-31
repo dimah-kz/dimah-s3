@@ -3,26 +3,26 @@ title: Upload
 description: Implement single-part presigning and server-side confirmation for a custom backend.
 ---
 
-1. **`upload`** — your backend returns a presigned URL (POST fields or PUT headers).
+1. **`upload`** — your backend picks the object key and returns a presigned URL (POST fields or PUT headers) and a `ticket`.
 2. The browser uploads directly to S3.
-3. **`confirm`** — your backend verifies the object (typically `HeadObject`) and returns metadata.
+3. **`confirm`** — the browser sends the `ticket`. Your backend verifies the object with `HeadObject` and returns what S3 reports.
 
 Large files: [Multipart](/docs/react/custom-backend/multipart).
 
-<Callout>
-  `upload` does not receive `key`. Generate it on the server and return it in
-  the presign response. `confirm` sends that stored `key` plus the same `route`.
-</Callout>
-
 ## Presign
+
+The payload declares the file as `name`, `size`, and `type`. `checksum` is a
+base64 SHA-256 of the file. The client sends it when the route's catalog entry
+has `checksum: true`; sign it into the request so S3 checks it.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
   name="UploadPayload"
 />
 
-Return **all** of these fields. `fields` when `method` is `"POST"`; `headers`
-when `method` is `"PUT"`.
+Return `fields` when `method` is `"POST"`, and `headers` when it is `"PUT"`.
+The browser appends `fields` to the form before the file, or sends exactly
+`headers` on the PUT.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
@@ -31,45 +31,52 @@ when `method` is `"PUT"`.
 
 ## Confirm
 
+`confirm` sends only the ticket from the presign response. Read the route and
+key from it, never from the client.
+
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
   name="ConfirmPayload"
 />
 
-`contentLength` and `metadata` are required. `eTag` and `contentType` come
-from HeadObject when available.
+Return the size and type from `HeadObject`, not the declared ones. If the
+object is missing or does not match what was declared, throw an `APIError`
+with a catalog code, such as `OBJECT_NOT_FOUND` or `UPLOAD_SIZE_MISMATCH`.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
   name="UploadConfirmResponse"
 />
 
-```ts
-import type {
-  UploadPayload,
-  UploadPresignResponse,
-  ConfirmPayload,
-  UploadConfirmResponse,
-} from "@dimah-s3/core";
-```
-
 ## Example
 
-Add these to the [`defineApi`](/docs/react/custom-backend) skeleton. Paths
-are yours — [`@dimah-s3/server`](/docs/server) uses
-`/api/s3/presign/upload` and `/api/s3/presign/upload/confirm`.
+Paths are yours. [`@dimah-s3/server`](/docs/server) uses
+`POST /api/s3/presign/upload` and `POST /api/s3/presign/upload/confirm`.
 
-```ts
-async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
+```ts title="lib/s3-api/upload.ts"
+import type {
+  ConfirmPayload,
+  S3RequestOptions,
+  UploadConfirmResponse,
+  UploadPayload,
+  UploadPresignResponse,
+} from "@dimah-s3/core";
+import { $fetch, call } from "./fetch";
+
+export const upload = (payload: UploadPayload, options?: S3RequestOptions) =>
+  $fetch<UploadPresignResponse>("/presign", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: payload,
+    ...call(options),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
 
-const upload = (payload) => post("/api/files/presign/upload", payload);
-const confirm = (payload) => post("/api/files/presign/upload/confirm", payload);
+export const confirm = (payload: ConfirmPayload, options?: S3RequestOptions) =>
+  $fetch<UploadConfirmResponse>("/confirm", {
+    method: "POST",
+    body: payload,
+    ...call(options),
+  });
 ```
+
+`$fetch` and `call` come from the
+[skeleton](/docs/react/custom-backend#skeleton).

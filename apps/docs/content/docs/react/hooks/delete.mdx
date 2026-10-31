@@ -1,139 +1,156 @@
 ---
 title: useDelete
-description: Headless React hook for single, batch, and confirmation-driven object deletion.
+description: Headless React hook that deletes one or many objects, with state for each key.
 ---
 
-`useDelete` coordinates object deletion with your server API. It supports
-two-step confirmation, immediate deletion, and batch operations.
+`useDelete` deletes objects through your server. Each key has its own state,
+so a list can show which rows are being deleted. A second call for a key that
+is already being deleted joins that call.
 
-```tsx title="components/delete-avatar.tsx"
+```tsx title="components/delete-file.tsx"
 "use client";
 
 import { useDelete } from "@dimah-s3/react";
 
-export function DeleteAvatar({ avatarKey }: { avatarKey: string }) {
-  const {
-    isConfirming,
-    requestDelete,
-    confirmDelete,
-    cancelDelete,
-    isDeleting,
-  } = useDelete({
-    route: "avatar",
-    onSuccess: (key) => {
-      console.log("Deleted avatar key:", key);
-    },
-  });
-
-  if (isConfirming) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-sm">Delete avatar?</span>
-        <button
-          type="button"
-          onClick={() => void confirmDelete()}
-          disabled={isDeleting}
-          className="text-destructive font-medium"
-        >
-          {isDeleting ? "Deleting…" : "Confirm"}
-        </button>
-        <button type="button" onClick={cancelDelete}>
-          Cancel
-        </button>
-      </div>
-    );
-  }
+export function DeleteFile({ objectKey }: { objectKey: string }) {
+  const { remove, get } = useDelete({ route: "attachments" });
+  const operation = get(objectKey);
 
   return (
-    <button type="button" onClick={() => requestDelete(avatarKey)}>
-      Delete Avatar
+    <button
+      type="button"
+      onClick={() => void remove(objectKey)}
+      disabled={operation?.phase === "deleting"}
+    >
+      {operation?.phase === "deleting" ? "Deleting…" : "Delete"}
     </button>
   );
 }
 ```
 
+The hook has no confirm state. To ask first, use the ui
+[`Delete`](/docs/react/ui/components/delete) root, which owns one confirm
+dialog for every trigger inside it, or open your own dialog and call
+`remove` when the user confirms.
+
 ---
 
-## Deletion workflows
+## Delete one key
 
-### 1. Two-step confirmation flow
+`remove(key, { fileName })` resolves with an outcome and does not throw.
+`fileName` is stored on the operation for display, such as in a toast.
 
-Use `requestDelete(key)` to enter the `confirming` state for that specific key. This keeps the pending key in state until the user approves (`confirmDelete()`) or cancels (`cancelDelete()`).
+```ts
+const outcome = await remove(objectKey, { fileName: "invoice.pdf" });
 
-```tsx
-const { isConfirming, requestDelete, confirmDelete, cancelDelete } = useDelete({
-  route: "avatar",
-});
+if (outcome.status === "success") console.log("Deleted", outcome.data.key);
+if (outcome.status === "error") console.log(outcome.error.code);
+if (outcome.status === "blocked") console.log("beforeDelete said no");
 ```
 
-### 2. Immediate deletion (`remove`)
+A delete has no cancel, so it never ends `aborted`.
 
-If your UI manages its own modal dialog or requires direct execution without internal confirmation state, call `remove(key)`:
+## Delete many keys
 
-```tsx
-const { remove, isDeleting } = useDelete({ route: "avatar" });
+`removeMany(items)` takes any number of keys. The hook sends them in batches
+of up to 100 (`DELETE_MANY_MAX_KEYS`), one request after another, and every
+operation of the call shares one `batchId`. The server deletes each key on its
+own, so some can fail while others succeed:
 
-await remove(avatarKey);
+```ts
+const { deleted, failed, blocked } = await removeMany([
+  "attachments/a.pdf",
+  { key: "attachments/b.pdf", fileName: "b.pdf" },
+]);
+
+for (const { key, error } of failed) console.log(key, error.code);
 ```
 
-### 3. Batch deletion (`removeMany`)
+Keys that are already being deleted are joined rather than sent again, and
+their outcomes are folded into the result.
 
-Delete multiple keys in one dimah-s3 API request. The server authorizes and
-deletes each object independently, so the result can contain partial failures:
+---
 
-```tsx
-const { removeMany } = useDelete({ route: "avatar" });
+## State
 
-await removeMany([key1, key2, key3]);
-```
+- **`operations`** — every delete still kept, in the order it started. Each has `key`, `fileName`, `batchId`, `phase` (`deleting`, `success`, or `error`), and `error`.
+- **`get(key)`** — the newest operation for a key.
+- **`pendingKeys`** — keys with a running delete.
+- **`isPending`** — `true` while any key is being deleted.
+- **`reset(key?)`** — removes settled operations for one key, or every settled operation. It does not cancel a running delete.
+
+## Callbacks
+
+| Callback               | Runs                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `beforeDelete(keys)`   | Once per call. Return `false` to block the keys. A throw fails them (`HOOK_FAILED`). |
+| `onDeleteStart(keys)`  | Once per call, before the request.                                                   |
+| `onError(error, key)`  | Once per failed key.                                                                 |
+| `onSuccess(data, key)` | Once per deleted key, after every `onError` of the call.                             |
+| `onSettled(result)`    | Once per call, last.                                                                 |
+
+`data` is `{ key, bucket? }`. `bucket` is set by `remove` only, because batch
+responses do not carry it. A call that joins a running delete does not run the
+callbacks again.
 
 ---
 
 ## Type reference
 
 ```ts
-import type { UseDeleteOptions, UseDeleteReturn } from "@dimah-s3/react";
+import type {
+  DeleteOperation,
+  DeleteResult,
+  UseDeleteOptions,
+  UseDeleteReturn,
+} from "@dimah-s3/react";
 ```
 
 ### UseDeleteOptions
 
 <AutoTypeTable
-  path="packages/react/src/hooks/use-delete.ts"
+  path="packages/react/src/types/delete.ts"
   name="UseDeleteOptions"
 />
-
----
 
 ### UseDeleteReturn
 
 <AutoTypeTable
-  path="packages/react/src/hooks/use-delete.ts"
+  path="packages/react/src/types/delete.ts"
   name="UseDeleteReturn"
 />
+
+### DeleteOperation
+
+<AutoTypeTable
+  path="packages/react/src/types/delete.ts"
+  name="DeleteOperation"
+/>
+
+### DeleteResult
+
+<AutoTypeTable path="packages/react/src/types/delete.ts" name="DeleteResult" />
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do I ensure only the object owner can delete it?">
+<Accordion title="How do I make sure only the owner can delete a file?">
 
-Enforce ownership on the server in `delete.guard`; client-side checks are not
-an authorization boundary. The default `keyPrefix` only keeps keys inside this
-route's folder — it does not know which user owns a file. See
-[Security](/docs/server/security#route-namespace-vs-ownership).
+Check ownership on the server in `delete.guard`. Client checks are not an
+authorization boundary. The route's `keyPrefix` only keeps keys inside the
+route's folder; it does not know who owns a file. See
+[Security](/docs/server/security).
 
 ```ts title="lib/s3.ts"
-avatar: route({
+import { route, s3Error } from "@dimah-s3/server";
+
+export const attachments = route({
   delete: {
     guard: async ({ key, request }) => {
       const session = await getSession(request);
-      if (!session) throw errors.unauthorized();
-
-      const isOwner = await checkOwnership(session.userId, key);
-      if (!isOwner) throw errors.forbidden();
-    },
-    onDeleted: async ({ key, request }) => {
-      // Database record cleanup
+      if (!session) throw s3Error("UNAUTHORIZED");
+      if (!(await isOwner(session.userId, key))) throw s3Error("FORBIDDEN");
     },
   },
 });
@@ -141,21 +158,19 @@ avatar: route({
 
 </Accordion>
 
-<Accordion title="How do I clear error states after a failed deletion?">
+<Accordion title="How do I clear an error after a failed delete?">
 
-Call `reset()` to return the hook back to the `idle` phase:
+Call `reset(key)`. Render the error from `get(key)?.error`:
 
 ```tsx
-const { reset, error } = useDelete({ route: "avatar" });
+const { get, reset } = useDelete({ route: "attachments" });
+const error = get(objectKey)?.error;
 
 if (error) {
   return (
-    <div>
-      <p className="text-destructive">{error.message}</p>
-      <button type="button" onClick={reset}>
-        Try Again
-      </button>
-    </div>
+    <button type="button" onClick={() => reset(objectKey)}>
+      {error.message} — dismiss
+    </button>
   );
 }
 ```

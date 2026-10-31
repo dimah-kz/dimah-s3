@@ -40,6 +40,7 @@ export async function runCreatePipeline({
     cwd: process.cwd(),
     createdTargetDir: false,
     installed: false,
+    generatedEnv: [],
   };
 
   let failedSteps: string[];
@@ -80,6 +81,9 @@ function printNextSteps(ctx: CreateContext): void {
   note(
     [
       ...lines.map((line) => pc.cyan(line)),
+      ...ctx.generatedEnv.map((key) =>
+        pc.dim(`${key} was generated in .env — keep it private`),
+      ),
       pc.dim("then fill the S3_* values in .env"),
       pc.dim("allow browser POST/PUT in bucket CORS"),
       pc.dim('Cloudflare R2: upload: { method: "PUT" }'),

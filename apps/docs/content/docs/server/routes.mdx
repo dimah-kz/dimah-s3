@@ -6,16 +6,14 @@ icon: Route
 
 A **route** is a named storage policy on your server. Each route owns its
 constraints, object keys, and enabled operations (`upload`, `download`,
-`delete`, and `multipart`).
+`delete`, and `upload.multipart`).
 
 The browser sends a route name with each request. The server enforces file
 constraints, validates permissions, and generates object keys.
 
 ```ts title="lib/s3.ts"
-import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, route } from "@dimah-s3/server";
-
-export const awsS3 = new S3Client({/* env */});
+import { awsS3 } from "./aws-s3";
 
 export const s3 = dimahS3({
   client: awsS3,
@@ -48,6 +46,8 @@ export const s3 = dimahS3({
 });
 ```
 
+`awsS3` is the `S3Client` from [Server Setup](/docs/server/setup#configure-s3-and-routes).
+
 ---
 
 ## Combining operations
@@ -65,9 +65,9 @@ avatar: route({
 }),
 ```
 
-With the default `keyPrefix` (the route name), follow-up operations (confirm,
-download, and delete) must target keys within that route's namespace. That is
-route isolation, not per-user ownership — see
+With the default `keyPrefix` (the route name), download and delete must target
+keys within that route's namespace. That is route isolation, not per-user
+ownership — see
 [Security](/docs/server/security#route-namespace-vs-ownership).
 
 ---
@@ -77,29 +77,32 @@ route isolation, not per-user ownership — see
 By default, the server generates object keys formatted as:
 
 ```
-{keyPrefix}/{uuid}/{sanitizedFileName}
+{keyPrefix}/{uuid}/{sanitizedName}
 ```
 
 `keyPrefix` defaults to the **route name** (`avatar` → `avatar/…`, `document`
 → `document/…`). The same prefix is used twice:
 
-1. **Upload / multipart init** — the server _generates_ the key. The client
-   sends a route name, not an object key.
-2. **Confirm, download, delete, multipart follow-ups** — the client _sends_ a
-   key. The server accepts it only if it sits under that route's prefix.
+1. **Upload and multipart init** — the server _generates_ the key. The client
+   sends a route name, not an object key. The key travels inside the
+   [upload ticket](/docs/server/upload-tickets), so confirm and the later
+   multipart calls never send it.
+2. **Download and delete** — the client _sends_ a key. The server accepts it
+   only if it sits under that route's prefix.
 
 So `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is valid, and
-`DELETE ?route=avatar&key=document/{uuid}/cv.pdf` returns `INVALID_KEY`.
+`DELETE ?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
 Two routes cannot share or nest prefixes (`files` and `files/images`);
 `dimahS3()` throws at startup.
 
 <Callout type="warn" title="Disabling namespace isolation">
-  `keyPrefix: false` allows follow-up operations to target any safe key in the
+  `keyPrefix: false` allows download and delete to target any safe key in the
   bucket. Use it only when strict route or operation guards enforce the complete
   access policy.
 </Callout>
 
-To customize key generation or organize files by user/tenant, return `folder` or `key` from `upload.object`:
+To customize key generation or organize files by user or tenant, return
+`keyFolder` or `key` from `upload.object`:
 
 ```ts
 avatar: route({
@@ -109,13 +112,17 @@ avatar: route({
     object: async ({ request }) => {
       const session = await getSession(request);
       return {
-        folder: `users/${session.userId}`, // [!code ++]
-        // Results in: avatar/users/{userId}/{uuid}/{fileName}
+        keyFolder: `users/${session.userId}`, // [!code ++]
+        // Results in: avatar/users/{userId}/{uuid}/{name}
       };
     },
   },
 }),
 ```
+
+`object` runs after the instance and route guards, so it can also read
+[`locals`](/docs/server/hooks/global-guard#locals) instead of loading the
+session again.
 
 ---
 
@@ -128,6 +135,7 @@ import type {
   DownloadConfig,
   DeleteConfig,
   MultipartConfig,
+  UploadObjectInfo,
 } from "@dimah-s3/server";
 ```
 
@@ -143,6 +151,17 @@ import type {
 ### UploadConfig
 
 <AutoTypeTable path="packages/server/src/types/config.ts" name="UploadConfig" />
+
+---
+
+### UploadObjectInfo
+
+What `upload.object` returns.
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="UploadObjectInfo"
+/>
 
 ---
 
@@ -165,14 +184,14 @@ import type {
 
 <Accordion title="How do I overwrite the same avatar key instead of generating a UUID?">
 
-Set `replace: "overwrite"` and return a deterministic `key` from `object`:
+Return a deterministic `key` from `object`. S3 replaces the object at that
+key when the new upload lands:
 
 ```ts
 avatar: route({
   upload: {
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
-    replace: "overwrite", // [!code ++]
     object: async ({ request }) => {
       const session = await getSession(request);
       return {
@@ -183,12 +202,16 @@ avatar: route({
 }),
 ```
 
+With [`db()`](/docs/db), an upload onto a key that already holds an active
+object fails with `CONFLICT`. Allow it per route with
+`plugins: { db: { replace: "overwrite" } }`.
+
 </Accordion>
 
 <Accordion title="How do I clean up the user's previous avatar after a new upload?">
 
-Return `previousKey` from `upload.object`. After the new upload is confirmed,
-dimah-s3 deletes the previous object from S3:
+Return `previousKey` from `upload.object`. After the new upload is confirmed
+and every hook succeeds, dimah-s3 deletes the previous object from S3:
 
 ```ts
 avatar: route({
@@ -198,13 +221,15 @@ avatar: route({
     object: async ({ request }) => {
       const user = await getCurrentUser(request);
       return {
-        folder: `users/${user.id}`,
+        keyFolder: `users/${user.id}`,
         previousKey: user.currentAvatarKey, // [!code ++]
       };
     },
   },
 }),
 ```
+
+`previousKey` must sit under the same route prefix.
 
 </Accordion>
 
@@ -227,13 +252,18 @@ avatar: route({
 }),
 ```
 
+Tags must be printable ASCII, at most 10 per object. User `metadata` may hold
+any text: non-ASCII values are RFC 2047-encoded on write and decoded on read.
+Metadata keys and values share a 2 KB budget. Going over either limit is a
+config error that returns `500` and is logged.
+
 </Accordion>
 
 <Accordion title="How do I enforce SHA-256 integrity checksums?">
 
-For single-part POST or PUT uploads, set `checksum: true`. The React client
-computes SHA-256 in the browser and the server includes it in the signed
-request:
+Set `checksum: true`. The React client hashes the file in the browser, and
+the server signs the SHA-256 into the upload, so S3 rejects any other bytes.
+Multipart uploads hash and sign every part:
 
 ```ts
 avatar: route({
@@ -245,15 +275,39 @@ avatar: route({
 }),
 ```
 
-Whole-file checksum enforcement is not currently applied to multipart part
-signing. Confirmation and content inspection remain separate trust checks.
+A presign or part request without a checksum returns `CHECKSUM_REQUIRED`.
+`GET /routes` reports the setting as `upload.checksum`, so custom clients
+know to send one.
+
+</Accordion>
+
+<Accordion title="How do I check that the bytes match the declared type?">
+
+Set `verifyContent: true`. After confirm, the server reads the first bytes of
+the object and compares their signature with the declared type. A mismatch
+deletes the object and returns `FILE_CONTENT_MISMATCH`:
+
+```ts
+avatar: route({
+  upload: {
+    fileTypes: ["image/png", "image/jpeg", "image/webp"],
+    verifyContent: true, // [!code ++]
+  },
+}),
+```
+
+`verifyContent` turns `checksum` on, because the signed checksum pins the
+bytes that were checked. Setting `checksum: false` with it throws at
+`dimahS3()`. Types without a known signature, such as `text/plain`, pass
+without a read.
 
 </Accordion>
 
 <Accordion title="How do I stream downloads through my server without direct bucket URLs?">
 
-Set `mode: "proxy"` on `download`. The returned URL points to the same-origin
-`/api/s3/file` endpoint, which streams the object through your server:
+Set `mode: "proxy"` on `download`. The returned URL points to the
+`/api/s3/file` endpoint, which streams the object through your server. See
+[File Proxy](/docs/server/file-proxy):
 
 ```ts
 avatar: route({

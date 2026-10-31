@@ -1,45 +1,41 @@
 # examples/with-db
 
-Same as [`examples/with-nextjs`](../with-nextjs) / [`templates/nextjs`](../../templates/nextjs), plus **`@dimah-s3/db`** (Drizzle + SQLite) — matching the [Database Setup](https://s3.dimah.dev/docs/db/setup) guide.
+A file manager on [`examples/with-nextjs`](../with-nextjs) plus **`@dimah-s3/db`** (Drizzle + SQLite), matching the [Database Setup](https://s3.dimah.dev/docs/db/setup) guide. Files and folders are listed from the database, with search, sort, a usage meter, upload, download, and delete.
 
 ## Setup
 
 ```bash
-cp .env.example .env.local
-# fill S3_* vars
+cp .env.example .env
+# fill S3_* and DIMAH_S3_SECRET
 
 pnpm install
-pnpm db:schema   # FumaDB CLI → Drizzle schema at db/dimah-s3.ts
-pnpm db:push     # apply schema to local.db
+pnpm db:push     # create the tables in local.db
 pnpm dev
 ```
 
-Open `/` — upload a file, then see it listed from `storage_object`.
+Open `/`. Drop files onto the list or onto a folder, or use **Upload files**. **New folder** creates a folder in the open one.
+
+Browser uploads need bucket CORS that allows `PUT` from your origin.
+
+Coming from the 1.x example: delete `local.db` and run `pnpm db:push` again, or upgrade it in place with `node_modules/@dimah-s3/db/sql/upgrade/1.0.0-2.0.0/sqlite.sql`.
 
 ## What's wired
 
-Shared with the Next.js starter:
+1. [db/schema.ts](db/schema.ts): the prebuilt tables from `@dimah-s3/db/drizzle/sqlite` (`dimahS3Tables`), for `drizzle-kit push`
+2. [src/lib/db.ts](src/lib/db.ts): Drizzle over better-sqlite3, and `DimahS3DB.client(drizzleAdapter(…))` from `@dimah-s3/db/adapters/drizzle`
+3. [src/lib/s3.ts](src/lib/s3.ts): `dimahS3({ secret, routes })` with the `files` route and `db({ client, resolveScope, quota })`
+4. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts): Next.js adapter
+5. [src/lib/s3-client.ts](src/lib/s3-client.ts): `createS3Client({ plugins: [dbClient()] })` and `S3Provider`
+6. [src/app/layout.tsx](src/app/layout.tsx): `S3Provider` and `Toaster`
+7. [src/components/file-manager.tsx](src/components/file-manager.tsx): `ObjectList` over `dbObjectSource(api.db, { route: "files" })`, with `useUpload`, `useDownload`, and `useDelete`
 
-1. [src/lib/s3.ts](src/lib/s3.ts) — `awsS3` + `dimahS3({ routes })` (`uploads` route + `db()`)
-2. [src/lib/s3-client.ts](src/lib/s3-client.ts) — `createS3Client({ plugins: [dbClient()] })` + `S3Provider`
-3. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts) — Next.js adapter
-4. [src/app/layout.tsx](src/app/layout.tsx) — `S3Provider` + `Toaster`
-5. [src/app/page.tsx](src/app/page.tsx) — `UploadButton`
+Every request uses the scope `user:demo`. Return your session's user from `resolveScope` when you wire a real app. The `quota` caps (100 MB, 100 files) come back with the first page of the list, and the list shows them as a meter.
 
-DB delta only:
-
-1. [src/lib/db.ts](src/lib/db.ts) + [src/lib/dimah-s3-db.ts](src/lib/dimah-s3-db.ts) — Drizzle + FumaDB client
-2. `plugins: [db({ client, resolveScope })]` in [src/lib/s3.ts](src/lib/s3.ts)
-3. `plugins: [dbClient()]` in the provider
-4. [src/components/file-list.tsx](src/components/file-list.tsx) — `api.db.listObjects`
-
-Demo scope is hard-coded to `user:demo`. Swap `resolveScope` for your auth session when you wire a real app.
+`s3.ts` creates the instance on first use (`getS3()`), so `next build` runs without the S3 environment.
 
 ## Scripts
 
-| Script                | Description                                                                                   |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| `pnpm db:schema`      | `dimah-s3-db generate latest` → `db/dimah-s3.ts`                                              |
-| `pnpm db:push`        | Push schema to SQLite (`DATABASE_PATH`, default `./local.db`)                                 |
-| `pnpm db:cli`         | Interactive FumaDB CLI                                                                        |
-| `pnpm db:purge-stale` | Optional — purge stale pending + abort multipart ([docs](https://s3.dimah.dev/docs/db/purge)) |
+| Script          | Description                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm db:push`  | Create or update the tables in SQLite (`DATABASE_PATH`, default `./local.db`)                                                                          |
+| `pnpm db:purge` | Clean up unconfirmed uploads and prune soft-deleted rows: `s3.db.purgeStale()` and `s3.db.pruneDeleted()` ([docs](https://s3.dimah.dev/docs/db/purge)) |

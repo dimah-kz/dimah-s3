@@ -13,6 +13,7 @@ import {
 
 import { ComponentPreview } from "@/components/component-preview";
 import { DemoPreview } from "@/components/demo-preview";
+import { ErrorCodeTable } from "@/components/error-code-table";
 import { Flow } from "@/components/flow";
 import * as StepsComponents from "fumadocs-ui/components/steps";
 import type { MDXComponents } from "mdx/types";
@@ -41,6 +42,7 @@ export function getMDXComponents(components?: MDXComponents) {
     ...defaultMdxComponents,
     ComponentPreview,
     DemoPreview,
+    ErrorCodeTable,
     Flow,
     ...AccordionComponents,
     ...TabsComponents,

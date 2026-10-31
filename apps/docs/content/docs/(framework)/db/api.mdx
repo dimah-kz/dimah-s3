@@ -1,54 +1,48 @@
 ---
 title: API
-description: List objects and measure usage on the server and in the browser.
+description: List, move, and annotate objects, manage folders, and cap usage, on the server and in the browser.
 ---
 
 ## Server
 
-With the plugin registered, `s3.db.objects` is available in routes, quota
-checks, and jobs:
+With the plugin registered, `s3.db.objects` and `s3.db.folders` are
+available in your routes, jobs, and scripts. They take the scope as an
+argument, so they can read any scope:
 
 ```ts
 const scope = "user:123";
-const ref = { bucket: "my-bucket", key: "avatar/photo.jpg" };
 
-const objects = await s3.db.objects.listByScope({
+const page = await s3.db.objects.list({
   scope,
-  status: "active",
-  route: "avatar",
+  folder: "reports", // null is the root; omit for every folder
+  sort: { field: "updatedAt", direction: "desc" },
   limit: 50,
-  cursor: previous.nextCursor ?? undefined,
 });
-
-const count = await s3.db.objects.countByScope(scope, "active");
-const usage = await s3.db.objects.getScopeUsage(scope);
-
-const object = await s3.db.objects.find({ bucket: ref.bucket, key: ref.key });
-const active = await s3.db.objects.findActive({
-  bucket: ref.bucket,
-  key: ref.key,
-});
-
-const pending = await s3.db.objects.findPendingMultipart({
-  bucket: ref.bucket,
-  key: ref.key,
-  fileSize: 1024000,
-});
-
-const written = await s3.db.objects.upsertPending({
+const next = await s3.db.objects.list({
   scope,
-  bucket: ref.bucket,
-  key: ref.key,
-  route: "avatar",
-  declaredSize: 1024000,
+  folder: "reports",
+  sort: { field: "updatedAt", direction: "desc" },
+  cursor: page.nextCursor,
 });
 
-const active = await s3.db.objects.markActive({
-  bucket: ref.bucket,
-  key: ref.key,
-  size: 1024000,
-});
+const count = await s3.db.objects.count({ scope, status: "active" });
+const usage = await s3.db.objects.getUsage(scope);
+const object = await s3.db.objects.find({ bucket: "my-bucket", key });
+
+const children = await s3.db.folders.children(scope, null);
+await s3.db.folders.ensure(scope, "reports/2026");
 ```
+
+`list` returns `{ objects, nextCursor, firstPage }`. It defaults to active
+rows, 50 per page, newest first. A cursor made under other filters is
+ignored, and the listing starts again at the first page (`firstPage` is
+then `true`).
+
+The stores never call S3. To remove a file, use the normal
+[delete path](/docs/db/setup#delete-behavior), not `softDelete` or
+`hardDelete`. The upload methods (`upsertPending`, `markActive`,
+`cancelUpload`, `discardUpload`) are what the plugin hooks call: leave them
+to the plugin.
 
 ### StorageObjectStore
 
@@ -57,46 +51,224 @@ import type { StorageObjectStore } from "@dimah-s3/db";
 ```
 
 <AutoTypeTable
-  path="packages/db/src/store/storage-object-store.ts"
+  path="packages/db/src/store/object-store.ts"
   name="StorageObjectStore"
 />
 
-To remove a file, use [`api.delete`](/docs/react) — not store helpers. See
-[delete behavior](/docs/db/setup#delete-behavior).
+### StorageFolderStore
 
-`GET /db/objects` (browser `listObjects`) defaults to `status: active` and
-`limit: 50`, and rejects a `limit` above `100`. It returns `nextCursor`
-when another page exists. A `prefix` is applied in the query, so a page
-stays full when you filter by key prefix. `GET /db/object` (`getObject`)
-loads one row by key. Pass `limit` on `listByScope` yourself for server
-listings.
+```ts
+import type { StorageFolderStore } from "@dimah-s3/db";
+```
 
-`search` keeps rows whose `filename` contains the text. It runs in the
-database (`LIKE` on SQL), so case follows its collation: PostgreSQL matches
-case, MySQL and SQLite usually do not. With the Drizzle and Kysely adapters,
-`%` and `_` in the text act as `LIKE` wildcards. `sort`
-takes `{ field, direction }` with `field` set to `createdAt`, `size`, or
-`filename`; the default is `createdAt` newest first. Ties break on row id,
-and rows without a value (a pending row's `size`) come last in both
-directions. A cursor belongs to its sort: send the same `sort` with it, or
-the listing starts again from the first row.
+<AutoTypeTable
+  path="packages/db/src/store/folder-store.ts"
+  name="StorageFolderStore"
+/>
+
+## HTTP endpoints
+
+`db()` mounts these endpoints next to the dimah-s3 routes. Each one resolves
+the caller's scope from the request and runs `authorize` with the
+`operation` shown. Body endpoints accept JSON only.
+
+| Endpoint                  | Browser action | `operation` |
+| ------------------------- | -------------- | ----------- |
+| `GET /db/objects`         | `listObjects`  | `list`      |
+| `GET /db/object`          | `getObject`    | `read`      |
+| `PATCH /db/object`        | `updateObject` | `update`    |
+| `POST /db/folder`         | `createFolder` | `update`    |
+| `DELETE /db/folder?path=` | `deleteFolder` | `update`    |
+
+`GET` and `PATCH /db/object` take an optional `bucket`. It defaults to the
+only bucket your routes use. When routes use several buckets, `bucket` is
+required, and a bucket no route uses is a `VALIDATION_ERROR`.
+
+### Listing
+
+`GET /db/objects` defaults to `status: "active"` and `limit: 50`, and
+rejects a `limit` above `100`. Unknown query keys, such as the 1.x `offset`
+and `prefix`, are a `VALIDATION_ERROR` (`400`).
+
+- `folder` lists one folder: `""` is the root, and a path such as
+  `reports/2026` is a folder. Omit it for a flat list of every folder.
+- `search` keeps rows whose `filename` contains the text. It runs in the
+  database (`LIKE` on SQL), so case follows its collation, and `%` and `_`
+  act as wildcards.
+- `sort` takes `{ field, direction }`, with `field` set to `createdAt`,
+  `updatedAt`, `size`, or `filename`. The default is `createdAt`, newest
+  first. Ties break on the row id, and rows with no value (a pending row's
+  `size`) come last in both directions.
+- `nextCursor` is `null` on the last page. A cursor made under other
+  filters is ignored, and the list starts again at the first page.
+
+The first page also carries `usage`, `limits`, and, when `folder` is set,
+the direct child `folders` (at most 1000).
 
 ```ts
 const page = await api.db.listObjects({
+  folder: "",
   search: "invoice",
   sort: { field: "size", direction: "desc" },
-  cursor: previous?.nextCursor ?? undefined,
+});
+const more = await api.db.listObjects({
+  folder: "",
+  search: "invoice",
+  sort: { field: "size", direction: "desc" },
+  cursor: page.nextCursor ?? undefined,
 });
 ```
 
+<Callout title="Scope is resolved on the server">
+  No browser action takes a scope. The plugin resolves it from the request with
+  `resolveScope`. To read another scope, use `s3.db.objects` on the server.
+</Callout>
+
+## Folders
+
+Folders are logical: a row's `folder` column and the `storage_folder` table.
+They never change the S3 key. Empty folders are listed too.
+
+A folder path is `/`-separated, with no leading or trailing `/`. Each name
+is 1 to 255 characters, not `.` or `..`, and has no control characters. The
+whole path is at most 1024 characters. Paths are NFC-normalized. Anything
+else is `FOLDER_INVALID` (`400`). In JSON and in types the root is `null`;
+on the wire (`?folder=`, `clientMetadata.folder`) it is `""`.
+
+An upload goes to the folder in `clientMetadata.folder`. Missing folders are
+created along the way. [`dbObjectSource`](#browser) sets it for uploads
+into the open folder. With your own `useUpload`, pass it per call:
+
+```ts
+await upload.handleFiles(files, {
+  uploadOptions: { metadata: { folder: "reports/2026" } },
+});
+```
+
+```ts
+await api.db.createFolder({ path: "reports/2026" }); // and "reports"
+await api.db.deleteFolder({ path: "reports/2026" });
+```
+
+- `createFolder` creates the missing ancestors too. An existing folder is
+  `CONFLICT` (`409`).
+- `deleteFolder` removes an empty folder. A folder with child folders, or
+  with active or pending objects, is `FOLDER_NOT_EMPTY` (`409`). A missing
+  folder is not an error.
+- Neither accepts the root (`""`).
+
+## Update an object
+
+`PATCH /db/object` renames an object, moves it to another folder, or sets
+its attributes. Omitted fields stay as they are. Only active objects can be
+updated; anything else is `OBJECT_NOT_FOUND`.
+
+```ts
+const { object } = await api.db.updateObject({
+  key: file.key,
+  filename: "Q3 report.pdf",
+  folder: "reports/2026", // null moves it to the root
+});
+```
+
+A move checks the target folder like an upload does: it validates the path,
+runs `authorize` with that `folder`, and creates the folder when it is
+missing. Renames and moves change only the row: the S3 key stays as it is.
+
+## Attributes
+
+Attributes are your own JSON on each row, such as a description or tags.
+Enable them with a [Standard Schema](https://standardschema.dev) (Zod,
+Valibot, ArkType):
+
+```ts title="lib/s3.ts"
+import * as z from "zod";
+
+db({
+  client: dimahS3Db,
+  resolveScope,
+  attributes: {
+    schema: z.object({
+      description: z.string().max(500).optional(),
+      tags: z.array(z.string().max(32)).max(10).optional(),
+    }),
+  },
+});
+```
+
+`PATCH /db/object` with `attributes` replaces them after validation:
+
+```ts
+await api.db.updateObject({ key: file.key, attributes: { tags: ["q3"] } });
+```
+
+- Without `attributes.schema`, a PATCH with `attributes` is a
+  `VALIDATION_ERROR`.
+- A schema failure, or attributes larger than `maxBytes` as JSON (default
+  16 KiB), is a `VALIDATION_ERROR` (`400`).
+- `toClient` maps the stored attributes to what the browser sees. Without
+  it, the browser sees all of them.
+
+Type the browser side by passing the client attributes to `dbClient`:
+
+```ts
+dbClient<{ description?: string; tags?: string[] }>();
+```
+
+<AutoTypeTable
+  path="packages/db/src/types/plugin.ts"
+  name="DbAttributesOptions"
+/>
+
+## Quota
+
+`quota` caps the bytes and files of a scope. Pass fixed caps, or a function
+that returns them per request (`null` for no cap):
+
+```ts
+db({
+  client: dimahS3Db,
+  getSession,
+  resolveScope: ({ session }) => (session ? `user:${session.userId}` : null),
+  quota: ({ session }) =>
+    session?.plan === "pro"
+      ? { maxBytes: 10 * 1024 ** 3 }
+      : { maxBytes: 1024 ** 3, maxFiles: 500 },
+});
+```
+
+The function gets the [scope context](/docs/db/setup#scope) plus the
+resolved `scope`. The quota is checked twice:
+
+1. At upload, against the scope's usage: active sizes plus the declared
+   sizes of pending uploads that have not expired. The row the upload
+   replaces is left out.
+2. At confirm, against the verified size from HeadObject. When that fails,
+   the server deletes the object and the plugin removes its row. A
+   confirm replay is not checked again.
+
+A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to `"bytes"`
+or `"files"`.
+
+The first page of `GET /db/objects` carries `usage` and `limits` (the caps
+for the scope, or `null`). `dbObjectSource` merges them into the list's
+`usage`, so `ObjectListUsage` shows the meter against the server's caps.
+
+<Accordions>
+<Accordion title="How should I check quotas for a large scope?">
+
+`getUsage` sums every live row of the scope on each call. That is fine for
+demos and light use, but not for frequent uploads on large scopes. Keep a
+counter of your own in that case, and return caps from the `quota` function
+that account for it.
+
+</Accordion>
+</Accordions>
+
 ## Browser
 
-Register `dbClient()` once. In a client component, `s3Client.useApi()` gives
-you `api.db.listObjects`. [`useObjectList`](/docs/react/hooks/object-list)
-pages that response. `dbObjectSource` sends the open folder id as `prefix`,
-the search text as `search`, and the list's sort as `sort` (`name` →
-`filename`, `updatedAt` → `createdAt`), and reads each row's name, key,
-size, and type. It does not turn keys into folders.
+Register `dbClient()` once. In a client component, `s3Client.useApi()`
+gives you `api.db`:
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -110,7 +282,22 @@ export const s3Client = createS3Client({
 });
 ```
 
-```tsx title="components/file-list.tsx"
+<AutoTypeTable path="packages/db/src/types/client.ts" name="DbClientActions" />
+
+`dbObjectSource(api.db, options)` turns those actions into a
+[`useObjectList`](/docs/react/hooks/object-list) source:
+
+- Each page lists one folder, and the first page carries its child folders.
+  `parent` is a folder path.
+- Uploads from the list go to the open folder (`uploadOptions`).
+- "New folder" calls `api.db.createFolder`.
+- The list's `search` becomes `search`, and its sort maps `name` to
+  `filename`. `size` and `updatedAt` keep their names.
+- `usage` is the scope total with its caps, not the open folder's.
+
+Pass `folders: false` for a flat list with no folder actions.
+
+```tsx title="components/files.tsx"
 "use client";
 
 import { dbObjectSource } from "@dimah-s3/db/client";
@@ -120,8 +307,8 @@ import { s3Client } from "@/lib/s3-client";
 export function Files() {
   const api = s3Client.useApi();
   const list = useObjectList({
-    ...dbObjectSource(api.db.listObjects, { route: "avatar" }),
-    queryKey: ["avatar"],
+    ...dbObjectSource(api.db, { route: "files" }),
+    queryKey: ["files"],
   });
 
   if (list.isLoading) return <p>Loading…</p>;
@@ -143,125 +330,10 @@ export function Files() {
 }
 ```
 
-[`ObjectList`](/docs/react/ui/components/object-list) renders the same state
-if you want the folder chrome: `<ObjectList list={list} />`. `list.usage` is
-the scope total from this response. Pass the same caps you gave
-`db({ quota })` as `usageLimits` on `ObjectList`. `dbObjectFile` is the row
-reader on its own, for a query you write yourself. Call `listObjects`
-yourself when you do not want the hook. To list another scope, call
-`listByScope` on the server.
-
-````
-
-<Callout title="Scope is resolved on the server">
-  `listObjects` is the browser wrapper for `GET /db/objects`. It does not take a
-  scope. The plugin uses `resolveScope` on the request. To list another scope,
-  call `listByScope` on the server.
-</Callout>
-
-## Quota guards
-
-For the normal `db()` integration, pass app-owned limits through `quota`. The
-plugin runs the check after its ownership guard:
-
-```ts
-plugins: [
-  db({
-    client: dimahS3Db,
-    resolveScope,
-    quota: { maxBytes: 100 * 1024 * 1024, maxFiles: 50 }, // [!code ++]
-  }),
-],
-````
-
-The guard projects the scope's current DB usage plus the incoming file's
-declared size. It rejects a missing scope with `UNAUTHORIZED` and an exceeded
-byte or file-count limit with `QUOTA_EXCEEDED` (HTTP 413).
-
-### createQuotaGuard
-
-Use `createQuotaGuard` when you need the same quota check in a route guard you
-compose yourself. Its signature is
-`createQuotaGuard(options): (context: QuotaGuardContext) => Promise<void>`.
-
-```ts
-import { createQuotaGuard } from "@dimah-s3/db";
-
-const quotaGuard = createQuotaGuard({
-  client: dimahS3Db,
-  resolveScope,
-  maxBytes: 100 * 1024 * 1024, // [!code ++]
-  maxFiles: 50, // [!code ++]
-});
-
-avatar: route({
-  upload: {
-    guard: quotaGuard,
-  },
-});
-```
-
-When `db()` is also registered, its plugin guard runs before this route guard.
-Use `chainHooks(quotaGuard, anotherGuard)` from `@dimah-s3/server` when the
-route already has another upload guard.
+[`ObjectList`](/docs/react/ui/components/object-list) renders the same
+state with folders, upload, and usage: `<ObjectList list={list} />`.
 
 <AutoTypeTable
-  path="packages/db/src/hooks/create-quota-guard.ts"
-  name="CreateQuotaGuardOptions"
-/>
-
-<Accordions>
-<Accordion title="How should I check quotas for a large scope?">
-
-Keep a separate quota table or counter updated by your hooks.
-`getScopeUsage` scans every row for the scope on each call, which is suitable
-for demos and light use but not frequent presign checks on large scopes.
-
-</Accordion>
-</Accordions>
-
-## Object access guards
-
-`db()` already installs object access guards for its routes. Use
-`createObjectAccessGuard` as an escape hatch when you manually compose a
-custom route policy. Its signature is
-`createObjectAccessGuard(options): (context: ObjectAccessGuardContext) => Promise<void>`.
-
-The guard resolves the caller's scope, loads the row by bucket and key, checks
-its status and ownership, and optionally verifies a multipart `uploadId`. It
-throws `UNAUTHORIZED`, `OBJECT_NOT_FOUND`, or `FORBIDDEN` when a check fails.
-`operation` is passed to `resolveScope` with the route and key, so create one
-guard per hook.
-
-```ts
-import { createObjectAccessGuard } from "@dimah-s3/db";
-
-const guardFor = (operation: "download" | "delete") =>
-  createObjectAccessGuard({
-    client: dimahS3Db,
-    resolveScope,
-    operation,
-    // requireStatus defaults to "active"
-  });
-
-documents: route({
-  // This route owns its guard composition; matching DB rows must already exist.
-  plugins: { db: false }, // [!code ++]
-  download: { guard: guardFor("download") }, // [!code ++]
-  delete: { guard: guardFor("delete") }, // [!code ++]
-});
-```
-
-The default `"active"` status fits download and delete. For a new upload's
-manual confirm guard use `requireStatus: "pending"` (an overwrite can use
-`"any"`); for `upload.multipart.guard`, also set `requireUploadId: true`.
-`requireStatus: "any"` accepts pending or active rows, never deleted rows.
-
-`authorize` replaces the default `object.scope === scope` ownership test. A
-custom callback must therefore enforce every ownership or sharing rule your
-application requires.
-
-<AutoTypeTable
-  path="packages/db/src/hooks/create-object-access-guard.ts"
-  name="CreateObjectAccessGuardOptions"
+  path="packages/db/src/types/client.ts"
+  name="DbObjectSourceOptions"
 />

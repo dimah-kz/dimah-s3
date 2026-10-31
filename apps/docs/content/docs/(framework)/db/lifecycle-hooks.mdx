@@ -1,49 +1,105 @@
 ---
 title: Database Lifecycle Hooks
-description: Automatic lifecycle synchronization and ownership checks from @dimah-s3/db.
+description: The guards and lifecycle hooks db() attaches to every tracked route.
 ---
 
-The [`db()`](/docs/db/setup) plugin automatically attaches guards and
-synchronization actions across upload, download, and delete flows.
+The [`db()`](/docs/db/setup) plugin attaches guards and lifecycle hooks to
+every route that does not set `plugins: { db: false }`. They keep
+`storage_object` in step with S3 and check that each call acts on rows of
+its own scope.
 
-## Access and scope validation
+## Hook order
 
-Route membership is still the server `keyPrefix` check (`INVALID_KEY`). These
-plugin guards do not compare the stored `route` column to the request route.
-They look up the row by `(bucket, key)` and compare **scope**.
+Guards run instance, then route, then feature. Within each hook, the
+plugin runs first and your hook runs last. This holds for lifecycle `on*`
+hooks too, so your `upload.onStart` sees the pending row, and your
+`upload.onConfirmed` sees the row already `active`. See the
+[plugin hook order](/docs/server/plugins#hook-execution-order).
 
-Before an operation runs, `@dimah-s3/db` resolves the active session scope
-through `resolveScope(request, context)`. `context` carries the `operation`,
-the `route`, and the object `key` the endpoint already validated (see
-[scope context](/docs/db/setup#scope-context)):
+## Lifecycle by operation
 
-| Situation                                   | Response Status      | Error Code         |
-| ------------------------------------------- | -------------------- | ------------------ |
-| `resolveScope` returns `null`               | **401 Unauthorized** | `UNAUTHORIZED`     |
-| Target key belongs to another scope         | **403 Forbidden**    | `FORBIDDEN`        |
-| Target object row not found or soft-deleted | **404 Not Found**    | `OBJECT_NOT_FOUND` |
+| Hook                       | What the plugin does                                                                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upload ticket              | Binds the ticket to the caller's scope. A ticket from another scope is `UPLOAD_TICKET_INVALID`.                                                 |
+| `upload.guard`             | Checks `clientMetadata.folder`, runs `authorize` with that folder, checks who owns the key, then checks the [quota](/docs/db/api#quota).        |
+| `upload.onStart`           | Writes the `pending` row with the upload's token, its confirm deadline, and its folder, then creates the folder and its ancestors when missing. |
+| `upload.confirmGuard`      | Accepts only the row of this ticket's upload, owned by the caller.                                                                              |
+| `upload.onConfirmed`       | Checks the quota against the verified size, then marks the row `active` with the size, type, and ETag from HeadObject.                          |
+| `upload.multipart.guard`   | Part, list, and complete accept only the row of this ticket's upload. Abort checks the row only while it is still this upload's.                |
+| `upload.multipart.onAbort` | Removes the pending row, or ends the overwrite and keeps the previous object.                                                                   |
+| `download.guard`           | Requires an `active` row owned by the caller, then runs `authorize` with it.                                                                    |
+| `delete.guard`             | Requires a row owned by the caller, then runs `authorize` with it.                                                                              |
+| `delete.onDeleted`         | Aborts a multipart upload in flight, then soft- or hard-deletes the row (`deleteMode`).                                                         |
 
----
+`onStart` runs for presigned POST and PUT uploads, multipart init, and
+`s3.put` (`kind: "server"`). The row's `expiresAt` is the `expiresAt` of the
+onStart context: the upload ticket's expiry, or 15 minutes for `s3.put`. A
+pending row past that deadline stops counting toward the quota, and
+[purge](/docs/db/purge) cleans it up. The deadline comes from the server's
+upload ticket settings, `upload.confirmWindow` and
+`upload.multipart.ticketExpiresIn`. There is no separate option.
 
-## Lifecycle behavior by operation
+## Confirm replays
 
-- **Upload** — Upserts a `pending` row on presign / multipart init.
-- **Upload confirmation** — Verifies `pending` state (or refreshes an
-  already-active overwrite), records verified `contentLength` from
-  `HeadObject`, and returns the `active` row.
-- **Download** — Enforces that the object has `status: "active"` and matches the caller's scope.
-- **Delete** — Runs S3 `DeleteObjectCommand`, then updates row status to `"deleted"` (soft delete) or removes it (hard delete). A `pending` row whose object never landed is cleaned up too, so it stops counting toward quota. A pending multipart upload is aborted by its `uploadId` first.
+Confirm is stateless, and `onConfirmed` runs at least once. The plugin marks
+the row active with a compare-and-set on its status and upload token. A
+retried confirm or complete for an upload that is already confirmed returns
+the stored row, and the quota is not checked again. Your own `onConfirmed`
+can dedupe on `uploadToken`.
+
+When the quota check at confirm fails, the plugin removes the row, and the
+server deletes the object and returns `QUOTA_EXCEEDED`.
+
+## Overwrites
+
+An upload to a key that already has an active object fails with `CONFLICT`,
+unless the route sets `plugins: { db: { replace: "overwrite" } }`. With it:
+
+- The active row stays active, and the current object stays listed and
+  downloadable until the new upload is confirmed.
+- The row keeps its folder, attributes, and `createdAt`. The overwrite's
+  `clientMetadata.folder` is ignored.
+- An abort keeps the previous object. An expired overwrite is cleaned up
+  by [purge](/docs/db/purge).
+
+An upload to a key that purge is cleaning up gets `CONFLICT`. A retry after
+purge finishes goes through.
+
+## Errors
+
+| Situation                                                  | Status | Code                    |
+| ---------------------------------------------------------- | ------ | ----------------------- |
+| `resolveScope` returns `null`                              | `401`  | `UNAUTHORIZED`          |
+| The key belongs to another scope, or `authorize` says no   | `403`  | `FORBIDDEN`             |
+| The upload ticket was issued to another scope              | `403`  | `UPLOAD_TICKET_INVALID` |
+| The row is missing, deleted, or not this upload's          | `404`  | `OBJECT_NOT_FOUND`      |
+| An active object is at the key, or purge is cleaning it up | `409`  | `CONFLICT`              |
+| `clientMetadata.folder` is not a valid folder path         | `400`  | `FOLDER_INVALID`        |
+| The upload would exceed the quota                          | `403`  | `QUOTA_EXCEEDED`        |
+
+Route membership is still the server `keyPrefix` check (`KEY_INVALID`). The
+plugin looks rows up by `(bucket, key)` and compares the **scope**. It does
+not compare the stored `route` column to the request route. See
+[route namespace vs ownership](/docs/server/security#route-namespace-vs-ownership).
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do my route guards interact with the database plugin?">
+<Accordion title="What happens on a route with plugins: { db: false }?">
 
-Your route-level `guard` runs first during route resolution. After that, the
-database plugin's operation guard verifies scope and ownership before your
-operation-specific `upload.guard`, `download.guard`, or `delete.guard`. See the
-standard [plugin hook order](/docs/server/plugins#hook-execution-order).
+None of these hooks run: no rows, no ownership checks, and upload tickets
+are not bound to a scope. Add your own `download.guard` and `delete.guard`.
+The plugin warns at startup when such a route enables download or delete
+with no route or feature guard.
+
+</Accordion>
+
+<Accordion title="Can authorize allow access to another scope's objects?">
+
+No. The ownership check runs first, and `authorize` can only narrow it. To
+share objects, resolve both callers to the same scope, for example
+`org:acme`.
 
 </Accordion>
 

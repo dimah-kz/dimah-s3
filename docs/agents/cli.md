@@ -27,9 +27,19 @@ Step shape: `CreateStep` in `create/step.ts`. Look at existing modules under `cr
 
 Keep prompts in the config layer and filesystem writes in steps. If a step must rewrite template source, edit the AST (magicast), not string patches.
 
+## Generated env
+
+`create/env.ts` owns the keys `create` fills in `.env` (`GENERATED_ENV_KEYS`, today `DIMAH_S3_SECRET`). The scaffold step calls `writeProjectEnv`, and `CreateContext.generatedEnv` drives the next-steps note.
+
+- A new `.env` starts from `.env.example` and gets a fresh value for every generated key.
+- An existing `.env` is only appended to or filled where the key is empty. Never overwrite a value that is set.
+- Never print a generated value. Name the key only.
+
+A new generated key goes in `GENERATED_ENV_KEYS` with its generator, in every template's `.env.example` as an empty assignment, and in the env unit test.
+
 ## Snapshot
 
-On CLI `build`, the snapshot script copies each catalog id from `templates/<id>/`, pins `@dimah-s3/*` to the CLI version, and fails on `workspace:`, `catalog:`, or `@workspace/*`.
+On CLI `build`, the snapshot script copies each catalog id from `templates/<id>/`, pins `@dimah-s3/*` to the CLI version, and fails on `workspace:`, `catalog:`, or `@workspace/*`. It never copies local env files, and it fails when a template's `.env.example` does not list an empty `DIMAH_S3_SECRET`.
 
 That script is the source of truth for copy/exclude/rewrite rules (including `.gitignore` → `_gitignore`). `tsup` uses `clean: true` on the bin entry, so the snapshot must run **after** tsup or `dist/templates/` is wiped.
 
@@ -41,4 +51,5 @@ Starters live in `templates/` — **not** a workspace member. See [templates/AGE
 
 - New template: folder + `templates/catalog.json`. Add `examples/with-<id>/` only when it should be a monorepo demo.
 - Root scripts `templates:*` / `examples:drift` / `deps:update` are in the repo `package.json`.
+- Templates pin the published line (`^1.8.0`) and list `@dimah-s3/core` next to server, react, and ui. Before a release is on npm, check them with `pnpm templates:build -- --local`, which installs packed workspace packages.
 - Next.js is the example twin (`pnpm examples:drift`). Other starters may have no twin. `examples/with-db` is not a template twin.

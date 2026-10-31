@@ -1,0 +1,143 @@
+---
+title: Upgrade the Schema
+description: Move a 1.x database from schema 1.0.0 to schema 2.0.0.
+---
+
+`@dimah-s3/db` 1.8 reads and writes schema `2.0.0`. A database still at
+`1.0.0` throws on the first query, so upgrade it when you deploy 1.8. For
+the code changes in every package, see [Upgrade to 1.8](/docs/migration-1-8).
+
+## What changes
+
+- `metadata` is renamed to `s3_metadata`. New columns: `attributes`,
+  `folder` (`NULL` is the root), and `upload_token`.
+- `filename` is required. A missing one becomes the last segment of the key.
+- `status` can also be `purging`.
+- A new `storage_folder` table holds the folders.
+- The 1.x recommended indexes give way to the
+  [2.0.0 indexes](/docs/db/setup#cli).
+- SQLite: sizes become `INTEGER`, and timestamps become epoch milliseconds.
+- MySQL: columns become `varchar` and `datetime(3)`, and the table uses
+  `utf8mb4_bin`, with `utf8mb4_unicode_ci` on `filename`.
+
+## Before you start
+
+- Back up the database.
+- Upgrade at a quiet time. An upload started on 1.x cannot confirm on 1.8,
+  because 1.8 confirms with an upload ticket.
+- Do not let an ORM diff tool (`drizzle-kit`, `prisma migrate`) write this
+  upgrade. It can drop `metadata` instead of renaming it, and it cannot
+  fill in `filename`.
+
+## Upgrade
+
+<Tabs items={["SQL file", "Kysely"]}>
+<Tab value="SQL file">
+
+Run the upgrade file for your database with your SQL tool:
+
+```bash
+psql "$DATABASE_URL" -f node_modules/@dimah-s3/db/sql/upgrade/1.0.0-2.0.0/pg.sql
+# or sqlite.sql, mysql.sql in the same folder
+```
+
+- The SQLite and PostgreSQL files run in one transaction.
+- On MySQL, each `ALTER TABLE` commits on its own, so a failed step leaves
+  the earlier ones applied. If you added the 1.x recommended indexes, drop
+  them first: the statements are in the file header. Run it with the time
+  zone your app connects with, since timestamps are converted in the
+  session time zone.
+- The last statement sets the version in `private_dimah_s3_settings`, which
+  Kysely and Prisma read. With Drizzle, skip it (see below).
+
+Use this path on SQLite and MySQL.
+
+</Tab>
+<Tab value="Kysely">
+
+`migrate(client)` steps from `1.0.0` to `2.0.0`. It creates the 2.0.0
+indexes, fills in `filename`, and rewrites the sizes 1.x stored as blobs.
+
+```ts title="scripts/migrate.ts"
+import { migrate } from "@dimah-s3/db/cli";
+import { dimahS3Db } from "@/lib/dimah-s3-db";
+
+await migrate(dimahS3Db);
+```
+
+- It does not work on MySQL. Use the SQL file there.
+- On SQLite, it stores sizes as `REAL`, not `INTEGER`. Sorting and quotas
+  still work, but the SQL file gives you integer columns.
+- The FumaDB CLI's `migrate` command jumps straight to the latest schema
+  and skips these steps. Use `migrate(client)`, or `migrate:up`.
+
+</Tab>
+</Tabs>
+
+## Update your ORM schema
+
+<Tabs items={["Drizzle", "Prisma"]}>
+<Tab value="Drizzle">
+
+The Drizzle adapter and tables need `drizzle-orm` `1.0.0-rc.5` or later;
+0.44 and 0.45 are no longer supported. Upgrade `drizzle-orm` first.
+
+Replace your generated 1.x schema file with the prebuilt tables
+([setup](/docs/db/setup)), import the adapter from
+`@dimah-s3/db/adapters/drizzle`, and remove `fumadb` and the `fumadb/cuid`
+path alias from your app.
+
+The 1.x settings table has `id` and `version` columns; the 2.0.0 definition
+has `key` and `value`. The Drizzle adapter reads the version from the table
+definition, not from the table, which is why you skip the last statement of
+the SQL file. Let `drizzle-kit` update the settings table afterwards. It
+holds nothing the adapter reads.
+
+</Tab>
+<Tab value="Prisma">
+
+Replace your 1.x models with `prisma/dimah-s3.prisma`
+([setup](/docs/db/setup)), and import the adapter from
+`@dimah-s3/db/adapters/prisma`.
+
+The settings model is now `private_dimah_s3_settings`, with `key` and
+`value` columns. If your 1.x table has `id` and `version` columns instead,
+drop it and let Prisma create the new one: the adapter adds the `version`
+row from the model default.
+
+Then create a migration for what is left with
+`prisma migrate dev --create-only`, and review it before you apply it. It
+should not drop or recreate any `storage_object` column.
+
+</Tab>
+</Tabs>
+
+## Check
+
+Call `checkSchema` at startup. It throws unless the database is at
+`2.0.0`:
+
+```ts
+await s3.db.checkSchema();
+```
+
+Pending rows from 1.x have no upload token, so they can never confirm.
+[Purge](/docs/db/purge) removes them. If their objects reached S3, purge
+keeps those, because they carry no upload marker: delete them yourself if
+you need the space.
+
+## Code changes
+
+| 1.x                                                    | 1.8                                                                          |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `fumadb/adapters/*`                                    | `@dimah-s3/db/adapters/*`                                                    |
+| `resolveScope(request, context)`                       | `resolveScope({ request, locals, session, operation, … })` with `getSession` |
+| `createObjectAccessGuard`                              | [`authorize`](/docs/db/setup#authorize)                                      |
+| `createQuotaGuard`                                     | [`quota`](/docs/db/api#quota) as a function                                  |
+| `pendingTtlMs`                                         | removed: pending rows expire with the upload ticket                          |
+| `purgeStalePendingObjects`                             | [`s3.db.purgeStale()`](/docs/db/purge) and `s3.db.pruneDeleted()`            |
+| `listByScope`, `countByScope`, `getScopeUsage`         | `list`, `count`, `getUsage`                                                  |
+| `findActive`, `findByScopeKey`, `findPendingMultipart` | `find`, then check the row                                                   |
+| `dbObjectSource(api.db.listObjects, …)`                | `dbObjectSource(api.db, { route, folders })`                                 |
+| `GET /db/objects?prefix=…&offset=…`                    | `?folder=…&cursor=…`                                                         |
+| `QUOTA_EXCEEDED` (`413`)                               | `QUOTA_EXCEEDED` (`403`) with `params.limit`                                 |

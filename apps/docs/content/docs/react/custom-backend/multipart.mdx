@@ -1,22 +1,31 @@
 ---
 title: Multipart
-description: Implement multipart initialization, part signing, resume, completion, and abort.
+description: Implement multipart init, part signing, resume, completion, and abort for a custom backend.
 ---
 
-Split a large file into parts. Each part is a presigned PUT; your backend
-orchestrates init, signing, complete, and abort.
+Large files upload in parts. Each part is a presigned PUT, and your backend
+runs the session: init, signing, complete, and abort.
 
 **Flow:** `init` → `signPart` (per part) → `complete` or `abort` · `listParts`
 to resume.
 
+The browser uses multipart for files of at least 50 MiB when the route's
+catalog entry has `multipart: true`.
+
 ## Init
 
-Same payload shape as [simple upload](/docs/react/custom-backend/upload).
+Same file fields as a [simple upload](/docs/react/custom-backend/upload),
+without `checksum`.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
   name="MultipartInitPayload"
 />
+
+Your backend picks the part layout. Return `partSize` (every part but the
+last) and `partCount`; the browser slices the file exactly that way. Set
+`checksum: true` to make every part send a SHA-256. The `ticket` goes with
+every later call, so it must identify the route, key, and upload id.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
@@ -30,97 +39,98 @@ Same payload shape as [simple upload](/docs/react/custom-backend/upload).
   name="MultipartSignPartPayload"
 />
 
+Sign the part's exact byte `size` into the URL, and the checksum when there is
+one. The browser sends exactly `headers` on the PUT. When a part URL expires
+mid-upload, the browser calls `signPart` again rather than reusing it.
+
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
   name="MultipartPartResponse"
 />
 
-## List parts
+## List parts, complete, and abort
+
+These three take only the ticket.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
-  name="MultipartListPartsPayload"
+  name="MultipartTicketPayload"
 />
+
+`listParts` returns the parts S3 already has, so a resumed upload sends only
+the rest. Read every page of S3's `ListParts`.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
   name="MultipartListPartsResponse"
 />
 
-## Complete
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartCompletePayload"
-/>
+`complete` lists the parts on the server, completes the upload, and returns
+the object `HeadObject` reports, plus the upload id.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
   name="MultipartCompleteResponse"
 />
 
-## Abort
-
-Same payload shape as list-parts.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartAbortPayload"
-/>
+`abort` ends the session. The browser calls it when the user cancels.
 
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
   name="MultipartAbortResponse"
 />
 
-```ts
-import type {
-  MultipartInitPayload,
-  MultipartInitResponse,
-  MultipartSignPartPayload,
-  MultipartPartResponse,
-  MultipartListPartsPayload,
-  MultipartListPartsResponse,
-  MultipartCompletePayload,
-  MultipartCompleteResponse,
-  MultipartAbortPayload,
-  MultipartAbortResponse,
-} from "@dimah-s3/core";
-```
+When a resumed upload's ticket has expired, or the upload is gone, throw
+`UPLOAD_TICKET_EXPIRED`, `UPLOAD_TICKET_INVALID`, or `OBJECT_NOT_FOUND`. The
+browser then aborts, forgets the stored upload, and starts over.
 
 ## Example
 
-Add this to the [`defineApi`](/docs/react/custom-backend) skeleton.
 [`@dimah-s3/server`](/docs/server) mounts these under
 `/api/s3/presign/multipart/*`.
 
-```ts
-const base = "/api/files/presign/multipart";
+```ts title="lib/s3-api/multipart.ts"
+import type {
+  MultipartAbortResponse,
+  MultipartCompleteResponse,
+  MultipartInitPayload,
+  MultipartInitResponse,
+  MultipartListPartsResponse,
+  MultipartPartResponse,
+  MultipartSignPartPayload,
+  MultipartTicketPayload,
+  S3RequestOptions,
+} from "@dimah-s3/core";
+import { $fetch, call } from "./fetch";
 
-async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
+const post = <T>(path: string, body: object, options?: S3RequestOptions) =>
+  $fetch<T>(`/multipart${path}`, { method: "POST", body, ...call(options) });
 
-multipart: {
-  init: (payload) => post(`${base}/init`, payload),
-  signPart: (payload) => post(`${base}/part`, payload),
-  async listParts(payload) {
-    const params = new URLSearchParams({
-      route: payload.route,
-      key: payload.key,
-      uploadId: payload.uploadId,
-    });
-    const res = await fetch(`${base}/parts?${params}`);
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-  complete: (payload) => post(`${base}/complete`, payload),
-  abort: (payload) => post(`${base}/abort`, payload),
-}
+export const init = (
+  payload: MultipartInitPayload,
+  options?: S3RequestOptions,
+) => post<MultipartInitResponse>("/init", payload, options);
+
+export const signPart = (
+  payload: MultipartSignPartPayload,
+  options?: S3RequestOptions,
+) => post<MultipartPartResponse>("/part", payload, options);
+
+export const listParts = (
+  payload: MultipartTicketPayload,
+  options?: S3RequestOptions,
+) => post<MultipartListPartsResponse>("/parts", payload, options);
+
+export const complete = (
+  payload: MultipartTicketPayload,
+  options?: S3RequestOptions,
+) => post<MultipartCompleteResponse>("/complete", payload, options);
+
+export const abort = (
+  payload: MultipartTicketPayload,
+  options?: S3RequestOptions,
+) => post<MultipartAbortResponse>("/abort", payload, options);
 ```
+
+`$fetch` and `call` come from the
+[skeleton](/docs/react/custom-backend#skeleton).

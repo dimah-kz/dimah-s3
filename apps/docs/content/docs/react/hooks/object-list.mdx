@@ -1,6 +1,6 @@
 ---
 title: useObjectList
-description: Headless hooks that page, search, sort, and select a folder catalog from any source.
+description: Headless hooks that page, search, sort, and select a folder catalog from any source, with uploads into folders and usage limits.
 ---
 
 `useObjectList` keeps the open folder, the breadcrumb, cursor pages, search,
@@ -64,22 +64,104 @@ The query receives:
 - `signal` — aborted when the folder, sort, search, or `queryKey` changes, when the list reloads, or when the hook unmounts.
 
 Return `folders` from the first page only. Later pages append `items`.
-Return `usage` (`{ totalBytes, objectCount }`) when you know how full the
-catalog is.
 
 Changing the folder or `queryKey` clears the rows and shows the loading
 state. Use `queryKey` for filters of your own, such as the route. Changing
 the sort or search keeps the current rows on screen, with `isRefreshing`,
 until the new first page arrives. Opening another folder clears the search.
 
-## Sources
+A query that rejects sets `status` to `error`. `error` is an `APIError`; a
+rejection that is not one becomes `UNKNOWN_ERROR`, with the original as its
+`cause`.
 
-`memoryObjectSource` serves records you already hold: folders from a
-`/`-separated path, then search, sort, and pages on the client. Pass a
-function to read the latest records on each request.
+## Usage and limits
+
+Return `usage` from a page when you know how full the catalog is:
 
 ```ts
-import { memoryObjectSource, useObjectList } from "@dimah-s3/react";
+return {
+  items,
+  nextCursor,
+  usage: {
+    totalBytes: 734_003_200,
+    objectCount: 120,
+    maxBytes: 1_073_741_824, // optional cap
+    maxFiles: 500, // optional cap
+  },
+};
+```
+
+`list.usage` keeps the totals from the latest page that sent them. A later
+page may leave `usage` out; a first page that leaves it out clears it. The
+caps are for display; the server still enforces its own quota.
+
+## Uploads and folders
+
+A source can add two optional functions. The hook returns them as
+`list.uploadOptions` and `list.createFolder`.
+
+- **`uploadOptions(parent)`** — the [request options](/docs/react/hooks/upload#request-options) for files uploaded into a folder (`null` is the root). It turns on drop-on-folder.
+- **`createFolder({ parent, name })`** — creates an empty folder. It turns on "New folder".
+
+```ts
+const source: ObjectListSource<FileRow> = {
+  query,
+  getKey: (file) => file.id,
+  uploadOptions: (parent) => ({ metadata: { folder: parent ?? "" } }),
+  createFolder: async ({ parent, name }) => {
+    const folder = await api.createFolder({ parent, name });
+    return { id: folder.id, name: folder.name };
+  },
+};
+```
+
+`list.createFolder(name)` creates the folder inside the open folder and adds
+it to the loaded folders. It rejects with an `APIError`. If the list moved to
+another folder while the call ran, the new folder is not added.
+
+With your own controls, pass the options to the upload hook. Drop targets use
+`getDropTargetProps`, so folder rows keep their own click and keyboard
+handlers:
+
+```tsx
+const upload = useUpload({ route: "files", maxFiles: 20, queue: true });
+
+<div
+  {...upload.getRootProps(undefined, () => ({
+    uploadOptions: list.uploadOptions?.(list.parent),
+  }))}
+>
+  <input {...upload.getInputProps()} />
+  {list.folders.map((folder) => (
+    <button
+      key={folder.id}
+      type="button"
+      onClick={() => list.openFolder(folder)}
+      {...upload.getDropTargetProps(undefined, () => ({
+        uploadOptions: list.uploadOptions?.(folder.id),
+      }))}
+    >
+      {folder.name}
+    </button>
+  ))}
+</div>;
+```
+
+A drop on a folder row inside the dropzone goes to that folder. The
+[`ObjectList`](/docs/react/ui/components/object-list) component does this
+wiring for you when you pass it `upload`.
+
+## Sources
+
+### memoryObjectSource
+
+`memoryObjectSource` from `@dimah-s3/react/engine` serves records you already
+hold: folders from a `/`-separated path, then search, sort, and pages on the
+client. Pass a function to read the latest records on each request.
+
+```ts
+import { useObjectList } from "@dimah-s3/react";
+import { memoryObjectSource } from "@dimah-s3/react/engine";
 
 const source = memoryObjectSource(files, {
   getKey: (file) => file.id,
@@ -91,11 +173,15 @@ const source = memoryObjectSource(files, {
   }),
   getFolder: (file) => file.folder, // "Invoices/2026", or null for the root
   pageSize: 50,
-  usage: true,
+  limits: { maxBytes: 1_073_741_824, maxFiles: 500 },
 });
 
 const list = useObjectList(source);
 ```
+
+`usage` is sent with each page when `limits` is set, or when you pass
+`usage: true`. It totals every record, not only the open folder. Pass
+`usage: false` to turn it off.
 
 Search matches the name, ignoring case and accents; pass `matches` to change
 that. Sort understands `name`, `size`, and `updatedAt`; pass `sortValue` for
@@ -105,21 +191,26 @@ other fields. Records without a value sort last.
 into the folders and files at one level. Pass the full set for that listing.
 One page of a database query cannot be grouped after the fact.
 
-### With `db()`
+### dbObjectSource
 
-`dbObjectSource` from `@dimah-s3/db/client` adapts `api.db.listObjects`. The
-open folder is sent as the key `prefix`. It does not invent folder rows:
-generated keys contain a uuid segment, so splitting the key is not a folder
-tree. Search and sort run on the server: the search text matches the
-filename, `name` sorts by filename, `updatedAt` by creation time, and `size`
-by verified size. Rows without a value sort last.
+`dbObjectSource(api.db, options)` from `@dimah-s3/db/client` lists the rows
+of the [`db()`](/docs/db) plugin. By default it lists one folder at a time:
+`parent` is a folder path, the first page carries the child folders, uploads
+go to the open folder, and "New folder" calls `api.db.createFolder`. Pass
+`folders: false` for a flat list with no folder actions.
 
 ```tsx title="components/db-files.tsx"
 "use client";
 
 import { useState } from "react";
 import { dbClient, dbObjectSource } from "@dimah-s3/db/client";
-import { createS3Client, useObjectList } from "@dimah-s3/react";
+import {
+  createS3Client,
+  useDelete,
+  useDownload,
+  useObjectList,
+  useUpload,
+} from "@dimah-s3/react";
 import { ObjectList } from "@dimah-s3/ui";
 
 const s3Client = createS3Client({
@@ -129,17 +220,28 @@ const s3Client = createS3Client({
 
 export function DbFiles() {
   const api = s3Client.useApi();
-  const [source] = useState(() =>
-    dbObjectSource(api.db.listObjects, { route: "docs" }),
-  );
-  const list = useObjectList({ ...source, queryKey: ["docs"] });
+  const [source] = useState(() => dbObjectSource(api.db, { route: "files" }));
+  const list = useObjectList({ ...source, queryKey: ["files"] });
+  const upload = useUpload({ route: "files", maxFiles: 20, queue: true });
+  const download = useDownload({ route: "files" });
+  const remove = useDelete({ route: "files" });
 
-  return <ObjectList list={list} />;
+  return (
+    <ObjectList
+      list={list}
+      upload={upload}
+      download={download}
+      delete={remove}
+    />
+  );
 }
 ```
 
-Scope still comes from the server `resolveScope`. The query does not accept a
-scope.
+Search and sort run on the server: the search text matches the filename,
+`name` sorts by filename, `updatedAt` by last change, and `size` by verified
+size. `usage` is the scope's total with its quota caps, not the open
+folder's. Scope comes from the server `resolveScope` option; the query does
+not accept one.
 
 ## Navigation
 
@@ -194,13 +296,14 @@ picker that collects files from several places.
 ## UI
 
 [`ObjectList`](/docs/react/ui/components/object-list) renders the list and
-the selection, with search, sort, a grid view, upload, and a file menu. It
-does not call these hooks.
+the selection, with search, sort, a grid view, upload, folders, usage, and a
+file menu. It does not call these hooks.
 
 ## Props
 
 ```ts
 import type {
+  ObjectListSource,
   UseObjectListOptions,
   UseObjectListReturn,
   UseObjectListSelectionOptions,
@@ -221,6 +324,17 @@ import type {
 ### File
 
 <AutoTypeTable path="packages/react/src/list/types.ts" name="ObjectListFile" />
+
+### Usage
+
+<AutoTypeTable path="packages/react/src/list/types.ts" name="ObjectListUsage" />
+
+### memoryObjectSource
+
+<AutoTypeTable
+  path="packages/react/src/list/memory-object-source.ts"
+  name="MemoryObjectSourceOptions"
+/>
 
 ### Selection
 

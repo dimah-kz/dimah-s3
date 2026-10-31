@@ -3,49 +3,87 @@ title: Theming
 description: Customize color tokens and styling for @dimah-s3/ui components.
 ---
 
-`@dimah-s3/ui` components use CSS variable-based tokens (`--color-dimah-s3-*`) that map directly to standard shadcn theme tokens by default.
+`@dimah-s3/ui` components read their colors from `--dimah-s3-*` CSS
+variables. By default each one points at the matching shadcn variable, so
+the components follow your theme. Override a token to change the components
+without changing your app.
 
-## Token mapping
+## Tokens
 
-| Token                                 | Default Value               |
-| ------------------------------------- | --------------------------- |
-| `--color-dimah-s3-background`         | `var(--background)`         |
-| `--color-dimah-s3-foreground`         | `var(--foreground)`         |
-| `--color-dimah-s3-card`               | `var(--card)`               |
-| `--color-dimah-s3-primary`            | `var(--primary)`            |
-| `--color-dimah-s3-primary-foreground` | `var(--primary-foreground)` |
-| `--color-dimah-s3-muted`              | `var(--muted)`              |
-| `--color-dimah-s3-muted-foreground`   | `var(--muted-foreground)`   |
-| `--color-dimah-s3-destructive`        | `var(--destructive)`        |
-| `--color-dimah-s3-border`             | `var(--border)`             |
-| `--color-dimah-s3-ring`               | `var(--ring)`               |
+| Token                           | Default                         |
+| ------------------------------- | ------------------------------- |
+| `--dimah-s3-background`         | `var(--background)`             |
+| `--dimah-s3-foreground`         | `var(--foreground)`             |
+| `--dimah-s3-card`               | `var(--card)`                   |
+| `--dimah-s3-card-foreground`    | `var(--card-foreground)`        |
+| `--dimah-s3-primary`            | `var(--primary)`                |
+| `--dimah-s3-primary-foreground` | `var(--primary-foreground)`     |
+| `--dimah-s3-muted`              | `var(--muted)`                  |
+| `--dimah-s3-muted-foreground`   | `var(--muted-foreground)`       |
+| `--dimah-s3-accent`             | `var(--accent)`                 |
+| `--dimah-s3-border`             | `var(--border)`                 |
+| `--dimah-s3-ring`               | `var(--ring)`                   |
+| `--dimah-s3-destructive`        | `var(--destructive)`            |
+| `--dimah-s3-success`            | `var(--success)`, else a green  |
+| `--dimah-s3-warning`            | `var(--warning)`, else an amber |
+
+shadcn has no `--success` or `--warning`. When your theme defines them, the
+components use them; otherwise they fall back to a green and an amber, with
+lighter shades under `.dark`.
+
+The defaults sit on `:root` in `@dimah-s3/ui/styles.css`. The shadcn
+registry writes the same values into your CSS when you add an item.
 
 ---
 
 ## Customizing colors
 
-To customize styling for dimah-s3 components independently from your global theme, override the tokens in your CSS:
+Override tokens after the stylesheet import, on `:root`:
 
 ```css title="app/globals.css"
 @import "@dimah-s3/ui/styles.css";
 
-@theme {
-  --color-dimah-s3-primary: oklch(0.65 0.15 150); /* [!code ++] */
-  --color-dimah-s3-destructive: oklch(0.55 0.2 25); /* [!code ++] */
+:root {
+  --dimah-s3-primary: oklch(0.65 0.15 150); /* [!code ++] */
+  --dimah-s3-destructive: oklch(0.55 0.2 25); /* [!code ++] */
 }
 ```
+
+Or on any container, to style one area differently:
+
+```css
+.avatar-panel {
+  --dimah-s3-primary: oklch(0.6 0.14 250); /* [!code ++] */
+  --dimah-s3-card: var(--muted); /* [!code ++] */
+}
+```
+
+The components read the tokens through Tailwind utilities such as
+`bg-dimah-s3-card` and `text-dimah-s3-primary`. Those utilities read the
+variable where they are used, so an override on a container reaches every
+component inside it. You can use the same utilities in your own parts.
+
+Stock shadcn primitives the components render, such as `Button` and
+`Attachment`, keep your app's `--primary` and `--card`.
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do I style a specific upload area differently?">
+<Accordion title="I set --color-dimah-s3-primary and nothing changed.">
 
-Scope the CSS variables to a container class:
+Override `--dimah-s3-primary` instead. The `--color-dimah-s3-*` variables are
+the Tailwind mappings, and they read the `--dimah-s3-*` tokens.
+
+</Accordion>
+
+<Accordion title="How do I set different colors in dark mode?">
+
+Override the tokens under your dark selector:
 
 ```css
-.avatar-panel {
-  --color-dimah-s3-primary: oklch(0.6 0.14 250); /* [!code ++] */
+.dark {
+  --dimah-s3-primary: oklch(0.75 0.14 150);
 }
 ```
 

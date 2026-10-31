@@ -1,6 +1,6 @@
 ---
 title: Database Setup
-description: Install @dimah-s3/db, add its schema, and register the db() plugin.
+description: Install @dimah-s3/db, create its tables, and register the db() plugin.
 ---
 
 This guide assumes you already have Drizzle, Prisma, or Kysely connected to
@@ -8,22 +8,26 @@ a database. A working reference is
 [`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
 (Next.js + Drizzle + SQLite).
 
+Upgrading from 1.x? The tables changed: follow
+[Upgrade the schema](/docs/db/upgrade) first.
+
 ### Install [step]
 
 ```npm
-npm i @dimah-s3/db fumadb
+npm i @dimah-s3/db
 ```
 
-### Schema [step]
+You do not install `fumadb`. The adapters ship from
+`@dimah-s3/db/adapters/*`, and the tables from `@dimah-s3/db/drizzle/*`,
+`prisma/`, and `sql/`.
 
-Add the `storage_object` table (including the recommended indexes), or
-[generate it with the CLI](#cli).
+### Tables [step]
 
-<Tabs items={["Drizzle", "Prisma", "Kysely"]}>
+The plugin uses two tables, `storage_object` and `storage_folder`, plus a
+small settings table that records the schema version (`2.0.0`).
+
+<Tabs items={["Drizzle", "Prisma", "SQL", "Kysely"]}>
 <Tab value="Drizzle">
-
-CLI / Drizzle output imports `fumadb/cuid` — alias it to
-`@paralleldrive/cuid2` in your `tsconfig` paths.
 
 <include>../../../_includes/db/drizzle-schema.mdx</include>
 
@@ -33,63 +37,60 @@ CLI / Drizzle output imports `fumadb/cuid` — alias it to
 <include>../../../_includes/db/prisma-schema.mdx</include>
 
 </Tab>
-<Tab value="Kysely">
+<Tab value="SQL">
 
-There is no committed schema file for Kysely. Migrate with the CLI, then add
-the [indexes](#cli) with SQL:
+Run the file for your database once. Each one creates the tables, the
+indexes, and the settings row:
 
 ```bash
-node --import tsx scripts/db-cli.mts migrate
+psql "$DATABASE_URL" -f node_modules/@dimah-s3/db/sql/pg.sql
+# or sql/sqlite.sql, sql/mysql.sql
 ```
+
+`sql/mysql.sql` indexes `key` on its first 512 characters and `folder` on
+its first 255. Two keys in one bucket that share their first 512 characters
+count as the same key.
+
+</Tab>
+<Tab value="Kysely">
+
+`migrate(client)` creates the tables and indexes, and later upgrades them.
+It needs the Kysely adapter (next step):
+
+```ts title="scripts/migrate.ts"
+import { migrate } from "@dimah-s3/db/cli";
+import { dimahS3Db } from "@/lib/dimah-s3-db";
+
+await migrate(dimahS3Db);
+```
+
+`migrate` does not work on MySQL. Use `sql/mysql.sql` there.
 
 </Tab>
 </Tabs>
 
 ### Database client [step]
 
-Wrap your ORM connection with a FumaDB adapter, then create the dimah-s3 DB
+Wrap your ORM connection with an adapter, then create the dimah-s3 DB
 client:
 
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
 
-drizzle-orm 1.x (the schema above) and 0.44 / 0.45 are both supported. 1.x
-needs FumaDB 0.6 or later, and the client takes `relations` from
-`defineRelations()`.
-
-<Tabs items={["1.x", "0.x"]}>
-<Tab value="1.x">
-
-```ts title="lib/db.ts"
-import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
-import { relations } from "./db/dimah-s3";
-
-export const db = drizzle({
-  client,
-  relations,
-});
-```
-
-</Tab>
-<Tab value="0.x">
-
-On 0.44 / 0.45, drop the `relations` export from the schema file.
-`import * as schema` would otherwise treat it as a table.
-
-```ts title="lib/db.ts"
-import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
-import * as schema from "./db/dimah-s3";
-
-export const db = drizzle(client, { schema });
-```
-
-</Tab>
-</Tabs>
+drizzle-orm 1.x is required (`1.0.0-rc.5` or later).
 
 ```ts title="lib/dimah-s3-db.ts"
-import { drizzleAdapter } from "fumadb/adapters/drizzle";
 import { DimahS3DB } from "@dimah-s3/db";
-import { db } from "@/lib/db";
+import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
+import Database from "better-sqlite3";
+import { defineRelations } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
+import * as schema from "../db/schema";
+
+export const db = drizzle({
+  client: new Database("local.db"),
+  relations: defineRelations(schema),
+});
 
 export const dimahS3Db = DimahS3DB.client(
   drizzleAdapter({ db, provider: "sqlite" }), // or "postgresql" | "mysql"
@@ -100,9 +101,9 @@ export const dimahS3Db = DimahS3DB.client(
 <Tab value="Prisma">
 
 ```ts title="lib/dimah-s3-db.ts"
-import { prismaAdapter } from "fumadb/adapters/prisma";
 import { DimahS3DB } from "@dimah-s3/db";
-import { prisma } from "@/lib/db";
+import { prismaAdapter } from "@dimah-s3/db/adapters/prisma";
+import { prisma } from "@/lib/prisma";
 
 export const dimahS3Db = DimahS3DB.client(
   prismaAdapter({ prisma, provider: "postgresql" }),
@@ -113,48 +114,50 @@ export const dimahS3Db = DimahS3DB.client(
 <Tab value="Kysely">
 
 ```ts title="lib/dimah-s3-db.ts"
-import { kyselyAdapter } from "fumadb/adapters/kysely";
 import { DimahS3DB } from "@dimah-s3/db";
-import { db } from "@/lib/db";
+import { kyselyAdapter } from "@dimah-s3/db/adapters/kysely";
+import { kysely } from "@/lib/kysely";
 
 export const dimahS3Db = DimahS3DB.client(
-  kyselyAdapter({ db, provider: "postgresql" }),
+  kyselyAdapter({ db: kysely, provider: "postgresql" }),
 );
 ```
 
 </Tab>
 </Tabs>
 
+On PostgreSQL, the timestamp columns have no time zone. The driver must
+write and read `Date` values the same way: `node-postgres` does by default.
+
 ### Register the plugin [step]
 
-Pass `db()` in `plugins`. `resolveScope` must return a stable ownership
-string, or `null` to reject unauthenticated callers (`401`):
+Pass `db()` in `plugins`. `getSession` loads the caller, and `resolveScope`
+returns a stable owner string for them, or `null` to reject the request
+with `UNAUTHORIZED` (`401`):
 
 ```ts title="lib/s3.ts"
-import { dimahS3, route } from "@dimah-s3/server";
+import { S3Client } from "@aws-sdk/client-s3";
 import { db } from "@dimah-s3/db";
+import { dimahS3, route } from "@dimah-s3/server";
+import { getSession } from "@/lib/auth"; // your auth
 import { dimahS3Db } from "@/lib/dimah-s3-db";
+
+const awsS3 = new S3Client({ requestChecksumCalculation: "WHEN_REQUIRED" });
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   plugins: [
     db({
-      // [!code ++]
-      client: dimahS3Db, // [!code ++]
-      resolveScope: async (request) => {
-        // [!code ++]
-        const session = await getSession(request); // [!code ++]
-        return session ? `user:${session.userId}` : null; // [!code ++]
-      }, // [!code ++]
-    }), // [!code ++]
+      client: dimahS3Db,
+      getSession: (request) => getSession(request),
+      resolveScope: ({ session }) =>
+        session ? `user:${session.userId}` : null,
+    }),
   ],
   routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
+    files: route({
+      upload: { maxFileSize: 20 * 1024 * 1024 },
       download: true,
       delete: true,
     }),
@@ -162,81 +165,158 @@ export const s3 = dimahS3({
 });
 ```
 
-The same store is available as `s3.db` (and `s3.context.db`):
+Set `DIMAH_S3_SECRET` in your environment: `dimahS3()` reads it to sign
+[upload tickets](/docs/server/upload-tickets), which `db()` binds to the
+scope.
+
+The plugin's context is on `s3.db` (and `s3.context.db`). A database at
+another schema version throws on the first query. Call `checkSchema` at
+startup to fail fast:
 
 ```ts
-s3.db.objects.listByScope({ scope: "user:123" });
+await s3.db.checkSchema();
+const page = await s3.db.objects.list({ scope: "user:123", folder: null });
 ```
-
-### Scope context
-
-`resolveScope` receives a second argument with the values the endpoint
-already validated: `operation` (`"upload"`, `"confirm"`, `"multipart"`,
-`"download"`, `"delete"`, or `"list"`), `route`, the object `key`, and, on
-upload, the client's `clientMetadata`. A scope that depends on the key does
-not have to parse the request. A batch delete resolves once per key, and one
-request never calls the resolver twice for the same operation and key.
-
-```ts title="lib/s3.ts"
-db({
-  client: dimahS3Db,
-  resolveScope: async (request, { key }) => {
-    const session = await getSession(request);
-    if (!session) return null;
-    // Keys look like `{route}/{kind}/{id}/…`.
-    const kind = key?.split("/")[1]; // [!code highlight]
-    return kind === "org" ? `org:${session.orgId}` : `user:${session.userId}`;
-  },
-});
-```
-
-<AutoTypeTable
-  path="packages/db/src/types/storage-object.ts"
-  name="ScopeContext"
-/>
 
 <Callout type="warn" title="Features stay opt-in">
   Plugin hooks merge onto every route unless the route sets
   `plugins: { db: false }`. You still enable each operation on the route
-  yourself — the plugin does not turn them on. Enable download or delete
-  on this **same** route when those callers share these objects
+  yourself: the plugin does not turn them on. Enable download or delete on
+  this **same** route when those callers share these objects
   ([combining operations](/docs/server/routes#combining-operations)).
 </Callout>
 
-### Plugin options
+## Scope
+
+Every row belongs to a scope, such as `user:123` or `org:acme`. Upload
+tickets are bound to it, so a ticket from one scope cannot confirm or
+complete an upload in another.
+
+`resolveScope` receives a context with the values the endpoint already
+validated: the `operation`, the `route`, the object `key`, the target
+`folder`, and on upload the client's `clientMetadata`. `locals` holds what
+your guards set, and `session` is the `getSession` result.
+
+- `getSession` runs at most once per `Request`.
+- `resolveScope` runs once per `Request` and target. It sees the `locals` of
+  the first hook that asks.
+- The plugin also resolves the scope with no `key` to bind upload tickets.
+  Derive the scope from the caller (`session`, `locals`), not from the
+  object.
+
+<AutoTypeTable path="packages/db/src/types/plugin.ts" name="ScopeContext" />
+
+| `operation` | Runs for                                                   |
+| ----------- | ---------------------------------------------------------- |
+| `upload`    | presign, multipart init, and `s3.put`                      |
+| `confirm`   | confirm, and the confirm step of multipart complete        |
+| `multipart` | part, list, abort, and complete                            |
+| `download`  | presigned download and `GET /file`                         |
+| `delete`    | delete, and each key of `deleteMany`                       |
+| `list`      | `GET /db/objects`                                          |
+| `read`      | `GET /db/object`                                           |
+| `update`    | `PATCH /db/object`, `POST /db/folder`, `DELETE /db/folder` |
+
+## Authorize
+
+A row belongs to the scope that wrote it, and a caller from another scope
+gets `FORBIDDEN`. `authorize` runs after that check and can only narrow it:
+return `false` to reject the request with `FORBIDDEN` (`403`).
+
+It gets the scope context plus the resolved `scope`. `object` is set when
+the request targets a stored object: confirm, the multipart calls, download,
+delete, read, and update. `folder` is the target folder of an upload, a
+listing, a move, or a folder endpoint.
+
+```ts title="lib/s3.ts"
+const inArchive = (path?: string | null) =>
+  path === "archive" || path?.startsWith("archive/") === true;
+
+db({
+  client: dimahS3Db,
+  getSession,
+  resolveScope: ({ session }) => (session ? `user:${session.userId}` : null),
+  // `archive/` is read-only.
+  authorize: ({ operation, folder, object }) => {
+    if (["list", "read", "download"].includes(operation)) return true;
+    return !inArchive(folder) && !inArchive(object?.folder);
+  },
+});
+```
+
+## Plugin options
 
 ```ts
 import type { DbPluginOptions } from "@dimah-s3/db";
 ```
 
-<AutoTypeTable path="packages/db/src/plugin/db.ts" name="DbPluginOptions" />
+<AutoTypeTable path="packages/db/src/types/plugin.ts" name="DbPluginOptions" />
 
-### Delete behavior
+`quota` and `attributes` are covered in the [API](/docs/db/api#quota)
+page.
+
+## Route options
+
+Set per-route options under `plugins: { db: … }`:
+
+```ts title="lib/s3.ts"
+routes: {
+  // One key per user: a new upload replaces the old avatar instead of
+  // failing with CONFLICT. `requireUserId` is your auth helper.
+  avatar: route({
+    upload: {
+      fileTypes: ["image/*"],
+      object: async ({ request }) => ({
+        key: `${await requireUserId(request)}/avatar`,
+      }),
+    },
+    download: true,
+    plugins: { db: { replace: "overwrite" } }, // [!code ++]
+  }),
+  // Not tracked: no rows, no ownership checks.
+  public: route({
+    upload: true,
+    download: { guard: requireAdmin },
+    plugins: { db: false }, // [!code ++]
+  }),
+},
+```
+
+<AutoTypeTable path="packages/db/src/types/plugin.ts" name="DbRouteOptions" />
+
+With `replace: "overwrite"`, the current object stays listed and
+downloadable until the new upload is confirmed. The row keeps its folder,
+attributes, and `createdAt`.
+
+`plugins: { db: false }` turns off tracking and every db hook for the route.
+Its upload tickets are not bound to a scope. When such a route enables
+download or delete with no route or feature guard, the plugin logs a warning
+at startup: nothing then checks who owns the object.
+
+## Delete behavior
 
 App deletes always go through the normal server delete path (`api.delete`,
-the Delete button, `useDelete`, or your own delete hooks). Do not call
+the `Delete` component, `useDelete`, or your own delete hooks). Do not call
 `s3.db.objects.softDelete` or `hardDelete` for that. Those store helpers
-only update the database. They are not a replacement for deleting the S3
-object.
+only update the database. They do not delete the S3 object.
 
 When that path runs:
 
-1. S3 — `DeleteObject` removes the object
-2. Database — controlled by `deleteMode` (default `"soft"`)
+1. S3: `DeleteObject` removes the object.
+2. Database: `deleteMode` decides (default `"soft"`).
 
-Delete is idempotent. A `pending` row whose object never landed (a closed
-tab, a network error, an object a lifecycle rule removed) is cleaned up the
-same way, so it stops counting toward [quota](/docs/db/api#quota-guards)
-before the purge job runs. A pending multipart upload is aborted by its
-`uploadId`.
+A `pending` row whose object never landed (a closed tab, a network error)
+is cleaned up the same way, so it stops counting toward the
+[quota](/docs/db/api#quota) before [purge](/docs/db/purge) runs. A multipart
+upload in flight is aborted first. A key with no row, or a row that is
+already deleted, is `OBJECT_NOT_FOUND`.
 
 | `deleteMode` | S3 object           | Database row                                     |
 | ------------ | ------------------- | ------------------------------------------------ |
 | `"soft"`     | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
 | `"hard"`     | permanently deleted | row removed entirely                             |
 
-Omit `deleteMode` and the row stays as `deleted` after S3 removal. Listings
-hide soft-deleted rows by default.
+Listings hide soft-deleted rows by default.
 
 <Callout type="warn" title="Not a recycle bin">
   Soft delete is not a recycle bin. The file is gone from S3. The row is kept
@@ -247,7 +327,7 @@ hide soft-deleted rows by default.
 db({
   client: dimahS3Db,
   resolveScope,
-  deleteMode: "soft", // [!code ++]
+  deleteMode: "hard", // [!code ++]
 });
 ```
 
@@ -257,10 +337,31 @@ db({
 
 <Accordion title="When should I use hard delete?">
 
-Use `deleteMode: "hard"` when every delete should also erase the DB row
-(for example GDPR-style erasure). To prune old soft-deleted audit rows
-later, call `s3.db.objects.hardDelete({ bucket, key })` from a script or
-job — that helper only removes the row; it does not delete from S3.
+Use `deleteMode: "hard"` when every delete should also erase the row (for
+example GDPR-style erasure). To keep soft-deleted rows for a while and then
+remove them, run [`s3.db.pruneDeleted`](/docs/db/purge#prune-deleted-rows)
+from a job.
+
+</Accordion>
+
+<Accordion title="Does s3.put create a row?">
+
+Yes. `s3.put` runs the same hooks with `kind: "server"`. Pass the caller's
+`request` (or trusted `locals`) so `resolveScope` knows who it is, and
+`clientMetadata.folder` to file it in a folder:
+
+```ts
+await s3.put(
+  {
+    route: "files",
+    name: "report.csv",
+    type: "text/csv",
+    body: csv,
+    clientMetadata: { folder: "reports" },
+  },
+  { request },
+);
+```
 
 </Accordion>
 
@@ -268,30 +369,25 @@ job — that helper only removes the row; it does not delete from S3.
 
 ## CLI
 
-Generate adapter-specific schema (or run migrations) through FumaDB:
+`runCli` runs the FumaDB CLI against your client, for example to generate an
+ORM schema. Prefer `migrate(client)` to migrate: the CLI's `migrate` command
+jumps straight to the latest schema and skips the 2.0.0 indexes. Only
+`migrate:up`, one version at a time, runs them.
 
-```ts title="scripts/db-cli.mts"
-import { DimahS3DB } from "@dimah-s3/db";
+```ts title="scripts/db-cli.ts"
 import { runCli } from "@dimah-s3/db/cli";
-import { drizzleAdapter } from "fumadb/adapters/drizzle";
+import { dimahS3Db } from "@/lib/dimah-s3-db";
 
-void runCli(
-  DimahS3DB.client(drizzleAdapter({ db: {} as never, provider: "sqlite" })),
-);
+await runCli(dimahS3Db);
 ```
 
-```bash
-node --import tsx scripts/db-cli.mts generate latest -o ./db/dimah-s3.ts
-```
+The shipped tables, models, and SQL files already include these indexes:
 
-`generate` overwrites the output file. Re-add secondary indexes afterward,
-or keep them in a separate migration. On drizzle-orm 1.x, also replace
-`.defaultNow()` with ``sql`(unixepoch())``. `defaultNow()` is deprecated and
-stores milliseconds, while `mode: "timestamp"` reads seconds.
-
-| Index                                     | Columns                        |
-| ----------------------------------------- | ------------------------------ |
-| `storage_object_scope_status_created_idx` | `scope`, `status`, `createdAt` |
-| `storage_object_scope_route_idx`          | `scope`, `route`               |
-| `storage_object_status_expires_idx`       | `status`, `expiresAt`          |
-| `storage_object_status_created_idx`       | `status`, `createdAt`          |
+| Index                               | Table            | Columns                                   |
+| ----------------------------------- | ---------------- | ----------------------------------------- |
+| `storage_object_scope_folder_idx`   | `storage_object` | `scope`, `status`, `folder`, `created_at` |
+| `storage_object_scope_updated_idx`  | `storage_object` | `scope`, `status`, `updated_at`           |
+| `storage_object_scope_filename_idx` | `storage_object` | `scope`, `status`, `filename`             |
+| `storage_object_scope_size_idx`     | `storage_object` | `scope`, `status`, `size`                 |
+| `storage_object_status_expires_idx` | `storage_object` | `status`, `expires_at`                    |
+| `storage_folder_scope_parent_idx`   | `storage_folder` | `scope`, `parent`                         |

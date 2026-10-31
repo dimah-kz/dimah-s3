@@ -1,0 +1,84 @@
+---
+title: useObjectUrl
+description: Headless React hook that signs a URL for a private object, caches it, and refreshes it before it expires.
+---
+
+`useObjectUrl` signs a GET URL for one object so you can show it in an
+`<img>`, `<video>`, `<audio>`, `<iframe>`, or link. It asks for
+`disposition: "inline"` by default.
+
+```tsx title="components/avatar-image.tsx"
+"use client";
+
+import { useObjectUrl } from "@dimah-s3/react";
+
+export function AvatarImage({ objectKey }: { objectKey: string | null }) {
+  const { url, isLoading } = useObjectUrl({ route: "avatar", objectKey });
+
+  if (isLoading) {
+    return <div className="bg-muted size-16 animate-pulse rounded-full" />;
+  }
+  if (!url) return null;
+
+  return (
+    <img src={url} alt="Avatar" className="size-16 rounded-full object-cover" />
+  );
+}
+```
+
+For a ready-made image with loading and error states, use
+[`ObjectImage`](/docs/react/ui/components/object-image).
+
+## Keys
+
+`url` is only ever the URL for the current `objectKey`. When the key
+changes, `url` is `null` and `isLoading` is `true` until the new URL is
+signed. A late response for the old key is ignored.
+
+`objectKey` of `null`, `undefined`, or `""` clears the URL. With no key, the
+hook needs no `S3Api`.
+
+## Cache and refresh
+
+URLs are cached per `S3Api`, keyed by route, object key, disposition, and
+file name. Hooks that show the same object share one request.
+
+`expiresAt` is when the URL stops working, in milliseconds since the epoch.
+The hook computes it in the browser from the response's `expiresIn`. It
+signs the URL again `refreshBeforeMs` before that time (default 60 seconds).
+A URL that lives less than twice `refreshBeforeMs` refreshes at half its
+lifetime instead. During a refresh, the current URL stays until the new one
+arrives.
+
+Proxy URLs (`download.mode: "proxy"`) do not expire. Their `expiresAt` is
+`null` and they stay until you call `refresh()`.
+
+`refresh()` drops the cached URL and signs again. If a request for the same
+object is already running, it joins that request.
+
+## Errors
+
+A failed request clears `url` and sets `error` to an `APIError`. A failed
+background refresh does the same. Show it with
+[`useFormatDimahError`](/docs/react/helpers#errors), and call `refresh()` to
+try again.
+
+## Type reference
+
+```ts
+import type { UseObjectUrlOptions, UseObjectUrlReturn } from "@dimah-s3/react";
+```
+
+### UseObjectUrlOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-url.ts"
+  name="UseObjectUrlOptions"
+/>
+
+### UseObjectUrlReturn
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-object-url.ts"
+  name="UseObjectUrlReturn"
+/>

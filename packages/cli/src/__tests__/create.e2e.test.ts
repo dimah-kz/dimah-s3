@@ -62,6 +62,17 @@ describe("create e2e", () => {
     expect(src).toEqual(expect.arrayContaining(["app", "lib", "components"]));
   });
 
+  it("generates DIMAH_S3_SECRET into .env", async () => {
+    const env = await readFile(join(appDir, ".env"), "utf8");
+    const example = await readFile(join(appDir, ".env.example"), "utf8");
+
+    expect(env).toMatch(/^DIMAH_S3_SECRET="[A-Za-z0-9+/]{43}="$/m);
+    expect(env.match(/DIMAH_S3_SECRET=/g)).toHaveLength(1);
+    expect(env).toContain("S3_BUCKET=");
+    expect(example).toMatch(/^DIMAH_S3_SECRET=/m);
+    expect(example).not.toMatch(/^DIMAH_S3_SECRET="[A-Za-z0-9+/]{43}="$/m);
+  });
+
   it("sets package.json name and resolves ranges", async () => {
     const pkg = JSON.parse(
       await readFile(join(appDir, "package.json"), "utf8"),
@@ -259,8 +270,8 @@ describe("non-empty target directory", () => {
       expect(entries).toContain("package.json");
       expect(entries).not.toContain("stale.txt");
 
-      expect(await readFile(join(dir, ".env"), "utf8")).toBe(
-        "S3_BUCKET=keep-me\n",
+      expect(await readFile(join(dir, ".env"), "utf8")).toMatch(
+        /^S3_BUCKET=keep-me\nDIMAH_S3_SECRET="[A-Za-z0-9+/]{43}="\n$/,
       );
     },
     CREATE_TIMEOUT_MS,

@@ -12,7 +12,7 @@ Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react
 pnpm add @dimah-s3/ui @dimah-s3/core @dimah-s3/react @fuma-translate/react
 ```
 
-Or copy items from the shadcn registry — see
+Requires React 19. Or copy items from the shadcn registry — see
 [UI Setup](https://s3.dimah.dev/docs/react/ui).
 
 ## Styles
@@ -42,27 +42,69 @@ fall back to a green and an amber otherwise. See
 
 ## Quick start
 
+Mount one `<Toaster />` inside your S3 provider. `s3Client` is the
+`createS3Client()` from `@dimah-s3/react`:
+
 ```tsx
-import { createS3Client, useUpload } from "@dimah-s3/react";
-import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
+"use client";
 
-export const s3Client = createS3Client();
+import type { ReactNode } from "react";
+import { Toaster } from "@dimah-s3/ui";
+import { s3Client } from "@/lib/s3-client";
 
-export function UploadDemo() {
-  const upload = useUpload({ route: "uploads" });
-
+export function Providers({ children }: { children: ReactNode }) {
   return (
     <s3Client.Provider>
-      <Upload upload={upload}>
-        <UploadDropzone />
-      </Upload>
-      <UploadToasts upload={upload} />
+      {children}
+      <Toaster />
     </s3Client.Provider>
   );
 }
 ```
 
-Mount `<Toaster />` from `@dimah-s3/ui` next to `s3Client.Provider`.
+Then compose a family around a hook, anywhere inside the provider:
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import {
+  Upload,
+  UploadDropzone,
+  UploadStatus,
+  UploadToasts,
+} from "@dimah-s3/ui";
+
+export function Uploader() {
+  const upload = useUpload({ route: "uploads", maxFiles: 5 });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadDropzone />
+        <UploadStatus />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+## Components
+
+- `Upload` holds a `useUpload` return for `UploadTrigger`, `UploadDropzone`,
+  `UploadStatus`, and `UploadFileList`.
+- `Download` holds a `useDownload` or `useFetchDownload` return for
+  `DownloadTrigger` and `DownloadProgress`.
+- `Delete` holds a `useDelete` return and one confirm dialog for every
+  `DeleteTrigger` inside it.
+- `UploadField` submits uploaded keys with a form. `AvatarUpload` uploads
+  and shows a profile image. `ObjectImage` shows a stored image.
+- `ObjectList` and its parts render a `useObjectList` file browser.
+
+Components do not toast on their own. Mount `UploadToasts`, `DownloadToasts`,
+or `DeleteToasts` once per hook. A second one for the same hook renders
+nothing.
 
 ## License
 

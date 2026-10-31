@@ -17,7 +17,9 @@ cp examples/with-nextjs/.env.example examples/with-nextjs/.env
 pnpm --filter @dimah-s3/example-with-nextjs dev
 ```
 
-Open `/` — upload a file with `UploadButton`.
+Open `/` — upload a file with `UploadTrigger`. `next dev` uses a random development secret when `DIMAH_S3_SECRET` is empty; set it for `next start`.
+
+`next build` loads `src/lib/s3.ts`, and `dimahS3()` needs a bucket, so `S3_BUCKET` must be set (any non-empty value) when you build.
 
 ## License
 

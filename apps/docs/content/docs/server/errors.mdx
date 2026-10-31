@@ -1,65 +1,121 @@
 ---
 title: Errors
-description: Stable error codes, error helpers, and APIError handling.
+description: The error catalog, building errors with s3Error, and handling APIError.
 icon: CircleAlert
 ---
 
-All failed requests return JSON `{ message, code?, params? }` and standard HTTP status codes.
+Every failed request returns an HTTP status and a JSON body:
 
-Use the `errors` helper to throw standard library errors. A plain `Error` has
-no stable `code` — in guards it becomes a generic 403:
+```json
+{
+  "code": "FILE_TOO_LARGE",
+  "message": "File is 5242880 bytes; the limit is 2097152 bytes",
+  "params": { "size": 5242880, "maxFileSize": 2097152 }
+}
+```
+
+`code` is always set and stable. `message` is English, filled from `params`.
+Show users your own text: map `code` and `params` to it, as
+`useFormatDimahError` does.
+
+## Throwing errors
+
+Throw `s3Error` with a catalog code to reject a call from a guard or hook.
+Codes with `params` require them:
 
 ```ts
-import { APIError, errors, isAPIError, isS3ErrorCode } from "@dimah-s3/server";
+import { s3Error } from "@dimah-s3/server";
 
 throw new Error("Not allowed"); // [!code --]
-throw errors.unauthorized(); // [!code ++]
-throw errors.forbidden();
-throw errors.objectNotFound();
-throw errors.payloadTooLarge();
-throw errors.quotaExceeded();
-throw errors.featureDisabled("download");
-throw errors.unknownRoute("avatar");
-throw errors.fileTypeNotAllowed("archive.zip", "application/zip");
+throw s3Error("UNAUTHORIZED"); // [!code ++]
+throw s3Error("FORBIDDEN");
+throw s3Error("OBJECT_NOT_FOUND");
+throw s3Error("QUOTA_EXCEEDED", { limit: "bytes" });
+throw s3Error("FILE_TOO_LARGE", { size: file.size, maxFileSize });
+```
 
-throw new APIError("BAD_REQUEST", {
-  message: "Invalid file payload.",
+A plain `Error`, thrown anywhere, is logged, passed to `onError`, and returns
+`500 INTERNAL_ERROR`. Its message never reaches the client.
+
+For a code of your own, such as from a plugin, use `APIError.from`:
+
+```ts
+import { APIError } from "@dimah-s3/server";
+
+throw APIError.from(402, {
+  code: "PLAN_REQUIRED",
+  message: "Upgrade your plan to upload videos",
 });
 ```
 
-Catch and inspect errors:
+## Handling errors
+
+`createS3Client` and the React hooks reject with an `APIError`. Narrow it by
+code with `isS3ErrorCode`:
 
 ```ts
-if (isAPIError(err)) {
-  console.log(err.status, err.statusCode, err.code, err.message);
-}
+import { isAPIError, isS3ErrorCode } from "@dimah-s3/core";
 
-if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
-  // Handle missing object specifically
+try {
+  await api.download({ route: "avatar", key });
+} catch (error) {
+  if (isS3ErrorCode(error, "OBJECT_NOT_FOUND")) {
+    // Handle the missing object
+  } else if (isAPIError(error)) {
+    console.log(error.statusCode, error.code, error.message, error.params);
+  }
 }
 ```
 
+The client turns every failure into an `APIError`:
+
+- A JSON error body keeps its `code`, `params`, and HTTP status.
+- Any other error response becomes `INTERNAL_ERROR` (status 500 or above) or
+  `UNKNOWN_ERROR`, with the real HTTP status.
+- A request that fails before a response becomes `NETWORK_ERROR`.
+- An aborted request rejects with the signal's abort reason, not an
+  `APIError`.
+
+`deleteMany` reports per-key failures as wire bodies in `failed[].error`.
+Rebuild one with `APIError.fromShape(error)`; the status comes from the
+catalog.
+
+## Reporting errors
+
+`onError` receives every failure that is not an `APIError`: plain errors,
+config errors, and S3 network errors. They are logged too, then answered with
+`500 INTERNAL_ERROR` or `502 S3_NETWORK_ERROR`. Rejections you throw with
+`s3Error` do not reach it.
+
+```ts title="lib/s3.ts"
+export const s3 = dimahS3({
+  onError: (error, { request }) => {
+    Sentry.captureException(error, { extra: { url: request.url } }); // [!code ++]
+  },
+  // ...
+});
+```
+
+A throw from your `upload.onConfirmed`, even an `APIError`, returns
+`500 INTERNAL_ERROR` and keeps the object, so the client can retry the
+confirm. `onError` gets a wrapping `Error` with the original as `cause`.
+Reject content in `confirmGuard` instead; a rejection there deletes the
+object.
+
 ---
 
-## Error catalog
+## Server codes
 
-| `code`                   | HTTP | Trigger                                                                        |
-| ------------------------ | ---- | ------------------------------------------------------------------------------ |
-| `NOT_FOUND`              | 404  | Unknown API path                                                               |
-| `UNKNOWN_ROUTE`          | 404  | Target `route` is not registered on the server (`params.route`)                |
-| `FEATURE_DISABLED`       | 404  | Target operation (`upload`, `download`, `delete`) is not enabled on this route |
-| `OBJECT_NOT_FOUND`       | 404  | Object key or multipart upload does not exist                                  |
-| `UNAUTHORIZED`           | 401  | Thrown by your auth guards (`errors.unauthorized()`)                           |
-| `FORBIDDEN`              | 403  | Guard rejection or generic unhandled `Error` inside guards                     |
-| `CONFLICT`               | 409  | Resource conflict in lifecycle hooks                                           |
-| `PAYLOAD_TOO_LARGE`      | 413  | File size exceeds route `maxFileSize` (at presign, part upload, or HeadObject) |
-| `QUOTA_EXCEEDED`         | 413  | `db()` or `createQuotaGuard` rejects a scope's byte or file-count projection   |
-| `FILE_TYPE_NOT_ALLOWED`  | 400  | File type not allowed by route `fileTypes`                                     |
-| `VALIDATION_ERROR`       | 400  | Invalid payload shape or malformed checksum                                    |
-| `INVALID_KEY`            | 400  | Unsafe key or key outside route `keyPrefix`                                    |
-| `MULTIPART_PART_MISSING` | 400  | Complete payload references missing part numbers                               |
-| `S3_NETWORK_ERROR`       | 502  | S3 storage service unreachable                                                 |
-| `INTERNAL_ERROR`         | 500  | Unhandled server exception or failed `on*` hook                                |
+Codes the server sends. The status is in `S3_ERROR_CODES[code].status`.
+
+<ErrorCodeTable raisedBy="server" />
+
+## Client codes
+
+Codes only the browser raises (`client: true` in the catalog). They never
+come from the server.
+
+<ErrorCodeTable raisedBy="client" />
 
 ## Frequently asked questions
 
@@ -67,20 +123,32 @@ if (isS3ErrorCode(err, "OBJECT_NOT_FOUND")) {
 
 <Accordion title="How do I display friendly error messages on the client?">
 
-Use `useFormatDimahError` from `@dimah-s3/react` to map error codes to localized user-facing strings:
+Use `useFormatDimahError` from `@dimah-s3/react`. It maps each code and its
+`params` to a translated string:
 
 ```tsx
-import { isAPIError, useFormatDimahError } from "@dimah-s3/react";
+import { useDownload, useFormatDimahError } from "@dimah-s3/react";
 
 const formatError = useFormatDimahError();
 
-try {
-  await download(key);
-} catch (err) {
-  if (isAPIError(err)) {
-    toast.error(formatError(err));
-  }
-}
+const { download } = useDownload({
+  route: "avatar",
+  onError: (error) => toast.error(formatError(error)), // [!code ++]
+});
+```
+
+</Accordion>
+
+<Accordion title="Where do I find the message template for a code?">
+
+`S3_ERROR_CODES` holds each entry's `status`, `message` template, and
+`client` flag. `formatErrorMessage(template, params)` fills a template:
+
+```ts
+import { formatErrorMessage, S3_ERROR_CODES } from "@dimah-s3/core";
+
+formatErrorMessage(S3_ERROR_CODES.UPLOAD_FAILED.message, { status: 403 });
+// "Upload failed with HTTP 403"
 ```
 
 </Accordion>

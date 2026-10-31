@@ -1,0 +1,166 @@
+---
+title: File Proxy
+description: Stream downloads through `GET /file` with hardening headers, byte ranges, and conditional requests.
+icon: ArrowDownToLine
+---
+
+In proxy mode, a download returns a URL on your API instead of a signed bucket
+URL. The browser fetches `GET /file`, and your server streams the object from
+S3:
+
+```ts title="lib/s3.ts"
+invoices: route({
+  download: {
+    mode: "proxy", // [!code ++]
+    guard: async ({ key, locals }) => {
+      if (!(await canReadInvoice(locals.userId, key))) {
+        throw s3Error("FORBIDDEN");
+      }
+    },
+  },
+}),
+```
+
+```ts
+const { url, mode, expiresIn } = await api.download({ route: "invoices", key });
+// url: "/api/s3/file?route=invoices&key=…&disposition=attachment"
+// mode: "proxy", expiresIn: undefined
+```
+
+Use it when objects must never be reachable by a bucket URL, when every read
+must pass your guards, or when the bucket is not reachable from the browser.
+
+---
+
+## How it works
+
+<Flow
+  label="File proxy"
+  steps={[
+    { name: "route.guard", kind: "hook" },
+    { name: "download.resolve", kind: "hook", note: 'mode: "proxy"' },
+    { name: "download.guard", kind: "hook" },
+    { name: "GetObject", kind: "s3", note: "Range and conditionals" },
+    { name: "Stream response", kind: "server" },
+  ]}
+/>
+
+- The `/file` URL is **not signed** and does not expire. Every request to it
+  runs the instance, route, and download guards again, so they must
+  authorize from what a plain browser `GET` carries, usually a session
+  cookie. An `<img>` or `<a href>` does not send an `Authorization` header.
+- The URL is relative to the API (`{basePath}/file?…`) unless `baseURL` is
+  set. `createS3Client` resolves a root-relative URL against an absolute
+  `baseURL`, so a cross-origin API still works.
+- `/file` serves every route that has `download` on. A presign-mode route uses
+  its own inline list there.
+- There is no `s3.api` method for `/file`. On the server, read the object
+  with your `S3Client`.
+
+---
+
+## Response headers
+
+Every `/file` response, including `206`, `304`, `412`, `416`, and errors,
+carries:
+
+| Header                         | Value                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `Content-Security-Policy`      | `default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox` |
+| `X-Content-Type-Options`       | `nosniff`                                                                                        |
+| `Cross-Origin-Resource-Policy` | `same-origin`                                                                                    |
+| `Cache-Control`                | `private, no-cache`, unless `download.resolve` returns `cacheControl`                            |
+| `Accept-Ranges`                | `bytes`                                                                                          |
+
+A successful response also sends `Content-Type`, `Content-Disposition`,
+`Content-Length`, and `ETag` / `Last-Modified` when S3 reports them.
+
+The object comes from your API origin, so it must never run as a page there.
+The CSP sandboxes it, and `nosniff` stops the browser from guessing another
+type.
+
+### Inline display
+
+Proxy mode uses the same allow-list as presign mode, minus `application/pdf`:
+the `sandbox` CSP stops the PDF viewer in Chromium. To show PDFs inline, use
+presign mode, or serve `/file` from a separate origin and list
+`application/pdf` in `download.inlineTypes`.
+
+```ts
+download: {
+  mode: "proxy",
+  inlineTypes: ["image/*", "video/mp4"], // [!code ++]
+},
+```
+
+### Caching
+
+`private, no-cache` lets the browser keep a copy but revalidate it on each
+use. Return `cacheControl` from `download.resolve` to change it for
+successful responses:
+
+```ts
+download: {
+  mode: "proxy",
+  resolve: () => ({ cacheControl: "private, max-age=3600" }), // [!code ++]
+},
+```
+
+Error responses always send `private, no-cache`, so a shared cache never
+keeps a refusal and serves it to someone else.
+
+---
+
+## Byte ranges
+
+`/file` forwards one byte range to S3, so video seeking and resumed
+downloads work:
+
+| `Range` header                              | Response                                                         |
+| ------------------------------------------- | ---------------------------------------------------------------- |
+| `bytes=0-1023`, `bytes=1024-`, `bytes=-500` | `206` with `Content-Range`                                       |
+| Several ranges, or malformed                | Ignored. `200` with the whole object                             |
+| Outside the object                          | `416 RANGE_NOT_SATISFIABLE` with `Content-Range: bytes */<size>` |
+
+## Conditional requests
+
+| Header                               | Response when it matches                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| `If-None-Match`, `If-Modified-Since` | `304` with no body, the headers above, and `ETag`                        |
+| `If-Match`, `If-Unmodified-Since`    | `412 PRECONDITION_FAILED` when it fails                                  |
+| `If-Range`                           | The range when the object is unchanged, else `200` with the whole object |
+
+Conditional headers are forwarded to GetObject. `If-Range` is checked against
+the returned `ETag` or `Last-Modified`.
+
+---
+
+## Disconnects
+
+`/file` passes the request's abort signal to GetObject. When the client goes
+away, the S3 read stops. The Node, Express, and Fastify adapters abort that
+signal when the connection closes, and stream the body to the response
+without buffering it. See [Server Setup](/docs/server/setup#node-express-and-fastify).
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Why does the download response have no expiresIn?">
+
+A proxy URL does not expire: each request to it is authorized again. The
+`download` response omits `expiresIn`, and `download.guard` sees
+`expiresIn: undefined`. Hooks can branch on `mode`.
+
+</Accordion>
+
+<Accordion title="Can I put a CDN in front of /file?">
+
+Only with care. Responses are `private` by default, so shared caches do not
+store them. If you return a public `cacheControl`, every caller of that URL
+gets the cached bytes without your guards running. Keep that for objects that
+are public anyway.
+
+</Accordion>
+
+</Accordions>

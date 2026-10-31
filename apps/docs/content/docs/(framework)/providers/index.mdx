@@ -14,7 +14,8 @@ match what the provider actually supports.
 
 | Topic                 | Why it matters                                                                                     |
 | --------------------- | -------------------------------------------------------------------------------------------------- |
-| Presigned POST vs PUT | Default upload is POST. Some providers only accept PUT.                                            |
+| Presigned PUT vs POST | Default upload is PUT. POST is opt-in, and some providers have no presigned POST.                  |
+| SDK checksums         | The `S3Client` must set `requestChecksumCalculation: "WHEN_REQUIRED"`, or presigned uploads fail.  |
 | Object ACL            | `acl: "public-read"` needs real ACL support. Others use bucket policies or a public-access toggle. |
 | Endpoint & addressing | Custom endpoints often need `endpoint`, and sometimes `forcePathStyle: true`.                      |
 | CORS                  | Browser uploads hit storage directly. The bucket must allow your origin, methods, and headers.     |
@@ -27,8 +28,8 @@ below only for the extras that defaults do not cover.
 
 |                   | [AWS S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) |
 | ----------------- | :------------------------------: | :--------------------------------------------: | :----------------------------: |
+| Presigned PUT     |          Yes (default)           |                 Yes (default)                  |         Yes (default)          |
 | Presigned POST    |               Yes                |                       No                       |              Yes               |
-| Presigned PUT     |               Yes                |                 Yes (required)                 |              Yes               |
 | Object ACL        |               Yes                |                    Ignored                     |          Use policies          |
 | Custom `endpoint` |             Optional             |                    Required                    |            Required            |
 | `forcePathStyle`  |           Usually off            |                      Off                       |          Typically on          |
@@ -36,22 +37,29 @@ below only for the extras that defaults do not cover.
 ## Configuration
 
 ```ts
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, route } from "@dimah-s3/server";
+
+export const awsS3 = new S3Client({
+  // region, endpoint, credentials …
+  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
+});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
     avatar: route({
-      upload: { method: "PUT" }, // [!code ++]
+      upload: { method: "POST" }, // [!code ++]
     }),
   },
 });
 ```
 
-The default upload method is POST. Switch to PUT when the provider has no
-Presigned POST (R2 is the usual case). ACL on confirm comes from
-`upload.acl` / `object` — there is no `GetObjectAcl` lookup.
+The default upload method is PUT, which every provider here supports. Switch
+to POST only when you want a form upload and the provider has presigned POST.
+Confirm reports the ACL from `upload.acl` or `object`; there is no
+`GetObjectAcl` lookup.
 
 Client hooks and `@dimah-s3/ui` read `method` from the presign response.
 Change it on the server only.
@@ -67,7 +75,7 @@ Change it on the server only.
   <Card
     title="Cloudflare R2"
     href="/docs/providers/cloudflare-r2"
-    description="PUT uploads, the R2 endpoint, and bucket CORS."
+    description="The R2 endpoint, bucket CORS, and public URLs."
   />
   <Card
     title="MinIO"

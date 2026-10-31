@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  schema: "./db/dimah-s3.ts",
+  schema: "./db/schema.ts",
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {

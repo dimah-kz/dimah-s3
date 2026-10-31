@@ -9,11 +9,13 @@
     "ui",
     "---Hooks---",
     "...hooks",
+    "---Guides---",
+    "...guides",
+    "forms",
+    "tanstack-query",
     "---Extra---",
     "helpers",
     "upload-store",
-    "forms",
-    "tanstack-query",
     "custom-backend"
   ]
 }

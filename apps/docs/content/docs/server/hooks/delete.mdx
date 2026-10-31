@@ -1,14 +1,13 @@
 ---
 title: Delete Hooks
-description: Authorize deletion and execute cleanup after S3 removes the object.
+description: Authorize deletion and run cleanup after S3 removes the object.
 ---
 
 Enable object deletion with `delete: true` or a `DeleteConfig` object on a [named route](/docs/server/routes).
 
 <Callout>
-  Unlike upload and download, object deletion is executed directly on your
-  server using `DeleteObjectCommand` after passing `guard` checks. The client
-  never deletes from S3 directly.
+  Unlike upload and download, deletes run on your server with `DeleteObject`
+  after the guards pass. The client never deletes from S3 directly.
 </Callout>
 
 <Callout type="warn">
@@ -20,10 +19,8 @@ Enable object deletion with `delete: true` or a `DeleteConfig` object on a [name
 </Callout>
 
 ```ts title="lib/s3.ts"
-import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors, route } from "@dimah-s3/server";
-
-export const awsS3 = new S3Client({/* env */});
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
+import { awsS3 } from "./aws-s3";
 
 export const s3 = dimahS3({
   client: awsS3,
@@ -33,10 +30,10 @@ export const s3 = dimahS3({
       delete: {
         guard: async ({ key, request }) => {
           const session = await getSession(request);
-          if (!session) throw errors.unauthorized();
+          if (!session) throw s3Error("UNAUTHORIZED");
 
           const isOwner = await checkAvatarOwnership(session.userId, key);
-          if (!isOwner) throw errors.forbidden();
+          if (!isOwner) throw s3Error("FORBIDDEN");
         },
         onDeleted: async ({ key, request }) => {
           // [!code ++]
@@ -58,24 +55,48 @@ export const s3 = dimahS3({
 ## Delete lifecycle flow
 
 Before `delete.guard`, the server resolves the named route and rejects keys
-outside its `keyPrefix` (`INVALID_KEY`).
+outside its `keyPrefix` (`KEY_INVALID`).
 
 <Flow
   label="Delete flow"
   steps={[
+    { name: "route.guard", kind: "hook" },
     { name: "delete.guard", kind: "hook" },
-    { name: "HeadObject in S3", kind: "s3" },
-    { name: "DeleteObject in S3", kind: "s3", note: "Only if it exists" },
+    { name: "DeleteObject", kind: "s3" },
     { name: "onDeleted", kind: "hook", note: "Database cleanup" },
   ]}
 />
 
-Delete is idempotent. When HeadObject finds nothing — an upload that was
-presigned but never sent, an aborted multipart upload, or an object a bucket
-lifecycle rule already removed — the server skips `DeleteObject`, still runs
-`onDeleted` with `existed: false`, and responds with
-`{ success: true, existed: false }`. A database row for that key is cleaned up
-the same way as for a stored object.
+Delete is idempotent. A key that never landed, or one that is already gone,
+succeeds and still runs `onDeleted`, so the bookkeeping for a pending or
+expired upload is cleaned up. The response is `{ key, bucket }`.
+
+The S3 call does not stop when the client disconnects, so `onDeleted` runs
+for every delete that happened.
+
+---
+
+## Deleting many keys
+
+`deleteMany` (`POST /delete/batch`) deletes up to 100 keys of one route
+(`DELETE_MANY_MAX_KEYS`) in one DeleteObjects request:
+
+- The route guard runs once for the call.
+- Each key is checked against the route namespace and `delete.guard`.
+- `onDeleted` runs for each deleted key.
+- A per-key failure (an invalid key, a guard, an S3 error, or an `onDeleted`
+  throw) goes into `failed` and does not fail the other keys.
+
+```ts
+const { deleted, failed } = await s3.api.deleteMany(
+  { route: "avatar", keys: [key1, key2] },
+  { headers: await headers() },
+);
+// failed: [{ key, error: { code, message, params? } }]
+```
+
+A route error, such as `UNKNOWN_ROUTE` or a route guard rejection, fails the
+whole call. So does a DeleteObjects request that fails as a whole.
 
 ---
 
@@ -119,21 +140,22 @@ is not an access check. Ownership is `delete.guard` or [`db()`](/docs/db). See
 
 <Accordion title="How do I delete multiple files at once?">
 
-Use `deleteMany` on the server API or `removeMany` in the React client. Batch
-deletion runs the same flow for each key — `delete.guard`, S3 `DeleteObject`
-when the object exists, then `onDeleted` — and each result reports `existed`:
+Use `s3.api.deleteMany` on the server, or `removeMany` from `useDelete` in
+React:
 
 ```ts title="Client usage"
 const { removeMany } = useDelete({ route: "avatar" });
-await removeMany([key1, key2]);
+const { deleted, failed } = await removeMany([key1, key2]);
 ```
 
 </Accordion>
 
 <Accordion title="What happens if S3 deletion fails?">
 
-`onDeleted` does not run for a failed S3 deletion. The endpoint returns an
-error response such as `502 S3_NETWORK_ERROR` or `INTERNAL_ERROR`.
+`onDeleted` does not run for a failed S3 deletion. A single delete returns an
+error such as `502 S3_NETWORK_ERROR` or `500 INTERNAL_ERROR`. In
+`deleteMany`, a key that S3 refused is reported in `failed` with
+`INTERNAL_ERROR`; the S3 error itself is logged and passed to `onError`.
 
 </Accordion>
 

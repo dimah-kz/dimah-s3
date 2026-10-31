@@ -6,7 +6,12 @@ icon: House
 
 dimah-s3 is a modular, full-stack S3 toolkit for React and Node.js runtimes.
 It provides typed server handlers, headless React hooks, optional shadcn UI components,
-and database plugin for object tracking when your application needs it.
+and a database plugin for object tracking when your application needs it.
+
+<Callout title="Upgrading from 1.7?">
+  1.8 changes the protocol, the hooks, and the components. Follow [Upgrade to
+  1.8](/docs/migration-1-8).
+</Callout>
 
 ## Architecture flow
 
@@ -63,8 +68,8 @@ for everything else — list, copy, retention, tagging, and similar work.
 
 <Accordion title="Can I use dimah-s3 with Cloudflare R2 or MinIO?">
 
-Yes. Configure an AWS SDK `S3Client` for the provider. Cloudflare R2 upload
-routes use `method: "PUT"`; MinIO commonly needs `forcePathStyle: true`.
+Yes. Configure an AWS SDK `S3Client` for the provider. Uploads use presigned
+PUT by default, which R2 supports; MinIO commonly needs `forcePathStyle: true`.
 See the [provider guides](/docs/providers) for endpoints and CORS.
 
 </Accordion>
@@ -72,15 +77,17 @@ See the [provider guides](/docs/providers) for endpoints and CORS.
 <Accordion title="How does dimah-s3 keep S3 credentials secure?">
 
 The browser sends a route name. The server runs guards, chooses a key
-inside that route's namespace, and returns a short-lived signed request.
-Credentials never leave the server.
+inside that route's namespace, and returns a short-lived signed request with
+a signed [upload ticket](/docs/server/upload-tickets). Confirm accepts only
+uploads the server started, and credentials never leave the server.
 
 </Accordion>
 
 <Accordion title="Does dimah-s3 support resumable multipart uploads?">
 
-Yes. Multipart uploads support chunking, retries, cancellation, and part
-reconciliation. Add a persistent `UploadStore`; after a reload, the user
+Yes. The server picks the part layout, and the client uploads parts in
+parallel with retries, cancellation, and per-part SHA-256 checks when the
+route asks for them. Add a persistent `UploadStore`; after a reload, the user
 reselects the same local file and the client resumes. See
 [Upload Store](/docs/react/upload-store).
 
@@ -111,7 +118,7 @@ reselects the same local file and the client resumes. See
   <Card
     title="UI Components"
     href="/docs/react/ui"
-    description="Prebuilt shadcn buttons, dropzones, and status."
+    description="Composable shadcn controls for upload, download, and delete."
   />
   <Card
     title="Providers"
@@ -127,5 +134,10 @@ reselects the same local file and the client resumes. See
     title="Comparison"
     href="/docs/comparison"
     description="Compare dimah-s3 with Better Upload, UploadThing, and Uppy."
+  />
+  <Card
+    title="Upgrade to 1.8"
+    href="/docs/migration-1-8"
+    description="Move a 1.7 app to the 1.8 protocol, hooks, and components."
   />
 </Cards>

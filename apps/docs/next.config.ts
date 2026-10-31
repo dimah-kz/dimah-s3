@@ -7,6 +7,18 @@ const withMDX = createMDX();
 /** Old hosts that were indexed. One 308 onto https://s3.dimah.dev. */
 const alternateHosts = ["dimah-s3.vercel.app", "www.s3.dimah.dev"] as const;
 
+/** Docs pages removed in 1.8, mapped onto the page that replaced them. */
+const movedPages = {
+  "/docs/react/ui/components/upload-button": "/docs/react/ui/components/upload",
+  "/docs/react/ui/components/upload-dropzone":
+    "/docs/react/ui/components/upload",
+  "/docs/react/ui/components/download-button":
+    "/docs/react/ui/components/download",
+  "/docs/react/ui/components/progress-download-button":
+    "/docs/react/ui/components/download",
+  "/docs/react/ui/components/delete-button": "/docs/react/ui/components/delete",
+} as const;
+
 type PermanentRedirect = {
   source: string;
   destination: string;
@@ -83,11 +95,18 @@ const nextConfig: NextConfig = {
     ];
   },
   async redirects() {
-    return alternateHosts.flatMap((host) => [
-      hostRedirect(host, "/:path+/", `${PRODUCTION_SITE_ORIGIN}/:path+`),
-      hostRedirect(host, "/", PRODUCTION_SITE_ORIGIN),
-      hostRedirect(host, "/:path+", `${PRODUCTION_SITE_ORIGIN}/:path+`),
-    ]);
+    return [
+      ...alternateHosts.flatMap((host) => [
+        hostRedirect(host, "/:path+/", `${PRODUCTION_SITE_ORIGIN}/:path+`),
+        hostRedirect(host, "/", PRODUCTION_SITE_ORIGIN),
+        hostRedirect(host, "/:path+", `${PRODUCTION_SITE_ORIGIN}/:path+`),
+      ]),
+      ...Object.entries(movedPages).map(([source, destination]) => ({
+        source,
+        destination,
+        permanent: true,
+      })),
+    ];
   },
 };
 

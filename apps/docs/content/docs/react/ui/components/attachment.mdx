@@ -1,11 +1,14 @@
 ---
 title: Attachment
-description: Reusable status rows for file previews, progress indicators, and error feedback.
+description: File cards, status rows, progress rings, and type glyphs for upload, download, and delete feedback.
 ---
 
 import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
 
-`FileAttachment` and `StatusAttachment` are status rows built on [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment).
+`FileAttachment` and `StatusAttachment` are the cards the upload family
+renders, built on [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment).
+Use them, with the smaller pieces on this page, when you build your own
+parts.
 
 ## Preview
 
@@ -39,32 +42,109 @@ npx shadcn@latest add @dimah-s3/file-attachment
 
 ## Usage
 
+`UploadStatus`, `UploadFileList`, and `UploadFieldValue` already render
+these cards. Reach for them when you render a file yourself:
+
 ```tsx
 "use client";
 
-import { useUpload } from "@dimah-s3/react";
-import { UploadButton } from "@dimah-s3/ui";
+import { UploadFileList, FileAttachment } from "@dimah-s3/ui";
 
-// Don't use FileAttachment or StatusAttachment directly.
-// Upload, download, and delete components already render them.
-
-export function FileUploader() {
-  const upload = useUpload({
-    route: "avatar",
-  });
-
-  return <UploadButton upload={upload} />;
+export function CompactFiles() {
+  return (
+    <UploadFileList className="flex-row flex-wrap">
+      {(file) => (
+        <FileAttachment
+          className="w-32"
+          state={
+            file.phase === "success"
+              ? "done"
+              : file.phase === "error"
+                ? "error"
+                : "uploading"
+          }
+          fileName={file.fileName}
+          fileSize={file.fileSize}
+          contentType={file.contentType}
+          previewUrl={file.previewUrl}
+          percent={file.progress.percent}
+          error={file.error}
+        />
+      )}
+    </UploadFileList>
+  );
 }
 ```
 
-For custom chrome, compose [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment) with the headless hooks — see [Custom UI](/docs/react/ui/customization/custom-ui).
+Render `UploadFileList` inside [`Upload`](/docs/react/ui/components/upload).
+`UploadFileItem` maps every phase and adds cancel for you.
+
+## Layout
+
+Set the width with `className`. The card is a size container: below a 9rem
+content width, such as `className="w-32"`, the media stacks above the text.
+Wider, it is a row. `StatusAttachment` is always a row and fills its parent
+unless you set a width.
+
+`state` is `idle`, `uploading`, `processing`, `done`, or `error`. The ring
+shows `percent` while the card is `idle` or `uploading`; `processing` shows a
+spinner instead.
+
+## Actions
+
+- `onCancel` adds a `Cancel {name}` action while the card is `uploading` or
+  `processing`.
+- `onDismiss` adds a `Dismiss {name}` action once it is `done` or `error`.
+- `actions` takes your own `AttachmentAction`s, placed before those two.
+- `trigger` takes an `AttachmentTrigger` that makes the whole card one
+  control, such as opening the file. Give it an accessible name.
+
+```tsx
+<FileAttachment
+  state="done"
+  fileName={file.name}
+  fileSize={file.size}
+  trigger={
+    <AttachmentTrigger aria-label={`Open ${file.name}`} onClick={open} />
+  }
+  actions={
+    <AttachmentAction aria-label={`Share ${file.name}`} onClick={share}>
+      <Share2Icon />
+    </AttachmentAction>
+  }
+/>
+```
+
+Wrap several cards in `AttachmentGroup` for a scrolling row.
+
+## Building blocks
+
+| Export                    | Renders                                                                   |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `CircleProgress`          | A progress ring with `role="progressbar"`, named `Progress for {name}`    |
+| `FileTypeGlyph`           | A colored glyph for the file type, from the content type or the extension |
+| `FolderGlyph`             | The folder glyph the object list uses                                     |
+| `DismissAttachmentAction` | The dismiss icon button. `label` sets its accessible name                 |
+| `AttachmentGroup`         | A horizontal, scrolling group of cards, from shadcn Attachment            |
+| `AttachmentAction`        | An icon button in the card's actions, from shadcn Attachment              |
+| `AttachmentTrigger`       | A button over the whole card, from shadcn Attachment                      |
+
+For chrome that does not fit these, compose
+[shadcn Attachment](https://ui.shadcn.com/docs/components/attachment) with the
+headless hooks; see [Custom UI](/docs/react/ui/customization/custom-ui).
 
 ---
 
 ## Props
 
 ```ts
-import type { FileAttachmentProps, StatusAttachmentProps } from "@dimah-s3/ui";
+import type {
+  FileAttachmentProps,
+  StatusAttachmentProps,
+  CircleProgressProps,
+  FileTypeGlyphProps,
+  DismissAttachmentActionProps,
+} from "@dimah-s3/ui";
 ```
 
 ### FileAttachment
@@ -79,4 +159,25 @@ import type { FileAttachmentProps, StatusAttachmentProps } from "@dimah-s3/ui";
 <AutoTypeTable
   path="packages/ui/src/components/dimah-s3/attachment/status-attachment.tsx"
   name="StatusAttachmentProps"
+/>
+
+### CircleProgress
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/circle-progress.tsx"
+  name="CircleProgressProps"
+/>
+
+### FileTypeGlyph
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/file-type-glyph.tsx"
+  name="FileTypeGlyphProps"
+/>
+
+### DismissAttachmentAction
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+  name="DismissAttachmentActionProps"
 />

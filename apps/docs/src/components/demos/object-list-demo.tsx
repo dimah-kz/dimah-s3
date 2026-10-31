@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { s3Error } from "@dimah-s3/core";
 import {
-  memoryObjectSource,
   useDelete,
   useDownload,
   useObjectList,
   useObjectListSelection,
   useUpload,
+  type ObjectListFolder,
   type ObjectListSource,
 } from "@dimah-s3/react";
+import { memoryObjectSource } from "@dimah-s3/react/engine";
 import {
   ObjectList,
   ObjectListContent,
@@ -19,7 +21,7 @@ import {
   ObjectListUploadStatus,
   ObjectListUsage,
   ObjectListViewToggle,
-  UploadButton,
+  UploadTrigger,
 } from "@dimah-s3/ui";
 import {
   getDemoFileUrl,
@@ -29,6 +31,7 @@ import {
 type LibraryFile = {
   id: string;
   name: string;
+  /** `/`-separated folder path, or `null` for the root. */
   folder: string | null;
   size: number;
   type: string;
@@ -265,7 +268,7 @@ const FILES: LibraryFile[] = [
 
 const PAGE_SIZE = 6;
 const PAGE_DELAY_MS = 400;
-const USAGE_LIMITS = {
+const LIMITS = {
   maxBytes: 32 * 1024 * 1024,
   maxFiles: 40,
 };
@@ -274,16 +277,97 @@ function fileObjectKey(file: LibraryFile) {
   return file.key ?? `uploads/${file.id}/${file.name}`;
 }
 
-/** Later pages wait a moment so the next-page spinner shows. */
-function withPageDelay<TItem>(
-  source: ObjectListSource<TItem>,
-): ObjectListSource<TItem> {
+function isInFolder(path: string | null, folder: string) {
+  return path === folder || (path?.startsWith(`${folder}/`) ?? false);
+}
+
+/** The demo's records. Uploads, deletes, and New folder edit them. */
+function createCatalog() {
+  let files = FILES;
+  /** Folders made with New folder. They stay listed while empty. */
+  let folders = new Set<string>();
+  return {
+    files: () => files,
+    add(file: LibraryFile) {
+      files = [...files, file];
+    },
+    remove(objectKey: string) {
+      files = files.filter((file) => fileObjectKey(file) !== objectKey);
+    },
+    /** Created folders that sit directly in `parent`. */
+    emptyFolders(parent: string | null): ObjectListFolder[] {
+      const prefix = parent ? `${parent}/` : "";
+      return [...folders]
+        .filter((id) => id.startsWith(prefix))
+        .map((id) => ({ id, name: id.slice(prefix.length) }))
+        .filter((folder) => !folder.name.includes("/"));
+    },
+    createFolder(parent: string | null, input: string): ObjectListFolder {
+      const name = input.trim();
+      if (!name || name === "." || name === ".." || name.includes("/")) {
+        throw s3Error("FOLDER_INVALID");
+      }
+      const id = parent ? `${parent}/${name}` : name;
+      const exists =
+        folders.has(id) || files.some((file) => isInFolder(file.folder, id));
+      if (exists) throw s3Error("CONFLICT");
+      folders = new Set(folders).add(id);
+      return { id, name };
+    },
+  };
+}
+
+type Catalog = ReturnType<typeof createCatalog>;
+
+/**
+ * The list source. `memoryObjectSource` reads folders from the records, so
+ * this adds the created folders that hold no file yet, uploads into the
+ * open folder or the folder a file is dropped on, and makes later pages
+ * wait a moment so the next-page spinner shows.
+ */
+function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
+  const source = memoryObjectSource(catalog.files, {
+    getKey: (file) => file.id,
+    getFile: (file) => ({
+      name: file.name,
+      objectKey: fileObjectKey(file),
+      size: file.size,
+      contentType: file.type,
+      updatedAt: file.updatedAt,
+      previewUrl: file.type.startsWith("image/")
+        ? getDemoFileUrl(fileObjectKey(file))
+        : null,
+    }),
+    getFolder: (file) => file.folder,
+    pageSize: PAGE_SIZE,
+    limits: LIMITS,
+  });
+
   return {
     ...source,
-    query: (input) =>
-      input.cursor
-        ? delay(input.signal).then(() => source.query(input))
-        : source.query(input),
+    async query(input) {
+      if (input.cursor) await delay(input.signal);
+      const page = await source.query(input);
+      if (!page.folders) return page;
+      const search = input.search.toLowerCase();
+      const listed = new Set(page.folders.map((folder) => folder.id));
+      const extra = catalog
+        .emptyFolders(input.parent)
+        .filter((folder) => !listed.has(folder.id))
+        .filter((folder) => folder.name.toLowerCase().includes(search));
+      if (extra.length === 0) return page;
+      const folders = [...page.folders, ...extra].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true }),
+      );
+      if (input.sort?.field === "name" && input.sort.direction === "desc") {
+        folders.reverse();
+      }
+      return { ...page, folders };
+    },
+    // Sent as client metadata. A real route reads it in `object()`.
+    uploadOptions: (parent) => ({ metadata: { folder: parent ?? "" } }),
+    createFolder: async ({ parent, name }) =>
+      catalog.createFolder(parent, name),
   };
 }
 
@@ -310,42 +394,9 @@ function abortError() {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
-/** The demo's records. Uploads and deletes edit it; each page reads it. */
-function createCatalog() {
-  let files = FILES;
-  return {
-    files: () => files,
-    add(file: LibraryFile) {
-      files = [...files, file];
-    },
-    remove(objectKey: string) {
-      files = files.filter((file) => fileObjectKey(file) !== objectKey);
-    },
-  };
-}
-
 export function ObjectListDemo() {
   const [catalog] = useState(createCatalog);
-  const [source] = useState(() =>
-    withPageDelay(
-      memoryObjectSource(catalog.files, {
-        getKey: (file) => file.id,
-        getFile: (file) => ({
-          name: file.name,
-          objectKey: fileObjectKey(file),
-          size: file.size,
-          contentType: file.type,
-          updatedAt: file.updatedAt,
-          previewUrl: file.type.startsWith("image/")
-            ? getDemoFileUrl(fileObjectKey(file))
-            : null,
-        }),
-        getFolder: (file) => file.folder,
-        pageSize: PAGE_SIZE,
-        usage: true,
-      }),
-    ),
-  );
+  const [source] = useState(() => createSource(catalog));
   const list = useObjectList(source);
   const selection = useObjectListSelection(list, {
     isSelectable: () => true,
@@ -353,21 +404,19 @@ export function ObjectListDemo() {
   const upload = useUpload({
     route: "uploads",
     maxFiles: 8,
-    noClick: true,
-    noKeyboard: true,
-    getUploadOptions: () => ({
-      metadata: { folderId: list.parent ?? "" },
-    }),
-    onFileSuccess: (file, result) => {
+    queue: true,
+    onSuccess: (result, file) => {
       rememberDemoFile(result.key, file);
+      // The demo API echoes the request metadata, so the folder comes back.
+      const folder = result.metadata.folder || null;
       catalog.add({
         id: result.key,
         key: result.key,
-        name: file.name,
-        folder: list.parent,
-        size: file.size,
-        type: file.type || "application/octet-stream",
-        updatedAt: new Date().toISOString(),
+        name: result.name ?? file.name,
+        folder,
+        size: result.size,
+        type: result.type || "application/octet-stream",
+        updatedAt: result.lastModified ?? new Date().toISOString(),
       });
     },
   });
@@ -375,7 +424,7 @@ export function ObjectListDemo() {
   const share = useDownload({ route: "uploads", disposition: "inline" });
   const remove = useDelete({
     route: "uploads",
-    onSuccess: (key) => catalog.remove(key),
+    onSuccess: (_data, key) => catalog.remove(key),
   });
 
   return (
@@ -386,21 +435,19 @@ export function ObjectListDemo() {
       download={download}
       share={share}
       delete={remove}
-      usageLimits={USAGE_LIMITS}
       resolveFolderKeys={async (folder) =>
         catalog
           .files()
-          .filter(
-            (file) =>
-              file.folder === folder.id ||
-              file.folder?.startsWith(`${folder.id}/`),
-          )
+          .filter((file) => isInFolder(file.folder, folder.id))
           .map(fileObjectKey)
       }
       onOpenItem={(file) => {
-        void share.presign(fileObjectKey(file), file.name).then((signed) => {
-          if (signed) window.open(signed.url, "_blank", "noopener,noreferrer");
-        });
+        void share
+          .presign(fileObjectKey(file), { fileName: file.name })
+          .then((outcome) => {
+            if (outcome.status !== "success") return;
+            window.open(outcome.data.url, "_blank", "noopener,noreferrer");
+          });
       }}
       className="mx-auto max-w-2xl"
       height="28rem"
@@ -409,7 +456,7 @@ export function ObjectListDemo() {
         <ObjectListSearch className="max-sm:hidden" />
         <ObjectListSortMenu />
         <ObjectListViewToggle />
-        <UploadButton upload={upload} size="sm" status={false} toast={false} />
+        <UploadTrigger size="sm" />
       </ObjectListHeader>
       <ObjectListUsage />
       <ObjectListUploadStatus />

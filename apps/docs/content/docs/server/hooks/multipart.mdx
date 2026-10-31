@@ -1,15 +1,13 @@
 ---
 title: Multipart Hooks
-description: Large-file multipart upload lifecycle, part authorization, and assembly.
+description: Large-file multipart uploads — the server's part layout, part authorization, and assembly.
 ---
 
 Enable multipart support on large-file routes by setting `upload.multipart: true` or passing a `MultipartConfig` object.
 
 ```ts title="lib/s3.ts"
-import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, route } from "@dimah-s3/server";
-
-export const awsS3 = new S3Client({/* env */});
+import { awsS3 } from "./aws-s3";
 
 export const s3 = dimahS3({
   client: awsS3,
@@ -20,8 +18,8 @@ export const s3 = dimahS3({
         fileTypes: ["video/*"],
         maxFileSize: 500 * 1024 * 1024, // 500MB
         multipart: true, // [!code ++]
-        onConfirmed: async ({ key, contentLength }) => {
-          // Triggered on successful multipart completion
+        onConfirmed: async ({ key, object }) => {
+          // Runs once multipart complete has verified the object
         },
       },
     }),
@@ -36,14 +34,92 @@ export const s3 = dimahS3({
 <Flow
   label="Multipart upload flow"
   steps={[
-    { name: "upload.guard", kind: "hook", note: "Init validation" },
+    { name: "upload.guard", kind: "hook", note: "Init" },
     { name: "CreateMultipartUpload", kind: "s3" },
-    { name: "multipart.guard", kind: "hook", note: "Authorizes each part" },
+    { name: "onStart", kind: "hook" },
+    {
+      name: "multipart.guard",
+      kind: "hook",
+      note: "Each part, list, complete, abort",
+    },
     { name: "CompleteMultipartUpload", kind: "s3" },
-    { name: "HeadObject", kind: "server" },
-    { name: "onConfirmed", kind: "hook", note: "Final metadata" },
+    { name: "confirmGuard", kind: "hook" },
+    { name: "onConfirmed", kind: "hook" },
   ]}
 />
+
+1. **Init** runs `upload.object`, picks the part layout, runs `upload.guard`,
+   creates the multipart upload, and runs `upload.onStart`
+   (`kind: "multipart"`). If `onStart` throws, the upload is aborted. The
+   response has the `uploadId`, the [upload ticket](/docs/server/upload-tickets),
+   `partSize`, `partCount`, and whether parts need a `checksum`.
+2. **Sign part** runs `multipart.guard` with `action: "part"` and signs a PUT
+   URL for exactly that part's size.
+3. **List parts** (`action: "list"`) returns the parts S3 already has, so a
+   client can resume.
+4. **Complete** (`action: "complete"`) checks every part, assembles the
+   object, reads it with HeadObject, and runs `confirmGuard` and
+   `onConfirmed`, the same as a single-shot confirm.
+5. **Abort** (`action: "abort"`) aborts the upload and runs
+   `multipart.onAbort`.
+
+Every call after init sends only the ticket. The route guard runs on each one.
+
+---
+
+## Part layout
+
+The server picks the layout at init from the declared size, and the client
+follows it. Init does not accept a part size.
+
+- `partSize` starts at `upload.multipart.partSize` (8 MiB by default).
+- It grows when the file would need more than 10,000 parts, is rounded up to
+  a whole MiB, and stays between 5 MiB and 5 GiB.
+- Every part except the last is exactly `partSize`. The last one holds the
+  rest.
+- Files over 5 TiB return `FILE_TOO_LARGE`.
+
+Sign part rejects a part number outside `1..partCount` with
+`MULTIPART_PART_INVALID`, and never calls ListParts. Complete reads every
+ListParts page and checks:
+
+- parts `1..partCount` are all present, otherwise `MULTIPART_PART_MISSING`;
+- each part has exactly its layout size, otherwise `UPLOAD_SIZE_MISMATCH`;
+- with `checksum` on, each part has a SHA-256, otherwise `CHECKSUM_REQUIRED`.
+
+### Part checksums
+
+With `upload.checksum` (or `verifyContent`) on, every part must send its
+SHA-256 to sign part, and the server signs it into the part URL. S3 rejects a
+part whose bytes do not match. The React client hashes each part as it
+streams.
+
+### Retries
+
+Complete is safe to retry. When an earlier call already completed the
+upload, the stored object is verified and the hooks run again, as long as it
+carries this upload's marker. Like confirm, `onConfirmed` runs at least once:
+dedupe on `uploadToken`.
+
+---
+
+## Ticket lifetime
+
+A multipart ticket is valid for `upload.multipart.ticketExpiresIn` seconds,
+one day by default. After that, every call returns `UPLOAD_TICKET_EXPIRED`,
+except abort, which accepts the ticket for 7 more days.
+
+```ts
+upload: {
+  multipart: {
+    partSize: 16 * 1024 * 1024, // [!code ++]
+    ticketExpiresIn: 6 * 60 * 60, // [!code ++]
+  },
+},
+```
+
+Add an S3 lifecycle rule that aborts incomplete multipart uploads, so parts
+of uploads nobody completes or aborts do not stay in the bucket.
 
 ---
 
@@ -52,10 +128,9 @@ export const s3 = dimahS3({
 ```ts
 import type {
   MultipartConfig,
-  MultipartOnInitContext,
   MultipartGuardContext,
   MultipartOnAbortContext,
-  MultipartOnListContext,
+  MultipartUploadContext,
 } from "@dimah-s3/server";
 ```
 
@@ -68,11 +143,15 @@ import type {
 
 ---
 
-### MultipartOnInitContext
+### MultipartUploadContext
+
+Shared by `multipart.guard` and `multipart.onAbort`. Init uses
+`UploadGuardContext` and `UploadOnStartContext` from
+[Upload Hooks](/docs/server/hooks/upload#type-reference).
 
 <AutoTypeTable
   path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartOnInitContext"
+  name="MultipartUploadContext"
 />
 
 ---
@@ -93,31 +172,41 @@ import type {
   name="MultipartOnAbortContext"
 />
 
----
-
-### MultipartOnListContext
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="MultipartOnListContext"
-/>
-
 ## Frequently asked questions
 
 <Accordions>
 
 <Accordion title="Does multipart upload require a second confirm call?">
 
-No. The final assembly step (`multipart.complete`) internally runs `upload.confirmGuard`, queries `HeadObject`, and calls `upload.onConfirmed`.
+No. Complete runs `upload.confirmGuard`, queries HeadObject, and calls
+`upload.onConfirmed`.
 
 </Accordion>
 
 <Accordion title="How do I enforce part size and total size bounds?">
 
-Set `upload.maxFileSize`; the server checks each signed part against the
-remaining allowance and sums uploaded part sizes before
-`CompleteMultipartUpload`. If the total size exceeds the limit, the server
-aborts the multipart upload and returns `PAYLOAD_TOO_LARGE`.
+Set `upload.maxFileSize`. Init checks the declared size against it before
+S3 is called, and the layout fixes each part's size, so the parts add up to
+exactly the declared size. Complete rejects any part of another size, and
+confirm checks the stored size again.
+
+</Accordion>
+
+<Accordion title="How do I authorize parts differently from complete?">
+
+Branch on `action` in `multipart.guard`:
+
+```ts
+upload: {
+  multipart: {
+    guard: ({ action, locals }) => {
+      if (action === "complete" && !locals.userId) {
+        throw s3Error("UNAUTHORIZED");
+      }
+    },
+  },
+},
+```
 
 </Accordion>
 

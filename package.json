@@ -6,6 +6,7 @@
     "build": "turbo run build --filter=!./examples/* --filter=!brand",
     "build:all": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
+    "check:dist": "node ./scripts/check-dist.mjs",
     "check-types": "turbo run check-types",
     "clean:build": "pnpm clean:next && pnpm clean:turbo",
     "clean:next": "node ./scripts/clean-next-artifacts.mjs",

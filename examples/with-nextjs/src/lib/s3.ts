@@ -8,11 +8,15 @@ export const awsS3 = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",
   },
+  // The SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET ?? "",
+  // Signs upload tickets: at least 32 characters, the same on every instance.
+  secret: process.env.DIMAH_S3_SECRET || undefined,
   routes: {
     avatar: route({
       upload: {

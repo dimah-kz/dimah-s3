@@ -63,6 +63,7 @@ jobs:
               - 'turbo.json'
               - 'package.json'
               - 'scripts/templates-*.mjs'
+              - 'scripts/check-dist.mjs'
             templates:
               - 'templates/**'
               - 'scripts/templates-*.mjs'
@@ -78,6 +79,12 @@ jobs:
       - name: Build, test, and typecheck packages
         if: steps.filter.outputs.packages == 'true'
         run: pnpm turbo run build test check-types --affected --filter="./packages/*"
+
+      # check:dist reads every package's dist, so build them all first. Turbo
+      # restores the unaffected ones from cache.
+      - name: Check package dist
+        if: steps.filter.outputs.packages == 'true'
+        run: pnpm build:packages && pnpm check:dist
 
       # templates/ is outside the workspace, so --affected never sees it.
       # CLI snapshot (build) is the cheap check; full templates:build stays local.

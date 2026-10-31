@@ -3,99 +3,116 @@ title: Bring Your Own Backend
 description: Implement the complete S3Api contract for an existing backend.
 ---
 
-`defineApi` type-checks a complete `S3Api` implementation and returns it
-unchanged. Your routes, transport, and server framework are up to you; they do
-not need to match [`@dimah-s3/server`](/docs/server). Mount the result with
-`S3Provider` as shown in [React Setup](/docs/react/setup).
+`defineApi` from `@dimah-s3/react/engine` type-checks a complete `S3Api` and
+returns it unchanged. Your routes, transport, and server framework are up to
+you; they do not need to match [`@dimah-s3/server`](/docs/server). Mount the
+result with `S3Provider` as shown in [React Setup](/docs/react/setup).
 
-Each `S3Api` method must accept the documented input and return JSON with
-every **required field** in the response tables. Optional fields may be omitted;
-missing required fields break the hooks.
-Every object operation includes a required `route` name; `catalog()` is the
-exception. Upload and multipart init do **not** send `key` — your backend
-generates it and returns it.
+## Contract
 
-Input types: `Parameters<S3Api["upload"]>`. Response types are exported from
-`@dimah-s3/core`.
+- **Every method takes `(payload, options?)`.** `options` is `{ signal, headers }`. Forward `signal` to your request so cancel reaches it.
+- **Return every required field** in the response tables. Optional fields may be left out.
+- **Every object call names a `route`.** `catalog()` is the exception. Upload and multipart init do not send a `key`: your backend picks it and returns it.
+- **Issue a ticket.** `upload` and `multipart.init` return a `ticket`. `confirm` and every later multipart call send only `{ ticket }` (plus the part number when signing), so the ticket must tell your backend the route, key, and upload id. Sign it, or store it server side. It may be up to 8192 characters.
+- **Throw an `APIError`** with a [catalog code](/docs/server/errors). The hooks retry `NETWORK_ERROR` and `S3_NETWORK_ERROR`, and show codes with `useFormatDimahError`. Anything else becomes `UNKNOWN_ERROR`, which is not retried.
+- **Trust `HeadObject`, not the client.** Confirm and complete return the size and type S3 reports, not what the browser declared.
+
+`createS3Fetch` from `@dimah-s3/core` gives you a fetcher with these error
+rules: a `{ code, message, params? }` body becomes an `APIError` with that
+code and status, a failed request becomes `NETWORK_ERROR`, and an aborted
+signal rethrows its reason. The examples on these pages use it.
+
+Payload types are exported from `@dimah-s3/core`, and so is every response
+type.
 
 ## Flows
 
 | Flow           | Methods                                                             | Doc                                               |
 | -------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
-| Route policies | `catalog`                                                           | [React Setup](/docs/react/setup)                  |
+| Route policies | `catalog`                                                           | [Route catalog](#route-catalog)                   |
 | Simple upload  | `upload` → browser uploads to S3 → `confirm`                        | [Upload](/docs/react/custom-backend/upload)       |
 | Download       | `download`                                                          | [Download](/docs/react/custom-backend/download)   |
 | Delete         | `delete` or `deleteMany`                                            | [Delete](/docs/react/custom-backend/delete)       |
 | Multipart      | `init` → `signPart` → `complete` or `abort` · `listParts` to resume | [Multipart](/docs/react/custom-backend/multipart) |
 
-### Route catalog
+## Skeleton
 
-`catalog()` returns the enabled operations and upload constraints for every
-named route. The upload hook uses this response when `accept`, `maxFileSize`,
-or multipart behavior is not overridden on the client.
+One fetcher serves every method. `call` forwards the per-call signal and
+headers:
+
+```ts title="lib/s3-api/fetch.ts"
+import { createS3Fetch, type S3RequestOptions } from "@dimah-s3/core";
+
+export const $fetch = createS3Fetch("/api/files");
+
+/** Per-call signal and headers for `$fetch`. */
+export const call = (options?: S3RequestOptions) => ({
+  signal: options?.signal,
+  headers: options?.headers ? new Headers(options.headers) : undefined,
+});
+```
+
+Combine the methods from each page in one `defineApi` call:
+
+```ts title="lib/s3-api/index.ts"
+import { defineApi } from "@dimah-s3/react/engine";
+import { catalog } from "./catalog";
+import { deleteMany, deleteObject } from "./delete";
+import { download } from "./download";
+import { abort, complete, init, listParts, signPart } from "./multipart";
+import { confirm, upload } from "./upload";
+
+export const api = defineApi({
+  upload,
+  confirm,
+  download,
+  catalog,
+  delete: deleteObject,
+  deleteMany,
+  multipart: { init, signPart, listParts, complete, abort },
+});
+```
+
+Every method is required. Response shapes must match the
+[core `S3Api` protocol](/docs/core).
+
+## Route catalog
+
+`catalog()` returns, for every named route, which operations are on and the
+upload policy. `useUpload` loads it before every upload and checks files
+against `fileTypes` and `maxFileSize`. `multipart` turns on multipart for large
+files, and `checksum` makes single-shot uploads send a SHA-256.
+
+`catalog` is required. If it fails, every file of the upload fails with its
+error.
 
 <AutoTypeTable
   path="packages/core/src/schema/catalog.ts"
   name="RouteCatalogResponse"
 />
 
-```ts
-async catalog() {
-  const res = await fetch("/api/files/routes");
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
+<AutoTypeTable
+  path="packages/core/src/schema/catalog.ts"
+  name="RouteCatalogEntry"
+/>
+
+```ts title="lib/s3-api/catalog.ts"
+import type { RouteCatalogResponse, S3RequestOptions } from "@dimah-s3/core";
+import { $fetch, call } from "./fetch";
+
+export const catalog = (options?: S3RequestOptions) =>
+  $fetch<RouteCatalogResponse>("/routes", { method: "GET", ...call(options) });
 ```
 
-## Skeleton
+## Upload transport
 
-Merge the methods from each page into one `defineApi` call:
+The browser sends single-shot uploads to `presign.url` itself. To replace that
+transfer, for example with an in-memory backend in tests, add
+`uploadTransport` to the object. It must send `presign.fields` or
+`presign.headers` exactly, and reject with an `APIError` (`UPLOAD_FAILED`
+with S3's status, or `NETWORK_ERROR`) so the engine can retry.
 
-```ts title="lib/s3-api.ts"
-import { defineApi } from "@dimah-s3/react";
-
-export const api = defineApi({
-  async upload(payload) {
-    /* see Upload */
-  },
-  async confirm(payload) {
-    /* see Upload */
-  },
-  async download(payload) {
-    /* see Download */
-  },
-  async catalog() {
-    /* return route capabilities and upload constraints */
-  },
-  async delete(payload) {
-    /* see Delete */
-  },
-  async deleteMany(payload) {
-    /* delete each requested key and return one result per key */
-  },
-  multipart: {
-    async init(payload) {
-      /* see Multipart */
-    },
-    async signPart(payload) {
-      /* see Multipart */
-    },
-    async listParts(payload) {
-      /* see Multipart */
-    },
-    async complete(payload) {
-      /* see Multipart */
-    },
-    async abort(payload) {
-      /* see Multipart */
-    },
-  },
-});
-```
-
-`catalog` is required because upload hooks use it to discover route
-capabilities, accepted file types, maximum size, and multipart policy.
-`deleteMany` is required by batch deletion and returns an independent result
-for every key (up to 100). The remaining methods are required by their
-corresponding upload, download, delete, and multipart hooks; response shapes
-must match the [core `S3Api` protocol](/docs/core).
+<AutoTypeTable
+  path="packages/react/src/types/upload.ts"
+  name="S3ApiUploadTransport"
+/>

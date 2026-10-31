@@ -8,6 +8,8 @@
     "setup",
     "routes",
     "security",
+    "upload-tickets",
+    "file-proxy",
     "errors",
     "---Hooks---",
     "...hooks",

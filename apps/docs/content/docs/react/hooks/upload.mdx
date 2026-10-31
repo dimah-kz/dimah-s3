@@ -1,9 +1,12 @@
 ---
 title: useUpload
-description: Headless React hook for single and multi-file S3 uploads with progress and retries.
+description: Headless React hook that uploads a queue of files to a named route, with progress, cancel, retries, and multipart.
 ---
 
-`useUpload` manages the complete client-side upload lifecycle: file selection, validation against server constraints, presigned URL acquisition, chunked progress tracking, and final server confirmation.
+`useUpload` takes files from a picker, a drop, a paste, or your own code. It
+checks them against the route's policy, then presigns, uploads, and confirms
+each one. The server builds the object key; the hook only sends the route
+name.
 
 ```tsx title="components/file-uploader.tsx"
 "use client";
@@ -13,109 +16,285 @@ import { useUpload } from "@dimah-s3/react";
 export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
-    onSuccess: (results) => {
-      console.log("Uploaded object key:", results[0]?.key);
+    onSuccess: (result) => {
+      console.log("Uploaded:", result.key);
     },
   });
 
   return (
     <div
-      {...upload.getRootProps()}
-      className="hover:border-primary cursor-pointer rounded-lg border border-dashed p-6 text-center transition-colors"
+      {...upload.getRootProps({
+        className: "cursor-pointer rounded-lg border border-dashed p-6",
+      })}
     >
       <input {...upload.getInputProps()} />
-      {upload.isUploading ? (
-        <p className="text-sm font-medium">
-          Uploading: {upload.progress.percent}%
-        </p>
-      ) : (
-        <p className="text-muted-foreground text-sm">
-          Click or drop files here
-        </p>
-      )}
+      {upload.isPending
+        ? `Uploading: ${upload.progress.percent}%`
+        : "Click or drop a file here"}
     </div>
   );
 }
 ```
 
+For ready-made controls, pass the return value to the
+[upload components](/docs/react/ui/components/upload).
+
 ---
 
-## File selection and intake
+## Taking files in
 
-`useUpload` provides native bindings for drag-and-drop surfaces and file input elements:
-
-- **`getRootProps()`**: Spread onto your container element to bind drag-and-drop and click-to-browse handlers.
-- **`getInputProps()`**: Spread onto a hidden `<input type="file" />`.
-- **`open()`**: Programmatically trigger the OS file dialog from a custom button.
-- **`handleFiles(files)`**: Manually submit `File`, `File[]`, or `FileList` (e.g. from clipboard paste, webcam capture, or canvas blob).
+- **`getRootProps(props?, call?)`** — spread on a dropzone. It handles drag and drop, paste, click, and Enter or Space to open the picker.
+- **`getInputProps(props?)`** — spread on a hidden `<input type="file">`.
+- **`open(call?)`** — opens the file picker from your own button.
+- **`handleFiles(files, call?)`** — uploads a `File`, a `File[]`, or a `FileList` from your own code, such as a camera capture.
+- **`getDropTargetProps(props?, call?)`** — drag and drop handlers only. It adds no `tabIndex`, no click or keyboard handler, and no `role`, so the element keeps its own interactions. Use it for drop targets such as folder rows.
 
 ```tsx
-const upload = useUpload({
-  route: "avatar",
-  noClick: true, // Prevents container click from opening file picker // [!code ++]
-});
+const upload = useUpload({ route: "avatar", noClick: true });
 
 return (
   <div {...upload.getRootProps()}>
     <input {...upload.getInputProps()} />
     <button type="button" onClick={() => upload.open()}>
-      {" "}
-      {/* [!code ++] */}
-      Choose File
+      Choose file
     </button>
   </div>
 );
 ```
 
+`isDragActive`, `isDragAccept`, and `isDragReject` describe the files dragged
+over a dropzone or drop target. `disabled`, `noDrag`, `noClick`, and
+`noKeyboard` turn intake off.
+
 ---
 
-## Multi-file batch uploads
+## The queue
 
-Set `maxFiles` to allow multiple file selections. You can control concurrency with `concurrentFiles`:
+Every file of a call joins one queue. `maxFiles` caps the files per call
+(default `1`), and `concurrentFiles` uploads that many at once (default `2`).
 
 ```tsx
 const upload = useUpload({
-  route: "avatar",
-  maxFiles: 5, // [!code ++]
-  concurrentFiles: 2, // [!code ++]
-  onFileSuccess: (file, result) => {
-    console.log(`Uploaded ${file.name} to ${result.key}`);
-  },
-  onSuccess: (results) => {
-    console.log("All uploads completed:", results);
-  },
+  route: "attachments",
+  maxFiles: 10,
+  concurrentFiles: 3,
+  queue: true,
 });
+```
+
+By default a new call cancels the files still in flight and replaces the
+queue. With `queue: true`, new files are added to the end and the files in
+flight keep going.
+
+Each entry in `upload.files` has:
+
+- **`id`** — pass it to `cancel(id)`.
+- **`phase`** — `queued`, `preparing`, `presigning`, `uploading`, `finalizing`, `success`, or `error`.
+- **`progress`** — `{ loaded, total, percent, speed? }`.
+- **`error`** — an `APIError`, set when `phase` is `error`.
+- **`result`** — the verified object, set when `phase` is `success`.
+- **`fileName`**, **`fileSize`**, **`contentType`**, **`previewUrl`** — for display. `previewUrl` is an object URL for images; the hook revokes it.
+
+```tsx
+<ul>
+  {upload.files.map((file) => (
+    <li key={file.id}>
+      {file.fileName} — {file.phase} ({file.progress.percent}%)
+      {file.phase !== "success" && file.phase !== "error" ? (
+        <button type="button" onClick={() => upload.cancel(file.id)}>
+          Cancel
+        </button>
+      ) : null}
+    </li>
+  ))}
+</ul>
+```
+
+The hook also sums up the queue:
+
+- **`phase`** — `idle`, `uploading`, `success`, or `error`.
+- **`progress`** — bytes across every file in the queue.
+- **`error`** — the failed file's error, or `PARTIAL_FAILURE` when several failed.
+- **`isPending`** — `true` while a call is preparing or a file is in flight.
+- **`file`** — the first file, or `null`. Handy when `maxFiles` is `1`.
+
+`cancel()` with no id cancels every file. `reset()` removes settled files and
+rejections; files in flight keep going.
+
+---
+
+## Results
+
+`handleFiles` does not throw for upload errors. It resolves once every file of
+the call has ended:
+
+```ts
+const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
+
+for (const { file, result } of uploaded) console.log(file.name, result.key);
+for (const { file, error } of failed) console.log(file.name, error.code);
+```
+
+`blocked` holds the files `beforeUpload` stopped, and `aborted` the files that
+were cancelled or detached. Files rejected before upload are in
+`upload.fileRejections`, not in the result.
+
+`result` is the object the server verified with `HeadObject`: `key`,
+`bucket`, `size`, `name`, `type`, `metadata`, and the other fields of
+`UploadResult`.
+
+---
+
+## Callbacks
+
+Callbacks run per call or per file:
+
+| Callback                         | Runs                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `onFileReject(rejections)`       | Once per call with rejected files, before anything else.                     |
+| `beforeUpload(files)`            | Once per call. Return `false` to block it. A throw fails it (`HOOK_FAILED`). |
+| `onUploadStart(files)`           | Once per call, after `beforeUpload` allows it.                               |
+| `onProgress(progress, file)`     | As bytes are sent.                                                           |
+| `onMultipartInit(session, file)` | When a multipart upload starts or resumes.                                   |
+| `onPartUpload(part, file)`       | After each multipart part.                                                   |
+| `onError(error, file)`           | Once per failed file, after every file of the call has ended.                |
+| `onSuccess(result, file)`        | Once per uploaded file, after every `onError` of the call.                   |
+| `onSettled(result)`              | Once per call, last. It also runs when every file was rejected.              |
+
+`onSuccess`, `onSettled`, and the other after-hooks are awaited. If one
+throws, the error goes to the global `reportError` and the result does not
+change.
+
+---
+
+## Request options
+
+`uploadOptions` sets the request for each file: `metadata` for the server
+`object` callback, and `fileName` or `contentType` to override what the
+browser reports. Pass an object, or a function that gets the file.
+
+```ts
+const upload = useUpload({
+  route: "attachments",
+  uploadOptions: (file) => ({
+    metadata: { originalName: file.name },
+  }),
+});
+```
+
+A single call can add its own options. Call fields win, and `metadata`
+merges key by key:
+
+```ts
+await upload.handleFiles(files, {
+  uploadOptions: { metadata: { folder: "invoices" } },
+  maxFiles: 3, // lowers maxFiles for this call
+});
+```
+
+`open`, `getRootProps`, and `getDropTargetProps` take the same call options.
+The two prop getters also take a function, so the options are read when the
+files arrive:
+
+```tsx
+<li
+  {...upload.getDropTargetProps({ className: "folder-row" }, () => ({
+    uploadOptions: { metadata: { folder: folder.id } },
+  }))}
+>
+  {folder.name}
+</li>
+```
+
+A drop on a target inside a dropzone uses the target's call options.
+
+`metadata` reaches the server as `clientMetadata`. It is written to S3 only
+when the route's `object` callback copies it.
+
+---
+
+## Route policy
+
+Each call loads the route catalog (`GET /routes`) before it presigns. The
+catalog is cached per `S3Api`, so every hook shares one request.
+
+`upload.policy` is the route's policy narrowed by the hook options:
+
+- **`accept`** and **`maxFileSize`** — the stricter of the route and the hook wins.
+- **`multipart`** — on when the route allows it and the hook does not pass `multipart: false`.
+- **`checksum`** — follows the route. When it is on, single-shot uploads send a SHA-256 of the file.
+- **`maxFiles`** — the hook's `maxFiles`.
+- **`status`** and **`error`** — where the catalog is in loading.
+
+Files that break the policy are rejected without stopping the others. Each
+rejection in `upload.fileRejections` carries `APIError`s with catalog codes:
+`FILE_TYPE_NOT_ALLOWED`, `FILE_EMPTY`, `FILE_TOO_LARGE`, or `TOO_MANY_FILES`.
+Show them with [`useFormatDimahError`](/docs/react/helpers#errors).
+
+```tsx
+import { useFormatDimahError, type UseUploadReturn } from "@dimah-s3/react";
+
+export function Rejections({ upload }: { upload: UseUploadReturn }) {
+  const formatError = useFormatDimahError();
+
+  return upload.fileRejections.map(({ file, errors }) => (
+    <p key={file.name} role="alert">
+      {file.name}: {errors.map(formatError).join(", ")}
+    </p>
+  ));
+}
+```
+
+To read a route's policy without uploading, for example to label a custom
+picker, use `useRouteUploadPolicy`:
+
+```ts
+import { useRouteUploadPolicy } from "@dimah-s3/react";
+
+const policy = useRouteUploadPolicy({ route: "avatar" });
+// policy.accept, policy.maxFileSize, policy.status
 ```
 
 ---
 
-## Progress and state tracking
+## Multipart, retries, and unmount
 
-The hook surfaces detailed reactive state for UI rendering:
+Files of at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`) use multipart when
+the policy allows it. The server picks the part size and count. Parts upload
+`concurrentParts` at a time (default `4`), and each part is hashed as it
+streams when the server asks for checksums.
 
-- **`phase`**: Current upload phase (`idle` | `validating` | `presigning` | `uploading` | `finalizing` | `success` | `error`).
-- **`progress`**: Aggregate progress object containing `loaded`, `total`, `percent`, and instantaneous `speed` (bytes/sec).
-- **`files`**: Per-file state array containing individual progress, status (`pending`, `uploading`, `success`, `error`), and `previewUrl`.
-- **`file`**: Convenience shorthand for `files[0]` when `maxFiles` is 1.
-- **`isUploading`**: Boolean flag indicating active byte transfer (`phase === "uploading"`).
-- **`isPending`**: Boolean flag indicating in-flight operation from presign to confirmation.
+Failed requests retry with exponential backoff. Set `retry: { maxRetries,
+baseDelay }` (defaults `3` and `1000` ms). Network errors, S3 errors with
+status 429 or 500 and above, and expired part URLs are retried. An expired URL
+is signed again first.
+
+- **`cancel(id?)`** aborts the upload, aborts the multipart session on the server, and deletes its stored record.
+- **`detach()`** stops every file but keeps the multipart session and its stored record, so the upload can [resume](/docs/react/upload-store).
+- **Unmounting** detaches files whose call had an `uploadStore` and cancels the rest.
 
 ---
 
 ## Type reference
 
 ```ts
-import type { UseUploadOptions, UseUploadReturn } from "@dimah-s3/react";
+import type {
+  UploadBatchResult,
+  UploadCallOptions,
+  UploadFileState,
+  UploadPolicy,
+  UploadRequestOptions,
+  UseUploadOptions,
+  UseUploadReturn,
+} from "@dimah-s3/react";
 ```
 
 ### UseUploadOptions
 
 <AutoTypeTable
-  path="packages/react/src/hooks/use-upload.ts"
+  path="packages/react/src/types/upload.ts"
   name="UseUploadOptions"
 />
-
----
 
 ### UseUploadReturn
 
@@ -124,26 +303,64 @@ import type { UseUploadOptions, UseUploadReturn } from "@dimah-s3/react";
   name="UseUploadReturn"
 />
 
+### UploadFileState
+
+<AutoTypeTable
+  path="packages/react/src/types/upload.ts"
+  name="UploadFileState"
+/>
+
+### UploadBatchResult
+
+<AutoTypeTable
+  path="packages/react/src/types/upload.ts"
+  name="UploadBatchResult"
+/>
+
+### UploadCallOptions
+
+<AutoTypeTable
+  path="packages/react/src/types/upload.ts"
+  name="UploadCallOptions"
+/>
+
+### UploadRequestOptions
+
+<AutoTypeTable
+  path="packages/react/src/types/upload.ts"
+  name="UploadRequestOptions"
+/>
+
+### UploadPolicy
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-upload.ts"
+  name="UploadPolicy"
+/>
+
+### UseRouteUploadPolicyOptions
+
+<AutoTypeTable
+  path="packages/react/src/hooks/use-route-upload-policy.ts"
+  name="UseRouteUploadPolicyOptions"
+/>
+
 ## Frequently asked questions
 
 <Accordions>
 
 <Accordion title="What happens if the route catalog fails to load?">
 
-`useUpload` still works because the server enforces type and size on presign.
-`policy.catalogStatus` is `"error"` and `policy.catalogError` is set so
-you can toast or pass explicit `accept` / `maxFileSize` on the hook.
-In development, a one-time console warning is also printed.
-
-Custom backends that do not implement `GET /routes` should pass those
-constraints on `useUpload` and ignore the catalog status.
+Every file of that call fails with the catalog's error, and `policy.status` is
+`"error"`. The next call loads the catalog again. A custom backend must
+implement `catalog()`; see [Bring Your Own Backend](/docs/react/custom-backend).
 
 </Accordion>
 
-<Accordion title="How do I display a local image preview before uploading?">
+<Accordion title="How do I show a local image preview before uploading?">
 
-Read `previewUrl` from an item in `upload.files`; `upload.file?.previewUrl` is
-the single-file shorthand:
+Read `previewUrl` from an entry in `upload.files`. `upload.file?.previewUrl`
+is the single-file shorthand:
 
 ```tsx
 export function AvatarWithPreview() {
@@ -151,20 +368,17 @@ export function AvatarWithPreview() {
   const preview = upload.file?.previewUrl;
 
   return (
-    <div>
-      <div {...upload.getRootProps()}>
-        <input {...upload.getInputProps()} />
-        {preview ? (
-          <img
-            src={preview}
-            alt="Selected avatar"
-            className="size-20 rounded-full object-cover"
-          />
-        ) : (
-          <button type="button">Select avatar</button>
-        )}
-      </div>
-      {upload.isUploading && <span>{upload.progress.percent}%</span>}
+    <div {...upload.getRootProps()}>
+      <input {...upload.getInputProps()} />
+      {preview ? (
+        <img
+          src={preview}
+          alt="Selected avatar"
+          className="size-20 rounded-full object-cover"
+        />
+      ) : (
+        "Select avatar"
+      )}
     </div>
   );
 }
@@ -172,44 +386,18 @@ export function AvatarWithPreview() {
 
 </Accordion>
 
-<Accordion title="How do I pass custom metadata to the server on upload?">
+<Accordion title="Why did my earlier files stop when I picked new ones?">
 
-Pass static `uploadOptions` or a dynamic `getUploadOptions` function:
-
-```tsx
-const upload = useUpload({
-  route: "avatar",
-  getUploadOptions: (file) => ({
-    // [!code ++]
-    metadata: {
-      // [!code ++]
-      originalName: file.name, // [!code ++]
-      uploadedAt: new Date().toISOString(), // [!code ++]
-    }, // [!code ++]
-  }), // [!code ++]
-});
-```
+Without `queue: true`, a new call replaces the queue and cancels the files in
+flight. Set `queue: true` to append instead.
 
 </Accordion>
 
-<Accordion title="How do I pause, resume, or cancel in-flight uploads?">
+<Accordion title="Can I pause and resume an upload?">
 
-Call `cancel()` to abort the upload and clean up temporary parts. To stop a
-stored multipart upload without aborting it, call `detach()` and resume it on a
-later visit:
-
-```tsx
-const upload = useUpload({
-  route: "avatar",
-  uploadStore: localStorageStore, // [!code ++]
-});
-
-// Abort immediately
-upload.cancel();
-
-// Soft-stop to resume on next visit
-upload.detach();
-```
+Call `detach()` to stop without aborting, then select the same file again to
+resume. Resuming needs an `uploadStore` and a multipart upload; see
+[Upload Store](/docs/react/upload-store).
 
 </Accordion>
 

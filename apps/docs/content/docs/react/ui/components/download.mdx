@@ -1,0 +1,193 @@
+---
+title: Download
+description: Download buttons, a progress bar, and toasts for useDownload or useFetchDownload.
+---
+
+import { DownloadDemo } from "@/components/demos/download-demo";
+
+The download family renders one download hook. `Download` holds the hook,
+`DownloadTrigger` downloads one object, and `DownloadProgress` shows the
+bytes of a fetch download. One hook serves every trigger in the root, and
+each object key has its own state.
+
+## Preview
+
+<DemoPreview name="download-demo.tsx">
+  <DownloadDemo />
+</DemoPreview>
+
+## Install
+
+<include>../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import {
+  Download,
+  DownloadProgress,
+  DownloadToasts,
+  DownloadTrigger,
+} from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/download
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import { useDownload } from "@dimah-s3/react";
+import { Download, DownloadToasts, DownloadTrigger } from "@dimah-s3/ui";
+
+type Invoice = { key: string; name: string };
+
+export function InvoiceList({ invoices }: { invoices: Invoice[] }) {
+  const download = useDownload({ route: "invoices" });
+
+  return (
+    <>
+      <Download download={download}>
+        <ul>
+          {invoices.map((invoice) => (
+            <li key={invoice.key}>
+              {invoice.name}
+              <DownloadTrigger
+                objectKey={invoice.key}
+                fileName={invoice.name}
+                size="sm"
+              />
+            </li>
+          ))}
+        </ul>
+      </Download>
+      <DownloadToasts download={download} />
+    </>
+  );
+}
+```
+
+`Download` renders no element of its own. `DownloadTrigger` takes every
+`Button` prop, and `children` replace its icon and label.
+
+## Navigate or fetch
+
+The trigger follows the hook you pass to the root.
+
+- **`useDownload`** signs a URL and hands it to the browser, which saves the
+  file. While the URL is signed, the trigger is disabled, stays focusable,
+  and shows a spinner.
+- **`useFetchDownload`** fetches the bytes in the page. While the call runs,
+  the trigger fills with the progress and a click cancels the download. Its
+  label becomes "Cancel" and its accessible name
+  `Cancel download of {name}`. The second click of a double-click does not cancel.
+
+The trigger carries `data-phase` with the phase of the newest call for its
+key. See [useDownload](/docs/react/hooks/download) for both hooks.
+
+## Progress
+
+`DownloadProgress` is a progress bar for the running fetch download of one
+key. It has `role="progressbar"`, names the file, and reads the bytes
+received. It is indeterminate until the total size is known. Pass
+`fileSize` to the trigger to give the bar a total before the response does.
+
+```tsx
+const download = useFetchDownload({ route: "exports" });
+
+<Download download={download}>
+  <DownloadTrigger objectKey={report.key} fileSize={report.size} />
+  <DownloadProgress objectKey={report.key} />
+</Download>;
+```
+
+It renders nothing with `useDownload`, which has no byte progress, and while
+no call for the key runs.
+
+## Toasts
+
+Mount `DownloadToasts` once per hook, next to one `<Toaster />`.
+
+- `useDownload`: "Download started" once the browser has the URL.
+- `useFetchDownload`: a "Downloading" toast with the bytes and a Cancel
+  action, then "Download complete".
+- Both: "Download failed" with the error, and "Download cancelled".
+
+A second `DownloadToasts` for the same hook renders nothing and warns in
+development. Calls that settled before it mounted are not announced.
+
+---
+
+## Props
+
+```ts
+import type {
+  DownloadProps,
+  DownloadTriggerProps,
+  DownloadProgressProps,
+  DownloadToastsProps,
+} from "@dimah-s3/ui";
+```
+
+### Download
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/download/download.tsx"
+  name="DownloadProps"
+/>
+
+### DownloadTrigger
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/download/download-trigger.tsx"
+  name="DownloadTriggerProps"
+/>
+
+### DownloadProgress
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/download/download-progress.tsx"
+  name="DownloadProgressProps"
+/>
+
+### DownloadToasts
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/download/download-toasts.tsx"
+  name="DownloadToastsProps"
+/>
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can many rows share one hook?">
+
+Yes. Each object key has its own state, so a running download only changes
+the trigger for that key.
+
+</Accordion>
+
+<Accordion title="How do I build my own trigger?">
+
+Read the hook with `useDownloadContext()` inside `Download`, then call
+`download.download(key)` and read `download.get(key)` for its state.
+
+</Accordion>
+
+</Accordions>

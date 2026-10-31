@@ -1,0 +1,226 @@
+---
+title: Delete
+description: Delete buttons with one confirm dialog per root, and toasts for useDelete.
+---
+
+import { DeleteDemo } from "@/components/demos/delete-demo";
+
+The delete family renders one [`useDelete`](/docs/react/hooks/delete) hook.
+`Delete` holds the hook and one confirm dialog. Every `DeleteTrigger` inside
+it asks the root, and the root asks before it deletes.
+
+## Preview
+
+<DemoPreview name="delete-demo.tsx">
+  <DeleteDemo />
+</DemoPreview>
+
+## Install
+
+<include>../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import { Delete, DeleteToasts, DeleteTrigger } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/delete
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import { useDelete } from "@dimah-s3/react";
+import { Delete, DeleteToasts, DeleteTrigger } from "@dimah-s3/ui";
+
+type Attachment = { key: string; name: string; size: number };
+
+export function AttachmentList({
+  attachments,
+  onRemoved,
+}: {
+  attachments: Attachment[];
+  onRemoved: (keys: string[]) => void;
+}) {
+  const remove = useDelete({ route: "attachments" });
+
+  return (
+    <>
+      <Delete delete={remove} onDeleted={(result) => onRemoved(result.deleted)}>
+        <ul>
+          {attachments.map((file) => (
+            <li key={file.key}>
+              {file.name}
+              <DeleteTrigger
+                objectKey={file.key}
+                fileName={file.name}
+                fileSize={file.size}
+                size="sm"
+              />
+            </li>
+          ))}
+        </ul>
+      </Delete>
+      <DeleteToasts delete={remove} />
+    </>
+  );
+}
+```
+
+`DeleteTrigger` takes every `Button` prop and defaults to the destructive
+variant. While its key is deleting, it is disabled, stays focusable, and
+shows a spinner. `children` replace its icon and label.
+
+## Confirmation
+
+The root renders one `DeleteConfirmDialog` for all of its triggers. It is an
+alert dialog with initial focus on Cancel. It names the file and its size for
+one target, or the count for several. Confirm stays busy, and the dialog
+stays open, until the delete settles. Cancel and Escape do nothing until then.
+
+Replace the copy with your own dialog element:
+
+```tsx
+<Delete
+  delete={remove}
+  dialog={
+    <DeleteConfirmDialog
+      title="Remove profile picture?"
+      description="Your profile goes back to the default avatar."
+      confirmLabel="Remove"
+    />
+  }
+>
+  <DeleteTrigger objectKey={avatarKey} />
+</Delete>
+```
+
+`note` on the trigger adds a line to the dialog's description, read out when
+it opens. `confirm={false}` deletes on click, without a dialog.
+
+## Results and focus
+
+`onDeleted` runs once per confirmed delete with the `DeleteResult`:
+`deleted`, `failed`, and `blocked` keys. It runs before the dialog closes, so
+rows you remove in it are gone by the time focus moves.
+
+When the dialog closes, focus goes to the first of these that is still in the
+document:
+
+1. The element `restoreFocus(targets)` returns.
+2. The trigger that asked.
+3. The trigger's nearest `[data-dimah-s3-focus-root]` container.
+
+Mark the container of a list whose rows unmount with
+`data-dimah-s3-focus-root` and `tabIndex={-1}`, so focus has a place to go.
+A custom `dialog` gets the same focus handling from the root.
+
+## Your own triggers
+
+`useDeleteContext()` returns the hook, the `pending` request, and
+`request`, `confirm`, and `cancel`. `request` takes one target or a list, so
+one confirmation covers a bulk delete:
+
+```tsx
+function DeleteSelected({ files }: { files: Attachment[] }) {
+  const { request } = useDeleteContext();
+
+  return (
+    <Button
+      variant="destructive"
+      onClick={(event) =>
+        request(
+          files.map((file) => ({ objectKey: file.key, fileName: file.name })),
+          { trigger: event.currentTarget },
+        )
+      }
+    >
+      Delete {files.length} files
+    </Button>
+  );
+}
+```
+
+Pass `trigger` when the element that asked can unmount, such as a menu item:
+pass the menu's trigger button instead. Without it, focus returns to the
+element that had focus. A new request replaces one that is waiting.
+
+## Toasts
+
+Mount `DeleteToasts` once per hook, next to one `<Toaster />`. It shows one
+success toast and one error toast per call, once every key of the call has
+settled. A second `DeleteToasts` for the same hook renders nothing and warns
+in development.
+
+---
+
+## Props
+
+```ts
+import type {
+  DeleteProps,
+  DeleteTriggerProps,
+  DeleteConfirmDialogProps,
+  DeleteContextValue,
+  DeleteRequestOptions,
+  DeleteToastsProps,
+} from "@dimah-s3/ui";
+```
+
+### Delete
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/delete/delete.tsx"
+  name="DeleteProps"
+/>
+
+### DeleteTrigger
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/delete/delete-trigger.tsx"
+  name="DeleteTriggerProps"
+/>
+
+### DeleteConfirmDialog
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/delete/delete-confirm-dialog.tsx"
+  name="DeleteConfirmDialogProps"
+/>
+
+### useDeleteContext
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/delete/delete.tsx"
+  name="DeleteContextValue"
+/>
+
+### DeleteRequestOptions
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/delete/delete.tsx"
+  name="DeleteRequestOptions"
+/>
+
+### DeleteToasts
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/delete/delete-toasts.tsx"
+  name="DeleteToastsProps"
+/>

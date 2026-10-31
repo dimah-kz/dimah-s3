@@ -1,0 +1,101 @@
+---
+title: Engine
+description: Plain functions from @dimah-s3/react/engine — upload a file without hooks, and use the stores, sources, and formatters in any module.
+---
+
+`@dimah-s3/react/engine` holds the plain functions behind the hooks. It has no
+React import and no `"use client"` directive, so shared modules, server
+modules, workers, and scripts can import it.
+
+| Area         | Exports                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------ |
+| Upload       | `uploadFile`, `uploadAbortReason`, `getUploadAbortKind`, `multipartResumeKey`, `DEFAULT_MULTIPART_THRESHOLD` |
+| Stores       | `createLocalStorageStore`, `createMemoryStore`                                                               |
+| Route policy | `loadRouteCatalog`, `resolveRouteUploadPolicy`, `mergeRouteUploadPolicy`                                     |
+| Custom API   | `defineApi`                                                                                                  |
+| Object list  | `memoryObjectSource`, `readObjectListLevel`, `objectListEntryKey`, `objectKeyOf`                             |
+| Formatting   | `formatAcceptLabels`, `formatSpeed`, `formatUploadProgress`, `toTimestamp`                                   |
+
+The types `UploadFileOptions`, `UploadStore`, `StoredUpload`,
+`UploadTransport`, `S3ApiUploadTransport`, `RetryConfig`, `UploadAbortKind`,
+and `RouteUploadPolicy` ship from it too.
+
+## Upload a file without hooks
+
+`uploadFile(api, file, options)` presigns, uploads, and confirms one file,
+and resolves with the verified object. It does not load the catalog or check
+the file, so do both first:
+
+```ts title="lib/upload-attachment.ts"
+import { createS3Client, validateFile } from "@dimah-s3/core";
+import {
+  createLocalStorageStore,
+  loadRouteCatalog,
+  resolveRouteUploadPolicy,
+  uploadFile,
+} from "@dimah-s3/react/engine";
+
+const api = createS3Client();
+const uploadStore = createLocalStorageStore();
+
+export async function uploadAttachment(file: File, signal?: AbortSignal) {
+  const catalog = await loadRouteCatalog(api);
+  const policy = resolveRouteUploadPolicy(catalog, "attachments");
+
+  const invalid = validateFile(file, policy);
+  if (invalid) throw invalid;
+
+  return uploadFile(api, file, {
+    route: "attachments",
+    policy,
+    request: { metadata: { source: "import" } },
+    uploadStore,
+    signal,
+    onProgress: (progress) => console.log(`${progress.percent}%`),
+  });
+}
+```
+
+`policy` decides two things. Files of at least `DEFAULT_MULTIPART_THRESHOLD`
+(50 MiB) use multipart when `policy.multipart` is true. Single-shot uploads
+send a SHA-256 when `policy.checksum` is true; multipart follows what init
+returns. `mergeRouteUploadPolicy(policy, { accept, maxFileSize, multipart })`
+narrows the policy the way the hook options do.
+
+`concurrentParts`, `retry`, and `uploadStore` work as they do on
+[`useUpload`](/docs/react/hooks/upload). `onPhaseChange` reports `preparing`,
+`presigning`, `uploading`, and `finalizing`.
+
+## Cancel and detach
+
+`uploadFile` rejects with an `APIError`, or with `signal.reason` once the
+signal aborts. Abort with an upload abort reason to say what should happen to
+a multipart session:
+
+```ts
+import { getUploadAbortKind, uploadAbortReason } from "@dimah-s3/react/engine";
+
+const controller = new AbortController();
+const pending = uploadAttachment(file, controller.signal);
+
+// Keep the multipart session and its stored record, to resume later.
+controller.abort(uploadAbortReason("detach"));
+
+try {
+  await pending;
+} catch (error) {
+  if (getUploadAbortKind(error) !== "detach") throw error;
+}
+```
+
+`uploadAbortReason("cancel")`, or any other reason, aborts the session on the
+server and deletes the stored record. Without an `uploadStore`, a detach
+aborts the session too, because nothing could resume it. Both reasons are
+`DOMException`s named `AbortError`.
+
+## Type reference
+
+<AutoTypeTable
+  path="packages/react/src/types/upload.ts"
+  name="UploadFileOptions"
+/>

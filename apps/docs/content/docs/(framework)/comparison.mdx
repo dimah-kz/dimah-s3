@@ -20,18 +20,18 @@ its lifetime.
 
 <div className="hidden md:block">
 
-| Capability                | dimah-s3                          | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io)     |
-| ------------------------- | --------------------------------- | ------------------------------------------ | -------------------------------------- | --------------------------- |
-| **Product model**         | Lifecycle toolkit                 | Upload toolkit                             | Managed file service                   | Client uploader             |
-| **Storage**               | Your S3-compatible bucket         | Your S3-compatible bucket                  | Managed storage and CDN                | Your bucket or service      |
-| **Server policy**         | Named lifecycle routes            | Upload routes + S3 helpers                 | Managed file routes                    | Bring your own or Companion |
-| **After upload**          | `HeadObject` confirm              | Client event; app verification             | Managed completion callback            | Your backend                |
-| **Download**              | Signed URL or proxy + React API   | Server helpers                             | Public or signed managed URLs          | Your application            |
-| **Delete**                | Guarded route + batch + React API | Server helpers                             | Hosted API                             | Your application            |
-| **Multipart and resume**  | Multipart + persistent store      | Multipart + retries                        | Managed pause/resume                   | S3 multipart or Tus         |
-| **Ownership and records** | Optional `@dimah-s3/db`           | Your application                           | Service records + app auth             | Your application            |
-| **React UI**              | Headless + optional shadcn        | Hooks + shadcn upload UI                   | Components + hooks                     | Headless core + Dashboard   |
-| **Cost and operations**   | Cloud + application operations    | Cloud + application operations             | Managed plan + usage                   | Backend + destination costs |
+| Capability                | dimah-s3                         | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io)     |
+| ------------------------- | -------------------------------- | ------------------------------------------ | -------------------------------------- | --------------------------- |
+| **Product model**         | Lifecycle toolkit                | Upload toolkit                             | Managed file service                   | Client uploader             |
+| **Storage**               | Your S3-compatible bucket        | Your S3-compatible bucket                  | Managed storage and CDN                | Your bucket or service      |
+| **Server policy**         | Named lifecycle routes           | Upload routes + S3 helpers                 | Managed file routes                    | Bring your own or Companion |
+| **After upload**          | Signed ticket + `HeadObject`     | Client event; app verification             | Managed completion callback            | Your backend                |
+| **Download**              | Signed URL or proxy + React API  | Server helpers                             | Public or signed managed URLs          | Your application            |
+| **Delete**                | Guarded route + bulk + React API | Server helpers                             | Hosted API                             | Your application            |
+| **Multipart and resume**  | Multipart + persistent store     | Multipart + retries                        | Managed pause/resume                   | S3 multipart or Tus         |
+| **Ownership and records** | Optional `@dimah-s3/db`          | Your application                           | Service records + app auth             | Your application            |
+| **React UI**              | Headless + optional shadcn       | Hooks + shadcn upload UI                   | Components + hooks                     | Headless core + Dashboard   |
+| **Cost and operations**   | Cloud + application operations   | Cloud + application operations             | Managed plan + usage                   | Backend + destination costs |
 
 The matrix describes first-party product scope. Every option can be extended
 with application code; the sections below explain the practical boundary.
@@ -83,17 +83,18 @@ of S3 helpers.
 
 Choose dimah-s3 when the application also needs:
 
-1. **Verified confirmation** — the confirm endpoint reads `HeadObject`, rechecks
-   size and Content-Type, and removes the object if verification or
-   `onConfirmed` fails.
+1. **Verified confirmation** — confirm takes a signed upload ticket, so it only
+   finishes uploads the server started. It reads `HeadObject`, rechecks size
+   and Content-Type, can check the first bytes against the type, and removes
+   the object when verification or `confirmGuard` rejects it.
 2. **One lifecycle policy** — the same named route and key namespace can govern
    upload, private download, proxy delivery, and server-executed deletion.
 3. **Resume across reloads** — `UploadStore` can persist multipart metadata;
    after the user reselects the same local file, the client reconciles uploaded
    parts with S3.
 4. **Optional application records** — `@dimah-s3/db` adds scope-based
-   ownership, lifecycle state, listings, and quota guards without moving ORM
-   behavior into the server package.
+   ownership, lifecycle state, listings with folders, and quotas without
+   moving ORM behavior into the server package.
 
 ---
 

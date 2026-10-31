@@ -6,7 +6,8 @@ icon: Rocket
 
 ## Create a new project
 
-Scaffold a full-stack project with preconfigured S3 routes and UI:
+Scaffold a full-stack project with preconfigured S3 routes and UI. `create`
+also writes a generated `DIMAH_S3_SECRET` to `.env`.
 
 ```npm
 npx @dimah-s3/cli@latest create
@@ -19,8 +20,10 @@ npx @dimah-s3/cli@latest create
 ### Install dependencies [step]
 
 ```npm
-npm i @dimah-s3/server @dimah-s3/react @aws-sdk/client-s3
+npm i @dimah-s3/server @dimah-s3/core @dimah-s3/react @fuma-translate/react @aws-sdk/client-s3
 ```
+
+`@dimah-s3/react` needs React 19 or later.
 
 ### Configure S3 and routes [step]
 
@@ -30,6 +33,9 @@ S3_REGION="auto"
 S3_ACCESS_KEY_ID="your-access-key-id"
 S3_SECRET_ACCESS_KEY="your-secret-access-key"
 S3_BUCKET="your-bucket-name"
+
+# Signs upload tickets. Generate one with: openssl rand -base64 32
+DIMAH_S3_SECRET="your-generated-secret"
 ```
 
 ```ts title="lib/s3.ts"
@@ -43,6 +49,8 @@ export const awsS3 = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID!,
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
+  // The SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 
 export const s3 = dimahS3({
@@ -63,9 +71,12 @@ export const s3 = dimahS3({
 Set bucket CORS for your origin — [Amazon S3](/docs/providers/aws-s3),
 [Cloudflare R2](/docs/providers/cloudflare-r2), or [MinIO](/docs/providers/minio).
 
-<Callout title="Cloudflare R2">
-  Set `upload.method` to `"PUT"`. See [Cloudflare
-  R2](/docs/providers/cloudflare-r2).
+<Callout title="Upload secret">
+  `dimahS3()` reads `DIMAH_S3_SECRET` to sign [upload
+  tickets](/docs/server/upload-tickets). Use at least 32 characters and the same
+  value on every server instance, or pass `secret` yourself. When it is missing,
+  `development` and `test` fall back to a random secret with a warning; anywhere
+  else, uploads return `500`.
 </Callout>
 
 ### Mount the route handler [step]
@@ -209,7 +220,7 @@ export default function RootLayout({
 <include>../../_includes/ui/index.mdx#registry-config</include>
 
 ```npm
-npx shadcn@latest add @dimah-s3/upload-button
+npx shadcn@latest add @dimah-s3/upload
 ```
 
 ```tsx title="app/layout.tsx"
@@ -244,16 +255,25 @@ export default function RootLayout({
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import { UploadButton } from "@dimah-s3/ui";
+import { Upload, UploadToasts, UploadTrigger } from "@dimah-s3/ui";
 
 export default function Page() {
   const upload = useUpload({ route: "avatar" });
 
-  return <UploadButton upload={upload} />;
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadTrigger />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
 }
 ```
 
 Selecting a file presigns a secure URL and uploads directly to your bucket.
+`UploadToasts` reports progress, success, and errors for this hook. See
+[Upload](/docs/react/ui/components/upload) for the dropzone and status parts.
 
 ## Frequently asked questions
 
@@ -261,10 +281,10 @@ Selecting a file presigns a secure URL and uploads directly to your bucket.
 
 <Accordion title="How do I restrict uploads to authenticated users?">
 
-Add a `guard` on the route or instance. Throw `errors.unauthorized()` or `errors.forbidden()` if the session is invalid:
+Add a `guard` on the route or instance. Throw `s3Error("UNAUTHORIZED")` or `s3Error("FORBIDDEN")` when the session is missing or not allowed:
 
 ```ts title="lib/s3.ts"
-import { dimahS3, errors, route } from "@dimah-s3/server";
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
 
 export const s3 = dimahS3({
   // ...
@@ -273,7 +293,7 @@ export const s3 = dimahS3({
       guard: async ({ request }) => {
         // [!code ++]
         const session = await getSession(request); // [!code ++]
-        if (!session) throw errors.unauthorized(); // [!code ++]
+        if (!session) throw s3Error("UNAUTHORIZED"); // [!code ++]
       }, // [!code ++]
       upload: {
         fileTypes: ["image/*"],
@@ -289,7 +309,8 @@ export const s3 = dimahS3({
 <Accordion title="How do I save the uploaded avatar key to my database?">
 
 Persist trusted object metadata in `onConfirmed`, after the server has verified
-the stored object with `HeadObject`:
+the stored object with `HeadObject`. It can run more than once for one upload,
+so make the write idempotent:
 
 ```ts title="Server-side (recommended)"
 avatar: route({
@@ -309,15 +330,15 @@ avatar: route({
 });
 ```
 
-For a form, `onSuccess` can place the confirmed key in local form state before
-your application submits it to its own API:
+For a form, `onSuccess` runs once per confirmed file and can place its key in
+local form state before your application submits it to its own API:
 
 ```tsx title="Client-side form state"
 const upload = useUpload({
   route: "avatar",
   // [!code ++]
-  onSuccess: (results) => {
-    setValue("avatarKey", results[0]?.key); // [!code ++]
+  onSuccess: (result) => {
+    setValue("avatarKey", result.key); // [!code ++]
   }, // [!code ++]
 });
 ```
@@ -326,7 +347,8 @@ const upload = useUpload({
 
 <Accordion title="How do I use Cloudflare R2 instead of AWS S3?">
 
-Cloudflare R2 requires `upload: { method: "PUT" }` because it does not support presigned POST:
+Pass an `S3Client` for your R2 account. Uploads use presigned PUT by default,
+which R2 supports. Do not set `method: "POST"`: R2 has no presigned POST.
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -335,7 +357,6 @@ export const s3 = dimahS3({
   routes: {
     avatar: route({
       upload: {
-        method: "PUT", // [!code ++]
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
       },

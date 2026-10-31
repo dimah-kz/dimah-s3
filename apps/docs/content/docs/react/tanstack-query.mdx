@@ -4,12 +4,12 @@ description: Invalidate queries after a confirmed upload. Do not wrap useUpload 
 icon: RefreshCw
 ---
 
-`useUpload` already owns in-flight state (`isPending`, progress, errors,
-retries). Wrapping `handleFiles` in `useMutation` duplicates that and
-drops per-file progress.
+`useUpload` already owns in-flight state: `isPending`, per-file progress,
+errors, and retries. Wrapping `handleFiles` in `useMutation` duplicates that
+state and loses per-file progress.
 
-Use TanStack Query for **lists and records**. Let `onSuccess` on the
-upload hook invalidate those queries after confirm.
+Use TanStack Query for **lists and records**. Let the upload hook's callbacks
+save the key and invalidate those queries once the server confirms.
 
 ## Invalidate after confirm
 
@@ -18,7 +18,7 @@ upload hook invalidate those queries after confirm.
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUpload } from "@dimah-s3/react";
-import { UploadButton } from "@dimah-s3/ui";
+import { Upload, UploadStatus, UploadTrigger } from "@dimah-s3/ui";
 
 async function fetchProfile() {
   const response = await fetch("/api/profile");
@@ -42,10 +42,8 @@ export function AvatarUploader() {
 
   const upload = useUpload({
     route: "avatar",
-    onSuccess: async (results) => {
-      const key = results[0]?.key;
-      if (!key) return;
-      await saveAvatarKey(key); // [!code ++]
+    onSuccess: async (result) => {
+      await saveAvatarKey(result.key); // [!code ++]
       await queryClient.invalidateQueries({ queryKey: ["profile"] }); // [!code ++]
     },
   });
@@ -55,32 +53,49 @@ export function AvatarUploader() {
       {profile.data?.avatarUrl ? (
         <img src={profile.data.avatarUrl} alt="Current profile avatar" />
       ) : null}
-      <UploadButton upload={upload} />
+      <Upload upload={upload}>
+        <UploadTrigger />
+        <UploadStatus />
+      </Upload>
     </div>
   );
 }
 ```
 
-`onSuccess` runs after the server `HeadObject` confirm. That is the
-right time to persist the key and refresh cached profile data.
+`onSuccess` runs once per file, after the server's `HeadObject` confirm. That
+is the right time to save the key and refresh cached data.
+
+## Many files
+
+With several files per call, invalidate once in `onSettled`. It runs once per
+call, after every `onSuccess`:
+
+```ts
+const upload = useUpload({
+  route: "attachments",
+  maxFiles: 10,
+  onSettled: async ({ uploaded }) => {
+    if (uploaded.length === 0) return;
+    await queryClient.invalidateQueries({ queryKey: ["attachments"] });
+  },
+});
+```
 
 ## Forms
 
 For form fields that store object keys, see [Forms](/docs/react/forms).
-The same rule applies: write keys in `onSuccess`, then let the form
-submit the serializable value.
 
 ## What not to do
 
 ```tsx
-// Avoid — loses progress and double-tracks pending state
+// Avoid — loses per-file progress and double-tracks pending state
 const mutation = useMutation({
   // [!code --]
   mutationFn: (file: File) => upload.handleFiles(file), // [!code --]
 }); // [!code --]
 ```
 
-`handleFiles` resolves even when validation fails (the hook sets
-`upload.error` instead of throwing). A mutation would report success.
-Keep Query for the data you read back; keep `useUpload` for the
+`handleFiles` does not throw when a file fails or is rejected. It resolves
+with `{ uploaded, failed, blocked, aborted }`, so a mutation would report
+success. Keep Query for the data you read back, and `useUpload` for the
 transfer.

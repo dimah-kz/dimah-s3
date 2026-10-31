@@ -4,6 +4,9 @@
     "build": {
       "dependsOn": ["^build", "@dimah-s3/ui#registry:build"],
       "outputs": [".next/**", "!.next/cache/**", "public/r/**"]
+    },
+    "check-types": {
+      "inputs": ["$TURBO_EXTENDS$", "../../packages/*/src/**"]
     }
   }
 }

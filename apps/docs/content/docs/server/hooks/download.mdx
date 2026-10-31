@@ -11,10 +11,8 @@ key they know. See
 [Security](/docs/server/security#route-namespace-vs-ownership).
 
 ```ts title="lib/s3.ts"
-import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors, route } from "@dimah-s3/server";
-
-export const awsS3 = new S3Client({/* env */});
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
+import { awsS3 } from "./aws-s3";
 
 export const s3 = dimahS3({
   client: awsS3,
@@ -26,7 +24,7 @@ export const s3 = dimahS3({
         guard: async ({ key, request }) => {
           // [!code ++]
           const session = await getSession(request); // [!code ++]
-          if (!session) throw errors.unauthorized(); // [!code ++]
+          if (!session) throw s3Error("UNAUTHORIZED"); // [!code ++]
         }, // [!code ++]
       },
     }),
@@ -41,31 +39,48 @@ export const s3 = dimahS3({
 <Flow
   label="Download flow"
   steps={[
+    { name: "route.guard", kind: "hook" },
     { name: "download.resolve", kind: "hook" },
     { name: "download.guard", kind: "hook" },
+    { name: "HeadObject", kind: "s3" },
     { name: "onPresigned", kind: "hook" },
-    { name: "Fetch from S3", kind: "s3" },
+    { name: "Fetch from S3", kind: "client" },
   ]}
 />
 
-1. **`resolve`**: Optionally rewrites download `fileName`, `disposition` (`inline` vs `attachment`), or `expiresIn`. A returned `expiresIn` replaces the route cap and any client request, then is clamped to `maxExpiresIn`.
-2. **`guard`**: Validates request permissions for the specified `key`. `expiresIn` here is the TTL that will be signed (`0` when `mode` is `"proxy"`).
-3. **`onPresigned`**: Receives the signed URL and expiration details.
+1. **`resolve`**: Optionally rewrites the download `name`, `disposition` (`inline` vs `attachment`), `expiresIn`, or, in proxy mode, `cacheControl`. A returned `expiresIn` replaces the route cap and any client request, then is capped by the instance `maxExpiresIn`.
+2. **`guard`**: Authorizes the request for this `key`, with the values that will be used. `expiresIn` is the TTL that will be signed, and `undefined` in proxy mode.
+3. **HeadObject**: Reads the stored type, to decide whether `inline` is allowed.
+4. **`onPresigned`**: Receives the URL and the disposition that was signed.
 
-A client may send `expiresIn` on the download query. The signed TTL is the shorter of that request and `download.expiresIn` (default 10 minutes) unless `resolve` replaces it. `GET /routes` includes the cap as `download.expiresIn`. Proxy downloads ignore it and return `expiresIn: 0`.
+A client may send `expiresIn` on the download query. The signed TTL is the
+shorter of that request and `download.maxExpiresIn` (default 10 minutes)
+unless `resolve` replaces it. `GET /routes` reports the cap as
+`download.maxExpiresIn`.
+
+In proxy mode (`mode: "proxy"`), the URL points to
+[`GET /file`](/docs/server/file-proxy), the response has no `expiresIn`, and
+every request to that URL runs the guards again.
 
 ---
 
 ## Open in the browser only for known types
 
-A client can ask for `disposition: "inline"`. Without a limit, any stored
-object — HTML or SVG included — would then render in a browser tab. Set
-`inlineTypes` to the types this route may open inline:
+A client can ask for `disposition: "inline"`. The server keeps it only for
+types on the route's allow-list, and signs everything else as `attachment`.
+The default list is `DEFAULT_INLINE_TYPES` from `@dimah-s3/core`:
+
+- `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif`, `image/bmp`
+- `application/pdf` (presign mode only)
+- `audio/*`, `video/*`
+- `text/plain`
+
+Set `inlineTypes` to change it, or `false` to never open inline:
 
 ```ts title="lib/s3.ts"
 files: route({
   download: {
-    inlineTypes: ["image/*", "application/pdf", "video/mp4", "text/plain"], // [!code ++]
+    inlineTypes: ["image/*", "application/pdf", "video/mp4"], // [!code ++]
   },
 }),
 ```
@@ -81,10 +96,10 @@ After the guards, the server reads the object's type from HeadObject:
   When that type is allowed, it is signed as `ResponseContentType` so the
   browser renders it.
 
-`GET /routes` returns the list as `download.inlineTypes`. A client can pass it
-to `resolveInlineDisposition` from `@dimah-s3/core` to choose Preview or
-Download with the server's rule. The same helper works inside `resolve`.
-Proxy responses (`GET /file`) also send `X-Content-Type-Options: nosniff`.
+`GET /routes` returns the effective list as `download.inlineTypes`. A client
+can pass it to `resolveInlineDisposition` from `@dimah-s3/core` to choose
+Preview or Download with the server's rule. The same helper works inside
+`resolve`.
 
 ---
 
@@ -94,6 +109,7 @@ Proxy responses (`GET /file`) also send `X-Content-Type-Options: nosniff`.
 import type {
   DownloadGuardContext,
   DownloadOnPresignedContext,
+  DownloadResolveContext,
   DownloadResolveInfo,
 } from "@dimah-s3/server";
 ```
@@ -116,6 +132,15 @@ import type {
 
 ---
 
+### DownloadResolveContext
+
+<AutoTypeTable
+  path="packages/server/src/types/hook-contexts.ts"
+  name="DownloadResolveContext"
+/>
+
+---
+
 ### DownloadResolveInfo
 
 <AutoTypeTable
@@ -129,15 +154,16 @@ import type {
 
 <Accordion title="Can the client choose how long a download link lasts?">
 
-Yes, up to the route cap. `download.expiresIn` is the maximum. A shorter
+Yes, up to the route cap. `download.maxExpiresIn` is the maximum. A shorter
 `expiresIn` on the query is signed as requested. Return `expiresIn` from
 `resolve` when the server should choose a different TTL, including one
-longer than the route cap. That value is still clamped to `maxExpiresIn`.
+longer than the route cap. That value is still capped by the instance
+`maxExpiresIn` (7 days at most).
 
 ```ts
 files: route({
   download: {
-    expiresIn: 60 * 60 * 24, // [!code ++]
+    maxExpiresIn: 60 * 60 * 24, // [!code ++]
   },
 }),
 ```
@@ -151,31 +177,31 @@ Use `download.resolve` to set the downloaded file name per request:
 ```ts
 avatar: route({
   download: {
-    resolve: async ({ key, request }) => {
+    resolve: async ({ key }) => {
       const user = await getUserByKey(key);
       return {
-        fileName: `${user.username}-avatar.png`, // [!code ++]
+        name: `${user.username}-avatar.png`, // [!code ++]
         disposition: "attachment", // [!code ++]
       };
     },
   },
-});
+}),
 ```
 
 </Accordion>
 
 <Accordion title="How do I stream downloads through my server?">
 
-Set `mode: "proxy"`. The browser receives a same-origin URL
-(`/api/s3/file?key=...`), and your server streams the response instead of
-returning a direct bucket URL:
+Set `mode: "proxy"`. The browser receives a URL on your API
+(`/api/s3/file?route=…&key=…`), and your server streams the object instead of
+returning a direct bucket URL. See [File Proxy](/docs/server/file-proxy).
 
 ```ts
 avatar: route({
   download: {
     mode: "proxy", // [!code ++]
   },
-});
+}),
 ```
 
 </Accordion>

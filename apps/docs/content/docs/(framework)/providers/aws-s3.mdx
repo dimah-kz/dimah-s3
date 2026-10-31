@@ -3,8 +3,8 @@ title: Amazon S3
 description: Configuration, CORS, and bucket policies for AWS S3.
 ---
 
-Amazon S3 supports presigned POST and PUT uploads, object ACLs, and multipart
-uploads.
+Amazon S3 supports presigned PUT and POST uploads, object ACLs, SHA-256
+checksums, and multipart uploads.
 
 ## 1. Bucket CORS configuration
 
@@ -35,6 +35,7 @@ export const awsS3 = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID!,
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
+  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
 });
 
 export const s3 = dimahS3({
@@ -50,6 +51,10 @@ export const s3 = dimahS3({
   },
 });
 ```
+
+AWS SDK versions from 3.729 default `requestChecksumCalculation` to
+`"WHEN_SUPPORTED"`. Presigned browser uploads cannot match the checksum that
+mode adds, so dimah-s3 refuses to presign with such a client.
 
 ## Frequently asked questions
 
@@ -80,8 +85,14 @@ through a bucket policy or CDN instead.
 
 First, make sure `AllowedOrigins` exactly matches the browser origin, including
 the scheme and development port. Then allow the upload method and request
-headers used by the presigned request. `ExposeHeaders` does not fix a 403, but
-it must include `ETag` when the browser needs to read multipart responses.
+headers used by the presigned request. A presigned PUT sends metadata,
+checksum, and tag headers, so `AllowedHeaders: ["*"]` is the simplest rule.
+`ExposeHeaders` does not fix a 403, but it must include `ETag` when the
+browser needs to read multipart responses.
+
+A 403 with `SignatureDoesNotMatch` usually means the client changed or
+dropped a header. A custom client must send exactly the `headers` from the
+presign response.
 
 </Accordion>
 

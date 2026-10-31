@@ -7,15 +7,23 @@ import {
   useState,
   ViewTransition,
 } from "react";
-import { useDelete, useDownload, useUpload } from "@dimah-s3/react";
+import { useDelete, useFetchDownload, useUpload } from "@dimah-s3/react";
 import {
-  DeleteButton,
+  Delete,
+  DeleteToasts,
+  DeleteTrigger,
+  Download,
+  DownloadToasts,
+  DownloadTrigger,
   FileAttachment,
-  ProgressDownloadButton,
+  Upload,
   UploadDropzone,
+  UploadStatus,
+  UploadToasts,
 } from "@dimah-s3/ui";
 import {
   forgetDemoFile,
+  getDemoFileUrl,
   rememberDemoFile,
 } from "@/lib/demo/client-object-store";
 
@@ -27,72 +35,10 @@ type DemoObject = {
   previewUrl: string | null;
 };
 
-function keepInsideDemo(event: { stopPropagation: () => void }) {
-  event.stopPropagation();
-}
-
-function previewFromFile(file: File) {
-  return file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
-}
-
-function DemoObjectRow({
-  object,
-  onDeleted,
-  onDismiss,
-}: {
-  object: DemoObject;
-  onDeleted: () => void;
-  onDismiss: () => void;
-}) {
-  const download = useDownload({ route: "avatar", mode: "fetch" });
-  const del = useDelete({ route: "avatar", onSuccess: onDeleted });
-
-  return (
-    <div
-      className="flex w-full flex-col gap-2 p-3 text-start"
-      role="presentation"
-      onClick={keepInsideDemo}
-      onKeyDown={keepInsideDemo}
-    >
-      <FileAttachment
-        size="sm"
-        state="done"
-        fileName={object.name}
-        fileSize={object.size}
-        fileType={object.type}
-        previewUrl={object.previewUrl}
-        onDismiss={onDismiss}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <ProgressDownloadButton
-          className="w-fit"
-          download={download}
-          objectKey={object.key}
-          fileName={object.name}
-          fileSize={object.size}
-          size="sm"
-          status={false}
-        />
-        <DeleteButton
-          className="w-fit"
-          delete={del}
-          objectKey={object.key}
-          fileName={object.name}
-          fileSize={object.size}
-          size="sm"
-          status={false}
-        />
-      </div>
-    </div>
-  );
-}
-
 /** Homepage dropzone: upload a file, then download or delete that same object. */
 export function HomeDropzoneDemo() {
   const [object, setObject] = useState<DemoObject | null>(null);
-  const [uploading, setUploading] = useState(false);
   const keyRef = useRef<string | null>(null);
-  const previewUrlRef = useRef<string | null>(null);
 
   const replaceObject = (next: DemoObject | null) => {
     const previousKey = keyRef.current;
@@ -100,89 +46,89 @@ export function HomeDropzoneDemo() {
     if (previousKey && previousKey !== keyRef.current) {
       forgetDemoFile(previousKey);
     }
-    if (previewUrlRef.current) {
-      URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = null;
-    }
-    if (next?.previewUrl) previewUrlRef.current = next.previewUrl;
-    setObject(next);
+    startTransition(() => setObject(next));
   };
 
   useEffect(() => {
     return () => {
       if (keyRef.current) forgetDemoFile(keyRef.current);
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
 
   const upload = useUpload({
     route: "avatar",
-    maxFiles: 1,
     maxFileSize: 75 * 1024 * 1024,
-    onUploadStart: () => {
-      setUploading(true);
-      replaceObject(null);
-    },
-    onFileSuccess: (file, result) => {
+    onUploadStart: () => replaceObject(null),
+    onSuccess: (result, file) => {
+      // Demo only: keep the bytes in the browser for the preview and download.
       rememberDemoFile(result.key, file);
-      startTransition(() => {
-        setUploading(false);
-        replaceObject({
-          key: result.key,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          previewUrl: previewFromFile(file),
-        });
+      const type = result.type ?? file.type;
+      replaceObject({
+        key: result.key,
+        name: result.name ?? file.name,
+        size: result.size,
+        type,
+        previewUrl: type.startsWith("image/")
+          ? getDemoFileUrl(result.key)
+          : null,
       });
     },
-    onError: () => {
-      setUploading(false);
-    },
-    onCancel: () => {
-      setUploading(false);
-    },
   });
+  const download = useFetchDownload({ route: "avatar" });
+  const remove = useDelete({ route: "avatar" });
 
-  const failed = upload.phase === "error";
-  const idle = object == null && !uploading && !failed;
+  const clear = () => {
+    replaceObject(null);
+    upload.reset();
+  };
 
   return (
-    <UploadDropzone
-      upload={upload}
-      attachmentSize="sm"
-      className="w-full"
-      status={(node) => {
-        let body = null;
-        if (object && !uploading) {
-          body = (
-            <DemoObjectRow
-              object={object}
-              onDeleted={() => {
-                startTransition(() => {
-                  replaceObject(null);
-                });
-              }}
-              onDismiss={() => {
-                startTransition(() => {
-                  replaceObject(null);
-                  upload.reset();
-                });
-              }}
-            />
-          );
-        } else if ((uploading || failed) && node != null) {
-          body = <div className="w-full p-3 text-start">{node}</div>;
-        }
-        if (body == null) return null;
-        return <ViewTransition>{body}</ViewTransition>;
-      }}
-    >
-      {!idle ? (
-        <span className="sr-only">
-          {object ? "Uploaded file" : "Uploading file"}
-        </span>
-      ) : undefined}
-    </UploadDropzone>
+    <div className="flex w-full flex-col gap-3">
+      <Upload upload={upload}>
+        <UploadDropzone className="w-full" />
+        {object && !upload.isPending ? (
+          <ViewTransition>
+            <div className="flex w-full flex-col gap-2">
+              <FileAttachment
+                state="done"
+                fileName={object.name}
+                fileSize={object.size}
+                contentType={object.type}
+                previewUrl={object.previewUrl}
+                onDismiss={clear}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Download download={download}>
+                  <DownloadTrigger
+                    size="sm"
+                    objectKey={object.key}
+                    fileName={object.name}
+                    fileSize={object.size}
+                  />
+                </Download>
+                <Delete
+                  delete={remove}
+                  onDeleted={(result) => {
+                    if (result.deleted.includes(object.key)) clear();
+                  }}
+                >
+                  <DeleteTrigger
+                    size="sm"
+                    objectKey={object.key}
+                    fileName={object.name}
+                    fileSize={object.size}
+                  />
+                </Delete>
+              </div>
+            </div>
+          </ViewTransition>
+        ) : (
+          <UploadStatus />
+        )}
+      </Upload>
+      <UploadToasts upload={upload} />
+      <DownloadToasts download={download} />
+      <DeleteToasts delete={remove} />
+    </div>
   );
 }

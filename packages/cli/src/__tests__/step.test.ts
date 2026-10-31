@@ -23,6 +23,7 @@ function context(): CreateContext {
     cwd: "/tmp",
     createdTargetDir: false,
     installed: false,
+    generatedEnv: [],
   };
 }
 

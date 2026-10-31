@@ -1,25 +1,65 @@
 ---
 title: Purge Stale Uploads
-description: Clean up unconfirmed pending database rows and incomplete S3 uploads.
+description: Clean up uploads that were never confirmed, and prune old soft-deleted rows.
 ---
 
-When clients request a presigned upload but fail to upload or confirm, database rows remain in `status: "pending"`.
+An upload that starts but never confirms (a closed tab, a network error)
+leaves a `pending` row, and sometimes an object or a multipart upload in
+S3. Each pending row expires with its upload ticket. After that it no
+longer counts toward the quota, and `s3.db.purgeStale` cleans it up.
 
-`purgeStalePendingObjects` cleans up expired rows and aborts any incomplete multipart uploads.
+```ts title="scripts/purge.ts"
+import { s3 } from "@/lib/s3";
 
-```ts title="scripts/purge-stale.ts"
-import { purgeStalePendingObjects } from "@dimah-s3/db";
-import { dimahS3Db } from "@/lib/dimah-s3-db";
-import { awsS3 } from "@/lib/s3";
-
-const { purged } = await purgeStalePendingObjects({
-  client: dimahS3Db,
-  olderThanMs: 24 * 60 * 60 * 1000, // 24 hours
-  s3: awsS3,
-});
-
-console.log(`Purged ${purged.length} stale uploads.`);
+const { purged } = await s3.db.purgeStale();
+console.log(`Purged ${purged} stale uploads.`);
 ```
+
+## What purge does
+
+`purgeStale({ limit })` handles at most `limit` rows per run (default
+`100`), oldest first. `purged` counts the uploads it cleaned up. For each
+row past its deadline:
+
+1. It claims the row with a compare-and-set. A pending row becomes
+   `purging`. A row that was confirmed, deleted, or taken by another run in
+   the meantime is skipped.
+2. It aborts the multipart upload, if there is one.
+3. It runs HeadObject, and deletes the object only while it still carries
+   this upload's marker. The delete sends `If-Match` with the ETag, so an
+   object written after HeadObject survives. A provider that does not
+   implement `If-Match` gets a plain delete.
+4. It removes the row.
+
+An expired [overwrite](/docs/db/lifecycle-hooks#overwrites) keeps its
+active row and the previous object, unless the overwrite's object had
+already replaced it. Then the row goes too.
+
+A row that fails stays claimed, and a warning goes to the dimah-s3 `logger`.
+The claim lapses after 15 minutes, and a later run retries the row. An
+upload to a key that purge has claimed gets `CONFLICT` until then.
+
+The deadline is the upload ticket's expiry: by default one hour after the
+presigned URL expires, and 24 hours for multipart uploads. Change it
+with `upload.confirmWindow` and `upload.multipart.ticketExpiresIn` (see
+[upload tickets](/docs/server/upload-tickets)).
+
+## Prune deleted rows
+
+With `deleteMode: "soft"`, deleted rows stay for audit. `pruneDeleted`
+removes the rows deleted before `olderThan`:
+
+```ts title="scripts/purge.ts"
+const DAY = 24 * 60 * 60 * 1000;
+
+const { pruned } = await s3.db.pruneDeleted({
+  olderThan: new Date(Date.now() - 30 * DAY),
+});
+```
+
+`olderThan` is a `Date` or epoch milliseconds, not a duration.
+
+<AutoTypeTable path="packages/db/src/plugin/purge.ts" name="Purge" />
 
 ## Frequently asked questions
 
@@ -27,9 +67,17 @@ console.log(`Purged ${purged.length} stale uploads.`);
 
 <Accordion title="How do I schedule the purge script?">
 
-Run it as a server-side scheduled job. A daily Vercel Cron, GitHub Actions
-workflow, or Node cron worker is a common starting point; choose an interval
-that matches how long your application should retain pending uploads.
+Run it as a server-side scheduled job: a Vercel Cron, a GitHub Actions
+workflow, or a Node cron worker. Hourly is a good start. When `purged`
+equals `limit`, more rows are waiting: run it again, or raise `limit`.
+
+</Accordion>
+
+<Accordion title="Do I still need an S3 lifecycle rule?">
+
+It helps. Purge only sees uploads that have a row. An
+`AbortIncompleteMultipartUpload` rule also catches multipart uploads with no
+row, such as those on routes with `plugins: { db: false }`.
 
 </Accordion>
 

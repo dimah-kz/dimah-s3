@@ -3,49 +3,52 @@ title: Download
 description: Return a signed or proxied download URL from a custom backend.
 ---
 
-`download` returns a GET URL. The default is a short-lived S3 URL. When
-the route uses `download.mode: "proxy"`, the URL is same-origin and the
-server streams the body.
+`download` returns a GET URL. The default is a short-lived S3 URL with
+`mode: "presign"`. A backend that streams the body itself returns a
+same-origin URL with `mode: "proxy"`.
 
-The payload is a single object: `route`, `key`, and optional `fileName`,
-`disposition`, and `expiresIn`. `expiresIn` is a requested TTL in seconds.
-Sign the shorter of that value and your route cap. Return the TTL you
-actually signed.
+The payload has `route`, `key`, and optional `name`, `disposition`, and
+`expiresIn`. `name` is the file name for `Content-Disposition`. `expiresIn` is
+a requested TTL in seconds: sign the shorter of that value and your route's
+cap.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
   name="DownloadPayload"
 />
 
+Return the `disposition` you signed. In presign mode, return the `expiresIn`
+you actually signed: `useObjectUrl` uses it to refresh the URL before it
+expires. Leave it out in proxy mode.
+
 <AutoTypeTable
   path="packages/core/src/types/responses.ts"
   name="DownloadPresignResponse"
 />
 
-```ts
-import type { DownloadPayload, DownloadPresignResponse } from "@dimah-s3/core";
-```
-
 ## Example
 
-Add this to the [`defineApi`](/docs/react/custom-backend) skeleton.
 [`@dimah-s3/server`](/docs/server) uses
 `GET /api/s3/presign/download?route=…&key=…`.
 
-```ts
-async download(payload) {
-  const params = new URLSearchParams({
-    route: payload.route,
-    key: payload.key,
-  });
-  if (payload.fileName) params.set("fileName", payload.fileName);
-  if (payload.disposition) params.set("disposition", payload.disposition);
-  if (payload.expiresIn != null) {
-    params.set("expiresIn", String(payload.expiresIn));
-  }
+```ts title="lib/s3-api/download.ts"
+import type {
+  DownloadPayload,
+  DownloadPresignResponse,
+  S3RequestOptions,
+} from "@dimah-s3/core";
+import { $fetch, call } from "./fetch";
 
-  const res = await fetch(`/api/files/presign/download?${params}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
+export const download = (
+  payload: DownloadPayload,
+  options?: S3RequestOptions,
+) =>
+  $fetch<DownloadPresignResponse>("/download", {
+    method: "GET",
+    query: payload,
+    ...call(options),
+  });
 ```
+
+`$fetch` and `call` come from the
+[skeleton](/docs/react/custom-backend#skeleton).

@@ -45,7 +45,7 @@ npx @dimah-s3/cli@latest create my-app --template vite
 ## Adding a template
 
 1. Create `templates/<id>/` as a self-contained app (concrete npm ranges only).
-2. Pin `@dimah-s3/*` to published semver ranges (e.g. `^0.4.1`) — the CLI snapshot rewrites them to `^<cliVersion>` on build.
+2. Pin `@dimah-s3/*` to published semver ranges (e.g. `^1.8.0`) — the CLI snapshot rewrites them to `^<cliVersion>` on build.
 3. Add the id to [`catalog.json`](./catalog.json).
 4. If the starter needs a monorepo demo, add `examples/with-<id>/` (`workspace:*`) and run `pnpm examples:drift`. Next.js is the only twin today; Vite and Hono stay template-only.
 5. Document the create one-liner in the template `README.md` and docs Quickstart.

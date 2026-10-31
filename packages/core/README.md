@@ -1,6 +1,7 @@
 # @dimah-s3/core
 
-Shared protocol, typed API client, and pure helpers used by `@dimah-s3/server` and `@dimah-s3/react`.
+The protocol, typed fetch client, error catalog, and pure helpers shared by
+`@dimah-s3/server` and `@dimah-s3/react`.
 
 Full documentation: [s3.dimah.dev/docs/core](https://s3.dimah.dev/docs/core) ·
 [llms.txt](https://s3.dimah.dev/llms.txt)
@@ -14,24 +15,40 @@ pnpm add @dimah-s3/core
 ## Minimal setup
 
 ```ts
-import { createS3Client, APIError } from "@dimah-s3/core";
+import { createS3Client, isAPIError } from "@dimah-s3/core";
 
 export const api = createS3Client({
-  // optional: auth for core routes + client plugins
+  // Must match the server basePath.
+  basePath: "/api/s3",
   credentials: "include",
-  headers: () => ({ Authorization: `Bearer ${token}` }),
+  headers: async () => ({ Authorization: `Bearer ${await getToken()}` }),
 });
 
 try {
-  await api.download({ route: "uploads", key });
-} catch (err) {
-  if (err instanceof APIError)
-    console.error(err.statusCode, err.code, err.message);
+  const { url } = await api.download({ route: "uploads", key });
+} catch (error) {
+  if (isAPIError(error)) {
+    console.error(error.statusCode, error.code, error.message);
+  }
 }
 ```
 
-For React apps, prefer `createS3Client` from `@dimah-s3/react` (returns the API
-object plus a bound `Provider` / `useApi`).
+Every method takes a payload, then optional `{ signal, headers }`. Uploads
+return an upload `ticket`; confirm and the later multipart calls send only
+that ticket.
+
+For React apps, use `createS3Client` from `@dimah-s3/react`. It takes the same
+options and adds a bound `Provider` and `useApi`.
+
+## Errors
+
+Every failure is an `APIError` with a stable `code` from `S3_ERROR_CODES`.
+Narrow it with `isS3ErrorCode(error, "OBJECT_NOT_FOUND")`. See
+[Errors](https://s3.dimah.dev/docs/server/errors).
+
+## Upgrading from 1.7
+
+See [Upgrade to 1.8](https://s3.dimah.dev/docs/migration-1-8).
 
 ## License
 

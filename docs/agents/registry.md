@@ -22,7 +22,9 @@ Do not hand-edit `packages/ui/registry.json` or `apps/docs/public/r/`.
 
 User-visible copy: `@fuma-translate/react` (do not re-export). After string changes, `pnpm --filter @dimah-s3/react compile:translations`.
 
-Wired controls take the matching hook return as `upload` / `download` / `delete`. They do not call the hook.
+Components are families: a root (`Upload`, `Download`, `Delete`) takes the matching hook return as `upload` / `download` / `delete`, and its parts read it from context. They do not call the hook, and they do not toast: only `UploadToasts`, `DownloadToasts`, and `DeleteToasts` do, through `useToastOwner` (one active owner per hook).
+
+Run `pnpm --filter @dimah-s3/ui test` after a component change.
 
 ## Registry item rules
 
@@ -31,8 +33,9 @@ Match existing items in `registry-items.ts`. Landmines:
 - List every file the installer needs in `files[]` (hooks included). `registry:check` fails if a local `@/` import is missing.
 - `registryDependencies`: shadcn primitives only — not other `@dimah-s3` items.
 - **No basename collision** with those primitives. `lib/attachment.ts` is rewritten onto the stock Attachment — layout helpers belong in `lib/attachment-layout.ts`.
-- `dependencies`: every npm import the copied source uses. Import `cn` from `"cn"` and list `cn` here.
-- `cssVars.theme`: `--color-dimah-s3-*` so registry-only apps get utilities without `@dimah-s3/ui`.
+- `dependencies`: every npm import the copied source uses, including `@dimah-s3/core` and `@dimah-s3/react`. Import `cn` from `"cn"` and list `cn` here.
+- Items cannot depend on other `@dimah-s3` items, so an item ships every file it needs (`object-list` ships the upload, download, and delete families).
+- `cssVars` must match `packages/ui/css/shadcn.css` (`componentCssVars` in `registry-items.ts`): `light` holds the `--dimah-s3-*` token defaults from `:root`, `dark` the ones from `.dark`, and `theme` maps each `--color-dimah-s3-*` to `var(--dimah-s3-*)` so registry-only apps get the utilities without `@dimah-s3/ui`. `src/test/registry.test.ts` checks the parity.
 - `files[].target` uses shadcn placeholders (`@components/`, `@hooks/`, `@lib/`).
 
 ## Serve vs GitHub
@@ -43,6 +46,7 @@ Match existing items in `registry-items.ts`. Landmines:
 ## UI conventions
 
 - Dimah-owned colors: `*-dimah-s3-*` utilities (`bg-dimah-s3-primary`, …) via `packages/ui/css/shadcn.css`. Do not use bare `bg-primary` in `components/dimah-s3/` — those classes are for stock `components/ui/` only.
+- Theme tokens: `background`, `foreground`, `card`, `card-foreground`, `primary`, `primary-foreground`, `muted`, `muted-foreground`, `accent`, `border`, `ring`, `destructive`, `success`, `warning`. Users override `--dimah-s3-<token>` on `:root` or any container; `@theme inline` keeps each utility reading the token. A new token goes in `shadcn.css` (`:root`, and `.dark` when it differs) and in `componentCssVars`.
 - Direction-safe CSS (LTR default, RTL-ready): logical utilities (`text-start` / `text-end`, `ms-*` / `me-*`, `ps-*` / `pe-*`, `start-*` / `end-*`) unless the physical side is required by behavior.
 - File names: Tailwind `truncate`; long errors: `[overflow-wrap:anywhere]`.
 - Toast: `.tsx` when `description` needs JSX. Registry items depend on shadcn `toast`; npm apps import `Toaster` from `@dimah-s3/ui`.

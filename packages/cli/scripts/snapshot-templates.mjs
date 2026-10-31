@@ -2,23 +2,24 @@
  * Snapshot `templates/<id>/` into `dist/templates/<id>/` for the published CLI.
  *
  * Pins `@dimah-s3/*` to `^<cliVersion>`, renames `.gitignore` → `_gitignore`,
- * fails on workspace/catalog leaks.
+ * fails on workspace/catalog leaks. Local env files (`.env`, `.env.local`, …)
+ * are never copied, and `.env.example` must list an empty `DIMAH_S3_SECRET`.
  */
 import {
   cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
+  assertEnvExampleSecret,
   catalogPath,
+  copyTemplateDir,
   listCatalogEntries,
   templateDir,
 } from "../../../scripts/templates-shared.mjs";
@@ -29,37 +30,8 @@ const transformUrl = pathToFileURL(
   resolve(packageRoot, "dist", "snapshot", "transform.js"),
 ).href;
 
-const COPY_EXCLUDE = new Set([
-  "node_modules",
-  ".next",
-  ".turbo",
-  "AGENTS.md",
-  "dist",
-  "pnpm-lock.yaml",
-  "package-lock.json",
-  "yarn.lock",
-  ".env",
-  ".env.local",
-  "next-env.d.ts",
-  ".vercel",
-  ".DS_Store",
-  ".git",
-]);
-
-function copyDirFiltered(src, dest) {
-  mkdirSync(dest, { recursive: true });
-  for (const entry of readdirSync(src)) {
-    if (COPY_EXCLUDE.has(entry)) continue;
-    const from = join(src, entry);
-    const to = join(dest, entry);
-    if (statSync(from).isDirectory()) {
-      copyDirFiltered(from, to);
-      continue;
-    }
-    if (entry.endsWith(".tsbuildinfo")) continue;
-    cpSync(from, to);
-  }
-}
+/** Scaffolded projects do not get the starter's AGENTS.md. */
+const SNAPSHOT_EXCLUDE = ["AGENTS.md"];
 
 const transform = await import(transformUrl);
 const cliVersion = JSON.parse(
@@ -73,8 +45,11 @@ rmSync(distRoot, { recursive: true, force: true });
 mkdirSync(distRoot, { recursive: true });
 
 for (const { id } of listCatalogEntries()) {
+  const source = templateDir(id);
+  // `create` fills DIMAH_S3_SECRET in `.env` from this line.
+  assertEnvExampleSecret(source);
   const dest = resolve(distRoot, id);
-  copyDirFiltered(templateDir(id), dest);
+  copyTemplateDir(source, dest, { exclude: SNAPSHOT_EXCLUDE });
 
   const gitignore = join(dest, ".gitignore");
   if (existsSync(gitignore)) {
