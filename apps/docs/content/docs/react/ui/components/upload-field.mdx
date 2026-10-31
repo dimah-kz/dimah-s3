@@ -115,8 +115,9 @@ the rest with `TOO_MANY_FILES`.
 
 Once the field is full, its `UploadTrigger` and `UploadDropzone` stay
 focusable but are `aria-disabled`, and the picker, drops, and pastes do
-nothing. The field passes `isFull` to its `Upload` root, so your own parts
-can read `useUploadContext().isFull`:
+nothing. "Maximum files reached." leads the dropzone's description. The
+field passes `isFull` to its `Upload` root, so your own parts can read
+`useUploadContext().isFull`:
 
 ```tsx
 function FullHint() {

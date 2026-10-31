@@ -266,6 +266,12 @@ describe("AvatarUpload", () => {
     expect(api.upload.mock.calls[0][0]).toMatchObject({ name: "dropped.png" });
   });
 
+  it("is disabled with the hook", () => {
+    renderAvatar({}, { disabled: true });
+
+    expect(avatarButton().hasAttribute("disabled")).toBe(true);
+  });
+
   it("sizes itself", () => {
     renderAvatar({ size: 64 });
 

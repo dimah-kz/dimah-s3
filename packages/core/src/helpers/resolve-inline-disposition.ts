@@ -1,4 +1,5 @@
 import type { ContentDispositionType } from "./build-content-disposition";
+import { baseType, effectiveContentType } from "./content-type";
 
 /**
  * Types that open in the browser by default: raster images, PDF, audio,
@@ -16,56 +17,6 @@ export const DEFAULT_INLINE_TYPES: readonly string[] = [
   "video/*",
   "text/plain",
 ];
-
-/** Types a browser can render from a name alone, for objects stored without a type. */
-const TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
-  avif: "image/avif",
-  bmp: "image/bmp",
-  gif: "image/gif",
-  jpeg: "image/jpeg",
-  jpg: "image/jpeg",
-  png: "image/png",
-  svg: "image/svg+xml",
-  webp: "image/webp",
-  pdf: "application/pdf",
-  json: "application/json",
-  csv: "text/csv",
-  txt: "text/plain",
-  htm: "text/html",
-  html: "text/html",
-  xhtml: "application/xhtml+xml",
-  xml: "application/xml",
-  js: "text/javascript",
-  mjs: "text/javascript",
-  m4a: "audio/mp4",
-  mp3: "audio/mpeg",
-  oga: "audio/ogg",
-  ogg: "audio/ogg",
-  wav: "audio/wav",
-  weba: "audio/webm",
-  mov: "video/quicktime",
-  mp4: "video/mp4",
-  ogv: "video/ogg",
-  webm: "video/webm",
-};
-
-/** Types without a real value: fall back to the file name. */
-const UNTYPED = new Set([
-  "",
-  "application/octet-stream",
-  "binary/octet-stream",
-]);
-
-function baseType(contentType: string | undefined): string {
-  const [type = ""] = (contentType ?? "").split(";", 1);
-  return type.trim().toLowerCase();
-}
-
-function typeFromFileName(fileName: string | undefined): string | undefined {
-  const dot = fileName?.lastIndexOf(".") ?? -1;
-  if (!fileName || dot < 0) return undefined;
-  return TYPE_BY_EXTENSION[fileName.slice(dot + 1).toLowerCase()];
-}
 
 /**
  * Types that run as a page in the browser: HTML, any XML (SVG, XHTML, XSL),
@@ -96,7 +47,10 @@ function isAllowed(type: string, allow: readonly string[]): boolean {
 export type ResolveInlineDispositionInput = {
   /** Stored type, such as HeadObject `ContentType`. */
   contentType?: string;
-  /** Used for the type when `contentType` is missing or `application/octet-stream`. */
+  /**
+   * Used for the type when `contentType` is missing, empty,
+   * `application/octet-stream` or `binary/octet-stream`.
+   */
   fileName?: string;
   /**
    * MIME types, or `type/*` wildcards, that may open in the browser.
@@ -135,13 +89,12 @@ export function resolveInlineDisposition(
   if (input.requested !== "inline" || allow === false) {
     return { disposition: "attachment" };
   }
-  const stored = baseType(input.contentType);
-  const untyped = UNTYPED.has(stored);
-  const type = untyped ? typeFromFileName(input.fileName) : stored;
+  const type = effectiveContentType(input.contentType, input.fileName);
   if (!type || !isAllowed(type, allow)) {
     return { disposition: "attachment" };
   }
-  return untyped
-    ? { disposition: "inline", contentType: type }
-    : { disposition: "inline" };
+  // A type other than the stored one came from the file name.
+  return type === baseType(input.contentType)
+    ? { disposition: "inline" }
+    : { disposition: "inline", contentType: type };
 }

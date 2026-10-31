@@ -151,6 +151,8 @@ type RenderOptions = {
   props?: (hooks: Hooks) => Partial<ObjectListProps<Item>>;
   /** Siblings of the list, such as explicit toast owners. */
   extra?: (hooks: Hooks) => ReactNode;
+  /** The `disabled` option of the list's `useUpload`. */
+  uploadDisabled?: boolean;
 };
 
 /** Renders an ObjectList over real hooks and a fake `S3Api`. */
@@ -174,7 +176,12 @@ function renderList(options: RenderOptions = {}) {
       list,
       options.selectFolders ? { isSelectable: () => true } : {},
     );
-    const upload = useUpload({ api, route: ROUTE, maxFiles: 5 });
+    const upload = useUpload({
+      api,
+      route: ROUTE,
+      maxFiles: 5,
+      disabled: options.uploadDisabled,
+    });
     const remove = useDelete({ api, route: ROUTE });
     const share = useDownload({ api, route: ROUTE });
     const hooks = { upload, remove };
@@ -482,6 +489,22 @@ describe("ObjectList", () => {
       expect(sentMetadata(api)).toEqual([{ folder: "docs" }]);
     });
 
+    it("disable Upload to this folder while the upload is", async () => {
+      renderList({
+        source: { uploadOptions: folderOptions },
+        uploadDisabled: true,
+      });
+      await settle();
+
+      const menu = await openMenu("docs", "Folder actions");
+
+      expect(
+        within(menu)
+          .getByRole("menuitem", { name: "Upload to this folder" })
+          .getAttribute("aria-disabled"),
+      ).toBe("true");
+    });
+
     it("have no menu when files cannot go into them", async () => {
       renderList();
       await settle();
@@ -509,6 +532,30 @@ describe("ObjectList", () => {
       await fire(frame, paste);
 
       expect(sentMetadata(api)).toEqual([{ folder: "" }, { folder: "" }]);
+    });
+
+    it("ignores drops and pastes on the list while the upload is disabled", async () => {
+      const { api, container } = renderList({
+        source: { uploadOptions: folderOptions },
+        uploadDisabled: true,
+      });
+      await settle();
+      const frame = container.querySelector("[data-slot=object-list]");
+      if (!frame) throw new Error("No frame");
+
+      await fire(frame, dragEvent("dragenter", [textFile("a.txt")]));
+      expect(
+        document.querySelector("[data-slot=object-list-drop-overlay]"),
+      ).toBeNull();
+      await fire(frame, dragEvent("drop", [textFile("a.txt")]));
+      const paste = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(paste, "clipboardData", {
+        value: { files: [textFile("b.txt")] },
+      });
+      await fire(frame, paste);
+
+      expect(paste.defaultPrevented).toBe(false);
+      expect(api.upload).not.toHaveBeenCalled();
     });
 
     it("lets an UploadTrigger in the toolbar use the hook and the folder", async () => {

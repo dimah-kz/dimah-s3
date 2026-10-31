@@ -12,28 +12,33 @@ function reactImported(name: string): never {
 }
 
 describe("@dimah-s3/react/engine", () => {
-  it("loads without React and exports the plain functions", async () => {
-    const engine = await import("./engine");
-    expect(Object.keys(engine).sort()).toEqual([
-      "DEFAULT_MULTIPART_THRESHOLD",
-      "createLocalStorageStore",
-      "createMemoryStore",
-      "defineApi",
-      "formatAcceptLabels",
-      "formatSpeed",
-      "formatUploadProgress",
-      "getUploadAbortKind",
-      "loadRouteCatalog",
-      "memoryObjectSource",
-      "mergeRouteUploadPolicy",
-      "multipartResumeKey",
-      "objectKeyOf",
-      "objectListEntryKey",
-      "readObjectListLevel",
-      "resolveRouteUploadPolicy",
-      "toTimestamp",
-      "uploadAbortReason",
-      "uploadFile",
-    ]);
-  });
+  // A cold import of the whole engine graph can pass 5s under a full turbo run.
+  it(
+    "loads without React and exports the plain functions",
+    { timeout: 30_000 },
+    async () => {
+      const engine = await import("./engine");
+      expect(Object.keys(engine).sort()).toEqual([
+        "DEFAULT_MULTIPART_THRESHOLD",
+        "createLocalStorageStore",
+        "createMemoryStore",
+        "defineApi",
+        "formatAcceptLabels",
+        "formatSpeed",
+        "formatUploadProgress",
+        "getUploadAbortKind",
+        "loadRouteCatalog",
+        "memoryObjectSource",
+        "mergeRouteUploadPolicy",
+        "multipartResumeKey",
+        "objectKeyOf",
+        "objectListEntryKey",
+        "readObjectListLevel",
+        "resolveRouteUploadPolicy",
+        "toTimestamp",
+        "uploadAbortReason",
+        "uploadFile",
+      ]);
+    },
+  );
 });

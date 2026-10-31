@@ -14,8 +14,9 @@ const emptyBatch: UploadBatchResult = {
   aborted: [],
 };
 
-function fakeUpload() {
+function fakeUpload(disabled = false) {
   return {
+    disabled,
     handleFiles: vi.fn<UseUploadReturn["handleFiles"]>(async () => emptyBatch),
   };
 }
@@ -120,5 +121,17 @@ describe("usePasteFiles", () => {
     paste(document.body, [photo]);
 
     expect(upload.handleFiles).not.toHaveBeenCalled();
+  });
+
+  it("does nothing while the hook is disabled, even when enabled", () => {
+    const upload = fakeUpload(true);
+    renderHook(() => {
+      usePasteFiles(upload, { enabled: true });
+    });
+
+    const event = paste(document.body, [photo]);
+
+    expect(upload.handleFiles).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

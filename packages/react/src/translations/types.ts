@@ -92,6 +92,7 @@ export type Translations = {
   "Load more(object list)": string;
   "Loading files(object list)": string;
   "MB(file size unit)": string;
+  "Maximum files reached.(dropzone hint)": string;
   "Modified(object list sort)": string;
   "Name(object list sort)": string;
   "Network error(API error)": string;

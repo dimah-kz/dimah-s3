@@ -86,7 +86,7 @@ export type ObjectListItemMenuProps = {
  *
  * - Files: Download, Copy link, your actions, Delete.
  * - Folders: Upload to this folder (the keyboard path to a folder drop),
- *   then your actions.
+ *   then your actions. It is disabled while the list's `upload` is.
  *
  * Inside an `ObjectList` every prop is optional: the key, name, size, and
  * hooks come from the entry and the list. Download runs the list's
@@ -165,7 +165,10 @@ export function ObjectListItemMenu({
       <DropdownMenuContent align="end" className="min-w-44">
         {uploadToFolder ? (
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={uploadToFolder}>
+            <DropdownMenuItem
+              disabled={listUpload?.disabled}
+              onClick={uploadToFolder}
+            >
               <CloudUpload />
               {t("Upload to this folder", { note: "object list menu" })}
             </DropdownMenuItem>

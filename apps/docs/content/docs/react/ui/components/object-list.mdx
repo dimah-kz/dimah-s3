@@ -337,7 +337,8 @@ const list = useObjectList({
 
 Without `uploadOptions`, files use the hook's own options, and folder rows
 take no drops. Each time the queue settles with new uploads, the list
-reloads once.
+reloads once. While the hook is disabled, the frame and folder rows ignore
+drops and pastes, and "Upload to this folder" is disabled.
 
 ## Toasts
 

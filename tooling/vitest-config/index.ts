@@ -26,6 +26,7 @@ export function packageConfig(
     unstubGlobals?: boolean;
     pool?: "forks" | "threads" | "vmForks" | "vmThreads";
     setupFiles?: string | string[];
+    testTimeout?: number;
   },
 ) {
   return defineConfig({

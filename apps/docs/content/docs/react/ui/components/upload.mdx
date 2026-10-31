@@ -121,7 +121,8 @@ description. Do not put buttons or links inside the dropzone: render
 ```
 
 The trigger and the dropzone stay enabled while files upload. New files join
-the queue when the hook has `queue: true`, and replace it otherwise.
+the queue when the hook has `queue: true`, and replace it otherwise. While
+the root is full, "Maximum files reached." leads the dropzone's description.
 
 ## Status
 
@@ -160,7 +161,7 @@ your `UploadToasts` replaces the list's built-in toasts.
 
 `usePasteFiles` uploads files pasted anywhere on the page. It leaves pastes
 into form fields and editable text alone, and pastes a focused dropzone
-already took.
+already took. It stops listening while the hook is disabled.
 
 ```tsx
 import { usePasteFiles } from "@dimah-s3/ui";
@@ -271,15 +272,23 @@ Call `event.preventDefault()` in the trigger's `onClick`:
 
 <Accordion title="How do I disable the trigger?">
 
-Pass `disabled` to `UploadTrigger`. `useUpload({ disabled: true })` turns off
-the dropzone and drops, but the trigger cannot read it, so pass both:
+Pass `disabled` to `useUpload`. Every part reads `upload.disabled`: the
+trigger and the dropzone disable, and drops and pastes do nothing:
 
 ```tsx
 const upload = useUpload({ route: "avatar", disabled: locked });
 
 <Upload upload={upload}>
-  <UploadTrigger disabled={locked} />
+  <UploadTrigger />
 </Upload>;
+```
+
+Pass `disabled` to `UploadTrigger` to disable only the trigger while the hook
+stays enabled. While the hook is disabled, the picker stays closed whatever the
+prop says:
+
+```tsx
+<UploadTrigger disabled={!canEdit} />
 ```
 
 </Accordion>

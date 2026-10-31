@@ -68,7 +68,16 @@ describe("assertObjectContent", () => {
     expect(s3.send).not.toHaveBeenCalled();
   });
 
-  it.each([undefined, "application/octet-stream"])(
+  it("checks a stored type with parameters by its base type", async () => {
+    await expect(
+      check("IMAGE/PNG; charset=binary", PNG).result,
+    ).resolves.toBeUndefined();
+    await expect(check("Image/JPEG; q=1", PNG).result).rejects.toMatchObject({
+      params: { type: "image/jpeg", detected: "image/png" },
+    });
+  });
+
+  it.each([undefined, "", "application/octet-stream", "binary/octet-stream"])(
     "checks an untyped object (%s) against the type its name gives",
     async (type) => {
       await expect(check(type, PNG, "x.png").result).resolves.toBeUndefined();

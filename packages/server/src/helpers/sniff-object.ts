@@ -4,9 +4,9 @@ import {
   type S3Client,
 } from "@aws-sdk/client-s3";
 import {
+  effectiveContentType,
   isSniffableType,
   matchesMagicBytes,
-  resolveInlineDisposition,
   s3Error,
   SNIFF_BYTE_LENGTH,
   sniffContentType,
@@ -38,7 +38,8 @@ export async function assertObjectContent(
   client: S3Client,
   input: ObjectContentInput,
 ): Promise<void> {
-  const type = typeToVerify(input.type, input.name);
+  // The type downloads serve the object as, so the two cannot drift.
+  const type = effectiveContentType(input.type, input.name);
   if (type === undefined || !isSniffableType(type)) return;
 
   const bytes = await readObjectStart(client, input);
@@ -47,29 +48,6 @@ export async function assertObjectContent(
     type,
     detected: sniffContentType(bytes) ?? "unknown",
   });
-}
-
-/**
- * Wildcards wide enough for every sniffable type. A wildcard never matches
- * active content (SVG, HTML, XML, JavaScript), none of which is sniffable.
- */
-const SNIFFABLE_FAMILIES = ["image/*", "audio/*", "video/*", "application/*"];
-
-/**
- * The stored type, or for an untyped object the type a download infers
- * from its name. Uses the download rule itself so the two cannot drift.
- */
-function typeToVerify(
-  type: string | undefined,
-  name: string | undefined,
-): string | undefined {
-  const { contentType } = resolveInlineDisposition({
-    contentType: type,
-    fileName: name,
-    allow: SNIFFABLE_FAMILIES,
-    requested: "inline",
-  });
-  return contentType ?? type;
 }
 
 async function readObjectStart(

@@ -1,3 +1,5 @@
+import { baseType } from "./content-type";
+
 /** Bytes to read from the start of an object before sniffing it. */
 export const SNIFF_BYTE_LENGTH = 4096;
 
@@ -194,12 +196,6 @@ const SIGNATURES: readonly Signature[] = [
     test: (bytes) => hasAscii(bytes, "fLaC"),
   },
 ];
-
-/** Lower-cased MIME type without parameters. */
-function baseType(type: string): string {
-  const [base = ""] = type.split(";", 1);
-  return base.trim().toLowerCase();
-}
 
 function typesOf(signature: Signature): readonly string[] {
   return [signature.type, ...(signature.aliases ?? [])];

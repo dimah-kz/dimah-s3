@@ -1,4 +1,5 @@
 import { s3Error, type APIError } from "../error";
+import { describeFileType } from "./content-type";
 
 /**
  * Whether `fileName` / `contentType` match HTML `accept` / route `fileTypes`
@@ -22,13 +23,6 @@ export function matchesFileTypes(
   });
 }
 
-/** The extension (`.exe`), else the MIME type, else `unknown`. */
-function describeFileType(file: Blob & { name: string }): string {
-  const dot = file.name.lastIndexOf(".");
-  if (dot >= 0 && dot < file.name.length - 1) return file.name.slice(dot);
-  return file.type || "unknown";
-}
-
 /**
  * Client-side accept / empty / size checks before starting an upload.
  * Returns `null` when the file is valid, otherwise a catalog error:
@@ -42,7 +36,7 @@ export function validateFile(
   const { accept, maxFileSize } = options;
   if (accept?.length && !matchesFileTypes(file.name, file.type, accept)) {
     return s3Error("FILE_TYPE_NOT_ALLOWED", {
-      type: describeFileType(file),
+      type: describeFileType(file.name, file.type),
       allowed: accept.join(", "),
     });
   }

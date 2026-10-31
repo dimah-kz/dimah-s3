@@ -29,7 +29,8 @@ export type UploadDropzoneProps = HTMLAttributes<HTMLDivElement> & {
  * not the whole hook, so other drop targets of the hook stay quiet. It
  * stays usable while files upload, so new files follow the hook's `queue`
  * option. While the root is full, as in a full `UploadField`, it stays
- * focusable but is `aria-disabled`.
+ * focusable but is `aria-disabled`, and "Maximum files reached." leads its
+ * description.
  *
  * `children` replace the icon and text. The dropzone is a button, so do not
  * put controls inside it: render `UploadStatus` next to it instead.
@@ -52,7 +53,13 @@ export function UploadDropzone({
   const hints = useUploadHints(upload.policy);
   const labelId = useId();
   const hintsId = useId();
-  const hasHints = hints.limits != null || hints.accept != null;
+  const fullHint = isFull
+    ? t("Maximum files reached.", { note: "dropzone hint" })
+    : null;
+  const hintLines = [fullHint, hints.limits, hints.accept].filter(
+    (line) => line != null,
+  );
+  const hasHints = hintLines.length > 0;
   const custom = children != null;
 
   // The hook's verdict, for the drag that is over this element.
@@ -113,7 +120,7 @@ export function UploadDropzone({
             {children}
             {hasHints ? (
               <span id={hintsId} hidden>
-                {[hints.limits, hints.accept].filter(Boolean).join(" ")}
+                {hintLines.join(" ")}
               </span>
             ) : null}
           </>
@@ -133,8 +140,9 @@ export function UploadDropzone({
                   id={hintsId}
                   className="flex flex-col gap-1 text-xs text-dimah-s3-muted-foreground"
                 >
-                  {hints.limits ? <p>{hints.limits}</p> : null}
-                  {hints.accept ? <p>{hints.accept}</p> : null}
+                  {hintLines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
                 </div>
               ) : null}
             </div>

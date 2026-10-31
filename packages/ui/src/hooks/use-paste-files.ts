@@ -8,7 +8,7 @@ import { isFieldTarget } from "@/lib/is-field-target";
 export type UsePasteFilesOptions = {
   /** Call options for the pasted files. */
   call?: UploadCallOptions;
-  /** @default true */
+  /** Also off while `upload.disabled` is set. @default true */
   enabled?: boolean;
 };
 
@@ -17,13 +17,14 @@ export type UsePasteFilesOptions = {
  *
  * Pastes into a form field or editable text are left alone, and so are
  * pastes another handler already took, such as a focused `UploadDropzone`
- * (it prevents the default). A paste with no files is ignored.
+ * (it prevents the default). A paste with no files is ignored. It listens
+ * only while `enabled` is on and the hook is not `disabled`.
  */
 export function usePasteFiles(
-  upload: Pick<UseUploadReturn, "handleFiles">,
+  upload: Pick<UseUploadReturn, "handleFiles" | "disabled">,
   options: UsePasteFilesOptions = {},
 ): void {
-  const enabled = options.enabled ?? true;
+  const enabled = (options.enabled ?? true) && !upload.disabled;
   const latest = useRef({
     handleFiles: upload.handleFiles,
     call: options.call,

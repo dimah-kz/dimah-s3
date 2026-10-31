@@ -7,6 +7,7 @@ export {
 } from "./parse-file-name";
 export { formatFileSize } from "./format-file-size";
 export type { FileSizeUnit, FormatFileSizeOptions } from "./format-file-size";
+export { describeFileType, effectiveContentType } from "./content-type";
 export { buildContentDisposition } from "./build-content-disposition";
 export type { ContentDispositionType } from "./build-content-disposition";
 export {

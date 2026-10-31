@@ -263,6 +263,55 @@ describe("UploadTrigger", () => {
     expect(click).not.toHaveBeenCalled();
   });
 
+  it("is disabled with the hook unless its own prop replaces that", async () => {
+    const { unmount } = renderUpload(
+      (upload) => (
+        <Upload upload={upload}>
+          <UploadTrigger />
+        </Upload>
+      ),
+      { disabled: true },
+    );
+    const trigger = screen.getByRole("button", { name: "Upload file" });
+    expect(trigger.hasAttribute("disabled")).toBe(true);
+    expect(trigger.hasAttribute("aria-disabled")).toBe(false);
+    unmount();
+
+    // The prop enables the button, but the disabled hook keeps the picker closed.
+    const { api } = renderUpload(
+      (upload) => (
+        <Upload upload={upload}>
+          <UploadTrigger disabled={false} />
+        </Upload>
+      ),
+      { disabled: true },
+    );
+    await settle();
+    const enabled = screen.getByRole("button", { name: "Upload file" });
+    expect(enabled.hasAttribute("disabled")).toBe(false);
+    const click = vi.spyOn(fileInput(), "click");
+
+    await userEvent.click(enabled);
+    await settle();
+
+    expect(click).not.toHaveBeenCalled();
+    expect(api.upload).not.toHaveBeenCalled();
+  });
+
+  it("disables only itself when its prop is set and the hook is enabled", async () => {
+    renderUpload((upload) => (
+      <Upload upload={upload}>
+        <UploadTrigger disabled />
+      </Upload>
+    ));
+
+    expect(
+      screen
+        .getByRole("button", { name: "Upload file" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
   it("shows a tooltip only when one is given", async () => {
     renderUpload((upload) => (
       <Upload upload={upload}>
@@ -387,6 +436,21 @@ describe("UploadDropzone", () => {
       }),
     ).toBeDefined();
     expect(screen.getByText("Up to 1.0 KB.").hidden).toBe(true);
+  });
+
+  it("leads its description with a hint while the root is full", async () => {
+    renderUpload((upload) => (
+      <Upload upload={upload} isFull>
+        <UploadDropzone />
+      </Upload>
+    ));
+    await settle();
+
+    const dropzone = screen.getByRole("button", {
+      name: "Drag and drop files here",
+      description: "Maximum files reached. Up to 1.0 KB.",
+    });
+    expect(dropzone.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("prefers an aria-label over its own text", () => {

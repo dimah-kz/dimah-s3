@@ -48,7 +48,8 @@ function isUploaded(
 
 /**
  * Round image button that uploads a new picture. A click opens the file
- * picker, and an image dropped on it uploads too.
+ * picker, and an image dropped on it uploads too. It is disabled while the
+ * hook is (`upload.disabled`).
  *
  * It shows the picked file's preview while it uploads and after, with a
  * progress ring while it is in flight. Otherwise it shows `objectKey`, or a
@@ -114,11 +115,12 @@ export function AvatarUpload({
         <button
           {...upload.getDropTargetProps({
             type: "button",
+            disabled: upload.disabled,
             "aria-label": label,
             "aria-busy": inFlight || undefined,
             onClick: () => upload.open(),
             className:
-              "flex size-full cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dimah-s3-border bg-dimah-s3-muted text-dimah-s3-muted-foreground transition-colors outline-none hover:border-dimah-s3-primary/50 focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 data-drag-active:border-dimah-s3-primary data-drag-active:ring-3 data-drag-active:ring-dimah-s3-primary/30",
+              "flex size-full cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dimah-s3-border bg-dimah-s3-muted text-dimah-s3-muted-foreground transition-colors outline-none hover:border-dimah-s3-primary/50 focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-dimah-s3-border data-drag-active:border-dimah-s3-primary data-drag-active:ring-3 data-drag-active:ring-dimah-s3-primary/30",
           })}
         >
           {previewUrl ? (

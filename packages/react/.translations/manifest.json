@@ -93,6 +93,7 @@
     "Load more(object list)",
     "Loading files(object list)",
     "MB(file size unit)",
+    "Maximum files reached.(dropzone hint)",
     "Modified(object list sort)",
     "Name(object list sort)",
     "Network error(API error)",

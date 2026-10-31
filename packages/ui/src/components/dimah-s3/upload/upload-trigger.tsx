@@ -31,8 +31,10 @@ export type UploadTriggerProps = ComponentProps<typeof Button> & {
  *
  * The default content is an icon and "Upload file" (or "Upload files" when
  * the hook takes more than one). An `onClick` that prevents the default
- * keeps the picker closed. While the root is full, as in a full
- * `UploadField`, it stays focusable but is `aria-disabled`.
+ * keeps the picker closed. It is disabled while the hook is
+ * (`upload.disabled`); a `disabled` prop replaces that default, but the
+ * picker stays closed while the hook is disabled. While the root is full, as
+ * in a full `UploadField`, it stays focusable but is `aria-disabled`.
  */
 export function UploadTrigger({
   call,
@@ -53,7 +55,7 @@ export function UploadTrigger({
     <Button
       {...intakeProps}
       {...props}
-      disabled={Boolean(disabled) || isFull}
+      disabled={(disabled ?? upload.disabled) || isFull}
       // A full field keeps the trigger reachable, announced as unavailable.
       focusableWhenDisabled={focusableWhenDisabled ?? isFull}
       className={cn(

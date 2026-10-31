@@ -403,6 +403,8 @@ function ObjectListFrame({
   const keyboard = useObjectListKeyboard({ list, selection, view });
   const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
   const call = folderUploadCall(list, list.parent);
+  // A disabled hook ignores drops; the frame then ignores drags and pastes.
+  const takesFiles = upload != null && !upload.disabled;
   // The hook's drag state covers all of its drop targets, so the frame
   // highlights and speaks only while the drag is over the frame itself.
   const drag = useOwnDrag();
@@ -430,7 +432,7 @@ function ObjectListFrame({
 
   function onPaste(event: ClipboardEvent<HTMLElement>) {
     // A dropzone inside the list takes its own pastes.
-    if (!upload || event.defaultPrevented || isFieldTarget(event.target)) {
+    if (!takesFiles || event.defaultPrevented || isFieldTarget(event.target)) {
       return;
     }
     const files = [...event.clipboardData.files];
@@ -466,10 +468,13 @@ function ObjectListFrame({
     onFocus,
     onPaste,
     onDragEnter: (event: DragEvent<HTMLElement>) => {
+      if (!takesFiles) return;
       drag.enter(event);
       trackDragTarget(event);
     },
-    onDragOver: trackDragTarget,
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (takesFiles) trackDragTarget(event);
+    },
     onDragLeave: drag.leave,
     onDrop: () => {
       drag.end();

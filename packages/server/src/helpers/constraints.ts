@@ -1,4 +1,4 @@
-import { matchesFileTypes, s3Error } from "@dimah-s3/core";
+import { describeFileType, matchesFileTypes, s3Error } from "@dimah-s3/core";
 import type { UploadFile } from "@/types/hook-contexts";
 import type { ResolvedUpload } from "@/types/resolved";
 
@@ -35,14 +35,4 @@ export function assertFileConstraints(
   }
   if (file.size === 0) throw s3Error("FILE_EMPTY");
   assertWithinMaxFileSize(maxFileSize, file.size);
-}
-
-/**
- * The extension (`.exe`), else the MIME type, else `unknown`. Must match the
- * `type` param of core `validateFile`; constraints.test.ts pins the parity.
- */
-function describeFileType(name: string, type: string | undefined): string {
-  const dot = name.lastIndexOf(".");
-  if (dot >= 0 && dot < name.length - 1) return name.slice(dot);
-  return type || "unknown";
 }
