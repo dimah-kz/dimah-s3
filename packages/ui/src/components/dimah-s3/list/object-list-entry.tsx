@@ -4,14 +4,17 @@ import { useRef, type MouseEvent, type ReactNode } from "react";
 import {
   useFormatDate,
   useFormatFileSize,
+  type DropTargetProps,
   type ObjectListEntry,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
+import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 import { ObjectListItemMenu } from "@/components/dimah-s3/list/object-list-item-menu";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
-import { FileTypeGlyph, FolderGlyph } from "@/lib/file-type-icon";
+import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
 
 /** Props shared by {@link ObjectListRow} and {@link ObjectListTile}. */
 export type ObjectListEntryProps<TItem> = {
@@ -65,6 +68,10 @@ export function ObjectListCheckbox({
   );
 }
 
+/** Highlight while files are dragged over a folder that takes drops. */
+const DROP_TARGET =
+  "data-drag-active:bg-dimah-s3-primary/10 data-drag-active:ring-2 data-drag-active:ring-dimah-s3-primary data-drag-active:ring-inset";
+
 /** One row in the `list` view. */
 export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
   const { entry, className } = props;
@@ -72,6 +79,7 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
 
   return (
     <div
+      {...parts.dropTarget}
       data-slot="object-list-entry"
       data-kind={entry.kind}
       data-view="list"
@@ -88,6 +96,7 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
         parts.selected
           ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
           : "hover:bg-dimah-s3-muted",
+        DROP_TARGET,
         className,
       )}
     >
@@ -132,6 +141,7 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
 
   return (
     <div
+      {...parts.dropTarget}
       data-slot="object-list-entry"
       data-kind={entry.kind}
       data-view="grid"
@@ -141,6 +151,7 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
         parts.selected
           ? "border-dimah-s3-primary bg-dimah-s3-primary/10"
           : "border-dimah-s3-border hover:bg-dimah-s3-muted",
+        DROP_TARGET,
         className,
       )}
     >
@@ -195,6 +206,8 @@ type EntryParts = {
   description: ReactNode;
   meta: ReactNode;
   media: ReactNode;
+  /** Drag and drop handlers on a folder that takes uploads, or `null`. */
+  dropTarget: DropTargetProps | null;
   entryKey: string;
   /** `null` when the entry neither opens nor selects. */
   onClick: ((event: MouseEvent<HTMLElement>) => void) | null;
@@ -210,7 +223,7 @@ function useEntryParts<TItem>({
 }: ObjectListEntryProps<TItem>): EntryParts {
   const t = useTranslations();
   const context = useObjectListContext<TItem>();
-  const { list, selection, onOpenItem } = context;
+  const { list, selection, upload, onOpenItem } = context;
   const defaultDescription = useDefaultDescription(entry);
   const selectable = selection != null && selection.canSelect(entry);
   const selected = selectable && selection.isSelected(entry.key);
@@ -221,13 +234,24 @@ function useEntryParts<TItem>({
         ? () => onOpenItem(entry.item)
         : null;
 
+  // Folders take dropped files only when the source can place them there.
+  const folderCall =
+    entry.kind === "folder" && upload
+      ? folderUploadCall(list, entry.id)
+      : undefined;
+  const hasMenu =
+    entry.kind === "file"
+      ? context.download != null ||
+        context.share != null ||
+        context.delete != null
+      : folderCall != null;
+
   const resolvedActions =
     actions !== undefined ? (
       actions
     ) : context.renderActions ? (
       context.renderActions(entry)
-    ) : entry.kind === "file" &&
-      (context.download || context.share || context.remove) ? (
+    ) : hasMenu ? (
       <ObjectListItemMenu />
     ) : null;
 
@@ -257,6 +281,8 @@ function useEntryParts<TItem>({
     ),
     meta: present(meta !== undefined ? meta : context.renderMeta?.(entry)),
     media: present(media),
+    dropTarget:
+      upload && folderCall ? upload.getDropTargetProps({}, folderCall) : null,
     entryKey: entry.key,
     onClick:
       open || selectable
@@ -334,13 +360,13 @@ function EntryMedia<TItem>({
   }
   return tile ? (
     <span className="flex size-16 items-center justify-center">
-      <FileTypeGlyph fileName={file.name} fileType={file.contentType} />
+      <FileTypeGlyph fileName={file.name} contentType={file.contentType} />
     </span>
   ) : (
     <FileTypeGlyph
       layout="icon"
       fileName={file.name}
-      fileType={file.contentType}
+      contentType={file.contentType}
     />
   );
 }

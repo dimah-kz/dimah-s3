@@ -2,10 +2,11 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type {
+  AnyDownloadReturn,
   ObjectListEntry,
   ObjectListFolder,
   UseDeleteReturn,
-  UseNavigateDownloadReturn,
+  UseDownloadReturn,
   UseObjectListReturn,
   UseObjectListSelectionReturn,
   UseUploadReturn,
@@ -14,33 +15,14 @@ import type {
 /** `list` draws one row per entry. `grid` draws tiles with larger previews. */
 export type ObjectListView = "list" | "grid";
 
-/** Caps for the usage line. The list does not read them from the server. */
-export type ObjectListUsageLimits = {
-  /**
-   * Byte cap. Pass the same number as `db({ quota: { maxBytes } })` when
-   * that plugin is what enforces the limit.
-   */
-  maxBytes?: number;
-  /**
-   * File-count cap. Pass the same number as `db({ quota: { maxFiles } })`
-   * when that plugin is what enforces the limit.
-   */
-  maxFiles?: number;
-};
-
-/** Object keys from one delete: a row menu or the selection bar. */
-export type ObjectListDeleteResult = {
-  deleted: string[];
-  failed: string[];
-};
-
 /** Per-entry render hooks. Each returns the default when left out. */
 export type ObjectListRenderers<TItem> = {
   /** Replaces the whole row or tile. Compose `ObjectListRow` or `ObjectListTile` to keep selection. */
   renderEntry?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
    * Trailing controls. Defaults to `ObjectListItemMenu` on files when the
-   * list has `download`, `share`, or `delete`. Return `null` to hide them.
+   * list has `download`, `share`, or `delete`, and on folders when files
+   * can be uploaded into them. Return `null` to hide them.
    */
   renderActions?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
@@ -52,14 +34,29 @@ export type ObjectListRenderers<TItem> = {
   renderMeta?: (entry: ObjectListEntry<TItem>) => ReactNode;
 };
 
+/** The one-shot result of a list control, such as Copy link. */
+export type ObjectListFeedback = {
+  type: "success" | "error" | "info";
+  title: string;
+  description?: ReactNode;
+};
+
 /** What `ObjectList` shares with its parts. Read it with {@link useObjectListContext}. */
 export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
   list: UseObjectListReturn<TItem>;
   selection: UseObjectListSelectionReturn<TItem> | null;
   upload: UseUploadReturn | null;
-  download: UseNavigateDownloadReturn | null;
-  share: UseNavigateDownloadReturn | null;
-  remove: UseDeleteReturn | null;
+  download: AnyDownloadReturn | null;
+  /** Signs Copy link. Falls back to a navigate-mode `download`. */
+  share: UseDownloadReturn | null;
+  delete: UseDeleteReturn | null;
+  /**
+   * The list shows toasts. Off, its controls report through `announce`
+   * instead.
+   */
+  toasts: boolean;
+  /** Reads `feedback` out in the list's polite live region. */
+  announce: (feedback: ObjectListFeedback) => void;
   view: ObjectListView;
   setView: (view: ObjectListView) => void;
   /** Root breadcrumb label and the list's accessible name. */
@@ -68,15 +65,12 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
   sizing: "fixed" | "max" | null;
   showBreadcrumb: boolean;
   selectionActions: ReactNode;
-  usageLimits: ObjectListUsageLimits | undefined;
   empty: ReactNode;
   loadMore: "auto" | "button";
   onOpenItem: ((item: TItem) => void) | undefined;
   /** Object keys stored in a folder. Lets bulk delete include folders. */
   resolveFolderKeys:
     ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined;
-  /** Drop deleted files from the rows, reload, and call `onDeleted`. */
-  afterDelete: (result: ObjectListDeleteResult) => void;
 };
 
 const ObjectListContext = createContext<ObjectListContextValue<unknown> | null>(

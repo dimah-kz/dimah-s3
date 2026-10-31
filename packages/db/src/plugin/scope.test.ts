@@ -1,0 +1,119 @@
+import { describe, expect, it, vi } from "vitest";
+import type { ScopeContext } from "@/types/plugin";
+import { createScopeResolver } from "./scope";
+
+type Session = { userId: string };
+
+const locals = { tenant: "acme" };
+
+describe("createScopeResolver", () => {
+  it("passes the request, locals, session, and target to resolveScope", async () => {
+    const request = new Request("http://localhost/api/s3/upload");
+    const resolveScope = vi.fn(
+      ({ session }: ScopeContext<Session>) => `user:${session.userId}`,
+    );
+    const resolve = createScopeResolver<Session>({
+      getSession: () => ({ userId: "1" }),
+      resolveScope,
+    });
+
+    const target = {
+      operation: "upload" as const,
+      route: "uploads",
+      key: "k",
+      folder: "docs",
+      clientMetadata: { folder: "docs" },
+    };
+    await expect(resolve({ request, locals }, target)).resolves.toEqual({
+      request,
+      locals,
+      session: { userId: "1" },
+      ...target,
+      scope: "user:1",
+    });
+    expect(resolveScope).toHaveBeenCalledWith({
+      request,
+      locals,
+      session: { userId: "1" },
+      ...target,
+    });
+  });
+
+  it("loads the session once per request", async () => {
+    const getSession = vi.fn(async (request: Request) => ({
+      userId: new URL(request.url).searchParams.get("user") ?? "",
+    }));
+    const resolve = createScopeResolver<Session>({
+      getSession,
+      resolveScope: ({ session }) => `user:${session.userId}`,
+    });
+    const first = new Request("http://localhost/?user=1");
+    const second = new Request("http://localhost/?user=2");
+
+    await resolve({ request: first, locals }, { operation: "upload" });
+    await resolve({ request: first, locals }, { operation: "confirm" });
+    const other = await resolve(
+      { request: second, locals },
+      { operation: "upload" },
+    );
+
+    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(other.scope).toBe("user:2");
+  });
+
+  it("resolves the scope once per request and target", async () => {
+    const request = new Request("http://localhost/");
+    const resolveScope = vi.fn(() => "user:1");
+    const resolve = createScopeResolver({ resolveScope });
+    const call = { request, locals };
+
+    await resolve(call, { operation: "upload", key: "k", folder: null });
+    await resolve(call, { operation: "upload", key: "k", folder: null });
+    expect(resolveScope).toHaveBeenCalledTimes(1);
+
+    await resolve(call, { operation: "upload", key: "k" });
+    await resolve(call, { operation: "download", key: "k" });
+    await resolve(
+      { request: new Request("http://localhost/"), locals },
+      { operation: "upload", key: "k", folder: null },
+    );
+    expect(resolveScope).toHaveBeenCalledTimes(4);
+  });
+
+  it("hands each call its own locals, even when the scope is cached", async () => {
+    const request = new Request("http://localhost/");
+    const resolve = createScopeResolver({ resolveScope: () => "user:1" });
+    const later = { tenant: "acme", role: "admin" };
+
+    await resolve({ request, locals }, { operation: "confirm", key: "k" });
+    const cached = await resolve(
+      { request, locals: later },
+      { operation: "confirm", key: "k" },
+    );
+    expect(cached.locals).toBe(later);
+  });
+
+  it("passes no session without getSession", async () => {
+    const resolveScope = vi.fn(() => "user:1");
+    const resolve = createScopeResolver({ resolveScope });
+
+    await resolve(
+      { request: new Request("http://localhost/"), locals },
+      { operation: "list" },
+    );
+    expect(resolveScope).toHaveBeenCalledWith(
+      expect.objectContaining({ session: undefined }),
+    );
+  });
+
+  it("rejects a null scope with UNAUTHORIZED", async () => {
+    const resolve = createScopeResolver({ resolveScope: async () => null });
+
+    await expect(
+      resolve(
+        { request: new Request("http://localhost/"), locals },
+        { operation: "list" },
+      ),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED", statusCode: 401 });
+  });
+});

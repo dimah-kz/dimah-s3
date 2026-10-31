@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import type { ObjectListView } from "@/components/dimah-s3/list/object-list-context";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
-import { FolderGlyph } from "@/lib/file-type-icon";
+import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 
 /** Props for {@link ObjectListEmpty}. */
 export type ObjectListEmptyProps = {

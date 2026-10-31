@@ -7,7 +7,17 @@ const { version } = createRequire(import.meta.url)("./package.json") as {
 };
 
 export default packageConfig({
-  entry: ["src/index.ts", "src/cli.ts", "src/client/index.ts"],
+  entry: [
+    "src/index.ts",
+    "src/cli.ts",
+    "src/client/index.ts",
+    "src/drizzle/sqlite.ts",
+    "src/drizzle/pg.ts",
+    "src/drizzle/mysql.ts",
+    "src/adapters/drizzle.ts",
+    "src/adapters/kysely.ts",
+    "src/adapters/prisma.ts",
+  ],
   define: {
     __DIMAH_S3_DB_VERSION__: JSON.stringify(version),
   },

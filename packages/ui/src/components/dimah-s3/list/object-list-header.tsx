@@ -1,27 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { DELETE_BATCH_MAX_KEYS, fileNameFromKey } from "@dimah-s3/core";
-import { objectKeyOf, useFormatNumber } from "@dimah-s3/react";
-import { useTranslations } from "@fuma-translate/react";
-import { Trash2Icon } from "lucide-react";
-import { cn } from "cn";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
+import { isS3ErrorCode } from "@dimah-s3/core";
+import {
+  useFormatDimahError,
+  useFormatNumber,
+  type ObjectListEntry,
+  type ObjectListFolder,
+} from "@dimah-s3/react";
+import { objectKeyOf } from "@dimah-s3/react/engine";
+import { useTranslations } from "@fuma-translate/react";
+import { CheckIcon, FolderPlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { toast } from "@/components/ui/toast";
+import {
+  useDeleteContext,
+  type DeleteTarget,
+} from "@/components/dimah-s3/delete/delete";
 import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import { ObjectListCheckbox } from "@/components/dimah-s3/list/object-list-entry";
+import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
 
 /** Props for {@link ObjectListHeader}. */
 export type ObjectListHeaderProps = {
@@ -35,8 +43,9 @@ export type ObjectListHeaderProps = {
 };
 
 /**
- * Top bar: select-all, the path, a reload spinner, and `children`.
- * While entries are selected it becomes the selection bar.
+ * Top bar: select-all, the path, a reload spinner, New folder (when the
+ * source can create folders), and `children`. While entries are selected it
+ * becomes the selection bar.
  */
 export function ObjectListHeader({
   children,
@@ -78,6 +87,7 @@ export function ObjectListHeader({
                 aria-label={t("Loading files", { note: "object list" })}
               />
             ) : null}
+            <NewFolderControl />
             {children}
           </div>
         </div>
@@ -120,7 +130,7 @@ export function ObjectListSelectAll({ className }: { className?: string }) {
 
 /** Props for {@link ObjectListSelectionBar}. */
 export type ObjectListSelectionBarProps = {
-  /** Controls beside Delete. Inert while a bulk delete runs. */
+  /** Controls beside Delete. Inert while the selected files delete. */
   actions?: ReactNode;
   className?: string;
 };
@@ -135,12 +145,17 @@ export function ObjectListSelectionBar({
 }: ObjectListSelectionBarProps) {
   const t = useTranslations();
   const formatNumber = useFormatNumber();
-  const { list, selection, remove } = useObjectListContext();
-  const bulkDelete = useBulkDelete();
+  const { list, selection, delete: del } = useObjectListContext();
   if (!selection?.isSelecting) return null;
 
   const count = formatNumber(selection.count);
-  const busy = bulkDelete.busy;
+  // Only selected files that are deleting make the bar inert.
+  const busy =
+    del != null &&
+    selection.selected.some(
+      (entry) =>
+        entry.kind === "file" && del.pendingKeys.includes(objectKeyOf(entry)),
+    );
 
   return (
     <div
@@ -168,15 +183,13 @@ export function ObjectListSelectionBar({
       <div className="flex shrink-0 items-center gap-1">
         {actions ? (
           <div
-            className={cn(
-              "flex items-center gap-1",
-              busy && "pointer-events-none opacity-60",
-            )}
+            inert={busy}
+            className={cn("flex items-center gap-1", busy && "opacity-60")}
           >
             {actions}
           </div>
         ) : null}
-        {remove ? <BulkDeleteControl bulkDelete={bulkDelete} /> : null}
+        {del ? <BulkDeleteControl /> : null}
         <Button
           variant="ghost"
           size="sm"
@@ -191,220 +204,289 @@ export function ObjectListSelectionBar({
 }
 
 /**
- * Delete button for the selected entries, with its confirmation.
- * `ObjectListSelectionBar` already has one; use this in a bar of your own.
+ * Delete button for the selected entries. The list's delete root asks for
+ * confirmation. `ObjectListSelectionBar` already has one; use this in a bar
+ * of your own.
  */
 export function ObjectListBulkDelete() {
-  const bulkDelete = useBulkDelete();
-  const { remove, selection } = useObjectListContext();
-  if (!remove || !selection?.isSelecting) return null;
-  return <BulkDeleteControl bulkDelete={bulkDelete} />;
+  const { delete: del, selection } = useObjectListContext();
+  if (!del || !selection?.isSelecting) return null;
+  return <BulkDeleteControl />;
 }
 
-type BulkDelete = ReturnType<typeof useBulkDelete>;
-
+/** What a bulk delete removes. */
 type BulkDeletePlan = {
-  keys: readonly string[];
+  targets: readonly DeleteTarget[];
   /** Selected folders left out: `resolveFolderKeys` is not set. */
   skippedFolders: number;
 };
 
-function BulkDeleteControl({ bulkDelete }: { bulkDelete: BulkDelete }) {
-  const t = useTranslations();
-  const formatNumber = useFormatNumber();
-  const label = t("Delete", { note: "button" });
-  const { phase, plan } = bulkDelete;
-
-  return (
-    <>
-      <Button
-        variant="destructive"
-        size="sm"
-        aria-label={label}
-        disabled={bulkDelete.busy}
-        onClick={() => void bulkDelete.request()}
-      >
-        {bulkDelete.busy ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <Trash2Icon data-icon="inline-start" />
-        )}
-        <span className="max-sm:sr-only">{label}</span>
-      </Button>
-      <AlertDialog
-        open={phase === "confirm" && plan != null}
-        onOpenChange={(open) => {
-          if (!open) bulkDelete.cancel();
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("Delete {count} files?", {
-                note: "object list selection",
-                variables: { count: formatNumber(plan?.keys.length ?? 0) },
-              })}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("This action cannot be undone.", {
-                note: "object list selection",
-              })}
-              {plan && plan.skippedFolders > 0
-                ? ` ${t("Selected folders stay in the list.", { note: "object list selection" })}`
-                : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              {t("Cancel", { note: "dialog button" })}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => void bulkDelete.confirm()}
-            >
-              {t("Delete", { note: "dialog confirm" })}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
-}
-
 /**
- * Collect the selected object keys (files, then folders through
- * `resolveFolderKeys`), confirm, and delete in batches of 100.
+ * Collects the selected object keys (files, then folders through
+ * `resolveFolderKeys`) and hands them to the delete root in one request.
+ * Busy while the keys resolve and while they delete.
  */
-function useBulkDelete() {
+function BulkDeleteControl() {
   const t = useTranslations();
-  const formatNumber = useFormatNumber();
-  const { selection, remove, resolveFolderKeys, afterDelete } =
-    useObjectListContext();
-  const [phase, setPhase] = useState<"idle" | "prepare" | "confirm" | "delete">(
-    "idle",
-  );
-  const [plan, setPlan] = useState<BulkDeletePlan | null>(null);
-  const mountedRef = useRef(true);
-  const deletingRef = useRef(false);
+  const { selection, resolveFolderKeys } = useObjectListContext();
+  const { delete: del, request } = useDeleteContext();
+  const report = useObjectListFeedback();
+  const [preparing, setPreparing] = useState(false);
+  const [requested, setRequested] = useState<readonly string[]>([]);
+  const busy =
+    preparing || requested.some((key) => del.pendingKeys.includes(key));
+  const label = t("Delete", { note: "button" });
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  function setPhaseIfMounted(next: typeof phase) {
-    if (mountedRef.current) setPhase(next);
-  }
-
-  async function prepare(): Promise<BulkDeletePlan> {
-    const keys = new Set<string>();
-    let skippedFolders = 0;
-    for (const entry of selection?.selected ?? []) {
-      if (entry.kind === "file") {
-        keys.add(objectKeyOf(entry));
-      } else if (resolveFolderKeys) {
-        for (const key of await resolveFolderKeys(entry.folder)) keys.add(key);
-      } else {
-        skippedFolders += 1;
-      }
-    }
-    return { keys: [...keys], skippedFolders };
-  }
-
-  async function request() {
-    if (!remove || phase !== "idle") return;
-    setPhase("prepare");
+  async function onClick(event: MouseEvent<HTMLButtonElement>) {
+    if (!selection || busy) return;
+    const trigger = event.currentTarget;
+    setPreparing(true);
+    let plan: BulkDeletePlan;
     try {
-      const next = await prepare();
-      if (!mountedRef.current) return;
-      if (next.keys.length === 0) {
-        toast.add({
-          type: "info",
-          title:
-            next.skippedFolders > 0
-              ? t("Selected folders stay in the list.", {
-                  note: "object list selection",
-                })
-              : t("Nothing to delete", { note: "object list selection" }),
-        });
-        setPhase("idle");
-        return;
-      }
-      setPlan(next);
-      setPhase("confirm");
+      plan = await planBulkDelete(selection.selected, resolveFolderKeys);
     } catch {
-      toast.add({
+      report({
         type: "error",
         title: t("Could not delete the selection", {
           note: "object list selection",
         }),
       });
-      setPhaseIfMounted("idle");
-    }
-  }
-
-  async function confirm() {
-    if (!plan || !remove || deletingRef.current) return;
-    deletingRef.current = true;
-    setPhase("delete");
-    const deleted: string[] = [];
-    const failed: string[] = [];
-    try {
-      for (
-        let index = 0;
-        index < plan.keys.length;
-        index += DELETE_BATCH_MAX_KEYS
-      ) {
-        const chunk = plan.keys.slice(index, index + DELETE_BATCH_MAX_KEYS);
-        const result = await remove.removeMany(chunk);
-        deleted.push(...result.deleted);
-        failed.push(...result.failed);
-      }
+      return;
     } finally {
-      deletingRef.current = false;
-      setPhaseIfMounted("idle");
+      setPreparing(false);
     }
-    if (deleted.length > 0) {
-      toast.add({
-        type: "success",
+    const note =
+      plan.skippedFolders > 0
+        ? t("Selected folders stay in the list.", {
+            note: "object list selection",
+          })
+        : undefined;
+    if (plan.targets.length === 0) {
+      report({
+        type: "info",
         title:
-          deleted.length === 1
-            ? t("File deleted", { note: "toast" })
-            : t("Deleted {count} files", {
-                note: "object list selection",
-                variables: { count: formatNumber(deleted.length) },
-              }),
-        description:
-          deleted.length === 1 ? (
-            <bdi>{fileNameFromKey(deleted[0] ?? "")}</bdi>
-          ) : undefined,
+          note ?? t("Nothing to delete", { note: "object list selection" }),
       });
+      return;
     }
-    if (failed.length > 0) {
-      toast.add({
-        type: "error",
-        title: t("Could not delete {count} files", {
-          note: "object list selection",
-          variables: { count: formatNumber(failed.length) },
-        }),
-      });
-    }
-    if (deleted.length > 0) selection?.clear();
-    afterDelete({ deleted, failed });
+    setRequested(plan.targets.map((target) => target.objectKey));
+    request(plan.targets, { note, trigger });
   }
 
-  function cancel() {
-    if (!deletingRef.current) setPhase("idle");
+  return (
+    <Button
+      variant="destructive"
+      size="sm"
+      aria-label={label}
+      aria-busy={busy || undefined}
+      disabled={busy}
+      focusableWhenDisabled
+      onClick={(event) => void onClick(event)}
+    >
+      {busy ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <Trash2Icon data-icon="inline-start" />
+      )}
+      <span className="max-sm:sr-only">{label}</span>
+    </Button>
+  );
+}
+
+async function planBulkDelete<TItem>(
+  selected: readonly ObjectListEntry<TItem>[],
+  resolveFolderKeys:
+    ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined,
+): Promise<BulkDeletePlan> {
+  const targets = new Map<string, DeleteTarget>();
+  let skippedFolders = 0;
+  for (const entry of selected) {
+    if (entry.kind === "file") {
+      const objectKey = objectKeyOf(entry);
+      targets.set(objectKey, {
+        objectKey,
+        fileName: entry.file.name,
+        fileSize: entry.file.size,
+      });
+    } else if (resolveFolderKeys) {
+      for (const objectKey of await resolveFolderKeys(entry.folder)) {
+        if (!targets.has(objectKey)) targets.set(objectKey, { objectKey });
+      }
+    } else {
+      skippedFolders += 1;
+    }
+  }
+  return { targets: [...targets.values()], skippedFolders };
+}
+
+/** Props for {@link NewFolderControl}. */
+export type NewFolderControlProps = {
+  className?: string;
+};
+
+/**
+ * New folder button for the open folder. It opens a labelled name field:
+ * Enter creates the folder through the source, Escape cancels. An invalid
+ * or taken name shows a message under the field that describes it.
+ * Renders nothing when the source has no `createFolder`.
+ * `ObjectListHeader` already has one.
+ */
+export function NewFolderControl({ className }: NewFolderControlProps) {
+  const t = useTranslations();
+  const { list } = useObjectListContext();
+  const [editing, setEditing] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  // Set when the field closes, so focus goes back to the button.
+  const returnFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (editing || !returnFocusRef.current) return;
+    returnFocusRef.current = false;
+    buttonRef.current?.focus();
+  }, [editing]);
+
+  if (!list.createFolder) return null;
+
+  if (editing) {
+    return (
+      <NewFolderForm
+        createFolder={list.createFolder}
+        onClose={() => {
+          returnFocusRef.current = true;
+          setEditing(false);
+        }}
+        className={className}
+      />
+    );
   }
 
-  return {
-    phase,
-    plan,
-    busy: phase === "prepare" || phase === "delete",
-    request,
-    confirm,
-    cancel,
-  };
+  return (
+    <Button
+      ref={buttonRef}
+      variant="ghost"
+      size="sm"
+      data-slot="object-list-new-folder"
+      className={className}
+      onClick={() => setEditing(true)}
+    >
+      <FolderPlusIcon data-icon="inline-start" />
+      <span className="max-sm:sr-only">
+        {t("New folder", { note: "object list" })}
+      </span>
+    </Button>
+  );
+}
+
+function NewFolderForm({
+  createFolder,
+  onClose,
+  className,
+}: {
+  createFolder: (name: string) => Promise<ObjectListFolder>;
+  onClose: () => void;
+  className?: string;
+}) {
+  const t = useTranslations();
+  const formatError = useFormatDimahError();
+  const inputId = useId();
+  const errorId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = t("Folder name", { note: "object list new folder" });
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError(t("Enter a folder name", { note: "object list new folder" }));
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      await createFolder(trimmed);
+    } catch (err) {
+      setError(
+        isS3ErrorCode(err, "CONFLICT")
+          ? t("A folder with this name already exists", {
+              note: "object list new folder",
+            })
+          : formatError(err),
+      );
+      setPending(false);
+      inputRef.current?.focus();
+      return;
+    }
+    onClose();
+  }
+
+  return (
+    <form
+      data-slot="object-list-new-folder"
+      aria-busy={pending || undefined}
+      className={cn("relative flex items-center gap-1", className)}
+      onSubmit={(event) => void onSubmit(event)}
+    >
+      <label htmlFor={inputId} className="sr-only">
+        {label}
+      </label>
+      <input
+        ref={inputRef}
+        id={inputId}
+        value={name}
+        maxLength={255}
+        autoComplete="off"
+        placeholder={label}
+        readOnly={pending}
+        aria-invalid={error != null || undefined}
+        aria-describedby={error != null ? errorId : undefined}
+        className="h-7 w-36 min-w-0 rounded-md border border-dimah-s3-border bg-transparent px-2 text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 sm:w-44"
+        onChange={(event) => {
+          setName(event.target.value);
+          setError(null);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || pending) return;
+          event.preventDefault();
+          onClose();
+        }}
+      />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t("Create folder", { note: "object list new folder" })}
+        disabled={pending}
+        focusableWhenDisabled
+      >
+        {pending ? <Spinner /> : <CheckIcon />}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t("Cancel", { note: "object list new folder" })}
+        disabled={pending}
+        onClick={onClose}
+      >
+        <XIcon />
+      </Button>
+      {error != null ? (
+        <p
+          id={errorId}
+          role="alert"
+          className="absolute end-0 top-full z-20 mt-1 w-max max-w-64 rounded-md border border-dimah-s3-border bg-dimah-s3-card px-2 py-1 text-xs [overflow-wrap:anywhere] text-dimah-s3-destructive shadow-sm"
+        >
+          {error}
+        </p>
+      ) : null}
+    </form>
+  );
 }

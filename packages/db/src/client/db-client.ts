@@ -1,62 +1,62 @@
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
 import type { db } from "@/plugin/db";
 import type {
-  DbClientGetInput,
-  DbClientListInput,
+  DbClientActions,
+  DbClientFolder,
   DbClientListResponse,
   DbClientObject,
-} from "@/types/storage-object";
-
-export type {
-  DbClientGetInput,
-  DbClientListInput,
-  DbClientListResponse,
-  DbClientObject,
-  DbListSort,
-  DbListSortField,
-} from "@/types/storage-object";
+} from "@/types/client";
 
 /**
- * Client plugin for the server `db()` endpoints.
+ * Client plugin for the server `db()` endpoints. Its actions are
+ * {@link DbClientActions} on `api.db`. Pass `TClientAttributes` to type the
+ * `attributes` the plugin's `attributes.toClient` returns.
  *
  * ```ts
  * import { createS3Client } from "@dimah-s3/react";
  * import { dbClient } from "@dimah-s3/db/client";
  *
- * export const { api, useApi } = createS3Client({
+ * export const s3Client = createS3Client({
  *   plugins: [dbClient()],
  * });
  *
- * await api.db.listObjects({ limit: 50 });
+ * const page = await s3Client.db.listObjects({ folder: "" });
  * ```
  *
- * Server code does not use `listObjects` — it calls `s3.db.objects.listByScope`
- * and `getScopeUsage` directly (no HTTP round-trip). `listObjects` is the browser
- * wrapper for `GET /db/objects`.
+ * The server resolves the scope from the request, so no action takes one.
+ * Server code skips HTTP and uses `s3.db.objects` and `s3.db.folders`.
  */
-export function dbClient() {
+export function dbClient<TClientAttributes = never>() {
   return defineClientPlugin({
     id: "db",
     $InferServerPlugin: {} as ReturnType<typeof db>,
-    getActions: ($fetch) => ({
-      /**
-       * List the caller's objects and usage. Scope comes from server `resolveScope`
-       * — not a parameter here. For another scope, use `listByScope` on the server.
-       * Pass `init.signal` to cancel the request.
-       */
-      listObjects: (
-        input?: DbClientListInput,
-        init?: { signal?: AbortSignal },
-      ) =>
-        $fetch<DbClientListResponse>(pluginPath("db", "objects"), {
-          method: "GET",
-          query: input,
+    getActions: ($fetch): DbClientActions<TClientAttributes> => ({
+      listObjects: (input, init) =>
+        $fetch<DbClientListResponse<TClientAttributes>>(
+          pluginPath("db", "objects"),
+          { method: "GET", query: input, signal: init?.signal },
+        ),
+      getObject: (input, init) =>
+        $fetch<{ object: DbClientObject<TClientAttributes> }>(
+          pluginPath("db", "object"),
+          { method: "GET", query: input, signal: init?.signal },
+        ),
+      updateObject: (input, init) =>
+        $fetch<{ object: DbClientObject<TClientAttributes> }>(
+          pluginPath("db", "object"),
+          { method: "PATCH", body: input, signal: init?.signal },
+        ),
+      createFolder: (input, init) =>
+        $fetch<{ folder: DbClientFolder }>(pluginPath("db", "folder"), {
+          method: "POST",
+          body: input,
           signal: init?.signal,
         }),
-      getObject: (input: DbClientGetInput) =>
-        $fetch<{ object: DbClientObject }>(pluginPath("db", "object"), {
-          method: "GET",
+      deleteFolder: (input, init) =>
+        $fetch<{ path: string }>(pluginPath("db", "folder"), {
+          method: "DELETE",
           query: input,
+          signal: init?.signal,
         }),
     }),
   });

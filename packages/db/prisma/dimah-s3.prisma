@@ -1,0 +1,80 @@
+// Prisma models for @dimah-s3/db schema 2.0.0.
+//
+// Copy this file next to your schema (Prisma reads every .prisma file in the
+// schema folder) or paste the models into schema.prisma, then create the
+// client with `prismaAdapter` from `@dimah-s3/db/adapters/prisma`. Keep the
+// model names: FumaDB calls `prisma.storageObject`, `prisma.storageFolder` and
+// `prisma.private_dimah_s3_settings`.
+//
+// The models work as they are on PostgreSQL and SQLite. On MySQL, match
+// `sql/mysql.sql`: add `@db.VarChar(1024)` to `key`, `folder`, `path` and
+// `parent`, `@db.DateTime(3)` to the timestamps, and index prefixes such as
+// `@@unique([bucket, key(length: 512)])`.
+
+/// One row per tracked object: pending (presigned), active (confirmed),
+/// deleted (soft delete), or purging (a stale pending row purge has claimed).
+model StorageObject {
+  id           String    @id @default(cuid())
+  /// Owner, for example `user:123` or `org:acme`.
+  scope        String
+  bucket       String
+  key          String
+  /// Named dimah-s3 route that created the object.
+  route        String
+  /// Logical folder path. `null` is the root.
+  folder       String?
+  filename     String
+  contentType  String?   @map("content_type")
+  /// Verified size from HeadObject, set on confirm.
+  size         BigInt?
+  /// Size the client declared before confirm.
+  declaredSize BigInt?   @map("declared_size")
+  eTag         String?   @map("e_tag")
+  status       String
+  /// S3 user metadata of the verified object.
+  s3Metadata   Json?     @map("s3_metadata")
+  /// App attributes, validated by the plugin's `attributes.schema`.
+  attributes   Json?
+  acl          String?
+  /// Multipart upload ID while the row is pending.
+  uploadId     String?   @map("upload_id")
+  /// Token of the upload ticket that wrote the row.
+  uploadToken  String?   @map("upload_token")
+  /// Confirm deadline of a pending row (the upload ticket's expiry).
+  expiresAt    DateTime? @map("expires_at")
+  confirmedAt  DateTime? @map("confirmed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  @@unique([bucket, key], map: "storage_object_bucket_key_uk")
+  @@index([scope, status, folder, createdAt], map: "storage_object_scope_folder_idx")
+  @@index([scope, status, updatedAt], map: "storage_object_scope_updated_idx")
+  @@index([scope, status, filename], map: "storage_object_scope_filename_idx")
+  @@index([scope, status, size], map: "storage_object_scope_size_idx")
+  @@index([status, expiresAt], map: "storage_object_status_expires_idx")
+  @@map("storage_object")
+}
+
+/// One row per folder, so an empty folder still lists.
+model StorageFolder {
+  id        String   @id @default(cuid())
+  scope     String
+  /// Full folder path.
+  path      String
+  /// Path of the containing folder. `null` is the root.
+  parent    String?
+  /// Last segment of `path`.
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([scope, path], map: "storage_folder_scope_path_uk")
+  @@index([scope, parent], map: "storage_folder_scope_parent_idx")
+  @@map("storage_folder")
+}
+
+/// FumaDB settings. The adapter reads the schema version from the `version` row.
+model private_dimah_s3_settings {
+  key   String @id
+  value String @default("2.0.0")
+}

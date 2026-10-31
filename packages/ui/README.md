@@ -9,7 +9,7 @@ Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react
 ## Install
 
 ```bash
-pnpm add @dimah-s3/ui @dimah-s3/react shadcn
+pnpm add @dimah-s3/ui @dimah-s3/core @dimah-s3/react @fuma-translate/react
 ```
 
 Or copy items from the shadcn registry — see
@@ -23,15 +23,28 @@ Import once in your CSS (Tailwind v4 source scan + shadcn color bridge):
 @import "@dimah-s3/ui/styles.css";
 ```
 
-Colors default to your shadcn theme (`--primary`, `--muted`, …). Override
-`--color-dimah-s3-*` to theme the library alone — see
+Colors default to your shadcn theme (`--primary`, `--muted`, …). To theme
+the library alone, override the `--dimah-s3-<token>` variables on `:root` or
+on any container:
+
+```css
+.uploads-panel {
+  --dimah-s3-card: var(--muted);
+}
+```
+
+The tokens are `background`, `foreground`, `card`, `card-foreground`,
+`primary`, `primary-foreground`, `muted`, `muted-foreground`, `accent`,
+`border`, `ring`, `destructive`, `success` and `warning`. `success` and
+`warning` read your theme's `--success` / `--warning` when it defines them, and
+fall back to a green and an amber otherwise. See
 [Theming](https://s3.dimah.dev/docs/react/ui/customization/theming).
 
 ## Quick start
 
 ```tsx
 import { createS3Client, useUpload } from "@dimah-s3/react";
-import { UploadDropzone } from "@dimah-s3/ui";
+import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
 
 export const s3Client = createS3Client();
 
@@ -40,7 +53,10 @@ export function UploadDemo() {
 
   return (
     <s3Client.Provider>
-      <UploadDropzone upload={upload} />
+      <Upload upload={upload}>
+        <UploadDropzone />
+      </Upload>
+      <UploadToasts upload={upload} />
     </s3Client.Provider>
   );
 }

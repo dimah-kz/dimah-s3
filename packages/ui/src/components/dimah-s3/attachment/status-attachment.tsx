@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   AlertCircleIcon,
   CheckCircleIcon,
@@ -19,29 +19,28 @@ import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismis
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
   ATTACHMENT_TITLE_CLASS,
-  type AttachmentOrientation,
-  type AttachmentSize,
   type AttachmentState,
 } from "@/lib/attachment-layout";
 
-export type StatusAttachmentProps = {
-  /** @default "sm" */
-  size?: AttachmentSize;
-  /** @default "horizontal" */
-  orientation?: AttachmentOrientation;
+export type StatusAttachmentProps = Omit<
+  ComponentProps<"div">,
+  "children" | "title"
+> & {
   state: AttachmentState;
   title?: ReactNode;
   description?: ReactNode;
+  /** Replaces the state icon. */
   media?: ReactNode;
+  /** Extra controls, usually `AttachmentAction`s, placed before dismiss. */
   actions?: ReactNode;
   /** Dismiss control in `AttachmentActions`. Typically the hook `reset()`. */
   onDismiss?: () => void;
-  className?: string;
 };
 
 /**
- * Minimal Attachment shell for operation feedback (upload/download/delete).
- * Relies on Attachment `data-state` styles for error/done chrome.
+ * Minimal attachment row for operation feedback (upload, download, delete)
+ * that has no single file to show. Set the width with `className`.
+ * Error and done chrome come from the Attachment `data-state` styles.
  */
 export function StatusAttachment({
   state,
@@ -50,9 +49,8 @@ export function StatusAttachment({
   media,
   actions,
   onDismiss,
-  size = "sm",
-  orientation = "horizontal",
   className,
+  ...props
 }: StatusAttachmentProps) {
   const defaultMedia =
     state === "error" ? (
@@ -66,12 +64,9 @@ export function StatusAttachment({
   return (
     <Attachment
       state={state}
-      size={size}
-      orientation={orientation}
-      className={cn(
-        orientation === "horizontal" && "w-full max-w-full",
-        className,
-      )}
+      size="sm"
+      className={cn("w-full max-w-full", className)}
+      {...props}
     >
       <AttachmentMedia>{media ?? defaultMedia}</AttachmentMedia>
       <AttachmentContent>
@@ -90,7 +85,7 @@ export function StatusAttachment({
           </AttachmentDescription>
         ) : null}
       </AttachmentContent>
-      {actions || onDismiss ? (
+      {actions != null || onDismiss ? (
         <AttachmentActions>
           {actions}
           {onDismiss ? <DismissAttachmentAction onDismiss={onDismiss} /> : null}

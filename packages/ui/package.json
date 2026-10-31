@@ -48,15 +48,16 @@
     "css"
   ],
   "scripts": {
-    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
+    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
-    "registry:build": "pnpm registry:validate && shadcn build --output apps/docs/public/r --cwd ../..",
+    "registry:build": "pnpm registry:validate && node -e \"require('node:fs').rmSync('../../apps/docs/public/r', { recursive: true, force: true })\" && shadcn build --output apps/docs/public/r --cwd ../..",
     "registry:check": "tsx scripts/check-registry-items.ts",
     "registry:items": "tsx scripts/build-registry-items.ts && pnpm -w exec prettier --write packages/ui/registry.json",
     "registry:validate": "pnpm registry:items && pnpm registry:check && shadcn registry validate --cwd ../..",
-    "sync:shadcn": "node scripts/sync-shadcn.mjs"
+    "sync:shadcn": "node scripts/sync-shadcn.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "react-file-icon": "^1.6.0"

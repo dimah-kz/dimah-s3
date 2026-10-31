@@ -6,6 +6,7 @@ import type {
   UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 import type { ObjectListView } from "@/components/dimah-s3/list/object-list-context";
+import { isFieldTarget } from "@/lib/is-field-target";
 
 const ENTRY = "[data-slot=object-list-entry]";
 const TRIGGER = "[data-slot=object-list-entry-trigger]";
@@ -144,16 +145,6 @@ function moveFocus(frame: HTMLElement, target: HTMLElement, step: Step) {
   const trigger = triggers[next];
   trigger?.focus();
   trigger?.scrollIntoView({ block: "nearest" });
-}
-
-export function isFieldTarget(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.tagName === "SELECT")
-  );
 }
 
 function isOverlayTarget(target: Element) {

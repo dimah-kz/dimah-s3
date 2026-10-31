@@ -1,55 +1,74 @@
 "use client";
 
+import { useFormatNumber } from "@dimah-s3/react";
+import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 
+/** Side of the drawing box. The ring scales with the CSS size. */
+const VIEW_BOX = 20;
+
+export type CircleProgressProps = {
+  /** Progress from 0 to 100. Values outside are clamped; NaN counts as 0. */
+  percent: number;
+  /** File the progress belongs to. It names the progressbar. */
+  fileName: string;
+  /** Ring thickness in a 20 by 20 box. @default 2.5 */
+  strokeWidth?: number;
+  /** Sets the size, for example `size-6`. @default "size-5" */
+  className?: string;
+};
+
+/** Determinate progress ring with `role="progressbar"`, named by its file. */
 export function CircleProgress({
   percent,
-  size = 20,
+  fileName,
   strokeWidth = 2.5,
   className,
-  label,
-}: {
-  percent: number;
-  size?: number;
-  strokeWidth?: number;
-  className?: string;
-  /** Accessible name. When omitted the graphic is hidden from AT. */
-  label?: string;
-}) {
-  const r = (size - strokeWidth) / 2;
-  const c = 2 * Math.PI * r;
-  const offset = c - (percent / 100) * c;
+}: CircleProgressProps) {
+  const t = useTranslations();
+  const formatNumber = useFormatNumber();
+  const clamped = Number.isNaN(percent)
+    ? 0
+    : Math.min(100, Math.max(0, percent));
+  const value = Math.round(clamped);
+  const radius = (VIEW_BOX - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
   return (
     <svg
-      width={size}
-      height={size}
-      className={cn("shrink-0 -rotate-90", className)}
-      style={{ width: size, height: size }}
-      role={label ? "progressbar" : undefined}
-      aria-label={label}
-      aria-valuenow={label ? Math.round(percent) : undefined}
-      aria-valuemin={label ? 0 : undefined}
-      aria-valuemax={label ? 100 : undefined}
-      aria-hidden={label ? undefined : true}
+      viewBox={`0 0 ${VIEW_BOX} ${VIEW_BOX}`}
+      className={cn("size-5 shrink-0 -rotate-90", className)}
+      role="progressbar"
+      aria-label={t("Progress for {name}", {
+        note: "progress",
+        variables: { name: fileName },
+      })}
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuetext={t("{percent}%", {
+        note: "progress",
+        variables: { percent: formatNumber(value) },
+      })}
     >
       <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
+        cx={VIEW_BOX / 2}
+        cy={VIEW_BOX / 2}
+        r={radius}
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
         className="text-dimah-s3-muted-foreground/60"
       />
       <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
+        cx={VIEW_BOX / 2}
+        cy={VIEW_BOX / 2}
+        r={radius}
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
-        strokeDasharray={c}
-        strokeDashoffset={offset}
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - clamped / 100)}
         strokeLinecap="round"
         className="text-dimah-s3-primary transition-[stroke-dashoffset] duration-200"
       />

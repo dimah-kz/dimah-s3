@@ -3,31 +3,21 @@
 import { useFormatFileSize, useFormatNumber } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
-import {
-  useObjectListContext,
-  type ObjectListUsageLimits,
-} from "@/components/dimah-s3/list/object-list-context";
+import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 
 /**
- * Bytes and file count from `list.usage`, with a meter when `limits` are
- * set. Renders nothing until the query sends `usage`.
+ * Bytes and file count from `list.usage`, with a meter when the usage
+ * carries the server's `maxBytes` or `maxFiles`. Renders nothing until the
+ * query sends `usage`.
  */
-export function ObjectListUsage({
-  limits: limitsProp,
-  className,
-}: {
-  /** Defaults to the list's `usageLimits`. */
-  limits?: ObjectListUsageLimits;
-  className?: string;
-}) {
+export function ObjectListUsage({ className }: { className?: string }) {
   const t = useTranslations();
-  const context = useObjectListContext();
-  const usage = context.list.usage ?? { totalBytes: 0, objectCount: 0 };
-  const limits = limitsProp ?? context.usageLimits;
+  const { list } = useObjectListContext();
+  const usage = list.usage ?? { totalBytes: 0, objectCount: 0 };
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
-  const byteCap = finiteCap(limits?.maxBytes);
-  const fileCap = finiteCap(limits?.maxFiles);
+  const byteCap = finiteCap(usage.maxBytes);
+  const fileCap = finiteCap(usage.maxFiles);
   const bytesLabel =
     byteCap == null
       ? formatFileSize(usage.totalBytes)
@@ -60,7 +50,7 @@ export function ObjectListUsage({
   const percent =
     tightest == null ? null : Math.min(100, Math.round(tightest * 100));
 
-  if (!context.list.usage) return null;
+  if (!list.usage) return null;
 
   return (
     <div

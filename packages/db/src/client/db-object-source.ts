@@ -1,131 +1,118 @@
-import { fileNameFromKey } from "@dimah-s3/core";
+import { s3Error } from "@dimah-s3/core";
+import { formatFolder, joinFolderPath } from "@/folder-path";
 import type {
+  DbClientActions,
   DbClientListInput,
-  DbClientListResponse,
   DbClientObject,
   DbListSort,
   DbListSortField,
-  StorageObjectStatus,
-} from "@/types/storage-object";
+  DbObjectSource,
+  DbObjectSourceFile,
+  DbObjectSourceOptions,
+  DbObjectSourceQueryInput,
+} from "@/types/client";
 
-/** `listObjects` plus an optional abort signal. Matches `dbClient()`. */
-export type DbObjectListSource = (
-  input?: DbClientListInput,
-  init?: { signal?: AbortSignal },
-) => Promise<DbClientListResponse>;
+/** The `api.db` actions {@link dbObjectSource} calls. */
+export type DbObjectSourceActions<TClientAttributes = never> = Pick<
+  DbClientActions<TClientAttributes>,
+  "listObjects"
+> &
+  Partial<Pick<DbClientActions<TClientAttributes>, "createFolder">>;
 
-/** Filters sent with every page. */
-export type DbObjectSourceOptions = {
-  route?: string;
-  status?: StorageObjectStatus;
-  contentType?: string;
-  /** Rows per page. The server caps it at 100. */
-  limit?: number;
-};
-
-/** The `useObjectList` query input this source reads. */
-export type DbObjectQueryInput = {
-  parent: string | null;
-  cursor: string | null;
-  /** `name`, `size`, or `updatedAt`. Other fields keep the default order. */
-  sort?: { field: string; direction: "asc" | "desc" } | null;
-  /** Trimmed text the filename contains. */
-  search?: string;
-  signal: AbortSignal;
-};
-
-export type DbObjectQueryPage = {
-  items: DbClientObject[];
-  nextCursor: string | null;
-  /** Scope totals from `listObjects`. Not limited to the open folder. */
-  usage: DbClientListResponse["usage"];
-};
-
-/** How `ObjectList` reads a `listObjects` row. Matches `ObjectListFile`. */
-export type DbObjectFile = {
-  /** Filename, or the last segment of the key. */
-  name: string;
-  objectKey: string;
-  /** Verified size. `null` while the object is still pending. */
-  size: number | null;
-  contentType: string | null;
-  /** When the row was created. */
-  updatedAt: string;
-};
-
-/** A `useObjectList` source. Matches `ObjectListSource<DbClientObject>`. */
-export type DbObjectSource = {
-  query: (input: DbObjectQueryInput) => Promise<DbObjectQueryPage>;
-  /** Row id. */
-  getKey: (object: DbClientObject) => string;
-  getFile: (object: DbClientObject) => DbObjectFile;
-};
-
-/** `ObjectList` sort fields and the `listObjects` columns they order by. */
+/** List sort fields and the `listObjects` columns they order by. */
 const SORT_FIELDS = new Map<string, DbListSortField>([
   ["name", "filename"],
   ["size", "size"],
-  ["updatedAt", "createdAt"],
+  ["updatedAt", "updatedAt"],
 ]);
 
-function toListSort(sort: DbObjectQueryInput["sort"]): DbListSort | undefined {
+function toListSort(
+  sort: DbObjectSourceQueryInput["sort"],
+): DbListSort | undefined {
   const field = sort ? SORT_FIELDS.get(sort.field) : undefined;
   return sort && field ? { field, direction: sort.direction } : undefined;
 }
 
-/** Read a `listObjects` row as an `ObjectList` file. */
-export function dbObjectFile(object: DbClientObject): DbObjectFile {
+function toFile(object: DbClientObject<unknown>): DbObjectSourceFile {
   return {
-    name: object.filename || fileNameFromKey(object.key) || object.key,
+    name: object.filename,
     objectKey: object.key,
     size: object.size,
     contentType: object.contentType,
-    updatedAt: object.createdAt,
+    updatedAt: object.updatedAt,
   };
 }
 
 /**
- * A `useObjectList` source over `api.db.listObjects`.
+ * A `useObjectList` source over `api.db`.
  *
- * `parent` is sent as the key `prefix`. This does not invent folder rows:
- * default object keys contain a uuid segment, so a delimiter over the key
- * is not a folder tree. `search` matches the filename on the server. `sort`
- * maps `name` to `filename` and `updatedAt` to `createdAt`; other fields
- * keep the default order (newest first). `usage` is the scope total, not
- * the open folder.
+ * With `folders` on (the default), `parent` is a folder path: each page
+ * lists one folder, the first page carries its child folders, uploads go to
+ * the open folder, and "New folder" calls `api.db.createFolder`. With
+ * `folders: false`, the list is flat and has no folder actions.
+ *
+ * `search` matches the filename on the server. `sort` maps `name` to
+ * `filename`; `size` and `updatedAt` keep their names, and other fields keep
+ * the server's order (newest first). `usage` is the scope total with its
+ * caps, not the open folder's.
  *
  * ```ts
  * const list = useObjectList({
- *   ...dbObjectSource(api.db.listObjects, { route: "docs" }),
+ *   ...dbObjectSource(api.db, { route: "docs" }),
  *   queryKey: ["docs"],
  * });
  * ```
  */
-export function dbObjectSource(
-  listObjects: DbObjectListSource,
-  options?: DbObjectSourceOptions,
-): DbObjectSource {
-  return {
-    getKey: (object) => object.id,
-    getFile: dbObjectFile,
-    async query(input) {
-      const queryInput: DbClientListInput = {};
-      if (input.parent) queryInput.prefix = input.parent;
-      if (input.cursor) queryInput.cursor = input.cursor;
-      if (input.search) queryInput.search = input.search;
-      const sort = toListSort(input.sort);
-      if (sort) queryInput.sort = sort;
-      if (options?.route) queryInput.route = options.route;
-      if (options?.status) queryInput.status = options.status;
-      if (options?.contentType) queryInput.contentType = options.contentType;
-      if (options?.limit != null) queryInput.limit = options.limit;
+export function dbObjectSource<TClientAttributes = never>(
+  db: DbObjectSourceActions<TClientAttributes>,
+  options: DbObjectSourceOptions = {},
+): DbObjectSource<TClientAttributes> {
+  const folders = options.folders !== false;
 
-      const page = await listObjects(queryInput, { signal: input.signal });
+  const source: DbObjectSource<TClientAttributes> = {
+    getKey: (item) => item.id,
+    getFile: toFile,
+    async query({ parent, cursor, sort, search, signal }) {
+      const input: DbClientListInput = {};
+      if (folders) input.folder = formatFolder(parent);
+      if (cursor) input.cursor = cursor;
+      if (search) input.search = search;
+      const listSort = toListSort(sort);
+      if (listSort) input.sort = listSort;
+      if (options.route) input.route = options.route;
+      if (options.status) input.status = options.status;
+      if (options.contentType) input.contentType = options.contentType;
+      if (options.limit !== undefined) input.limit = options.limit;
+
+      const page = await db.listObjects(input, { signal });
       return {
         items: page.objects,
-        nextCursor: page.nextCursor ?? null,
-        usage: page.usage,
+        nextCursor: page.nextCursor,
+        ...(page.folders && {
+          folders: page.folders.map((folder) => ({
+            id: folder.path,
+            name: folder.name,
+          })),
+        }),
+        ...(page.usage && { usage: { ...page.usage, ...page.limits } }),
       };
     },
   };
+  if (!folders) return source;
+
+  source.uploadOptions = (parent) => ({
+    metadata: { folder: formatFolder(parent) },
+  });
+  const createFolder = db.createFolder?.bind(db);
+  if (createFolder) {
+    source.createFolder = async ({ parent, name }) => {
+      // A `/` would create a nested folder instead of a child of `parent`.
+      if (name.includes("/")) throw s3Error("FOLDER_INVALID");
+      const { folder } = await createFolder({
+        path: joinFolderPath(parent, name),
+      });
+      return { id: folder.path, name: folder.name };
+    };
+  }
+  return source;
 }

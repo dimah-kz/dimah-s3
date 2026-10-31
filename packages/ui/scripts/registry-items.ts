@@ -1,71 +1,98 @@
 import type { Registry } from "shadcn/schema";
 
 type RegistryItem = Registry["items"][number];
+type RegistryFile = NonNullable<RegistryItem["files"]>[number];
 
-/** Paths are relative to `packages/ui/src/` (`@/` in source). */
-const layoutLibFile = {
-  path: "lib/attachment-layout.ts",
-  type: "registry:lib",
-  target: "@lib/attachment-layout.ts",
-} as const satisfies NonNullable<RegistryItem["files"]>[number];
+/**
+ * One source file of an item. `path` is relative to `packages/ui/src/`
+ * (`@/` in source), and the target keeps it under the matching shadcn
+ * placeholder (`@components/`, `@hooks/`, `@lib/`).
+ */
+function sourceFile(
+  path: string,
+  type: RegistryFile["type"] = "registry:component",
+): RegistryFile {
+  return { path, type, target: `@${path}` };
+}
 
-const statusSupportFiles = [
-  {
-    path: "components/dimah-s3/attachment/status-attachment.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/status-attachment.tsx",
-  },
-  {
-    path: "components/dimah-s3/attachment/dismiss-attachment-action.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/dismiss-attachment-action.tsx",
-  },
-  layoutLibFile,
-  {
-    path: "lib/file-type-icon.tsx",
-    type: "registry:lib",
-    target: "@lib/file-type-icon.tsx",
-  },
-] as const satisfies RegistryItem["files"];
+const circleProgressFile = sourceFile(
+  "components/dimah-s3/attachment/circle-progress.tsx",
+);
 
-const uploadSupportFiles = [
-  {
-    path: "components/dimah-s3/upload/upload-status.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/upload/upload-status.tsx",
-  },
-  {
-    path: "components/dimah-s3/upload/multi-upload-status.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/upload/multi-upload-status.tsx",
-  },
-  {
-    path: "hooks/use-upload-ui.tsx",
-    type: "registry:hook",
-    target: "@hooks/use-upload-ui.tsx",
-  },
-  {
-    path: "components/dimah-s3/attachment/file-attachment.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/file-attachment.tsx",
-  },
-  {
-    path: "components/dimah-s3/attachment/circle-progress.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/circle-progress.tsx",
-  },
-  {
-    path: "hooks/use-upload-toast.tsx",
-    type: "registry:hook",
-    target: "@hooks/use-upload-toast.tsx",
-  },
-  {
-    path: "hooks/use-file-reject-toast.tsx",
-    type: "registry:hook",
-    target: "@hooks/use-file-reject-toast.tsx",
-  },
-  ...statusSupportFiles,
-] as const satisfies RegistryItem["files"];
+const attachmentFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/attachment/file-attachment.tsx"),
+  sourceFile("components/dimah-s3/attachment/status-attachment.tsx"),
+  circleProgressFile,
+  sourceFile("components/dimah-s3/attachment/dismiss-attachment-action.tsx"),
+  sourceFile("components/dimah-s3/attachment/file-type-glyph.tsx"),
+  sourceFile("components/dimah-s3/attachment/folder-glyph.tsx"),
+  sourceFile("lib/attachment-layout.ts", "registry:lib"),
+];
+
+const toastOwnerFile = sourceFile("hooks/use-toast-owner.ts", "registry:hook");
+
+/** `Upload` reads the ObjectList context to upload into the open folder. */
+const uploadRootFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/upload/upload.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-context.tsx"),
+];
+
+const uploadPartFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/upload/upload-trigger.tsx"),
+  sourceFile("components/dimah-s3/upload/upload-dropzone.tsx"),
+  sourceFile("components/dimah-s3/upload/upload-status.tsx"),
+  sourceFile("components/dimah-s3/upload/upload-file-list.tsx"),
+  sourceFile("components/dimah-s3/upload/upload-toasts.tsx"),
+  sourceFile("hooks/use-paste-files.ts", "registry:hook"),
+  sourceFile("lib/upload-hints.ts", "registry:lib"),
+  sourceFile("lib/is-field-target.ts", "registry:lib"),
+];
+
+/** The whole upload family, with the attachments its status parts draw. */
+const uploadFamilyFiles: RegistryFile[] = [
+  ...uploadRootFiles,
+  ...uploadPartFiles,
+  ...attachmentFiles,
+  toastOwnerFile,
+];
+
+const objectImageFile = sourceFile(
+  "components/dimah-s3/preview/object-image.tsx",
+);
+
+const downloadFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/download/download.tsx"),
+  sourceFile("components/dimah-s3/download/download-trigger.tsx"),
+  sourceFile("components/dimah-s3/download/download-progress.tsx"),
+  sourceFile("components/dimah-s3/download/download-toasts.tsx"),
+];
+
+const deleteFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/delete/delete.tsx"),
+  sourceFile("components/dimah-s3/delete/delete-trigger.tsx"),
+  sourceFile("components/dimah-s3/delete/delete-confirm-dialog.tsx"),
+  sourceFile("components/dimah-s3/delete/delete-toasts.tsx"),
+  sourceFile("lib/isolate-text.ts", "registry:lib"),
+];
+
+const objectListFiles: RegistryFile[] = [
+  sourceFile("components/dimah-s3/list/object-list.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-header.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-breadcrumb.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-controls.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-content.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-entry.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-states.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-usage.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-upload.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-item-menu.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-feedback.tsx"),
+  sourceFile(
+    "components/dimah-s3/list/object-list-keyboard.ts",
+    "registry:hook",
+  ),
+  sourceFile("lib/format-expires-in.ts", "registry:lib"),
+];
 
 const componentDependencies = [
   "@dimah-s3/core",
@@ -73,108 +100,124 @@ const componentDependencies = [
   "@fuma-translate/react",
   "cn",
   "lucide-react",
-  "react-file-icon",
 ] as const;
 
-const componentDevDependencies = ["@types/react-file-icon"] as const;
+/** Theme tokens that `--dimah-s3-*` and the `*-dimah-s3-*` utilities cover. */
+const themeTokens = [
+  "background",
+  "foreground",
+  "card",
+  "card-foreground",
+  "primary",
+  "primary-foreground",
+  "muted",
+  "muted-foreground",
+  "accent",
+  "border",
+  "ring",
+  "destructive",
+  "success",
+  "warning",
+] as const;
 
-/** Maps `*-dimah-s3-*` utilities to the host shadcn theme (Tailwind v4 `@theme`). */
-export const componentCssVars = {
-  theme: {
-    "color-dimah-s3-background": "var(--background)",
-    "color-dimah-s3-foreground": "var(--foreground)",
-    "color-dimah-s3-card": "var(--card)",
-    "color-dimah-s3-card-foreground": "var(--card-foreground)",
-    "color-dimah-s3-primary": "var(--primary)",
-    "color-dimah-s3-primary-foreground": "var(--primary-foreground)",
-    "color-dimah-s3-secondary": "var(--secondary)",
-    "color-dimah-s3-secondary-foreground": "var(--secondary-foreground)",
-    "color-dimah-s3-muted": "var(--muted)",
-    "color-dimah-s3-muted-foreground": "var(--muted-foreground)",
-    "color-dimah-s3-accent": "var(--accent)",
-    "color-dimah-s3-accent-foreground": "var(--accent-foreground)",
-    "color-dimah-s3-destructive": "var(--destructive)",
-    "color-dimah-s3-border": "var(--border)",
-    "color-dimah-s3-ring": "var(--ring)",
+type ThemeToken = (typeof themeTokens)[number];
+
+/** Fallbacks for tokens that most shadcn themes do not define. */
+const fallbacks = {
+  light: {
+    success: "oklch(0.627 0.194 149.214)",
+    warning: "oklch(0.769 0.188 70.08)",
   },
-} as const satisfies RegistryItem["cssVars"];
+  dark: {
+    success: "oklch(0.723 0.219 149.579)",
+    warning: "oklch(0.828 0.189 84.429)",
+  },
+} as const satisfies Record<
+  "light" | "dark",
+  Partial<Record<ThemeToken, string>>
+>;
+
+function tokenDefaults(
+  mode: keyof typeof fallbacks,
+  tokens: readonly ThemeToken[],
+): Record<string, string> {
+  const modeFallbacks: Partial<Record<ThemeToken, string>> = fallbacks[mode];
+  return Object.fromEntries(
+    tokens.map((token) => {
+      const fallback = modeFallbacks[token];
+      return [
+        `dimah-s3-${token}`,
+        fallback ? `var(--${token}, ${fallback})` : `var(--${token})`,
+      ];
+    }),
+  );
+}
+
+/**
+ * The same tokens as `css/shadcn.css`: `light` and `dark` set each
+ * `--dimah-s3-*` default from the host shadcn theme, and `theme` maps the
+ * `color-dimah-s3-*` utilities onto them (Tailwind v4 `@theme inline`).
+ * Like the CSS file, `dark` only sets the tokens whose fallback changes.
+ */
+export const componentCssVars = {
+  light: tokenDefaults("light", themeTokens),
+  dark: tokenDefaults("dark", ["success", "warning"]),
+  theme: Object.fromEntries(
+    themeTokens.map((token) => [
+      `color-dimah-s3-${token}`,
+      `var(--dimah-s3-${token})`,
+    ]),
+  ),
+} satisfies RegistryItem["cssVars"];
 
 const toastRegistryDependencies = ["button", "toast"] as const;
 
-const attachmentFiles = [
-  {
-    path: "components/dimah-s3/attachment/file-attachment.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/file-attachment.tsx",
-  },
-  {
-    path: "components/dimah-s3/attachment/status-attachment.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/status-attachment.tsx",
-  },
-  {
-    path: "components/dimah-s3/attachment/circle-progress.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/circle-progress.tsx",
-  },
-  {
-    path: "components/dimah-s3/attachment/dismiss-attachment-action.tsx",
-    type: "registry:component",
-    target: "@components/dimah-s3/attachment/dismiss-attachment-action.tsx",
-  },
-  layoutLibFile,
-  {
-    path: "lib/file-type-icon.tsx",
-    type: "registry:lib",
-    target: "@lib/file-type-icon.tsx",
-  },
-] as const satisfies RegistryItem["files"];
-
 const installMeta = {
   dependencies: [...componentDependencies],
-  devDependencies: [...componentDevDependencies],
   cssVars: componentCssVars,
 };
 
-export const components = [
+/** For items that ship `attachment/file-type-glyph.tsx`. */
+const glyphInstallMeta = {
+  ...installMeta,
+  dependencies: [...componentDependencies, "react-file-icon"],
+  devDependencies: ["@types/react-file-icon"],
+};
+
+export const components: Registry["items"] = [
   {
     name: "file-attachment",
     type: "registry:component",
     title: "Attachment",
     description:
-      "FileAttachment and StatusAttachment rows for upload, download, and delete feedback.",
-    ...installMeta,
+      "FileAttachment and StatusAttachment rows, file type and folder glyphs, and a progress ring for upload, download, and delete feedback.",
+    ...glyphInstallMeta,
     // Stock shadcn Attachment primitive (not this item).
     registryDependencies: ["attachment"],
     files: [...attachmentFiles],
   },
   {
-    name: "upload-dropzone",
+    name: "upload",
     type: "registry:component",
-    title: "Upload Dropzone",
+    title: "Upload",
     description:
-      "Drag-and-drop upload zone with inline status and toast support.",
-    ...installMeta,
+      "Composable upload family: Upload root, trigger button, dropzone, status, file list, paste, and toasts.",
+    ...glyphInstallMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
+      "tooltip",
       "attachment",
       "progress",
     ],
-    files: [
-      {
-        path: "components/dimah-s3/upload/upload-dropzone.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/upload/upload-dropzone.tsx",
-      },
-      ...uploadSupportFiles,
-    ],
+    files: [...uploadFamilyFiles],
   },
   {
-    name: "upload-button",
+    name: "upload-field",
     type: "registry:component",
-    title: "Upload Button",
-    description: "File upload button with inline status and toast support.",
-    ...installMeta,
+    title: "Upload Field",
+    description:
+      "Form field whose value is the keys of the files uploaded through it, with the upload family to fill it.",
+    ...glyphInstallMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
       "tooltip",
@@ -182,119 +225,65 @@ export const components = [
       "progress",
     ],
     files: [
-      {
-        path: "components/dimah-s3/upload/upload-button.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/upload/upload-button.tsx",
-      },
-      ...uploadSupportFiles,
+      sourceFile("components/dimah-s3/upload/upload-field.tsx"),
+      ...uploadFamilyFiles,
     ],
   },
   {
-    name: "download-button",
+    name: "avatar-upload",
     type: "registry:component",
-    title: "Download Button",
-    description: "Presigned-URL download button with toast support.",
+    title: "Avatar Upload",
+    description:
+      "Round image button that uploads a new picture, with a preview, a progress ring, and live status.",
+    ...installMeta,
+    files: [
+      sourceFile("components/dimah-s3/upload/avatar-upload.tsx"),
+      ...uploadRootFiles,
+      objectImageFile,
+      circleProgressFile,
+    ],
+  },
+  {
+    name: "object-image",
+    type: "registry:component",
+    title: "Object Image",
+    description:
+      "Image that loads an S3 object through a presigned URL and refreshes it before it expires.",
+    ...installMeta,
+    dependencies: ["@dimah-s3/core", "@dimah-s3/react"],
+    files: [objectImageFile],
+  },
+  {
+    name: "download",
+    type: "registry:component",
+    title: "Download",
+    description:
+      "Composable download family: Download root, trigger button, progress, and toasts.",
+    ...installMeta,
+    registryDependencies: [...toastRegistryDependencies, "tooltip"],
+    files: [...downloadFiles, toastOwnerFile],
+  },
+  {
+    name: "delete",
+    type: "registry:component",
+    title: "Delete",
+    description:
+      "Composable delete family: Delete root with its confirm dialog, trigger button, and toasts.",
     ...installMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
       "tooltip",
-      "attachment",
-    ],
-    files: [
-      {
-        path: "components/dimah-s3/download/download-button.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/download/download-button.tsx",
-      },
-      {
-        path: "hooks/use-download-ui.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-download-ui.tsx",
-      },
-      {
-        path: "hooks/use-download-toast.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-download-toast.tsx",
-      },
-      ...statusSupportFiles,
-    ],
-  },
-  {
-    name: "progress-download-button",
-    type: "registry:component",
-    title: "Progress Download Button",
-    description:
-      "Download button with streaming progress bar and cancel support.",
-    ...installMeta,
-    registryDependencies: [
-      ...toastRegistryDependencies,
-      "tooltip",
-      "attachment",
-    ],
-    files: [
-      {
-        path: "components/dimah-s3/download/progress-download-button.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/download/progress-download-button.tsx",
-      },
-      {
-        path: "hooks/use-download-ui.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-download-ui.tsx",
-      },
-      {
-        path: "hooks/use-download-toast.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-download-toast.tsx",
-      },
-      ...statusSupportFiles,
-    ],
-  },
-  {
-    name: "delete-button",
-    type: "registry:component",
-    title: "Delete Button",
-    description:
-      "S3 object delete button with confirmation dialog and toast support.",
-    ...installMeta,
-    registryDependencies: [
-      ...toastRegistryDependencies,
       "alert-dialog",
-      "tooltip",
-      "attachment",
     ],
-    files: [
-      {
-        path: "components/dimah-s3/delete/delete-button.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/delete/delete-button.tsx",
-      },
-      {
-        path: "hooks/use-delete-ui.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-delete-ui.tsx",
-      },
-      {
-        path: "hooks/use-delete-toast.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-delete-toast.tsx",
-      },
-      {
-        path: "lib/isolate-text.ts",
-        type: "registry:lib",
-        target: "@lib/isolate-text.ts",
-      },
-      ...statusSupportFiles,
-    ],
+    files: [...deleteFiles, toastOwnerFile],
   },
   {
     name: "object-list",
     type: "registry:component",
     title: "Object List",
     description:
-      "Composable file and folder browser: list and grid views, search, sort, selection with bulk delete, drop upload, and a file menu.",
-    ...installMeta,
+      "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk delete, drop upload, and a file menu.",
+    ...glyphInstallMeta,
     registryDependencies: [
       "alert-dialog",
       "attachment",
@@ -307,89 +296,13 @@ export const components = [
       "skeleton",
       "spinner",
       "toast",
+      "tooltip",
     ],
     files: [
-      {
-        path: "components/dimah-s3/list/object-list.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-context.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-context.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-header.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-header.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-breadcrumb.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-breadcrumb.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-controls.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-controls.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-content.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-content.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-entry.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-entry.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-states.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-states.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-usage.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-usage.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-upload.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-upload.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-item-menu.tsx",
-        type: "registry:component",
-        target: "@components/dimah-s3/list/object-list-item-menu.tsx",
-      },
-      {
-        path: "components/dimah-s3/list/object-list-keyboard.ts",
-        type: "registry:hook",
-        target: "@components/dimah-s3/list/object-list-keyboard.ts",
-      },
-      {
-        path: "lib/format-expires-in.ts",
-        type: "registry:lib",
-        target: "@lib/format-expires-in.ts",
-      },
-      {
-        path: "lib/isolate-text.ts",
-        type: "registry:lib",
-        target: "@lib/isolate-text.ts",
-      },
-      {
-        path: "hooks/use-download-toast.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-download-toast.tsx",
-      },
-      {
-        path: "hooks/use-delete-toast.tsx",
-        type: "registry:hook",
-        target: "@hooks/use-delete-toast.tsx",
-      },
-      ...uploadSupportFiles,
+      ...objectListFiles,
+      ...uploadFamilyFiles,
+      ...downloadFiles,
+      ...deleteFiles,
     ],
   },
-] as const satisfies Registry["items"];
+];

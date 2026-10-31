@@ -3,53 +3,66 @@ import type {
   StorageObjectStatus,
 } from "@/types/storage-object";
 
-/** Raw `storage_object` row as returned by the FumaDB ORM. */
+/**
+ * A byte count as a driver returns it: a number, a bigint, or a string
+ * (PostgreSQL int8). A 1.x SQLite row still holds a blob, read as a bigint.
+ */
+type ByteCount = number | bigint | string | null;
+
+/** Raw `storage_object` row as the FumaDB ORM returns it. */
 export type StorageObjectRow = {
   id: string;
   scope: string;
   bucket: string;
   key: string;
   route: string;
+  folder: string | null;
+  filename: string;
   contentType: string | null;
-  size: bigint | null;
+  size: ByteCount;
+  declaredSize: ByteCount;
   eTag: string | null;
-  filename: string | null;
   status: string;
-  metadata: unknown;
+  s3Metadata: unknown;
+  attributes: unknown;
   acl: string | null;
   uploadId: string | null;
-  declaredSize: bigint | null;
-  confirmedAt: Date | null;
+  uploadToken: string | null;
   expiresAt: Date | null;
+  confirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
 };
 
-function toNumber(value: bigint | number | null): number | null {
-  if (value === null) return null;
-  return typeof value === "bigint" ? Number(value) : value;
+function toNumber(value: ByteCount): number | null {
+  return value === null ? null : Number(value);
 }
 
-/** Normalize a raw row: bigint → number, status narrowing, metadata cast. */
-export function mapStorageObjectRow(row: StorageObjectRow): StorageObject {
+/** Normalizes a raw row: sizes become numbers, JSON columns are cast. */
+export function mapStorageObjectRow<TAttributes = never>(
+  row: StorageObjectRow,
+): StorageObject<TAttributes> {
   return {
     id: row.id,
     scope: row.scope,
     bucket: row.bucket,
     key: row.key,
     route: row.route,
+    folder: row.folder,
+    filename: row.filename,
     contentType: row.contentType,
     size: toNumber(row.size),
+    declaredSize: toNumber(row.declaredSize),
     eTag: row.eTag,
-    filename: row.filename,
     status: row.status as StorageObjectStatus,
-    metadata: (row.metadata ?? null) as Record<string, unknown> | null,
+    s3Metadata: (row.s3Metadata ?? null) as Record<string, string> | null,
+    attributes: (row.attributes ?? null) as TAttributes | null,
     acl: row.acl,
     uploadId: row.uploadId,
-    declaredSize: toNumber(row.declaredSize),
-    confirmedAt: row.confirmedAt,
+    uploadToken: row.uploadToken,
     expiresAt: row.expiresAt,
+    confirmedAt: row.confirmedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     deletedAt: row.deletedAt,

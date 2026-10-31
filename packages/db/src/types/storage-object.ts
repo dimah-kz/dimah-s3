@@ -1,133 +1,60 @@
-/** Lifecycle status of a tracked object. */
-export type StorageObjectStatus = "pending" | "active" | "deleted";
+/**
+ * Lifecycle status of a tracked object.
+ * - `pending`: presigned or started, not confirmed yet
+ * - `active`: confirmed with HeadObject
+ * - `deleted`: soft-deleted
+ * - `purging`: a stale pending row that purge has claimed
+ */
+export type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
 
 /**
- * App-facing record for a `storage_object` row.
- * Sizes are normalized from bigint to number (safe — S3 caps objects at 5 TB).
+ * A `storage_object` row as the stores return it. Sizes are numbers (S3
+ * caps an object at 5 TiB, well inside the safe integer range).
  */
-export type StorageObject = {
+export type StorageObject<TAttributes = never> = {
   id: string;
-  /** Owner, e.g. `user:123` or `org:acme`. */
+  /** Owner, for example `user:123` or `org:acme`. */
   scope: string;
   bucket: string;
   key: string;
-  /** Named dimah-s3 route. */
+  /** Named dimah-s3 route that created the object. */
   route: string;
+  /** Logical folder path. `null` is the root. */
+  folder: string | null;
+  filename: string;
   contentType: string | null;
-  /** Verified size in bytes (set on confirm). */
+  /** Verified size in bytes, set on confirm. */
   size: number | null;
-  eTag: string | null;
-  filename: string | null;
-  status: StorageObjectStatus;
-  /** App-specific labels, visibility, publicUrl, etc. */
-  metadata: Record<string, unknown> | null;
-  acl: string | null;
-  /** Multipart upload ID while status = pending. */
-  uploadId: string | null;
-  /** Client-declared size before confirm (quota reservation). */
+  /** Size the client declared before confirm. Quota counts it while pending. */
   declaredSize: number | null;
-  confirmedAt: Date | null;
-  /** Pending TTL or temporary object expiry. */
+  eTag: string | null;
+  status: StorageObjectStatus;
+  /** S3 user metadata of the verified object. */
+  s3Metadata: Record<string, string> | null;
+  /** App attributes, validated by the plugin's `attributes.schema`. */
+  attributes: TAttributes | null;
+  acl: string | null;
+  /** Multipart upload ID while the row is pending. */
+  uploadId: string | null;
+  /** Token of the upload ticket that wrote the row. */
+  uploadToken: string | null;
+  /** Confirm deadline of a pending row (the upload ticket's expiry). */
   expiresAt: Date | null;
+  confirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
 };
 
-/**
- * Endpoint a scope is resolved for.
- * - `upload`: presign and multipart init
- * - `confirm`: confirm, and the confirm step of multipart complete
- * - `multipart`: part, list, abort, and complete
- * - `download`: presigned download and `GET /file`
- * - `delete`: delete, and each key of a batch delete
- * - `list`: `GET /db/objects` and `GET /db/object`
- */
-export type ScopeOperation =
-  "upload" | "confirm" | "multipart" | "download" | "delete" | "list";
-
-/** Values the endpoint already validated, passed to {@link ScopeResolver}. */
-export type ScopeContext = {
-  operation: ScopeOperation;
-  /** Named route. On `list`, set only when the client filtered by route. */
-  route?: string;
-  /** Object key. Absent on `GET /db/objects`. */
-  key?: string;
-  /** Client extras from presign or multipart init. Set on `upload` only. */
-  clientMetadata?: Record<string, string>;
-};
-
-/**
- * Resolves the owning scope for a request (e.g. from a session cookie).
- * `context` carries the operation, route, and key, so a scope that depends
- * on the object key does not have to parse the request. A batch delete
- * resolves once per key. Return `null` to reject the request as
- * unauthenticated (401).
- */
-export type ScopeResolver = (
-  request: Request,
-  context: ScopeContext,
-) => string | null | Promise<string | null>;
-
-/**
- * Browser-facing object row from `GET /db/objects`.
- * Deliberately narrower than {@link StorageObject} — omits server-only fields.
- */
-export type DbClientObject = {
+/** A `storage_folder` row. A folder exists once per scope and path. */
+export type StorageFolder = {
   id: string;
-  bucket: string;
-  key: string;
-  route: string;
-  filename: string | null;
-  contentType: string | null;
-  size: number | null;
-  declaredSize: number | null;
-  status: StorageObjectStatus;
-  /** ISO-8601 timestamp. */
-  createdAt: string;
-};
-
-export type DbClientListResponse = {
-  /** Scope resolved on the server via `resolveScope` (not a client input). */
   scope: string;
-  usage: { totalBytes: number; objectCount: number };
-  objects: DbClientObject[];
-  nextCursor?: string | null;
-};
-
-/** Column a listing can be ordered by. */
-export type DbListSortField = "createdAt" | "size" | "filename";
-
-/**
- * Listing order. Ties break on row `id` in the same direction. Rows without
- * a value for the field (a pending row's `size`, a missing `filename`) come
- * last in both directions.
- */
-export type DbListSort = {
-  field: DbListSortField;
-  direction: "asc" | "desc";
-};
-
-/**
- * Query params for browser `api.db.listObjects`.
- * Scope is not accepted — the server derives it from `resolveScope` on the request.
- */
-export type DbClientListInput = {
-  status?: StorageObjectStatus;
-  limit?: number;
-  offset?: number;
-  /** `nextCursor` from the previous page, requested with the same `sort`. */
-  cursor?: string;
-  route?: string;
-  contentType?: string;
-  prefix?: string;
-  /** Text the `filename` contains. Case follows the database collation. */
-  search?: string;
-  /** @default { field: "createdAt", direction: "desc" } */
-  sort?: DbListSort;
-};
-
-export type DbClientGetInput = {
-  key: string;
-  bucket?: string;
+  /** Full folder path. */
+  path: string;
+  /** Path of the containing folder. `null` is the root. */
+  parent: string | null;
+  /** Last segment of `path`. */
+  name: string;
+  createdAt: Date;
 };

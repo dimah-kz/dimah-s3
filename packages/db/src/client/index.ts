@@ -1,19 +1,24 @@
 export { dbClient } from "./db-client";
-export {
-  dbObjectFile,
-  dbObjectSource,
-  type DbObjectFile,
-  type DbObjectListSource,
-  type DbObjectQueryInput,
-  type DbObjectQueryPage,
-  type DbObjectSource,
-  type DbObjectSourceOptions,
-} from "./db-object-source";
+export { dbObjectSource, type DbObjectSourceActions } from "./db-object-source";
 export type {
+  DbClientActions,
+  DbClientFolder,
+  DbClientFolderInput,
   DbClientGetInput,
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
+  DbClientRequestInit,
+  DbClientUpdateInput,
   DbListSort,
   DbListSortField,
-} from "./db-client";
+  DbObjectSource,
+  DbObjectSourceFile,
+  DbObjectSourceFolder,
+  DbObjectSourceOptions,
+  DbObjectSourcePage,
+  DbObjectSourceQueryInput,
+  DbQuota,
+  DbUsage,
+} from "@/types/client";
+export type { StorageObjectStatus } from "@/types/storage-object";

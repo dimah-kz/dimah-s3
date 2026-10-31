@@ -74,6 +74,15 @@ export function ObjectListContent({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Entries off screen skip layout and paint. Each keeps a placeholder block
+ * size until it is first drawn, then its last drawn size.
+ */
+const ENTRY_VISIBILITY = {
+  list: "[contain-intrinsic-block-size:auto_2.75rem] [content-visibility:auto]",
+  grid: "[contain-intrinsic-block-size:auto_9.5rem] [content-visibility:auto]",
+} as const;
+
 function ObjectListEntries() {
   const { list, view, renderEntry } = useObjectListContext();
 
@@ -89,7 +98,11 @@ function ObjectListEntries() {
       }
     >
       {list.entries.map((entry) => (
-        <div key={entry.key} role="listitem" className="min-w-0">
+        <div
+          key={entry.key}
+          role="listitem"
+          className={cn("min-w-0", ENTRY_VISIBILITY[view])}
+        >
           <ObjectListEntryProvider entry={entry}>
             {renderEntry ? (
               renderEntry(entry)

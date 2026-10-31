@@ -43,11 +43,36 @@
     "./cli": {
       "types": "./dist/cli.d.ts",
       "default": "./dist/cli.js"
+    },
+    "./drizzle/sqlite": {
+      "types": "./dist/drizzle/sqlite.d.ts",
+      "default": "./dist/drizzle/sqlite.js"
+    },
+    "./drizzle/pg": {
+      "types": "./dist/drizzle/pg.d.ts",
+      "default": "./dist/drizzle/pg.js"
+    },
+    "./drizzle/mysql": {
+      "types": "./dist/drizzle/mysql.d.ts",
+      "default": "./dist/drizzle/mysql.js"
+    },
+    "./adapters/drizzle": {
+      "types": "./dist/adapters/drizzle.d.ts",
+      "default": "./dist/adapters/drizzle.js"
+    },
+    "./adapters/kysely": {
+      "types": "./dist/adapters/kysely.d.ts",
+      "default": "./dist/adapters/kysely.js"
+    },
+    "./adapters/prisma": {
+      "types": "./dist/adapters/prisma.d.ts",
+      "default": "./dist/adapters/prisma.js"
     }
   },
   "files": [
     "dist",
-    "src/schema/examples"
+    "sql",
+    "prisma"
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",

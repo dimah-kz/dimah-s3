@@ -1,30 +1,59 @@
 /**
- * @dimah-s3/ui color tokens ← host shadcn theme.
+ * @dimah-s3/ui theme tokens ← host shadcn theme.
  *
- * Dimah-owned components use `bg-dimah-s3-*` / `text-dimah-s3-*` utilities so the
- * library can be themed independently. By default every token points at the
- * matching shadcn CSS variable (`--primary`, `--muted`, …).
+ * Dimah-owned components read `--dimah-s3-*` through the `bg-dimah-s3-*` /
+ * `text-dimah-s3-*` utilities, so the library can be themed on its own. By
+ * default every token points at the matching shadcn variable (`--primary`,
+ * `--muted`, …). `success` and `warning` read `--success` / `--warning` when
+ * your theme defines them, and fall back to a green and an amber otherwise.
  *
- * Override after import to theme only dimah-s3:
+ * Override a token after this import, on `:root` or on any container:
  *
- *   @theme {
- *     --color-dimah-s3-primary: oklch(0.65 0.15 150);
+ *   :root {
+ *     --dimah-s3-primary: oklch(0.65 0.15 150);
+ *   }
+ *
+ *   .uploads-panel {
+ *     --dimah-s3-card: var(--muted);
  *   }
  */
-@theme {
-  --color-dimah-s3-background: var(--background);
-  --color-dimah-s3-foreground: var(--foreground);
-  --color-dimah-s3-card: var(--card);
-  --color-dimah-s3-card-foreground: var(--card-foreground);
-  --color-dimah-s3-primary: var(--primary);
-  --color-dimah-s3-primary-foreground: var(--primary-foreground);
-  --color-dimah-s3-secondary: var(--secondary);
-  --color-dimah-s3-secondary-foreground: var(--secondary-foreground);
-  --color-dimah-s3-muted: var(--muted);
-  --color-dimah-s3-muted-foreground: var(--muted-foreground);
-  --color-dimah-s3-accent: var(--accent);
-  --color-dimah-s3-accent-foreground: var(--accent-foreground);
-  --color-dimah-s3-destructive: var(--destructive);
-  --color-dimah-s3-border: var(--border);
-  --color-dimah-s3-ring: var(--ring);
+:root {
+  --dimah-s3-background: var(--background);
+  --dimah-s3-foreground: var(--foreground);
+  --dimah-s3-card: var(--card);
+  --dimah-s3-card-foreground: var(--card-foreground);
+  --dimah-s3-primary: var(--primary);
+  --dimah-s3-primary-foreground: var(--primary-foreground);
+  --dimah-s3-muted: var(--muted);
+  --dimah-s3-muted-foreground: var(--muted-foreground);
+  --dimah-s3-accent: var(--accent);
+  --dimah-s3-border: var(--border);
+  --dimah-s3-ring: var(--ring);
+  --dimah-s3-destructive: var(--destructive);
+  --dimah-s3-success: var(--success, oklch(0.627 0.194 149.214));
+  --dimah-s3-warning: var(--warning, oklch(0.769 0.188 70.08));
+}
+
+.dark {
+  --dimah-s3-success: var(--success, oklch(0.723 0.219 149.579));
+  --dimah-s3-warning: var(--warning, oklch(0.828 0.189 84.429));
+}
+
+/* `inline` makes each utility read the token itself, so overrides on a
+   container reach the components inside it. */
+@theme inline {
+  --color-dimah-s3-background: var(--dimah-s3-background);
+  --color-dimah-s3-foreground: var(--dimah-s3-foreground);
+  --color-dimah-s3-card: var(--dimah-s3-card);
+  --color-dimah-s3-card-foreground: var(--dimah-s3-card-foreground);
+  --color-dimah-s3-primary: var(--dimah-s3-primary);
+  --color-dimah-s3-primary-foreground: var(--dimah-s3-primary-foreground);
+  --color-dimah-s3-muted: var(--dimah-s3-muted);
+  --color-dimah-s3-muted-foreground: var(--dimah-s3-muted-foreground);
+  --color-dimah-s3-accent: var(--dimah-s3-accent);
+  --color-dimah-s3-border: var(--dimah-s3-border);
+  --color-dimah-s3-ring: var(--dimah-s3-ring);
+  --color-dimah-s3-destructive: var(--dimah-s3-destructive);
+  --color-dimah-s3-success: var(--dimah-s3-success);
+  --color-dimah-s3-warning: var(--dimah-s3-warning);
 }

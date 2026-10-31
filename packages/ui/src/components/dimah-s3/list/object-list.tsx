@@ -1,50 +1,56 @@
 "use client";
 
 import {
-  useEffect,
   useRef,
   useState,
   type ClipboardEvent,
   type CSSProperties,
+  type DragEvent,
+  type FocusEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
-import {
-  objectKeyOf,
-  type ObjectListFileEntry,
-  type ObjectListFolder,
-  type UseDeleteReturn,
-  type UseNavigateDownloadReturn,
-  type UseObjectListReturn,
-  type UseObjectListSelectionReturn,
-  type UseUploadReturn,
+import type {
+  AnyDownloadReturn,
+  DeleteResult,
+  ObjectListFolder,
+  UseDeleteReturn,
+  UseDownloadReturn,
+  UseObjectListReturn,
+  UseObjectListSelectionReturn,
+  UseUploadReturn,
 } from "@dimah-s3/react";
+import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
+import { Delete } from "@/components/dimah-s3/delete/delete";
+import { useDeleteToasts } from "@/components/dimah-s3/delete/delete-toasts";
+import { Download } from "@/components/dimah-s3/download/download";
+import { BuiltInDownloadToasts } from "@/components/dimah-s3/download/download-toasts";
 import { ObjectListContent } from "@/components/dimah-s3/list/object-list-content";
+import {
+  ObjectListAnnouncer,
+  useObjectListAnnouncement,
+} from "@/components/dimah-s3/list/object-list-feedback";
 import {
   ObjectListProvider,
   useObjectListContext,
   type ObjectListContextValue,
-  type ObjectListDeleteResult,
   type ObjectListRenderers,
-  type ObjectListUsageLimits,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
 import { ObjectListHeader } from "@/components/dimah-s3/list/object-list-header";
+import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
 import {
-  ObjectDeleteDialog,
-  ObjectDownloadToasts,
-} from "@/components/dimah-s3/list/object-list-item-menu";
-import {
-  isFieldTarget,
-  useObjectListKeyboard,
-} from "@/components/dimah-s3/list/object-list-keyboard";
-import {
+  folderUploadCall,
   ObjectListDropOverlay,
   ObjectListUploadStatus,
   useRefreshListAfterUpload,
 } from "@/components/dimah-s3/list/object-list-upload";
 import { ObjectListUsage } from "@/components/dimah-s3/list/object-list-usage";
+import { Upload } from "@/components/dimah-s3/upload/upload";
+import { BuiltInUploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { isFieldTarget } from "@/lib/is-field-target";
 
 /** Props for {@link ObjectList}. */
 export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
@@ -56,25 +62,38 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
    */
   selection?: UseObjectListSelectionReturn<TItem>;
   /**
-   * `useUpload` with `noClick` and `noKeyboard`. Drop or paste files onto
-   * the list to upload into the open folder. `getUploadOptions` reads
-   * `list.parent`; the list does not write metadata. When a batch settles
-   * with at least one success, the list reloads once. The list renders the
-   * hook's file input, so `upload.open()` from any trigger opens the picker.
+   * `useUpload`. Drop or paste files onto the list to upload them into the
+   * open folder. When the source has `uploadOptions`, files go where it
+   * says, folder rows take drops, and their menu has Upload to this folder.
+   * `UploadTrigger` and `UploadDropzone` inside the list use the same hook
+   * and folder without their own `Upload`. The list reloads once each time
+   * the queue settles with new uploads.
    */
   upload?: UseUploadReturn;
-  /** Navigate-mode `useDownload`. Adds Download to the file menu. */
-  download?: UseNavigateDownloadReturn;
+  /**
+   * `useDownload` or `useFetchDownload`. Adds Download to the file menu.
+   * `DownloadTrigger` inside the list uses it without its own `Download`.
+   */
+  download?: AnyDownloadReturn;
   /**
    * Navigate-mode `useDownload` for Copy link, such as one with
-   * `disposition: "inline"`. Falls back to `download`.
+   * `disposition: "inline"`. Falls back to a navigate-mode `download`.
    */
-  share?: UseNavigateDownloadReturn;
+  share?: UseDownloadReturn;
   /**
-   * `useDelete`. Adds Delete to the file menu and to the selection bar.
-   * Deleted files leave the rows at once; the list then reloads.
+   * `useDelete`. Adds Delete to the file menu and to the selection bar,
+   * with one confirmation for the whole list. `DeleteTrigger` inside the
+   * list uses it too. Deleted files leave the rows at once; the list then
+   * reloads.
    */
   delete?: UseDeleteReturn;
+  /**
+   * Show toasts for `upload`, `download`, and `delete`. They step aside for
+   * an `UploadToasts`, `DownloadToasts`, or `DeleteToasts` you mount for the
+   * same hook. Off, the list's own controls (Copy link, bulk Delete) report
+   * in a polite live region instead. @default true
+   */
+  toasts?: boolean;
   /** Controlled view. Pass it with `onViewChange`. */
   view?: ObjectListView;
   /** Uncontrolled starting view. @default "list" */
@@ -90,8 +109,8 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
    * only when this is set. Pair it with `isSelectable` on the selection.
    */
   resolveFolderKeys?: (folder: ObjectListFolder) => Promise<readonly string[]>;
-  /** Called after a delete from the file menu or the selection bar. */
-  onDeleted?: (result: ObjectListDeleteResult) => void;
+  /** Called after each confirmed delete in the list, with every key's outcome. */
+  onDeleted?: (result: DeleteResult) => void;
   /** Root breadcrumb label and the list's accessible name. @default "Files" */
   rootLabel?: string;
   /** Show the path in the default header. @default true */
@@ -100,8 +119,6 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
   toolbar?: ReactNode;
   /** Extra controls on the selection bar, beside Delete. */
   selectionActions?: ReactNode;
-  /** Caps drawn next to `list.usage`. */
-  usageLimits?: ObjectListUsageLimits;
   /** Replaces the empty state. `ObjectListEmpty` takes your own text. */
   empty?: ReactNode;
   /**
@@ -135,6 +152,10 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
  * `render*` props to change parts of each entry, or pass `children` to
  * arrange the parts (`ObjectListHeader`, `ObjectListSearch`,
  * `ObjectListContent`, …) yourself.
+ *
+ * The list is the `Upload`, `Download`, and `Delete` root for its hooks,
+ * so the family parts work inside it, and one delete confirmation serves
+ * every row and the selection bar.
  */
 export function ObjectList<TItem>({
   list,
@@ -142,7 +163,8 @@ export function ObjectList<TItem>({
   upload,
   download,
   share,
-  delete: remove,
+  delete: del,
+  toasts = true,
   view: viewProp,
   defaultView = "list",
   onViewChange,
@@ -153,7 +175,6 @@ export function ObjectList<TItem>({
   breadcrumb = true,
   toolbar,
   selectionActions,
-  usageLimits,
   empty,
   loadMore = "auto",
   height,
@@ -169,6 +190,8 @@ export function ObjectList<TItem>({
   const [localView, setLocalView] = useState(defaultView);
   const view = viewProp ?? localView;
   useRefreshListAfterUpload(upload, list.refresh);
+  const deleteFocus = useFocusAfterDelete();
+  const { announcement, announce } = useObjectListAnnouncement();
 
   const frameHeight = cssLength(height);
   const frameMaxHeight = cssLength(maxHeight);
@@ -179,7 +202,9 @@ export function ObjectList<TItem>({
     upload: upload ?? null,
     download: download ?? null,
     share: share ?? null,
-    remove: remove ?? null,
+    delete: del ?? null,
+    toasts,
+    announce,
     view,
     setView(next) {
       if (viewProp === undefined) setLocalView(next);
@@ -190,7 +215,6 @@ export function ObjectList<TItem>({
       frameHeight != null ? "fixed" : frameMaxHeight != null ? "max" : null,
     showBreadcrumb: breadcrumb,
     selectionActions,
-    usageLimits,
     empty,
     loadMore,
     onOpenItem,
@@ -199,65 +223,167 @@ export function ObjectList<TItem>({
     renderActions,
     renderDescription,
     renderMeta,
-    afterDelete(result) {
-      if (result.deleted.length > 0) {
-        const gone = new Set(result.deleted);
-        list.setItems((items) =>
-          items.filter(
-            (item) =>
-              !gone.has(
-                objectKeyOf({
-                  id: list.getKey(item),
-                  file: list.getFile(item),
-                }),
-              ),
-          ),
-        );
-        // A persisted selection keeps entries that are no longer loaded.
-        selection?.deselect(
-          selection.selected.flatMap((entry) =>
-            entry.kind === "file" && gone.has(objectKeyOf(entry))
-              ? [entry.key]
-              : [],
-          ),
-        );
-        void list.refresh();
-      }
-      onDeleted?.(result);
-    },
   };
+
+  /** Drops deleted files from the rows and the selection, then reloads. */
+  function handleDeleted(result: DeleteResult) {
+    if (result.deleted.length > 0) {
+      const gone = new Set(result.deleted);
+      deleteFocus.prepare(
+        list.entries.flatMap((entry) =>
+          entry.kind === "file" && gone.has(objectKeyOf(entry))
+            ? [entry.key]
+            : [],
+        ),
+      );
+      list.setItems((items) =>
+        items.filter(
+          (item) =>
+            !gone.has(
+              objectKeyOf({ id: list.getKey(item), file: list.getFile(item) }),
+            ),
+        ),
+      );
+      // A persisted selection keeps entries that are no longer loaded.
+      selection?.deselect(
+        selection.selected.flatMap((entry) =>
+          entry.kind === "file" && gone.has(objectKeyOf(entry))
+            ? [entry.key]
+            : [],
+        ),
+      );
+      void list.refresh();
+    }
+    onDeleted?.(result);
+  }
+
+  let content: ReactNode = (
+    <ObjectListFrame
+      frameRef={deleteFocus.frameRef}
+      onFocus={deleteFocus.onFrameFocus}
+      className={className}
+      style={{
+        ...(frameHeight != null ? { height: frameHeight } : {}),
+        ...(frameMaxHeight != null ? { maxHeight: frameMaxHeight } : {}),
+      }}
+    >
+      {children ?? (
+        <>
+          {breadcrumb ||
+          toolbar != null ||
+          selection != null ||
+          list.createFolder != null ? (
+            <ObjectListHeader>{toolbar}</ObjectListHeader>
+          ) : null}
+          <ObjectListUsage />
+          <ObjectListUploadStatus />
+          <ObjectListContent />
+        </>
+      )}
+    </ObjectListFrame>
+  );
+  if (del) {
+    content = (
+      <Delete
+        delete={del}
+        onDeleted={handleDeleted}
+        restoreFocus={deleteFocus.restoreFocus}
+      >
+        {content}
+      </Delete>
+    );
+  }
+  if (download) content = <Download download={download}>{content}</Download>;
+  if (upload) content = <Upload upload={upload}>{content}</Upload>;
 
   return (
     <ObjectListProvider value={context}>
-      <ObjectListFrame
-        className={className}
-        style={{
-          ...(frameHeight != null ? { height: frameHeight } : {}),
-          ...(frameMaxHeight != null ? { maxHeight: frameMaxHeight } : {}),
-        }}
-      >
-        {children ?? (
-          <>
-            {breadcrumb || toolbar != null || selection != null ? (
-              <ObjectListHeader>{toolbar}</ObjectListHeader>
-            ) : null}
-            <ObjectListUsage />
-            <ObjectListUploadStatus />
-            <ObjectListContent />
-          </>
-        )}
-      </ObjectListFrame>
-      <ObjectListTransfers />
+      {content}
+      {toasts ? (
+        <>
+          {upload ? <BuiltInUploadToasts upload={upload} /> : null}
+          {download ? <BuiltInDownloadToasts download={download} /> : null}
+          {del ? <ObjectListDeleteToasts delete={del} /> : null}
+        </>
+      ) : (
+        <ObjectListAnnouncer announcement={announcement} />
+      )}
     </ObjectListProvider>
   );
 }
 
-/** The bordered frame: drop target, paste target, and keyboard scope. */
+/**
+ * Where focus goes after a delete in the list. Once the control that asked
+ * is gone (its row, or the selection bar), focus moves to the entry that
+ * took the place of the first deleted one, else the one before it. The
+ * `Delete` root falls back to the frame.
+ */
+function useFocusAfterDelete() {
+  const frameRef = useRef<HTMLElement>(null);
+  /** The element in the frame that last had focus: the delete's control. */
+  const lastFocusRef = useRef<HTMLElement | null>(null);
+  const nextRef = useRef<HTMLElement | null>(null);
+
+  return {
+    frameRef,
+    onFrameFocus(event: FocusEvent<HTMLElement>) {
+      // Menus are portalled: their focus bubbles through React only.
+      if (event.currentTarget.contains(event.target)) {
+        lastFocusRef.current = event.target;
+      }
+    },
+    /** Call with the entry keys a delete removes, while they still render. */
+    prepare(removedKeys: readonly string[]) {
+      nextRef.current = entryAfter(frameRef.current, new Set(removedKeys));
+    },
+    restoreFocus(): HTMLElement | null {
+      const next = nextRef.current;
+      nextRef.current = null;
+      // A control that is still there, such as the selection bar's Delete,
+      // keeps focus.
+      return lastFocusRef.current?.isConnected ? null : next;
+    },
+  };
+}
+
+/** The first entry trigger after the first removed one, else the last before it. */
+function entryAfter(
+  frame: HTMLElement | null,
+  removed: ReadonlySet<string>,
+): HTMLElement | null {
+  if (!frame || removed.size === 0) return null;
+  const triggers = [
+    ...frame.querySelectorAll<HTMLElement>(
+      "[data-slot=object-list-entry-trigger]",
+    ),
+  ];
+  const isRemoved = (trigger: HTMLElement) =>
+    removed.has(trigger.dataset.entryKey ?? "");
+  const first = triggers.findIndex(isRemoved);
+  if (first < 0) return null;
+  return (
+    triggers.slice(first).find((trigger) => !isRemoved(trigger)) ??
+    triggers
+      .slice(0, first)
+      .reverse()
+      .find((trigger) => !isRemoved(trigger)) ??
+    null
+  );
+}
+
+/**
+ * The bordered frame: drop target, paste target, keyboard scope, and the
+ * place focus returns to when no entry can take it after a delete.
+ */
 function ObjectListFrame({
+  frameRef,
+  onFocus,
   className,
   style,
   children,
 }: {
+  frameRef: RefObject<HTMLElement | null>;
+  onFocus: (event: FocusEvent<HTMLElement>) => void;
   className?: string;
   style: CSSProperties;
   children: ReactNode;
@@ -266,22 +392,40 @@ function ObjectListFrame({
     useObjectListContext();
   const keyboard = useObjectListKeyboard({ list, selection, view });
   const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
+  const call = folderUploadCall(list, list.parent);
+  // A folder row or a dropzone inside the list takes the drag and speaks
+  // for it, so the frame's overlay steps aside.
+  const [innerTarget, setInnerTarget] = useState(false);
+
+  function trackDragTarget(event: DragEvent<HTMLElement>) {
+    const inner =
+      event.target instanceof Element
+        ? event.target.closest(INNER_DROP_TARGET)
+        : null;
+    setInnerTarget(inner != null && event.currentTarget.contains(inner));
+  }
 
   function onPaste(event: ClipboardEvent<HTMLElement>) {
-    if (!upload || isFieldTarget(event.target)) return;
+    // A dropzone inside the list takes its own pastes.
+    if (!upload || event.defaultPrevented || isFieldTarget(event.target)) {
+      return;
+    }
     const files = [...event.clipboardData.files];
     if (files.length === 0) return;
     event.preventDefault();
-    void upload.handleFiles(files);
+    void upload.handleFiles(files, call);
   }
 
   const frameProps = {
     "data-slot": "object-list",
     "data-view": view,
+    "data-dimah-s3-focus-root": "",
     "aria-label": label,
     "aria-busy": busy || undefined,
+    tabIndex: -1,
+    ref: frameRef,
     className: cn(
-      "relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors",
+      "group/object-list relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors outline-none focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50",
       sizing && "min-h-0",
       upload?.isDragReject &&
         "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
@@ -293,119 +437,36 @@ function ObjectListFrame({
       className,
     ),
     style,
+    onFocus,
     onPaste,
-  };
-
-  const sectionProps = {
-    ...(upload
-      ? upload.getRootProps({
-          ...frameProps,
-          role: "region",
-          tabIndex: undefined,
-          "aria-disabled": undefined,
-          onClick: (event) => {
-            event.stopPropagation();
-          },
-        })
-      : frameProps),
-    // After the dropzone props: with `noKeyboard` it drops `onKeyDown`.
+    onDragEnter: trackDragTarget,
+    onDragOver: trackDragTarget,
+    onDrop: () => setInnerTarget(false),
     // Keys come from the entries inside; the frame only routes them.
     onKeyDown: keyboard.onKeyDown,
     onKeyUp: keyboard.onKeyUp,
   };
 
   return (
-    <section {...sectionProps}>
+    <section
+      {...(upload ? upload.getDropTargetProps(frameProps, call) : frameProps)}
+    >
       {children}
       {upload ? (
-        <>
-          <input {...upload.getInputProps()} />
-          <ObjectListDropOverlay upload={upload} />
-        </>
+        <ObjectListDropOverlay upload={upload} hidden={innerTarget} />
       ) : null}
     </section>
   );
 }
 
-/**
- * One delete confirmation and one set of transfer toasts for the whole list,
- * whichever row asked.
- */
-function ObjectListTransfers() {
-  const { list, remove, download, afterDelete } = useObjectListContext();
-  const deleting = findLoadedFile(list, remove?.objectKey);
-  const downloading = findLoadedFile(list, download?.objectKey);
-  useSingleDeleteSettled(remove, afterDelete);
+/** Drop targets inside the frame that take a drag for themselves. */
+const INNER_DROP_TARGET =
+  "[data-slot=object-list-entry][data-drag-active], [data-slot=upload-dropzone]:not([aria-disabled=true])";
 
-  return (
-    <>
-      {remove ? (
-        <ObjectDeleteDialog
-          remove={remove}
-          target={
-            remove.objectKey
-              ? {
-                  objectKey: remove.objectKey,
-                  fileName: deleting?.file.name,
-                  fileSize: deleting?.file.size,
-                }
-              : null
-          }
-        />
-      ) : null}
-      {download ? (
-        <ObjectDownloadToasts
-          download={download}
-          objectKey={download.objectKey ?? ""}
-          fileName={downloading?.file.name}
-          fileSize={downloading?.file.size ?? undefined}
-        />
-      ) : null}
-    </>
-  );
-}
-
-/** The loaded file whose object key is `objectKey`. */
-function findLoadedFile<TItem>(
-  list: UseObjectListReturn<TItem>,
-  objectKey: string | null | undefined,
-): ObjectListFileEntry<TItem> | null {
-  if (!objectKey) return null;
-  for (const entry of list.entries) {
-    if (entry.kind === "file" && objectKeyOf(entry) === objectKey) return entry;
-  }
+/** Delete toasts that step aside for an explicit `DeleteToasts`. */
+function ObjectListDeleteToasts({ delete: del }: { delete: UseDeleteReturn }) {
+  useDeleteToasts(del, { weak: true });
   return null;
-}
-
-/** Hands a finished single-file delete to the list once. */
-function useSingleDeleteSettled(
-  remove: UseDeleteReturn | null,
-  afterDelete: (result: ObjectListDeleteResult) => void,
-) {
-  const afterDeleteRef = useRef(afterDelete);
-  const settledRef = useRef<string | null>(null);
-  const phase = remove?.phase;
-  const objectKey = remove?.objectKey ?? null;
-
-  useEffect(() => {
-    afterDeleteRef.current = afterDelete;
-  });
-
-  useEffect(() => {
-    const settled = phase === "success" || phase === "error";
-    if (!settled || objectKey == null) {
-      settledRef.current = null;
-      return;
-    }
-    const token = `${phase}:${objectKey}`;
-    if (settledRef.current === token) return;
-    settledRef.current = token;
-    afterDeleteRef.current(
-      phase === "success"
-        ? { deleted: [objectKey], failed: [] }
-        : { deleted: [], failed: [objectKey] },
-    );
-  }, [objectKey, phase]);
 }
 
 /** A number is pixels. A blank string is unset. */

@@ -1,134 +1,241 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
+  DbClientActions,
   DbClientListResponse,
   DbClientObject,
-} from "@/types/storage-object";
-import {
-  dbObjectFile,
-  dbObjectSource,
-  type DbObjectListSource,
-} from "./db-object-source";
+  DbObjectSourceQueryInput,
+} from "@/types/client";
+import { dbObjectSource } from "./db-object-source";
 
 function row(patch: Partial<DbClientObject> = {}): DbClientObject {
   return {
     id: "row-1",
     bucket: "b",
-    key: "docs/uuid/notes.md",
+    key: "users/1/uuid/notes.md",
     route: "docs",
+    folder: null,
     filename: "Notes.md",
     contentType: "text/markdown",
     size: 4096,
-    declaredSize: null,
+    declaredSize: 4096,
     status: "active",
+    attributes: null,
     createdAt: "2024-01-01T00:00:00.000Z",
+    updatedAt: "2024-01-02T00:00:00.000Z",
     ...patch,
   };
 }
 
 const page: DbClientListResponse = {
   scope: "user:1",
-  usage: { totalBytes: 12, objectCount: 1 },
   objects: [row()],
   nextCursor: "cursor-2",
 };
 
-describe("dbObjectSource", () => {
-  it("maps the folder id to a key prefix and forwards the abort signal", async () => {
-    const listObjects = vi.fn(async () => page);
-    const controller = new AbortController();
-    const source = dbObjectSource(listObjects, { route: "docs", limit: 20 });
+function listObjectsReturning(response: DbClientListResponse = page) {
+  return vi.fn<DbClientActions["listObjects"]>(async () => response);
+}
 
-    await expect(
-      source.query({
-        parent: "docs/",
-        cursor: "cursor-1",
-        signal: controller.signal,
-      }),
-    ).resolves.toEqual({
-      items: page.objects,
-      nextCursor: "cursor-2",
-      usage: page.usage,
-    });
+function queryInput(
+  patch: Partial<DbObjectSourceQueryInput> = {},
+): DbObjectSourceQueryInput {
+  return {
+    parent: null,
+    cursor: null,
+    sort: null,
+    search: "",
+    signal: new AbortController().signal,
+    ...patch,
+  };
+}
 
+describe("dbObjectSource query", () => {
+  it("lists the root folder by default and forwards the signal", async () => {
+    const listObjects = listObjectsReturning();
+    const input = queryInput();
+
+    await expect(dbObjectSource({ listObjects }).query(input)).resolves.toEqual(
+      { items: page.objects, nextCursor: "cursor-2" },
+    );
     expect(listObjects).toHaveBeenCalledWith(
-      { prefix: "docs/", cursor: "cursor-1", route: "docs", limit: 20 },
-      { signal: controller.signal },
+      { folder: "" },
+      { signal: input.signal },
     );
   });
 
-  it("omits an empty folder and cursor", async () => {
-    const listObjects = vi.fn(async () => ({ ...page, nextCursor: null }));
-    const source = dbObjectSource(listObjects);
+  it("sends the open folder, cursor, search, and filters", async () => {
+    const listObjects = listObjectsReturning();
+    const source = dbObjectSource(
+      { listObjects },
+      { route: "docs", status: "pending", contentType: "image/png", limit: 20 },
+    );
 
-    await expect(
-      source.query({
-        parent: null,
-        cursor: null,
-        signal: new AbortController().signal,
-      }),
-    ).resolves.toMatchObject({ nextCursor: null });
+    await source.query(
+      queryInput({ parent: "work/drafts", cursor: "cursor-1", search: "q3" }),
+    );
 
-    expect(listObjects).toHaveBeenCalledWith({}, expect.any(Object));
+    expect(listObjects.mock.calls[0]?.[0]).toEqual({
+      folder: "work/drafts",
+      cursor: "cursor-1",
+      search: "q3",
+      route: "docs",
+      status: "pending",
+      contentType: "image/png",
+      limit: 20,
+    });
   });
 
-  it("forwards search and maps the list sort to listObjects columns", async () => {
-    const listObjects = vi.fn<DbObjectListSource>(async () => page);
-    const source = dbObjectSource(listObjects);
-    const query = (sort: { field: string; direction: "asc" | "desc" } | null) =>
-      source.query({
-        parent: null,
-        cursor: null,
-        sort,
-        search: "notes",
-        signal: new AbortController().signal,
-      });
+  it("lists every folder flat with folders: false", async () => {
+    const listObjects = listObjectsReturning();
+    const source = dbObjectSource({ listObjects }, { folders: false });
 
-    await query({ field: "name", direction: "asc" });
-    await query({ field: "updatedAt", direction: "desc" });
-    await query({ field: "size", direction: "desc" });
-    await query({ field: "owner", direction: "asc" });
-    await query(null);
+    await source.query(queryInput({ parent: "work" }));
 
-    expect(listObjects.mock.calls.map(([input]) => input)).toEqual([
-      { search: "notes", sort: { field: "filename", direction: "asc" } },
-      { search: "notes", sort: { field: "createdAt", direction: "desc" } },
-      { search: "notes", sort: { field: "size", direction: "desc" } },
-      { search: "notes" },
-      { search: "notes" },
+    expect(listObjects.mock.calls[0]?.[0]).toEqual({});
+  });
+
+  it("maps the list sort to listObjects columns", async () => {
+    const listObjects = listObjectsReturning();
+    const source = dbObjectSource({ listObjects }, { folders: false });
+    const fields = ["name", "size", "updatedAt", "owner", "constructor"];
+
+    for (const field of fields) {
+      await source.query(queryInput({ sort: { field, direction: "asc" } }));
+    }
+    await source.query(queryInput({ sort: null }));
+
+    expect(listObjects.mock.calls.map(([input]) => input?.sort)).toEqual([
+      { field: "filename", direction: "asc" },
+      { field: "size", direction: "asc" },
+      { field: "updatedAt", direction: "asc" },
+      undefined,
+      undefined,
+      undefined,
     ]);
   });
 
-  it("omits empty search text", async () => {
-    const listObjects = vi.fn(async () => page);
-    await dbObjectSource(listObjects).query({
-      parent: null,
-      cursor: null,
-      sort: null,
-      search: "",
-      signal: new AbortController().signal,
+  it("reads child folders and merges the limits into usage", async () => {
+    const listObjects = listObjectsReturning({
+      ...page,
+      folders: [
+        {
+          path: "work/drafts",
+          name: "drafts",
+          parent: "work",
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+      ],
+      usage: { totalBytes: 12, objectCount: 1 },
+      limits: { maxBytes: 1024, maxFiles: 10 },
     });
-    expect(listObjects).toHaveBeenCalledWith({}, expect.any(Object));
+
+    await expect(
+      dbObjectSource({ listObjects }).query(queryInput({ parent: "work" })),
+    ).resolves.toEqual({
+      items: page.objects,
+      nextCursor: "cursor-2",
+      folders: [{ id: "work/drafts", name: "drafts" }],
+      usage: { totalBytes: 12, objectCount: 1, maxBytes: 1024, maxFiles: 10 },
+    });
   });
 
-  it("keys rows by id", () => {
-    expect(dbObjectSource(vi.fn()).getKey(row())).toBe("row-1");
+  it("keeps usage without caps when the scope has none", async () => {
+    const listObjects = listObjectsReturning({
+      ...page,
+      usage: { totalBytes: 12, objectCount: 1 },
+      limits: null,
+    });
+
+    await expect(
+      dbObjectSource({ listObjects }).query(queryInput()),
+    ).resolves.toMatchObject({ usage: { totalBytes: 12, objectCount: 1 } });
   });
 });
 
-describe("dbObjectFile", () => {
-  it("reads the filename, object key, type, size, and date", () => {
-    expect(dbObjectFile(row())).toEqual({
+describe("dbObjectSource rows", () => {
+  const source = dbObjectSource({ listObjects: listObjectsReturning() });
+
+  it("keys rows by id", () => {
+    expect(source.getKey(row())).toBe("row-1");
+  });
+
+  it("reads the filename, object key, size, type, and updatedAt", () => {
+    expect(source.getFile(row())).toEqual({
       name: "Notes.md",
-      objectKey: "docs/uuid/notes.md",
+      objectKey: "users/1/uuid/notes.md",
       size: 4096,
       contentType: "text/markdown",
-      updatedAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-02T00:00:00.000Z",
     });
   });
 
-  it("falls back to the key leaf when the filename is missing", () => {
+  it("keeps a pending row's missing size and type", () => {
     expect(
-      dbObjectFile(row({ filename: null, size: null, contentType: null })),
-    ).toMatchObject({ name: "notes.md", size: null, contentType: null });
+      source.getFile(row({ size: null, contentType: null })),
+    ).toMatchObject({ size: null, contentType: null });
+  });
+});
+
+describe("dbObjectSource folders", () => {
+  it("uploads into the given folder, with the root as an empty string", () => {
+    const source = dbObjectSource({ listObjects: listObjectsReturning() });
+
+    expect(source.uploadOptions?.("work/drafts")).toEqual({
+      metadata: { folder: "work/drafts" },
+    });
+    expect(source.uploadOptions?.(null)).toEqual({ metadata: { folder: "" } });
+  });
+
+  it("creates a folder inside the parent", async () => {
+    const createFolder = vi.fn<DbClientActions["createFolder"]>(async () => ({
+      folder: {
+        path: "work/drafts",
+        name: "drafts",
+        parent: "work",
+        createdAt: "2024-01-01T00:00:00.000Z",
+      },
+    }));
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      createFolder,
+    });
+
+    await expect(
+      source.createFolder?.({ parent: "work", name: "drafts" }),
+    ).resolves.toEqual({ id: "work/drafts", name: "drafts" });
+    await source.createFolder?.({ parent: null, name: "drafts" });
+
+    expect(createFolder.mock.calls.map(([input]) => input)).toEqual([
+      { path: "work/drafts" },
+      { path: "drafts" },
+    ]);
+  });
+
+  it("rejects a name with a slash without calling the server", async () => {
+    const createFolder = vi.fn<DbClientActions["createFolder"]>();
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      createFolder,
+    });
+
+    await expect(
+      source.createFolder?.({ parent: null, name: "a/b" }),
+    ).rejects.toMatchObject({ code: "FOLDER_INVALID", statusCode: 400 });
+    expect(createFolder).not.toHaveBeenCalled();
+  });
+
+  it("has no createFolder without the action", () => {
+    const source = dbObjectSource({ listObjects: listObjectsReturning() });
+    expect(source.createFolder).toBeUndefined();
+  });
+
+  it("has no folder actions with folders: false", () => {
+    const source = dbObjectSource(
+      { listObjects: listObjectsReturning(), createFolder: vi.fn() },
+      { folders: false },
+    );
+
+    expect(source.uploadOptions).toBeUndefined();
+    expect(source.createFolder).toBeUndefined();
   });
 });

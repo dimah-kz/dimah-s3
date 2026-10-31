@@ -1,127 +1,156 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import {
-  chainHooks,
   definePlugin,
   isFeatureOn,
-  type DimahS3Config,
-} from "@dimah-s3/server";
-import type {
-  DimahS3DbClient,
-  StorageObjectStore,
-} from "@/store/storage-object-store";
-import type { ScopeResolver } from "@/types/storage-object";
-import { createQuotaGuard } from "@/hooks/create-quota-guard";
+  type DimahS3Plugin,
+  type PluginInitEnv,
+} from "@dimah-s3/server/plugins";
+import { createDbStore } from "@/store/create-db-store";
+import type { StorageFolderStore } from "@/store/folder-store";
+import type { StorageObjectStore } from "@/store/object-store";
+import type { DbPluginOptions, DbRouteOptions } from "@/types/plugin";
+import type { StorageObject } from "@/types/storage-object";
 import { createDatabaseEndpoints } from "./create-database-endpoints";
-import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
+import {
+  createDatabaseLifecycleHooks,
+  type DbRoutes,
+} from "./create-database-lifecycle-hooks";
+import { createObjectAccess } from "./object-access";
+import { createPurge, type Purge } from "./purge";
+import { createQuota } from "./quota";
+import { createScopeResolver } from "./scope";
+import { toDbClientObject } from "./to-db-client-object";
 
-export type DbPluginOptions = {
-  /** FumaDB client (`DimahS3DB.client(adapter)`) or a prebuilt objects store. */
-  client: DimahS3DbClient | StorageObjectStore;
+/** What `db()` exposes on `s3.db` and `s3.context.db`. */
+export type DbPluginContext<TAttributes = never> = {
+  /** The `storage_object` store: listings, usage, and your own routes. */
+  objects: StorageObjectStore<TAttributes>;
+  /** The `storage_folder` store. */
+  folders: StorageFolderStore;
   /**
-   * Maps a request to its owning scope. `null` rejects with 401. The second
-   * argument carries the operation, route, and object key the endpoint
-   * already validated.
+   * Throws unless the database is at the schema this version needs. Call it
+   * at startup to fail fast; the first query runs the same check.
    */
-  resolveScope: ScopeResolver;
-  /**
-   * How long a `pending` row stays valid before the purge job may remove it.
-   * @default 86_400_000 (24h)
-   */
-  pendingTtlMs?: number;
-  /**
-   * After a normal server delete (`api.delete` → S3 `DeleteObject`), how the
-   * plugin updates the DB row in `onDeleted`: `soft` keeps it with
-   * `status = "deleted"`; `hard` removes it. Does not change the S3 delete
-   * path — callers still use `api.delete`, not store helpers. Delete also
-   * clears a row whose object never landed, and aborts a pending multipart
-   * upload by its `uploadId`.
-   * @default "soft"
-   */
-  deleteMode?: "soft" | "hard";
-  /**
-   * Optional scope usage caps. Numbers come from you — the plugin only
-   * checks. Wired as `upload.guard` after ownership.
-   */
-  quota?: {
-    maxBytes?: number;
-    maxFiles?: number;
-  };
-};
-
-export type DbPluginContext = {
-  /** `storage_object` data-access layer — listings, quota, resume, custom routes. */
-  objects: StorageObjectStore;
-  /** Underlying FumaDB client (or the store when one was passed as `client`). */
-  client: DimahS3DbClient | StorageObjectStore;
-};
+  checkSchema: () => Promise<void>;
+} & Purge;
 
 /**
- * Persistence plugin for {@link dimahS3} — keeps rows in sync with upload /
- * multipart / download / delete lifecycle and enforces scope ownership.
+ * Database plugin for `dimahS3()`. It tracks each upload in `storage_object`
+ * from start to delete, binds upload tickets to the caller's scope, and
+ * rejects calls on objects of another scope. It mounts `GET /db/objects`,
+ * `GET /db/object`, `PATCH /db/object`, and the folder endpoints for
+ * `dbClient()`.
  *
- * Hooks attach to every route unless the route sets `plugins: { db: false }`.
- *
- * Exposes `GET /db/objects` and `GET /db/object` for the browser via
- * {@link dbClient}.
+ * Every route is tracked unless it sets `plugins: { db: false }`.
  *
  * ```ts
  * const s3 = dimahS3({
  *   client: awsS3,
  *   bucket,
  *   plugins: [
- *     db({ client: dimahS3Db, resolveScope }),
- *   ],
- *   routes: {
- *     uploads: route({
- *       upload: true,
+ *     db({
+ *       client: DimahS3DB.client(adapter),
+ *       getSession: (request) => auth.getSession(request),
+ *       resolveScope: ({ session }) => (session ? `user:${session.userId}` : null),
+ *       quota: { maxBytes: 1024 ** 3 },
  *     }),
- *   },
+ *   ],
+ *   routes: { uploads: route({ upload: true, download: true, delete: true }) },
  * });
  *
- * s3.db.objects.listByScope({ scope });
- * s3.context.db === s3.db;
+ * await s3.db.purgeStale();
  * ```
  */
-export function db(options: DbPluginOptions) {
-  let config: Readonly<DimahS3Config> | undefined;
-  const s3Client = (route: string): S3Client | undefined =>
-    config?.routes[route]?.client ?? config?.client;
-  const { objects, hooks, resolveScope } = createDatabaseLifecycleHooks({
-    ...options,
-    s3Client,
+export function db<
+  TSession = undefined,
+  TAttributes = never,
+  TClientAttributes = TAttributes,
+>(
+  options: DbPluginOptions<TSession, TAttributes, TClientAttributes>,
+): DimahS3Plugin<"db", DbPluginContext<TAttributes>> {
+  let env: PluginInitEnv | undefined;
+  const routes: DbRoutes = {
+    tracked: (route) => env?.routeOptions(route) !== false,
+    replace: (route) => {
+      const routeOptions = env?.routeOptions<DbRouteOptions>(route);
+      return routeOptions ? routeOptions.replace : undefined;
+    },
+    client: (route) => routeClient(env, route),
+  };
+
+  const store = createDbStore<TAttributes>(options.client);
+  const resolveScope = createScopeResolver(options);
+  const toClientObject = (object: StorageObject<TAttributes>) =>
+    toDbClientObject(object, options.attributes?.toClient);
+  const access = createObjectAccess({
+    objects: store.objects,
+    resolveScope,
+    authorize: options.authorize,
+    toClientObject,
   });
-  if (options.quota && hooks.upload) {
-    const quotaGuard = createQuotaGuard({
-      client: objects,
-      resolveScope,
-      maxBytes: options.quota.maxBytes,
-      maxFiles: options.quota.maxFiles,
-    });
-    hooks.upload.guard = chainHooks(hooks.upload.guard, quotaGuard);
-  }
+  const quota = createQuota(store.objects, options.quota);
+  const purge = createPurge({
+    objects: store.objects,
+    client: routes.client,
+    logger: () => env?.logger,
+  });
 
   return definePlugin({
     id: "db",
-    init(env) {
-      config = env.config;
-      const routes = Object.values(env.config.routes);
-      const hasLifecycle = routes.some(
-        (r) =>
-          isFeatureOn(r.upload) ||
-          isFeatureOn(r.download) ||
-          isFeatureOn(r.delete),
-      );
-      if (!hasLifecycle) {
-        throw new Error(
-          "[dimah-s3] db plugin requires at least one route with upload, download, or delete enabled.",
-        );
-      }
+    init(initEnv) {
+      env = initEnv;
+      warnUnguardedRoutes(initEnv);
     },
-    hooks,
-    endpoints: createDatabaseEndpoints({ objects, resolveScope }),
+    hooks: createDatabaseLifecycleHooks({
+      store,
+      resolveScope,
+      access,
+      quota,
+      deleteMode: options.deleteMode,
+      routes,
+    }),
+    endpoints: createDatabaseEndpoints({
+      store,
+      access,
+      quota,
+      attributes: options.attributes,
+      toClientObject,
+    }),
     context: {
-      objects,
-      client: options.client,
-    } satisfies DbPluginContext,
+      objects: store.objects,
+      folders: store.folders,
+      checkSchema: store.checkSchema,
+      purgeStale: purge.purgeStale,
+      pruneDeleted: purge.pruneDeleted,
+    },
   });
+}
+
+function routeClient(
+  env: PluginInitEnv | undefined,
+  route: string,
+): S3Client | undefined {
+  if (!env) return undefined;
+  const { routes, client } = env.config;
+  const config = Object.hasOwn(routes, route) ? routes[route] : undefined;
+  return config?.client ?? client;
+}
+
+/**
+ * Warns once per route that turns db off while its download or delete has
+ * no route or feature guard: nothing then checks who owns the object.
+ */
+function warnUnguardedRoutes(env: PluginInitEnv): void {
+  for (const [name, route] of Object.entries(env.config.routes)) {
+    if (env.routeOptions(name) !== false || route.guard) continue;
+    const unguarded = (["download", "delete"] as const).filter((feature) => {
+      const toggle = route[feature];
+      if (!isFeatureOn(toggle)) return false;
+      return typeof toggle !== "object" || !toggle.guard;
+    });
+    if (unguarded.length === 0) continue;
+    env.logger.warn?.(
+      `[dimah-s3/db] Route "${name}" sets plugins: { db: false } and has no guard on ${unguarded.join(" or ")}, so any caller can reach every object on it. Add a route or feature guard.`,
+    );
+  }
 }

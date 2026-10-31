@@ -1,13 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { AlertCircleIcon, PauseIcon, XIcon } from "lucide-react";
+import type { ComponentProps, ReactNode } from "react";
+import { AlertCircleIcon, LoaderCircleIcon, XIcon } from "lucide-react";
 import { truncateFileName, type APIError } from "@dimah-s3/core";
-import {
-  useFormatDimahError,
-  useFormatFileSize,
-  useFormatNumber,
-} from "@dimah-s3/react";
+import { useFormatDimahError, useFormatFileSize } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import {
@@ -21,75 +17,72 @@ import {
 } from "@/components/ui/attachment";
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismiss-attachment-action";
+import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
   ATTACHMENT_TITLE_CLASS,
-  type AttachmentOrientation,
-  type AttachmentSize,
   type AttachmentState,
 } from "@/lib/attachment-layout";
-import { FileTypeGlyph } from "@/lib/file-type-icon";
 
-const PROGRESS_BY_SIZE = {
-  default: { size: 20, strokeWidth: 2.5, className: "size-5" },
-  sm: { size: 16, strokeWidth: 2, className: "size-4" },
-  xs: { size: 14, strokeWidth: 1.5, className: "size-3.5" },
-} as const satisfies Record<
-  AttachmentSize,
-  { size: number; strokeWidth: number; className: string }
->;
-
-export type FileAttachmentProps = {
-  /** @default "sm" */
-  size?: AttachmentSize;
-  /** @default "horizontal" */
-  orientation?: AttachmentOrientation;
+export type FileAttachmentProps = Omit<ComponentProps<"div">, "children"> & {
   state: AttachmentState;
   fileName: string;
-  fileSize?: number;
-  /** MIME type — used with the filename to pick a type icon when no preview. */
-  fileType?: string | null;
-  /** Image thumbnail URL — enables `AttachmentMedia variant="image"`. */
+  fileSize?: number | null;
+  /** MIME type. With the file name it picks the type glyph when there is no preview. */
+  contentType?: string | null;
+  /** Image thumbnail URL. Replaces the type glyph. */
   previewUrl?: string | null;
-  /** Progress 0–100 when `state` is uploading/idle (pending). */
+  /** Ring progress from 0 to 100 while `state` is `idle` or `uploading`. @default 0 */
   percent?: number;
-  /** Secondary line; defaults to size, or error text when `state="error"`. */
+  /** Secondary line. Defaults to the size, or the error text when `state` is `error`. */
   description?: ReactNode;
   error?: string | APIError | null;
+  /** Shows a cancel action while `state` is `uploading` or `processing`. */
   onCancel?: () => void;
-  onPause?: () => void;
-  /** Shown when `state` is `done` or `error`. Typically the hook `reset()`. */
+  /** Shows a dismiss action when `state` is `done` or `error`. Typically the hook `reset()`. */
   onDismiss?: () => void;
-  className?: string;
+  /** Extra controls, usually `AttachmentAction`s, placed before cancel and dismiss. */
+  actions?: ReactNode;
+  /**
+   * An `AttachmentTrigger` that makes the whole card one control, for
+   * example to open or download the file. Give it an accessible name.
+   * Actions stay above it.
+   */
+  trigger?: ReactNode;
 };
 
+/**
+ * File card for upload, download and delete feedback.
+ *
+ * Set the width with `className`. The card is a size container: under a
+ * 9rem content width it stacks the media above the text (for example
+ * `className="w-32"`), otherwise it lays out as a row.
+ */
 export function FileAttachment({
   state,
   fileName,
   fileSize,
-  fileType,
+  contentType,
   previewUrl,
   percent = 0,
   description,
   error,
   onCancel,
-  onPause,
   onDismiss,
-  size = "sm",
-  orientation = "horizontal",
+  actions,
+  trigger,
   className,
+  ...props
 }: FileAttachmentProps) {
   const t = useTranslations();
   const formatError = useFormatDimahError();
   const formatFileSize = useFormatFileSize();
-  const formatNumber = useFormatNumber();
   const errorText =
     error == null
       ? null
       : typeof error === "string"
         ? error
         : formatError(error);
-  const progress = PROGRESS_BY_SIZE[size];
 
   const resolvedDescription =
     description ??
@@ -99,59 +92,56 @@ export function FileAttachment({
         ? formatFileSize(fileSize)
         : null);
 
-  const inFlight = state === "uploading" || state === "processing";
-  const showInFlightActions = inFlight && (onCancel != null || onPause != null);
+  const showCancel =
+    (state === "uploading" || state === "processing") && onCancel != null;
   const showDismiss =
     (state === "done" || state === "error") && onDismiss != null;
 
-  const showProgressOverlay =
-    state === "uploading" || state === "processing" || state === "idle";
-
-  const mediaOverlay = showProgressOverlay ? (
-    <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-background/60">
-      <CircleProgress
-        percent={state === "uploading" ? percent : 0}
-        size={progress.size}
-        strokeWidth={progress.strokeWidth}
-        className={progress.className}
-        label={
-          state === "uploading"
-            ? t("{percent}%", {
-                note: "progress",
-                variables: { percent: formatNumber(Math.round(percent)) },
-              })
-            : undefined
-        }
-      />
-    </div>
-  ) : state === "error" ? (
-    <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-destructive/20 text-dimah-s3-destructive">
-      <AlertCircleIcon />
-    </div>
-  ) : null;
+  const mediaOverlay =
+    state === "idle" || state === "uploading" ? (
+      <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-background/60">
+        <CircleProgress
+          percent={percent}
+          fileName={fileName}
+          strokeWidth={2}
+          className="size-4 @max-[9rem]/file-attachment:size-6"
+        />
+      </div>
+    ) : state === "processing" ? (
+      <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-background/60">
+        <LoaderCircleIcon
+          className="size-4 animate-spin @max-[9rem]/file-attachment:size-6"
+          data-slot="spinner"
+        />
+      </div>
+    ) : state === "error" ? (
+      <div className="absolute inset-0 flex items-center justify-center bg-dimah-s3-destructive/20 text-dimah-s3-destructive">
+        <AlertCircleIcon />
+      </div>
+    ) : null;
 
   return (
     <Attachment
       state={state}
-      size={size}
-      orientation={orientation}
+      size="sm"
       className={cn(
-        orientation === "horizontal" && "w-full max-w-full",
+        "@container/file-attachment w-full max-w-full min-w-0",
         className,
       )}
+      {...props}
     >
-      {previewUrl ? (
-        <AttachmentMedia variant="image">
+      <AttachmentMedia
+        variant={previewUrl ? "image" : "icon"}
+        className="@max-[9rem]/file-attachment:w-full!"
+      >
+        {previewUrl ? (
           <img src={previewUrl} alt="" />
-          {mediaOverlay}
-        </AttachmentMedia>
-      ) : (
-        <AttachmentMedia>
-          <FileTypeGlyph fileName={fileName} fileType={fileType} />
-          {mediaOverlay}
-        </AttachmentMedia>
-      )}
-      <AttachmentContent>
+        ) : (
+          <FileTypeGlyph fileName={fileName} contentType={contentType} />
+        )}
+        {mediaOverlay}
+      </AttachmentMedia>
+      <AttachmentContent className="@max-[9rem]/file-attachment:px-1">
         <AttachmentTitle className={ATTACHMENT_TITLE_CLASS}>
           {truncateFileName(fileName)}
         </AttachmentTitle>
@@ -165,23 +155,19 @@ export function FileAttachment({
           </AttachmentDescription>
         ) : null}
       </AttachmentContent>
-      {showInFlightActions || showDismiss ? (
-        <AttachmentActions>
-          {showInFlightActions && onPause ? (
+      {trigger}
+      {actions != null || showCancel || showDismiss ? (
+        <AttachmentActions className="@max-[9rem]/file-attachment:absolute @max-[9rem]/file-attachment:end-3 @max-[9rem]/file-attachment:top-3 @max-[9rem]/file-attachment:gap-1">
+          {actions}
+          {showCancel ? (
             <AttachmentAction
-              aria-label={t("Pause", { note: "upload control" })}
+              type="button"
+              aria-label={t("Cancel {name}", {
+                note: "attachment action",
+                variables: { name: fileName },
+              })}
               onClick={(e) => {
-                e.stopPropagation();
-                onPause();
-              }}
-            >
-              <PauseIcon />
-            </AttachmentAction>
-          ) : null}
-          {showInFlightActions && onCancel ? (
-            <AttachmentAction
-              aria-label={t("Cancel", { note: "upload control" })}
-              onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 onCancel();
               }}
@@ -189,8 +175,14 @@ export function FileAttachment({
               <XIcon />
             </AttachmentAction>
           ) : null}
-          {showDismiss && onDismiss ? (
-            <DismissAttachmentAction onDismiss={onDismiss} />
+          {showDismiss ? (
+            <DismissAttachmentAction
+              onDismiss={onDismiss}
+              label={t("Dismiss {name}", {
+                note: "attachment action",
+                variables: { name: fileName },
+              })}
+            />
           ) : null}
         </AttachmentActions>
       ) : null}
