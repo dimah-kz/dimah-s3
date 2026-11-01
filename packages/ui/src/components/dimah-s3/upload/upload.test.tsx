@@ -14,7 +14,10 @@ import {
   type ObjectListContextValue,
 } from "@/components/dimah-s3/list/object-list-context";
 import { Upload } from "@/components/dimah-s3/upload/upload";
-import { UploadDropzone } from "@/components/dimah-s3/upload/upload-dropzone";
+import {
+  UploadDropzone,
+  UploadDropzoneTrigger,
+} from "@/components/dimah-s3/upload/upload-dropzone";
 import { UploadField } from "@/components/dimah-s3/upload/upload-field";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 
@@ -402,7 +405,14 @@ describe("UploadTrigger", () => {
 });
 
 describe("UploadDropzone", () => {
-  it("is a button labelled by its text and described by the route limits", async () => {
+  /** The dropzone element that holds `trigger`. */
+  function frameOf(trigger: HTMLElement) {
+    const frame = trigger.closest<HTMLElement>("[data-slot=upload-dropzone]");
+    if (!frame) throw new Error("No dropzone");
+    return frame;
+  }
+
+  it("has a trigger labelled by its text and described by the route limits", async () => {
     renderUpload(
       (upload) => (
         <Upload upload={upload}>
@@ -413,17 +423,40 @@ describe("UploadDropzone", () => {
     );
     await settle();
 
-    const dropzone = screen.getByRole("button", {
-      name: "Drag and drop files here",
+    const trigger = screen.getByRole("button", {
+      name: "Drag and drop a file here",
       description: "Up to 1.0 KB. Accepted PNG.",
     });
-    expect(dropzone.tabIndex).toBe(0);
+    expect(trigger.tabIndex).toBe(0);
   });
 
-  it("describes custom content with hidden hints and keeps extra ids", async () => {
+  it("names the trigger for several files when the hook takes them", async () => {
+    renderUpload(
+      (upload) => (
+        <Upload upload={upload}>
+          <UploadDropzone />
+        </Upload>
+      ),
+      { maxFiles: 3 },
+    );
+    await settle();
+
+    expect(
+      screen.getByRole("button", {
+        name: "Drag and drop files here",
+        description: "You can upload 3 files. Each up to 1.0 KB.",
+      }),
+    ).toBeDefined();
+  });
+
+  it("describes custom trigger content with hidden hints and keeps extra ids", async () => {
     renderUpload((upload) => (
       <Upload upload={upload}>
-        <UploadDropzone aria-describedby="extra">Drop a file</UploadDropzone>
+        <UploadDropzone>
+          <UploadDropzoneTrigger aria-describedby="extra">
+            Drop a file
+          </UploadDropzoneTrigger>
+        </UploadDropzone>
         <p id="extra">Photos only.</p>
       </Upload>
     ));
@@ -438,7 +471,31 @@ describe("UploadDropzone", () => {
     expect(screen.getByText("Up to 1.0 KB.").hidden).toBe(true);
   });
 
-  it("leads its description with a hint while the root is full", async () => {
+  it("prefers an aria-label on the trigger over its own text", () => {
+    renderUpload((upload) => (
+      <Upload upload={upload}>
+        <UploadDropzone>
+          <UploadDropzoneTrigger aria-label="Attach files" />
+        </UploadDropzone>
+      </Upload>
+    ));
+
+    expect(screen.getByRole("button", { name: "Attach files" })).toBeDefined();
+  });
+
+  it("throws for a trigger rendered outside it", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() =>
+      renderUpload((upload) => (
+        <Upload upload={upload}>
+          <UploadDropzoneTrigger />
+        </Upload>
+      )),
+    ).toThrow("UploadDropzoneTrigger must be rendered inside <UploadDropzone>");
+  });
+
+  it("leads the trigger description with a hint while the root is full", async () => {
     renderUpload((upload) => (
       <Upload upload={upload} isFull>
         <UploadDropzone />
@@ -446,21 +503,12 @@ describe("UploadDropzone", () => {
     ));
     await settle();
 
-    const dropzone = screen.getByRole("button", {
-      name: "Drag and drop files here",
+    const trigger = screen.getByRole("button", {
+      name: "Drag and drop a file here",
       description: "Maximum files reached. Up to 1.0 KB.",
     });
-    expect(dropzone.getAttribute("aria-disabled")).toBe("true");
-  });
-
-  it("prefers an aria-label over its own text", () => {
-    renderUpload((upload) => (
-      <Upload upload={upload}>
-        <UploadDropzone aria-label="Attach files" />
-      </Upload>
-    ));
-
-    expect(screen.getByRole("button", { name: "Attach files" })).toBeDefined();
+    expect(trigger.getAttribute("aria-disabled")).toBe("true");
+    expect(frameOf(trigger).hasAttribute("data-disabled")).toBe(true);
   });
 
   it("uploads dropped files with its call", async () => {
@@ -491,18 +539,62 @@ describe("UploadDropzone", () => {
     ]);
   });
 
-  it("uploads files pasted while it has focus", async () => {
+  it("shows the status inside it and takes drops over it", async () => {
+    const { api } = renderUpload(
+      (upload) => (
+        <Upload upload={upload}>
+          <UploadDropzone />
+        </Upload>
+      ),
+      { queue: true, maxFiles: 2 },
+    );
+    api.upload.mockImplementation(() => new Promise(() => {}));
+    await settle();
+    const trigger = screen.getByRole("button", {
+      name: "Drag and drop files here",
+    });
+    const frame = frameOf(trigger);
+
+    await fire(trigger, filesEvent("drop", [textFile("a.txt")]));
+    const status = frame.querySelector("[data-slot=upload-status]");
+    if (!status) throw new Error("No status inside the dropzone");
+    expect(screen.getByRole("button", { name: "Cancel a.txt" })).toBeDefined();
+
+    await fire(status, filesEvent("drop", [textFile("b.txt")]));
+    expect(api.upload).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders only its children when it has them", async () => {
+    const { api } = renderUpload((upload) => (
+      <Upload upload={upload}>
+        <UploadDropzone>
+          <UploadDropzoneTrigger />
+        </UploadDropzone>
+      </Upload>
+    ));
+    api.upload.mockImplementation(() => new Promise(() => {}));
+    await settle();
+
+    await fire(
+      screen.getByRole("button"),
+      filesEvent("drop", [textFile("a.txt")]),
+    );
+
+    expect(document.querySelector("[data-slot=upload-status]")).toBeNull();
+  });
+
+  it("uploads files pasted while its trigger has focus", async () => {
     const { api } = renderUpload((upload) => (
       <Upload upload={upload}>
         <UploadDropzone />
       </Upload>
     ));
     await settle();
-    const dropzone = screen.getByRole("button");
-    act(() => dropzone.focus());
+    const trigger = screen.getByRole("button");
+    act(() => trigger.focus());
 
     const event = filesEvent("paste", [textFile("pasted.txt")]);
-    await fire(dropzone, event);
+    await fire(trigger, event);
 
     expect(event.defaultPrevented).toBe(true);
     expect(api.upload.mock.calls[0][0]).toMatchObject({ name: "pasted.txt" });
@@ -537,14 +629,14 @@ describe("UploadDropzone", () => {
     );
     api.upload.mockImplementationOnce(() => new Promise(() => {}));
     await settle();
-    const dropzone = screen.getByRole("button");
+    const trigger = screen.getByRole("button");
 
-    await fire(dropzone, filesEvent("drop", [textFile("a.txt")]));
-    expect(dropzone.getAttribute("aria-busy")).toBe("true");
-    expect(dropzone.className).not.toContain("pointer-events-none");
-    expect(dropzone.className).toContain("custom");
+    await fire(trigger, filesEvent("drop", [textFile("a.txt")]));
+    expect(trigger.getAttribute("aria-busy")).toBe("true");
+    expect(trigger.hasAttribute("aria-disabled")).toBe(false);
+    expect(frameOf(trigger).className).toContain("custom");
 
-    await fire(dropzone, filesEvent("drop", [textFile("b.txt")]));
+    await fire(trigger, filesEvent("drop", [textFile("b.txt")]));
     expect(api.upload).toHaveBeenCalledTimes(2);
   });
 
@@ -558,16 +650,17 @@ describe("UploadDropzone", () => {
       { disabled: true },
     );
 
-    const dropzone = screen.getByRole("button");
-    expect(dropzone.getAttribute("aria-disabled")).toBe("true");
-    expect(dropzone.hasAttribute("tabindex")).toBe(false);
+    const trigger = screen.getByRole("button");
+    expect(trigger.getAttribute("aria-disabled")).toBe("true");
+    expect(trigger.hasAttribute("tabindex")).toBe(false);
+    expect(frameOf(trigger).hasAttribute("data-disabled")).toBe(true);
   });
 
   it.each([
     ["a.png", "image/png", "Drop to upload"],
     ["a.txt", "text/plain", "These files cannot be uploaded"],
   ])(
-    "announces whether a dragged %s can be dropped",
+    "announces and shows whether a dragged %s can be dropped",
     async (name, type, message) => {
       renderUpload(
         (upload) => (
@@ -580,13 +673,16 @@ describe("UploadDropzone", () => {
       await settle();
       const region = document.querySelector("[aria-live=polite]");
       expect(region?.textContent).toBe("");
+      const trigger = screen.getByRole("button");
 
       await fire(
-        screen.getByRole("button"),
+        trigger,
         filesEvent("dragenter", [new File(["x"], name, { type })]),
       );
 
       expect(region?.textContent).toBe(message);
+      expect(trigger.textContent).toContain(message);
+      expect(frameOf(trigger).hasAttribute("data-drag-active")).toBe(true);
     },
   );
 });

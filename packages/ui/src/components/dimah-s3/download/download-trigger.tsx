@@ -36,7 +36,8 @@ export type DownloadTriggerProps = ComponentProps<typeof Button> & {
  * - With `useFetchDownload`, it fills with the progress while the call runs,
  *   and a click cancels the call. Its content becomes "Cancel" and its name
  *   "Cancel download of {name}" for that time. The second click of a
- *   double-click does not cancel the download the first one started.
+ *   double-click does not cancel the download the first one started. An
+ *   icon-size button shows only the cancel icon.
  *
  * `children` replace the default icon and label while no cancel is offered.
  * `data-phase` carries the phase of the newest call for the key.
@@ -52,6 +53,7 @@ export function DownloadTrigger({
   focusableWhenDisabled,
   onClick,
   variant = "outline",
+  size,
   "aria-label": ariaLabel,
   ...props
 }: DownloadTriggerProps) {
@@ -70,11 +72,17 @@ export function DownloadTrigger({
       ? Math.min(100, Math.max(0, progress.percent))
       : null;
 
+  // An icon button keeps its size: the cancel icon alone, named by `aria-label`.
+  const iconOnly = size?.startsWith("icon") ?? false;
   const content = cancellable ? (
-    <>
-      <XIcon data-icon="inline-start" />
-      {t("Cancel", { note: "download control" })}
-    </>
+    iconOnly ? (
+      <XIcon />
+    ) : (
+      <>
+        <XIcon data-icon="inline-start" />
+        {t("Cancel", { note: "download control" })}
+      </>
+    )
   ) : (
     (children ?? (
       <>
@@ -90,7 +98,9 @@ export function DownloadTrigger({
 
   const button = (
     <Button
+      data-slot="download-trigger"
       variant={variant}
+      size={size}
       {...props}
       aria-label={
         cancellable

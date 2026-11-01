@@ -4,7 +4,7 @@ export type Translations = {
   "A folder with this name already exists(object list new folder)": string;
   "Accepted {types}.(dropzone hint)": string;
   "Access denied(API error)": string;
-  "All {count} file(s) uploaded(status)": string;
+  "All {count} files uploaded(status)": string;
   "An uploaded part was not found(API error)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
   "Ascending(object list sort)": string;
@@ -46,6 +46,7 @@ export type Translations = {
   "Download(button)": string;
   "Downloading(toast)": string;
   "Downloads are disabled(API error)": string;
+  "Drag and drop a file here(dropzone)": string;
   "Drag and drop files here(dropzone)": string;
   "Drop files here to add them to this folder.(object list)": string;
   "Drop to upload into this folder(object list)": string;
@@ -155,7 +156,7 @@ export type Translations = {
   "Uploads are disabled(API error)": string;
   "View(object list)": string;
   "You can upload {count} files(dropzone hint)": string;
-  "{count} file(s) uploaded(toast)": string;
+  "{count} files uploaded(toast)": string;
   "{count} files were rejected(toast)": string;
   "{count} files(object list usage)": string;
   "{count} of {max} files(object list usage)": string;

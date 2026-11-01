@@ -242,6 +242,24 @@ describe("DownloadTrigger", () => {
     expect(download.cancel).toHaveBeenCalledOnce();
   });
 
+  it("keeps an icon button to the cancel icon while a fetch runs", () => {
+    const download = fakeFetchDownload();
+    render(
+      inRoot(
+        download.at([fetchOperation()]),
+        <DownloadTrigger objectKey={KEY} size="icon-sm" aria-label="Download">
+          <span>icon</span>
+        </DownloadTrigger>,
+      ),
+    );
+
+    const button = screen.getByRole("button", {
+      name: "Cancel download of report.pdf",
+    });
+    expect(button.textContent).toBe("");
+    expect(button.querySelector("svg")).not.toBeNull();
+  });
+
   it("fills without a width until the total size is known", () => {
     const download = fakeFetchDownload();
     render(

@@ -84,7 +84,7 @@
       "name": "upload",
       "type": "registry:component",
       "title": "Upload",
-      "description": "Composable upload family: Upload root, trigger button, dropzone, status, file list, paste, and toasts.",
+      "description": "Composable upload family: Upload root, trigger button, dropzone with the progress inside, status and file list as rows or a grid, paste, and toasts.",
       "dependencies": [
         "@dimah-s3/core",
         "@dimah-s3/react",

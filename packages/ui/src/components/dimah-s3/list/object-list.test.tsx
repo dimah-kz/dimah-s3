@@ -27,7 +27,10 @@ import {
   type ObjectListProps,
 } from "@/components/dimah-s3/list/object-list";
 import { Upload } from "@/components/dimah-s3/upload/upload";
-import { UploadDropzone } from "@/components/dimah-s3/upload/upload-dropzone";
+import {
+  UploadDropzone,
+  UploadDropzoneTrigger,
+} from "@/components/dimah-s3/upload/upload-dropzone";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 
@@ -574,7 +577,13 @@ describe("ObjectList", () => {
 
     it("lets only a dropzone inside the list announce a drag over it", async () => {
       const { container } = renderList({
-        props: () => ({ toolbar: <UploadDropzone aria-label="Drop here" /> }),
+        props: () => ({
+          toolbar: (
+            <UploadDropzone>
+              <UploadDropzoneTrigger aria-label="Drop here" />
+            </UploadDropzone>
+          ),
+        }),
       });
       await settle();
       const frame = container.querySelector("[data-slot=object-list]");
@@ -590,14 +599,20 @@ describe("ObjectList", () => {
       expect(speakingRegions().map((region) => region.textContent)).toEqual([
         "Drop to upload",
       ]);
-      expect(dropzone.hasAttribute("data-drag-active")).toBe(true);
+      expect(
+        dropzone
+          .closest("[data-slot=upload-dropzone]")
+          ?.hasAttribute("data-drag-active"),
+      ).toBe(true);
     });
 
     it("stays quiet while files are dragged over another target of its hook", async () => {
       const { container } = renderList({
         extra: ({ upload }) => (
           <Upload upload={upload}>
-            <UploadDropzone aria-label="Outside" />
+            <UploadDropzone>
+              <UploadDropzoneTrigger aria-label="Outside" />
+            </UploadDropzone>
           </Upload>
         ),
       });

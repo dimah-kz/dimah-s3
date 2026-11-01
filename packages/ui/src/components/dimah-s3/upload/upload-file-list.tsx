@@ -76,17 +76,26 @@ export function UploadFileItem({
   );
 }
 
+/** How {@link UploadFileList} lays out its files. */
+export type UploadFileListLayout = "list" | "grid";
+
 /** Props for {@link UploadFileList}. Other props go to the `<ul>`. */
 export type UploadFileListProps = Omit<ComponentProps<"ul">, "children"> & {
+  /**
+   * `list` stacks full-width rows. `grid` wraps tiles with the preview
+   * above the name, for images. @default "list"
+   */
+  layout?: UploadFileListLayout;
   /** Renders one file. Defaults to {@link UploadFileItem}. */
   children?: (file: UploadFileState) => ReactNode;
 };
 
 /**
  * Every file of the nearest `Upload`, in queue order. Renders nothing
- * while the queue is empty.
+ * while the queue is empty. It sets `data-layout`.
  */
 export function UploadFileList({
+  layout = "list",
   children,
   className,
   ...props
@@ -97,7 +106,14 @@ export function UploadFileList({
   return (
     <ul
       data-slot="upload-file-list"
-      className={cn("flex w-full flex-col gap-2", className)}
+      data-layout={layout}
+      className={cn(
+        layout === "grid"
+          ? // Cells stay under the card's 9rem breakpoint, so each one stacks.
+            "grid w-full grid-cols-[repeat(auto-fill,minmax(6.5rem,8.5rem))] gap-2"
+          : "flex w-full flex-col gap-2",
+        className,
+      )}
       {...props}
     >
       {upload.files.map((file) => (

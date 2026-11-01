@@ -4,12 +4,15 @@ description: Form field whose value is the object keys of the files uploaded thr
 ---
 
 import { UploadFieldDemo } from "@/components/demos/upload-field-demo";
+import { UploadFieldButtonDemo } from "@/components/demos/upload-field-button-demo";
 
 `UploadField` turns uploads into a form value. Each file that uploads adds
 its object key, and every key submits as a hidden `<input name>`. The upload
 parts go inside it, as they would inside [`Upload`](/docs/react/ui/components/upload).
 
 ## Preview
+
+Upload up to three files, then submit the form to see the keys it sends.
 
 <DemoPreview name="upload-field-demo.tsx">
   <UploadFieldDemo />
@@ -51,7 +54,6 @@ import {
   UploadDropzone,
   UploadField,
   UploadFieldValue,
-  UploadStatus,
   UploadToasts,
 } from "@dimah-s3/ui";
 
@@ -66,7 +68,6 @@ export function TicketForm({
     <form action={save} className="space-y-4">
       <UploadField upload={upload} name="attachments" maxFiles={5}>
         <UploadDropzone />
-        <UploadStatus />
         <UploadFieldValue />
       </UploadField>
       <UploadToasts upload={upload} />
@@ -76,9 +77,22 @@ export function TicketForm({
 }
 ```
 
-On the server, read the keys with `formData.getAll("attachments")`.
+The dropzone shows the progress inside it, and `UploadFieldValue` lists the
+keys the field holds. On the server, read the keys with `formData.getAll("attachments")`.
 `maxFiles` is a client-side limit, so check the keys and their count in your
 own endpoint. See [Forms](/docs/react/forms) for the rest of the flow.
+
+## Examples
+
+### Attach button
+
+A message form with an attach button, a key saved earlier as
+`defaultValue`, and `UploadStatus` for the files in flight. Remove the saved
+file or attach two more to fill the field.
+
+<DemoPreview name="upload-field-button-demo.tsx">
+  <UploadFieldButtonDemo />
+</DemoPreview>
 
 ## Value
 
@@ -113,9 +127,9 @@ With `maxFiles`, each call takes only the files that still fit: `maxFiles`
 minus the keys in the value and the files still uploading. The hook rejects
 the rest with `TOO_MANY_FILES`.
 
-Once the field is full, its `UploadTrigger` and `UploadDropzone` stay
-focusable but are `aria-disabled`, and the picker, drops, and pastes do
-nothing. "Maximum files reached." leads the dropzone's description. The
+Once the field is full, its `UploadTrigger` and `UploadDropzoneTrigger`
+stay focusable but are `aria-disabled`, and the picker, drops, and pastes do
+nothing. "Maximum files reached." leads the dropzone trigger's description. The
 field passes `isFull` to its `Upload` root, so your own parts can read
 `useUploadContext().isFull`:
 

@@ -14,7 +14,10 @@ import {
 } from "@dimah-s3/react";
 import { act, render, screen, waitFor } from "@/test/render";
 import { useUploadContext } from "@/components/dimah-s3/upload/upload";
-import { UploadDropzone } from "@/components/dimah-s3/upload/upload-dropzone";
+import {
+  UploadDropzone,
+  UploadDropzoneTrigger,
+} from "@/components/dimah-s3/upload/upload-dropzone";
 import {
   UploadField,
   UploadFieldValue,
@@ -312,7 +315,9 @@ describe("UploadField", () => {
       { name: "files", defaultValue: ["a.txt", "b.txt"], maxFiles: 2 },
       <>
         <UploadTrigger />
-        <UploadDropzone aria-label="Drop files" />
+        <UploadDropzone>
+          <UploadDropzoneTrigger aria-label="Drop files" />
+        </UploadDropzone>
       </>,
     );
     const click = vi.spyOn(HTMLInputElement.prototype, "click");
@@ -343,7 +348,9 @@ describe("UploadField", () => {
   it("keeps focus on the dropzone when its pick fills the field", async () => {
     const { api } = renderField(
       { name: "files", defaultValue: ["a.txt"], maxFiles: 2 },
-      <UploadDropzone aria-label="Drop files" />,
+      <UploadDropzone>
+        <UploadDropzoneTrigger aria-label="Drop files" />
+      </UploadDropzone>,
     );
     const dropzone = screen.getByRole("button", { name: "Drop files" });
     act(() => dropzone.focus());

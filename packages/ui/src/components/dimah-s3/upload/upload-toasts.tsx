@@ -145,7 +145,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
       failed.length === 0
         ? {
             type: "success",
-            title: t("{count} file(s) uploaded", {
+            title: t("{count} files uploaded", {
               note: "toast",
               variables: { count: formatNumber(fresh.length) },
             }),

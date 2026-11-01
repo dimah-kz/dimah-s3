@@ -50,6 +50,7 @@ export function DownloadProgress({
 
   return (
     <div
+      data-slot="download-progress"
       {...props}
       role="progressbar"
       aria-label={

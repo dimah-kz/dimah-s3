@@ -306,7 +306,12 @@ Components no longer toast: mount one toast component per hook and one
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import { Upload, UploadToasts, UploadTrigger } from "@dimah-s3/ui";
+import {
+  Upload,
+  UploadStatus,
+  UploadToasts,
+  UploadTrigger,
+} from "@dimah-s3/ui";
 
 export function AvatarUploader() {
   const upload = useUpload({ route: "avatar" });
@@ -315,6 +320,7 @@ export function AvatarUploader() {
     <>
       <Upload upload={upload}>
         <UploadTrigger />
+        <UploadStatus />
       </Upload>
       <UploadToasts upload={upload} />
     </>
@@ -324,7 +330,7 @@ export function AvatarUploader() {
 
 | 1.7                                   | 1.8                                                              |
 | ------------------------------------- | ---------------------------------------------------------------- |
-| `UploadButton`                        | `<Upload upload><UploadTrigger /></Upload>`                      |
+| `UploadButton`                        | `<Upload upload><UploadTrigger /><UploadStatus /></Upload>`      |
 | `UploadDropzone upload={...}`         | `<Upload upload><UploadDropzone /></Upload>`                     |
 | `MultiUploadStatus`                   | `UploadStatus`                                                   |
 | `UploadFileStatus`                    | `UploadFileItem` or `UploadFileList`                             |
@@ -364,6 +370,17 @@ export function InvoiceActions({ objectKey }: { objectKey: string }) {
     </>
   );
 }
+```
+
+`UploadDropzone` still shows the status inside it. For `status={false}`,
+give it only its trigger, and render `UploadStatus` where a `status`
+function used to put it:
+
+```tsx
+<UploadDropzone>
+  <UploadDropzoneTrigger />
+</UploadDropzone>
+<UploadStatus />
 ```
 
 Control props such as `buttonClassName` are now plain `Button` props on the

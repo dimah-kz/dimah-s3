@@ -50,12 +50,7 @@ Each key renders as a hidden `<input name>`, so it submits with a plain
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import {
-  UploadDropzone,
-  UploadField,
-  UploadFieldValue,
-  UploadStatus,
-} from "@dimah-s3/ui";
+import { UploadDropzone, UploadField, UploadFieldValue } from "@dimah-s3/ui";
 
 export function AttachmentForm({
   action,
@@ -68,7 +63,6 @@ export function AttachmentForm({
     <form action={action}>
       <UploadField upload={upload} name="attachments" maxFiles={5}>
         <UploadDropzone />
-        <UploadStatus />
         <UploadFieldValue />
       </UploadField>
       <button type="submit" disabled={upload.isPending}>
@@ -96,12 +90,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useUpload } from "@dimah-s3/react";
-import {
-  UploadDropzone,
-  UploadField,
-  UploadFieldValue,
-  UploadStatus,
-} from "@dimah-s3/ui";
+import { UploadDropzone, UploadField, UploadFieldValue } from "@dimah-s3/ui";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required."),
@@ -142,7 +131,6 @@ export function AttachmentForm() {
               maxFiles={5}
             >
               <UploadDropzone />
-              <UploadStatus />
               <UploadFieldValue />
             </UploadField>
             {fieldState.error ? (
@@ -163,8 +151,8 @@ export function AttachmentForm() {
 }
 ```
 
-`UploadStatus` renders progress and per-file errors from `upload`, so none of
-it is copied into the form.
+The dropzone shows progress and per-file errors from `upload` inside it, so
+none of it is copied into the form.
 
 ---
 
@@ -175,12 +163,7 @@ it is copied into the form.
 
 import { useForm } from "@tanstack/react-form";
 import { useUpload } from "@dimah-s3/react";
-import {
-  UploadDropzone,
-  UploadField,
-  UploadFieldValue,
-  UploadStatus,
-} from "@dimah-s3/ui";
+import { UploadDropzone, UploadField, UploadFieldValue } from "@dimah-s3/ui";
 
 export function AttachmentForm() {
   const form = useForm({
@@ -217,7 +200,6 @@ export function AttachmentForm() {
               maxFiles={5}
             >
               <UploadDropzone />
-              <UploadStatus />
               <UploadFieldValue />
             </UploadField>
             {field.state.meta.errors[0] ? (

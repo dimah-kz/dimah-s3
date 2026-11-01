@@ -1,12 +1,7 @@
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import {
-  Upload,
-  UploadDropzone,
-  UploadStatus,
-  UploadToasts,
-} from "@dimah-s3/ui";
+import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
 
 export function UploadDemo() {
   const upload = useUpload({
@@ -17,10 +12,9 @@ export function UploadDemo() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-3">
+    <div className="mx-auto w-full max-w-md">
       <Upload upload={upload}>
         <UploadDropzone />
-        <UploadStatus />
       </Upload>
       <UploadToasts upload={upload} />
     </div>

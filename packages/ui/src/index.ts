@@ -10,7 +10,9 @@ export {
 } from "@/components/dimah-s3/upload/upload-trigger";
 export {
   UploadDropzone,
+  UploadDropzoneTrigger,
   type UploadDropzoneProps,
+  type UploadDropzoneTriggerProps,
 } from "@/components/dimah-s3/upload/upload-dropzone";
 export {
   UploadStatus,
@@ -19,9 +21,15 @@ export {
 export {
   UploadFileList,
   UploadFileItem,
+  type UploadFileListLayout,
   type UploadFileListProps,
   type UploadFileItemProps,
 } from "@/components/dimah-s3/upload/upload-file-list";
+export {
+  useUploadHints,
+  type UploadHints,
+  type UploadHintsPolicy,
+} from "@/lib/upload-hints";
 export {
   UploadToasts,
   type UploadToastsProps,

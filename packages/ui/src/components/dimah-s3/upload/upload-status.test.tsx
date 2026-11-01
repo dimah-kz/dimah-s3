@@ -120,6 +120,36 @@ describe("UploadStatus", () => {
     expect(screen.queryByRole("button", { name: /Dismiss/ })).toBeNull();
   });
 
+  it("lays out files as a grid under the summary, also for one file", async () => {
+    const upload = stubUpload({
+      files: [fileState("a", "success")],
+      phase: "success",
+    });
+    const { container } = render(
+      <Upload upload={upload}>
+        <UploadStatus layout="grid" />
+      </Upload>,
+    );
+
+    const list = container.querySelector("[data-slot=upload-file-list]");
+    expect(list?.getAttribute("data-layout")).toBe("grid");
+    expect(screen.getByText("Upload complete")).toBeDefined();
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(upload.reset).toHaveBeenCalledOnce();
+  });
+
+  it("sets data-phase to the hook's phase", () => {
+    const { container } = renderStatus(
+      stubUpload({ phase: "uploading", isPending: true }),
+    );
+
+    expect(
+      container
+        .querySelector("[data-slot=upload-status]")
+        ?.getAttribute("data-phase"),
+    ).toBe("uploading");
+  });
+
   it("dismisses a settled single file with reset", async () => {
     const upload = stubUpload({
       files: [fileState("a", "error", { error: s3Error("NETWORK_ERROR") })],
@@ -180,7 +210,7 @@ describe("UploadStatus", () => {
     });
     const { rerender } = renderStatus(upload);
 
-    expect(screen.getByText("All 2 file(s) uploaded")).toBeDefined();
+    expect(screen.getByText("All 2 files uploaded")).toBeDefined();
     await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(upload.reset).toHaveBeenCalledOnce();
 

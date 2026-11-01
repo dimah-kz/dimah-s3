@@ -506,7 +506,7 @@ function ObjectListFrame({
 /** Drop targets inside the frame that take a drag for themselves. */
 type InnerDropTarget = "folder" | "dropzone";
 
-const DROPZONE = "[data-slot=upload-dropzone]:not([aria-disabled=true])";
+const DROPZONE = "[data-slot=upload-dropzone]:not([data-disabled])";
 const INNER_DROP_TARGET = `[data-slot=object-list-entry][data-drag-active], ${DROPZONE}`;
 
 /**

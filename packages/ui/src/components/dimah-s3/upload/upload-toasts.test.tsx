@@ -143,7 +143,7 @@ describe("UploadToasts", () => {
     );
 
     update(settled([fileState("a", "success"), fileState("b", "success")]));
-    expect(await screen.findByText("2 file(s) uploaded")).toBeDefined();
+    expect(await screen.findByText("2 files uploaded")).toBeDefined();
     expect(screen.getByText("4.0 KB")).toBeDefined();
 
     update(

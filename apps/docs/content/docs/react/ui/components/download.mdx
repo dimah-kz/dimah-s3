@@ -4,6 +4,8 @@ description: Download buttons, a progress bar, and toasts for useDownload or use
 ---
 
 import { DownloadDemo } from "@/components/demos/download-demo";
+import { DownloadProgressDemo } from "@/components/demos/download-progress-demo";
+import { DownloadVariantsDemo } from "@/components/demos/download-variants-demo";
 
 The download family renders one download hook. `Download` holds the hook,
 `DownloadTrigger` downloads one object, and `DownloadProgress` shows the
@@ -11,6 +13,9 @@ bytes of a fetch download. One hook serves every trigger in the root, and
 each object key has its own state.
 
 ## Preview
+
+One `useFetchDownload` hook for a list of files. While a file downloads, its
+button fills with the progress, and a click cancels it.
 
 <DemoPreview name="download-demo.tsx">
   <DownloadDemo />
@@ -84,6 +89,29 @@ export function InvoiceList({ invoices }: { invoices: Invoice[] }) {
 
 `Download` renders no element of its own. `DownloadTrigger` takes every
 `Button` prop, and `children` replace its icon and label.
+
+## Examples
+
+### Progress bar
+
+`DownloadProgress` shows the bytes of a fetch download, next to the trigger
+that started it.
+
+<DemoPreview name="download-progress-demo.tsx">
+  <DownloadProgressDemo />
+</DemoPreview>
+
+### Button styles
+
+`DownloadTrigger` is a `Button`, so `variant`, `size`, and the other
+props are forwarded, and `children` replace the icon and label. An icon-only
+trigger needs an `aria-label`; while it cancels a fetch download, it shows
+only the cancel icon. These triggers use `useDownload`, which hands the file
+to the browser.
+
+<DemoPreview name="download-variants-demo.tsx">
+  <DownloadVariantsDemo />
+</DemoPreview>
 
 ## Navigate or fetch
 

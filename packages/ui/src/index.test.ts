@@ -44,6 +44,7 @@ describe("@dimah-s3/ui", () => {
       "Toaster",
       "Upload",
       "UploadDropzone",
+      "UploadDropzoneTrigger",
       "UploadField",
       "UploadFieldValue",
       "UploadFileItem",
@@ -60,6 +61,7 @@ describe("@dimah-s3/ui", () => {
       "useToastOwner",
       "useUploadContext",
       "useUploadFieldContext",
+      "useUploadHints",
     ]);
   });
 });

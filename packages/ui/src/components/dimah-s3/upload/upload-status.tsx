@@ -23,10 +23,14 @@ import {
 import {
   UploadFileItem,
   UploadFileList,
+  type UploadFileListLayout,
 } from "@/components/dimah-s3/upload/upload-file-list";
 
 /** Props for {@link UploadStatus}. Other props go to the wrapper `<div>`. */
-export type UploadStatusProps = Omit<ComponentProps<"div">, "children">;
+export type UploadStatusProps = Omit<ComponentProps<"div">, "children"> & {
+  /** Layout of the file cards, as on `UploadFileList`. @default "list" */
+  layout?: UploadFileListLayout;
+};
 
 /**
  * Status of the nearest `Upload` queue. Renders nothing while it is idle.
@@ -36,9 +40,13 @@ export type UploadStatusProps = Omit<ComponentProps<"div">, "children">;
  * While files upload it offers cancel, and pause when the hook has an
  * `uploadStore` so the uploads can resume. When cancel, pause or dismiss
  * removes the card that has focus, focus moves to the next action, else to
- * the root's trigger or dropzone.
+ * the root's trigger or dropzone. It sets `data-phase` to the hook's phase.
  */
-export function UploadStatus({ className, ...props }: UploadStatusProps) {
+export function UploadStatus({
+  layout = "list",
+  className,
+  ...props
+}: UploadStatusProps) {
   const t = useTranslations();
   const { upload } = useUploadContext();
   const { keepFocus } = useUploadFocus();
@@ -68,7 +76,8 @@ export function UploadStatus({ className, ...props }: UploadStatusProps) {
   return (
     <div
       data-slot="upload-status"
-      className={cn("flex w-full flex-col gap-2", className)}
+      data-phase={phase}
+      className={cn("flex w-full min-w-0 flex-col gap-2", className)}
       {...props}
     >
       {files.length === 0 ? (
@@ -76,12 +85,13 @@ export function UploadStatus({ className, ...props }: UploadStatusProps) {
           state="processing"
           title={t("Preparing…", { note: "upload status" })}
         />
-      ) : files.length === 1 ? (
+      ) : files.length === 1 && layout === "list" ? (
         <UploadFileItem file={files[0]} actions={pause} onDismiss={onDismiss} />
       ) : (
         <>
+          {/* Tiles have no room for the queue actions, so a grid always has it. */}
           <UploadSummary pause={pause} onDismiss={onDismiss} />
-          <UploadFileList />
+          <UploadFileList layout={layout} />
         </>
       )}
     </div>
@@ -108,10 +118,14 @@ function UploadSummary({
     return (
       <StatusAttachment
         state="done"
-        title={t("All {count} file(s) uploaded", {
-          note: "status",
-          variables: { count: formatNumber(files.length) },
-        })}
+        title={
+          files.length === 1
+            ? t("Upload complete", { note: "upload status" })
+            : t("All {count} files uploaded", {
+                note: "status",
+                variables: { count: formatNumber(files.length) },
+              })
+        }
         onDismiss={onDismiss}
       />
     );

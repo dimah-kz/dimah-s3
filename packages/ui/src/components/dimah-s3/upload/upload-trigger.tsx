@@ -53,6 +53,7 @@ export function UploadTrigger({
 
   const button = (
     <Button
+      data-slot="upload-trigger"
       {...intakeProps}
       {...props}
       disabled={(disabled ?? upload.disabled) || isFull}

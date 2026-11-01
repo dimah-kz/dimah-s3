@@ -68,12 +68,7 @@ Then compose a family around a hook, anywhere inside the provider:
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import {
-  Upload,
-  UploadDropzone,
-  UploadStatus,
-  UploadToasts,
-} from "@dimah-s3/ui";
+import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
 
 export function Uploader() {
   const upload = useUpload({ route: "uploads", maxFiles: 5 });
@@ -81,8 +76,8 @@ export function Uploader() {
   return (
     <>
       <Upload upload={upload}>
+        {/* Progress shows inside the dropzone. */}
         <UploadDropzone />
-        <UploadStatus />
       </Upload>
       <UploadToasts upload={upload} />
     </>
@@ -93,7 +88,8 @@ export function Uploader() {
 ## Components
 
 - `Upload` holds a `useUpload` return for `UploadTrigger`, `UploadDropzone`,
-  `UploadStatus`, and `UploadFileList`.
+  `UploadStatus`, and `UploadFileList`. The dropzone shows the status inside
+  it unless you arrange its parts yourself.
 - `Download` holds a `useDownload` or `useFetchDownload` return for
   `DownloadTrigger` and `DownloadProgress`.
 - `Delete` holds a `useDelete` return and one confirm dialog for every

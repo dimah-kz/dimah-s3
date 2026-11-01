@@ -4,12 +4,17 @@ description: Delete buttons with one confirm dialog per root, and toasts for use
 ---
 
 import { DeleteDemo } from "@/components/demos/delete-demo";
+import { DeleteVariantsDemo } from "@/components/demos/delete-variants-demo";
+import { DeleteBulkDemo } from "@/components/demos/delete-bulk-demo";
 
 The delete family renders one [`useDelete`](/docs/react/hooks/delete) hook.
 `Delete` holds the hook and one confirm dialog. Every `DeleteTrigger` inside
 it asks the root, and the root asks before it deletes.
 
 ## Preview
+
+Every row's trigger asks the same root, which confirms, deletes, and
+reports the result. The rows leave once their delete succeeds.
 
 <DemoPreview name="delete-demo.tsx">
   <DeleteDemo />
@@ -86,6 +91,27 @@ export function AttachmentList({
 `DeleteTrigger` takes every `Button` prop and defaults to the destructive
 variant. While its key is deleting, it is disabled, stays focusable, and
 shows a spinner. `children` replace its icon and label.
+
+## Examples
+
+### Triggers and dialogs
+
+`DeleteTrigger` is a `Button` with every prop forwarded. `note` adds a line
+to the dialog. A root's `dialog` replaces the dialog copy, and
+`confirm={false}` deletes on click.
+
+<DemoPreview name="delete-variants-demo.tsx">
+  <DeleteVariantsDemo />
+</DemoPreview>
+
+### Delete several files
+
+Your own trigger calls `request` from `useDeleteContext()` with every
+target. One dialog asks for all of them.
+
+<DemoPreview name="delete-bulk-demo.tsx">
+  <DeleteBulkDemo />
+</DemoPreview>
 
 ## Confirmation
 

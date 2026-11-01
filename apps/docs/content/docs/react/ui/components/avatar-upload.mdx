@@ -1,9 +1,10 @@
 ---
 title: Avatar Upload
-description: Round image button that shows the current picture and uploads a new one.
+description: Image button that shows the current picture and uploads a new one.
 ---
 
 import { AvatarUploadDemo } from "@/components/demos/avatar-upload-demo";
+import { AvatarUploadShapesDemo } from "@/components/demos/avatar-upload-shapes-demo";
 
 `AvatarUpload` shows a stored image and replaces it. A click opens the file
 picker, and an image dropped on it uploads too. It shows the new image while
@@ -77,6 +78,17 @@ export function ProfilePhoto({
 pass it back as `objectKey`. Images that uploaded before the avatar mounted
 are not reported.
 
+## Examples
+
+### Sizes and shapes
+
+`size` sets the width and height in pixels. `shape="square"` rounds the
+corners instead of the whole image, for logos and covers.
+
+<DemoPreview name="avatar-upload-shapes-demo.tsx">
+  <AvatarUploadShapesDemo />
+</DemoPreview>
+
 ## What it shows
 
 - While an image uploads, and after it succeeds, the picked file's preview.
@@ -85,7 +97,8 @@ are not reported.
 - Without a key, or when the image cannot load, a placeholder icon.
 
 `route` is the route that signs the GET for `objectKey`. It is usually the
-same route the hook uploads to. `size` sets the width and height in pixels.
+same route the hook uploads to. `size` sets the width and height in pixels,
+and `shape` is `circle` (the default) or `square`.
 The button is disabled while the hook is (`useUpload({ disabled: true })`).
 
 ## Accessibility

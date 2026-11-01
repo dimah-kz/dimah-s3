@@ -6,7 +6,6 @@ import {
   UploadDropzone,
   UploadField,
   UploadFieldValue,
-  UploadStatus,
   UploadToasts,
 } from "@dimah-s3/ui";
 import { Button } from "@/components/ui/button";
@@ -28,10 +27,13 @@ export function UploadFieldDemo() {
   }
 
   return (
-    <form className="flex w-full max-w-md flex-col gap-3" onSubmit={onSubmit}>
+    <form
+      className="mx-auto flex w-full max-w-md flex-col gap-3"
+      onSubmit={onSubmit}
+    >
       <UploadField upload={upload} name="attachments" maxFiles={MAX_FILES}>
+        {/* Progress shows inside the dropzone; the value lists the keys. */}
         <UploadDropzone />
-        <UploadStatus />
         <UploadFieldValue />
       </UploadField>
       <UploadToasts upload={upload} />
@@ -39,7 +41,7 @@ export function UploadFieldDemo() {
         Submit
       </Button>
       {submitted ? (
-        <output className="text-sm break-all text-fd-muted-foreground">
+        <output className="text-sm break-all text-muted-foreground">
           {submitted.length > 0
             ? `attachments: ${submitted.join(", ")}`
             : "No files attached."}

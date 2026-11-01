@@ -4,6 +4,8 @@ description: File cards, status rows, progress rings, and type glyphs for upload
 ---
 
 import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
+import { AttachmentStatesDemo } from "@/components/demos/attachment-states-demo";
+import { AttachmentGlyphsDemo } from "@/components/demos/attachment-glyphs-demo";
 
 `FileAttachment` and `StatusAttachment` are the cards the upload family
 renders, built on [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment).
@@ -116,6 +118,27 @@ spinner instead.
 ```
 
 Wrap several cards in `AttachmentGroup` for a scrolling row.
+
+## Examples
+
+### Every state
+
+`FileAttachment` for one file in each state, and `StatusAttachment` for a
+result that has no single file.
+
+<DemoPreview name="attachment-states-demo.tsx">
+  <AttachmentStatesDemo />
+</DemoPreview>
+
+### Glyphs and progress
+
+`FileTypeGlyph` picks a colored glyph from the content type, else the
+extension. `FolderGlyph` is the object list's folder, and `CircleProgress`
+the ring a card shows while its file uploads.
+
+<DemoPreview name="attachment-glyphs-demo.tsx">
+  <AttachmentGlyphsDemo />
+</DemoPreview>
 
 ## Building blocks
 

@@ -18,6 +18,7 @@ import {
   FileAttachment,
   Upload,
   UploadDropzone,
+  UploadDropzoneTrigger,
   UploadStatus,
   UploadToasts,
 } from "@dimah-s3/ui";
@@ -82,11 +83,17 @@ export function HomeDropzoneDemo() {
     upload.reset();
   };
 
+  const uploaded = object != null && !upload.isPending;
+
   return (
     <div className="flex w-full flex-col gap-3">
       <Upload upload={upload}>
-        <UploadDropzone className="w-full" />
-        {object && !upload.isPending ? (
+        {/* Progress shows inside the dropzone until the file card replaces it. */}
+        <UploadDropzone className="w-full">
+          <UploadDropzoneTrigger />
+          {uploaded ? null : <UploadStatus />}
+        </UploadDropzone>
+        {uploaded ? (
           <ViewTransition>
             <div className="flex w-full flex-col gap-2">
               <FileAttachment
@@ -122,9 +129,7 @@ export function HomeDropzoneDemo() {
               </div>
             </div>
           </ViewTransition>
-        ) : (
-          <UploadStatus />
-        )}
+        ) : null}
       </Upload>
       <UploadToasts upload={upload} />
       <DownloadToasts download={download} />

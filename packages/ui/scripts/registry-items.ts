@@ -206,7 +206,7 @@ export const components: Registry["items"] = [
     type: "registry:component",
     title: "Upload",
     description:
-      "Composable upload family: Upload root, trigger button, dropzone, status, file list, paste, and toasts.",
+      "Composable upload family: Upload root, trigger button, dropzone with the progress inside, status and file list as rows or a grid, paste, and toasts.",
     ...glyphInstallMeta,
     registryDependencies: [
       ...toastRegistryDependencies,
