@@ -33,6 +33,7 @@ import {
 } from "@/components/dimah-s3/upload/upload-dropzone";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-controls";
 
 // jsdom does no layout, so it has no element scrolling.
 Element.prototype.scrollTo ??= () => {};
@@ -143,6 +144,8 @@ function acceptUploads(api: Api) {
 type Hooks = { upload: UseUploadReturn; remove: UseDeleteReturn };
 
 type RenderOptions = {
+  /** Records in place of {@link initialItems}. */
+  items?: Item[];
   /** Source additions over the memory source. */
   source?: Pick<ObjectListSource<Item>, "uploadOptions" | "createFolder">;
   limits?: { maxBytes?: number; maxFiles?: number };
@@ -160,7 +163,7 @@ type RenderOptions = {
 
 /** Renders an ObjectList over real hooks and a fake `S3Api`. */
 function renderList(options: RenderOptions = {}) {
-  const items = initialItems();
+  const items = options.items ?? initialItems();
   const api = fakeApi(items);
   /** Called once per list query. */
   const records = vi.fn(() => items);
@@ -293,6 +296,132 @@ function toastTitles() {
 }
 
 describe("ObjectList", () => {
+  describe("Header", () => {
+    function header(container: HTMLElement) {
+      const element = container.querySelector("[data-slot=object-list-header]");
+      if (!element) throw new Error("No header");
+      return element;
+    }
+
+    it("opens the search from its button across the header", async () => {
+      const user = userEvent.setup();
+      const { container } = renderList({
+        props: () => ({ toolbar: <ObjectListSearch /> }),
+      });
+      await settle();
+      expect(screen.queryByRole("searchbox")).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Search files" }));
+      const field = screen.getByRole("searchbox", { name: "Search files" });
+      expect(document.activeElement).toBe(field);
+      expect(header(container).hasAttribute("data-search-open")).toBe(true);
+
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("searchbox")).toBeNull();
+      expect(header(container).hasAttribute("data-search-open")).toBe(false);
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Search files" }),
+      );
+    });
+
+    it("keeps the field open while it has text; Escape clears it first", async () => {
+      const user = userEvent.setup();
+      renderList({ props: () => ({ toolbar: <ObjectListSearch /> }) });
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "Search files" }));
+      await user.keyboard("b");
+      await user.tab();
+      const field = screen.getByRole("searchbox", { name: "Search files" });
+      expect((field as HTMLInputElement).value).toBe("b");
+
+      await user.click(field);
+      await user.keyboard("{Escape}");
+      expect((field as HTMLInputElement).value).toBe("");
+      expect(screen.getByRole("searchbox")).toBe(field);
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("searchbox")).toBeNull();
+    });
+
+    it("clears and closes with Close search", async () => {
+      const user = userEvent.setup();
+      renderList({ props: () => ({ toolbar: <ObjectListSearch /> }) });
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "Search files" }));
+      await user.keyboard("zzz{Enter}");
+      await settle();
+      expect(
+        screen.queryByRole("button", { name: startsWith("a.txt") }),
+      ).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Close search" }));
+      await settle();
+      expect(screen.queryByRole("searchbox")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: startsWith("a.txt") }),
+      ).toBeDefined();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Search files" }),
+      );
+    });
+
+    it("keeps the field in the header with collapsible={false}", async () => {
+      const { container } = renderList({
+        props: () => ({ toolbar: <ObjectListSearch collapsible={false} /> }),
+      });
+      await settle();
+
+      expect(
+        screen.getByRole("searchbox", { name: "Search files" }),
+      ).toBeDefined();
+      expect(header(container).hasAttribute("data-search-open")).toBe(false);
+    });
+
+    it("lists every folder above the open one in the path menu", async () => {
+      const user = userEvent.setup();
+      renderList({
+        items: [
+          {
+            key: "docs/2026/q1/r.txt",
+            name: "r.txt",
+            size: 1,
+            folder: "docs/2026/q1",
+          },
+        ],
+      });
+      await settle();
+      for (const name of ["docs", "2026", "q1"]) {
+        await user.click(
+          screen.getByRole("button", { name: startsWith(name) }),
+        );
+        await settle();
+      }
+
+      const path = screen.getByRole("navigation");
+      expect(
+        within(path).getByText("q1").closest("[aria-current=page]"),
+      ).not.toBeNull();
+      expect(within(path).getByRole("button", { name: "2026" })).toBeDefined();
+
+      await user.click(
+        within(path).getByRole("button", { name: "Folders above" }),
+      );
+      const menu = await screen.findByRole("menu");
+      expect(
+        within(menu)
+          .getAllByRole("menuitem")
+          .map((item) => item.textContent),
+      ).toEqual(["Files", "docs", "2026"]);
+
+      await user.click(within(menu).getByRole("menuitem", { name: "docs" }));
+      await settle();
+      expect(
+        within(path).getByText("docs").closest("[aria-current=page]"),
+      ).not.toBeNull();
+    });
+  });
+
   describe("New folder", () => {
     it("appears only when the source can create folders", async () => {
       const { unmount } = renderList();
@@ -385,6 +514,31 @@ describe("ObjectList", () => {
       expect(document.activeElement).toBe(
         screen.getByRole("button", { name: "New folder" }),
       );
+    });
+
+    it("opens the name field across the header", async () => {
+      const user = userEvent.setup();
+      const { container } = renderList({
+        source: { createFolder: async ({ name }) => ({ id: name, name }) },
+        props: () => ({ toolbar: <ObjectListSearch /> }),
+      });
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "New folder" }));
+      const header = container.querySelector("[data-slot=object-list-header]");
+      const form = container.querySelector(
+        "[data-slot=object-list-new-folder]",
+      );
+      expect(header?.hasAttribute("data-folder-open")).toBe(true);
+      expect(header?.hasAttribute("data-search-open")).toBe(false);
+      expect(form?.hasAttribute("data-expanded")).toBe(true);
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Folder name" }),
+      );
+
+      await user.keyboard("{Escape}");
+      expect(header?.hasAttribute("data-folder-open")).toBe(false);
+      expect(form?.isConnected).toBe(false);
     });
   });
 

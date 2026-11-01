@@ -22,6 +22,7 @@ describe("@dimah-s3/ui", () => {
       "FileTypeGlyph",
       "FolderGlyph",
       "NewFolderControl",
+      "ObjectCard",
       "ObjectImage",
       "ObjectList",
       "ObjectListBreadcrumb",

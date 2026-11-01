@@ -178,7 +178,13 @@ describe("UploadStatus", () => {
     });
     renderStatus(upload);
 
-    expect(screen.getByText("1/3 files")).toBeDefined();
+    expect(screen.getByText("1 of 3 files uploaded")).toBeDefined();
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Upload progress" })
+        .getAttribute("aria-valuenow"),
+    ).toBe("50");
+    expect(screen.getByText("50%")).toBeDefined();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
     await userEvent.click(

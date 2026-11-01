@@ -105,11 +105,13 @@ renders nothing and warns in development.
 
 ## Explore UI components
 
+### Upload
+
 <Cards>
   <Card
     title="Upload"
     href="/docs/react/ui/components/upload"
-    description="File picker, dropzone, queue status, and toasts for useUpload."
+    description="File picker, dropzone with the progress inside, queue status, and toasts for useUpload."
   />
   <Card
     title="Upload Field"
@@ -119,7 +121,37 @@ renders nothing and warns in development.
   <Card
     title="Avatar Upload"
     href="/docs/react/ui/components/avatar-upload"
-    description="Round image button that shows and replaces a picture."
+    description="Image button that shows and replaces a picture, round or square."
+  />
+</Cards>
+
+### Download and delete
+
+<Cards>
+  <Card
+    title="Download"
+    href="/docs/react/ui/components/download"
+    description="Download triggers and fetch progress for one download hook."
+  />
+  <Card
+    title="Delete"
+    href="/docs/react/ui/components/delete"
+    description="Delete triggers with one confirm dialog per root."
+  />
+</Cards>
+
+### Files
+
+<Cards>
+  <Card
+    title="Object List"
+    href="/docs/react/ui/components/object-list"
+    description="Composable file browser for useObjectList: list and grid views, search, sort, selection, and folders."
+  />
+  <Card
+    title="Object Card"
+    href="/docs/react/ui/components/object-card"
+    description="One stored file with download and delete actions."
   />
   <Card
     title="Object Image"
@@ -127,25 +159,15 @@ renders nothing and warns in development.
     description="Image of a private object with a signed, refreshed URL."
   />
   <Card
-    title="Download"
-    href="/docs/react/ui/components/download"
-    description="Download buttons and fetch progress for one download hook."
-  />
-  <Card
-    title="Delete"
-    href="/docs/react/ui/components/delete"
-    description="Delete buttons with one confirm dialog per root."
-  />
-  <Card
-    title="Object List"
-    href="/docs/react/ui/components/object-list"
-    description="Composable file browser for useObjectList: list and grid views, search, sort, selection, and folders."
-  />
-  <Card
     title="Attachment"
     href="/docs/react/ui/components/attachment"
     description="File cards, status rows, progress rings, and type glyphs."
   />
+</Cards>
+
+### Customization
+
+<Cards>
   <Card
     title="Theming"
     href="/docs/react/ui/customization/theming"
@@ -161,7 +183,8 @@ renders nothing and warns in development.
 
 Yes. Add items from the shadcn registry to copy their source into your
 codebase. The items are `upload`, `upload-field`, `avatar-upload`,
-`object-image`, `download`, `delete`, `object-list`, and `file-attachment`:
+`object-image`, `object-card`, `download`, `delete`, `object-list`, and
+`file-attachment`:
 
 ```npm
 npx shadcn@latest add @dimah-s3/upload @dimah-s3/delete

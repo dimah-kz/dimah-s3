@@ -2,14 +2,5 @@
   "title": "Components",
   "description": "Upload, download, delete, and file browsing",
   "defaultOpen": true,
-  "pages": [
-    "upload",
-    "upload-field",
-    "avatar-upload",
-    "object-image",
-    "download",
-    "delete",
-    "object-list",
-    "attachment"
-  ]
+  "pages": ["(upload)", "(actions)", "(files)"]
 }

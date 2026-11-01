@@ -18,6 +18,7 @@ export type Translations = {
   "Cancel(toast action)": string;
   "Clear search(object list)": string;
   "Clear(object list selection)": string;
+  "Close search(object list)": string;
   "Conflict(API error)": string;
   "Copy link(object list menu)": string;
   "Could not copy link(object list menu)": string;
@@ -31,10 +32,12 @@ export type Translations = {
   "Delete failed(toast)": string;
   "Delete file?(dialog title)": string;
   "Delete {count} files?(dialog title)": string;
+  "Delete {name}(attachment action)": string;
   "Delete(button)": string;
   "Delete(dialog confirm)": string;
   "Deleted {count} files(toast)": string;
   "Deleting is disabled(API error)": string;
+  "Deleting…(delete status)": string;
   "Descending(object list sort)": string;
   "Dismiss {name}(attachment action)": string;
   "Dismiss(attachment action)": string;
@@ -43,6 +46,7 @@ export type Translations = {
   "Download failed(API error)": string;
   "Download failed(toast)": string;
   "Download started(toast)": string;
+  "Download {name}(attachment action)": string;
   "Download(button)": string;
   "Downloading(toast)": string;
   "Downloads are disabled(API error)": string;
@@ -54,7 +58,6 @@ export type Translations = {
   "Drop to upload(dropzone)": string;
   "EB(file size unit)": string;
   "Each up to {size}(dropzone hint)": string;
-  "Earlier folders(object list)": string;
   "Enter a folder name(object list new folder)": string;
   "Expires in 1 day(object list menu)": string;
   "Expires in 1 hour(object list menu)": string;
@@ -83,6 +86,7 @@ export type Translations = {
   "Folder is not empty(API error)": string;
   "Folder name is invalid(API error)": string;
   "Folder name(object list new folder)": string;
+  "Folders above(object list)": string;
   "GB(file size unit)": string;
   "Grid view(object list)": string;
   "Invalid request(API error)": string;
@@ -145,6 +149,7 @@ export type Translations = {
   "Upload files(button)": string;
   "Upload finished with errors(toast)": string;
   "Upload part is out of range(API error)": string;
+  "Upload progress(progress)": string;
   "Upload session has expired(API error)": string;
   "Upload session is invalid(API error)": string;
   "Upload to this folder(object list menu)": string;
@@ -162,7 +167,7 @@ export type Translations = {
   "{count} of {max} files(object list usage)": string;
   "{count} selected on this page(object list selection)": string;
   "{count} selected(object list selection)": string;
-  "{done}/{total} files(upload progress)": string;
+  "{done} of {total} files uploaded(upload progress)": string;
   "{failed} of {total} failed(API error)": string;
   "{hours}h left(time remaining)": string;
   "{hours}h {minutes}m left(time remaining)": string;

@@ -12,6 +12,9 @@ The download family renders one download hook. `Download` holds the hook,
 bytes of a fetch download. One hook serves every trigger in the root, and
 each object key has its own state.
 
+For a stored file with its download and delete actions, use
+[`ObjectCard`](/docs/react/ui/components/object-card).
+
 ## Preview
 
 One `useFetchDownload` hook for a list of files. While a file downloads, its
@@ -23,7 +26,7 @@ button fills with the progress, and a click cancels it.
 
 ## Install
 
-<include>../../../../_includes/ui/component-prereq.mdx</include>
+<include>../../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 

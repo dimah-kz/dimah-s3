@@ -24,6 +24,7 @@ import {
   useUploadFieldContext,
   type UploadFieldProps,
 } from "@/components/dimah-s3/upload/upload-field";
+import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 
 const unused = () => Promise.reject(new Error("not used in this test"));
@@ -211,6 +212,52 @@ describe("UploadField", () => {
 
     await waitFor(() => expect(submitted("files")).toEqual(["uploads/b.txt"]));
     expect(api.confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it("moves a file from its status to its value once it uploads", async () => {
+    const { api } = renderField(
+      { name: "files" },
+      <>
+        <UploadTrigger />
+        <UploadStatus />
+        <UploadFieldValue />
+      </>,
+    );
+    let finish: () => void = () => {};
+    api.uploadTransport.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finish = resolve)),
+    );
+
+    await choose([textFile("a.txt"), textFile("fail-b.txt")]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Cancel a.txt" }),
+      ).toBeDefined(),
+    );
+
+    await act(async () => finish());
+    await waitFor(() => expect(submitted("files")).toEqual(["uploads/a.txt"]));
+    // Only the value lists the uploaded file; the status keeps the failure.
+    expect(screen.getAllByText("a.txt")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Remove a.txt" })).toBeDefined();
+    expect(screen.getByText("fail-b.txt")).toBeDefined();
+    expect(screen.getByText("Upload failed")).toBeDefined();
+  });
+
+  it("renders no status once every file moved to the value", async () => {
+    const { container } = renderField(
+      { name: "files" },
+      <>
+        <UploadTrigger />
+        <UploadStatus />
+        <UploadFieldValue />
+      </>,
+    );
+
+    await choose([textFile("a.txt")]);
+    await waitFor(() => expect(submitted("files")).toEqual(["uploads/a.txt"]));
+
+    expect(container.querySelector("[data-slot=upload-status]")).toBeNull();
   });
 
   it("adds nothing while a file is in flight", async () => {

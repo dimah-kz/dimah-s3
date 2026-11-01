@@ -1,0 +1,5 @@
+{
+  "title": "Download & Delete",
+  "defaultOpen": true,
+  "pages": ["download", "delete"]
+}

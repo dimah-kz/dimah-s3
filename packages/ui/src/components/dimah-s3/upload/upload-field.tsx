@@ -26,6 +26,7 @@ import { cn } from "cn";
 import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismiss-attachment-action";
 import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
 import { Upload, useUploadFocus } from "@/components/dimah-s3/upload/upload";
+import { useFilePreview } from "@/hooks/use-file-preview";
 
 /** Props for {@link UploadField}. */
 export type UploadFieldProps = {
@@ -55,6 +56,8 @@ export type UploadFieldItem = {
   /** Verified size in bytes, or `null` for keys the field did not upload. */
   fileSize: number | null;
   contentType: string | null;
+  /** The uploaded `File`, for a thumbnail, or `null` for keys the field did not upload. */
+  file: File | null;
 };
 
 /** What {@link UploadField} shares with its parts. */
@@ -97,7 +100,9 @@ function isUploaded(file: UploadFileState): file is UploadedFile {
  * the value yourself.
  *
  * It wraps its children in `Upload`, so `UploadTrigger`, `UploadDropzone`
- * and `UploadStatus` work inside it. With `maxFiles`, their calls take at
+ * and `UploadStatus` work inside it. A file moves from the status to the
+ * value once it uploads, so it never shows twice: the status keeps only
+ * files in flight or failed. With `maxFiles`, their calls take at
  * most the files that still fit (files still uploading count), and the hook
  * rejects the rest with `TOO_MANY_FILES`. Once the field is full, its
  * trigger and dropzone stay focusable but are `aria-disabled`, and the
@@ -214,6 +219,7 @@ export function UploadField({
             fileName: fileNameFromKey(key) ?? key,
             fileSize: null,
             contentType: null,
+            file: null,
           },
       ),
       remaining,
@@ -229,7 +235,7 @@ export function UploadField({
       {value.map((key) => (
         <input key={key} type="hidden" name={name} value={key} />
       ))}
-      <Upload upload={fieldUpload} isFull={remaining === 0}>
+      <Upload upload={fieldUpload} isFull={remaining === 0} hideUploaded>
         {children}
       </Upload>
     </UploadFieldContext.Provider>
@@ -255,7 +261,8 @@ export type UploadFieldValueProps = Omit<ComponentProps<"ul">, "children"> & {
 
 /**
  * The keys of the nearest `UploadField`, in order, each with a remove
- * action. Renders nothing while the value is empty.
+ * action and a thumbnail for images the field uploaded. Renders nothing
+ * while the value is empty.
  */
 export function UploadFieldValue({
   children,
@@ -284,6 +291,7 @@ function UploadFieldValueItem({ item }: { item: UploadFieldItem }) {
   const t = useTranslations();
   const { remove } = useUploadFieldContext();
   const { keepFocus } = useUploadFocus();
+  const previewUrl = useFilePreview(item.file);
 
   return (
     <FileAttachment
@@ -291,6 +299,7 @@ function UploadFieldValueItem({ item }: { item: UploadFieldItem }) {
       fileName={item.fileName}
       fileSize={item.fileSize}
       contentType={item.contentType}
+      previewUrl={previewUrl}
       actions={
         <DismissAttachmentAction
           onDismiss={() => {
@@ -314,12 +323,13 @@ function withDetails(
   uploaded: readonly UploadedFile[],
 ): ReadonlyMap<string, UploadFieldItem> {
   const next = new Map(details);
-  for (const { result, fileName, contentType } of uploaded) {
+  for (const { result, fileName, contentType, file } of uploaded) {
     next.set(result.key, {
       key: result.key,
       fileName: result.name ?? fileName,
       fileSize: result.size,
       contentType: result.type ?? contentType,
+      file,
     });
   }
   return next;

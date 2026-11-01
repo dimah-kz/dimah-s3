@@ -453,7 +453,7 @@ export function ObjectListDemo() {
       height="28rem"
     >
       <ObjectListHeader>
-        <ObjectListSearch className="max-sm:hidden" />
+        <ObjectListSearch />
         <ObjectListSortMenu />
         <ObjectListViewToggle />
         <UploadTrigger size="sm" />

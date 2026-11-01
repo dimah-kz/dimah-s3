@@ -22,7 +22,7 @@ your API, or for `dbObjectSource`, without changing the component.
 
 ## Install
 
-<include>../../../../_includes/ui/component-prereq.mdx</include>
+<include>../../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -143,22 +143,45 @@ import {
 </ObjectList>;
 ```
 
-| Part                     | Renders                                                                                               |
-| ------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `ObjectListHeader`       | Select-all, the path, a reload spinner, New folder, and `children`. The selection bar while selecting |
-| `ObjectListBreadcrumb`   | The path. Earlier folders collapse into a menu past two levels                                        |
-| `ObjectListSearch`       | A debounced search box for `list.search`                                                              |
-| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                            |
-| `ObjectListViewToggle`   | List and grid buttons                                                                                 |
-| `ObjectListSelectAll`    | The select-all checkbox                                                                               |
-| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                              |
-| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                     |
-| `NewFolderControl`       | New folder, when the source has `createFolder`. `ObjectListHeader` already has one                    |
-| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                          |
-| `ObjectListUploadStatus` | Upload progress and errors                                                                            |
-| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                    |
-| `ObjectListEmpty`        | The empty state, with your own text or a call to action                                               |
-| `ObjectListItemMenu`     | Download, Copy link, your actions, and Delete for a file. Upload to this folder for a folder          |
+| Part                     | Renders                                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `ObjectListHeader`       | Select-all, the path, a reload spinner, New folder, and `children`. The selection bar while selecting                     |
+| `ObjectListBreadcrumb`   | The path. It shortens to fit, and a menu lists the folders above the open one                                             |
+| `ObjectListSearch`       | Debounced search for `list.search`. In the header, a button that opens a field across the bar                             |
+| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                                                |
+| `ObjectListViewToggle`   | List and grid buttons                                                                                                     |
+| `ObjectListSelectAll`    | The select-all checkbox                                                                                                   |
+| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                                                  |
+| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                                         |
+| `NewFolderControl`       | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one |
+| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                                              |
+| `ObjectListUploadStatus` | Upload progress and errors                                                                                                |
+| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                        |
+| `ObjectListEmpty`        | The empty state, with your own text or a call to action                                                                   |
+| `ObjectListItemMenu`     | Download, Copy link, your actions, and Delete for a file. Upload to this folder for a folder                              |
+
+## Header
+
+`ObjectListHeader` lays out by its own width, so it fits a sidebar as well as
+a page:
+
+- The path keeps room for itself. When the controls do not fit beside it,
+  they move to a second row, aligned to the end.
+- The path shortens to fit: `Files › … › Parent › Current`, then
+  `Files › … › Current`, then `… › Current`. The … menu lists every folder
+  above the open one.
+- Under 36rem, the labels of New folder, Sort, bulk Delete, and the default
+  `UploadTrigger` hide, leaving square icon buttons with the same names.
+- `ObjectListSearch` is a search button. A click opens a field across the
+  whole bar; it stays open while it has text. Escape clears the text, then
+  closes it, and Close search does both. Pass `collapsible={false}` to keep
+  the field in the bar.
+- New folder opens the same way. A click replaces the bar with the name
+  field, the create button, and Cancel. Enter creates the folder; Escape or
+  Cancel closes the field and brings the path and the other controls back.
+
+Render the controls as direct children of the header, so an open search or
+new folder can take the bar from them.
 
 `useObjectListContext()` returns the list, selection, hooks, and view, for
 parts of your own. Inside an entry, `useObjectListEntry()` returns it.
@@ -411,9 +434,9 @@ them.
 - With your own source, return folders from your query on the first page, and
   add `createFolder` to enable New folder.
 
-New folder opens a labelled name field. Enter creates the folder through the
-source, and Escape cancels. An invalid or taken name shows a message under
-the field that describes it.
+New folder, in the header, opens a name field across the bar. Enter creates
+the folder through the source, and Escape or Cancel closes the field. An
+invalid or taken name shows a message under the field that describes it.
 
 ## Props
 

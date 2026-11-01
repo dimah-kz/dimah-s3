@@ -1,0 +1,5 @@
+{
+  "title": "Files",
+  "defaultOpen": true,
+  "pages": ["object-list", "object-card", "object-image", "attachment"]
+}

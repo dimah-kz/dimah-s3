@@ -51,7 +51,7 @@ export function DownloadDemo() {
                     fileName={file.name}
                     fileSize={file.size}
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon-xs"
                     aria-label={`Download ${file.name}`}
                     tooltip="Download"
                   >

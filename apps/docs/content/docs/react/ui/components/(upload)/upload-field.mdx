@@ -20,7 +20,7 @@ Upload up to three files, then submit the form to see the keys it sends.
 
 ## Install
 
-<include>../../../../_includes/ui/component-prereq.mdx</include>
+<include>../../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -77,8 +77,9 @@ export function TicketForm({
 }
 ```
 
-The dropzone shows the progress inside it, and `UploadFieldValue` lists the
-keys the field holds. On the server, read the keys with `formData.getAll("attachments")`.
+The dropzone shows the files in flight inside it. Once a file uploads it
+moves to `UploadFieldValue`, which lists the keys the field holds, so a file
+never shows twice. On the server, read the keys with `formData.getAll("attachments")`.
 `maxFiles` is a client-side limit, so check the keys and their count in your
 own endpoint. See [Forms](/docs/react/forms) for the rest of the flow.
 
@@ -100,8 +101,12 @@ file or attach two more to fill the field.
   are still in flight add nothing.
 - The value grows across calls, even though the hook replaces its queue.
 - Files that uploaded before the field mounted are left out.
-- `UploadFieldValue` lists the keys, each with a `Remove {name}` action.
-  Removing a key does not delete the object.
+- `UploadFieldValue` lists the keys, each with a `Remove {name}` action and
+  a thumbnail for images the field uploaded. Removing a key does not delete
+  the object.
+- Inside the field, `UploadStatus` and `UploadFileList` leave out files that
+  uploaded: they show only files in flight or failed. The field sets
+  `hideUploaded` on its `Upload` root for that.
 
 Keep the value yourself with `value` and `onValueChange`, or start from
 `defaultValue`. `onValueChange` runs after the change commits. Keys the field

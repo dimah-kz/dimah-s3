@@ -56,7 +56,7 @@ export function StatusAttachment({
     state === "error" ? (
       <AlertCircleIcon />
     ) : state === "done" ? (
-      <CheckCircleIcon />
+      <CheckCircleIcon className="text-dimah-s3-success" />
     ) : state === "processing" || state === "uploading" ? (
       <LoaderCircleIcon className="animate-spin" data-slot="spinner" />
     ) : null;

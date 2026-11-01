@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ObjectListSortDirection } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
@@ -13,6 +13,11 @@ import {
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -23,31 +28,57 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  OBJECT_LIST_HEADER_COMPACT_BUTTON,
+  OBJECT_LIST_HEADER_COMPACT_LABEL,
+  useOptionalObjectListHeader,
+} from "@/components/dimah-s3/list/object-list-header";
 
 /** Props for {@link ObjectListSearch}. */
 export type ObjectListSearchProps = {
   placeholder?: string;
   /** Milliseconds to wait after typing before the list reloads. @default 250 */
   delay?: number;
+  /**
+   * Inside `ObjectListHeader`, start as a search button that opens into a
+   * field across the whole bar. `false` keeps the field in the bar. Outside
+   * a header the field always shows. @default true
+   */
+  collapsible?: boolean;
   className?: string;
 };
 
 /**
- * Search box for `list.search`. The query receives the text; the source
+ * Search for `list.search`. The query receives the text; the source
  * decides what matches (`memoryObjectSource` matches names).
+ *
+ * Inside `ObjectListHeader` it is a search button. A click opens a field
+ * across the whole bar and focuses it; the field stays open while it has
+ * text. Escape clears the text, then closes the field. Close search clears
+ * and closes it, and focus returns to the button. An empty field also
+ * closes when focus leaves it. Render it as a direct child of the header.
  */
 export function ObjectListSearch({
   placeholder,
   delay = 250,
+  collapsible = true,
   className,
 }: ObjectListSearchProps) {
   const t = useTranslations();
   const { list } = useObjectListContext();
+  const header = useOptionalObjectListHeader();
   const { setSearch } = list;
   // Typed text that has not reached the list yet.
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? list.search;
   const label = placeholder ?? t("Search files", { note: "object list" });
+  const collapses = collapsible && header != null;
+  const [open, setOpen] = useState(false);
+  const expanded = !collapses || open || value !== "";
+  const inputRef = useRef<HTMLInputElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  /** Where focus goes once the field has opened or closed. */
+  const focusRef = useRef<"input" | "button" | null>(null);
 
   useEffect(() => {
     if (draft == null) return;
@@ -58,39 +89,115 @@ export function ObjectListSearch({
     return () => window.clearTimeout(timer);
   }, [delay, draft, setSearch]);
 
+  // The header gives an open field the whole bar.
+  const setSearchExpanded = header?.setSearchExpanded;
+  useLayoutEffect(() => {
+    if (!collapses || !setSearchExpanded) return;
+    setSearchExpanded(expanded);
+    return () => setSearchExpanded(false);
+  }, [collapses, expanded, setSearchExpanded]);
+
+  useEffect(() => {
+    const target = focusRef.current;
+    if (!target) return;
+    focusRef.current = null;
+    (target === "input" ? inputRef : buttonRef).current?.focus();
+  });
+
   function commit(next: string) {
     setDraft(null);
     setSearch(next);
   }
 
+  function close() {
+    commit("");
+    setOpen(false);
+    focusRef.current = "button";
+  }
+
+  if (!expanded) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              ref={buttonRef}
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              data-slot="object-list-search"
+              aria-label={label}
+              className={className}
+              onClick={() => {
+                focusRef.current = "input";
+                setOpen(true);
+              }}
+            />
+          }
+        >
+          <SearchIcon />
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
     <div
       data-slot="object-list-search"
+      data-expanded=""
       className={cn(
-        "relative flex w-40 min-w-0 items-center sm:w-52",
+        "relative flex min-w-0 items-center",
+        collapses ? "w-full flex-1" : "w-40 sm:w-52",
         className,
       )}
+      onBlur={(event) => {
+        if (!collapses || value !== "") return;
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        setOpen(false);
+      }}
     >
       <SearchIcon
         aria-hidden
-        className="pointer-events-none absolute start-2 size-3.5 text-dimah-s3-muted-foreground"
+        className="pointer-events-none absolute start-2.5 size-3.5 text-dimah-s3-muted-foreground"
       />
       <input
+        ref={inputRef}
         type="search"
         value={value}
         placeholder={label}
         aria-label={label}
-        className="h-7 w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-7 pe-7 text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 [&::-webkit-search-cancel-button]:appearance-none"
+        autoComplete="off"
+        className={cn(
+          "w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-8 text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 [&::-webkit-search-cancel-button]:appearance-none",
+          collapses ? "h-8 pe-9" : "h-7 pe-7",
+        )}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") commit(value);
-          if (event.key === "Escape" && value) {
+          if (event.key !== "Escape") return;
+          if (value) {
             event.preventDefault();
             commit("");
+          } else if (collapses) {
+            event.preventDefault();
+            close();
           }
         }}
       />
-      {value ? (
+      {collapses ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label={t("Close search", { note: "object list" })}
+          className="absolute end-1.5"
+          onClick={close}
+        >
+          <XIcon />
+        </Button>
+      ) : value ? (
         <button
           type="button"
           aria-label={t("Clear search", { note: "object list" })}
@@ -150,12 +257,14 @@ export function ObjectListSortMenu({
             variant="ghost"
             size="sm"
             data-slot="object-list-sort"
-            className={className}
+            className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
           />
         }
       >
         <ArrowDownUpIcon data-icon="inline-start" />
-        <span className="max-sm:sr-only">{current?.label ?? sortLabel}</span>
+        <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>
+          {current?.label ?? sortLabel}
+        </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
         <DropdownMenuGroup>

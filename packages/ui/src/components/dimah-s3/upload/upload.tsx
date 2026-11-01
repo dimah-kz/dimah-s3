@@ -29,6 +29,12 @@ export type UploadProps = {
    * `upload`, once it is full. @default false
    */
   isFull?: boolean;
+  /**
+   * Leaves files that uploaded out of `UploadStatus` and `UploadFileList`,
+   * which then show only files in flight or failed. `UploadField` sets it,
+   * since its value lists those files. @default false
+   */
+  hideUploaded?: boolean;
   children: ReactNode;
 };
 
@@ -37,6 +43,8 @@ export type UploadContextValue = {
   upload: UseUploadReturn;
   /** The root takes no more files, as in a full `UploadField`. Parts render `aria-disabled`. */
   isFull: boolean;
+  /** Status parts leave out files that uploaded, as in an `UploadField`. */
+  hideUploaded: boolean;
 };
 
 const UploadContext = createContext<UploadContextValue | null>(null);
@@ -85,8 +93,16 @@ type FocusHandoff = {
  * <UploadToasts upload={upload} />
  * ```
  */
-export function Upload({ upload, isFull = false, children }: UploadProps) {
-  const value = useMemo(() => ({ upload, isFull }), [isFull, upload]);
+export function Upload({
+  upload,
+  isFull = false,
+  hideUploaded = false,
+  children,
+}: UploadProps) {
+  const value = useMemo(
+    () => ({ upload, isFull, hideUploaded }),
+    [hideUploaded, isFull, upload],
+  );
   const rootId = useId();
   const handoffRef = useRef<FocusHandoff | null>(null);
 

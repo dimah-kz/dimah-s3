@@ -17,6 +17,8 @@ The upload family renders one [`useUpload`](/docs/react/hooks/upload) hook.
 the file picker, a dropzone with the progress inside it, and the status of
 the queue. `UploadToasts` reports on the same hook from anywhere in the tree.
 
+For a form value, use [`UploadField`](/docs/react/ui/components/upload-field).
+
 ## Preview
 
 Drop files on the dropzone or click it. Progress shows inside the dropzone.
@@ -27,7 +29,7 @@ Drop files on the dropzone or click it. Progress shows inside the dropzone.
 
 ## Install
 
-<include>../../../../_includes/ui/component-prereq.mdx</include>
+<include>../../../../../_includes/ui/component-prereq.mdx</include>
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
@@ -216,8 +218,10 @@ the root is full, as in a full [`UploadField`](/docs/react/ui/components/upload-
 ## Status
 
 `UploadStatus` renders nothing while the hook is idle. One file shows as its
-own card. Several files show a summary with overall progress, "Cancel all
-uploads", and a dismiss action once they settle, above `UploadFileList`.
+own card. Several files show as one card: a summary with the overall
+progress ring, the count, and the time left, then a row for each file. The
+summary has "Cancel all uploads" while they upload, and a dismiss action once
+they settle. The rows scroll past 20rem.
 Pause appears while files upload when the hook has an `uploadStore`, so the
 uploads can [resume](/docs/react/upload-store). It sets `data-phase` to the
 hook's phase.

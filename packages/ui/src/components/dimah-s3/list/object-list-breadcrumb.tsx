@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment } from "react";
 import type { ObjectListFolder } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
+import { FolderIcon, HomeIcon } from "lucide-react";
 import { cn } from "cn";
 import {
   Breadcrumb,
@@ -22,108 +22,160 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-/** Trailing folders kept inline. Earlier ones collapse into a menu. */
-const VISIBLE_TRAIL = 2;
+/*
+ * The path shortens with its own width (a container query), not the
+ * window's, so it fits a narrow sidebar as well as a phone:
+ *
+ *   wide    Files › … › Parent › Current
+ *   medium  Files › … › Current
+ *   narrow  … › Current
+ *
+ * The open folder always shows, and the … menu lists every folder above
+ * it, so any of them is one click away.
+ */
+const HIDE_ROOT = "@max-[13rem]/object-list-breadcrumb:hidden";
+const HIDE_PARENT = "@max-[22rem]/object-list-breadcrumb:hidden";
 
-function splitObjectListTrail(trail: readonly ObjectListFolder[]) {
-  if (trail.length <= VISIBLE_TRAIL) {
-    return { hidden: [] as readonly ObjectListFolder[], visible: trail };
-  }
-  return {
-    hidden: trail.slice(0, -VISIBLE_TRAIL),
-    visible: trail.slice(-VISIBLE_TRAIL),
-  };
+const CRUMB =
+  "block max-w-32 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50";
+
+/** Classes that show the … menu while some folder above the open one is hidden. */
+function menuVisibility(depth: number) {
+  if (depth > 2) return "flex";
+  if (depth === 2) return "hidden @max-[22rem]/object-list-breadcrumb:flex";
+  return "hidden @max-[13rem]/object-list-breadcrumb:flex";
 }
 
 /**
- * Path from the root to the open folder. Earlier folders collapse into a
- * menu when the path is deep.
+ * Path from the root to the open folder. It shortens to fit its width,
+ * down to the open folder alone, and a menu lists the folders above it.
  */
 export function ObjectListBreadcrumb({ className }: { className?: string }) {
   const { list, label: rootLabel } = useObjectListContext();
   const { trail, navigate } = list;
   const t = useTranslations();
-  const atRoot = trail.length === 0;
-  const { hidden, visible } = splitObjectListTrail(trail);
+  const depth = trail.length;
+  const current = trail.at(-1);
+  const parent = depth >= 2 ? trail[depth - 2] : undefined;
 
   return (
     <Breadcrumb
       data-slot="object-list-breadcrumb"
-      className={cn("min-w-0 flex-1", className)}
+      className={cn(
+        "@container/object-list-breadcrumb min-w-0 flex-1",
+        className,
+      )}
     >
-      <BreadcrumbList className="min-w-0 flex-nowrap">
-        <BreadcrumbItem className="min-w-0">
-          {atRoot ? (
-            <BreadcrumbPage className="max-w-40 truncate sm:max-w-56">
-              {rootLabel}
-            </BreadcrumbPage>
-          ) : (
+      <BreadcrumbList className="min-w-0 flex-nowrap gap-1 text-sm">
+        <BreadcrumbItem
+          className={cn("min-w-0", current ? HIDE_ROOT : "flex-1")}
+        >
+          {current ? (
             <BreadcrumbLink
-              className="max-w-40 truncate sm:max-w-56"
+              className={CRUMB}
               render={<button type="button" />}
               onClick={() => navigate([])}
             >
               {rootLabel}
             </BreadcrumbLink>
+          ) : (
+            <BreadcrumbPage className="block truncate font-medium">
+              {rootLabel}
+            </BreadcrumbPage>
           )}
         </BreadcrumbItem>
-        {hidden.length > 0 ? (
-          <Fragment>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem className="shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1">
-                  <BreadcrumbEllipsis className="size-4" />
-                  <span className="sr-only">
-                    {t("Earlier folders", { note: "object list" })}
-                  </span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="max-w-64 min-w-48"
-                >
-                  <DropdownMenuGroup>
-                    {hidden.map((folder, index) => (
-                      <DropdownMenuItem
-                        key={folder.id}
-                        onClick={() => navigate(trail.slice(0, index + 1))}
-                      >
-                        <span className="truncate">
-                          <bdi>{folder.name}</bdi>
-                        </span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+        {depth >= 1 ? (
+          <>
+            {depth >= 2 ? (
+              <BreadcrumbSeparator
+                className={
+                  depth > 2
+                    ? HIDE_ROOT
+                    : "hidden @min-[13rem]/object-list-breadcrumb:@max-[22rem]/object-list-breadcrumb:flex"
+                }
+              />
+            ) : null}
+            <BreadcrumbItem className={cn("shrink-0", menuVisibility(depth))}>
+              <PathMenu
+                label={t("Folders above", { note: "object list" })}
+                rootLabel={rootLabel}
+                folders={trail.slice(0, -1)}
+                onNavigate={(index) => navigate(trail.slice(0, index))}
+              />
             </BreadcrumbItem>
-          </Fragment>
+          </>
         ) : null}
-        {visible.map((folder, index) => {
-          const trailIndex = hidden.length + index;
-          const current = trailIndex === trail.length - 1;
-          return (
-            <Fragment key={folder.id}>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem className="min-w-0">
-                {current ? (
-                  <BreadcrumbPage className="max-w-40 truncate sm:max-w-56">
-                    <bdi>{folder.name}</bdi>
-                  </BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink
-                    className="max-w-40 truncate sm:max-w-56"
-                    render={<button type="button" />}
-                    onClick={() => navigate(trail.slice(0, trailIndex + 1))}
-                  >
-                    <bdi>{folder.name}</bdi>
-                  </BreadcrumbLink>
-                )}
-              </BreadcrumbItem>
-            </Fragment>
-          );
-        })}
+        {parent ? (
+          <>
+            <BreadcrumbSeparator className={HIDE_PARENT} />
+            <BreadcrumbItem className={cn("min-w-0", HIDE_PARENT)}>
+              <BreadcrumbLink
+                className={CRUMB}
+                render={<button type="button" />}
+                onClick={() => navigate(trail.slice(0, -1))}
+              >
+                <bdi>{parent.name}</bdi>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          </>
+        ) : null}
+        {current ? (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="min-w-0 flex-1">
+              <BreadcrumbPage className="block truncate font-medium">
+                <bdi>{current.name}</bdi>
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        ) : null}
       </BreadcrumbList>
     </Breadcrumb>
+  );
+}
+
+/** The … menu: the root and every folder above the open one. */
+function PathMenu({
+  label,
+  rootLabel,
+  folders,
+  onNavigate,
+}: {
+  label: string;
+  rootLabel: string;
+  folders: readonly ObjectListFolder[];
+  /** Opens the folder at this depth: 0 is the root. */
+  onNavigate: (depth: number) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={label}
+        className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-dimah-s3-muted hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 data-popup-open:bg-dimah-s3-muted"
+      >
+        <BreadcrumbEllipsis className="size-4" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-w-64 min-w-48">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => onNavigate(0)}>
+            <HomeIcon aria-hidden />
+            <span className="truncate">{rootLabel}</span>
+          </DropdownMenuItem>
+          {folders.map((folder, index) => (
+            <DropdownMenuItem
+              key={folder.id}
+              onClick={() => onNavigate(index + 1)}
+              // Indent by depth so the menu reads as a path.
+              style={{ paddingInlineStart: `${0.5 + (index + 1) * 0.75}rem` }}
+            >
+              <FolderIcon aria-hidden />
+              <span className="truncate">
+                <bdi>{folder.name}</bdi>
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

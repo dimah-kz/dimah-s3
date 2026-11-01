@@ -1,8 +1,12 @@
 "use client";
 
 import {
+  createContext,
+  useContext,
   useEffect,
   useId,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -42,10 +46,45 @@ export type ObjectListHeaderProps = {
   className?: string;
 };
 
+/** What {@link ObjectListHeader} shares with the controls inside it. @internal */
+type ObjectListHeaderContextValue = {
+  /** A search field inside the header is open and takes the whole bar. */
+  setSearchExpanded: (expanded: boolean) => void;
+  /** The new-folder field is open and takes the whole bar. */
+  setFolderExpanded: (expanded: boolean) => void;
+};
+
+const ObjectListHeaderContext =
+  createContext<ObjectListHeaderContextValue | null>(null);
+
+/** The nearest {@link ObjectListHeader}, or `null` outside one. @internal */
+export function useOptionalObjectListHeader() {
+  return useContext(ObjectListHeaderContext);
+}
+
+/**
+ * Hides a label below this header width, so the control shows its icon
+ * alone. Outside a header the label always shows.
+ */
+export const OBJECT_LIST_HEADER_COMPACT_LABEL =
+  "@max-[36rem]/object-list-header:sr-only";
+
+/** Makes a labelled `sm` button square while its label hides. */
+export const OBJECT_LIST_HEADER_COMPACT_BUTTON =
+  "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
+
 /**
  * Top bar: select-all, the path, a reload spinner, New folder (when the
  * source can create folders), and `children`. While entries are selected it
  * becomes the selection bar.
+ *
+ * It lays out by its own width (a container query). The path keeps room
+ * for itself and shortens to fit; when the controls do not fit beside it,
+ * they move to a second row, aligned to the end. Labels of the built-in
+ * controls and `UploadTrigger` hide under 36rem, leaving their icons. An
+ * `ObjectListSearch` among `children` shows as a search button, and opens
+ * into a field across the whole bar. New folder does the same with its
+ * name field: the path and the other controls hide until it closes.
  */
 export function ObjectListHeader({
   children,
@@ -58,41 +97,68 @@ export function ObjectListHeader({
   const { list, selection } = context;
   const selecting = selection?.isSelecting === true;
   const showBreadcrumb = breadcrumb ?? context.showBreadcrumb;
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [folderExpanded, setFolderExpanded] = useState(false);
+  const header = useMemo<ObjectListHeaderContextValue>(
+    () => ({ setSearchExpanded, setFolderExpanded }),
+    [],
+  );
+  const creatingFolder = folderExpanded && !selecting;
+  // A folder name in progress keeps the bar; search waits.
+  const searching = searchExpanded && !creatingFolder && !selecting;
 
   return (
-    <div
-      data-slot="object-list-header"
-      data-selecting={selecting ? "" : undefined}
-      className={cn(
-        "shrink-0 border-b border-dimah-s3-border",
-        selecting && "bg-dimah-s3-primary/10",
-        className,
-      )}
-    >
-      {selecting ? (
-        <ObjectListSelectionBar
-          actions={selectionActions ?? context.selectionActions}
-        />
-      ) : (
-        <div className="flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1">
-          <ObjectListSelectAll />
-          {showBreadcrumb ? (
-            <ObjectListBreadcrumb />
-          ) : (
-            <div className="min-w-0 flex-1" />
-          )}
-          <div className="flex min-w-0 shrink-0 items-center gap-2">
-            {list.isRefreshing ? (
-              <Spinner
-                aria-label={t("Loading files", { note: "object list" })}
-              />
-            ) : null}
-            <NewFolderControl />
-            {children}
+    <ObjectListHeaderContext.Provider value={header}>
+      <div
+        data-slot="object-list-header"
+        data-selecting={selecting ? "" : undefined}
+        data-search-open={searching ? "" : undefined}
+        data-folder-open={creatingFolder ? "" : undefined}
+        className={cn(
+          "group/object-list-header @container/object-list-header shrink-0 border-b border-dimah-s3-border",
+          selecting && "bg-dimah-s3-primary/10",
+          className,
+        )}
+      >
+        {selecting ? (
+          <ObjectListSelectionBar
+            actions={selectionActions ?? context.selectionActions}
+          />
+        ) : (
+          <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 py-1.5">
+            <div
+              data-slot="object-list-header-path"
+              className="flex min-w-0 flex-[1_1_11rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"
+            >
+              <ObjectListSelectAll />
+              {showBreadcrumb ? (
+                <ObjectListBreadcrumb />
+              ) : (
+                <div className="min-w-0 flex-1" />
+              )}
+              {list.isRefreshing ? (
+                <Spinner
+                  className="shrink-0 text-dimah-s3-muted-foreground"
+                  aria-label={t("Loading files", { note: "object list" })}
+                />
+              ) : null}
+            </div>
+            <div
+              data-slot="object-list-header-actions"
+              className={cn(
+                "ms-auto flex min-w-0 shrink-0 items-center gap-1",
+                // While search or new folder is open, that field takes the bar alone.
+                "group-data-search-open/object-list-header:ms-0 group-data-search-open/object-list-header:flex-1 group-data-search-open/object-list-header:[&>*:not([data-slot=object-list-search])]:hidden",
+                "group-data-folder-open/object-list-header:ms-0 group-data-folder-open/object-list-header:flex-1 group-data-folder-open/object-list-header:[&>*:not([data-slot=object-list-new-folder])]:hidden",
+              )}
+            >
+              <NewFolderControl />
+              {children}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </ObjectListHeaderContext.Provider>
   );
 }
 
@@ -161,7 +227,7 @@ export function ObjectListSelectionBar({
     <div
       data-slot="object-list-selection-bar"
       className={cn(
-        "flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1",
+        "flex min-h-11 min-w-0 items-center gap-2 px-1.5 py-1.5",
         className,
       )}
     >
@@ -277,6 +343,7 @@ function BulkDeleteControl() {
     <Button
       variant="destructive"
       size="sm"
+      className={OBJECT_LIST_HEADER_COMPACT_BUTTON}
       aria-label={label}
       aria-busy={busy || undefined}
       disabled={busy}
@@ -288,7 +355,7 @@ function BulkDeleteControl() {
       ) : (
         <Trash2Icon data-icon="inline-start" />
       )}
-      <span className="max-sm:sr-only">{label}</span>
+      <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>{label}</span>
     </Button>
   );
 }
@@ -325,19 +392,23 @@ export type NewFolderControlProps = {
 };
 
 /**
- * New folder button for the open folder. It opens a labelled name field:
- * Enter creates the folder through the source, Escape cancels. An invalid
- * or taken name shows a message under the field that describes it.
- * Renders nothing when the source has no `createFolder`.
+ * New folder button for the open folder. Inside `ObjectListHeader` it opens
+ * a name field across the whole bar, and the path and the other controls
+ * hide until it closes. Enter creates the folder through the source, and
+ * Escape or Cancel closes the field. An invalid or taken name shows a
+ * message under the field that describes it. Outside a header the field
+ * stays inline. Renders nothing when the source has no `createFolder`.
  * `ObjectListHeader` already has one.
  */
 export function NewFolderControl({ className }: NewFolderControlProps) {
   const t = useTranslations();
   const { list } = useObjectListContext();
+  const header = useOptionalObjectListHeader();
   const [editing, setEditing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Set when the field closes, so focus goes back to the button.
   const returnFocusRef = useRef(false);
+  const setFolderExpanded = header?.setFolderExpanded;
 
   useEffect(() => {
     if (editing || !returnFocusRef.current) return;
@@ -345,12 +416,20 @@ export function NewFolderControl({ className }: NewFolderControlProps) {
     buttonRef.current?.focus();
   }, [editing]);
 
+  // The header gives the name field the whole bar. Cleared on close.
+  useLayoutEffect(() => {
+    if (!setFolderExpanded) return;
+    setFolderExpanded(editing);
+    return () => setFolderExpanded(false);
+  }, [editing, setFolderExpanded]);
+
   if (!list.createFolder) return null;
 
   if (editing) {
     return (
       <NewFolderForm
         createFolder={list.createFolder}
+        wide={header != null}
         onClose={() => {
           returnFocusRef.current = true;
           setEditing(false);
@@ -366,11 +445,11 @@ export function NewFolderControl({ className }: NewFolderControlProps) {
       variant="ghost"
       size="sm"
       data-slot="object-list-new-folder"
-      className={className}
+      className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
       onClick={() => setEditing(true)}
     >
       <FolderPlusIcon data-icon="inline-start" />
-      <span className="max-sm:sr-only">
+      <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>
         {t("New folder", { note: "object list" })}
       </span>
     </Button>
@@ -380,10 +459,13 @@ export function NewFolderControl({ className }: NewFolderControlProps) {
 function NewFolderForm({
   createFolder,
   onClose,
+  wide = false,
   className,
 }: {
   createFolder: (name: string) => Promise<ObjectListFolder>;
   onClose: () => void;
+  /** Fill the header bar. The path and the other controls are hidden. */
+  wide?: boolean;
   className?: string;
 }) {
   const t = useTranslations();
@@ -399,6 +481,33 @@ function NewFolderForm({
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  const confirm = (
+    <Button
+      type="submit"
+      variant="ghost"
+      size={wide ? "icon-xs" : "icon-sm"}
+      className="shrink-0"
+      aria-label={t("Create folder", { note: "object list new folder" })}
+      disabled={pending}
+      focusableWhenDisabled
+    >
+      {pending ? <Spinner /> : <CheckIcon />}
+    </Button>
+  );
+  const cancel = (
+    <Button
+      type="button"
+      variant="ghost"
+      size={wide ? "icon-xs" : "icon-sm"}
+      className="shrink-0"
+      aria-label={t("Cancel", { note: "object list new folder" })}
+      disabled={pending}
+      onClick={onClose}
+    >
+      <XIcon />
+    </Button>
+  );
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -430,59 +539,77 @@ function NewFolderForm({
   return (
     <form
       data-slot="object-list-new-folder"
+      data-expanded={wide ? "" : undefined}
       aria-busy={pending || undefined}
-      className={cn("relative flex items-center gap-1", className)}
+      className={cn(
+        "relative flex min-w-0",
+        wide ? "w-full flex-1 flex-col gap-1" : "items-center",
+        className,
+      )}
       onSubmit={(event) => void onSubmit(event)}
     >
-      <label htmlFor={inputId} className="sr-only">
-        {label}
-      </label>
-      <input
-        ref={inputRef}
-        id={inputId}
-        value={name}
-        maxLength={255}
-        autoComplete="off"
-        placeholder={label}
-        readOnly={pending}
-        aria-invalid={error != null || undefined}
-        aria-describedby={error != null ? errorId : undefined}
-        className="h-7 w-36 min-w-0 rounded-md border border-dimah-s3-border bg-transparent px-2 text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 sm:w-44"
-        onChange={(event) => {
-          setName(event.target.value);
-          setError(null);
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "Escape" || pending) return;
-          event.preventDefault();
-          onClose();
-        }}
-      />
-      <Button
-        type="submit"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t("Create folder", { note: "object list new folder" })}
-        disabled={pending}
-        focusableWhenDisabled
+      <div
+        className={cn(
+          "relative flex min-w-0 items-center",
+          wide ? "w-full" : "gap-1",
+        )}
       >
-        {pending ? <Spinner /> : <CheckIcon />}
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t("Cancel", { note: "object list new folder" })}
-        disabled={pending}
-        onClick={onClose}
-      >
-        <XIcon />
-      </Button>
+        <label htmlFor={inputId} className="sr-only">
+          {label}
+        </label>
+        {wide ? (
+          <FolderPlusIcon
+            aria-hidden
+            className="pointer-events-none absolute start-2.5 size-3.5 text-dimah-s3-muted-foreground"
+          />
+        ) : null}
+        <input
+          ref={inputRef}
+          id={inputId}
+          value={name}
+          maxLength={255}
+          autoComplete="off"
+          placeholder={label}
+          readOnly={pending}
+          aria-invalid={error != null || undefined}
+          aria-describedby={error != null ? errorId : undefined}
+          className={cn(
+            "min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20",
+            // Room at the end for the confirm and cancel buttons, as search does.
+            wide ? "h-8 w-full ps-8 pe-16" : "h-7 w-36 px-2 sm:w-44",
+          )}
+          onChange={(event) => {
+            setName(event.target.value);
+            setError(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape" || pending) return;
+            event.preventDefault();
+            onClose();
+          }}
+        />
+        {wide ? (
+          <div className="absolute inset-y-0 end-1.5 flex items-center gap-0.5">
+            {confirm}
+            {cancel}
+          </div>
+        ) : (
+          <>
+            {confirm}
+            {cancel}
+          </>
+        )}
+      </div>
       {error != null ? (
         <p
           id={errorId}
           role="alert"
-          className="absolute end-0 top-full z-20 mt-1 w-max max-w-64 rounded-md border border-dimah-s3-border bg-dimah-s3-card px-2 py-1 text-xs [overflow-wrap:anywhere] text-dimah-s3-destructive shadow-sm"
+          className={cn(
+            "text-xs [overflow-wrap:anywhere] text-dimah-s3-destructive",
+            wide
+              ? "ps-2.5"
+              : "absolute end-0 top-full z-20 mt-1 w-max max-w-64 rounded-md border border-dimah-s3-border bg-dimah-s3-card px-2 py-1 shadow-sm",
+          )}
         >
           {error}
         </p>

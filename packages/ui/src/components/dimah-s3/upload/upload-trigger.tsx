@@ -61,6 +61,9 @@ export function UploadTrigger({
       focusableWhenDisabled={focusableWhenDisabled ?? isFull}
       className={cn(
         "aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
+        // Square while the default label hides in a narrow ObjectListHeader.
+        children == null &&
+          "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!",
         className,
       )}
       onClick={(event) => {
@@ -71,9 +74,12 @@ export function UploadTrigger({
       {children ?? (
         <>
           <CloudUpload data-icon="inline-start" aria-hidden />
-          {upload.policy.maxFiles > 1
-            ? t("Upload files", { note: "button" })
-            : t("Upload file", { note: "button" })}
+          {/* In a narrow ObjectListHeader the default label hides. */}
+          <span className="@max-[36rem]/object-list-header:sr-only">
+            {upload.policy.maxFiles > 1
+              ? t("Upload files", { note: "button" })
+              : t("Upload file", { note: "button" })}
+          </span>
         </>
       )}
     </Button>

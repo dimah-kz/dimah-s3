@@ -100,7 +100,7 @@ Install: \`npx @dimah-s3/cli@latest create my-app\` or \`npm i @dimah-s3/server 
 - Without \`db()\`, download can presign unconfirmed keys under \`keyPrefix\`. Auth and quota stay in consumer hooks.
 - File catalogs use \`useObjectList\` with a source: your own query plus \`getKey\` / \`getFile\`, \`memoryObjectSource\` from \`@dimah-s3/react/engine\` for records you hold, or \`dbObjectSource(api.db, { route })\` from \`@dimah-s3/db/client\` when \`db()\` is installed. That hook does not call S3 ListObjects. \`useObjectListSelection\` adds selection; \`ObjectList\` from \`@dimah-s3/ui\` renders both.
 - \`@dimah-s3/react\` exports hooks, the provider, and types. Import plain functions (\`uploadFile\`, upload stores, \`memoryObjectSource\`) from \`@dimah-s3/react/engine\`, and \`APIError\`, \`S3_ERROR_CODES\`, and protocol helpers from \`@dimah-s3/core\`.
-- UI components are families: \`<Upload upload>\` with \`UploadTrigger\` or \`UploadDropzone\`, \`<Download download>\` with \`DownloadTrigger\`, and \`<Delete delete>\` with \`DeleteTrigger\`. They do not toast on their own: mount \`UploadToasts\`, \`DownloadToasts\`, or \`DeleteToasts\` once per hook, plus one \`<Toaster />\`.
+- UI components are families: \`<Upload upload>\` with \`UploadTrigger\` or \`UploadDropzone\`, \`<Download download>\` with \`DownloadTrigger\`, and \`<Delete delete>\` with \`DeleteTrigger\`. \`ObjectCard\` shows a stored file with download and delete actions. They do not toast on their own: mount \`UploadToasts\`, \`DownloadToasts\`, or \`DeleteToasts\` once per hook, plus one \`<Toaster />\`.
 `;
 }
 

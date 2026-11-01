@@ -120,13 +120,7 @@
         }
       },
       "devDependencies": ["@types/react-file-icon"],
-      "registryDependencies": [
-        "button",
-        "toast",
-        "tooltip",
-        "attachment",
-        "progress"
-      ],
+      "registryDependencies": ["button", "toast", "tooltip", "attachment"],
       "files": [
         {
           "path": "src/components/dimah-s3/upload/upload.tsx",
@@ -265,18 +259,17 @@
         }
       },
       "devDependencies": ["@types/react-file-icon"],
-      "registryDependencies": [
-        "button",
-        "toast",
-        "tooltip",
-        "attachment",
-        "progress"
-      ],
+      "registryDependencies": ["button", "toast", "tooltip", "attachment"],
       "files": [
         {
           "path": "src/components/dimah-s3/upload/upload-field.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-field.tsx"
+        },
+        {
+          "path": "src/hooks/use-file-preview.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-file-preview.ts"
         },
         {
           "path": "src/components/dimah-s3/upload/upload.tsx",
@@ -482,6 +475,146 @@
       ]
     },
     {
+      "name": "object-card",
+      "type": "registry:component",
+      "title": "Object Card",
+      "description": "Card for one stored object with download and delete actions, its download progress, and a deleting state.",
+      "dependencies": [
+        "@dimah-s3/core",
+        "@dimah-s3/react",
+        "@fuma-translate/react",
+        "cn",
+        "lucide-react",
+        "react-file-icon"
+      ],
+      "cssVars": {
+        "light": {
+          "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
+          "dimah-s3-warning-default": "oklch(0.769 0.188 70.08)"
+        },
+        "dark": {
+          "dimah-s3-success-default": "oklch(0.723 0.219 149.579)",
+          "dimah-s3-warning-default": "oklch(0.828 0.189 84.429)"
+        },
+        "theme": {
+          "color-dimah-s3-background": "var(--dimah-s3-background, var(--background))",
+          "color-dimah-s3-foreground": "var(--dimah-s3-foreground, var(--foreground))",
+          "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
+          "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
+          "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
+          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
+          "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
+          "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
+          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
+          "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
+          "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
+          "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
+          "color-dimah-s3-success": "var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))",
+          "color-dimah-s3-warning": "var(--dimah-s3-warning, var(--warning, var(--dimah-s3-warning-default)))"
+        }
+      },
+      "devDependencies": ["@types/react-file-icon"],
+      "registryDependencies": [
+        "button",
+        "toast",
+        "tooltip",
+        "alert-dialog",
+        "attachment"
+      ],
+      "files": [
+        {
+          "path": "src/components/dimah-s3/preview/object-card.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/preview/object-card.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/status-attachment.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/status-attachment.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/circle-progress.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-type-glyph.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/folder-glyph.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/folder-glyph.tsx"
+        },
+        {
+          "path": "src/lib/attachment-layout.ts",
+          "type": "registry:lib",
+          "target": "@lib/attachment-layout.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download-trigger.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download-trigger.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download-progress.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download-progress.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/download/download-toasts.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/download/download-toasts.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete-trigger.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete-trigger.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete-confirm-dialog.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete-confirm-dialog.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/delete/delete-toasts.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/delete/delete-toasts.tsx"
+        },
+        {
+          "path": "src/lib/isolate-text.ts",
+          "type": "registry:lib",
+          "target": "@lib/isolate-text.ts"
+        },
+        {
+          "path": "src/hooks/use-toast-owner.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-toast-owner.ts"
+        }
+      ]
+    },
+    {
       "name": "download",
       "type": "registry:component",
       "title": "Download",
@@ -668,7 +801,6 @@
         "checkbox",
         "dropdown-menu",
         "empty",
-        "progress",
         "skeleton",
         "spinner",
         "toast",

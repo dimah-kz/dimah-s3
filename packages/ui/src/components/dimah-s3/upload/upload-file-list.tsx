@@ -92,7 +92,8 @@ export type UploadFileListProps = Omit<ComponentProps<"ul">, "children"> & {
 
 /**
  * Every file of the nearest `Upload`, in queue order. Renders nothing
- * while the queue is empty. It sets `data-layout`.
+ * while the queue is empty. Inside an `UploadField` (a root with
+ * `hideUploaded`), files that uploaded are left out. It sets `data-layout`.
  */
 export function UploadFileList({
   layout = "list",
@@ -100,8 +101,11 @@ export function UploadFileList({
   className,
   ...props
 }: UploadFileListProps) {
-  const { upload } = useUploadContext();
-  if (upload.files.length === 0) return null;
+  const { upload, hideUploaded } = useUploadContext();
+  const files = hideUploaded
+    ? upload.files.filter((file) => file.phase !== "success")
+    : upload.files;
+  if (files.length === 0) return null;
 
   return (
     <ul
@@ -116,7 +120,7 @@ export function UploadFileList({
       )}
       {...props}
     >
-      {upload.files.map((file) => (
+      {files.map((file) => (
         <li key={file.id} className="min-w-0">
           {children ? children(file) : <UploadFileItem file={file} />}
         </li>

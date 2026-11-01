@@ -48,6 +48,18 @@ type PendingUpload = {
 
 type DemoObject = Omit<PendingUpload, "key">;
 
+const MB = 1024 * 1024;
+
+/** Sizes of the sample files the demos list, so a download matches its card. */
+const SAMPLE_SIZES: Record<string, number> = {
+  "uploads/3f1a/quarterly-report.pdf": 8 * MB,
+  "uploads/9b2e/brand-assets.zip": 24 * MB,
+  "uploads/c47d/launch-video.mp4": 16 * MB,
+  "uploads/c47d/avatar.png": 180_000,
+  "uploads/5e8b/annual-report-2026.pdf": 18 * MB,
+  "uploads/2c9a/price-list.pdf": 512_000,
+};
+
 /** Upload tickets issued by `upload` and not yet confirmed. */
 const tickets = new Map<string, PendingUpload>();
 const objects = new Map<string, DemoObject>();
@@ -173,7 +185,7 @@ export const demoS3Api: S3Api & Required<S3ApiUploadTransport> = {
     const object = objects.get(key);
     const params = new URLSearchParams({
       key,
-      bytes: String(object?.size ?? MAX_FILE_SIZE),
+      bytes: String(object?.size ?? SAMPLE_SIZES[key] ?? MAX_FILE_SIZE),
     });
     const name = payload.name ?? object?.name;
     if (name) params.set("name", name);

@@ -56,6 +56,10 @@ export {
   type ObjectImageProps,
 } from "@/components/dimah-s3/preview/object-image";
 export {
+  ObjectCard,
+  type ObjectCardProps,
+} from "@/components/dimah-s3/preview/object-card";
+export {
   Download,
   useDownloadContext,
   type DownloadProps,

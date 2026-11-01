@@ -1,0 +1,123 @@
+---
+title: Object Card
+description: Card for one stored file, with download and delete actions.
+---
+
+import { ObjectCardDemo } from "@/components/demos/object-card-demo";
+import { ObjectCardActionsDemo } from "@/components/demos/object-card-actions-demo";
+
+`ObjectCard` shows a file you already stored, such as an attachment on a
+record, with a download and a delete action. Pass the object key and the
+hooks for the actions you want. While its file downloads it shows the
+progress, and while it is deleted, a spinner.
+
+## Preview
+
+Download a file to see its progress, or delete it.
+
+<DemoPreview name="object-card-demo.tsx">
+  <ObjectCardDemo />
+</DemoPreview>
+
+## Install
+
+<include>../../../../../_includes/ui/component-prereq.mdx</include>
+
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
+```tsx
+import { ObjectCard } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn registry">
+
+```npm
+npx shadcn@latest add @dimah-s3/object-card
+```
+
+</Tab>
+
+</Tabs>
+
+---
+
+## Usage
+
+```tsx
+"use client";
+
+import { useDelete, useFetchDownload } from "@dimah-s3/react";
+import { DeleteToasts, DownloadToasts, ObjectCard } from "@dimah-s3/ui";
+
+type Attachment = { key: string; size: number; type: string };
+
+export function Attachments({
+  files,
+  onRemoved,
+}: {
+  files: Attachment[];
+  onRemoved: (key: string) => void;
+}) {
+  const download = useFetchDownload({ route: "attachments" });
+  const remove = useDelete({ route: "attachments" });
+
+  return (
+    <>
+      {files.map((file) => (
+        <ObjectCard
+          key={file.key}
+          objectKey={file.key}
+          fileSize={file.size}
+          contentType={file.type}
+          download={download}
+          delete={remove}
+          onDeleted={(result) => {
+            if (result.deleted.includes(file.key)) onRemoved(file.key);
+          }}
+        />
+      ))}
+      <DownloadToasts download={download} />
+      <DeleteToasts delete={remove} />
+    </>
+  );
+}
+```
+
+- The name defaults to the last segment of the key. Pass `fileName` to
+  show, and save, another one.
+- `download` takes `useDownload` or `useFetchDownload`. With a fetch
+  download the card shows its progress ring and the bytes received.
+- `delete` adds the delete action and its confirm dialog. The card stays
+  until you remove it, so drop it in `onDeleted`.
+- Pass `previewUrl` for an image thumbnail, and `description` to replace
+  the size line.
+- Each card is its own `Download` and `Delete` root, and does not toast:
+  mount `DownloadToasts` and `DeleteToasts` once for the hooks.
+
+## Examples
+
+### Your own actions
+
+`actions` render before the download and delete actions. Here a Copy link
+action signs a URL with the same download hook.
+
+<DemoPreview name="object-card-actions-demo.tsx">
+  <ObjectCardActionsDemo />
+</DemoPreview>
+
+---
+
+## Props
+
+```ts
+import type { ObjectCardProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/preview/object-card.tsx"
+  name="ObjectCardProps"
+/>

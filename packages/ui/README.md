@@ -94,6 +94,7 @@ export function Uploader() {
   `DownloadTrigger` and `DownloadProgress`.
 - `Delete` holds a `useDelete` return and one confirm dialog for every
   `DeleteTrigger` inside it.
+- `ObjectCard` shows a stored file with download and delete actions.
 - `UploadField` submits uploaded keys with a form. `AvatarUpload` uploads
   and shows a profile image. `ObjectImage` shows a stored image.
 - `ObjectList` and its parts render a `useObjectList` file browser.
