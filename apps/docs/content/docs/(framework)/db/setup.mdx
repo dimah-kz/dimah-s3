@@ -192,17 +192,17 @@ Every row belongs to a scope, such as `user:123` or `org:acme`. Upload
 tickets are bound to it, so a ticket from one scope cannot confirm or
 complete an upload in another.
 
-`resolveScope` receives a context with the values the endpoint already
-validated: the `operation`, the `route`, the object `key`, the target
-`folder`, and on upload the client's `clientMetadata`. `locals` holds what
-your guards set, and `session` is the `getSession` result.
+`resolveScope` says who is calling. It receives the `request`, the
+`session` (the `getSession` result), the `locals` your guards set, the
+`operation`, and the `route` when the call has one. It never sees the
+target object: the scope comes from the caller, so the same caller gets the
+same scope when an upload ticket is bound, used, and confirmed. Checks on
+the target belong in [`authorize`](#authorize).
 
 - `getSession` runs at most once per `Request`.
-- `resolveScope` runs once per call and target. Two `s3.api` calls that
-  share a `Request` but pass different `locals` resolve separately.
-- The plugin also resolves the scope with no `key` to bind upload tickets.
-  Derive the scope from the caller (`session`, `locals`), not from the
-  object.
+- `resolveScope` runs once per call, operation, and route. Two `s3.api`
+  calls that share a `Request` but pass different `locals` resolve
+  separately.
 
 <AutoTypeTable path="packages/db/src/types/plugin.ts" name="ScopeContext" />
 
@@ -219,14 +219,22 @@ your guards set, and `session` is the `getSession` result.
 
 ## Authorize
 
-A row belongs to the scope that wrote it, and a caller from another scope
-gets `FORBIDDEN`. `authorize` runs after that check and can only narrow it:
-return `false` to reject the request with `FORBIDDEN` (`403`).
+A row belongs to the scope that wrote it. A caller from another scope gets
+`OBJECT_NOT_FOUND` (`404`), the same as for a key with no row, so nobody
+learns which keys other scopes hold. (An upload to a key another scope holds
+gets `FORBIDDEN`: upload keys are the server's choice.) `authorize` runs
+after that check and can only narrow it: return `false` to reject the
+request with `FORBIDDEN` (`403`).
 
-It gets the scope context plus the resolved `scope`. `object` is set when
-the request targets a stored object: confirm, the multipart calls, download,
-delete, read, and update. `folder` is the target folder of an upload, a
-listing, a move, or a folder endpoint.
+It gets the scope context plus the resolved `scope`, and what the call
+targets: the `key`, the target `folder` of an upload, a listing, a move, or
+a folder endpoint, and on upload the client's `clientMetadata`. `object` is
+the stored row when the request targets one: confirm, the multipart calls,
+download, delete, read, and update. It is the server view, with `scope`,
+`s3Metadata`, and the attributes as stored, not what `attributes.toClient`
+sends the browser.
+
+<AutoTypeTable path="packages/db/src/types/plugin.ts" name="AuthorizeContext" />
 
 An upload on a `replace: "overwrite"` route that replaces an active object
 runs `authorize` with `object` set to that object, and `folder` is that
@@ -266,7 +274,7 @@ Set per-route options under `plugins: { db: … }`:
 ```ts title="lib/s3.ts"
 routes: {
   // One key per user: a new upload replaces the old avatar instead of
-  // failing with CONFLICT. `requireUserId` is your auth helper.
+  // failing with OBJECT_EXISTS. `requireUserId` is your auth helper.
   avatar: route({
     upload: {
       fileTypes: ["image/*"],
@@ -288,9 +296,12 @@ routes: {
 
 <AutoTypeTable path="packages/db/src/types/plugin.ts" name="DbRouteOptions" />
 
-With `replace: "overwrite"`, the current object stays listed and
-downloadable until the new upload is confirmed. The row keeps its folder,
-attributes, and `createdAt`.
+With `replace: "overwrite"`, the row stays `active` and keeps the previous
+object's metadata until the new upload is confirmed; S3 replaces the bytes as
+soon as the new PUT lands. The row keeps its folder, attributes, and
+`createdAt`. Until then, quota counts the larger of the two sizes. A retried
+confirm of the upload before it still succeeds, even after the overwrite
+started.
 
 `plugins: { db: false }` turns off tracking and every db hook for the route.
 Its upload tickets are not bound to a scope. When such a route enables
@@ -300,9 +311,8 @@ at startup: nothing then checks who owns the object.
 ## Delete behavior
 
 App deletes always go through the normal server delete path (`api.delete`,
-the `Delete` component, `useDelete`, or your own delete hooks). Do not call
-`s3.db.objects.softDelete` or `hardDelete` for that. Those store helpers
-only update the database. They do not delete the S3 object.
+the `Delete` component, `useDelete`, or your own delete hooks).
+`s3.db.objects` has no delete method: it never touches S3.
 
 When that path runs:
 
@@ -312,8 +322,9 @@ When that path runs:
 A `pending` row whose object never landed (a closed tab, a network error)
 is cleaned up the same way, so it stops counting toward the
 [quota](/docs/db/api#quota) before [purge](/docs/db/purge) runs. A multipart
-upload in flight is aborted first. A key with no row, or a row that is
-already deleted, is `OBJECT_NOT_FOUND`.
+upload in flight is aborted first. Deleting a soft-deleted object again
+succeeds, like a plain S3 delete. A key with no row is `OBJECT_NOT_FOUND`:
+its owner cannot be checked.
 
 | `deleteMode` | S3 object           | Database row                                     |
 | ------------ | ------------------- | ------------------------------------------------ |

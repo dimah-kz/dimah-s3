@@ -1,6 +1,6 @@
 import { DEFAULT_INLINE_TYPES, s3Error } from "@dimah-s3/core";
 import { describe, expect, it, vi } from "vitest";
-import { resolveRoutes } from "@/helpers/features";
+import { resolveRoutes } from "@/config/resolve-routes";
 import { route } from "@/route";
 import {
   defaultUploadBody,
@@ -13,7 +13,8 @@ import type { DimahS3RouteConfig } from "@/types/config";
 import type { GuardContext } from "@/types/hook-contexts";
 import type { DimahS3Locals, Guard } from "@/types/locals";
 import type { ResolvedConfig } from "@/types/resolved";
-import { buildRouteCatalog, createS3Api } from "./s3-api";
+import { buildRouteCatalog } from "./catalog";
+import { createS3Api } from "./s3-api";
 
 const MIB = 1024 * 1024;
 const MAX_EXPIRES_IN = 604_800;
@@ -96,6 +97,7 @@ describe("s3.api", () => {
     });
     await expect(api.multipart.abort({ ticket })).resolves.toEqual({
       key: init.key,
+      bucket: init.bucket,
       uploadId: init.uploadId,
     });
     expect(s3.uploads.size).toBe(0);

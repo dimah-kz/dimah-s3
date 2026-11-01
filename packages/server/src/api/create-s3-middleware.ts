@@ -16,7 +16,8 @@ function contextMiddleware(options: { runGuards: boolean }) {
     const resolved = resolvedConfig(ctx.context);
     const injected = ctx.context as RouterContext & Partial<S3EndpointContext>;
     const { config } = injected;
-    const request = ctx.request ?? syntheticRequest(resolved, ctx.headers);
+    const request =
+      ctx.request ?? syntheticRequest(resolved, { headers: ctx.headers });
     if (injected.locals) return { config, request, locals: injected.locals };
 
     const locals = createLocals();
@@ -28,7 +29,7 @@ function contextMiddleware(options: { runGuards: boolean }) {
           locals,
         });
       } catch (error) {
-        throw toAPIError(error, resolved, request);
+        throw toAPIError(error, resolved, request, "plugin");
       }
     }
     return { config, request, locals };

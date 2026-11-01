@@ -11,15 +11,18 @@ longer counts toward the quota, and `s3.db.purgeStale` cleans it up.
 ```ts title="scripts/purge.ts"
 import { s3 } from "@/lib/s3";
 
-const { purged } = await s3.db.purgeStale();
-console.log(`Purged ${purged} stale uploads.`);
+const { purged, failed, more } = await s3.db.purgeStale();
+console.log(`Purged ${purged} stale uploads, ${failed} failed.`);
+if (more) console.log("More stale rows are waiting.");
 ```
 
 ## What purge does
 
 `purgeStale({ limit })` handles at most `limit` rows per run (default
-`100`), oldest first. `purged` counts the uploads it cleaned up. For each
-row past its deadline:
+`100`), oldest first. It returns `purged` (uploads cleaned up), `failed`
+(rows that will be retried), `skipped` (rows another run claimed, or that
+were confirmed meanwhile), and `more`, which is `true` when the run hit
+`limit`. For each row past its deadline:
 
 1. It claims the row with a compare-and-set. A pending row becomes
    `purging`. A row that was confirmed, deleted, or taken by another run in
@@ -36,6 +39,9 @@ active row and the previous object, unless the overwrite's object had
 already replaced it. Then the row goes too.
 
 A row that fails stays claimed, and a warning goes to the dimah-s3 `logger`.
+A row whose route has no S3 client (a route you removed from `dimahS3()`)
+fails the same way instead of leaving its object untracked: keep the route
+until its rows are purged.
 The claim lapses after 15 minutes, and a later run retries the row. An
 upload to a key that purge has claimed gets `CONFLICT` until then.
 
@@ -68,8 +74,8 @@ const { pruned } = await s3.db.pruneDeleted({
 <Accordion title="How do I schedule the purge script?">
 
 Run it as a server-side scheduled job: a Vercel Cron, a GitHub Actions
-workflow, or a Node cron worker. Hourly is a good start. When `purged`
-equals `limit`, more rows are waiting: run it again, or raise `limit`.
+workflow, or a Node cron worker. Hourly is a good start. When `more` is
+`true`, more rows are waiting: run it again, or raise `limit`.
 
 </Accordion>
 

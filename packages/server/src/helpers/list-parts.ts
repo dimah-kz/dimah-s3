@@ -4,7 +4,7 @@ import {
   type Part,
   type S3Client,
 } from "@aws-sdk/client-s3";
-import { sendOrObjectNotFound } from "./is-aws-not-found";
+import { sendOrObjectNotFound } from "./aws-errors";
 
 /** Parts per ListParts page, the most S3 returns. */
 const LIST_PARTS_PAGE_SIZE = 1000;

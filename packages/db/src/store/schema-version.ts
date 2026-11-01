@@ -16,9 +16,25 @@ export async function checkSchemaVersion(
       { cause: error },
     );
   }
+  if (isNewer(version, DB_SCHEMA_VERSION)) {
+    throw new Error(
+      `[dimah-s3/db] The database is at schema ${version}, newer than the ${DB_SCHEMA_VERSION} this @dimah-s3/db reads. Upgrade @dimah-s3/db on every instance.`,
+    );
+  }
   if (version !== DB_SCHEMA_VERSION) {
     throw new Error(
       `[dimah-s3/db] The database is at schema ${version}, but @dimah-s3/db needs ${DB_SCHEMA_VERSION}. Run sql/upgrade/${version}-${DB_SCHEMA_VERSION}/<dialect>.sql or migrate(client) from @dimah-s3/db/cli.`,
     );
   }
+}
+
+/** Whether semver `a` is above `b`. */
+function isNewer(a: string, b: string): boolean {
+  const left = a.split(".").map(Number);
+  const right = b.split(".").map(Number);
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) return difference > 0;
+  }
+  return false;
 }

@@ -10,6 +10,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dimahS3 } from "@/dimah-s3";
 import {
+  allFeaturesRoute,
   memoryS3,
   mockS3,
   storedPngKey,
@@ -21,6 +22,11 @@ import { toFastifyHandler } from "./fastify";
 import { toNodeHandler } from "./node";
 
 const servers: { close: () => Promise<void> }[] = [];
+
+/** `/file` serves only routes whose downloads are in proxy mode. */
+const proxyRoutes = {
+  uploads: allFeaturesRoute({ download: { mode: "proxy" } }),
+};
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.close()));
@@ -255,7 +261,12 @@ describe("toNodeHandler with dimahS3", () => {
         });
       },
     );
-    const s3 = dimahS3(testInstanceConfig({ client: mockS3(send as never) }));
+    const s3 = dimahS3(
+      testInstanceConfig({
+        client: mockS3(send as never),
+        routes: proxyRoutes,
+      }),
+    );
     const origin = await listen(toNodeHandler(s3));
     const req = httpRequest(
       `${origin}/api/s3/file?route=uploads&key=${storedPngKey}`,
@@ -276,7 +287,9 @@ describe("toNodeHandler with dimahS3", () => {
     const storage = memoryS3();
     const bytes = new Uint8Array(256 * 1024).fill(7);
     storage.seed(storedPngKey, bytes, { contentType: "image/png" });
-    const s3 = dimahS3(testInstanceConfig({ client: storage.client }));
+    const s3 = dimahS3(
+      testInstanceConfig({ client: storage.client, routes: proxyRoutes }),
+    );
     const origin = await listen(toNodeHandler(s3));
 
     const res = await fetch(
@@ -312,6 +325,23 @@ describe("toNodeHandler with dimahS3", () => {
 });
 
 describe("framework adapters", () => {
+  it("toExpressHandler keeps the mount path from req.originalUrl", async () => {
+    const { handler, requests } = recorder(() => new Response("ok"));
+    const express = toExpressHandler({ handler });
+    // What `app.use("/api/s3", …)` does to the request before the handler.
+    const origin = await listen((req, res) => {
+      const mounted = Object.assign(req, {
+        originalUrl: req.url,
+        url: req.url?.replace(/^\/api\/s3/, "") || "/",
+      });
+      return express(mounted, res);
+    });
+
+    await fetch(`${origin}/api/s3/routes?x=1`);
+
+    expect(requests[0]?.url).toBe(`${origin}/api/s3/routes?x=1`);
+  });
+
   it("toExpressHandler forwards the options", async () => {
     const { handler, requests } = recorder(() => new Response("ok"));
     const origin = await listen(

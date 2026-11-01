@@ -8,7 +8,9 @@
  * 3. `"use client"` starts the client entries (react and ui `dist/index.js`)
  *    and no other emitted JS file.
  * 4. `@dimah-s3/react/engine`, with every chunk it imports, imports no React
- *    module, and no react entry re-exports a value from `@dimah-s3/core`.
+ *    module, no react entry re-exports a value from `@dimah-s3/core`, and
+ *    the browser entry of `@dimah-s3/core` imports no Zod (the schemas live
+ *    in `@dimah-s3/core/schema`).
  * 5. An exact peer range on another `@dimah-s3/*` package equals its version.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -26,6 +28,11 @@ const CLIENT_ENTRIES = new Map([
 
 /** Entries that must stay free of React, per package. */
 const REACT_FREE_ENTRIES = new Map([["@dimah-s3/react", ["dist/engine.js"]]]);
+
+/** Entries that must stay free of Zod, per package: they ship to browsers. */
+const ZOD_FREE_ENTRIES = new Map([["@dimah-s3/core", ["dist/index.js"]]]);
+
+const ZOD_MODULE = /^zod(?:\/|$)/;
 
 const REACT_MODULE =
   /^(?:react|react-dom|react-dropzone|@fuma-translate\/react)(?:\/|$)/;
@@ -353,6 +360,19 @@ for (const { dir, manifest } of packages) {
       }
       if (hasClientDirective(read(file))) {
         fail(name, `"${shown}" (from ${entry}) starts with "use client"`);
+      }
+    }
+  }
+
+  // 4c. Zod-free browser entries.
+  for (const entry of ZOD_FREE_ENTRIES.get(name) ?? []) {
+    for (const file of importGraph(resolve(dir, entry))) {
+      const imports = importSpecifiers(read(file)).filter((specifier) =>
+        ZOD_MODULE.test(specifier),
+      );
+      if (imports.length > 0) {
+        const shown = toPosix(relative(dir, file));
+        fail(name, `"${shown}" (from ${entry}) imports ${imports.join(", ")}`);
       }
     }
   }

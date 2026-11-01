@@ -17,8 +17,12 @@ export type S3Fetch = BetterFetch<{ throw: true }>;
  * Applied to core routes and every client plugin sharing the same `$fetch`.
  */
 export type S3ClientFetchOptions = {
-  /** Defaults to global `fetch` — override for SSR, tests, or logging. */
-  fetch?: typeof fetch;
+  /**
+   * Defaults to global `fetch`. Override it for SSR, tests, or logging. Any
+   * `(input, init) => Promise<Response>` works, so a plain wrapper type-checks
+   * on every runtime.
+   */
+  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   /** e.g. `"include"` to send cookies cross-origin. */
   credentials?: RequestCredentials;
   /**

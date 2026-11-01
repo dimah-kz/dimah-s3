@@ -1,7 +1,7 @@
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import type { DeletePayload, DeleteResponse } from "@dimah-s3/core";
 import { runGuards, runLifecycle } from "@/helpers/hooks";
-import { openObject } from "@/helpers/resolve-route";
+import { openObject } from "@/helpers/open-target";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
 import type { ResolvedConfig } from "@/types/resolved";

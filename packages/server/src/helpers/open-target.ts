@@ -1,5 +1,8 @@
-import { s3Error } from "@dimah-s3/core";
-import { assertFileConstraints } from "@/helpers/constraints";
+import { buildContentDisposition, s3Error } from "@dimah-s3/core";
+import {
+  assertFileConstraints,
+  assertSingleUploadSize,
+} from "@/helpers/constraints";
 import { runGuards } from "@/helpers/hooks";
 import { buildObjectMetadata } from "@/helpers/object-meta";
 import {
@@ -60,11 +63,20 @@ export function assertFeature<F extends RouteFeature>(
   route: ResolvedRoute,
   feature: F,
 ): asserts route is OpenedRoute<F> {
-  const enabled =
-    feature === "multipart"
-      ? route.upload.multipart.enabled
-      : route[feature as Exclude<RouteFeature, "multipart">].enabled;
-  if (!enabled) throw s3Error("FEATURE_DISABLED", { feature });
+  if (!isFeatureEnabled(route, feature)) {
+    throw s3Error("FEATURE_DISABLED", { feature });
+  }
+}
+
+function isFeatureEnabled(route: ResolvedRoute, feature: RouteFeature) {
+  switch (feature) {
+    case "multipart":
+      return route.upload.multipart.enabled;
+    case "proxy":
+      return route.download.enabled && route.download.mode === "proxy";
+    default:
+      return route[feature].enabled;
+  }
 }
 
 /** Looks up the route, checks the feature and runs the route guard. */
@@ -104,11 +116,15 @@ export type UploadTargetInput = {
   file: UploadFile;
   /** Client extras. Never written to S3 automatically. */
   clientMetadata?: Record<string, string>;
+  /** SHA-256 the client sent. A presign needs one when the route requires it. */
+  checksum?: string;
+  /** S3 metadata written over `upload.object().metadata` (`s3.put`). */
+  metadata?: Record<string, string>;
 };
 
 export type OpenedUploadTarget<F extends "upload" | "multipart"> = {
   route: OpenedRoute<F>;
-  /** Context for `upload.guard`, which the caller runs. */
+  /** Context `upload.guard` ran with, and the base of `onStart`. */
   context: UploadGuardContext;
   object: UploadObject;
   /** New upload token: the marker value and the ticket id. */
@@ -121,13 +137,30 @@ export type OpenedUploadTarget<F extends "upload" | "multipart"> = {
   ticketSubject?: string;
   /** S3 user metadata to write: encoded, with the marker and previous key. */
   s3Metadata: Record<string, string>;
+  /** `Content-Type` to write: the declared type, else `application/octet-stream`. */
+  contentType: string;
+  /** `Content-Disposition` to write, with the declared name. */
+  contentDisposition: string;
 };
 
+/** Content type written when the client declares none. */
+const DEFAULT_CONTENT_TYPE = "application/octet-stream";
+
 /**
- * Opens a new upload (presign, multipart init or `s3.put`): the route, the
- * ticket subject, the declared file against `fileTypes` and `maxFileSize`,
- * `upload.object()`, and the S3 metadata, whose size is checked here.
- * Multipart kinds need `upload.multipart` on.
+ * Opens a new upload (presign, multipart init or `s3.put`), in this order:
+ *
+ * 1. The route, with `upload` on (`upload.multipart` for multipart), and
+ *    the route guard.
+ * 2. The ticket subject (none for `s3.put`).
+ * 3. The declared file against `fileTypes`, `maxFileSize` and, for a
+ *    single PUT, POST or `s3.put`, S3's 5 GiB cap. A presign must send a
+ *    checksum when the route requires one (`CHECKSUM_REQUIRED`).
+ * 4. `upload.object()` and the S3 metadata, whose size is checked here.
+ * 5. `upload.guard`, with the key that will be written.
+ *
+ * The cheap checks come first, so a bad request never reaches your
+ * `upload.object()` or guard. The caller then writes or presigns, and runs
+ * `upload.onStart`.
  */
 export async function openUploadTarget<K extends UploadKind>(
   config: RouteConfig & Pick<TicketEnv, "ticketSubject">,
@@ -146,6 +179,10 @@ export async function openUploadTarget<K extends UploadKind>(
   const ticketSubject =
     kind === "server" ? undefined : await config.ticketSubject?.(routeContext);
   assertFileConstraints(route.upload, input.file);
+  if (kind !== "multipart") assertSingleUploadSize(input.file.size);
+  if ((kind === "post" || kind === "put") && route.upload.checksum) {
+    if (!input.checksum) throw s3Error("CHECKSUM_REQUIRED");
+  }
 
   const object = await resolveUploadObject(route, {
     ...routeContext,
@@ -154,32 +191,40 @@ export async function openUploadTarget<K extends UploadKind>(
     keyPrefix: route.keyPrefix,
     clientMetadata: input.clientMetadata,
   });
+  const metadata = input.metadata
+    ? { ...object.metadata, ...input.metadata }
+    : object.metadata;
   const uploadToken = createUploadToken();
   const s3Metadata = buildObjectMetadata({
-    metadata: object.metadata,
+    metadata,
     uploadToken,
     previousKey: object.previousKey,
   });
 
+  const guardContext: UploadGuardContext = {
+    ...routeContext,
+    key: object.key,
+    bucket: object.bucket,
+    kind,
+    file: input.file,
+    acl: object.acl,
+    metadata,
+    clientMetadata: input.clientMetadata,
+    storageClass: object.storageClass,
+    cacheControl: object.cacheControl,
+    tagging: object.tagging,
+  };
+  await runGuards(route.upload.guard, guardContext);
+
   return {
     route,
-    context: {
-      ...routeContext,
-      key: object.key,
-      bucket: object.bucket,
-      kind,
-      file: input.file,
-      acl: object.acl,
-      metadata: object.metadata,
-      clientMetadata: input.clientMetadata,
-      storageClass: object.storageClass,
-      cacheControl: object.cacheControl,
-      tagging: object.tagging,
-    },
-    object,
+    context: guardContext,
+    object: { ...object, ...(metadata ? { metadata } : {}) },
     uploadToken,
     ticketSubject,
     s3Metadata,
+    contentType: input.file.type ?? DEFAULT_CONTENT_TYPE,
+    contentDisposition: buildContentDisposition(input.file.name),
   };
 }
 

@@ -14,7 +14,7 @@ import {
 } from "@/test/harness";
 import type { DimahS3Config } from "@/types";
 import { createS3Endpoint } from "./create-s3-endpoint";
-import { coreEndpoints } from "./routes";
+import { coreEndpoints } from "./core-endpoints";
 
 const echo = createS3Endpoint(
   "/echo",
@@ -271,9 +271,10 @@ describe("error boundary", () => {
 
     await expectErrorCode(res, 500, S3_ERROR_CODES.INTERNAL_ERROR);
     expect(error).toHaveBeenCalledWith("boom", failure);
-    expect(onError).toHaveBeenCalledWith(failure, {
-      request: expect.any(Request),
-    });
+    expect(onError).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({ request: expect.any(Request) }),
+    );
   });
 
   it("does not log a body read that fails after the client left", async () => {

@@ -1,4 +1,8 @@
-import type { DbClientFolder, DbClientObject } from "@/types/client";
+import type {
+  DbClientFolder,
+  DbClientObject,
+  DbClientObjectStatus,
+} from "@/types/client";
 import type { StorageFolder, StorageObject } from "@/types/storage-object";
 
 /**
@@ -21,7 +25,9 @@ export function toDbClientObject<TAttributes, TClientAttributes = TAttributes>(
     contentType: object.contentType,
     size: object.size,
     declaredSize: object.declaredSize,
-    status: object.status,
+    // Purging rows never reach the browser: listings and GET /db/object
+    // leave them out.
+    status: object.status as DbClientObjectStatus,
     attributes:
       attributes === null
         ? null

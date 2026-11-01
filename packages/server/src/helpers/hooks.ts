@@ -70,7 +70,11 @@ function mergeLocals(target: DimahS3Locals, source: object): void {
   }
 }
 
-function isGuardResult(
+/**
+ * Exactly `{ locals: object }`: a plain object whose only key is `locals`,
+ * holding an object that is not an array.
+ */
+export function isGuardResult(
   value: unknown,
 ): value is { locals: Partial<DimahS3Locals> } {
   if (!isPlainObject(value)) return false;

@@ -1,25 +1,24 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import * as z from "zod";
+import {
+  DELETE_MANY_MAX_KEYS,
+  S3_DEFAULT_PART_SIZE,
+  S3_MAX_OBJECT_SIZE,
+  S3_MAX_PART_SIZE,
+  S3_MIN_PART_SIZE,
+} from "@/limits";
 import type {
-  ConfirmPayload,
-  MultipartTicketPayload,
   S3RequestOptions,
+  TicketPayload,
   UploadPayload,
 } from "@/types/requests";
 import type { S3Api } from "@/types/responses";
-import {
-  DELETE_MANY_MAX_KEYS,
-  deleteManyBodySchema,
-  deleteQuerySchema,
-} from "./delete";
-import { downloadQuerySchema } from "./download";
-import { fileQuerySchema } from "./file";
+import { deleteManyBodySchema, deleteQuerySchema } from "./delete";
+import { downloadQuerySchema, fileQuerySchema } from "./download";
 import { routeCatalogResponseSchema } from "./catalog";
-import { s3FetchErrorSchema } from "./error";
 import {
   multipartInitBodySchema,
   multipartSignPartBodySchema,
-  multipartTicketBodySchema,
 } from "./multipart";
 import {
   contentTypeSchema,
@@ -29,15 +28,11 @@ import {
   optionalChecksumSchema,
   optionalTrimmedString,
   partNumberSchema,
-  S3_DEFAULT_PART_SIZE,
-  S3_MAX_OBJECT_SIZE,
-  S3_MAX_PART_SIZE,
-  S3_MIN_PART_SIZE,
   sha256ChecksumSchema,
   trimmedString,
   uploadTicketSchema,
 } from "./shared";
-import { confirmBodySchema, uploadBodySchema } from "./upload";
+import { ticketBodySchema, uploadBodySchema } from "./upload";
 
 const uploadBody = {
   route: "uploads",
@@ -47,6 +42,8 @@ const uploadBody = {
 
 /** SHA-256("hi") as unpadded standard base64. */
 const SHA256_HI = "j0NDRmSPa5bfid2pAcUXaxCm2Dlh3TwayItZstwyeqQ";
+/** The canonical form the schemas output: padded. */
+const SHA256_HI_PADDED = `${SHA256_HI}=`;
 
 /** "é" is 2 UTF-8 bytes, so 127 of them plus "a" is exactly 255 bytes. */
 const NAME_255_BYTES = `${"é".repeat(127)}a`;
@@ -66,48 +63,6 @@ function base64Url(value: string | Uint8Array): string {
 function randomBytes(length: number) {
   return crypto.getRandomValues(new Uint8Array(length));
 }
-
-describe("s3FetchErrorSchema", () => {
-  it("accepts the API error JSON body", () => {
-    expect(
-      s3FetchErrorSchema.parse({
-        message: "blocked",
-        code: "FORBIDDEN",
-        params: { name: "key" },
-      }),
-    ).toEqual({
-      message: "blocked",
-      code: "FORBIDDEN",
-      params: { name: "key" },
-    });
-  });
-
-  it("requires code and message, and rejects non-objects", () => {
-    expect(s3FetchErrorSchema.validate({ code: "X" })).toBe(false);
-    expect(s3FetchErrorSchema.validate({ message: "no code" })).toBe(false);
-    expect(s3FetchErrorSchema.validate("not json")).toBe(false);
-  });
-
-  it("keeps code and message when a params value is not a string or number", () => {
-    expect(
-      s3FetchErrorSchema.parse({
-        code: "QUOTA_EXCEEDED",
-        message: "m",
-        params: { limit: "bytes", used: 3, over: true, nested: { a: 1 } },
-      }),
-    ).toEqual({
-      code: "QUOTA_EXCEEDED",
-      message: "m",
-      params: { limit: "bytes", used: 3 },
-    });
-    expect(
-      s3FetchErrorSchema.parse({ code: "X", message: "m", params: null }),
-    ).toEqual({ code: "X", message: "m" });
-    expect(
-      s3FetchErrorSchema.parse({ code: "X", message: "m", params: [1] }),
-    ).toEqual({ code: "X", message: "m" });
-  });
-});
 
 describe("trimmedString", () => {
   it("trims and rejects empty values", () => {
@@ -330,7 +285,7 @@ describe("uploadBodySchema", () => {
   it("accepts an optional SHA-256 checksum", () => {
     expect(
       uploadBodySchema.parse({ ...uploadBody, checksum: SHA256_HI }).checksum,
-    ).toBe(SHA256_HI);
+    ).toBe(SHA256_HI_PADDED);
     expect(
       uploadBodySchema.parse({
         ...uploadBody,
@@ -346,14 +301,14 @@ describe("uploadBodySchema", () => {
   });
 });
 
-describe("confirmBodySchema", () => {
+describe("ticketBodySchema", () => {
   it("takes only the ticket", () => {
-    expect(confirmBodySchema.parse({ ticket: TICKET })).toEqual({
+    expect(ticketBodySchema.parse({ ticket: TICKET })).toEqual({
       ticket: TICKET,
     });
-    expect(confirmBodySchema.validate({})).toBe(false);
+    expect(ticketBodySchema.validate({})).toBe(false);
     expect(
-      confirmBodySchema.validate({
+      ticketBodySchema.validate({
         ticket: TICKET,
         route: "uploads",
         key: "a.png",
@@ -621,7 +576,7 @@ describe("multipart schemas", () => {
         partNumber: 2,
         checksum: SHA256_HI,
       }).checksum,
-    ).toBe(SHA256_HI);
+    ).toBe(SHA256_HI_PADDED);
   });
 
   it("rejects an out-of-range part number and the 1.x session fields", () => {
@@ -647,19 +602,6 @@ describe("multipart schemas", () => {
         key: "a.png",
         uploadId: "u",
         partNumber: 1,
-      }),
-    ).toBe(false);
-  });
-
-  it("takes only the ticket for list, complete, and abort", () => {
-    expect(multipartTicketBodySchema.parse({ ticket: TICKET })).toEqual({
-      ticket: TICKET,
-    });
-    expect(multipartTicketBodySchema.validate({})).toBe(false);
-    expect(
-      multipartTicketBodySchema.validate({
-        ticket: TICKET,
-        parts: [{ partNumber: 1 }],
       }),
     ).toBe(false);
   });
@@ -702,41 +644,48 @@ describe("partNumberSchema", () => {
 });
 
 describe("sha256ChecksumSchema", () => {
-  it("accepts padded and unpadded SHA-256 base64", () => {
-    expect(sha256ChecksumSchema.parse(SHA256_HI)).toBe(SHA256_HI);
-    expect(sha256ChecksumSchema.parse(`${SHA256_HI}=`)).toBe(`${SHA256_HI}=`);
+  it("accepts padded and unpadded SHA-256 base64, and outputs it padded", () => {
+    // Some providers decode only padded base64, so the server signs that.
+    expect(sha256ChecksumSchema.parse(SHA256_HI)).toBe(SHA256_HI_PADDED);
+    expect(sha256ChecksumSchema.parse(SHA256_HI_PADDED)).toBe(SHA256_HI_PADDED);
     expect(sha256ChecksumSchema.validate("abc")).toBe(false);
   });
 
   it("omits a blank optional checksum", () => {
     expect(optionalChecksumSchema.parse("")).toBeUndefined();
     expect(optionalChecksumSchema.parse("   ")).toBeUndefined();
-    expect(optionalChecksumSchema.parse(SHA256_HI)).toBe(SHA256_HI);
+    expect(optionalChecksumSchema.parse(SHA256_HI)).toBe(SHA256_HI_PADDED);
   });
 });
 
 describe("protocol types", () => {
   it("uses wire names and ticket-only payloads", () => {
     const upload: UploadPayload = uploadBodySchema.parse(uploadBody);
-    const confirm: ConfirmPayload = confirmBodySchema.parse({ ticket: TICKET });
+    const confirm: TicketPayload = ticketBodySchema.parse({ ticket: TICKET });
     expect(upload.name).toBe("a.png");
     expect(confirm.ticket).toBe(TICKET);
 
     expectTypeOf<UploadPayload>().not.toHaveProperty("fileName");
-    expectTypeOf<ConfirmPayload>().toEqualTypeOf<{ ticket: string }>();
-    expectTypeOf<MultipartTicketPayload>().toEqualTypeOf<{ ticket: string }>();
+    expectTypeOf<TicketPayload>().toEqualTypeOf<{ ticket: string }>();
+    expectTypeOf<
+      Parameters<S3Api["confirm"]>[0]
+    >().toEqualTypeOf<TicketPayload>();
+    expectTypeOf<
+      Parameters<S3Api["multipart"]["complete"]>[0]
+    >().toEqualTypeOf<TicketPayload>();
   });
 
   it("takes per-call options on every S3Api method", async () => {
     const seen: Array<S3RequestOptions | undefined> = [];
     const abort: S3Api["multipart"]["abort"] = async (payload, options) => {
       seen.push(options);
-      return { key: "a.png", uploadId: payload.ticket };
+      return { key: "a.png", bucket: "b", uploadId: payload.ticket };
     };
     const signal = AbortSignal.abort();
 
     await expect(abort({ ticket: TICKET }, { signal })).resolves.toEqual({
       key: "a.png",
+      bucket: "b",
       uploadId: TICKET,
     });
     expect(seen).toEqual([{ signal }]);
@@ -767,16 +716,14 @@ describe("z.compile", () => {
       sha256ChecksumSchema,
       optionalChecksumSchema,
       uploadBodySchema,
-      confirmBodySchema,
+      ticketBodySchema,
       downloadQuerySchema,
       fileQuerySchema,
       deleteQuerySchema,
       deleteManyBodySchema,
       multipartInitBodySchema,
       multipartSignPartBodySchema,
-      multipartTicketBodySchema,
       routeCatalogResponseSchema,
-      s3FetchErrorSchema,
     ];
     for (const schema of schemas) {
       expect(() => z.compile(schema, { strict: true })).not.toThrow();

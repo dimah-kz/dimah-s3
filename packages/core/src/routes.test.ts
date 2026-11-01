@@ -11,10 +11,17 @@ describe("normalizeS3ApiBasePath", () => {
     ["/api/s3", "/api/s3"],
     ["/s3/", "/s3"],
     ["/api/s3///", "/api/s3"],
-    ["///api/s3///", "///api/s3"],
-  ])("strips a trailing slash from %s", (input, expected) => {
-    expect(normalizeS3ApiBasePath(input)).toBe(expected);
-  });
+    ["///api/s3///", "/api/s3"],
+    ["api/s3", "/api/s3"],
+    [" /api/s3 ", "/api/s3"],
+    ["/", ""],
+    ["", ""],
+  ])(
+    "normalizes %s to one leading slash and none trailing",
+    (input, expected) => {
+      expect(normalizeS3ApiBasePath(input)).toBe(expected);
+    },
+  );
 
   it("strips a long trailing slash run", () => {
     expect(normalizeS3ApiBasePath(`/api/s3${"/".repeat(100_000)}`)).toBe(

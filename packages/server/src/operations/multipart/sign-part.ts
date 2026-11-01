@@ -1,12 +1,9 @@
-import {
-  s3Error,
-  type multipartSignPartBodySchema,
-  type MultipartPartResponse,
-} from "@dimah-s3/core";
+import { s3Error, type MultipartPartResponse } from "@dimah-s3/core";
+import type { multipartSignPartBodySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import { runGuards } from "@/helpers/hooks";
 import { assertPartNumber, partByteSize } from "@/helpers/part-layout";
-import { presignUploadPart } from "@/helpers/presign-put";
+import { presignUploadPart } from "@/helpers/presign";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
 import type { ResolvedConfig } from "@/types/resolved";

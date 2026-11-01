@@ -1,7 +1,34 @@
 import { createFetch, type FetchEsque } from "@better-fetch/fetch";
 import { APIError, s3Error } from "@/error";
-import { s3FetchErrorSchema } from "@/schema/error";
 import type { S3ClientFetchOptions, S3Fetch } from "./types";
+
+/** The `{ code, message, params? }` body every API error response carries. */
+type ErrorBody = {
+  code: string;
+  message: string;
+  params?: Record<string, string | number>;
+};
+
+/**
+ * Reads an error body. `code` and `message` must be strings. `params`
+ * keeps its string and number entries and drops the rest, so one odd value
+ * never costs the error its code; it is left out when nothing is left.
+ */
+function readErrorBody(value: unknown): ErrorBody | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const { code, message, params } = value as Record<string, unknown>;
+  if (typeof code !== "string" || typeof message !== "string") return undefined;
+  const kept =
+    typeof params === "object" && params !== null && !Array.isArray(params)
+      ? Object.entries(params).filter(
+          (entry): entry is [string, string | number] =>
+            typeof entry[1] === "string" || typeof entry[1] === "number",
+        )
+      : [];
+  return kept.length > 0
+    ? { code, message, params: Object.fromEntries(kept) }
+    : { code, message };
+}
 
 async function resolveHeaders(
   headers: S3ClientFetchOptions["headers"],
@@ -17,8 +44,8 @@ async function resolveHeaders(
  * `INTERNAL_ERROR` (status ≥ 500) or `UNKNOWN_ERROR`.
  */
 function apiErrorFromResponse(status: number, body: unknown): APIError {
-  const shape = s3FetchErrorSchema.safeParse(body);
-  if (shape.success) return APIError.fromShape(shape.data, status);
+  const shape = readErrorBody(body);
+  if (shape) return APIError.fromShape(shape, status);
   const code = status >= 500 ? "INTERNAL_ERROR" : "UNKNOWN_ERROR";
   return s3Error(code, undefined, { status });
 }
@@ -39,12 +66,15 @@ function isJsonBody(data: unknown): boolean {
  * Wrap `fetch` so a request that never gets a response throws
  * `NETWORK_ERROR`. An aborted request rethrows the abort reason as is.
  */
-function withNetworkErrors(fetchImpl: typeof fetch | undefined): FetchEsque {
+function withNetworkErrors(
+  fetchImpl: S3ClientFetchOptions["fetch"],
+): FetchEsque {
   return async (input, init) => {
     try {
       return await (fetchImpl ?? fetch)(input, init);
     } catch (error) {
-      if (init?.signal?.aborted) throw error;
+      // The abort reason, as `fetch` itself rejects with it.
+      if (init?.signal?.aborted) throw init.signal.reason;
       throw s3Error("NETWORK_ERROR", undefined, { cause: error });
     }
   };
@@ -67,7 +97,6 @@ export function createS3Fetch(
   return createFetch({
     baseURL: base,
     throw: true,
-    errorSchema: s3FetchErrorSchema,
     customFetchImpl: withNetworkErrors(options?.fetch),
     credentials: options?.credentials,
     onRequest: async (ctx) => {

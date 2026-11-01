@@ -16,7 +16,8 @@ npm i @dimah-s3/core
 - **`createS3Client`** — the fetch client for the HTTP API. It implements `S3Api` and takes client plugins.
 - **`S3_API_ROUTES` / `S3_API_BASE_PATH`** — the endpoint paths.
 - **`S3_ERROR_CODES`, `APIError`, `s3Error`, `isS3ErrorCode`** — the error catalog and its helpers. See [Errors](/docs/server/errors).
-- **Zod schemas** — the request bodies and queries the server validates, such as `uploadBodySchema` and `downloadQuerySchema`.
+- **Limits** — `S3_MAX_POST_OBJECT_BYTES`, `DELETE_MANY_MAX_KEYS`, `ROUTE_NAME_PATTERN`, and the other protocol and S3 limits.
+- **Zod schemas** — in `@dimah-s3/core/schema`: the request bodies and queries the server validates, such as `uploadBodySchema` and `downloadQuerySchema`. They live outside the root entry, so browser bundles never include Zod.
 - **Client plugin helpers** — `defineClientPlugin`, `createS3Fetch`, `pluginPath`.
 - **Pure helpers** — `validateFile`, `sha256Blob`, `resolveInlineDisposition`, `formatFileSize`, and more.
 

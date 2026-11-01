@@ -1,6 +1,6 @@
 export type * from "./types";
 export * from "./helpers";
-export * from "./schema";
+export * from "./limits";
 export {
   APIError,
   defineErrorCodes,

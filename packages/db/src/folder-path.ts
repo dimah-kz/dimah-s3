@@ -12,6 +12,9 @@ export const FOLDER_PATH_MAX_LENGTH = 1024;
 /** Longest folder name (one path segment), in characters. */
 export const FOLDER_NAME_MAX_LENGTH = 255;
 
+/** Most segments in a folder path. Each one is a row the server keeps. */
+export const FOLDER_MAX_DEPTH = 32;
+
 /** Control characters and lone surrogates. */
 const INVALID_CHARACTER = /[\p{Cc}\p{Cs}]/u;
 
@@ -39,7 +42,9 @@ export function normalizeFolderPath(path: string): string | null {
   if (!path.isWellFormed()) return null;
   const normalized = path.normalize("NFC");
   if (characterCount(normalized) > FOLDER_PATH_MAX_LENGTH) return null;
-  return normalized.split("/").every(isValidName) ? normalized : null;
+  const names = normalized.split("/");
+  if (names.length > FOLDER_MAX_DEPTH) return null;
+  return names.every(isValidName) ? normalized : null;
 }
 
 /**

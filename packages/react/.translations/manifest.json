@@ -2,6 +2,8 @@
   "translationKeys": [
     "1 file(object list usage)",
     "A file checksum is required(API error)",
+    "A file with this name already exists(API error)",
+    "A folder with this name already exists(API error)",
     "A folder with this name already exists(object list new folder)",
     "Accepted {types}.(dropzone hint)",
     "Access denied(API error)",
@@ -128,6 +130,7 @@
     "Sort(object list sort)",
     "Starting…(download progress)",
     "Storage quota exceeded(API error)",
+    "Streaming downloads are disabled(API error)",
     "TB(file size unit)",
     "The file has changed(API error)",
     "These files cannot be uploaded(dropzone)",

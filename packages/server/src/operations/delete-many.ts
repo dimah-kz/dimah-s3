@@ -7,7 +7,7 @@ import type {
 } from "@dimah-s3/core";
 import { toAPIError } from "@/helpers/error-boundary";
 import { createLocals, runGuards, runLifecycle } from "@/helpers/hooks";
-import { openRoute } from "@/helpers/resolve-route";
+import { openRoute } from "@/helpers/open-target";
 import { assertStoredKey } from "@/helpers/resolve-target";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
@@ -42,7 +42,7 @@ export function deleteManyObjects(
     const deleted: string[] = [];
     const failed: DeleteManyResponse["failed"] = [];
     const fail = (key: string, error: unknown) => {
-      const apiError = toAPIError(error, config, call.request);
+      const apiError = toAPIError(error, config, call.request, call.operation);
       failed.push({ key, error: errorShape(apiError) });
     };
 

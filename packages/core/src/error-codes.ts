@@ -37,6 +37,7 @@ export const S3_ERROR_CODES = defineErrorCodes({
   NOT_FOUND: { status: 404, message: "Not found" },
   UNAUTHORIZED: { status: 401, message: "Unauthorized" },
   FORBIDDEN: { status: 403, message: "Forbidden" },
+  /** A concurrent change won; retrying may succeed. */
   CONFLICT: { status: 409, message: "Conflict" },
   INTERNAL_ERROR: { status: 500, message: "Internal server error" },
   S3_NETWORK_ERROR: {
@@ -87,7 +88,12 @@ export const S3_ERROR_CODES = defineErrorCodes({
     message: "Part {partNumber} is outside 1..{partCount}",
   },
   // db plugin
+  OBJECT_EXISTS: {
+    status: 409,
+    message: "An object already exists at this key",
+  },
   FOLDER_INVALID: { status: 400, message: "Folder path is invalid" },
+  FOLDER_EXISTS: { status: 409, message: "Folder already exists" },
   FOLDER_NOT_EMPTY: { status: 409, message: "Folder is not empty" },
   // client-only (never sent by the server)
   TOO_MANY_FILES: {
@@ -146,8 +152,9 @@ export interface S3ErrorParamsMap {
   REQUEST_TOO_LARGE: { maxSize: number };
   S3_NETWORK_ERROR: { code: string };
   UNKNOWN_ROUTE: { route: string };
+  /** `proxy` is `/file` on a route whose downloads are not in proxy mode. */
   FEATURE_DISABLED: {
-    feature: "upload" | "download" | "delete" | "multipart";
+    feature: "upload" | "download" | "delete" | "multipart" | "proxy";
   };
   FILE_TOO_LARGE: { size: number; maxFileSize: number };
   /** `allowed` is the allow-list joined with `", "`. */

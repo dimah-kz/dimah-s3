@@ -467,7 +467,7 @@ describe("ObjectList", () => {
       renderList({
         source: {
           createFolder: async () => {
-            throw s3Error("CONFLICT");
+            throw s3Error("FOLDER_EXISTS");
           },
         },
       });

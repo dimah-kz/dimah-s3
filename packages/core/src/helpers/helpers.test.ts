@@ -7,7 +7,6 @@ import {
   fileNameFromKey,
   resolveStoredFileName,
 } from "./parse-file-name";
-import { sanitizeFileName } from "./sanitize-file-name";
 import { truncateFileName } from "./truncate-file-name";
 import {
   normalizeObjectKey,
@@ -15,7 +14,8 @@ import {
   S3_MAX_OBJECT_KEY_BYTES,
 } from "./normalize-object-key";
 import { fitFileName } from "./fit-file-name";
-import { fileNameSchema, S3_MAX_FILE_FIELD_BYTES } from "../schema/shared";
+import { S3_MAX_FILE_FIELD_BYTES } from "@/limits";
+import { fileNameSchema } from "../schema/shared";
 import {
   isSniffableType,
   matchesMagicBytes,
@@ -28,13 +28,6 @@ import { base64UrlDecode, base64UrlEncode } from "./base64url";
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-});
-
-describe("sanitizeFileName", () => {
-  it("replaces quotes, backslashes, newlines, and NUL", () => {
-    expect(sanitizeFileName('a"b\\c\nd')).toBe("a_b_c_d");
-    expect(sanitizeFileName("a\0b")).toBe("a_b");
-  });
 });
 
 describe("buildContentDisposition / parseFileName", () => {
@@ -473,4 +466,93 @@ describe("base64UrlEncode / base64UrlDecode", () => {
       expect(() => base64UrlDecode(value)).toThrow(TypeError);
     },
   );
+});
+
+describe("file name and key hardening", () => {
+  it("fits lone surrogates and bidi controls out of a name", () => {
+    expect(fitFileName("a\ud800b.txt")).toBe("a\ufffdb.txt");
+    expect(fitFileName("invoice\u202Efdp.exe")).toBe("invoicefdp.exe");
+    // The joiner inside an emoji is a format character too; it stays.
+    expect(fitFileName("👩‍💻.png")).toBe("👩‍💻.png");
+  });
+
+  it("rejects such names on the wire, so the server never builds a 500", () => {
+    expect(fileNameSchema.safeParse("a\ud800b.txt").success).toBe(false);
+    expect(fileNameSchema.safeParse("invoice\u202Efdp.exe").success).toBe(
+      false,
+    );
+    expect(fileNameSchema.parse(fitFileName("a\ud800b.txt"))).toBe(
+      "a\ufffdb.txt",
+    );
+  });
+
+  it("refuses keys with surrounding whitespace, control characters, or lone surrogates", () => {
+    expect(normalizeObjectKey("docs/a.pdf ")).toBeNull();
+    expect(normalizeObjectKey(" docs/a.pdf")).toBeNull();
+    expect(normalizeObjectKey("docs/a\tb.pdf")).toBeNull();
+    expect(normalizeObjectKey("docs/a\ud800.pdf")).toBeNull();
+    expect(normalizeObjectKey("docs/a b.pdf")).toBe("docs/a b.pdf");
+  });
+});
+
+describe("Content-Disposition, RFC 5987 and 6266", () => {
+  it("percent-encodes the characters ext-value reserves", () => {
+    expect(buildContentDisposition("it's (1)*.pdf")).toBe(
+      `attachment; filename="it's (1)*.pdf"; filename*=UTF-8''it%27s%20%281%29%2A.pdf`,
+    );
+  });
+
+  it("keeps % out of the ASCII fallback", () => {
+    expect(buildContentDisposition("100%.txt")).toContain(
+      'filename="100_.txt"',
+    );
+  });
+
+  it("parses a language tag, escaped quotes, and a bare token", () => {
+    expect(
+      parseFileName("attachment; filename*=UTF-8'en'r%C3%A9sum%C3%A9.pdf"),
+    ).toBe("résumé.pdf");
+    expect(parseFileName('attachment; filename="say \\"hi\\".txt"')).toBe(
+      'say "hi".txt',
+    );
+    expect(parseFileName("attachment; filename=report.pdf")).toBe("report.pdf");
+    for (const name of ["it's (1)*.pdf", "a b.png", "résumé.pdf"]) {
+      expect(parseFileName(buildContentDisposition(name))).toBe(name);
+    }
+  });
+});
+
+describe("display helpers", () => {
+  it("truncates to at most maxChars, keeping the extension", () => {
+    const short = truncateFileName("a-very-long-file-name-here.pdf", 20);
+    expect(Array.from(short)).toHaveLength(20);
+    expect(short).toBe("a-very-long-fil….pdf");
+    expect(Array.from(truncateFileName("😀".repeat(30), 10))).toHaveLength(10);
+  });
+
+  it("picks the unit after rounding", () => {
+    expect(formatFileSize(1_048_575)).toBe("1.0 MB");
+    expect(formatFileSize(1023)).toBe("1023 B");
+  });
+});
+
+describe("more magic bytes", () => {
+  it("verifies BMP, TIFF, ICO and gzip", () => {
+    const bmp = new Uint8Array(32);
+    bmp.set([0x42, 0x4d]);
+    bmp[14] = 40;
+    expect(sniffContentType(bmp)).toBe("image/bmp");
+    expect(matchesMagicBytes(bmp, "image/bmp")).toBe(true);
+    expect(matchesMagicBytes(new Uint8Array(32), "image/bmp")).toBe(false);
+    expect(isSniffableType("image/tiff")).toBe(true);
+    expect(
+      matchesMagicBytes(new Uint8Array([0x1f, 0x8b, 8, 0]), "application/gzip"),
+    ).toBe(true);
+    expect(
+      matchesMagicBytes(
+        new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]),
+        "video/x-matroska",
+      ),
+    ).toBe(true);
+  });
 });

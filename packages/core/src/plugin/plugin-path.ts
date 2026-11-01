@@ -1,4 +1,4 @@
-import { ROUTE_NAME_PATTERN } from "@/schema/shared";
+import { ROUTE_NAME_PATTERN } from "@/limits";
 
 /**
  * Build a plugin HTTP path under `basePath`.

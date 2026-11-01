@@ -1,7 +1,6 @@
 import { s3Error } from "@dimah-s3/core";
 import type { ObjectRef, StorageObjectStore } from "@/store/object-store";
-import type { DbClientObject } from "@/types/client";
-import type { DbPluginOptions } from "@/types/plugin";
+import type { AuthorizeContext, DbPluginOptions } from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
 import type {
   ResolvedScope,
@@ -10,20 +9,16 @@ import type {
   ScopeTarget,
 } from "./scope";
 
-export type CreateObjectAccessOptions<
-  TSession,
-  TAttributes,
-  TClientAttributes,
-> = Pick<
-  DbPluginOptions<TSession, TAttributes, TClientAttributes>,
+/** What a call targets: its scope target, plus what `authorize` checks. */
+export type AccessTarget = ScopeTarget &
+  Pick<AuthorizeContext, "key" | "folder" | "clientMetadata">;
+
+export type CreateObjectAccessOptions<TSession, TAttributes> = Pick<
+  DbPluginOptions<TSession, TAttributes>,
   "authorize"
 > & {
   objects: Pick<StorageObjectStore<TAttributes>, "find">;
   resolveScope: ScopeResolver<TSession>;
-  /** Maps a row to what `authorize` sees. */
-  toClientObject: (
-    object: StorageObject<TAttributes>,
-  ) => DbClientObject<TClientAttributes>;
 };
 
 /** A row the call may act on, with the scope it was checked against. */
@@ -41,25 +36,30 @@ export type ObjectAccess<TSession, TAttributes> = {
    */
   scope: (
     call: ScopeCall,
-    target: ScopeTarget,
+    target: AccessTarget,
   ) => Promise<ResolvedScope<TSession>>;
   /**
    * Resolves the scope and loads the row at `ref`, which must belong to it.
-   * @throws `UNAUTHORIZED`, `OBJECT_NOT_FOUND` when there is no row or it is
-   * deleted, or `FORBIDDEN`.
+   * A row of another scope is `OBJECT_NOT_FOUND`, the same as no row, so a
+   * caller cannot learn which keys other scopes hold. A `deleted` row is
+   * `OBJECT_NOT_FOUND` too, unless `allowDeleted` is set.
+   * @throws `UNAUTHORIZED`, `OBJECT_NOT_FOUND`, or `FORBIDDEN` from
+   * `authorize`.
    */
   object: (
     call: ScopeCall,
-    target: ScopeTarget,
+    target: AccessTarget,
     ref: ObjectRef,
+    options?: { allowDeleted?: boolean },
   ) => Promise<AccessibleObject<TSession, TAttributes>>;
   /**
-   * Checks that `object` belongs to the scope, then runs `authorize` with it.
-   * @throws `FORBIDDEN`.
+   * Checks that `object` belongs to the scope (`OBJECT_NOT_FOUND`
+   * otherwise), then runs `authorize` with it.
    */
   assertOwner: (
     scope: ResolvedScope<TSession>,
     object: StorageObject<TAttributes>,
+    target?: AccessTarget,
   ) => Promise<void>;
 };
 
@@ -67,42 +67,50 @@ export type ObjectAccess<TSession, TAttributes> = {
  * Creates the access checks. A row belongs to the scope that wrote it, and
  * `authorize` can only narrow that: it runs after the ownership check.
  */
-export function createObjectAccess<TSession, TAttributes, TClientAttributes>(
-  options: CreateObjectAccessOptions<TSession, TAttributes, TClientAttributes>,
+export function createObjectAccess<TSession, TAttributes>(
+  options: CreateObjectAccessOptions<TSession, TAttributes>,
 ): ObjectAccess<TSession, TAttributes> {
   const authorize = async (
     scope: ResolvedScope<TSession>,
+    target: AccessTarget | undefined,
     object?: StorageObject<TAttributes>,
   ) => {
     if (!options.authorize) return;
-    const allowed = await options.authorize(
-      object ? { ...scope, object: options.toClientObject(object) } : scope,
-    );
+    const allowed = await options.authorize({
+      ...scope,
+      ...(target?.key !== undefined && { key: target.key }),
+      ...(target?.folder !== undefined && { folder: target.folder }),
+      ...(target?.clientMetadata !== undefined && {
+        clientMetadata: target.clientMetadata,
+      }),
+      ...(object !== undefined && { object }),
+    });
     if (!allowed) throw s3Error("FORBIDDEN");
   };
 
   const assertOwner = async (
     scope: ResolvedScope<TSession>,
     object: StorageObject<TAttributes>,
+    target?: AccessTarget,
   ) => {
-    if (object.scope !== scope.scope) throw s3Error("FORBIDDEN");
-    await authorize(scope, object);
+    if (object.scope !== scope.scope) throw s3Error("OBJECT_NOT_FOUND");
+    await authorize(scope, target ?? { operation: scope.operation }, object);
   };
 
   return {
     async scope(call, target) {
       const scope = await options.resolveScope(call, target);
-      await authorize(scope);
+      await authorize(scope, target);
       return scope;
     },
 
-    async object(call, target, ref) {
+    async object(call, target, ref, { allowDeleted = false } = {}) {
       const scope = await options.resolveScope(call, target);
       const object = await options.objects.find(ref);
-      if (!object || object.status === "deleted") {
+      if (!object || (object.status === "deleted" && !allowDeleted)) {
         throw s3Error("OBJECT_NOT_FOUND");
       }
-      await assertOwner(scope, object);
+      await assertOwner(scope, object, target);
       return { scope, object };
     },
 

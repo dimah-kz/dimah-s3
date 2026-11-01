@@ -1,12 +1,11 @@
 import type { S3ErrorShape } from "@/error-codes";
 import type {
-  ConfirmPayload,
   DeleteManyPayload,
   DeletePayload,
   DownloadPayload,
   MultipartInitPayload,
   MultipartSignPartPayload,
-  MultipartTicketPayload,
+  TicketPayload,
   S3ObjectAcl,
   S3RequestOptions,
   UploadPayload,
@@ -144,25 +143,38 @@ export type MultipartCompleteResponse = ConfirmedObjectResponse & {
 export type MultipartAbortResponse = {
   /** S3 object key. */
   key: string;
+  /** Target bucket. */
+  bucket: string;
   /** Aborted multipart upload ID. */
   uploadId: string;
 };
 
-/** Presigned GET URL for download, or a same-origin proxy URL. */
+/**
+ * Presigned GET URL for download, or a same-origin proxy URL. Narrow on
+ * `mode`: only a presigned URL expires.
+ */
 export type DownloadPresignResponse = {
   /** S3 object key. */
   key: string;
   /** Target bucket. */
   bucket: string;
-  /** Presigned URL, or the same-origin `/file` URL when `mode` is `"proxy"`. */
-  url: string;
-  /** How the browser fetches the object. */
-  mode: "presign" | "proxy";
   /** Content-Disposition used on the signed or proxied GET. */
   disposition: ContentDispositionType;
-  /** URL validity in seconds. Omitted in proxy mode. */
-  expiresIn?: number;
-};
+} & (
+  | {
+      mode: "presign";
+      /** Presigned S3 URL. */
+      url: string;
+      /** URL validity in seconds. */
+      expiresIn: number;
+    }
+  | {
+      mode: "proxy";
+      /** The `/file` URL. It does not expire: each request is authorized again. */
+      url: string;
+      expiresIn?: never;
+    }
+);
 
 /**
  * Presign API protocol shared by `@dimah-s3/react` hooks and `@dimah-s3/server`.
@@ -173,7 +185,7 @@ export type DownloadPresignResponse = {
  */
 export type S3Api<O = S3RequestOptions> = {
   upload(payload: UploadPayload, options?: O): Promise<UploadPresignResponse>;
-  confirm(payload: ConfirmPayload, options?: O): Promise<UploadConfirmResponse>;
+  confirm(payload: TicketPayload, options?: O): Promise<UploadConfirmResponse>;
   download(
     payload: DownloadPayload,
     options?: O,
@@ -194,16 +206,13 @@ export type S3Api<O = S3RequestOptions> = {
       options?: O,
     ): Promise<MultipartPartResponse>;
     listParts(
-      payload: MultipartTicketPayload,
+      payload: TicketPayload,
       options?: O,
     ): Promise<MultipartListPartsResponse>;
     complete(
-      payload: MultipartTicketPayload,
+      payload: TicketPayload,
       options?: O,
     ): Promise<MultipartCompleteResponse>;
-    abort(
-      payload: MultipartTicketPayload,
-      options?: O,
-    ): Promise<MultipartAbortResponse>;
+    abort(payload: TicketPayload, options?: O): Promise<MultipartAbortResponse>;
   };
 };

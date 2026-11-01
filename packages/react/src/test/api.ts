@@ -170,7 +170,7 @@ export function fakeS3Api(overrides: FakeS3ApiOverrides = {}): S3Api {
       }),
       abort: vi.fn(async ({ ticket }) => {
         const { key, uploadId } = readMultipart(ticket);
-        return { key, uploadId };
+        return { key, bucket: "bucket", uploadId };
       }),
       ...multipart,
     },

@@ -20,8 +20,3 @@ export const multipartSignPartBodySchema = z.strictObject({
    */
   checksum: optionalChecksumSchema,
 });
-
-/** Body for `listParts`, `complete`, and `abort`. */
-export const multipartTicketBodySchema = z.strictObject({
-  ticket: uploadTicketSchema,
-});

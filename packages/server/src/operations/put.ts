@@ -1,22 +1,13 @@
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
-import {
-  buildContentDisposition,
-  s3Error,
-  uploadBodySchema,
-  type ConfirmedObjectResponse,
-} from "@dimah-s3/core";
+import { s3Error, type ConfirmedObjectResponse } from "@dimah-s3/core";
+import { uploadBodySchema } from "@dimah-s3/core/schema";
 import { finalizeConfirmed } from "@/helpers/finalize-confirmed";
 import { headObjectOrNotFound } from "@/helpers/head-object";
-import { runGuards, runLifecycle } from "@/helpers/hooks";
-import { buildObjectMetadata } from "@/helpers/object-meta";
+import { runLifecycle } from "@/helpers/hooks";
 import { objectCommandExtras } from "@/helpers/object-s3";
-import { openUploadTarget } from "@/helpers/resolve-route";
+import { openUploadTarget } from "@/helpers/open-target";
 import { runOperation } from "@/operations/run-operation";
-import {
-  assertSingleUploadSize,
-  DEFAULT_CONTENT_TYPE,
-} from "@/operations/upload";
 import type { PutInput, S3ServerCallOptions } from "@/types/config";
 import type { ResolvedConfig } from "@/types/resolved";
 
@@ -58,7 +49,6 @@ export async function putObject(
     size,
     type: input.type,
   });
-  assertSingleUploadSize(file.size);
 
   return runOperation(config, "put", options, async (call) => {
     const target = await openUploadTarget(
@@ -68,23 +58,12 @@ export async function putObject(
         route: file.route,
         file: { name: file.name, size: file.size, type: file.type },
         clientMetadata: input.clientMetadata,
+        metadata: input.metadata,
       },
       "server",
     );
-    const { route, object, uploadToken } = target;
-    const metadata = input.metadata
-      ? { ...object.metadata, ...input.metadata }
-      : object.metadata;
-    const s3Metadata = input.metadata
-      ? buildObjectMetadata({
-          metadata,
-          uploadToken,
-          previousKey: object.previousKey,
-        })
-      : target.s3Metadata;
-    const context = { ...target.context, metadata };
+    const { route, context, object, uploadToken } = target;
 
-    await runGuards(route.upload.guard, context);
     await runLifecycle(route.upload.onStart, {
       ...context,
       uploadToken,
@@ -97,10 +76,10 @@ export async function putObject(
         Key: object.key,
         Body: sdkBody(route.client, body),
         ContentLength: file.size,
-        ContentType: file.type ?? DEFAULT_CONTENT_TYPE,
-        ContentDisposition: buildContentDisposition(file.name),
+        ContentType: target.contentType,
+        ContentDisposition: target.contentDisposition,
         ACL: object.acl,
-        Metadata: s3Metadata,
+        Metadata: target.s3Metadata,
         ...objectCommandExtras(object),
       }),
       { abortSignal: call.request.signal },

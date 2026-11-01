@@ -112,7 +112,11 @@ function toWebRequest(
   return new Request(requestURL(req, options), init);
 }
 
-/** The absolute request URL, from the socket or the trusted proxy headers. */
+/**
+ * The absolute request URL, from the socket or the trusted proxy headers.
+ * Express sets `originalUrl`, which keeps the mount path that
+ * `app.use("/api/s3", …)` strips from `url`.
+ */
 function requestURL(req: IncomingMessage, options: NodeHandlerOptions): URL {
   const encrypted = (req.socket as { encrypted?: boolean }).encrypted === true;
   let protocol = encrypted ? "https" : "http";
@@ -125,7 +129,8 @@ function requestURL(req: IncomingMessage, options: NodeHandlerOptions): URL {
     }
     host = firstHeaderValue(req.headers["x-forwarded-host"]) || host;
   }
-  return new URL(req.url ?? "/", `${protocol}://${host}`);
+  const path = (req as { originalUrl?: string }).originalUrl ?? req.url;
+  return new URL(path ?? "/", `${protocol}://${host}`);
 }
 
 /** The first entry of a header that proxies may append to (`a, b`). */

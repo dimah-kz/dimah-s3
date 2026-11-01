@@ -234,14 +234,24 @@ describe("APIError", () => {
 });
 
 describe("isAPIError", () => {
-  it("recognizes APIError, better-call copies, and duck-typed names", () => {
-    const base = new BetterCallAPIError("UNAUTHORIZED", { message: "no" });
+  it("recognizes an APIError and a copy from another bundle of core", () => {
+    const copy = Object.assign(new Error("no"), {
+      name: "APIError",
+      code: "FORBIDDEN",
+      statusCode: 403,
+    });
 
     expect(isAPIError(s3Error("FORBIDDEN"))).toBe(true);
-    expect(isAPIError(base)).toBe(true);
-    expect(isAPIError({ name: "APIError" })).toBe(true);
+    expect(isAPIError(copy)).toBe(true);
     expect(isAPIError(new Error("x"))).toBe(false);
     expect(isAPIError(null)).toBe(false);
+  });
+
+  it("does not claim errors that have no code getter", () => {
+    // Narrowing would promise `code` and `params` they do not have.
+    const raw = new BetterCallAPIError("UNAUTHORIZED", { message: "no" });
+    expect(isAPIError(raw)).toBe(false);
+    expect(isAPIError({ name: "APIError" })).toBe(false);
   });
 });
 
@@ -252,21 +262,22 @@ describe("isS3ErrorCode", () => {
     expect(isS3ErrorCode(err, "NOT_FOUND")).toBe(false);
     expect(isS3ErrorCode(new Error("x"), "FORBIDDEN")).toBe(false);
 
-    expectTypeOf(isS3ErrorCode<"KEY_INVALID">).guards.toEqualTypeOf<
-      APIError & { code: "KEY_INVALID" }
+    expectTypeOf(isS3ErrorCode<"FILE_TOO_LARGE">).guards.toEqualTypeOf<
+      APIError & {
+        code: "FILE_TOO_LARGE";
+        params: { size: number; maxFileSize: number };
+      }
     >();
   });
 
-  it("matches raw better-call errors by their body code", () => {
+  it("does not match raw better-call errors", () => {
     const raw = new BetterCallAPIError("BAD_REQUEST", {
       code: "VALIDATION_ERROR",
       message: "Invalid request",
     });
-    expect(isS3ErrorCode(raw, "VALIDATION_ERROR")).toBe(true);
-    expect(isS3ErrorCode(raw, "FORBIDDEN")).toBe(false);
-
+    expect(isS3ErrorCode(raw, "VALIDATION_ERROR")).toBe(false);
     const validation = new ValidationError("Invalid body", []);
-    expect(isS3ErrorCode(validation, "VALIDATION_ERROR")).toBe(true);
+    expect(isS3ErrorCode(validation, "VALIDATION_ERROR")).toBe(false);
   });
 
   it("does not match a better-call error without a body", () => {

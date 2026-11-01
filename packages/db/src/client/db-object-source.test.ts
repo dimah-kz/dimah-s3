@@ -27,7 +27,6 @@ function row(patch: Partial<DbClientObject> = {}): DbClientObject {
 }
 
 const page: DbClientListResponse = {
-  scope: "user:1",
   objects: [row()],
   nextCursor: "cursor-2",
 };

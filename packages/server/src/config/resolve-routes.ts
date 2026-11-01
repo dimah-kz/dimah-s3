@@ -1,18 +1,21 @@
 import {
   DEFAULT_INLINE_TYPES,
   normalizeObjectKey,
+  ROUTE_NAME_PATTERN,
   S3_DEFAULT_EXPIRES_IN,
 } from "@dimah-s3/core";
-import { assertRouteName } from "@/route";
+import type { DimahS3PluginHooks } from "@/plugin/types";
 import type {
   DeleteConfig,
   DimahS3Config,
   DimahS3RouteConfig,
+  DimahS3Logger,
   DownloadConfig,
   FeatureToggle,
   MultipartConfig,
   UploadConfig,
 } from "@/types/config";
+import { isFeatureOn } from "./feature-toggle";
 import type {
   DisabledFeature,
   HookList,
@@ -26,15 +29,11 @@ import type {
 const DEFAULT_CONFIRM_WINDOW = 3600;
 const DEFAULT_MULTIPART_TICKET_EXPIRES_IN = 86_400;
 
-/** Route hooks a plugin can add. Structurally a subset of `DimahS3PluginHooks`. */
-export type RoutePluginHooks = {
-  upload?: Pick<
-    UploadConfig,
-    "guard" | "onStart" | "confirmGuard" | "onConfirmed"
-  > & { multipart?: Pick<MultipartConfig, "guard" | "onAbort"> };
-  download?: Pick<DownloadConfig, "guard" | "onPresigned">;
-  delete?: Pick<DeleteConfig, "guard" | "onDeleted">;
-};
+/** The route hooks of a plugin: every slot but the instance `guard` and `ticketSubject`. */
+export type RoutePluginHooks = Pick<
+  DimahS3PluginHooks,
+  "upload" | "download" | "delete"
+>;
 
 /** The parts of a plugin that route resolution reads. */
 export type RoutePlugin = { id: string; hooks?: RoutePluginHooks };
@@ -44,31 +43,9 @@ export type ResolveRoutesOptions = {
   maxExpiresIn: number;
   /** Plugins in order. A route skips a plugin it sets to `false`. */
   plugins?: readonly RoutePlugin[];
+  /** Warns about a config that works but is likely a mistake. */
+  logger?: DimahS3Logger;
 };
-
-/** Whether a resolved feature is on. Narrows to the enabled shape. */
-export function isEnabled<T extends { enabled: boolean }>(
-  feature: T,
-): feature is T & { enabled: true } {
-  return feature.enabled;
-}
-
-/**
- * Whether a feature toggle is on: `true` or an options object is on, and
- * `false` is off. `undefined` uses `defaultOn`. A resolved `{ enabled }`
- * object uses its flag.
- */
-export function isFeatureOn<T extends object>(
-  value: FeatureToggle<T> | { enabled: boolean } | undefined,
-  defaultOn = false,
-): boolean {
-  if (value === undefined) return defaultOn;
-  if (typeof value === "boolean") return value;
-  if ("enabled" in value && typeof value.enabled === "boolean") {
-    return value.enabled;
-  }
-  return true;
-}
 
 /**
  * One hook slot in run order: each plugin's hook in plugin order, then the
@@ -105,7 +82,7 @@ export function resolveRoutes(
   for (const [name, route] of entries) {
     routes[name] = resolveRoute(name, route, config, options);
   }
-  assertDistinctKeyPrefixes(routes);
+  assertDistinctKeyPrefixes(routes, options.logger);
   return routes;
 }
 
@@ -177,7 +154,7 @@ function resolveUpload(
   const resolved: ResolvedUpload = {
     enabled: true,
     fileTypes: upload.fileTypes,
-    maxFileSize: optionalPositiveInteger(
+    maxFileSize: routePositiveInteger(
       env,
       "upload.maxFileSize",
       upload.maxFileSize,
@@ -228,7 +205,7 @@ function resolveMultipart(
   const hooks = (plugin: RoutePlugin) => plugin.hooks?.upload?.multipart;
   return {
     enabled: true,
-    partSize: optionalPositiveInteger(
+    partSize: routePositiveInteger(
       env,
       "upload.multipart.partSize",
       multipart.partSize,
@@ -298,29 +275,50 @@ function resolveDelete(
   };
 }
 
+function assertRouteName(name: string): void {
+  if (!ROUTE_NAME_PATTERN.test(name)) {
+    throw new Error(
+      `dimahS3 route "${name}" is invalid. Use a letter followed by up to 63 letters, digits, underscores, or hyphens.`,
+    );
+  }
+}
+
 function routeError(name: string, message: string): Error {
   return new Error(`dimahS3 route "${name}": ${message}`);
 }
 
-/** A positive safe integer, or `fallback` when unset. */
+/** A route option that must be a positive safe integer, or `fallback` when unset. */
 function positiveInteger(
   env: RouteEnv,
   field: string,
   value: number | undefined,
   fallback: number,
 ): number {
-  return optionalPositiveInteger(env, field, value) ?? fallback;
+  return routePositiveInteger(env, field, value) ?? fallback;
 }
 
-/** A positive safe integer, or `undefined` when unset. Fails at startup. */
-function optionalPositiveInteger(
+function routePositiveInteger(
   env: RouteEnv,
   field: string,
   value: number | undefined,
 ): number | undefined {
+  return optionalPositiveInteger(
+    value,
+    `dimahS3 route "${env.name}": ${field}`,
+  );
+}
+
+/**
+ * A positive safe integer, or `undefined` when unset. Anything else throws
+ * `"{label} must be a positive integer."`, so `dimahS3()` fails at startup.
+ */
+export function optionalPositiveInteger(
+  value: number | undefined,
+  label: string,
+): number | undefined {
   if (value === undefined) return undefined;
   if (!Number.isSafeInteger(value) || value <= 0) {
-    throw routeError(env.name, `${field} must be a positive integer.`);
+    throw new Error(`${label} must be a positive integer.`);
   }
   return value;
 }
@@ -341,21 +339,32 @@ function prefixesOverlap(a: string, b: string): boolean {
   return a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
 }
 
-/** Nested or identical `keyPrefix` values would let one route reach another's keys. */
+/**
+ * Nested or identical `keyPrefix` values on one bucket would let one route
+ * reach another's keys, so they throw. Routes on different buckets may
+ * share a prefix. A `keyPrefix: false` route on a bucket other routes use
+ * reaches all of their keys; that is allowed, with a warning.
+ */
 function assertDistinctKeyPrefixes(
   routes: Record<string, ResolvedRoute>,
+  logger: DimahS3Logger | undefined,
 ): void {
-  const named = Object.values(routes).filter(
-    (route): route is ResolvedRoute & { keyPrefix: string } =>
-      route.keyPrefix !== false,
-  );
-  for (let i = 0; i < named.length; i++) {
-    for (let j = i + 1; j < named.length; j++) {
-      const a = named[i];
-      const b = named[j];
+  const list = Object.values(routes);
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      if (a.bucket !== b.bucket) continue;
+      if (a.keyPrefix === false || b.keyPrefix === false) {
+        const [open, other] = a.keyPrefix === false ? [a, b] : [b, a];
+        logger?.warn?.(
+          `dimahS3 route "${open.name}" sets keyPrefix: false on bucket "${open.bucket}", which route "${other.name}" also uses, so its keys reach "${other.name}" objects. Give each route its own keyPrefix unless that is intended.`,
+        );
+        continue;
+      }
       if (prefixesOverlap(a.keyPrefix, b.keyPrefix)) {
         throw new Error(
-          `dimahS3: routes "${a.name}" and "${b.name}" have overlapping keyPrefix values ("${a.keyPrefix}" and "${b.keyPrefix}").`,
+          `dimahS3: routes "${a.name}" and "${b.name}" have overlapping keyPrefix values ("${a.keyPrefix}" and "${b.keyPrefix}") on bucket "${a.bucket}".`,
         );
       }
     }

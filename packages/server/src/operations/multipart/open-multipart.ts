@@ -1,7 +1,7 @@
-import type { multipartTicketBodySchema } from "@dimah-s3/core";
+import type { ticketBodySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import type { PartLayout } from "@/helpers/part-layout";
-import { openTicket } from "@/helpers/resolve-route";
+import { openTicket } from "@/helpers/open-target";
 import type { UploadTicket } from "@/helpers/ticket";
 import type {
   GuardContext,
@@ -11,7 +11,7 @@ import type {
 import type { OpenedRoute, ResolvedConfig } from "@/types/resolved";
 
 /** Body of the multipart list, complete and abort calls, after validation. */
-export type MultipartTicketBody = z.output<typeof multipartTicketBodySchema>;
+export type MultipartTicketBody = z.output<typeof ticketBodySchema>;
 
 export type OpenedMultipart = {
   route: OpenedRoute<"multipart">;

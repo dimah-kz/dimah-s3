@@ -1,15 +1,7 @@
-import {
-  normalizeS3ApiBasePath,
-  S3_API_BASE_PATH,
-  S3_ERROR_CODES,
-  S3_MAX_EXPIRES_IN,
-  type ConfirmedObjectResponse,
-} from "@dimah-s3/core";
+import { S3_ERROR_CODES, type ConfirmedObjectResponse } from "@dimah-s3/core";
 import { createS3Router } from "@/api/router";
-import { coreEndpoints } from "@/api/routes";
-import { hookList, resolveRoutes } from "@/helpers/features";
-import { resolveLogger } from "@/helpers/logger";
-import { parseSecretOption } from "@/helpers/ticket";
+import { coreEndpoints } from "@/api/core-endpoints";
+import { resolveConfig } from "@/config/resolve-config";
 import { putObject } from "@/operations/put";
 import { createS3Api } from "@/operations/s3-api";
 import {
@@ -24,9 +16,6 @@ import type {
   PutInput,
   S3ServerCallOptions,
 } from "@/types/config";
-import type { ResolvedConfig } from "@/types/resolved";
-
-const DEFAULT_MAX_REQUEST_BODY_SIZE = 1_048_576;
 
 /** A dimah-s3 server instance, returned by {@link dimahS3}. */
 export type DimahS3<
@@ -126,88 +115,4 @@ export function dimahS3<
     $Infer: {} as DimahS3<P, PluginContextMap<P>, R>["$Infer"],
     ...context,
   } as DimahS3<P, PluginContextMap<P>, R>;
-}
-
-/**
- * Applies the documented defaults and builds the hook lists: plugin hooks
- * in plugin order, then the user hook. Throws on a config error.
- */
-function resolveConfig(config: DimahS3Config): ResolvedConfig {
-  const plugins = config.plugins ?? [];
-  const { basePath, baseURL } = resolveApiLocation(config);
-  const maxExpiresIn = Math.min(
-    positiveOption("maxExpiresIn", config.maxExpiresIn) ?? S3_MAX_EXPIRES_IN,
-    S3_MAX_EXPIRES_IN,
-  );
-  const maxRequestBodySize =
-    positiveOption("maxRequestBodySize", config.maxRequestBodySize) ??
-    DEFAULT_MAX_REQUEST_BODY_SIZE;
-
-  return {
-    basePath,
-    ...(baseURL !== undefined ? { baseURL } : {}),
-    secret: parseSecretOption(config.secret),
-    ticketSubject:
-      config.ticketSubject ??
-      plugins.find((plugin) => plugin.hooks?.ticketSubject)?.hooks
-        ?.ticketSubject,
-    maxExpiresIn,
-    maxRequestBodySize,
-    logger: resolveLogger(config.logger),
-    onError: config.onError,
-    guard: hookList(plugins, (plugin) => plugin.hooks?.guard, config.guard),
-    routes: resolveRoutes(config, { maxExpiresIn, plugins }),
-  };
-}
-
-/**
- * `basePath` without a trailing slash, and `baseURL` without one. When only
- * `baseURL` is set, its path is the `basePath`. When both are set, they
- * must agree.
- */
-function resolveApiLocation(config: DimahS3Config): {
-  basePath: string;
-  baseURL?: string;
-} {
-  const basePath =
-    config.basePath === undefined
-      ? undefined
-      : normalizeS3ApiBasePath(config.basePath);
-  if (config.baseURL === undefined) {
-    return { basePath: basePath ?? S3_API_BASE_PATH };
-  }
-
-  const url = parseURL(config.baseURL);
-  if (url?.protocol !== "http:" && url?.protocol !== "https:") {
-    throw new Error("dimahS3: baseURL must be an absolute http(s) URL.");
-  }
-  if (url.search || url.hash) {
-    throw new Error("dimahS3: baseURL must not have a query or a hash.");
-  }
-  const urlPath = normalizeS3ApiBasePath(url.pathname);
-  if (basePath !== undefined && basePath !== urlPath) {
-    throw new Error(
-      `dimahS3: the baseURL path "${urlPath || "/"}" must equal basePath "${basePath || "/"}".`,
-    );
-  }
-  return { basePath: urlPath, baseURL: `${url.origin}${urlPath}` };
-}
-
-function parseURL(value: string): URL | undefined {
-  try {
-    return new URL(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function positiveOption(
-  field: string,
-  value: number | undefined,
-): number | undefined {
-  if (value === undefined) return undefined;
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    throw new Error(`dimahS3: ${field} must be a positive integer.`);
-  }
-  return value;
 }

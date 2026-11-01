@@ -178,6 +178,9 @@ describe("completeMultipart", () => {
       uploadId: upload.uploadId,
       uploadToken,
       file: { name: "a.png", size: SIZE, type: "image/png" },
+      acl: "private",
+      // The guard sees what HeadObject verified, not only the declared file.
+      object: { size: SIZE, type: "image/png", metadata: {} },
     });
     const confirmed = onConfirmed.mock.calls[0][0];
     expect(confirmed).toMatchObject({
@@ -185,9 +188,9 @@ describe("completeMultipart", () => {
       kind: "multipart",
       uploadId: upload.uploadId,
       uploadToken,
+      file: { name: "a.png", size: SIZE, type: "image/png" },
       object: { size: SIZE, type: "image/png", metadata: {} },
     });
-    expect(confirmed).not.toHaveProperty("file");
   });
 
   it("reads every ListParts page before completing", async () => {

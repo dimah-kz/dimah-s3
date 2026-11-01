@@ -1,8 +1,6 @@
 import * as z from "zod";
+import { DELETE_MANY_MAX_KEYS } from "@/limits";
 import { objectKeySchema, routeNameSchema } from "./shared";
-
-/** Most keys one `deleteMany` request may carry. */
-export const DELETE_MANY_MAX_KEYS = 100;
 
 export const deleteQuerySchema = z.strictObject({
   route: routeNameSchema,

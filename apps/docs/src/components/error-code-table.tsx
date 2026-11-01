@@ -15,15 +15,18 @@ const WHEN = {
   UNSUPPORTED_MEDIA_TYPE: "A body endpoint got a body that is not JSON.",
   NOT_FOUND: "No endpoint serves the request path.",
   UNAUTHORIZED: "A guard rejects an anonymous caller.",
-  FORBIDDEN: "A guard rejects the caller, or the object is outside its scope.",
-  CONFLICT: "The object or folder is in a state that blocks the change.",
+  FORBIDDEN: "A guard or `authorize` rejects the caller.",
+  CONFLICT:
+    "A concurrent change won, or `db()` purge is cleaning the key. A retry may succeed.",
   INTERNAL_ERROR:
     "Unhandled server error, or a non-JSON error response with status 500 or above.",
   S3_NETWORK_ERROR: "The server cannot reach the S3 endpoint.",
   UNKNOWN_ROUTE: "The `route` name is not registered on the server.",
-  FEATURE_DISABLED: "The route does not enable the requested operation.",
+  FEATURE_DISABLED:
+    "The route does not enable the requested operation, or `/file` was asked for a route that is not in proxy mode.",
   KEY_INVALID: "The key is unsafe, or outside the route `keyPrefix`.",
-  OBJECT_NOT_FOUND: "The object or multipart upload does not exist.",
+  OBJECT_NOT_FOUND:
+    "The object or multipart upload does not exist, or `db()` tracks it for another scope.",
   RANGE_NOT_SATISFIABLE: "A `/file` `Range` header is outside the object.",
   PRECONDITION_FAILED: "A `/file` `If-Match` or `If-Unmodified-Since` fails.",
   FILE_EMPTY: "The file has 0 bytes. `validateFile` checks it before upload.",
@@ -39,7 +42,11 @@ const WHEN = {
   UPLOAD_SIZE_MISMATCH: "The stored size differs from the declared `size`.",
   MULTIPART_PART_MISSING: "Complete found a part that was never uploaded.",
   MULTIPART_PART_INVALID: "The part number is outside the server's layout.",
-  FOLDER_INVALID: "The `db()` folder path is not valid.",
+  OBJECT_EXISTS:
+    'A `db()` route without `replace: "overwrite"` already holds an object at the key.',
+  FOLDER_INVALID:
+    "The `db()` folder path is not valid, or deeper than 32 levels.",
+  FOLDER_EXISTS: "A `db()` folder with that path already exists.",
   FOLDER_NOT_EMPTY: "A `db()` folder still holds folders or objects.",
   TOO_MANY_FILES: "More files were added than `maxFiles` allows.",
   HOOK_FAILED: "One of your callbacks, such as `onSuccess`, threw.",

@@ -3,10 +3,8 @@ import { createRouter, toResponse, type Endpoint } from "better-call";
 import { toAPIError } from "@/helpers/error-boundary";
 import type { DimahS3Config } from "@/types/config";
 import type { ResolvedConfig } from "@/types/resolved";
+import { BODY_MEDIA_TYPES } from "./create-s3-endpoint";
 import { createRouterContext } from "./router-context";
-
-/** Body endpoints accept only JSON, so a cross-site form post is refused. */
-const BODY_MEDIA_TYPES = ["application/json"];
 
 /**
  * The HTTP router of a dimah-s3 instance. Internal: `dimahS3()` returns its

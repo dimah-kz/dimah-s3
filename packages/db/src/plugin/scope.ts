@@ -8,8 +8,8 @@ export type ScopeCall = {
   locals: DimahS3Locals;
 };
 
-/** What the call targets. Passed on to `resolveScope`. */
-export type ScopeTarget = Omit<ScopeContext, "request" | "locals" | "session">;
+/** What a scope is resolved for: the operation and, when known, the route. */
+export type ScopeTarget = Pick<ScopeContext, "operation" | "route">;
 
 /** A {@link ScopeContext} whose scope is resolved. */
 export type ResolvedScope<TSession = undefined> = ScopeContext<TSession> & {
@@ -46,12 +46,13 @@ function perKey<K extends object, V>(
 
 /**
  * Wraps the plugin's `getSession` and `resolveScope`. `getSession` runs at
- * most once per `Request`. `resolveScope` runs once per call and target. A
- * call is its `locals` object: the server creates one per operation and
- * hands it to every hook of that operation. So the guard and the lifecycle
- * hooks of one call share a scope, and it sees the `locals` of the first
- * hook that asked. Two `s3.api` calls never share one, even when they pass
- * the same `Request`.
+ * most once per `Request`. `resolveScope` runs once per call, operation,
+ * and route. A call is its `locals` object: the server creates one per
+ * operation and hands it to every hook of that operation. So the guard and
+ * the lifecycle hooks of one call share a scope, and it sees the `locals`
+ * of the first hook that asked. Two `s3.api` calls never share one, even
+ * when they pass the same `Request`. Each key of a `deleteMany` gets its
+ * own `locals`, so its guard's `locals` reach the scope too.
  */
 export function createScopeResolver<TSession>(
   options: CreateScopeResolverOptions<TSession>,
@@ -75,16 +76,11 @@ export function createScopeResolver<TSession>(
       request: call.request,
       locals: call.locals,
       session,
-      ...target,
-    };
-    // Object keys keep `folder: undefined` (not given) apart from `null` (root).
-    const id = JSON.stringify({
       operation: target.operation,
-      route: target.route,
-      key: target.key,
-      folder: target.folder,
-      clientMetadata: target.clientMetadata,
-    });
+      ...(target.route !== undefined && { route: target.route }),
+    };
+    // Route names never contain `:`.
+    const id = `${target.operation}:${target.route ?? ""}`;
     const byTarget = perKey(scopes, call.locals, () => new Map());
     let scope = byTarget.get(id);
     if (scope === undefined) {

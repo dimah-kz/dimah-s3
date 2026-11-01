@@ -36,7 +36,7 @@ key from it, never from the client.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
-  name="ConfirmPayload"
+  name="TicketPayload"
 />
 
 Return the size and type from `HeadObject`, not the declared ones. If the
@@ -55,7 +55,7 @@ Paths are yours. [`@dimah-s3/server`](/docs/server) uses
 
 ```ts title="lib/s3-api/upload.ts"
 import type {
-  ConfirmPayload,
+  TicketPayload,
   S3RequestOptions,
   UploadConfirmResponse,
   UploadPayload,
@@ -70,7 +70,7 @@ export const upload = (payload: UploadPayload, options?: S3RequestOptions) =>
     ...call(options),
   });
 
-export const confirm = (payload: ConfirmPayload, options?: S3RequestOptions) =>
+export const confirm = (payload: TicketPayload, options?: S3RequestOptions) =>
   $fetch<UploadConfirmResponse>("/confirm", {
     method: "POST",
     body: payload,

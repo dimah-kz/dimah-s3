@@ -144,20 +144,6 @@ export type UploadOnStartContext = UploadGuardContext & {
   expiresAt: Date;
 };
 
-/**
- * Context for `upload.confirmGuard`. It runs on confirm and multipart
- * complete, after HeadObject. A rejection deletes the object, or aborts the
- * multipart upload.
- */
-export type UploadConfirmGuardContext = ObjectContext & {
-  kind: Exclude<UploadKind, "server">;
-  uploadToken: string;
-  /** Multipart only. */
-  uploadId?: string;
-  /** File declared at presign or init. */
-  file: UploadFile;
-};
-
 /** Object as HeadObject reports it. Trust these values, not the declared file. */
 export type VerifiedObject = {
   name?: string;
@@ -171,17 +157,38 @@ export type VerifiedObject = {
 };
 
 /**
- * Context for `upload.onConfirmed`. It runs at least once per upload; a
- * retried confirm runs it again, so dedupe on `uploadToken`.
+ * Context for `upload.confirmGuard`. It runs on confirm and multipart
+ * complete, after HeadObject and the size, type and content checks, so
+ * `object` holds the values S3 verified. A rejection deletes the object.
  */
-export type UploadOnConfirmedContext = ObjectContext & {
-  kind: UploadKind;
+export type UploadConfirmGuardContext = ObjectContext & {
+  kind: Exclude<UploadKind, "server">;
   uploadToken: string;
   /** Multipart only. */
   uploadId?: string;
+  /** File declared at presign or init. Check `object` instead. */
+  file: UploadFile;
   /** ACL from the upload policy. */
   acl: S3ObjectAcl;
+  /** The object as HeadObject reports it. */
   object: VerifiedObject;
+};
+
+/**
+ * Context for `upload.onConfirmed`: the confirm guard context, and also for
+ * `s3.put` (`kind: "server"`). It runs at least once per upload; a retried
+ * confirm runs it again, so dedupe on `uploadToken`.
+ */
+export type UploadOnConfirmedContext = Omit<
+  UploadConfirmGuardContext,
+  "kind"
+> & {
+  kind: UploadKind;
+  /**
+   * `upload.object().previousKey`, which is deleted once every
+   * `onConfirmed` hook succeeds. Retire your own record of it here.
+   */
+  previousKey?: string;
 };
 
 /** Context for `download.resolve`. */

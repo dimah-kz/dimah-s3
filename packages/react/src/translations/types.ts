@@ -1,6 +1,8 @@
 export type Translations = {
   "1 file(object list usage)": string;
   "A file checksum is required(API error)": string;
+  "A file with this name already exists(API error)": string;
+  "A folder with this name already exists(API error)": string;
   "A folder with this name already exists(object list new folder)": string;
   "Accepted {types}.(dropzone hint)": string;
   "Access denied(API error)": string;
@@ -127,6 +129,7 @@ export type Translations = {
   "Sort(object list sort)": string;
   "Starting…(download progress)": string;
   "Storage quota exceeded(API error)": string;
+  "Streaming downloads are disabled(API error)": string;
   "TB(file size unit)": string;
   "The file has changed(API error)": string;
   "These files cannot be uploaded(dropzone)": string;

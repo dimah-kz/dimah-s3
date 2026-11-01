@@ -34,6 +34,35 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
   const store = () => createDbStore<{ starred: boolean }>(client()).objects;
 
   describe("upsertPending", () => {
+    it("gives a re-upload over a deleted row a fresh row", async () => {
+      const deleted = await insertObject(client(), {
+        key: "k",
+        status: "deleted",
+        deletedAt: new Date(),
+      });
+
+      const written = await store().upsertPending(pending());
+      expect(written.status).toBe("pending");
+      expect(written.id).not.toBe(deleted.id);
+    });
+
+    it("updates only the row it was pinned to", async () => {
+      const row = await insertObject(client(), { key: "k", folder: null });
+
+      await expect(
+        store().update(
+          { bucket: "b", key: "k", scope: "user:2" },
+          { filename: "x.txt" },
+        ),
+      ).resolves.toBeNull();
+      await expect(
+        store().update(
+          { bucket: "b", key: "k", id: row.id, scope: "user:1" },
+          { filename: "x.txt" },
+        ),
+      ).resolves.toMatchObject({ filename: "x.txt" });
+    });
+
     it("writes a pending row with the ticket's token and deadline", async () => {
       const expiresAt = inAMinute();
       const written = await store().upsertPending(
@@ -80,7 +109,8 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await insertObject(client(), { key: "k", uploadToken: "old", size: 5 });
 
       await expect(store().upsertPending(pending())).rejects.toMatchObject({
-        code: "CONFLICT",
+        code: "OBJECT_EXISTS",
+        statusCode: 409,
       });
       await expect(
         store().find({ bucket: "b", key: "k" }),
@@ -118,8 +148,9 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
         expiresAt,
       });
       await expect(store().count({ scope: "user:1" })).resolves.toBe(1);
+      // The overwrite reserves its declared bytes until it lands or expires.
       await expect(store().getUsage("user:1")).resolves.toEqual({
-        totalBytes: 5,
+        totalBytes: 100,
         objectCount: 1,
       });
     });

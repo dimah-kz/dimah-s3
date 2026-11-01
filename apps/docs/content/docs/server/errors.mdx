@@ -91,12 +91,15 @@ catalog.
 `onError` receives every failure that is not an `APIError`: plain errors,
 config errors, and S3 network errors. They are logged too, then answered with
 `500 INTERNAL_ERROR` or `502 S3_NETWORK_ERROR`. Rejections you throw with
-`s3Error` do not reach it.
+`s3Error` do not reach it. The context has the `request` and, when known,
+the `operation`. It may be async: a rejection from it is logged, never
+unhandled. An error from another library that is merely named `APIError` is
+an unexpected failure too, so it is logged and reaches `onError`.
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
-  onError: (error, { request }) => {
-    Sentry.captureException(error, { extra: { url: request.url } }); // [!code ++]
+  onError: async (error, { request, operation }) => {
+    Sentry.captureException(error, { extra: { url: request.url, operation } }); // [!code ++]
   },
   // ...
 });

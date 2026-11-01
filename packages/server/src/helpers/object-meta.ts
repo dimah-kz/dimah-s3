@@ -96,6 +96,18 @@ export function readObjectMetadata(
   return { metadata, uploadToken, previousKey };
 }
 
+/**
+ * The upload token an object was written with: its upload marker, read
+ * from HeadObject `Metadata`. `undefined` for an object dimah-s3 did not
+ * write. A plugin that cleans up an upload deletes the object only while
+ * this still equals the token of the upload it tracks.
+ */
+export function readUploadMarker(
+  metadata: Record<string, string> | undefined,
+): string | undefined {
+  return readObjectMetadata(metadata).uploadToken;
+}
+
 function metadataByteSize(metadata: Record<string, string>): number {
   const encoder = new TextEncoder();
   let bytes = 0;

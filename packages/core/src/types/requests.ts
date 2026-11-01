@@ -1,13 +1,11 @@
 import type * as z from "zod";
-import type { confirmBodySchema, uploadBodySchema } from "@/schema/upload";
-import type { downloadQuerySchema } from "@/schema/download";
+import type { ticketBodySchema, uploadBodySchema } from "@/schema/upload";
+import type { downloadQuerySchema, fileQuerySchema } from "@/schema/download";
 import type { deleteManyBodySchema, deleteQuerySchema } from "@/schema/delete";
-import type { fileQuerySchema } from "@/schema/file";
 import type { S3RouteName } from "./routes";
 import type {
   multipartInitBodySchema,
   multipartSignPartBodySchema,
-  multipartTicketBodySchema,
 } from "@/schema/multipart";
 import type { s3ObjectAclSchema } from "@/schema/shared";
 
@@ -29,8 +27,12 @@ type Named<T> = Omit<T, "route"> & { route: S3RouteName };
 /** Payload for {@link S3Api.upload}. */
 export type UploadPayload = Named<z.output<typeof uploadBodySchema>>;
 
-/** Payload for {@link S3Api.confirm}. */
-export type ConfirmPayload = z.output<typeof confirmBodySchema>;
+/**
+ * Payload of every call that carries only an upload ticket:
+ * {@link S3Api.confirm} and the multipart `listParts`, `complete` and
+ * `abort`.
+ */
+export type TicketPayload = z.output<typeof ticketBodySchema>;
 
 /** Payload for {@link S3Api.download}. */
 export type DownloadPayload = Named<z.output<typeof downloadQuerySchema>>;
@@ -53,6 +55,3 @@ export type MultipartInitPayload = Named<
 export type MultipartSignPartPayload = z.output<
   typeof multipartSignPartBodySchema
 >;
-
-/** Payload for `listParts`, `complete`, and `abort` in {@link S3Api.multipart}. */
-export type MultipartTicketPayload = z.output<typeof multipartTicketBodySchema>;

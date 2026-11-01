@@ -13,8 +13,10 @@ import type {
   UploadPresignResponse,
   RouteCatalogResponse,
 } from "./types";
-import { sanitizeFileName } from "./helpers/sanitize-file-name";
+import { fitFileName } from "./helpers/fit-file-name";
+import { stripTrailingSlashes } from "./helpers/strip-slashes";
 import { S3_ERROR_CODES } from "./error";
+import { ROUTE_NAME_PATTERN } from "./limits";
 import {
   createS3Fetch,
   RESERVED_CLIENT_KEYS,
@@ -92,7 +94,8 @@ function createCoreApi($fetch: S3Fetch, base: string): S3Api {
           query: {
             route,
             key,
-            name: name ? sanitizeFileName(name) : undefined,
+            // The same rule as an upload name, so any name downloads.
+            name: name ? fitFileName(name) : undefined,
             disposition,
             expiresIn,
           },
@@ -202,13 +205,21 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   options?: CreateS3ClientOptions<P>,
 ): CreateS3ClientResult<P> {
   const { basePath, baseURL, plugins, ...fetchOptions } = options ?? {};
-  const base = normalizeS3ApiBasePath(baseURL ?? basePath ?? S3_API_BASE_PATH);
+  // An absolute baseURL keeps its origin; only its trailing slashes go.
+  const base =
+    baseURL !== undefined
+      ? stripTrailingSlashes(baseURL)
+      : normalizeS3ApiBasePath(basePath ?? S3_API_BASE_PATH);
   const $fetch = createS3Fetch(base, fetchOptions);
 
   const api = createCoreApi($fetch, base);
 
   const pluginMethods: Record<string, unknown> = {};
   for (const plugin of plugins ?? []) {
+    // The id is a path segment of the plugin's endpoints: check it now.
+    if (!ROUTE_NAME_PATTERN.test(plugin.id)) {
+      throw new Error(`Client plugin id "${plugin.id}" is invalid.`);
+    }
     if ((RESERVED_CLIENT_KEYS as readonly string[]).includes(plugin.id)) {
       throw new Error(
         `Client plugin id "${plugin.id}" is reserved on the S3 client.`,

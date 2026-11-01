@@ -8,7 +8,7 @@ export type {
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
-  DbClientRequestInit,
+  DbClientObjectStatus,
   DbClientUpdateInput,
   DbListSort,
   DbListSortField,

@@ -54,7 +54,7 @@ These three take only the ticket.
 
 <AutoTypeTable
   path="packages/core/src/types/requests.ts"
-  name="MultipartTicketPayload"
+  name="TicketPayload"
 />
 
 `listParts` returns the parts S3 already has, so a resumed upload sends only
@@ -98,7 +98,7 @@ import type {
   MultipartListPartsResponse,
   MultipartPartResponse,
   MultipartSignPartPayload,
-  MultipartTicketPayload,
+  TicketPayload,
   S3RequestOptions,
 } from "@dimah-s3/core";
 import { $fetch, call } from "./fetch";
@@ -116,20 +116,14 @@ export const signPart = (
   options?: S3RequestOptions,
 ) => post<MultipartPartResponse>("/part", payload, options);
 
-export const listParts = (
-  payload: MultipartTicketPayload,
-  options?: S3RequestOptions,
-) => post<MultipartListPartsResponse>("/parts", payload, options);
+export const listParts = (payload: TicketPayload, options?: S3RequestOptions) =>
+  post<MultipartListPartsResponse>("/parts", payload, options);
 
-export const complete = (
-  payload: MultipartTicketPayload,
-  options?: S3RequestOptions,
-) => post<MultipartCompleteResponse>("/complete", payload, options);
+export const complete = (payload: TicketPayload, options?: S3RequestOptions) =>
+  post<MultipartCompleteResponse>("/complete", payload, options);
 
-export const abort = (
-  payload: MultipartTicketPayload,
-  options?: S3RequestOptions,
-) => post<MultipartAbortResponse>("/abort", payload, options);
+export const abort = (payload: TicketPayload, options?: S3RequestOptions) =>
+  post<MultipartAbortResponse>("/abort", payload, options);
 ```
 
 `$fetch` and `call` come from the

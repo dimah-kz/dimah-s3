@@ -122,14 +122,17 @@ describe("createS3Client protocol", () => {
     expect(jsonBody(calls[0]?.init)).toEqual({ ticket });
   });
 
-  it("sanitizes the download name and forwards the route", async () => {
+  it("fits the download name to the wire rule and forwards the route", async () => {
     const { fetch, calls } = captureFetch(() => jsonResponse({ url: "x" }));
     await createS3Client({ fetch }).download({
       route: "uploads",
       key: "a.png",
-      name: 'quote"name.png',
+      name: ' quote"na	me.png ',
     });
-    expect(calls[0]?.url).toContain("name=quote_name.png");
+    // The same rule as an upload name: control characters go, quotes stay.
+    expect(
+      new URL(calls[0]?.url ?? "", "http://x").searchParams.get("name"),
+    ).toBe('quote"name.png');
     expect(calls[0]?.url).toContain("route=uploads");
   });
 

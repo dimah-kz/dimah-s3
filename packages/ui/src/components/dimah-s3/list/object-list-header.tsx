@@ -523,7 +523,7 @@ function NewFolderForm({
       await createFolder(trimmed);
     } catch (err) {
       setError(
-        isS3ErrorCode(err, "CONFLICT")
+        isS3ErrorCode(err, "FOLDER_EXISTS")
           ? t("A folder with this name already exists", {
               note: "object list new folder",
             })

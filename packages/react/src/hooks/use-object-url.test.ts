@@ -30,9 +30,10 @@ function countingApi(expiresIn: number | null = 600) {
       key: payload.key,
       bucket: "bucket",
       url: `https://s3.test/${payload.key}?v=${++calls}`,
-      mode: expiresIn === null ? "proxy" : "presign",
       disposition: payload.disposition ?? "inline",
-      ...(expiresIn === null ? {} : { expiresIn }),
+      ...(expiresIn === null
+        ? { mode: "proxy" as const }
+        : { mode: "presign" as const, expiresIn }),
     })),
   });
 }

@@ -57,11 +57,7 @@ const folder: DbClientFolder = {
 
 describe("dbClient", () => {
   it("lists objects over GET /db/objects with the query and signal", async () => {
-    const { api, calls } = setup({
-      scope: "user:1",
-      objects: [],
-      nextCursor: null,
-    });
+    const { api, calls } = setup({ objects: [], nextCursor: null });
     const controller = new AbortController();
 
     await expect(
@@ -74,7 +70,7 @@ describe("dbClient", () => {
         },
         { signal: controller.signal },
       ),
-    ).resolves.toEqual({ scope: "user:1", objects: [], nextCursor: null });
+    ).resolves.toEqual({ objects: [], nextCursor: null });
 
     const [call] = calls;
     expect(call?.url.pathname).toBe("/api/s3/db/objects");
@@ -88,6 +84,18 @@ describe("dbClient", () => {
       field: "updatedAt",
       direction: "desc",
     });
+  });
+
+  it("sends the root as an empty folder and forwards per-call headers", async () => {
+    const { api, calls } = setup({ objects: [], nextCursor: null });
+
+    await api.db.listObjects(
+      { folder: null },
+      { headers: { "x-tenant": "acme" } },
+    );
+
+    expect(calls[0]?.url.searchParams.get("folder")).toBe("");
+    expect(new Headers(calls[0]?.init.headers).get("x-tenant")).toBe("acme");
   });
 
   it("loads one object over GET /db/object", async () => {

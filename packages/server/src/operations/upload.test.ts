@@ -8,7 +8,7 @@ import {
 } from "@dimah-s3/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigError } from "@/helpers/error-boundary";
-import { resolveRoutes } from "@/helpers/features";
+import { resolveRoutes } from "@/config/resolve-routes";
 import {
   defaultUploadBody,
   memoryS3,

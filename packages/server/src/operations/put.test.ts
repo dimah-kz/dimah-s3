@@ -316,6 +316,24 @@ describe("putObject hooks", () => {
     expect(s3.objects.size).toBe(0);
   });
 
+  it("keeps the object when a plugin onConfirmed fails for another reason", async () => {
+    const { s3, config } = setup({
+      onConfirmed: [
+        {
+          plugin: "db",
+          hook: () => {
+            throw new Error("connection reset");
+          },
+        },
+      ],
+    });
+    await expect(putObject(config, input)).rejects.toMatchObject({
+      code: "INTERNAL_ERROR",
+    });
+    // A database blip must not lose an upload that S3 already verified.
+    expect(s3.objects.size).toBe(1);
+  });
+
   it("keeps the object and returns 500 when the user onConfirmed throws", async () => {
     const { s3, config } = setup({
       onConfirmed: [

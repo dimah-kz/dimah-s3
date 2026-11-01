@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   defaultUploadBody,
   memoryS3,
+  TEST_BUCKET,
   testConfig,
   testMultipart,
   testRoute,
@@ -52,7 +53,11 @@ describe("abortMultipart", () => {
 
     await expect(
       abortMultipart(config, { ticket: upload.ticket }),
-    ).resolves.toEqual({ key: upload.key, uploadId: upload.uploadId });
+    ).resolves.toEqual({
+      key: upload.key,
+      bucket: TEST_BUCKET,
+      uploadId: upload.uploadId,
+    });
     expect(s3.uploads.has(upload.uploadId)).toBe(false);
     expect(order).toEqual(["guard", "onAbort"]);
     expect(guard.mock.calls[0][0]).toMatchObject({
@@ -88,7 +93,11 @@ describe("abortMultipart", () => {
     vi.setSystemTime(expiredAt + 7 * DAY_MS);
     await expect(
       abortMultipart(config, { ticket: first.ticket }),
-    ).resolves.toEqual({ key: first.key, uploadId: first.uploadId });
+    ).resolves.toEqual({
+      key: first.key,
+      bucket: TEST_BUCKET,
+      uploadId: first.uploadId,
+    });
 
     vi.setSystemTime(expiredAt + 7 * DAY_MS + 1000);
     await expect(
@@ -120,7 +129,7 @@ describe("abortMultipart", () => {
     expect(onAbort).not.toHaveBeenCalled();
   });
 
-  it("fails with OBJECT_NOT_FOUND when the upload is already gone", async () => {
+  it("succeeds again when the upload is already gone, like delete", async () => {
     const onAbort = vi.fn();
     const { config } = setup({ onAbort: [{ hook: onAbort }] });
     const upload = await initMultipart(config, defaultUploadBody);
@@ -128,7 +137,29 @@ describe("abortMultipart", () => {
 
     await expect(
       abortMultipart(config, { ticket: upload.ticket }),
-    ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND", statusCode: 404 });
-    expect(onAbort).toHaveBeenCalledOnce();
+    ).resolves.toEqual({
+      key: upload.key,
+      bucket: TEST_BUCKET,
+      uploadId: upload.uploadId,
+    });
+    // The bookkeeping runs again, so a lost first response is harmless.
+    expect(onAbort).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails with CONFLICT when the upload was completed", async () => {
+    const onAbort = vi.fn();
+    const { s3, config } = setup({ onAbort: [{ hook: onAbort }] });
+    const upload = await initMultipart(config, defaultUploadBody);
+    // What a completed upload leaves: no upload, an object with its marker.
+    const marker = s3.uploads.get(upload.uploadId)?.fields.metadata[
+      "dimah-upload"
+    ];
+    s3.uploads.delete(upload.uploadId);
+    s3.seed(upload.key, "done", { metadata: { "dimah-upload": marker ?? "" } });
+
+    await expect(
+      abortMultipart(config, { ticket: upload.ticket }),
+    ).rejects.toMatchObject({ code: "CONFLICT", statusCode: 409 });
+    expect(onAbort).not.toHaveBeenCalled();
   });
 });

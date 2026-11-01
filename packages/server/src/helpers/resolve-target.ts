@@ -1,9 +1,4 @@
-import {
-  normalizeObjectKey,
-  sanitizeFileName,
-  s3Error,
-  type S3ObjectAcl,
-} from "@dimah-s3/core";
+import { normalizeObjectKey, s3Error, type S3ObjectAcl } from "@dimah-s3/core";
 import { normalizeObjectS3 } from "@/helpers/object-s3";
 import type {
   ObjectS3Headers,
@@ -68,13 +63,17 @@ export function assertStoredKey(
   throw s3Error("KEY_INVALID");
 }
 
+/** Characters an object key refuses: backslashes and control characters. */
+const KEY_UNSAFE = /[\\\p{Cc}]/gu;
+
 /**
  * Leaf name for a generated object key. Path segments (`../`, `/`) must
- * not become extra key folders or fail {@link assertSafeObjectKey}. `${`
- * becomes `_{`, so a key never carries the POST `${filename}` placeholder.
+ * not become extra key folders or fail {@link assertSafeObjectKey}, and a
+ * backslash or control character becomes `_`. `${` becomes `_{`, so a
+ * key never carries the POST `${filename}` placeholder.
  */
 function objectKeyFileName(fileName: string): string {
-  const sanitized = sanitizeFileName(fileName).replaceAll("${", "_{");
+  const sanitized = fileName.replaceAll(KEY_UNSAFE, "_").replaceAll("${", "_{");
   const leaf = sanitized.split("/").findLast((part) => part.length > 0);
   if (!leaf || leaf === "." || leaf === "..") return "file";
   return leaf;

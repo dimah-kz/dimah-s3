@@ -51,5 +51,6 @@ Product docs: `apps/docs/`. Shared ESLint / TSConfig / tsup / Vitest: `tooling/`
 - Import `ui` or `react` from `server` or `core`, or import `react` at runtime from `db`.
 - Re-export `core` values from `react` or `ui` — consumers import them from `@dimah-s3/core`.
 - Import React from `@dimah-s3/react/engine` or anything it pulls in (`pnpm check:dist` fails).
+- Import Zod, or a schema, from anything the `@dimah-s3/core` root pulls in. Schemas belong to `@dimah-s3/core/schema` (`pnpm check:dist` fails).
 - Hand-edit `packages/ui/registry.json` or `packages/ui/src/components/ui/` ([registry.md](./registry.md)).
 - Wrap trivial S3 Copy / List / GetObject / tagging — `s3.put` and proxy `GET /file` are the exceptions.

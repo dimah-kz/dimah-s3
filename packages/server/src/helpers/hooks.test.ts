@@ -104,6 +104,7 @@ describe("runLifecycle", () => {
       bucket: "bucket",
       kind: "put",
       uploadToken: "token",
+      file: { name: "a.png", size: 3 },
       acl: "private",
       object: { size: 3, metadata: {} },
     };

@@ -112,8 +112,9 @@ describe("GET /db/objects", () => {
     });
 
     expect(status).toBe(200);
+    // The tenant id stays on the server.
+    expect(body).not.toHaveProperty("scope");
     expect(body).toMatchObject({
-      scope: "user:1",
       objects: [{ key: "a.txt", folder: null }],
       nextCursor: null,
       usage: { totalBytes: 7, objectCount: 2 },
@@ -178,7 +179,6 @@ describe("GET /db/objects", () => {
       query: { sort, limit: "2", cursor: String(first.body.nextCursor) },
     });
     expect(second.body).toEqual({
-      scope: "user:1",
       objects: [expect.objectContaining({ key: "a" })],
       nextCursor: null,
     });
@@ -305,9 +305,13 @@ describe("GET /db/object", () => {
         body: { code: "OBJECT_NOT_FOUND" },
       });
     }
+    // Another scope's key looks the same as a missing one.
     await expect(
       request("GET", "/object", { query: { key: "theirs" } }),
-    ).resolves.toMatchObject({ status: 403, body: { code: "FORBIDDEN" } });
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { code: "OBJECT_NOT_FOUND" },
+    });
   });
 
   it("requires a configured bucket, and one when the routes use several", async () => {
@@ -496,7 +500,10 @@ describe("PATCH /db/object", () => {
 
     await expect(
       request("PATCH", "/object", { body: { key: "a.txt", filename: "b" } }),
-    ).resolves.toMatchObject({ status: 403, body: { code: "FORBIDDEN" } });
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { code: "OBJECT_NOT_FOUND" },
+    });
   });
 
   it("accepts only a JSON body", async () => {
@@ -566,7 +573,10 @@ describe("POST /db/folder", () => {
 
     await expect(
       request("POST", "/folder", { body: { path: "docs" } }),
-    ).resolves.toMatchObject({ status: 409, body: { code: "CONFLICT" } });
+    ).resolves.toMatchObject({
+      status: 409,
+      body: { code: "FOLDER_EXISTS" },
+    });
     for (const path of ["", "docs/", "a/./b"]) {
       await expect(
         request("POST", "/folder", { body: { path } }),

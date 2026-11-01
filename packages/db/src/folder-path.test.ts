@@ -19,6 +19,13 @@ describe("normalizeFolderPath", () => {
     );
   });
 
+  it("accepts at most 32 levels", () => {
+    const levels = (count: number) =>
+      Array.from({ length: count }, (_, index) => `f${index}`).join("/");
+    expect(normalizeFolderPath(levels(32))).toBe(levels(32));
+    expect(normalizeFolderPath(levels(33))).toBeNull();
+  });
+
   it("returns the NFC form", () => {
     const decomposed = "café/résumé";
     expect(normalizeFolderPath(decomposed)).toBe("café/résumé");

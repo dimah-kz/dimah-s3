@@ -273,7 +273,7 @@ describe("db plugin", () => {
 
     await put("files", "one");
     await expect(put("files", "two")).rejects.toMatchObject({
-      code: "CONFLICT",
+      code: "OBJECT_EXISTS",
     });
   });
 
@@ -321,7 +321,7 @@ describe("db plugin", () => {
       await assertServed();
 
       vi.setSystemTime(Date.now() + 2 * 60 * 60_000);
-      await expect(s3.db.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(s3.db.purgeStale()).resolves.toMatchObject({ purged: 1 });
       await assertServed();
       expect(storage.objects.has(put.key)).toBe(true);
       await expect(s3.db.objects.find(ref)).resolves.toMatchObject({
@@ -394,7 +394,12 @@ describe("db plugin", () => {
 
     expect(s3.context.db).toBe(s3.db);
     await expect(s3.db.checkSchema()).resolves.toBeUndefined();
-    await expect(s3.db.purgeStale()).resolves.toEqual({ purged: 0 });
+    await expect(s3.db.purgeStale()).resolves.toEqual({
+      purged: 0,
+      failed: 0,
+      skipped: 0,
+      more: false,
+    });
     await expect(
       s3.db.pruneDeleted({ olderThan: new Date() }),
     ).resolves.toEqual({ pruned: 0 });

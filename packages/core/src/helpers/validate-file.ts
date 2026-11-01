@@ -1,9 +1,11 @@
 import { s3Error, type APIError } from "../error";
-import { describeFileType } from "./content-type";
+import { baseType, describeFileType } from "./content-type";
 
 /**
  * Whether `fileName` / `contentType` match HTML `accept` / route `fileTypes`
- * tokens (`image/*`, `application/pdf`, `.png`).
+ * tokens (`image/*`, `application/pdf`, `.png`). Like a browser, it
+ * ignores case and type parameters (`image/PNG; x=1` is `image/png`), and
+ * a bare `*`, or the any-type wildcard, accepts any file.
  */
 export function matchesFileTypes(
   fileName: string,
@@ -11,14 +13,13 @@ export function matchesFileTypes(
   fileTypes: readonly string[],
 ): boolean {
   if (!fileTypes.length) return true;
-  const type = contentType ?? "";
-  return fileTypes.some((token) => {
-    if (token.startsWith(".")) {
-      return fileName.toLowerCase().endsWith(token.toLowerCase());
-    }
-    if (token.endsWith("/*")) {
-      return type.startsWith(token.slice(0, -1));
-    }
+  const type = baseType(contentType);
+  const name = fileName.toLowerCase();
+  return fileTypes.some((entry) => {
+    const token = entry.trim().toLowerCase();
+    if (token === "*" || token === "*/*") return true;
+    if (token.startsWith(".")) return name.endsWith(token);
+    if (token.endsWith("/*")) return type.startsWith(token.slice(0, -1));
     return type === token;
   });
 }

@@ -1,18 +1,15 @@
+import { s3Error } from "@dimah-s3/core";
 import {
-  confirmBodySchema,
+  ticketBodySchema,
   deleteManyBodySchema,
   deleteQuerySchema,
   downloadQuerySchema,
   multipartInitBodySchema,
   multipartSignPartBodySchema,
-  multipartTicketBodySchema,
-  s3Error,
   uploadBodySchema,
-  type RouteCatalogEntry,
-  type RouteCatalogResponse,
-} from "@dimah-s3/core";
+} from "@dimah-s3/core/schema";
 import type * as z from "zod";
-import { isEnabled } from "@/helpers/features";
+import { getRouteCatalog } from "@/operations/catalog";
 import { confirmUpload } from "@/operations/confirm";
 import { deleteStoredObject } from "@/operations/delete";
 import { deleteManyObjects } from "@/operations/delete-many";
@@ -22,10 +19,9 @@ import { completeMultipart } from "@/operations/multipart/complete";
 import { initMultipart } from "@/operations/multipart/init";
 import { listMultipartParts } from "@/operations/multipart/list-parts";
 import { signMultipartPart } from "@/operations/multipart/sign-part";
-import { runOperation } from "@/operations/run-operation";
 import { presignUpload } from "@/operations/upload";
-import type { DimahS3Api, S3ServerCallOptions } from "@/types/config";
-import type { ResolvedConfig, ResolvedRoute } from "@/types/resolved";
+import type { DimahS3Api } from "@/types/config";
+import type { ResolvedConfig } from "@/types/resolved";
 
 /**
  * Builds `s3.api`: the browser client's methods, run in process.
@@ -40,7 +36,7 @@ export function createS3Api(config: ResolvedConfig): DimahS3Api {
     upload: async (payload, options) =>
       presignUpload(config, parse(uploadBodySchema, payload, "body"), options),
     confirm: async (payload, options) =>
-      confirmUpload(config, parse(confirmBodySchema, payload, "body"), options),
+      confirmUpload(config, parse(ticketBodySchema, payload, "body"), options),
     download: async (payload, options) =>
       presignDownload(
         config,
@@ -76,78 +72,22 @@ export function createS3Api(config: ResolvedConfig): DimahS3Api {
       listParts: async (payload, options) =>
         listMultipartParts(
           config,
-          parse(multipartTicketBodySchema, payload, "body"),
+          parse(ticketBodySchema, payload, "body"),
           options,
         ),
       complete: async (payload, options) =>
         completeMultipart(
           config,
-          parse(multipartTicketBodySchema, payload, "body"),
+          parse(ticketBodySchema, payload, "body"),
           options,
         ),
       abort: async (payload, options) =>
         abortMultipart(
           config,
-          parse(multipartTicketBodySchema, payload, "body"),
+          parse(ticketBodySchema, payload, "body"),
           options,
         ),
     },
-  };
-}
-
-/**
- * Lists every route and the features a client may use
- * (`GET /routes`, `s3.api.catalog`). It runs the instance guard like every
- * other call.
- */
-export function getRouteCatalog(
-  config: ResolvedConfig,
-  options: S3ServerCallOptions = {},
-): Promise<RouteCatalogResponse> {
-  return runOperation(config, "catalog", options, async () =>
-    buildRouteCatalog(config),
-  );
-}
-
-/**
- * The catalog of a resolved config. It reports effective values: `checksum`
- * is on whenever `verifyContent` is, and `inlineTypes` is the allow-list a
- * download really uses (`[]` when nothing opens inline).
- */
-export function buildRouteCatalog(
-  config: ResolvedConfig,
-): RouteCatalogResponse {
-  const routes: RouteCatalogResponse["routes"] = {};
-  for (const [name, route] of Object.entries(config.routes)) {
-    routes[name] = catalogEntry(route);
-  }
-  return { routes };
-}
-
-function catalogEntry(route: ResolvedRoute): RouteCatalogEntry {
-  const { upload, download } = route;
-  return {
-    upload: isEnabled(upload)
-      ? {
-          enabled: true,
-          ...(upload.fileTypes ? { fileTypes: [...upload.fileTypes] } : {}),
-          ...(upload.maxFileSize !== undefined
-            ? { maxFileSize: upload.maxFileSize }
-            : {}),
-          multipart: upload.multipart.enabled,
-          checksum: upload.checksum,
-        }
-      : { enabled: false },
-    download: isEnabled(download)
-      ? {
-          enabled: true,
-          maxExpiresIn: download.maxExpiresIn,
-          disposition: download.disposition,
-          inlineTypes: download.inlineTypes ? [...download.inlineTypes] : [],
-          mode: download.mode,
-        }
-      : { enabled: false },
-    delete: { enabled: route.delete.enabled },
   };
 }
 

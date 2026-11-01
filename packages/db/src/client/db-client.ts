@@ -1,11 +1,27 @@
-import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
+import {
+  defineClientPlugin,
+  pluginPath,
+  type S3RequestOptions,
+} from "@dimah-s3/core";
 import type { db } from "@/plugin/db";
 import type {
   DbClientActions,
   DbClientFolder,
+  DbClientListInput,
   DbClientListResponse,
   DbClientObject,
 } from "@/types/client";
+
+/** The per-call options better-fetch reads: the abort signal and headers. */
+function call(options: S3RequestOptions | undefined) {
+  return { signal: options?.signal, headers: options?.headers };
+}
+
+/** The list query on the wire, where the root folder is `""`. */
+function listQuery(input: DbClientListInput | undefined) {
+  if (input?.folder !== null) return input;
+  return { ...input, folder: "" };
+}
 
 /**
  * Client plugin for the server `db()` endpoints. Its actions are
@@ -31,32 +47,32 @@ export function dbClient<TClientAttributes = never>() {
     id: "db",
     $InferServerPlugin: {} as ReturnType<typeof db>,
     getActions: ($fetch): DbClientActions<TClientAttributes> => ({
-      listObjects: (input, init) =>
+      listObjects: (input, options) =>
         $fetch<DbClientListResponse<TClientAttributes>>(
           pluginPath("db", "objects"),
-          { method: "GET", query: input, signal: init?.signal },
+          { method: "GET", query: listQuery(input), ...call(options) },
         ),
-      getObject: (input, init) =>
+      getObject: (input, options) =>
         $fetch<{ object: DbClientObject<TClientAttributes> }>(
           pluginPath("db", "object"),
-          { method: "GET", query: input, signal: init?.signal },
+          { method: "GET", query: input, ...call(options) },
         ),
-      updateObject: (input, init) =>
+      updateObject: (input, options) =>
         $fetch<{ object: DbClientObject<TClientAttributes> }>(
           pluginPath("db", "object"),
-          { method: "PATCH", body: input, signal: init?.signal },
+          { method: "PATCH", body: input, ...call(options) },
         ),
-      createFolder: (input, init) =>
+      createFolder: (input, options) =>
         $fetch<{ folder: DbClientFolder }>(pluginPath("db", "folder"), {
           method: "POST",
           body: input,
-          signal: init?.signal,
+          ...call(options),
         }),
-      deleteFolder: (input, init) =>
+      deleteFolder: (input, options) =>
         $fetch<{ path: string }>(pluginPath("db", "folder"), {
           method: "DELETE",
           query: input,
-          signal: init?.signal,
+          ...call(options),
         }),
     }),
   });

@@ -17,6 +17,7 @@ import type {
   MultipartGuardContext,
   MultipartOnAbortContext,
   RouteGuardContext,
+  S3Operation,
   UploadConfirmGuardContext,
   UploadGuardContext,
   UploadObjectContext,
@@ -260,8 +261,16 @@ export type DimahS3Config = {
   maxRequestBodySize?: number;
   /** Logs config errors and unexpected failures. `false` silences the default `console` logger. */
   logger?: DimahS3Logger | false;
-  /** Called with every unexpected failure before it becomes `500 INTERNAL_ERROR`. */
-  onError?: (error: unknown, context: { request: Request }) => void;
+  /**
+   * Called with every unexpected failure before it becomes `500
+   * INTERNAL_ERROR`, such as a hook that threw a plain `Error` or an S3
+   * outage. `operation` is the call it failed in, when known. A throw or a
+   * rejection from it is logged, never sent to the client.
+   */
+  onError?: (
+    error: unknown,
+    context: { request: Request; operation?: S3Operation },
+  ) => void | Promise<void>;
   /** Runs before every operation, before route lookup. */
   guard?: Guard<GuardContext>;
   /** Server plugins, such as `db()` from `@dimah-s3/db`. */
@@ -274,6 +283,11 @@ export type DimahS3Config = {
 export type S3ServerCallOptions = {
   /** Headers for the synthetic request. Ignored when `request` is set. */
   headers?: HeadersInit;
+  /**
+   * Aborts the call and the S3 requests behind it, like the browser
+   * option. Ignored when `request` is set: its own signal is used.
+   */
+  signal?: AbortSignal;
   /** Request that hooks see. Defaults to one built from `baseURL` (or `basePath`) and `headers`. */
   request?: Request;
   /** Trusted values that seed `locals` before guards run. Never read from HTTP. */

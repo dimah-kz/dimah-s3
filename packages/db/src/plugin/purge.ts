@@ -1,23 +1,21 @@
 import {
   AbortMultipartUploadCommand,
-  DeleteObjectCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   type S3Client,
 } from "@aws-sdk/client-s3";
 import type { DimahS3Logger } from "@dimah-s3/server";
 import {
+  deleteObjectIfMatch,
+  isAwsNotFound,
+  readUploadMarker,
+} from "@dimah-s3/server/plugins";
+import {
   DEFAULT_STALE_LIMIT,
   type StorageObjectStore,
   uploadTokenOf,
 } from "@/store/object-store";
 import type { StorageObject } from "@/types/storage-object";
-
-/**
- * S3 user-metadata key of the server's upload marker. Its value is the
- * token of the upload that wrote the object.
- */
-const UPLOAD_MARKER_META = "dimah-upload";
 
 export type CreatePurgeOptions = {
   objects: Pick<
@@ -29,7 +27,7 @@ export type CreatePurgeOptions = {
     | "discardUpload"
     | "pruneDeleted"
   >;
-  /** S3 client of a route. `undefined` leaves S3 untouched for its rows. */
+  /** S3 client of a route. `undefined` fails the row, which stays claimed. */
   client: (route: string) => S3Client | undefined;
   /** Where a row that fails to purge is reported. */
   logger: () => DimahS3Logger | undefined;
@@ -45,6 +43,18 @@ export type PruneDeletedOptions = {
   olderThan: Date | number;
 };
 
+/** What one `purgeStale` run did. */
+export type PurgeStaleResult = {
+  /** Uploads cleaned up. */
+  purged: number;
+  /** Rows that failed. They stay claimed and are retried after the claim lapses. */
+  failed: number;
+  /** Rows that another run claimed, or that were confirmed or written again meanwhile. */
+  skipped: number;
+  /** True when the run hit `limit`, so more stale rows may be waiting. */
+  more: boolean;
+};
+
 /** The cleanup jobs on `s3.db`. */
 export type Purge = {
   /**
@@ -53,43 +63,13 @@ export type Purge = {
    * marker. A pending row is removed. An unconfirmed overwrite keeps the
    * active row and its object, unless the overwrite's object already
    * replaced it. A row confirmed meanwhile is kept. A row that fails stays
-   * claimed and is retried once the claim lapses, 15 minutes later.
-   * `purged` counts the uploads cleaned up.
+   * claimed, is logged, and is retried once the claim lapses, 15 minutes
+   * later.
    */
-  purgeStale: (options?: PurgeStaleOptions) => Promise<{ purged: number }>;
+  purgeStale: (options?: PurgeStaleOptions) => Promise<PurgeStaleResult>;
   /** Removes soft-deleted rows older than `olderThan`. */
   pruneDeleted: (options: PruneDeletedOptions) => Promise<{ pruned: number }>;
 };
-
-type AwsError = { name?: string; $metadata?: { httpStatusCode?: number } };
-
-function awsStatus(error: unknown): number | undefined {
-  return (error as AwsError | undefined)?.$metadata?.httpStatusCode;
-}
-
-function isNotFound(error: unknown): boolean {
-  const name = (error as AwsError | undefined)?.name;
-  return (
-    name === "NotFound" ||
-    name === "NoSuchKey" ||
-    name === "NoSuchUpload" ||
-    awsStatus(error) === 404
-  );
-}
-
-function isNotImplemented(error: unknown): boolean {
-  return (
-    (error as AwsError | undefined)?.name === "NotImplemented" ||
-    awsStatus(error) === 501
-  );
-}
-
-function isPreconditionFailed(error: unknown): boolean {
-  return (
-    (error as AwsError | undefined)?.name === "PreconditionFailed" ||
-    awsStatus(error) === 412
-  );
-}
 
 async function abortUpload(
   client: S3Client,
@@ -106,7 +86,7 @@ async function abortUpload(
     );
   } catch (error) {
     // Already aborted or completed.
-    if (!isNotFound(error)) throw error;
+    if (!isAwsNotFound(error)) throw error;
   }
 }
 
@@ -119,7 +99,7 @@ async function headObject(
       new HeadObjectCommand({ Bucket: row.bucket, Key: row.key }),
     );
   } catch (error) {
-    if (isNotFound(error)) return null;
+    if (isAwsNotFound(error)) return null;
     throw error;
   }
 }
@@ -132,8 +112,8 @@ type KeyState = "empty" | "kept";
 
 /**
  * Deletes the object at the row's key while it is the one the row's upload
- * wrote. `If-Match` guards against a write after HeadObject; a provider that
- * does not implement it gets a plain delete.
+ * wrote: its upload marker matches, and `If-Match` on the HeadObject ETag
+ * keeps an object written after the HeadObject.
  */
 async function deleteUploadedObject(
   client: S3Client,
@@ -141,20 +121,13 @@ async function deleteUploadedObject(
 ): Promise<KeyState> {
   const head = await headObject(client, row);
   if (!head) return "empty";
-  if (head.Metadata?.[UPLOAD_MARKER_META] !== uploadTokenOf(row)) {
-    return "kept";
-  }
-  const input = { Bucket: row.bucket, Key: row.key };
-  try {
-    await client.send(
-      new DeleteObjectCommand({ ...input, IfMatch: head.ETag }),
-    );
-  } catch (error) {
-    if (isPreconditionFailed(error)) return "kept";
-    if (!isNotImplemented(error)) throw error;
-    await client.send(new DeleteObjectCommand(input));
-  }
-  return "empty";
+  if (readUploadMarker(head.Metadata) !== uploadTokenOf(row)) return "kept";
+  const deleted = await deleteObjectIfMatch(client, {
+    bucket: row.bucket,
+    key: row.key,
+    eTag: head.ETag,
+  });
+  return deleted ? "empty" : "kept";
 }
 
 /** Creates the purge jobs. */
@@ -163,12 +136,15 @@ export function createPurge(options: CreatePurgeOptions): Purge {
 
   const purgeRow = async (row: StorageObject<unknown>) => {
     const client = options.client(row.route);
-    let key: KeyState = "kept";
-    if (client) {
-      if (row.uploadId) await abortUpload(client, row, row.uploadId);
-      // A completed multipart upload leaves an object too.
-      key = await deleteUploadedObject(client, row);
+    if (!client) {
+      // Dropping the row would leave its object in the bucket untracked.
+      throw new Error(
+        `No S3 client for route "${row.route}". Keep the route in dimahS3({ routes }) until its rows are purged.`,
+      );
     }
+    if (row.uploadId) await abortUpload(client, row, row.uploadId);
+    // A completed multipart upload leaves an object too.
+    const key = await deleteUploadedObject(client, row);
     if (row.status === "active" && row.uploadToken !== null) {
       // An unconfirmed overwrite: the row goes only with its object. The
       // claimed token matches the row only while no new upload took it.
@@ -186,14 +162,25 @@ export function createPurge(options: CreatePurgeOptions): Purge {
 
   return {
     async purgeStale({ limit = DEFAULT_STALE_LIMIT } = {}) {
-      let purged = 0;
-      for (const stale of await objects.findStale({ limit })) {
-        const row = await objects.claimStale(stale.id);
-        if (!row) continue;
+      const result: PurgeStaleResult = {
+        purged: 0,
+        failed: 0,
+        skipped: 0,
+        more: false,
+      };
+      const stale = await objects.findStale({ limit });
+      result.more = stale.length >= limit;
+      for (const candidate of stale) {
+        const row = await objects.claimStale(candidate.id);
+        if (!row) {
+          result.skipped += 1;
+          continue;
+        }
         try {
           await purgeRow(row);
-          purged += 1;
+          result.purged += 1;
         } catch (error) {
+          result.failed += 1;
           options
             .logger()
             ?.warn?.(
@@ -202,7 +189,7 @@ export function createPurge(options: CreatePurgeOptions): Purge {
             );
         }
       }
-      return { purged };
+      return result;
     },
 
     async pruneDeleted({ olderThan }) {

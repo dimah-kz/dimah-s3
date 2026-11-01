@@ -59,8 +59,8 @@ export const s3 = dimahS3({
 3. **`upload.guard`**: Authorizes the upload once the server-owned key is known.
 4. **`onStart`**: Runs once the upload can begin, with its `uploadToken` and confirm deadline. The presign response, with its [upload ticket](/docs/server/upload-tickets), is returned after it.
 5. **Confirm**: HeadObject reads the stored object. The server checks the upload marker, the size against the declared size (`UPLOAD_SIZE_MISMATCH`), and the route limits. With `verifyContent`, it checks the first bytes too.
-6. **`confirmGuard`**: Authorizes the stored object. A rejection deletes it.
-7. **`onConfirmed`**: Receives the verified `object` from HeadObject. Persist the record here.
+6. **`confirmGuard`**: Authorizes the stored object. It sees the verified `object` from HeadObject next to the declared `file`, so check `object`. A rejection deletes it.
+7. **`onConfirmed`**: Receives the verified `object` from HeadObject, and the `previousKey` the server deletes next. Persist the record here.
 
 `upload.guard` and `onStart` also run for multipart init and `s3.put`. `kind`
 tells them apart: `"put"` or `"post"` for a presigned upload, `"multipart"`,
@@ -108,7 +108,7 @@ get `uploadId`.
 | `upload.guard`        | The error is returned. Nothing exists in S3.                                    |
 | `onStart`             | The error is returned. A multipart upload is aborted; `s3.put` skips PutObject. |
 | `confirmGuard`        | A rejection (`4xx`) deletes the object, or aborts the multipart upload.         |
-| `onConfirmed`, plugin | The object is deleted and the error is returned.                                |
+| `onConfirmed`, plugin | A rejection (`4xx`) deletes the object. Any other throw keeps it for a retry.   |
 | `onConfirmed`, yours  | The object is kept and the call returns `500 INTERNAL_ERROR`.                   |
 
 A confirm that fails for an infrastructure reason, such as an S3 network

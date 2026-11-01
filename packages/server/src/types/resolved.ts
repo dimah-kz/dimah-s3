@@ -32,8 +32,12 @@ import type { DimahS3RoutePluginOptions, Guard, LifecycleHook } from "./locals";
  * hooks. Not exported from the package.
  */
 
-/** A route feature a call can hit. Multipart is nested under upload. */
-export type RouteFeature = "upload" | "download" | "delete" | "multipart";
+/**
+ * A route feature a call can hit. `multipart` is nested under upload, and
+ * `proxy` is a download in `mode: "proxy"`, the only one `/file` serves.
+ */
+export type RouteFeature =
+  "upload" | "download" | "delete" | "multipart" | "proxy";
 
 /** One hook and its owner. `plugin` is the plugin id; the user hook has none. */
 export type HookEntry<H> = { plugin?: string; hook: H };
@@ -116,7 +120,9 @@ export type OpenedRoute<F extends RouteFeature> = ResolvedRoute &
       ? { upload: ResolvedUpload }
       : F extends "download"
         ? { download: ResolvedDownload }
-        : { delete: ResolvedDelete });
+        : F extends "proxy"
+          ? { download: ResolvedDownload & { mode: "proxy" } }
+          : { delete: ResolvedDelete });
 
 export type ResolvedConfig = {
   /** Normalized, without a trailing slash. */

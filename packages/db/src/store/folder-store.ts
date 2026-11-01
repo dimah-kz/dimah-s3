@@ -27,7 +27,7 @@ export type StorageFolderStore = {
   ensure: (scope: string, path: string | null) => Promise<void>;
   /**
    * Creates `path` and every missing ancestor.
-   * @throws `CONFLICT` when the folder already exists.
+   * @throws `FOLDER_EXISTS` when the folder already exists.
    */
   create: (scope: string, path: string) => Promise<StorageFolder>;
   /**
@@ -75,11 +75,41 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
 
   const ensure = async (scope: string, path: string | null) => {
     if (path === null) return;
-    // Every level is checked: a delete can remove an ancestor of an
-    // existing folder while another call creates it.
-    for (const ancestor of folderAncestors(path)) {
-      await insertMissing(scope, ancestor);
+    // Every level is checked, in one read: a delete can remove an ancestor
+    // of an existing folder while another call creates it.
+    const ancestors = folderAncestors(path);
+    const orm = await getOrm();
+    const present = new Set(
+      (
+        await orm.findMany("storageFolder", {
+          select: ["path"],
+          where: (b) =>
+            b.and(b("scope", "=", scope), b("path", "in", ancestors)),
+        })
+      ).map((folder) => folder.path),
+    );
+    for (const ancestor of ancestors) {
+      if (!present.has(ancestor)) await insertMissing(scope, ancestor);
     }
+  };
+
+  const countContents = async (scope: string, path: string) => {
+    const orm = await getOrm();
+    const now = new Date();
+    const [folders, objects] = await Promise.all([
+      orm.count("storageFolder", {
+        where: (b) => b.and(b("scope", "=", scope), b("parent", "=", path)),
+      }),
+      orm.count("storageObject", {
+        where: (b) =>
+          b.and(
+            b("scope", "=", scope),
+            b("folder", "=", path),
+            liveObject(b, now),
+          ),
+      }),
+    ]);
+    return folders + objects;
   };
 
   return {
@@ -104,36 +134,35 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     ensure,
 
     async create(scope, path) {
-      if (await find(scope, path)) throw s3Error("CONFLICT");
-      await ensure(scope, parentFolderPath(path));
+      // The folder first, so the unique (scope, path) settles a race; its
+      // ancestors after, so a delete of one in between is undone.
+      if (await find(scope, path)) throw s3Error("FOLDER_EXISTS");
+      let folder: StorageFolder;
       try {
-        return await insertFolder(await getOrm(), scope, path);
+        folder = await insertFolder(await getOrm(), scope, path);
       } catch (error) {
-        if (await find(scope, path)) throw s3Error("CONFLICT");
+        if (await find(scope, path)) throw s3Error("FOLDER_EXISTS");
         throw error;
       }
+      await ensure(scope, parentFolderPath(path));
+      return folder;
     },
 
     async delete(scope, path) {
+      if ((await countContents(scope, path)) > 0) {
+        throw s3Error("FOLDER_NOT_EMPTY");
+      }
       const orm = await getOrm();
-      const now = new Date();
-      const [folders, objects] = await Promise.all([
-        orm.count("storageFolder", {
-          where: (b) => b.and(b("scope", "=", scope), b("parent", "=", path)),
-        }),
-        orm.count("storageObject", {
-          where: (b) =>
-            b.and(
-              b("scope", "=", scope),
-              b("folder", "=", path),
-              liveObject(b, now),
-            ),
-        }),
-      ]);
-      if (folders > 0 || objects > 0) throw s3Error("FOLDER_NOT_EMPTY");
       await orm.deleteMany("storageFolder", {
         where: (b) => b.and(b("scope", "=", scope), b("path", "=", path)),
       });
+      // An upload or a new subfolder may have landed between the count and
+      // the delete. Writers ensure the folder after they write, and this
+      // check after the delete, so the folder ends up present either way.
+      if ((await countContents(scope, path)) > 0) {
+        await insertMissing(scope, path);
+        throw s3Error("FOLDER_NOT_EMPTY");
+      }
     },
   };
 }

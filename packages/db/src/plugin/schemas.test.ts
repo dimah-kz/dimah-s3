@@ -81,9 +81,13 @@ describe("dbListQuerySchema", () => {
 
 describe("dbObjectQuerySchema", () => {
   it("normalizes the key and keeps an optional bucket", () => {
-    expect(dbObjectQuerySchema.parse({ key: " a.png " })).toEqual({
+    expect(dbObjectQuerySchema.parse({ key: "/a.png/" })).toEqual({
       key: "a.png",
     });
+    // Whitespace is part of an S3 key, so it is refused, never trimmed.
+    expect(dbObjectQuerySchema.safeParse({ key: " a.png " }).success).toBe(
+      false,
+    );
     expect(dbObjectQuerySchema.parse({ key: "a", bucket: "b" })).toEqual({
       key: "a",
       bucket: "b",

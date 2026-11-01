@@ -3,14 +3,13 @@ export type {
   S3ObjectAcl,
   S3RequestOptions,
   UploadPayload,
-  ConfirmPayload,
   DownloadPayload,
   FilePayload,
   DeletePayload,
   DeleteManyPayload,
   MultipartInitPayload,
   MultipartSignPartPayload,
-  MultipartTicketPayload,
+  TicketPayload,
 } from "./requests";
 export type {
   DeleteResponse,

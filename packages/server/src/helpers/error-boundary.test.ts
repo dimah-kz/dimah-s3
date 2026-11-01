@@ -36,7 +36,50 @@ describe("toAPIError", () => {
     });
     expect(result.body).not.toHaveProperty("cause");
     expect(error).toHaveBeenCalledWith("db down", thrown);
-    expect(onError).toHaveBeenCalledWith(thrown, { request });
+    expect(onError).toHaveBeenCalledWith(thrown, {
+      request,
+      operation: undefined,
+    });
+  });
+
+  it("passes the operation to onError", () => {
+    const { env, onError, request } = setup();
+    toAPIError(new Error("db down"), env, request, "confirm");
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), {
+      request,
+      operation: "confirm",
+    });
+  });
+
+  it("logs a rejected async onError instead of leaving it unhandled", async () => {
+    const error = vi.fn();
+    const hookError = new Error("sentry down");
+    const request = new Request("http://localhost/api/s3/presign/upload");
+    const env = {
+      logger: { error },
+      onError: async () => {
+        throw hookError;
+      },
+    };
+
+    toAPIError(new Error("db down"), env, request);
+
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith("onError threw", hookError),
+    );
+  });
+
+  it("does not pass through another library's error named APIError", () => {
+    const { env, error, request } = setup();
+    const foreign = Object.assign(new Error("rate limited"), {
+      name: "APIError",
+      status: 429,
+    });
+
+    expect(toAPIError(foreign, env, request)).toMatchObject({
+      code: "INTERNAL_ERROR",
+    });
+    expect(error).toHaveBeenCalledWith("rate limited", foreign);
   });
 
   it("maps a thrown non-Error value", () => {
@@ -79,7 +122,10 @@ describe("toAPIError", () => {
     });
     expect(result.params?.code).toMatch(/^E/);
     expect(error).toHaveBeenCalledWith(result.message, thrown);
-    expect(onError).toHaveBeenCalledWith(thrown, { request });
+    expect(onError).toHaveBeenCalledWith(thrown, {
+      request,
+      operation: undefined,
+    });
   });
 
   it("does not log when the client already disconnected", () => {

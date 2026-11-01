@@ -53,6 +53,19 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
   const client = useTestDatabase(factory);
   const store = () => createDbStore(client()).objects;
 
+  it("filters by an exact type or a type/* family", async () => {
+    await insertObject(client(), { key: "a", contentType: "image/png" });
+    await insertObject(client(), { key: "b", contentType: "image/webp" });
+    await insertObject(client(), { key: "c", contentType: "application/pdf" });
+
+    const keys = async (contentType: string) =>
+      (await store().list({ scope: "user:1", contentType })).objects
+        .map((object) => object.key)
+        .sort();
+    await expect(keys("image/*")).resolves.toEqual(["a", "b"]);
+    await expect(keys("image/png")).resolves.toEqual(["a"]);
+  });
+
   describe("order and cursors", () => {
     beforeEach(async () => {
       for (const row of rows) {

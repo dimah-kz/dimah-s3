@@ -1,6 +1,7 @@
 import * as z from "zod";
 import type { S3RouteName } from "@/types/routes";
-import { routeNameSchema, S3_MAX_EXPIRES_IN } from "./shared";
+import { S3_MAX_EXPIRES_IN } from "@/limits";
+import { routeNameSchema } from "./shared";
 
 export const downloadDispositionSchema = z.enum(["inline", "attachment"]);
 export const downloadModeSchema = z.enum(["presign", "proxy"]);

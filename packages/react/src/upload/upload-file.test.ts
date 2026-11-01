@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  S3_MAX_FILE_FIELD_BYTES,
-  s3Error,
-  sha256Blob,
-  uploadBodySchema,
-} from "@dimah-s3/core";
+import { S3_MAX_FILE_FIELD_BYTES, s3Error, sha256Blob } from "@dimah-s3/core";
+import { uploadBodySchema } from "@dimah-s3/core/schema";
 import { fakeS3Api } from "@/test/api";
 import type { UploadFileOptions } from "@/types/upload";
 import { DEFAULT_MULTIPART_THRESHOLD } from "./constants";

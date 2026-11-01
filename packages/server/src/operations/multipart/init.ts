@@ -1,18 +1,14 @@
 import { CreateMultipartUploadCommand } from "@aws-sdk/client-s3";
-import {
-  buildContentDisposition,
-  type multipartInitBodySchema,
-  type MultipartInitResponse,
-} from "@dimah-s3/core";
+import type { MultipartInitResponse } from "@dimah-s3/core";
+import type { multipartInitBodySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import { abortMultipartBestEffort } from "@/helpers/best-effort";
-import { runGuards, runLifecycle } from "@/helpers/hooks";
+import { runLifecycle } from "@/helpers/hooks";
 import { objectCommandExtras } from "@/helpers/object-s3";
 import { partLayout } from "@/helpers/part-layout";
-import { openUploadTarget } from "@/helpers/resolve-route";
+import { openUploadTarget } from "@/helpers/open-target";
 import { issueTicket } from "@/helpers/ticket";
 import { runOperation } from "@/operations/run-operation";
-import { DEFAULT_CONTENT_TYPE } from "@/operations/upload";
 import type { S3ServerCallOptions } from "@/types/config";
 import type { ResolvedConfig } from "@/types/resolved";
 
@@ -23,8 +19,8 @@ export type MultipartInitBody = z.output<typeof multipartInitBodySchema>;
  * Starts a multipart upload (`POST /presign/multipart/init`,
  * `s3.api.multipart.init`).
  *
- * It opens the route, runs `upload.object()`, picks the part layout and runs
- * `upload.guard`. CreateMultipartUpload writes the type, the disposition,
+ * {@link openUploadTarget} checks the request and runs `upload.object()`
+ * and `upload.guard`, and the part layout is picked. CreateMultipartUpload writes the type, the disposition,
  * the metadata and the upload marker, and asks for SHA-256 part checksums
  * when the route requires them. Then it issues the ticket and runs
  * `upload.onStart`. If either fails, the multipart upload is aborted.
@@ -48,14 +44,13 @@ export function initMultipart(
     const { route, context, object, uploadToken, ticketSubject } = target;
     const { multipart, checksum } = route.upload;
     const layout = partLayout(body.size, multipart.partSize);
-    await runGuards(route.upload.guard, context);
 
     const { UploadId: uploadId } = await route.client.send(
       new CreateMultipartUploadCommand({
         Bucket: object.bucket,
         Key: object.key,
-        ContentType: body.type ?? DEFAULT_CONTENT_TYPE,
-        ContentDisposition: buildContentDisposition(body.name),
+        ContentType: target.contentType,
+        ContentDisposition: target.contentDisposition,
         ACL: object.acl,
         Metadata: target.s3Metadata,
         ChecksumAlgorithm: checksum ? "SHA256" : undefined,

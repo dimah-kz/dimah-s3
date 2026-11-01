@@ -38,27 +38,34 @@ rows, 50 per page, newest first. A cursor made under other filters is
 ignored, and the listing starts again at the first page (`firstPage` is
 then `true`).
 
-The stores never call S3. To remove a file, use the normal
-[delete path](/docs/db/setup#delete-behavior), not `softDelete` or
-`hardDelete`. The upload methods (`upsertPending`, `markActive`,
-`cancelUpload`, `discardUpload`) are what the plugin hooks call: leave them
-to the plugin.
-
-### StorageObjectStore
+The stores never call S3, and the upload lifecycle stays with the plugin,
+so they have no write besides `update`. To remove a file, use the normal
+[delete path](/docs/db/setup#delete-behavior). `objects.update` and the
+folder methods check paths the way the HTTP endpoints do (`FOLDER_INVALID`),
+and a move creates the target folder:
 
 ```ts
-import type { StorageObjectStore } from "@dimah-s3/db";
+await s3.db.objects.update(
+  { bucket: "my-bucket", key, scope }, // only this scope's row
+  { folder: "reports/2026", attributes: { starred: true } },
+);
+```
+
+### DbObjects
+
+```ts
+import type { DbObjects } from "@dimah-s3/db";
 ```
 
 <AutoTypeTable
-  path="packages/db/src/store/object-store.ts"
-  name="StorageObjectStore"
+  path="packages/db/src/plugin/public-stores.ts"
+  name="DbObjects"
 />
 
-### StorageFolderStore
+### DbFolders
 
 ```ts
-import type { StorageFolderStore } from "@dimah-s3/db";
+import type { DbFolders } from "@dimah-s3/db";
 ```
 
 <AutoTypeTable
@@ -94,8 +101,11 @@ and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
 - `folder` lists one folder: `""` is the root, and a path such as
   `reports/2026` is a folder. Omit it for a flat list of every folder.
 - `search` keeps rows whose `filename` contains the text. It runs in the
-  database (`LIKE` on SQL), so case follows its collation, and `%` and `_`
-  act as wildcards.
+  database (`LIKE` on SQL), where `%` and `_` act as wildcards, and the
+  database decides case: PostgreSQL matches it exactly, SQLite ignores ASCII
+  case, and MySQL follows the column collation.
+- `contentType` is an exact type, or `type/*` for every subtype
+  (`image/*`).
 - `sort` takes `{ field, direction }`, with `field` set to `createdAt`,
   `updatedAt`, `size`, or `filename`. The default is `createdAt`, newest
   first. Ties break on the row id, and rows with no value (a pending row's
@@ -104,7 +114,9 @@ and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
   filters is ignored, and the list starts again at the first page.
 
 The first page also carries `usage`, `limits`, and, when `folder` is set,
-the direct child `folders` (at most 1000).
+the direct child `folders` (at most 1000; with `search`, only those whose
+name contains it, ignoring case). The response never names the caller's
+scope: it stays on the server.
 
 ```ts
 const page = await api.db.listObjects({
@@ -132,7 +144,7 @@ They never change the S3 key. Empty folders are listed too.
 
 A folder path is `/`-separated, with no leading or trailing `/`. Each name
 is 1 to 255 characters, not `.` or `..`, and has no control characters. The
-whole path is at most 1024 characters. Paths are NFC-normalized. Anything
+whole path is at most 1024 characters and 32 levels deep. Paths are NFC-normalized. Anything
 else is `FOLDER_INVALID` (`400`). In JSON and in types the root is `null`;
 on the wire (`?folder=`, `clientMetadata.folder`) it is `""`.
 
@@ -152,7 +164,7 @@ await api.db.deleteFolder({ path: "reports/2026" });
 ```
 
 - `createFolder` creates the missing ancestors too. An existing folder is
-  `CONFLICT` (`409`).
+  `FOLDER_EXISTS` (`409`).
 - `deleteFolder` removes an empty folder. A folder with child folders, or
   with active or pending objects, is `FOLDER_NOT_EMPTY` (`409`). A missing
   folder is not an error.
@@ -203,12 +215,14 @@ db({
 await api.db.updateObject({ key: file.key, attributes: { tags: ["q3"] } });
 ```
 
+- `attributes: null` clears them, without the schema.
 - Without `attributes.schema`, a PATCH with `attributes` is a
   `VALIDATION_ERROR`.
-- A schema failure, or attributes larger than `maxBytes` as JSON (default
-  16 KiB), is a `VALIDATION_ERROR` (`400`).
+- The access check runs first, so a caller without access never reaches
+  your schema. Then a schema failure, or attributes larger than `maxBytes`
+  as JSON (default 16 KiB), is a `VALIDATION_ERROR` (`400`).
 - `toClient` maps the stored attributes to what the browser sees. Without
-  it, the browser sees all of them.
+  it, the browser sees all of them. `authorize` always sees them as stored.
 
 Type the browser side by passing the client attributes to `dbClient`:
 

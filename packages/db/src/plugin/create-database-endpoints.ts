@@ -10,8 +10,9 @@ import type {
   DbClientObject,
 } from "@/types/client";
 import type { DbAttributesOptions } from "@/types/plugin";
-import type { StorageObject } from "@/types/storage-object";
+import type { StorageFolder, StorageObject } from "@/types/storage-object";
 import type { ObjectAccess } from "./object-access";
+import type { DbObjects } from "./public-stores";
 import type { Quota } from "./quota";
 import {
   dbFolderInputSchema,
@@ -30,6 +31,8 @@ export type CreateDatabaseEndpointsOptions<
   TClientAttributes,
 > = {
   store: Pick<DbStore<TAttributes>, "objects" | "folders">;
+  /** The public object store, whose `update` also creates the folder. */
+  objects: Pick<DbObjects<TAttributes>, "update">;
   access: ObjectAccess<TSession, TAttributes>;
   quota: Pick<Quota<TSession>, "limits">;
   /** The plugin's `attributes` option. Without it, PATCH refuses `attributes`. */
@@ -72,6 +75,16 @@ function resolveBucket(
   return bucket;
 }
 
+/** The child folders whose name contains the search text, ignoring case. */
+function matchingFolders(
+  children: readonly StorageFolder[],
+  search: string | undefined,
+): readonly StorageFolder[] {
+  if (!search) return children;
+  const text = search.toLowerCase();
+  return children.filter((child) => child.name.toLowerCase().includes(text));
+}
+
 /**
  * Reads the wire path of a folder endpoint. The root is not a folder.
  * @throws `FOLDER_INVALID`.
@@ -87,7 +100,8 @@ function parseFolderPath(value: string): string {
  * runs `authorize` before it reads or writes a row:
  *
  * - `GET /db/objects` (op `list`): one page of the scope's objects. The
- *   first page also carries usage, the quota, and the child folders.
+ *   first page also carries usage, the quota, and the child folders (those
+ *   whose name contains `search`, when it is set).
  * - `GET /db/object` (op `read`): one object.
  * - `PATCH /db/object` (op `update`): renames, moves, or sets attributes.
  * - `POST /db/folder` and `DELETE /db/folder` (op `update`): creates or
@@ -157,7 +171,6 @@ export function createDatabaseEndpoints<
           folder,
         });
         const response: DbClientListResponse<TClientAttributes> = {
-          scope: scope.scope,
           objects: page.objects.map((object) => toClientObject(object)),
           nextCursor: page.nextCursor,
         };
@@ -174,7 +187,11 @@ export function createDatabaseEndpoints<
           ...response,
           usage,
           limits,
-          ...(children && { folders: children.map(toDbClientFolder) }),
+          ...(children && {
+            folders: matchingFolders(children, filters.search).map(
+              toDbClientFolder,
+            ),
+          }),
         };
       },
     ),
@@ -219,11 +236,8 @@ export function createDatabaseEndpoints<
           ctx.body.folder === undefined
             ? undefined
             : parseFolder(ctx.body.folder ?? "");
-        const attributes =
-          ctx.body.attributes === undefined
-            ? undefined
-            : await parseAttributes(ctx.body.attributes);
 
+        // Access first: a caller without it never reaches your schema.
         const { scope, object } = await access.object(
           ctx.context,
           {
@@ -234,6 +248,11 @@ export function createDatabaseEndpoints<
           { bucket, key },
         );
         if (object.status !== "active") throw s3Error("OBJECT_NOT_FOUND");
+        // `null` clears the attributes without the schema.
+        const attributes =
+          ctx.body.attributes === undefined || ctx.body.attributes === null
+            ? ctx.body.attributes
+            : await parseAttributes(ctx.body.attributes);
         if (
           filename === undefined &&
           folder === undefined &&
@@ -242,13 +261,13 @@ export function createDatabaseEndpoints<
           return { object: toClientObject(object) };
         }
 
-        const updated = await objects.update(
-          { bucket, key },
+        // Pinned to the row that was checked, so a key another scope took
+        // over in between is left alone.
+        const updated = await options.objects.update(
+          { bucket, key, id: object.id, scope: scope.scope },
           { filename, folder, attributes },
         );
         if (!updated) throw s3Error("OBJECT_NOT_FOUND");
-        // After the move: a folder delete in between sees the row or is undone.
-        if (folder !== undefined) await folders.ensure(scope.scope, folder);
         return { object: toClientObject(updated) };
       },
     ),

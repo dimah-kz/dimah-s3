@@ -4,7 +4,7 @@ import {
   s3Error,
 } from "@dimah-s3/core";
 import { describe, expect, it, vi } from "vitest";
-import { resolveRoutes } from "@/helpers/features";
+import { resolveRoutes } from "@/config/resolve-routes";
 import { route } from "@/route";
 import {
   memoryS3,
@@ -169,6 +169,16 @@ describe("presignDownload in presign mode", () => {
       presignDownload(capped.config, { route: "uploads", key: KEY }),
     ).resolves.toMatchObject({ expiresIn: 3600 });
   });
+
+  it.each([0, -1, 1.5, Number.NaN])(
+    "treats a download.resolve expiresIn of %s as a config error",
+    async (expiresIn) => {
+      const { config } = setup({ resolve: () => ({ expiresIn }) });
+      await expect(
+        presignDownload(config, { route: "uploads", key: KEY }),
+      ).rejects.toMatchObject({ code: "INTERNAL_ERROR", statusCode: 500 });
+    },
+  );
 });
 
 describe("presignDownload inline types", () => {
@@ -276,20 +286,17 @@ describe("presignDownload in proxy mode", () => {
       mode: "proxy",
       disposition: "attachment",
     });
-    expect(resolve.mock.calls[0][0]).toMatchObject({
-      mode: "proxy",
-      expiresIn: undefined,
-    });
-    expect(guard.mock.calls[0][0]).toMatchObject({
-      mode: "proxy",
-      expiresIn: undefined,
-    });
+    // A proxy URL does not expire, so the hooks see no TTL at all.
+    expect(resolve.mock.calls[0][0]).toMatchObject({ mode: "proxy" });
+    expect(resolve.mock.calls[0][0]).not.toHaveProperty("expiresIn");
+    expect(guard.mock.calls[0][0]).toMatchObject({ mode: "proxy" });
+    expect(guard.mock.calls[0][0]).not.toHaveProperty("expiresIn");
   });
 
   it("builds an absolute URL from baseURL", async () => {
     const { config } = setup(
       { mode: "proxy" },
-      { baseURL: "https://app.example.com/api/s3/" },
+      { baseURL: "https://app.example.com/api/s3" },
     );
 
     await expect(

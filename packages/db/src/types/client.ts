@@ -1,4 +1,8 @@
+import type { S3RequestOptions, S3RouteName } from "@dimah-s3/core";
 import type { StorageObjectStatus } from "./storage-object";
+
+/** A row status the browser can see. Rows that purge has claimed stay internal. */
+export type DbClientObjectStatus = Exclude<StorageObjectStatus, "purging">;
 
 /**
  * Browser-facing object row. Narrower than `StorageObject`: no scope,
@@ -17,7 +21,7 @@ export type DbClientObject<TClientAttributes = never> = {
   /** Verified size. `null` while the object is pending. */
   size: number | null;
   declaredSize: number | null;
-  status: StorageObjectStatus;
+  status: DbClientObjectStatus;
   attributes: TClientAttributes | null;
   /** ISO 8601 timestamp. */
   createdAt: string;
@@ -64,13 +68,21 @@ export type DbQuota = {
  * resolves it from the request.
  */
 export type DbClientListInput = {
-  /** Folder to list. `""` is the root. Omit for a flat list of every folder. */
-  folder?: string;
-  route?: string;
-  /** @default "active". Rows that purge has claimed are never listed. */
-  status?: Exclude<StorageObjectStatus, "purging">;
+  /**
+   * Folder to list. `null` (or `""`) is the root. Omit for a flat list of
+   * every folder.
+   */
+  folder?: string | null;
+  route?: S3RouteName;
+  /** @default "active" */
+  status?: DbClientObjectStatus;
+  /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
-  /** Text the `filename` contains. Case follows the database collation. */
+  /**
+   * Text the `filename` contains. The database decides case: PostgreSQL
+   * matches it exactly, SQLite ignores ASCII case, and MySQL follows the
+   * column collation.
+   */
   search?: string;
   /** @default { field: "createdAt", direction: "desc" } */
   sort?: DbListSort;
@@ -85,12 +97,13 @@ export type DbClientListInput = {
 
 /** One page of `GET /db/objects`. */
 export type DbClientListResponse<TClientAttributes = never> = {
-  /** Scope the server resolved for the request. */
-  scope: string;
   objects: DbClientObject<TClientAttributes>[];
   /** `null` on the last page. */
   nextCursor: string | null;
-  /** Direct child folders of `folder`, at most 1000. First page only. */
+  /**
+   * Direct child folders of `folder`, at most 1000, and only those whose
+   * name contains `search` when it is set. First page only.
+   */
   folders?: DbClientFolder[];
   /** First page only. */
   usage?: DbUsage;
@@ -109,8 +122,11 @@ export type DbClientUpdateInput = DbClientGetInput & {
   filename?: string;
   /** Folder path. `null` moves the object to the root. */
   folder?: string | null;
-  /** Replaces the attributes. Needs the plugin's `attributes.schema`. */
-  attributes?: Record<string, unknown>;
+  /**
+   * Replaces the attributes, checked by the plugin's `attributes.schema`.
+   * `null` clears them.
+   */
+  attributes?: Record<string, unknown> | null;
 };
 
 /** Body of `POST /db/folder` and query of `DELETE /db/folder`. */
@@ -118,40 +134,39 @@ export type DbClientFolderInput = {
   path: string;
 };
 
-/** Per-call request options of {@link DbClientActions}. */
-export type DbClientRequestInit = {
-  signal?: AbortSignal;
-};
-
-/** The db endpoints as client actions (`api.db`). */
+/**
+ * The db endpoints as client actions (`api.db`). Each takes the same
+ * per-call `{ signal, headers }` as the core methods.
+ */
 export type DbClientActions<TClientAttributes = never> = {
   listObjects(
     input?: DbClientListInput,
-    init?: DbClientRequestInit,
+    options?: S3RequestOptions,
   ): Promise<DbClientListResponse<TClientAttributes>>;
   getObject(
     input: DbClientGetInput,
-    init?: DbClientRequestInit,
+    options?: S3RequestOptions,
   ): Promise<{ object: DbClientObject<TClientAttributes> }>;
   updateObject(
     input: DbClientUpdateInput,
-    init?: DbClientRequestInit,
+    options?: S3RequestOptions,
   ): Promise<{ object: DbClientObject<TClientAttributes> }>;
   createFolder(
     input: DbClientFolderInput,
-    init?: DbClientRequestInit,
+    options?: S3RequestOptions,
   ): Promise<{ folder: DbClientFolder }>;
   deleteFolder(
     input: DbClientFolderInput,
-    init?: DbClientRequestInit,
+    options?: S3RequestOptions,
   ): Promise<{ path: string }>;
 };
 
 /** Filters `dbObjectSource` sends with every page. */
 export type DbObjectSourceOptions = {
-  route?: string;
+  route?: S3RouteName;
   /** @default "active" */
-  status?: Exclude<StorageObjectStatus, "purging">;
+  status?: DbClientObjectStatus;
+  /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
   /** Rows per page. The server caps it at 100. */
   limit?: number;

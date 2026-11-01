@@ -4,11 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { assertChecksumConfig } from "@/helpers/checksum-config";
 import { ConfigError } from "@/helpers/error-boundary";
 import { memoryS3, mockS3, TEST_BUCKET } from "@/test/harness";
-import {
-  presignPut,
-  presignUploadPart,
-  type PresignPutInput,
-} from "./presign-put";
+import { presignPut, presignUploadPart, type PresignPutInput } from "./presign";
 
 const body = new TextEncoder().encode("0123456789");
 

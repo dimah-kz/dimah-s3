@@ -3,7 +3,7 @@ import {
   type HeadObjectCommandOutput,
   type S3Client,
 } from "@aws-sdk/client-s3";
-import { sendOrObjectNotFound } from "./is-aws-not-found";
+import { sendOrObjectNotFound } from "./aws-errors";
 
 /**
  * HeadObject of a stored object. A missing object fails with

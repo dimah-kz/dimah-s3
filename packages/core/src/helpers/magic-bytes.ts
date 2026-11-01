@@ -133,6 +133,17 @@ function hasTruncatedId3v2(bytes: Uint8Array): boolean {
   return end !== undefined && end >= bytes.length;
 }
 
+/**
+ * `BM`, then a DIB header at offset 14 whose size is one of the known
+ * BITMAPINFOHEADER variants (12, 40, 52, 56, 64, 108, or 124 bytes).
+ */
+function isBmp(bytes: Uint8Array): boolean {
+  if (!hasAscii(bytes, "BM") || bytes.length < 18) return false;
+  const dibSize =
+    bytes[14] | (bytes[15] << 8) | (bytes[16] << 16) | (bytes[17] << 24);
+  return [12, 40, 52, 56, 64, 108, 124].includes(dibSize);
+}
+
 function ftypSignature(type: string, aliases?: readonly string[]): Signature {
   return { type, aliases, test: (bytes) => ftypType(bytes) === type };
 }
@@ -147,6 +158,18 @@ const SIGNATURES: readonly Signature[] = [
     test: (bytes) => startsWith(bytes, [0xff, 0xd8, 0xff]),
   },
   { type: "image/gif", test: (bytes) => hasAscii(bytes, "GIF8") },
+  { type: "image/bmp", test: isBmp },
+  {
+    type: "image/tiff",
+    test: (bytes) =>
+      startsWith(bytes, [0x49, 0x49, 0x2a, 0x00]) ||
+      startsWith(bytes, [0x4d, 0x4d, 0x00, 0x2a]),
+  },
+  {
+    type: "image/x-icon",
+    aliases: ["image/vnd.microsoft.icon"],
+    test: (bytes) => startsWith(bytes, [0x00, 0x00, 0x01, 0x00]),
+  },
   { type: "image/webp", test: (bytes) => isRiff(bytes, "WEBP") },
   ftypSignature("image/avif"),
   ftypSignature("image/heic", ["image/heif"]),
@@ -160,8 +183,14 @@ const SIGNATURES: readonly Signature[] = [
     test: (bytes) => startsWith(bytes, [0x50, 0x4b, 0x03, 0x04]),
   },
   {
+    type: "application/gzip",
+    aliases: ["application/x-gzip"],
+    test: (bytes) => startsWith(bytes, [0x1f, 0x8b]),
+  },
+  {
+    // EBML: WebM and Matroska share it.
     type: "video/webm",
-    aliases: ["audio/webm"],
+    aliases: ["audio/webm", "video/x-matroska", "audio/x-matroska"],
     test: (bytes) => startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]),
   },
   {

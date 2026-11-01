@@ -114,3 +114,19 @@ describe("matchesFileTypes", () => {
     );
   });
 });
+
+describe("matchesFileTypes normalization", () => {
+  it("ignores case and parameters, like a browser accept list", () => {
+    expect(matchesFileTypes("a.png", "image/PNG; x=1", ["image/png"])).toBe(
+      true,
+    );
+    expect(matchesFileTypes("a.png", "image/png", ["Image/*"])).toBe(true);
+    expect(matchesFileTypes("A.PDF", undefined, [".pdf"])).toBe(true);
+    expect(matchesFileTypes("a.bin", "application/x-thing", ["*/*"])).toBe(
+      true,
+    );
+    expect(matchesFileTypes("a.bin", "application/x-thing", ["image/*"])).toBe(
+      false,
+    );
+  });
+});

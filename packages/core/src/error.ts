@@ -143,28 +143,32 @@ export function s3Error<C extends S3ErrorCode>(
 }
 
 /**
- * True for {@link APIError} and better-call copies (including duck-typed).
- * A raw better-call error (`ctx.error`, `ValidationError`) keeps its code
- * only in `body.code`; use {@link isS3ErrorCode} to match it by code.
+ * True for an {@link APIError}: an instance, or one from another copy of
+ * this package (named `APIError`, with a string `code` and a numeric
+ * `statusCode`), so `error.code` and `error.params` are really there. A
+ * raw better-call error, which keeps its code only in `body`, is not one.
  */
 export function isAPIError(error: unknown): error is APIError {
+  if (error instanceof APIError) return true;
+  const candidate = error as {
+    name?: unknown;
+    code?: unknown;
+    statusCode?: unknown;
+  } | null;
   return (
-    error instanceof BetterCallAPIError ||
-    error instanceof APIError ||
-    (error as { name?: string } | null)?.name === "APIError"
+    candidate?.name === "APIError" &&
+    typeof candidate.code === "string" &&
+    typeof candidate.statusCode === "number"
   );
 }
 
 /**
- * True when `error` is an {@link APIError} with this catalog `code`. Reads
- * `body.code`, so raw better-call errors match too.
+ * True when `error` is an {@link APIError} with this catalog `code`, so its
+ * `params` have that code's type.
  */
 export function isS3ErrorCode<C extends S3ErrorCode>(
   error: unknown,
   code: C,
-): error is APIError & { code: C } {
-  return (
-    isAPIError(error) &&
-    (error as { body?: { code?: unknown } }).body?.code === code
-  );
+): error is APIError & { code: C; params: S3ErrorParams<C> } {
+  return isAPIError(error) && error.code === code;
 }

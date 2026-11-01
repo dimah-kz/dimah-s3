@@ -10,7 +10,7 @@ import type { ResolvedConfig } from "@/types/resolved";
  * and `s3.put` all enter through here.
  *
  * It picks the request (`options.request`, else a synthetic one from
- * `options.headers`), creates the call's `locals` seeded from
+ * `options.headers` and `options.signal`), creates the call's `locals` seeded from
  * `options.locals`, and runs the instance guards. Then it calls `run` with
  * that guard context. Every failure leaves as an `APIError`; see
  * {@link toAPIError}.
@@ -24,7 +24,7 @@ export async function runOperation<T>(
   options: S3ServerCallOptions,
   run: (context: GuardContext) => Promise<T>,
 ): Promise<T> {
-  const request = options.request ?? syntheticRequest(config, options.headers);
+  const request = options.request ?? syntheticRequest(config, options);
   try {
     const context: GuardContext = {
       request,
@@ -34,6 +34,6 @@ export async function runOperation<T>(
     await runGuards(config.guard, context);
     return await run(context);
   } catch (error) {
-    throw toAPIError(error, config, request);
+    throw toAPIError(error, config, request, operation);
   }
 }

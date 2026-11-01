@@ -1,19 +1,15 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import {
-  S3_API_ROUTES,
-  type downloadQuerySchema,
-  type DownloadPresignResponse,
-} from "@dimah-s3/core";
+import { S3_API_ROUTES, type DownloadPresignResponse } from "@dimah-s3/core";
+import type { downloadQuerySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
-import { clampDownloadExpiresIn } from "@/helpers/expires";
+import { authorizeDownload } from "@/helpers/authorize-download";
 import { headObjectOrNotFound } from "@/helpers/head-object";
-import { runGuards, runLifecycle } from "@/helpers/hooks";
+import { runLifecycle } from "@/helpers/hooks";
 import { resolveObjectDisposition } from "@/helpers/inline-types";
-import { openObject } from "@/helpers/resolve-route";
+import { openObject } from "@/helpers/open-target";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
-import type { DownloadGuardContext } from "@/types/hook-contexts";
 import type { ResolvedConfig } from "@/types/resolved";
 
 /** Query of `GET /presign/download`, after validation. */
@@ -45,31 +41,17 @@ export function presignDownload(
     const { download } = route;
     const { mode } = download;
     const presign = mode === "presign";
-    const requested = query.disposition ?? download.disposition;
-    const resolved =
-      (await download.resolve?.({
-        ...context,
+    const { context: guardContext } = await authorizeDownload(
+      config,
+      route,
+      context,
+      {
         mode,
         name: query.name,
-        disposition: requested,
-        expiresIn: presign ? query.expiresIn : undefined,
-      })) ?? undefined;
-
-    const guardContext: DownloadGuardContext = {
-      ...context,
-      mode,
-      name: resolved?.name ?? query.name,
-      disposition: resolved?.disposition ?? requested,
-      expiresIn: presign
-        ? clampDownloadExpiresIn({
-            requested: query.expiresIn,
-            resolved: resolved?.expiresIn,
-            routeMaxExpiresIn: download.maxExpiresIn,
-            maxExpiresIn: config.maxExpiresIn,
-          })
-        : undefined,
-    };
-    await runGuards(download.guard, guardContext);
+        disposition: query.disposition,
+        expiresIn: query.expiresIn,
+      },
+    );
 
     const { bucket, key } = context;
     const head = await headObjectOrNotFound(route.client, bucket, key, {
@@ -107,16 +89,10 @@ export function presignDownload(
       url,
     });
 
-    return {
-      key,
-      bucket,
-      url,
-      mode,
-      disposition: sent.disposition,
-      ...(guardContext.expiresIn !== undefined
-        ? { expiresIn: guardContext.expiresIn }
-        : {}),
-    };
+    const base = { key, bucket, url, disposition: sent.disposition };
+    return guardContext.expiresIn === undefined
+      ? { ...base, mode: "proxy" }
+      : { ...base, mode: "presign", expiresIn: guardContext.expiresIn };
   });
 }
 
@@ -128,6 +104,7 @@ function proxyUrl(
   const params = new URLSearchParams({ route: query.route, key: query.key });
   if (query.name !== undefined) params.set("name", query.name);
   params.set("disposition", query.disposition);
-  const base = (config.baseURL ?? config.basePath).replace(/\/+$/, "");
+  // Both are normalized without a trailing slash.
+  const base = config.baseURL ?? config.basePath;
   return `${base}${S3_API_ROUTES.file}?${params}`;
 }

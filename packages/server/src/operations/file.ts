@@ -3,13 +3,14 @@ import {
   type GetObjectCommandInput,
   type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
-import { isAPIError, s3Error, type fileQuerySchema } from "@dimah-s3/core";
+import { isAPIError, s3Error } from "@dimah-s3/core";
+import type { fileQuerySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import { headObjectOrNotFound } from "@/helpers/head-object";
-import { runGuards } from "@/helpers/hooks";
+import { authorizeDownload } from "@/helpers/authorize-download";
 import { resolveObjectDisposition } from "@/helpers/inline-types";
-import { isAwsNotFound } from "@/helpers/is-aws-not-found";
-import { openObject } from "@/helpers/resolve-route";
+import { awsStatus, isAwsNotFound } from "@/helpers/aws-errors";
+import { openObject } from "@/helpers/open-target";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
 import type { ObjectContext } from "@/types/hook-contexts";
@@ -39,7 +40,10 @@ const SINGLE_RANGE = /^bytes=(?:(\d+)-(\d*)|-(\d+))$/i;
 
 /**
  * Streams an object through the API (`GET /file`). Proxy-mode download URLs
- * point here, and there is no `s3.api` method for it.
+ * point here, and there is no `s3.api` method for it. Only a route with
+ * `download.mode: "proxy"` is served; any other fails with
+ * `FEATURE_DISABLED` (`feature: "proxy"`), so the server never streams
+ * objects the route did not opt in for.
  *
  * Guards run first: the route guard, then `download.guard` with the values
  * from `download.resolve`. Then a single GetObject runs with the request's
@@ -66,36 +70,22 @@ export async function serveFile(
 ): Promise<Response> {
   try {
     return await runOperation(config, "file", options, async (call) => {
-      const { route, context } = await openObject(
-        config,
-        call,
-        query,
-        "download",
-      );
+      const { route, context } = await openObject(config, call, query, "proxy");
       const { download } = route;
-      const requested = query.disposition ?? download.disposition;
-      const resolved =
-        (await download.resolve?.({
-          ...context,
-          mode: "proxy",
-          name: query.name,
-          disposition: requested,
-        })) ?? undefined;
-      const name = resolved?.name ?? query.name;
-      const disposition = resolved?.disposition ?? requested;
-      await runGuards(download.guard, {
-        ...context,
+      const authorized = await authorizeDownload(config, route, context, {
         mode: "proxy",
-        name,
-        disposition,
+        name: query.name,
+        disposition: query.disposition,
       });
+      const { resolved } = authorized;
+      const { name, disposition } = authorized.context;
 
       const headers = fileHeaders(resolved?.cacheControl);
       let output: GetObjectCommandOutput;
       try {
         output = await getObject(route, context, call.request);
       } catch (error) {
-        if (s3StatusCode(error) === 304) return notModified(error, headers);
+        if (awsStatus(error) === 304) return notModified(error, headers);
         throw await getObjectError(error, route, context, call.request.signal);
       }
 
@@ -116,6 +106,13 @@ export async function serveFile(
       }
       if (output.ContentRange) {
         headers.set("Content-Range", output.ContentRange);
+      }
+      // A gzip object must say so, or the browser shows the raw bytes.
+      if (output.ContentEncoding) {
+        headers.set("Content-Encoding", output.ContentEncoding);
+      }
+      if (output.ContentLanguage) {
+        headers.set("Content-Language", output.ContentLanguage);
       }
       setValidators(headers, output.ETag, output.LastModified?.toUTCString());
       return new Response(output.Body?.transformToWebStream() ?? null, {
@@ -236,7 +233,7 @@ async function getObjectError(
   context: ObjectContext,
   abortSignal: AbortSignal,
 ): Promise<unknown> {
-  const status = s3StatusCode(error);
+  const status = awsStatus(error);
   if (status === 412) {
     return s3Error("PRECONDITION_FAILED", undefined, { cause: error });
   }
@@ -281,11 +278,6 @@ async function storedSize(
     { abortSignal },
   );
   return head.ContentLength;
-}
-
-function s3StatusCode(error: unknown): number | undefined {
-  return (error as { $metadata?: { httpStatusCode?: number } } | null)
-    ?.$metadata?.httpStatusCode;
 }
 
 function setValidators(

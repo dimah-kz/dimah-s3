@@ -12,14 +12,16 @@ import { describe, expect, it, vi } from "vitest";
 import { createDbStore } from "@/store/create-db-store";
 import { insertObject } from "@/test/databases";
 import { memoryDbClient } from "@/test/fakes";
-import type { DbClientObject } from "@/types/client";
-import type { DbPluginOptions, ScopeContext } from "@/types/plugin";
+import type {
+  AuthorizeContext,
+  DbPluginOptions,
+  ScopeContext,
+} from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
 import { createDatabaseLifecycleHooks } from "./create-database-lifecycle-hooks";
 import { createObjectAccess } from "./object-access";
 import { createQuota } from "./quota";
 import { createScopeResolver } from "./scope";
-import { toDbClientObject } from "./to-db-client-object";
 
 const MINUTE = 60_000;
 const ref = { bucket: "b", key: "k" };
@@ -45,7 +47,6 @@ function setup(options: SetupOptions = {}) {
       objects: store.objects,
       resolveScope,
       authorize: options.authorize,
-      toClientObject: toDbClientObject,
     }),
     quota: createQuota(store.objects, options.quota),
     deleteMode: options.deleteMode,
@@ -99,6 +100,14 @@ function confirmContext(
     kind: "put",
     uploadToken: "t1",
     file: { name: "a.txt", size: 10, type: "text/plain" },
+    acl: "private",
+    object: {
+      name: "a.txt",
+      size: 10,
+      type: "text/plain",
+      eTag: '"e1"',
+      metadata: {},
+    },
     ...overrides,
   };
 }
@@ -110,6 +119,7 @@ function confirmedContext(
     ...objectContext("confirm"),
     kind: "put",
     uploadToken: "t1",
+    file: { name: "a.txt", size: 12, type: "text/plain" },
     acl: "private",
     object: {
       name: "a.txt",
@@ -210,7 +220,7 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     it("authorizes the upload into its folder", async () => {
-      const authorize = vi.fn(({ folder }: ScopeContext) => folder !== "x");
+      const authorize = vi.fn(({ folder }: AuthorizeContext) => folder !== "x");
       const { hooks } = setup({ authorize });
       const guard = defined(hooks.upload?.guard);
 
@@ -252,7 +262,7 @@ describe("createDatabaseLifecycleHooks", () => {
       await blocked.insert();
       await expect(
         defined(blocked.hooks.upload?.guard)(startContext()),
-      ).rejects.toMatchObject({ code: "CONFLICT" });
+      ).rejects.toMatchObject({ code: "OBJECT_EXISTS", statusCode: 409 });
 
       const overwrite = setup({ replace: "overwrite" });
       await overwrite.insert();
@@ -263,8 +273,7 @@ describe("createDatabaseLifecycleHooks", () => {
 
     it("authorizes an overwrite with the object it replaces, in its folder", async () => {
       const authorize = vi.fn(
-        ({ object }: ScopeContext & { object?: DbClientObject<never> }) =>
-          object?.folder !== "locked",
+        ({ object }: AuthorizeContext) => object?.folder !== "locked",
       );
       const { hooks, insert } = setup({ authorize, replace: "overwrite" });
       await insert({ folder: "locked", size: 5 });
@@ -385,7 +394,7 @@ describe("createDatabaseLifecycleHooks", () => {
         defined(blocked.hooks.upload?.onStart)(
           startContext({ clientMetadata: { folder: "docs" } }),
         ),
-      ).rejects.toMatchObject({ code: "CONFLICT" });
+      ).rejects.toMatchObject({ code: "OBJECT_EXISTS" });
       // The folder is written only after the row.
       await expect(
         blocked.store.folders.find("user:1", "docs"),
@@ -464,13 +473,50 @@ describe("createDatabaseLifecycleHooks", () => {
       ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
     });
 
-    it("rejects a row of another scope", async () => {
+    it("hides a row of another scope as not found", async () => {
       const { hooks, insert } = setup();
       await insert({ ...pendingRow, scope: "user:2" });
 
       await expect(
         defined(hooks.upload?.confirmGuard)(confirmContext()),
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+    });
+
+    it("lets a confirm it already finished through, after a later overwrite started", async () => {
+      const { hooks, insert, row } = setup({ replace: "overwrite" });
+      // T1 confirmed (ETag e1), then overwrite T2 started on the row.
+      await insert({
+        status: "active",
+        size: 10,
+        eTag: '"e1"',
+        confirmedAt: new Date(),
+        uploadToken: "t2",
+        expiresAt: new Date(Date.now() + MINUTE),
+      });
+
+      // T1's client retries the confirm: the key still holds T1's bytes.
+      await expect(
+        defined(hooks.upload?.confirmGuard)(confirmContext()),
+      ).resolves.toBeUndefined();
+      await defined(hooks.upload?.onConfirmed)(
+        confirmedContext({
+          object: { ...confirmedContext().object, eTag: '"e1"' },
+        }),
+      );
+      // The overwrite in flight is untouched.
+      await expect(row()).resolves.toMatchObject({
+        status: "active",
+        uploadToken: "t2",
+      });
+
+      // Another object at the key is still not T1's to confirm.
+      await expect(
+        defined(hooks.upload?.confirmGuard)(
+          confirmContext({
+            object: { ...confirmContext().object, eTag: '"other"' },
+          }),
+        ),
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
     });
 
     it("runs authorize with the row", async () => {
@@ -506,6 +552,25 @@ describe("createDatabaseLifecycleHooks", () => {
         expiresAt: null,
         uploadToken: "t1",
       });
+    });
+
+    it("retires the row of the previous key the server deletes next", async () => {
+      const { hooks, insert, store } = setup();
+      await insert({ ...pendingRow, declaredSize: 10 });
+      await insert({ key: "old", size: 5 });
+      await insert({ key: "theirs", scope: "user:2", size: 5 });
+      const onConfirmed = defined(hooks.upload?.onConfirmed);
+
+      await onConfirmed(confirmedContext({ previousKey: "old" }));
+      await expect(
+        store.objects.find({ bucket: "b", key: "old" }),
+      ).resolves.toMatchObject({ status: "deleted" });
+      // It never reaches into another scope.
+      await insert({ ...pendingRow, key: "k2", declaredSize: 10 });
+      await onConfirmed(confirmedContext({ key: "k2", previousKey: "theirs" }));
+      await expect(
+        store.objects.find({ bucket: "b", key: "theirs" }),
+      ).resolves.toMatchObject({ status: "active" });
     });
 
     it("keeps the stored row on a replay, without a quota check", async () => {
@@ -637,7 +702,7 @@ describe("createDatabaseLifecycleHooks", () => {
       const guard = defined(foreign.hooks.upload?.multipart?.guard);
       for (const action of ["part", "list", "complete", "abort"] as const) {
         await expect(guard(multipartContext(action))).rejects.toMatchObject({
-          code: "FORBIDDEN",
+          code: "OBJECT_NOT_FOUND",
         });
       }
 
@@ -729,7 +794,7 @@ describe("createDatabaseLifecycleHooks", () => {
       await foreign.insert({ scope: "user:2" });
       await expect(
         defined(foreign.hooks.download?.guard)(downloadContext()),
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
     });
   });
 
@@ -746,7 +811,14 @@ describe("createDatabaseLifecycleHooks", () => {
       await foreign.insert({ scope: "user:2" });
       await expect(
         defined(foreign.hooks.delete?.guard)(deleteContext()),
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+
+      // A deleted row of the caller's scope deletes again, like S3 does.
+      const deleted = setup();
+      await deleted.insert({ status: "deleted", deletedAt: new Date() });
+      await expect(
+        defined(deleted.hooks.delete?.guard)(deleteContext()),
+      ).resolves.toBeUndefined();
 
       const own = setup();
       await own.insert(pendingRow);

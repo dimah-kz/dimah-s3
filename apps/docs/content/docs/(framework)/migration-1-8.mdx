@@ -81,6 +81,10 @@ With the SDK default, the first presign logs the problem and returns `500`.
   `upload.multipart.partSize`, `upload.multipart.ticketExpiresIn`, and
   `download.maxExpiresIn` must be positive integers. A fractional value now
   throws at `dimahS3()`.
+- `/file` serves only routes with `download.mode: "proxy"`. A presign-mode
+  route returns `404 FEATURE_DISABLED` there.
+- Routes on different buckets may share a `keyPrefix`; on one bucket they
+  still may not overlap.
 
 ### Rewrite guards and errors
 
@@ -438,8 +442,12 @@ message.
 | `S3_API_ROUTES.deleteBatch`   | `S3_API_ROUTES.deleteMany`                    |
 | `S3_API_ROUTES.multipartPart` | `S3_API_ROUTES.multipartSignPart`             |
 
-`validateFile` returns `APIError | null`, and `isS3ErrorCode(error, code)`
-is unchanged. The full list is on [Errors](/docs/server/errors).
+`validateFile` returns `APIError | null`. `isAPIError` and
+`isS3ErrorCode(error, code)` match only real `APIError`s, whose `code` and
+`params` are set, and `isS3ErrorCode` narrows `params` to that code. The
+new `OBJECT_EXISTS` and `FOLDER_EXISTS` (409) replace `CONFLICT` for a key
+or folder that is taken; `CONFLICT` now means a concurrent change won. The
+full list is on [Errors](/docs/server/errors).
 
 ---
 
@@ -457,9 +465,11 @@ If you call the HTTP API yourself or wrote an `UploadTransport`:
 - A presigned PUT signs every header it returns. Send `headers` exactly.
 - Every `S3Api` method takes `(payload, { signal, headers })`.
 - In `@dimah-s3/core`, `DeleteBatchPayload` and `DeleteBatchResponse` are now
-  `DeleteManyPayload` and `DeleteManyResponse`. The listParts, complete, and
-  abort payloads are one `MultipartTicketPayload`, validated by
-  `multipartTicketBodySchema`.
+  `DeleteManyPayload` and `DeleteManyResponse`. Confirm, listParts, complete, and
+  abort all take one `TicketPayload` (`{ ticket }`), validated by
+  `ticketBodySchema`.
+- The Zod schemas moved to `@dimah-s3/core/schema`, so the browser entry
+  ships without Zod. Import `uploadBodySchema` and the others from there.
 
 See [Custom backend](/docs/react/custom-backend).
 
@@ -484,6 +494,13 @@ deploy the new server: a 1.x database throws until it is upgraded.
   `s3.db.pruneDeleted()`.
 - `dbObjectQuery` and `dbObjectListAccessors` are replaced by
   `dbObjectSource(api.db, { route })`.
+- `resolveScope` receives only the caller (`request`, `session`, `locals`,
+  `operation`, `route`). Move checks on `key`, `folder`, or
+  `clientMetadata` into `authorize`, which also gets the stored row.
+- `s3.db.objects` keeps `find`, `list`, `count`, `getUsage`, and `update`.
+  Delete files through `s3.api.delete`, and prune with
+  `s3.db.pruneDeleted`.
+- `purgeStale` returns `{ purged, failed, skipped, more }`.
 
 [Upgrade the database](/docs/db/upgrade) has the steps for each dialect and
 ORM.

@@ -6,8 +6,6 @@ import {
   type PluginInitEnv,
 } from "@dimah-s3/server/plugins";
 import { createDbStore } from "@/store/create-db-store";
-import type { StorageFolderStore } from "@/store/folder-store";
-import type { StorageObjectStore } from "@/store/object-store";
 import type { DbPluginOptions, DbRouteOptions } from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
 import { createDatabaseEndpoints } from "./create-database-endpoints";
@@ -16,6 +14,11 @@ import {
   type DbRoutes,
 } from "./create-database-lifecycle-hooks";
 import { createObjectAccess } from "./object-access";
+import {
+  createPublicStores,
+  type DbFolders,
+  type DbObjects,
+} from "./public-stores";
 import { createPurge, type Purge } from "./purge";
 import { createQuota } from "./quota";
 import { createScopeResolver } from "./scope";
@@ -23,10 +26,10 @@ import { toDbClientObject } from "./to-db-client-object";
 
 /** What `db()` exposes on `s3.db` and `s3.context.db`. */
 export type DbPluginContext<TAttributes = never> = {
-  /** The `storage_object` store: listings, usage, and your own routes. */
-  objects: StorageObjectStore<TAttributes>;
-  /** The `storage_folder` store. */
-  folders: StorageFolderStore;
+  /** The `storage_object` rows: listings, usage, and your own changes. */
+  objects: DbObjects<TAttributes>;
+  /** The `storage_folder` rows. */
+  folders: DbFolders;
   /**
    * Throws unless the database is at the schema this version needs. Call it
    * at startup to fail fast; the first query runs the same check.
@@ -79,6 +82,7 @@ export function db<
   };
 
   const store = createDbStore<TAttributes>(options.client);
+  const stores = createPublicStores(store);
   const resolveScope = createScopeResolver(options);
   const toClientObject = (object: StorageObject<TAttributes>) =>
     toDbClientObject(object, options.attributes?.toClient);
@@ -86,7 +90,6 @@ export function db<
     objects: store.objects,
     resolveScope,
     authorize: options.authorize,
-    toClientObject,
   });
   const quota = createQuota(store.objects, options.quota);
   const purge = createPurge({
@@ -111,14 +114,15 @@ export function db<
     }),
     endpoints: createDatabaseEndpoints({
       store,
+      objects: stores.objects,
       access,
       quota,
       attributes: options.attributes,
       toClientObject,
     }),
     context: {
-      objects: store.objects,
-      folders: store.folders,
+      objects: stores.objects,
+      folders: stores.folders,
       checkSchema: store.checkSchema,
       purgeStale: purge.purgeStale,
       pruneDeleted: purge.pruneDeleted,

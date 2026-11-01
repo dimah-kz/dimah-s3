@@ -82,10 +82,10 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
     it("rejects an existing folder", async () => {
       await folders().ensure("user:1", "a/b");
       await expect(folders().create("user:1", "a")).rejects.toMatchObject({
-        code: "CONFLICT",
+        code: "FOLDER_EXISTS",
       });
       await expect(folders().create("user:1", "a/b")).rejects.toMatchObject({
-        code: "CONFLICT",
+        code: "FOLDER_EXISTS",
       });
     });
 
@@ -100,7 +100,7 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
       );
       expect(reasons).toEqual(
         Array.from({ length: 3 }, () =>
-          expect.objectContaining({ code: "CONFLICT" }),
+          expect.objectContaining({ code: "FOLDER_EXISTS" }),
         ),
       );
       await expect(paths()).resolves.toEqual(["a", "a/b"]);

@@ -11,7 +11,10 @@ import {
   SNIFF_BYTE_LENGTH,
   sniffContentType,
 } from "@dimah-s3/core";
-import { sendOrObjectNotFound } from "@/helpers/is-aws-not-found";
+import {
+  isAwsRangeNotSatisfiable,
+  sendOrObjectNotFound,
+} from "@/helpers/aws-errors";
 
 export type ObjectContentInput = {
   bucket: string;
@@ -20,7 +23,6 @@ export type ObjectContentInput = {
   type?: string;
   /** Stored file name. Gives the type of an untyped object. */
   name?: string;
-  signal?: AbortSignal;
 };
 
 /**
@@ -63,12 +65,11 @@ async function readObjectStart(
           Key: input.key,
           Range: `bytes=0-${SNIFF_BYTE_LENGTH - 1}`,
         }),
-        { abortSignal: input.signal },
       ),
     );
   } catch (error) {
     // S3 answers a range on an empty object with 416.
-    if (isRangeNotSatisfiable(error)) return new Uint8Array();
+    if (isAwsRangeNotSatisfiable(error)) return new Uint8Array();
     throw error;
   }
   if (!response.Body) return new Uint8Array();
@@ -89,12 +90,4 @@ async function readObjectStart(
     await reader.cancel().catch(() => {});
   }
   return bytes.subarray(0, length);
-}
-
-function isRangeNotSatisfiable(error: unknown): boolean {
-  const e = error as {
-    name?: string;
-    $metadata?: { httpStatusCode?: number };
-  } | null;
-  return e?.name === "InvalidRange" || e?.$metadata?.httpStatusCode === 416;
 }

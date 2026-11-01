@@ -8,6 +8,7 @@ import {
 } from "better-call";
 import * as z from "zod";
 import { toAPIError } from "@/helpers/error-boundary";
+import type { S3Operation } from "@/types/hook-contexts";
 import type { S3EndpointContext } from "./context";
 import {
   coreContextMiddleware,
@@ -29,12 +30,12 @@ export type S3EndpointOptions = Omit<EndpointBaseOptions, "disableBody"> &
     | { method: "POST" | "PATCH"; body?: StandardSchemaV1 }
   );
 
-const createPluginEndpoint = createEndpoint.create({
+const pluginEndpoint = createEndpoint.create({
   use: [s3ContextMiddleware],
 });
 
 // Core operations run the guards themselves, with their own operation name.
-const createCoreEndpoint = createEndpoint.create({
+const coreEndpoint = createEndpoint.create({
   use: [coreContextMiddleware],
 });
 
@@ -43,10 +44,10 @@ export type S3Endpoint<
   Path extends string,
   Options extends S3EndpointOptions,
   R,
-> = ReturnType<typeof createPluginEndpoint<Path, Options, R>>;
+> = ReturnType<typeof pluginEndpoint<Path, Options, R>>;
 
 /** Body endpoints accept only JSON, so a cross-site form post is refused. */
-const BODY_MEDIA_TYPES = ["application/json"];
+export const BODY_MEDIA_TYPES: string[] = ["application/json"];
 
 const CORE_PATHS: ReadonlySet<string> = new Set(Object.values(S3_API_ROUTES));
 
@@ -81,9 +82,42 @@ export function createS3Endpoint<
   options: Options,
   handler: EndpointHandler<Path, Options, R, S3EndpointContext>,
 ): S3Endpoint<Path, Options, R> {
-  const create = CORE_PATHS.has(path)
-    ? createCoreEndpoint
-    : createPluginEndpoint;
+  if (CORE_PATHS.has(path)) {
+    throw new Error(
+      `createS3Endpoint("${path}"): the path belongs to a core endpoint.`,
+    );
+  }
+  return buildEndpoint(pluginEndpoint, path, options, handler, "plugin");
+}
+
+/**
+ * A core endpoint. Internal: its operation runs the guards and names the
+ * call, so the context middleware only adds `config`, `request` and an
+ * empty `locals`.
+ */
+export function createCoreEndpoint<
+  Path extends string,
+  Options extends S3EndpointOptions,
+  R,
+>(
+  path: Path,
+  options: Options,
+  handler: EndpointHandler<Path, Options, R, S3EndpointContext>,
+): S3Endpoint<Path, Options, R> {
+  return buildEndpoint(coreEndpoint, path, options, handler);
+}
+
+function buildEndpoint<
+  Path extends string,
+  Options extends S3EndpointOptions,
+  R,
+>(
+  create: typeof pluginEndpoint,
+  path: Path,
+  options: Options,
+  handler: EndpointHandler<Path, Options, R, S3EndpointContext>,
+  operation?: S3Operation,
+): S3Endpoint<Path, Options, R> {
   const endpoint = create(path, endpointOptions(path, options), async (ctx) => {
     try {
       return await handler(ctx);
@@ -92,6 +126,7 @@ export function createS3Endpoint<
         error,
         resolvedConfig(ctx.context),
         ctx.context.request,
+        operation,
       );
       // better-call answers a thrown error with the endpoint's response
       // headers and drops the error's own, such as `Content-Range` on a 416.

@@ -5,7 +5,7 @@ import {
   optionalTrimmedString,
   routeNameSchema,
   trimmedString,
-} from "@dimah-s3/core";
+} from "@dimah-s3/core/schema";
 import * as z from "zod";
 import { DEFAULT_LIST_LIMIT } from "@/store/object-store";
 
@@ -34,7 +34,7 @@ function queryInt(schema: z.ZodInt) {
   );
 }
 
-export const dbListSortSchema = z.object({
+const dbListSortSchema = z.object({
   field: z.enum(["createdAt", "updatedAt", "size", "filename"]),
   direction: z.enum(["asc", "desc"]),
 });
@@ -105,7 +105,8 @@ export const dbUpdateObjectBodySchema = z.strictObject({
   bucket: trimmedString.optional(),
   filename: fileNameSchema.optional(),
   folder: z.string().nullable().optional(),
-  attributes: z.record(z.string(), z.unknown()).optional(),
+  /** `null` clears the attributes. */
+  attributes: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 /**

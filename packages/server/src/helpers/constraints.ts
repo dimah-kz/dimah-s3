@@ -1,4 +1,9 @@
-import { describeFileType, matchesFileTypes, s3Error } from "@dimah-s3/core";
+import {
+  describeFileType,
+  matchesFileTypes,
+  s3Error,
+  S3_MAX_POST_OBJECT_BYTES,
+} from "@dimah-s3/core";
 import type { UploadFile } from "@/types/hook-contexts";
 import type { ResolvedUpload } from "@/types/resolved";
 
@@ -35,4 +40,17 @@ export function assertFileConstraints(
   }
   if (file.size === 0) throw s3Error("FILE_EMPTY");
   assertWithinMaxFileSize(maxFileSize, file.size);
+}
+
+/**
+ * Fails with `FILE_TOO_LARGE` above 5 GiB, the most S3 takes in one POST or
+ * PutObject. Larger files need multipart.
+ */
+export function assertSingleUploadSize(size: number): void {
+  if (size > S3_MAX_POST_OBJECT_BYTES) {
+    throw s3Error("FILE_TOO_LARGE", {
+      size,
+      maxFileSize: S3_MAX_POST_OBJECT_BYTES,
+    });
+  }
 }

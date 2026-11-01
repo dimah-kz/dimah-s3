@@ -618,6 +618,7 @@ describe("confirmUpload onConfirmed failure rules", () => {
     expect(error).toHaveBeenCalledWith("webhook failed", failure);
     expect(onError).toHaveBeenCalledWith(failure, {
       request: expect.any(Request),
+      operation: "confirm",
     });
     expect(commandNames(s3)).not.toContain("DeleteObjectCommand");
 
@@ -651,7 +652,7 @@ describe("confirmUpload onConfirmed failure rules", () => {
     expect(s3.get(presigned.key)).toBeDefined();
     expect(onError).toHaveBeenCalledWith(
       expect.objectContaining({ cause: forbidden }),
-      { request: expect.any(Request) },
+      { request: expect.any(Request), operation: "confirm" },
     );
   });
 
@@ -683,6 +684,24 @@ describe("confirmUpload previousKey", () => {
     await confirmUpload(config, { ticket: presigned.ticket });
     expect(s3.get("uploads/old.png")).toBeUndefined();
     expect(s3.get(presigned.key)).toBeDefined();
+  });
+
+  it("tells onConfirmed which previous key it is about to delete", async () => {
+    const onConfirmed = vi.fn(() => {
+      // Still there: the delete runs after every hook.
+      expect(s3.get("uploads/old.png")).toBeDefined();
+    });
+    const { s3, config } = setup({
+      object: () => ({ previousKey: "old.png" }),
+      onConfirmed: [{ hook: onConfirmed }],
+    });
+    s3.seed("uploads/old.png", "old");
+    const presigned = await upload(s3, config);
+
+    await confirmUpload(config, { ticket: presigned.ticket });
+    expect(onConfirmed).toHaveBeenCalledWith(
+      expect.objectContaining({ previousKey: "uploads/old.png" }),
+    );
   });
 
   it("ignores a stored previous key outside the route namespace", async () => {

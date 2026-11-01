@@ -93,10 +93,12 @@ export type ObjectFilter = {
    */
   status?: StorageObjectStatus;
   route?: string;
+  /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
   /**
-   * Text the `filename` contains (`LIKE` on SQL). Case follows the database
-   * collation, and `%` and `_` act as wildcards.
+   * Text the `filename` contains (`LIKE` on SQL), where `%` and `_` act as
+   * wildcards. The database decides case: PostgreSQL matches it exactly,
+   * SQLite ignores ASCII case, and MySQL follows the column collation.
    */
   search?: string;
 };
@@ -142,7 +144,8 @@ export type StorageObjectStore<TAttributes = never> = {
   count: (filter: ObjectFilter) => Promise<number>;
   /**
    * Bytes and files of a scope: the size of each active row plus the
-   * declared size of each pending row that has not expired. `excluding`
+   * declared size of each pending row that has not expired. An active row
+   * with an overwrite in flight counts the larger of the two. `excluding`
    * leaves one row out, such as the row an upload replaces.
    */
   getUsage: (
@@ -151,11 +154,13 @@ export type StorageObjectStore<TAttributes = never> = {
   ) => Promise<DbUsage>;
   /**
    * Starts an upload at `(bucket, key)`: writes a fresh pending row over a
-   * missing, pending, or deleted one. With `overwrite`, an active row stays
-   * active and only takes the upload's token, upload ID, declared size,
-   * and deadline. Each write is a compare-and-set on the row's status.
-   * @throws `CONFLICT` when an active row is there and `overwrite` is not
-   * set, when purge has claimed the row, or when a concurrent write wins.
+   * missing, pending, or deleted one (a deleted row is replaced by a new row
+   * with a new id). With `overwrite`, an active row stays active and only
+   * takes the upload's token, upload ID, declared size, and deadline. Each
+   * write is a compare-and-set on the row as it was read.
+   * @throws `OBJECT_EXISTS` when an active row is there and `overwrite` is
+   * not set; `CONFLICT` when purge has claimed the row or a concurrent write
+   * wins.
    */
   upsertPending: (
     input: UpsertPendingInput,
@@ -168,9 +173,12 @@ export type StorageObjectStore<TAttributes = never> = {
    * purging, or taken by another upload).
    */
   markActive: (input: MarkActiveInput) => Promise<StorageObject<TAttributes>>;
-  /** Changes an active row. Returns `null` when there is none. */
+  /**
+   * Changes an active row. With `id` or `scope`, only that row, so a check
+   * made on it still holds. Returns `null` when no row matches.
+   */
   update: (
-    ref: ObjectRef,
+    ref: ObjectRef & { id?: string; scope?: string },
     input: UpdateObjectInput<TAttributes>,
   ) => Promise<StorageObject<TAttributes> | null>;
   /** Marks the row `deleted` and keeps it. */
@@ -327,7 +335,11 @@ function filterConditions(
     parts.push(b("folder", "=", filter.folder));
   }
   if (filter.route) parts.push(b("route", "=", filter.route));
-  if (filter.contentType) {
+  if (filter.contentType?.endsWith("/*")) {
+    // `image/*` keeps every `image/…` type.
+    const prefix = filter.contentType.slice(0, -1);
+    parts.push(b("contentType", "starts with", prefix));
+  } else if (filter.contentType) {
     parts.push(b("contentType", "=", filter.contentType));
   }
   if (filter.search) parts.push(b("filename", "contains", filter.search));
@@ -466,7 +478,14 @@ export function createObjectStore<TAttributes = never>(
       const orm = await getOrm();
       const now = new Date();
       const rows = await orm.findMany("storageObject", {
-        select: ["bucket", "key", "size", "declaredSize"],
+        select: [
+          "bucket",
+          "key",
+          "status",
+          "size",
+          "declaredSize",
+          "expiresAt",
+        ],
         where: (b) => b.and(b("scope", "=", scope), liveObject(b, now)),
       });
       const { excluding } = options;
@@ -476,7 +495,20 @@ export function createObjectStore<TAttributes = never>(
         if (excluding?.bucket === row.bucket && excluding.key === row.key) {
           continue;
         }
-        totalBytes += Number(row.size ?? row.declaredSize ?? 0);
+        const size = Number(row.size ?? 0);
+        const declared = Number(row.declaredSize ?? 0);
+        // An overwrite in flight reserves its declared bytes until it is
+        // confirmed or expires; the old bytes count until then too.
+        const overwriting =
+          row.status === "active" &&
+          row.expiresAt !== null &&
+          row.expiresAt >= now;
+        totalBytes +=
+          row.size === null
+            ? declared
+            : overwriting
+              ? Math.max(size, declared)
+              : size;
         objectCount += 1;
       }
       return { totalBytes, objectCount };
@@ -487,11 +519,10 @@ export function createObjectStore<TAttributes = never>(
       const existing = await find(ref);
       if (existing?.status === "purging") throw s3Error("CONFLICT");
       if (existing?.status === "active" && !input.overwrite) {
-        throw s3Error("CONFLICT");
+        throw s3Error("OBJECT_EXISTS");
       }
 
       const orm = await getOrm();
-      const sameScope = (b: ObjectConditions) => b("scope", "=", input.scope);
       const upload = {
         uploadId: input.uploadId ?? null,
         uploadToken: input.uploadToken,
@@ -501,6 +532,7 @@ export function createObjectStore<TAttributes = never>(
       const now = new Date();
       const fresh = {
         ...upload,
+        ...ref,
         scope: input.scope,
         route: input.route,
         folder: input.folder,
@@ -517,37 +549,45 @@ export function createObjectStore<TAttributes = never>(
         updatedAt: now,
         deletedAt: null,
       };
-
-      if (existing?.status === "active") {
-        // The object stays active until the overwrite is confirmed.
-        await orm.updateMany("storageObject", {
-          where: (b) =>
-            b.and(byRef(b, ref), b("status", "=", "active"), sameScope(b)),
-          set: upload,
-        });
-      } else if (existing) {
-        await orm.updateMany("storageObject", {
-          where: (b) =>
-            b.and(
-              byRef(b, ref),
-              b.or(
-                b("status", "=", "deleted"),
-                b.and(b("status", "=", "pending"), sameScope(b)),
-              ),
-            ),
-          set: fresh,
-        });
-      } else {
+      const create = async () => {
         try {
-          await orm.create("storageObject", { ...fresh, ...ref });
+          await orm.create("storageObject", fresh);
         } catch (error) {
           // A concurrent upload inserted the row first.
           if (await find(ref)) throw s3Error("CONFLICT");
           throw error;
         }
+      };
+
+      if (existing === null) {
+        await create();
+      } else if (existing.status === "deleted") {
+        // A fresh row with a fresh id: the deleted object is gone. Only one
+        // caller deletes the row; the unique (bucket, key) settles the rest.
+        await orm.deleteMany("storageObject", {
+          where: (b) =>
+            b.and(b("id", "=", existing.id), b("status", "=", "deleted")),
+        });
+        await create();
+      } else {
+        // Compare-and-set on the row as it was read: its status, scope and
+        // upload token. A write that raced this one leaves no match.
+        const unchanged = (b: ObjectConditions) =>
+          b.and(
+            byRef(b, ref),
+            b("status", "=", existing.status),
+            b("scope", "=", input.scope),
+            existing.uploadToken === null
+              ? b.isNull("uploadToken")
+              : b("uploadToken", "=", existing.uploadToken),
+          );
+        await orm.updateMany("storageObject", {
+          where: unchanged,
+          // An active row stays active until the overwrite is confirmed.
+          set: existing.status === "active" ? upload : fresh,
+        });
       }
 
-      // A write that lost a race to a confirm, purge, or upload matched nothing.
       const row = await find(ref);
       if (row?.uploadToken !== input.uploadToken) throw s3Error("CONFLICT");
       return row;
@@ -592,7 +632,13 @@ export function createObjectStore<TAttributes = never>(
     async update(ref, input) {
       const orm = await getOrm();
       await orm.updateMany("storageObject", {
-        where: (b) => b.and(byRef(b, ref), b("status", "=", "active")),
+        where: (b) =>
+          b.and(
+            byRef(b, ref),
+            b("status", "=", "active"),
+            ref.id === undefined || b("id", "=", ref.id),
+            ref.scope === undefined || b("scope", "=", ref.scope),
+          ),
         set: {
           ...(input.filename !== undefined && { filename: input.filename }),
           ...(input.folder !== undefined && { folder: input.folder }),
@@ -603,7 +649,9 @@ export function createObjectStore<TAttributes = never>(
         },
       });
       const row = await find(ref);
-      return row?.status === "active" ? row : null;
+      if (row?.status !== "active") return null;
+      if (ref.id !== undefined && row.id !== ref.id) return null;
+      return ref.scope === undefined || row.scope === ref.scope ? row : null;
     },
 
     async softDelete(ref) {

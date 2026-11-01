@@ -96,6 +96,13 @@ describe("generateObjectKey", () => {
     expect(generateObjectKey("uploads", "a.png")).toBe(`uploads/${UUID}/a.png`);
   });
 
+  it("replaces characters a key refuses", () => {
+    // A Windows path separator, which an object key may not hold.
+    expect(generateObjectKey("uploads", "a\\b.png")).toBe(
+      `uploads/${UUID}/a_b.png`,
+    );
+  });
+
   it("strips path segments from the name", () => {
     expect(generateObjectKey("uploads", "../secret.png")).toBe(
       `uploads/${UUID}/secret.png`,

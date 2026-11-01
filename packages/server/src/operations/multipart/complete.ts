@@ -12,7 +12,7 @@ import {
 import { finalizeConfirmed } from "@/helpers/finalize-confirmed";
 import { headObjectOrNotFound } from "@/helpers/head-object";
 import { runGuards } from "@/helpers/hooks";
-import { sendOrObjectNotFound } from "@/helpers/is-aws-not-found";
+import { sendOrObjectNotFound } from "@/helpers/aws-errors";
 import { listAllParts } from "@/helpers/list-parts";
 import { partByteSize, type PartLayout } from "@/helpers/part-layout";
 import { runOperation } from "@/operations/run-operation";

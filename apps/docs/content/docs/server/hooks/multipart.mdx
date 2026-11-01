@@ -61,7 +61,9 @@ export const s3 = dimahS3({
    object, reads it with HeadObject, and runs `confirmGuard` and
    `onConfirmed`, the same as a single-shot confirm.
 5. **Abort** (`action: "abort"`) aborts the upload and runs
-   `multipart.onAbort`.
+   `multipart.onAbort`. Like delete, it is idempotent: an upload that is
+   already gone still succeeds and runs `onAbort`. An upload that was
+   completed fails with `409 CONFLICT`.
 
 Every call after init sends only the ticket. The route guard runs on each one.
 

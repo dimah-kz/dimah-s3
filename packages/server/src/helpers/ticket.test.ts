@@ -1,5 +1,6 @@
 import { createHmac, hkdfSync } from "node:crypto";
-import { base64UrlDecode, uploadTicketSchema } from "@dimah-s3/core";
+import { base64UrlDecode } from "@dimah-s3/core";
+import { uploadTicketSchema } from "@dimah-s3/core/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfigError } from "@/helpers/error-boundary";
 import { TEST_SECRET } from "@/test/harness";
@@ -35,6 +36,7 @@ function context(operation: S3Operation = "confirm"): RouteGuardContext {
 
 const single: UploadTicketInput = {
   mode: "single",
+  kind: "put",
   id: "token-1",
   route: "uploads",
   key: "uploads/abc/a.png",

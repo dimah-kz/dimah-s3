@@ -1,7 +1,8 @@
 import type { DimahS3Locals } from "@dimah-s3/server";
 import type { DimahS3DbClient } from "@/fuma-db";
 import type { StandardSchemaV1 } from "@/standard-schema";
-import type { DbClientObject, DbQuota } from "./client";
+import type { DbQuota } from "./client";
+import type { StorageObject } from "./storage-object";
 
 /**
  * What a scope is resolved for.
@@ -24,7 +25,11 @@ export type ScopeOperation =
   | "read"
   | "update";
 
-/** What `resolveScope` and `authorize` know about the request. */
+/**
+ * Who is calling: what `resolveScope` and a `quota` function see. The
+ * scope comes from the caller alone, never from the target, so the same
+ * caller gets the same scope when a ticket is bound, used, and confirmed.
+ */
 export type ScopeContext<TSession = undefined> = {
   request: Request;
   /** Locals the guards have set so far. */
@@ -32,21 +37,41 @@ export type ScopeContext<TSession = undefined> = {
   /** `getSession(request)`, resolved once per request. */
   session: TSession;
   operation: ScopeOperation;
-  /** Named route. On `list`, set only when the client filters by route. */
+  /**
+   * Named route of the call. `list` has one only when the client filters
+   * by route; `read`, `update`, and the folder endpoints have none.
+   */
   route?: string;
+};
+
+/**
+ * What `authorize` checks: the caller's resolved scope, and what the call
+ * targets.
+ */
+export type AuthorizeContext<
+  TSession = undefined,
+  TAttributes = never,
+> = ScopeContext<TSession> & {
+  scope: string;
   /** Object key. Absent on `list` and the folder endpoints. */
   key?: string;
   /** Target folder of an upload, move, or folder endpoint. `null` is the root. */
   folder?: string | null;
   /** Client extras of the upload. Set on `upload` only. */
   clientMetadata?: Record<string, string>;
+  /**
+   * The stored row, when the call targets one, including the active object
+   * an overwrite replaces. It is the server view: `scope`, `s3Metadata`, and
+   * the attributes as stored.
+   */
+  object?: StorageObject<TAttributes>;
 };
 
 /** Per-route options under `plugins: { db: … }`. */
 export type DbRouteOptions = {
   /**
    * `"overwrite"` lets an upload replace an active object at the same key.
-   * Without it, that upload fails with `CONFLICT`.
+   * Without it, that upload fails with `OBJECT_EXISTS`.
    */
   replace?: "overwrite";
 };
@@ -92,24 +117,22 @@ export type DbPluginOptions<
   /** Loads the session for a request. Called at most once per `Request`. */
   getSession?: (request: Request) => TSession | Promise<TSession>;
   /**
-   * Owning scope of the request. `null` rejects it with `UNAUTHORIZED`.
-   * Runs once per call and target, so the guard and the lifecycle hooks of
-   * one call share the result.
+   * Owning scope of the caller, such as `user:123`. `null` rejects the
+   * call with `UNAUTHORIZED`. It runs once per call and route, so the guard
+   * and the lifecycle hooks of one call share the result.
    */
   resolveScope: (
     context: ScopeContext<TSession>,
   ) => string | null | Promise<string | null>;
   /**
-   * Runs after the scope is resolved. `object` is set when the request
-   * targets a stored object, including an upload that overwrites an active
-   * object; that upload's `folder` is the folder of the object it replaces.
-   * `false` rejects it with `FORBIDDEN`.
+   * Runs after the scope is resolved and, for a stored object, after the
+   * ownership check, so it can only narrow access. `object` is set when the
+   * call targets a stored row, including the active object an overwrite
+   * replaces; that upload's `folder` is the folder of the object it
+   * replaces. `false` rejects the call with `FORBIDDEN`.
    */
   authorize?: (
-    context: ScopeContext<TSession> & {
-      scope: string;
-      object?: DbClientObject<TClientAttributes>;
-    },
+    context: AuthorizeContext<TSession, TAttributes>,
   ) => boolean | Promise<boolean>;
   /** Byte and file caps, checked at upload and again at confirm. */
   quota?: DbQuotaOption<TSession>;

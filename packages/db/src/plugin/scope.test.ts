@@ -7,7 +7,7 @@ type Session = { userId: string };
 const locals = { tenant: "acme" };
 
 describe("createScopeResolver", () => {
-  it("passes the request, locals, session, and target to resolveScope", async () => {
+  it("passes the request, locals, session, operation, and route to resolveScope", async () => {
     const request = new Request("http://localhost/api/s3/upload");
     const resolveScope = vi.fn(
       ({ session }: ScopeContext<Session>) => `user:${session.userId}`,
@@ -17,13 +17,7 @@ describe("createScopeResolver", () => {
       resolveScope,
     });
 
-    const target = {
-      operation: "upload" as const,
-      route: "uploads",
-      key: "k",
-      folder: "docs",
-      clientMetadata: { folder: "docs" },
-    };
+    const target = { operation: "upload" as const, route: "uploads" };
     await expect(resolve({ request, locals }, target)).resolves.toEqual({
       request,
       locals,
@@ -62,18 +56,18 @@ describe("createScopeResolver", () => {
     expect(other.scope).toBe("user:2");
   });
 
-  it("resolves the scope once per call and target", async () => {
+  it("resolves the scope once per call, operation, and route", async () => {
     const request = new Request("http://localhost/");
     const resolveScope = vi.fn(() => "user:1");
     const resolve = createScopeResolver({ resolveScope });
     const call = { request, locals: { tenant: "acme" } };
 
-    await resolve(call, { operation: "upload", key: "k", folder: null });
-    await resolve(call, { operation: "upload", key: "k", folder: null });
+    await resolve(call, { operation: "upload", route: "uploads" });
+    await resolve(call, { operation: "upload", route: "uploads" });
     expect(resolveScope).toHaveBeenCalledTimes(1);
 
-    await resolve(call, { operation: "upload", key: "k" });
-    await resolve(call, { operation: "download", key: "k" });
+    await resolve(call, { operation: "upload" });
+    await resolve(call, { operation: "download", route: "uploads" });
     expect(resolveScope).toHaveBeenCalledTimes(3);
   });
 
@@ -84,7 +78,7 @@ describe("createScopeResolver", () => {
       request: new Request("http://localhost/"),
       locals: { tenant: "acme" },
     };
-    const target = { operation: "confirm" as const, key: "k" };
+    const target = { operation: "confirm" as const, route: "uploads" };
 
     await resolve(call, target);
     // A later hook of the call spreads the same `locals` into its context.

@@ -18,9 +18,9 @@ type FastifyReplyLike = {
  * Adapt a dimah-s3 instance to a Fastify route handler.
  *
  * Uses `reply.hijack()` and the Node adapter so Fastify does not touch the
- * response stream. Mount this route **before** body parsers (or disable JSON
- * parsing for `/api/s3/*`) so the request body stays readable. Takes the
- * same options as `toNodeHandler`.
+ * response stream. Turn Fastify's body parsing off for these routes, as
+ * below, so the adapter can stream the raw body. Takes the same options as
+ * `toNodeHandler`.
  *
  * @example
  * ```ts
@@ -29,7 +29,11 @@ type FastifyReplyLike = {
  * import { s3 } from "./s3";
  *
  * const app = Fastify();
- * app.all("/api/s3/*", toFastifyHandler(s3));
+ * app.register(async (scope) => {
+ *   scope.removeAllContentTypeParsers();
+ *   scope.addContentTypeParser("*", (_request, _payload, done) => done(null));
+ *   scope.all("/api/s3/*", toFastifyHandler(s3));
+ * });
  * ```
  */
 export function toFastifyHandler(

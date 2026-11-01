@@ -1,13 +1,20 @@
 import { APIError, isAPIError, s3Error, type S3Api } from "@dimah-s3/core";
 
+/** A better-call error, such as one a custom backend rethrows: its code is in `body`. */
+export function isRawAPIError(
+  error: unknown,
+): error is Error & { statusCode?: unknown; body?: unknown } {
+  return error instanceof Error && error.name === "APIError";
+}
+
 /**
  * Normalizes a thrown value to an {@link APIError} with a stable `code`.
  * A raw better-call error is rebuilt from its body, because it keeps its code
  * only in `body.code`. Anything else becomes `UNKNOWN_ERROR`.
  */
 export function toClientError(error: unknown): APIError {
-  if (error instanceof APIError) return error;
-  if (isAPIError(error)) {
+  if (isAPIError(error)) return error;
+  if (isRawAPIError(error)) {
     const status: unknown = error.statusCode;
     const statusCode = typeof status === "number" ? status : undefined;
     const body: unknown = error.body;

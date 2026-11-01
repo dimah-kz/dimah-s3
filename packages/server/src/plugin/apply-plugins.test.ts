@@ -1,7 +1,6 @@
 import { S3_API_ROUTES } from "@dimah-s3/core";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
-import type { RoutePluginHooks } from "@/helpers/features";
 import { route } from "@/route";
 import { mockS3, TEST_BUCKET } from "@/test/harness";
 import type { DimahS3Config, DimahS3Logger, TicketSubject } from "@/types";
@@ -109,6 +108,17 @@ describe("applyPlugins: context", () => {
 });
 
 describe("applyPlugins: init", () => {
+  it("rejects an init that returns a promise", () => {
+    expect(() =>
+      apply([
+        definePlugin({
+          id: "a",
+          init: (() => Promise.reject(new Error("late"))) as () => void,
+        }),
+      ]),
+    ).toThrow(/plugin "a" init returned a promise/);
+  });
+
   it("runs each init once, in plugin order", () => {
     const order: string[] = [];
     apply([
@@ -218,10 +228,13 @@ describe("applyPlugins: endpoints", () => {
   });
 
   it.each(Object.values(S3_API_ROUTES))("rejects the core path %s", (path) => {
+    expect(() => getEndpoint(path)).toThrow(/belongs to a core endpoint/);
+    // A raw better-call endpoint on a core path is caught at dimahS3().
+    const raw = Object.assign(getEndpoint("/audit/raw"), {
+      path,
+    }) as ReturnType<typeof getEndpoint>;
     expect(() =>
-      apply([
-        definePlugin({ id: "audit", endpoints: { stolen: getEndpoint(path) } }),
-      ]),
+      apply([definePlugin({ id: "audit", endpoints: { stolen: raw } })]),
     ).toThrow(/uses the core path/);
   });
 
@@ -300,8 +313,6 @@ describe("plugin types", () => {
     expectTypeOf(hooks.ticketSubject).toEqualTypeOf<
       TicketSubject | undefined
     >();
-    // Route resolution reads plugin hooks through its own structural type.
-    expectTypeOf<DimahS3PluginHooks>().toExtend<RoutePluginHooks>();
     expect(definePlugin({ id: "scope", hooks }).hooks).toBe(hooks);
   });
 

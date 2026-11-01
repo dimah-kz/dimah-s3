@@ -57,8 +57,9 @@ export const s3 = dimahS3({
 s3.audit.log("Storage ready"); // [!code ++]
 ```
 
-`definePlugin`, `createS3Endpoint`, `createS3Middleware`, and `isFeatureOn`
-come from `@dimah-s3/server/plugins`. `chainHooks` comes from the main entry.
+`definePlugin`, `createS3Endpoint`, `createS3Middleware`, `isFeatureOn`, and
+the [cleanup helpers](#cleaning-up-uploads) come from
+`@dimah-s3/server/plugins`. `chainHooks` comes from the main entry.
 
 ---
 
@@ -72,8 +73,11 @@ come from `@dimah-s3/server/plugins`. `chainHooks` comes from the main entry.
   plugins already wrote, such as the `db()` row.
 - A route with `plugins: { [id]: false }` skips that plugin's route hooks.
 
-A throw from a plugin `onConfirmed` deletes the object and returns the error,
-because the plugin's bookkeeping failed. A throw from yours keeps the object.
+A rejection (`4xx`) from a plugin `onConfirmed` deletes the object and
+returns the error: the plugin refused it. Any other throw, such as a
+database outage, keeps the object so the client can retry, and a throw from
+yours keeps it too. `init` must be synchronous: a returned promise throws
+at `dimahS3()`.
 See [Upload Hooks](/docs/server/hooks/upload#failure-rules).
 
 ### Binding tickets
@@ -122,6 +126,48 @@ createS3Endpoint(
 
 `locals.userId` is typed by a [`DimahS3Locals`](/docs/server/hooks/global-guard#locals)
 augmentation.
+
+---
+
+## Cleaning up uploads
+
+A plugin that tracks uploads, like `db()`, may need to remove an object that
+an upload left behind. Delete it only while it is still the object that
+upload wrote: another upload may have replaced it at the same key since.
+
+```ts
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import {
+  deleteObjectIfMatch,
+  isAwsNotFound,
+  readUploadMarker,
+} from "@dimah-s3/server/plugins";
+
+async function removeUpload(client: S3Client, row: TrackedUpload) {
+  const head = await client
+    .send(new HeadObjectCommand({ Bucket: row.bucket, Key: row.key }))
+    .catch((error: unknown) => {
+      if (isAwsNotFound(error)) return null;
+      throw error;
+    });
+  if (!head || readUploadMarker(head.Metadata) !== row.uploadToken) return;
+  await deleteObjectIfMatch(client, {
+    bucket: row.bucket,
+    key: row.key,
+    eTag: head.ETag,
+  });
+}
+```
+
+- `readUploadMarker(metadata)` returns the `uploadToken` an object was
+  written with, from HeadObject `Metadata`. It is the `uploadToken` your
+  `onStart` and `onConfirmed` hooks receive.
+- `deleteObjectIfMatch(client, { bucket, key, eTag })` sends `If-Match`, so an
+  object written after your HeadObject is kept and it returns `false`. A
+  provider without conditional deletes gets a plain delete. Other failures
+  throw.
+- `isAwsNotFound(error)` is true for a missing object or multipart upload,
+  by error name, `Code`, or HTTP status.
 
 ---
 

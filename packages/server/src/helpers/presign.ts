@@ -3,8 +3,13 @@ import {
   UploadPartCommand,
   type S3Client,
 } from "@aws-sdk/client-s3";
+import {
+  createPresignedPost,
+  type PresignedPost,
+  type PresignedPostOptions,
+} from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type { S3ObjectAcl } from "@dimah-s3/core";
+import { s3Error, type S3ObjectAcl } from "@dimah-s3/core";
 import { assertChecksumConfig } from "@/helpers/checksum-config";
 import { objectCommandExtras, objectPutHeaders } from "@/helpers/object-s3";
 import type { ObjectS3Headers } from "@/types/hook-contexts";
@@ -165,4 +170,63 @@ function lowercaseKeys(record: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(record).map(([key, value]) => [key.toLowerCase(), value]),
   );
+}
+
+type PolicyCondition = NonNullable<PresignedPostOptions["Conditions"]>[number];
+
+/** The POST form placeholder that S3 replaces with the uploaded file name. */
+const POST_FILENAME_PLACEHOLDER = "${filename}";
+
+/**
+ * Presigns a POST form upload. Every field is an exact-match policy
+ * condition, the key is pinned with an `eq` condition, the size is pinned
+ * with `content-length-range`, and a checksum adds the `x-amz-checksum-*`
+ * fields with explicit `eq` conditions.
+ *
+ * A key that contains the `${filename}` placeholder fails with
+ * `KEY_INVALID`: the SDK would sign it as a `starts-with` condition, and the
+ * client would pick the object key.
+ */
+export async function presignPost(
+  client: S3Client,
+  input: PresignPutInput,
+): Promise<PresignedPost> {
+  if (input.key.includes(POST_FILENAME_PLACEHOLDER)) {
+    throw s3Error("KEY_INVALID");
+  }
+  await assertChecksumConfig(client);
+  const checksumFields: Record<string, string> = input.checksum
+    ? {
+        "x-amz-checksum-algorithm": "SHA256",
+        "x-amz-checksum-sha256": input.checksum,
+      }
+    : {};
+  const conditions: PolicyCondition[] = [
+    ["eq", "$key", input.key],
+    ["content-length-range", input.size, input.size],
+    ...Object.entries(checksumFields).map(([name, value]): PolicyCondition => [
+      "eq",
+      `$${name}`,
+      value,
+    ]),
+  ];
+  return createPresignedPost(client, {
+    Bucket: input.bucket,
+    Key: input.key,
+    Conditions: conditions,
+    Fields: {
+      acl: input.acl,
+      "Content-Type": input.contentType,
+      "Content-Disposition": input.contentDisposition,
+      ...objectPutHeaders(input),
+      ...Object.fromEntries(
+        Object.entries(input.metadata).map(([key, value]) => [
+          `x-amz-meta-${key}`,
+          value,
+        ]),
+      ),
+      ...checksumFields,
+    },
+    Expires: input.expiresIn,
+  });
 }

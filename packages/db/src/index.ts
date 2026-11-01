@@ -8,8 +8,14 @@ export {
 
 // Plugin
 export { db, type DbPluginContext } from "./plugin/db";
-export type { PruneDeletedOptions, PurgeStaleOptions } from "./plugin/purge";
 export type {
+  PruneDeletedOptions,
+  PurgeStaleOptions,
+  PurgeStaleResult,
+} from "./plugin/purge";
+export type { DbFolders, DbObjects } from "./plugin/public-stores";
+export type {
+  AuthorizeContext,
   DbAttributesOptions,
   DbPluginOptions,
   DbQuotaOption,
@@ -34,15 +40,11 @@ export type {
 } from "./types/client";
 export type { StandardSchemaV1 } from "./standard-schema";
 
-// Stores (`s3.db.objects`, `s3.db.folders`)
-export type { StorageFolderStore } from "./store/folder-store";
+// Store inputs and pages (`s3.db.objects`, `s3.db.folders`)
 export type {
   ListObjectsInput,
   ListObjectsPage,
-  MarkActiveInput,
   ObjectFilter,
   ObjectRef,
-  StorageObjectStore,
   UpdateObjectInput,
-  UpsertPendingInput,
 } from "./store/object-store";

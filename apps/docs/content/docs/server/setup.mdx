@@ -111,12 +111,13 @@ import { s3 } from "./s3";
 
 const app = express();
 // The adapter reads the raw stream, so mount it before JSON middleware.
-app.all("/api/s3/*", toExpressHandler(s3)); // Express 5: "/api/s3/*splat"
+app.use("/api/s3", toExpressHandler(s3));
 app.use(express.json());
 ```
 
-Mount it with the full path, as above. `app.use("/api/s3", …)` strips the
-mount path from `req.url`, so no route matches.
+A mount (`app.use`) and a route (`app.all("/api/s3/*", …)`, or
+`"/api/s3/*splat"` on Express 5) both work: the adapter reads
+`req.originalUrl`, which keeps the mount path.
 
 </Tab>
 
@@ -248,7 +249,8 @@ too.
 
 `s3.api` has the same methods and payloads as the browser client, and runs
 them in process with the same guards and hooks. The last argument is
-`{ headers, request, locals }`:
+`{ headers, signal, request, locals }`; `signal` aborts the call and its S3
+requests, like the browser option:
 
 ```ts title="app/actions.ts"
 "use server";

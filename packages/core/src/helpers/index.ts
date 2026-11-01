@@ -18,7 +18,6 @@ export type {
   ResolveInlineDispositionInput,
   ResolveInlineDispositionResult,
 } from "./resolve-inline-disposition";
-export { sanitizeFileName } from "./sanitize-file-name";
 export { truncateFileName } from "./truncate-file-name";
 export { fitFileName } from "./fit-file-name";
 export {

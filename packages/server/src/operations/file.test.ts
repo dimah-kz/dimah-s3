@@ -6,7 +6,7 @@ import {
   type APIError,
 } from "@dimah-s3/core";
 import { describe, expect, it, vi } from "vitest";
-import { resolveRoutes } from "@/helpers/features";
+import { resolveRoutes } from "@/config/resolve-routes";
 import { route } from "@/route";
 import {
   memoryS3,
@@ -158,6 +158,22 @@ describe("serveFile response", () => {
       LAST_MODIFIED.toUTCString(),
     );
     expect(response.headers.has("content-range")).toBe(false);
+  });
+
+  it("forwards Content-Encoding and Content-Language from S3", async () => {
+    const { s3, config } = setup();
+    const send = s3.send.getMockImplementation();
+    if (!send) throw new Error("expected the memory S3 send");
+    s3.send.mockImplementationOnce(async (command, options) => ({
+      ...((await send(command, options)) as object),
+      ContentEncoding: "gzip",
+      ContentLanguage: "de",
+    }));
+
+    const response = await serve(config);
+
+    expect(response.headers.get("content-encoding")).toBe("gzip");
+    expect(response.headers.get("content-language")).toBe("de");
   });
 
   it("uses the requested name and the Cache-Control from download.resolve", async () => {
@@ -529,6 +545,25 @@ describe("serveFile abort and errors", () => {
     await expect(
       serve(config, { query: { key: "avatars/a.png" } }),
     ).rejects.toMatchObject({ code: "KEY_INVALID" });
+    expect(s3.send).not.toHaveBeenCalled();
+  });
+
+  it("serves only a route whose downloads are in proxy mode", async () => {
+    const guard = vi.fn();
+    const { s3, config } = setup({
+      mode: "presign",
+      guard: [{ hook: guard }],
+    });
+
+    const disabled = await failure(serve(config));
+
+    expect(disabled).toMatchObject({
+      code: "FEATURE_DISABLED",
+      statusCode: 404,
+      params: { feature: "proxy" },
+    });
+    expectFileHeaders(disabled.headers);
+    expect(guard).not.toHaveBeenCalled();
     expect(s3.send).not.toHaveBeenCalled();
   });
 });

@@ -19,7 +19,11 @@ import type { DimahS3Locals, Guard } from "@/types/locals";
 import type { GuardContext } from "@/types/hook-contexts";
 import type { ResolvedConfig } from "@/types/resolved";
 import type { S3EndpointContext } from "./context";
-import { createS3Endpoint, type S3EndpointOptions } from "./create-s3-endpoint";
+import {
+  createCoreEndpoint,
+  createS3Endpoint,
+  type S3EndpointOptions,
+} from "./create-s3-endpoint";
 import { createS3Middleware } from "./create-s3-middleware";
 import { createRouterContext } from "./router-context";
 
@@ -359,7 +363,7 @@ describe("createS3Endpoint: guards and locals", () => {
     const guard = vi.fn();
     const handler = mount(
       {
-        catalog: createS3Endpoint(
+        catalog: createCoreEndpoint(
           S3_API_ROUTES.catalog,
           { method: "GET" },
           async (ctx) => ({ url: ctx.context.request.url }),
@@ -479,7 +483,10 @@ describe("createS3Endpoint: error boundary", () => {
       message: "Internal server error",
     });
     expect(error).toHaveBeenCalledWith("database down", failure);
-    expect(onError).toHaveBeenCalledWith(failure, { request });
+    expect(onError).toHaveBeenCalledWith(failure, {
+      request,
+      operation: "plugin",
+    });
   });
 });
 

@@ -50,16 +50,17 @@ export type FinalizeConfirmedInput = {
  *    the route limits.
  * 3. With `verifyContent`, the first bytes must match the type (for an
  *    untyped object, the type its name gives on download).
- * 4. `upload.confirmGuard` runs, except for `s3.put`.
+ * 4. `upload.confirmGuard` runs with the verified `object`, except for
+ *    `s3.put`.
  * 5. `upload.onConfirmed` runs: plugins first, then the user hook.
  *
- * A rejection in steps 2 to 4 (a `4xx` `APIError`), or a throw from a plugin
+ * A rejection (a `4xx` `APIError`) in steps 2 to 4, or from a plugin
  * `onConfirmed`, deletes the object and returns the error. That delete is
  * conditional on the HeadObject ETag where the provider supports `If-Match`,
- * so a newer upload at the same key is kept. Any other failure
- * in steps 2 to 4, such as an S3 network error or a guard whose database is
- * down, keeps the object, so the confirm can be retried. A throw from the
- * user `onConfirmed` keeps the object and returns `500 INTERNAL_ERROR`, so a
+ * so a newer upload at the same key is kept. Any other failure, such as an
+ * S3 network error or a hook whose database is down, keeps the object, so
+ * the confirm can be retried. A throw from the user `onConfirmed` keeps the
+ * object and returns `500 INTERNAL_ERROR`, even for an `APIError`, so a
  * retried confirm replays the hooks with the same `uploadToken`. After every
  * hook succeeds, `upload.object().previousKey` is deleted.
  */
@@ -85,19 +86,31 @@ export async function finalizeConfirmed(
     throw error;
   }
 
+  const previousKey = previousKeyToDelete(
+    stored.previousKey,
+    key,
+    route.keyPrefix,
+  );
   const confirmed: UploadOnConfirmedContext = {
     ...context,
     kind: input.kind,
     uploadToken: input.uploadToken,
     uploadId: input.uploadId,
+    file: input.file,
     acl: input.acl,
     object,
+    ...(previousKey !== undefined ? { previousKey } : {}),
   };
   const hooks = route.upload.onConfirmed;
   await runLifecycle(
     hooks.filter((entry) => entry.plugin !== undefined),
     confirmed,
-    { onPluginError: deleteObject },
+    {
+      // A transient plugin failure keeps the object for the retry.
+      onPluginError: async (error) => {
+        if (isRejection(error)) await deleteObject();
+      },
+    },
   );
   try {
     await runLifecycle(
@@ -108,11 +121,6 @@ export async function finalizeConfirmed(
     throw userHookFailure(error);
   }
 
-  const previousKey = previousKeyToDelete(
-    stored.previousKey,
-    key,
-    route.keyPrefix,
-  );
   if (previousKey !== undefined) {
     await deleteObjectBestEffort(route.client, bucket, previousKey);
   }
@@ -144,7 +152,7 @@ async function verifyUpload(
   input: FinalizeConfirmedInput,
   object: VerifiedObject,
 ): Promise<void> {
-  const { route, context, kind, file } = input;
+  const { route, context, kind, file, acl } = input;
   if (object.size !== file.size) {
     throw s3Error("UPLOAD_SIZE_MISMATCH", {
       expected: file.size,
@@ -167,6 +175,8 @@ async function verifyUpload(
       uploadToken: input.uploadToken,
       uploadId: input.uploadId,
       file,
+      acl,
+      object,
     });
   }
 }

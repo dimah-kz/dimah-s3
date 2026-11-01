@@ -1,15 +1,15 @@
-import type { confirmBodySchema, UploadConfirmResponse } from "@dimah-s3/core";
+import type { UploadConfirmResponse } from "@dimah-s3/core";
+import type { ticketBodySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import { finalizeConfirmed } from "@/helpers/finalize-confirmed";
 import { headObjectOrNotFound } from "@/helpers/head-object";
-import { openTicket } from "@/helpers/resolve-route";
-import { presignKind } from "@/operations/upload";
+import { openTicket } from "@/helpers/open-target";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
 import type { ResolvedConfig } from "@/types/resolved";
 
 /** Body of `POST /presign/upload/confirm`, after validation. */
-export type ConfirmBody = z.output<typeof confirmBodySchema>;
+export type ConfirmBody = z.output<typeof ticketBodySchema>;
 
 /**
  * Confirms a single-shot upload (`POST /presign/upload/confirm`,
@@ -41,7 +41,7 @@ export function confirmUpload(
     return finalizeConfirmed({
       route,
       context,
-      kind: presignKind(route),
+      kind: ticket.kind,
       uploadToken: ticket.id,
       file: ticket.file,
       acl: ticket.acl,

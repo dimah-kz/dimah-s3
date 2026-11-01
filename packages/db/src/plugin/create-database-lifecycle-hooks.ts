@@ -12,9 +12,9 @@ import type { DbStore } from "@/store/create-db-store";
 import { isUploading, type ObjectRef } from "@/store/object-store";
 import type { ScopeOperation } from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
-import type { ObjectAccess } from "./object-access";
+import type { AccessTarget, ObjectAccess } from "./object-access";
 import type { Quota } from "./quota";
-import type { ScopeResolver, ScopeTarget } from "./scope";
+import type { ScopeResolver } from "./scope";
 
 /** What the hooks read from the dimah-s3 config, once `init` has run. */
 export type DbRoutes = {
@@ -52,16 +52,16 @@ function refOf(context: ObjectContext): ObjectRef {
   return { bucket: context.bucket, key: context.key };
 }
 
-/** What a hook on one object resolves the scope for. */
+/** What a hook on one object checks access for. */
 function objectTarget(
   context: ObjectContext,
   operation: ScopeOperation,
-): ScopeTarget {
+): AccessTarget {
   return { operation, route: context.route, key: context.key };
 }
 
-/** What an upload resolves the scope for, with its `clientMetadata.folder`. */
-function uploadTarget(context: UploadGuardContext) {
+/** What an upload checks access for, with its `clientMetadata.folder`. */
+function uploadTarget(context: UploadGuardContext): AccessTarget {
   return {
     ...objectTarget(context, "upload"),
     folder: parseFolder(context.clientMetadata?.folder ?? ""),
@@ -77,15 +77,22 @@ function writtenBy<T>(
   return object !== null && object.uploadToken === uploadToken;
 }
 
-/** True once `uploadToken`'s upload is confirmed on the row. */
+/**
+ * True once the row describes the bytes of `uploadToken`'s upload: that
+ * upload confirmed it, or the row is active with the same ETag. The second
+ * case is a retried confirm after a later overwrite started: the overwrite
+ * replaced the row's token, but the object at the key still carries this
+ * upload's marker (the server checked it), so the row still describes it.
+ */
 function confirmedBy<T>(
   object: StorageObject<T> | null,
   uploadToken: string,
+  eTag?: string,
 ): boolean {
+  if (object?.status !== "active") return false;
+  if (object.uploadToken === uploadToken && !isUploading(object)) return true;
   return (
-    writtenBy(object, uploadToken) &&
-    object.status === "active" &&
-    !isUploading(object)
+    eTag !== undefined && object.confirmedAt !== null && object.eTag === eTag
   );
 }
 
@@ -99,10 +106,12 @@ function confirmedBy<T>(
  *   the pending row, then its folders. An overwrite leaves the active row in
  *   place until it is confirmed.
  * - `confirmGuard` and `multipart.guard` accept only the row of the ticket's
- *   upload; `onConfirmed` checks the quota against the verified size and
- *   marks the row active.
+ *   upload, or a confirm it already finished; `onConfirmed` checks the quota
+ *   against the verified size, marks the row active, and retires the row of
+ *   the `previousKey` the server deletes next.
  * - `download.guard` and `delete.guard` check ownership; `onDeleted` aborts a
- *   multipart upload in flight and deletes the row.
+ *   multipart upload in flight and deletes the row. Deleting a deleted row
+ *   again succeeds, like a plain delete.
  */
 export function createDatabaseLifecycleHooks<TSession, TAttributes>(
   options: CreateDatabaseLifecycleHooksOptions<TSession, TAttributes>,
@@ -111,16 +120,19 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
   const { access, quota, resolveScope, routes } = options;
   const deleteMode = options.deleteMode ?? "soft";
 
+  const removeRow = (ref: ObjectRef) =>
+    deleteMode === "hard" ? objects.hardDelete(ref) : objects.softDelete(ref);
+
   /**
    * The row of the ticket's upload, checked for ownership. A row that is
    * missing, deleted, purging, or taken by another upload is
-   * `OBJECT_NOT_FOUND`. `replayable` also accepts the row once the upload
-   * is confirmed, so a retried confirm or complete gets through.
+   * `OBJECT_NOT_FOUND`. With an `eTag`, a row the upload already confirmed
+   * passes too, so a retried confirm or complete gets through.
    */
   const assertUploadRow = async (
     context: ObjectContext & { uploadToken: string },
     operation: ScopeOperation,
-    replayable: boolean,
+    replay?: { eTag?: string },
   ) => {
     const { object } = await access.object(
       context,
@@ -130,12 +142,12 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
     const { uploadToken } = context;
     const live =
       (writtenBy(object, uploadToken) && isUploading(object)) ||
-      (replayable && confirmedBy(object, uploadToken));
+      (replay !== undefined && confirmedBy(object, uploadToken, replay.eTag));
     if (!live) throw s3Error("OBJECT_NOT_FOUND");
   };
 
   /**
-   * What an upload writes to: the row at its key, and the scope target. An
+   * What an upload writes to: the row at its key, and the access target. An
    * overwrite keeps the active row's folder, so that folder is the target.
    */
   const uploadWrite = async (context: UploadGuardContext) => {
@@ -155,8 +167,10 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
   };
 
   /** Aborts the multipart upload in flight on the row. Best-effort. */
-  const abortPendingMultipart = async (context: ObjectContext) => {
-    const row = await objects.find(refOf(context));
+  const abortPendingMultipart = async (
+    context: ObjectContext,
+    row: StorageObject<TAttributes> | null,
+  ) => {
     const client = routes.client(context.route);
     if (!row || !isUploading(row) || !row.uploadId || !client) return;
     try {
@@ -188,16 +202,18 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
         const { target, existing, replaced } = await uploadWrite(context);
         let scope;
         if (replaced) {
-          // `authorize` sees the object the upload replaces.
+          // `authorize` sees the object the upload replaces. The key is the
+          // server's choice, so naming its owner reveals nothing.
           scope = await resolveScope(context, target);
-          await access.assertOwner(scope, replaced);
+          if (replaced.scope !== scope.scope) throw s3Error("FORBIDDEN");
+          await access.assertOwner(scope, replaced, target);
         } else {
           scope = await access.scope(context, target);
           if (existing && existing.status !== "deleted") {
             if (existing.scope !== scope.scope) throw s3Error("FORBIDDEN");
             // Purge is cleaning the key up; a retry after it finishes succeeds.
             if (existing.status === "purging") throw s3Error("CONFLICT");
-            if (existing.status === "active") throw s3Error("CONFLICT");
+            if (existing.status === "active") throw s3Error("OBJECT_EXISTS");
           }
         }
         await quota.assert(scope, {
@@ -213,7 +229,7 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
           ...refOf(context),
           scope,
           route: context.route,
-          folder: target.folder,
+          folder: target.folder ?? null,
           filename: context.file.name,
           contentType: context.file.type ?? null,
           declaredSize: context.file.size,
@@ -229,32 +245,34 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
       },
 
       async confirmGuard(context) {
-        await assertUploadRow(context, "confirm", true);
+        await assertUploadRow(context, "confirm", {
+          eTag: context.object.eTag,
+        });
       },
 
       async onConfirmed(context) {
         const ref = refOf(context);
         const row = await objects.find(ref);
-        if (!confirmedBy(row, context.uploadToken)) {
-          const scope = await resolveScope(
-            context,
-            objectTarget(context, "confirm"),
-          );
-          try {
-            await quota.assert(scope, {
-              size: context.object.size,
-              excluding: ref,
-            });
-          } catch (error) {
-            // The server deletes the object; its row goes with it.
-            await objects.discardUpload({
-              ...ref,
-              uploadToken: context.uploadToken,
-            });
-            throw error;
-          }
+        // A replay: the row already describes this object.
+        if (confirmedBy(row, context.uploadToken, context.object.eTag)) return;
+
+        const scope = await resolveScope(
+          context,
+          objectTarget(context, "confirm"),
+        );
+        try {
+          await quota.assert(scope, {
+            size: context.object.size,
+            excluding: ref,
+          });
+        } catch (error) {
+          // The server deletes the object; its row goes with it.
+          await objects.discardUpload({
+            ...ref,
+            uploadToken: context.uploadToken,
+          });
+          throw error;
         }
-        // A replay returns the stored row.
         await objects.markActive({
           ...ref,
           uploadToken: context.uploadToken,
@@ -265,6 +283,15 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
           s3Metadata: context.object.metadata,
           acl: context.acl,
         });
+
+        // The server deletes the previous key next; its row goes first.
+        if (context.previousKey !== undefined) {
+          const previous = { bucket: context.bucket, key: context.previousKey };
+          const old = await objects.find(previous);
+          if (old?.status === "active" && old.scope === scope.scope) {
+            await removeRow(previous);
+          }
+        }
       },
 
       multipart: {
@@ -273,7 +300,9 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
             await assertUploadRow(
               context,
               "multipart",
-              context.action === "complete",
+              // Complete is retried after it finished; the confirm step then
+              // checks the ETag of what it finished.
+              context.action === "complete" ? {} : undefined,
             );
             return;
           }
@@ -282,11 +311,9 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
           // changes only this upload's row, so only that row is checked.
           const row = await objects.find(refOf(context));
           if (!writtenBy(row, context.uploadToken)) return;
-          const scope = await resolveScope(
-            context,
-            objectTarget(context, "multipart"),
-          );
-          await access.assertOwner(scope, row);
+          const target = objectTarget(context, "multipart");
+          const scope = await resolveScope(context, target);
+          await access.assertOwner(scope, row, target);
         },
 
         async onAbort(context) {
@@ -311,18 +338,19 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
 
     delete: {
       async guard(context) {
+        // A deleted row of the caller's scope deletes again, as a no-op.
         await access.object(
           context,
           objectTarget(context, "delete"),
           refOf(context),
+          { allowDeleted: true },
         );
       },
 
       async onDeleted(context) {
-        await abortPendingMultipart(context);
         const ref = refOf(context);
-        if (deleteMode === "hard") await objects.hardDelete(ref);
-        else await objects.softDelete(ref);
+        await abortPendingMultipart(context, await objects.find(ref));
+        await removeRow(ref);
       },
     },
   };

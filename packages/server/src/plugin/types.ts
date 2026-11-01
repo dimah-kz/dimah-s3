@@ -69,7 +69,8 @@ export type DimahS3Plugin<
   dependsOn?: readonly string[];
   /**
    * Runs once at `dimahS3()`, in plugin order, after the routes are
-   * validated. Throw here to reject the config.
+   * validated. Throw here to reject the config. It must be synchronous:
+   * returning a promise throws.
    */
   init?: (env: PluginInitEnv) => void;
   hooks?: DimahS3PluginHooks;

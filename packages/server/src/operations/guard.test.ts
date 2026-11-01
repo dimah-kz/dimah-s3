@@ -42,9 +42,10 @@ describe("guard results", () => {
       ),
       expect.any(ConfigError),
     );
-    expect(onError).toHaveBeenCalledWith(expect.any(ConfigError), {
-      request: expect.any(Request),
-    });
+    expect(onError).toHaveBeenCalledWith(
+      expect.any(ConfigError),
+      expect.objectContaining({ request: expect.any(Request) }),
+    );
   });
 
   it("rejects a boolean guard at the type level", () => {
@@ -179,6 +180,9 @@ describe("runOperation", () => {
         },
       ),
     ).rejects.toMatchObject({ code: "INTERNAL_ERROR", statusCode: 500 });
-    expect(onError).toHaveBeenCalledWith(failure, { request });
+    expect(onError).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({ request }),
+    );
   });
 });

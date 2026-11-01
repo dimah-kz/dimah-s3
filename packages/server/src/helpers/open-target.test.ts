@@ -17,7 +17,7 @@ import {
   openRoute,
   openTicket,
   openUploadTarget,
-} from "./resolve-route";
+} from "./open-target";
 import { issueTicket, type UploadTicketInput } from "./ticket";
 
 const UUID = "11111111-1111-1111-1111-111111111111";
@@ -193,6 +193,53 @@ describe("openUploadTarget", () => {
     expect(object).not.toHaveBeenCalled();
   });
 
+  it("checks the single-upload cap and a required checksum before object()", async () => {
+    const object = vi.fn();
+    const guard = vi.fn();
+    const config = configWith({
+      upload: testUpload({ object, checksum: true, guard: [{ hook: guard }] }),
+    });
+
+    await expect(
+      openUploadTarget(
+        config,
+        guardContext(),
+        { route: "uploads", file: { name: "a.bin", size: 6 * 1024 ** 3 } },
+        "put",
+      ),
+    ).rejects.toMatchObject({ code: "FILE_TOO_LARGE" });
+    await expect(
+      openUploadTarget(
+        config,
+        guardContext(),
+        { route: "uploads", file },
+        "post",
+      ),
+    ).rejects.toMatchObject({ code: "CHECKSUM_REQUIRED" });
+    expect(object).not.toHaveBeenCalled();
+    expect(guard).not.toHaveBeenCalled();
+  });
+
+  it("runs upload.guard last, with the key and the merged metadata", async () => {
+    const guard = vi.fn();
+    const target = await openUploadTarget(
+      configWith({
+        upload: testUpload({
+          object: () => ({ metadata: { source: "app", team: "a" } }),
+          guard: [{ hook: guard }],
+        }),
+      }),
+      guardContext(),
+      { route: "uploads", file, metadata: { team: "b" } },
+      "server",
+    );
+
+    expect(guard).toHaveBeenCalledWith(target.context);
+    expect(target.context.metadata).toEqual({ source: "app", team: "b" });
+    expect(target.s3Metadata).toMatchObject({ source: "app", team: "b" });
+    expect(target.contentType).toBe("image/png");
+  });
+
   it("fails with a config error when the metadata is over 2048 bytes", async () => {
     const object = () => ({ metadata: { big: "x".repeat(2048) } });
     await expect(
@@ -269,6 +316,7 @@ describe("openUploadTarget", () => {
 describe("openTicket", () => {
   const single: UploadTicketInput = {
     mode: "single",
+    kind: "put",
     id: "token-1",
     route: "uploads",
     key: "uploads/abc/a.png",

@@ -1,4 +1,4 @@
-import { S3_MAX_FILE_FIELD_BYTES } from "../schema/shared";
+import { S3_MAX_FILE_FIELD_BYTES } from "@/limits";
 
 /** Longest extension (with its dot) kept when a name is shortened. */
 const MAX_EXTENSION_BYTES = 32;
@@ -7,6 +7,15 @@ const MAX_EXTENSION_BYTES = 32;
 const FALLBACK_FILE_NAME = "file";
 
 const CONTROL_CHARACTERS = /\p{Cc}/gu;
+
+/**
+ * Bidi embedding, override and isolate controls (U+202A to U+202E, U+2066
+ * to U+2069). They can make `x{U+202E}fdp.exe` read as `xexe.pdf`. Other
+ * format characters, such as the joiner in emoji, are kept.
+ */
+export const BIDI_CONTROL = /[\u202A-\u202E\u2066-\u2069]/u;
+
+const BIDI_CONTROLS = new RegExp(BIDI_CONTROL.source, "gu");
 
 const utf8 = new TextEncoder();
 
@@ -50,13 +59,18 @@ function cutToBytes(text: string, maxBytes: number): string {
 }
 
 /**
- * Fit a file name to the wire rule for `name`: control characters removed,
- * trimmed, and at most {@link S3_MAX_FILE_FIELD_BYTES} UTF-8 bytes. A longer
- * name is cut on a character boundary and keeps a short extension. A name
- * that is already valid comes back unchanged; an empty result is `"file"`.
+ * Fit a file name to the wire rule for `name`: lone surrogates replaced,
+ * control and bidi characters removed, trimmed, and at most
+ * {@link S3_MAX_FILE_FIELD_BYTES} UTF-8 bytes. A longer name is cut on a
+ * character boundary and keeps a short extension. A name that is already
+ * valid comes back unchanged; an empty result is `"file"`.
  */
 export function fitFileName(name: string): string {
-  const cleaned = name.replaceAll(CONTROL_CHARACTERS, "").trim();
+  const cleaned = name
+    .toWellFormed()
+    .replaceAll(CONTROL_CHARACTERS, "")
+    .replaceAll(BIDI_CONTROLS, "")
+    .trim();
   if (byteLength(cleaned) <= S3_MAX_FILE_FIELD_BYTES) {
     return cleaned || FALLBACK_FILE_NAME;
   }

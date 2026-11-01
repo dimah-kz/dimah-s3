@@ -55,10 +55,27 @@ export function applyPlugins<
 
   const getPlugin = (id: string) => byId.get(id);
   for (const plugin of plugins) {
-    plugin.init?.(initEnv(plugin.id, config, getPlugin, logger));
+    const result: unknown = plugin.init?.(
+      initEnv(plugin.id, config, getPlugin, logger),
+    );
+    if (isPromiseLike(result)) {
+      // Never leave its rejection unhandled; the throw below reports it.
+      void Promise.resolve(result).catch(() => undefined);
+      throw new Error(
+        `dimahS3: plugin "${plugin.id}" init returned a promise. init runs inside dimahS3(), so it must be synchronous; start async work lazily, in a hook or a context method.`,
+      );
+    }
   }
 
   return { context: context as C, getPlugin, endpoints };
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === "function"
+  );
 }
 
 function registerPlugins(

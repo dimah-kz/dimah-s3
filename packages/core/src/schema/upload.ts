@@ -1,11 +1,11 @@
 import * as z from "zod";
+import { S3_MAX_OBJECT_SIZE } from "@/limits";
 import {
   fileNameSchema,
   metadataSchema,
   optionalChecksumSchema,
   optionalContentTypeSchema,
   routeNameSchema,
-  S3_MAX_OBJECT_SIZE,
   uploadTicketSchema,
 } from "./shared";
 
@@ -27,6 +27,10 @@ export const uploadBodySchema = z.strictObject({
   checksum: optionalChecksumSchema,
 });
 
-export const confirmBodySchema = z.strictObject({
+/**
+ * Body of every call that carries only an upload ticket: confirm, and the
+ * multipart `listParts`, `complete` and `abort`.
+ */
+export const ticketBodySchema = z.strictObject({
   ticket: uploadTicketSchema,
 });

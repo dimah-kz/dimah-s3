@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { S3_ERROR_CODES, isAPIError, type S3ErrorCode } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
+import { isRawAPIError, toClientError } from "@/internal/client-error";
 import { useFormatFileSize, useFormatNumber } from "./format-number";
 
 type ErrorParams = Record<string, unknown>;
@@ -29,8 +30,10 @@ export function useFormatDimahError(): (error: unknown) => string {
   const formatNumber = useFormatNumber();
 
   return useCallback(
-    (error: unknown): string => {
+    (thrown: unknown): string => {
       const unknownError = t("Something went wrong", { note: "API error" });
+      // A raw better-call error keeps its code in `body`: rebuild it first.
+      const error = isRawAPIError(thrown) ? toClientError(thrown) : thrown;
       if (!isAPIError(error)) {
         return error instanceof Error && error.message
           ? error.message
@@ -85,6 +88,10 @@ export function useFormatDimahError(): (error: unknown) => string {
               return t("Deleting is disabled", { note: "API error" });
             case "multipart":
               return t("Large uploads are disabled", { note: "API error" });
+            case "proxy":
+              return t("Streaming downloads are disabled", {
+                note: "API error",
+              });
             default:
               return t("This feature is disabled", { note: "API error" });
           }
@@ -145,8 +152,16 @@ export function useFormatDimahError(): (error: unknown) => string {
         }
         case "MULTIPART_PART_INVALID":
           return t("Upload part is out of range", { note: "API error" });
+        case "OBJECT_EXISTS":
+          return t("A file with this name already exists", {
+            note: "API error",
+          });
         case "FOLDER_INVALID":
           return t("Folder name is invalid", { note: "API error" });
+        case "FOLDER_EXISTS":
+          return t("A folder with this name already exists", {
+            note: "API error",
+          });
         case "FOLDER_NOT_EMPTY":
           return t("Folder is not empty", { note: "API error" });
         case "TOO_MANY_FILES": {

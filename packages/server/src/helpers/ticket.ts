@@ -2,9 +2,9 @@ import {
   base64UrlDecode,
   base64UrlEncode,
   s3Error,
-  s3ObjectAclSchema,
   type S3ObjectAcl,
 } from "@dimah-s3/core";
+import { s3ObjectAclSchema } from "@dimah-s3/core/schema";
 import * as z from "zod";
 import { ConfigError } from "@/helpers/error-boundary";
 import type {
@@ -56,7 +56,11 @@ type TicketBase = {
   expiresAt: Date;
 };
 
-export type SingleTicket = TicketBase & { mode: "single" };
+export type SingleTicket = TicketBase & {
+  mode: "single";
+  /** How the URL was presigned, so confirm reports the kind that was signed. */
+  kind: "post" | "put";
+};
 
 export type MultipartTicket = TicketBase & {
   mode: "multipart";
@@ -93,7 +97,12 @@ const payloadBase = {
 };
 
 const payloadSchema = z.discriminatedUnion("m", [
-  z.strictObject({ ...payloadBase, m: z.literal("single") }),
+  z.strictObject({
+    ...payloadBase,
+    m: z.literal("single"),
+    /** Presign verb: `post` or `put`. */
+    v: z.enum(["post", "put"]),
+  }),
   z.strictObject({
     ...payloadBase,
     m: z.literal("multipart"),
@@ -160,7 +169,7 @@ export async function issueTicket(
           ps: input.partSize,
           pc: input.partCount,
         }
-      : { m: "single" }),
+      : { m: "single", v: input.kind }),
   };
 
   const body = `${VERSION}.${base64UrlEncode(JSON.stringify(payload))}`;
@@ -274,7 +283,7 @@ function fromPayload(payload: TicketPayload): UploadTicket {
         partSize: payload.ps,
         partCount: payload.pc,
       }
-    : { ...base, mode: "single" };
+    : { ...base, mode: "single", kind: payload.v };
 }
 
 async function subjectHash(key: CryptoKey, subject: string): Promise<string> {

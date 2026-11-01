@@ -1,16 +1,15 @@
 import { DEFAULT_INLINE_TYPES } from "@dimah-s3/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { route } from "@/route";
 import { mockS3 } from "@/test/harness";
 import type { DimahS3Config, DimahS3RouteConfig } from "@/types/config";
+import { isEnabled, isFeatureOn } from "./feature-toggle";
 import {
   hookList,
-  isEnabled,
-  isFeatureOn,
   resolveRoutes,
   type ResolveRoutesOptions,
   type RoutePlugin,
-} from "./features";
+} from "./resolve-routes";
 
 const client = mockS3();
 const options: ResolveRoutesOptions = { maxExpiresIn: 604_800 };
@@ -421,13 +420,37 @@ describe("resolveRoutes: identity", () => {
     ).toThrow(/routes "a" and "b" have overlapping keyPrefix/);
   });
 
-  it("allows sibling prefixes and unbound routes", () => {
+  it("allows sibling prefixes", () => {
     expect(() =>
       resolve({
         a: route({ keyPrefix: "media", upload: true }),
         b: route({ keyPrefix: "media-private", upload: true }),
-        c: route({ keyPrefix: false, upload: true }),
       }),
     ).not.toThrow();
+  });
+
+  it("allows one prefix on different buckets", () => {
+    expect(() =>
+      resolve({
+        a: route({ keyPrefix: "media", upload: true }),
+        b: route({ keyPrefix: "media", bucket: "archive", upload: true }),
+      }),
+    ).not.toThrow();
+  });
+
+  it("warns when an unbound route shares a bucket", () => {
+    const warn = vi.fn();
+    expect(() =>
+      resolve(
+        {
+          a: route({ keyPrefix: "media", upload: true }),
+          c: route({ keyPrefix: false, upload: true }),
+          d: route({ keyPrefix: false, bucket: "other", upload: true }),
+        },
+        { logger: { warn } },
+      ),
+    ).not.toThrow();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0][0]).toMatch(/route "c" sets keyPrefix: false/);
   });
 });

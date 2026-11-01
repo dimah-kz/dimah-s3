@@ -52,8 +52,9 @@ must pass your guards, or when the bucket is not reachable from the browser.
 - The URL is relative to the API (`{basePath}/file?…`) unless `baseURL` is
   set. `createS3Client` resolves a root-relative URL against an absolute
   `baseURL`, so a cross-origin API still works.
-- `/file` serves every route that has `download` on. A presign-mode route uses
-  its own inline list there.
+- `/file` serves only routes with `download.mode: "proxy"`. On any other
+  route it returns `404 FEATURE_DISABLED` with `params.feature` set to
+  `"proxy"`, so the server never streams objects a route did not opt in for.
 - There is no `s3.api` method for `/file`. On the server, read the object
   with your `S3Client`.
 
@@ -73,7 +74,8 @@ carries:
 | `Accept-Ranges`                | `bytes`                                                                                          |
 
 A successful response also sends `Content-Type`, `Content-Disposition`,
-`Content-Length`, and `ETag` / `Last-Modified` when S3 reports them.
+`Content-Length`, and `ETag`, `Last-Modified`, `Content-Encoding`, and
+`Content-Language` when S3 reports them.
 
 The object comes from your API origin, so it must never run as a page there.
 The CSP sandboxes it, and `nosniff` stops the browser from guessing another

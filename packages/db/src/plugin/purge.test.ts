@@ -85,7 +85,7 @@ describe("createPurge", () => {
       const { objects, purge, stale } = setup(client);
       await stale("k");
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
       const [head, remove] = commandsOf(send);
       expect(head).toBeInstanceOf(HeadObjectCommand);
       expect(remove).toBeInstanceOf(DeleteObjectCommand);
@@ -104,7 +104,7 @@ describe("createPurge", () => {
       const { objects, purge, stale } = setup(client);
       await stale("k");
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
       expect(commandsOf(send)).toEqual([expect.any(HeadObjectCommand)]);
       await expect(objects.find({ bucket: "b", key: "k" })).resolves.toBeNull();
     });
@@ -126,7 +126,7 @@ describe("createPurge", () => {
         return rows;
       });
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 0 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 0 });
       expect(send).not.toHaveBeenCalled();
       await expect(
         objects.find({ bucket: "b", key: "k" }),
@@ -154,7 +154,7 @@ describe("createPurge", () => {
         return row;
       });
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
       expect(confirm).toHaveBeenCalledTimes(1);
     });
 
@@ -165,7 +165,7 @@ describe("createPurge", () => {
       await stale("active", { status: "active", expiresAt: null });
       await stale("overwriting", { status: "active", expiresAt: inAMinute() });
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 0 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 0 });
       expect(send).not.toHaveBeenCalled();
     });
 
@@ -174,7 +174,7 @@ describe("createPurge", () => {
       const { purge, stale } = setup(client);
       await stale("k", { uploadId: "up-1" });
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
       const [abort, head] = commandsOf(send);
       expect((abort as AbortMultipartUploadCommand).input).toEqual({
         Bucket: "b",
@@ -194,7 +194,7 @@ describe("createPurge", () => {
       const { purge, stale } = setup(client);
       await stale("k", { uploadId: "up-1" });
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
     });
 
     it("skips the delete when the object changed after HeadObject", async () => {
@@ -206,7 +206,7 @@ describe("createPurge", () => {
       const { objects, purge, stale } = setup(client);
       await stale("k");
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
       await expect(objects.find({ bucket: "b", key: "k" })).resolves.toBeNull();
     });
 
@@ -219,7 +219,7 @@ describe("createPurge", () => {
       const { purge, stale } = setup(client);
       await stale("k");
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
       expect(remove).toHaveBeenCalledTimes(2);
       expect(remove.mock.calls[1]?.[0].input).toEqual({
         Bucket: "b",
@@ -232,7 +232,7 @@ describe("createPurge", () => {
       const { objects, purge, logger, stale } = setup(client);
       await stale("k");
 
-      await expect(purge.purgeStale()).resolves.toEqual({ purged: 0 });
+      await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 0 });
       expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining("b/k"),
         expect.any(S3ServiceException),
@@ -265,9 +265,15 @@ describe("createPurge", () => {
 
       await expect(purge.purgeStale({ limit: 2 })).resolves.toEqual({
         purged: 0,
+        failed: 2,
+        skipped: 0,
+        more: true,
       });
       await expect(purge.purgeStale({ limit: 2 })).resolves.toEqual({
         purged: 1,
+        failed: 0,
+        skipped: 0,
+        more: false,
       });
       await expect(
         objects.find({ bucket: "b", key: "fresh" }),
@@ -289,7 +295,7 @@ describe("createPurge", () => {
         const { objects, purge, stale } = setup(client);
         await stale("k", overwrite({ uploadId: "up-1" }));
 
-        await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+        await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
         expect(commandsOf(send)).toEqual([
           expect.any(AbortMultipartUploadCommand),
           expect.any(HeadObjectCommand),
@@ -311,7 +317,7 @@ describe("createPurge", () => {
         const { objects, purge, stale } = setup(client);
         await stale("k", overwrite());
 
-        await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+        await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
         expect(commandsOf(send)).toEqual([
           expect.any(HeadObjectCommand),
           expect.any(DeleteObjectCommand),
@@ -343,7 +349,7 @@ describe("createPurge", () => {
           return row;
         });
 
-        await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+        await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
         expect(confirm).toHaveBeenCalledTimes(1);
         // The S3 marker carries the upload's own token, not the claim's.
         expect(commandsOf(send)).toEqual([
@@ -360,20 +366,24 @@ describe("createPurge", () => {
         const { objects, purge, stale } = setup(client);
         await stale("k", overwrite());
 
-        await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+        await expect(purge.purgeStale()).resolves.toMatchObject({ purged: 1 });
         await expect(
           objects.find({ bucket: "b", key: "k" }),
         ).resolves.toBeNull();
       });
 
-      it("keeps the row of a route without an S3 client", async () => {
+      it("fails, and keeps, the row of a route without an S3 client", async () => {
         const { objects, purge, stale } = setup();
         await stale("k", overwrite());
 
-        await expect(purge.purgeStale()).resolves.toEqual({ purged: 1 });
+        // Dropping the row would leave its object untracked in the bucket.
+        await expect(purge.purgeStale()).resolves.toMatchObject({
+          purged: 0,
+          failed: 1,
+        });
         await expect(
           objects.find({ bucket: "b", key: "k" }),
-        ).resolves.toMatchObject({ status: "active", uploadToken: null });
+        ).resolves.toMatchObject({ status: "active" });
       });
     });
 
@@ -386,9 +396,15 @@ describe("createPurge", () => {
 
       await expect(purge.purgeStale({ limit: 2 })).resolves.toEqual({
         purged: 2,
+        failed: 0,
+        skipped: 0,
+        more: true,
       });
       await expect(purge.purgeStale({ limit: 2 })).resolves.toEqual({
         purged: 1,
+        failed: 0,
+        skipped: 0,
+        more: false,
       });
     });
   });
