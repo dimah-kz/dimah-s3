@@ -25,7 +25,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'v2') &&
       github.event.workflow_run.head_repository.full_name == github.repository)
     timeout-minutes: 20
     permissions:
@@ -46,7 +46,10 @@ jobs:
       # Package builds run in `willPublish` (see scripts/tegami.mts).
       # npm trusted publishing uses OIDC (`id-token: write`) — no NPM_TOKEN.
       # Do not set registry-url / NODE_AUTH_TOKEN here; they block OIDC.
+      # workflow_run keeps GITHUB_REF on the default branch. Pass the branch CI
+      # built so tegami selects `latest` (main) or `beta` (v2).
       - name: Version & publish packages
         run: pnpm tegami ci
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}

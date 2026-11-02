@@ -1,5 +1,6 @@
 import "./global.css";
 import { Body } from "@/app/layout.client";
+import { Banner } from "fumadocs-ui/components/banner";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Geist } from "next/font/google";
 import type { Metadata } from "next";
@@ -80,6 +81,14 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
+        <Banner id="dimah-s3-v2-beta-announce" variant="rainbow">
+          <a href="https://v2.s3.dimah.dev/docs" className="underline">
+            2.0 beta is ready
+          </a>
+          {
+            " — install with @beta. It can include breaking changes until 2.0.0."
+          }
+        </Banner>
         <RootProvider
           theme={{
             enabled: true,
