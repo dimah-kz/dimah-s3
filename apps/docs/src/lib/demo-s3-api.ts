@@ -219,6 +219,6 @@ export const demoS3Api: S3Api & Required<S3ApiUploadTransport> = {
   },
 };
 
-function multipartDisabled(): Promise<never> {
-  return Promise.reject(s3Error("FEATURE_DISABLED", { feature: "multipart" }));
+async function multipartDisabled(): Promise<never> {
+  throw s3Error("FEATURE_DISABLED", { feature: "multipart" });
 }

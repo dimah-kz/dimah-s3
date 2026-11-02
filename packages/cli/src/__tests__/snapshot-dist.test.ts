@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { templateDependencyRange } from "@/snapshot/transform";
 import { cliPkg, distTemplatesRoot } from "./helpers.js";
 
 type Catalog = { templates: Array<{ id: string; title: string }> };
@@ -63,9 +64,8 @@ describe("dist template snapshot", () => {
         .filter(([name]) => name.startsWith("@dimah-s3/"))
         .map(([, range]) => range);
       expect(dimahRanges.length).toBeGreaterThan(0);
-      expect(dimahRanges.every((range) => range === `^${cliPkg.version}`)).toBe(
-        true,
-      );
+      const pinned = templateDependencyRange(cliPkg.version);
+      expect(dimahRanges.every((range) => range === pinned)).toBe(true);
     }
   });
 });

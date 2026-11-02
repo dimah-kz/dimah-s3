@@ -2,6 +2,11 @@
  * Pure transforms used by the template snapshot script and unit tests.
  */
 
+/** Stable CLIs float with a caret. Prerelease CLIs pin the exact version. */
+export function templateDependencyRange(cliVersion: string): string {
+  return cliVersion.includes("-") ? cliVersion : `^${cliVersion}`;
+}
+
 export function transformTemplatePackageJson(
   pkg: Record<string, unknown>,
   options: { cliVersion: string },
@@ -31,11 +36,9 @@ export function transformTemplatePackageJson(
       let resolved = range;
 
       if (name.startsWith("@dimah-s3/")) {
-        // A beta CLI pins the exact version. `^2.0.0-beta.0` would also
-        // accept later breaking betas and, once it exists, stable 2.x.
-        const expected = cliVersion.includes("-")
-          ? cliVersion
-          : `^${cliVersion}`;
+        // A caret on a prerelease would also accept later breaking betas
+        // and, once it exists, stable 2.x.
+        const expected = templateDependencyRange(cliVersion);
         if (resolved !== expected) {
           warnings.push(
             `${field}["${name}"]: "${resolved}" → "${expected}" (aligned to CLI version)`,

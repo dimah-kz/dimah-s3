@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { templateDependencyRange } from "@/snapshot/transform";
 import { CREATE_TIMEOUT_MS, cliPkg, createApp, runCli } from "./helpers.js";
 
 let workDir: string;
@@ -91,9 +92,10 @@ describe("create e2e", () => {
     expect(allRanges.some((r) => r.startsWith("catalog:"))).toBe(false);
     expect(allRanges.some((r) => r.startsWith("workspace:"))).toBe(false);
 
-    expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
-    expect(pkg.dependencies["@dimah-s3/react"]).toBe(`^${cliPkg.version}`);
-    expect(pkg.dependencies["@dimah-s3/ui"]).toBe(`^${cliPkg.version}`);
+    const pinned = templateDependencyRange(cliPkg.version);
+    expect(pkg.dependencies["@dimah-s3/server"]).toBe(pinned);
+    expect(pkg.dependencies["@dimah-s3/react"]).toBe(pinned);
+    expect(pkg.dependencies["@dimah-s3/ui"]).toBe(pinned);
     expect(pkg.dependencies.react).toMatch(/^\d|^[\^~]/);
   });
 });
@@ -148,7 +150,9 @@ describe("create --template vite|hono", () => {
       };
       expect(pkg.name).toBe(dir);
       expect(pkg.dependencies.hono).toBeDefined();
-      expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
+      expect(pkg.dependencies["@dimah-s3/server"]).toBe(
+        templateDependencyRange(cliPkg.version),
+      );
     },
     CREATE_TIMEOUT_MS,
   );
