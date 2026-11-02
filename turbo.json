@@ -11,8 +11,12 @@
     "S3_SECRET_ACCESS_KEY",
     "S3_BUCKET",
     "VERCEL_ENV",
+    "VERCEL_GIT_COMMIT_REF",
     "VERCEL_URL",
     "VERCEL_PROJECT_PRODUCTION_URL",
+    "GITHUB_BASE_REF",
+    "GITHUB_REF_NAME",
+    "RELEASE_BRANCH",
     "npm_config_user_agent"
   ],
   "tasks": {
