@@ -8,7 +8,18 @@ body:
     attributes:
       value: |
         Thanks for reporting a bug. Please include enough detail to reproduce it.
-        Usage questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions) or the [docs](https://s3.dimah.dev/docs).
+        Usage questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions), the [stable docs](https://s3.dimah.dev/docs), or the [2.0 beta docs](https://v2.s3.dimah.dev/docs).
+  - type: dropdown
+    id: line
+    attributes:
+      label: Release line
+      description: 1.x is `npm install` and s3.dimah.dev. 2.0 beta is `@beta` and v2.s3.dimah.dev.
+      options:
+        - 1.x stable
+        - 2.0 beta
+        - Unsure
+    validations:
+      required: true
   - type: dropdown
     id: package
     attributes:
@@ -53,7 +64,7 @@ body:
     id: version
     attributes:
       label: Package version
-      placeholder: "1.5.7"
+      placeholder: "1.7.1 or 2.0.0-beta.3"
   - type: dropdown
     id: provider
     attributes:

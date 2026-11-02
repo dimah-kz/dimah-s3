@@ -7,8 +7,19 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please check the [docs](https://s3.dimah.dev/docs) and existing issues first.
+        Please check the [stable docs](https://s3.dimah.dev/docs), the [2.0 beta docs](https://v2.s3.dimah.dev/docs), and existing issues first.
         Questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions).
+  - type: dropdown
+    id: line
+    attributes:
+      label: Release line
+      description: 2.0 beta work lands on the `v2` branch. 1.x fixes land on `main`.
+      options:
+        - 1.x stable
+        - 2.0 beta
+        - Unsure
+    validations:
+      required: true
   - type: dropdown
     id: package
     attributes:
