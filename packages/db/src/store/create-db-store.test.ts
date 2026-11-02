@@ -1,28 +1,16 @@
-import Database from "better-sqlite3";
-import { kyselyAdapter } from "fumadb/adapters/kysely";
-import { Kysely, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
-import { DimahS3DB } from "@/fuma-db";
 import { memoryDbClient } from "@/test/fakes";
 import { createDbStore } from "./create-db-store";
-
-function sqliteClient() {
-  const db = new Kysely<object>({
-    dialect: new SqliteDialect({ database: new Database(":memory:") }),
-  });
-  return DimahS3DB.client(kyselyAdapter({ db, provider: "sqlite" }));
-}
 
 const ref = { bucket: "b", key: "k" };
 
 describe("createDbStore", () => {
-  it("refuses a 1.x database on the first query", async () => {
-    const client = sqliteClient();
-    await (await client.createMigrator().migrateTo("1.0.0")).execute();
+  it("refuses a database at another schema version", async () => {
+    const client = memoryDbClient({ version: "1.0.0" });
     const store = createDbStore(client);
 
     await expect(store.objects.find(ref)).rejects.toThrow(
-      /schema 1\.0\.0.*needs 2\.0\.0.*sql\/upgrade\/1\.0\.0-2\.0\.0/,
+      /schema 1\.0\.0.*reads 2\.0\.0.*does not upgrade/,
     );
     await expect(store.folders.find("user:1", "a")).rejects.toThrow(
       /schema 1\.0\.0/,
@@ -31,8 +19,12 @@ describe("createDbStore", () => {
   });
 
   it("refuses a database with no schema", async () => {
-    const store = createDbStore(sqliteClient());
-    await expect(store.checkSchema()).rejects.toThrow(/no dimah-s3 schema/);
+    const client = memoryDbClient();
+    vi.spyOn(client, "version").mockRejectedValueOnce(new Error("missing"));
+
+    await expect(createDbStore(client).checkSchema()).rejects.toThrow(
+      /no dimah-s3 schema/,
+    );
   });
 
   it("checks the version once", async () => {
@@ -48,7 +40,10 @@ describe("createDbStore", () => {
 
   it("checks again after a failed check", async () => {
     const client = memoryDbClient();
-    const version = vi.spyOn(client, "version").mockResolvedValueOnce("1.0.0");
+    const version = vi.spyOn(client, "version").mockResolvedValueOnce(
+      // A 1.x database still reports 1.0.0. The client type only names 2.0.0.
+      "1.0.0" as unknown as Awaited<ReturnType<typeof client.version>>,
+    );
     const store = createDbStore(client);
 
     await expect(store.objects.find(ref)).rejects.toThrow(/schema 1\.0\.0/);

@@ -27,7 +27,7 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 import { drizzleAdapter } from "@/adapters/drizzle";
 import { DB_SCHEMA_VERSION, DimahS3DB, type DimahS3DbClient } from "@/fuma-db";
-import { v2, v2Indexes } from "@/schema/v2";
+import { dbSchema, schemaIndexes } from "@/schema/schema";
 import * as mysql from "./mysql";
 import * as pg from "./pg";
 import { DIMAH_S3_SCHEMA_VERSION } from "./shared";
@@ -215,7 +215,7 @@ describe.each(dialects)("drizzle/$name", ({ name, module, configs }) => {
   });
 
   it.each(TABLE_KEYS)("matches the FumaDB definition of %s", (key) => {
-    const definition = v2.tables[key];
+    const definition = dbSchema.tables[key];
     const byKey = (a: { key: string }, b: { key: string }) =>
       a.key.localeCompare(b.key);
     expect(
@@ -249,7 +249,7 @@ describe.each(dialects)("drizzle/$name", ({ name, module, configs }) => {
           unique: true,
           columns: constraint.columns.map((column) => column.names.sql),
         })),
-        ...v2Indexes
+        ...schemaIndexes
           .filter((index) => index.table === definition.names.sql)
           .map((index) => ({
             name: index.name,

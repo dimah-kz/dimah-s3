@@ -17,7 +17,7 @@ Open `/`. Drop files onto the list or onto a folder, or use **Upload files**. **
 
 Browser uploads need bucket CORS that allows `PUT` from your origin.
 
-Coming from the 1.x example: delete `local.db` and run `pnpm db:push` again, or upgrade it in place with `node_modules/@dimah-s3/db/sql/upgrade/1.0.0-2.0.0/sqlite.sql`.
+Coming from the 1.x example: delete `local.db` and run `pnpm db:push` again.
 
 ## What's wired
 

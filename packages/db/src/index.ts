@@ -1,8 +1,7 @@
-// Schema and FumaDB client
+// FumaDB client
 export {
   DB_SCHEMA_VERSION,
   DimahS3DB,
-  v2,
   type DimahS3DbClient,
 } from "./fuma-db";
 

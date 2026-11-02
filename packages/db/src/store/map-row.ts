@@ -5,7 +5,7 @@ import type {
 
 /**
  * A byte count as a driver returns it: a number, a bigint, or a string
- * (PostgreSQL int8). A 1.x SQLite row still holds a blob, read as a bigint.
+ * (PostgreSQL int8).
  */
 type ByteCount = number | bigint | string | null;
 
