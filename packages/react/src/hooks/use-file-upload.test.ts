@@ -279,7 +279,9 @@ describe("useFileUpload", () => {
   it("fails every file with the catalog error", async () => {
     const catalogError = s3Error("NETWORK_ERROR");
     const api = fakeS3Api({
-      catalog: vi.fn(() => Promise.reject(catalogError)),
+      catalog: vi.fn(async () => {
+        throw catalogError;
+      }),
     });
     const onError = vi.fn();
     const onSettled = vi.fn();

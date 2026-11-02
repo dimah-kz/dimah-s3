@@ -470,7 +470,9 @@ describe("useObjectUrl", () => {
 
   it("reports presign errors as APIError and clears the URL", async () => {
     const api = fakeS3Api({
-      download: vi.fn(() => Promise.reject(s3Error("OBJECT_NOT_FOUND"))),
+      download: vi.fn(async () => {
+        throw s3Error("OBJECT_NOT_FOUND");
+      }),
     });
     const { hook } = renderObjectUrl({ api, route: "uploads", objectKey: "a" });
     await advance();
