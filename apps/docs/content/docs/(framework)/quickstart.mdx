@@ -10,7 +10,7 @@ Scaffold a full-stack project with preconfigured S3 routes and UI. `create`
 also writes a generated `DIMAH_S3_SECRET` to `.env`.
 
 ```npm
-npx @dimah-s3/cli@latest create
+npx @dimah-s3/cli@beta create
 ```
 
 ---
@@ -20,7 +20,7 @@ npx @dimah-s3/cli@latest create
 ### Install dependencies [step]
 
 ```npm
-npm i @dimah-s3/server @dimah-s3/core @dimah-s3/react @fuma-translate/react @aws-sdk/client-s3
+npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @aws-sdk/client-s3
 ```
 
 `@dimah-s3/react` needs React 19.2 or later.
@@ -186,7 +186,7 @@ export const S3Provider = s3Client.Provider;
 <Tab value="npm package">
 
 ```npm
-npm i @dimah-s3/ui shadcn
+npm i @dimah-s3/ui@beta shadcn
 ```
 
 <include>../../_includes/ui/index.mdx#styles</include>

@@ -1,3 +1,128 @@
+## @dimah-s3/server@2.0.0-beta.0 (beta)
+
+### Search and sort `db()` object listings
+
+`GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
+
+- `search` keeps rows whose `filename` contains the text. It runs in the database (`LIKE` on SQL), so case follows its collation.
+- `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `filename`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
+- `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
+
+`dbObjectSource(api.db, …)` from `@dimah-s3/db/client` forwards the list's search text and sort, mapping `name` to `filename` and keeping `size` and `updatedAt`, so `ObjectListSearch` and `ObjectListSortMenu` work with `db()`. Sorting by date orders by the row's `updatedAt`, the same value `getFile().updatedAt` returns. New types: `DbListSort`, `DbListSortField`.
+
+### Object list: sources, selection, and composable UI
+
+The file list is rebuilt around three layers you can use apart.
+
+**`useObjectList` (`@dimah-s3/react`)** takes a source: `query` plus `getKey` (required) and `getFile` (name, `objectKey`, `size`, `contentType`, `updatedAt`, `previewUrl`). New on the return: `entries` (folders then files, each with a unique `key`), `sort` / `setSort`, `search` / `setSearch` (sent to the query as `sort` and `search`), `status`, `retry`, `goUp`, `setItems` / `setFolders` / `removeItems` for local edits, and the source's `uploadOptions` and `createFolder`. `refresh()` reloads every page on screen instead of only the first. A new sort or search keeps the rows on screen while it loads; opening a folder clears the search. `sort`, `search`, and `parent` can each be controlled.
+
+**`useObjectListSelection`** is new and headless: `toggle` with Shift ranges, `select`, `selectAll`, `clear`, `single` / `multiple` modes, `isSelectable`, and `persist` to keep files from other folders.
+
+**`memoryObjectSource`** from `@dimah-s3/react/engine` serves records you hold, with folders from a path, search, sort, pages, usage, and `limits`. **`useFormatDate`** formats dates for the `S3Provider` locale.
+
+**`dbObjectSource(api.db, { route, folders })`** from `@dimah-s3/db/client` lists one `db()` folder at a time, forwards the list's search and sort, and gives the list `uploadOptions` and `createFolder`.
+
+**`ObjectList` (`@dimah-s3/ui`)** takes the hook returns — `list`, `selection`, `upload`, `download`, `share`, `delete` — and gains a grid view, search, sort, keyboard navigation (arrows, Space, Backspace), paste-to-upload, a Load more mode, and default file menus. Pass `children` to compose the parts: `ObjectListHeader`, `ObjectListBreadcrumb`, `ObjectListSearch`, `ObjectListSortMenu`, `ObjectListViewToggle`, `ObjectListSelectionBar`, `ObjectListBulkDelete`, `ObjectListUsage`, `ObjectListUploadStatus`, `ObjectListContent`, `ObjectListRow`, `ObjectListTile`, `ObjectListEmpty`, and `useObjectListContext`. Deleting a file drops it from the rows at once, then reloads.
+
+### Breaking changes
+
+- `useObjectList` requires `getKey`. The query input adds `sort` and `search`.
+- `ObjectList` no longer takes `getKey`, `getLabel`, `getDescription`, `getFileName`, `getFileType`, `getPreviewUrl`, or `getObjectKey` — return those from `getFile` on the source. `selectable` and `onSelectionChange` are replaced by `selection={useObjectListSelection(list)}`. `header` is now `toolbar`. `renderItem` / `renderFolder` become `renderEntry`; `renderActions`, `renderMeta`, and `renderFolderActions` become entry-based `renderActions`, `renderMeta`, and `renderDescription`. `emptyTitle` / `emptyDescription` become `empty={<ObjectListEmpty title=… />}`. `list` must be a `useObjectList` return.
+- `ObjectListMenu` is renamed `ObjectListItemMenu`. Inside a list every prop is optional: the list is the `Delete` root, so it owns the confirm dialog.
+- `@dimah-s3/db/client`: `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`. Read a row's file fields with `source.getFile(row)`.
+- `ObjectListView` (the old list-state type) is removed; the name now means the `"list" | "grid"` view.
+
+### Signed upload tickets, a hardened `/file`, and one error boundary
+
+Presign and multipart init return an HMAC-signed upload ticket. Confirm and every later multipart call verify it, so a client can only finish the upload the server started. Set `ticketSubject` (or use `db()`) to bind a ticket to the caller, so a leaked ticket is useless to anyone else.
+
+- **Multipart.** The server picks the part layout from the declared size, signs each part with its exact length, and with `checksum` on, checks a SHA-256 for every part. `complete` lists the parts itself and is safe to retry.
+- **`upload.verifyContent`** reads the first bytes after confirm and rejects a file whose bytes do not match its declared type with `FILE_CONTENT_MISMATCH`. An upload without a type is checked against the type its name gives (`x.png` as `image/png`). It turns on `checksum`, so the bytes cannot change after the check.
+- **Safer confirm.** A rejected confirm deletes the object with `If-Match` on the HeadObject ETag, so a newer upload at the same key is kept (a provider without conditional delete gets a plain delete). Confirm and multipart complete report, and pass to `onConfirmed` and `db()`, the ACL that `upload.object()` chose, not the route default. A retried or concurrent multipart complete that gets `NoSuchUpload` finalizes the object.
+- **Presigned POST** pins the object key with an `eq` condition. A key from `upload.object()` that contains `${filename}` returns `KEY_INVALID`, and a generated key turns `${` in the file name into `_{`.
+- **Empty files.** Presign, multipart init, and `s3.put` reject a zero-byte file with `FILE_EMPTY`.
+- **`deleteMany`** gives each key its own `locals`.
+- **`upload.onStart({ kind, uploadToken, uploadId?, url?, urlExpiresAt?, expiresAt })`** runs for presign, multipart init, and `s3.put`. `kind` is `"post"`, `"put"`, `"multipart"`, or `"server"`.
+- **`/file`** sends `Content-Security-Policy: sandbox`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy`, and `Cache-Control: private, no-cache`. It supports a single `Range`, `ETag`, and `If-None-Match`, `If-Modified-Since`, `If-Match`, `If-Unmodified-Since`, and `If-Range`.
+- **Guards** can return `{ locals }` to pass values to later hooks in the same call. Augment `DimahS3Locals` to type them.
+- **`s3.api`** has the same shape as the browser client and takes `{ headers, request, locals }` as a second argument. `locals` lets trusted server code skip a session lookup.
+- **`s3.put`** accepts a `Blob`, a `ReadableStream`, bytes, or a string, writes `Content-Disposition`, and runs the same hooks as a browser upload.
+- **Node adapters** (`toNodeHandler`, `toExpressHandler`, `toFastifyHandler`) stream request bodies and abort the S3 call when the client disconnects. Pass `{ trustProxy: true }` to honor `X-Forwarded-*`.
+- **New config:** `secret`, `ticketSubject`, `baseURL`, `maxRequestBodySize` (1 MiB by default, counted on the stream for every request with a body), `upload.confirmWindow`, `upload.verifyContent`, `upload.multipart.partSize`, and `upload.multipart.ticketExpiresIn`.
+- **Plugin endpoints** built with `createS3Endpoint` accept `GET`, `POST`, `PATCH`, and `DELETE`. `chainHooks` chains guards that return `{ locals }`.
+
+- **`confirmGuard` sees the verified object.** Its context gains `object` (from HeadObject) and `acl`, so the guard whose rejection deletes the object can check what was really stored. `onConfirmed` gains the declared `file` and the `previousKey` it is about to delete.
+- **Plugin helpers.** `@dimah-s3/server/plugins` exports `readUploadMarker`, `deleteObjectIfMatch`, and `isAwsNotFound`, so a plugin that tracks uploads can remove an object only while it is still the one an upload wrote.
+- **Multipart abort is idempotent,** like delete: an upload that is already gone succeeds and runs `onAbort`. One that was completed fails with `CONFLICT`. The response gains `bucket`.
+- **`onError`** may be async, and its context gains `operation`. A rejection from it is logged instead of crashing the process.
+- **`s3.api` and `s3.put`** take a `signal`, like the browser options.
+- **`/file`** forwards `Content-Encoding` and `Content-Language`, so a gzip object decodes in the browser.
+- **Express** mounts work: `app.use("/api/s3", toExpressHandler(s3))` reads `req.originalUrl`.
+- **Fixes.** A plugin `onConfirmed` that fails for a non-4xx reason, such as a database outage, keeps the uploaded object for the retry instead of deleting it. Confirm reports the `kind` the URL was signed with, carried in the ticket, not the route's current `upload.method`. `NoSuchBucket` is a logged `500`, not `404 OBJECT_NOT_FOUND`. More socket errors are `S3_NETWORK_ERROR`. A backslash in a file name becomes `_` in the generated key. An error from another library that is merely named `APIError` is reported as an unexpected failure, not passed to the client.
+
+### Breaking changes
+
+- **A secret is required for uploads.** Set `DIMAH_S3_SECRET` (`openssl rand -base64 32`, at least 32 characters) or pass `dimahS3({ secret })`. Use the same value on every instance, and pass an array to rotate: the first value signs, all of them verify. Without a secret, uploads return `500` unless `NODE_ENV` is `development` or `test`.
+- **`S3Client` checksums.** A client you pass must set `requestChecksumCalculation: "WHEN_REQUIRED"`. The SDK default breaks presigned uploads, so the first presign logs the problem and returns `500`.
+- **Upload hooks.**
+  - `upload.onPresigned` and `multipart.onInit` are replaced by `upload.onStart`. `multipart.onList` is removed.
+  - Upload contexts use `file: { name, size, type }`. `onConfirmed` gets the verified `object: { name, size, type, eTag, versionId, lastModified, metadata }` plus `uploadToken`.
+  - `onConfirmed` runs at least once per upload. Dedupe on `uploadToken`. Any throw from your `onConfirmed`, including an `APIError`, returns `500` and keeps the object. Reject content in `confirmGuard` instead; a rejection there deletes the object.
+  - Confirm and complete delete the object only on a 4xx rejection. A network error keeps it so the call can be retried.
+- **Hook contexts.** Every context has `operation` and `locals`. `StoredObjectContext` is now `ObjectContext`. Download contexts gain `mode`, `download.onPresigned` gets `disposition`, and proxy downloads have no `expiresIn`. `delete.onDeleted` has no `existed`. In `upload.object`, `folder` is now `keyFolder`.
+- **Guards** return nothing or `{ locals }`. Any other value, such as `true` or `false`, is a config error: it is logged and the call returns `500`. `ticketSubject` sees locals from the instance and route guards only.
+- **Hook order.** Lifecycle `on*` hooks run plugin hooks first, then yours, the same as guards.
+- **Errors.** A plain `Error` thrown from a hook returns `500 INTERNAL_ERROR` and is logged. Throw `s3Error("FORBIDDEN")` or another catalog code to reject. The `errors` export is removed. `onError` is called as `onError(error, { request })`.
+- **Security defaults.**
+  - Downloads open inline only for raster images, PDF (presign mode only), audio, video, and plain text, unless `download.inlineTypes` is set.
+  - Body endpoints, core and plugin, accept `application/json` only and return `415 UNSUPPORTED_MEDIA_TYPE` otherwise.
+  - A presigned PUT signs every header it returns. Custom transports must send `headers` exactly.
+  - Non-ASCII metadata values are RFC 2047-encoded and decoded on read. User metadata is limited to 2 KB in total.
+- **Route numbers.** `upload.expiresIn`, `upload.confirmWindow`, `upload.maxFileSize`, `upload.multipart.partSize`, `upload.multipart.ticketExpiresIn`, and `download.maxExpiresIn` must be positive integers. A fractional value now throws at `dimahS3()`.
+- **Config.** `upload.replace` is now `plugins: { db: { replace: "overwrite" } }` on the route. `download.expiresIn` is now `download.maxExpiresIn`. `upload.method` now defaults to `"PUT"`, which every provider supports, including R2; set `method: "POST"` to keep presigned POST.
+- **`s3.api`** takes the browser payload plus `{ headers, request, locals }`. The aliases `deleteBatch`, `multipart*`, and `file` are removed. Plugin endpoints are HTTP only and no longer appear on `s3.api`.
+- **`s3.put`** takes `{ route, name, type, body, size?, metadata, clientMetadata }`. `fileName` and `contentType` are now `name` and `type`, and `headers` moved to the second argument.
+- **`/file` URLs** are relative to the API base path unless `baseURL` is set.
+- **Removed exports.**
+  - From `@dimah-s3/server`: `putObject`, `PutObjectInput`, `errors`, `ServerErrors`, `MultipartAliasApi`, `ROUTE_FEATURES`, `ROUTE_OPERATIONS`, and the `Resolved*`, `Opened*`, `Enabled*`, and `Disabled*` types.
+  - `ObjectFile` is removed; use `UploadFile` for upload contexts and `VerifiedObject` for the confirmed object. `RouteFeature` and `RouteOperation` are removed; hook contexts carry `operation: S3Operation`.
+  - `UploadOnPresignedContext`, `MultipartOnInitContext`, and `MultipartOnListContext` are replaced by `UploadOnStartContext`.
+  - `definePlugin`, `createS3Endpoint`, `createS3Middleware`, and `isFeatureOn` are exported from `@dimah-s3/server/plugins` only. `chainHooks` stays in the main entry.
+  - `DimahS3Plugin`, `DimahS3PluginHooks`, `PluginContextMap`, `PluginInitEnv`, and `S3EndpointContext` are exported from `@dimah-s3/server/plugins` only.
+  - `@dimah-s3/server/plugins` no longer re-exports the config and hook-context types (`DimahS3Config`, `DimahS3RouteConfig`, `UploadConfig`, `DownloadConfig`, `DeleteConfig`, `MultipartConfig`, `FeatureToggle`, `GuardContext`, `RouteGuardContext`, `UploadObjectInfo`, and the `Upload*`, `Download*`, `Delete*`, and `Multipart*` contexts) or `chainHooks`. Import them from `@dimah-s3/server`.
+  - From `@dimah-s3/server/plugins`: `applyPlugins`, `AppliedPlugins`, `CoreEndpoints`, `ReservedPluginId`, the `*_HOOK_KEYS` arrays, `RESERVED_PLUGIN_IDS`, and `CORE_ENDPOINT_NAMES`.
+  - The `@dimah-s3/server/api` entry is gone.
+- **Plugins.** `DimahS3Plugin` has no endpoint type parameter, and `PluginEndpointMap` is removed. Plugins may provide `hooks.ticketSubject`. Reserved plugin ids are now only the instance keys: `handler`, `api`, `put`, `context`, `getPlugin`, `$ERROR_CODES`, and `$Infer`. The pathless `createS3Endpoint(options, handler)` overload is removed.
+- **`/file` serves proxy-mode routes only.** A route with `download.mode: "presign"` (the default) returns `404 FEATURE_DISABLED` with `feature: "proxy"` there, so the server never streams objects a route did not opt in for.
+- **Plugin `onConfirmed` failures.** Only a rejection (a `4xx` `APIError`) deletes the object. Any other throw keeps it and returns `500`, so the client can retry.
+- **Plugin `init`** must be synchronous. Returning a promise throws at `dimahS3()`.
+- **`download.resolve`** must return `expiresIn` as a positive integer. Anything else is a config error (`500`), not a silent `600`. In proxy mode the resolve and guard contexts have no `expiresIn` key at all.
+- **Upload checks run first.** Presign checks the single-upload cap and a required checksum before `upload.object()` runs, and every upload kind runs `upload.guard` with the final metadata (`s3.put` merges its `metadata` first).
+- **`keyPrefix` overlap** is checked per bucket: routes on different buckets may share a prefix. A `keyPrefix: false` route on a bucket that other routes use logs a warning.
+- **`createS3Endpoint`** throws right away for a core path.
+- **Hook contexts.** `UploadConfirmGuardContext` gains the required `acl` and `object`, and `UploadOnConfirmedContext` the required `file`: code that builds them by hand, such as tests, must add them.
+
+### 2.0.0 beta
+
+`2.0.0-beta` reworks the protocol, the hooks, and the components of every `@dimah-s3/*` package, and moves `db()` to database schema `2.0.0`. This is a beta: later betas can include breaking changes until `2.0.0`. Install the line with the `beta` dist-tag and keep every package on the same beta. The [upgrade guide](https://v2.s3.dimah.dev/docs/migration-2-0) walks through each step, and each package's changelog lists its changes in full.
+
+- **Upload tickets.** Presign and multipart init return a signed ticket, and confirm and every later multipart call send only `{ ticket }`.
+- **One error catalog.** Every error is an `APIError` with a catalog `code`, a `status`, and typed `params`.
+- **Per-key React state.** Hooks keep state per key, a repeated key joins the running call, and every action returns an outcome.
+- **Composable UI.** `Upload*`, `Download*`, and `Delete*` families replace the preset buttons, and toasts come from `UploadToasts`, `DownloadToasts`, and `DeleteToasts`.
+- **Folders in `db()`.** Logical folders, typed `attributes`, prebuilt Drizzle tables, and re-exported adapters.
+
+### Breaking changes
+
+- **Set `DIMAH_S3_SECRET`.** Generate it with `openssl rand -base64 32` and use the same value on every instance, or pass `dimahS3({ secret })`. Without it, uploads return `500` outside `development` and `test`.
+- **Set `requestChecksumCalculation: "WHEN_REQUIRED"`** on the `S3Client` you pass to `dimahS3()`.
+- **Install `@dimah-s3/core`** next to `@dimah-s3/react` and import `APIError`, `S3_ERROR_CODES`, and the protocol helpers from it. Import plain functions such as `uploadFile`, `memoryObjectSource`, and the display formatters `formatFileSize` and `truncateFileName` from `@dimah-s3/react/engine`.
+- **React 19.2** is required by `@dimah-s3/react` and `@dimah-s3/ui`, and `@fuma-translate/react` is a peer to install.
+- **Replace the preset components** (`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, `DeleteButton`) with the families, and mount one toast component per hook plus one `<Toaster />`.
+- **Import schemas from `@dimah-s3/core/schema`.** The root of `@dimah-s3/core` no longer ships Zod, so `uploadBodySchema` and the other schemas moved there.
+- **Proxy downloads need `download.mode: "proxy"`.** `/file` refuses routes in presign mode with `404 FEATURE_DISABLED`.
+- **Upgrade the `db()` schema** with `sql/upgrade/1.0.0-2.0.0/<dialect>.sql` or `migrate(client)` before you deploy, and remove `fumadb` from your app. With Drizzle, upgrade `drizzle-orm` to 1.0.0-rc.5 or later first.
+
 ## @dimah-s3/server@1.7.1
 
 ### Slash trimming stays fast

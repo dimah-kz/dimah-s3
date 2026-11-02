@@ -7,7 +7,7 @@ const withMDX = createMDX();
 /** Old hosts that were indexed. One 308 onto https://s3.dimah.dev. */
 const alternateHosts = ["dimah-s3.vercel.app", "www.s3.dimah.dev"] as const;
 
-/** Docs pages removed in 1.8, mapped onto the page that replaced them. */
+/** Docs pages removed in the 2.0 beta, mapped onto the page that replaced them. */
 const movedPages = {
   "/docs/react/ui/components/upload-button": "/docs/react/ui/components/upload",
   "/docs/react/ui/components/upload-dropzone":
@@ -17,6 +17,7 @@ const movedPages = {
   "/docs/react/ui/components/progress-download-button":
     "/docs/react/ui/components/download",
   "/docs/react/ui/components/delete-button": "/docs/react/ui/components/delete",
+  "/docs/migration-1-8": "/docs/migration-2-0",
 } as const;
 
 type PermanentRedirect = {
@@ -59,7 +60,8 @@ const nextConfig: NextConfig = {
       value: '</llms.txt>; rel="describedby"',
     };
     const previewRobots =
-      process.env.VERCEL_ENV === "preview"
+      process.env.VERCEL_ENV === "preview" &&
+      process.env.VERCEL_GIT_COMMIT_REF !== "v2"
         ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
         : [];
     const corpusRobots = { key: "X-Robots-Tag", value: "noindex" };

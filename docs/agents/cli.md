@@ -39,7 +39,7 @@ A new generated key goes in `GENERATED_ENV_KEYS` with its generator, in every te
 
 ## Snapshot
 
-On CLI `build`, the snapshot script copies each catalog id from `templates/<id>/`, pins `@dimah-s3/*` to the CLI version, and fails on `workspace:`, `catalog:`, or `@workspace/*`. It never copies local env files, and it fails when a template's `.env.example` does not list an empty `DIMAH_S3_SECRET`.
+On CLI `build`, the snapshot script copies each catalog id from `templates/<id>/`, pins `@dimah-s3/*` to `^<cliVersion>` (the exact version when the CLI is a prerelease), and fails on `workspace:`, `catalog:`, or `@workspace/*`. It never copies local env files, and it fails when a template's `.env.example` does not list an empty `DIMAH_S3_SECRET`.
 
 That script is the source of truth for copy/exclude/rewrite rules (including `.gitignore` → `_gitignore`). `tsup` uses `clean: true` on the bin entry, so the snapshot must run **after** tsup or `dist/templates/` is wiped.
 
@@ -51,5 +51,5 @@ Starters live in `templates/` — **not** a workspace member. See [templates/AGE
 
 - New template: folder + `templates/catalog.json`. Add `examples/with-<id>/` only when it should be a monorepo demo.
 - Root scripts `templates:*` / `examples:drift` / `deps:update` are in the repo `package.json`.
-- Templates pin the published line (`^1.8.0`) and list `@dimah-s3/core` next to server, react, and ui. Before a release is on npm, check them with `pnpm templates:build -- --local`, which installs packed workspace packages.
+- Templates list `@dimah-s3/core` next to server, react, and ui. Source ranges are placeholders; the snapshot rewrites them to the CLI version (`^<version>` on `main`, the exact `2.0.0-beta.N` on `v2`). Before a release is on npm, check them with `pnpm templates:build -- --local`, which installs packed workspace packages.
 - Next.js is the example twin (`pnpm examples:drift`). Other starters may have no twin. `examples/with-db` is not a template twin.

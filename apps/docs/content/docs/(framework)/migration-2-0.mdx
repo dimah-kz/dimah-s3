@@ -1,19 +1,23 @@
 ---
-title: Upgrade to 1.8
-description: Move a 1.7 app to the 1.8 protocol, server hooks, React hooks, components, and db schema.
+title: Upgrade to 2.0 beta
+description: Move a 1.7 app onto the 2.0 beta. Betas can include breaking changes until 2.0.0.
 icon: CircleArrowUp
 ---
 
-1.8 changes the wire protocol, the hook contracts, and the components of
-every `@dimah-s3/*` package. Upgrade them together: `@dimah-s3/ui` and
+The 2.0 beta changes the wire protocol, the hook contracts, and the components
+of every `@dimah-s3/*` package. Upgrade them together: `@dimah-s3/ui` and
 `@dimah-s3/db` pin their `@dimah-s3/*` peers to the same version, and a 1.7
-client does not work against a 1.8 server. Each package's changelog lists
-every change; this page covers what most apps need.
+client does not work against a 2.0 beta server.
+
+This line is `2.0.0-beta`. A new beta ships every few days, and it can include
+breaking changes until `2.0.0`. Install with the `beta` dist-tag. `@latest`
+stays on 1.x. Each package's changelog lists every change; this page covers
+what most apps need.
 
 ## Install
 
 ```npm
-npm i @dimah-s3/server@^1.8.0 @dimah-s3/core@^1.8.0 @dimah-s3/react@^1.8.0 @dimah-s3/ui@^1.8.0 @fuma-translate/react
+npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @dimah-s3/ui@beta @fuma-translate/react
 ```
 
 - `@dimah-s3/react` and `@dimah-s3/ui` need React 19.2 or later, as
@@ -21,7 +25,7 @@ npm i @dimah-s3/server@^1.8.0 @dimah-s3/core@^1.8.0 @dimah-s3/react@^1.8.0 @dima
 - `@dimah-s3/core` is now a direct dependency. React no longer re-exports it.
 - `@fuma-translate/react` is a peer dependency of `@dimah-s3/react`. Install
   it yourself.
-- With `db()`, add `@dimah-s3/db@^1.8.0` and follow
+- With `db()`, add `@dimah-s3/db@beta` and follow
   [Database](#database) below.
 
 ---
@@ -128,7 +132,7 @@ guards. `onError` is called as `onError(error, { request })`.
 
 ### Rename the upload hooks
 
-| 1.7                       | 1.8                                       |
+| 1.7                       | 2.0 beta                                  |
 | ------------------------- | ----------------------------------------- |
 | `upload.onPresigned`      | `upload.onStart` (`kind` is `post`/`put`) |
 | `upload.multipart.onInit` | `upload.onStart` (`kind` is `multipart`)  |
@@ -284,7 +288,7 @@ already running joins that call.
 
 ### Rename error helpers
 
-| 1.7                          | 1.8                                     |
+| 1.7                          | 2.0 beta                                |
 | ---------------------------- | --------------------------------------- |
 | `S3UploadError`              | `APIError` with a catalog `code`        |
 | `useFormatValidateFileError` | `useFormatDimahError`                   |
@@ -337,7 +341,7 @@ export function AvatarUploader() {
 }
 ```
 
-| 1.7                                   | 1.8                                                              |
+| 1.7                                   | 2.0 beta                                                         |
 | ------------------------------------- | ---------------------------------------------------------------- |
 | `UploadButton`                        | `<Upload upload><UploadTrigger /><UploadStatus /></Upload>`      |
 | `UploadDropzone upload={...}`         | `<Upload upload><UploadDropzone /></Upload>`                     |
@@ -435,7 +439,7 @@ removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
 `status`, and typed `params`. Read details from `error.params`, not from the
 message.
 
-| 1.7                           | 1.8                                           |
+| 1.7                           | 2.0 beta                                      |
 | ----------------------------- | --------------------------------------------- |
 | `PAYLOAD_TOO_LARGE`           | `FILE_TOO_LARGE` with `{ size, maxFileSize }` |
 | `INVALID_KEY`                 | `KEY_INVALID`                                 |

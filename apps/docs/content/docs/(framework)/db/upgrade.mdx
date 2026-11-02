@@ -3,9 +3,10 @@ title: Upgrade the Schema
 description: Move a 1.x database from schema 1.0.0 to schema 2.0.0.
 ---
 
-`@dimah-s3/db` 1.8 reads and writes schema `2.0.0`. A database still at
-`1.0.0` throws on the first query, so upgrade it when you deploy 1.8. For
-the code changes in every package, see [Upgrade to 1.8](/docs/migration-1-8).
+`@dimah-s3/db` 2.0 beta reads and writes schema `2.0.0`. A database still at
+`1.0.0` throws on the first query, so upgrade it when you deploy the 2.0 beta.
+For the code changes in every package, see
+[Upgrade to 2.0 beta](/docs/migration-2-0).
 
 ## What changes
 
@@ -23,8 +24,8 @@ the code changes in every package, see [Upgrade to 1.8](/docs/migration-1-8).
 ## Before you start
 
 - Back up the database.
-- Upgrade at a quiet time. An upload started on 1.x cannot confirm on 1.8,
-  because 1.8 confirms with an upload ticket.
+- Upgrade at a quiet time. An upload started on 1.x cannot confirm on the
+  2.0 beta, because the 2.0 beta confirms with an upload ticket.
 - Do not let an ORM diff tool (`drizzle-kit`, `prisma migrate`) write this
   upgrade. It can drop `metadata` instead of renaming it, and it cannot
   fill in `filename`.
@@ -128,7 +129,7 @@ you need the space.
 
 ## Code changes
 
-| 1.x                                                    | 1.8                                                                          |
+| 1.x                                                    | 2.0 beta                                                                     |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `fumadb/adapters/*`                                    | `@dimah-s3/db/adapters/*`                                                    |
 | `resolveScope(request, context)`                       | `resolveScope({ request, locals, session, operation, … })` with `getSession` |

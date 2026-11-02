@@ -41,7 +41,7 @@ pnpm --filter @dimah-s3/core check-types
 
 ## Contribution workflow
 
-1. Fork the repository and create a branch from `main`.
+1. Fork the repository and create a branch from `v2` for 2.0 beta work. Fixes for stable 1.x branch from `main`.
 2. Make your changes with focused commits.
 3. Add or update tests/docs where needed.
 4. Add a Tegami changelog for user-facing package changes.

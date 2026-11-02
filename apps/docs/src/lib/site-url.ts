@@ -1,8 +1,16 @@
 /** Canonical production origin. Preview deploys still use VERCEL_URL. */
 export const PRODUCTION_SITE_ORIGIN = "https://s3.dimah.dev";
 
+/** Public docs for the 2.0 beta, deployed from the `v2` branch. */
+export const BETA_SITE_ORIGIN = "https://v2.s3.dimah.dev";
+
 export function isProductionDeploy(): boolean {
   return process.env.VERCEL_ENV === "production";
+}
+
+/** Vercel sets this on both Production and Preview builds of the `v2` branch. */
+export function isV2BetaDeploy(): boolean {
+  return process.env.VERCEL_GIT_COMMIT_REF === "v2";
 }
 
 /**
@@ -17,6 +25,11 @@ export function isProductionDeploy(): boolean {
  * 3. http://localhost:3000 — local dev
  */
 export function getSiteUrl(): URL {
+  // The beta site is public even when its Vercel environment is Preview.
+  if (isV2BetaDeploy()) {
+    return new URL(BETA_SITE_ORIGIN);
+  }
+
   if (isProductionDeploy()) {
     return new URL(PRODUCTION_SITE_ORIGIN);
   }

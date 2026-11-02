@@ -1,6 +1,13 @@
 ---
 packages:
-  group:dimah-s3: minor
+  group:dimah-s3:
+    replay:
+      - exit-prerelease(npm:@dimah-s3/cli)
+      - exit-prerelease(npm:@dimah-s3/core)
+      - exit-prerelease(npm:@dimah-s3/server)
+      - exit-prerelease(npm:@dimah-s3/react)
+      - exit-prerelease(npm:@dimah-s3/db)
+      - exit-prerelease(npm:@dimah-s3/ui)
 ---
 
 ### Object list: sources, selection, and composable UI

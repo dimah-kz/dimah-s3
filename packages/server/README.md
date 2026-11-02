@@ -1,16 +1,18 @@
 # @dimah-s3/server
 
+**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x, and betas can include breaking changes until 2.0.0.
+
 Presigned S3 upload, download, and delete handlers with route policies,
 guards, and lifecycle hooks. One instance gives you an HTTP `handler`, an
 in-process `api`, and `put` for server-side uploads.
 
-Full documentation: [s3.dimah.dev/docs/server](https://s3.dimah.dev/docs/server) ·
-[llms.txt](https://s3.dimah.dev/llms.txt)
+Full documentation: [v2.s3.dimah.dev/docs/server](https://v2.s3.dimah.dev/docs/server) ·
+[llms.txt](https://v2.s3.dimah.dev/llms.txt)
 
 ## Install
 
 ```bash
-pnpm add @dimah-s3/server @aws-sdk/client-s3
+pnpm add @dimah-s3/server@beta @aws-sdk/client-s3
 ```
 
 Set the upload ticket secret, at least 32 characters and the same on every
@@ -62,7 +64,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 // Any Fetch runtime: s3.handler(request)
 ```
 
-See [Server Setup](https://s3.dimah.dev/docs/server/setup) for every adapter.
+See [Server Setup](https://v2.s3.dimah.dev/docs/server/setup) for every adapter.
 
 ## Guards and hooks
 
@@ -107,7 +109,7 @@ Optional persistence: add `db()` from [`@dimah-s3/db`](../db) to `plugins`.
 
 ## Upgrading from 1.7
 
-See [Upgrade to 1.8](https://s3.dimah.dev/docs/migration-1-8).
+See [Upgrade to 2.0 beta](https://v2.s3.dimah.dev/docs/migration-2-0).
 
 ## License
 

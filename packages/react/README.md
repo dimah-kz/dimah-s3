@@ -1,14 +1,16 @@
 # @dimah-s3/react
 
+**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x, and betas can include breaking changes until 2.0.0.
+
 Headless React hooks for S3 upload, download, and delete flows.
 
-Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) ·
-[llms.txt](https://s3.dimah.dev/llms.txt)
+Full documentation: [v2.s3.dimah.dev/docs/react](https://v2.s3.dimah.dev/docs/react) ·
+[llms.txt](https://v2.s3.dimah.dev/llms.txt)
 
 ## Install
 
 ```bash
-pnpm add @dimah-s3/react @dimah-s3/core @fuma-translate/react
+pnpm add @dimah-s3/react@beta @dimah-s3/core@beta @fuma-translate/react
 ```
 
 Requires React 19.2.
@@ -66,7 +68,7 @@ export function AvatarPicker() {
 - `APIError`, `S3_ERROR_CODES`, and the other protocol helpers come from
   `@dimah-s3/core`.
 
-For prebuilt components, see [`@dimah-s3/ui`](https://s3.dimah.dev/docs/react/ui).
+For prebuilt components, see [`@dimah-s3/ui`](https://v2.s3.dimah.dev/docs/react/ui).
 
 ## License
 

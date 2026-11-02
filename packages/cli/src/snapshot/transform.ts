@@ -31,7 +31,11 @@ export function transformTemplatePackageJson(
       let resolved = range;
 
       if (name.startsWith("@dimah-s3/")) {
-        const expected = `^${cliVersion}`;
+        // A beta CLI pins the exact version. `^2.0.0-beta.0` would also
+        // accept later breaking betas and, once it exists, stable 2.x.
+        const expected = cliVersion.includes("-")
+          ? cliVersion
+          : `^${cliVersion}`;
         if (resolved !== expected) {
           warnings.push(
             `${field}["${name}"]: "${resolved}" → "${expected}" (aligned to CLI version)`,

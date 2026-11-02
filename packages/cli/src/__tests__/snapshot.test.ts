@@ -86,4 +86,18 @@ describe("transformTemplatePackageJson", () => {
     expect(peers?.["@dimah-s3/server"]).toBe("^0.5.0");
     expect(optionals?.["@dimah-s3/db"]).toBe("^0.5.0");
   });
+
+  it("pins a prerelease CLI to the exact version", () => {
+    const { pkg } = transformTemplatePackageJson(
+      {
+        dependencies: {
+          "@dimah-s3/server": "^1.7.1",
+        },
+      },
+      { cliVersion: "2.0.0-beta.0" },
+    );
+
+    const dependencies = pkg.dependencies as Record<string, string> | undefined;
+    expect(dependencies?.["@dimah-s3/server"]).toBe("2.0.0-beta.0");
+  });
 });

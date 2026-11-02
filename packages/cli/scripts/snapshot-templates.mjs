@@ -1,7 +1,8 @@
 /**
  * Snapshot `templates/<id>/` into `dist/templates/<id>/` for the published CLI.
  *
- * Pins `@dimah-s3/*` to `^<cliVersion>`, renames `.gitignore` → `_gitignore`,
+ * Pins `@dimah-s3/*` to `^<cliVersion>` (exact version on a prerelease),
+ * renames `.gitignore` → `_gitignore`,
  * fails on workspace/catalog leaks. Local env files (`.env`, `.env.local`, …)
  * are never copied, and `.env.example` must list an empty `DIMAH_S3_SECRET`.
  */

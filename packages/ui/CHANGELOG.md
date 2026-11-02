@@ -1,3 +1,124 @@
+## @dimah-s3/ui@2.0.0-beta.0 (beta)
+
+### Search and sort `db()` object listings
+
+`GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
+
+- `search` keeps rows whose `filename` contains the text. It runs in the database (`LIKE` on SQL), so case follows its collation.
+- `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `filename`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
+- `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
+
+`dbObjectSource(api.db, …)` from `@dimah-s3/db/client` forwards the list's search text and sort, mapping `name` to `filename` and keeping `size` and `updatedAt`, so `ObjectListSearch` and `ObjectListSortMenu` work with `db()`. Sorting by date orders by the row's `updatedAt`, the same value `getFile().updatedAt` returns. New types: `DbListSort`, `DbListSortField`.
+
+### Object list: sources, selection, and composable UI
+
+The file list is rebuilt around three layers you can use apart.
+
+**`useObjectList` (`@dimah-s3/react`)** takes a source: `query` plus `getKey` (required) and `getFile` (name, `objectKey`, `size`, `contentType`, `updatedAt`, `previewUrl`). New on the return: `entries` (folders then files, each with a unique `key`), `sort` / `setSort`, `search` / `setSearch` (sent to the query as `sort` and `search`), `status`, `retry`, `goUp`, `setItems` / `setFolders` / `removeItems` for local edits, and the source's `uploadOptions` and `createFolder`. `refresh()` reloads every page on screen instead of only the first. A new sort or search keeps the rows on screen while it loads; opening a folder clears the search. `sort`, `search`, and `parent` can each be controlled.
+
+**`useObjectListSelection`** is new and headless: `toggle` with Shift ranges, `select`, `selectAll`, `clear`, `single` / `multiple` modes, `isSelectable`, and `persist` to keep files from other folders.
+
+**`memoryObjectSource`** from `@dimah-s3/react/engine` serves records you hold, with folders from a path, search, sort, pages, usage, and `limits`. **`useFormatDate`** formats dates for the `S3Provider` locale.
+
+**`dbObjectSource(api.db, { route, folders })`** from `@dimah-s3/db/client` lists one `db()` folder at a time, forwards the list's search and sort, and gives the list `uploadOptions` and `createFolder`.
+
+**`ObjectList` (`@dimah-s3/ui`)** takes the hook returns — `list`, `selection`, `upload`, `download`, `share`, `delete` — and gains a grid view, search, sort, keyboard navigation (arrows, Space, Backspace), paste-to-upload, a Load more mode, and default file menus. Pass `children` to compose the parts: `ObjectListHeader`, `ObjectListBreadcrumb`, `ObjectListSearch`, `ObjectListSortMenu`, `ObjectListViewToggle`, `ObjectListSelectionBar`, `ObjectListBulkDelete`, `ObjectListUsage`, `ObjectListUploadStatus`, `ObjectListContent`, `ObjectListRow`, `ObjectListTile`, `ObjectListEmpty`, and `useObjectListContext`. Deleting a file drops it from the rows at once, then reloads.
+
+### Breaking changes
+
+- `useObjectList` requires `getKey`. The query input adds `sort` and `search`.
+- `ObjectList` no longer takes `getKey`, `getLabel`, `getDescription`, `getFileName`, `getFileType`, `getPreviewUrl`, or `getObjectKey` — return those from `getFile` on the source. `selectable` and `onSelectionChange` are replaced by `selection={useObjectListSelection(list)}`. `header` is now `toolbar`. `renderItem` / `renderFolder` become `renderEntry`; `renderActions`, `renderMeta`, and `renderFolderActions` become entry-based `renderActions`, `renderMeta`, and `renderDescription`. `emptyTitle` / `emptyDescription` become `empty={<ObjectListEmpty title=… />}`. `list` must be a `useObjectList` return.
+- `ObjectListMenu` is renamed `ObjectListItemMenu`. Inside a list every prop is optional: the list is the `Delete` root, so it owns the confirm dialog.
+- `@dimah-s3/db/client`: `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`. Read a row's file fields with `source.getFile(row)`.
+- `ObjectListView` (the old list-state type) is removed; the name now means the `"list" | "grid"` view.
+
+### Composable upload, download, and delete families
+
+Each control is now a root plus parts. The root takes the hook return and its parts read it from context, so you place triggers, dropzones, status, and dialogs where your layout needs them.
+
+- **Upload:** `Upload`, `UploadTrigger`, `UploadDropzone`, `UploadDropzoneTrigger`, `UploadStatus`, `UploadFileList`, `UploadFileItem`, and `UploadToasts`.
+- **Download:** `Download`, `DownloadTrigger`, `DownloadProgress`, and `DownloadToasts`.
+- **Delete:** `Delete`, `DeleteTrigger`, `DeleteConfirmDialog`, and `DeleteToasts`. The `Delete` root owns one confirm dialog, keeps it open until the delete settles, and returns focus when it closes. `request(targets, { note, trigger })` sets where focus goes back.
+- **Progress inside the dropzone.** `UploadDropzone` is the drop area, and by default it renders an `UploadDropzoneTrigger` with the `UploadStatus` under it, inside the dashed border. Files dropped anywhere on it upload, also over the status. `UploadDropzoneTrigger` is the button that opens the picker: its default content is an icon, a title that follows the drag ("Drop to upload", or "These files cannot be uploaded"), and the route's limits. Pass `children` to the dropzone to arrange the trigger and the status yourself, or to keep the status outside it. The dropzone sets `data-drag-active`, `data-drag-reject`, and `data-disabled`.
+- **`ObjectCard`.** One stored object as a card, with download and delete actions for the hooks you pass, the progress of its fetch download, and a deleting state. It is also the registry item `object-card`.
+- **One card for several files.** `UploadStatus` shows several files as one card: a summary with the overall progress ring, the count, and the time left (or the result with its total size), then a row for each file, scrolling past 20rem. A finished summary shows a green check.
+- **No duplicates in `UploadField`.** A file leaves the field's status once it uploads and shows only in `UploadFieldValue`, which now has a thumbnail for images. `Upload` gains `hideUploaded`, which the field sets, and `UploadFieldItem` gains `file`.
+- **Object list header.** `ObjectListHeader` lays out by its own width. The path keeps room for itself and its controls move to a second row, aligned to the end, when they do not fit beside it. `ObjectListBreadcrumb` shortens to fit (`Files › … › Parent › Current`, then `Files › … › Current`, then `… › Current`), and its "Folders above" menu lists every folder above the open one. Under 36rem, New folder, Sort, bulk Delete, and the default `UploadTrigger` show their icons alone. `ObjectListSearch` is a search button in the header that opens a field across the whole bar; Escape clears it, then closes it, and `collapsible={false}` keeps the field in the bar.
+- **Grid layout.** `UploadStatus` and `UploadFileList` take `layout="grid"`, which shows the files as tiles with the preview above the name. A grid status keeps the summary, with its dismiss action, also for one file.
+- **More for your own parts.** `useUploadHints(policy)` returns the route's limits as the text the dropzone shows. `AvatarUpload` gains `shape` (`circle` or `square`) and `className`. An icon-size `DownloadTrigger` shows only the cancel icon while a fetch download runs. `UploadTrigger`, `DownloadTrigger`, and `DownloadProgress` set their own `data-slot`, `UploadStatus` sets `data-phase`, and `UploadFileList` sets `data-layout`.
+- **New components:** `UploadField` and `UploadFieldValue` hold a list of uploaded keys as a form value. `AvatarUpload` previews, uploads, and announces an avatar. `ObjectImage` shows an object from `useObjectUrl` with a fallback. All three are also registry items: `upload-field`, `avatar-upload`, and `object-image`.
+- **Toast ownership.** One toast component reports each hook. A second owner for the same hook renders nothing and warns in development. `useToastOwner` is exported for custom toast components.
+- **Theming.** Override the `--dimah-s3-*` tokens on `:root` or on any container. The tokens are unset by default and resolve to the matching shadcn variable where they are used, so a nested `.dark` or theme class reaches the components. Registry items emit only the `--dimah-s3-{success,warning}-default` colors, in light and dark.
+- **Full fields and queued files.** A full `UploadField` keeps its trigger and dropzone focusable and `aria-disabled`. `Upload` gains an `isFull` prop, and `UploadContextValue` an `isFull` field. An uncontrolled `UploadField` restores `defaultValue` when its form resets, including after a React 19 `<form action>`. Queued files show a per-file cancel in `UploadStatus`, `UploadFileList`, and `FileAttachment` (state `idle`).
+- **`ObjectList`** is also the `Upload`, `Download`, and `Delete` root for the hooks you pass, so the family triggers work inside it. Files upload into the open folder, onto folder rows, and through `UploadTrigger` and `UploadDropzone` inside the list whenever the source has `uploadOptions`. `NewFolderControl` shows when the source has `createFolder`, and the item menu gains "Upload to this folder". Copy link and delete results go to a polite live region when `toasts={false}`. The drop overlay follows only drags over the list, and a folder row announces "Drop to upload into {name}" while a drag is over it.
+- **Accessibility.** `UploadDropzone` is a labelled button with its hints in `aria-describedby`. `CircleProgress` is a named progress bar. Cancel and dismiss buttons name their file, the multi-file summary has "Cancel all uploads", and a fetch `DownloadTrigger` says "Cancel download of {name}". Focus moves to the next control after cancel, dismiss, or remove.
+- **`upload.disabled`.** Every part follows the hook's `disabled` option. `UploadTrigger` defaults its `disabled` to it (an explicit prop replaces it), `AvatarUpload` and the item menu's "Upload to this folder" disable, `usePasteFiles` stops listening, and `ObjectList` ignores drops and pastes. A full `UploadDropzone` leads its description with "Maximum files reached.".
+- **Retry.** A failed file in `UploadStatus` and `UploadFileList` has a retry action through `upload.retry(id)`. It is the same button as the file's cancel action, so focus stays on it as the file goes back in flight. The multi-file summary has "Retry failed uploads", and a failure toast from `UploadToasts` has a Retry action. `FileAttachment` gains `onRetry`. In an `UploadField`, a retry takes only the failed files that still fit.
+- **`FileName`.** A file name that fits the width it has: the stem ends in an ellipsis and the extension stays visible, and `title` holds the whole name. `FileAttachment` titles, object list rows, and the download and delete toasts use it, so a long name keeps its extension in a narrow card or tile.
+- **Accepted types.** The dropzone's "Accepted …" line translates groups such as `image/*` (`"Images(file type group)"`), and reads a Word or Excel MIME type as `DOCX` or `XLSX`.
+- `UploadField` `value` and `defaultValue` take readonly arrays.
+- **New exports:** `ObjectCard`, `UploadDropzoneTrigger`, `useUploadHints`, the `UploadFileListLayout` type, `CircleProgress`, `FileName`, `FileTypeGlyph`, `FolderGlyph`, `DismissAttachmentAction`, `AttachmentGroup`, `AttachmentAction`, `AttachmentTrigger`, `NewFolderControl`, `usePasteFiles`, `useToastOwner`, and the `ObjectListFeedback` type. `ObjectListContextValue` gains `toasts` and `announce`.
+
+- The New folder field reports `FOLDER_EXISTS` as "A folder with this name already exists".
+
+### Breaking changes
+
+- **Peers.** `@dimah-s3/core` and `@dimah-s3/react` are both peer dependencies, pinned to the same version as `@dimah-s3/ui`. Install them together with `@fuma-translate/react`. The React peer is `react >=19.2`.
+- **File names** render as `FileName`: the stem and the extension are two elements, and the whole name is in `title`. A test that finds a name with `getByText("report.pdf")` finds it with `getByTitle("report.pdf")`. `FileAttachment` no longer cuts long names to 48 characters; they fit the card instead.
+- **Upload components.**
+  - `UploadButton` is removed. Use `<Upload upload={upload}><UploadTrigger /><UploadStatus /></Upload>`.
+  - `UploadDropzone` must sit inside `Upload`. It no longer disables while files upload; new files append or replace according to the hook's `queue` option.
+  - `UploadDropzone` props go to the drop area. The button inside it is `UploadDropzoneTrigger`: put `aria-label` and `aria-describedby` for the button there. `children` of the dropzone replace both the trigger and the status, so custom text goes in `<UploadDropzoneTrigger>`. `status={false}` becomes `<UploadDropzone><UploadDropzoneTrigger /></UploadDropzone>`.
+  - `MultiUploadStatus` is merged into `UploadStatus`. `UploadFileStatus` is now `UploadFileItem`, used alone or through `UploadFileList`.
+- **Download components.** `DownloadButton` and `ProgressDownloadButton` are removed. Use `<Download download={download}><DownloadTrigger objectKey={key} /></Download>`. `DownloadProgress` shows the progress of a `useFetchDownload` call.
+- **Delete components.** `DeleteButton` is removed. Use `<Delete delete={del}><DeleteTrigger objectKey={key} /></Delete>`. `confirmTitle` and `confirmDescription` become `<Delete dialog={<DeleteConfirmDialog title={...} description={...} />}>`.
+- **Toasts.** Components no longer toast on their own, and their `toast` props are removed. Mount `UploadToasts`, `DownloadToasts`, or `DeleteToasts` once per hook, plus one `<Toaster />`.
+- **Props.**
+  - `status`, `StatusSlot`, `resolveStatusSlot`, `attachmentSize`, `attachmentOrientation`, and `displayName` are removed.
+  - `FileAttachment` drops `size`, `orientation`, and `onPause`; size it with `className`. Its `fileType` prop is now `contentType`, the same as on `FileTypeGlyph`.
+  - `CircleProgress` takes `{ percent, fileName?, label?, strokeWidth?, className? }`: `label` names the ring, else `fileName` does.
+  - Control props are plain `Button` props on the trigger. `buttonClassName`, `fillClassName`, and `cancelTooltipText` are removed. Tooltips are opt-in through `tooltip`.
+  - `ObjectImage` requires `alt`, and `AvatarUpload` requires `label`.
+- **Copy.** "All {count} file(s) uploaded" is now "All {count} files uploaded" ("Upload complete" for one file), and the toast "{count} file(s) uploaded" is now "{count} files uploaded". The multi-file summary reads "{done} of {total} files uploaded" in place of "{done}/{total} files". Rename those keys in your translations.
+- **Removed hooks:** `useUploadToast`, `useDownloadToast`, `useDeleteToast`, `useFileRejectToast`, `useUploadUi`, `useDownloadUi`, and `useDeleteUi`.
+- **Removed types:** `AttachmentSize`, `AttachmentOrientation`, `AttachmentLayoutProps`, `AttachmentLayoutAliases`, `ObjectListDeleteResult` (use react's `DeleteResult`), and `ObjectListUsageLimits`.
+- **Theming.** Override `--dimah-s3-*` instead of `--color-dimah-s3-*`. The `secondary`, `secondary-foreground`, and `accent-foreground` tokens are removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged.
+- **`ObjectList`.**
+  - It mounts built-in toasts that step aside for your own `UploadToasts`, `DownloadToasts`, or `DeleteToasts`. `toasts={false}` turns them off.
+  - `usageLimits` is removed; limits come from the source's `usage`. `ObjectListUsage` no longer takes `limits`.
+  - The context field `remove` is now `delete`, and `afterDelete` and `usageLimits` are gone. `onDeleted` receives react's `DeleteResult`.
+  - `ObjectListItemMenu` no longer takes `download`, `delete`, or `onDeleted`.
+  - `download` accepts either download hook. `share` must be a `useDownload` return.
+  - The list frame is a drop target, not a dropzone, so clicking it no longer opens the file picker, and `noClick` / `noKeyboard` are no longer needed on the list's `useUpload`.
+  - A bulk delete deselects the deleted files instead of clearing the whole selection.
+- **Registry.** The items `upload-button`, `upload-dropzone`, `download-button`, `progress-download-button`, and `delete-button` are replaced by `upload`, `download`, and `delete`. The registry no longer maps `--color-dimah-s3-secondary*` or `--color-dimah-s3-accent-foreground`. Every item that shows a file name ships `components/dimah-s3/attachment/file-name.tsx`.
+- `ObjectListHeader` reads a taken folder name from `FOLDER_EXISTS`, not `CONFLICT`. A custom `createFolder` that throws `CONFLICT` for a taken name should throw `FOLDER_EXISTS`.
+
+### 2.0.0 beta
+
+`2.0.0-beta` reworks the protocol, the hooks, and the components of every `@dimah-s3/*` package, and moves `db()` to database schema `2.0.0`. This is a beta: later betas can include breaking changes until `2.0.0`. Install the line with the `beta` dist-tag and keep every package on the same beta. The [upgrade guide](https://v2.s3.dimah.dev/docs/migration-2-0) walks through each step, and each package's changelog lists its changes in full.
+
+- **Upload tickets.** Presign and multipart init return a signed ticket, and confirm and every later multipart call send only `{ ticket }`.
+- **One error catalog.** Every error is an `APIError` with a catalog `code`, a `status`, and typed `params`.
+- **Per-key React state.** Hooks keep state per key, a repeated key joins the running call, and every action returns an outcome.
+- **Composable UI.** `Upload*`, `Download*`, and `Delete*` families replace the preset buttons, and toasts come from `UploadToasts`, `DownloadToasts`, and `DeleteToasts`.
+- **Folders in `db()`.** Logical folders, typed `attributes`, prebuilt Drizzle tables, and re-exported adapters.
+
+### Breaking changes
+
+- **Set `DIMAH_S3_SECRET`.** Generate it with `openssl rand -base64 32` and use the same value on every instance, or pass `dimahS3({ secret })`. Without it, uploads return `500` outside `development` and `test`.
+- **Set `requestChecksumCalculation: "WHEN_REQUIRED"`** on the `S3Client` you pass to `dimahS3()`.
+- **Install `@dimah-s3/core`** next to `@dimah-s3/react` and import `APIError`, `S3_ERROR_CODES`, and the protocol helpers from it. Import plain functions such as `uploadFile`, `memoryObjectSource`, and the display formatters `formatFileSize` and `truncateFileName` from `@dimah-s3/react/engine`.
+- **React 19.2** is required by `@dimah-s3/react` and `@dimah-s3/ui`, and `@fuma-translate/react` is a peer to install.
+- **Replace the preset components** (`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, `DeleteButton`) with the families, and mount one toast component per hook plus one `<Toaster />`.
+- **Import schemas from `@dimah-s3/core/schema`.** The root of `@dimah-s3/core` no longer ships Zod, so `uploadBodySchema` and the other schemas moved there.
+- **Proxy downloads need `download.mode: "proxy"`.** `/file` refuses routes in presign mode with `404 FEATURE_DISABLED`.
+- **Upgrade the `db()` schema** with `sql/upgrade/1.0.0-2.0.0/<dialect>.sql` or `migrate(client)` before you deploy, and remove `fumadb` from your app. With Drizzle, upgrade `drizzle-orm` to 1.0.0-rc.5 or later first.
+
+### New folder takes the object list header
+
+In `ObjectListHeader`, New folder opens its name field across the whole bar. The path and the other controls hide until the folder is created, or until Cancel or Escape closes the field.
+
 ## @dimah-s3/ui@1.7.1
 
 ### Slash trimming stays fast

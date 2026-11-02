@@ -1,14 +1,14 @@
 # dimah-s3 — Next.js template
 
-Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https://s3.dimah.dev): presign API route, `S3Provider`, and an upload trigger with toasts.
+Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https://v2.s3.dimah.dev): presign API route, `S3Provider`, and an upload trigger with toasts.
 
 ## Create
 
 ```bash
-npx @dimah-s3/cli@latest create my-app
+npx @dimah-s3/cli@beta create my-app
 ```
 
-`cd my-app`, fill `S3_*` in `.env`. `create` writes a generated `DIMAH_S3_SECRET` there too (otherwise use `openssl rand -base64 32`). For browser uploads, configure bucket CORS — see [Providers](https://s3.dimah.dev/docs/providers).
+`cd my-app`, fill `S3_*` in `.env`. `create` writes a generated `DIMAH_S3_SECRET` there too (otherwise use `openssl rand -base64 32`). For browser uploads, configure bucket CORS — see [Providers](https://v2.s3.dimah.dev/docs/providers).
 
 `next build` loads `src/lib/s3.ts`, and `dimahS3()` needs a bucket, so set `S3_BUCKET` (any non-empty value) wherever you build, even if the real values are only injected at runtime.
 
@@ -22,7 +22,7 @@ npx @dimah-s3/cli@latest create my-app
 | `src/app/layout.tsx`              | `S3Provider` + `Toaster`                              |
 | `src/app/page.tsx`                | Sample `Upload` + `UploadTrigger` + `UploadToasts`    |
 
-Same layout as [Quickstart](https://s3.dimah.dev/docs/quickstart), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/react/ui). Flatten `src/` with `create --no-src`.
+Same layout as [Quickstart](https://v2.s3.dimah.dev/docs/quickstart), [Server Setup](https://v2.s3.dimah.dev/docs/server/setup), [React Setup](https://v2.s3.dimah.dev/docs/react/setup), and [UI Setup](https://v2.s3.dimah.dev/docs/react/ui). Flatten `src/` with `create --no-src`.
 
 ## License
 

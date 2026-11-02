@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/cli",
-  "version": "1.7.1",
+  "version": "2.0.0-beta.0",
   "description": "Scaffold dimah-s3 apps from official templates",
   "keywords": [
     "s3",
@@ -17,7 +17,7 @@
     "hono",
     "file-upload"
   ],
-  "homepage": "https://s3.dimah.dev/docs/quickstart",
+  "homepage": "https://v2.s3.dimah.dev/docs/quickstart",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/ui",
-  "version": "1.7.1",
+  "version": "2.0.0-beta.0",
   "description": "Pre-built React UI components for S3 file upload, download, and delete",
   "keywords": [
     "s3",
@@ -19,7 +19,7 @@
     "nextjs",
     "components"
   ],
-  "homepage": "https://s3.dimah.dev/docs/react/ui",
+  "homepage": "https://v2.s3.dimah.dev/docs/react/ui",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -95,8 +95,8 @@
   },
   "peerDependencies": {
     "@base-ui/react": ">=1.0.0",
-    "@dimah-s3/core": "1.7.1",
-    "@dimah-s3/react": "1.7.1",
+    "@dimah-s3/core": "2.0.0-beta.0",
+    "@dimah-s3/react": "2.0.0-beta.0",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": ">=0.7.0",
     "cn": ">=0.1.0",

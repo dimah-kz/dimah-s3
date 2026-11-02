@@ -1,25 +1,27 @@
 # `@dimah-s3/cli`
 
-Scaffold an official [dimah-s3](https://s3.dimah.dev/docs) starter.
+**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x, and betas can include breaking changes until 2.0.0.
 
-[Docs](https://s3.dimah.dev/docs/quickstart) · [llms.txt](https://s3.dimah.dev/llms.txt)
+Scaffold an official [dimah-s3](https://v2.s3.dimah.dev/docs) starter.
+
+[Docs](https://v2.s3.dimah.dev/docs/quickstart) · [llms.txt](https://v2.s3.dimah.dev/llms.txt)
 
 ## Usage
 
 ```bash
-npx @dimah-s3/cli@latest create my-app
+npx @dimah-s3/cli@beta create my-app
 ```
 
 Into the current directory (package name = folder name):
 
 ```bash
-npx @dimah-s3/cli@latest create .
+npx @dimah-s3/cli@beta create .
 ```
 
 Skip prompts:
 
 ```bash
-npx @dimah-s3/cli@latest create my-app --yes
+npx @dimah-s3/cli@beta create my-app --yes
 ```
 
 ### Options

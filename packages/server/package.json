@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/server",
-  "version": "1.7.1",
+  "version": "2.0.0-beta.0",
   "description": "Presigned S3 server — dimahS3() with HTTP handler and direct api for upload, download, delete, and multipart",
   "keywords": [
     "s3",
@@ -25,7 +25,7 @@
     "sveltekit",
     "typescript"
   ],
-  "homepage": "https://s3.dimah.dev/docs/server",
+  "homepage": "https://v2.s3.dimah.dev/docs/server",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/react",
-  "version": "1.7.1",
+  "version": "2.0.0-beta.0",
   "description": "Headless React hooks for presigned S3 file uploads, downloads, and deletes",
   "keywords": [
     "s3",
@@ -23,7 +23,7 @@
     "headless",
     "typescript"
   ],
-  "homepage": "https://s3.dimah.dev/docs/react",
+  "homepage": "https://v2.s3.dimah.dev/docs/react",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
