@@ -12,7 +12,7 @@ Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react
 pnpm add @dimah-s3/ui @dimah-s3/core @dimah-s3/react @fuma-translate/react
 ```
 
-Requires React 19. Or copy items from the shadcn registry — see
+Requires React 19.2. Or copy items from the shadcn registry — see
 [UI Setup](https://s3.dimah.dev/docs/react/ui).
 
 ## Styles

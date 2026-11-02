@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -35,9 +36,9 @@ export type UploadFieldProps = {
   /** Form field name. Each key submits as its own hidden input. */
   name: string;
   /** Object keys, when you control the value. */
-  value?: string[];
+  value?: readonly string[];
   /** Object keys to start with, when the field keeps its own value. */
-  defaultValue?: string[];
+  defaultValue?: readonly string[];
   /** Runs with the new keys after an upload adds one or `remove` drops one. */
   onValueChange?: (keys: string[]) => void;
   /**
@@ -104,9 +105,10 @@ function isUploaded(file: UploadFileState): file is UploadedFile {
  * value once it uploads, so it never shows twice: the status keeps only
  * files in flight or failed. With `maxFiles`, their calls take at
  * most the files that still fit (files still uploading count), and the hook
- * rejects the rest with `TOO_MANY_FILES`. Once the field is full, its
- * trigger and dropzone stay focusable but are `aria-disabled`, and the
- * picker, drops and pastes do nothing.
+ * rejects the rest with `TOO_MANY_FILES`; a retry takes only the failed
+ * files that still fit. Once the field is full, its trigger and dropzone
+ * stay focusable but are `aria-disabled`, and the picker, drops, pastes and
+ * retries do nothing.
  *
  * @example
  * ```tsx
@@ -130,7 +132,9 @@ export function UploadField({
   maxFiles,
   children,
 }: UploadFieldProps) {
-  const [ownValue, setOwnValue] = useState<string[]>(() => defaultValue ?? []);
+  const [ownValue, setOwnValue] = useState<readonly string[]>(
+    () => defaultValue ?? [],
+  );
   const controlled = controlledValue !== undefined;
   const value = controlled ? controlledValue : ownValue;
   // Files that uploaded before the field mounted are left out.
@@ -164,32 +168,30 @@ export function UploadField({
     if (fresh.length > 0) setValue([...value, ...fresh]);
   }
 
-  const onValueChangeRef = useRef(onValueChange);
-  useEffect(() => {
-    onValueChangeRef.current = onValueChange;
+  const reportChange = useEffectEvent((keys: string[]) => {
+    onValueChange?.(keys);
   });
   useEffect(() => {
-    if (change) onValueChangeRef.current?.(change.keys);
+    if (change) reportChange(change.keys);
   }, [change]);
 
   // Restores `defaultValue` when the owning form resets, like a native
   // uncontrolled input. The anchor finds the form even while the value is
   // empty.
   const anchorRef = useRef<HTMLInputElement>(null);
-  const defaultValueRef = useRef(defaultValue);
-  useEffect(() => {
-    defaultValueRef.current = defaultValue;
+  const restoreDefault = useEffectEvent(() => {
+    setValue([...(defaultValue ?? [])]);
   });
   useEffect(() => {
     if (controlled) return;
     const form = anchorRef.current?.form;
     if (!form) return;
     const onReset = (event: Event) => {
-      if (!event.defaultPrevented) setValue(defaultValueRef.current ?? []);
+      if (!event.defaultPrevented) restoreDefault();
     };
     form.addEventListener("reset", onReset);
     return () => form.removeEventListener("reset", onReset);
-  }, [controlled, setValue]);
+  }, [controlled]);
 
   const remove = useCallback(
     (key: string) => setValue(value.filter((item) => item !== key)),
@@ -335,11 +337,41 @@ function withDetails(
   return next;
 }
 
+/** What a call that takes no file resolves with. */
+function emptyBatch(): Promise<UploadBatchResult> {
+  return Promise.resolve({
+    uploaded: [],
+    failed: [],
+    blocked: [],
+    aborted: [],
+  });
+}
+
+/**
+ * Retries as many failed files as still fit. A retry adds files like any
+ * call, so a field never goes past `maxFiles`.
+ */
+function retryFitting(
+  upload: UseUploadReturn,
+  remaining: number,
+): Promise<UploadBatchResult> {
+  const failed = upload.files.filter((file) => file.phase === "error");
+  if (failed.length <= remaining) return upload.retry();
+  return Promise.all(
+    failed.slice(0, remaining).map((file) => upload.retry(file.id)),
+  ).then((results) => ({
+    uploaded: results.flatMap((result) => result.uploaded),
+    failed: results.flatMap((result) => result.failed),
+    blocked: results.flatMap((result) => result.blocked),
+    aborted: results.flatMap((result) => result.aborted),
+  }));
+}
+
 /**
  * `upload` whose calls take at most `remaining` files. With none left it
- * takes nothing: the picker stays closed, drops and pastes are ignored, and
- * a dropzone is `aria-disabled`. The dropzone keeps `tabIndex` 0 so it stays
- * reachable, and focus on it is kept when the field fills.
+ * takes nothing: the picker stays closed, drops, pastes and retries are
+ * ignored, and a dropzone is `aria-disabled`. The dropzone keeps `tabIndex`
+ * 0 so it stays reachable, and focus on it is kept when the field fills.
  */
 function capUpload(
   upload: UseUploadReturn,
@@ -348,13 +380,8 @@ function capUpload(
   if (remaining === 0) {
     return {
       ...upload,
-      handleFiles: () =>
-        Promise.resolve<UploadBatchResult>({
-          uploaded: [],
-          failed: [],
-          blocked: [],
-          aborted: [],
-        }),
+      handleFiles: emptyBatch,
+      retry: emptyBatch,
       open: () => {},
       // Not `upload.getRootProps`: that would wire the uncapped intake back.
       getRootProps: <T extends DropzoneRootProps>(props?: T) =>
@@ -374,6 +401,8 @@ function capUpload(
   return {
     ...upload,
     handleFiles: (files, call) => upload.handleFiles(files, cap(call)),
+    retry: (id) =>
+      id === undefined ? retryFitting(upload, remaining) : upload.retry(id),
     open: (call) => upload.open(cap(call)),
     getRootProps: (props, call) => upload.getRootProps(props, capInput(call)),
     getDropTargetProps: (props, call) =>

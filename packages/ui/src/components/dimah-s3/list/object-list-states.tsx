@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, type ReactNode } from "react";
 import { AlertCircleIcon, SearchIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
@@ -198,14 +198,12 @@ export function ObjectListPagination({
   const t = useTranslations();
   const { list } = useObjectListContext();
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const loadMoreRef = useRef(list.loadMore);
+  const loadMore = useEffectEvent(() => {
+    void list.loadMore();
+  });
   const active = list.hasMore;
   const pending = list.isLoadingMore;
   const blocked = list.error != null;
-
-  useEffect(() => {
-    loadMoreRef.current = list.loadMore;
-  }, [list.loadMore]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -215,7 +213,7 @@ export function ObjectListPagination({
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
-        void loadMoreRef.current();
+        loadMore();
       },
       { root, rootMargin: "48px" },
     );

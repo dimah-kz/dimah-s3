@@ -46,7 +46,9 @@ function numberFormat(
 
 /**
  * Formats a byte count with 1024-based units: `1.2 MB`, `512 B`.
- * Pass `locale` for native digits and `units` for translated labels.
+ * Pass `locale` for native digits and `units` for translated labels. In
+ * components, `useFormatFileSize()` passes the `S3Provider` locale and
+ * translations for you.
  */
 export function formatFileSize(
   bytes: number,

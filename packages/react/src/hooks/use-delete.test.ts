@@ -512,6 +512,10 @@ describe("useDelete removeMany", () => {
           key: "docs/b.pdf",
           error: { code: "FORBIDDEN", message: "Forbidden" },
         },
+        {
+          key: " docs/c.pdf",
+          error: { code: "KEY_INVALID", message: "Object key is invalid" },
+        },
       ],
     });
     const onSuccess = vi.fn();
@@ -521,15 +525,17 @@ describe("useDelete removeMany", () => {
     await act(async () => {
       result = await hook.current.removeMany([
         "/docs/a.pdf",
-        " docs/a.pdf/ ",
+        "docs/a.pdf/",
         "docs/b.pdf/",
+        " docs/c.pdf",
       ]);
     });
 
-    expect(result?.deleted).toEqual(["/docs/a.pdf", " docs/a.pdf/ "]);
-    expect(result?.failed).toHaveLength(1);
-    expect(result?.failed[0].key).toBe("docs/b.pdf/");
-    expect(result?.failed[0].error.code).toBe("FORBIDDEN");
+    expect(result?.deleted).toEqual(["/docs/a.pdf", "docs/a.pdf/"]);
+    expect(result?.failed.map(({ key, error }) => [key, error.code])).toEqual([
+      ["docs/b.pdf/", "FORBIDDEN"],
+      [" docs/c.pdf", "KEY_INVALID"],
+    ]);
     expect(onSuccess).toHaveBeenCalledWith(
       { key: "/docs/a.pdf" },
       "/docs/a.pdf",

@@ -1,8 +1,13 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { AlertCircleIcon, LoaderCircleIcon, XIcon } from "lucide-react";
-import { truncateFileName, type APIError } from "@dimah-s3/core";
+import {
+  AlertCircleIcon,
+  LoaderCircleIcon,
+  RotateCwIcon,
+  XIcon,
+} from "lucide-react";
+import type { APIError } from "@dimah-s3/core";
 import { useFormatDimahError, useFormatFileSize } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
@@ -17,6 +22,7 @@ import {
 } from "@/components/ui/attachment";
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismiss-attachment-action";
+import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
 import {
   ATTACHMENT_ERROR_DESCRIPTION_CLASS,
@@ -39,6 +45,11 @@ export type FileAttachmentProps = Omit<ComponentProps<"div">, "children"> & {
   error?: string | APIError | null;
   /** Shows a cancel action while the file is queued or in flight: `state` is `idle`, `uploading` or `processing`. */
   onCancel?: () => void;
+  /**
+   * Shows a retry action when `state` is `error`. It takes the place of
+   * cancel, so focus stays on it once the file is back in flight.
+   */
+  onRetry?: () => void;
   /** Shows a dismiss action when `state` is `done` or `error`. Typically the hook `reset()`. */
   onDismiss?: () => void;
   /** Extra controls, usually `AttachmentAction`s, placed before cancel and dismiss. */
@@ -68,6 +79,7 @@ export function FileAttachment({
   description,
   error,
   onCancel,
+  onRetry,
   onDismiss,
   actions,
   trigger,
@@ -95,6 +107,7 @@ export function FileAttachment({
   const showCancel =
     (state === "idle" || state === "uploading" || state === "processing") &&
     onCancel != null;
+  const showRetry = state === "error" && onRetry != null;
   const showDismiss =
     (state === "done" || state === "error") && onDismiss != null;
 
@@ -144,7 +157,7 @@ export function FileAttachment({
       </AttachmentMedia>
       <AttachmentContent className="@max-[9rem]/file-attachment:px-1">
         <AttachmentTitle className={ATTACHMENT_TITLE_CLASS}>
-          {truncateFileName(fileName)}
+          <FileName name={fileName} />
         </AttachmentTitle>
         {resolvedDescription != null ? (
           <AttachmentDescription
@@ -157,23 +170,31 @@ export function FileAttachment({
         ) : null}
       </AttachmentContent>
       {trigger}
-      {actions != null || showCancel || showDismiss ? (
+      {actions != null || showCancel || showRetry || showDismiss ? (
         <AttachmentActions className="@max-[9rem]/file-attachment:absolute @max-[9rem]/file-attachment:end-3 @max-[9rem]/file-attachment:top-3 @max-[9rem]/file-attachment:gap-1">
           {actions}
-          {showCancel ? (
+          {/* One slot, so the same button turns from retry into cancel. */}
+          {showCancel || showRetry ? (
             <AttachmentAction
               type="button"
-              aria-label={t("Cancel {name}", {
-                note: "attachment action",
-                variables: { name: fileName },
-              })}
+              aria-label={
+                showCancel
+                  ? t("Cancel {name}", {
+                      note: "attachment action",
+                      variables: { name: fileName },
+                    })
+                  : t("Retry {name}", {
+                      note: "attachment action",
+                      variables: { name: fileName },
+                    })
+              }
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onCancel();
+                (showCancel ? onCancel : onRetry)?.();
               }}
             >
-              <XIcon />
+              {showCancel ? <XIcon /> : <RotateCwIcon />}
             </AttachmentAction>
           ) : null}
           {showDismiss ? (

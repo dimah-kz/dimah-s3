@@ -18,12 +18,12 @@ function durationParts(seconds: number): {
   return { unit: "second", count: safe };
 }
 
-/** "Expires in 1 hour" for a signed link. `0` is a proxy link. */
+/** "Expires in 1 hour" for a signed link. `null` is a proxy link, which does not expire. */
 export function useShareExpiryLabel() {
   const t = useTranslations();
   const formatNumber = useFormatNumber();
-  return (seconds: number) => {
-    if (seconds <= 0) {
+  return (seconds: number | null) => {
+    if (seconds === null) {
       return t("This link works while you can access this file.", {
         note: "object list menu",
       });

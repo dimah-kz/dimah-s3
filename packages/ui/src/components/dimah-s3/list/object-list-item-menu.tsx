@@ -323,7 +323,9 @@ function CopyLinkItem({
       report({
         type: "success",
         title: t("Link copied", { note: "object list menu" }),
-        description: expiryLabel(signed.expiresIn ?? 0),
+        description: expiryLabel(
+          signed.mode === "proxy" ? null : signed.expiresIn,
+        ),
       });
     } finally {
       setCopying(false);

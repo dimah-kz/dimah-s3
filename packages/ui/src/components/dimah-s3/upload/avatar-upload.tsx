@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { CameraIcon, UserIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import type { S3Api, S3RouteName } from "@dimah-s3/core";
@@ -90,9 +90,8 @@ export function AvatarUpload({
     file?.phase === "error" ? null : (file?.previewUrl ?? null);
   const announcement = useAnnouncement(upload);
 
-  const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onChangeRef.current = onChange;
+  const reportUploaded = useEffectEvent((result: UploadResult) => {
+    onChange?.(result);
   });
   // Images that uploaded before the avatar mounted are not reported.
   const [reported] = useState(
@@ -102,7 +101,7 @@ export function AvatarUpload({
     for (const item of upload.files) {
       if (!isUploaded(item) || reported.has(item.id)) continue;
       reported.add(item.id);
-      onChangeRef.current?.(item.result);
+      reportUploaded(item.result);
     }
   }, [reported, upload.files]);
 

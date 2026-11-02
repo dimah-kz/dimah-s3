@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
+import { TranslationProvider } from "@fuma-translate/react";
 import { renderHook } from "@/test/render";
 import { useUploadHints, type UploadHintsPolicy } from "@/lib/upload-hints";
 
@@ -31,5 +33,20 @@ describe("useUploadHints", () => {
       hints({ maxFiles: 1, accept: ["image/png", ".jpg", ".jpeg", "video/*"] })
         .accept,
     ).toBe("Accepted PNG, JPEG, Videos.");
+  });
+
+  it("translates file type groups", () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <TranslationProvider
+        translations={{ "Images(file type group)": "Bilder" }}
+      >
+        {children}
+      </TranslationProvider>
+    );
+    const { result } = renderHook(
+      () => useUploadHints({ maxFiles: 1, accept: ["image/*", ".pdf"] }),
+      { wrapper },
+    );
+    expect(result.current.accept).toBe("Accepted Bilder, PDF.");
   });
 });

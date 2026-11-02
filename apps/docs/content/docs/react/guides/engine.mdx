@@ -7,14 +7,14 @@ description: Plain functions from @dimah-s3/react/engine — upload a file witho
 React import and no `"use client"` directive, so shared modules, server
 modules, workers, and scripts can import it.
 
-| Area         | Exports                                                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------------------ |
-| Upload       | `uploadFile`, `uploadAbortReason`, `getUploadAbortKind`, `multipartResumeKey`, `DEFAULT_MULTIPART_THRESHOLD` |
-| Stores       | `createLocalStorageStore`, `createMemoryStore`                                                               |
-| Route policy | `loadRouteCatalog`, `resolveRouteUploadPolicy`, `mergeRouteUploadPolicy`                                     |
-| Custom API   | `defineApi`                                                                                                  |
-| Object list  | `memoryObjectSource`, `readObjectListLevel`, `objectListEntryKey`, `objectKeyOf`                             |
-| Formatting   | `formatAcceptLabels`, `formatSpeed`, `formatUploadProgress`, `toTimestamp`                                   |
+| Area         | Exports                                                                                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Upload       | `uploadFile`, `uploadAbortReason`, `getUploadAbortKind`, `multipartResumeKey`, `mergeUploadRequest`, `DEFAULT_MULTIPART_THRESHOLD` |
+| Stores       | `createLocalStorageStore`, `createMemoryStore`                                                                                     |
+| Route policy | `loadRouteCatalog`, `resolveRouteUploadPolicy`, `mergeRouteUploadPolicy`                                                           |
+| Custom API   | `defineApi`                                                                                                                        |
+| Object list  | `memoryObjectSource`, `readObjectListLevel`, `objectListEntryKey`, `objectKeyOf`                                                   |
+| Formatting   | `formatFileSize`, `formatSpeed`, `formatUploadProgress`, `formatAcceptLabels`, `truncateFileName`, `toTimestamp`                   |
 
 The types `UploadFileOptions`, `UploadStore`, `StoredUpload`,
 `UploadTransport`, `S3ApiUploadTransport`, `RetryConfig`, `UploadAbortKind`,
@@ -65,6 +65,10 @@ narrows the policy the way the hook options do.
 `concurrentParts`, `retry`, and `uploadStore` work as they do on
 [`useUpload`](/docs/react/hooks/upload). `onPhaseChange` reports `preparing`,
 `presigning`, `uploading`, and `finalizing`.
+
+`mergeUploadRequest(base, override)` combines two `request` objects the way
+the hook puts a call's `uploadOptions` over its own: `override` fields win,
+and `metadata` merges key by key.
 
 ## Cancel and detach
 

@@ -8,8 +8,10 @@ export type Translations = {
   "Access denied(API error)": string;
   "All {count} files uploaded(status)": string;
   "An uploaded part was not found(API error)": string;
+  "Another change happened at the same time. Try again.(API error)": string;
   "Are you sure you want to delete \"{name}\"? This action cannot be undone.(dialog description)": string;
   "Ascending(object list sort)": string;
+  "Audio(file type group)": string;
   "B(file size unit)": string;
   "Cancel all uploads(upload control)": string;
   "Cancel download of {name}(download control)": string;
@@ -21,7 +23,6 @@ export type Translations = {
   "Clear search(object list)": string;
   "Clear(object list selection)": string;
   "Close search(object list)": string;
-  "Conflict(API error)": string;
   "Copy link(object list menu)": string;
   "Could not copy link(object list menu)": string;
   "Could not create link(object list menu)": string;
@@ -89,8 +90,10 @@ export type Translations = {
   "Folder name is invalid(API error)": string;
   "Folder name(object list new folder)": string;
   "Folders above(object list)": string;
+  "Fonts(file type group)": string;
   "GB(file size unit)": string;
   "Grid view(object list)": string;
+  "Images(file type group)": string;
   "Invalid request(API error)": string;
   "KB(file size unit)": string;
   "Large uploads are disabled(API error)": string;
@@ -117,7 +120,10 @@ export type Translations = {
   "Request format is not supported(API error)": string;
   "Request is too large(API error)": string;
   "Requested range is not available(API error)": string;
+  "Retry failed uploads(upload control)": string;
+  "Retry {name}(attachment action)": string;
   "Retry(object list)": string;
+  "Retry(toast action)": string;
   "Search files(object list)": string;
   "Select all(object list selection)": string;
   "Select this page(object list selection)": string;
@@ -131,6 +137,7 @@ export type Translations = {
   "Storage quota exceeded(API error)": string;
   "Streaming downloads are disabled(API error)": string;
   "TB(file size unit)": string;
+  "Text files(file type group)": string;
   "The file has changed(API error)": string;
   "These files cannot be uploaded(dropzone)": string;
   "These files cannot be uploaded(object list)": string;
@@ -162,6 +169,7 @@ export type Translations = {
   "Uploading(toast)": string;
   "Uploading…(upload status)": string;
   "Uploads are disabled(API error)": string;
+  "Videos(file type group)": string;
   "View(object list)": string;
   "You can upload {count} files(dropzone hint)": string;
   "{count} files uploaded(toast)": string;

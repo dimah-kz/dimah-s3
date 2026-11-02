@@ -10,6 +10,7 @@ import {
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 import { ObjectListItemMenu } from "@/components/dimah-s3/list/object-list-item-menu";
@@ -119,7 +120,7 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
         >
           <span className="flex min-w-0 items-center gap-2">
             <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-              <NameLabel entry={entry} />
+              <FileName name={entry.name} extension={entry.kind === "file"} />
             </span>
             {parts.meta ? <span className="shrink-0">{parts.meta}</span> : null}
           </span>
@@ -167,7 +168,7 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
         <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-              <NameLabel entry={entry} />
+              <FileName name={entry.name} extension={entry.kind === "file"} />
             </span>
             {parts.meta ? <span className="shrink-0">{parts.meta}</span> : null}
           </span>
@@ -387,37 +388,4 @@ function useDefaultDescription<TItem>(entry: ObjectListEntry<TItem>) {
 
 function present(node: ReactNode): ReactNode {
   return node == null || node === false || node === "" ? null : node;
-}
-
-/** A short suffix after the last dot. Longer or odd suffixes stay in the stem. */
-const FILE_EXTENSION = /^\.[a-z0-9]{1,8}$/i;
-
-function splitFileName(name: string) {
-  const dot = name.lastIndexOf(".");
-  if (dot <= 0) return { stem: name, extension: "" };
-  const extension = name.slice(dot);
-  if (!FILE_EXTENSION.test(extension)) return { stem: name, extension: "" };
-  return { stem: name.slice(0, dot), extension };
-}
-
-/**
- * An inline isolate: the name starts at the entry's start edge whatever its
- * script, and the entry keeps its own direction. A file keeps its extension
- * visible and puts the ellipsis on the stem, as on file attachments.
- */
-function NameLabel<TItem>({ entry }: { entry: ObjectListEntry<TItem> }) {
-  const { stem, extension } =
-    entry.kind === "file"
-      ? splitFileName(entry.name)
-      : { stem: entry.name, extension: "" };
-  return (
-    <span
-      dir="auto"
-      title={entry.name}
-      className="inline-flex max-w-full min-w-0 align-top"
-    >
-      <span className="min-w-0 truncate">{stem}</span>
-      {extension ? <span className="shrink-0">{extension}</span> : null}
-    </span>
-  );
 }

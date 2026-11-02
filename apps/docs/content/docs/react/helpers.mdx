@@ -1,14 +1,14 @@
 ---
 title: Helpers
-description: Formatter hooks, plain formatters, and the core helpers for sizes, errors, and checksums.
+description: Formatter hooks, plain formatters, and the core helpers for validation, errors, and checksums.
 icon: Wrench
 ---
 
 Helpers come from three places:
 
 - **`@dimah-s3/react`** — formatter hooks that follow the `S3Provider` `locale` and translations.
-- **`@dimah-s3/react/engine`** — plain formatters with no React import.
-- **`@dimah-s3/core`** — protocol helpers: file sizes, validation, checksums, and errors.
+- **`@dimah-s3/react/engine`** — plain formatters with no React import, such as `formatFileSize`.
+- **`@dimah-s3/core`** — protocol helpers: validation, checksums, and errors.
 
 ## Formatter hooks
 
@@ -55,6 +55,7 @@ export function FileLine({ file }: { file: UploadFileState }) {
 - **`useFormatSpeed()`** — `1.2 MB/s`.
 - **`useFormatEta()`** — `9s left`, `4m left`, `1h 30m left`. It takes a `TransferProgress` and returns `null` until the speed is known.
 - **`useFormatDate()`** — a `Date`, an ISO string, or epoch milliseconds, with optional `Intl.DateTimeFormat` options. Invalid input returns `""`.
+- **`useFormatAcceptLabels()`** — short labels for `accept` tokens, such as `["Images", "PDF"]` for `upload.policy.accept`. Group labels such as `Images` are translated (`"Images(file type group)"`).
 
 ## Errors
 
@@ -106,33 +107,40 @@ The full list of codes is in [Errors](/docs/server/errors). See also
 
 ## Plain formatters
 
-These ship from the engine entry and take `formatFileSize` options for locale
-and unit labels:
+These ship from the engine entry, so they work outside React and on the
+server. The size formatters take a `locale` and unit labels; the hooks above
+pass the provider's for you.
 
 ```ts
 import {
   formatAcceptLabels,
+  formatFileSize,
   formatSpeed,
   formatUploadProgress,
   toTimestamp,
+  truncateFileName,
 } from "@dimah-s3/react/engine";
 
+formatFileSize(1_500_000); // "1.4 MB"
+formatFileSize(1_500_000, { locale: "fa", units: { MB: "مگابایت" } }); // "۱٫۴ مگابایت"
 formatUploadProgress(1_200_000, 2_000_000, 60); // "1.1 MB / 1.9 MB (60%)"
 formatSpeed(1_200_000); // "1.1 MB/s"
 formatAcceptLabels(["image/*", ".pdf", "application/zip"]); // ["Images", "PDF", "ZIP"]
+formatAcceptLabels(["image/*"], { groups: { image: "Bilder" } }); // ["Bilder"]
+truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi….png"
 toTimestamp("2026-10-31T12:00:00Z"); // 1793448000000, or null when invalid
 ```
+
+`truncateFileName` is for plain text, such as a document title. In markup,
+the UI's `FileName` shortens a name to the width it has and keeps the
+extension visible.
 
 ---
 
 ## Core helpers
 
 ```ts
-import { formatFileSize, truncateFileName, validateFile } from "@dimah-s3/core";
-
-formatFileSize(1_500_000); // "1.4 MB"
-formatFileSize(1_500_000, { locale: "fa", units: { MB: "مگابایت" } }); // "۱٫۴ مگابایت"
-truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi… .png"
+import { validateFile } from "@dimah-s3/core";
 
 // null when valid, otherwise an APIError:
 // FILE_TYPE_NOT_ALLOWED, FILE_EMPTY, or FILE_TOO_LARGE

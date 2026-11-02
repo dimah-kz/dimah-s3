@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { truncateFileName } from "@dimah-s3/core";
 import {
   useFormatDimahError,
   useFormatFileSize,
@@ -11,6 +10,7 @@ import {
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { toast } from "@/components/ui/toast";
+import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { useToastOwner } from "@/hooks/use-toast-owner";
 import {
   downloadDisplayName,
@@ -80,7 +80,7 @@ function ActiveDownloadToasts({ download }: DownloadToastsProps) {
 
     const describe = (operation: AnyDownloadOperation, detail?: string) => (
       <span className="block">
-        <bdi>{truncateFileName(downloadDisplayName(operation))}</bdi>
+        <FileName name={downloadDisplayName(operation)} />
         {detail ? (
           <>
             {" "}

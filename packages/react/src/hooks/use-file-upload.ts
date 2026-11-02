@@ -44,7 +44,6 @@ import type {
   UploadFilePhase,
   UploadFileState,
   UploadPhase,
-  UploadRequestInput,
   UploadRequestOptions,
   UploadResult,
   UseUploadOptions,
@@ -55,6 +54,7 @@ import {
   DEFAULT_MAX_FILES,
 } from "@/upload/constants";
 import { transferProgress } from "@/upload/progress";
+import { mergeUploadRequest, resolveUploadRequest } from "@/upload/request";
 import { uploadFile } from "@/upload/upload-file";
 
 /** @internal The queue part of `UseUploadOptions`, without the intake flags. */
@@ -88,6 +88,8 @@ export type UseFileUploadReturn = {
     files: readonly File[],
     call?: UploadCallOptions,
   ) => Promise<UploadBatchResult>;
+  /** Uploads the failed file `id` again, or every failed file. */
+  retry: (id?: string) => Promise<UploadBatchResult>;
   /** Cancels one file by `id`, or every file and preparing call. */
   cancel: (id?: string) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
@@ -103,8 +105,8 @@ export type UseFileUploadReturn = {
  * `beforeUpload` and `onUploadStart` once. Valid files share one pool of
  * `concurrentFiles` uploads across calls. Each file can be cancelled on its
  * own. A cancelled or detached file leaves the queue and counts as `aborted`.
- * Unmounting detaches the files whose call had an `uploadStore`, so they can
- * resume, and cancels the rest.
+ * A failed file can be retried in place. Unmounting detaches the files whose
+ * call had an `uploadStore`, so they can resume, and cancels the rest.
  */
 export function useFileUpload(
   options: UseFileUploadOptions,
@@ -135,6 +137,7 @@ export function useFileUpload(
     isPending,
     fileRejections,
     upload: queue.upload,
+    retry: queue.retry,
     cancel: queue.cancel,
     detach: queue.detach,
     reset: queue.reset,
@@ -198,6 +201,10 @@ function createUploadQueue(
   const tasks = new Map<string, Task>();
   const waiting: Task[] = [];
   const preparingCalls = new Set<AbortController>();
+  /** The call options each entry was added with, which `retry` sends again. */
+  const entryCalls = new Map<string, UploadCallOptions>();
+  /** Entries a retry put back in the queue, by id, while its call prepares. */
+  const retrying = new Map<string, AbortController>();
   let running = 0;
   // The newest render's options and provider API. Each call snapshots its own
   // config; callbacks always read the newest.
@@ -213,8 +220,12 @@ function createUploadQueue(
     for (const listener of listeners) listener();
   }
 
+  function hasFile(id: string) {
+    return snapshot.files.some((entry) => entry.id === id);
+  }
+
   function patchFile(id: string, patch: Partial<UploadFileState>) {
-    if (!snapshot.files.some((entry) => entry.id === id)) return;
+    if (!hasFile(id)) return;
     commit({
       files: snapshot.files.map((entry) =>
         entry.id === id ? { ...entry, ...patch } : entry,
@@ -222,11 +233,28 @@ function createUploadQueue(
     });
   }
 
+  /** Replaces the entries `replace` returns a value for, in place. */
+  function replaceFiles(
+    replace: (entry: UploadFileState) => UploadFileState | undefined,
+  ) {
+    let changed = false;
+    const files = snapshot.files.map((entry) => {
+      const next = replace(entry) ?? entry;
+      if (next !== entry) changed = true;
+      return next;
+    });
+    if (changed) commit({ files });
+  }
+
   function removeFiles(shouldRemove: (entry: UploadFileState) => boolean) {
     const kept: UploadFileState[] = [];
     for (const entry of snapshot.files) {
-      if (shouldRemove(entry)) revokePreviewUrl(entry.previewUrl);
-      else kept.push(entry);
+      if (shouldRemove(entry)) {
+        revokePreviewUrl(entry.previewUrl);
+        entryCalls.delete(entry.id);
+      } else {
+        kept.push(entry);
+      }
     }
     if (kept.length !== snapshot.files.length) commit({ files: kept });
   }
@@ -303,7 +331,10 @@ function createUploadQueue(
 
     let request: UploadRequestOptions;
     try {
-      request = resolveRequest(options.uploadOptions, call.uploadOptions, file);
+      request = mergeUploadRequest(
+        resolveUploadRequest(options.uploadOptions, file),
+        resolveUploadRequest(call.uploadOptions, file),
+      );
     } catch (error) {
       return {
         status: "error",
@@ -431,6 +462,7 @@ function createUploadQueue(
    */
   function enqueue(
     entries: UploadFileState[],
+    call: UploadCallOptions,
     options: UseFileUploadOptions,
     replace: boolean,
   ) {
@@ -440,25 +472,65 @@ function createUploadQueue(
       }
       removeFiles(() => true);
     }
+    for (const entry of entries) entryCalls.set(entry.id, call);
     commit({ files: [...snapshot.files, ...entries] });
   }
 
-  async function upload(
+  function upload(
     input: readonly File[],
     call: UploadCallOptions = {},
   ): Promise<UploadBatchResult> {
+    return startCall([...input], call, []);
+  }
+
+  function retry(id?: string): Promise<UploadBatchResult> {
+    const failed = snapshot.files.filter(
+      (entry) =>
+        entry.phase === "error" && (id === undefined || entry.id === id),
+    );
+    if (failed.length === 0) return Promise.resolve(batchResult([]));
+    // Each file goes again with the options of the call it came from.
+    const calls = Map.groupBy(
+      failed,
+      (entry) => entryCalls.get(entry.id) ?? {},
+    );
+    return Promise.all(
+      [...calls].map(([call, entries]) =>
+        startCall(
+          entries.map((entry) => entry.file),
+          call,
+          entries,
+        ),
+      ),
+    ).then(mergeBatchResults);
+  }
+
+  /**
+   * Runs one call. `retried` holds the failed entries a retry sends again:
+   * they keep their place and id, go back to `queued` while the call
+   * prepares, and never replace the queue.
+   */
+  async function startCall(
+    files: File[],
+    call: UploadCallOptions,
+    retried: readonly UploadFileState[],
+  ): Promise<UploadBatchResult> {
     const { options } = latest;
     const api = requireApi(options.api ?? latest.contextApi, "useUpload");
-    const files = [...input];
     if (files.length === 0) return settle(batchResult([]));
 
     const controller = new AbortController();
-    if (!options.queue) {
+    if (!options.queue && retried.length === 0) {
       // This call replaces the queue, so an older call still preparing must
       // not enqueue over it once it finishes.
       const reason = uploadAbortReason("cancel");
       for (const pending of preparingCalls) pending.abort(reason);
     }
+    const previous = new Map(retried.map((entry) => [entry.id, entry]));
+    for (const id of previous.keys()) retrying.set(id, controller);
+    replaceFiles((entry) =>
+      previous.has(entry.id) ? requeued(entry) : undefined,
+    );
     preparingCalls.add(controller);
     commit({ preparing: snapshot.preparing + 1 });
     let prepared: Prepared;
@@ -466,16 +538,42 @@ function createUploadQueue(
       prepared = await prepare(api, files, options, call, controller.signal);
     } finally {
       preparingCalls.delete(controller);
+      for (const id of previous.keys()) retrying.delete(id);
       commit({ preparing: snapshot.preparing - 1 });
     }
+
+    // A retried file whose entry left the queue meanwhile (cancelled, or
+    // replaced by a new call) counts as aborted.
+    const unclaimed = retried.filter((entry) => hasFile(entry.id));
+    const entryOf = (file: File) => {
+      const index = unclaimed.findIndex((entry) => entry.file === file);
+      return index < 0 ? null : unclaimed.splice(index, 1)[0];
+    };
+    /** Drops the retried entries the call did not keep, such as rejected ones. */
+    const dropRetried = (kept: ReadonlySet<string> = new Set()) => {
+      removeFiles((entry) => previous.has(entry.id) && !kept.has(entry.id));
+    };
 
     let outcomes: FileOutcome[];
     switch (prepared.status) {
       case "rejected":
+        dropRetried();
         return settle(batchResult([]));
-      case "blocked":
+      case "blocked": {
+        // A blocked retry leaves each file as it failed.
+        const restored = new Set<string>();
+        for (const file of prepared.files) {
+          const entry = entryOf(file);
+          if (entry) restored.add(entry.id);
+        }
+        replaceFiles((entry) =>
+          restored.has(entry.id) ? previous.get(entry.id) : undefined,
+        );
+        dropRetried(restored);
         return settle(batchResult([], prepared.files));
+      }
       case "aborted":
+        dropRetried();
         return settle(
           batchResult(
             prepared.files.map((file) => ({ status: "aborted", file })),
@@ -483,36 +581,76 @@ function createUploadQueue(
         );
       case "error": {
         const { error } = prepared;
-        enqueue(
-          prepared.files.map((file) => ({
-            ...createEntry(file),
-            phase: "error",
-            error,
-          })),
-          options,
-          false,
-        );
         outcomes = [];
-        for (const file of prepared.files) {
-          await runAfterCallback(latest.options.onError, error, file);
-          outcomes.push({ status: "error", file, error });
+        if (retried.length === 0) {
+          enqueue(
+            prepared.files.map((file) => ({
+              ...createEntry(file),
+              phase: "error",
+              error,
+            })),
+            call,
+            options,
+            false,
+          );
+          outcomes = prepared.files.map((file) => ({
+            status: "error",
+            file,
+            error,
+          }));
+        } else {
+          const failed = new Set<string>();
+          for (const file of prepared.files) {
+            const entry = entryOf(file);
+            if (entry) failed.add(entry.id);
+            outcomes.push(
+              entry
+                ? { status: "error", file, error }
+                : { status: "aborted", file },
+            );
+          }
+          replaceFiles((entry) =>
+            failed.has(entry.id)
+              ? { ...entry, phase: "error", error }
+              : undefined,
+          );
+          dropRetried(failed);
+        }
+        for (const outcome of outcomes) {
+          if (outcome.status === "error") {
+            await runAfterCallback(latest.options.onError, error, outcome.file);
+          }
         }
         break;
       }
       case "ready": {
-        const entries = prepared.files.map(createEntry);
-        enqueue(entries, options, true);
         const config: CallConfig = {
           api,
           options,
           call,
           policy: prepared.policy,
         };
+        let scheduled: Promise<FileOutcome>[];
+        if (retried.length === 0) {
+          const entries = prepared.files.map(createEntry);
+          enqueue(entries, call, options, true);
+          scheduled = entries.map((entry) => schedule(entry, config));
+        } else {
+          const kept = new Set<string>();
+          scheduled = prepared.files.map((file) => {
+            const entry = entryOf(file);
+            if (!entry) {
+              return Promise.resolve<FileOutcome>({ status: "aborted", file });
+            }
+            kept.add(entry.id);
+            return schedule(entry, config);
+          });
+          // Files the policy now rejects show in `fileRejections` instead.
+          dropRetried(kept);
+        }
         // Each file shows its own result as soon as it ends; the callbacks
         // wait for the whole call, so every error is reported first.
-        outcomes = await Promise.all(
-          entries.map((entry) => schedule(entry, config)),
-        );
+        outcomes = await Promise.all(scheduled);
         for (const outcome of outcomes) {
           if (outcome.status === "error") {
             await runAfterCallback(
@@ -565,7 +703,17 @@ function createUploadQueue(
       return;
     }
     const task = tasks.get(id);
-    if (task) abortTask(task, reason);
+    if (task) {
+      abortTask(task, reason);
+      return;
+    }
+    // A retry still preparing: the file leaves the queue, and the call stops
+    // once it has no file left.
+    const controller = retrying.get(id);
+    if (!controller) return;
+    retrying.delete(id);
+    removeFiles((entry) => entry.id === id);
+    if (![...retrying.values()].includes(controller)) controller.abort(reason);
   }
 
   function detach() {
@@ -597,6 +745,7 @@ function createUploadQueue(
     getSnapshot,
     configure,
     upload,
+    retry,
     cancel,
     detach,
     reset,
@@ -619,23 +768,15 @@ function createEntry(file: File): UploadFileState {
   };
 }
 
-/**
- * Request options for `file`: the call's fields win over the hook's, and
- * `metadata` merges key by key.
- */
-function resolveRequest(
-  hook: UploadRequestInput | undefined,
-  call: UploadRequestInput | undefined,
-  file: File,
-): UploadRequestOptions {
-  const base = typeof hook === "function" ? hook(file) : hook;
-  const override = typeof call === "function" ? call(file) : call;
-  if (!base || !override) return override ?? base ?? {};
-  const merged = { ...base, ...override };
-  if (base.metadata && override.metadata) {
-    merged.metadata = { ...base.metadata, ...override.metadata };
-  }
-  return merged;
+/** A failed entry back at the start, keeping its id and preview. */
+function requeued(entry: UploadFileState): UploadFileState {
+  return {
+    ...entry,
+    phase: "queued",
+    progress: transferProgress(0, entry.file.size),
+    error: null,
+    result: null,
+  };
 }
 
 function batchResult(
@@ -658,6 +799,17 @@ function batchResult(
     }
   }
   return result;
+}
+
+function mergeBatchResults(
+  results: readonly UploadBatchResult[],
+): UploadBatchResult {
+  return {
+    uploaded: results.flatMap((result) => result.uploaded),
+    failed: results.flatMap((result) => result.failed),
+    blocked: results.flatMap((result) => result.blocked),
+    aborted: results.flatMap((result) => result.aborted),
+  };
 }
 
 /** The queue phase, byte progress and error, derived from its files. */

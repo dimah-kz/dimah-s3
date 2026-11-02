@@ -1,13 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildContentDisposition } from "./build-content-disposition";
 import { buildObjectKey } from "./build-object-key";
-import { formatFileSize } from "./format-file-size";
 import {
   parseFileName,
   fileNameFromKey,
   resolveStoredFileName,
 } from "./parse-file-name";
-import { truncateFileName } from "./truncate-file-name";
 import {
   normalizeObjectKey,
   objectKeyByteLength,
@@ -66,56 +64,6 @@ describe("fileNameFromKey", () => {
     expect(fileNameFromKey("a.png")).toBe("a.png");
     expect(fileNameFromKey("/uploads//a.png/")).toBe("a.png");
     expect(fileNameFromKey("")).toBeUndefined();
-  });
-});
-
-describe("formatFileSize", () => {
-  it.each([
-    [0, "0 B"],
-    [1, "1 B"],
-    [1024, "1.0 KB"],
-    [1024 * 1024, "1.0 MB"],
-  ])("formats %s", (bytes, expected) => {
-    expect(formatFileSize(bytes)).toBe(expected);
-  });
-
-  it("guards non-finite, negative, and oversized values", () => {
-    expect(formatFileSize(-1)).toBe("0 B");
-    expect(formatFileSize(Number.NaN)).toBe("0 B");
-    expect(formatFileSize(Number.POSITIVE_INFINITY)).toBe("0 B");
-    expect(formatFileSize(1024 ** 6)).toBe("1.0 EB");
-    expect(formatFileSize(Number.MAX_VALUE).endsWith(" EB")).toBe(true);
-  });
-
-  it("uses locale digits and unit labels", () => {
-    expect(
-      formatFileSize(1.5 * 1024 * 1024, {
-        locale: "fa",
-        units: { MB: "مگابایت" },
-      }),
-    ).toBe("۱٫۵ مگابایت");
-    expect(formatFileSize(1023, { locale: "de" })).toBe("1023 B");
-    expect(formatFileSize(1536, { locale: "de" })).toBe("1,5 KB");
-  });
-});
-
-describe("truncateFileName", () => {
-  it("leaves short names unchanged", () => {
-    expect(truncateFileName("short.txt")).toBe("short.txt");
-  });
-
-  it("keeps the extension when truncating", () => {
-    const name = `${"a".repeat(80)}.png`;
-    const truncated = truncateFileName(name, 20);
-    expect(truncated.endsWith(".png")).toBe(true);
-    expect(truncated).toContain("…");
-    expect(truncated.length).toBeLessThan(name.length);
-  });
-
-  it("truncates names without an extension", () => {
-    const truncated = truncateFileName("a".repeat(80), 10);
-    expect(truncated.endsWith("…")).toBe(true);
-    expect(truncated).toHaveLength(10);
   });
 });
 
@@ -519,20 +467,6 @@ describe("Content-Disposition, RFC 5987 and 6266", () => {
     for (const name of ["it's (1)*.pdf", "a b.png", "résumé.pdf"]) {
       expect(parseFileName(buildContentDisposition(name))).toBe(name);
     }
-  });
-});
-
-describe("display helpers", () => {
-  it("truncates to at most maxChars, keeping the extension", () => {
-    const short = truncateFileName("a-very-long-file-name-here.pdf", 20);
-    expect(Array.from(short)).toHaveLength(20);
-    expect(short).toBe("a-very-long-fil….pdf");
-    expect(Array.from(truncateFileName("😀".repeat(30), 10))).toHaveLength(10);
-  });
-
-  it("picks the unit after rounding", () => {
-    expect(formatFileSize(1_048_575)).toBe("1.0 MB");
-    expect(formatFileSize(1023)).toBe("1023 B");
   });
 });
 

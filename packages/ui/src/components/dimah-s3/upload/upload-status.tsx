@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { PauseIcon, XIcon } from "lucide-react";
+import { PauseIcon, RotateCwIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   useFormatDimahError,
@@ -40,8 +40,9 @@ const ROW_CLASS = "rounded-none border-0 bg-transparent";
  * the result once they settle), above a row for each file. The rows scroll
  * past 20rem. While files upload the summary offers "Cancel all uploads",
  * and pause when the hook has an `uploadStore` so the uploads can resume;
- * settled, it offers dismiss. With `layout="grid"` the files show as tiles
- * under the summary, also for one file.
+ * settled, it offers dismiss, and "Retry failed uploads" when files failed.
+ * A failed file has its own retry action. With `layout="grid"` the files
+ * show as tiles under the summary, also for one file.
  *
  * Inside an `UploadField` (a root with `hideUploaded`), files that uploaded
  * leave the status, since the field's value lists them. When cancel, pause
@@ -140,6 +141,19 @@ function UploadSummary({
   const { upload } = useUploadContext();
   const { keepFocus } = useUploadFocus();
   const { files, progress } = upload;
+  // Retry and cancel share a slot, so focus stays on it as a retry starts.
+  const summaryActions = (
+    label: string,
+    icon: ReactNode,
+    onClick: () => void,
+  ) => (
+    <>
+      {pause}
+      <AttachmentAction type="button" aria-label={label} onClick={onClick}>
+        {icon}
+      </AttachmentAction>
+    </>
+  );
 
   if (upload.phase === "success") {
     return (
@@ -169,6 +183,11 @@ function UploadSummary({
         className={ROW_CLASS}
         title={t("Upload failed", { note: "status" })}
         description={upload.error ? formatError(upload.error) : undefined}
+        actions={summaryActions(
+          t("Retry failed uploads", { note: "upload control" }),
+          <RotateCwIcon />,
+          () => void upload.retry(),
+        )}
         onDismiss={onDismiss}
       />
     );
@@ -206,21 +225,14 @@ function UploadSummary({
           {eta ? ` · ${eta}` : null}
         </span>
       }
-      actions={
-        <>
-          {pause}
-          <AttachmentAction
-            type="button"
-            aria-label={t("Cancel all uploads", { note: "upload control" })}
-            onClick={() => {
-              keepFocus();
-              upload.cancel();
-            }}
-          >
-            <XIcon />
-          </AttachmentAction>
-        </>
-      }
+      actions={summaryActions(
+        t("Cancel all uploads", { note: "upload control" }),
+        <XIcon />,
+        () => {
+          keepFocus();
+          upload.cancel();
+        },
+      )}
     />
   );
 }

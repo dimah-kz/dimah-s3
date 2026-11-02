@@ -7,6 +7,7 @@ export {
   uploadAbortReason,
   getUploadAbortKind,
   multipartResumeKey,
+  mergeUploadRequest,
   DEFAULT_MULTIPART_THRESHOLD,
 } from "./upload";
 export type {
@@ -45,7 +46,16 @@ export {
 export { objectListEntryKey, objectKeyOf } from "./list/entries";
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
-export { formatAcceptLabels } from "./helpers/format-accept-labels";
+export {
+  formatAcceptLabels,
+  type FormatAcceptLabelsOptions,
+} from "./helpers/format-accept-labels";
+export {
+  formatFileSize,
+  type FileSizeUnit,
+  type FormatFileSizeOptions,
+} from "./helpers/format-file-size";
 export { formatSpeed } from "./helpers/format-speed";
 export { formatUploadProgress } from "./helpers/format-upload-progress";
+export { truncateFileName } from "./helpers/truncate-file-name";
 export { toTimestamp, type DateInput } from "./helpers/to-timestamp";

@@ -64,6 +64,11 @@
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
         },
         {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-type-glyph.tsx"
@@ -196,6 +201,11 @@
           "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
@@ -345,6 +355,11 @@
           "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
@@ -548,6 +563,11 @@
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
         },
         {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-type-glyph.tsx"
@@ -675,6 +695,11 @@
           "target": "@components/dimah-s3/download/download-toasts.tsx"
         },
         {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
+        },
+        {
           "path": "src/hooks/use-toast-owner.ts",
           "type": "registry:hook",
           "target": "@hooks/use-toast-owner.ts"
@@ -745,6 +770,11 @@
           "path": "src/lib/isolate-text.ts",
           "type": "registry:lib",
           "target": "@lib/isolate-text.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/hooks/use-toast-owner.ts",
@@ -946,6 +976,11 @@
           "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",

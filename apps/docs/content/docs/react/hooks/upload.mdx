@@ -125,6 +125,25 @@ The hook also sums up the queue:
 `cancel()` with no id cancels every file. `reset()` removes settled files and
 rejections; files in flight keep going.
 
+`retry(id)` uploads a failed file again, and `retry()` every failed file. A
+retried file keeps its place and `id`, and goes back to `queued`. It goes with
+the call options it was first sent with, so it lands in the same folder: it
+is validated again, and `beforeUpload` and `onUploadStart` run again. A retry
+never replaces the queue, even without `queue: true`. It resolves like
+`handleFiles`, and the callbacks run as for a new call.
+
+```tsx
+{
+  upload.files.map((file) =>
+    file.phase === "error" ? (
+      <button key={file.id} type="button" onClick={() => upload.retry(file.id)}>
+        Retry {file.fileName}
+      </button>
+    ) : null,
+  );
+}
+```
+
 ---
 
 ## Results
@@ -271,7 +290,9 @@ streams when the server asks for checksums.
 Failed requests retry with exponential backoff. Set `retry: { maxRetries,
 baseDelay }` (defaults `3` and `1000` ms). Network errors, S3 errors with
 status 429 or 500 and above, and expired part URLs are retried. An expired URL
-is signed again first.
+is signed again first. A file that still fails can be sent again with
+`upload.retry(id)`; with an `uploadStore`, a multipart upload that failed on a
+retryable error resumes from the parts S3 already has.
 
 - **`cancel(id?)`** aborts the upload, aborts the multipart session on the server, and deletes its stored record.
 - **`detach()`** stops every file but keeps the multipart session and its stored record, so the upload can [resume](/docs/react/upload-store).

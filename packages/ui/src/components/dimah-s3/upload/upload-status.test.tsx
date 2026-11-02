@@ -61,6 +61,7 @@ function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
     disabled: false,
     handleFiles: vi.fn(),
     open: vi.fn(),
+    retry: vi.fn(),
     cancel: vi.fn(),
     detach: vi.fn(),
     reset: vi.fn(),
@@ -163,6 +164,61 @@ describe("UploadStatus", () => {
       screen.getByRole("button", { name: "Dismiss a.txt" }),
     );
     expect(upload.reset).toHaveBeenCalledOnce();
+  });
+
+  it("retries a failed file and keeps focus on its action once it is back in flight", async () => {
+    const retry = vi.fn<UseUploadReturn["retry"]>();
+    function View() {
+      const [upload, setUpload] = useState(() =>
+        stubUpload({
+          files: [fileState("a", "error", { error: s3Error("NETWORK_ERROR") })],
+          phase: "error",
+          retry,
+        }),
+      );
+      retry.mockImplementation(async () => {
+        setUpload(
+          stubUpload({
+            files: [fileState("a", "queued")],
+            phase: "uploading",
+            isPending: true,
+            retry,
+          }),
+        );
+        return { uploaded: [], failed: [], blocked: [], aborted: [] };
+      });
+      return (
+        <Upload upload={upload}>
+          <UploadStatus />
+        </Upload>
+      );
+    }
+    render(<View />);
+
+    const action = screen.getByRole("button", { name: "Retry a.txt" });
+    await userEvent.click(action);
+
+    expect(retry).toHaveBeenCalledWith("a");
+    expect(screen.getByRole("button", { name: "Cancel a.txt" })).toBe(action);
+    expect(document.activeElement).toBe(action);
+  });
+
+  it("retries every failed file from the summary, or one from its row", async () => {
+    const error = s3Error("NETWORK_ERROR");
+    const upload = stubUpload({
+      files: [fileState("a", "success"), fileState("b", "error", { error })],
+      phase: "error",
+      error,
+    });
+    renderStatus(upload);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retry failed uploads" }),
+    );
+    expect(upload.retry).toHaveBeenCalledWith();
+    await userEvent.click(screen.getByRole("button", { name: "Retry b.txt" }));
+    expect(upload.retry).toHaveBeenCalledWith("b");
+    expect(screen.queryByRole("button", { name: "Retry a.txt" })).toBeNull();
   });
 
   it("summarizes several files in flight above the list", async () => {

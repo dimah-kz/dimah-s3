@@ -21,7 +21,7 @@
     "fumadocs-mdx": "15.4.10",
     "fumadocs-typescript": "^5.6.0",
     "fumadocs-ui": "npm:@fumadocs/base-ui@^16.17.9",
-    "lucide-react": "^1.65.0",
+    "lucide-react": "^1.66.0",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

@@ -117,7 +117,7 @@ export type UseUploadOptions = {
    * HTML `accept` tokens: MIME types (`image/*`) and extensions (`.pdf`).
    * Narrows the route's `fileTypes`; the server still enforces the route.
    */
-  accept?: string[];
+  accept?: readonly string[];
   /** Max file size in bytes. The smaller of this and the route's wins. */
   maxFileSize?: number;
   /** Max files per selection. @default 1 */

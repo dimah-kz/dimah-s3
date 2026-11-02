@@ -30,6 +30,7 @@ function fileState(id: string, phase: UploadFilePhase): UploadFileState {
 }
 
 const cancel = vi.fn<UseUploadReturn["cancel"]>();
+const retry = vi.fn<UseUploadReturn["retry"]>();
 
 /** A `useUpload` return in a fixed state. Only the fields toasts read matter. */
 function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
@@ -53,6 +54,7 @@ function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
     disabled: false,
     handleFiles: vi.fn(),
     open: vi.fn(),
+    retry,
     cancel,
     detach: vi.fn(),
     reset: vi.fn(),
@@ -135,6 +137,19 @@ describe("UploadToasts", () => {
 
     expect(await screen.findByText("Upload failed")).toBeDefined();
     expect(screen.getByText("Network error")).toBeDefined();
+  });
+
+  it("offers a retry on a failed upload and reports the retried file again", async () => {
+    const { update } = renderToasts(uploading([fileState("a", "uploading")]));
+    update(settled([fileState("a", "error")]));
+    expect(await screen.findByText("Upload failed")).toBeDefined();
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(retry).toHaveBeenCalledWith("a");
+
+    update(uploading([fileState("a", "queued")]));
+    update(settled([fileState("a", "success")]));
+    expect(await screen.findByText("Upload complete")).toBeDefined();
   });
 
   it("summarizes the files of a call", async () => {

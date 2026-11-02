@@ -44,6 +44,7 @@ export {
 
 // ─── Formatters ──────────────────────────────────────────────────────────────
 export {
+  useFormatAcceptLabels,
   useFormatDate,
   useFormatDimahError,
   useFormatEta,

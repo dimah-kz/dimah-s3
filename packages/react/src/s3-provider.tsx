@@ -83,8 +83,7 @@ export function useApi<TApi extends S3Api = S3Api>(): TApi {
   const ctx = useContext(S3Context);
   if (!ctx) {
     throw new Error(
-      "[dimah-s3] No S3Api found. " +
-        "Either wrap your app with <S3Provider api={...}> or pass `api` directly to the hook.",
+      "[dimah-s3] No S3Api found. Wrap your app with <S3Provider api={...}>.",
     );
   }
   return ctx as TApi;

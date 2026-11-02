@@ -1,4 +1,4 @@
-import { formatFileSize, type FormatFileSizeOptions } from "@dimah-s3/core";
+import { formatFileSize, type FormatFileSizeOptions } from "./format-file-size";
 
 /**
  * Formats upload progress as a human-readable transfer string.

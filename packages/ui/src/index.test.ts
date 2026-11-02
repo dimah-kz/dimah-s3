@@ -19,6 +19,7 @@ describe("@dimah-s3/ui", () => {
       "DownloadToasts",
       "DownloadTrigger",
       "FileAttachment",
+      "FileName",
       "FileTypeGlyph",
       "FolderGlyph",
       "NewFolderControl",

@@ -6,7 +6,7 @@ import { useTranslations } from "@fuma-translate/react";
 import { isRawAPIError, toClientError } from "@/internal/client-error";
 import { useFormatFileSize, useFormatNumber } from "./format-number";
 
-type ErrorParams = Record<string, unknown>;
+type ErrorParams = Readonly<Record<string, string | number>>;
 
 /**
  * Localized message for any error a dimah-s3 hook reports.
@@ -40,8 +40,8 @@ export function useFormatDimahError(): (error: unknown) => string {
           : unknownError;
       }
 
-      const { code, params } = readErrorBody(error.body);
-      if (!code) return error.message || unknownError;
+      const { code, params = {} } = error;
+      if (!isCatalogCode(code)) return error.message || unknownError;
       const text = (key: string) => readString(params, key);
       const count = (key: string) => {
         const value = readNumber(params, key);
@@ -62,7 +62,9 @@ export function useFormatDimahError(): (error: unknown) => string {
         case "FORBIDDEN":
           return t("Access denied", { note: "API error" });
         case "CONFLICT":
-          return t("Conflict", { note: "API error" });
+          return t("Another change happened at the same time. Try again.", {
+            note: "API error",
+          });
         case "INTERNAL_ERROR":
         case "HOOK_FAILED":
         case "UNKNOWN_ERROR":
@@ -197,28 +199,8 @@ export function useFormatDimahError(): (error: unknown) => string {
   );
 }
 
-/**
- * Catalog code and params of an error body. Reads `body` rather than the
- * getters, because raw better-call errors carry them only there.
- */
-function readErrorBody(body: unknown): {
-  code: S3ErrorCode | undefined;
-  params: ErrorParams;
-} {
-  if (typeof body !== "object" || body === null) {
-    return { code: undefined, params: {} };
-  }
-  const { code, params } = body as { code?: unknown; params?: unknown };
-  return {
-    code:
-      typeof code === "string" && Object.hasOwn(S3_ERROR_CODES, code)
-        ? (code as S3ErrorCode)
-        : undefined,
-    params:
-      typeof params === "object" && params !== null
-        ? (params as ErrorParams)
-        : {},
-  };
+function isCatalogCode(code: string): code is S3ErrorCode {
+  return Object.hasOwn(S3_ERROR_CODES, code);
 }
 
 function readString(params: ErrorParams, key: string): string | undefined {

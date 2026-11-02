@@ -10,6 +10,7 @@ describe("@dimah-s3/react", () => {
       "useDelete",
       "useDownload",
       "useFetchDownload",
+      "useFormatAcceptLabels",
       "useFormatDate",
       "useFormatDimahError",
       "useFormatEta",

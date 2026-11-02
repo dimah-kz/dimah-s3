@@ -9,13 +9,13 @@ import type { KeyError, OperationOutcome, TransferProgress } from "./operation";
 
 /** Options for one `download(key)` call. */
 export type DownloadOptions = {
-  /** File name the browser saves. The server sanitizes it. */
+  /** File name the browser saves, fitted to 255 UTF-8 bytes like an upload name. */
   fileName?: string;
 };
 
 /** Options for one presign request. */
 export type PresignOptions = {
-  /** File name the browser saves. The server sanitizes it. */
+  /** File name the browser saves, fitted to 255 UTF-8 bytes like an upload name. */
   fileName?: string;
   /** Requested URL lifetime in seconds. The server caps it at the route's limit. */
   expiresIn?: number;

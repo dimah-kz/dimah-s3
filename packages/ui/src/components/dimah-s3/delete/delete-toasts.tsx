@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
+import { fileNameFromKey } from "@dimah-s3/core";
 import {
   useFormatDimahError,
   useFormatNumber,
@@ -10,6 +10,7 @@ import {
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { toast } from "@/components/ui/toast";
+import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { useToastOwner } from "@/hooks/use-toast-owner";
 
 /** Props for {@link DeleteToasts}. */
@@ -89,7 +90,7 @@ export function useDeleteToasts(
                 }),
           description:
             deleted.length === 1 ? (
-              <bdi>{truncateFileName(displayName(firstDeleted))}</bdi>
+              <FileName name={displayName(firstDeleted)} />
             ) : undefined,
         });
       }

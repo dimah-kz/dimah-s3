@@ -287,11 +287,14 @@ function deleteMany(
   };
 }
 
-/** Maps each key the server will answer with to the keys the caller passed. */
+/**
+ * Maps each key the server will answer with to the keys the caller passed.
+ * A key the server refuses is answered as it was sent.
+ */
 function groupByNormalizedKey(keys: readonly string[]): Map<string, string[]> {
   const groups = new Map<string, string[]>();
   for (const key of keys) {
-    const normalized = normalizeObjectKey(key.trim()) ?? key;
+    const normalized = normalizeObjectKey(key) ?? key;
     const group = groups.get(normalized);
     if (group) group.push(key);
     else groups.set(normalized, [key]);

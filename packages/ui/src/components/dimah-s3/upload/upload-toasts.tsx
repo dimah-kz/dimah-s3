@@ -61,7 +61,8 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
   const showProgress = isPending && files.length > 0;
 
   const progressToastRef = useRef<string | null>(null);
-  const cancelRef = useRef(upload.cancel);
+  // Toast actions run after the toast was shown, with the newest functions.
+  const actionsRef = useRef({ cancel: upload.cancel, retry: upload.retry });
   // Results and rejections from before this owner mounted are not reported.
   const [reported] = useState(
     () => new Set(files.filter(isSettled).map((file) => file.id)),
@@ -69,7 +70,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
   const rejectionsRef = useRef(fileRejections);
 
   useEffect(() => {
-    cancelRef.current = upload.cancel;
+    actionsRef.current = { cancel: upload.cancel, retry: upload.retry };
   });
 
   useEffect(
@@ -105,7 +106,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
       ),
       actionProps: {
         children: t("Cancel", { note: "toast action" }),
-        onClick: () => cancelRef.current(),
+        onClick: () => actionsRef.current.cancel(),
       },
     };
     if (progressToastRef.current) {
@@ -116,6 +117,10 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
   }, [showProgress, files, progress, t, formatFileSize, formatNumber]);
 
   useEffect(() => {
+    // A file back in flight, as after a retry, reports again once it settles.
+    for (const file of files) {
+      if (!isSettled(file)) reported.delete(file.id);
+    }
     if (isPending) return;
     const fresh = files.filter(
       (file) => isSettled(file) && !reported.has(file.id),
@@ -124,6 +129,10 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
     for (const file of fresh) reported.add(file.id);
 
     const failed = fresh.filter((file) => file.phase === "error");
+    const retryAction = (id?: string) => ({
+      children: t("Retry", { note: "toast action" }),
+      onClick: () => void actionsRef.current.retry(id),
+    });
     const [first] = fresh;
     if (fresh.length === 1) {
       toast.add(
@@ -137,6 +146,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
               type: "error",
               title: t("Upload failed", { note: "toast" }),
               description: wrapText(formatError(first.error)),
+              actionProps: retryAction(first.id),
             },
       );
       return;
@@ -169,6 +179,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
                 })}
               </span>
             ),
+            actionProps: retryAction(),
           },
     );
   }, [

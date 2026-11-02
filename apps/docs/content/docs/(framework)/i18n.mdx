@@ -75,6 +75,11 @@ Sizes then read `۱۲٫۴ مگابایت`. Without `locale`, they read `12.4 MB`
 own components can use the same formatters with `useFormatFileSize()` and
 `useFormatNumber()` from `@dimah-s3/react`.
 
+The accepted types under a dropzone use the same map. Groups such as
+`image/*` are keys (`"Images(file type group)"`); extensions and MIME types
+read as they are, such as `PDF`. `useFormatAcceptLabels()` gives your own
+components the same labels.
+
 ## API errors
 
 The server always responds in English. Every error carries a catalog `code`

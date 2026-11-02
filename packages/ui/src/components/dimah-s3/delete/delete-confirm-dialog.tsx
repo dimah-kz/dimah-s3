@@ -2,8 +2,9 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { LoaderIcon, Trash2Icon } from "lucide-react";
-import { fileNameFromKey, truncateFileName } from "@dimah-s3/core";
+import { fileNameFromKey } from "@dimah-s3/core";
 import { useFormatFileSize, useFormatNumber } from "@dimah-s3/react";
+import { truncateFileName } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
 import {
   AlertDialog,

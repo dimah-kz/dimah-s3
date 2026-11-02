@@ -2,11 +2,11 @@
 
 import { useTranslations } from "@fuma-translate/react";
 import {
+  useFormatAcceptLabels,
   useFormatFileSize,
   useFormatNumber,
   type UploadPolicy,
 } from "@dimah-s3/react";
-import { formatAcceptLabels } from "@dimah-s3/react/engine";
 
 /** The policy fields {@link useUploadHints} describes. */
 export type UploadHintsPolicy = Pick<
@@ -28,6 +28,7 @@ export type UploadHints = {
  */
 export function useUploadHints(policy: UploadHintsPolicy): UploadHints {
   const t = useTranslations();
+  const formatAcceptLabels = useFormatAcceptLabels();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
   const { maxFiles, maxFileSize } = policy;

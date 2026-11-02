@@ -77,6 +77,14 @@ export type UseUploadReturn = {
   ) => Promise<UploadBatchResult>;
   /** Opens the native file picker. `call` applies to the picked files. */
   open: (call?: UploadCallOptions) => void;
+  /**
+   * Uploads the failed file `id` again, or every failed file. Each file goes
+   * with the options of the call it came from: it is validated again, and
+   * `beforeUpload` and `onUploadStart` run again. It keeps its place and
+   * `id` in the queue, and a retry never replaces the queue. Resolves like
+   * `handleFiles`; with nothing to retry, at once and without callbacks.
+   */
+  retry: (id?: string) => Promise<UploadBatchResult>;
   /** Cancels one file by `id`, or every file. */
   cancel: (id?: string) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
@@ -137,19 +145,26 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     multipart: options.multipart,
   });
   const engine = useFileUpload(options);
-  const { upload } = engine;
+  const { upload, retry: retryFiles } = engine;
   const catalogStatusRef = useLiveRef(routePolicy.status);
 
+  // A call loads the catalog again, so the policy can recover too.
   const handleFiles = useCallback(
     (
       files: FileList | readonly File[] | File | null,
       call?: UploadCallOptions,
     ) => {
-      // The upload loads the catalog again, so the policy can recover too.
       if (catalogStatusRef.current === "error") reloadCatalog();
       return upload(toFileArray(files), call);
     },
     [catalogStatusRef, reloadCatalog, upload],
+  );
+  const retry = useCallback(
+    (id?: string) => {
+      if (catalogStatusRef.current === "error") reloadCatalog();
+      return retryFiles(id);
+    },
+    [catalogStatusRef, reloadCatalog, retryFiles],
   );
 
   const intake = useFileIntake({
@@ -177,6 +192,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     disabled: options.disabled ?? false,
     handleFiles,
     open: intake.open,
+    retry,
     cancel: engine.cancel,
     detach: engine.detach,
     reset: engine.reset,

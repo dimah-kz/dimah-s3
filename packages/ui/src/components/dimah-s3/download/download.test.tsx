@@ -427,7 +427,7 @@ describe("DownloadToasts", () => {
     );
     const loading = await screen.findByText("Downloading");
     const toast = within(toastByTitle("Downloading"));
-    expect(toast.getByText("Report.pdf")).toBeDefined();
+    expect(toast.getByTitle("Report.pdf")).toBeDefined();
     expect(toast.getByText(/^400 .+ of .+$/)).toBeDefined();
     expect(loading).toBeDefined();
 

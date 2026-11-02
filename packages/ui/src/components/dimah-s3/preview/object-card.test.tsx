@@ -64,7 +64,7 @@ describe("ObjectCard", () => {
       />,
     );
 
-    expect(screen.getByText("march.pdf")).toBeDefined();
+    expect(screen.getByTitle("march.pdf")).toBeDefined();
     expect(screen.getByText("2.0 KB")).toBeDefined();
     await userEvent.click(
       screen.getByRole("button", { name: "Download march.pdf" }),
@@ -78,7 +78,7 @@ describe("ObjectCard", () => {
   it("renders no actions without hooks", () => {
     render(<ObjectCard objectKey={KEY} fileName="March invoice.pdf" />);
 
-    expect(screen.getByText("March invoice.pdf")).toBeDefined();
+    expect(screen.getByTitle("March invoice.pdf")).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
   });
 

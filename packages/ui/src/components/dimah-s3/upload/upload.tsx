@@ -12,10 +12,10 @@ import {
 } from "react";
 import type {
   UploadCallOptions,
-  UploadRequestInput,
   UploadRequestOptions,
   UseUploadReturn,
 } from "@dimah-s3/react";
+import { mergeUploadRequest } from "@dimah-s3/react/engine";
 import { useOptionalObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 
 /** Props for {@link Upload}. */
@@ -251,24 +251,12 @@ function mergeCall(
   base: UploadRequestOptions,
   call: UploadCallOptions | undefined,
 ): UploadCallOptions {
-  const own: UploadRequestInput | undefined = call?.uploadOptions;
+  const own = call?.uploadOptions;
   return {
     ...call,
     uploadOptions:
       typeof own === "function"
-        ? (file) => mergeRequest(base, own(file))
-        : mergeRequest(base, own),
+        ? (file) => mergeUploadRequest(base, own(file))
+        : mergeUploadRequest(base, own),
   };
-}
-
-function mergeRequest(
-  base: UploadRequestOptions,
-  override: UploadRequestOptions | undefined,
-): UploadRequestOptions {
-  if (!override) return base;
-  const merged = { ...base, ...override };
-  if (base.metadata && override.metadata) {
-    merged.metadata = { ...base.metadata, ...override.metadata };
-  }
-  return merged;
 }

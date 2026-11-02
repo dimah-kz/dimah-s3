@@ -97,7 +97,7 @@ toolbar and a dropzone below it share the same queue.
 | `UploadDropzoneTrigger` | The part of a dropzone you click, or focus and press Enter, to pick files |
 | `UploadStatus`          | One card for one file, or a summary above the file list for several       |
 | `UploadFileList`        | Every file in the queue, as rows or a grid. A function child renders each |
-| `UploadFileItem`        | The card for one file, with its progress, error, and a cancel action      |
+| `UploadFileItem`        | The card for one file, with its progress, error, and cancel or retry      |
 | `UploadToasts`          | Progress, results, and rejected files as toasts. It renders no element    |
 
 ## Examples
@@ -221,7 +221,9 @@ the root is full, as in a full [`UploadField`](/docs/react/ui/components/upload-
 own card. Several files show as one card: a summary with the overall
 progress ring, the count, and the time left, then a row for each file. The
 summary has "Cancel all uploads" while they upload, and a dismiss action once
-they settle. The rows scroll past 20rem.
+they settle, with "Retry failed uploads" when some failed. Each failed file
+has its own retry action, which turns into its cancel action as the file goes
+back in flight, so focus stays on it. The rows scroll past 20rem.
 Pause appears while files upload when the hook has an `uploadStore`, so the
 uploads can [resume](/docs/react/upload-store). It sets `data-phase` to the
 hook's phase.
@@ -239,7 +241,7 @@ Parts never toast. Mount `UploadToasts` once per hook, and one `<Toaster />`
 in your root layout ([UI Setup](/docs/react/ui)).
 
 - While files upload, a progress toast with a cancel action.
-- Once the queue settles, the result.
+- Once the queue settles, the result. A failure has a Retry action.
 - For each call that rejects files, the reason, formatted from the error code.
 
 A second `UploadToasts` for the same hook renders nothing and warns in

@@ -1,4 +1,4 @@
-import { formatFileSize, type FormatFileSizeOptions } from "@dimah-s3/core";
+import { formatFileSize, type FormatFileSizeOptions } from "./format-file-size";
 
 /**
  * Formats a transfer speed (bytes/second) as a human-readable string.

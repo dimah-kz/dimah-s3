@@ -15,15 +15,29 @@ function sourceFile(
   return { path, type, target: `@${path}` };
 }
 
+/** The files of several groups, each path once, in first-seen order. */
+function files(
+  ...groups: readonly (readonly RegistryFile[])[]
+): RegistryFile[] {
+  const byPath = new Map<string, RegistryFile>();
+  for (const file of groups.flat()) {
+    if (!byPath.has(file.path)) byPath.set(file.path, file);
+  }
+  return [...byPath.values()];
+}
+
 const circleProgressFile = sourceFile(
   "components/dimah-s3/attachment/circle-progress.tsx",
 );
+
+const fileNameFile = sourceFile("components/dimah-s3/attachment/file-name.tsx");
 
 const attachmentFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/attachment/file-attachment.tsx"),
   sourceFile("components/dimah-s3/attachment/status-attachment.tsx"),
   circleProgressFile,
   sourceFile("components/dimah-s3/attachment/dismiss-attachment-action.tsx"),
+  fileNameFile,
   sourceFile("components/dimah-s3/attachment/file-type-glyph.tsx"),
   sourceFile("components/dimah-s3/attachment/folder-glyph.tsx"),
   sourceFile("lib/attachment-layout.ts", "registry:lib"),
@@ -66,6 +80,7 @@ const downloadFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/download/download-trigger.tsx"),
   sourceFile("components/dimah-s3/download/download-progress.tsx"),
   sourceFile("components/dimah-s3/download/download-toasts.tsx"),
+  fileNameFile,
 ];
 
 const deleteFiles: RegistryFile[] = [
@@ -74,6 +89,7 @@ const deleteFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/delete/delete-confirm-dialog.tsx"),
   sourceFile("components/dimah-s3/delete/delete-toasts.tsx"),
   sourceFile("lib/isolate-text.ts", "registry:lib"),
+  fileNameFile,
 ];
 
 const objectListFiles: RegistryFile[] = [
@@ -227,11 +243,13 @@ export const components: Registry["items"] = [
       "tooltip",
       "attachment",
     ],
-    files: [
-      sourceFile("components/dimah-s3/upload/upload-field.tsx"),
-      sourceFile("hooks/use-file-preview.ts", "registry:hook"),
-      ...uploadFamilyFiles,
-    ],
+    files: files(
+      [
+        sourceFile("components/dimah-s3/upload/upload-field.tsx"),
+        sourceFile("hooks/use-file-preview.ts", "registry:hook"),
+      ],
+      uploadFamilyFiles,
+    ),
   },
   {
     name: "avatar-upload",
@@ -240,12 +258,11 @@ export const components: Registry["items"] = [
     description:
       "Round image button that uploads a new picture, with a preview, a progress ring, and live status.",
     ...installMeta,
-    files: [
-      sourceFile("components/dimah-s3/upload/avatar-upload.tsx"),
-      ...uploadRootFiles,
-      objectImageFile,
-      circleProgressFile,
-    ],
+    files: files(
+      [sourceFile("components/dimah-s3/upload/avatar-upload.tsx")],
+      uploadRootFiles,
+      [objectImageFile, circleProgressFile],
+    ),
   },
   {
     name: "object-image",
@@ -270,13 +287,13 @@ export const components: Registry["items"] = [
       "alert-dialog",
       "attachment",
     ],
-    files: [
-      sourceFile("components/dimah-s3/preview/object-card.tsx"),
-      ...attachmentFiles,
-      ...downloadFiles,
-      ...deleteFiles,
-      toastOwnerFile,
-    ],
+    files: files(
+      [sourceFile("components/dimah-s3/preview/object-card.tsx")],
+      attachmentFiles,
+      downloadFiles,
+      deleteFiles,
+      [toastOwnerFile],
+    ),
   },
   {
     name: "download",
@@ -286,7 +303,7 @@ export const components: Registry["items"] = [
       "Composable download family: Download root, trigger button, progress, and toasts.",
     ...installMeta,
     registryDependencies: [...toastRegistryDependencies, "tooltip"],
-    files: [...downloadFiles, toastOwnerFile],
+    files: files(downloadFiles, [toastOwnerFile]),
   },
   {
     name: "delete",
@@ -300,7 +317,7 @@ export const components: Registry["items"] = [
       "tooltip",
       "alert-dialog",
     ],
-    files: [...deleteFiles, toastOwnerFile],
+    files: files(deleteFiles, [toastOwnerFile]),
   },
   {
     name: "object-list",
@@ -322,11 +339,11 @@ export const components: Registry["items"] = [
       "toast",
       "tooltip",
     ],
-    files: [
-      ...objectListFiles,
-      ...uploadFamilyFiles,
-      ...downloadFiles,
-      ...deleteFiles,
-    ],
+    files: files(
+      objectListFiles,
+      uploadFamilyFiles,
+      downloadFiles,
+      deleteFiles,
+    ),
   },
 ];

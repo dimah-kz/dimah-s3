@@ -26,6 +26,7 @@ export type UploadFileItemProps = Omit<
   | "percent"
   | "error"
   | "onCancel"
+  | "onRetry"
 > & {
   /** One entry of `upload.files`. */
   file: UploadFileState;
@@ -33,8 +34,9 @@ export type UploadFileItemProps = Omit<
 
 /**
  * Card for one file of the nearest `Upload`: its phase, progress and
- * error, with a cancel action while it is queued or in flight. A cancelled
- * file leaves the queue, so focus moves on to the next action.
+ * error, with a cancel action while it is queued or in flight and a retry
+ * action once it failed. A cancelled file leaves the queue, so focus moves
+ * on to the next action; a retried one keeps focus on its cancel action.
  */
 export function UploadFileItem({
   file,
@@ -71,6 +73,7 @@ export function UploadFileItem({
         keepFocus();
         upload.cancel(file.id);
       }}
+      onRetry={() => void upload.retry(file.id)}
       {...props}
     />
   );

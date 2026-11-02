@@ -1,7 +1,8 @@
 /**
  * Truncates a filename to at most `maxChars` characters, keeping the
  * extension when it fits: `a-very-long-name….pdf`. It counts and cuts code
- * points, so an emoji is never split.
+ * points, so an emoji is never split. For plain text such as a document
+ * title; in markup, the ui `FileName` truncates to the space it has.
  */
 export function truncateFileName(name: string, maxChars = 48): string {
   const chars = Array.from(name);

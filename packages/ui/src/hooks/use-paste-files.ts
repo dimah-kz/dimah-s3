@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useEffectEvent } from "react";
 import type { UploadCallOptions, UseUploadReturn } from "@dimah-s3/react";
 import { isFieldTarget } from "@/lib/is-field-target";
 
@@ -25,12 +25,8 @@ export function usePasteFiles(
   options: UsePasteFilesOptions = {},
 ): void {
   const enabled = (options.enabled ?? true) && !upload.disabled;
-  const latest = useRef({
-    handleFiles: upload.handleFiles,
-    call: options.call,
-  });
-  useLayoutEffect(() => {
-    latest.current = { handleFiles: upload.handleFiles, call: options.call };
+  const uploadPasted = useEffectEvent((files: File[]) => {
+    void upload.handleFiles(files, options.call);
   });
 
   useEffect(() => {
@@ -41,8 +37,7 @@ export function usePasteFiles(
       const files = [...(event.clipboardData?.files ?? [])];
       if (files.length === 0) return;
       event.preventDefault();
-      const { handleFiles, call } = latest.current;
-      void handleFiles(files, call);
+      uploadPasted(files);
     }
 
     document.addEventListener("paste", onPaste);

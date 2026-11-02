@@ -14,7 +14,7 @@ describe("FileAttachment", () => {
       <FileAttachment state="done" fileName="report.pdf" fileSize={2048} />,
     );
 
-    expect(screen.getByText("report.pdf")).toBeDefined();
+    expect(screen.getByTitle("report.pdf").textContent).toBe("report.pdf");
     expect(screen.getByText("2.0 KB")).toBeDefined();
   });
 

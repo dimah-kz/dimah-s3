@@ -238,9 +238,9 @@ describe("UploadField", () => {
     await act(async () => finish());
     await waitFor(() => expect(submitted("files")).toEqual(["uploads/a.txt"]));
     // Only the value lists the uploaded file; the status keeps the failure.
-    expect(screen.getAllByText("a.txt")).toHaveLength(1);
+    expect(screen.getAllByTitle("a.txt")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Remove a.txt" })).toBeDefined();
-    expect(screen.getByText("fail-b.txt")).toBeDefined();
+    expect(screen.getByTitle("fail-b.txt")).toBeDefined();
     expect(screen.getByText("Upload failed")).toBeDefined();
   });
 
@@ -461,8 +461,8 @@ describe("UploadField", () => {
     });
 
     expect(submitted("files")).toEqual(["old.txt"]);
-    expect(screen.queryByText("a.txt")).toBeNull();
-    expect(screen.getByText("old.txt")).toBeDefined();
+    expect(screen.queryByTitle("a.txt")).toBeNull();
+    expect(screen.getByTitle("old.txt")).toBeDefined();
     expect(onValueChange).toHaveBeenLastCalledWith(["old.txt"]);
 
     // The file that already uploaded is not added back.
@@ -496,7 +496,7 @@ describe("UploadField", () => {
     await waitFor(() => expect(submitted("files")).toEqual([]));
     expect(save).toHaveBeenCalledOnce();
     expect(save.mock.calls[0]?.[0].getAll("files")).toEqual(["uploads/a.txt"]);
-    expect(screen.queryByText("a.txt")).toBeNull();
+    expect(screen.queryByTitle("a.txt")).toBeNull();
   });
 
   it("leaves a controlled value alone when the form resets", () => {
@@ -521,8 +521,8 @@ describe("UploadField", () => {
 
     expect(submitted("files")).toEqual(["uploads/b.txt"]);
     expect(onValueChange).toHaveBeenLastCalledWith(["uploads/b.txt"]);
-    expect(screen.queryByText("a.txt")).toBeNull();
-    expect(screen.getByText("b.txt")).toBeDefined();
+    expect(screen.queryByTitle("a.txt")).toBeNull();
+    expect(screen.getByTitle("b.txt")).toBeDefined();
   });
 
   it("moves focus on when a remove takes the focused item away", async () => {
@@ -545,7 +545,7 @@ describe("UploadField", () => {
   it("names keys it did not upload after their last segment", () => {
     renderField({ name: "files", defaultValue: ["docs/2026/report.pdf"] });
 
-    expect(screen.getByText("report.pdf")).toBeDefined();
+    expect(screen.getByTitle("report.pdf")).toBeDefined();
     expect(
       screen.getByRole("button", { name: "Remove report.pdf" }),
     ).toBeDefined();

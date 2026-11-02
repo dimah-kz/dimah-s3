@@ -29,7 +29,7 @@ catalog:
   sherif: ^1.13.0
   tegami: ^1.5.0
   turbo: ^2.11.10
-  tsc-alias: ^1.9.9
+  tsc-alias: ^1.9.10
   tsup: ^9.0.0
   vitest: ^5.0.5
   react: ^19.3.1

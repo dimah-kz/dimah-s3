@@ -96,8 +96,14 @@ spinner instead.
 
 - `onCancel` adds a `Cancel {name}` action while the card is `idle`
   (queued), `uploading`, or `processing`.
+- `onRetry` adds a `Retry {name}` action while it is `error`. It is the same
+  button as cancel, so focus stays on it when the file goes back in flight.
 - `onDismiss` adds a `Dismiss {name}` action once it is `done` or `error`.
-- `actions` takes your own `AttachmentAction`s, placed before those two.
+- `actions` takes your own `AttachmentAction`s, placed before those.
+
+The title is a `FileName`: a long name ends its stem in an ellipsis and keeps
+the extension visible, and `title` holds the whole name.
+
 - `trigger` takes an `AttachmentTrigger` that makes the whole card one
   control, such as opening the file. Give it an accessible name.
 
@@ -145,6 +151,7 @@ the ring a card shows while its file uploads.
 | Export                    | Renders                                                                   |
 | ------------------------- | ------------------------------------------------------------------------- |
 | `CircleProgress`          | A progress ring with `role="progressbar"`, named `Progress for {name}`    |
+| `FileName`                | A name that fits its width and keeps the extension (`report-for-q….pdf`)  |
 | `FileTypeGlyph`           | A colored glyph for the file type, from the content type or the extension |
 | `FolderGlyph`             | The folder glyph the object list uses                                     |
 | `DismissAttachmentAction` | The dismiss icon button. `label` sets its accessible name                 |
@@ -165,6 +172,7 @@ import type {
   FileAttachmentProps,
   StatusAttachmentProps,
   CircleProgressProps,
+  FileNameProps,
   FileTypeGlyphProps,
   DismissAttachmentActionProps,
 } from "@dimah-s3/ui";
@@ -189,6 +197,13 @@ import type {
 <AutoTypeTable
   path="packages/ui/src/components/dimah-s3/attachment/circle-progress.tsx"
   name="CircleProgressProps"
+/>
+
+### FileName
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/attachment/file-name.tsx"
+  name="FileNameProps"
 />
 
 ### FileTypeGlyph

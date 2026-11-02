@@ -16,7 +16,8 @@ every change; this page covers what most apps need.
 npm i @dimah-s3/server@^1.8.0 @dimah-s3/core@^1.8.0 @dimah-s3/react@^1.8.0 @dimah-s3/ui@^1.8.0 @fuma-translate/react
 ```
 
-- `@dimah-s3/react` and `@dimah-s3/ui` need React 19 or later.
+- `@dimah-s3/react` and `@dimah-s3/ui` need React 19.2 or later, as
+  `@fuma-translate/react` does.
 - `@dimah-s3/core` is now a direct dependency. React no longer re-exports it.
 - `@fuma-translate/react` is a peer dependency of `@dimah-s3/react`. Install
   it yourself.
@@ -220,7 +221,9 @@ import { createLocalStorageStore } from "@dimah-s3/react/engine"; // [!code ++]
 ```
 
 `@dimah-s3/react/engine` has no `"use client"` directive and no React
-import, so you can use it in shared and server modules.
+import, so you can use it in shared and server modules. The display
+formatters `formatFileSize` and `truncateFileName` live there too, with
+`formatSpeed` and `formatUploadProgress`; they are not in `@dimah-s3/core`.
 
 ### Update `useUpload`
 
@@ -246,6 +249,8 @@ const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
   route config decides both.
 - An invalid file no longer stops the batch, and `cancel(id)` cancels one
   file. Pass `queue: true` to append new files instead of replacing the queue.
+- `retry(id?)` sends a failed file again in place. A test stub that builds a
+  whole `UseUploadReturn` must add `retry` and `disabled`.
 - Resume records from 1.7 are ignored.
 
 ### Split fetch downloads

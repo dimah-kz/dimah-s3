@@ -113,11 +113,14 @@ function presign(
   const signedAt = Date.now();
   const request = api
     .download(payload)
-    .then(({ url, expiresIn }) => {
+    .then((response) => {
       const entry: CachedUrl = {
-        url,
+        url: response.url,
         signedAt,
-        expiresAt: expiresIn === undefined ? null : signedAt + expiresIn * 1000,
+        expiresAt:
+          response.mode === "proxy"
+            ? null
+            : signedAt + response.expiresIn * 1000,
       };
       cache.entries.set(id, entry);
       return entry;

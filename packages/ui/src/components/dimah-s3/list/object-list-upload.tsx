@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import type {
   UploadCallOptions,
   UseObjectListReturn,
@@ -35,15 +35,13 @@ export function useRefreshListAfterUpload(
   upload: UseUploadReturn | undefined,
   refresh: () => void | Promise<void>,
 ) {
-  const refreshRef = useRef(refresh);
+  const reload = useEffectEvent(() => {
+    void refresh();
+  });
   /** File ids already counted, or settled before mount. */
   const seenRef = useRef<Set<string> | null>(null);
   const files = upload?.files;
   const settled = upload != null && !upload.isPending;
-
-  useEffect(() => {
-    refreshRef.current = refresh;
-  }, [refresh]);
 
   useEffect(() => {
     if (!files) return;
@@ -60,7 +58,7 @@ export function useRefreshListAfterUpload(
     const fresh = succeeded.filter((id) => !seen.has(id));
     if (fresh.length === 0) return;
     for (const id of fresh) seen.add(id);
-    void refreshRef.current();
+    reload();
   }, [files, settled]);
 }
 

@@ -20,7 +20,7 @@ export type DownloadTriggerProps = ComponentProps<typeof Button> & {
    * Named `objectKey` because React reserves the `key` prop.
    */
   objectKey: string;
-  /** File name the browser saves. The server sanitizes it. */
+  /** File name the browser saves, fitted to 255 UTF-8 bytes like an upload name. */
   fileName?: string;
   /** Size in bytes. A fetch download uses it as the progress total until the response gives one. */
   fileSize?: number | null;

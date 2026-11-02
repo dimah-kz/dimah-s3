@@ -5,8 +5,6 @@ export {
   fileNameFromKey,
   resolveStoredFileName,
 } from "./parse-file-name";
-export { formatFileSize } from "./format-file-size";
-export type { FileSizeUnit, FormatFileSizeOptions } from "./format-file-size";
 export { describeFileType, effectiveContentType } from "./content-type";
 export { buildContentDisposition } from "./build-content-disposition";
 export type { ContentDispositionType } from "./build-content-disposition";
@@ -18,7 +16,6 @@ export type {
   ResolveInlineDispositionInput,
   ResolveInlineDispositionResult,
 } from "./resolve-inline-disposition";
-export { truncateFileName } from "./truncate-file-name";
 export { fitFileName } from "./fit-file-name";
 export {
   normalizeObjectKey,

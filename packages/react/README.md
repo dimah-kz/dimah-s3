@@ -11,7 +11,7 @@ Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) Â
 pnpm add @dimah-s3/react @dimah-s3/core @fuma-translate/react
 ```
 
-Requires React 19.
+Requires React 19.2.
 
 ## Minimal setup
 

@@ -19,10 +19,12 @@ npm i @dimah-s3/core
 - **Limits** — `S3_MAX_POST_OBJECT_BYTES`, `DELETE_MANY_MAX_KEYS`, `ROUTE_NAME_PATTERN`, and the other protocol and S3 limits.
 - **Zod schemas** — in `@dimah-s3/core/schema`: the request bodies and queries the server validates, such as `uploadBodySchema` and `downloadQuerySchema`. They live outside the root entry, so browser bundles never include Zod.
 - **Client plugin helpers** — `defineClientPlugin`, `createS3Fetch`, `pluginPath`.
-- **Pure helpers** — `validateFile`, `sha256Blob`, `resolveInlineDisposition`, `formatFileSize`, and more.
+- **Pure helpers** — `validateFile`, `sha256Blob`, `resolveInlineDisposition`, `fitFileName`, and more.
 
 The React package does not re-export any of this. Import it from
-`@dimah-s3/core`.
+`@dimah-s3/core`. Display formatters such as `formatFileSize` and
+`truncateFileName` live in [`@dimah-s3/react/engine`](/docs/react/guides/engine),
+next to the other formatters.
 
 ---
 
@@ -176,7 +178,6 @@ a client plugin. See [Plugins](/docs/server/plugins) for the server side.
 ```ts
 import {
   buildPublicObjectUrl,
-  formatFileSize,
   resolveInlineDisposition,
   sha256Blob,
   validateFile,
@@ -198,8 +199,6 @@ const { disposition } = resolveInlineDisposition({
   requested: "inline",
 });
 
-formatFileSize(1_500_000); // "1.4 MB"
-
 // Public URL for public-read objects or a CDN. It does not sign.
 const url = buildPublicObjectUrl({
   baseUrl: "https://cdn.example.com",
@@ -214,7 +213,6 @@ const url = buildPublicObjectUrl({
 | `resolveInlineDisposition`, `DEFAULT_INLINE_TYPES`         | The server's inline rule. Pass the catalog `download.inlineTypes` as `allow` |
 | `sniffContentType`, `matchesMagicBytes`, `isSniffableType` | Reads a type from the first bytes, as `verifyContent` does                   |
 | `buildContentDisposition`, `parseFileName`                 | Builds and reads `Content-Disposition` with Unicode names                    |
-| `formatFileSize`, `truncateFileName`                       | Display text. `formatFileSize` takes a `locale` and unit labels              |
 | `buildObjectKey`, `normalizeObjectKey`                     | Joins key segments, and rejects unsafe keys (`..`, `\`, NUL)                 |
 | `objectKeyByteLength`, `S3_MAX_OBJECT_KEY_BYTES`           | A key's UTF-8 length, and the 1024-byte limit `normalizeObjectKey` enforces  |
 | `fitFileName`, `S3_MAX_FILE_FIELD_BYTES`                   | Fits a file name to the 255-byte wire rule                                   |

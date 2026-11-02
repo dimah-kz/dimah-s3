@@ -158,6 +158,10 @@ export {
   type CircleProgressProps,
 } from "@/components/dimah-s3/attachment/circle-progress";
 export {
+  FileName,
+  type FileNameProps,
+} from "@/components/dimah-s3/attachment/file-name";
+export {
   FileTypeGlyph,
   type FileTypeGlyphProps,
 } from "@/components/dimah-s3/attachment/file-type-glyph";
