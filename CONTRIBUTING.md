@@ -41,11 +41,20 @@ pnpm --filter @dimah-s3/core check-types
 
 ## Contribution workflow
 
-1. Fork the repository and create a branch from `main` for 1.x fixes. 2.0 beta work branches from `v2`.
+1. Branch from the line you are changing. `main` is stable 1.x. `v2` is the 2.0 beta.
 2. Make your changes with focused commits.
 3. Add or update tests/docs where needed.
 4. Add a Tegami changelog for user-facing package changes.
-5. Open a Pull Request.
+5. Push that feature branch and open a pull request. Set the base to the line you branched from.
+
+| Change   | Branch from | Pull request base | What ships                                                                                 |
+| -------- | ----------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| 1.x fix  | `main`      | `main`            | next 1.x on npm `latest`, docs at [s3.dimah.dev](https://s3.dimah.dev/docs)                |
+| 2.0 beta | `v2`        | `v2`              | next `2.0.0-beta.N` on npm `beta`, docs at [v2.s3.dimah.dev](https://v2.s3.dimah.dev/docs) |
+
+`main` and `v2` only accept a squash merge through a pull request, after CI is green. Push the feature branch. The base dropdown on the pull request chooses `main` or `v2`. Do not merge `v2` into `main` locally. That merge is the stable 2.0.0 release, later.
+
+A squash merge into `v2` publishes the beta when a changelog is pending. Until 2.0.0, every bump on `v2` stays `2.0.0-beta.N`, including breaking changes. A squash merge into `main` publishes the next 1.x on `latest`.
 
 ## Changelogs (required for package changes)
 

@@ -1,3 +1,5 @@
+Base branch: `main` for a 1.x fix, `v2` for 2.0 beta work.
+
 ## Summary
 
 - Describe what changed and why.
