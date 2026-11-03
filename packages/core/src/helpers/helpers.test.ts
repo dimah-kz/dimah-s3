@@ -402,7 +402,7 @@ describe("base64UrlEncode / base64UrlDecode", () => {
   it("encodes large inputs", () => {
     const bytes = new Uint8Array(200_000).map((_, index) => index % 256);
     const decoded = base64UrlDecode(base64UrlEncode(bytes));
-    expect(decoded.length).toBe(bytes.length);
+    expect(decoded).toHaveLength(bytes.length);
     // A direct compare. `toEqual` on this buffer builds a diff large enough
     // to time the test out.
     let mismatch = -1;
