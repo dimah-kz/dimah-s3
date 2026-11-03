@@ -1,3 +1,13 @@
+## @dimah-s3/core@2.0.0-beta.1 (beta)
+
+### Encode large base64url values directly
+
+Base64 encoding writes each group of bytes itself, so a large value finishes instead of stalling.
+
+### Fix base64url on large inputs
+
+Encoding and decoding a large base64url value no longer stalls.
+
 ## @dimah-s3/core@2.0.0-beta.0 (beta)
 
 ### Search and sort `db()` object listings

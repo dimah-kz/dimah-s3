@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/core": patch
+  "@dimah-s3/core":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/core)
 ---
 
 ### Fix base64url on large inputs

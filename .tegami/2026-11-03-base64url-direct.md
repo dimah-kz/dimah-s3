@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/core": patch
+  "@dimah-s3/core":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/core)
 ---
 
 ### Encode large base64url values directly
