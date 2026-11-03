@@ -55,8 +55,13 @@ export type AuthorizeContext<
   scope: string;
   /** Object key. Absent on `list` and the folder endpoints. */
   key?: string;
-  /** Target folder of an upload, move, or folder endpoint. `null` is the root. */
+  /**
+   * Path of the target folder. `null` is the root. Absent when the call is
+   * not aimed at one folder. A rename or move reports the destination.
+   */
   folder?: string | null;
+  /** Id of the target folder. `null` is the root. */
+  folderId?: string | null;
   /** Client extras of the upload. Set on `upload` only. */
   clientMetadata?: Record<string, string>;
   /**

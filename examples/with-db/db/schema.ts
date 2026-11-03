@@ -24,7 +24,7 @@ import {
 
 type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
 
-const SCHEMA_VERSION = "2.0.0";
+const SCHEMA_VERSION = "2.1.0";
 
 function id() {
   return text("id")
@@ -56,7 +56,7 @@ export const storageObject = sqliteTable(
     bucket: text("bucket").notNull(),
     key: text("key").notNull(),
     route: text("route").notNull(),
-    folder: text("folder"),
+    folderId: text("folder_id"),
     filename: text("filename").notNull(),
     contentType: text("content_type"),
     size: byteCount("size"),
@@ -81,7 +81,7 @@ export const storageObject = sqliteTable(
     index("storage_object_scope_folder_idx").on(
       table.scope,
       table.status,
-      table.folder,
+      table.folderId,
       table.createdAt,
     ),
     index("storage_object_scope_updated_idx").on(
@@ -112,14 +112,20 @@ export const storageFolder = sqliteTable(
   {
     id: id(),
     scope: text("scope").notNull(),
-    path: text("path").notNull(),
-    parent: text("parent"),
+    /** `""` is the root. */
+    parentId: text("parent_id").notNull().default(""),
     name: text("name").notNull(),
+    path: text("path").notNull(),
     createdAt: timestampNow("created_at"),
+    updatedAt: timestampNow("updated_at"),
   },
   (table) => [
     uniqueIndex("storage_folder_scope_path_uk").on(table.scope, table.path),
-    index("storage_folder_scope_parent_idx").on(table.scope, table.parent),
+    uniqueIndex("storage_folder_scope_parent_name_uk").on(
+      table.scope,
+      table.parentId,
+      table.name,
+    ),
   ],
 );
 

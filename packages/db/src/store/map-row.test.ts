@@ -8,7 +8,7 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
     bucket: "b",
     key: "k",
     route: "uploads",
-    folder: "docs",
+    folderId: "docs",
     filename: "a.txt",
     contentType: "text/plain",
     size: 10,
@@ -42,7 +42,7 @@ describe("mapStorageObjectRow", () => {
 
   it("keeps the JSON columns and normalizes missing ones to null", () => {
     expect(mapStorageObjectRow<{ starred: boolean }>(row())).toMatchObject({
-      folder: "docs",
+      folderId: "docs",
       s3Metadata: { label: "x" },
       attributes: { starred: true },
     });

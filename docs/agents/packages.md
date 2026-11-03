@@ -47,17 +47,16 @@ Contract and merge live in `packages/server/src/plugin/`. Feature plugins (like 
 
 ## db schema
 
-The `@dimah-s3/db` schema has several hand-kept copies. Readers use one schema, `2.0.0` (`dbSchema` in `src/schema/schema.ts`). The package does not migrate a 1.x database.
+The `@dimah-s3/db` schema has several hand-kept copies. Readers use one schema, `2.1.0` (`dbSchema` in `src/schema/schema.ts`). The package does not migrate a 1.x database or an earlier beta schema.
 
-FumaDB skips `up` on the first schema, and the indexes live in `up`, so `schemas` starts with an empty predecessor (`0.0.1`). A finished database is at `2.0.0`. Keep the predecessor: without it, `migrate()` creates the tables and skips the indexes.
+FumaDB skips `up` on the first schema, and the indexes live in `up`, so `schemas` starts with an empty predecessor (`0.0.1`). A finished database is at `2.1.0`. Keep the predecessor: without it, `migrate()` creates the tables and skips the indexes.
 
-When the tables change inside this line, change the copies together:
+While 2.0 is in beta, a table change replaces `dbSchema` in place and bumps its version. Do not add an upgrade chain. A database at another version is recreated. Change the copies together:
 
-1. Add the next schema after `dbSchema` in `src/fuma-db.ts` (`DB_SCHEMA_VERSION` follows the latest).
+1. Replace `dbSchema` in `src/schema/schema.ts` (`DB_SCHEMA_VERSION` follows it).
 2. Update `src/drizzle/{sqlite,pg,mysql}.ts` (users copy these into their app; `examples/with-db/db/schema.ts` matches `sqlite.ts`), `sql/<dialect>.sql`, and `prisma/dimah-s3.prisma`.
-3. Add `sql/upgrade/<from>-<to>/<dialect>.sql` for each dialect.
-4. `src/drizzle/parity.test.ts` and `src/schema/schema.test.ts` must pass.
-5. List the upgrade under `#### Breaking changes` in the db changelog, and update the docs upgrade page (`apps/docs/content/docs/(framework)/db/upgrade.mdx`).
+3. `src/drizzle/parity.test.ts` and `src/schema/schema.test.ts` must pass.
+4. List the schema change under `#### Breaking changes` in the db changelog, and update the docs upgrade page (`apps/docs/content/docs/(framework)/db/upgrade.mdx`).
 
 ## React hook
 

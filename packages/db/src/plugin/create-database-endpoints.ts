@@ -1,7 +1,7 @@
 import { pluginPath, s3Error } from "@dimah-s3/core";
 import type { DimahS3Config } from "@dimah-s3/server";
 import { createS3Endpoint } from "@dimah-s3/server/plugins";
-import { parseFolder } from "@/folder-path";
+import { childFolderPath } from "@/folder-path";
 import { formatStandardIssue, validateStandardSchema } from "@/standard-schema";
 import type { DbStore } from "@/store/create-db-store";
 import type {
@@ -11,13 +11,16 @@ import type {
 } from "@/types/client";
 import type { DbAttributesOptions } from "@/types/plugin";
 import type { StorageFolder, StorageObject } from "@/types/storage-object";
-import type { ObjectAccess } from "./object-access";
+import type { AccessTarget, ObjectAccess } from "./object-access";
 import type { DbObjects } from "./public-stores";
 import type { Quota } from "./quota";
+import type { ScopeResolver } from "./scope";
 import {
-  dbFolderInputSchema,
+  dbCreateFolderBodySchema,
+  dbDeleteFolderQuerySchema,
   dbListQuerySchema,
   dbObjectQuerySchema,
+  dbUpdateFolderBodySchema,
   dbUpdateObjectBodySchema,
 } from "./schemas";
 import { toDbClientFolder } from "./to-db-client-object";
@@ -31,9 +34,10 @@ export type CreateDatabaseEndpointsOptions<
   TClientAttributes,
 > = {
   store: Pick<DbStore<TAttributes>, "objects" | "folders">;
-  /** The public object store, whose `update` also creates the folder. */
+  /** The public object store, whose `update` checks the folder and retains it. */
   objects: Pick<DbObjects<TAttributes>, "update">;
   access: ObjectAccess<TSession, TAttributes>;
+  resolveScope: ScopeResolver<TSession>;
   quota: Pick<Quota<TSession>, "limits">;
   /** The plugin's `attributes` option. Without it, PATCH refuses `attributes`. */
   attributes?: DbAttributesOptions<TAttributes, TClientAttributes>;
@@ -85,14 +89,20 @@ function matchingFolders(
   return children.filter((child) => child.name.toLowerCase().includes(text));
 }
 
-/**
- * Reads the wire path of a folder endpoint. The root is not a folder.
- * @throws `FOLDER_INVALID`.
- */
-function parseFolderPath(value: string): string {
-  const path = parseFolder(value);
-  if (path === null) throw s3Error("FOLDER_INVALID");
-  return path;
+/** `""` and `null` are the root. `undefined` means the field was omitted. */
+function wireFolderId(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  return value === "" || value === null ? null : value;
+}
+
+/** What `authorize` sees for one folder. `null` is the root. */
+function folderTarget(
+  folder: StorageFolder | null,
+): Pick<AccessTarget, "folder" | "folderId"> {
+  if (folder === null) return { folder: null, folderId: null };
+  return { folder: folder.path, folderId: folder.id };
 }
 
 /**
@@ -100,12 +110,12 @@ function parseFolderPath(value: string): string {
  * runs `authorize` before it reads or writes a row:
  *
  * - `GET /db/objects` (op `list`): one page of the scope's objects. The
- *   first page also carries usage, the quota, and the child folders (those
- *   whose name contains `search`, when it is set).
+ *   first page also carries usage, the quota, the child folders (those
+ *   whose name contains `search`, when it is set), and the breadcrumb trail.
  * - `GET /db/object` (op `read`): one object.
  * - `PATCH /db/object` (op `update`): renames, moves, or sets attributes.
- * - `POST /db/folder` and `DELETE /db/folder` (op `update`): creates or
- *   removes an empty folder.
+ * - `POST /db/folder`, `PATCH /db/folder`, and `DELETE /db/folder`
+ *   (op `update`): create a folder, rename or move it, or remove an empty one.
  */
 export function createDatabaseEndpoints<
   TSession,
@@ -118,7 +128,7 @@ export function createDatabaseEndpoints<
     TClientAttributes
   >,
 ) {
-  const { access, quota, toClientObject } = options;
+  const { access, quota, resolveScope, toClientObject } = options;
   const { objects, folders } = options.store;
 
   /**
@@ -151,24 +161,40 @@ export function createDatabaseEndpoints<
     return result.value;
   };
 
+  /**
+   * The folder a listing opens, after the scope is known.
+   * `undefined` is a flat list. `null` is the root.
+   */
+  const openFolder = async (scope: string, wire: string | undefined) => {
+    const folderId = wireFolderId(wire);
+    if (folderId === undefined) return undefined;
+    if (folderId === null) return null;
+    const folder = await folders.find(scope, folderId);
+    if (!folder) throw s3Error("FOLDER_NOT_FOUND");
+    return folder;
+  };
+
   return {
-    /** One page of the caller's objects. `folder` omitted lists every folder. */
+    /** One page of the caller's objects. `folderId` omitted lists every folder. */
     objects: createS3Endpoint(
       pluginPath("db", "objects"),
       { method: "GET", query: dbListQuerySchema },
       async (ctx): Promise<DbClientListResponse<TClientAttributes>> => {
-        const { folder: wireFolder, ...filters } = ctx.query;
-        const folder =
-          wireFolder === undefined ? undefined : parseFolder(wireFolder);
+        const { folderId: wireFolder, ...filters } = ctx.query;
+        const peeked = await resolveScope(ctx.context, {
+          operation: "list",
+          route: filters.route,
+        });
+        const opened = await openFolder(peeked.scope, wireFolder);
         const scope = await access.scope(ctx.context, {
           operation: "list",
           route: filters.route,
-          ...(folder !== undefined && { folder }),
+          ...(opened !== undefined && folderTarget(opened)),
         });
         const page = await objects.list({
           ...filters,
           scope: scope.scope,
-          folder,
+          folderId: opened === undefined ? undefined : (opened?.id ?? null),
         });
         const response: DbClientListResponse<TClientAttributes> = {
           objects: page.objects.map((object) => toClientObject(object)),
@@ -176,12 +202,17 @@ export function createDatabaseEndpoints<
         };
         if (!page.firstPage) return response;
 
-        const [usage, limits, children] = await Promise.all([
+        const [usage, limits, children, trail] = await Promise.all([
           objects.getUsage(scope.scope),
           quota.limits(scope),
-          folder === undefined
+          opened === undefined
             ? undefined
-            : folders.children(scope.scope, folder),
+            : folders.children(scope.scope, opened?.id ?? null),
+          opened === undefined
+            ? undefined
+            : opened === null
+              ? []
+              : folders.trail(scope.scope, opened.id),
         ]);
         return {
           ...response,
@@ -192,6 +223,7 @@ export function createDatabaseEndpoints<
               toDbClientFolder,
             ),
           }),
+          ...(trail && { trail: trail.map(toDbClientFolder) }),
         };
       },
     ),
@@ -219,8 +251,7 @@ export function createDatabaseEndpoints<
 
     /**
      * Renames, moves, or sets the attributes of an active object. A move
-     * checks the target folder like an upload: validated, authorized, and
-     * created when missing.
+     * requires the target folder to exist and authorizes that folder.
      */
     updateObject: createS3Endpoint(
       pluginPath("db", "object"),
@@ -232,10 +263,14 @@ export function createDatabaseEndpoints<
           ctx.body.bucket,
           "body.bucket",
         );
-        const folder =
-          ctx.body.folder === undefined
+        const folderId = wireFolderId(ctx.body.folderId);
+        const peeked = await resolveScope(ctx.context, {
+          operation: "update",
+        });
+        const opened =
+          folderId === undefined
             ? undefined
-            : parseFolder(ctx.body.folder ?? "");
+            : await openFolder(peeked.scope, folderId ?? "");
 
         // Access first: a caller without it never reaches your schema.
         const { scope, object } = await access.object(
@@ -243,7 +278,7 @@ export function createDatabaseEndpoints<
           {
             operation: "update",
             key,
-            ...(folder !== undefined && { folder }),
+            ...(opened !== undefined && folderTarget(opened)),
           },
           { bucket, key },
         );
@@ -255,7 +290,7 @@ export function createDatabaseEndpoints<
             : await parseAttributes(ctx.body.attributes);
         if (
           filename === undefined &&
-          folder === undefined &&
+          folderId === undefined &&
           attributes === undefined
         ) {
           return { object: toClientObject(object) };
@@ -265,24 +300,64 @@ export function createDatabaseEndpoints<
         // over in between is left alone.
         const updated = await options.objects.update(
           { bucket, key, id: object.id, scope: scope.scope },
-          { filename, folder, attributes },
+          { filename, folderId, attributes },
         );
         if (!updated) throw s3Error("OBJECT_NOT_FOUND");
         return { object: toClientObject(updated) };
       },
     ),
 
-    /** Creates a folder and its missing ancestors. */
+    /** Creates one folder inside a parent that already exists. */
     createFolder: createS3Endpoint(
       pluginPath("db", "folder"),
-      { method: "POST", body: dbFolderInputSchema },
+      { method: "POST", body: dbCreateFolderBodySchema },
       async (ctx): Promise<{ folder: DbClientFolder }> => {
-        const path = parseFolderPath(ctx.body.path);
+        const parentId = wireFolderId(ctx.body.parentId) ?? null;
+        const peeked = await resolveScope(ctx.context, { operation: "update" });
+        const parent =
+          parentId === null ? null : await openFolder(peeked.scope, parentId);
+        const path = childFolderPath(parent?.path ?? null, ctx.body.name);
+        if (path === null) throw s3Error("FOLDER_INVALID");
         const scope = await access.scope(ctx.context, {
           operation: "update",
           folder: path,
         });
-        const folder = await folders.create(scope.scope, path);
+        const folder = await folders.create(scope.scope, {
+          parentId,
+          name: ctx.body.name,
+        });
+        return { folder: toDbClientFolder(folder) };
+      },
+    ),
+
+    /** Renames a folder, moves it, or both. */
+    updateFolder: createS3Endpoint(
+      pluginPath("db", "folder"),
+      { method: "PATCH", body: dbUpdateFolderBodySchema },
+      async (ctx): Promise<{ folder: DbClientFolder }> => {
+        const peeked = await resolveScope(ctx.context, { operation: "update" });
+        const current = await folders.find(peeked.scope, ctx.body.id);
+        if (!current) throw s3Error("FOLDER_NOT_FOUND");
+        const parentId =
+          ctx.body.parentId === undefined
+            ? current.parentId
+            : (wireFolderId(ctx.body.parentId) ?? null);
+        const parent =
+          parentId === null ? null : await openFolder(peeked.scope, parentId);
+        const path = childFolderPath(
+          parent?.path ?? null,
+          ctx.body.name ?? current.name,
+        );
+        if (path === null) throw s3Error("FOLDER_INVALID");
+        await access.scope(ctx.context, {
+          operation: "update",
+          folder: path,
+          folderId: current.id,
+        });
+        const folder = await folders.update(peeked.scope, current.id, {
+          ...(ctx.body.name !== undefined && { name: ctx.body.name }),
+          ...(ctx.body.parentId !== undefined && { parentId }),
+        });
         return { folder: toDbClientFolder(folder) };
       },
     ),
@@ -290,15 +365,17 @@ export function createDatabaseEndpoints<
     /** Removes an empty folder. A missing folder is not an error. */
     deleteFolder: createS3Endpoint(
       pluginPath("db", "folder"),
-      { method: "DELETE", query: dbFolderInputSchema },
-      async (ctx): Promise<{ path: string }> => {
-        const path = parseFolderPath(ctx.query.path);
-        const scope = await access.scope(ctx.context, {
+      { method: "DELETE", query: dbDeleteFolderQuerySchema },
+      async (ctx): Promise<{ id: string }> => {
+        const peeked = await resolveScope(ctx.context, { operation: "update" });
+        const current = await folders.find(peeked.scope, ctx.query.id);
+        if (!current) return { id: ctx.query.id };
+        await access.scope(ctx.context, {
           operation: "update",
-          folder: path,
+          ...folderTarget(current),
         });
-        await folders.delete(scope.scope, path);
-        return { path };
+        await folders.delete(peeked.scope, current.id);
+        return { id: current.id };
       },
     ),
   };

@@ -10,7 +10,7 @@ describe("createDbStore", () => {
     const store = createDbStore(client);
 
     await expect(store.objects.find(ref)).rejects.toThrow(
-      /schema 1\.0\.0.*reads 2\.0\.0.*does not upgrade/,
+      /schema 1\.0\.0.*reads 2\.1\.0.*does not upgrade/,
     );
     await expect(store.folders.find("user:1", "a")).rejects.toThrow(
       /schema 1\.0\.0/,

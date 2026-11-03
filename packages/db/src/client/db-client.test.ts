@@ -37,7 +37,7 @@ const object: DbClientObject = {
   bucket: "b",
   key: "users/1/notes.md",
   route: "docs",
-  folder: "work",
+  folderId: "work",
   filename: "Notes.md",
   contentType: "text/markdown",
   size: 4096,
@@ -49,10 +49,12 @@ const object: DbClientObject = {
 };
 
 const folder: DbClientFolder = {
+  id: "folder-1",
   path: "work/drafts",
   name: "drafts",
-  parent: "work",
+  parentId: "work",
   createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 describe("dbClient", () => {
@@ -63,7 +65,7 @@ describe("dbClient", () => {
     await expect(
       api.db.listObjects(
         {
-          folder: "",
+          folderId: "",
           search: "q3 report",
           sort: { field: "updatedAt", direction: "desc" },
           limit: 10,
@@ -77,7 +79,7 @@ describe("dbClient", () => {
     expect(call?.init.method).toBe("GET");
     expect(call?.init.signal).toBe(controller.signal);
     const query = call?.url.searchParams;
-    expect(query?.get("folder")).toBe("");
+    expect(query?.get("folderId")).toBe("");
     expect(query?.get("search")).toBe("q3 report");
     expect(query?.get("limit")).toBe("10");
     expect(JSON.parse(query?.get("sort") ?? "null")).toEqual({
@@ -90,11 +92,11 @@ describe("dbClient", () => {
     const { api, calls } = setup({ objects: [], nextCursor: null });
 
     await api.db.listObjects(
-      { folder: null },
+      { folderId: null },
       { headers: { "x-tenant": "acme" } },
     );
 
-    expect(calls[0]?.url.searchParams.get("folder")).toBe("");
+    expect(calls[0]?.url.searchParams.get("folderId")).toBe("");
     expect(new Headers(calls[0]?.init.headers).get("x-tenant")).toBe("acme");
   });
 
@@ -118,7 +120,7 @@ describe("dbClient", () => {
 
     await api.db.updateObject({
       key: object.key,
-      folder: null,
+      folderId: null,
       filename: "a.md",
     });
 
@@ -126,7 +128,7 @@ describe("dbClient", () => {
     expect(calls[0]?.url.pathname).toBe("/api/s3/db/object");
     expect(jsonBody(calls[0]?.init)).toEqual({
       key: object.key,
-      folder: null,
+      folderId: null,
       filename: "a.md",
     });
   });
@@ -134,27 +136,37 @@ describe("dbClient", () => {
   it("creates a folder over POST /db/folder", async () => {
     const { api, calls } = setup({ folder });
 
-    await expect(api.db.createFolder({ path: folder.path })).resolves.toEqual({
-      folder,
-    });
+    await expect(
+      api.db.createFolder({ parentId: folder.parentId, name: folder.name }),
+    ).resolves.toEqual({ folder });
 
     expect(calls[0]?.init.method).toBe("POST");
     expect(calls[0]?.url.pathname).toBe("/api/s3/db/folder");
     expect(jsonBody(calls[0]?.init)).toEqual({
-      path: folder.path,
+      parentId: folder.parentId,
+      name: folder.name,
     });
   });
 
-  it("deletes a folder over DELETE /db/folder with the path in the query", async () => {
-    const { api, calls } = setup({ path: folder.path });
+  it("renames a folder over PATCH /db/folder", async () => {
+    const { api, calls } = setup({ folder });
 
-    await expect(api.db.deleteFolder({ path: folder.path })).resolves.toEqual({
-      path: folder.path,
+    await api.db.updateFolder({ id: folder.id, name: "notes" });
+
+    expect(calls[0]?.init.method).toBe("PATCH");
+    expect(jsonBody(calls[0]?.init)).toEqual({ id: folder.id, name: "notes" });
+  });
+
+  it("deletes a folder over DELETE /db/folder with the id in the query", async () => {
+    const { api, calls } = setup({ id: folder.id });
+
+    await expect(api.db.deleteFolder({ id: folder.id })).resolves.toEqual({
+      id: folder.id,
     });
 
     expect(calls[0]?.init.method).toBe("DELETE");
     expect(calls[0]?.url.pathname).toBe("/api/s3/db/folder");
-    expect(calls[0]?.url.searchParams.get("path")).toBe(folder.path);
+    expect(calls[0]?.url.searchParams.get("id")).toBe(folder.id);
   });
 
   it("rejects with the server's error code", async () => {
@@ -164,7 +176,7 @@ describe("dbClient", () => {
     );
 
     const error: unknown = await api.db
-      .deleteFolder({ path: "work" })
+      .deleteFolder({ id: "work" })
       .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(APIError);
@@ -177,7 +189,7 @@ describe("dbClient", () => {
     const source = dbObjectSource(api.db);
     await expect(
       source.createFolder?.({ parent: "work", name: "drafts" }),
-    ).resolves.toEqual({ id: "work/drafts", name: "drafts" });
+    ).resolves.toEqual({ id: "folder-1", name: "drafts" });
     expect(calls[0]?.url.pathname).toBe("/api/s3/db/folder");
   });
 });

@@ -13,7 +13,7 @@ function row(patch: Partial<DbClientObject> = {}): DbClientObject {
     bucket: "b",
     key: "users/1/uuid/notes.md",
     route: "docs",
-    folder: null,
+    folderId: null,
     filename: "Notes.md",
     contentType: "text/markdown",
     size: 4096,
@@ -57,7 +57,7 @@ describe("dbObjectSource query", () => {
       { items: page.objects, nextCursor: "cursor-2" },
     );
     expect(listObjects).toHaveBeenCalledWith(
-      { folder: "" },
+      { folderId: "" },
       { signal: input.signal },
     );
   });
@@ -74,7 +74,7 @@ describe("dbObjectSource query", () => {
     );
 
     expect(listObjects.mock.calls[0]?.[0]).toEqual({
-      folder: "work/drafts",
+      folderId: "work/drafts",
       cursor: "cursor-1",
       search: "q3",
       route: "docs",
@@ -118,10 +118,22 @@ describe("dbObjectSource query", () => {
       ...page,
       folders: [
         {
+          id: "folder-1",
           path: "work/drafts",
           name: "drafts",
-          parent: "work",
+          parentId: "work",
           createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ],
+      trail: [
+        {
+          id: "work",
+          path: "work",
+          name: "work",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
         },
       ],
       usage: { totalBytes: 12, objectCount: 1 },
@@ -133,7 +145,8 @@ describe("dbObjectSource query", () => {
     ).resolves.toEqual({
       items: page.objects,
       nextCursor: "cursor-2",
-      folders: [{ id: "work/drafts", name: "drafts" }],
+      folders: [{ id: "folder-1", name: "drafts" }],
+      trail: [{ id: "work", name: "work" }],
       usage: { totalBytes: 12, objectCount: 1, maxBytes: 1024, maxFiles: 10 },
     });
   });
@@ -180,18 +193,22 @@ describe("dbObjectSource folders", () => {
     const source = dbObjectSource({ listObjects: listObjectsReturning() });
 
     expect(source.uploadOptions?.("work/drafts")).toEqual({
-      metadata: { folder: "work/drafts" },
+      metadata: { folderId: "work/drafts" },
     });
-    expect(source.uploadOptions?.(null)).toEqual({ metadata: { folder: "" } });
+    expect(source.uploadOptions?.(null)).toEqual({
+      metadata: { folderId: "" },
+    });
   });
 
   it("creates a folder inside the parent", async () => {
     const createFolder = vi.fn<DbClientActions["createFolder"]>(async () => ({
       folder: {
+        id: "folder-1",
         path: "work/drafts",
         name: "drafts",
-        parent: "work",
+        parentId: "work",
         createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
       },
     }));
     const source = dbObjectSource({
@@ -201,12 +218,12 @@ describe("dbObjectSource folders", () => {
 
     await expect(
       source.createFolder?.({ parent: "work", name: "drafts" }),
-    ).resolves.toEqual({ id: "work/drafts", name: "drafts" });
+    ).resolves.toEqual({ id: "folder-1", name: "drafts" });
     await source.createFolder?.({ parent: null, name: "drafts" });
 
     expect(createFolder.mock.calls.map(([input]) => input)).toEqual([
-      { path: "work/drafts" },
-      { path: "drafts" },
+      { parentId: "work", name: "drafts" },
+      { parentId: null, name: "drafts" },
     ]);
   });
 

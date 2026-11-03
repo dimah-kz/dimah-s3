@@ -1,5 +1,4 @@
 import { s3Error } from "@dimah-s3/core";
-import { normalizeFolderPath } from "@/folder-path";
 import type { DbStore } from "@/store/create-db-store";
 import type { StorageFolderStore } from "@/store/folder-store";
 import type {
@@ -7,7 +6,7 @@ import type {
   StorageObjectStore,
   UpdateObjectInput,
 } from "@/store/object-store";
-import type { StorageObject } from "@/types/storage-object";
+import type { StorageFolder, StorageObject } from "@/types/storage-object";
 
 /**
  * `s3.db.objects`: the `storage_object` rows, for your routes, jobs, and
@@ -21,9 +20,9 @@ export type DbObjects<TAttributes = never> = Pick<
 > & {
   /**
    * Renames, moves, or sets the attributes of an active row, like
-   * `PATCH /db/object` without its access check. A folder is validated
-   * (`FOLDER_INVALID`) and created when missing. With `id` or `scope`, only
-   * that row changes. Returns `null` when no active row matches.
+   * `PATCH /db/object` without its access check. A `folderId` must already
+   * exist in the row's scope (`FOLDER_NOT_FOUND`). With `id` or `scope`,
+   * only that row changes. Returns `null` when no active row matches.
    */
   update: (
     ref: ObjectRef & { id?: string; scope?: string },
@@ -31,17 +30,29 @@ export type DbObjects<TAttributes = never> = Pick<
   ) => Promise<StorageObject<TAttributes> | null>;
 };
 
-/**
- * `s3.db.folders`: the `storage_folder` rows. Paths are validated as on the
- * HTTP endpoints (`FOLDER_INVALID`); the root (`null`) is never stored.
- */
+/** `s3.db.folders`: the `storage_folder` rows. The root is never stored. */
 export type DbFolders = StorageFolderStore;
 
-/** A valid folder path, or `FOLDER_INVALID`. */
-function folderPath(path: string): string {
-  const normalized = normalizeFolderPath(path);
-  if (normalized === null) throw s3Error("FOLDER_INVALID");
-  return normalized;
+/** `""` is the root, the same as `null`. */
+function rootId(folderId: string | null): string | null {
+  return folderId === "" ? null : folderId;
+}
+
+/**
+ * The folder `folderId` names in `scope`, when the move targets one.
+ * `undefined` leaves the object's folder alone.
+ */
+async function targetFolder(
+  folders: StorageFolderStore,
+  scope: string,
+  folderId: string | null | undefined,
+): Promise<StorageFolder | null | undefined> {
+  if (folderId === undefined) return undefined;
+  const id = rootId(folderId);
+  if (id === null) return null;
+  const folder = await folders.find(scope, id);
+  if (!folder) throw s3Error("FOLDER_NOT_FOUND");
+  return folder;
 }
 
 /** The public stores over the plugin's stores. */
@@ -56,31 +67,20 @@ export function createPublicStores<TAttributes>(
       count: objects.count,
       getUsage: objects.getUsage,
       async update(ref, input) {
-        const folder =
-          input.folder === undefined || input.folder === null
-            ? input.folder
-            : folderPath(input.folder);
-        const row = await objects.update(ref, { ...input, folder });
-        // After the move: a folder delete in between sees the row or is undone.
-        if (row && folder !== undefined) {
-          await folders.ensure(row.scope, row.folder);
+        const folderId =
+          input.folderId === undefined ? undefined : rootId(input.folderId);
+        let folder: StorageFolder | null | undefined;
+        if (typeof folderId === "string") {
+          const scope = ref.scope ?? (await objects.find(ref))?.scope;
+          if (!scope) return null;
+          folder = await targetFolder(folders, scope, folderId);
         }
+        const row = await objects.update(ref, { ...input, folderId });
+        // After the move: a folder delete in between sees the row or is undone.
+        if (row && folder) await folders.retain(folder);
         return row;
       },
     },
-    // Async, so an invalid path is a rejection like any other failure.
-    folders: {
-      find: async (scope, path) => folders.find(scope, folderPath(path)),
-      children: async (scope, parent, options) =>
-        folders.children(
-          scope,
-          parent === null ? null : folderPath(parent),
-          options,
-        ),
-      ensure: async (scope, path) =>
-        folders.ensure(scope, path === null ? null : folderPath(path)),
-      create: async (scope, path) => folders.create(scope, folderPath(path)),
-      delete: async (scope, path) => folders.delete(scope, folderPath(path)),
-    },
+    folders,
   };
 }

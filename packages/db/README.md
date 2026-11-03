@@ -23,7 +23,7 @@ Create the schema with one of:
 - Plain SQL: run [`sql/<dialect>.sql`](./sql).
 - Kysely: call `migrate(client)` from `@dimah-s3/db/cli`. It creates the tables and the indexes. The FumaDB CLI from `runCli` does the same only with `migrate:up`; its `migrate` command jumps straight to the latest schema and skips the indexes.
 
-The package reads schema `2.0.0` and does not upgrade a 1.x database: create the tables on a new database. A database at another schema version throws on the first query. Call `s3.db.checkSchema()` at startup to fail fast.
+The package reads schema `2.1.0` and does not upgrade a 1.x or `2.0.0` database: create the tables on a new database. A database at another schema version throws on the first query. Call `s3.db.checkSchema()` at startup to fail fast.
 
 ## Server
 

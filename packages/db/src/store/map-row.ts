@@ -16,7 +16,7 @@ export type StorageObjectRow = {
   bucket: string;
   key: string;
   route: string;
-  folder: string | null;
+  folderId: string | null;
   filename: string;
   contentType: string | null;
   size: ByteCount;
@@ -49,7 +49,7 @@ export function mapStorageObjectRow<TAttributes = never>(
     bucket: row.bucket,
     key: row.key,
     route: row.route,
-    folder: row.folder,
+    folderId: row.folderId,
     filename: row.filename,
     contentType: row.contentType,
     size: toNumber(row.size),

@@ -486,10 +486,11 @@ See [Custom backend](/docs/react/custom-backend).
 
 ## Database
 
-`@dimah-s3/db` reads schema `2.0.0` only: logical folders, typed
-`attributes`, and an upload token per row. It does not upgrade a 1.x
-database. Create the tables on a new database before you deploy. A
-database already at `2.0.0` is unchanged, and any other version throws.
+`@dimah-s3/db` reads schema `2.1.0` only: folders are rows with ids, an
+object stores `folderId`, and each row has typed `attributes` and an
+upload token. It does not upgrade a 1.x database or a `2.0.0` beta
+database. Create the tables on a new database before you deploy. Any
+other version throws.
 
 - Create the tables from [Setup](/docs/db/setup). With Kysely, call
   `migrate(client)` from `@dimah-s3/db/cli` on an empty database.

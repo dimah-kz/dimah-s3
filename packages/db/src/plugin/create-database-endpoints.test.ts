@@ -95,57 +95,82 @@ function createSetup(
   return { instance, database, insert, request };
 }
 
+/** Creates each missing segment of `path` and returns the last folder. */
+async function nest(
+  folders: ReturnType<typeof createSetup>["instance"]["db"]["folders"],
+  scope: string,
+  path: string,
+) {
+  let parentId: string | null = null;
+  let folder: Awaited<ReturnType<typeof folders.create>> | undefined;
+  for (const name of path.split("/")) {
+    const children = await folders.children(scope, parentId);
+    folder =
+      children.find((child) => child.name === name) ??
+      (await folders.create(scope, { parentId, name }));
+    parentId = folder.id;
+  }
+  if (!folder) throw new Error("empty path");
+  return folder;
+}
+
 describe("GET /db/objects", () => {
   it("lists one folder with usage, limits, and child folders on the first page", async () => {
     const { instance, insert, request } = createSetup({
       plugin: { quota: { maxFiles: 10 } },
     });
+    const docs = await nest(instance.db.folders, "user:1", "docs");
+    await nest(instance.db.folders, "user:1", "docs/q4");
+    await nest(instance.db.folders, "user:1", "photos");
+    await nest(instance.db.folders, "user:2", "theirs");
     await insert({ key: "a.txt", size: 3 });
-    await insert({ key: "b.txt", size: 4, folder: "docs" });
+    await insert({ key: "b.txt", size: 4, folderId: docs.id });
     await insert({ key: "c.txt", size: 5, scope: "user:2" });
-    await instance.db.folders.ensure("user:1", "docs/q4");
-    await instance.db.folders.ensure("user:1", "photos");
-    await instance.db.folders.ensure("user:2", "theirs");
 
     const { status, body } = await request<ListBody>("GET", "/objects", {
-      query: { folder: "" },
+      query: { folderId: "" },
     });
 
     expect(status).toBe(200);
     // The tenant id stays on the server.
     expect(body).not.toHaveProperty("scope");
     expect(body).toMatchObject({
-      objects: [{ key: "a.txt", folder: null }],
+      objects: [{ key: "a.txt", folderId: null }],
       nextCursor: null,
       usage: { totalBytes: 7, objectCount: 2 },
       limits: { maxFiles: 10 },
       folders: [
-        { path: "docs", name: "docs", parent: null },
-        { path: "photos", name: "photos", parent: null },
+        { path: "docs", name: "docs", parentId: null },
+        { path: "photos", name: "photos", parentId: null },
       ],
+      trail: [],
     });
     expect(body.objects).toHaveLength(1);
   });
 
   it("lists the child folders of a nested folder", async () => {
     const { instance, insert, request } = createSetup();
-    await insert({ key: "b.txt", folder: "docs" });
-    await instance.db.folders.ensure("user:1", "docs/q4");
+    const docs = await nest(instance.db.folders, "user:1", "docs");
+    await nest(instance.db.folders, "user:1", "docs/q4");
+    await insert({ key: "b.txt", folderId: docs.id });
 
     const { body } = await request<ListBody>("GET", "/objects", {
-      query: { folder: "docs" },
+      query: { folderId: docs.id },
     });
 
-    expect(body.objects).toMatchObject([{ key: "b.txt", folder: "docs" }]);
-    expect(body.folders).toMatchObject([{ path: "docs/q4", parent: "docs" }]);
+    expect(body.objects).toMatchObject([{ key: "b.txt", folderId: docs.id }]);
+    expect(body.folders).toMatchObject([
+      { path: "docs/q4", parentId: docs.id },
+    ]);
+    expect(body.trail).toMatchObject([{ id: docs.id, name: "docs" }]);
     expect(body.limits).toBeNull();
   });
 
   it("lists every folder without folder rows when folder is omitted", async () => {
     const { instance, insert, request } = createSetup();
+    const docs = await nest(instance.db.folders, "user:1", "docs");
     await insert({ key: "a.txt" });
-    await insert({ key: "b.txt", folder: "docs" });
-    await instance.db.folders.ensure("user:1", "docs");
+    await insert({ key: "b.txt", folderId: docs.id });
 
     const { body } = await request<ListBody>("GET", "/objects", {
       query: { sort: JSON.stringify({ field: "filename", direction: "asc" }) },
@@ -219,10 +244,11 @@ describe("GET /db/objects", () => {
     const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
       () => false,
     );
-    const { request } = createSetup({ plugin: { authorize } });
+    const { instance, request } = createSetup({ plugin: { authorize } });
+    const docs = await nest(instance.db.folders, "user:1", "docs");
 
     const { status, body } = await request<ListBody>("GET", "/objects", {
-      query: { folder: "docs" },
+      query: { folderId: docs.id },
     });
 
     expect(status).toBe(403);
@@ -231,6 +257,7 @@ describe("GET /db/objects", () => {
       expect.objectContaining({
         operation: "list",
         folder: "docs",
+        folderId: docs.id,
         scope: "user:1",
       }),
     );
@@ -244,8 +271,11 @@ describe("GET /db/objects", () => {
       body: { code: "UNAUTHORIZED" },
     });
     await expect(
-      request("GET", "/objects", { query: { folder: "a/../b" } }),
-    ).resolves.toMatchObject({ status: 400, body: { code: "FOLDER_INVALID" } });
+      request("GET", "/objects", { query: { folderId: "missing" } }),
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { code: "FOLDER_NOT_FOUND" },
+    });
     await expect(
       request("GET", "/objects", { query: { offset: "10" } }),
     ).resolves.toMatchObject({
@@ -265,7 +295,7 @@ describe("GET /db/object", () => {
     });
     await insert({
       key: "a.txt",
-      folder: "docs",
+      folderId: "docs",
       attributes: { title: "A", internal: "x" },
     });
 
@@ -277,7 +307,7 @@ describe("GET /db/object", () => {
     expect(body.object).toMatchObject({
       bucket: "bucket",
       key: "a.txt",
-      folder: "docs",
+      folderId: "docs",
       attributes: { title: "A" },
       updatedAt: expect.any(String),
     });
@@ -345,45 +375,44 @@ describe("GET /db/object", () => {
 });
 
 describe("PATCH /db/object", () => {
-  it("renames and moves an object, creating the target folder", async () => {
+  it("renames and moves an object into a folder that exists", async () => {
     const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
       () => true,
     );
     const { instance, insert, request } = createSetup({
       plugin: { authorize },
     });
+    const quarter = await nest(instance.db.folders, "user:1", "docs/q4");
     await insert({ key: "a.txt", updatedAt: new Date("2024-01-01") });
 
     const { status, body } = await request<ObjectBody>("PATCH", "/object", {
-      body: { key: "a.txt", filename: "notes.txt", folder: "docs/q4" },
+      body: { key: "a.txt", filename: "notes.txt", folderId: quarter.id },
     });
 
     expect(status).toBe(200);
     expect(body.object).toMatchObject({
       filename: "notes.txt",
-      folder: "docs/q4",
+      folderId: quarter.id,
     });
     expect(body.object.updatedAt).not.toBe("2024-01-01T00:00:00.000Z");
     expect(authorize).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: "update", folder: "docs/q4" }),
+      expect.objectContaining({
+        operation: "update",
+        folder: "docs/q4",
+        folderId: quarter.id,
+      }),
     );
-    await expect(
-      instance.db.folders.find("user:1", "docs"),
-    ).resolves.not.toBeNull();
-    await expect(
-      instance.db.folders.find("user:1", "docs/q4"),
-    ).resolves.not.toBeNull();
   });
 
   it("moves an object to the root with null", async () => {
     const { insert, request } = createSetup();
-    await insert({ key: "a.txt", folder: "docs" });
+    await insert({ key: "a.txt", folderId: "docs" });
 
     const { body } = await request<ObjectBody>("PATCH", "/object", {
-      body: { key: "a.txt", folder: null },
+      body: { key: "a.txt", folderId: null },
     });
 
-    expect(body.object.folder).toBeNull();
+    expect(body.object.folderId).toBeNull();
   });
 
   it("returns the object unchanged when the body changes nothing", async () => {
@@ -482,8 +511,13 @@ describe("PATCH /db/object", () => {
       body: { code: "VALIDATION_ERROR" },
     });
     await expect(
-      request("PATCH", "/object", { body: { key: "a.txt", folder: "/docs" } }),
-    ).resolves.toMatchObject({ status: 400, body: { code: "FOLDER_INVALID" } });
+      request("PATCH", "/object", {
+        body: { key: "a.txt", folderId: "missing" },
+      }),
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { code: "FOLDER_NOT_FOUND" },
+    });
     await expect(
       request("PATCH", "/object", {
         body: { key: "pending.txt", filename: "b.txt" },
@@ -529,57 +563,59 @@ describe("PATCH /db/object", () => {
 });
 
 describe("POST /db/folder", () => {
-  it("creates a folder with its ancestors", async () => {
+  it("creates one folder inside a parent that exists", async () => {
     const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
       () => true,
     );
     const { instance, request } = createSetup({ plugin: { authorize } });
+    const docs = await nest(instance.db.folders, "user:1", "docs");
 
-    const { status, body } = await request("POST", "/folder", {
-      body: { path: "docs/q4" },
+    const { status, body } = await request<FolderBody>("POST", "/folder", {
+      body: { parentId: docs.id, name: "q4" },
     });
 
     expect(status).toBe(200);
-    expect(body).toEqual({
-      folder: {
-        path: "docs/q4",
-        name: "q4",
-        parent: "docs",
-        createdAt: expect.any(String),
-      },
+    expect(body.folder).toMatchObject({
+      path: "docs/q4",
+      name: "q4",
+      parentId: docs.id,
     });
     expect(authorize).toHaveBeenCalledWith(
       expect.objectContaining({ operation: "update", folder: "docs/q4" }),
     );
-    await expect(
-      instance.db.folders.find("user:1", "docs"),
-    ).resolves.not.toBeNull();
   });
 
-  it("stores the NFC form of the path", async () => {
+  it("stores the NFC form of the name", async () => {
     const { request } = createSetup();
 
     const decomposed = "café".normalize("NFD");
     const { body } = await request<FolderBody>("POST", "/folder", {
-      body: { path: decomposed },
+      body: { name: decomposed },
     });
 
     expect(body.folder.path).toBe(decomposed.normalize("NFC"));
+    expect(body.folder.name).toBe(decomposed.normalize("NFC"));
   });
 
-  it("rejects an existing folder, the root, and an invalid path", async () => {
+  it("rejects an existing name, a missing parent, and an invalid name", async () => {
     const { request } = createSetup();
-    await request("POST", "/folder", { body: { path: "docs" } });
+    await request("POST", "/folder", { body: { name: "docs" } });
 
     await expect(
-      request("POST", "/folder", { body: { path: "docs" } }),
+      request("POST", "/folder", { body: { name: "docs" } }),
     ).resolves.toMatchObject({
       status: 409,
       body: { code: "FOLDER_EXISTS" },
     });
-    for (const path of ["", "docs/", "a/./b"]) {
+    await expect(
+      request("POST", "/folder", { body: { parentId: "missing", name: "a" } }),
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { code: "FOLDER_NOT_FOUND" },
+    });
+    for (const name of ["", "docs/q4", "."]) {
       await expect(
-        request("POST", "/folder", { body: { path } }),
+        request("POST", "/folder", { body: { name } }),
       ).resolves.toMatchObject({
         status: 400,
         body: { code: "FOLDER_INVALID" },
@@ -605,31 +641,74 @@ describe("POST /db/folder", () => {
   });
 });
 
-describe("DELETE /db/folder", () => {
-  it("removes an empty folder", async () => {
+describe("PATCH /db/folder", () => {
+  it("renames a folder and rewrites the paths under it", async () => {
     const { instance, request } = createSetup();
-    await instance.db.folders.ensure("user:1", "docs");
+    const leaf = await nest(instance.db.folders, "user:1", "docs/q4");
+    const docs = await instance.db.folders.find("user:1", leaf.parentId ?? "");
+    if (!docs) throw new Error("missing docs");
 
-    const { status, body } = await request("DELETE", "/folder", {
-      query: { path: "docs" },
+    const { status, body } = await request<FolderBody>("PATCH", "/folder", {
+      body: { id: docs.id, name: "files" },
     });
 
     expect(status).toBe(200);
-    expect(body).toEqual({ path: "docs" });
+    expect(body.folder).toMatchObject({
+      id: docs.id,
+      name: "files",
+      path: "files",
+    });
     await expect(
-      instance.db.folders.find("user:1", "docs"),
+      instance.db.folders.find("user:1", leaf.id),
+    ).resolves.toMatchObject({
+      path: "files/q4",
+    });
+  });
+
+  it("refuses a move into a descendant", async () => {
+    const { instance, request } = createSetup();
+    const leaf = await nest(instance.db.folders, "user:1", "docs/q4");
+    const docs = await instance.db.folders.find("user:1", leaf.parentId ?? "");
+    if (!docs) throw new Error("missing docs");
+
+    await expect(
+      request("PATCH", "/folder", {
+        body: { id: docs.id, parentId: leaf.id },
+      }),
+    ).resolves.toMatchObject({ status: 400, body: { code: "FOLDER_INVALID" } });
+  });
+});
+
+describe("DELETE /db/folder", () => {
+  it("removes an empty folder", async () => {
+    const { instance, request } = createSetup();
+    const docs = await nest(instance.db.folders, "user:1", "docs");
+
+    const { status, body } = await request("DELETE", "/folder", {
+      query: { id: docs.id },
+    });
+
+    expect(status).toBe(200);
+    expect(body).toEqual({ id: docs.id });
+    await expect(
+      instance.db.folders.find("user:1", docs.id),
     ).resolves.toBeNull();
   });
 
   it("refuses a folder with objects or child folders", async () => {
     const { instance, insert, request } = createSetup();
-    await instance.db.folders.ensure("user:1", "docs/q4");
-    await instance.db.folders.ensure("user:1", "photos");
-    await insert({ key: "a.png", folder: "photos" });
+    const quarter = await nest(instance.db.folders, "user:1", "docs/q4");
+    const photos = await nest(instance.db.folders, "user:1", "photos");
+    const docs = await instance.db.folders.find(
+      "user:1",
+      quarter.parentId ?? "",
+    );
+    if (!docs) throw new Error("missing docs");
+    await insert({ key: "a.png", folderId: photos.id });
 
-    for (const path of ["docs", "photos"]) {
+    for (const id of [docs.id, photos.id]) {
       await expect(
-        request("DELETE", "/folder", { query: { path } }),
+        request("DELETE", "/folder", { query: { id } }),
       ).resolves.toMatchObject({
         status: 409,
         body: { code: "FOLDER_NOT_EMPTY" },
@@ -639,15 +718,20 @@ describe("DELETE /db/folder", () => {
 
   it("only touches the caller's scope", async () => {
     const { instance, request } = createSetup();
-    await instance.db.folders.ensure("user:2", "docs");
+    const docs = await nest(instance.db.folders, "user:2", "docs");
 
-    await request("DELETE", "/folder", { query: { path: "docs" } });
+    await request("DELETE", "/folder", { query: { id: docs.id } });
 
     await expect(
-      instance.db.folders.find("user:2", "docs"),
-    ).resolves.not.toBeNull();
+      instance.db.folders.find("user:2", docs.id),
+    ).resolves.toMatchObject({
+      name: "docs",
+    });
     await expect(
-      request("DELETE", "/folder", { query: { path: "" } }),
-    ).resolves.toMatchObject({ status: 400, body: { code: "FOLDER_INVALID" } });
+      request("DELETE", "/folder", { query: { id: "" } }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { code: "VALIDATION_ERROR" },
+    });
   });
 });

@@ -19,8 +19,8 @@ function call(options: S3RequestOptions | undefined) {
 
 /** The list query on the wire, where the root folder is `""`. */
 function listQuery(input: DbClientListInput | undefined) {
-  if (input?.folder !== null) return input;
-  return { ...input, folder: "" };
+  if (input?.folderId !== null) return input;
+  return { ...input, folderId: "" };
 }
 
 /**
@@ -36,7 +36,7 @@ function listQuery(input: DbClientListInput | undefined) {
  *   plugins: [dbClient()],
  * });
  *
- * const page = await s3Client.db.listObjects({ folder: "" });
+ * const page = await s3Client.db.listObjects({ folderId: "" });
  * ```
  *
  * The server resolves the scope from the request, so no action takes one.
@@ -68,8 +68,14 @@ export function dbClient<TClientAttributes = never>() {
           body: input,
           ...call(options),
         }),
+      updateFolder: (input, options) =>
+        $fetch<{ folder: DbClientFolder }>(pluginPath("db", "folder"), {
+          method: "PATCH",
+          body: input,
+          ...call(options),
+        }),
       deleteFolder: (input, options) =>
-        $fetch<{ path: string }>(pluginPath("db", "folder"), {
+        $fetch<{ id: string }>(pluginPath("db", "folder"), {
           method: "DELETE",
           query: input,
           ...call(options),

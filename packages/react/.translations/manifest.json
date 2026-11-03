@@ -90,6 +90,7 @@
     "Folder is not empty(API error)",
     "Folder name is invalid(API error)",
     "Folder name(object list new folder)",
+    "Folder not found(API error)",
     "Folders above(object list)",
     "Fonts(file type group)",
     "GB(file size unit)",

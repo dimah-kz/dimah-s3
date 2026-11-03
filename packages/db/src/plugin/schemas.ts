@@ -66,12 +66,11 @@ const dbListSortQuerySchema = z.codec(
 );
 
 /**
- * Query of `GET /db/objects`. `folder` is a wire folder (`""` is the root)
- * that the endpoint validates, so a bad path is `FOLDER_INVALID`. Blank
- * `search`, `contentType`, and `cursor` values are omitted.
+ * Query of `GET /db/objects`. `folderId` of `""` is the root. Omit it for a
+ * flat list. Blank `search`, `contentType`, and `cursor` values are omitted.
  */
 export const dbListQuerySchema = z.strictObject({
-  folder: z.string().optional(),
+  folderId: z.string().optional(),
   route: routeNameSchema.optional(),
   // Rows that purge has claimed stay internal, as on `GET /db/object`.
   status: z.enum(["pending", "active", "deleted"]).optional(),
@@ -96,23 +95,35 @@ export const dbObjectQuerySchema = z.strictObject({
 });
 
 /**
- * Body of `PATCH /db/object`. `folder` is validated by the endpoint; `null`
- * and `""` are the root. `attributes` are checked by the plugin's
- * `attributes.schema`.
+ * Body of `PATCH /db/object`. `folderId` of `null` or `""` is the root.
+ * `attributes` are checked by the plugin's `attributes.schema`.
  */
 export const dbUpdateObjectBodySchema = z.strictObject({
   key: objectKeySchema,
   bucket: trimmedString.optional(),
   filename: fileNameSchema.optional(),
-  folder: z.string().nullable().optional(),
+  folderId: z.string().nullable().optional(),
   /** `null` clears the attributes. */
   attributes: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
+/** Body of `POST /db/folder`. `parentId` omitted, `null`, or `""` is the root. */
+export const dbCreateFolderBodySchema = z.strictObject({
+  parentId: z.string().nullable().optional(),
+  name: z.string(),
+});
+
 /**
- * Body of `POST /db/folder` and query of `DELETE /db/folder`. The endpoint
- * validates `path`, so a bad path is `FOLDER_INVALID`.
+ * Body of `PATCH /db/folder`. `parentId` of `null` or `""` is the root.
+ * The endpoint checks the name and that the folder is not moved into itself.
  */
-export const dbFolderInputSchema = z.strictObject({
-  path: z.string(),
+export const dbUpdateFolderBodySchema = z.strictObject({
+  id: trimmedString,
+  name: z.string().optional(),
+  parentId: z.string().nullable().optional(),
+});
+
+/** Query of `DELETE /db/folder`. */
+export const dbDeleteFolderQuerySchema = z.strictObject({
+  id: trimmedString,
 });

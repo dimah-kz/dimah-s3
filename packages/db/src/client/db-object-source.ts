@@ -1,5 +1,5 @@
 import { s3Error } from "@dimah-s3/core";
-import { formatFolder, joinFolderPath } from "@/folder-path";
+import { isFolderName } from "@/folder-path";
 import type {
   DbClientActions,
   DbClientListInput,
@@ -46,10 +46,11 @@ function toFile(object: DbClientObject<unknown>): DbObjectSourceFile {
 /**
  * A `useObjectList` source over `api.db`.
  *
- * With `folders` on (the default), `parent` is a folder path: each page
- * lists one folder, the first page carries its child folders, uploads go to
- * the open folder, and "New folder" calls `api.db.createFolder`. With
- * `folders: false`, the list is flat and has no folder actions.
+ * With `folders` on (the default), `parent` is a folder id: each page lists
+ * one folder, the first page carries its child folders and the breadcrumb
+ * trail, uploads go to the open folder, and "New folder" calls
+ * `api.db.createFolder`. With `folders: false`, the list is flat and has no
+ * folder actions.
  *
  * `search` matches the filename on the server. `sort` maps `name` to
  * `filename`; `size` and `updatedAt` keep their names, and other fields keep
@@ -74,7 +75,7 @@ export function dbObjectSource<TClientAttributes = never>(
     getFile: toFile,
     async query({ parent, cursor, sort, search, signal }) {
       const input: DbClientListInput = {};
-      if (folders) input.folder = formatFolder(parent);
+      if (folders) input.folderId = parent ?? "";
       if (cursor) input.cursor = cursor;
       if (search) input.search = search;
       const listSort = toListSort(sort);
@@ -90,7 +91,13 @@ export function dbObjectSource<TClientAttributes = never>(
         nextCursor: page.nextCursor,
         ...(page.folders && {
           folders: page.folders.map((folder) => ({
-            id: folder.path,
+            id: folder.id,
+            name: folder.name,
+          })),
+        }),
+        ...(page.trail && {
+          trail: page.trail.map((folder) => ({
+            id: folder.id,
             name: folder.name,
           })),
         }),
@@ -101,17 +108,18 @@ export function dbObjectSource<TClientAttributes = never>(
   if (!folders) return source;
 
   source.uploadOptions = (parent) => ({
-    metadata: { folder: formatFolder(parent) },
+    metadata: { folderId: parent ?? "" },
   });
   const createFolder = db.createFolder?.bind(db);
   if (createFolder) {
     source.createFolder = async ({ parent, name }) => {
-      // A `/` would create a nested folder instead of a child of `parent`.
-      if (name.includes("/")) throw s3Error("FOLDER_INVALID");
+      // A `/` would be a nested path. The server creates one folder.
+      if (!isFolderName(name)) throw s3Error("FOLDER_INVALID");
       const { folder } = await createFolder({
-        path: joinFolderPath(parent, name),
+        parentId: parent,
+        name,
       });
-      return { id: folder.path, name: folder.name };
+      return { id: folder.id, name: folder.name };
     };
   }
   return source;

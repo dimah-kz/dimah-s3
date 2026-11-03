@@ -19,7 +19,7 @@ function pending(
     key: "k",
     scope: "user:1",
     route: "uploads",
-    folder: null,
+    folderId: null,
     filename: "a.txt",
     contentType: "text/plain",
     declaredSize: 100,
@@ -47,7 +47,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
     });
 
     it("updates only the row it was pinned to", async () => {
-      const row = await insertObject(client(), { key: "k", folder: null });
+      const row = await insertObject(client(), { key: "k", folderId: null });
 
       await expect(
         store().update(
@@ -66,12 +66,12 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
     it("writes a pending row with the ticket's token and deadline", async () => {
       const expiresAt = inAMinute();
       const written = await store().upsertPending(
-        pending({ folder: "docs/q4", uploadId: "up-1", expiresAt }),
+        pending({ folderId: "docs/q4", uploadId: "up-1", expiresAt }),
       );
 
       expect(written).toMatchObject({
         status: "pending",
-        folder: "docs/q4",
+        folderId: "docs/q4",
         filename: "a.txt",
         declaredSize: 100,
         size: null,
@@ -121,7 +121,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       const createdAt = new Date("2024-01-01T00:00:00.000Z");
       await insertObject(client(), {
         key: "k",
-        folder: "avatars",
+        folderId: "avatars",
         filename: "me.png",
         size: 5,
         eTag: '"e0"',
@@ -132,11 +132,16 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       const expiresAt = inAMinute();
 
       const written = await store().upsertPending(
-        pending({ overwrite: true, folder: null, uploadId: "up-1", expiresAt }),
+        pending({
+          overwrite: true,
+          folderId: null,
+          uploadId: "up-1",
+          expiresAt,
+        }),
       );
       expect(written).toMatchObject({
         status: "active",
-        folder: "avatars",
+        folderId: "avatars",
         filename: "me.png",
         size: 5,
         eTag: '"e0"',
@@ -239,7 +244,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
     it("confirms an overwrite in place, and detects its replay", async () => {
       await insertObject(client(), {
         key: "k",
-        folder: "avatars",
+        folderId: "avatars",
         size: 5,
         uploadToken: "old",
       });
@@ -248,7 +253,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       const active = await store().markActive(confirm);
       expect(active).toMatchObject({
         status: "active",
-        folder: "avatars",
+        folderId: "avatars",
         size: 120,
         declaredSize: null,
         eTag: '"etag"',
@@ -301,21 +306,21 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
 
       const updated = await store().update(
         { bucket: "b", key: "k" },
-        { folder: "docs", attributes: { starred: true } },
+        { folderId: "docs", attributes: { starred: true } },
       );
       expect(updated).toMatchObject({
         filename: "a.txt",
-        folder: "docs",
+        folderId: "docs",
         attributes: { starred: true },
       });
 
       const moved = await store().update(
         { bucket: "b", key: "k" },
-        { filename: "b.txt", folder: null },
+        { filename: "b.txt", folderId: null },
       );
       expect(moved).toMatchObject({
         filename: "b.txt",
-        folder: null,
+        folderId: null,
         attributes: { starred: true },
       });
     });
@@ -421,7 +426,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
 
   describe("count and getUsage", () => {
     async function seed() {
-      await insertObject(client(), { key: "a1", size: 100, folder: "docs" });
+      await insertObject(client(), { key: "a1", size: 100, folderId: "docs" });
       await insertObject(client(), { key: "a2", size: 50, route: "avatars" });
       await insertObject(client(), {
         key: "live",
@@ -464,8 +469,10 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await expect(count({ scope: "user:1", status: "deleted" })).resolves.toBe(
         1,
       );
-      await expect(count({ scope: "user:1", folder: "docs" })).resolves.toBe(1);
-      await expect(count({ scope: "user:1", folder: null })).resolves.toBe(1);
+      await expect(count({ scope: "user:1", folderId: "docs" })).resolves.toBe(
+        1,
+      );
+      await expect(count({ scope: "user:1", folderId: null })).resolves.toBe(1);
       await expect(count({ scope: "user:1", route: "avatars" })).resolves.toBe(
         1,
       );

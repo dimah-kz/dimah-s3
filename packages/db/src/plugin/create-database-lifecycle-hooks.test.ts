@@ -209,33 +209,42 @@ describe("createDatabaseLifecycleHooks", () => {
       ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
     });
 
-    it("rejects an invalid folder", async () => {
+    it("rejects a missing folder", async () => {
       const { hooks } = setup();
 
       await expect(
         defined(hooks.upload?.guard)(
-          startContext({ clientMetadata: { folder: "docs/../q4" } }),
+          startContext({ clientMetadata: { folderId: "missing" } }),
         ),
-      ).rejects.toMatchObject({ code: "FOLDER_INVALID" });
+      ).rejects.toMatchObject({ code: "FOLDER_NOT_FOUND" });
     });
 
     it("authorizes the upload into its folder", async () => {
       const authorize = vi.fn(({ folder }: AuthorizeContext) => folder !== "x");
-      const { hooks } = setup({ authorize });
+      const { hooks, store } = setup({ authorize });
+      const docs = await store.folders.create("user:1", {
+        parentId: null,
+        name: "docs",
+      });
+      const blocked = await store.folders.create("user:1", {
+        parentId: null,
+        name: "x",
+      });
       const guard = defined(hooks.upload?.guard);
 
-      await guard(startContext({ clientMetadata: { folder: "docs" } }));
+      await guard(startContext({ clientMetadata: { folderId: docs.id } }));
       expect(authorize).toHaveBeenCalledWith(
         expect.objectContaining({
           operation: "upload",
           scope: "user:1",
           key: "k",
           folder: "docs",
-          clientMetadata: { folder: "docs" },
+          folderId: docs.id,
+          clientMetadata: { folderId: docs.id },
         }),
       );
       await expect(
-        guard(startContext({ clientMetadata: { folder: "x" } })),
+        guard(startContext({ clientMetadata: { folderId: blocked.id } })),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
 
@@ -272,15 +281,24 @@ describe("createDatabaseLifecycleHooks", () => {
     });
 
     it("authorizes an overwrite with the object it replaces, in its folder", async () => {
+      let lockedId = "";
       const authorize = vi.fn(
-        ({ object }: AuthorizeContext) => object?.folder !== "locked",
+        ({ object }: AuthorizeContext) => object?.folderId !== lockedId,
       );
-      const { hooks, insert } = setup({ authorize, replace: "overwrite" });
-      await insert({ folder: "locked", size: 5 });
+      const { hooks, insert, store } = setup({
+        authorize,
+        replace: "overwrite",
+      });
+      const locked = await store.folders.create("user:1", {
+        parentId: null,
+        name: "locked",
+      });
+      lockedId = locked.id;
+      await insert({ folderId: locked.id, size: 5 });
 
       await expect(
         defined(hooks.upload?.guard)(
-          startContext({ clientMetadata: { folder: "docs" } }),
+          startContext({ clientMetadata: { folderId: "docs" } }),
         ),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
       expect(authorize).toHaveBeenCalledTimes(1);
@@ -289,7 +307,8 @@ describe("createDatabaseLifecycleHooks", () => {
           operation: "upload",
           key: "k",
           folder: "locked",
-          object: expect.objectContaining({ key: "k", folder: "locked" }),
+          folderId: locked.id,
+          object: expect.objectContaining({ key: "k", folderId: locked.id }),
         }),
       );
     });
@@ -361,7 +380,7 @@ describe("createDatabaseLifecycleHooks", () => {
         scope: "user:1",
         route: "uploads",
         status: "pending",
-        folder: null,
+        folderId: null,
         filename: "a.txt",
         contentType: "text/plain",
         declaredSize: 10,
@@ -372,58 +391,70 @@ describe("createDatabaseLifecycleHooks", () => {
       });
     });
 
-    it("creates the folder and its ancestors", async () => {
+    it("writes the object into a folder that already exists", async () => {
       const { hooks, store, row } = setup();
+      const docs = await store.folders.create("user:1", {
+        parentId: null,
+        name: "docs",
+      });
+      const quarter = await store.folders.create("user:1", {
+        parentId: docs.id,
+        name: "q4",
+      });
 
       await defined(hooks.upload?.onStart)(
-        startContext({ clientMetadata: { folder: "docs/q4" } }),
+        startContext({ clientMetadata: { folderId: quarter.id } }),
       );
-      await expect(row()).resolves.toMatchObject({ folder: "docs/q4" });
-      await expect(store.folders.find("user:1", "docs")).resolves.toMatchObject(
-        { path: "docs", parent: null },
-      );
+      await expect(row()).resolves.toMatchObject({ folderId: quarter.id });
       await expect(
-        store.folders.find("user:1", "docs/q4"),
-      ).resolves.toMatchObject({ parent: "docs" });
+        store.folders.find("user:1", quarter.id),
+      ).resolves.toMatchObject({ path: "docs/q4", parentId: docs.id });
     });
 
     it("rejects an active object at the key unless the route overwrites", async () => {
       const blocked = setup();
+      const docs = await blocked.store.folders.create("user:1", {
+        parentId: null,
+        name: "docs",
+      });
       await blocked.insert({ uploadToken: "t0" });
       await expect(
         defined(blocked.hooks.upload?.onStart)(
-          startContext({ clientMetadata: { folder: "docs" } }),
+          startContext({ clientMetadata: { folderId: docs.id } }),
         ),
       ).rejects.toMatchObject({ code: "OBJECT_EXISTS" });
-      // The folder is written only after the row.
-      await expect(
-        blocked.store.folders.find("user:1", "docs"),
-      ).resolves.toBeNull();
+      await expect(blocked.row()).resolves.toMatchObject({ uploadToken: "t0" });
 
       const overwrite = setup({ replace: "overwrite" });
-      await overwrite.insert({ uploadToken: "t0", folder: "avatars", size: 5 });
+      const avatars = await overwrite.store.folders.create("user:1", {
+        parentId: null,
+        name: "avatars",
+      });
+      await overwrite.insert({
+        uploadToken: "t0",
+        folderId: avatars.id,
+        size: 5,
+      });
       await defined(overwrite.hooks.upload?.onStart)(
-        startContext({ clientMetadata: { folder: "docs" } }),
+        startContext({ clientMetadata: { folderId: "docs" } }),
       );
       await expect(overwrite.row()).resolves.toMatchObject({
         status: "active",
-        folder: "avatars",
+        folderId: avatars.id,
         size: 5,
         uploadToken: "t1",
         declaredSize: 10,
       });
-      await expect(
-        overwrite.store.folders.find("user:1", "avatars"),
-      ).resolves.toMatchObject({ path: "avatars" });
-      await expect(
-        overwrite.store.folders.find("user:1", "docs"),
-      ).resolves.toBeNull();
     });
 
     it("shares one scope lookup with the guard of the same call", async () => {
       const resolveScope = vi.fn(() => "user:1");
-      const { hooks } = setup({ resolveScope });
-      const context = startContext({ clientMetadata: { folder: "docs" } });
+      const { hooks, store } = setup({ resolveScope });
+      const docs = await store.folders.create("user:1", {
+        parentId: null,
+        name: "docs",
+      });
+      const context = startContext({ clientMetadata: { folderId: docs.id } });
 
       await defined(hooks.upload?.guard)(context);
       await defined(hooks.upload?.onStart)(context);
@@ -637,12 +668,12 @@ describe("createDatabaseLifecycleHooks", () => {
 
     it("confirms an overwrite in place and quota-checks it without the old size", async () => {
       const { hooks, insert, row } = setup({ quota: { maxBytes: 12 } });
-      await insert({ ...overwrittenRow, folder: "avatars", size: 10 });
+      await insert({ ...overwrittenRow, folderId: "avatars", size: 10 });
 
       await defined(hooks.upload?.onConfirmed)(confirmedContext());
       await expect(row()).resolves.toMatchObject({
         status: "active",
-        folder: "avatars",
+        folderId: "avatars",
         size: 12,
         expiresAt: null,
         uploadToken: "t1",

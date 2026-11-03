@@ -210,7 +210,7 @@ merges key by key:
 
 ```ts
 await upload.handleFiles(files, {
-  uploadOptions: { metadata: { folder: "invoices" } },
+  uploadOptions: { metadata: { folderId: "folder id" } },
   maxFiles: 3, // lowers maxFiles for this call
 });
 ```

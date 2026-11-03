@@ -165,13 +165,17 @@ async function presignAndUpload(
 describe("db plugin", () => {
   it("tracks an upload from presign to confirm", async () => {
     const setup = createSetup();
-    const presigned = await presignAndUpload(setup, "1", { folder: "docs" });
+    const docs = await setup.instance.db.folders.create("user:1", {
+      parentId: null,
+      name: "docs",
+    });
+    const presigned = await presignAndUpload(setup, "1", { folderId: docs.id });
     const ref = { bucket: "bucket", key: presigned.key };
 
     await expect(setup.instance.db.objects.find(ref)).resolves.toMatchObject({
       scope: "user:1",
       status: "pending",
-      folder: "docs",
+      folderId: docs.id,
       declaredSize: 10,
     });
     await setup.instance.api.confirm({ ticket: presigned.ticket }, asUser("1"));
@@ -181,7 +185,7 @@ describe("db plugin", () => {
       filename: "a.txt",
     });
     await expect(
-      setup.instance.db.folders.find("user:1", "docs"),
+      setup.instance.db.folders.find("user:1", docs.id),
     ).resolves.toMatchObject({ name: "docs" });
   });
 
@@ -230,6 +234,14 @@ describe("db plugin", () => {
 
   it("tracks s3.put in the folder from clientMetadata", async () => {
     const { instance: s3 } = createSetup();
+    const docs = await s3.db.folders.create("user:1", {
+      parentId: null,
+      name: "docs",
+    });
+    const quarter = await s3.db.folders.create("user:1", {
+      parentId: docs.id,
+      name: "q4",
+    });
 
     const put = await s3.put(
       {
@@ -237,7 +249,7 @@ describe("db plugin", () => {
         name: "notes.txt",
         type: "text/plain",
         body: "hello",
-        clientMetadata: { folder: "docs/q4" },
+        clientMetadata: { folderId: quarter.id },
       },
       asUser("1"),
     );
@@ -246,7 +258,7 @@ describe("db plugin", () => {
     ).resolves.toMatchObject({
       scope: "user:1",
       status: "active",
-      folder: "docs/q4",
+      folderId: quarter.id,
       size: 5,
     });
   });
@@ -290,12 +302,16 @@ describe("db plugin", () => {
         },
       });
       const user = asUser("1");
+      const profile = await s3.db.folders.create("user:1", {
+        parentId: null,
+        name: "profile",
+      });
       const put = await s3.put(
         {
           route: "avatars",
           name: "me.png",
           body: "one",
-          clientMetadata: { folder: "profile" },
+          clientMetadata: { folderId: profile.id },
         },
         user,
       );
@@ -305,11 +321,11 @@ describe("db plugin", () => {
         await expect(s3.db.objects.find(ref)).resolves.toMatchObject({
           status: "active",
           size: 3,
-          folder: "profile",
+          folderId: profile.id,
           eTag: stored?.eTag,
         });
         await expect(
-          s3.db.objects.list({ scope: "user:1", folder: "profile" }),
+          s3.db.objects.list({ scope: "user:1", folderId: profile.id }),
         ).resolves.toMatchObject({ objects: [{ key: put.key }] });
         await expect(
           s3.api.download({ route: "avatars", key: put.key }, user),

@@ -2,8 +2,8 @@ import { s3Error } from "@dimah-s3/core";
 
 /**
  * Logical folder paths. A path is NFC-normalized and `/`-separated, with no
- * leading or trailing `/`. `null` is the root in types and JSON. On the wire
- * (`?folder=`, `clientMetadata.folder`) the root is `""`.
+ * leading or trailing `/`. `null` is the root. The wire addresses a folder
+ * by id; the path is the cached label of that id.
  */
 
 /** Longest folder path, in characters. */
@@ -23,13 +23,15 @@ function characterCount(value: string): number {
   return Array.from(value).length;
 }
 
-function isValidName(name: string): boolean {
+/** True when `name` can be one segment of a folder path. */
+export function isFolderName(name: string): boolean {
   const length = characterCount(name);
   return (
     length >= 1 &&
     length <= FOLDER_NAME_MAX_LENGTH &&
     name !== "." &&
     name !== ".." &&
+    !name.includes("/") &&
     !INVALID_CHARACTER.test(name)
   );
 }
@@ -44,7 +46,7 @@ export function normalizeFolderPath(path: string): string | null {
   if (characterCount(normalized) > FOLDER_PATH_MAX_LENGTH) return null;
   const names = normalized.split("/");
   if (names.length > FOLDER_MAX_DEPTH) return null;
-  return names.every(isValidName) ? normalized : null;
+  return names.every(isFolderName) ? normalized : null;
 }
 
 /**
@@ -61,6 +63,18 @@ export function parseFolder(value: string): string | null {
 /** Writes a folder for the wire. The root becomes `""`. */
 export function formatFolder(folder: string | null): string {
   return folder ?? "";
+}
+
+/**
+ * The path of `name` inside `parent`. `null` when `name` is not a folder
+ * name or the joined path is too long or too deep.
+ */
+export function childFolderPath(
+  parent: string | null,
+  name: string,
+): string | null {
+  if (!isFolderName(name)) return null;
+  return normalizeFolderPath(joinFolderPath(parent, name));
 }
 
 /** Appends `name` to `parent`. The result is not validated. */

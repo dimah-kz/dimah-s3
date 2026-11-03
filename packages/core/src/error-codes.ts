@@ -93,6 +93,7 @@ export const S3_ERROR_CODES = defineErrorCodes({
     message: "An object already exists at this key",
   },
   FOLDER_INVALID: { status: 400, message: "Folder path is invalid" },
+  FOLDER_NOT_FOUND: { status: 404, message: "Folder not found" },
   FOLDER_EXISTS: { status: 409, message: "Folder already exists" },
   FOLDER_NOT_EMPTY: { status: 409, message: "Folder is not empty" },
   // client-only (never sent by the server)

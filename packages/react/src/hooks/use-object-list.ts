@@ -300,13 +300,17 @@ export function useObjectList<TItem>(
           mode === "refresh" ? Math.max(1, current.snapshot.pageCount) : 1;
         const items: TItem[] = [];
         let folders: readonly ObjectListFolder[] = [];
+        let serverTrail: readonly ObjectListFolder[] | undefined;
         let usage: ObjectListUsage | null = null;
         let cursor: string | null = null;
         let pageCount = 0;
         do {
           const page = await opts.query({ ...input, cursor });
           if (!isCurrent()) return;
-          if (pageCount === 0) folders = page.folders ?? [];
+          if (pageCount === 0) {
+            folders = page.folders ?? [];
+            if (page.trail) serverTrail = page.trail;
+          }
           for (const item of page.items) items.push(item);
           usage = page.usage ?? usage;
           cursor = page.nextCursor || null;
@@ -326,6 +330,15 @@ export function useObjectList<TItem>(
             pageCount,
           },
         }));
+        if (
+          serverTrail &&
+          (target.parent === null
+            ? serverTrail.length === 0
+            : serverTrail.at(-1)?.id === target.parent)
+        ) {
+          trailRef.current = serverTrail;
+          setTrailState(serverTrail);
+        }
       } catch (err) {
         if (!isCurrent()) return;
         const error = toClientError(err);

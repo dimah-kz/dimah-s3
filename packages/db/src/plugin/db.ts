@@ -116,6 +116,7 @@ export function db<
       store,
       objects: stores.objects,
       access,
+      resolveScope,
       quota,
       attributes: options.attributes,
       toClientObject,

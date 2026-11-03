@@ -12,7 +12,7 @@ export function sampleObject<TAttributes = never>(
     bucket: "b",
     key: "k",
     route: "uploads",
-    folder: null,
+    folderId: null,
     filename: "a.txt",
     contentType: "text/plain",
     size: 10,
@@ -40,10 +40,11 @@ export function sampleFolder(
   return {
     id: "f1",
     scope: "user:1",
-    path: "docs",
-    parent: null,
+    parentId: null,
     name: "docs",
+    path: "docs",
     createdAt: new Date("2024-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2024-01-01T00:00:00.000Z"),
     ...overrides,
   };
 }

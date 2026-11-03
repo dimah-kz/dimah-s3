@@ -10,7 +10,7 @@ import {
 } from "./list-cursor";
 
 const filters: ListCursorFilters = {
-  folder: "docs",
+  folderId: "docs",
   search: undefined,
   status: "active",
   route: undefined,
@@ -67,9 +67,9 @@ describe("list cursor", () => {
   });
 
   it.each<[string, Partial<ListCursorFilters>]>([
-    ["folder", { folder: "other" }],
-    ["flat listing", { folder: undefined }],
-    ["root", { folder: null }],
+    ["folder", { folderId: "other" }],
+    ["flat listing", { folderId: undefined }],
+    ["root", { folderId: null }],
     ["search", { search: "a" }],
     ["status", { status: "pending" }],
     ["route", { route: "avatars" }],

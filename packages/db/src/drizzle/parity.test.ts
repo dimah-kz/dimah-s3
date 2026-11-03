@@ -364,7 +364,7 @@ describe("FumaDB Drizzle adapter on the shipped tables", () => {
       bucket: "uploads",
       key: "user-1/report.pdf",
       route: "documents",
-      folder: "reports/2026",
+      folderId: "folder-1",
       filename: "report.pdf",
       contentType: "application/pdf",
       declaredSize: 5_000_000_000,
@@ -392,12 +392,12 @@ describe("FumaDB Drizzle adapter on the shipped tables", () => {
 
     await orm.create("storageFolder", {
       scope: "user:1",
+      parentId: "reports",
       path: "reports/2026",
-      parent: "reports",
       name: "2026",
     });
     const folders = await orm.findMany("storageFolder", {
-      where: (b) => b("parent", "=", "reports"),
+      where: (b) => b("parentId", "=", "reports"),
     });
     expect(folders).toEqual([
       expect.objectContaining({ path: "reports/2026", name: "2026" }),

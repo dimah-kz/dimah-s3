@@ -7,11 +7,10 @@ import type {
   UploadGuardContext,
 } from "@dimah-s3/server";
 import type { DimahS3PluginHooks } from "@dimah-s3/server/plugins";
-import { parseFolder } from "@/folder-path";
 import type { DbStore } from "@/store/create-db-store";
 import { isUploading, type ObjectRef } from "@/store/object-store";
 import type { ScopeOperation } from "@/types/plugin";
-import type { StorageObject } from "@/types/storage-object";
+import type { StorageFolder, StorageObject } from "@/types/storage-object";
 import type { AccessTarget, ObjectAccess } from "./object-access";
 import type { Quota } from "./quota";
 import type { ScopeResolver } from "./scope";
@@ -60,13 +59,12 @@ function objectTarget(
   return { operation, route: context.route, key: context.key };
 }
 
-/** What an upload checks access for, with its `clientMetadata.folder`. */
-function uploadTarget(context: UploadGuardContext): AccessTarget {
-  return {
-    ...objectTarget(context, "upload"),
-    folder: parseFolder(context.clientMetadata?.folder ?? ""),
-    clientMetadata: context.clientMetadata,
-  };
+/** The folder id an upload asks for. `""` and a missing value are the root. */
+function requestedFolderId(
+  metadata: Record<string, string> | undefined,
+): string | null {
+  const value = metadata?.folderId ?? "";
+  return value === "" ? null : value;
 }
 
 /** True while the row is the one `uploadToken`'s upload wrote. */
@@ -103,7 +101,7 @@ function confirmedBy<T>(
  * - `ticketSubject` binds upload tickets to the scope.
  * - `upload.guard` checks the folder, ownership of the key, `authorize`
  *   (with the object an overwrite replaces), and the quota; `onStart` writes
- *   the pending row, then its folders. An overwrite leaves the active row in
+ *   the pending row, then retains its folder. An overwrite leaves the active row in
  *   place until it is confirmed.
  * - `confirmGuard` and `multipart.guard` accept only the row of the ticket's
  *   upload, or a confirm it already finished; `onConfirmed` checks the quota
@@ -149,21 +147,35 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
   /**
    * What an upload writes to: the row at its key, and the access target. An
    * overwrite keeps the active row's folder, so that folder is the target.
+   * A new upload's folder must already exist.
    */
   const uploadWrite = async (context: UploadGuardContext) => {
-    const target = uploadTarget(context);
     const existing = await objects.find(refOf(context));
-    if (
-      existing?.status !== "active" ||
-      routes.replace(context.route) !== "overwrite"
-    ) {
-      return { target, existing, replaced: null };
+    const replaced =
+      existing?.status === "active" &&
+      routes.replace(context.route) === "overwrite"
+        ? existing
+        : null;
+    const folderId = replaced
+      ? replaced.folderId
+      : requestedFolderId(context.clientMetadata);
+    const scope = await resolveScope(context, objectTarget(context, "upload"));
+    let folder: StorageFolder | null = null;
+    if (folderId !== null) {
+      folder = await folders.find(scope.scope, folderId);
+      if (!folder && !replaced) throw s3Error("FOLDER_NOT_FOUND");
     }
-    return {
-      target: { ...target, folder: existing.folder },
-      existing,
-      replaced: existing,
+    const target: AccessTarget = {
+      ...objectTarget(context, "upload"),
+      folderId,
+      clientMetadata: context.clientMetadata,
+      ...(folder
+        ? { folder: folder.path }
+        : folderId === null
+          ? { folder: null }
+          : {}),
     };
+    return { target, existing, replaced, folder };
   };
 
   /** Aborts the multipart upload in flight on the row. Best-effort. */
@@ -223,13 +235,13 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
       },
 
       async onStart(context) {
-        const { target } = await uploadWrite(context);
-        const { scope } = await resolveScope(context, target);
-        const row = await objects.upsertPending({
+        const written = await uploadWrite(context);
+        const { scope } = await resolveScope(context, written.target);
+        await objects.upsertPending({
           ...refOf(context),
           scope,
           route: context.route,
-          folder: target.folder ?? null,
+          folderId: written.target.folderId ?? null,
           filename: context.file.name,
           contentType: context.file.type ?? null,
           declaredSize: context.file.size,
@@ -240,8 +252,7 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
           overwrite: routes.replace(context.route) === "overwrite",
         });
         // After the row, so a folder delete in between sees it or is undone.
-        // An overwrite keeps the row's folder.
-        await folders.ensure(scope, row.folder);
+        if (written.folder) await folders.retain(written.folder);
       },
 
       async confirmGuard(context) {

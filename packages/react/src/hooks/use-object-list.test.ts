@@ -492,6 +492,20 @@ describe("useObjectList", () => {
     hook.unmount();
   });
 
+  it("adopts the trail a page returns for the open folder", async () => {
+    const query = mockQuery().mockImplementation(async (input) =>
+      page(["a"], {
+        trail:
+          input.parent === "photos" ? [{ id: "photos", name: "Photos" }] : [],
+      }),
+    );
+    const hook = renderHook(() => useList({ query, defaultParent: "photos" }));
+    await flush();
+
+    expect(hook.current.trail).toEqual([{ id: "photos", name: "Photos" }]);
+    hook.unmount();
+  });
+
   it("follows a controlled parent", async () => {
     const query = mockQuery().mockResolvedValue(page(["a"]));
     const onParentChange = vi.fn();

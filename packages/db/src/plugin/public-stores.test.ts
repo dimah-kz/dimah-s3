@@ -11,32 +11,32 @@ function setup() {
 }
 
 describe("createPublicStores", () => {
-  it("moves an object into a folder it creates, like PATCH /db/object", async () => {
-    const { database, objects, store } = setup();
-    await insertObject(database, { key: "k", folder: null });
+  it("moves an object into a folder that exists", async () => {
+    const { database, objects, folders } = setup();
+    await insertObject(database, { key: "k", folderId: null });
+    const folder = await folders.create("user:1", {
+      parentId: null,
+      name: "docs",
+    });
 
     await expect(
-      objects.update({ bucket: "b", key: "k" }, { folder: "docs/2026" }),
-    ).resolves.toMatchObject({ folder: "docs/2026" });
-    await expect(store.folders.find("user:1", "docs")).resolves.not.toBeNull();
-    await expect(
-      store.folders.find("user:1", "docs/2026"),
-    ).resolves.not.toBeNull();
+      objects.update({ bucket: "b", key: "k" }, { folderId: folder.id }),
+    ).resolves.toMatchObject({ folderId: folder.id });
   });
 
-  it("rejects an invalid folder before it writes", async () => {
+  it("rejects a missing folder before it writes", async () => {
     const { database, objects, folders } = setup();
-    await insertObject(database, { key: "k", folder: null });
+    await insertObject(database, { key: "k", folderId: null });
 
     await expect(
-      objects.update({ bucket: "b", key: "k" }, { folder: "docs/../x" }),
+      objects.update({ bucket: "b", key: "k" }, { folderId: "missing" }),
+    ).rejects.toMatchObject({ code: "FOLDER_NOT_FOUND" });
+    await expect(
+      folders.create("user:1", { parentId: null, name: "a/b" }),
     ).rejects.toMatchObject({ code: "FOLDER_INVALID" });
-    await expect(folders.create("user:1", "a//b")).rejects.toMatchObject({
-      code: "FOLDER_INVALID",
-    });
-    await expect(folders.ensure("user:1", "")).rejects.toMatchObject({
-      code: "FOLDER_INVALID",
-    });
+    await expect(
+      objects.update({ bucket: "b", key: "k" }, { folderId: null }),
+    ).resolves.toMatchObject({ folderId: null });
   });
 
   it("keeps the upload lifecycle off the public object store", () => {

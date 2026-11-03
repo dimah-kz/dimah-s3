@@ -14,8 +14,8 @@ export type DbClientObject<TClientAttributes = never> = {
   bucket: string;
   key: string;
   route: string;
-  /** Logical folder path. `null` is the root. */
-  folder: string | null;
+  /** Folder that holds the object. `null` is the root. */
+  folderId: string | null;
   filename: string;
   contentType: string | null;
   /** Verified size. `null` while the object is pending. */
@@ -31,12 +31,16 @@ export type DbClientObject<TClientAttributes = never> = {
 
 /** Browser-facing folder row. */
 export type DbClientFolder = {
-  path: string;
+  id: string;
   name: string;
-  /** Path of the containing folder. `null` is the root. */
-  parent: string | null;
+  /** Containing folder. `null` is the root. */
+  parentId: string | null;
+  /** Full path, from the root. It changes when an ancestor is renamed. */
+  path: string;
   /** ISO 8601 timestamp. */
   createdAt: string;
+  /** ISO 8601 timestamp. */
+  updatedAt: string;
 };
 
 /** Column a listing can be ordered by. */
@@ -72,7 +76,7 @@ export type DbClientListInput = {
    * Folder to list. `null` (or `""`) is the root. Omit for a flat list of
    * every folder.
    */
-  folder?: string | null;
+  folderId?: string | null;
   route?: S3RouteName;
   /** @default "active" */
   status?: DbClientObjectStatus;
@@ -101,10 +105,15 @@ export type DbClientListResponse<TClientAttributes = never> = {
   /** `null` on the last page. */
   nextCursor: string | null;
   /**
-   * Direct child folders of `folder`, at most 1000, and only those whose
+   * Direct child folders of `folderId`, at most 1000, and only those whose
    * name contains `search` when it is set. First page only.
    */
   folders?: DbClientFolder[];
+  /**
+   * Folders from the root down to the open folder. Empty at the root.
+   * First page only, and only when `folderId` is set.
+   */
+  trail?: DbClientFolder[];
   /** First page only. */
   usage?: DbUsage;
   /** Caps for the scope, `null` when there are none. First page only. */
@@ -120,8 +129,8 @@ export type DbClientGetInput = {
 /** Body of `PATCH /db/object`. Omitted fields stay as they are. */
 export type DbClientUpdateInput = DbClientGetInput & {
   filename?: string;
-  /** Folder path. `null` moves the object to the root. */
-  folder?: string | null;
+  /** Folder id. `null` moves the object to the root. */
+  folderId?: string | null;
   /**
    * Replaces the attributes, checked by the plugin's `attributes.schema`.
    * `null` clears them.
@@ -129,9 +138,23 @@ export type DbClientUpdateInput = DbClientGetInput & {
   attributes?: Record<string, unknown> | null;
 };
 
-/** Body of `POST /db/folder` and query of `DELETE /db/folder`. */
-export type DbClientFolderInput = {
-  path: string;
+/** Body of `POST /db/folder`. `parentId` omitted or `null` is the root. */
+export type DbClientCreateFolderInput = {
+  parentId?: string | null;
+  name: string;
+};
+
+/** Body of `PATCH /db/folder`. An omitted field stays as it is. */
+export type DbClientUpdateFolderInput = {
+  id: string;
+  name?: string;
+  /** `null` moves the folder to the root. */
+  parentId?: string | null;
+};
+
+/** Query of `DELETE /db/folder`. */
+export type DbClientDeleteFolderInput = {
+  id: string;
 };
 
 /**
@@ -152,13 +175,17 @@ export type DbClientActions<TClientAttributes = never> = {
     options?: S3RequestOptions,
   ): Promise<{ object: DbClientObject<TClientAttributes> }>;
   createFolder(
-    input: DbClientFolderInput,
+    input: DbClientCreateFolderInput,
+    options?: S3RequestOptions,
+  ): Promise<{ folder: DbClientFolder }>;
+  updateFolder(
+    input: DbClientUpdateFolderInput,
     options?: S3RequestOptions,
   ): Promise<{ folder: DbClientFolder }>;
   deleteFolder(
-    input: DbClientFolderInput,
+    input: DbClientDeleteFolderInput,
     options?: S3RequestOptions,
-  ): Promise<{ path: string }>;
+  ): Promise<{ id: string }>;
 };
 
 /** Filters `dbObjectSource` sends with every page. */
@@ -174,7 +201,7 @@ export type DbObjectSourceOptions = {
   folders?: boolean;
 };
 
-/** A folder row of {@link DbObjectSource}. `id` is the folder path. */
+/** A folder row of {@link DbObjectSource}. `id` is the folder id. */
 export type DbObjectSourceFolder = {
   id: string;
   name: string;
@@ -182,7 +209,7 @@ export type DbObjectSourceFolder = {
 
 /** The `useObjectList` query input. Mirrors react's `ObjectListQueryInput`. */
 export type DbObjectSourceQueryInput = {
-  /** Folder path. `null` is the root. */
+  /** Folder id. `null` is the root. */
   parent: string | null;
   cursor: string | null;
   /** `name`, `size`, or `updatedAt`. Other fields keep the default order. */
@@ -196,6 +223,11 @@ export type DbObjectSourcePage<TClientAttributes = never> = {
   items: DbClientObject<TClientAttributes>[];
   /** First page only. */
   folders?: DbObjectSourceFolder[];
+  /**
+   * Folders from the root down to `parent`. First page only.
+   * `useObjectList` shows these names in the breadcrumb.
+   */
+  trail?: DbObjectSourceFolder[];
   nextCursor: string | null;
   /** Scope usage with its caps. First page only. */
   usage?: DbUsage & DbQuota;
@@ -221,7 +253,7 @@ export type DbObjectSource<TClientAttributes = never> = {
   ) => Promise<DbObjectSourcePage<TClientAttributes>>;
   getKey: (item: DbClientObject<TClientAttributes>) => string;
   getFile: (item: DbClientObject<TClientAttributes>) => DbObjectSourceFile;
-  /** Upload options for files dropped into `parent`. Root is `""`. */
+  /** Upload options for files dropped into `parent`. The root sends `""`. */
   uploadOptions?: (parent: string | null) => {
     metadata: Record<string, string>;
   };

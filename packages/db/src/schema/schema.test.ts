@@ -48,7 +48,7 @@ function withoutTypes(shape: Shape): Shape {
   };
 }
 
-/** Columns and indexes schema 2.0.0 declares for a SQL table. */
+/** Columns and indexes schema 2.1.0 declares for a SQL table. */
 function expectedShape(table: (typeof TABLES)[number]): Shape {
   const definition = DEFINITIONS[table];
   return {
@@ -222,7 +222,7 @@ const sampleObject = {
   bucket: "b",
   key: "users/1/a.txt",
   route: "files",
-  folder: "docs/q4",
+  folderId: "folder-1",
   filename: "a.txt",
   status: "active",
   size: 5497558138880,
@@ -231,7 +231,7 @@ const sampleObject = {
   uploadToken: "token",
 };
 
-describe("schema 2.0.0", () => {
+describe("schema 2.1.0", () => {
   it("is the schema the stores read", () => {
     const client = sqliteClient(new Database(":memory:"));
     expect(client.schemas.map((schema) => schema.version)).toEqual([
@@ -239,7 +239,7 @@ describe("schema 2.0.0", () => {
       DB_SCHEMA_VERSION,
     ]);
     expect(Object.keys(client.schemas[0]?.tables ?? {})).toEqual([]);
-    expect(DB_SCHEMA_VERSION).toBe("2.0.0");
+    expect(DB_SCHEMA_VERSION).toBe("2.1.0");
   });
 
   it("declares the spec columns", () => {
@@ -250,7 +250,7 @@ describe("schema 2.0.0", () => {
         ["bucket", false],
         ["key", false],
         ["route", false],
-        ["folder", true],
+        ["folder_id", true],
         ["filename", false],
         ["content_type", true],
         ["size", true],
@@ -273,10 +273,11 @@ describe("schema 2.0.0", () => {
       columnList([
         ["id", false],
         ["scope", false],
-        ["path", false],
-        ["parent", true],
+        ["parent_id", false],
         ["name", false],
+        ["path", false],
         ["created_at", false],
+        ["updated_at", false],
       ]),
     );
   });
@@ -298,10 +299,10 @@ describe("sql/sqlite.sql", () => {
   it("stores sizes as INTEGER through the Kysely adapter", async () => {
     const database = create();
     const client = sqliteClient(database);
-    expect(await client.version()).toBe("2.0.0");
+    expect(await client.version()).toBe("2.1.0");
 
     const created = await client
-      .orm("2.0.0")
+      .orm("2.1.0")
       .create("storageObject", sampleObject);
     expect(created).toMatchObject({
       ...sampleObject,
@@ -343,8 +344,8 @@ describe("sql/pg.sql", () => {
 
   it("round-trips a row through the Kysely adapter", async () => {
     const client = pgClient(await create());
-    expect(await client.version()).toBe("2.0.0");
-    const orm = client.orm("2.0.0");
+    expect(await client.version()).toBe("2.1.0");
+    const orm = client.orm("2.1.0");
     const created = await orm.create("storageObject", sampleObject);
     const found = await orm.findFirst("storageObject", {
       where: (b) => b("id", "=", created.id),
@@ -363,7 +364,7 @@ describe("sql/mysql.sql", () => {
   it("indexes long columns by prefix", () => {
     const sql = readSql("mysql.sql");
     expect(sql).toContain("(`bucket`, `key`(512))");
-    expect(sql).toContain("`folder`(255)");
+    expect(sql).toContain("(`scope`, `status`, `folder_id`, `created_at`)");
     expect(sql).toContain("(`scope`, `path`(512))");
   });
 });
