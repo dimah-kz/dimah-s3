@@ -353,7 +353,7 @@ export function useObjectList<TItem>(
         }));
       }
     },
-    [optionsRef, requestRef, update],
+    [optionsRef, requestRef, trailRef, update],
   );
 
   useEffect(() => {
