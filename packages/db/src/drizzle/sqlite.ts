@@ -1,7 +1,18 @@
 /**
- * Drizzle tables for @dimah-s3/db schema 2.0.0 on SQLite. They match
- * `sql/sqlite.sql`: timestamps are epoch milliseconds and sizes are integers.
+ * Drizzle schema for @dimah-s3/db on SQLite. Copy this file into your app
+ * (`db/schema.ts`) to own the tables and add columns. Keep the table names,
+ * the column names, and the `dimahS3Tables` keys: the adapter finds the
+ * tables by those keys. A column you add must be nullable or have a default.
+ * The plugin does not read or write it.
+ *
+ * Import `dimahS3Tables` from `@dimah-s3/db/drizzle/sqlite` when the tables
+ * stay as they are. `drizzle-kit` then follows that import, and a later push
+ * drops a column that is not part of it.
+ *
+ * Timestamps are epoch milliseconds and sizes are integers, matching
+ * `sql/sqlite.sql`. Requires `drizzle-orm` and `@paralleldrive/cuid2`.
  */
+import { createId } from "@paralleldrive/cuid2";
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -10,11 +21,13 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import type { StorageObjectStatus } from "@/types/storage-object";
-import { DIMAH_S3_SCHEMA_VERSION, runtimeDefaults } from "./shared";
+
+type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
+
+const SCHEMA_VERSION = "2.0.0";
 
 function id() {
-  return text("id").primaryKey().$defaultFn(runtimeDefaults.id);
+  return text("id").primaryKey().$defaultFn(() => createId());
 }
 
 function timestamp(name: string) {
@@ -25,7 +38,7 @@ function timestampNow(name: string) {
   return timestamp(name)
     .notNull()
     .default(sql`(strftime('%s', 'now') * 1000)`)
-    .$defaultFn(runtimeDefaults.now);
+    .$defaultFn(() => new Date());
 }
 
 function byteCount(name: string) {
@@ -114,7 +127,7 @@ export const storageFolder = sqliteTable(
  */
 export const dimahS3Settings = sqliteTable("private_dimah_s3_settings", {
   key: text("key").primaryKey(),
-  version: text("value").notNull().default(DIMAH_S3_SCHEMA_VERSION),
+  version: text("value").notNull().default(SCHEMA_VERSION),
 });
 
 /**

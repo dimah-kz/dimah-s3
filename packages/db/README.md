@@ -18,7 +18,7 @@ You do not install `fumadb`: the adapters ship from `@dimah-s3/db/adapters/*`.
 
 Create the schema with one of:
 
-- Drizzle: add `dimahS3Tables` from `@dimah-s3/db/drizzle/{sqlite,pg,mysql}` to your Drizzle schema.
+- Drizzle: copy `src/drizzle/{sqlite,pg,mysql}.ts` from the package into your schema so you can add columns. Or import `dimahS3Tables` from `@dimah-s3/db/drizzle/{sqlite,pg,mysql}` when the tables stay as they are.
 - Prisma: copy [`prisma/dimah-s3.prisma`](./prisma/dimah-s3.prisma) into your schema.
 - Plain SQL: run [`sql/<dialect>.sql`](./sql).
 - Kysely: call `migrate(client)` from `@dimah-s3/db/cli`. It creates the tables and the indexes. The FumaDB CLI from `runCli` does the same only with `migrate:up`; its `migrate` command jumps straight to the latest schema and skips the indexes.

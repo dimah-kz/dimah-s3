@@ -21,7 +21,7 @@ Coming from the 1.x example: delete `local.db` and run `pnpm db:push` again.
 
 ## What's wired
 
-1. [db/schema.ts](db/schema.ts): the prebuilt tables from `@dimah-s3/db/drizzle/sqlite` (`dimahS3Tables`), for `drizzle-kit push`
+1. [db/schema.ts](db/schema.ts): a copy of `@dimah-s3/db`'s `src/drizzle/sqlite.ts`, so the app owns the tables. Add columns there. `drizzle-kit push` creates them.
 2. [src/lib/db.ts](src/lib/db.ts): Drizzle over better-sqlite3, and `DimahS3DB.client(drizzleAdapter(…))` from `@dimah-s3/db/adapters/drizzle`
 3. [src/lib/s3.ts](src/lib/s3.ts): `dimahS3({ secret, routes })` with the `files` route and `db({ client, resolveScope, quota })`
 4. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts): Next.js adapter

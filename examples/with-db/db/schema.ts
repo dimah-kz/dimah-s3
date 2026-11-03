@@ -1,11 +1,142 @@
 /**
- * Drizzle schema for `drizzle-kit push` and `src/lib/db.ts`.
+ * Drizzle schema for @dimah-s3/db on SQLite. Copy this file into your app
+ * (`db/schema.ts`) to own the tables and add columns. Keep the table names,
+ * the column names, and the `dimahS3Tables` keys: the adapter finds the
+ * tables by those keys. A column you add must be nullable or have a default.
+ * The plugin does not read or write it.
  *
- * The @dimah-s3/db tables ship prebuilt. Keep their `dimahS3Tables` keys:
- * the FumaDB Drizzle adapter finds the tables by them. Add your own tables
- * below.
+ * Import `dimahS3Tables` from `@dimah-s3/db/drizzle/sqlite` when the tables
+ * stay as they are. `drizzle-kit` then follows that import, and a later push
+ * drops a column that is not part of it.
+ *
+ * Timestamps are epoch milliseconds and sizes are integers, matching
+ * `sql/sqlite.sql`. Requires `drizzle-orm` and `@paralleldrive/cuid2`.
  */
-import { dimahS3Tables } from "@dimah-s3/db/drizzle/sqlite";
+import { createId } from "@paralleldrive/cuid2";
+import { sql } from "drizzle-orm";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
-export const { storageObject, storageFolder, private_dimah_s3_settings } =
-  dimahS3Tables;
+type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
+
+const SCHEMA_VERSION = "2.0.0";
+
+function id() {
+  return text("id").primaryKey().$defaultFn(() => createId());
+}
+
+function timestamp(name: string) {
+  return integer(name, { mode: "timestamp_ms" });
+}
+
+function timestampNow(name: string) {
+  return timestamp(name)
+    .notNull()
+    .default(sql`(strftime('%s', 'now') * 1000)`)
+    .$defaultFn(() => new Date());
+}
+
+function byteCount(name: string) {
+  return integer(name, { mode: "number" });
+}
+
+/** The `storage_object` table: one row per tracked object. */
+export const storageObject = sqliteTable(
+  "storage_object",
+  {
+    id: id(),
+    scope: text("scope").notNull(),
+    bucket: text("bucket").notNull(),
+    key: text("key").notNull(),
+    route: text("route").notNull(),
+    folder: text("folder"),
+    filename: text("filename").notNull(),
+    contentType: text("content_type"),
+    size: byteCount("size"),
+    declaredSize: byteCount("declared_size"),
+    eTag: text("e_tag"),
+    status: text("status").$type<StorageObjectStatus>().notNull(),
+    s3Metadata: text("s3_metadata", { mode: "json" }).$type<
+      Record<string, string>
+    >(),
+    attributes: text("attributes", { mode: "json" }),
+    acl: text("acl"),
+    uploadId: text("upload_id"),
+    uploadToken: text("upload_token"),
+    expiresAt: timestamp("expires_at"),
+    confirmedAt: timestamp("confirmed_at"),
+    createdAt: timestampNow("created_at"),
+    updatedAt: timestampNow("updated_at"),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (table) => [
+    uniqueIndex("storage_object_bucket_key_uk").on(table.bucket, table.key),
+    index("storage_object_scope_folder_idx").on(
+      table.scope,
+      table.status,
+      table.folder,
+      table.createdAt,
+    ),
+    index("storage_object_scope_updated_idx").on(
+      table.scope,
+      table.status,
+      table.updatedAt,
+    ),
+    index("storage_object_scope_filename_idx").on(
+      table.scope,
+      table.status,
+      table.filename,
+    ),
+    index("storage_object_scope_size_idx").on(
+      table.scope,
+      table.status,
+      table.size,
+    ),
+    index("storage_object_status_expires_idx").on(
+      table.status,
+      table.expiresAt,
+    ),
+  ],
+);
+
+/** The `storage_folder` table: one row per folder, so empty folders list. */
+export const storageFolder = sqliteTable(
+  "storage_folder",
+  {
+    id: id(),
+    scope: text("scope").notNull(),
+    path: text("path").notNull(),
+    parent: text("parent"),
+    name: text("name").notNull(),
+    createdAt: timestampNow("created_at"),
+  },
+  (table) => [
+    uniqueIndex("storage_folder_scope_path_uk").on(table.scope, table.path),
+    index("storage_folder_scope_parent_idx").on(table.scope, table.parent),
+  ],
+);
+
+/**
+ * The FumaDB settings table. The Drizzle adapter reads the schema version
+ * from the default of its `version` column, which is stored as `value`.
+ */
+export const dimahS3Settings = sqliteTable("private_dimah_s3_settings", {
+  key: text("key").primaryKey(),
+  version: text("value").notNull().default(SCHEMA_VERSION),
+});
+
+/**
+ * Every @dimah-s3/db table. Spread it into your Drizzle schema and keep its
+ * keys, because the FumaDB Drizzle adapter finds tables by them:
+ * `drizzle({ client, relations: defineRelations({ ...dimahS3Tables }) })`.
+ */
+export const dimahS3Tables = {
+  storageObject,
+  storageFolder,
+  private_dimah_s3_settings: dimahS3Settings,
+};

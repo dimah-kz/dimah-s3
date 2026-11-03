@@ -72,7 +72,10 @@
   "files": [
     "dist",
     "sql",
-    "prisma"
+    "prisma",
+    "src/drizzle/sqlite.ts",
+    "src/drizzle/pg.ts",
+    "src/drizzle/mysql.ts"
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",

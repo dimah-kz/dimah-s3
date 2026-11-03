@@ -1,7 +1,17 @@
 /**
- * Drizzle tables for @dimah-s3/db schema 2.0.0 on PostgreSQL. They match
- * `sql/pg.sql`.
+ * Drizzle schema for @dimah-s3/db on PostgreSQL. Copy this file into your
+ * app (`db/schema.ts`) to own the tables and add columns. Keep the table
+ * names, the column names, and the `dimahS3Tables` keys: the adapter finds
+ * the tables by those keys. A column you add must be nullable or have a
+ * default. The plugin does not read or write it.
+ *
+ * Import `dimahS3Tables` from `@dimah-s3/db/drizzle/pg` when the tables stay
+ * as they are. `drizzle-kit` then follows that import, and a later push
+ * drops a column that is not part of it.
+ *
+ * Matches `sql/pg.sql`. Requires `drizzle-orm` and `@paralleldrive/cuid2`.
  */
+import { createId } from "@paralleldrive/cuid2";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -13,20 +23,22 @@ import {
   unique,
   varchar,
 } from "drizzle-orm/pg-core";
-import type { StorageObjectStatus } from "@/types/storage-object";
-import { DIMAH_S3_SCHEMA_VERSION, runtimeDefaults } from "./shared";
+
+type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
+
+const SCHEMA_VERSION = "2.0.0";
 
 function id() {
   return varchar("id", { length: 255 })
     .primaryKey()
-    .$defaultFn(runtimeDefaults.id);
+    .$defaultFn(() => createId());
 }
 
 function timestampNow(name: string) {
   return timestamp(name)
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`)
-    .$defaultFn(runtimeDefaults.now);
+    .$defaultFn(() => new Date());
 }
 
 function byteCount(name: string) {
@@ -113,7 +125,7 @@ export const storageFolder = pgTable(
  */
 export const dimahS3Settings = pgTable("private_dimah_s3_settings", {
   key: varchar("key", { length: 255 }).primaryKey(),
-  version: text("value").notNull().default(DIMAH_S3_SCHEMA_VERSION),
+  version: text("value").notNull().default(SCHEMA_VERSION),
 });
 
 /**

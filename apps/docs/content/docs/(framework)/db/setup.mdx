@@ -18,8 +18,8 @@ npm i @dimah-s3/db@beta
 ```
 
 You do not install `fumadb`. The adapters ship from
-`@dimah-s3/db/adapters/*`, and the tables from `@dimah-s3/db/drizzle/*`,
-`prisma/`, and `sql/`.
+`@dimah-s3/db/adapters/*`. Copy the Drizzle or Prisma schema from the
+package, or create the tables from `sql/` or `migrate(client)`.
 
 ### Tables [step]
 
@@ -85,11 +85,11 @@ import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
 import Database from "better-sqlite3";
 import { defineRelations } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
-import * as schema from "../db/schema";
+import { dimahS3Tables } from "../db/schema";
 
 export const db = drizzle({
   client: new Database("local.db"),
-  relations: defineRelations(schema),
+  relations: defineRelations({ ...dimahS3Tables }),
 });
 
 export const dimahS3Db = DimahS3DB.client(

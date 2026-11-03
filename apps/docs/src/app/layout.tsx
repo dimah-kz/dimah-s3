@@ -83,7 +83,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
       </head>
       <Body>
         <Banner id="dimah-s3-v2-beta" variant="rainbow">
-          2.0 beta — new releases can include breaking changes.{" "}
+          You are viewing the 2.0 beta.{" "}
           <a href="https://s3.dimah.dev/docs" className="underline">
             Stable 1.x docs
           </a>

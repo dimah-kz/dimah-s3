@@ -54,7 +54,7 @@ FumaDB skips `up` on the first schema, and the indexes live in `up`, so `schemas
 When the tables change inside this line, change the copies together:
 
 1. Add the next schema after `dbSchema` in `src/fuma-db.ts` (`DB_SCHEMA_VERSION` follows the latest).
-2. Update `src/drizzle/{sqlite,pg,mysql}.ts`, `sql/<dialect>.sql`, and `prisma/dimah-s3.prisma`.
+2. Update `src/drizzle/{sqlite,pg,mysql}.ts` (users copy these into their app; `examples/with-db/db/schema.ts` matches `sqlite.ts`), `sql/<dialect>.sql`, and `prisma/dimah-s3.prisma`.
 3. Add `sql/upgrade/<from>-<to>/<dialect>.sql` for each dialect.
 4. `src/drizzle/parity.test.ts` and `src/schema/schema.test.ts` must pass.
 5. List the upgrade under `#### Breaking changes` in the db changelog, and update the docs upgrade page (`apps/docs/content/docs/(framework)/db/upgrade.mdx`).
