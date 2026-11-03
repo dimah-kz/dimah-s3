@@ -4,8 +4,6 @@ import type {
   ServerResponse,
 } from "node:http";
 import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { s3Error } from "@dimah-s3/core";
 import { toResponse } from "better-call";
 import { defaultLogger } from "@/helpers/logger";
@@ -155,8 +153,38 @@ async function writeWebResponse(
     res.end();
     return;
   }
-  await pipeline(
-    Readable.fromWeb(response.body as NodeReadableStream<Uint8Array>),
-    res,
-  );
+  // `Readable.fromWeb` piped into `res` deadlocks once the body is larger
+  // than the stream buffer: each side waits for the other to pull. Read
+  // the web stream and write it, waiting for `drain` when Node's buffer
+  // is full.
+  const reader = response.body.getReader();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (res.destroyed || res.writableEnded) {
+        await reader.cancel();
+        return;
+      }
+      if (!value?.byteLength) continue;
+      if (!res.write(value)) await waitForDrain(res);
+    }
+    if (!res.destroyed && !res.writableEnded) res.end();
+  } catch (error) {
+    await reader.cancel(error).catch(() => undefined);
+    throw error;
+  }
+}
+
+/** Resolves when `res` accepts more data, or when the client has gone. */
+function waitForDrain(res: ServerResponse): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      res.off("drain", done);
+      res.off("close", done);
+      resolve();
+    };
+    res.once("drain", done);
+    res.once("close", done);
+  });
 }
