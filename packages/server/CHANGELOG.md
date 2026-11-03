@@ -1,3 +1,9 @@
+## @dimah-s3/server@2.0.0-beta.1 (beta)
+
+### Fix proxy downloads that never finish
+
+`GET /file` through the Node adapter now writes the object body directly. A download larger than the stream buffer no longer stalls until the client gives up.
+
 ## @dimah-s3/server@2.0.0-beta.0 (beta)
 
 ### Search and sort `db()` object listings

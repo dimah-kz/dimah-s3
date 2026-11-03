@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/db": patch
+  "@dimah-s3/db":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/db)
 ---
 
 ### Copy the Drizzle schema into your app
