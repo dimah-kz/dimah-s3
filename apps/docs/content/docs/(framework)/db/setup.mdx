@@ -24,7 +24,7 @@ package, or create the tables from `sql/` or `migrate(client)`.
 ### Tables [step]
 
 The plugin uses two tables, `storage_object` and `storage_folder`, plus a
-small settings table that records the schema version (`2.0.0`).
+small settings table that records the schema version (`2.1.0`).
 
 <Tabs items={["Drizzle", "Prisma", "SQL", "Kysely"]}>
 <Tab value="Drizzle">
@@ -238,7 +238,7 @@ sends the browser.
 
 An upload on a `replace: "overwrite"` route that replaces an active object
 runs `authorize` with `object` set to that object, and `folder` is that
-object's folder, not `clientMetadata.folder`.
+object's folder path, not the folder in `clientMetadata.folderId`.
 
 ```ts title="lib/s3.ts"
 const inArchive = (path?: string | null) =>
@@ -363,16 +363,18 @@ from a job.
 
 Yes. `s3.put` runs the same hooks with `kind: "server"`. Pass the caller's
 `request` (or trusted `locals`) so `resolveScope` knows who it is, and
-`clientMetadata.folder` to file it in a folder:
+`clientMetadata.folderId` to file it in a folder that already exists:
 
 ```ts
+const folderId = "…"; // id from createFolder
+
 await s3.put(
   {
     route: "files",
     name: "report.csv",
     type: "text/csv",
     body: csv,
-    clientMetadata: { folder: "reports" },
+    clientMetadata: { folderId },
   },
   { request },
 );
@@ -386,7 +388,7 @@ await s3.put(
 
 `runCli` runs the FumaDB CLI against your client, for example to generate an
 ORM schema. Prefer `migrate(client)` to migrate: the CLI's `migrate` command
-jumps straight to the latest schema and skips the 2.0.0 indexes. Only
+jumps straight to the latest schema and skips the 2.1.0 indexes. Only
 `migrate:up`, one version at a time, runs them.
 
 ```ts title="scripts/db-cli.ts"

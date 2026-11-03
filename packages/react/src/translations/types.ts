@@ -89,6 +89,7 @@ export type Translations = {
   "Folder is not empty(API error)": string;
   "Folder name is invalid(API error)": string;
   "Folder name(object list new folder)": string;
+  "Folder not found(API error)": string;
   "Folders above(object list)": string;
   "Fonts(file type group)": string;
   "GB(file size unit)": string;

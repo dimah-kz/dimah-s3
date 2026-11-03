@@ -2,13 +2,15 @@ export { dbClient } from "./db-client";
 export { dbObjectSource, type DbObjectSourceActions } from "./db-object-source";
 export type {
   DbClientActions,
+  DbClientCreateFolderInput,
+  DbClientDeleteFolderInput,
   DbClientFolder,
-  DbClientFolderInput,
   DbClientGetInput,
   DbClientListInput,
   DbClientListResponse,
   DbClientObject,
   DbClientObjectStatus,
+  DbClientUpdateFolderInput,
   DbClientUpdateInput,
   DbListSort,
   DbListSortField,

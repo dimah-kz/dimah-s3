@@ -400,8 +400,19 @@ describe("base64UrlEncode / base64UrlDecode", () => {
   });
 
   it("encodes large inputs", () => {
-    const bytes = new Uint8Array(200_000).map((_, i) => i % 256);
-    expect(base64UrlDecode(base64UrlEncode(bytes))).toEqual(bytes);
+    const bytes = new Uint8Array(200_000).map((_, index) => index % 256);
+    const decoded = base64UrlDecode(base64UrlEncode(bytes));
+    expect(decoded).toHaveLength(bytes.length);
+    // A direct compare. `toEqual` on this buffer builds a diff large enough
+    // to time the test out.
+    let mismatch = -1;
+    for (let index = 0; index < bytes.length; index++) {
+      if (decoded[index] !== bytes[index]) {
+        mismatch = index;
+        break;
+      }
+    }
+    expect(mismatch).toBe(-1);
   });
 
   it.each(["a", "ab+c", "ab/c", "Zg==", "Zm 9v"])("rejects %j", (value) => {

@@ -12,15 +12,19 @@ argument, so they can read any scope:
 ```ts
 const scope = "user:123";
 
+const reports = await s3.db.folders.create(scope, {
+  parentId: null,
+  name: "reports",
+});
 const page = await s3.db.objects.list({
   scope,
-  folder: "reports", // null is the root; omit for every folder
+  folderId: reports.id, // null is the root; omit for every folder
   sort: { field: "updatedAt", direction: "desc" },
   limit: 50,
 });
 const next = await s3.db.objects.list({
   scope,
-  folder: "reports",
+  folderId: reports.id,
   sort: { field: "updatedAt", direction: "desc" },
   cursor: page.nextCursor,
 });
@@ -30,7 +34,6 @@ const usage = await s3.db.objects.getUsage(scope);
 const object = await s3.db.objects.find({ bucket: "my-bucket", key });
 
 const children = await s3.db.folders.children(scope, null);
-await s3.db.folders.ensure(scope, "reports/2026");
 ```
 
 `list` returns `{ objects, nextCursor, firstPage }`. It defaults to active
@@ -40,15 +43,16 @@ then `true`).
 
 The stores never call S3, and the upload lifecycle stays with the plugin,
 so they have no write besides `update`. To remove a file, use the normal
-[delete path](/docs/db/setup#delete-behavior). `objects.update` and the
-folder methods check paths the way the HTTP endpoints do (`FOLDER_INVALID`),
-and a move creates the target folder:
+[delete path](/docs/db/setup#delete-behavior). A move needs a folder that
+already exists (`FOLDER_NOT_FOUND`). Renaming or moving a folder rewrites
+the cached paths under it and leaves every id as it is:
 
 ```ts
 await s3.db.objects.update(
   { bucket: "my-bucket", key, scope }, // only this scope's row
-  { folder: "reports/2026", attributes: { starred: true } },
+  { folderId: reports.id, attributes: { starred: true } },
 );
+await s3.db.folders.update(scope, reports.id, { name: "archive" });
 ```
 
 ### DbObjects
@@ -98,8 +102,9 @@ rejects a `limit` above `100`. Unknown query keys, such as the 1.x `offset`
 and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
 `status=purging`: rows that purge has claimed are never listed.
 
-- `folder` lists one folder: `""` is the root, and a path such as
-  `reports/2026` is a folder. Omit it for a flat list of every folder.
+- `folderId` lists one folder: `""` is the root, and any other value is
+  that folder's id. Omit it for a flat list of every folder. A missing id
+  is `FOLDER_NOT_FOUND` (`404`).
 - `search` keeps rows whose `filename` contains the text. It runs in the
   database (`LIKE` on SQL), where `%` and `_` act as wildcards, and the
   database decides case: PostgreSQL matches it exactly, SQLite ignores ASCII
@@ -113,19 +118,20 @@ and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
 - `nextCursor` is `null` on the last page. A cursor made under other
   filters is ignored, and the list starts again at the first page.
 
-The first page also carries `usage`, `limits`, and, when `folder` is set,
+The first page also carries `usage`, `limits`, and, when `folderId` is set,
 the direct child `folders` (at most 1000; with `search`, only those whose
-name contains it, ignoring case). The response never names the caller's
+name contains it, ignoring case) and `trail`, the folders from the root
+down to the open one. The response never names the caller's
 scope: it stays on the server.
 
 ```ts
 const page = await api.db.listObjects({
-  folder: "",
+  folderId: "",
   search: "invoice",
   sort: { field: "size", direction: "desc" },
 });
 const more = await api.db.listObjects({
-  folder: "",
+  folderId: "",
   search: "invoice",
   sort: { field: "size", direction: "desc" },
   cursor: page.nextCursor ?? undefined,
@@ -139,36 +145,45 @@ const more = await api.db.listObjects({
 
 ## Folders
 
-Folders are logical: a row's `folder` column and the `storage_folder` table.
-They never change the S3 key. Empty folders are listed too.
+Folders are logical: an object's `folderId` and the `storage_folder` table.
+They never change the S3 key. Empty folders are listed too. A folder is its
+id. Renaming it or moving it changes one row, then rewrites the cached
+`path` of that folder and everything inside it. Object rows keep the same
+`folderId`.
 
-A folder path is `/`-separated, with no leading or trailing `/`. Each name
-is 1 to 255 characters, not `.` or `..`, and has no control characters. The
-whole path is at most 1024 characters and 32 levels deep. Paths are NFC-normalized. Anything
-else is `FOLDER_INVALID` (`400`). In JSON and in types the root is `null`;
-on the wire (`?folder=`, `clientMetadata.folder`) it is `""`.
+A folder name is 1 to 255 characters, not `.` or `..`, and has no `/` or
+control characters. The cached path is at most 1024 characters and 32
+levels deep. Names are NFC-normalized. Anything else is `FOLDER_INVALID`
+(`400`). Moving a folder into itself or into one of its descendants is
+`FOLDER_INVALID` too. A sibling with the same name is `FOLDER_EXISTS`
+(`409`). A missing id is `FOLDER_NOT_FOUND` (`404`). In JSON and in types
+the root is `null`; on the wire (`?folderId=`, `clientMetadata.folderId`)
+it is `""`.
 
-An upload goes to the folder in `clientMetadata.folder`. Missing folders are
-created along the way. [`dbObjectSource`](#browser) sets it for uploads
-into the open folder. With your own `useUpload`, pass it per call:
+An upload goes to the folder in `clientMetadata.folderId`. That folder must
+already exist. [`dbObjectSource`](#browser) sets it for uploads into the
+open folder. With your own `useUpload`, pass the id per call:
 
 ```ts
 await upload.handleFiles(files, {
-  uploadOptions: { metadata: { folder: "reports/2026" } },
+  uploadOptions: { metadata: { folderId: reports.id } },
 });
 ```
 
 ```ts
-await api.db.createFolder({ path: "reports/2026" }); // and "reports"
-await api.db.deleteFolder({ path: "reports/2026" });
+const reports = await api.db.createFolder({ name: "reports" });
+await api.db.createFolder({ parentId: reports.folder.id, name: "2026" });
+await api.db.updateFolder({ id: reports.folder.id, name: "archive" });
+await api.db.deleteFolder({ id: reports.folder.id });
 ```
 
-- `createFolder` creates the missing ancestors too. An existing folder is
-  `FOLDER_EXISTS` (`409`).
+- `createFolder` creates one folder. The parent must already exist. An
+  existing name in that parent is `FOLDER_EXISTS` (`409`).
+- `updateFolder` renames (`name`), moves (`parentId`, `null` is the root),
+  or both.
 - `deleteFolder` removes an empty folder. A folder with child folders, or
   with active or pending objects, is `FOLDER_NOT_EMPTY` (`409`). A missing
   folder is not an error.
-- Neither accepts the root (`""`).
 
 ## Update an object
 
@@ -180,13 +195,13 @@ updated; anything else is `OBJECT_NOT_FOUND`.
 const { object } = await api.db.updateObject({
   key: file.key,
   filename: "Q3 report.pdf",
-  folder: "reports/2026", // null moves it to the root
+  folderId: reports.id, // null moves it to the root
 });
 ```
 
-A move checks the target folder like an upload does: it validates the path,
-runs `authorize` with that `folder`, and creates the folder when it is
-missing. Renames and moves change only the row: the S3 key stays as it is.
+A move requires the target folder to exist and runs `authorize` with that
+folder's path and id. Renames and moves change only the row: the S3 key
+stays as it is.
 
 ## Attributes
 
@@ -302,8 +317,8 @@ export const s3Client = createS3Client({
 `dbObjectSource(api.db, options)` turns those actions into a
 [`useObjectList`](/docs/react/hooks/object-list) source:
 
-- Each page lists one folder, and the first page carries its child folders.
-  `parent` is a folder path.
+- Each page lists one folder, and the first page carries its child folders
+  and the breadcrumb `trail`. `parent` is a folder id.
 - Uploads from the list go to the open folder (`uploadOptions`).
 - "New folder" calls `api.db.createFolder`.
 - The list's `search` becomes `search`, and its sort maps `name` to

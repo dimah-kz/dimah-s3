@@ -19,8 +19,8 @@ export type StorageObject<TAttributes = never> = {
   key: string;
   /** Named dimah-s3 route that created the object. */
   route: string;
-  /** Logical folder path. `null` is the root. */
-  folder: string | null;
+  /** Folder that holds the object. `null` is the root. */
+  folderId: string | null;
   filename: string;
   contentType: string | null;
   /** Verified size in bytes, set on confirm. */
@@ -49,15 +49,16 @@ export type StorageObject<TAttributes = never> = {
   deletedAt: Date | null;
 };
 
-/** A `storage_folder` row. A folder exists once per scope and path. */
+/** A `storage_folder` row. A folder exists once per scope and id. */
 export type StorageFolder = {
   id: string;
   scope: string;
-  /** Full folder path. */
-  path: string;
-  /** Path of the containing folder. `null` is the root. */
-  parent: string | null;
+  /** Containing folder. `null` is the root. */
+  parentId: string | null;
   /** Last segment of `path`. */
   name: string;
+  /** Full folder path, kept in step with `name` and the parents. */
+  path: string;
   createdAt: Date;
+  updatedAt: Date;
 };

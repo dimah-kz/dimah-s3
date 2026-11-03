@@ -3,9 +3,11 @@ import * as z from "zod";
 import { DEFAULT_LIST_LIMIT } from "@/store/object-store";
 import {
   DB_LIST_MAX_LIMIT,
-  dbFolderInputSchema,
+  dbCreateFolderBodySchema,
+  dbDeleteFolderQuerySchema,
   dbListQuerySchema,
   dbObjectQuerySchema,
+  dbUpdateFolderBodySchema,
   dbUpdateObjectBodySchema,
 } from "./schemas";
 
@@ -14,9 +16,9 @@ describe("dbListQuerySchema", () => {
     expect(dbListQuerySchema.parse({})).toEqual({ limit: DEFAULT_LIST_LIMIT });
   });
 
-  it("keeps an empty folder, which is the root", () => {
-    expect(dbListQuerySchema.parse({ folder: "" })).toMatchObject({
-      folder: "",
+  it("keeps an empty folder id, which is the root", () => {
+    expect(dbListQuerySchema.parse({ folderId: "" })).toMatchObject({
+      folderId: "",
     });
   });
 
@@ -105,9 +107,11 @@ describe("dbUpdateObjectBodySchema", () => {
     expect(
       dbUpdateObjectBodySchema.parse({ key: "a", filename: " b.txt " }),
     ).toEqual({ key: "a", filename: "b.txt" });
-    expect(dbUpdateObjectBodySchema.parse({ key: "a", folder: null })).toEqual({
+    expect(
+      dbUpdateObjectBodySchema.parse({ key: "a", folderId: null }),
+    ).toEqual({
       key: "a",
-      folder: null,
+      folderId: null,
     });
     expect(
       dbUpdateObjectBodySchema.parse({ key: "a", attributes: { tag: 1 } }),
@@ -126,12 +130,29 @@ describe("dbUpdateObjectBodySchema", () => {
   });
 });
 
-describe("dbFolderInputSchema", () => {
-  it("requires a path", () => {
-    expect(dbFolderInputSchema.parse({ path: "docs" })).toEqual({
-      path: "docs",
+describe("folder body schemas", () => {
+  it("creates under a parent, updates a folder, and deletes by id", () => {
+    expect(dbCreateFolderBodySchema.parse({ name: "docs" })).toEqual({
+      name: "docs",
     });
-    expect(dbFolderInputSchema.safeParse({}).success).toBe(false);
+    expect(
+      dbCreateFolderBodySchema.parse({ parentId: null, name: "docs" }),
+    ).toEqual({ parentId: null, name: "docs" });
+    expect(dbCreateFolderBodySchema.safeParse({}).success).toBe(false);
+    expect(dbUpdateFolderBodySchema.parse({ id: "f1", name: "files" })).toEqual(
+      {
+        id: "f1",
+        name: "files",
+      },
+    );
+    expect(
+      dbUpdateFolderBodySchema.parse({ id: "f1", parentId: null }),
+    ).toEqual({
+      id: "f1",
+      parentId: null,
+    });
+    expect(dbDeleteFolderQuerySchema.parse({ id: "f1" })).toEqual({ id: "f1" });
+    expect(dbDeleteFolderQuerySchema.safeParse({}).success).toBe(false);
   });
 });
 
@@ -140,13 +161,13 @@ describe("compiled schemas", () => {
     const list = z.compile(dbListQuerySchema, { strict: true });
     const object = z.compile(dbObjectQuerySchema, { strict: true });
     const update = z.compile(dbUpdateObjectBodySchema, { strict: true });
-    const folder = z.compile(dbFolderInputSchema, { strict: true });
+    const folder = z.compile(dbCreateFolderBodySchema, { strict: true });
 
     expect(list.validate({})).toBe(true);
     expect(list.validate({ status: "nope" })).toBe(false);
     expect(
       list.validate({
-        folder: "docs",
+        folderId: "docs",
         search: "a",
         sort: '{"field":"updatedAt","direction":"desc"}',
       }),
@@ -154,8 +175,9 @@ describe("compiled schemas", () => {
     expect(list.validate({ sort: "{" })).toBe(false);
     expect(object.validate({ key: "a.png" })).toBe(true);
     expect(object.validate({})).toBe(false);
-    expect(update.validate({ key: "a", folder: null })).toBe(true);
+    expect(update.validate({ key: "a", folderId: null })).toBe(true);
     expect(update.validate({ key: "a", attributes: "x" })).toBe(false);
-    expect(folder.validate({ path: "" })).toBe(true);
+    expect(folder.validate({ name: "docs" })).toBe(true);
+    expect(folder.validate({})).toBe(false);
   });
 });

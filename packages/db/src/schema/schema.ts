@@ -28,8 +28,8 @@ const storageObject = table("storage_object", {
   key: column("key", "string"),
   /** Named dimah-s3 route that created the object. */
   route: column("route", "string"),
-  /** Logical folder path. `null` is the root. */
-  folder: column("folder", "string").nullable(),
+  /** Folder that holds the object. `null` is the root. */
+  folderId: column("folder_id", "string").nullable(),
   filename: column("filename", "string"),
   contentType: column("content_type", "string").nullable(),
   /** Verified size from HeadObject, set on confirm. */
@@ -55,18 +55,26 @@ const storageObject = table("storage_object", {
   deletedAt: column("deleted_at", "timestamp").nullable(),
 }).unique("storage_object_bucket_key_uk", ["bucket", "key"]);
 
-/** One row per folder, so an empty folder still lists. */
+/**
+ * One row per folder, so an empty folder still lists. `parentId` is `""` at
+ * the root: a nullable parent cannot be unique on PostgreSQL, MySQL, and
+ * SQLite, and the root is not a row. `path` is a cache of `name` joined
+ * through the parents, rewritten when a folder is renamed or moved.
+ */
 const storageFolder = table("storage_folder", {
   id: idColumn("id", "varchar(255)").defaultTo$("auto"),
   scope: column("scope", "string"),
-  /** Full folder path. */
-  path: column("path", "string"),
-  /** Path of the containing folder. `null` is the root. */
-  parent: column("parent", "string").nullable(),
+  /** Id of the containing folder. `""` is the root. */
+  parentId: column("parent_id", "string"),
   /** Last segment of `path`. */
   name: column("name", "string"),
+  /** Full folder path. */
+  path: column("path", "string"),
   createdAt: column("created_at", "timestamp").defaultTo$("now"),
-}).unique("storage_folder_scope_path_uk", ["scope", "path"]);
+  updatedAt: column("updated_at", "timestamp").defaultTo$("now"),
+})
+  .unique("storage_folder_scope_path_uk", ["scope", "path"])
+  .unique("storage_folder_scope_parent_name_uk", ["scope", "parentId", "name"]);
 
 /** A secondary index, by SQL table and column names. */
 export type SchemaIndex = {
@@ -84,7 +92,7 @@ export const schemaIndexes: readonly SchemaIndex[] = [
   {
     name: "storage_object_scope_folder_idx",
     table: "storage_object",
-    columns: ["scope", "status", "folder", "created_at"],
+    columns: ["scope", "status", "folder_id", "created_at"],
   },
   {
     name: "storage_object_scope_updated_idx",
@@ -106,11 +114,6 @@ export const schemaIndexes: readonly SchemaIndex[] = [
     table: "storage_object",
     columns: ["status", "expires_at"],
   },
-  {
-    name: "storage_folder_scope_parent_idx",
-    table: "storage_folder",
-    columns: ["scope", "parent"],
-  },
 ];
 
 const custom = (sql: string) => ({ type: "custom" as const, sql });
@@ -129,11 +132,11 @@ export const predecessor = schema({
 });
 
 /**
- * The @dimah-s3/db schema, version `2.0.0`. The migration creates the
+ * The @dimah-s3/db schema, version `2.1.0`. The migration creates the
  * secondary indexes after the tables, because FumaDB cannot declare them.
  */
 export const dbSchema = schema({
-  version: "2.0.0",
+  version: "2.1.0",
   tables: {
     storageObject,
     storageFolder,

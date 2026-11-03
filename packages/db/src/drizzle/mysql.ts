@@ -31,7 +31,7 @@ import {
 
 type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
 
-const SCHEMA_VERSION = "2.0.0";
+const SCHEMA_VERSION = "2.1.0";
 
 /** Collation of every text column but `filename`: byte for byte. */
 const BINARY = "utf8mb4_bin";
@@ -75,7 +75,7 @@ export const storageObject = mysqlTable(
     bucket: string("bucket").notNull(),
     key: string("key", 1024).notNull(),
     route: string("route").notNull(),
-    folder: string("folder", 1024),
+    folderId: string("folder_id"),
     filename: varchar("filename", { length: 255 })
       .collate("utf8mb4_unicode_ci")
       .notNull(),
@@ -103,7 +103,7 @@ export const storageObject = mysqlTable(
     index("storage_object_scope_folder_idx").on(
       table.scope,
       table.status,
-      prefix(table.folder, 255),
+      table.folderId,
       table.createdAt,
     ),
     index("storage_object_scope_updated_idx").on(
@@ -134,19 +134,22 @@ export const storageFolder = mysqlTable(
   {
     id: id(),
     scope: string("scope").notNull(),
-    path: string("path", 1024).notNull(),
-    parent: string("parent", 1024),
+    /** `""` is the root. */
+    parentId: string("parent_id").notNull().default(""),
     name: string("name").notNull(),
+    path: string("path", 1024).notNull(),
     createdAt: timestampNow("created_at"),
+    updatedAt: timestampNow("updated_at"),
   },
   (table) => [
     uniqueIndex("storage_folder_scope_path_uk").on(
       table.scope,
       prefix(table.path, 512),
     ),
-    index("storage_folder_scope_parent_idx").on(
+    uniqueIndex("storage_folder_scope_parent_name_uk").on(
       table.scope,
-      prefix(table.parent, 512),
+      table.parentId,
+      table.name,
     ),
   ],
 );

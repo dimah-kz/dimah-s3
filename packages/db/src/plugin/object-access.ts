@@ -11,7 +11,7 @@ import type {
 
 /** What a call targets: its scope target, plus what `authorize` checks. */
 export type AccessTarget = ScopeTarget &
-  Pick<AuthorizeContext, "key" | "folder" | "clientMetadata">;
+  Pick<AuthorizeContext, "key" | "folder" | "folderId" | "clientMetadata">;
 
 export type CreateObjectAccessOptions<TSession, TAttributes> = Pick<
   DbPluginOptions<TSession, TAttributes>,
@@ -80,6 +80,7 @@ export function createObjectAccess<TSession, TAttributes>(
       ...scope,
       ...(target?.key !== undefined && { key: target.key }),
       ...(target?.folder !== undefined && { folder: target.folder }),
+      ...(target?.folderId !== undefined && { folderId: target.folderId }),
       ...(target?.clientMetadata !== undefined && {
         clientMetadata: target.clientMetadata,
       }),

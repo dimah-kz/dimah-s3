@@ -1,27 +1,29 @@
 ---
 title: Upgrade the Schema
-description: Schema 2.0.0 is the only schema this line reads.
+description: Schema 2.1.0 is the only schema this line reads.
 ---
 
-`@dimah-s3/db` 2.0 beta reads and writes schema `2.0.0`, and that schema is
-the only one in the package. It does not upgrade a 1.x database. For the
-code changes in every package, see
-[Upgrade to 2.0 beta](/docs/migration-2-0).
+`@dimah-s3/db` 2.0 beta reads and writes schema `2.1.0`, and that schema is
+the only one in the package. It does not upgrade a 1.x database or a
+database created at schema `2.0.0`. For the code changes in every package,
+see [Upgrade to 2.0 beta](/docs/migration-2-0).
 
 ## A new database
 
 Create the tables from [Setup](/docs/db/setup): the SQL file, the Drizzle
 tables, the Prisma schema, or `migrate(client)` with Kysely. Point those
-tools at a new database. An ORM diff against a 1.x database can drop
+tools at a new database. An ORM diff against an older database can drop
 columns.
 
-A database already at `2.0.0` from an earlier 2.0 beta needs nothing. The
-version recorded in `private_dimah_s3_settings` stays `2.0.0`.
+A database from an earlier 2.0 beta, including one already at `2.0.0`, is
+not migrated. Create schema `2.1.0` on a new database. Folders are rows
+with ids: an object stores `folderId`, and renaming or moving a folder
+rewrites cached paths without rewriting object rows.
 
 ## Check
 
 Call `checkSchema` at startup. It throws unless the database is at
-`2.0.0`:
+`2.1.0`:
 
 ```ts
 await s3.db.checkSchema();

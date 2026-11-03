@@ -54,8 +54,8 @@ export type UploadRef = ObjectRef & { uploadToken: string };
 export type UpsertPendingInput = ObjectRef & {
   scope: string;
   route: string;
-  /** Logical folder. `null` is the root. */
-  folder: string | null;
+  /** Folder that holds the object. `null` is the root. */
+  folderId: string | null;
   filename: string;
   contentType?: string | null;
   /** Size the client declared. Quota counts it until the row expires. */
@@ -89,7 +89,7 @@ export type MarkActiveInput = UploadRef & {
 export type ObjectFilter = {
   scope: string;
   /** Folder to cover. `null` is the root. Omit for every folder. */
-  folder?: string | null;
+  folderId?: string | null;
   /**
    * @default "active". `pending` covers only rows that have not expired.
    */
@@ -128,8 +128,8 @@ export type ListObjectsPage<TAttributes = never> = {
 /** Fields `update` changes. Omitted fields stay as they are. */
 export type UpdateObjectInput<TAttributes = never> = {
   filename?: string;
-  /** Folder path. `null` is the root. */
-  folder?: string | null;
+  /** Folder id. `null` moves the object to the root. */
+  folderId?: string | null;
   attributes?: TAttributes | null;
 };
 
@@ -332,9 +332,9 @@ function filterConditions(
       ? b.and(b("status", "=", "pending"), b("expiresAt", ">=", now))
       : b("status", "=", status),
   ];
-  if (filter.folder === null) parts.push(b.isNull("folder"));
-  else if (filter.folder !== undefined) {
-    parts.push(b("folder", "=", filter.folder));
+  if (filter.folderId === null) parts.push(b.isNull("folderId"));
+  else if (filter.folderId !== undefined) {
+    parts.push(b("folderId", "=", filter.folderId));
   }
   if (filter.route) parts.push(b("route", "=", filter.route));
   if (filter.contentType?.endsWith("/*")) {
@@ -391,7 +391,7 @@ export function createObjectStore<TAttributes = never>(
       // Only a pending row has no `size`; every other sort field is required.
       const nullable = field === "size";
       const filters: ListCursorFilters = {
-        folder: input.folder,
+        folderId: input.folderId,
         search: input.search || undefined,
         status: input.status ?? "active",
         route: input.route || undefined,
@@ -537,7 +537,7 @@ export function createObjectStore<TAttributes = never>(
         ...ref,
         scope: input.scope,
         route: input.route,
-        folder: input.folder,
+        folderId: input.folderId,
         filename: input.filename,
         contentType: input.contentType ?? null,
         size: null,
@@ -643,7 +643,7 @@ export function createObjectStore<TAttributes = never>(
           ),
         set: {
           ...(input.filename !== undefined && { filename: input.filename }),
-          ...(input.folder !== undefined && { folder: input.folder }),
+          ...(input.folderId !== undefined && { folderId: input.folderId }),
           ...(input.attributes !== undefined && {
             attributes: input.attributes,
           }),

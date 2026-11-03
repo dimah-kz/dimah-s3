@@ -1,4 +1,4 @@
-// Prisma models for @dimah-s3/db schema 2.0.0.
+// Prisma models for @dimah-s3/db schema 2.1.0.
 //
 // Copy this file next to your schema (Prisma reads every .prisma file in the
 // schema folder) or paste the models into schema.prisma, then create the
@@ -7,9 +7,9 @@
 // `prisma.private_dimah_s3_settings`.
 //
 // The models work as they are on PostgreSQL and SQLite. On MySQL, match
-// `sql/mysql.sql`: add `@db.VarChar(1024)` to `key`, `folder`, `path` and
-// `parent`, `@db.DateTime(3)` to the timestamps, and index prefixes such as
-// `@@unique([bucket, key(length: 512)])`.
+// `sql/mysql.sql`: add `@db.VarChar(1024)` to `key` and `path`,
+// `@db.DateTime(3)` to the timestamps, and index prefixes such as
+// `@@unique([bucket, key(length: 512)])`. `parentId` is `""` at the root.
 
 /// One row per tracked object: pending (presigned), active (confirmed),
 /// deleted (soft delete), or purging (a stale pending row purge has claimed).
@@ -21,8 +21,8 @@ model StorageObject {
   key          String
   /// Named dimah-s3 route that created the object.
   route        String
-  /// Logical folder path. `null` is the root.
-  folder       String?
+  /// Folder that holds the object. `null` is the root.
+  folderId     String?   @map("folder_id")
   filename     String
   contentType  String?   @map("content_type")
   /// Verified size from HeadObject, set on confirm.
@@ -48,7 +48,7 @@ model StorageObject {
   deletedAt    DateTime? @map("deleted_at")
 
   @@unique([bucket, key], map: "storage_object_bucket_key_uk")
-  @@index([scope, status, folder, createdAt], map: "storage_object_scope_folder_idx")
+  @@index([scope, status, folderId, createdAt], map: "storage_object_scope_folder_idx")
   @@index([scope, status, updatedAt], map: "storage_object_scope_updated_idx")
   @@index([scope, status, filename], map: "storage_object_scope_filename_idx")
   @@index([scope, status, size], map: "storage_object_scope_size_idx")
@@ -60,21 +60,22 @@ model StorageObject {
 model StorageFolder {
   id        String   @id @default(cuid())
   scope     String
-  /// Full folder path.
-  path      String
-  /// Path of the containing folder. `null` is the root.
-  parent    String?
+  /// Id of the containing folder. `""` is the root.
+  parentId  String   @map("parent_id")
   /// Last segment of `path`.
   name      String
+  /// Full folder path.
+  path      String
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   @@unique([scope, path], map: "storage_folder_scope_path_uk")
-  @@index([scope, parent], map: "storage_folder_scope_parent_idx")
+  @@unique([scope, parentId, name], map: "storage_folder_scope_parent_name_uk")
   @@map("storage_folder")
 }
 
 /// FumaDB settings. The adapter reads the schema version from the `version` row.
 model private_dimah_s3_settings {
   key   String @id
-  value String @default("2.0.0")
+  value String @default("2.1.0")
 }

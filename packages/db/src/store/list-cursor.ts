@@ -14,7 +14,7 @@ export const DEFAULT_LIST_SORT: DbListSort = {
 /** What a listing is filtered and ordered by. A cursor is only valid for these. */
 export type ListCursorFilters = {
   /** `undefined` lists every folder; `null` is the root. */
-  folder: string | null | undefined;
+  folderId: string | null | undefined;
   search: string | undefined;
   status: StorageObjectStatus;
   route: string | undefined;
@@ -46,8 +46,8 @@ const decoder = new TextDecoder();
  */
 function fingerprint(filters: ListCursorFilters): string {
   const text = JSON.stringify([
-    filters.folder === undefined,
-    filters.folder ?? null,
+    filters.folderId === undefined,
+    filters.folderId ?? null,
     filters.search ?? null,
     filters.status,
     filters.route ?? null,

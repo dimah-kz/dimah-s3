@@ -20,7 +20,7 @@ export function toDbClientObject<TAttributes, TClientAttributes = TAttributes>(
     bucket: object.bucket,
     key: object.key,
     route: object.route,
-    folder: object.folder,
+    folderId: object.folderId,
     filename: object.filename,
     contentType: object.contentType,
     size: object.size,
@@ -43,9 +43,11 @@ export function toDbClientObject<TAttributes, TClientAttributes = TAttributes>(
 /** Maps a `storage_folder` row to the browser wire shape. */
 export function toDbClientFolder(folder: StorageFolder): DbClientFolder {
   return {
-    path: folder.path,
+    id: folder.id,
     name: folder.name,
-    parent: folder.parent,
+    parentId: folder.parentId,
+    path: folder.path,
     createdAt: folder.createdAt.toISOString(),
+    updatedAt: folder.updatedAt.toISOString(),
   };
 }

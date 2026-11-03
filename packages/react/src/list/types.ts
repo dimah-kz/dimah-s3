@@ -81,6 +81,12 @@ export type ObjectListPage<TItem> = {
    * Omit when the source has no folders.
    */
   folders?: readonly ObjectListFolder[];
+  /**
+   * Folders from the root down to `parent`. When the first page includes
+   * it, the hook shows these names in the breadcrumb. Omit it to keep the
+   * trail the hook built while navigating.
+   */
+  trail?: readonly ObjectListFolder[];
   /** `null` or omit when this is the last page. */
   nextCursor?: string | null;
   /**

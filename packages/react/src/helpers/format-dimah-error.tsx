@@ -160,6 +160,8 @@ export function useFormatDimahError(): (error: unknown) => string {
           });
         case "FOLDER_INVALID":
           return t("Folder name is invalid", { note: "API error" });
+        case "FOLDER_NOT_FOUND":
+          return t("Folder not found", { note: "API error" });
         case "FOLDER_EXISTS":
           return t("A folder with this name already exists", {
             note: "API error",

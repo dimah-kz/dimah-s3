@@ -6,7 +6,7 @@ describe("toDbClientObject", () => {
   it("maps to the browser wire shape and drops server-only fields", () => {
     const wire = toDbClientObject(
       sampleObject({
-        folder: "docs",
+        folderId: "docs",
         s3Metadata: { "dimah-upload": "t" },
         updatedAt: new Date("2024-02-01T00:00:00.000Z"),
       }),
@@ -17,7 +17,7 @@ describe("toDbClientObject", () => {
       bucket: "b",
       key: "k",
       route: "uploads",
-      folder: "docs",
+      folderId: "docs",
       filename: "a.txt",
       contentType: "text/plain",
       size: 10,
@@ -66,14 +66,20 @@ describe("toDbClientObject", () => {
 describe("toDbClientFolder", () => {
   it("maps a folder row to the browser wire shape", () => {
     const wire = toDbClientFolder(
-      sampleFolder({ path: "docs/q4", parent: "docs", name: "q4" }),
+      sampleFolder({
+        path: "docs/q4",
+        parentId: "docs",
+        name: "q4",
+      }),
     );
 
     expect(wire).toEqual({
+      id: "f1",
       path: "docs/q4",
       name: "q4",
-      parent: "docs",
+      parentId: "docs",
       createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
     });
   });
 });

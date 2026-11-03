@@ -82,7 +82,7 @@ describe("createObjectAccess", () => {
   });
 
   it("runs authorize with the scope, the target, and the stored row", async () => {
-    const row = sampleObject({ folder: "docs" });
+    const row = sampleObject({ folderId: "docs" });
     const authorize = vi.fn(() => false);
 
     await expect(
@@ -99,7 +99,7 @@ describe("createObjectAccess", () => {
 
   it("runs authorize without an object for a scope check", async () => {
     const authorize = vi.fn(() => true);
-    const upload = { operation: "upload" as const, folder: "docs" };
+    const upload = { operation: "upload" as const, folderId: "docs" };
 
     await expect(access({ authorize }).scope(call, upload)).resolves.toEqual(
       expect.objectContaining({ operation: "upload", scope: "user:1" }),

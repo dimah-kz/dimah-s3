@@ -21,8 +21,8 @@ hooks too, so your `upload.onStart` sees the pending row, and your
 | Hook                       | What the plugin does                                                                                                                                 |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Upload ticket              | Binds the ticket to the caller's scope. A ticket from another scope is `UPLOAD_TICKET_INVALID`.                                                      |
-| `upload.guard`             | Checks `clientMetadata.folder`, runs `authorize` with that folder, checks who owns the key, then checks the [quota](/docs/db/api#quota).             |
-| `upload.onStart`           | Writes the `pending` row with the upload's token, its confirm deadline, and its folder, then creates the folder and its ancestors when missing.      |
+| `upload.guard`             | Checks `clientMetadata.folderId`, runs `authorize` with that folder, checks who owns the key, then checks the [quota](/docs/db/api#quota).           |
+| `upload.onStart`           | Writes the `pending` row with the upload's token, its confirm deadline, and its folder. The folder must already exist.                               |
 | `upload.confirmGuard`      | Accepts only the row of this ticket's upload, owned by the caller, or a confirm it already finished (a retry).                                       |
 | `upload.onConfirmed`       | Checks the quota against the verified size, marks the row `active` with the size, type, and ETag from HeadObject, and retires the `previousKey` row. |
 | `upload.multipart.guard`   | Part, list, and complete accept only the row of this ticket's upload. Abort checks the row only while it is still this upload's.                     |
@@ -60,7 +60,7 @@ An upload to a key that already has an active object fails with
   the new upload is confirmed. S3 replaces the bytes as soon as the new PUT
   lands, and a rejected confirm deletes the key.
 - The row keeps its folder, attributes, and `createdAt`. The overwrite's
-  `clientMetadata.folder` is ignored.
+  `clientMetadata.folderId` is ignored.
 - An abort keeps the previous object. An expired overwrite is cleaned up
   by [purge](/docs/db/purge).
 
@@ -69,16 +69,16 @@ purge finishes goes through.
 
 ## Errors
 
-| Situation                                                      | Status | Code                    |
-| -------------------------------------------------------------- | ------ | ----------------------- |
-| `resolveScope` returns `null`                                  | `401`  | `UNAUTHORIZED`          |
-| An upload key belongs to another scope, or `authorize` says no | `403`  | `FORBIDDEN`             |
-| The upload ticket was issued to another scope                  | `403`  | `UPLOAD_TICKET_INVALID` |
-| The row is missing, another scope's, or not this upload's      | `404`  | `OBJECT_NOT_FOUND`      |
-| An active object is at the key                                 | `409`  | `OBJECT_EXISTS`         |
-| Purge is cleaning the key, or a concurrent write won           | `409`  | `CONFLICT`              |
-| `clientMetadata.folder` is not a valid folder path             | `400`  | `FOLDER_INVALID`        |
-| The upload would exceed the quota                              | `403`  | `QUOTA_EXCEEDED`        |
+| Situation                                                        | Status | Code                    |
+| ---------------------------------------------------------------- | ------ | ----------------------- |
+| `resolveScope` returns `null`                                    | `401`  | `UNAUTHORIZED`          |
+| An upload key belongs to another scope, or `authorize` says no   | `403`  | `FORBIDDEN`             |
+| The upload ticket was issued to another scope                    | `403`  | `UPLOAD_TICKET_INVALID` |
+| The row is missing, another scope's, or not this upload's        | `404`  | `OBJECT_NOT_FOUND`      |
+| An active object is at the key                                   | `409`  | `OBJECT_EXISTS`         |
+| Purge is cleaning the key, or a concurrent write won             | `409`  | `CONFLICT`              |
+| `clientMetadata.folderId` names a folder the scope does not have | `404`  | `FOLDER_NOT_FOUND`      |
+| The upload would exceed the quota                                | `403`  | `QUOTA_EXCEEDED`        |
 
 Route membership is still the server `keyPrefix` check (`KEY_INVALID`). The
 plugin looks rows up by `(bucket, key)` and compares the **scope**. It does

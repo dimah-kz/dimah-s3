@@ -171,7 +171,7 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
 
       const changed: Omit<ListObjectsInput, "scope">[] = [
         { search: "report" },
-        { folder: null },
+        { folderId: null },
         { status: "deleted" },
         { route: "uploads" },
         { contentType: "text/plain" },
@@ -207,15 +207,15 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
   describe("filters", () => {
     it("lists one folder, the root, or every folder", async () => {
       await insertObject(client(), { key: "root" });
-      await insertObject(client(), { key: "docs", folder: "docs" });
-      await insertObject(client(), { key: "sub", folder: "docs/sub" });
+      await insertObject(client(), { key: "docs", folderId: "docs" });
+      await insertObject(client(), { key: "sub", folderId: "docs/sub" });
       await insertObject(client(), {
         key: "other",
-        folder: "docs",
+        folderId: "docs",
         scope: "user:2",
       });
-      const keys = async (folder: string | null | undefined) =>
-        (await store().list({ scope: "user:1", folder })).objects
+      const keys = async (folderId: string | null | undefined) =>
+        (await store().list({ scope: "user:1", folderId })).objects
           .map((object) => object.key)
           .sort();
 

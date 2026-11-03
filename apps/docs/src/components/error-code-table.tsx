@@ -45,9 +45,10 @@ const WHEN = {
   OBJECT_EXISTS:
     'A `db()` route without `replace: "overwrite"` already holds an object at the key.',
   FOLDER_INVALID:
-    "The `db()` folder path is not valid, or deeper than 32 levels.",
-  FOLDER_EXISTS: "A `db()` folder with that path already exists.",
-  FOLDER_NOT_EMPTY: "A `db()` folder still holds folders or objects.",
+    "The folder name is not valid, the resulting path is too long or too deep, or a folder would move into itself.",
+  FOLDER_NOT_FOUND: "That folder id is not in the caller's scope.",
+  FOLDER_EXISTS: "That parent already has a folder with this name.",
+  FOLDER_NOT_EMPTY: "A `db()` folder still holds folders or live objects.",
   TOO_MANY_FILES: "More files were added than `maxFiles` allows.",
   HOOK_FAILED: "One of your callbacks, such as `onSuccess`, threw.",
   NETWORK_ERROR: "The browser request failed before a response arrived.",
