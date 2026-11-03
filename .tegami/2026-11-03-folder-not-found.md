@@ -1,8 +1,6 @@
 ---
 packages:
-  "@dimah-s3/core":
-    replay:
-      - exit-prerelease(npm:@dimah-s3/core)
+  "@dimah-s3/core": minor
 ---
 
 ### Folder not found

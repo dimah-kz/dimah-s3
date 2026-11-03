@@ -1,17 +1,3 @@
-## @dimah-s3/react@2.0.0-beta.2 (beta)
-
-### Folder ids in db()
-
-`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Recreate the database; a `2.0.0` beta database is not upgraded. Details are in each package changelog and in [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).
-
-### Breaking changes
-
-- **Keep every `@dimah-s3/*` package on this beta.** `folder` on a `db()` object is now `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.
-
-### Breadcrumb from the list page
-
-When the first page of `useObjectList` includes `trail`, the hook shows those folder names. A source that omits `trail` keeps the trail built while navigating. `dbObjectSource` sends the trail, so a deep link opens with the real names.
-
 ## @dimah-s3/react@2.0.0-beta.0 (beta)
 
 ### Search and sort `db()` object listings

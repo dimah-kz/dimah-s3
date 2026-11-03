@@ -1,8 +1,6 @@
 ---
 packages:
-  "@dimah-s3/react":
-    replay:
-      - exit-prerelease(npm:@dimah-s3/react)
+  "@dimah-s3/react": minor
 ---
 
 ### Breadcrumb from the list page

@@ -1,8 +1,6 @@
 ---
 packages:
-  "@dimah-s3/db":
-    replay:
-      - exit-prerelease(npm:@dimah-s3/db)
+  "@dimah-s3/db": major
 ---
 
 ### Folders are rows with ids
