@@ -1,45 +1,49 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: patch\n---\n\n### Encode large base64url values directly\n\nBase64 encoding writes each group of bytes itself, so a large value finishes instead of stalling.\n"
-    filename: 2026-11-03-base64url-direct.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: major\n---\n\n### Folder ids in db()\n\n`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Recreate the database; a `2.0.0` beta database is not upgraded. Details are in each package changelog and in [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).\n\n#### Breaking changes\n\n- **Keep every `@dimah-s3/*` package on this beta.** `folder` on a `db()` object is now `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.\n"
+    filename: 2026-11-03-folder-ids-line.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: patch\n---\n\n### Fix base64url on large inputs\n\nEncoding and decoding a large base64url value no longer stalls.\n"
-    filename: 2026-11-03-base64url-large.md
+  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: minor\n---\n\n### Folder not found\n\n`FOLDER_NOT_FOUND` (`404`) is the error when a folder id is not in the caller's scope.\n"
+    filename: 2026-11-03-folder-not-found.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n---\n\n### One database schema\n\n`@dimah-s3/db` reads schema `2.0.0` only. A database already at `2.0.0` is unchanged.\n\n#### Breaking changes\n\n- **No upgrade from a 1.x database.** `sql/upgrade/1.0.0-2.0.0/` is gone, and `migrate(client)` only creates schema `2.0.0`. Create the tables on a new database with `sql/<dialect>.sql`, your ORM, or `migrate(client)` on an empty database. A database at any other version throws. See [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).\n- **`v2` is no longer exported.** The schema is internal. `DB_SCHEMA_VERSION` is still `2.0.0`.\n"
-    filename: 2026-11-02-db-single-schema.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n---\n\n### Folders are rows with ids\n\nA folder is its id. An object stores `folderId` instead of a path. Renaming or moving a folder rewrites the cached paths under it and leaves every object id as it is. `PATCH /db/folder` renames (`name`) and moves (`parentId`). `createFolder` creates one folder inside a parent that already exists. An upload's `clientMetadata.folderId` must name that folder. The list's first page includes `trail`, from the root down to the open folder.\n\nThe database schema is `2.1.0`. Create it on a new database. A `2.0.0` beta database is not upgraded.\n\n#### Breaking changes\n\n- **Schema `2.1.0` replaces `2.0.0`.** `storage_object.folder` is now `folder_id`. `storage_folder` stores `parent_id` (`\"\"` is the root), `name`, and a cached `path`, plus `updated_at`. Recreate the tables from `sql/<dialect>.sql`, the Drizzle or Prisma schema, or `migrate(client)` on an empty database. A database at `2.0.0` throws.\n- **Folder addresses are ids.** `GET /db/objects` takes `folderId` (`\"\"` is the root). `PATCH /db/object` takes `folderId`. `POST /db/folder` takes `{ parentId, name }`. `PATCH /db/folder` takes `{ id, name?, parentId? }`. `DELETE /db/folder` takes `id`. `DbClientObject.folder` is `folderId`. `DbClientFolder` is `{ id, name, parentId, path, createdAt, updatedAt }`.\n- **Uploads no longer create folders.** Set `clientMetadata.folderId` to an existing folder. A missing id is `FOLDER_NOT_FOUND` (`404`). `s3.db.folders.ensure` is removed. `create` takes `{ parentId, name }`, and `update` renames or moves.\n- **`dbObjectSource` parents are folder ids.** Uploads send `metadata.folderId`. The first page's `trail` fills the breadcrumb.\n"
+    filename: 2026-11-03-db-folder-ids.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: patch\n---\n\n### Copy the Drizzle schema into your app\n\nCopy `src/drizzle/sqlite.ts`, `pg.ts`, or `mysql.ts` from the package into your schema when you want to add columns. Keep the table and column names. Importing `dimahS3Tables` from `@dimah-s3/db/drizzle/*` still works when you leave the tables as they are.\n"
-    filename: 2026-11-03-drizzle-schema-copy.md
-    v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/server\":\n    type: patch\n---\n\n### Fix proxy downloads that never finish\n\n`GET /file` through the Node adapter now writes the object body directly. A download larger than the stream buffer no longer stalls until the client gives up.\n"
-    filename: 2026-11-03-node-file-stream.md
+  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: minor\n---\n\n### Breadcrumb from the list page\n\nWhen the first page of `useObjectList` includes `trail`, the hook shows those folder names. A source that omits `trail` keeps the trail built while navigating. `dbObjectSource` sends the trail, so a deep link opens with the real names.\n"
+    filename: 2026-11-03-list-trail.md
     v: 0.0.0
 core:packages:
-  - id: npm:@dimah-s3/cli
-    updated: true
   - changelogIds:
-      - 2026-11-03-base64url-direct.md
-      - 2026-11-03-base64url-large.md
+      - 2026-11-03-folder-ids-line.md
+      - 2026-11-03-folder-not-found.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-11-02-db-single-schema.md
-      - 2026-11-03-drizzle-schema-copy.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - id: npm:@dimah-s3/react
+      - 2026-11-03-folder-ids-line.md
+    id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-11-03-node-file-stream.md
+      - 2026-11-03-db-folder-ids.md
+      - 2026-11-03-folder-ids-line.md
+    id: npm:@dimah-s3/db
+    updated: true
+  - changelogIds:
+      - 2026-11-03-folder-ids-line.md
+      - 2026-11-03-list-trail.md
+    id: npm:@dimah-s3/react
+    updated: true
+  - changelogIds:
+      - 2026-11-03-folder-ids-line.md
     id: npm:@dimah-s3/server
     updated: true
-  - id: npm:@dimah-s3/ui
+  - changelogIds:
+      - 2026-11-03-folder-ids-line.md
+    id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: beta
-    id: npm:@dimah-s3/cli
-  - distTag: beta
     id: npm:@dimah-s3/core
+  - distTag: beta
+    id: npm:@dimah-s3/cli
   - distTag: beta
     id: npm:@dimah-s3/db
   - distTag: beta
