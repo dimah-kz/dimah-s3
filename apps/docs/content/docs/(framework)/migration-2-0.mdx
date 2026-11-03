@@ -486,12 +486,13 @@ See [Custom backend](/docs/react/custom-backend).
 
 ## Database
 
-`@dimah-s3/db` moves to database schema `2.0.0`, with logical folders, typed
-`attributes`, and an upload token per row. Upgrade the schema before you
-deploy the new server: a 1.x database throws until it is upgraded.
+`@dimah-s3/db` reads schema `2.0.0` only: logical folders, typed
+`attributes`, and an upload token per row. It does not upgrade a 1.x
+database. Create the tables on a new database before you deploy. A
+database already at `2.0.0` is unchanged, and any other version throws.
 
-- Run `sql/upgrade/1.0.0-2.0.0/<dialect>.sql` from the package, or
-  `migrate(client)` from `@dimah-s3/db/cli` with Kysely.
+- Create the tables from [Setup](/docs/db/setup). With Kysely, call
+  `migrate(client)` from `@dimah-s3/db/cli` on an empty database.
 - Remove `fumadb` and the `fumadb/cuid` path alias from your app. Import
   tables from `@dimah-s3/db/drizzle/<dialect>` and adapters from
   `@dimah-s3/db/adapters/<orm>`.
@@ -511,5 +512,5 @@ deploy the new server: a 1.x database throws until it is upgraded.
   `s3.db.pruneDeleted`.
 - `purgeStale` returns `{ purged, failed, skipped, more }`.
 
-[Upgrade the database](/docs/db/upgrade) has the steps for each dialect and
-ORM.
+[Upgrade the database](/docs/db/upgrade) says what happens to an existing
+database.

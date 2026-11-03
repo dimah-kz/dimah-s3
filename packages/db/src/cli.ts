@@ -1,17 +1,22 @@
 import { createCli } from "fumadb/cli";
 import { DB_SCHEMA_VERSION, type DimahS3DbClient } from "./fuma-db";
-import { v1 } from "./schema/v1";
+import { PREDECESSOR_VERSION } from "./schema/schema";
 
 declare const __DIMAH_S3_DB_VERSION__: string;
 
-/** Rows `migrate` rewrites per query. */
-const MIGRATE_BATCH = 500;
+/**
+ * Versions `migrate` may continue from: an empty database, a migration that
+ * stopped on the empty predecessor, or a database already at
+ * {@link DB_SCHEMA_VERSION}.
+ */
+const RESUMABLE = new Set<string>([PREDECESSOR_VERSION, DB_SCHEMA_VERSION]);
 
 /**
  * Runs the interactive FumaDB CLI: generate the ORM schema, or migrate when
- * the client uses the Kysely adapter. Prefer {@link migrate} to migrate:
- * only `migrate:up`, one version at a time, runs the steps 2.0.0 needs,
- * and no CLI command converts 1.x SQLite sizes.
+ * the client uses the Kysely adapter. Prefer {@link migrate}. Only
+ * `migrate:up`, one version at a time, runs the steps the schema needs,
+ * including the indexes. The CLI `migrate` command jumps to the latest
+ * schema and skips them.
  *
  * ```ts
  * // scripts/db.ts
@@ -33,12 +38,10 @@ export function runCli(client: DimahS3DbClient): Promise<void> {
 }
 
 /**
- * Migrates the database to the schema this version needs, from an empty
- * database or from schema 1.0.0, one version at a time, so each version's
- * own steps run (the 2.0.0 indexes among them). An upgrade from 1.0.0 also
- * turns 1.x SQLite blob sizes into numbers, like
- * `sql/upgrade/1.0.0-2.0.0/sqlite.sql`. It needs the Kysely adapter; with
- * Drizzle or Prisma, use your ORM's migrations or the files in `sql/`.
+ * Creates the schema this package reads, one version at a time, so the
+ * schema's own steps run (the indexes among them). It needs the Kysely
+ * adapter; with Drizzle or Prisma, use your ORM's migrations or the files
+ * in `sql/`. It does not upgrade a database at another version.
  *
  * ```ts
  * import { DimahS3DB } from "@dimah-s3/db";
@@ -49,51 +52,19 @@ export function runCli(client: DimahS3DbClient): Promise<void> {
  * ```
  */
 export async function migrate(client: DimahS3DbClient): Promise<void> {
+  let version: string | undefined;
+  try {
+    version = await client.version();
+  } catch {
+    version = undefined;
+  }
+  if (version !== undefined && !RESUMABLE.has(version)) {
+    throw new Error(
+      `[dimah-s3/db] The database is at schema ${version}, which this package does not upgrade. Create schema ${DB_SCHEMA_VERSION} on a new database.`,
+    );
+  }
   const migrator = client.createMigrator();
   for (let next = await migrator.next(); next; next = await migrator.next()) {
-    const from = await migrator.getVersion();
     await (await migrator.up()).execute();
-    if (from === v1.version) await rewriteSizes(client);
-  }
-}
-
-/**
- * Rewrites the sizes 1.x stored as FumaDB bigints. SQLite kept those as
- * 8-byte blobs, which sort after every number. FumaDB reads a blob back as
- * a bigint and stores a number as a number.
- */
-async function rewriteSizes(client: DimahS3DbClient): Promise<void> {
-  const orm = client.orm(DB_SCHEMA_VERSION);
-  const toNumber = (value: number | bigint | string | null) =>
-    value === null ? null : Number(value);
-  let after: string | undefined;
-  for (;;) {
-    const rows = await orm.findMany("storageObject", {
-      select: ["id", "size", "declaredSize"],
-      where: (b) =>
-        b.and(
-          b.or(b.isNotNull("size"), b.isNotNull("declaredSize")),
-          after === undefined || b("id", ">", after),
-        ),
-      orderBy: [["id", "asc"]],
-      limit: MIGRATE_BATCH,
-    });
-    for (const row of rows) {
-      if (
-        typeof row.size !== "bigint" &&
-        typeof row.declaredSize !== "bigint"
-      ) {
-        continue;
-      }
-      await orm.updateMany("storageObject", {
-        where: (b) => b("id", "=", row.id),
-        set: {
-          size: toNumber(row.size),
-          declaredSize: toNumber(row.declaredSize),
-        },
-      });
-    }
-    if (rows.length < MIGRATE_BATCH) return;
-    after = rows.at(-1)?.id;
   }
 }

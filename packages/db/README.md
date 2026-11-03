@@ -21,9 +21,9 @@ Create the schema with one of:
 - Drizzle: add `dimahS3Tables` from `@dimah-s3/db/drizzle/{sqlite,pg,mysql}` to your Drizzle schema.
 - Prisma: copy [`prisma/dimah-s3.prisma`](./prisma/dimah-s3.prisma) into your schema.
 - Plain SQL: run [`sql/<dialect>.sql`](./sql).
-- Kysely: call `migrate(client)` from `@dimah-s3/db/cli`. It steps one schema version at a time, so the indexes are created too. The FumaDB CLI from `runCli` does the same only with `migrate:up`; its `migrate` command jumps straight to the latest schema and skips them.
+- Kysely: call `migrate(client)` from `@dimah-s3/db/cli`. It creates the tables and the indexes. The FumaDB CLI from `runCli` does the same only with `migrate:up`; its `migrate` command jumps straight to the latest schema and skips the indexes.
 
-Upgrading from 1.x: run `sql/upgrade/1.0.0-2.0.0/<dialect>.sql`, or `migrate(client)` with Kysely. A database at an older schema throws on the first query; call `s3.db.checkSchema()` at startup to fail fast.
+The package reads schema `2.0.0` and does not upgrade a 1.x database: create the tables on a new database. A database at another schema version throws on the first query. Call `s3.db.checkSchema()` at startup to fail fast.
 
 ## Server
 

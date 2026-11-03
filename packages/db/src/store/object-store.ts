@@ -1,6 +1,6 @@
 import { s3Error } from "@dimah-s3/core";
 import type { AbstractQuery, FindManyOptions } from "fumadb/query";
-import type { v2 } from "@/schema/v2";
+import type { dbSchema } from "@/schema/schema";
 import type { DbListSort, DbUsage } from "@/types/client";
 import type {
   StorageObject,
@@ -15,15 +15,17 @@ import {
 } from "./list-cursor";
 import { mapStorageObjectRow } from "./map-row";
 
-/** The FumaDB ORM for schema 2.0.0. */
-export type DbOrm = AbstractQuery<typeof v2>;
+/** The FumaDB ORM for the schema the stores read. */
+export type DbOrm = AbstractQuery<typeof dbSchema>;
 
 /** Resolves the ORM once the schema version is checked. */
 export type GetDbOrm = () => Promise<DbOrm>;
 
 /** Condition builder of a `storage_object` query. */
 export type ObjectConditions = Parameters<
-  NonNullable<FindManyOptions<(typeof v2.tables)["storageObject"]>["where"]>
+  NonNullable<
+    FindManyOptions<(typeof dbSchema.tables)["storageObject"]>["where"]
+  >
 >[0];
 
 type Condition = ReturnType<ObjectConditions> | boolean;
@@ -277,8 +279,8 @@ function uploading(b: ObjectConditions): Condition {
 }
 
 /**
- * Rows purge handles: pending rows past their deadline (a 1.x row may have
- * none), overwrites past theirs, and `purging` rows whose claim lapsed.
+ * Rows purge handles: pending rows with no deadline or one that has passed,
+ * overwrites past theirs, and `purging` rows whose claim lapsed.
  */
 function staleObject(b: ObjectConditions, now: Date): Condition {
   return b.or(

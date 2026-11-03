@@ -16,12 +16,12 @@ import {
 import { describe, expect, it } from "vitest";
 import { migrate } from "@/cli";
 import { DB_SCHEMA_VERSION, DimahS3DB } from "@/fuma-db";
-import { v2, v2Indexes } from "./v2";
+import { dbSchema, PREDECESSOR_VERSION, schemaIndexes } from "./schema";
 
 const SQL_DIR = join(import.meta.dirname, "../../sql");
 const DEFINITIONS = {
-  storage_object: v2.tables.storageObject,
-  storage_folder: v2.tables.storageFolder,
+  storage_object: dbSchema.tables.storageObject,
+  storage_folder: dbSchema.tables.storageFolder,
 };
 const TABLES = ["storage_object", "storage_folder"] as const;
 
@@ -64,7 +64,7 @@ function expectedShape(table: (typeof TABLES)[number]): Shape {
         unique: true,
         columns: constraint.columns.map((column) => column.names.sql),
       })),
-      ...v2Indexes
+      ...schemaIndexes
         .filter((index) => index.table === table)
         .map((index) => ({
           name: index.name,
@@ -217,35 +217,6 @@ function pgClient(pg: PGlite) {
   return DimahS3DB.client(kyselyAdapter({ db, provider: "postgresql" }));
 }
 
-type Client = ReturnType<typeof sqliteClient>;
-
-/** Migrates to 1.0.0 and inserts one row with a filename and one without. */
-async function seedV1(client: Client) {
-  const migrator = client.createMigrator();
-  await (await migrator.migrateTo("1.0.0")).execute();
-  const orm = client.orm("1.0.0");
-  const base = {
-    scope: "user:1",
-    bucket: "b",
-    route: "files",
-    status: "active",
-    s3Metadata: { label: "kept" },
-  };
-  await orm.create("storageObject", {
-    ...base,
-    id: "named",
-    key: "users/1/a.txt",
-    filename: "Report.txt",
-    size: 5497558138880n,
-  });
-  await orm.create("storageObject", {
-    ...base,
-    id: "unnamed",
-    key: "users/1/photo.png",
-    size: 42n,
-  });
-}
-
 const sampleObject = {
   scope: "user:1",
   bucket: "b",
@@ -261,12 +232,13 @@ const sampleObject = {
 };
 
 describe("schema 2.0.0", () => {
-  it("is the latest of the library's schemas", () => {
+  it("is the schema the stores read", () => {
     const client = sqliteClient(new Database(":memory:"));
     expect(client.schemas.map((schema) => schema.version)).toEqual([
-      "1.0.0",
-      "2.0.0",
+      PREDECESSOR_VERSION,
+      DB_SCHEMA_VERSION,
     ]);
+    expect(Object.keys(client.schemas[0]?.tables ?? {})).toEqual([]);
     expect(DB_SCHEMA_VERSION).toBe("2.0.0");
   });
 
@@ -393,146 +365,5 @@ describe("sql/mysql.sql", () => {
     expect(sql).toContain("(`bucket`, `key`(512))");
     expect(sql).toContain("`folder`(255)");
     expect(sql).toContain("(`scope`, `path`(512))");
-  });
-
-  it("adds the same indexes on upgrade", () => {
-    const upgrade = readSql("upgrade/1.0.0-2.0.0/mysql.sql");
-    for (const { name } of expectedShape("storage_object").indexes) {
-      expect(upgrade).toMatch(new RegExp(`ADD (UNIQUE )?KEY \`${name}\``));
-    }
-    expect(mysqlShape(upgrade, "storage_folder")).toEqual(
-      expectedShape("storage_folder"),
-    );
-  });
-});
-
-describe("sql/upgrade/1.0.0-2.0.0", () => {
-  it("upgrades a 1.x SQLite database", async () => {
-    const database = new Database(":memory:");
-    await seedV1(sqliteClient(database));
-    // A 1.x Drizzle row: decimal blob size, JSON blob metadata, seconds.
-    database
-      .prepare(
-        `INSERT INTO "storage_object" ("id", "scope", "bucket", "key", "route", "status", "size", "metadata", "created_at", "updated_at")
-         VALUES ('drizzle', 'user:1', 'b', 'users/1/notes/', 'files', 'pending', ?, ?, 1700000000, 1700000000)`,
-      )
-      .run(Buffer.from("123456789"), Buffer.from('{"a":"b"}'));
-
-    database.exec(readSql("upgrade/1.0.0-2.0.0/sqlite.sql"));
-
-    const fresh = new Database(":memory:");
-    fresh.exec(readSql("sqlite.sql"));
-    for (const table of TABLES) {
-      expect(sqliteShape(database, table)).toEqual(sqliteShape(fresh, table));
-    }
-
-    const rows = database
-      .prepare(
-        `SELECT "id", "filename", "folder", typeof("size") AS "sizeType", "size", "s3_metadata", "created_at"
-         FROM "storage_object" ORDER BY "id"`,
-      )
-      .all();
-    expect(rows).toEqual([
-      {
-        id: "drizzle",
-        filename: "users/1/notes/",
-        folder: null,
-        sizeType: "integer",
-        size: 123456789,
-        s3_metadata: '{"a":"b"}',
-        created_at: 1700000000000,
-      },
-      expect.objectContaining({
-        id: "named",
-        filename: "Report.txt",
-        sizeType: "integer",
-        size: 5497558138880,
-        s3_metadata: '{"label":"kept"}',
-      }),
-      expect.objectContaining({
-        id: "unnamed",
-        filename: "photo.png",
-        sizeType: "integer",
-        size: 42,
-      }),
-    ]);
-
-    const client = sqliteClient(database);
-    expect(await client.version()).toBe("2.0.0");
-    const named = await client.orm("2.0.0").findFirst("storageObject", {
-      where: (b) => b("id", "=", "named"),
-    });
-    expect(named?.createdAt.getTime()).toBeGreaterThan(1700000000000);
-  });
-
-  it("upgrades a 1.x PostgreSQL database", async () => {
-    const pg = new PGlite();
-    await seedV1(pgClient(pg));
-
-    await pg.exec(readSql("upgrade/1.0.0-2.0.0/pg.sql"));
-
-    const fresh = new PGlite();
-    await fresh.exec(readSql("pg.sql"));
-    for (const table of TABLES) {
-      expect(await pgShape(pg, table)).toEqual(await pgShape(fresh, table));
-    }
-
-    const client = pgClient(pg);
-    expect(await client.version()).toBe("2.0.0");
-    const rows = await client.orm("2.0.0").findMany("storageObject", {
-      orderBy: [["id", "asc"]],
-    });
-    expect(rows).toMatchObject([
-      { id: "named", filename: "Report.txt", s3Metadata: { label: "kept" } },
-      { id: "unnamed", filename: "photo.png", folder: null, attributes: null },
-    ]);
-  });
-});
-
-describe("FumaDB migration 1.0.0 → 2.0.0", () => {
-  it.each([
-    ["SQLite", () => sqliteClient(new Database(":memory:"))],
-    ["PostgreSQL", () => pgClient(new PGlite())],
-  ])("keeps the 1.x data on %s", async (_, connect) => {
-    const client = connect();
-    await seedV1(client);
-
-    await (await client.createMigrator().up()).execute();
-
-    expect(await client.version()).toBe("2.0.0");
-    const orm = client.orm("2.0.0");
-    const rows = await orm.findMany("storageObject", {
-      orderBy: [["id", "asc"]],
-    });
-    expect(rows).toMatchObject([
-      { id: "named", filename: "Report.txt", s3Metadata: { label: "kept" } },
-      {
-        id: "unnamed",
-        filename: "photo.png",
-        folder: null,
-        s3Metadata: { label: "kept" },
-      },
-    ]);
-    expect(rows.map((row) => Number(row.size))).toEqual([5497558138880, 42]);
-
-    const folder = await orm.create("storageFolder", {
-      scope: "user:1",
-      path: "docs",
-      name: "docs",
-    });
-    expect(folder).toMatchObject({ path: "docs", parent: null });
-  });
-
-  it("creates the 2.0.0 indexes", async () => {
-    const database = new Database(":memory:");
-    const client = sqliteClient(database);
-    await seedV1(client);
-    await (await client.createMigrator().up()).execute();
-
-    for (const table of TABLES) {
-      expect(sqliteShape(database, table).indexes).toEqual(
-        expectedShape(table).indexes,
-      );
-    }
   });
 });

@@ -8,8 +8,8 @@ a database. A working reference is
 [`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/v2/examples/with-db)
 (Next.js + Drizzle + SQLite).
 
-Upgrading from 1.x? The tables changed: follow
-[Upgrade the schema](/docs/db/upgrade) first.
+A 1.x database is left as it is. Create these tables on a new database.
+See [Upgrade the schema](/docs/db/upgrade).
 
 ### Install [step]
 
@@ -54,8 +54,8 @@ count as the same key.
 </Tab>
 <Tab value="Kysely">
 
-`migrate(client)` creates the tables and indexes, and later upgrades them.
-It needs the Kysely adapter (next step):
+`migrate(client)` creates the tables and the indexes. It does not upgrade
+a 1.x database. It needs the Kysely adapter (next step):
 
 ```ts title="scripts/migrate.ts"
 import { migrate } from "@dimah-s3/db/cli";

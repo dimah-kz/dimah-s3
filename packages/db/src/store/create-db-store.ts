@@ -13,8 +13,8 @@ export type DbStore<TAttributes = never> = {
 
 /**
  * Creates the object and folder stores. The first query checks the schema
- * version, so a 1.x database throws instead of being read with the wrong
- * columns. A failed check runs again on the next query.
+ * version, so a database at another version throws instead of being read
+ * with the wrong columns. A failed check runs again on the next query.
  */
 export function createDbStore<TAttributes = never>(
   client: DimahS3DbClient,

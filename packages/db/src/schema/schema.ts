@@ -5,8 +5,7 @@ import { column, idColumn, schema, table, type Column } from "fumadb/schema";
  * values are bound as numbers so SQLite stores a number instead of FumaDB's
  * 8-byte blob, which would sort after every number: INTEGER in the shipped
  * SQL, or REAL in a column FumaDB created, compared by value either way.
- * Drivers read int8 back as a number, a bigint, or a string, and a 1.x
- * SQLite row not yet migrated still holds a blob (read as a bigint).
+ * Drivers read int8 back as a number, a bigint, or a string.
  */
 function byteCount(name: string) {
   return column(name, "bigint").nullable() as unknown as Column<
@@ -77,10 +76,11 @@ export type SchemaIndex = {
 };
 
 /**
- * Secondary indexes of schema 2.0.0. FumaDB cannot declare them, so the SQL
- * files, the Drizzle tables, and the Prisma schema carry them.
+ * Secondary indexes. FumaDB cannot declare them, so {@link dbSchema}'s
+ * migration, the SQL files, the Drizzle tables, and the Prisma schema carry
+ * them.
  */
-export const v2Indexes: readonly SchemaIndex[] = [
+export const schemaIndexes: readonly SchemaIndex[] = [
   {
     name: "storage_object_scope_folder_idx",
     table: "storage_object",
@@ -113,56 +113,38 @@ export const v2Indexes: readonly SchemaIndex[] = [
   },
 ];
 
-/** The secondary indexes 1.x recommended that 2.0.0 replaces. */
-const v1Indexes = [
-  "storage_object_scope_status_created_idx",
-  "storage_object_scope_route_idx",
-  "storage_object_status_created_idx",
-];
-
 const custom = (sql: string) => ({ type: "custom" as const, sql });
 
 /**
- * The last segment of `key`, or the whole key when it ends in `/`, in syntax
- * SQLite and PostgreSQL share. Trimming every character but `/` from the
- * right leaves the key up to its last `/`.
+ * FumaDB runs `up` only when migrating from the previous entry, and skips
+ * `up` on the first one. This empty entry exists so {@link dbSchema} can
+ * create the indexes on a new database. A finished database is at
+ * {@link dbSchema}.
  */
-const keyName = `COALESCE(NULLIF(substr("key", length(rtrim("key", replace("key", '/', ''))) + 1), ''), "key")`;
+export const PREDECESSOR_VERSION = "0.0.1";
+
+export const predecessor = schema({
+  version: PREDECESSOR_VERSION,
+  tables: {},
+});
 
 /**
- * Runs before the statements FumaDB generates for 1.0.0 → 2.0.0, in syntax
- * SQLite and PostgreSQL share. `filename` becomes required, so a missing one
- * is filled from the key the way `sql/upgrade/1.0.0-2.0.0/<dialect>.sql`
- * does. `migrate()` converts 1.x SQLite blob sizes afterwards.
+ * The @dimah-s3/db schema, version `2.0.0`. The migration creates the
+ * secondary indexes after the tables, because FumaDB cannot declare them.
  */
-const beforeV2 = [
-  custom(
-    `UPDATE "storage_object" SET "filename" = ${keyName} WHERE "filename" IS NULL`,
-  ),
-];
-
-/** Runs after them: the 1.x recommended indexes give way to {@link v2Indexes}. */
-const afterV2 = [
-  ...v1Indexes.map((name) => custom(`DROP INDEX IF EXISTS "${name}"`)),
-  ...v2Indexes.map((index) => {
-    const columns = index.columns.map((name) => `"${name}"`).join(", ");
-    return custom(
-      `CREATE INDEX IF NOT EXISTS "${index.name}" ON "${index.table}" (${columns})`,
-    );
-  }),
-];
-
-/**
- * Schema 2.0.0: logical folders (`folder` plus `storage_folder`), S3 metadata
- * split from typed `attributes`, the upload token, and the sort indexes.
- */
-export const v2 = schema({
+export const dbSchema = schema({
   version: "2.0.0",
   tables: {
     storageObject,
     storageFolder,
   },
   async up({ auto }) {
-    return [...beforeV2, ...(await auto()), ...afterV2];
+    const indexes = schemaIndexes.map((index) => {
+      const columns = index.columns.map((name) => `"${name}"`).join(", ");
+      return custom(
+        `CREATE INDEX IF NOT EXISTS "${index.name}" ON "${index.table}" (${columns})`,
+      );
+    });
+    return [...(await auto()), ...indexes];
   },
 });

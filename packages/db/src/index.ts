@@ -1,10 +1,5 @@
-// Schema and FumaDB client
-export {
-  DB_SCHEMA_VERSION,
-  DimahS3DB,
-  v2,
-  type DimahS3DbClient,
-} from "./fuma-db";
+// FumaDB client
+export { DB_SCHEMA_VERSION, DimahS3DB, type DimahS3DbClient } from "./fuma-db";
 
 // Plugin
 export { db, type DbPluginContext } from "./plugin/db";

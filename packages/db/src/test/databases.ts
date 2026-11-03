@@ -77,8 +77,8 @@ async function migrated(
 
 /**
  * The databases every store test runs against: the in-memory fake, SQLite
- * (better-sqlite3), and PostgreSQL (PGlite). The real ones are migrated
- * through every schema version by `migrate()`, through the Kysely adapter.
+ * (better-sqlite3), and PostgreSQL (PGlite). The real ones are created by
+ * `migrate()`, through the Kysely adapter.
  */
 export const testDatabases: readonly TestDatabaseFactory[] = [
   {

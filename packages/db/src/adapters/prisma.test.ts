@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { AnyColumn as Column } from "fumadb/schema";
 import { describe, expect, it } from "vitest";
 import { DB_SCHEMA_VERSION } from "@/fuma-db";
-import { v2, v2Indexes } from "@/schema/v2";
+import { dbSchema, schemaIndexes } from "@/schema/schema";
 
 const PRISMA_SCHEMA = join(import.meta.dirname, "../../prisma/dimah-s3.prisma");
 
@@ -91,7 +91,7 @@ describe("prisma/dimah-s3.prisma", () => {
   it.each(["storageObject", "storageFolder"] as const)(
     "matches the FumaDB definition of %s",
     (key) => {
-      const definition = v2.tables[key];
+      const definition = dbSchema.tables[key];
       const model = models.find((m) => m.table === definition.names.sql);
       expect(model).toBeDefined();
       if (!model) return;
@@ -130,7 +130,7 @@ describe("prisma/dimah-s3.prisma", () => {
             unique: true,
             fields: constraint.columns.map((column) => column.ormName),
           })),
-          ...v2Indexes
+          ...schemaIndexes
             .filter((index) => index.table === definition.names.sql)
             .map((index) => ({
               name: index.name,

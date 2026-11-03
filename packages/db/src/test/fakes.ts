@@ -1,5 +1,5 @@
 import { DB_SCHEMA_VERSION, type DimahS3DbClient } from "@/fuma-db";
-import { v2 } from "@/schema/v2";
+import { dbSchema } from "@/schema/schema";
 import type { StorageFolder, StorageObject } from "@/types/storage-object";
 
 /** An active `storage_object` row, as the stores return it. */
@@ -59,7 +59,7 @@ type FindOptions = {
   limit?: number;
   offset?: number;
 };
-type TableName = keyof typeof v2.tables;
+type TableName = keyof typeof dbSchema.tables;
 
 type ConditionBuilder = ((
   column: string,
@@ -162,7 +162,7 @@ const conditions: ConditionBuilder = Object.assign(
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 /**
- * In-memory FumaDB client for schema 2.0.0: `version()` and `orm()` with
+ * In-memory FumaDB client for the current schema: `version()` and `orm()` with
  * every query the stores use. It applies column defaults and the unique
  * constraints of the schema, and `transaction` does not roll back. `nulls`
  * picks where `orderBy` puts nulls: `"low"` sorts them as the smallest value
@@ -173,7 +173,7 @@ export function memoryDbClient(
 ): DimahS3DbClient {
   const nullRank = options.nulls === "high" ? 1 : -1;
   const tables = Object.fromEntries(
-    Object.keys(v2.tables).map((name) => [name, [] as Row[]]),
+    Object.keys(dbSchema.tables).map((name) => [name, [] as Row[]]),
   ) as Record<TableName, Row[]>;
 
   const select = (table: TableName, where?: Where) => {
@@ -182,7 +182,7 @@ export function memoryDbClient(
   };
 
   const assertUnique = (table: TableName, row: Row) => {
-    for (const constraint of v2.tables[table].getUniqueConstraints()) {
+    for (const constraint of dbSchema.tables[table].getUniqueConstraints()) {
       const columns = constraint.columns.map((column) => column.ormName);
       const duplicate = tables[table].some(
         (other) =>
@@ -250,7 +250,9 @@ export function memoryDbClient(
     async create(table: TableName, values: Row) {
       await tick();
       const row: Row = {};
-      for (const [name, column] of Object.entries(v2.tables[table].columns)) {
+      for (const [name, column] of Object.entries(
+        dbSchema.tables[table].columns,
+      )) {
         row[name] = structuredClone(
           values[name] ?? column.generateDefaultValue() ?? null,
         );

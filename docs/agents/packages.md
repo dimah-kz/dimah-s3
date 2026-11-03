@@ -47,9 +47,13 @@ Contract and merge live in `packages/server/src/plugin/`. Feature plugins (like 
 
 ## db schema
 
-The `@dimah-s3/db` schema has several hand-kept copies. Change them together:
+The `@dimah-s3/db` schema has several hand-kept copies. Readers use one schema, `2.0.0` (`dbSchema` in `src/schema/schema.ts`). The package does not migrate a 1.x database.
 
-1. Add the next `vN` in `packages/db/src/schema/` and append it to `schemas` in `src/fuma-db.ts` (`DB_SCHEMA_VERSION` follows the latest).
+FumaDB skips `up` on the first schema, and the indexes live in `up`, so `schemas` starts with an empty predecessor (`0.0.1`). A finished database is at `2.0.0`. Keep the predecessor: without it, `migrate()` creates the tables and skips the indexes.
+
+When the tables change inside this line, change the copies together:
+
+1. Add the next schema after `dbSchema` in `src/fuma-db.ts` (`DB_SCHEMA_VERSION` follows the latest).
 2. Update `src/drizzle/{sqlite,pg,mysql}.ts`, `sql/<dialect>.sql`, and `prisma/dimah-s3.prisma`.
 3. Add `sql/upgrade/<from>-<to>/<dialect>.sql` for each dialect.
 4. `src/drizzle/parity.test.ts` and `src/schema/schema.test.ts` must pass.
