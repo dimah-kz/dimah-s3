@@ -250,7 +250,9 @@ export function memoryDbClient(
     async create(table: TableName, values: Row) {
       await tick();
       const row: Row = {};
-      for (const [name, column] of Object.entries(dbSchema.tables[table].columns)) {
+      for (const [name, column] of Object.entries(
+        dbSchema.tables[table].columns,
+      )) {
         row[name] = structuredClone(
           values[name] ?? column.generateDefaultValue() ?? null,
         );

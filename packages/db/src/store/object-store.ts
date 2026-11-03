@@ -23,7 +23,9 @@ export type GetDbOrm = () => Promise<DbOrm>;
 
 /** Condition builder of a `storage_object` query. */
 export type ObjectConditions = Parameters<
-  NonNullable<FindManyOptions<(typeof dbSchema.tables)["storageObject"]>["where"]>
+  NonNullable<
+    FindManyOptions<(typeof dbSchema.tables)["storageObject"]>["where"]
+  >
 >[0];
 
 type Condition = ReturnType<ObjectConditions> | boolean;
