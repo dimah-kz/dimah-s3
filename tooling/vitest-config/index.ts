@@ -27,6 +27,7 @@ export function packageConfig(
     pool?: "forks" | "threads" | "vmForks" | "vmThreads";
     setupFiles?: string | string[];
     testTimeout?: number;
+    hookTimeout?: number;
   },
 ) {
   return defineConfig({
