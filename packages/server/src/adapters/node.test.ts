@@ -298,7 +298,17 @@ describe("toNodeHandler with dimahS3", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-length")).toBe(String(bytes.byteLength));
-    expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
+    const received = new Uint8Array(await res.arrayBuffer());
+    // `toEqual` diffs every byte and can spend the whole test timeout on CI.
+    expect(received).toHaveLength(bytes.length);
+    let mismatch = -1;
+    for (let index = 0; index < bytes.length; index++) {
+      if (received[index] !== bytes[index]) {
+        mismatch = index;
+        break;
+      }
+    }
+    expect(mismatch).toBe(-1);
     expect(storage.objects.has(`${TEST_BUCKET}/${storedPngKey}`)).toBe(true);
   });
 
