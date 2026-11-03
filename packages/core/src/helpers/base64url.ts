@@ -1,26 +1,47 @@
-/**
- * Bytes per `String.fromCharCode` call. A larger spread spends more time
- * building the argument list than encoding, which stalls inputs of a few
- * hundred kilobytes.
- */
-const CHUNK_SIZE = 0x1000;
-
 const BASE64URL_PATTERN = /^[\w-]*$/;
+
+const BASE64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 const encoder = new TextEncoder();
 
 /**
- * Standard padded base64 of `bytes`. Uses `btoa`, so it runs in browsers,
- * workers, and Node without `Buffer`.
+ * Standard padded base64 of `bytes`. Encodes each group of three bytes
+ * directly, so a few hundred kilobytes stay cheap in browsers, workers,
+ * and Node without `Buffer`.
  */
 export function bytesToBase64(bytes: Uint8Array): string {
-  const parts: string[] = [];
-  for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
-    parts.push(
-      String.fromCharCode(...bytes.subarray(offset, offset + CHUNK_SIZE)),
-    );
+  const extra = bytes.length % 3;
+  const parts = new Array<string>(Math.ceil(bytes.length / 3));
+  let part = 0;
+  const length = bytes.length - extra;
+  for (let index = 0; index < length; index += 3) {
+    const value =
+      ((bytes[index] ?? 0) << 16) |
+      ((bytes[index + 1] ?? 0) << 8) |
+      (bytes[index + 2] ?? 0);
+    parts[part++] =
+      (BASE64_ALPHABET[value >>> 18] ?? "") +
+      (BASE64_ALPHABET[(value >>> 12) & 63] ?? "") +
+      (BASE64_ALPHABET[(value >>> 6) & 63] ?? "") +
+      (BASE64_ALPHABET[value & 63] ?? "");
   }
-  return btoa(parts.join(""));
+  if (extra === 1) {
+    const value = (bytes[length] ?? 0) << 16;
+    parts[part] =
+      (BASE64_ALPHABET[value >>> 18] ?? "") +
+      (BASE64_ALPHABET[(value >>> 12) & 63] ?? "") +
+      "==";
+  } else if (extra === 2) {
+    const value =
+      ((bytes[length] ?? 0) << 16) | ((bytes[length + 1] ?? 0) << 8);
+    parts[part] =
+      (BASE64_ALPHABET[value >>> 18] ?? "") +
+      (BASE64_ALPHABET[(value >>> 12) & 63] ?? "") +
+      (BASE64_ALPHABET[(value >>> 6) & 63] ?? "") +
+      "=";
+  }
+  return parts.join("");
 }
 
 /**
