@@ -27,7 +27,9 @@ type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
 const SCHEMA_VERSION = "2.0.0";
 
 function id() {
-  return text("id").primaryKey().$defaultFn(() => createId());
+  return text("id")
+    .primaryKey()
+    .$defaultFn(() => createId());
 }
 
 function timestamp(name: string) {

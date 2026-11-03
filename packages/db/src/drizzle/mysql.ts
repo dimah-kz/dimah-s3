@@ -37,7 +37,9 @@ const SCHEMA_VERSION = "2.0.0";
 const BINARY = "utf8mb4_bin";
 
 function id() {
-  return string("id").primaryKey().$defaultFn(() => createId());
+  return string("id")
+    .primaryKey()
+    .$defaultFn(() => createId());
 }
 
 function string(name: string, length = 255) {
@@ -155,10 +157,7 @@ export const storageFolder = mysqlTable(
  */
 export const dimahS3Settings = mysqlTable("private_dimah_s3_settings", {
   key: string("key").primaryKey(),
-  version: text("value")
-    .collate(BINARY)
-    .notNull()
-    .default(SCHEMA_VERSION),
+  version: text("value").collate(BINARY).notNull().default(SCHEMA_VERSION),
 });
 
 /**
