@@ -3,13 +3,13 @@ import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
 import Database from "better-sqlite3";
 import { defineRelations } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import * as schema from "../../db/schema";
+import { dimahS3Tables } from "../../db/schema";
 
 const sqlite = new Database(process.env.DATABASE_PATH ?? "./local.db");
 
 export const db = drizzle({
   client: sqlite,
-  relations: defineRelations(schema),
+  relations: defineRelations({ ...dimahS3Tables }),
 });
 
 /** FumaDB client for the `db()` plugin. */

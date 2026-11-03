@@ -1,24 +1,34 @@
-The tables ship prebuilt in `@dimah-s3/db/drizzle/sqlite`, `/pg`, and
-`/mysql`. Re-export them from your schema file so `drizzle-kit` creates them
-next to your own tables:
+Copy the schema for your database into the app. The tables are then yours:
+add columns next to the ones in the file. Keep the table names, the column
+names, and the `dimahS3Tables` keys. The adapter finds the tables by those
+keys. A column you add must be nullable or have a default, because the
+plugin does not read or write it.
+
+The file needs `drizzle-orm` and `@paralleldrive/cuid2`.
+
+```bash
+pnpm add @paralleldrive/cuid2
+cp node_modules/@dimah-s3/db/src/drizzle/sqlite.ts db/schema.ts
+# or src/drizzle/pg.ts, src/drizzle/mysql.ts
+npx drizzle-kit push
+```
+
+Pass `dimahS3Tables` from that file to `defineRelations`. Add your own tables
+next to the spread.
+
+The tables carry the secondary indexes, so `drizzle-kit` creates those too.
+On MySQL, the tables set the same collations as `sql/mysql.sql`:
+`utf8mb4_bin`, so keys and folders compare byte for byte, and
+`utf8mb4_unicode_ci` on `filename`, so search ignores case.
+
+### Import the tables
+
+Leave the tables as published and re-export them. `drizzle-kit` follows the
+import, and a later push drops a column that is not part of it.
 
 ```ts title="db/schema.ts"
 import { dimahS3Tables } from "@dimah-s3/db/drizzle/sqlite"; // or /pg, /mysql
 
 export const { storageObject, storageFolder, private_dimah_s3_settings } =
   dimahS3Tables;
-
-// Your own tables go here.
 ```
-
-Keep the three names as they are. The adapter finds the tables by these
-keys, and it reads the schema version from `private_dimah_s3_settings`.
-
-```bash
-npx drizzle-kit push
-```
-
-The tables carry the secondary indexes, so `drizzle-kit` creates those too.
-On MySQL, the tables set the same collations as `sql/mysql.sql`:
-`utf8mb4_bin`, so keys and folders compare byte for byte, and
-`utf8mb4_unicode_ci` on `filename`, so search ignores case.

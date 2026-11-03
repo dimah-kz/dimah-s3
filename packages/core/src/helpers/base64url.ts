@@ -1,5 +1,9 @@
-/** Bytes per `String.fromCharCode` call, well under engine argument limits. */
-const CHUNK_SIZE = 0x8000;
+/**
+ * Bytes per `String.fromCharCode` call. A larger spread spends more time
+ * building the argument list than encoding, which stalls inputs of a few
+ * hundred kilobytes.
+ */
+const CHUNK_SIZE = 0x1000;
 
 const BASE64URL_PATTERN = /^[\w-]*$/;
 
@@ -10,13 +14,13 @@ const encoder = new TextEncoder();
  * workers, and Node without `Buffer`.
  */
 export function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
+  const parts: string[] = [];
   for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
-    binary += String.fromCharCode(
-      ...bytes.subarray(offset, offset + CHUNK_SIZE),
+    parts.push(
+      String.fromCharCode(...bytes.subarray(offset, offset + CHUNK_SIZE)),
     );
   }
-  return btoa(binary);
+  return btoa(parts.join(""));
 }
 
 /**

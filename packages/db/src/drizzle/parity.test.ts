@@ -311,6 +311,15 @@ it("keeps the shared schema version in sync with FumaDB", () => {
   expect(DIMAH_S3_SCHEMA_VERSION).toBe(DB_SCHEMA_VERSION);
 });
 
+it("matches the sqlite schema copied into examples/with-db", () => {
+  const source = readFileSync(join(import.meta.dirname, "sqlite.ts"), "utf8");
+  const example = readFileSync(
+    join(import.meta.dirname, "../../../../examples/with-db/db/schema.ts"),
+    "utf8",
+  );
+  expect(example).toBe(source);
+});
+
 describe("FumaDB Drizzle adapter on the shipped tables", () => {
   const cleanups: (() => Promise<void> | void)[] = [];
   afterEach(async () => {

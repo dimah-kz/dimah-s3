@@ -1,10 +1,21 @@
 /**
- * Drizzle tables for @dimah-s3/db schema 2.0.0 on MySQL 8. They match the
- * columns, collations and indexes of `sql/mysql.sql`, including the prefix
- * indexes on `key`, `folder`, `path` and `parent`. Keys, folders and
+ * Drizzle schema for @dimah-s3/db on MySQL 8. Copy this file into your app
+ * (`db/schema.ts`) to own the tables and add columns. Keep the table names,
+ * the column names, and the `dimahS3Tables` keys: the adapter finds the
+ * tables by those keys. A column you add must be nullable or have a default.
+ * The plugin does not read or write it.
+ *
+ * Import `dimahS3Tables` from `@dimah-s3/db/drizzle/mysql` when the tables
+ * stay as they are. `drizzle-kit` then follows that import, and a later push
+ * drops a column that is not part of it.
+ *
+ * Columns, collations and indexes match `sql/mysql.sql`, including the
+ * prefix indexes on `key`, `folder`, `path` and `parent`. Keys, folders and
  * scopes compare byte for byte (`utf8mb4_bin`), and file names
- * case-insensitively (`utf8mb4_unicode_ci`).
+ * case-insensitively (`utf8mb4_unicode_ci`). Requires `drizzle-orm` and
+ * `@paralleldrive/cuid2`.
  */
+import { createId } from "@paralleldrive/cuid2";
 import { sql } from "drizzle-orm";
 import {
   bigint,
@@ -17,14 +28,18 @@ import {
   varchar,
   type MySqlColumn,
 } from "drizzle-orm/mysql-core";
-import type { StorageObjectStatus } from "@/types/storage-object";
-import { DIMAH_S3_SCHEMA_VERSION, runtimeDefaults } from "./shared";
+
+type StorageObjectStatus = "pending" | "active" | "deleted" | "purging";
+
+const SCHEMA_VERSION = "2.0.0";
 
 /** Collation of every text column but `filename`: byte for byte. */
 const BINARY = "utf8mb4_bin";
 
 function id() {
-  return string("id").primaryKey().$defaultFn(runtimeDefaults.id);
+  return string("id")
+    .primaryKey()
+    .$defaultFn(() => createId());
 }
 
 function string(name: string, length = 255) {
@@ -39,7 +54,7 @@ function timestampNow(name: string) {
   return timestamp(name)
     .notNull()
     .default(sql`CURRENT_TIMESTAMP(3)`)
-    .$defaultFn(runtimeDefaults.now);
+    .$defaultFn(() => new Date());
 }
 
 function byteCount(name: string) {
@@ -142,10 +157,7 @@ export const storageFolder = mysqlTable(
  */
 export const dimahS3Settings = mysqlTable("private_dimah_s3_settings", {
   key: string("key").primaryKey(),
-  version: text("value")
-    .collate(BINARY)
-    .notNull()
-    .default(DIMAH_S3_SCHEMA_VERSION),
+  version: text("value").collate(BINARY).notNull().default(SCHEMA_VERSION),
 });
 
 /**
