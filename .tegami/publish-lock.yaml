@@ -1,36 +1,42 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Slash trimming stays fast\n\n`normalizeObjectKey`, `buildObjectKey`, `buildPublicObjectUrl`, and `normalizeS3ApiBasePath` still remove the same slashes as before. They no longer use a regular expression, so a long run of `/` in a key, public URL, or API base path cannot stall the process.\n"
-    filename: 2026-10-30-linear-slash-trim.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Docs at v1.s3.dimah.dev\n\nPackage homepages, the CLI link, and scaffolded registry entries use https://v1.s3.dimah.dev. New projects should use the 2.0 beta at https://s3.dimah.dev.\n"
+    filename: 2026-11-04-docs-domain.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-10-30-linear-slash-trim.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-10-30-linear-slash-trim.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-10-30-linear-slash-trim.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-10-30-linear-slash-trim.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/react
     updated: true
   - changelogIds:
-      - 2026-10-30-linear-slash-trim.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-10-30-linear-slash-trim.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
-  - id: npm:@dimah-s3/cli
-  - id: npm:@dimah-s3/core
-  - id: npm:@dimah-s3/db
-  - id: npm:@dimah-s3/react
-  - id: npm:@dimah-s3/server
-  - id: npm:@dimah-s3/ui
+  - distTag: latest
+    id: npm:@dimah-s3/cli
+  - distTag: latest
+    id: npm:@dimah-s3/core
+  - distTag: latest
+    id: npm:@dimah-s3/db
+  - distTag: latest
+    id: npm:@dimah-s3/react
+  - distTag: latest
+    id: npm:@dimah-s3/server
+  - distTag: latest
+    id: npm:@dimah-s3/ui
