@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/ui": minor
+  "@dimah-s3/ui":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/ui)
 ---
 
 ### Rename in the object list
