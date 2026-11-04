@@ -7,7 +7,7 @@ This is a Next.js application generated with
 
 1. **Root Directory:** `apps/docs` (enable _Include source files outside of the Root Directory_).
 2. **Node.js:** `24.x` in Vercel (matches `engines.node` `>=24` and CI).
-3. **Environment variables:** production canonical on `main` is `https://s3.dimah.dev`. A deploy of the `v2` branch uses `https://v2.s3.dimah.dev` (see `isV2BetaDeploy` in `src/lib/site-url.ts`). Set `NEXT_PUBLIC_SITE_URL` only on other previews or a local tunnel (see [`.env.example`](./.env.example)).
+3. **Environment variables:** the public canonical is `https://s3.dimah.dev` (`VERCEL_ENV=production` or git ref `v2`). `v2.s3.dimah.dev` redirects there. 1.x docs are `https://v1.s3.dimah.dev`. Set `NEXT_PUBLIC_SITE_URL` only on other previews or a local tunnel (see [`.env.example`](./.env.example)).
 4. `vercel.json` pins install/build for the monorepo (`turbo run build --filter=docs` from the repo root) and skips unaffected commits via `ignoreCommand` (`npx turbo-ignore`).
 
 Run development server:

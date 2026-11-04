@@ -12,7 +12,7 @@ packages:
 
 ### Folder ids in db()
 
-`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Create the schema on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded. Details are in each package changelog and in [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).
+`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Create the schema on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded. Details are in each package changelog and in [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade).
 
 #### Breaking changes
 

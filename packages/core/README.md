@@ -1,12 +1,12 @@
 # @dimah-s3/core
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x, and betas can include breaking changes until 2.0.0.
+**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
 
 The protocol, typed fetch client, error catalog, and pure helpers shared by
 `@dimah-s3/server` and `@dimah-s3/react`.
 
-Full documentation: [v2.s3.dimah.dev/docs/core](https://v2.s3.dimah.dev/docs/core) ·
-[llms.txt](https://v2.s3.dimah.dev/llms.txt)
+Full documentation: [s3.dimah.dev/docs/core](https://s3.dimah.dev/docs/core) ·
+[llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
 
@@ -46,11 +46,11 @@ options and adds a bound `Provider` and `useApi`.
 
 Every failure is an `APIError` with a stable `code` from `S3_ERROR_CODES`.
 Narrow it with `isS3ErrorCode(error, "OBJECT_NOT_FOUND")`. See
-[Errors](https://v2.s3.dimah.dev/docs/server/errors).
+[Errors](https://s3.dimah.dev/docs/server/errors).
 
 ## Upgrading from 1.7
 
-See [Upgrade to 2.0 beta](https://v2.s3.dimah.dev/docs/migration-2-0).
+See [Upgrade to 2.0 beta](https://s3.dimah.dev/docs/migration-2-0).
 
 ## License
 

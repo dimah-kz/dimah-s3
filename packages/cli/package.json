@@ -17,7 +17,7 @@
     "hono",
     "file-upload"
   ],
-  "homepage": "https://v2.s3.dimah.dev/docs/quickstart",
+  "homepage": "https://s3.dimah.dev/docs/quickstart",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
