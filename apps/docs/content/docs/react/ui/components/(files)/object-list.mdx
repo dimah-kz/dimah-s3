@@ -159,7 +159,7 @@ import {
 | `ObjectListUploadStatus` | Upload progress and errors                                                                                                |
 | `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                        |
 | `ObjectListEmpty`        | The empty state, with your own text or a call to action                                                                   |
-| `ObjectListItemMenu`     | Download, Copy link, your actions, and Delete for a file. Upload to this folder for a folder                              |
+| `ObjectListItemMenu`     | Download, Copy link, Rename, your actions, and Delete for a file. Upload to this folder and Rename for a folder           |
 
 ## Header
 
@@ -307,14 +307,14 @@ deleted one, else the one before it, else the frame.
 
 ## Keyboard
 
-| Key                     | Action                                     |
-| ----------------------- | ------------------------------------------ |
-| Arrow keys, Home, End   | Move between entries (by row in the grid)  |
-| Enter                   | Open the folder, or call `onOpenItem`      |
-| Space                   | Toggle the focused entry. Shift: the range |
-| Ctrl+A / Cmd+A          | Select every loaded entry                  |
-| Escape                  | Clear the selection                        |
-| Backspace / Alt+ArrowUp | Open the parent folder                     |
+| Key                     | Action                                      |
+| ----------------------- | ------------------------------------------- |
+| Arrow keys, Home, End   | Move between entries (by row in the grid)   |
+| Enter                   | Open the folder, or call `onOpenItem`       |
+| Space                   | Toggle the focused entry. Shift: the range  |
+| Ctrl+A / Cmd+A          | Select every loaded entry                   |
+| Escape                  | Clear the selection                         |
+| Backspace / Alt+ArrowUp | Open the parent folder                      |
 | F2                      | Rename the focused row, when the source can |
 
 Fields, menus, and dialogs inside the list keep their own keys.
