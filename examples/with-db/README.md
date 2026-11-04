@@ -35,7 +35,7 @@ Every request uses the scope `user:demo`. Return your session's user from `resol
 
 ## Scripts
 
-| Script          | Description                                                                                                                                               |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm db:push`  | Create or update the tables in SQLite (`DATABASE_PATH`, default `./local.db`)                                                                             |
+| Script          | Description                                                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm db:push`  | Create or update the tables in SQLite (`DATABASE_PATH`, default `./local.db`)                                                                          |
 | `pnpm db:purge` | Clean up unconfirmed uploads and prune soft-deleted rows: `s3.db.purgeStale()` and `s3.db.pruneDeleted()` ([docs](https://s3.dimah.dev/docs/db/purge)) |
