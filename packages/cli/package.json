@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/cli",
-  "version": "2.0.0-beta.3",
+  "version": "2.0.0-beta.4",
   "description": "Scaffold dimah-s3 apps from official templates",
   "keywords": [
     "s3",
