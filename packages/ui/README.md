@@ -1,12 +1,12 @@
 # @dimah-s3/ui
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x, and betas can include breaking changes until 2.0.0.
+**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
 
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).
 
-Full documentation: [v2.s3.dimah.dev/docs/react/ui](https://v2.s3.dimah.dev/docs/react/ui) ·
-[llms.txt](https://v2.s3.dimah.dev/llms.txt)
+Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react/ui) ·
+[llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
 
@@ -15,7 +15,7 @@ pnpm add @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-transl
 ```
 
 Requires React 19.2. Or copy items from the shadcn registry — see
-[UI Setup](https://v2.s3.dimah.dev/docs/react/ui).
+[UI Setup](https://s3.dimah.dev/docs/react/ui).
 
 ## Styles
 
@@ -40,7 +40,7 @@ The tokens are `background`, `foreground`, `card`, `card-foreground`,
 `border`, `ring`, `destructive`, `success` and `warning`. `success` and
 `warning` read your theme's `--success` / `--warning` when it defines them, and
 fall back to a green and an amber otherwise. See
-[Theming](https://v2.s3.dimah.dev/docs/react/ui/customization/theming).
+[Theming](https://s3.dimah.dev/docs/react/ui/customization/theming).
 
 ## Quick start
 

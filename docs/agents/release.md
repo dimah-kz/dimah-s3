@@ -8,16 +8,16 @@ All `@dimah-s3/*` published packages version **together** (`group: dimah-s3` wit
 
 | Branch | Versions       | npm dist-tag | Install                      | Docs                                            |
 | ------ | -------------- | ------------ | ---------------------------- | ----------------------------------------------- |
-| `main` | 1.x            | `latest`     | `npm i @dimah-s3/react`      | [s3.dimah.dev](https://s3.dimah.dev/docs)       |
-| `v2`   | `2.0.0-beta.N` | `beta`       | `npm i @dimah-s3/react@beta` | [v2.s3.dimah.dev](https://v2.s3.dimah.dev/docs) |
+| `main` | 1.x            | `latest`     | `npm i @dimah-s3/react`      | [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs) |
+| `v2`   | `2.0.0-beta.N` | `beta`       | `npm i @dimah-s3/react@beta` | [s3.dimah.dev](https://s3.dimah.dev/docs)       |
 
 Only `main` may use the `latest` dist-tag. While `v2` is a beta, every bump advances `2.0.0-beta.N` and can include breaking changes. The first changelog that enters that line must be `major`, so the version is `2.0.0-beta.0` rather than `1.8.0-beta.0`. Install a beta with the dist-tag or an exact version. A caret range on a prerelease does not track the line.
 
 Feature work for 2.0 branches from `v2` and merges back there. 1.x fixes branch from `main`. Cherry-pick the change and its `.tegami` file onto the other line when both need it. Never cherry-pick a Version Packages commit (`package.json` versions, `CHANGELOG.md`, and `.tegami/publish-lock.yaml` belong to one line).
 
-When 2.0.0 is ready, merge `v2` into `main`. `main` has no `prerelease`, so the next publish drops the suffix and moves `latest` to `2.0.0`. Before that merge, cut `v1` from the last 1.x commit, add `v1: { distTag: "v1" }` to `lines`, and add `v1` to the CI and Publish branch lists. Point `s3.dimah.dev` at `main` and `v1.s3.dimah.dev` at the `v1` branch. See [Multiple Release Lines](https://tegami.fuma-nama.dev/multi-version).
+When 2.0.0 is ready, merge `v2` into `main`. `main` has no `prerelease`, so the next publish drops the suffix and moves `latest` to `2.0.0`. Before that merge, cut `v1` from the last 1.x commit, add `v1: { distTag: "v1" }` to `lines`, and add `v1` to the CI and Publish branch lists. `s3.dimah.dev` already serves the `v2` line and `v1.s3.dimah.dev` serves `main`. After the merge, point `s3.dimah.dev` at `main` and `v1.s3.dimah.dev` at the `v1` branch. See [Multiple Release Lines](https://tegami.fuma-nama.dev/multi-version).
 
-Docs for `v2` deploy from that branch. In the docs Vercel project, add `v2.s3.dimah.dev`, assign it to Git branch `v2`, and make that domain public (Deployment Protection does not cover preview domains unless you add an exception). The app treats `VERCEL_GIT_COMMIT_REF=v2` as the beta origin, including when Vercel marks the deployment as Preview.
+Docs for this line deploy from the `dimah-s3-docs-v2` Vercel project. `s3.dimah.dev` is the canonical origin. `v2.s3.dimah.dev` redirects there. 1.x docs deploy from `dimah-s3-docs` at `v1.s3.dimah.dev`. The app treats `VERCEL_ENV=production` or `VERCEL_GIT_COMMIT_REF=v2` as `https://s3.dimah.dev`, including when Vercel marks the `v2` deployment as Preview.
 
 Prose: [changelog.md](./changelog.md). File format: [Tegami changelogs](https://tegami.fuma-nama.dev/changelog). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files directly.
 

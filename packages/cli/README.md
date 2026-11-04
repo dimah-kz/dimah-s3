@@ -1,10 +1,10 @@
 # `@dimah-s3/cli`
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x, and betas can include breaking changes until 2.0.0.
+**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
 
-Scaffold an official [dimah-s3](https://v2.s3.dimah.dev/docs) starter.
+Scaffold an official [dimah-s3](https://s3.dimah.dev/docs) starter.
 
-[Docs](https://v2.s3.dimah.dev/docs/quickstart) · [llms.txt](https://v2.s3.dimah.dev/llms.txt)
+[Docs](https://s3.dimah.dev/docs/quickstart) · [llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Usage
 

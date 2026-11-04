@@ -13,7 +13,7 @@ import {
   siteTitle,
 } from "@/lib/shared";
 import { Banner } from "fumadocs-ui/components/banner";
-import { getSiteUrl, isProductionDeploy, isV2BetaDeploy } from "@/lib/site-url";
+import { getSiteUrl, isPublicDocsDeploy } from "@/lib/site-url";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -23,8 +23,7 @@ const fontSans = Geist({
 });
 
 const siteUrl = getSiteUrl();
-const isProduction = isProductionDeploy();
-const indexable = isProduction || isV2BetaDeploy();
+const indexable = isPublicDocsDeploy();
 
 /** Home and docs are prerendered. Request-time rendering fails the build. */
 export const ensureStatic = "navigation";
@@ -82,11 +81,13 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
-        <Banner id="dimah-s3-v2-beta" variant="rainbow">
-          You are viewing the 2.0 beta.{" "}
-          <a href="https://s3.dimah.dev/docs" className="underline">
-            Stable 1.x docs
-          </a>
+        <Banner id="dimah-s3-beta" variant="rainbow">
+          <span>
+            You are viewing the 2.0 beta.{" "}
+            <a href="https://v1.s3.dimah.dev/docs" className="underline">
+              1.x docs
+            </a>
+          </span>
         </Banner>
         <RootProvider
           theme={{

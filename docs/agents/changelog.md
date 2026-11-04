@@ -39,7 +39,7 @@ packages:
 
 ### Folder ids in db()
 
-`@dimah-s3/db` schema `2.1.0` addresses a folder by id. Each package changelog lists its own changes. The [upgrade guide](https://v2.s3.dimah.dev/docs/migration-2-0) walks through the move.
+`@dimah-s3/db` schema `2.1.0` addresses a folder by id. Each package changelog lists its own changes. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0) walks through the move.
 ```
 
 Title: the outcome, sentence case, no period. `Signed upload tickets`, `Proxy downloads finish`, `Next.js starter lints on TypeScript 6`.

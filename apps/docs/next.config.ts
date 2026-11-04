@@ -4,8 +4,13 @@ import { PRODUCTION_SITE_ORIGIN } from "./src/lib/site-url";
 
 const withMDX = createMDX();
 
-/** Old hosts that were indexed. One 308 onto https://s3.dimah.dev. */
-const alternateHosts = ["dimah-s3.vercel.app", "www.s3.dimah.dev"] as const;
+/** Hosts that should not be canonical. One 308 onto https://s3.dimah.dev. */
+const alternateHosts = [
+  "v2.s3.dimah.dev",
+  "www.s3.dimah.dev",
+  "dimah-s3.vercel.app",
+  "dimah-s3-docs-v2.vercel.app",
+] as const;
 
 /** Docs pages removed in the 2.0 beta, mapped onto the page that replaced them. */
 const movedPages = {
