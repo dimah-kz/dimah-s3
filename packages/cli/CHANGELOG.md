@@ -1,3 +1,9 @@
+## @dimah-s3/cli@2.0.0-beta.3 (beta)
+
+### Next.js starter lints on TypeScript 6
+
+The Next.js starter pins `typescript` to `^6.0.2` again. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` made `eslint` exit before it checked the project.
+
 ## @dimah-s3/cli@2.0.0-beta.2 (beta)
 
 ### Folder ids in db()

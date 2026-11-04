@@ -1,51 +1,44 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: major\n---\n\n### Folder ids in db()\n\n`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Recreate the database; a `2.0.0` beta database is not upgraded. Details are in each package changelog and in [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).\n\n#### Breaking changes\n\n- **Keep every `@dimah-s3/*` package on this beta.** `folder` on a `db()` object is now `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.\n"
-    filename: 2026-11-03-folder-ids-line.md
+  - content: "---\npackages:\n  \"@dimah-s3/cli\":\n    type: patch\n---\n\n### Next.js starter lints on TypeScript 6\n\nThe Next.js starter pins `typescript` to `^6.0.2` again. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` made `eslint` exit before it checked the project.\n"
+    filename: 2026-11-03-nextjs-starter-typescript.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: minor\n---\n\n### Folder not found\n\n`FOLDER_NOT_FOUND` (`404`) is the error when a folder id is not in the caller's scope.\n"
-    filename: 2026-11-03-folder-not-found.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Rename from the database list\n\n`dbObjectSource` renames a file with `api.db.updateObject` (`filename`, same `key` and `bucket`) and a folder with `api.db.updateFolder` (`name`). The stored object key stays. `folders: false` still renames files. A folder name that cannot be one path segment fails with `FOLDER_INVALID` before the request. The methods are set when `api.db` has those actions.\n"
+    filename: 2026-11-04-list-rename-db.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n---\n\n### Folders are rows with ids\n\nA folder is its id. An object stores `folderId` instead of a path. Renaming or moving a folder rewrites the cached paths under it and leaves every object id as it is. `PATCH /db/folder` renames (`name`) and moves (`parentId`). `createFolder` creates one folder inside a parent that already exists. An upload's `clientMetadata.folderId` must name that folder. The list's first page includes `trail`, from the root down to the open folder.\n\nThe database schema is `2.1.0`. Create it on a new database. A `2.0.0` beta database is not upgraded.\n\n#### Breaking changes\n\n- **Schema `2.1.0` replaces `2.0.0`.** `storage_object.folder` is now `folder_id`. `storage_folder` stores `parent_id` (`\"\"` is the root), `name`, and a cached `path`, plus `updated_at`. Recreate the tables from `sql/<dialect>.sql`, the Drizzle or Prisma schema, or `migrate(client)` on an empty database. A database at `2.0.0` throws.\n- **Folder addresses are ids.** `GET /db/objects` takes `folderId` (`\"\"` is the root). `PATCH /db/object` takes `folderId`. `POST /db/folder` takes `{ parentId, name }`. `PATCH /db/folder` takes `{ id, name?, parentId? }`. `DELETE /db/folder` takes `id`. `DbClientObject.folder` is `folderId`. `DbClientFolder` is `{ id, name, parentId, path, createdAt, updatedAt }`.\n- **Uploads no longer create folders.** Set `clientMetadata.folderId` to an existing folder. A missing id is `FOLDER_NOT_FOUND` (`404`). `s3.db.folders.ensure` is removed. `create` takes `{ parentId, name }`, and `update` renames or moves.\n- **`dbObjectSource` parents are folder ids.** Uploads send `metadata.folderId`. The first page's `trail` fills the breadcrumb.\n"
-    filename: 2026-11-03-db-folder-ids.md
+  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: minor\n---\n\n### Rename a listed file or folder\n\n`useObjectList` renames through the source. `renameFile({ item, name })` and `renameFolder({ folder, name })` turn on `list.renameFile(item, name)` and `list.renameFolder(folder, name)`. Return the updated row and the list shows it. Leave the return out and the list reloads. A sort on `name`, or a search, reloads either way. An unchanged name does not call the source.\n"
+    filename: 2026-11-04-list-rename-react.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: minor\n---\n\n### Breadcrumb from the list page\n\nWhen the first page of `useObjectList` includes `trail`, the hook shows those folder names. A source that omits `trail` keeps the trail built while navigating. `dbObjectSource` sends the trail, so a deep link opens with the real names.\n"
-    filename: 2026-11-03-list-trail.md
+  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### Rename in the object list\n\n`ObjectList` adds Rename to a row when that row's source can rename it. The name becomes a field. Enter saves, Escape or Cancel restores the name, and leaving the field saves it. F2 starts the rename from the row. Download and Copy link then send the saved name.\n"
+    filename: 2026-11-04-list-rename-ui.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-11-03-folder-ids-line.md
-      - 2026-11-03-folder-not-found.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-11-03-folder-ids-line.md
+      - 2026-11-03-nextjs-starter-typescript.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-11-03-db-folder-ids.md
-      - 2026-11-03-folder-ids-line.md
+      - 2026-11-04-list-rename-db.md
     id: npm:@dimah-s3/db
     updated: true
+  - id: npm:@dimah-s3/core
+    updated: true
   - changelogIds:
-      - 2026-11-03-folder-ids-line.md
-      - 2026-11-03-list-trail.md
+      - 2026-11-04-list-rename-react.md
     id: npm:@dimah-s3/react
     updated: true
-  - changelogIds:
-      - 2026-11-03-folder-ids-line.md
-    id: npm:@dimah-s3/server
+  - id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-11-03-folder-ids-line.md
+      - 2026-11-04-list-rename-ui.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: beta
-    id: npm:@dimah-s3/core
-  - distTag: beta
     id: npm:@dimah-s3/cli
   - distTag: beta
     id: npm:@dimah-s3/db
+  - distTag: beta
+    id: npm:@dimah-s3/core
   - distTag: beta
     id: npm:@dimah-s3/react
   - distTag: beta
