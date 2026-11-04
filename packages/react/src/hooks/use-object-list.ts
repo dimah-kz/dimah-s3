@@ -114,7 +114,8 @@ export type UseObjectListReturn<TItem> = {
    * or a search reloads afterwards, and so does a source that returns
    * nothing. Set when the source has `renameFile`.
    */
-  renameFile: ((item: TItem, name: string) => Promise<TItem | void>) | undefined;
+  renameFile:
+    ((item: TItem, name: string) => Promise<TItem | void>) | undefined;
   /**
    * Renames a folder through the source, replaces the loaded row, and
    * updates that id in the breadcrumb. Rejects with an `APIError`. The
@@ -580,7 +581,8 @@ export function useObjectList<TItem>(
         const currentTrail = trailRef.current;
         if (
           currentTrail.some(
-            (entry) => entry.id === folder.id && entry.name !== replacement.name,
+            (entry) =>
+              entry.id === folder.id && entry.name !== replacement.name,
           )
         ) {
           const renamedTrail = currentTrail.map((entry) =>

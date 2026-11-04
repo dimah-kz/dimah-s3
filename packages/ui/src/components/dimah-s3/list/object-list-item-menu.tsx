@@ -235,7 +235,8 @@ export function ObjectListItemMenu({
             {children}
           </DropdownMenuGroup>
         ) : null}
-        {remove && (showTransfer || uploadToFolder || canRename || showExtra) ? (
+        {remove &&
+        (showTransfer || uploadToFolder || canRename || showExtra) ? (
           <DropdownMenuSeparator />
         ) : null}
         {remove ? (

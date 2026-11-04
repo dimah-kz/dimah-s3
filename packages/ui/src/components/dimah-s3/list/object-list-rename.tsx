@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FocusEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FocusEvent,
+  type FormEvent,
+} from "react";
 import {
   useFormatDimahError,
   type ObjectListEntry,
@@ -53,7 +60,9 @@ export function ObjectListRenameField<TItem>({
     const input = inputRef.current;
     if (!input) return;
     input.focus();
-    const end = folder ? entry.name.length : splitFileName(entry.name).stem.length;
+    const end = folder
+      ? entry.name.length
+      : splitFileName(entry.name).stem.length;
     input.setSelectionRange(0, end);
   }, [entry.name, folder]);
 

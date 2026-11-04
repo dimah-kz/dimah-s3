@@ -7,7 +7,10 @@ import { cn } from "cn";
 const FILE_EXTENSION = /^\.[a-z0-9]{1,8}$/i;
 
 /** The stem, and a short extension kept visible while the stem shortens. */
-export function splitFileName(name: string): { stem: string; extension: string } {
+export function splitFileName(name: string): {
+  stem: string;
+  extension: string;
+} {
   const dot = name.lastIndexOf(".");
   if (dot <= 0) return { stem: name, extension: "" };
   const extension = name.slice(dot);

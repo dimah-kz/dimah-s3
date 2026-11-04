@@ -1259,9 +1259,7 @@ describe("ObjectList", () => {
       expect((await screen.findByRole("alert")).textContent).toBe(
         "Invalid request",
       );
-      expect(
-        screen.getByRole("textbox", { name: "File name" }),
-      ).toBeDefined();
+      expect(screen.getByRole("textbox", { name: "File name" })).toBeDefined();
     });
 
     it("renames a folder", async () => {
@@ -1290,9 +1288,7 @@ describe("ObjectList", () => {
         folder: { id: "docs", name: "docs" },
         name: "notes",
       });
-      expect(
-        screen.getByRole("button", { name: "notes" }),
-      ).toBeDefined();
+      expect(screen.getByRole("button", { name: "notes" })).toBeDefined();
     });
   });
 
