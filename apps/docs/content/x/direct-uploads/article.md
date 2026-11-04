@@ -1,6 +1,6 @@
 ---
 slug: direct-uploads
-canonical: https://s3.dimah.dev/blog/direct-uploads
+canonical: https://v1.s3.dimah.dev/blog/direct-uploads
 title: Direct uploads to an S3 bucket you own
 subtitle: The server signs a short-lived URL. The browser talks to your S3 bucket. Credentials stay on the server.
 cover: cover.png

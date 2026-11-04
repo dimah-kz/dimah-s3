@@ -4,8 +4,8 @@ import { PRODUCTION_SITE_ORIGIN } from "./src/lib/site-url";
 
 const withMDX = createMDX();
 
-/** Old hosts that were indexed. One 308 onto https://s3.dimah.dev. */
-const alternateHosts = ["dimah-s3.vercel.app", "www.s3.dimah.dev"] as const;
+/** Old host for this project. One 308 onto https://v1.s3.dimah.dev. */
+const alternateHosts = ["dimah-s3.vercel.app"] as const;
 
 type PermanentRedirect = {
   source: string;

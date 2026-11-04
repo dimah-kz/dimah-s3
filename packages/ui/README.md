@@ -1,10 +1,12 @@
 # @dimah-s3/ui
 
+**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/react/ui) (`npm i @dimah-s3/ui@beta`).
+
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).
 
-Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react/ui) ·
-[llms.txt](https://s3.dimah.dev/llms.txt)
+Full documentation: [v1.s3.dimah.dev/docs/react/ui](https://v1.s3.dimah.dev/docs/react/ui) ·
+[llms.txt](https://v1.s3.dimah.dev/llms.txt)
 
 ## Install
 
@@ -13,7 +15,7 @@ pnpm add @dimah-s3/ui @dimah-s3/react shadcn
 ```
 
 Or copy items from the shadcn registry — see
-[UI Setup](https://s3.dimah.dev/docs/react/ui).
+[UI Setup](https://v1.s3.dimah.dev/docs/react/ui).
 
 ## Styles
 
@@ -25,7 +27,7 @@ Import once in your CSS (Tailwind v4 source scan + shadcn color bridge):
 
 Colors default to your shadcn theme (`--primary`, `--muted`, …). Override
 `--color-dimah-s3-*` to theme the library alone — see
-[Theming](https://s3.dimah.dev/docs/react/ui/customization/theming).
+[Theming](https://v1.s3.dimah.dev/docs/react/ui/customization/theming).
 
 ## Quick start
 

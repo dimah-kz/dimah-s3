@@ -1,9 +1,11 @@
 # @dimah-s3/server
 
+**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/server) (`npm i @dimah-s3/server@beta`).
+
 Presigned S3 handlers with HTTP `handler`, direct `api`, and an optional `plugins` array.
 
-Full documentation: [s3.dimah.dev/docs/server](https://s3.dimah.dev/docs/server) ·
-[llms.txt](https://s3.dimah.dev/llms.txt)
+Full documentation: [v1.s3.dimah.dev/docs/server](https://v1.s3.dimah.dev/docs/server) ·
+[llms.txt](https://v1.s3.dimah.dev/llms.txt)
 
 ## Install
 
@@ -45,7 +47,7 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 // Node http — @dimah-s3/server/node → toNodeHandler
 ```
 
-See [Server Setup](https://s3.dimah.dev/docs/server/setup) for full examples.
+See [Server Setup](https://v1.s3.dimah.dev/docs/server/setup) for full examples.
 
 Server-side (no HTTP):
 

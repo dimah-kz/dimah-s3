@@ -1,9 +1,11 @@
 # @dimah-s3/core
 
+**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/core) (`npm i @dimah-s3/core@beta`).
+
 Shared protocol, typed API client, and pure helpers used by `@dimah-s3/server` and `@dimah-s3/react`.
 
-Full documentation: [s3.dimah.dev/docs/core](https://s3.dimah.dev/docs/core) ·
-[llms.txt](https://s3.dimah.dev/llms.txt)
+Full documentation: [v1.s3.dimah.dev/docs/core](https://v1.s3.dimah.dev/docs/core) ·
+[llms.txt](https://v1.s3.dimah.dev/llms.txt)
 
 ## Install
 

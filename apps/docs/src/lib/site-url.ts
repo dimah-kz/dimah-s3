@@ -1,5 +1,5 @@
-/** Canonical production origin. Preview deploys still use VERCEL_URL. */
-export const PRODUCTION_SITE_ORIGIN = "https://s3.dimah.dev";
+/** Canonical origin for the 1.x docs. Preview deploys still use VERCEL_URL. */
+export const PRODUCTION_SITE_ORIGIN = "https://v1.s3.dimah.dev";
 
 export function isProductionDeploy(): boolean {
   return process.env.VERCEL_ENV === "production";
