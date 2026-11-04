@@ -1,8 +1,10 @@
 # `@dimah-s3/cli`
 
-Scaffold an official [dimah-s3](https://s3.dimah.dev/docs) starter.
+**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/quickstart) (`npx @dimah-s3/cli@beta create`).
 
-[Docs](https://s3.dimah.dev/docs/quickstart) · [llms.txt](https://s3.dimah.dev/llms.txt)
+Scaffold an official [dimah-s3](https://v1.s3.dimah.dev/docs) starter.
+
+[Docs](https://v1.s3.dimah.dev/docs/quickstart) · [llms.txt](https://v1.s3.dimah.dev/llms.txt)
 
 ## Usage
 

@@ -1,9 +1,11 @@
 # @dimah-s3/react
 
+**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/react) (`npm i @dimah-s3/react@beta`).
+
 Headless React hooks for S3 upload, download, and delete flows.
 
-Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) ·
-[llms.txt](https://s3.dimah.dev/llms.txt)
+Full documentation: [v1.s3.dimah.dev/docs/react](https://v1.s3.dimah.dev/docs/react) ·
+[llms.txt](https://v1.s3.dimah.dev/llms.txt)
 
 ## Install
 

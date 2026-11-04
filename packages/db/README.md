@@ -1,8 +1,10 @@
 # @dimah-s3/db
 
+**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/db) (`npm i @dimah-s3/db@beta`).
+
 Optional FumaDB persistence for [dimah-s3](https://github.com/dimah-kz/dimah-s3) — `storage_object` table via the `db()` plugin.
 
-**Docs:** [Database Setup](https://s3.dimah.dev/docs/db/setup) · [Database Lifecycle Hooks](https://s3.dimah.dev/docs/db/lifecycle-hooks) · [llms.txt](https://s3.dimah.dev/llms.txt) · **Example:** [`examples/with-db`](../../examples/with-db)
+**Docs:** [Database Setup](https://v1.s3.dimah.dev/docs/db/setup) · [Database Lifecycle Hooks](https://v1.s3.dimah.dev/docs/db/lifecycle-hooks) · [llms.txt](https://v1.s3.dimah.dev/llms.txt) · **Example:** [`examples/with-db`](../../examples/with-db)
 
 ```ts
 import { DimahS3DB, db } from "@dimah-s3/db";

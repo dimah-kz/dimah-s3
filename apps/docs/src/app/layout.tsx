@@ -81,13 +81,13 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
-        <Banner id="dimah-s3-v2-beta-announce" variant="rainbow">
-          <a href="https://v2.s3.dimah.dev/docs" className="underline">
-            2.0 beta is ready
-          </a>
-          {
-            " — install with @beta. It can include breaking changes until 2.0.0."
-          }
+        <Banner id="dimah-s3-beta" variant="rainbow">
+          <span>
+            <a href="https://s3.dimah.dev/docs" className="underline">
+              2.0 beta
+            </a>
+            {" is ready. Install with @beta."}
+          </span>
         </Banner>
         <RootProvider
           theme={{

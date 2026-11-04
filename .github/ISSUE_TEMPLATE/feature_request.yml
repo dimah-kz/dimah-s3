@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please check the [stable docs](https://s3.dimah.dev/docs), the [2.0 beta docs](https://v2.s3.dimah.dev/docs), and existing issues first.
+        Please check the [2.0 beta docs](https://s3.dimah.dev/docs), the [1.x docs](https://v1.s3.dimah.dev/docs), and existing issues first.
         Questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions).
   - type: dropdown
     id: line

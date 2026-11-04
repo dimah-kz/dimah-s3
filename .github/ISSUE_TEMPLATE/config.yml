@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Documentation
-    url: https://s3.dimah.dev/docs
-    about: Stable 1.x usage, API, and examples
   - name: 2.0 beta docs
-    url: https://v2.s3.dimah.dev/docs
-    about: The moving 2.0 beta (npm @beta). It can include breaking changes until 2.0.0
+    url: https://s3.dimah.dev/docs
+    about: Current docs. New projects should install with the beta tag.
+  - name: 1.x docs
+    url: https://v1.s3.dimah.dev/docs
+    about: The 1.x line (`npm install`)
   - name: Security reports
     url: https://github.com/dimah-kz/dimah-s3/security/advisories/new
     about: Report a vulnerability privately (do not open a public issue)

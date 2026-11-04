@@ -18,7 +18,7 @@
     "fumadb",
     "typescript"
   ],
-  "homepage": "https://s3.dimah.dev/docs/db",
+  "homepage": "https://v1.s3.dimah.dev/docs/db",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },

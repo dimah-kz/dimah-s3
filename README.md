@@ -2,9 +2,9 @@
 
 [![npm version](https://img.shields.io/npm/v/@dimah-s3/server?style=flat-square&logo=npm&logoColor=white&label=npm&color=CB3837)](https://www.npmjs.com/package/@dimah-s3/server)
 [![GitHub stars](https://img.shields.io/github/stars/dimah-kz/dimah-s3?style=flat-square&logo=github&logoColor=white&label=stars&color=F5C518)](https://github.com/dimah-kz/dimah-s3)
-[![documentation](https://img.shields.io/badge/docs-s3.dimah.dev-0F766E?style=flat-square&logo=readthedocs&logoColor=white&label=documentation)](https://s3.dimah.dev/docs)
+[![documentation](https://img.shields.io/badge/docs-v1.s3.dimah.dev-0F766E?style=flat-square&logo=readthedocs&logoColor=white&label=documentation)](https://v1.s3.dimah.dev/docs)
 
-**Full-stack S3 toolkit for the React ecosystem.**
+**Full-stack S3 toolkit for the React ecosystem.** This is the 1.x line. New projects should use the [2.0 beta](https://s3.dimah.dev/docs) (`npm i @dimah-s3/react@beta`).
 
 Server handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com)
 UI, and an optional database plugin. You pass in your own AWS SDK `S3Client`.
@@ -19,9 +19,9 @@ Presign flows only. Anything else stays in your own backend with
 
 ## Docs
 
-[s3.dimah.dev](https://s3.dimah.dev/docs) ·
-[Comparison](https://s3.dimah.dev/docs/comparison) ·
-[llms.txt](https://s3.dimah.dev/llms.txt) (coding agents)
+[v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs) ·
+[Comparison](https://v1.s3.dimah.dev/docs/comparison) ·
+[llms.txt](https://v1.s3.dimah.dev/llms.txt) (coding agents)
 
 ## Contributing
 

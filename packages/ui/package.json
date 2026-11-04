@@ -19,7 +19,7 @@
     "nextjs",
     "components"
   ],
-  "homepage": "https://s3.dimah.dev/docs/react/ui",
+  "homepage": "https://v1.s3.dimah.dev/docs/react/ui",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
