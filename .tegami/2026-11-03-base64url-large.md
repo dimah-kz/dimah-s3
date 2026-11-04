@@ -5,6 +5,6 @@ packages:
       - exit-prerelease(npm:@dimah-s3/core)
 ---
 
-### Fix base64url on large inputs
+### Large base64url values finish
 
-Encoding and decoding a large base64url value no longer stalls.
+Encoding and decoding a large base64url value finishes instead of stalling.

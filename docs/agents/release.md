@@ -19,7 +19,7 @@ When 2.0.0 is ready, merge `v2` into `main`. `main` has no `prerelease`, so the 
 
 Docs for `v2` deploy from that branch. In the docs Vercel project, add `v2.s3.dimah.dev`, assign it to Git branch `v2`, and make that domain public (Deployment Protection does not cover preview domains unless you add an exception). The app treats `VERCEL_GIT_COMMIT_REF=v2` as the beta origin, including when Vercel marks the deployment as Preview.
 
-Format details: [Tegami changelogs](https://tegami.fuma-nama.dev/changelog). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files directly.
+Prose: [changelog.md](./changelog.md). File format: [Tegami changelogs](https://tegami.fuma-nama.dev/changelog). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files directly.
 
 ## When to add a changelog
 
@@ -31,20 +31,7 @@ pnpm tegami
 
 Or write a Markdown file under `.tegami/` as `YYYY-MM-DD-{hash}.md`. Prefer `group:dimah-s3` when the whole line should bump.
 
-Skip for repo-only docs, CI/config, or typos with no package output impact.
-
-Frontmatter needs `packages`. Body needs at least one `#` / `##` / `###` heading. Write from the **npm consumer** perspective.
-
-```md
----
-packages:
-  group:dimah-s3: patch
----
-
-### Fix button hover state
-
-The hover color now matches the design system.
-```
+Skip for repo-only docs, CI/config, or typos with no package output impact. How to write the file: [changelog.md](./changelog.md).
 
 Package references: `"@dimah-s3/core"`, `"npm:@dimah-s3/core"`, or `"group:dimah-s3"` (preferred for line-wide bumps).
 
@@ -56,26 +43,10 @@ Package references: `"@dimah-s3/core"`, `"npm:@dimah-s3/core"`, or `"group:dimah
 | minor | Backward-compatible feature               |
 | major | Breaking API, types, or consumer contract |
 
-The maintainer picks the bump. On `main`, a breaking change is a `major`. On `v2`, the version stays `2.0.0-beta.N` after the line has started, including when a changelog is `major`. A breaking change is never silent:
+The maintainer picks the bump. On `main`, a breaking change is a `major`. On `v2`, the version stays `2.0.0-beta.N` after the line has started, including when a changelog is `major`. A breaking change is never silent: [changelog.md](./changelog.md).
 
-- List it under a `#### Breaking changes` heading in the package's changelog, with a short migration note (old name → new name, or what to do instead).
 - Write one file per changed package (`"@dimah-s3/<pkg>": minor`), plus one `group:dimah-s3` file with the upgrade overview when the whole line moves.
 - Add or update the docs upgrade page (`apps/docs/content/docs/(framework)/migration-<version>.mdx`) and link it from the group file.
-
-```md
----
-packages:
-  "@dimah-s3/server": minor
----
-
-### Signed upload tickets
-
-Presign returns a signed upload ticket, and confirm verifies it.
-
-#### Breaking changes
-
-- **A secret is required for uploads.** Set `DIMAH_S3_SECRET` or pass `dimahS3({ secret })`.
-```
 
 ## Exact peers
 

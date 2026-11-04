@@ -55,7 +55,7 @@ When your PR changes behavior, API, or package output, add a changelog:
 pnpm tegami
 ```
 
-Then choose the package(s) / `group:dimah-s3` and bump type:
+Then choose the package(s) / `group:dimah-s3` and bump type. Write the note with [docs/agents/changelog.md](docs/agents/changelog.md).
 
 - `patch`: bug fixes, small improvements, non-breaking behavior updates.
 - `minor`: new backward-compatible features.

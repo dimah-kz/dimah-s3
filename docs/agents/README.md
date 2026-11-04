@@ -16,5 +16,6 @@ If an agent can see it in source (paths, schemas, hook names, current endpoints)
 | [packages.md](./packages.md)         | Protocol, endpoint, plugin, or hook             |
 | [registry.md](./registry.md)         | UI or shadcn registry item                      |
 | [cli.md](./cli.md)                   | Scaffold CLI / templates                        |
-| [release.md](./release.md)           | Tegami changelog / version bump                 |
+| [changelog.md](./changelog.md)       | Writing or editing a `.tegami` changelog        |
+| [release.md](./release.md)           | Tegami version bump / publish                   |
 | [brand.md](./brand.md)               | Brand studio still / video                      |
