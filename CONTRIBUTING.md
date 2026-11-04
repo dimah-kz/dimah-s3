@@ -47,9 +47,9 @@ pnpm --filter @dimah-s3/core check-types
 4. Add a Tegami changelog for user-facing package changes.
 5. Push that feature branch and open a pull request. Set the base to the line you branched from.
 
-| Change   | Branch from | Pull request base | What ships                                                                                 |
-| -------- | ----------- | ----------------- | ------------------------------------------------------------------------------------------ |
-| 1.x fix  | `main`      | `main`            | next 1.x on npm `latest`, docs at [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)             |
+| Change   | Branch from | Pull request base | What ships                                                                           |
+| -------- | ----------- | ----------------- | ------------------------------------------------------------------------------------ |
+| 1.x fix  | `main`      | `main`            | next 1.x on npm `latest`, docs at [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)    |
 | 2.0 beta | `v2`        | `v2`              | next `2.0.0-beta.N` on npm `beta`, docs at [s3.dimah.dev](https://s3.dimah.dev/docs) |
 
 `main` and `v2` only accept a squash merge through a pull request, after CI is green. Push the feature branch. The base dropdown on the pull request chooses `main` or `v2`. Do not merge `v2` into `main` locally. That merge is the stable 2.0.0 release, later.
