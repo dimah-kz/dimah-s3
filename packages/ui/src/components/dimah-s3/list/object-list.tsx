@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useRef,
   useState,
   type ClipboardEvent,
@@ -44,6 +45,7 @@ import {
 } from "@/components/dimah-s3/list/object-list-context";
 import { ObjectListHeader } from "@/components/dimah-s3/list/object-list-header";
 import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
+import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import {
   folderUploadCall,
   ObjectListDropOverlay,
@@ -197,6 +199,29 @@ export function ObjectList<TItem>({
   useRefreshListAfterUpload(upload, list.refresh);
   const deleteFocus = useFocusAfterDelete();
   const { announcement, announce } = useObjectListAnnouncement();
+  const [renamingKey, setRenamingKey] = useState<string | null>(null);
+  const renameFocusKey = useRef<string | null>(null);
+  const previousRenaming = useRef<string | null>(null);
+  // The row left the page (another folder, a search). Drop the field.
+  if (
+    renamingKey != null &&
+    !list.entries.some((entry) => entry.key === renamingKey)
+  ) {
+    setRenamingKey(null);
+  }
+
+  useEffect(() => {
+    const previous = previousRenaming.current;
+    previousRenaming.current = renamingKey;
+    if (previous == null || renamingKey != null) return;
+    if (renameFocusKey.current !== previous) return;
+    renameFocusKey.current = null;
+    document
+      .querySelector<HTMLElement>(
+        `[data-slot="object-list-entry-trigger"][data-entry-key="${CSS.escape(previous)}"]`,
+      )
+      ?.focus();
+  }, [renamingKey]);
 
   const frameHeight = cssLength(height);
   const frameMaxHeight = cssLength(maxHeight);
@@ -224,6 +249,16 @@ export function ObjectList<TItem>({
     loadMore,
     onOpenItem,
     resolveFolderKeys,
+    renamingKey,
+    startRename(key) {
+      const target = list.entries.find((entry) => entry.key === key);
+      if (!target || !canRenameEntry(target, list)) return;
+      setRenamingKey(key);
+    },
+    cancelRename(focus = false) {
+      if (focus) renameFocusKey.current = renamingKey;
+      setRenamingKey(null);
+    },
     renderEntry,
     renderActions,
     renderDescription,
@@ -398,9 +433,14 @@ function ObjectListFrame({
   style: CSSProperties;
   children: ReactNode;
 }) {
-  const { list, selection, upload, view, label, sizing } =
+  const { list, selection, upload, view, label, sizing, startRename } =
     useObjectListContext();
-  const keyboard = useObjectListKeyboard({ list, selection, view });
+  const keyboard = useObjectListKeyboard({
+    list,
+    selection,
+    view,
+    startRename,
+  });
   const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
   const call = folderUploadCall(list, list.parent);
   // A disabled hook ignores drops; the frame then ignores drags and pastes.

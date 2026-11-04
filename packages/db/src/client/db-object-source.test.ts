@@ -243,15 +243,91 @@ describe("dbObjectSource folders", () => {
   it("has no createFolder without the action", () => {
     const source = dbObjectSource({ listObjects: listObjectsReturning() });
     expect(source.createFolder).toBeUndefined();
+    expect(source.renameFile).toBeUndefined();
+    expect(source.renameFolder).toBeUndefined();
+  });
+
+  it("renames a file through updateObject and keeps the key", async () => {
+    const updateObject = vi.fn<DbClientActions["updateObject"]>(async () => ({
+      object: row({ filename: "Renamed.md" }),
+    }));
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      updateObject,
+    });
+
+    await expect(
+      source.renameFile?.({ item: row(), name: "Renamed.md" }),
+    ).resolves.toMatchObject({
+      key: row().key,
+      bucket: "b",
+      filename: "Renamed.md",
+    });
+    expect(updateObject).toHaveBeenCalledWith({
+      key: row().key,
+      bucket: "b",
+      filename: "Renamed.md",
+    });
+  });
+
+  it("renames a folder through updateFolder", async () => {
+    const updateFolder = vi.fn<DbClientActions["updateFolder"]>(async () => ({
+      folder: {
+        id: "folder-1",
+        path: "notes",
+        name: "notes",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      },
+    }));
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      updateFolder,
+    });
+
+    await expect(
+      source.renameFolder?.({
+        folder: { id: "folder-1", name: "drafts" },
+        name: "notes",
+      }),
+    ).resolves.toEqual({ id: "folder-1", name: "notes" });
+    expect(updateFolder).toHaveBeenCalledWith({
+      id: "folder-1",
+      name: "notes",
+    });
+  });
+
+  it("rejects a folder name with a slash without calling the server", async () => {
+    const updateFolder = vi.fn<DbClientActions["updateFolder"]>();
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      updateFolder,
+    });
+
+    await expect(
+      source.renameFolder?.({
+        folder: { id: "folder-1", name: "drafts" },
+        name: "a/b",
+      }),
+    ).rejects.toMatchObject({ code: "FOLDER_INVALID", statusCode: 400 });
+    expect(updateFolder).not.toHaveBeenCalled();
   });
 
   it("has no folder actions with folders: false", () => {
     const source = dbObjectSource(
-      { listObjects: listObjectsReturning(), createFolder: vi.fn() },
+      {
+        listObjects: listObjectsReturning(),
+        createFolder: vi.fn(),
+        updateObject: vi.fn(),
+        updateFolder: vi.fn(),
+      },
       { folders: false },
     );
 
     expect(source.uploadOptions).toBeUndefined();
     expect(source.createFolder).toBeUndefined();
+    expect(source.renameFolder).toBeUndefined();
+    expect(source.renameFile).toBeTypeOf("function");
   });
 });

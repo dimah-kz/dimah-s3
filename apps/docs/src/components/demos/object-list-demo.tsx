@@ -281,7 +281,7 @@ function isInFolder(path: string | null, folder: string) {
   return path === folder || (path?.startsWith(`${folder}/`) ?? false);
 }
 
-/** The demo's records. Uploads, deletes, and New folder edit them. */
+/** The demo's records. Uploads, deletes, renames, and New folder edit them. */
 function createCatalog() {
   let files = FILES;
   /** Folders made with New folder. They stay listed while empty. */
@@ -301,6 +301,18 @@ function createCatalog() {
         .filter((id) => id.startsWith(prefix))
         .map((id) => ({ id, name: id.slice(prefix.length) }))
         .filter((folder) => !folder.name.includes("/"));
+    },
+    renameFile(id: string, name: string): LibraryFile {
+      const current = files.find((file) => file.id === id);
+      if (!current) throw s3Error("OBJECT_NOT_FOUND");
+      // Pin the key before the name changes, so download still finds the blob.
+      const next: LibraryFile = {
+        ...current,
+        name,
+        key: current.key ?? fileObjectKey(current),
+      };
+      files = files.map((file) => (file.id === id ? next : file));
+      return next;
     },
     createFolder(parent: string | null, input: string): ObjectListFolder {
       const name = input.trim();
@@ -368,6 +380,7 @@ function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
     uploadOptions: (parent) => ({ metadata: { folder: parent ?? "" } }),
     createFolder: async ({ parent, name }) =>
       catalog.createFolder(parent, name),
+    renameFile: async ({ item, name }) => catalog.renameFile(item.id, name),
   };
 }
 

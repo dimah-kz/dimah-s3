@@ -74,7 +74,7 @@ const list = useObjectList({
 });
 ```
 
-`dbObjectSource` lists one folder at a time. Uploads go to the open folder, and "New folder" calls `api.db.createFolder`. Pass `folders: false` for a flat list.
+`dbObjectSource` lists one folder at a time. Uploads go to the open folder, and "New folder" calls `api.db.createFolder`. Rename calls `updateObject` or `updateFolder` and leaves the object key as it is. Pass `folders: false` for a flat list; file rename stays available.
 
 `api.db` also has `getObject`, `updateObject` (rename, move, or set `attributes`), and `deleteFolder`.
 

@@ -321,6 +321,8 @@ export const s3Client = createS3Client({
   and the breadcrumb `trail`. `parent` is a folder id.
 - Uploads from the list go to the open folder (`uploadOptions`).
 - "New folder" calls `api.db.createFolder`.
+- Rename calls `api.db.updateObject` (`filename`) or `api.db.updateFolder`
+  (`name`). The object key stays. `folders: false` still renames files.
 - The list's `search` becomes `search`, and its sort maps `name` to
   `filename`. `size` and `updatedAt` keep their names.
 - `usage` is the scope total with its caps, not the open folder's.

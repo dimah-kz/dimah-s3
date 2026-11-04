@@ -14,6 +14,7 @@ import {
   LinkIcon,
   LoaderIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   Trash2Icon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   useOptionalObjectListContext,
 } from "@/components/dimah-s3/list/object-list-context";
 import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
+import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
 import { useShareExpiryLabel } from "@/lib/format-expires-in";
 
@@ -71,8 +73,8 @@ export type ObjectListItemMenuProps = {
    */
   expiresIn?: number;
   /**
-   * Extra rows, after Copy link and before Delete.
-   * Use this for actions the menu does not provide, such as rename.
+   * Extra rows, after Copy link and Rename, and before Delete.
+   * Use this for actions the menu does not provide.
    */
   actions?: readonly ObjectListMenuAction[];
   /** More `DropdownMenuItem`s, after `actions`. */
@@ -84,9 +86,11 @@ export type ObjectListItemMenuProps = {
 /**
  * Overflow menu for one entry.
  *
- * - Files: Download, Copy link, your actions, Delete.
+ * - Files: Download, Copy link, Rename when the source has `renameFile`,
+ *   your actions, Delete.
  * - Folders: Upload to this folder (the keyboard path to a folder drop),
- *   then your actions. It is disabled while the list's `upload` is.
+ *   Rename when the source has `renameFolder`, then your actions. Upload
+ *   is disabled while the list's `upload` is.
  *
  * Inside an `ObjectList` every prop is optional: the key, name, size, and
  * hooks come from the entry and the list. Download runs the list's
@@ -137,8 +141,16 @@ export function ObjectListItemMenu({
   const extra = actions ?? [];
   const showTransfer = download != null || linkSource != null;
   const showExtra = extra.length > 0 || children != null;
+  const canRename =
+    context != null && entry != null && canRenameEntry(entry, context.list);
   if (!isFile && !folder) return null;
-  if (!showTransfer && !showExtra && !uploadToFolder && remove == null) {
+  if (
+    !showTransfer &&
+    !showExtra &&
+    !uploadToFolder &&
+    !canRename &&
+    remove == null
+  ) {
     return null;
   }
 
@@ -163,19 +175,17 @@ export function ObjectListItemMenu({
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
-        {uploadToFolder ? (
+        {uploadToFolder || showTransfer || canRename ? (
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              disabled={listUpload?.disabled}
-              onClick={uploadToFolder}
-            >
-              <CloudUpload />
-              {t("Upload to this folder", { note: "object list menu" })}
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        ) : null}
-        {showTransfer ? (
-          <DropdownMenuGroup>
+            {uploadToFolder ? (
+              <DropdownMenuItem
+                disabled={listUpload?.disabled}
+                onClick={uploadToFolder}
+              >
+                <CloudUpload />
+                {t("Upload to this folder", { note: "object list menu" })}
+              </DropdownMenuItem>
+            ) : null}
             {download ? (
               <DownloadItem
                 download={download}
@@ -192,9 +202,19 @@ export function ObjectListItemMenu({
                 expiresIn={expiresIn}
               />
             ) : null}
+            {canRename ? (
+              <DropdownMenuItem
+                onClick={() => {
+                  if (entry) context?.startRename(entry.key);
+                }}
+              >
+                <PencilIcon />
+                {t("Rename", { note: "object list menu" })}
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuGroup>
         ) : null}
-        {showExtra && (showTransfer || uploadToFolder) ? (
+        {showExtra && (showTransfer || uploadToFolder || canRename) ? (
           <DropdownMenuSeparator />
         ) : null}
         {showExtra ? (
@@ -215,7 +235,7 @@ export function ObjectListItemMenu({
             {children}
           </DropdownMenuGroup>
         ) : null}
-        {remove && (showTransfer || showExtra) ? (
+        {remove && (showTransfer || uploadToFolder || canRename || showExtra) ? (
           <DropdownMenuSeparator />
         ) : null}
         {remove ? (
