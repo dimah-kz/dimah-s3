@@ -87,8 +87,9 @@ export type UseObjectListReturn<TItem> = {
   /** Change the search text. Reloads the first page. Debounce it yourself. */
   setSearch: (search: string) => void;
   /**
-   * Edit the loaded files without a request, for example after a rename.
-   * The next reload replaces them.
+   * Edit the loaded files without a request, for example after your own
+   * update. The next reload replaces them. Prefer `renameFile` when the
+   * source can rename.
    */
   setItems: (items: Updater<readonly TItem[]>) => void;
   /** Edit the loaded folders without a request. */
@@ -107,6 +108,25 @@ export type UseObjectListReturn<TItem> = {
    * `createFolder`.
    */
   createFolder: ((name: string) => Promise<ObjectListFolder>) | undefined;
+  /**
+   * Renames a file through the source and replaces the loaded row.
+   * Rejects with an `APIError`. The same name does nothing. A name sort
+   * or a search reloads afterwards, and so does a source that returns
+   * nothing. Set when the source has `renameFile`.
+   */
+  renameFile:
+    ((item: TItem, name: string) => Promise<TItem | void>) | undefined;
+  /**
+   * Renames a folder through the source, replaces the loaded row, and
+   * updates that id in the breadcrumb. Rejects with an `APIError`. The
+   * same name does nothing. Set when the source has `renameFolder`.
+   */
+  renameFolder:
+    | ((
+        folder: ObjectListFolder,
+        name: string,
+      ) => Promise<ObjectListFolder | void>)
+    | undefined;
 };
 
 /** Rows loaded for one request. */
@@ -483,6 +503,102 @@ export function useObjectList<TItem>(
     },
     [optionsRef, requestRef, update],
   );
+  const settleRename = useCallback(
+    async (scope: string, replaced: boolean) => {
+      // Another folder is on screen now. Leave it alone.
+      if (requestRef.current.scope !== scope) return;
+      if (!replaced || namesNeedReload(requestRef.current)) {
+        await run("refresh");
+      }
+    },
+    [requestRef, run],
+  );
+  const renameFile = useCallback(
+    async (item: TItem, name: string) => {
+      const rename = optionsRef.current.renameFile;
+      if (!rename) {
+        throw new Error("[dimah-s3] The source has no renameFile.");
+      }
+      const { getFile: read, getKey: keyOf } = optionsRef.current;
+      if ((read ? read(item).name : keyOf(item)) === name) return item;
+      const key = keyOf(item);
+      const { scope } = requestRef.current;
+      let next: TItem | void;
+      try {
+        next = await rename({ item, name });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      if (next) {
+        const replacement = next;
+        update((draft) => {
+          if (draft.snapshot.scope !== scope) return draft;
+          const idOf = optionsRef.current.getKey;
+          return {
+            ...draft,
+            snapshot: {
+              ...draft.snapshot,
+              items: draft.snapshot.items.map((current) =>
+                idOf(current) === key ? replacement : current,
+              ),
+            },
+          };
+        });
+      }
+      await settleRename(scope, next != null);
+      return next;
+    },
+    [optionsRef, requestRef, settleRename, update],
+  );
+  const renameFolder = useCallback(
+    async (folder: ObjectListFolder, name: string) => {
+      const rename = optionsRef.current.renameFolder;
+      if (!rename) {
+        throw new Error("[dimah-s3] The source has no renameFolder.");
+      }
+      if (folder.name === name) return folder;
+      const { scope } = requestRef.current;
+      let next: ObjectListFolder | void;
+      try {
+        next = await rename({ folder, name });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      if (next) {
+        const replacement = next;
+        update((draft) => {
+          if (draft.snapshot.scope !== scope) return draft;
+          return {
+            ...draft,
+            snapshot: {
+              ...draft.snapshot,
+              folders: draft.snapshot.folders.map((current) =>
+                current.id === folder.id ? replacement : current,
+              ),
+            },
+          };
+        });
+        const currentTrail = trailRef.current;
+        if (
+          currentTrail.some(
+            (entry) =>
+              entry.id === folder.id && entry.name !== replacement.name,
+          )
+        ) {
+          const renamedTrail = currentTrail.map((entry) =>
+            entry.id === folder.id
+              ? { ...entry, name: replacement.name }
+              : entry,
+          );
+          trailRef.current = renamedTrail;
+          setTrailState(renamedTrail);
+        }
+      }
+      await settleRename(scope, next != null);
+      return next;
+    },
+    [optionsRef, requestRef, settleRename, trailRef, update],
+  );
   const setSort = useCallback(
     (next: ObjectListSort | null) => setSortValue(next),
     [setSortValue],
@@ -552,6 +668,8 @@ export function useObjectList<TItem>(
     getFile,
     uploadOptions: options.uploadOptions,
     createFolder: options.createFolder ? createFolder : undefined,
+    renameFile: options.renameFile ? renameFile : undefined,
+    renameFolder: options.renameFolder ? renameFolder : undefined,
   };
 }
 
@@ -576,6 +694,11 @@ function readStatus({
   if (pending === "replace") return "loading";
   if (pending === "refresh") return hasRows ? "refreshing" : "loading";
   return failure ? "error" : "ready";
+}
+
+/** A name sort or a search can drop or reorder the row that was renamed. */
+function namesNeedReload(request: Request): boolean {
+  return request.sort?.field === "name" || request.search !== "";
 }
 
 function sortsEqual(a: ObjectListSort | null, b: ObjectListSort | null) {

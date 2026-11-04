@@ -18,7 +18,7 @@ Wire and server-context file fields are `name` / `size` / `type`. React props, o
 
 Every `S3Api` method takes `(payload, options?)`. In the browser `options` is `{ signal, headers }`; on the server `s3.api` takes `{ headers, request, locals }`. Keep `s3.api` the same shape as the browser client.
 
-Changelog: [release.md](./release.md).
+Changelog prose: [changelog.md](./changelog.md). Version bump and publish: [release.md](./release.md).
 
 ## Endpoint
 

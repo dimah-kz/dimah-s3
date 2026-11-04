@@ -17,7 +17,12 @@ export type DbObjectSourceActions<TClientAttributes = never> = Pick<
   DbClientActions<TClientAttributes>,
   "listObjects"
 > &
-  Partial<Pick<DbClientActions<TClientAttributes>, "createFolder">>;
+  Partial<
+    Pick<
+      DbClientActions<TClientAttributes>,
+      "createFolder" | "updateObject" | "updateFolder"
+    >
+  >;
 
 /** List sort fields and the `listObjects` columns they order by. */
 const SORT_FIELDS = new Map<string, DbListSortField>([
@@ -49,8 +54,10 @@ function toFile(object: DbClientObject<unknown>): DbObjectSourceFile {
  * With `folders` on (the default), `parent` is a folder id: each page lists
  * one folder, the first page carries its child folders and the breadcrumb
  * trail, uploads go to the open folder, and "New folder" calls
- * `api.db.createFolder`. With `folders: false`, the list is flat and has no
- * folder actions.
+ * `api.db.createFolder`. Rename calls `api.db.updateObject` (`filename`) or
+ * `api.db.updateFolder` (`name`) and leaves the object key as it is. With
+ * `folders: false`, the list is flat: file rename stays, and folder actions
+ * do not.
  *
  * `search` matches the filename on the server. `sort` maps `name` to
  * `filename`; `size` and `updatedAt` keep their names, and other fields keep
@@ -105,6 +112,18 @@ export function dbObjectSource<TClientAttributes = never>(
       };
     },
   };
+
+  const updateObject = db.updateObject?.bind(db);
+  if (updateObject) {
+    source.renameFile = async ({ item, name }) => {
+      const { object } = await updateObject({
+        key: item.key,
+        bucket: item.bucket,
+        filename: name,
+      });
+      return object;
+    };
+  }
   if (!folders) return source;
 
   source.uploadOptions = (parent) => ({
@@ -120,6 +139,18 @@ export function dbObjectSource<TClientAttributes = never>(
         name,
       });
       return { id: folder.id, name: folder.name };
+    };
+  }
+  const updateFolder = db.updateFolder?.bind(db);
+  if (updateFolder) {
+    source.renameFolder = async ({ folder, name }) => {
+      // A `/` would be a nested path. The server renames one folder.
+      if (!isFolderName(name)) throw s3Error("FOLDER_INVALID");
+      const { folder: updated } = await updateFolder({
+        id: folder.id,
+        name,
+      });
+      return { id: updated.id, name: updated.name };
     };
   }
   return source;

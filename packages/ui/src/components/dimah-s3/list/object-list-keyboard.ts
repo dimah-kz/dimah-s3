@@ -6,6 +6,7 @@ import type {
   UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 import type { ObjectListView } from "@/components/dimah-s3/list/object-list-context";
+import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import { isFieldTarget } from "@/lib/is-field-target";
 
 const ENTRY = "[data-slot=object-list-entry]";
@@ -17,6 +18,7 @@ const TRIGGER = "[data-slot=object-list-entry-trigger]";
  * - Space on an entry: toggle its checkbox. Shift extends the range.
  * - Ctrl+A / Cmd+A: select every loaded entry. Escape: clear.
  * - Backspace or Alt+ArrowUp: open the parent folder.
+ * - F2: rename the focused row, when the source can.
  *
  * Fields, menus, and dialogs keep their own keys.
  */
@@ -24,10 +26,12 @@ export function useObjectListKeyboard<TItem>({
   list,
   selection,
   view,
+  startRename,
 }: {
   list: UseObjectListReturn<TItem>;
   selection: UseObjectListSelectionReturn<TItem> | null;
   view: ObjectListView;
+  startRename: (key: string) => void;
 }) {
   // Space toggles on keydown; swallow the keyup so the button does not open.
   const spaceRef = useRef(false);
@@ -68,6 +72,15 @@ export function useObjectListKeyboard<TItem>({
       if (list.trail.length === 0) return;
       event.preventDefault();
       list.goUp();
+      return;
+    }
+    if (event.key === "F2" && !modifier && !event.altKey && !event.shiftKey) {
+      if (!target.matches(TRIGGER)) return;
+      const key = target.dataset.entryKey;
+      const entry = key ? list.entries.find((item) => item.key === key) : null;
+      if (!entry || !canRenameEntry(entry, list)) return;
+      event.preventDefault();
+      startRename(entry.key);
       return;
     }
     if (event.key === " " && !modifier) {

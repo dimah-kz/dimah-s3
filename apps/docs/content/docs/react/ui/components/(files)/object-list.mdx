@@ -17,8 +17,9 @@ does not fetch and does not call the hooks you give it.
 
 The preview lists records in memory with `memoryObjectSource`. Six files
 load at a time. Search, sort, switch to the grid, select rows with
-Shift-click or Ctrl+A, or drop a file onto the frame. Swap the source for
-your API, or for `dbObjectSource`, without changing the component.
+Shift-click or Ctrl+A, or drop a file onto the frame. A row's menu
+downloads, renames, or deletes it. New folder is in the header. Swap the
+source for your API, or for `dbObjectSource`, without changing the component.
 
 ## Install
 
@@ -158,7 +159,7 @@ import {
 | `ObjectListUploadStatus` | Upload progress and errors                                                                                                |
 | `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                        |
 | `ObjectListEmpty`        | The empty state, with your own text or a call to action                                                                   |
-| `ObjectListItemMenu`     | Download, Copy link, your actions, and Delete for a file. Upload to this folder for a folder                              |
+| `ObjectListItemMenu`     | Download, Copy link, Rename, your actions, and Delete for a file. Upload to this folder and Rename for a folder           |
 
 ## Header
 
@@ -207,7 +208,7 @@ Change part of every entry with a `render*` prop. Each receives the entry:
   renderActions={(entry) =>
     entry.kind === "file" ? (
       <ObjectListItemMenu
-        actions={[{ label: "Rename", onClick: () => rename(entry.item) }]}
+        actions={[{ label: "Details", onClick: () => openPreview(entry.item) }]}
       />
     ) : null
   }
@@ -215,7 +216,7 @@ Change part of every entry with a `render*` prop. Each receives the entry:
 ```
 
 - `onOpenItem` runs when a file is clicked or activated with Enter. Folders always open in place.
-- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, or `delete`, and folders get it when files can be uploaded into them. Return `null` to hide it.
+- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, `delete`, or `renameFile`, and folders get it when files can be uploaded into them or the source has `renameFolder`. Return `null` to hide it.
 - `renderDescription` replaces the second line. `renderMeta` sits beside the name.
 - `renderEntry` replaces the whole row or tile. Return `ObjectListRow` or `ObjectListTile` with your own `className`, `media`, or `actions` to keep selection, keyboard, and opening.
 
@@ -306,14 +307,15 @@ deleted one, else the one before it, else the frame.
 
 ## Keyboard
 
-| Key                     | Action                                     |
-| ----------------------- | ------------------------------------------ |
-| Arrow keys, Home, End   | Move between entries (by row in the grid)  |
-| Enter                   | Open the folder, or call `onOpenItem`      |
-| Space                   | Toggle the focused entry. Shift: the range |
-| Ctrl+A / Cmd+A          | Select every loaded entry                  |
-| Escape                  | Clear the selection                        |
-| Backspace / Alt+ArrowUp | Open the parent folder                     |
+| Key                     | Action                                      |
+| ----------------------- | ------------------------------------------- |
+| Arrow keys, Home, End   | Move between entries (by row in the grid)   |
+| Enter                   | Open the folder, or call `onOpenItem`       |
+| Space                   | Toggle the focused entry. Shift: the range  |
+| Ctrl+A / Cmd+A          | Select every loaded entry                   |
+| Escape                  | Clear the selection                         |
+| Backspace / Alt+ArrowUp | Open the parent folder                      |
+| F2                      | Rename the focused row, when the source can |
 
 Fields, menus, and dialogs inside the list keep their own keys.
 
@@ -376,16 +378,21 @@ region instead. The drop overlay follows only drags over the list itself.
 
 ## File menu
 
-`ObjectListItemMenu` downloads, copies a link, and deletes one file. Inside a
-list every prop is optional: the object key, name, and size come from the
-entry, and the hooks come from the list. Delete asks the list's confirmation.
+`ObjectListItemMenu` downloads, copies a link, renames, and deletes one file.
+Rename is there when the source has `renameFile` for a file, or
+`renameFolder` for a folder. It turns the name into a field. Enter saves,
+Escape or Cancel restores the name, and leaving the field saves it. F2 does
+the same from the focused row. Download and Copy link then send the name the
+row shows. Inside a list every prop is optional: the object key, name, and
+size come from the entry, and the hooks come from the list. Delete asks the
+list's confirmation.
 
 Copy link signs one URL through `share` when the list has it, otherwise
 through a navigate-mode `download`, then writes it to the clipboard. Signing
 does not start a download. Pass `expiresIn` to ask for a shorter TTL than
 the route cap; the message shows the TTL that was signed. Pass `actions`, or
-`DropdownMenuItem` children, for rows such as rename. They render after Copy
-link and before Delete.
+`DropdownMenuItem` children, for more rows. They render after the built-in
+rows and before Delete.
 
 Outside a list the menu has Copy link, with `share`, and your own rows:
 
@@ -432,7 +439,9 @@ them.
 - `dbObjectSource` lists the folders stored by `db()`, uploads into the open
   folder, and creates folders with New folder.
 - With your own source, return folders from your query on the first page, and
-  add `createFolder` to enable New folder.
+  add `createFolder` to enable New folder. Add `renameFile` and
+  `renameFolder` to enable Rename. The object key stays; only the display
+  name changes.
 
 New folder, in the header, opens a name field across the bar. Enter creates
 the folder through the source, and Escape or Cancel closes the field. An

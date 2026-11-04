@@ -262,4 +262,20 @@ export type DbObjectSource<TClientAttributes = never> = {
     parent: string | null;
     name: string;
   }) => Promise<DbObjectSourceFolder>;
+  /**
+   * Renames a file's `filename`. The object `key` stays. Set when `api.db`
+   * has `updateObject`.
+   */
+  renameFile?: (input: {
+    item: DbClientObject<TClientAttributes>;
+    name: string;
+  }) => Promise<DbClientObject<TClientAttributes>>;
+  /**
+   * Renames a folder. Its id stays. Set when `api.db` has `updateFolder`
+   * and `folders` is on.
+   */
+  renameFolder?: (input: {
+    folder: DbObjectSourceFolder;
+    name: string;
+  }) => Promise<DbObjectSourceFolder>;
 };

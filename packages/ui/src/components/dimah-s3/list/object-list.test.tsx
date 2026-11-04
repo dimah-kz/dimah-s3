@@ -147,7 +147,10 @@ type RenderOptions = {
   /** Records in place of {@link initialItems}. */
   items?: Item[];
   /** Source additions over the memory source. */
-  source?: Pick<ObjectListSource<Item>, "uploadOptions" | "createFolder">;
+  source?: Pick<
+    ObjectListSource<Item>,
+    "uploadOptions" | "createFolder" | "renameFile" | "renameFolder"
+  >;
   limits?: { maxBytes?: number; maxFiles?: number };
   /** Usage line without limits. */
   usage?: boolean;
@@ -1152,6 +1155,140 @@ describe("ObjectList", () => {
         document.querySelector("[data-slot=object-list-announcer]")
           ?.textContent,
       ).toContain("Link copied");
+    });
+  });
+
+  describe("Rename", () => {
+    it("is absent until the source can rename that row", async () => {
+      const user = userEvent.setup();
+      renderList({ source: { uploadOptions: folderOptions } });
+      await settle();
+
+      await user.click(
+        within(entry("a.txt")).getByRole("button", { name: "File actions" }),
+      );
+      const files = await screen.findByRole("menu");
+      expect(
+        within(files).queryByRole("menuitem", { name: "Rename" }),
+      ).toBeNull();
+
+      await user.keyboard("{Escape}");
+      await user.click(
+        within(entry("docs")).getByRole("button", { name: "Folder actions" }),
+      );
+      const folders = await screen.findByRole("menu");
+      expect(
+        within(folders).queryByRole("menuitem", { name: "Rename" }),
+      ).toBeNull();
+    });
+
+    it("renames a file from the menu, keeping the extension unselected", async () => {
+      const user = userEvent.setup();
+      const renameFile = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFile"]>
+      >(async ({ item, name }) => ({ ...item, name }));
+      renderList({ source: { renameFile } });
+      await settle();
+
+      await user.click(
+        within(entry("a.txt")).getByRole("button", { name: "File actions" }),
+      );
+      await user.click(
+        within(await screen.findByRole("menu")).getByRole("menuitem", {
+          name: "Rename",
+        }),
+      );
+      const input = await screen.findByRole("textbox", { name: "File name" });
+      expect(input).toHaveProperty("selectionStart", 0);
+      expect(input).toHaveProperty("selectionEnd", 1);
+
+      await user.keyboard("z{Enter}");
+      await settle();
+
+      expect(renameFile).toHaveBeenCalledWith({
+        item: expect.objectContaining({ key: "a.txt" }),
+        name: "z.txt",
+      });
+      expect(
+        screen.getByRole("button", { name: startsWith("z.txt") }),
+      ).toBeDefined();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: startsWith("z.txt") }),
+      );
+    });
+
+    it("starts from F2 and restores the name on Escape", async () => {
+      const user = userEvent.setup();
+      const renameFile = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFile"]>
+      >(async ({ item, name }) => ({ ...item, name }));
+      renderList({ source: { renameFile } });
+      await settle();
+
+      entry("a.txt")
+        .querySelector<HTMLElement>("[data-slot=object-list-entry-trigger]")
+        ?.focus();
+      await user.keyboard("{F2}");
+      const input = await screen.findByRole("textbox", { name: "File name" });
+      await user.keyboard("draft{Escape}");
+
+      expect(renameFile).not.toHaveBeenCalled();
+      expect(screen.queryByRole("textbox", { name: "File name" })).toBeNull();
+      expect(input).toBeTruthy();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: startsWith("a.txt") }),
+      );
+    });
+
+    it("keeps the field open when the rename fails", async () => {
+      const user = userEvent.setup();
+      renderList({
+        source: {
+          renameFile: async () => {
+            throw s3Error("VALIDATION_ERROR", { issue: "File name" });
+          },
+        },
+      });
+      await settle();
+
+      entry("a.txt")
+        .querySelector<HTMLElement>("[data-slot=object-list-entry-trigger]")
+        ?.focus();
+      await user.keyboard("{F2}notes{Enter}");
+
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "Invalid request",
+      );
+      expect(screen.getByRole("textbox", { name: "File name" })).toBeDefined();
+    });
+
+    it("renames a folder", async () => {
+      const user = userEvent.setup();
+      const renameFolder = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFolder"]>
+      >(async ({ folder, name }) => ({ ...folder, name }));
+      renderList({ source: { renameFolder } });
+      await settle();
+
+      await user.click(
+        within(entry("docs")).getByRole("button", { name: "Folder actions" }),
+      );
+      await user.click(
+        within(await screen.findByRole("menu")).getByRole("menuitem", {
+          name: "Rename",
+        }),
+      );
+      const input = await screen.findByRole("textbox", { name: "Folder name" });
+      expect(input).toHaveProperty("selectionStart", 0);
+      expect(input).toHaveProperty("selectionEnd", "docs".length);
+      await user.keyboard("notes{Enter}");
+      await settle();
+
+      expect(renameFolder).toHaveBeenCalledWith({
+        folder: { id: "docs", name: "docs" },
+        name: "notes",
+      });
+      expect(screen.getByRole("button", { name: "notes" })).toBeDefined();
     });
   });
 

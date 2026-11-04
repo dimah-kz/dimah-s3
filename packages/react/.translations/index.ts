@@ -19,6 +19,7 @@ export type Translations = {
   "Cancel(dialog button)": string;
   "Cancel(download control)": string;
   "Cancel(object list new folder)": string;
+  "Cancel(object list rename)": string;
   "Cancel(toast action)": string;
   "Clear search(object list)": string;
   "Clear(object list selection)": string;
@@ -61,6 +62,7 @@ export type Translations = {
   "Drop to upload(dropzone)": string;
   "EB(file size unit)": string;
   "Each up to {size}(dropzone hint)": string;
+  "Enter a file name(object list rename)": string;
   "Enter a folder name(object list new folder)": string;
   "Expires in 1 day(object list menu)": string;
   "Expires in 1 hour(object list menu)": string;
@@ -77,6 +79,7 @@ export type Translations = {
   "File is empty(API error)": string;
   "File is too large(API error)": string;
   "File limit reached(API error)": string;
+  "File name(object list rename)": string;
   "File not accepted(toast)": string;
   "File not found(API error)": string;
   "File size exceeds {size} limit(API error)": string;
@@ -118,6 +121,7 @@ export type Translations = {
   "Preparing…(upload status)": string;
   "Progress for {name}(progress)": string;
   "Remove {name}(attachment action)": string;
+  "Rename(object list menu)": string;
   "Request format is not supported(API error)": string;
   "Request is too large(API error)": string;
   "Requested range is not available(API error)": string;

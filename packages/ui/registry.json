@@ -888,6 +888,11 @@
           "target": "@components/dimah-s3/list/object-list-item-menu.tsx"
         },
         {
+          "path": "src/components/dimah-s3/list/object-list-rename.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-rename.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/list/object-list-feedback.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-feedback.tsx"

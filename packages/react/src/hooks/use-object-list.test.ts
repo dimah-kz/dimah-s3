@@ -537,6 +537,8 @@ describe("useObjectList", () => {
 
       expect(hook.current.uploadOptions).toBeUndefined();
       expect(hook.current.createFolder).toBeUndefined();
+      expect(hook.current.renameFile).toBeUndefined();
+      expect(hook.current.renameFolder).toBeUndefined();
       hook.unmount();
     });
 
@@ -628,6 +630,167 @@ describe("useObjectList", () => {
         code: "UNKNOWN_ERROR",
       });
       expect(hook.current.folders).toEqual([]);
+      hook.unmount();
+    });
+
+    it("replaces a renamed file and leaves the list when nothing reorders it", async () => {
+      const query = mockQuery().mockResolvedValue(page(["a"]));
+      const renameFile = vi.fn(async () => ({ id: "a" }));
+      const hook = renderHook(() => useList({ query, renameFile }));
+      await flush();
+
+      await act(async () => {
+        await hook.current.renameFile?.({ id: "a" }, "notes.txt");
+      });
+
+      expect(renameFile).toHaveBeenCalledWith({
+        item: { id: "a" },
+        name: "notes.txt",
+      });
+      expect(hook.current.items).toEqual([{ id: "a" }]);
+      expect(query).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    });
+
+    it("does not call the source when the file name is unchanged", async () => {
+      const query = mockQuery().mockResolvedValue(page(["a"]));
+      const renameFile = vi.fn(async () => ({ id: "a" }));
+      const hook = renderHook(() =>
+        useList({
+          query,
+          renameFile,
+          getFile: () => ({ name: "a.txt" }),
+        }),
+      );
+      await flush();
+
+      await act(async () => {
+        await hook.current.renameFile?.({ id: "a" }, "a.txt");
+      });
+
+      expect(renameFile).not.toHaveBeenCalled();
+      expect(query).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    });
+
+    it("reloads after a rename when the list is sorted by name or searched", async () => {
+      const query = mockQuery()
+        .mockResolvedValueOnce(page(["a"]))
+        .mockResolvedValueOnce(page(["server"]));
+      const renameFile = vi.fn(async () => ({ id: "a" }));
+      const hook = renderHook(() =>
+        useList({
+          query,
+          renameFile,
+          defaultSort: { field: "name", direction: "asc" },
+        }),
+      );
+      await flush();
+
+      await act(async () => {
+        await hook.current.renameFile?.({ id: "a" }, "b.txt");
+      });
+
+      expect(query).toHaveBeenCalledTimes(2);
+      expect(hook.current.items).toEqual([{ id: "server" }]);
+      hook.unmount();
+    });
+
+    it("reloads when the source returns nothing", async () => {
+      const query = mockQuery()
+        .mockResolvedValueOnce(page(["a"]))
+        .mockResolvedValueOnce(page(["server"]));
+      const renameFile = vi.fn(async () => undefined);
+      const hook = renderHook(() => useList({ query, renameFile }));
+      await flush();
+
+      await act(async () => {
+        await hook.current.renameFile?.({ id: "a" }, "b.txt");
+      });
+
+      expect(query).toHaveBeenCalledTimes(2);
+      expect(hook.current.items).toEqual([{ id: "server" }]);
+      hook.unmount();
+    });
+
+    it("does not patch a file after the list moved to another folder", async () => {
+      const query = mockQuery().mockResolvedValue(page(["a"]));
+      let resolve!: (item: Item) => void;
+      const renameFile = vi.fn(
+        () =>
+          new Promise<Item>((done) => {
+            resolve = done;
+          }),
+      );
+      const hook = renderHook(() => useList({ query, renameFile }));
+      await flush();
+
+      let pending: Promise<unknown> | undefined;
+      act(() => {
+        pending = hook.current.renameFile?.({ id: "a" }, "b.txt");
+      });
+      act(() => {
+        hook.current.openFolder({ id: "photos", name: "Photos" });
+      });
+      await flush();
+      await act(async () => {
+        resolve({ id: "patched" });
+        await pending;
+      });
+
+      expect(hook.current.parent).toBe("photos");
+      expect(hook.current.items).toEqual([{ id: "a" }]);
+      expect(query).toHaveBeenCalledTimes(2);
+      hook.unmount();
+    });
+
+    it("rejects a failed rename and keeps the row", async () => {
+      const query = mockQuery().mockResolvedValue(page(["a"]));
+      const invalid = s3Error("VALIDATION_ERROR", { issue: "File name" });
+      const renameFile = vi.fn().mockRejectedValue(invalid);
+      const hook = renderHook(() => useList({ query, renameFile }));
+      await flush();
+
+      await expect(
+        hook.current.renameFile?.({ id: "a" }, "b.txt"),
+      ).rejects.toBe(invalid);
+      expect(hook.current.items).toEqual([{ id: "a" }]);
+      expect(query).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    });
+
+    it("renames a folder row and the breadcrumb entry with that id", async () => {
+      const query = mockQuery().mockResolvedValue(
+        page([], { folders: [{ id: "photos", name: "Photos" }] }),
+      );
+      const renameFolder = vi.fn(async ({ name }: { name: string }) => ({
+        id: "photos",
+        name,
+      }));
+      const hook = renderHook(() =>
+        useList({
+          query,
+          renameFolder,
+          defaultParent: "photos",
+          defaultTrail: [{ id: "photos", name: "Photos" }],
+        }),
+      );
+      await flush();
+
+      await act(async () => {
+        await hook.current.renameFolder?.(
+          { id: "photos", name: "Photos" },
+          "Album",
+        );
+      });
+
+      expect(renameFolder).toHaveBeenCalledWith({
+        folder: { id: "photos", name: "Photos" },
+        name: "Album",
+      });
+      expect(hook.current.folders).toEqual([{ id: "photos", name: "Album" }]);
+      expect(hook.current.trail).toEqual([{ id: "photos", name: "Album" }]);
+      expect(query).toHaveBeenCalledTimes(1);
       hook.unmount();
     });
   });

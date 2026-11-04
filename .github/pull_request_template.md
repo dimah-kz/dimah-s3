@@ -9,4 +9,4 @@
 - [ ] `pnpm lint` passes
 - [ ] `pnpm test` passes
 - [ ] Docs updated if needed
-- [ ] Changelog added for package changes (`.tegami/`)
+- [ ] Changelog added for package changes (`.tegami/`, see `docs/agents/changelog.md`)

@@ -21,8 +21,9 @@ export type ObjectListRenderers<TItem> = {
   renderEntry?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
    * Trailing controls. Defaults to `ObjectListItemMenu` on files when the
-   * list has `download`, `share`, or `delete`, and on folders when files
-   * can be uploaded into them. Return `null` to hide them.
+   * list has `download`, `share`, `delete`, or `renameFile`, and on folders
+   * when files can be uploaded into them or the source has `renameFolder`.
+   * Return `null` to hide them.
    */
   renderActions?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
@@ -71,6 +72,15 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
   /** Object keys stored in a folder. Lets bulk delete include folders. */
   resolveFolderKeys:
     ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined;
+  /** Entry key whose name is a field, or `null`. */
+  renamingKey: string | null;
+  /** Turn that entry's name into the rename field. */
+  startRename: (key: string) => void;
+  /**
+   * Close the rename field. With `focus`, the row takes focus once its
+   * button is back.
+   */
+  cancelRename: (focus?: boolean) => void;
 };
 
 const ObjectListContext = createContext<ObjectListContextValue<unknown> | null>(

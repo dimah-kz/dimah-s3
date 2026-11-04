@@ -103,6 +103,7 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/list/object-list-usage.tsx"),
   sourceFile("components/dimah-s3/list/object-list-upload.tsx"),
   sourceFile("components/dimah-s3/list/object-list-item-menu.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-rename.tsx"),
   sourceFile("components/dimah-s3/list/object-list-feedback.tsx"),
   sourceFile(
     "components/dimah-s3/list/object-list-keyboard.ts",

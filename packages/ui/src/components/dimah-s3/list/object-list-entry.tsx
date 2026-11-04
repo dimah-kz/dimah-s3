@@ -15,6 +15,10 @@ import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph"
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 import { ObjectListItemMenu } from "@/components/dimah-s3/list/object-list-item-menu";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  canRenameEntry,
+  ObjectListRenameField,
+} from "@/components/dimah-s3/list/object-list-rename";
 import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
 
 /** Props shared by {@link ObjectListRow} and {@link ObjectListTile}. */
@@ -103,34 +107,47 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
       )}
     >
       {parts.checkbox}
-      <EntryTrigger
-        parts={parts}
-        className="flex min-w-0 items-center gap-2.5 self-stretch rounded-md text-start"
-      >
-        <span className="flex size-8 shrink-0 items-center justify-center">
-          {parts.media ?? (
-            <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
-          )}
-        </span>
-        <span
-          className={cn(
-            "flex min-w-0 flex-1 flex-col",
-            parts.actions && "pe-2",
-          )}
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-              <FileName name={entry.name} extension={entry.kind === "file"} />
-            </span>
-            {parts.meta ? <span className="shrink-0">{parts.meta}</span> : null}
+      {parts.renaming ? (
+        <div className="flex min-w-0 items-center gap-2.5 self-stretch">
+          <span className="flex size-8 shrink-0 items-center justify-center">
+            {parts.media ?? (
+              <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
+            )}
           </span>
-          {parts.description ? (
-            <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
-              {parts.description}
+          <ObjectListRenameField entry={entry} />
+        </div>
+      ) : (
+        <EntryTrigger
+          parts={parts}
+          className="flex min-w-0 items-center gap-2.5 self-stretch rounded-md text-start"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center">
+            {parts.media ?? (
+              <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
+            )}
+          </span>
+          <span
+            className={cn(
+              "flex min-w-0 flex-1 flex-col",
+              parts.actions && "pe-2",
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
+                <FileName name={entry.name} extension={entry.kind === "file"} />
+              </span>
+              {parts.meta ? (
+                <span className="shrink-0">{parts.meta}</span>
+              ) : null}
             </span>
-          ) : null}
-        </span>
-      </EntryTrigger>
+            {parts.description ? (
+              <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
+                {parts.description}
+              </span>
+            ) : null}
+          </span>
+        </EntryTrigger>
+      )}
       {parts.actions ? <div className="shrink-0">{parts.actions}</div> : null}
     </div>
   );
@@ -158,27 +175,40 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
         className,
       )}
     >
-      <EntryTrigger
-        parts={parts}
-        className="flex h-full min-w-0 flex-col text-start"
-      >
-        <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
-          {parts.media ?? <EntryMedia entry={entry} tile />}
-        </span>
-        <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-              <FileName name={entry.name} extension={entry.kind === "file"} />
-            </span>
-            {parts.meta ? <span className="shrink-0">{parts.meta}</span> : null}
+      {parts.renaming ? (
+        <div className="flex h-full min-w-0 flex-col">
+          <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
+            {parts.media ?? <EntryMedia entry={entry} tile />}
           </span>
-          {parts.description ? (
-            <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
-              {parts.description}
+          <span className="min-w-0 px-2 py-1.5">
+            <ObjectListRenameField entry={entry} />
+          </span>
+        </div>
+      ) : (
+        <EntryTrigger
+          parts={parts}
+          className="flex h-full min-w-0 flex-col text-start"
+        >
+          <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
+            {parts.media ?? <EntryMedia entry={entry} tile />}
+          </span>
+          <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
+                <FileName name={entry.name} extension={entry.kind === "file"} />
+              </span>
+              {parts.meta ? (
+                <span className="shrink-0">{parts.meta}</span>
+              ) : null}
             </span>
-          ) : null}
-        </span>
-      </EntryTrigger>
+            {parts.description ? (
+              <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
+                {parts.description}
+              </span>
+            ) : null}
+          </span>
+        </EntryTrigger>
+      )}
       {parts.checkbox ? (
         <span
           className={cn(
@@ -204,6 +234,8 @@ type EntryParts = {
   selected: boolean;
   /** Any entry in the list is selected. */
   selecting: boolean;
+  /** The name is the rename field. The row is not a button. */
+  renaming: boolean;
   checkbox: ReactNode;
   actions: ReactNode;
   description: ReactNode;
@@ -230,6 +262,9 @@ function useEntryParts<TItem>({
   const defaultDescription = useDefaultDescription(entry);
   const selectable = selection != null && selection.canSelect(entry);
   const selected = selectable && selection.isSelected(entry.key);
+  const renaming = context.renamingKey === entry.key;
+  const canRename = canRenameEntry(entry, list);
+
   const open =
     entry.kind === "folder"
       ? () => list.openFolder(entry.folder)
@@ -246,8 +281,9 @@ function useEntryParts<TItem>({
     entry.kind === "file"
       ? context.download != null ||
         context.share != null ||
-        context.delete != null
-      : folderCall != null;
+        context.delete != null ||
+        canRename
+      : folderCall != null || canRename;
 
   const resolvedActions =
     actions !== undefined ? (
@@ -261,6 +297,7 @@ function useEntryParts<TItem>({
   return {
     selected,
     selecting: selection?.isSelecting === true,
+    renaming,
     checkbox:
       selectable && selection ? (
         <ObjectListCheckbox

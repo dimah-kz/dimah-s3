@@ -128,6 +128,21 @@ export type ObjectListSource<TItem> = {
     parent: string | null;
     name: string;
   }) => Promise<ObjectListFolder>;
+  /**
+   * Renames a file's display name. The object key stays whatever you store.
+   * Enables Rename on file rows. Return the updated item and the row
+   * changes at once; omit it and the list reloads.
+   */
+  renameFile?: (input: { item: TItem; name: string }) => Promise<TItem | void>;
+  /**
+   * Renames a folder. Enables Rename on folder rows. Return the folder
+   * (`id` and `name`) and the row and breadcrumb update at once; omit it
+   * and the list reloads. Keep `id` stable when the folder's identity is.
+   */
+  renameFolder?: (input: {
+    folder: ObjectListFolder;
+    name: string;
+  }) => Promise<ObjectListFolder | void>;
 };
 
 /** A folder row in {@link ObjectListEntry} order. */

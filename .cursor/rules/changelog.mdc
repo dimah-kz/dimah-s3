@@ -1,0 +1,13 @@
+---
+description: Tegami changelog prose — read changelog.md before adding or editing a .tegami note
+globs: .tegami/**/*.md
+alwaysApply: false
+---
+
+# Changelogs
+
+A `.tegami/*.md` body is the consumer note for this beta and, on `v2`, the same text replayed into `2.0.0`. Write the final contract. `###` title, then the outcome, and every break under `#### Breaking changes` with the replacement.
+
+On a replay-only file, edit the Markdown body only. Keep the `replay` list. Do not put `type` back, and do not edit `CHANGELOG.md` or `.tegami/publish-lock.yaml`.
+
+**Before adding or editing a changelog, Read** [docs/agents/changelog.md](docs/agents/changelog.md). Lines, bumps, and publish stay in [docs/agents/release.md](docs/agents/release.md).

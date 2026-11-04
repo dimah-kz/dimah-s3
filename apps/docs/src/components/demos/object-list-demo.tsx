@@ -281,7 +281,15 @@ function isInFolder(path: string | null, folder: string) {
   return path === folder || (path?.startsWith(`${folder}/`) ?? false);
 }
 
-/** The demo's records. Uploads, deletes, and New folder edit them. */
+/** Folder ids are paths. A rename rewrites that path and everything inside it. */
+function rewriteFolderPath(path: string, from: string, to: string) {
+  if (path === from) return to;
+  const prefix = `${from}/`;
+  if (!path.startsWith(prefix)) return path;
+  return to + path.slice(from.length);
+}
+
+/** The demo's records. Uploads, deletes, renames, and New folder edit them. */
 function createCatalog() {
   let files = FILES;
   /** Folders made with New folder. They stay listed while empty. */
@@ -302,6 +310,43 @@ function createCatalog() {
         .map((id) => ({ id, name: id.slice(prefix.length) }))
         .filter((folder) => !folder.name.includes("/"));
     },
+    renameFile(id: string, name: string): LibraryFile {
+      const current = files.find((file) => file.id === id);
+      if (!current) throw s3Error("OBJECT_NOT_FOUND");
+      // Pin the key before the name changes, so download still finds the blob.
+      const next: LibraryFile = {
+        ...current,
+        name,
+        key: current.key ?? fileObjectKey(current),
+      };
+      files = files.map((file) => (file.id === id ? next : file));
+      return next;
+    },
+    renameFolder(id: string, input: string): ObjectListFolder {
+      const name = input.trim();
+      if (!name || name === "." || name === ".." || name.includes("/")) {
+        throw s3Error("FOLDER_INVALID");
+      }
+      const parent = id.includes("/") ? id.slice(0, id.lastIndexOf("/")) : null;
+      const nextId = parent ? `${parent}/${name}` : name;
+      if (nextId === id) return { id, name };
+      const known =
+        folders.has(id) || files.some((file) => isInFolder(file.folder, id));
+      if (!known) throw s3Error("FOLDER_NOT_FOUND");
+      const taken =
+        folders.has(nextId) ||
+        files.some((file) => isInFolder(file.folder, nextId));
+      if (taken) throw s3Error("FOLDER_EXISTS");
+      files = files.map((file) =>
+        file.folder == null
+          ? file
+          : { ...file, folder: rewriteFolderPath(file.folder, id, nextId) },
+      );
+      folders = new Set(
+        [...folders].map((folderId) => rewriteFolderPath(folderId, id, nextId)),
+      );
+      return { id: nextId, name };
+    },
     createFolder(parent: string | null, input: string): ObjectListFolder {
       const name = input.trim();
       if (!name || name === "." || name === ".." || name.includes("/")) {
@@ -321,9 +366,9 @@ type Catalog = ReturnType<typeof createCatalog>;
 
 /**
  * The list source. `memoryObjectSource` reads folders from the records, so
- * this adds the created folders that hold no file yet, uploads into the
- * open folder or the folder a file is dropped on, and makes later pages
- * wait a moment so the next-page spinner shows.
+ * this adds the created folders that hold no file yet, renames files and
+ * folders, uploads into the open folder or the folder a file is dropped
+ * on, and makes later pages wait a moment so the next-page spinner shows.
  */
 function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
   const source = memoryObjectSource(catalog.files, {
@@ -368,6 +413,9 @@ function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
     uploadOptions: (parent) => ({ metadata: { folder: parent ?? "" } }),
     createFolder: async ({ parent, name }) =>
       catalog.createFolder(parent, name),
+    renameFile: async ({ item, name }) => catalog.renameFile(item.id, name),
+    renameFolder: async ({ folder, name }) =>
+      catalog.renameFolder(folder.id, name),
   };
 }
 

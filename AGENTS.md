@@ -17,7 +17,7 @@ pnpm + Turbo. From the root: `pnpm lint`, `pnpm check-types`, `pnpm test`.
 - Scope: presign upload / download / delete. Do not wrap trivial S3 APIs (`s3.put` and proxy `GET /file` are the exceptions). Auth and quota live in consumer hooks, not library packages. Optional DB is `@dimah-s3/db` `db()` — no ORM inside `server`.
 - Deps: `core` ← `server` | `react` ← `ui`; `db` → `server` (peer); `cli` is scaffold-only. Protocol SSOT is `@dimah-s3/core`. API errors: stable `code` + English `message`.
 - Do not hand-edit `packages/ui/registry.json` or `packages/ui/src/components/ui/`.
-- Published `@dimah-s3/*` behavior, API, or build output change → changelog under `.tegami/` ([release.md](docs/agents/release.md)). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files.
+- Published `@dimah-s3/*` behavior, API, or build output change → changelog under `.tegami/` ([changelog.md](docs/agents/changelog.md), [release.md](docs/agents/release.md)). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files.
 - Commit when asked. Never `git push` (or force-push) unless the human explicitly asks.
 
 `templates/` = CLI starters (published npm ranges, not a workspace member). `examples/` = workspace demos. `apps/docs` = product docs. `apps/brand` = local promo studio. `docs/agents/` = these maintainer checklists.
@@ -32,7 +32,8 @@ Read the matching file **when changing published behavior**. Skip it for a local
 | [packages.md](docs/agents/packages.md)         | Protocol, endpoint, plugin, or hook             |
 | [registry.md](docs/agents/registry.md)         | UI component or shadcn registry item            |
 | [cli.md](docs/agents/cli.md)                   | Scaffold CLI or templates catalog               |
-| [release.md](docs/agents/release.md)           | Tegami changelog / version bump                 |
+| [changelog.md](docs/agents/changelog.md)       | Writing or editing a `.tegami` changelog        |
+| [release.md](docs/agents/release.md)           | Tegami version bump / publish                   |
 | [brand.md](docs/agents/brand.md)               | Promo still or video                            |
 
 <!-- BEGIN:turborepo-agent-rules -->

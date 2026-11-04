@@ -97,11 +97,12 @@ caps are for display; the server still enforces its own quota.
 
 ## Uploads and folders
 
-A source can add two optional functions. The hook returns them as
-`list.uploadOptions` and `list.createFolder`.
+A source can add these optional functions. The hook returns the ones you set.
 
 - **`uploadOptions(parent)`** — the [request options](/docs/react/hooks/upload#request-options) for files uploaded into a folder (`null` is the root). It turns on drop-on-folder.
 - **`createFolder({ parent, name })`** — creates an empty folder. It turns on "New folder".
+- **`renameFile({ item, name })`** — the file's display name. Return the updated item. The object key stays whatever you store. It turns on Rename for files.
+- **`renameFolder({ folder, name })`** — return `{ id, name }`. Keep `id` when the folder's identity is its id. It turns on Rename for folders.
 
 ```ts
 const source: ObjectListSource<FileRow> = {
@@ -118,6 +119,12 @@ const source: ObjectListSource<FileRow> = {
 `list.createFolder(name)` creates the folder inside the open folder and adds
 it to the loaded folders. It rejects with an `APIError`. If the list moved to
 another folder while the call ran, the new folder is not added.
+
+`list.renameFile(item, name)` and `list.renameFolder(folder, name)` call the
+source and replace the loaded row. A folder rename also updates that id in
+the breadcrumb. The same name does nothing. A sort on `name`, or a search,
+reloads afterwards, and so does a source that returns nothing, so the order
+stays right. Both reject with an `APIError`.
 
 With your own controls, pass the options to the upload hook. Drop targets use
 `getDropTargetProps`, so folder rows keep their own click and keyboard
@@ -195,9 +202,11 @@ One page of a database query cannot be grouped after the fact.
 
 `dbObjectSource(api.db, options)` from `@dimah-s3/db/client` lists the rows
 of the [`db()`](/docs/db) plugin. By default it lists one folder at a time:
-`parent` is a folder path, the first page carries the child folders, uploads
-go to the open folder, and "New folder" calls `api.db.createFolder`. Pass
-`folders: false` for a flat list with no folder actions.
+`parent` is a folder id, the first page carries the child folders, uploads
+go to the open folder, and "New folder" calls `api.db.createFolder`. Rename
+calls `api.db.updateObject` (`filename`) or `api.db.updateFolder` (`name`)
+and leaves the object key as it is. Pass `folders: false` for a flat list;
+file rename stays, and folder actions do not.
 
 ```tsx title="components/db-files.tsx"
 "use client";
@@ -268,7 +277,7 @@ const list = useObjectList({
 - `refresh()` reloads every page on screen and swaps them in at once.
 - `retry()` repeats what failed: the next page, or the reload.
 - `status` is `idle`, `loading`, `refreshing`, `loading-more`, `ready`, or `error`. `isLoading`, `isRefreshing`, and `isLoadingMore` mirror it.
-- `setItems(updater)`, `setFolders(updater)`, and `removeItems(keys)` edit the loaded rows without a request, for example after a rename. The next reload replaces them.
+- `setItems(updater)`, `setFolders(updater)`, and `removeItems(keys)` edit the loaded rows without a request. The next reload replaces them. Prefer `renameFile` and `renameFolder` when the source can rename.
 
 ## Selection
 
