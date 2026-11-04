@@ -1,3 +1,9 @@
+## @dimah-s3/react@2.0.0-beta.4 (beta)
+
+### Docs at s3.dimah.dev
+
+Package homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.
+
 ## @dimah-s3/react@2.0.0-beta.3 (beta)
 
 ### Rename a listed file or folder

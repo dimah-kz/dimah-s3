@@ -1,44 +1,39 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/cli\":\n    type: patch\n---\n\n### Next.js starter lints on TypeScript 6\n\nThe Next.js starter pins `typescript` to `^6.0.2` again. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` made `eslint` exit before it checked the project.\n"
-    filename: 2026-11-03-nextjs-starter-typescript.md
-    v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Rename from the database list\n\n`dbObjectSource` renames a file with `api.db.updateObject` (`filename`, same `key` and `bucket`) and a folder with `api.db.updateFolder` (`name`). The stored object key stays. `folders: false` still renames files. A folder name that cannot be one path segment fails with `FOLDER_INVALID` before the request. The methods are set when `api.db` has those actions.\n"
-    filename: 2026-11-04-list-rename-db.md
-    v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: minor\n---\n\n### Rename a listed file or folder\n\n`useObjectList` renames through the source. `renameFile({ item, name })` and `renameFolder({ folder, name })` turn on `list.renameFile(item, name)` and `list.renameFolder(folder, name)`. Return the updated row and the list shows it. Leave the return out and the list reloads. A sort on `name`, or a search, reloads either way. An unchanged name does not call the source.\n"
-    filename: 2026-11-04-list-rename-react.md
-    v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### Rename in the object list\n\n`ObjectList` adds Rename to a row when that row's source can rename it. The name becomes a field. Enter saves, Escape or Cancel restores the name, and leaving the field saves it. F2 starts the rename from the row. Download and Copy link then send the saved name.\n"
-    filename: 2026-11-04-list-rename-ui.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Docs at s3.dimah.dev\n\nPackage homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.\n"
+    filename: 2026-11-04-docs-domain.md
     v: 0.0.0
 core:packages:
   - changelogIds:
-      - 2026-11-03-nextjs-starter-typescript.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-11-04-list-rename-db.md
+      - 2026-11-04-docs-domain.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/db
     updated: true
-  - id: npm:@dimah-s3/core
-    updated: true
   - changelogIds:
-      - 2026-11-04-list-rename-react.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/react
     updated: true
-  - id: npm:@dimah-s3/server
+  - changelogIds:
+      - 2026-11-04-docs-domain.md
+    id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-11-04-list-rename-ui.md
+      - 2026-11-04-docs-domain.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: beta
     id: npm:@dimah-s3/cli
   - distTag: beta
-    id: npm:@dimah-s3/db
-  - distTag: beta
     id: npm:@dimah-s3/core
+  - distTag: beta
+    id: npm:@dimah-s3/db
   - distTag: beta
     id: npm:@dimah-s3/react
   - distTag: beta
