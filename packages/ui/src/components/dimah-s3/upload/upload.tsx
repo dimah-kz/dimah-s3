@@ -23,10 +23,11 @@ export type UploadProps = {
   /** The `useUpload` return its parts read. */
   upload: UseUploadReturn;
   /**
-   * Marks the root as full: `UploadTrigger` and `UploadDropzone` stay
-   * focusable but are `aria-disabled`. It only changes how they render, so
-   * `upload` must take no files itself. `UploadField` sets it, with a capped
-   * `upload`, once it is full. @default false
+   * Marks the root as full: `UploadTrigger`, `UploadDropzone` and the retry
+   * actions of `UploadStatus` and `UploadFileList` stay focusable but are
+   * `aria-disabled`. It only changes how they render; the hook decides what
+   * it takes. `UploadField` sets it once its `maxFiles` is reached.
+   * @default false
    */
   isFull?: boolean;
   /**
@@ -41,7 +42,7 @@ export type UploadProps = {
 /** What {@link Upload} shares with its parts. */
 export type UploadContextValue = {
   upload: UseUploadReturn;
-  /** The root takes no more files, as in a full `UploadField`. Parts render `aria-disabled`. */
+  /** The root takes no more files, as in a full `UploadField`. Its intake and retry parts render `aria-disabled`. */
   isFull: boolean;
   /** Status parts leave out files that uploaded, as in an `UploadField`. */
   hideUploaded: boolean;
@@ -124,7 +125,7 @@ export function Upload({
     handoffRef.current = null;
     // Only focus that was lost moves; focus the user moved stays.
     if (active instanceof HTMLElement && active !== document.body) return;
-    handoffTarget(handoff, rootId)?.focus();
+    focusFirst(handoffTargets(handoff, rootId));
   });
 
   return (
@@ -199,38 +200,40 @@ function focusHandoff(): FocusHandoff | null {
   };
 }
 
-function handoffTarget(
-  handoff: FocusHandoff,
-  rootId: string,
-): HTMLElement | null {
+/** Where focus may go, best first. */
+function handoffTargets(handoff: FocusHandoff, rootId: string): HTMLElement[] {
   const intake = document.querySelectorAll<HTMLElement>(
     `[${INTAKE_ATTRIBUTE}="${CSS.escape(rootId)}"]`,
   );
-  return (
-    [
-      ...handoff.candidates,
-      // The container can redraw its cards, as when one file is left.
-      ...(handoff.scope.isConnected
-        ? handoff.scope.querySelectorAll<HTMLElement>("button")
-        : []),
-      ...intake,
-      handoff.focusRoot,
-    ].find(
-      (element): element is HTMLElement =>
-        element != null && element.isConnected && isFocusable(element),
-    ) ?? null
+  return [
+    ...handoff.candidates,
+    // The container can redraw its cards, as when one file is left.
+    ...(handoff.scope.isConnected
+      ? handoff.scope.querySelectorAll<HTMLElement>("button")
+      : []),
+    ...intake,
+    handoff.focusRoot,
+  ].filter(
+    (element): element is HTMLElement => element != null && element.isConnected,
   );
 }
 
-function isFocusable(element: HTMLElement): boolean {
-  return !(element instanceof HTMLButtonElement && element.disabled);
+/**
+ * Focuses the first element that takes focus. A disabled button or a
+ * dropzone without `tabIndex` does not, so the next one gets it.
+ */
+function focusFirst(elements: readonly HTMLElement[]) {
+  for (const element of elements) {
+    element.focus();
+    if (document.activeElement === element) return;
+  }
 }
 
 /**
  * Call options for files taken in by an upload part.
  *
  * Inside an `ObjectList` whose `upload` is this same hook (by
- * `instanceId`, so a capped copy from `UploadField` counts), the source's
+ * `instanceId`, so the copy `UploadField` passes its parts counts), the source's
  * `uploadOptions` for the open folder apply first, so files land in that
  * folder. `call` merges over them: its fields win, and `metadata` merges
  * key by key.

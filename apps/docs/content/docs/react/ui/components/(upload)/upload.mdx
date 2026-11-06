@@ -223,7 +223,8 @@ progress ring, the count, and the time left, then a row for each file. The
 summary has "Cancel all uploads" while they upload, and a dismiss action once
 they settle, with "Retry failed uploads" when some failed. Each failed file
 has its own retry action, which turns into its cancel action as the file goes
-back in flight, so focus stays on it. The rows scroll past 20rem.
+back in flight, so focus stays on it. In a full root, the retry actions stay
+focusable but are `aria-disabled`. The rows scroll past 20rem.
 Pause appears while files upload when the hook has an `uploadStore`, so the
 uploads can [resume](/docs/react/upload-store). It sets `data-phase` to the
 hook's phase.
@@ -269,9 +270,10 @@ over them.
 
 `useUploadContext()` returns the `upload` of the nearest `Upload` and its
 `isFull` flag. Pass `isFull` to `Upload` (as a full `UploadField` does) to
-render `UploadTrigger` and `UploadDropzoneTrigger` focusable but
-`aria-disabled`; it changes only how they render, so the `upload` must take
-no files itself.
+render `UploadTrigger`, `UploadDropzoneTrigger`, and the retry actions of
+`UploadStatus` and `UploadFileList` focusable but `aria-disabled`. It changes
+only how they render. To make the hook take no more files, set a limit with
+[`useUploadLimit`](/docs/react/hooks/upload#limit-across-calls).
 
 ---
 

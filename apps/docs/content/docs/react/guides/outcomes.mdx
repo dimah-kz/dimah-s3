@@ -36,11 +36,10 @@ if (outcome.status === "error") {
 
 Batch actions resolve with one result that sorts every unit:
 
-| Action                      | Result                                           |
-| --------------------------- | ------------------------------------------------ |
-| `useUpload().handleFiles`   | `{ uploaded, failed, blocked, aborted }` by file |
-| `useDelete().removeMany`    | `{ deleted, failed, blocked }` by key            |
-| `useDownload().presignMany` | `{ signed, failed, blocked }` by key             |
+| Action                    | Result                                           |
+| ------------------------- | ------------------------------------------------ |
+| `useUpload().handleFiles` | `{ uploaded, failed, blocked, aborted }` by file |
+| `useDelete().removeMany`  | `{ deleted, failed, blocked }` by key            |
 
 `failed` entries pair the unit with its `APIError`, such as
 `{ key, error }`.
@@ -71,7 +70,7 @@ Every error is an `APIError` from `@dimah-s3/core`:
 - **`code`** — always set. Branch on it with `isS3ErrorCode(error, code)`.
 - **`params`** — values for the message, such as `{ size, maxFileSize }`.
 - **`statusCode`** — the HTTP status.
-- **`message`** — English. Show users `useFormatDimahError()` instead; see [Helpers](/docs/react/helpers#errors).
+- **`message`** — English. Show users `useFormatError()` instead; see [Helpers](/docs/react/helpers#errors).
 
 Server codes come from the route and your hooks. Some codes are raised in the
 browser only:

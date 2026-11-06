@@ -49,11 +49,18 @@ export function useObjectListAnnouncement() {
   return { announcement, announce };
 }
 
-/** Polite live region for list feedback while the list's toasts are off. @internal */
+/**
+ * The list's polite live region, mounted with the list so a change is read
+ * out from the first one. It reads `status`, such as the selection count,
+ * whenever it changes, and list feedback while the list's toasts are off.
+ * @internal
+ */
 export function ObjectListAnnouncer({
   announcement,
+  status,
 }: {
   announcement: ObjectListAnnouncement | null;
+  status: string | null;
 }) {
   return (
     <div
@@ -61,6 +68,7 @@ export function ObjectListAnnouncer({
       className="sr-only"
       aria-live="polite"
     >
+      <p data-slot="object-list-status">{status}</p>
       {announcement ? (
         <p key={announcement.id}>
           {announcement.feedback.title}

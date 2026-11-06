@@ -226,8 +226,10 @@ import { createLocalStorageStore } from "@dimah-s3/react/engine"; // [!code ++]
 
 `@dimah-s3/react/engine` has no `"use client"` directive and no React
 import, so you can use it in shared and server modules. The display
-formatters `formatFileSize` and `truncateFileName` live there too, with
-`formatSpeed` and `formatUploadProgress`; they are not in `@dimah-s3/core`.
+formatters `formatFileSize` and `truncateFileName` live there too; they are
+not in `@dimah-s3/core`. `formatSpeed` and `formatUploadProgress` are
+removed: use `useFormatSpeed()` and `useFormatFileSize()`, which follow the
+`S3Provider` locale and translations.
 
 ### Update `useUpload`
 
@@ -253,8 +255,9 @@ const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
   route config decides both.
 - An invalid file no longer stops the batch, and `cancel(id)` cancels one
   file. Pass `queue: true` to append new files instead of replacing the queue.
-- `retry(id?)` sends a failed file again in place. A test stub that builds a
-  whole `UseUploadReturn` must add `retry` and `disabled`.
+- `retry(ids?)` sends failed files again in place: one id, several, or every
+  failed file. A test stub that builds a whole `UseUploadReturn` must add
+  `retry` and `disabled`.
 - Resume records from 1.7 are ignored.
 
 ### Split fetch downloads
@@ -291,7 +294,7 @@ already running joins that call.
 | 1.7                          | 2.0 beta                                |
 | ---------------------------- | --------------------------------------- |
 | `S3UploadError`              | `APIError` with a catalog `code`        |
-| `useFormatValidateFileError` | `useFormatDimahError`                   |
+| `useFormatValidateFileError` | `useFormatError`                        |
 | `formatEta`                  | `useFormatEta`                          |
 | `UploadProgress`             | `TransferProgress`                      |
 | `FetchDownloadProgress`      | `TransferProgress`                      |
@@ -425,11 +428,21 @@ removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
 ### Update `ObjectList`
 
 - `usageLimits` is removed. Limits come from the source's `usage`.
+- The `ObjectListUsage` type from `@dimah-s3/react` is now
+  `ObjectListUsageData`. `ObjectListUsage` is the ui component that shows it.
 - The context field `remove` is now `delete`, and `onDeleted` receives
   react's `DeleteResult`.
 - `ObjectListItemMenu` no longer takes `download`, `delete`, or `onDeleted`.
 - Built-in toasts step aside for your own `UploadToasts`, `DownloadToasts`, or
   `DeleteToasts`. Pass `toasts={false}` to turn them off.
+- The entries are one tab stop. An entry's checkbox and menu leave the tab
+  order: reach them with Tab from the entry, or with ArrowLeft and
+  ArrowRight in the list view. Update tests that tab through the rows.
+- `getKey` and `getFile` run once per item object. To change what a row
+  shows, replace the item with `setItems` or reload.
+- `ObjectListRow` and `ObjectListTile` are memoized. A `render*` function
+  that reads your own state must change with it, as one from `useCallback`
+  does.
 
 ---
 

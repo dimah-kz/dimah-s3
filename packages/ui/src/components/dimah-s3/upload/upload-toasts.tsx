@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "@fuma-translate/react";
 import {
-  useFormatDimahError,
+  useFormatError,
   useFormatFileSize,
   useFormatNumber,
 } from "@dimah-s3/react";
 import type { UploadFileState, UseUploadReturn } from "@dimah-s3/react";
 import { toast } from "@/components/ui/toast";
 import { useToastOwner } from "@/hooks/use-toast-owner";
+import { ToastFile, ToastNumbers, ToastText } from "@/lib/toast-content";
 
 /** Props for {@link UploadToasts}. */
 export type UploadToastsProps = {
@@ -41,20 +42,13 @@ export function BuiltInUploadToasts({ upload }: UploadToastsProps) {
   return active ? <ActiveUploadToasts upload={upload} /> : null;
 }
 
-/** Isolated so localized digits and units keep their own order. */
-function numbers(text: string) {
-  return (
-    <bdi className="inline-block whitespace-nowrap tabular-nums">{text}</bdi>
-  );
-}
-
 function isSettled(file: UploadFileState) {
   return file.phase === "success" || file.phase === "error";
 }
 
 function ActiveUploadToasts({ upload }: UploadToastsProps) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
   const { files, isPending, progress, fileRejections } = upload;
@@ -101,8 +95,16 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
               },
             })
           : t("Uploading", { note: "toast" }),
-      description: numbers(
-        `${formatFileSize(progress.loaded)} / ${formatFileSize(progress.total)}`,
+      description: (
+        <ToastNumbers>
+          {t("{loaded} of {total}", {
+            note: "transfer progress",
+            variables: {
+              loaded: formatFileSize(progress.loaded),
+              total: formatFileSize(progress.total),
+            },
+          })}
+        </ToastNumbers>
       ),
       actionProps: {
         children: t("Cancel", { note: "toast action" }),
@@ -140,12 +142,22 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
           ? {
               type: "success",
               title: t("Upload complete", { note: "toast" }),
-              description: numbers(formatFileSize(first.fileSize)),
+              description: (
+                <ToastFile
+                  name={first.fileName}
+                  detail={formatFileSize(first.fileSize)}
+                />
+              ),
             }
           : {
               type: "error",
               title: t("Upload failed", { note: "toast" }),
-              description: wrapText(formatError(first.error)),
+              description: (
+                <ToastFile
+                  name={first.fileName}
+                  error={formatError(first.error)}
+                />
+              ),
               actionProps: retryAction(first.id),
             },
       );
@@ -159,10 +171,12 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
               note: "toast",
               variables: { count: formatNumber(fresh.length) },
             }),
-            description: numbers(
-              formatFileSize(
-                fresh.reduce((total, file) => total + file.fileSize, 0),
-              ),
+            description: (
+              <ToastNumbers>
+                {formatFileSize(
+                  fresh.reduce((total, file) => total + file.fileSize, 0),
+                )}
+              </ToastNumbers>
             ),
           }
         : {
@@ -207,11 +221,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
         ? {
             type: "error",
             title: t("File not accepted", { note: "toast" }),
-            description: wrapText(
-              <>
-                <bdi>{first.file.name}</bdi>: {reason}
-              </>,
-            ),
+            description: <ToastFile name={first.file.name} error={reason} />,
           }
         : {
             type: "error",
@@ -220,15 +230,11 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
               variables: { count: formatNumber(fileRejections.length) },
             }),
             // One shared reason is worth showing; a mix of reasons is not.
-            description: reasons.size === 1 ? wrapText(reason) : undefined,
+            description:
+              reasons.size === 1 ? <ToastText>{reason}</ToastText> : undefined,
           },
     );
   }, [fileRejections, t, formatError, formatNumber]);
 
   return null;
-}
-
-/** Lets long file names and messages wrap inside the toast. */
-function wrapText(content: ReactNode) {
-  return <span className="block [overflow-wrap:anywhere]">{content}</span>;
 }

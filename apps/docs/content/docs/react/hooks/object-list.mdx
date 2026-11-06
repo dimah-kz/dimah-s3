@@ -49,9 +49,10 @@ export function FileBrowser() {
 both kinds, a `name`, and either `folder` or `item` and `file`. `items` and
 `folders` are there too when you want them apart.
 
-Keep the source stable — define it outside the component, or in `useState` /
-`useMemo` — so the entries are not rebuilt on every render. `getFile` should
-be pure.
+An entry stays the same object while its item or folder does, also when the
+source is written inline, so rows can skip renders. `getKey` and `getFile`
+run once per item and must be pure: to change what a row shows, replace the
+item with `setItems` or reload.
 
 ## Query
 
@@ -298,9 +299,10 @@ selection.selectedItems; // your records
 ```
 
 By default only files can be selected, and the selection clears when the
-folder changes and drops entries a reload no longer returns. `mode: "single"`
-keeps one entry. `persist: true` keeps entries from other folders, as in a
-picker that collects files from several places.
+folder changes and drops entries a reload or search no longer returns, so
+they do not come back selected. `mode: "single"` keeps one entry.
+`persist: true` keeps entries from other folders, as in a picker that
+collects files from several places.
 
 ## UI
 
@@ -336,7 +338,10 @@ import type {
 
 ### Usage
 
-<AutoTypeTable path="packages/react/src/list/types.ts" name="ObjectListUsage" />
+<AutoTypeTable
+  path="packages/react/src/list/types.ts"
+  name="ObjectListUsageData"
+/>
 
 ### memoryObjectSource
 

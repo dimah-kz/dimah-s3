@@ -4,82 +4,16 @@ import { FileIcon, defaultStyles } from "react-file-icon";
 import type { DefaultExtensionType, FileIconProps } from "react-file-icon";
 import { cn } from "cn";
 
-/**
- * Curated extensions with colored glyphs via `react-file-icon`.
- * Keep this list lean — duplicates and rare types belong in aliases / MIME
- * family fallbacks, not here. Unknown types use a neutral generic file icon.
- */
-const CURATED_EXTS = [
-  // documents
-  "pdf",
-  "doc",
-  "docx",
-  "txt",
-  "md",
-  // sheets / slides
-  "xls",
-  "xlsx",
-  "csv",
-  "ppt",
-  "pptx",
-  // archives
-  "zip",
-  "rar",
-  "7z",
-  "tar",
-  "gz",
-  // audio / video
-  "mp3",
-  "wav",
-  "m4a",
-  "mp4",
-  "mov",
-  "webm",
-  "mkv",
-  // images
-  "png",
-  "jpg",
-  "gif",
-  "webp",
-  "svg",
-  "heic",
-  // code / data
-  "json",
-  "js",
-  "ts",
-  "jsx",
-  "html",
-  "css",
-] as const;
-
-type CuratedExt = (typeof CURATED_EXTS)[number];
-
-const CURATED = new Set<string>(CURATED_EXTS);
-
-/**
- * Map alternate extensions onto a curated key (same glyph, no list bloat).
- * Also remaps `defaultStyles` keys that differ from the real extension.
- */
-const EXT_ALIASES: Record<string, CuratedExt | DefaultExtensionType> = {
-  jpeg: "jpg",
-  jpe: "jpg",
-  "7zip": "7z",
-  m4v: "mp4",
-  aac: "m4a",
-  flac: "mp3",
-  ogg: "mp3",
-  avi: "mp4",
-  bmp: "png",
-  tif: "png",
-  tiff: "png",
-};
-
-/** `defaultStyles` lookup when the curated key differs from the library key. */
-const STYLE_ALIASES: Record<string, DefaultExtensionType> = {
+/** Extensions `react-file-icon` styles under another key. */
+const STYLE_ALIASES: Readonly<Record<string, DefaultExtensionType>> = {
   "7z": "7zip",
+  jpe: "jpg",
+  markdown: "md",
+  yaml: "yml",
 };
 
-const MIME_TO_EXT: Record<string, CuratedExt> = {
+/** Extensions for MIME types, used when the name has no extension. */
+const MIME_TO_EXT: Readonly<Record<string, string>> = {
   "application/pdf": "pdf",
   "application/msword": "doc",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
@@ -99,8 +33,10 @@ const MIME_TO_EXT: Record<string, CuratedExt> = {
   "application/gzip": "gz",
   "audio/mpeg": "mp3",
   "audio/wav": "wav",
+  "audio/flac": "flac",
+  "audio/ogg": "ogg",
   "audio/mp4": "m4a",
-  "audio/aac": "m4a",
+  "audio/aac": "aac",
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
@@ -109,19 +45,28 @@ const MIME_TO_EXT: Record<string, CuratedExt> = {
   "image/jpeg": "jpg",
   "image/gif": "gif",
   "image/webp": "webp",
+  "image/avif": "avif",
   "image/svg+xml": "svg",
   "image/heic": "heic",
+  "image/tiff": "tiff",
   "application/json": "json",
   "text/javascript": "js",
   "application/javascript": "js",
-  "text/typescript": "ts",
-  "application/typescript": "ts",
-  "text/jsx": "jsx",
   "text/html": "html",
   "text/css": "css",
   "text/plain": "txt",
   "text/markdown": "md",
 };
+
+/** A glyph style for a MIME family, for types `react-file-icon` has no key for. */
+function familyStyle(mime: string): Partial<FileIconProps> | null {
+  if (mime.startsWith("image/")) return { type: "image" };
+  if (mime.startsWith("audio/")) return { type: "audio" };
+  if (mime.startsWith("video/")) return { type: "video" };
+  if (mime.startsWith("font/")) return { type: "font" };
+  if (mime.startsWith("text/")) return { type: "document" };
+  return null;
+}
 
 function extensionOf(fileName: string): string | null {
   const base = fileName.split(/[/\\]/).pop() ?? fileName;
@@ -130,47 +75,37 @@ function extensionOf(fileName: string): string | null {
   return base.slice(dot + 1).toLowerCase();
 }
 
-function mimeFamilyExt(mime: string): CuratedExt | null {
-  if (mime.startsWith("image/")) return "png";
-  if (mime.startsWith("audio/")) return "mp3";
-  if (mime.startsWith("video/")) return "mp4";
-  if (mime.startsWith("text/")) return "txt";
-  return null;
+function stylesOf(ext: string): Partial<FileIconProps> | null {
+  return (
+    defaultStyles[(STYLE_ALIASES[ext] ?? ext) as DefaultExtensionType] ?? null
+  );
 }
 
-function normalizeExt(ext: string): CuratedExt | null {
-  if (CURATED.has(ext)) return ext as CuratedExt;
-  const aliased = EXT_ALIASES[ext];
-  if (aliased && CURATED.has(aliased)) return aliased as CuratedExt;
-  return null;
-}
+/** What {@link FileTypeGlyph} draws for a file. @internal */
+export type FileTypeGlyphStyle = {
+  /** The label on the glyph, or `null` for none. */
+  label: string | null;
+  styles: Partial<FileIconProps>;
+};
 
-/** Resolve a curated extension key for icon styling (or `null` if unknown). */
-export function resolveFileTypeExtension(
+/**
+ * The glyph for a file. A known content type picks the style and label,
+ * else the file's own extension does. A type with no glyph of its own uses
+ * its family's (`image/*`), and anything else a plain document. The label
+ * is never another type's: `song.flac` reads `flac`.
+ * @internal
+ */
+export function resolveFileTypeGlyph(
   fileName: string,
   contentType?: string | null,
-): string | null {
-  const mime = contentType?.trim().toLowerCase();
-  if (mime) {
-    const fromMime = MIME_TO_EXT[mime];
-    if (fromMime) return fromMime;
-    const family = mimeFamilyExt(mime);
-    if (family) return family;
-  }
-
+): FileTypeGlyphStyle {
+  const mime = contentType?.trim().toLowerCase() ?? "";
   const ext = extensionOf(fileName);
-  if (!ext) return null;
-  return normalizeExt(ext);
-}
-
-function stylesFor(ext: string): Partial<FileIconProps> {
-  const key = (STYLE_ALIASES[ext] ?? ext) as DefaultExtensionType;
-  const fromDefaults = defaultStyles[key];
-  if (fromDefaults) return fromDefaults;
-  // `heic` may be missing from older @types; keep a sensible image style.
-  if (ext === "heic") return { type: "image" };
-  if (ext === "7z") return { type: "compressed" };
-  return {};
+  const mimeExt = MIME_TO_EXT[mime] ?? null;
+  const styles = (mimeExt ? stylesOf(mimeExt) : null) ??
+    (ext ? stylesOf(ext) : null) ??
+    familyStyle(mime) ?? { type: "document" };
+  return { label: mimeExt ?? ext, styles };
 }
 
 export type FileTypeGlyphProps = {
@@ -187,8 +122,8 @@ export type FileTypeGlyphProps = {
 };
 
 /**
- * Colored file glyph for attachment media (no image preview).
- * Uses `react-file-icon` + a lean curated extension map.
+ * Colored file glyph for attachment media (no image preview), drawn by
+ * `react-file-icon` and labelled with the file's extension.
  */
 export function FileTypeGlyph({
   fileName,
@@ -196,9 +131,7 @@ export function FileTypeGlyph({
   layout = "fill",
   className,
 }: FileTypeGlyphProps) {
-  const ext = resolveFileTypeExtension(fileName, contentType);
-  const label = ext ?? extensionOf(fileName) ?? undefined;
-  const styles = ext ? stylesFor(ext) : { type: "document" as const };
+  const { label, styles } = resolveFileTypeGlyph(fileName, contentType);
 
   return (
     <span
@@ -211,7 +144,7 @@ export function FileTypeGlyph({
       )}
       aria-hidden
     >
-      <FileIcon extension={label} {...styles} />
+      <FileIcon extension={label ?? undefined} {...styles} />
     </span>
   );
 }

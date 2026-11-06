@@ -35,6 +35,11 @@ export type DeleteRequestOptions = {
    * dialog closes. Defaults to the focused element.
    */
   trigger?: HTMLElement | null;
+  /**
+   * Called once this request's delete settles, after the root's
+   * `onDeleted`. Not called when the dialog is dismissed.
+   */
+  onDeleted?: (result: DeleteResult) => void;
 };
 
 /** Props for {@link Delete}. */
@@ -45,7 +50,10 @@ export type DeleteProps = {
   confirm?: boolean;
   /** Replaces the default {@link DeleteConfirmDialog}. */
   dialog?: ReactNode;
-  /** Called once per confirmed delete, with every key's outcome. */
+  /**
+   * Called once per confirmed delete, with every key's outcome. A throw is
+   * reported (`reportError`) and does not fail the delete.
+   */
   onDeleted?: (result: DeleteResult) => void;
   /**
    * Where focus goes after the dialog closes. Return `null` to use the
@@ -60,8 +68,10 @@ export type DeleteProps = {
 export type DeleteContextValue = {
   /** The root's `useDelete` return. */
   delete: UseDeleteReturn;
-  /** The delete waiting for confirmation, or `null`. */
-  pending: { targets: readonly DeleteTarget[]; note?: ReactNode } | null;
+  /** The request the dialog asks about, or `null` while it is closed. */
+  confirmation: DeleteConfirmation | null;
+  /** `true` while the confirmed request deletes. The dialog stays open. */
+  isDeleting: boolean;
   /**
    * Asks to delete `targets`. Opens the confirm dialog, or deletes at once
    * when the root has `confirm={false}`. Replaces a pending request.
@@ -71,18 +81,26 @@ export type DeleteContextValue = {
     options?: DeleteRequestOptions,
   ) => void;
   /**
-   * Deletes the pending targets, then closes the dialog. Calls made while
-   * the delete runs return the same promise.
+   * Deletes the targets of `confirmation`, then closes the dialog. Calls
+   * made while the delete runs return the same promise. It never rejects.
    */
   confirm: () => Promise<DeleteResult>;
   /** Closes the dialog without deleting. Does nothing while deleting. */
-  cancel: () => void;
+  dismiss: () => void;
+};
+
+/** A request waiting for confirmation. */
+export type DeleteConfirmation = {
+  targets: readonly DeleteTarget[];
+  /** Extra content for the dialog, from {@link DeleteRequestOptions.note}. */
+  note?: ReactNode;
 };
 
 /** A request with the elements focus can return to. */
 type ActiveRequest = {
   targets: readonly DeleteTarget[];
   note?: ReactNode;
+  onDeleted?: (result: DeleteResult) => void;
   trigger: HTMLElement | null;
   /** The trigger's nearest focus root, found while the trigger is mounted. */
   focusRoot: HTMLElement | null;
@@ -95,6 +113,8 @@ type FocusReturn = ActiveRequest & {
 };
 
 const FOCUS_ROOT = "[data-dimah-s3-focus-root]";
+
+const EMPTY_RESULT: DeleteResult = { deleted: [], failed: [], blocked: [] };
 
 const DeleteContext = createContext<DeleteContextValue | null>(null);
 
@@ -123,6 +143,7 @@ export function Delete({
   children,
 }: DeleteProps) {
   const [active, setActive] = useState<ActiveRequest | null>(null);
+  const [isDeleting, setDeleting] = useState(false);
   const [focusReturn, setFocusReturn] = useState<FocusReturn | null>(null);
   const activeRef = useRef<ActiveRequest | null>(null);
   const runningRef = useRef<Promise<DeleteResult> | null>(null);
@@ -131,15 +152,29 @@ export function Delete({
     latest.current = { del, confirmFirst, onDeleted, restoreFocus };
   });
 
+  /** Deletes `request`'s targets. Never rejects: a throw is reported. */
   const removeTargets = useCallback(
     async (request: ActiveRequest): Promise<DeleteResult> => {
-      const result = await latest.current.del.removeMany(
-        request.targets.map(({ objectKey, fileName }) => ({
-          key: objectKey,
-          fileName,
-        })),
-      );
-      latest.current.onDeleted?.(result);
+      let result: DeleteResult;
+      try {
+        result = await latest.current.del.removeMany(
+          request.targets.map(({ objectKey, fileName }) => ({
+            key: objectKey,
+            fileName,
+          })),
+        );
+      } catch (error) {
+        // A setup error, such as a hook without an `S3Api`.
+        reportError(error);
+        return EMPTY_RESULT;
+      }
+      for (const onDeleted of [latest.current.onDeleted, request.onDeleted]) {
+        try {
+          onDeleted?.(result);
+        } catch (error) {
+          reportError(error);
+        }
+      }
       return result;
     },
     [],
@@ -162,6 +197,7 @@ export function Delete({
       const next: ActiveRequest = {
         targets,
         note: options.note,
+        onDeleted: options.onDeleted,
         trigger,
         focusRoot: trigger?.closest<HTMLElement>(FOCUS_ROOT) ?? null,
       };
@@ -170,7 +206,7 @@ export function Delete({
         setActive(next);
         return;
       }
-      void removeTargets(next).finally(() => {
+      void removeTargets(next).then(() => {
         setFocusReturn({ ...next, always: false });
       });
     },
@@ -180,18 +216,19 @@ export function Delete({
   const confirm = useCallback<DeleteContextValue["confirm"]>(() => {
     if (runningRef.current) return runningRef.current;
     const current = activeRef.current;
-    if (!current) {
-      return Promise.resolve({ deleted: [], failed: [], blocked: [] });
-    }
-    const running = removeTargets(current).finally(() => {
+    if (!current) return Promise.resolve(EMPTY_RESULT);
+    setDeleting(true);
+    const running = removeTargets(current).then((result) => {
       runningRef.current = null;
+      setDeleting(false);
       close(current);
+      return result;
     });
     runningRef.current = running;
     return running;
   }, [close, removeTargets]);
 
-  const cancel = useCallback(() => {
+  const dismiss = useCallback(() => {
     if (runningRef.current || !activeRef.current) return;
     close(activeRef.current);
   }, [close]);
@@ -206,13 +243,20 @@ export function Delete({
     target?.focus();
   }, [focusReturn]);
 
-  const pending = useMemo(
+  const confirmation = useMemo<DeleteConfirmation | null>(
     () => (active ? { targets: active.targets, note: active.note } : null),
     [active],
   );
   const value = useMemo<DeleteContextValue>(
-    () => ({ delete: del, pending, request, confirm, cancel }),
-    [del, pending, request, confirm, cancel],
+    () => ({
+      delete: del,
+      confirmation,
+      isDeleting,
+      request,
+      confirm,
+      dismiss,
+    }),
+    [del, confirmation, isDeleting, request, confirm, dismiss],
   );
 
   return (
@@ -238,6 +282,15 @@ function isTargetList(
   input: DeleteTarget | readonly DeleteTarget[],
 ): input is readonly DeleteTarget[] {
   return Array.isArray(input);
+}
+
+/** Reports an error without throwing, like a failed hook callback. */
+function reportError(error: unknown) {
+  if (typeof globalThis.reportError === "function") {
+    globalThis.reportError(error);
+  } else {
+    console.error(error);
+  }
 }
 
 function focusedElement(): HTMLElement | null {

@@ -3,15 +3,15 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { fileNameFromKey } from "@dimah-s3/core";
 import {
-  useFormatDimahError,
+  useFormatError,
   useFormatNumber,
   type DeleteOperation,
   type UseDeleteReturn,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { toast } from "@/components/ui/toast";
-import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { useToastOwner } from "@/hooks/use-toast-owner";
+import { ToastFile, ToastText } from "@/lib/toast-content";
 
 /** Props for {@link DeleteToasts}. */
 export type DeleteToastsProps = {
@@ -60,7 +60,7 @@ export function useDeleteToasts(
   } = {},
 ): void {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const formatNumber = useFormatNumber();
   const active = useToastOwner(del.instanceId, { weak: options.weak });
   const report = options.report ?? addToast;
@@ -90,7 +90,7 @@ export function useDeleteToasts(
                 }),
           description:
             deleted.length === 1 ? (
-              <FileName name={displayName(firstDeleted)} />
+              <ToastFile name={displayName(firstDeleted)} />
             ) : undefined,
         });
       }
@@ -109,11 +109,15 @@ export function useDeleteToasts(
                   note: "toast",
                   variables: { count: formatNumber(failed.length) },
                 }),
-          description: sameCause ? (
-            <span className="block [overflow-wrap:anywhere]">
-              {formatError(firstFailed.error)}
-            </span>
-          ) : undefined,
+          description:
+            failed.length === 1 ? (
+              <ToastFile
+                name={displayName(firstFailed)}
+                error={formatError(firstFailed.error)}
+              />
+            ) : sameCause ? (
+              <ToastText>{formatError(firstFailed.error)}</ToastText>
+            ) : undefined,
         });
       }
     }

@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   useDeleteContext,
-  type DeleteContextValue,
+  type DeleteConfirmation,
   type DeleteTarget,
 } from "@/components/dimah-s3/delete/delete";
 import { isolateText } from "@/lib/isolate-text";
@@ -51,28 +51,25 @@ export function DeleteConfirmDialog({
   const t = useTranslations();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
-  const { pending, confirm, cancel } = useDeleteContext();
+  const {
+    confirmation,
+    isDeleting: busy,
+    confirm,
+    dismiss,
+  } = useDeleteContext();
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const [busy, setBusy] = useState(false);
   // Keep the copy while the dialog animates out.
-  const [shown, setShown] = useState<DeleteContextValue["pending"]>(pending);
-  if (pending && pending !== shown) setShown(pending);
-  const current = pending ?? shown;
+  const [shown, setShown] = useState<DeleteConfirmation | null>(confirmation);
+  if (confirmation && confirmation !== shown) setShown(confirmation);
+  const current = confirmation ?? shown;
   const targets = current?.targets ?? [];
   const single = targets.length === 1 ? targets[0] : undefined;
 
-  function onConfirm() {
-    setBusy(true);
-    void confirm().finally(() => {
-      setBusy(false);
-    });
-  }
-
   return (
     <AlertDialog
-      open={pending != null}
+      open={confirmation != null}
       onOpenChange={(open) => {
-        if (!open) cancel();
+        if (!open) dismiss();
       }}
     >
       <AlertDialogContent initialFocus={cancelRef} finalFocus={false}>
@@ -121,7 +118,7 @@ export function DeleteConfirmDialog({
             disabled={busy}
             focusableWhenDisabled
             aria-busy={busy || undefined}
-            onClick={onConfirm}
+            onClick={() => void confirm()}
           >
             {busy ? (
               <LoaderIcon className="animate-spin" data-icon="inline-start" />

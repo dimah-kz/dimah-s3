@@ -2,36 +2,51 @@ import { describe, expect, it } from "vitest";
 import { render } from "@/test/render";
 import {
   FileTypeGlyph,
-  resolveFileTypeExtension,
+  resolveFileTypeGlyph,
 } from "@/components/dimah-s3/attachment/file-type-glyph";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 
-describe("resolveFileTypeExtension", () => {
+describe("resolveFileTypeGlyph", () => {
   it("prefers a known content type over the extension", () => {
-    expect(resolveFileTypeExtension("notes.txt", "application/pdf")).toBe(
-      "pdf",
-    );
-    expect(resolveFileTypeExtension("photo", " IMAGE/JPEG ")).toBe("jpg");
+    expect(resolveFileTypeGlyph("notes.txt", "application/pdf")).toEqual({
+      label: "pdf",
+      styles: expect.objectContaining({ type: "acrobat" }),
+    });
+    expect(resolveFileTypeGlyph("photo", " IMAGE/JPEG ").label).toBe("jpg");
   });
 
-  it("falls back to the content type family", () => {
-    expect(resolveFileTypeExtension("clip", "video/x-flv")).toBe("mp4");
-    expect(resolveFileTypeExtension("song", "audio/ogg")).toBe("mp3");
+  it("labels a file with its own extension, never another type's", () => {
+    expect(resolveFileTypeGlyph("song.flac").label).toBe("flac");
+    expect(resolveFileTypeGlyph("scan.tiff").label).toBe("tiff");
+    expect(resolveFileTypeGlyph("clip.avi").label).toBe("avi");
+    expect(resolveFileTypeGlyph("dir/Report.DOCX").label).toBe("docx");
+    expect(resolveFileTypeGlyph("bundle.7z", "").styles).toMatchObject({
+      type: "compressed",
+    });
   });
 
-  it("reads the extension and its aliases", () => {
-    expect(resolveFileTypeExtension("dir/Report.DOCX")).toBe("docx");
-    expect(resolveFileTypeExtension("scan.tiff")).toBe("png");
-    expect(resolveFileTypeExtension("bundle.7zip", "")).toBe("7z");
+  it("styles an unknown type by its family, without a label", () => {
+    expect(resolveFileTypeGlyph("clip", "video/x-flv")).toEqual({
+      label: null,
+      styles: { type: "video" },
+    });
+    expect(resolveFileTypeGlyph("photo.avif", "image/avif")).toEqual({
+      label: "avif",
+      styles: { type: "image" },
+    });
   });
 
-  it("returns null for unknown or missing extensions", () => {
-    expect(resolveFileTypeExtension("data.parquet")).toBeNull();
-    expect(resolveFileTypeExtension(".env")).toBeNull();
-    expect(resolveFileTypeExtension("README")).toBeNull();
-    expect(
-      resolveFileTypeExtension("archive.", "application/x-unknown"),
-    ).toBeNull();
+  it("draws a plain document for an unknown or missing extension", () => {
+    expect(resolveFileTypeGlyph("data.parquet")).toEqual({
+      label: "parquet",
+      styles: { type: "document" },
+    });
+    expect(resolveFileTypeGlyph(".env").label).toBeNull();
+    expect(resolveFileTypeGlyph("README").label).toBeNull();
+    expect(resolveFileTypeGlyph("archive.", "application/x-unknown")).toEqual({
+      label: null,
+      styles: { type: "document" },
+    });
   });
 });
 

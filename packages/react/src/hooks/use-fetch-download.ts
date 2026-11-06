@@ -18,8 +18,8 @@ import { useLiveRef, useOperationStore } from "@/internal/hooks";
 import type { OperationClaim } from "@/internal/operations";
 import { transferProgress } from "@/upload/progress";
 import type {
-  DownloadOptions,
   FetchDownloadOperation,
+  FetchDownloadOptions,
   FetchDownloadOutcome,
   UseFetchDownloadOptions,
   UseFetchDownloadReturn,
@@ -28,8 +28,6 @@ import type { TransferProgress } from "@/types/operation";
 
 /** The least time between two progress reports while a body streams. */
 const PROGRESS_INTERVAL_MS = 100;
-
-type FetchDownloadOptions = DownloadOptions & { fileSize?: number | null };
 
 type FetchDownloadCall = OperationClaim<
   FetchDownloadOperation,

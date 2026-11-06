@@ -25,8 +25,6 @@ describe("@dimah-s3/react/engine", () => {
         "defineApi",
         "formatAcceptLabels",
         "formatFileSize",
-        "formatSpeed",
-        "formatUploadProgress",
         "getUploadAbortKind",
         "loadRouteCatalog",
         "memoryObjectSource",

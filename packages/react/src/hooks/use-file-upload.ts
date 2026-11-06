@@ -36,6 +36,7 @@ import {
   runStartCallback,
 } from "@/internal/callbacks";
 import { requireApi, toClientError } from "@/internal/client-error";
+import { freeUploadSlots, reserveUploadSlots } from "@/internal/upload-limits";
 import type { TransferProgress } from "@/types/operation";
 import type {
   FileRejection,
@@ -88,8 +89,8 @@ export type UseFileUploadReturn = {
     files: readonly File[],
     call?: UploadCallOptions,
   ) => Promise<UploadBatchResult>;
-  /** Uploads the failed file `id` again, or every failed file. */
-  retry: (id?: string) => Promise<UploadBatchResult>;
+  /** Uploads the failed files `ids` again, or every failed file. */
+  retry: (ids?: string | readonly string[]) => Promise<UploadBatchResult>;
   /** Cancels one file by `id`, or every file and preparing call. */
   cancel: (id?: string) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
@@ -107,12 +108,19 @@ export type UseFileUploadReturn = {
  * own. A cancelled or detached file leaves the queue and counts as `aborted`.
  * A failed file can be retried in place. Unmounting detaches the files whose
  * call had an `uploadStore`, so they can resume, and cancels the rest.
+ *
+ * The limits `useUploadLimit` sets for `instanceId` cap every call: a call
+ * holds its slots from the moment it starts, and a retry takes only the
+ * failed files that fit.
  */
 export function useFileUpload(
   options: UseFileUploadOptions,
+  instanceId: string,
 ): UseFileUploadReturn {
   const contextApi = useContext(S3Context);
-  const [queue] = useState(() => createUploadQueue(options, contextApi));
+  const [queue] = useState(() =>
+    createUploadQueue(options, contextApi, instanceId),
+  );
   const snapshot = useSyncExternalStore(
     queue.subscribe,
     queue.getSnapshot,
@@ -196,6 +204,7 @@ const ACTIVE_PHASES: ReadonlySet<UploadFilePhase> = new Set([
 function createUploadQueue(
   initialOptions: UseFileUploadOptions,
   initialContextApi: S3Api | null,
+  instanceId: string,
 ) {
   const listeners = new Set<() => void>();
   const tasks = new Map<string, Task>();
@@ -378,12 +387,15 @@ function createUploadQueue(
     }
   }
 
-  /** Loads the policy, validates `files` and runs the call's start callbacks. */
+  /**
+   * Loads the policy, validates `files`, accepts at most `maxFiles` of them
+   * and runs the call's start callbacks.
+   */
   async function prepare(
     api: S3Api,
     files: File[],
+    maxFiles: number,
     options: UseFileUploadOptions,
-    call: UploadCallOptions,
     signal: AbortSignal,
   ): Promise<Prepared> {
     let pending = files;
@@ -404,10 +416,6 @@ function createUploadQueue(
           maxFileSize: options.maxFileSize,
           multipart: options.multipart,
         },
-      );
-      const maxFiles = Math.min(
-        options.maxFiles ?? DEFAULT_MAX_FILES,
-        call.maxFiles ?? Number.POSITIVE_INFINITY,
       );
       const accepted: File[] = [];
       const rejected: FileRejection[] = [];
@@ -458,7 +466,7 @@ function createUploadQueue(
 
   /**
    * Adds entries. A call that starts uploading (`replace`) replaces the queue
-   * unless `options.queue` is set; a failed call only appends its rows.
+   * unless it queues; a failed call only appends its rows.
    */
   function enqueue(
     entries: UploadFileState[],
@@ -466,7 +474,7 @@ function createUploadQueue(
     options: UseFileUploadOptions,
     replace: boolean,
   ) {
-    if (replace && !options.queue) {
+    if (replace && !queues(call, options)) {
       for (const task of tasks.values()) {
         abortTask(task, uploadAbortReason("cancel"));
       }
@@ -483,11 +491,17 @@ function createUploadQueue(
     return startCall([...input], call, []);
   }
 
-  function retry(id?: string): Promise<UploadBatchResult> {
-    const failed = snapshot.files.filter(
-      (entry) =>
-        entry.phase === "error" && (id === undefined || entry.id === id),
-    );
+  function retry(ids?: string | readonly string[]): Promise<UploadBatchResult> {
+    const wanted =
+      ids === undefined
+        ? null
+        : new Set<string>(typeof ids === "string" ? [ids] : ids);
+    const failed = snapshot.files
+      .filter(
+        (entry) => entry.phase === "error" && (wanted?.has(entry.id) ?? true),
+      )
+      // Under a limit, only the failed files that fit go again.
+      .slice(0, freeUploadSlots(instanceId, snapshot.files));
     if (failed.length === 0) return Promise.resolve(batchResult([]));
     // Each file goes again with the options of the call it came from.
     const calls = Map.groupBy(
@@ -508,7 +522,8 @@ function createUploadQueue(
   /**
    * Runs one call. `retried` holds the failed entries a retry sends again:
    * they keep their place and id, go back to `queued` while the call
-   * prepares, and never replace the queue.
+   * prepares, and never replace the queue. `retry` already left out the
+   * ones past a limit.
    */
   async function startCall(
     files: File[],
@@ -520,7 +535,7 @@ function createUploadQueue(
     if (files.length === 0) return settle(batchResult([]));
 
     const controller = new AbortController();
-    if (!options.queue && retried.length === 0) {
+    if (!queues(call, options) && retried.length === 0) {
       // This call replaces the queue, so an older call still preparing must
       // not enqueue over it once it finishes.
       const reason = uploadAbortReason("cancel");
@@ -533,10 +548,33 @@ function createUploadQueue(
     );
     preparingCalls.add(controller);
     commit({ preparing: snapshot.preparing + 1 });
+    // A new call holds its slots before it awaits anything, so a call that
+    // starts while it prepares sees fewer. Retried entries hold theirs as
+    // queued files.
+    const maxFiles = Math.min(
+      options.maxFiles ?? DEFAULT_MAX_FILES,
+      call.maxFiles ?? Number.POSITIVE_INFINITY,
+      retried.length === 0
+        ? freeUploadSlots(instanceId, snapshot.files)
+        : Number.POSITIVE_INFINITY,
+    );
+    const release = reserveUploadSlots(
+      instanceId,
+      retried.length === 0 ? Math.min(files.length, maxFiles) : 0,
+    );
     let prepared: Prepared;
     try {
-      prepared = await prepare(api, files, options, call, controller.signal);
+      prepared = await prepare(
+        api,
+        files,
+        maxFiles,
+        options,
+        controller.signal,
+      );
     } finally {
+      // The accepted files enter the queue right after, in the same task,
+      // and take these slots over.
+      release();
       preparingCalls.delete(controller);
       for (const id of previous.keys()) retrying.delete(id);
       commit({ preparing: snapshot.preparing - 1 });
@@ -751,6 +789,11 @@ function createUploadQueue(
     reset,
     dispose,
   };
+}
+
+/** Whether a call appends to the queue: its own `queue`, else the hook's. */
+function queues(call: UploadCallOptions, options: UseFileUploadOptions) {
+  return call.queue ?? options.queue ?? false;
 }
 
 function createEntry(file: File): UploadFileState {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { s3Error } from "@dimah-s3/core";
 import {
-  useFormatDimahError,
+  useFormatError,
   type DownloadOperation,
   type FetchDownloadOperation,
   type UseDownloadReturn,
@@ -102,11 +102,6 @@ function fakeNavigateDownload(instanceId = `navigate-${++instances}`) {
     presign: vi.fn<UseDownloadReturn["presign"]>(async (key) => ({
       status: "aborted",
       key,
-    })),
-    presignMany: vi.fn<UseDownloadReturn["presignMany"]>(async () => ({
-      signed: [],
-      failed: [],
-      blocked: [],
     })),
     cancel: vi.fn<UseDownloadReturn["cancel"]>(),
     reset: vi.fn<UseDownloadReturn["reset"]>(),
@@ -463,7 +458,7 @@ describe("DownloadToasts", () => {
 
   it("shows failures with the formatted error", async () => {
     const error = s3Error("NETWORK_ERROR");
-    const { result } = renderHook(() => useFormatDimahError());
+    const { result } = renderHook(() => useFormatError());
     const download = fakeNavigateDownload();
     const { rerender } = render(toastsFor(download.at()));
 

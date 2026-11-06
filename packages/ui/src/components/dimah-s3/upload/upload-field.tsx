@@ -14,10 +14,10 @@ import {
 } from "react";
 import { useTranslations } from "@fuma-translate/react";
 import { fileNameFromKey } from "@dimah-s3/core";
+import { useUploadLimit } from "@dimah-s3/react";
 import type {
   DropTargetProps,
   DropzoneRootProps,
-  UploadBatchResult,
   UploadCallOptions,
   UploadFileState,
   UploadResult,
@@ -42,8 +42,9 @@ export type UploadFieldProps = {
   /** Runs with the new keys after an upload adds one or `remove` drops one. */
   onValueChange?: (keys: string[]) => void;
   /**
-   * Most keys the field holds. Each call takes only the files that still
-   * fit, counting files still in flight. A full field takes no files.
+   * Most keys the field holds. The hook takes only the files that still
+   * fit, counting files in flight and calls still preparing, on every call:
+   * also calls made outside the field. A full field takes no files.
    */
   maxFiles?: number;
   children: ReactNode;
@@ -67,7 +68,10 @@ export type UploadFieldContextValue = {
   value: readonly string[];
   /** `value` with file details, in the same order. */
   items: readonly UploadFieldItem[];
-  /** Files that still fit, counting files in flight, or `null` without `maxFiles`. */
+  /**
+   * Files that still fit, counting files in flight and calls still
+   * preparing, or `null` without `maxFiles`.
+   */
   remaining: number | null;
   /** Drops `key` from the value. The stored object is kept. */
   remove: (key: string) => void;
@@ -89,10 +93,11 @@ function isUploaded(file: UploadFileState): file is UploadedFile {
  * Form field whose value is the keys of the files uploaded through it.
  *
  * Each file that uploads successfully adds its key, so the value grows
- * across calls even though the hook replaces its queue. Files that fail,
- * are cancelled or are still in flight add nothing, and files that
- * uploaded before the field mounted are left out. Every key renders as a
- * hidden `<input name={name}>`, so the field submits with its form.
+ * across calls. The field's calls queue, so a new pick never cancels the
+ * files still uploading into it. Files that fail, are cancelled or are
+ * still in flight add nothing, and files that uploaded before the field
+ * mounted are left out. Every key renders as a hidden
+ * `<input name={name}>`, so the field submits with its form.
  *
  * Without `value`, a reset of its form (including React 19's automatic
  * reset after a `<form action>`) restores `defaultValue` and reports it
@@ -103,12 +108,16 @@ function isUploaded(file: UploadFileState): file is UploadedFile {
  * It wraps its children in `Upload`, so `UploadTrigger`, `UploadDropzone`
  * and `UploadStatus` work inside it. A file moves from the status to the
  * value once it uploads, so it never shows twice: the status keeps only
- * files in flight or failed. With `maxFiles`, their calls take at
- * most the files that still fit (files still uploading count), and the hook
- * rejects the rest with `TOO_MANY_FILES`; a retry takes only the failed
- * files that still fit. Once the field is full, its trigger and dropzone
- * stay focusable but are `aria-disabled`, and the picker, drops, pastes and
- * retries do nothing.
+ * files in flight or failed.
+ *
+ * With `maxFiles`, the field sets a `useUploadLimit` on the hook, so every
+ * call takes at most the files that still fit (files in flight and calls
+ * still preparing count), wherever it comes from: the field's parts,
+ * `UploadToasts`, `usePasteFiles` or your own code. The hook rejects the
+ * rest with `TOO_MANY_FILES`, and a retry takes only the failed files that
+ * fit. Once the field is full, its trigger, dropzone and retry actions stay
+ * focusable but are `aria-disabled`, and its picker, drops and pastes do
+ * nothing.
  *
  * @example
  * ```tsx
@@ -198,16 +207,19 @@ export function UploadField({
     [setValue, value],
   );
 
-  // Files in flight that the field has not counted yet may still add a key.
-  const inFlight = upload.files.filter(
-    (file) =>
-      file.phase !== "success" && file.phase !== "error" && !seen.has(file.id),
-  ).length;
-  const remaining =
-    maxFiles == null ? null : Math.max(0, maxFiles - value.length - inFlight);
+  // The hook enforces `maxFiles` on every call. Files in flight, uploaded
+  // files the field has not counted yet, and calls still preparing take
+  // from it.
+  const remaining = useUploadLimit(
+    upload,
+    maxFiles == null
+      ? null
+      : { available: Math.max(0, maxFiles - value.length), counted: seen },
+  );
+  const isFull = remaining === 0;
   const fieldUpload = useMemo(
-    () => (remaining == null ? upload : capUpload(upload, remaining)),
-    [remaining, upload],
+    () => fieldUploadOf(upload, isFull),
+    [isFull, upload],
   );
 
   const contextValue = useMemo<UploadFieldContextValue>(
@@ -237,7 +249,7 @@ export function UploadField({
       {value.map((key) => (
         <input key={key} type="hidden" name={name} value={key} />
       ))}
-      <Upload upload={fieldUpload} isFull={remaining === 0} hideUploaded>
+      <Upload upload={fieldUpload} isFull={isFull} hideUploaded>
         {children}
       </Upload>
     </UploadFieldContext.Provider>
@@ -337,75 +349,43 @@ function withDetails(
   return next;
 }
 
-/** What a call that takes no file resolves with. */
-function emptyBatch(): Promise<UploadBatchResult> {
-  return Promise.resolve({
-    uploaded: [],
-    failed: [],
-    blocked: [],
-    aborted: [],
-  });
-}
-
 /**
- * Retries as many failed files as still fit. A retry adds files like any
- * call, so a field never goes past `maxFiles`.
+ * `upload` as the field's parts use it. Every call queues, so files still
+ * uploading into the value are never cancelled by a new pick. The hook
+ * enforces `maxFiles` itself. Once the field is full, the picker stays
+ * closed and the dropzone takes no clicks, drops or pastes: it is
+ * `aria-disabled` but keeps `tabIndex` 0, so it stays reachable and focus
+ * on it is kept when the field fills.
  */
-function retryFitting(
+function fieldUploadOf(
   upload: UseUploadReturn,
-  remaining: number,
-): Promise<UploadBatchResult> {
-  const failed = upload.files.filter((file) => file.phase === "error");
-  if (failed.length <= remaining) return upload.retry();
-  return Promise.all(
-    failed.slice(0, remaining).map((file) => upload.retry(file.id)),
-  ).then((results) => ({
-    uploaded: results.flatMap((result) => result.uploaded),
-    failed: results.flatMap((result) => result.failed),
-    blocked: results.flatMap((result) => result.blocked),
-    aborted: results.flatMap((result) => result.aborted),
-  }));
-}
-
-/**
- * `upload` whose calls take at most `remaining` files. With none left it
- * takes nothing: the picker stays closed, drops, pastes and retries are
- * ignored, and a dropzone is `aria-disabled`. The dropzone keeps `tabIndex`
- * 0 so it stays reachable, and focus on it is kept when the field fills.
- */
-function capUpload(
-  upload: UseUploadReturn,
-  remaining: number,
+  isFull: boolean,
 ): UseUploadReturn {
-  if (remaining === 0) {
-    return {
-      ...upload,
-      handleFiles: emptyBatch,
-      retry: emptyBatch,
-      open: () => {},
-      // Not `upload.getRootProps`: that would wire the uncapped intake back.
-      getRootProps: <T extends DropzoneRootProps>(props?: T) =>
-        ({ tabIndex: 0, ...props, "aria-disabled": true }) as T,
-      getDropTargetProps: <T extends object = DropTargetProps>(
-        props?: T & DropTargetProps,
-      ) => ({ ...props }) as T & DropTargetProps,
-    };
-  }
-  const cap = (call?: UploadCallOptions): UploadCallOptions => ({
+  const queued = (call?: UploadCallOptions): UploadCallOptions => ({
     ...call,
-    maxFiles: Math.min(call?.maxFiles ?? remaining, remaining),
+    queue: true,
   });
-  const capInput = (call: CallInput): CallInput =>
-    typeof call === "function" ? () => cap(call()) : cap(call);
+  const queuedInput = (call: CallInput): CallInput =>
+    typeof call === "function" ? () => queued(call()) : queued(call);
 
-  return {
+  const fieldUpload: UseUploadReturn = {
     ...upload,
-    handleFiles: (files, call) => upload.handleFiles(files, cap(call)),
-    retry: (id) =>
-      id === undefined ? retryFitting(upload, remaining) : upload.retry(id),
-    open: (call) => upload.open(cap(call)),
-    getRootProps: (props, call) => upload.getRootProps(props, capInput(call)),
+    handleFiles: (files, call) => upload.handleFiles(files, queued(call)),
+    open: (call) => upload.open(queued(call)),
+    getRootProps: (props, call) =>
+      upload.getRootProps(props, queuedInput(call)),
     getDropTargetProps: (props, call) =>
-      upload.getDropTargetProps(props, capInput(call)),
+      upload.getDropTargetProps(props, queuedInput(call)),
+  };
+  if (!isFull) return fieldUpload;
+  return {
+    ...fieldUpload,
+    open: () => {},
+    // Not `upload.getRootProps`: its handlers would open the picker.
+    getRootProps: <T extends DropzoneRootProps>(props?: T) =>
+      ({ tabIndex: 0, ...props, "aria-disabled": true }) as T,
+    getDropTargetProps: <T extends object = DropTargetProps>(
+      props?: T & DropTargetProps,
+    ) => ({ ...props }) as T & DropTargetProps,
   };
 }

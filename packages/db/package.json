@@ -90,10 +90,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1161.0",
+    "@aws-sdk/client-s3": "^3.1162.0",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
-    "@electric-sql/pglite": "^0.5.14",
+    "@electric-sql/pglite": "^0.5.15",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

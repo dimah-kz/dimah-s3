@@ -245,7 +245,7 @@ export function UploadDropzoneTrigger({
                   : "border-dimah-s3-primary/30 bg-dimah-s3-primary/10 text-dimah-s3-primary"),
             )}
           >
-            <Icon className="size-5" strokeWidth={1.75} />
+            <Icon className="pointer-events-none size-5" strokeWidth={1.75} />
           </span>
           <div className="flex flex-col gap-1">
             <p

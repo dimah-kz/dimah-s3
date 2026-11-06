@@ -12,6 +12,7 @@ import {
   Delete,
   useDeleteContext,
   type DeleteProps,
+  type DeleteRequestOptions,
 } from "@/components/dimah-s3/delete/delete";
 import { DeleteConfirmDialog } from "@/components/dimah-s3/delete/delete-confirm-dialog";
 import { DeleteTrigger } from "@/components/dimah-s3/delete/delete-trigger";
@@ -118,6 +119,52 @@ describe("Delete", () => {
       expect(screen.queryByRole("alertdialog")).toBeNull();
     });
     expect(onDeleted).toHaveBeenCalledExactlyOnceWith(result);
+  });
+
+  it("reports a throwing onDeleted and still closes, then runs the request's own", async () => {
+    const user = userEvent.setup();
+    const failure = new Error("save failed");
+    const reported = vi.fn();
+    vi.stubGlobal("reportError", reported);
+    const own = vi.fn<NonNullable<DeleteRequestOptions["onDeleted"]>>();
+    function Custom() {
+      const { request } = useDeleteContext();
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            request({ objectKey: "docs/a.pdf" }, { onDeleted: own })
+          }
+        >
+          Remove
+        </button>
+      );
+    }
+    render(
+      <Delete
+        delete={fakeDelete()}
+        onDeleted={() => {
+          throw failure;
+        }}
+      >
+        <Custom />
+      </Delete>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await screen.findByRole("alertdialog");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+    expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(own).toHaveBeenCalledExactlyOnceWith({
+      deleted: ["docs/a.pdf"],
+      failed: [],
+      blocked: [],
+    });
+    vi.unstubAllGlobals();
   });
 
   it("closes on Cancel without deleting and returns focus to the trigger", async () => {
@@ -333,9 +380,38 @@ describe("Delete", () => {
 });
 
 describe("DeleteTrigger", () => {
+  it("is busy from the moment its key is claimed, before an operation shows", () => {
+    const del = fakeDelete({ pendingKeys: ["docs/a.pdf"] });
+    render(
+      <Delete delete={del}>
+        <DeleteTrigger objectKey="docs/a.pdf">Delete A</DeleteTrigger>
+      </Delete>,
+    );
+
+    const busy = screen.getByRole("button", { name: "Delete A" });
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("shows the icon alone at an icon size", () => {
+    render(
+      <Delete delete={fakeDelete()}>
+        <DeleteTrigger
+          objectKey="docs/a.pdf"
+          size="icon"
+          aria-label="Delete A"
+        />
+      </Delete>,
+    );
+
+    const button = screen.getByRole("button", { name: "Delete A" });
+    expect(button.textContent).toBe("");
+    expect(button.querySelector("svg")).not.toBeNull();
+  });
+
   it("is disabled and busy while its key is deleting", () => {
     const del = fakeDelete({
       get: (key) => (key === "docs/a.pdf" ? deleting(key) : undefined),
+      pendingKeys: ["docs/a.pdf"],
     });
     render(
       <Delete delete={del}>

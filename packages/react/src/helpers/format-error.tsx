@@ -20,11 +20,11 @@ type ErrorParams = Readonly<Record<string, string | number>>;
  *
  * @example
  * ```tsx
- * const formatError = useFormatDimahError();
+ * const formatError = useFormatError();
  * if (upload.error) toast.error(formatError(upload.error));
  * ```
  */
-export function useFormatDimahError(): (error: unknown) => string {
+export function useFormatError(): (error: unknown) => string {
   const t = useTranslations();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();

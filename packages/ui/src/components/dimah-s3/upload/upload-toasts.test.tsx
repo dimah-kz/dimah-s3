@@ -108,13 +108,13 @@ describe("UploadToasts", () => {
     const { update } = renderToasts(uploading([fileState("a", "uploading")]));
 
     expect(await screen.findByText("Uploading")).toBeDefined();
-    expect(screen.getByText("1.0 KB / 2.0 KB")).toBeDefined();
+    expect(screen.getByText("1.0 KB of 2.0 KB")).toBeDefined();
 
     update(
       uploading([fileState("a", "success"), fileState("b", "uploading")], 3072),
     );
     expect(await screen.findByText("Uploading 1/2")).toBeDefined();
-    expect(screen.getByText("3.0 KB / 4.0 KB")).toBeDefined();
+    expect(screen.getByText("3.0 KB of 4.0 KB")).toBeDefined();
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(cancel).toHaveBeenCalledWith();
@@ -210,7 +210,9 @@ describe("UploadToasts", () => {
     expect(await screen.findByText("File not accepted")).toBeDefined();
     expect(
       document.querySelector("[data-slot=toast-description]")?.textContent,
-    ).toBe("big.zip: File size exceeds 1.0 KB limit");
+    ).toBe("big.zipFile size exceeds 1.0 KB limit");
+    // The name and the reason sit on lines of their own.
+    expect(screen.getByTitle("big.zip")).toBeDefined();
 
     const many: FileRejection[] = ["a", "b", "c"].map((name) => ({
       file: new File(["x"], name),

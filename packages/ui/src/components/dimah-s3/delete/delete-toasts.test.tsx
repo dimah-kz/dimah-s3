@@ -3,7 +3,7 @@ import { s3Error } from "@dimah-s3/core";
 import type { DeleteOperation, UseDeleteReturn } from "@dimah-s3/react";
 import { render } from "@/test/render";
 import { toast } from "@/components/ui/toast";
-import { FileName } from "@/components/dimah-s3/attachment/file-name";
+import { ToastFile } from "@/lib/toast-content";
 import { DeleteToasts } from "@/components/dimah-s3/delete/delete-toasts";
 
 function fakeDelete(operations: readonly DeleteOperation[]): UseDeleteReturn {
@@ -60,7 +60,7 @@ describe("DeleteToasts", () => {
 
     expect(shown()).toEqual([{ type: "success", title: "File deleted" }]);
     expect(vi.mocked(toast.add).mock.calls[0]?.[0].description).toEqual(
-      <FileName name="Report.pdf" />,
+      <ToastFile name="Report.pdf" />,
     );
   });
 

@@ -6,7 +6,8 @@ import { useFormatFileSize } from "./format-number";
 
 /**
  * Transfer speed formatter for the `S3Provider` `locale`, such as
- * `"1.2 MB/s"`. Digits and unit labels follow {@link useFormatFileSize}.
+ * `"1.1 MB/s"` for 1,200,000 bytes per second. Digits and unit labels
+ * follow {@link useFormatFileSize}.
  *
  * @example
  * ```tsx

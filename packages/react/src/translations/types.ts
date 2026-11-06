@@ -72,6 +72,7 @@ export type Translations = {
   "Expires in {count} hours(object list menu)": string;
   "Expires in {count} minutes(object list menu)": string;
   "Expires in {count} seconds(object list menu)": string;
+  "Failed(status)": string;
   "File actions(object list menu)": string;
   "File changed during upload(API error)": string;
   "File content does not match its type(API error)": string;
@@ -187,7 +188,7 @@ export type Translations = {
   "{failed} of {total} failed(API error)": string;
   "{hours}h left(time remaining)": string;
   "{hours}h {minutes}m left(time remaining)": string;
-  "{loaded} of {total}(download progress)": string;
+  "{loaded} of {total}(transfer progress)": string;
   "{minutes}m left(time remaining)": string;
   "{percent}%(progress)": string;
   "{seconds}s left(time remaining)": string;

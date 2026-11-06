@@ -1,17 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { APIError } from "@dimah-s3/core";
 import { toClientError } from "@/internal/client-error";
 import { useControllableState, useLiveRef } from "@/internal/hooks";
-import { createObjectListEntries } from "@/list/entries";
+import {
+  reuseObjectListEntries,
+  type ObjectListEntryCache,
+} from "@/list/entries";
 import type {
   ObjectListEntry,
   ObjectListFile,
   ObjectListFolder,
   ObjectListSort,
   ObjectListStatus,
-  ObjectListUsage,
+  ObjectListUsageData,
   UseObjectListOptions,
 } from "@/list/types";
 import type { UploadRequestOptions } from "@/types/upload";
@@ -29,7 +39,7 @@ export type {
   ObjectListSortDirection,
   ObjectListSource,
   ObjectListStatus,
-  ObjectListUsage,
+  ObjectListUsageData,
   UseObjectListOptions,
 } from "@/list/types";
 
@@ -56,7 +66,7 @@ export type UseObjectListReturn<TItem> = {
    * Totals from the latest page that sent them. `null` when the source
    * did not.
    */
-  usage: ObjectListUsage | null;
+  usage: ObjectListUsageData | null;
   error: APIError | null;
   status: ObjectListStatus;
   /** True while the first page is in flight and there is nothing to show. */
@@ -138,7 +148,7 @@ type Snapshot<TItem> = {
   items: readonly TItem[];
   folders: readonly ObjectListFolder[];
   nextCursor: string | null;
-  usage: ObjectListUsage | null;
+  usage: ObjectListUsageData | null;
   /** Pages loaded for `key`. `refresh` reloads this many. */
   pageCount: number;
 };
@@ -229,6 +239,15 @@ export function useObjectList<TItem>(
     () => options.defaultSearch ?? "",
     options.onSearchChange,
   );
+  // Another folder starts without a search, also when a controlled `parent`
+  // changes from outside. A layout effect, so the old search never loads
+  // in the new folder.
+  const searchParentRef = useRef(parent);
+  useLayoutEffect(() => {
+    if (searchParentRef.current === parent) return;
+    searchParentRef.current = parent;
+    setSearchValue("");
+  }, [parent, setSearchValue]);
 
   const queryKey = JSON.stringify(options.queryKey ?? []);
   const trimmedSearch = search.trim();
@@ -321,7 +340,7 @@ export function useObjectList<TItem>(
         const items: TItem[] = [];
         let folders: readonly ObjectListFolder[] = [];
         let serverTrail: readonly ObjectListFolder[] | undefined;
-        let usage: ObjectListUsage | null = null;
+        let usage: ObjectListUsageData | null = null;
         let cursor: string | null = null;
         let pageCount = 0;
         do {
@@ -499,9 +518,12 @@ export function useObjectList<TItem>(
             }
           : draft,
       );
+      // A name sort or a search decides where, and whether, it shows.
+      const now = requestRef.current;
+      if (now.scope === scope && namesNeedReload(now)) await run("refresh");
       return folder;
     },
-    [optionsRef, requestRef, update],
+    [optionsRef, requestRef, run, update],
   );
   const settleRename = useCallback(
     async (scope: string, replaced: boolean) => {
@@ -599,15 +621,6 @@ export function useObjectList<TItem>(
     },
     [optionsRef, requestRef, settleRename, trailRef, update],
   );
-  const setSort = useCallback(
-    (next: ObjectListSort | null) => setSortValue(next),
-    [setSortValue],
-  );
-  const setSearch = useCallback(
-    (next: string) => setSearchValue(next),
-    [setSearchValue],
-  );
-
   // ── View ──────────────────────────────────────────────────────────────
   const { getKey, getFile: readFile } = options;
   const getFile = useMemo(
@@ -631,10 +644,7 @@ export function useObjectList<TItem>(
     pending,
     failure,
   });
-  const entries = useMemo(
-    () => createObjectListEntries(folders, items, getKey, getFile),
-    [folders, getFile, getKey, items],
-  );
+  const entries = useReusedEntries(folders, items, getKey, getFile);
   const nextCursor = fresh ? snapshot.nextCursor : null;
 
   return {
@@ -659,8 +669,8 @@ export function useObjectList<TItem>(
     openFolder,
     navigate,
     goUp,
-    setSort,
-    setSearch,
+    setSort: setSortValue,
+    setSearch: setSearchValue,
     setItems,
     setFolders,
     removeItems,
@@ -671,6 +681,28 @@ export function useObjectList<TItem>(
     renameFile: options.renameFile ? renameFile : undefined,
     renameFolder: options.renameFolder ? renameFolder : undefined,
   };
+}
+
+/**
+ * Entries for `folders` and `items`. A folder or item that is the same
+ * object as last time keeps its entry, so rows and the selection see one
+ * object until that row changes. `getKey` and `getFile` are pure: new
+ * functions alone, such as inline ones, rebuild nothing.
+ */
+function useReusedEntries<TItem>(
+  folders: readonly ObjectListFolder[],
+  items: readonly TItem[],
+  getKey: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): readonly ObjectListEntry<TItem>[] {
+  const [cache, setCache] = useState<ObjectListEntryCache<TItem>>(() =>
+    reuseObjectListEntries(null, folders, items, getKey, getFile),
+  );
+  if (cache.folders === folders && cache.items === items) return cache.entries;
+  // Adjusted during render, so the rows never draw the old entries.
+  const next = reuseObjectListEntries(cache, folders, items, getKey, getFile);
+  setCache(next);
+  return next.entries;
 }
 
 function readStatus({

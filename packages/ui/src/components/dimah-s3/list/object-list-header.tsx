@@ -15,10 +15,12 @@ import {
 } from "react";
 import { isS3ErrorCode } from "@dimah-s3/core";
 import {
-  useFormatDimahError,
+  useFormatError,
   useFormatNumber,
   type ObjectListEntry,
   type ObjectListFolder,
+  type UseObjectListReturn,
+  type UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
@@ -103,9 +105,12 @@ export function ObjectListHeader({
     () => ({ setSearchExpanded, setFolderExpanded }),
     [],
   );
-  const creatingFolder = folderExpanded && !selecting;
+  // A persisted selection spans folders, so the path and controls stay and
+  // the selection bar goes under them. Otherwise it takes their place.
+  const replaced = selecting && !selection?.persist;
+  const creatingFolder = folderExpanded && !replaced;
   // A folder name in progress keeps the bar; search waits.
-  const searching = searchExpanded && !creatingFolder && !selecting;
+  const searching = searchExpanded && !creatingFolder && !replaced;
 
   return (
     <ObjectListHeaderContext.Provider value={header}>
@@ -116,11 +121,11 @@ export function ObjectListHeader({
         data-folder-open={creatingFolder ? "" : undefined}
         className={cn(
           "group/object-list-header @container/object-list-header shrink-0 border-b border-dimah-s3-border",
-          selecting && "bg-dimah-s3-primary/10",
+          replaced && "bg-dimah-s3-primary/10",
           className,
         )}
       >
-        {selecting ? (
+        {replaced ? (
           <ObjectListSelectionBar
             actions={selectionActions ?? context.selectionActions}
           />
@@ -130,7 +135,7 @@ export function ObjectListHeader({
               data-slot="object-list-header-path"
               className="flex min-w-0 flex-[1_1_11rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"
             >
-              <ObjectListSelectAll />
+              {selecting ? null : <ObjectListSelectAll />}
               {showBreadcrumb ? (
                 <ObjectListBreadcrumb />
               ) : (
@@ -152,11 +157,17 @@ export function ObjectListHeader({
                 "group-data-folder-open/object-list-header:ms-0 group-data-folder-open/object-list-header:flex-1 group-data-folder-open/object-list-header:[&>*:not([data-slot=object-list-new-folder])]:hidden",
               )}
             >
-              <NewFolderControl />
+              <ObjectListNewFolder />
               {children}
             </div>
           </div>
         )}
+        {selecting && !replaced ? (
+          <ObjectListSelectionBar
+            className="border-t border-dimah-s3-border bg-dimah-s3-primary/10"
+            actions={selectionActions ?? context.selectionActions}
+          />
+        ) : null}
       </div>
     </ObjectListHeaderContext.Provider>
   );
@@ -210,11 +221,10 @@ export function ObjectListSelectionBar({
   className,
 }: ObjectListSelectionBarProps) {
   const t = useTranslations();
-  const formatNumber = useFormatNumber();
   const { list, selection, delete: del } = useObjectListContext();
+  const count = useSelectionCount(list, selection);
   if (!selection?.isSelecting) return null;
 
-  const count = formatNumber(selection.count);
   // Only selected files that are deleting make the bar inert.
   const busy =
     del != null &&
@@ -232,19 +242,9 @@ export function ObjectListSelectionBar({
       )}
     >
       <ObjectListSelectAll />
-      <p
-        aria-live="polite"
-        className="min-w-0 flex-1 truncate text-sm font-medium text-dimah-s3-foreground tabular-nums"
-      >
-        {selection.allSelected && list.hasMore && !selection.persist
-          ? t("{count} selected on this page", {
-              note: "object list selection",
-              variables: { count },
-            })
-          : t("{count} selected", {
-              note: "object list selection",
-              variables: { count },
-            })}
+      {/* The list's live region reads the count out. */}
+      <p className="min-w-0 flex-1 truncate text-sm font-medium text-dimah-s3-foreground tabular-nums">
+        {count}
       </p>
       <div className="flex shrink-0 items-center gap-1">
         {actions ? (
@@ -270,6 +270,29 @@ export function ObjectListSelectionBar({
 }
 
 /**
+ * "3 selected", or "3 selected on this page" while select-all left pages
+ * unloaded. `null` while nothing is selected. @internal
+ */
+export function useSelectionCount<TItem>(
+  list: UseObjectListReturn<TItem>,
+  selection: UseObjectListSelectionReturn<TItem> | null,
+): string | null {
+  const t = useTranslations();
+  const formatNumber = useFormatNumber();
+  if (!selection?.isSelecting) return null;
+  const count = formatNumber(selection.count);
+  return selection.allSelected && list.hasMore && !selection.persist
+    ? t("{count} selected on this page", {
+        note: "object list selection",
+        variables: { count },
+      })
+    : t("{count} selected", {
+        note: "object list selection",
+        variables: { count },
+      });
+}
+
+/**
  * Delete button for the selected entries. The list's delete root asks for
  * confirmation. `ObjectListSelectionBar` already has one; use this in a bar
  * of your own.
@@ -283,6 +306,8 @@ export function ObjectListBulkDelete() {
 /** What a bulk delete removes. */
 type BulkDeletePlan = {
   targets: readonly DeleteTarget[];
+  /** Each selected folder's entry key, with the object keys it holds. */
+  folders: readonly { entryKey: string; objectKeys: readonly string[] }[];
   /** Selected folders left out: `resolveFolderKeys` is not set. */
   skippedFolders: number;
 };
@@ -294,6 +319,7 @@ type BulkDeletePlan = {
  */
 function BulkDeleteControl() {
   const t = useTranslations();
+  const formatError = useFormatError();
   const { selection, resolveFolderKeys } = useObjectListContext();
   const { delete: del, request } = useDeleteContext();
   const report = useObjectListFeedback();
@@ -310,12 +336,13 @@ function BulkDeleteControl() {
     let plan: BulkDeletePlan;
     try {
       plan = await planBulkDelete(selection.selected, resolveFolderKeys);
-    } catch {
+    } catch (error) {
       report({
         type: "error",
         title: t("Could not delete the selection", {
           note: "object list selection",
         }),
+        description: formatError(error),
       });
       return;
     } finally {
@@ -336,7 +363,24 @@ function BulkDeleteControl() {
       return;
     }
     setRequested(plan.targets.map((target) => target.objectKey));
-    request(plan.targets, { note, trigger });
+    request(plan.targets, {
+      note,
+      trigger,
+      onDeleted: (result) => {
+        setRequested([]);
+        // A folder whose every object went leaves the selection; the list
+        // drops the deleted files itself.
+        const deleted = new Set(result.deleted);
+        const emptied = plan.folders.filter(
+          ({ objectKeys }) =>
+            objectKeys.length > 0 &&
+            objectKeys.every((key) => deleted.has(key)),
+        );
+        if (emptied.length > 0) {
+          selection.deselect(emptied.map(({ entryKey }) => entryKey));
+        }
+      },
+    });
   }
 
   return (
@@ -366,28 +410,39 @@ async function planBulkDelete<TItem>(
     ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined,
 ): Promise<BulkDeletePlan> {
   const targets = new Map<string, DeleteTarget>();
-  let skippedFolders = 0;
   for (const entry of selected) {
-    if (entry.kind === "file") {
-      const objectKey = objectKeyOf(entry);
-      targets.set(objectKey, {
-        objectKey,
-        fileName: entry.file.name,
-        fileSize: entry.file.size,
-      });
-    } else if (resolveFolderKeys) {
-      for (const objectKey of await resolveFolderKeys(entry.folder)) {
-        if (!targets.has(objectKey)) targets.set(objectKey, { objectKey });
-      }
-    } else {
-      skippedFolders += 1;
+    if (entry.kind !== "file") continue;
+    const objectKey = objectKeyOf(entry);
+    targets.set(objectKey, {
+      objectKey,
+      fileName: entry.file.name,
+      fileSize: entry.file.size,
+    });
+  }
+  const selectedFolders = selected.filter((entry) => entry.kind === "folder");
+  if (!resolveFolderKeys) {
+    return {
+      targets: [...targets.values()],
+      folders: [],
+      skippedFolders: selectedFolders.length,
+    };
+  }
+  const folders = await Promise.all(
+    selectedFolders.map(async (entry) => ({
+      entryKey: entry.key,
+      objectKeys: await resolveFolderKeys(entry.folder),
+    })),
+  );
+  for (const { objectKeys } of folders) {
+    for (const objectKey of objectKeys) {
+      if (!targets.has(objectKey)) targets.set(objectKey, { objectKey });
     }
   }
-  return { targets: [...targets.values()], skippedFolders };
+  return { targets: [...targets.values()], folders, skippedFolders: 0 };
 }
 
-/** Props for {@link NewFolderControl}. */
-export type NewFolderControlProps = {
+/** Props for {@link ObjectListNewFolder}. */
+export type ObjectListNewFolderProps = {
   className?: string;
 };
 
@@ -400,7 +455,7 @@ export type NewFolderControlProps = {
  * stays inline. Renders nothing when the source has no `createFolder`.
  * `ObjectListHeader` already has one.
  */
-export function NewFolderControl({ className }: NewFolderControlProps) {
+export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
   const t = useTranslations();
   const { list } = useObjectListContext();
   const header = useOptionalObjectListHeader();
@@ -469,7 +524,7 @@ function NewFolderForm({
   className?: string;
 }) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const inputId = useId();
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);

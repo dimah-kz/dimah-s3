@@ -14,7 +14,7 @@ result with `S3Provider` as shown in [React Setup](/docs/react/setup).
 - **Return every required field** in the response tables. Optional fields may be left out.
 - **Every object call names a `route`.** `catalog()` is the exception. Upload and multipart init do not send a `key`: your backend picks it and returns it.
 - **Issue a ticket.** `upload` and `multipart.init` return a `ticket`. `confirm` and every later multipart call send only `{ ticket }` (plus the part number when signing), so the ticket must tell your backend the route, key, and upload id. Sign it, or store it server side. It may be up to 8192 characters.
-- **Throw an `APIError`** with a [catalog code](/docs/server/errors). The hooks retry `NETWORK_ERROR` and `S3_NETWORK_ERROR`, and show codes with `useFormatDimahError`. Anything else becomes `UNKNOWN_ERROR`, which is not retried.
+- **Throw an `APIError`** with a [catalog code](/docs/server/errors). The hooks retry `NETWORK_ERROR` and `S3_NETWORK_ERROR`, and show codes with `useFormatError`. Anything else becomes `UNKNOWN_ERROR`, which is not retried.
 - **Trust `HeadObject`, not the client.** Confirm and complete return the size and type S3 reports, not what the browser declared.
 
 `createS3Fetch` from `@dimah-s3/core` gives you a fetcher with these error

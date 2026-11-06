@@ -86,16 +86,16 @@ The server always responds in English. Every error carries a catalog `code`
 and its `params`, such as `{ size, maxFileSize }` for `FILE_TOO_LARGE`, so
 the client can build its own message. `@dimah-s3/ui` localizes errors with the
 same `translations` map. Headless hooks expose the original `APIError`; pass it
-to [`useFormatDimahError`](/docs/react/helpers) before rendering a localized
+to [`useFormatError`](/docs/react/helpers) before rendering a localized
 message:
 
 ```tsx title="components/upload-error.tsx"
 "use client";
 
-import { useFormatDimahError, type UseUploadReturn } from "@dimah-s3/react";
+import { useFormatError, type UseUploadReturn } from "@dimah-s3/react";
 
 export function UploadError({ upload }: { upload: UseUploadReturn }) {
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   if (!upload.error) return null;
   return <p role="alert">{formatError(upload.error)}</p>;
 }

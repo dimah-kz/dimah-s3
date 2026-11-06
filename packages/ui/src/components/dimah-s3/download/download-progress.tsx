@@ -1,6 +1,6 @@
 "use client";
 
-import type { HTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 import { useFormatNumber } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
@@ -15,7 +15,7 @@ import {
 export type DownloadProgressProps = {
   /** S3 object key whose download to show. */
   objectKey: string;
-} & HTMLAttributes<HTMLDivElement>;
+} & ComponentProps<"div">;
 
 /**
  * Progress bar for the running `useFetchDownload` call of one key, with the

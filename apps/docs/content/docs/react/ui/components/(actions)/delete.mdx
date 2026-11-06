@@ -144,7 +144,8 @@ it opens. `confirm={false}` deletes on click, without a dialog.
 
 `onDeleted` runs once per confirmed delete with the `DeleteResult`:
 `deleted`, `failed`, and `blocked` keys. It runs before the dialog closes, so
-rows you remove in it are gone by the time focus moves.
+rows you remove in it are gone by the time focus moves. If it throws, the
+error goes to the global `reportError` and the dialog still closes.
 
 When the dialog closes, focus goes to the first of these that is still in the
 document:
@@ -159,8 +160,9 @@ A custom `dialog` gets the same focus handling from the root.
 
 ## Your own triggers
 
-`useDeleteContext()` returns the hook, the `pending` request, and
-`request`, `confirm`, and `cancel`. `request` takes one target or a list, so
+`useDeleteContext()` returns the hook, the `confirmation` the dialog asks
+about (or `null`), `isDeleting` while the confirmed delete runs, and
+`request`, `confirm`, and `dismiss`. `request` takes one target or a list, so
 one confirmation covers a bulk delete:
 
 ```tsx
@@ -185,7 +187,11 @@ function DeleteSelected({ files }: { files: Attachment[] }) {
 
 Pass `trigger` when the element that asked can unmount, such as a menu item:
 pass the menu's trigger button instead. Without it, focus returns to the
-element that had focus. A new request replaces one that is waiting.
+element that had focus. A new request replaces one that is waiting. Its own
+`onDeleted` runs after the root's, once that request's delete settles.
+
+A custom dialog reads `confirmation` for its copy, calls `confirm()` (which
+never rejects) and `dismiss()`, and shows `isDeleting` as busy.
 
 ## Toasts
 

@@ -105,18 +105,27 @@ export function useObjectListSelection<TItem>(
     selected: new Map(),
     anchor: null,
   }));
-  // Another folder starts empty. Reset here, not in an effect, so the old
+  const loaded = useMemo(
+    () => new Map(list.entries.map((entry) => [entry.key, entry])),
+    [list.entries],
+  );
+  // Another folder starts empty, and without `persist` an entry that a
+  // reload or search no longer returns leaves the selection, so it never
+  // comes back selected. Adjusted here, not in an effect, so the old
   // selection never renders against the new rows.
   let state = stored;
   if (stored.scope !== scope) {
     state = { scope, selected: new Map(), anchor: null };
     setStored(state);
+  } else if (!persist && hasMissing(stored.selected, loaded)) {
+    state = {
+      ...stored,
+      selected: new Map(
+        [...stored.selected].filter(([key]) => loaded.has(key)),
+      ),
+    };
+    setStored(state);
   }
-
-  const loaded = useMemo(
-    () => new Map(list.entries.map((entry) => [entry.key, entry])),
-    [list.entries],
-  );
   const selectable = useMemo(
     () => list.entries.filter((entry) => canSelect(entry)),
     [canSelect, list.entries],
@@ -286,6 +295,16 @@ export function useObjectListSelection<TItem>(
     selectAll,
     clear,
   };
+}
+
+function hasMissing(
+  selected: ReadonlyMap<string, unknown>,
+  loaded: ReadonlyMap<string, unknown>,
+): boolean {
+  for (const key of selected.keys()) {
+    if (!loaded.has(key)) return true;
+  }
+  return false;
 }
 
 function toKeys(keys: string | readonly string[]): readonly string[] {

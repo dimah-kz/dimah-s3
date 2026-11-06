@@ -4,5 +4,5 @@
  * order, and the sentence around it keeps the page direction.
  */
 export function isolateText(value: string): string {
-  return `⁨${value}⁩`;
+  return `\u2068${value}\u2069`;
 }

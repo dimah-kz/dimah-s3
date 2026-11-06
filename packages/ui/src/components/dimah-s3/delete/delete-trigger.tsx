@@ -25,9 +25,11 @@ export type DeleteTriggerProps = ComponentProps<typeof Button> &
 
 /**
  * Button that asks the nearest `Delete` root to delete one object. It is
- * disabled, and shows a spinner, while that object is deleting. Children
- * replace the default icon and label. An `onClick` that prevents the default
- * stops the request.
+ * disabled, and shows a spinner, while a delete of that object runs.
+ * Children replace the default icon and label; an icon-size button shows
+ * the icon alone, so give it an `aria-label`. An `onClick` that prevents
+ * the default stops the request. `data-phase` carries the phase of the
+ * newest delete of the key.
  */
 export function DeleteTrigger({
   objectKey,
@@ -36,6 +38,7 @@ export function DeleteTrigger({
   note,
   tooltip,
   variant = "destructive",
+  size,
   disabled,
   focusableWhenDisabled,
   onClick,
@@ -44,14 +47,23 @@ export function DeleteTrigger({
 }: DeleteTriggerProps) {
   const t = useTranslations();
   const { delete: del, request } = useDeleteContext();
-  const deleting = del.get(objectKey)?.phase === "deleting";
+  // The key is claimed before `beforeDelete` runs, so this covers it too.
+  const deleting = del.pendingKeys.includes(objectKey);
+  const iconOnly = size?.startsWith("icon") ?? false;
+  const icon = deleting ? (
+    <LoaderIcon className="animate-spin" data-icon="inline-start" />
+  ) : (
+    <Trash2Icon data-icon="inline-start" />
+  );
 
   const button = (
     <Button
       data-slot="delete-trigger"
+      data-phase={del.get(objectKey)?.phase}
       aria-busy={deleting || undefined}
-      {...props}
       variant={variant}
+      size={size}
+      {...props}
       disabled={Boolean(disabled) || deleting}
       // Keep focus on the button while its delete runs.
       focusableWhenDisabled={focusableWhenDisabled ?? deleting}
@@ -64,16 +76,15 @@ export function DeleteTrigger({
         );
       }}
     >
-      {children ?? (
-        <>
-          {deleting ? (
-            <LoaderIcon className="animate-spin" data-icon="inline-start" />
-          ) : (
-            <Trash2Icon data-icon="inline-start" />
-          )}
-          {t("Delete", { note: "button" })}
-        </>
-      )}
+      {children ??
+        (iconOnly ? (
+          icon
+        ) : (
+          <>
+            {icon}
+            {t("Delete", { note: "button" })}
+          </>
+        ))}
     </Button>
   );
 

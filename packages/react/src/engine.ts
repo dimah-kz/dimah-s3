@@ -12,11 +12,15 @@ export {
 } from "./upload";
 export type {
   UploadFileOptions,
+  UploadRequestOptions,
+  UploadEnginePhase,
+  UploadResult,
   UploadTransport,
   S3ApiUploadTransport,
   RetryConfig,
   UploadAbortKind,
 } from "./types/upload";
+export type { TransferProgress } from "./types/operation";
 
 // ─── Stores ──────────────────────────────────────────────────────────────────
 export { createLocalStorageStore, createMemoryStore } from "./store";
@@ -44,6 +48,16 @@ export {
   type ObjectListLevel,
 } from "./list/read-object-list-level";
 export { objectListEntryKey, objectKeyOf } from "./list/entries";
+export type {
+  ObjectListFile,
+  ObjectListFolder,
+  ObjectListPage,
+  ObjectListQuery,
+  ObjectListQueryInput,
+  ObjectListSort,
+  ObjectListSource,
+  ObjectListUsageData,
+} from "./list/types";
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
 export {
@@ -55,7 +69,5 @@ export {
   type FileSizeUnit,
   type FormatFileSizeOptions,
 } from "./helpers/format-file-size";
-export { formatSpeed } from "./helpers/format-speed";
-export { formatUploadProgress } from "./helpers/format-upload-progress";
 export { truncateFileName } from "./helpers/truncate-file-name";
 export { toTimestamp, type DateInput } from "./helpers/to-timestamp";

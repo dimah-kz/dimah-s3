@@ -9,13 +9,13 @@ import {
 } from "@dimah-s3/core";
 import { S3LocaleContext } from "@/s3-provider";
 import { renderHook, renderHookWithI18n } from "@/test/render-hook";
-import { useFormatDimahError } from "./format-dimah-error";
+import { useFormatError } from "./format-error";
 
-describe("useFormatDimahError", () => {
+describe("useFormatError", () => {
   it.each(Object.keys(S3_ERROR_CODES) as S3ErrorCode[])(
     "has its own message for %s",
     (code) => {
-      const format = renderHookWithI18n(useFormatDimahError);
+      const format = renderHookWithI18n(useFormatError);
       const message = format(
         APIError.fromShape({ code, message: "server message" }),
       );
@@ -25,7 +25,7 @@ describe("useFormatDimahError", () => {
   );
 
   it("maps codes to English source strings", () => {
-    const format = renderHookWithI18n(useFormatDimahError);
+    const format = renderHookWithI18n(useFormatError);
     expect(format(s3Error("OBJECT_NOT_FOUND"))).toBe("File not found");
     expect(format(s3Error("FORBIDDEN"))).toBe("Access denied");
     expect(format(s3Error("NETWORK_ERROR"))).toBe("Network error");
@@ -38,7 +38,7 @@ describe("useFormatDimahError", () => {
   });
 
   it("fills params", () => {
-    const format = renderHookWithI18n(useFormatDimahError);
+    const format = renderHookWithI18n(useFormatError);
     expect(format(s3Error("S3_NETWORK_ERROR", { code: "ECONNREFUSED" }))).toBe(
       "Could not reach storage (ECONNREFUSED)",
     );
@@ -63,7 +63,7 @@ describe("useFormatDimahError", () => {
   });
 
   it("formats validateFile errors", () => {
-    const format = renderHookWithI18n(useFormatDimahError);
+    const format = renderHookWithI18n(useFormatError);
     const file = (name: string, size: number, type = "") =>
       new File([new Uint8Array(size)], name, { type });
 
@@ -77,7 +77,7 @@ describe("useFormatDimahError", () => {
   });
 
   it("uses the generic message when params are missing", () => {
-    const format = renderHookWithI18n(useFormatDimahError);
+    const format = renderHookWithI18n(useFormatError);
     expect(
       format(APIError.fromShape({ code: "FILE_TOO_LARGE", message: "x" })),
     ).toBe("File is too large");
@@ -90,7 +90,7 @@ describe("useFormatDimahError", () => {
   });
 
   it("reads the code from a raw better-call error body", () => {
-    const format = renderHookWithI18n(useFormatDimahError);
+    const format = renderHookWithI18n(useFormatError);
     // better-call copies keep the code only on `body`.
     const error = Object.assign(new Error("Object not found"), {
       name: "APIError",
@@ -100,7 +100,7 @@ describe("useFormatDimahError", () => {
   });
 
   it("returns the message for other codes and errors", () => {
-    const format = renderHookWithI18n(useFormatDimahError);
+    const format = renderHookWithI18n(useFormatError);
     expect(
       format(APIError.from(400, { code: "CUSTOM", message: "custom" })),
     ).toBe("custom");
@@ -109,7 +109,7 @@ describe("useFormatDimahError", () => {
   });
 
   it("follows the provider locale and translations", () => {
-    const hook = renderHook(useFormatDimahError, {
+    const hook = renderHook(useFormatError, {
       wrapper: ({ children }) => (
         <S3LocaleContext.Provider value="fa">
           <TranslationProvider

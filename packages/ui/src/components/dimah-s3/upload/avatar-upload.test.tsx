@@ -6,7 +6,7 @@ import {
   type UploadPresignResponse,
 } from "@dimah-s3/core";
 import {
-  useFormatDimahError,
+  useFormatError,
   useUpload,
   type S3ApiUploadTransport,
   type UseUploadOptions,
@@ -135,7 +135,7 @@ async function pick(files: File[]) {
 }
 
 function formatted(error: ReturnType<typeof s3Error>) {
-  const { result } = renderHook(() => useFormatDimahError());
+  const { result } = renderHook(() => useFormatError());
   return result.current(error);
 }
 
@@ -171,6 +171,35 @@ describe("AvatarUpload", () => {
         "https://s3.test/avatars/me.png",
       ),
     );
+  });
+
+  it("drops the upload's preview once objectKey moves to another image", async () => {
+    const api = fakeApi();
+    function View({ objectKey }: { objectKey: string | null }) {
+      const upload = useUpload({ api, route: "avatars" });
+      return (
+        <AvatarUpload
+          upload={upload}
+          api={api}
+          route="avatars"
+          objectKey={objectKey}
+          label="Change profile photo"
+        />
+      );
+    }
+    const { rerender } = render(<View objectKey="avatars/old.png" />);
+    const src = () => avatarButton().querySelector("img")?.getAttribute("src");
+
+    await pick([image("new.png")]);
+    await waitFor(() => expect(src()).toBe("blob:preview-1"));
+
+    // The saved key is the upload: the preview stays.
+    rerender(<View objectKey="avatars/new.png" />);
+    expect(src()).toBe("blob:preview-1");
+
+    // The photo is removed: the placeholder shows.
+    rerender(<View objectKey={null} />);
+    expect(avatarButton().querySelector("img")).toBeNull();
   });
 
   it("opens the picker on click", async () => {

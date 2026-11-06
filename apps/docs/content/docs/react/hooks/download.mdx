@@ -63,9 +63,8 @@ saving.
 ### Presign without downloading
 
 `presign(key, options?)` returns the signed URL without handing it to the
-browser, for example to copy a link. `presignMany(files)` signs several keys,
-four at a time. Both run `beforeDownload`, but they record no operation and
-run no other callback.
+browser, for example to copy a link. It runs `beforeDownload`, but it
+records no operation and runs no other callback.
 
 ```ts
 const outcome = await presign(objectKey, {
@@ -75,12 +74,10 @@ const outcome = await presign(objectKey, {
 if (outcome.status === "success") {
   await navigator.clipboard.writeText(outcome.data.url);
 }
-
-const { signed, failed, blocked } = await presignMany([
-  { key: firstKey },
-  { key: secondKey, expiresIn: 3600 },
-]);
 ```
+
+For images and other previews, use [`useObjectUrl`](/docs/react/hooks/object-url),
+which caches each URL and refreshes it before it expires.
 
 ---
 

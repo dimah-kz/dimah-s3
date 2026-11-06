@@ -99,7 +99,9 @@ file or attach two more to fill the field.
 
 - A file adds its key once it uploads. Files that fail, are cancelled, or
   are still in flight add nothing.
-- The value grows across calls, even though the hook replaces its queue.
+- The value grows across calls. The field's calls queue, so a new pick
+  never cancels files still uploading into the value, whatever the hook's
+  `queue` option.
 - Files that uploaded before the field mounted are left out.
 - `UploadFieldValue` lists the keys, each with a `Remove {name}` action and
   a thumbnail for images the field uploaded. Removing a key does not delete
@@ -129,12 +131,23 @@ const [keys, setKeys] = useState<string[]>(post.attachmentKeys);
 ## Limit
 
 With `maxFiles`, each call takes only the files that still fit: `maxFiles`
-minus the keys in the value and the files still uploading. The hook rejects
-the rest with `TOO_MANY_FILES`.
+minus the keys in the value, the files still uploading, and the files of
+calls still preparing. The hook rejects the rest with `TOO_MANY_FILES`, and a
+retry sends only the failed files that fit, as one call.
+
+The field sets the limit on the hook itself with
+[`useUploadLimit`](/docs/react/hooks/upload#limit-across-calls), so it holds
+for every call while the field is mounted, not only the field's own parts:
+the Retry action of an `UploadToasts`, `usePasteFiles(upload)`, and your own
+`upload.open()` or `upload.handleFiles()`. The field's own calls always
+queue. Calls on the hook itself follow its `queue` option, so pass
+`queue: true` to `useUpload` when other code calls it, or a new call cancels
+the files still uploading into the field.
 
 Once the field is full, its `UploadTrigger` and `UploadDropzoneTrigger`
 stay focusable but are `aria-disabled`, and the picker, drops, and pastes do
-nothing. "Maximum files reached." leads the dropzone trigger's description. The
+nothing. So are the retry actions of `UploadStatus` and `UploadFileList`.
+"Maximum files reached." leads the dropzone trigger's description. The
 field passes `isFull` to its `Upload` root, so your own parts can read
 `useUploadContext().isFull`:
 
