@@ -78,13 +78,15 @@ export type UseUploadReturn = {
   /** Opens the native file picker. `call` applies to the picked files. */
   open: (call?: UploadCallOptions) => void;
   /**
-   * Uploads the failed file `id` again, or every failed file. Each file goes
-   * with the options of the call it came from: it is validated again, and
-   * `beforeUpload` and `onUploadStart` run again. It keeps its place and
-   * `id` in the queue, and a retry never replaces the queue. Resolves like
-   * `handleFiles`; with nothing to retry, at once and without callbacks.
+   * Uploads the failed files `ids` (one id or several) again, or every
+   * failed file. Files that came from one call go again as one call, with
+   * that call's options: they are validated again, and `beforeUpload` and
+   * `onUploadStart` run once for them. Each keeps its place and `id` in the
+   * queue, and a retry never replaces the queue. Under a `useUploadLimit`,
+   * only the failed files that fit go again. Resolves like `handleFiles`;
+   * with nothing to retry, at once and without callbacks.
    */
-  retry: (id?: string) => Promise<UploadBatchResult>;
+  retry: (ids?: string | readonly string[]) => Promise<UploadBatchResult>;
   /** Cancels one file by `id`, or every file. */
   cancel: (id?: string) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
@@ -144,7 +146,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     maxFileSize: options.maxFileSize,
     multipart: options.multipart,
   });
-  const engine = useFileUpload(options);
+  const engine = useFileUpload(options, instanceId);
   const { upload, retry: retryFiles } = engine;
   const catalogStatusRef = useLiveRef(routePolicy.status);
 
@@ -160,9 +162,9 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     [catalogStatusRef, reloadCatalog, upload],
   );
   const retry = useCallback(
-    (id?: string) => {
+    (ids?: string | readonly string[]) => {
       if (catalogStatusRef.current === "error") reloadCatalog();
-      return retryFiles(id);
+      return retryFiles(ids);
     },
     [catalogStatusRef, reloadCatalog, retryFiles],
   );

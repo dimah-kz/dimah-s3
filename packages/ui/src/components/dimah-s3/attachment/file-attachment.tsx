@@ -50,6 +50,12 @@ export type FileAttachmentProps = Omit<ComponentProps<"div">, "children"> & {
    * cancel, so focus stays on it once the file is back in flight.
    */
   onRetry?: () => void;
+  /**
+   * Shows the retry action as unavailable, as in a full `UploadField`: it
+   * stays focusable but is `aria-disabled`, and `onRetry` does not run.
+   * @default false
+   */
+  retryDisabled?: boolean;
   /** Shows a dismiss action when `state` is `done` or `error`. Typically the hook `reset()`. */
   onDismiss?: () => void;
   /** Extra controls, usually `AttachmentAction`s, placed before cancel and dismiss. */
@@ -80,6 +86,7 @@ export function FileAttachment({
   error,
   onCancel,
   onRetry,
+  retryDisabled = false,
   onDismiss,
   actions,
   trigger,
@@ -108,6 +115,7 @@ export function FileAttachment({
     (state === "idle" || state === "uploading" || state === "processing") &&
     onCancel != null;
   const showRetry = state === "error" && onRetry != null;
+  const retryUnavailable = showRetry && !showCancel && retryDisabled;
   const showDismiss =
     (state === "done" || state === "error") && onDismiss != null;
 
@@ -177,6 +185,9 @@ export function FileAttachment({
           {showCancel || showRetry ? (
             <AttachmentAction
               type="button"
+              disabled={retryUnavailable}
+              focusableWhenDisabled={retryUnavailable}
+              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
               aria-label={
                 showCancel
                   ? t("Cancel {name}", {

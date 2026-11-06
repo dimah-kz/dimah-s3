@@ -104,6 +104,23 @@ export type UploadBatchResult = {
 /** A file rejected before upload, such as for its type, size or count. */
 export type FileRejection = { file: File; errors: readonly APIError[] };
 
+/**
+ * A cap on the files one `useUpload` takes in across its calls, such as the
+ * `maxFiles` of a form field that keeps its own value.
+ */
+export type UploadLimit = {
+  /**
+   * Files the hook may still take in. Files queued or in flight, uploaded
+   * files not in `counted`, and calls still preparing take from it.
+   */
+  available: number;
+  /**
+   * Ids of uploaded files that take nothing from `available`, such as the
+   * ones whose keys a field already holds.
+   */
+  counted?: ReadonlySet<string>;
+};
+
 /** Retry settings for failed network requests. */
 export type RetryConfig = {
   /** Retries per request after the first attempt. @default 3 */

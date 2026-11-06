@@ -27,6 +27,7 @@ export type UploadFileItemProps = Omit<
   | "error"
   | "onCancel"
   | "onRetry"
+  | "retryDisabled"
 > & {
   /** One entry of `upload.files`. */
   file: UploadFileState;
@@ -37,6 +38,8 @@ export type UploadFileItemProps = Omit<
  * error, with a cancel action while it is queued or in flight and a retry
  * action once it failed. A cancelled file leaves the queue, so focus moves
  * on to the next action; a retried one keeps focus on its cancel action.
+ * In a full root, as in a full `UploadField`, the retry action stays
+ * focusable but is `aria-disabled`.
  */
 export function UploadFileItem({
   file,
@@ -46,7 +49,7 @@ export function UploadFileItem({
   const t = useTranslations();
   const formatEta = useFormatEta();
   const formatFileSize = useFormatFileSize();
-  const { upload } = useUploadContext();
+  const { upload, isFull } = useUploadContext();
   const { keepFocus } = useUploadFocus();
   const eta = file.phase === "uploading" ? formatEta(file.progress) : null;
 
@@ -74,6 +77,7 @@ export function UploadFileItem({
         upload.cancel(file.id);
       }}
       onRetry={() => void upload.retry(file.id)}
+      retryDisabled={isFull}
       {...props}
     />
   );

@@ -255,8 +255,9 @@ const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
   route config decides both.
 - An invalid file no longer stops the batch, and `cancel(id)` cancels one
   file. Pass `queue: true` to append new files instead of replacing the queue.
-- `retry(id?)` sends a failed file again in place. A test stub that builds a
-  whole `UseUploadReturn` must add `retry` and `disabled`.
+- `retry(ids?)` sends failed files again in place: one id, several, or every
+  failed file. A test stub that builds a whole `UseUploadReturn` must add
+  `retry` and `disabled`.
 - Resume records from 1.7 are ignored.
 
 ### Split fetch downloads

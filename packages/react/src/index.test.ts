@@ -22,6 +22,7 @@ describe("@dimah-s3/react", () => {
       "useObjectUrl",
       "useRouteUploadPolicy",
       "useUpload",
+      "useUploadLimit",
     ]);
   });
 });

@@ -126,12 +126,14 @@ The hook also sums up the queue:
 `cancel()` with no id cancels every file. `reset()` removes settled files and
 rejections; files in flight keep going.
 
-`retry(id)` uploads a failed file again, and `retry()` every failed file. A
-retried file keeps its place and `id`, and goes back to `queued`. It goes with
-the call options it was first sent with, so it lands in the same folder: it
-is validated again, and `beforeUpload` and `onUploadStart` run again. A retry
-never replaces the queue, even without `queue: true`. It resolves like
-`handleFiles`, and the callbacks run as for a new call.
+`retry(id)` uploads a failed file again, `retry([id, id])` several, and
+`retry()` every failed file. A retried file keeps its place and `id`, and goes
+back to `queued`. It goes with the call options it was first sent with, so it
+lands in the same folder: it is validated again, and `beforeUpload` and
+`onUploadStart` run again. Files that came from one call go again as one
+call, so those callbacks run once for them. A retry never replaces the queue,
+even without `queue: true`. It resolves like `handleFiles`, and the callbacks
+run as for a new call.
 
 ```tsx
 {
@@ -144,6 +146,41 @@ never replaces the queue, even without `queue: true`. It resolves like
   );
 }
 ```
+
+### Limit across calls
+
+`maxFiles` caps one call. To cap what the hook holds across calls, such as a
+form field with room for five files, set a limit with `useUploadLimit` in the
+component that owns that count. [`UploadField`](/docs/react/ui/components/upload-field)
+sets one for its `maxFiles`.
+
+```tsx
+import { useUpload, useUploadLimit } from "@dimah-s3/react";
+
+const upload = useUpload({ route: "attachments", maxFiles: 5, queue: true });
+// At most five files across calls: queued, in flight, or uploaded.
+const remaining = useUploadLimit(upload, { available: 5 });
+```
+
+- **`available`** — files the hook may still take in. Files queued or in
+  flight, uploaded files whose ids are not in `counted`, and calls still
+  preparing take from it. `reset()` gives the room of uploaded files back.
+- **`counted`** — ids of uploaded files that take nothing from `available`.
+  When you keep the uploaded keys yourself, as `UploadField` does, pass
+  `available: max - keys.length` and the ids of the files whose keys you
+  hold, so they do not count twice.
+
+The hook enforces the limit on every call while the component is mounted:
+`handleFiles`, `open`, drops, pastes, and `retry`, wherever they come from. A
+call holds its slots from the moment it starts, so two quick calls never take
+the same ones, and the hook rejects the files past the limit with
+`TOO_MANY_FILES`. A retry takes only the failed files that fit, in queue
+order, and leaves the rest as they failed. With several limits on one hook,
+the strictest wins, and `null` sets none.
+
+`useUploadLimit` returns the files that still fit, counting calls still
+preparing, or `null` without a limit. Render your pickers disabled when it
+reaches `0`.
 
 ---
 
@@ -308,6 +345,7 @@ import type {
   UploadBatchResult,
   UploadCallOptions,
   UploadFileState,
+  UploadLimit,
   UploadPolicy,
   UploadRequestOptions,
   UseUploadOptions,
@@ -356,6 +394,10 @@ import type {
   path="packages/react/src/types/upload.ts"
   name="UploadRequestOptions"
 />
+
+### UploadLimit
+
+<AutoTypeTable path="packages/react/src/types/upload.ts" name="UploadLimit" />
 
 ### UploadPolicy
 
