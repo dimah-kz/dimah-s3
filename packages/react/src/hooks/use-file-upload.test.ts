@@ -3,10 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { s3Error, type APIError, type S3Api } from "@dimah-s3/core";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
-import type { UploadFileOptions, UploadResult } from "@/types/upload";
+import type {
+  FileRejection,
+  UploadFileOptions,
+  UploadLimit,
+  UploadResult,
+} from "@/types/upload";
 import { getUploadAbortKind } from "@/upload/abort";
 import { uploadFile } from "@/upload/upload-file";
 import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
+import { useUploadLimit } from "./use-upload-limit";
 
 vi.mock("@/upload/upload-file", () => ({ uploadFile: vi.fn() }));
 
@@ -47,11 +53,50 @@ function txt(name: string, size = 4) {
   return new File(["x".repeat(size)], name, { type: "text/plain" });
 }
 
+let instances = 0;
+
 function mount(
   options: Partial<UseFileUploadOptions> = {},
   api: S3Api = fakeS3Api(),
 ) {
-  return renderHook(() => useFileUpload({ api, route: "uploads", ...options }));
+  const instanceId = `upload-${++instances}`;
+  return renderHook(() =>
+    useFileUpload({ api, route: "uploads", ...options }, instanceId),
+  );
+}
+
+/**
+ * Mounts a queue with the newest `limit()` set through `useUploadLimit`,
+ * and returns what it leaves as `remaining`.
+ */
+function mountLimited(
+  limit: () => UploadLimit | null,
+  options: Partial<UseFileUploadOptions> = {},
+) {
+  const api = fakeS3Api();
+  const instanceId = `upload-${++instances}`;
+  return renderHook(() => {
+    const upload = useFileUpload(
+      { api, route: "uploads", queue: true, maxFiles: 5, ...options },
+      instanceId,
+    );
+    const remaining = useUploadLimit(
+      { instanceId, files: upload.files },
+      limit(),
+    );
+    return { ...upload, remaining };
+  });
+}
+
+/** Each rejected file name with its first error code and params, across calls. */
+function rejected(onFileReject: ReturnType<typeof vi.fn>) {
+  return onFileReject.mock.calls.flatMap(([rejections]) =>
+    (rejections as FileRejection[]).map(({ file, errors }) => [
+      file.name,
+      errors[0]?.code,
+      errors[0]?.params,
+    ]),
+  );
 }
 
 /** Lets pending promises and React updates run. */
@@ -563,7 +608,10 @@ describe("useFileUpload", () => {
     };
     const api = fakeS3Api();
     const hook = renderHook(() =>
-      useFileUpload({ api, route: "uploads", queue: true, uploadStore }),
+      useFileUpload(
+        { api, route: "uploads", queue: true, uploadStore },
+        "upload-store",
+      ),
     );
 
     await act(async () => {
@@ -934,6 +982,190 @@ describe("useFileUpload", () => {
       aborted: [],
     });
     expect(onSettled).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("retries several failed files as one call", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const onSettled = vi.fn();
+    const hook = mount({
+      maxFiles: 3,
+      concurrentFiles: 3,
+      beforeUpload,
+      onSettled,
+    });
+    const [a, b, c] = [txt("a.txt"), txt("b.txt"), txt("c.txt")];
+
+    await act(async () => {
+      void hook.current.upload([a, b, c]);
+    });
+    await flush();
+    await act(async () => {
+      for (const name of ["a.txt", "b.txt", "c.txt"]) {
+        engineCall(name).fail(s3Error("NETWORK_ERROR"));
+      }
+    });
+    await flush();
+    const [first, second, third] = hook.current.files;
+
+    let retried!: ReturnType<typeof hook.current.retry>;
+    await act(async () => {
+      retried = hook.current.retry([first.id, third.id]);
+    });
+    await flush();
+
+    expect(beforeUpload).toHaveBeenCalledTimes(2);
+    expect(beforeUpload).toHaveBeenLastCalledWith([a, c]);
+    expect(hook.current.files.map(({ id, phase }) => [id, phase])).toEqual([
+      [first.id, "queued"],
+      [second.id, "error"],
+      [third.id, "queued"],
+    ]);
+    await act(async () => {
+      lastEngineCall("a.txt").succeed();
+      lastEngineCall("c.txt").succeed();
+    });
+
+    expect((await retried).uploaded.map(({ file }) => file)).toEqual([a, c]);
+    expect(onSettled).toHaveBeenCalledTimes(2);
+    hook.unmount();
+  });
+
+  it("holds a call's slots under a limit from the moment it starts", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const onFileReject = vi.fn();
+    const hook = mountLimited(() => ({ available: 3 }), {
+      // The first call waits, so the second starts while it prepares.
+      beforeUpload: (files) => (files.length === 2 ? gate.promise : true),
+      onFileReject,
+    });
+    expect(hook.current.remaining).toBe(3);
+
+    act(() => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    expect(hook.current.remaining).toBe(1);
+    await act(async () => {
+      void hook.current.upload([txt("c.txt"), txt("d.txt")]);
+    });
+    await flush();
+
+    expect(rejected(onFileReject)).toEqual([
+      ["d.txt", "TOO_MANY_FILES", { maxFiles: 1 }],
+    ]);
+    expect(hook.current.remaining).toBe(0);
+    await act(async () => {
+      gate.resolve(true);
+    });
+    await flush();
+
+    expect(hook.current.files.map(({ fileName }) => fileName)).toEqual([
+      "c.txt",
+      "a.txt",
+      "b.txt",
+    ]);
+    expect(hook.current.remaining).toBe(0);
+    hook.unmount();
+  });
+
+  it("rejects every file of a call once the limit is reached", async () => {
+    let limit: UploadLimit | null = { available: 0 };
+    const beforeUpload = vi.fn(() => true);
+    const onSettled = vi.fn();
+    const onFileReject = vi.fn();
+    const hook = mountLimited(() => limit, {
+      beforeUpload,
+      onSettled,
+      onFileReject,
+    });
+    expect(hook.current.remaining).toBe(0);
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+
+    expect(rejected(onFileReject)).toEqual([
+      ["a.txt", "TOO_MANY_FILES", { maxFiles: 0 }],
+    ]);
+    expect(beforeUpload).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledOnce();
+    expect(engineCalls).toHaveLength(0);
+
+    // Without a limit, the hook takes files again.
+    limit = null;
+    hook.rerender();
+    expect(hook.current.remaining).toBeNull();
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+    expect(engineCalls).toHaveLength(1);
+    hook.unmount();
+  });
+
+  it("counts uploaded files under a limit until they are counted", async () => {
+    let limit: UploadLimit = { available: 2 };
+    const hook = mountLimited(() => limit);
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+    });
+    expect(hook.current.remaining).toBe(1);
+
+    // A field holds the key now: one less available, and the file counted.
+    limit = { available: 1, counted: new Set([hook.current.files[0].id]) };
+    hook.rerender();
+    expect(hook.current.remaining).toBe(1);
+    hook.unmount();
+  });
+
+  it("retries only the failed files that fit under a limit", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const hook = mountLimited(() => ({ available: 2 }), { beforeUpload });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([txt("c.txt")]);
+    });
+    await flush();
+    expect(hook.current.remaining).toBe(1);
+
+    await act(async () => {
+      void hook.current.retry();
+    });
+    await flush();
+
+    expect(beforeUpload).toHaveBeenLastCalledWith([hook.current.files[0].file]);
+    expect(
+      hook.current.files.map(({ fileName, phase }) => [fileName, phase]),
+    ).toEqual([
+      ["a.txt", "queued"],
+      ["b.txt", "error"],
+      ["c.txt", "queued"],
+    ]);
+
+    // Nothing fits any more: a retry resolves at once and calls nothing.
+    const calls = beforeUpload.mock.calls.length;
+    await expect(hook.current.retry()).resolves.toEqual({
+      uploaded: [],
+      failed: [],
+      blocked: [],
+      aborted: [],
+    });
+    expect(beforeUpload).toHaveBeenCalledTimes(calls);
     hook.unmount();
   });
 

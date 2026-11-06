@@ -41,8 +41,10 @@ const ROW_CLASS = "rounded-none border-0 bg-transparent";
  * past 20rem. While files upload the summary offers "Cancel all uploads",
  * and pause when the hook has an `uploadStore` so the uploads can resume;
  * settled, it offers dismiss, and "Retry failed uploads" when files failed.
- * A failed file has its own retry action. With `layout="grid"` the files
- * show as tiles under the summary, also for one file.
+ * A failed file has its own retry action. In a full root, as in a full
+ * `UploadField`, the retry actions stay focusable but are `aria-disabled`.
+ * With `layout="grid"` the files show as tiles under the summary, also for
+ * one file.
  *
  * Inside an `UploadField` (a root with `hideUploaded`), files that uploaded
  * leave the status, since the field's value lists them. When cancel, pause
@@ -138,7 +140,7 @@ function UploadSummary({
   const formatEta = useFormatEta();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
-  const { upload } = useUploadContext();
+  const { upload, isFull } = useUploadContext();
   const { keepFocus } = useUploadFocus();
   const { files, progress } = upload;
   // Retry and cancel share a slot, so focus stays on it as a retry starts.
@@ -146,10 +148,18 @@ function UploadSummary({
     label: string,
     icon: ReactNode,
     onClick: () => void,
+    disabled = false,
   ) => (
     <>
       {pause}
-      <AttachmentAction type="button" aria-label={label} onClick={onClick}>
+      <AttachmentAction
+        type="button"
+        aria-label={label}
+        disabled={disabled}
+        focusableWhenDisabled={disabled}
+        className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        onClick={onClick}
+      >
         {icon}
       </AttachmentAction>
     </>
@@ -187,6 +197,7 @@ function UploadSummary({
           t("Retry failed uploads", { note: "upload control" }),
           <RotateCwIcon />,
           () => void upload.retry(),
+          isFull,
         )}
         onDismiss={onDismiss}
       />

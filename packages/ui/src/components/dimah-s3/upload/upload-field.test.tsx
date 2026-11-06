@@ -13,6 +13,8 @@ import {
   type UseUploadReturn,
 } from "@dimah-s3/react";
 import { act, render, screen, waitFor } from "@/test/render";
+import { Toaster } from "@/components/ui/toast";
+import { usePasteFiles } from "@/hooks/use-paste-files";
 import { useUploadContext } from "@/components/dimah-s3/upload/upload";
 import {
   UploadDropzone,
@@ -25,6 +27,7 @@ import {
   type UploadFieldProps,
 } from "@/components/dimah-s3/upload/upload-field";
 import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
+import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 
 const unused = () => Promise.reject(new Error("not used in this test"));
@@ -89,7 +92,11 @@ function fakeApi() {
 type FieldProps = Omit<UploadFieldProps, "upload" | "children">;
 type OnFileReject = NonNullable<UseUploadOptions["onFileReject"]>;
 
-/** Renders an `UploadField` with a real `useUpload` on the `uploads` route. */
+/**
+ * Renders an `UploadField` with a real `useUpload` on the `uploads` route.
+ * `outside` renders next to the field with the hook itself, as
+ * `UploadToasts` or your own code holds it.
+ */
 function renderField(
   field: FieldProps,
   children: ReactNode = (
@@ -99,6 +106,7 @@ function renderField(
     </>
   ),
   options: Partial<UseUploadOptions> = {},
+  outside?: (upload: UseUploadReturn) => ReactNode,
 ) {
   const api = fakeApi();
   function View(props: FieldProps) {
@@ -113,6 +121,7 @@ function renderField(
         <UploadField upload={upload} {...props}>
           {children}
         </UploadField>
+        {outside?.(upload)}
       </form>
     );
   }
@@ -165,6 +174,35 @@ async function choose(files: File[]) {
 function submitted(name: string) {
   const form = screen.getByRole("form", { name: "Post" });
   return new FormData(form as HTMLFormElement).getAll(name);
+}
+
+/** A button outside the field that hands `files` to the hook itself. */
+function AddFiles({
+  upload,
+  files,
+}: {
+  upload: UseUploadReturn;
+  files: () => File[];
+}) {
+  return (
+    <button type="button" onClick={() => void upload.handleFiles(files())}>
+      Add
+    </button>
+  );
+}
+
+/** Dispatches a paste carrying `files` on the page, outside any field. */
+async function paste(files: File[]) {
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", { value: { files } });
+  await act(async () => {
+    document.body.dispatchEvent(event);
+  });
+}
+
+function PasteFiles({ upload }: { upload: UseUploadReturn }) {
+  usePasteFiles(upload);
+  return null;
 }
 
 /** Each rejected file name with its first error code, across calls. */
@@ -431,6 +469,177 @@ describe("UploadField", () => {
     expect(api.upload).toHaveBeenCalledOnce();
   });
 
+  it("caps calls made on the hook outside the field", async () => {
+    const onFileReject = vi.fn<OnFileReject>();
+    const { api } = renderField(
+      { name: "files", defaultValue: ["old.txt"], maxFiles: 2 },
+      <UploadFieldValue />,
+      { onFileReject, queue: true },
+      (upload) => (
+        <AddFiles
+          upload={upload}
+          files={() => [textFile("a.txt"), textFile("b.txt")]}
+        />
+      ),
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["old.txt", "uploads/a.txt"]),
+    );
+    expect(api.upload).toHaveBeenCalledOnce();
+    expect(rejectedNames(onFileReject)).toEqual([["b.txt", "TOO_MANY_FILES"]]);
+  });
+
+  it("caps pastes that usePasteFiles takes on the hook", async () => {
+    const onFileReject = vi.fn<OnFileReject>();
+    const { api } = renderField(
+      { name: "files", defaultValue: ["old.txt"], maxFiles: 2 },
+      <UploadFieldValue />,
+      { onFileReject, queue: true },
+      (upload) => <PasteFiles upload={upload} />,
+    );
+
+    await paste([textFile("a.txt"), textFile("b.txt")]);
+
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["old.txt", "uploads/a.txt"]),
+    );
+    expect(api.upload).toHaveBeenCalledOnce();
+    expect(rejectedNames(onFileReject)).toEqual([["b.txt", "TOO_MANY_FILES"]]);
+  });
+
+  it("holds the room a call takes while it prepares", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const onFileReject = vi.fn<OnFileReject>();
+    let calls = 0;
+    renderField(
+      { name: "files", maxFiles: 2 },
+      <>
+        <UploadTrigger />
+        <UploadFieldValue />
+      </>,
+      {
+        onFileReject,
+        queue: true,
+        // The first call waits, so the second starts while it prepares.
+        beforeUpload: () => (++calls === 1 ? gate.promise : true),
+      },
+      (upload) => (
+        <AddFiles upload={upload} files={() => [textFile("c.txt")]} />
+      ),
+    );
+
+    await choose([textFile("a.txt"), textFile("b.txt")]);
+    // Both files hold their place, so the field is full already.
+    expect(
+      screen
+        .getByRole("button", { name: "Upload files" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(onFileReject).toHaveBeenCalledOnce());
+    expect(rejectedNames(onFileReject)).toEqual([["c.txt", "TOO_MANY_FILES"]]);
+
+    await act(async () => gate.resolve(true));
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["uploads/a.txt", "uploads/b.txt"]),
+    );
+  });
+
+  it("caps a retry from UploadToasts outside the field", async () => {
+    const beforeUpload = vi.fn<NonNullable<UseUploadOptions["beforeUpload"]>>(
+      () => true,
+    );
+    const failA = textFile("fail-a.txt");
+    const { api } = renderField(
+      { name: "files", maxFiles: 2 },
+      <>
+        <UploadTrigger />
+        <UploadFieldValue />
+      </>,
+      { beforeUpload },
+      (upload) => (
+        <Toaster>
+          <UploadToasts upload={upload} />
+        </Toaster>
+      ),
+    );
+    await choose([failA, textFile("fail-b.txt")]);
+    await screen.findByText("Upload finished with errors");
+    await choose([textFile("c.txt")]);
+    await waitFor(() => expect(submitted("files")).toEqual(["uploads/c.txt"]));
+    expect(api.upload).toHaveBeenCalledTimes(3);
+
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    // One failed file still fits, so the retry sends only that one.
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(4));
+    expect(beforeUpload).toHaveBeenCalledTimes(3);
+    expect(beforeUpload).toHaveBeenLastCalledWith([failA]);
+  });
+
+  it("retries the failed files that fit as one call", async () => {
+    const beforeUpload = vi.fn<NonNullable<UseUploadOptions["beforeUpload"]>>(
+      () => true,
+    );
+    const failA = textFile("fail-a.txt");
+    const failB = textFile("fail-b.txt");
+    const { api } = renderField(
+      { name: "files", defaultValue: ["old.txt"], maxFiles: 4 },
+      <>
+        <UploadTrigger />
+        <UploadStatus />
+      </>,
+      { beforeUpload },
+    );
+    await choose([failA, failB, textFile("fail-c.txt")]);
+    await screen.findByText("Upload failed");
+    await choose([textFile("d.txt")]);
+    await waitFor(() =>
+      expect(submitted("files")).toEqual(["old.txt", "uploads/d.txt"]),
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Retry failed uploads" }),
+    );
+
+    // Two failed files still fit. They go again together, so the hook's
+    // once-per-call callbacks run once.
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(6));
+    expect(beforeUpload).toHaveBeenCalledTimes(3);
+    expect(beforeUpload).toHaveBeenLastCalledWith([failA, failB]);
+  });
+
+  it("shows a full field's retry actions as unavailable", async () => {
+    const { api } = renderField(
+      { name: "files", defaultValue: ["old.txt"], maxFiles: 3 },
+      <>
+        <UploadTrigger />
+        <UploadStatus />
+      </>,
+    );
+    await choose([textFile("fail-a.txt"), textFile("fail-b.txt")]);
+    await screen.findByText("Upload failed");
+    await choose([textFile("c.txt"), textFile("d.txt")]);
+    await waitFor(() => expect(submitted("files")).toHaveLength(3));
+    expect(api.upload).toHaveBeenCalledTimes(4);
+
+    const retries = [
+      screen.getByRole("button", { name: "Retry failed uploads" }),
+      screen.getByRole("button", { name: "Retry fail-a.txt" }),
+      screen.getByRole("button", { name: "Retry fail-b.txt" }),
+    ];
+    for (const retry of retries) {
+      // Reachable, announced as unavailable, and inert.
+      expect(retry.getAttribute("aria-disabled")).toBe("true");
+      expect(retry.hasAttribute("disabled")).toBe(false);
+      await userEvent.click(retry);
+    }
+    expect(api.upload).toHaveBeenCalledTimes(4);
+  });
+
   it("follows a controlled value", async () => {
     const onValueChange = vi.fn();
     const { rerender } = renderField({
@@ -578,26 +787,34 @@ describe("UploadField", () => {
     );
   });
 
-  it("queues every call, so a new pick never cancels uploads in flight", () => {
+  it("queues every call, so a new pick never cancels uploads in flight", async () => {
     const api = fakeApi();
     const handleFiles = vi.fn<UseUploadReturn["handleFiles"]>();
-    const probe: { upload?: UseUploadReturn } = {};
-    function Probe() {
-      probe.upload = useUploadContext().upload;
-      return null;
+    const file = textFile("a.txt");
+    // A part of the field, calling the `upload` the field gives its parts.
+    function AddPart() {
+      const { upload } = useUploadContext();
+      return (
+        <button
+          type="button"
+          onClick={() => void upload.handleFiles([file], { maxFiles: 3 })}
+        >
+          Add
+        </button>
+      );
     }
     function View() {
       const upload = useUpload({ api, route: "uploads" });
       return (
         <UploadField upload={{ ...upload, handleFiles }} name="files">
-          <Probe />
+          <AddPart />
         </UploadField>
       );
     }
     render(<View />);
 
-    const file = textFile("a.txt");
-    void probe.upload?.handleFiles([file], { maxFiles: 3 });
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
     expect(handleFiles).toHaveBeenCalledWith([file], {
       maxFiles: 3,
       queue: true,

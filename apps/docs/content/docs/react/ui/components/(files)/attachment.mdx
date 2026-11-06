@@ -98,6 +98,8 @@ spinner instead.
   (queued), `uploading`, or `processing`.
 - `onRetry` adds a `Retry {name}` action while it is `error`. It is the same
   button as cancel, so focus stays on it when the file goes back in flight.
+  `retryDisabled` keeps it focusable but `aria-disabled`, as in a full
+  `UploadField`, and `onRetry` does not run.
 - `onDismiss` adds a `Dismiss {name}` action once it is `done` or `error`.
 - `actions` takes your own `AttachmentAction`s, placed before those.
 

@@ -17,6 +17,7 @@ export {
   type UploadPolicy,
   type UseUploadReturn,
 } from "./hooks/use-upload";
+export { useUploadLimit } from "./hooks/use-upload-limit";
 export { useDownload } from "./hooks/use-download";
 export { useFetchDownload } from "./hooks/use-fetch-download";
 export { useDelete } from "./hooks/use-delete";
