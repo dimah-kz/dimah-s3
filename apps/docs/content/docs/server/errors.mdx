@@ -16,7 +16,7 @@ Every failed request returns an HTTP status and a JSON body:
 
 `code` is always set and stable. `message` is English, filled from `params`.
 Show users your own text: map `code` and `params` to it, as
-`useFormatDimahError` does.
+`useFormatError` does.
 
 ## Throwing errors
 
@@ -132,13 +132,13 @@ come from the server.
 
 <Accordion title="How do I display friendly error messages on the client?">
 
-Use `useFormatDimahError` from `@dimah-s3/react`. It maps each code and its
+Use `useFormatError` from `@dimah-s3/react`. It maps each code and its
 `params` to a translated string:
 
 ```tsx
-import { useDownload, useFormatDimahError } from "@dimah-s3/react";
+import { useDownload, useFormatError } from "@dimah-s3/react";
 
-const formatError = useFormatDimahError();
+const formatError = useFormatError();
 
 const { download } = useDownload({
   route: "avatar",

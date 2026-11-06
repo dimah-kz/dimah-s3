@@ -357,7 +357,18 @@ function EntryTrigger({
   const focusRing =
     "outline-none focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50";
   if (!parts.onClick) {
-    return <div className={className}>{children}</div>;
+    // Not a button, but arrow keys, F2 and focus after a rename or delete
+    // still reach the row.
+    return (
+      <div
+        tabIndex={-1}
+        data-slot="object-list-entry-trigger"
+        data-entry-key={parts.entryKey}
+        className={cn(focusRing, className)}
+      >
+        {children}
+      </div>
+    );
   }
   return (
     <button

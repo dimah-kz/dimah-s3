@@ -15,6 +15,9 @@ import type {
 /** `list` draws one row per entry. `grid` draws tiles with larger previews. */
 export type ObjectListView = "list" | "grid";
 
+/** `auto` loads the next page on scroll; `button` waits for Load more. */
+export type ObjectListPagination = "auto" | "button";
+
 /** Per-entry render hooks. Each returns the default when left out. */
 export type ObjectListRenderers<TItem> = {
   /** Replaces the whole row or tile. Compose `ObjectListRow` or `ObjectListTile` to keep selection. */
@@ -67,7 +70,7 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
   showBreadcrumb: boolean;
   selectionActions: ReactNode;
   empty: ReactNode;
-  loadMore: "auto" | "button";
+  pagination: ObjectListPagination;
   onOpenItem: ((item: TItem) => void) | undefined;
   /** Object keys stored in a folder. Lets bulk delete include folders. */
   resolveFolderKeys:
@@ -77,10 +80,10 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
   /** Turn that entry's name into the rename field. */
   startRename: (key: string) => void;
   /**
-   * Close the rename field. With `focus`, the row takes focus once its
-   * button is back.
+   * Close the rename field of entry `key`, if it is still the one open.
+   * With `focus`, the row takes focus once its button is back.
    */
-  cancelRename: (focus?: boolean) => void;
+  endRename: (key: string, focus?: boolean) => void;
 };
 
 const ObjectListContext = createContext<ObjectListContextValue<unknown> | null>(

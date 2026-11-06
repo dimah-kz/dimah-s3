@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { APIError } from "@dimah-s3/core";
 import { toClientError } from "@/internal/client-error";
 import { useControllableState, useLiveRef } from "@/internal/hooks";
@@ -11,7 +18,7 @@ import type {
   ObjectListFolder,
   ObjectListSort,
   ObjectListStatus,
-  ObjectListUsage,
+  ObjectListUsageData,
   UseObjectListOptions,
 } from "@/list/types";
 import type { UploadRequestOptions } from "@/types/upload";
@@ -29,7 +36,7 @@ export type {
   ObjectListSortDirection,
   ObjectListSource,
   ObjectListStatus,
-  ObjectListUsage,
+  ObjectListUsageData,
   UseObjectListOptions,
 } from "@/list/types";
 
@@ -56,7 +63,7 @@ export type UseObjectListReturn<TItem> = {
    * Totals from the latest page that sent them. `null` when the source
    * did not.
    */
-  usage: ObjectListUsage | null;
+  usage: ObjectListUsageData | null;
   error: APIError | null;
   status: ObjectListStatus;
   /** True while the first page is in flight and there is nothing to show. */
@@ -138,7 +145,7 @@ type Snapshot<TItem> = {
   items: readonly TItem[];
   folders: readonly ObjectListFolder[];
   nextCursor: string | null;
-  usage: ObjectListUsage | null;
+  usage: ObjectListUsageData | null;
   /** Pages loaded for `key`. `refresh` reloads this many. */
   pageCount: number;
 };
@@ -229,6 +236,15 @@ export function useObjectList<TItem>(
     () => options.defaultSearch ?? "",
     options.onSearchChange,
   );
+  // Another folder starts without a search, also when a controlled `parent`
+  // changes from outside. A layout effect, so the old search never loads
+  // in the new folder.
+  const searchParentRef = useRef(parent);
+  useLayoutEffect(() => {
+    if (searchParentRef.current === parent) return;
+    searchParentRef.current = parent;
+    setSearchValue("");
+  }, [parent, setSearchValue]);
 
   const queryKey = JSON.stringify(options.queryKey ?? []);
   const trimmedSearch = search.trim();
@@ -321,7 +337,7 @@ export function useObjectList<TItem>(
         const items: TItem[] = [];
         let folders: readonly ObjectListFolder[] = [];
         let serverTrail: readonly ObjectListFolder[] | undefined;
-        let usage: ObjectListUsage | null = null;
+        let usage: ObjectListUsageData | null = null;
         let cursor: string | null = null;
         let pageCount = 0;
         do {
@@ -499,9 +515,12 @@ export function useObjectList<TItem>(
             }
           : draft,
       );
+      // A name sort or a search decides where, and whether, it shows.
+      const now = requestRef.current;
+      if (now.scope === scope && namesNeedReload(now)) await run("refresh");
       return folder;
     },
-    [optionsRef, requestRef, update],
+    [optionsRef, requestRef, run, update],
   );
   const settleRename = useCallback(
     async (scope: string, replaced: boolean) => {
@@ -599,15 +618,6 @@ export function useObjectList<TItem>(
     },
     [optionsRef, requestRef, settleRename, trailRef, update],
   );
-  const setSort = useCallback(
-    (next: ObjectListSort | null) => setSortValue(next),
-    [setSortValue],
-  );
-  const setSearch = useCallback(
-    (next: string) => setSearchValue(next),
-    [setSearchValue],
-  );
-
   // ── View ──────────────────────────────────────────────────────────────
   const { getKey, getFile: readFile } = options;
   const getFile = useMemo(
@@ -659,8 +669,8 @@ export function useObjectList<TItem>(
     openFolder,
     navigate,
     goUp,
-    setSort,
-    setSearch,
+    setSort: setSortValue,
+    setSearch: setSearchValue,
     setItems,
     setFolders,
     removeItems,

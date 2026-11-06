@@ -40,6 +40,7 @@ export type DownloadTriggerProps = ComponentProps<typeof Button> & {
  *   icon-size button shows only the cancel icon.
  *
  * `children` replace the default icon and label while no cancel is offered.
+ * An icon-size button shows the icon alone, so give it an `aria-label`.
  * `data-phase` carries the phase of the newest call for the key.
  */
 export function DownloadTrigger({
@@ -72,33 +73,37 @@ export function DownloadTrigger({
       ? Math.min(100, Math.max(0, progress.percent))
       : null;
 
-  // An icon button keeps its size: the cancel icon alone, named by `aria-label`.
+  // An icon button keeps its size: the icon alone, named by `aria-label`.
   const iconOnly = size?.startsWith("icon") ?? false;
-  const content = cancellable ? (
+  const withLabel = (icon: ReactNode, label: string) =>
     iconOnly ? (
-      <XIcon />
+      icon
     ) : (
       <>
-        <XIcon data-icon="inline-start" />
-        {t("Cancel", { note: "download control" })}
+        {icon}
+        {label}
       </>
-    )
-  ) : (
-    (children ?? (
-      <>
-        {signing ? (
+    );
+  const content = cancellable
+    ? withLabel(
+        <XIcon data-icon="inline-start" />,
+        t("Cancel", { note: "download control" }),
+      )
+    : (children ??
+      withLabel(
+        signing ? (
           <LoaderIcon className="animate-spin" data-icon="inline-start" />
         ) : (
           <DownloadIcon data-icon="inline-start" />
-        )}
-        {t("Download", { note: "button" })}
-      </>
-    ))
-  );
+        ),
+        t("Download", { note: "button" }),
+      ));
 
   const button = (
     <Button
       data-slot="download-trigger"
+      data-phase={operation?.phase}
+      aria-busy={signing || undefined}
       variant={variant}
       size={size}
       {...props}
@@ -112,10 +117,9 @@ export function DownloadTrigger({
             })
           : ariaLabel
       }
-      aria-busy={signing || undefined}
-      data-phase={operation?.phase}
       disabled={Boolean(disabled) || signing}
-      focusableWhenDisabled={Boolean(focusableWhenDisabled) || signing}
+      // Keep focus on the button while its URL is signed.
+      focusableWhenDisabled={focusableWhenDisabled ?? signing}
       className={cn("relative isolate overflow-hidden", className)}
       onClick={(event) => {
         onClick?.(event);

@@ -38,6 +38,40 @@ function setup(
 }
 
 describe("useObjectListSelection", () => {
+  it("drops entries a search or reload no longer returns", () => {
+    const { hook, update } = setup({
+      entries: entries(["a", "b"]),
+      parent: null,
+    });
+
+    act(() => {
+      hook.current.toggle("file:a");
+    });
+    update({ entries: entries(["b"]) });
+    expect(hook.current.count).toBe(0);
+
+    // Back on screen, it is not selected again.
+    update({ entries: entries(["a", "b"]) });
+    expect(hook.current.count).toBe(0);
+    expect(hook.current.isSelected("file:a")).toBe(false);
+    hook.unmount();
+  });
+
+  it("keeps entries that leave the rows with persist", () => {
+    const { hook, update } = setup(
+      { entries: entries(["a", "b"]), parent: null },
+      { persist: true },
+    );
+
+    act(() => {
+      hook.current.toggle("file:a");
+    });
+    update({ entries: entries(["c"]), parent: "other" });
+
+    expect(hook.current.selectedItems).toEqual([{ id: "a" }]);
+    hook.unmount();
+  });
+
   it("toggles files and skips folders by default", () => {
     const { hook } = setup({
       entries: entries(["a", "b"], [{ id: "f", name: "F" }]),

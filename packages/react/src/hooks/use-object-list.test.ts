@@ -529,6 +529,36 @@ describe("useObjectList", () => {
     hook.unmount();
   });
 
+  it("clears the search when a controlled parent changes from outside", async () => {
+    const query = mockQuery().mockResolvedValue(page(["a"]));
+    let parent: string | null = null;
+    const hook = renderHook(() =>
+      useList({ query, parent, onParentChange: () => {} }),
+    );
+    await flush();
+    act(() => {
+      hook.current.setSearch("report");
+    });
+    await flush();
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ parent: null, search: "report" }),
+    );
+
+    parent = "photos";
+    hook.rerender();
+    await flush();
+
+    expect(hook.current.search).toBe("");
+    // The old search never loads in the new folder.
+    expect(query).not.toHaveBeenCalledWith(
+      expect.objectContaining({ parent: "photos", search: "report" }),
+    );
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ parent: "photos", search: "" }),
+    );
+    hook.unmount();
+  });
+
   describe("source extras", () => {
     it("leaves uploadOptions and createFolder unset when the source has neither", async () => {
       const query = mockQuery().mockResolvedValue(page([]));
@@ -581,6 +611,30 @@ describe("useObjectList", () => {
         { id: "docs/new", name: "new" },
       ]);
       expect(query).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    });
+
+    it("reloads after creating a folder under a name sort", async () => {
+      const query = mockQuery().mockResolvedValue(page(["a"]));
+      const createFolder = vi.fn(async ({ name }: { name: string }) => ({
+        id: name,
+        name,
+      }));
+      const hook = renderHook(() =>
+        useList({
+          query,
+          createFolder,
+          defaultSort: { field: "name", direction: "asc" },
+        }),
+      );
+      await flush();
+      expect(query).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await hook.current.createFolder?.("new");
+      });
+
+      expect(query).toHaveBeenCalledTimes(2);
       hook.unmount();
     });
 

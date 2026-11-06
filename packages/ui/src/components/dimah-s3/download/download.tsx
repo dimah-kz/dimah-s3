@@ -81,7 +81,7 @@ export function useFormatDownloadedBytes(): (
     ({ loaded, total }: TransferProgress) => {
       if (total > 0) {
         return t("{loaded} of {total}", {
-          note: "download progress",
+          note: "transfer progress",
           variables: {
             loaded: formatFileSize(loaded),
             total: formatFileSize(total),

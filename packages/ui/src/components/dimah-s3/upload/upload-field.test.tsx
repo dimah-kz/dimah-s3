@@ -240,8 +240,10 @@ describe("UploadField", () => {
     // Only the value lists the uploaded file; the status keeps the failure.
     expect(screen.getAllByTitle("a.txt")).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Remove a.txt" })).toBeDefined();
+    // The one file left in the status shows as its own card, with its error.
     expect(screen.getByTitle("fail-b.txt")).toBeDefined();
-    expect(screen.getByText("Upload failed")).toBeDefined();
+    expect(screen.getByText("Access denied")).toBeDefined();
+    expect(screen.queryByText("Upload failed")).toBeNull();
   });
 
   it("renders no status once every file moved to the value", async () => {
@@ -576,25 +578,29 @@ describe("UploadField", () => {
     );
   });
 
-  it("passes the hook through unchanged without maxFiles", () => {
+  it("queues every call, so a new pick never cancels uploads in flight", () => {
     const api = fakeApi();
-    let seen: UseUploadReturn | null = null;
-    let own: UseUploadReturn | null = null;
+    const handleFiles = vi.fn<UseUploadReturn["handleFiles"]>();
+    const probe: { upload?: UseUploadReturn } = {};
     function Probe() {
-      seen = useUploadContext().upload;
+      probe.upload = useUploadContext().upload;
       return null;
     }
     function View() {
       const upload = useUpload({ api, route: "uploads" });
-      own = upload;
       return (
-        <UploadField upload={upload} name="files">
+        <UploadField upload={{ ...upload, handleFiles }} name="files">
           <Probe />
         </UploadField>
       );
     }
     render(<View />);
 
-    expect(seen).toBe(own);
+    const file = textFile("a.txt");
+    void probe.upload?.handleFiles([file], { maxFiles: 3 });
+    expect(handleFiles).toHaveBeenCalledWith([file], {
+      maxFiles: 3,
+      queue: true,
+    });
   });
 });

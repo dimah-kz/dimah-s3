@@ -154,7 +154,7 @@ import {
 | `ObjectListSelectAll`    | The select-all checkbox                                                                                                   |
 | `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                                                  |
 | `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                                         |
-| `NewFolderControl`       | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one |
+| `ObjectListNewFolder`    | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one |
 | `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                                              |
 | `ObjectListUploadStatus` | Upload progress and errors                                                                                                |
 | `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                        |
@@ -260,7 +260,10 @@ clears. With more pages to load, select-all takes the rows on screen and
 says so.
 
 The selection bar shows the count, `selectionActions`, bulk Delete when the
-list has `delete`, and Clear. Controls in `selectionActions` read the
+list has `delete`, and Clear. It takes the header's place while entries are
+selected; with a `persist` selection it sits under the path instead, so you
+can move between folders while you pick. A bulk delete that empties a
+selected folder takes it out of the selection. Controls in `selectionActions` read the
 selection you already hold:
 
 ```tsx
@@ -412,9 +415,9 @@ fixed frame. A number is pixels; a string is a CSS length, such as `"18rem"`
 or `"100%"`. Pass `maxHeight` when the frame should grow with the folder up
 to that cap.
 
-With `loadMore="auto"` (the default), the next page loads as the end of the
+With `pagination="auto"` (the default), the next page loads as the end of the
 entries comes into view, and a frame that is not full keeps loading until it
-is. `loadMore="button"` shows Load more instead. A failed page shows Retry,
+is. `pagination="button"` shows Load more instead. A failed page shows Retry,
 which repeats that page.
 
 ## Storage

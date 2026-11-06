@@ -62,7 +62,7 @@ describe("FileAttachment", () => {
     expect(screen.getByText("Too big")).toBeDefined();
 
     rerender(<FileAttachment state="error" fileName="report.pdf" />);
-    expect(screen.getByText("Upload failed")).toBeDefined();
+    expect(screen.getByText("Failed")).toBeDefined();
   });
 
   it("prefers an explicit description", () => {

@@ -156,6 +156,8 @@ type RenderOptions = {
   usage?: boolean;
   /** Let folders join the selection too. */
   selectFolders?: boolean;
+  /** Keep the selection across folders. */
+  persist?: boolean;
   /** ObjectList props, from the hooks. */
   props?: (hooks: Hooks) => Partial<ObjectListProps<Item>>;
   /** Siblings of the list, such as explicit toast owners. */
@@ -181,10 +183,10 @@ function renderList(options: RenderOptions = {}) {
       }),
       ...options.source,
     });
-    const selection = useObjectListSelection(
-      list,
-      options.selectFolders ? { isSelectable: () => true } : {},
-    );
+    const selection = useObjectListSelection(list, {
+      ...(options.selectFolders ? { isSelectable: () => true } : {}),
+      persist: options.persist,
+    });
     const upload = useUpload({
       api,
       route: ROUTE,
@@ -305,6 +307,25 @@ describe("ObjectList", () => {
       if (!element) throw new Error("No header");
       return element;
     }
+
+    it("keeps the path above the selection bar when the selection persists", async () => {
+      const user = userEvent.setup();
+      const { container } = renderList({ persist: true });
+      await settle();
+
+      await user.click(screen.getByRole("checkbox", { name: "Select a.txt" }));
+
+      expect(
+        container.querySelector("[data-slot=object-list-selection-bar]"),
+      ).not.toBeNull();
+      expect(
+        container.querySelector("[data-slot=object-list-header-path]"),
+      ).not.toBeNull();
+      // The bar's select-all is the only one.
+      expect(
+        screen.getAllByRole("checkbox", { name: /^Select (all|this page)$/ }),
+      ).toHaveLength(1);
+    });
 
     it("opens the search from its button across the header", async () => {
       const user = userEvent.setup();
@@ -1260,6 +1281,65 @@ describe("ObjectList", () => {
         "Invalid request",
       );
       expect(screen.getByRole("textbox", { name: "File name" })).toBeDefined();
+    });
+
+    it("keeps a newer rename open when an older save lands", async () => {
+      const user = userEvent.setup();
+      const slow = Promise.withResolvers<Item>();
+      const renameFile = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFile"]>
+      >(async ({ item, name }) =>
+        item.key === "a.txt" ? slow.promise : { ...item, name },
+      );
+      renderList({ source: { renameFile } });
+      await settle();
+
+      const trigger = (name: string) =>
+        entry(name).querySelector<HTMLElement>(
+          "[data-slot=object-list-entry-trigger]",
+        );
+      act(() => trigger("a.txt")?.focus());
+      await user.keyboard("{F2}z");
+      // Leaving the field saves it; the save is still running.
+      act(() => trigger("b.txt")?.focus());
+      await user.keyboard("{F2}");
+      const field = await screen.findByRole("textbox", { name: "File name" });
+      expect(field).toHaveProperty("value", "b.txt");
+
+      await act(async () => {
+        slow.resolve({ key: "a.txt", name: "z.txt", size: 100, folder: null });
+      });
+      await settle();
+
+      expect(renameFile).toHaveBeenCalledWith({
+        item: expect.objectContaining({ key: "a.txt" }),
+        name: "z.txt",
+      });
+      expect(screen.getByRole("textbox", { name: "File name" })).toBe(field);
+    });
+
+    it("reaches a row that neither opens nor selects", async () => {
+      const user = userEvent.setup();
+      const renameFile = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFile"]>
+      >(async ({ item, name }) => ({ ...item, name }));
+      const { container } = renderList({
+        source: { renameFile },
+        props: () => ({ selection: undefined }),
+      });
+      await settle();
+
+      const trigger = container.querySelector<HTMLElement>(
+        '[data-slot=object-list-entry-trigger][data-entry-key="file:a.txt"]',
+      );
+      expect(trigger?.tagName).toBe("DIV");
+      expect(trigger?.tabIndex).toBe(-1);
+
+      act(() => trigger?.focus());
+      await user.keyboard("{F2}");
+      expect(
+        await screen.findByRole("textbox", { name: "File name" }),
+      ).toBeDefined();
     });
 
     it("renames a folder", async () => {

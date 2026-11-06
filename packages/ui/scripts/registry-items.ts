@@ -45,6 +45,12 @@ const attachmentFiles: RegistryFile[] = [
 
 const toastOwnerFile = sourceFile("hooks/use-toast-owner.ts", "registry:hook");
 
+/** File lines, sizes and wrapping messages inside toasts. */
+const toastContentFiles: RegistryFile[] = [
+  sourceFile("lib/toast-content.tsx", "registry:lib"),
+  fileNameFile,
+];
+
 /** `Upload` reads the ObjectList context to upload into the open folder. */
 const uploadRootFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/upload/upload.tsx"),
@@ -57,6 +63,7 @@ const uploadPartFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/upload/upload-status.tsx"),
   sourceFile("components/dimah-s3/upload/upload-file-list.tsx"),
   sourceFile("components/dimah-s3/upload/upload-toasts.tsx"),
+  ...toastContentFiles,
   sourceFile("hooks/use-paste-files.ts", "registry:hook"),
   sourceFile("hooks/use-own-drag.ts", "registry:hook"),
   sourceFile("lib/upload-hints.ts", "registry:lib"),
@@ -80,7 +87,7 @@ const downloadFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/download/download-trigger.tsx"),
   sourceFile("components/dimah-s3/download/download-progress.tsx"),
   sourceFile("components/dimah-s3/download/download-toasts.tsx"),
-  fileNameFile,
+  ...toastContentFiles,
 ];
 
 const deleteFiles: RegistryFile[] = [
@@ -89,7 +96,7 @@ const deleteFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/delete/delete-confirm-dialog.tsx"),
   sourceFile("components/dimah-s3/delete/delete-toasts.tsx"),
   sourceFile("lib/isolate-text.ts", "registry:lib"),
-  fileNameFile,
+  ...toastContentFiles,
 ];
 
 const objectListFiles: RegistryFile[] = [
@@ -109,7 +116,7 @@ const objectListFiles: RegistryFile[] = [
     "components/dimah-s3/list/object-list-keyboard.ts",
     "registry:hook",
   ),
-  sourceFile("lib/format-expires-in.ts", "registry:lib"),
+  sourceFile("hooks/use-share-expiry-label.ts", "registry:hook"),
 ];
 
 const componentDependencies = [

@@ -12,19 +12,14 @@ import {
 import { requireApi, toClientError } from "@/internal/client-error";
 import { useLiveRef, useOperationStore } from "@/internal/hooks";
 import type { OperationClaim } from "@/internal/operations";
-import { mapWithConcurrency } from "@/internal/pool";
 import type {
   DownloadOperation,
   DownloadOptions,
   DownloadOutcome,
-  PresignManyResult,
   PresignOptions,
   UseDownloadOptions,
   UseDownloadReturn,
 } from "@/types/download";
-
-/** Keys `presignMany` signs at once. */
-const PRESIGN_MANY_CONCURRENCY = 4;
 
 /**
  * Presigns objects and hands the URLs to the browser, which saves or opens
@@ -87,28 +82,6 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
       }
     },
     [optionsRef, resolveApi, sign],
-  );
-
-  const presignMany = useCallback(
-    async (files: readonly ({ key: string } & PresignOptions)[]) => {
-      const outcomes = await mapWithConcurrency(
-        files,
-        PRESIGN_MANY_CONCURRENCY,
-        ({ key, ...request }) => presign(key, request),
-      );
-      const result: PresignManyResult = { signed: [], failed: [], blocked: [] };
-      for (const outcome of outcomes) {
-        if (outcome.status === "success") {
-          result.signed.push(outcome.data);
-        } else if (outcome.status === "error") {
-          result.failed.push({ key: outcome.key, error: outcome.error });
-        } else {
-          result.blocked.push(outcome.key);
-        }
-      }
-      return result;
-    },
-    [presign],
   );
 
   const navigate = useCallback(
@@ -175,7 +148,6 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
     isPending: pendingKeys.length > 0,
     download,
     presign,
-    presignMany,
     cancel,
     reset,
   };

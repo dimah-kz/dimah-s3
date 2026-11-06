@@ -46,7 +46,7 @@ export {
 export {
   useFormatAcceptLabels,
   useFormatDate,
-  useFormatDimahError,
+  useFormatError,
   useFormatEta,
   useFormatFileSize,
   useFormatNumber,

@@ -12,7 +12,7 @@ describe("@dimah-s3/react", () => {
       "useFetchDownload",
       "useFormatAcceptLabels",
       "useFormatDate",
-      "useFormatDimahError",
+      "useFormatError",
       "useFormatEta",
       "useFormatFileSize",
       "useFormatNumber",

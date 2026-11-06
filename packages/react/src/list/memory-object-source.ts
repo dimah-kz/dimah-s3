@@ -5,7 +5,7 @@ import type {
   ObjectListFolder,
   ObjectListSort,
   ObjectListSource,
-  ObjectListUsage,
+  ObjectListUsageData,
 } from "./types";
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -127,7 +127,7 @@ function readOffset(cursor: string | null): number {
 function totals<TItem>(
   records: readonly TItem[],
   getFile: (item: TItem) => ObjectListFile,
-): ObjectListUsage {
+): ObjectListUsageData {
   let totalBytes = 0;
   for (const record of records) {
     const size = getFile(record).size;

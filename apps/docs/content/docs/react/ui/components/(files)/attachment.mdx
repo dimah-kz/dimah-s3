@@ -139,7 +139,8 @@ result that has no single file.
 ### Glyphs and progress
 
 `FileTypeGlyph` picks a colored glyph from the content type, else the
-extension. `FolderGlyph` is the object list's folder, and `CircleProgress`
+extension, and labels it with that type's extension: `song.flac` reads
+`flac`, never another type's. `FolderGlyph` is the object list's folder, and `CircleProgress`
 the ring a card shows while its file uploads.
 
 <DemoPreview name="attachment-glyphs-demo.tsx">

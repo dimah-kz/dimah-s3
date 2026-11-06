@@ -39,6 +39,11 @@ export type UploadCallOptions = {
   uploadOptions?: UploadRequestInput;
   /** Lowers `maxFiles` for this call. */
   maxFiles?: number;
+  /**
+   * Overrides the hook's `queue` for this call: `true` appends its files
+   * and leaves the files in flight alone, `false` replaces the queue.
+   */
+  queue?: boolean;
 };
 
 /** Where one file is in its upload. */

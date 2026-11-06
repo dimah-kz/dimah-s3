@@ -46,6 +46,12 @@ export type DeleteResult = {
   blocked: string[];
 };
 
+/** Options for one `remove(key)` call. */
+export type DeleteOptions = {
+  /** Display name for the key's operation, such as in toasts. */
+  fileName?: string;
+};
+
 /** A key to delete, optionally with a display name for its operation. */
 export type DeleteItem = string | { key: string; fileName?: string };
 
@@ -86,10 +92,7 @@ export type UseDeleteReturn = {
    * Deletes `key`. A call for a key that is already running joins that call
    * and resolves with its outcome without running callbacks again.
    */
-  remove: (
-    key: string,
-    options?: { fileName?: string },
-  ) => Promise<DeleteOutcome>;
+  remove: (key: string, options?: DeleteOptions) => Promise<DeleteOutcome>;
   /**
    * Deletes any number of keys, sending at most `DELETE_MANY_MAX_KEYS` per
    * `deleteMany` request. Keys that are already running are joined rather

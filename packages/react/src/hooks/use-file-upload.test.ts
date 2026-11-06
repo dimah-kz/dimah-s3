@@ -716,6 +716,45 @@ describe("useFileUpload", () => {
     hook.unmount();
   });
 
+  it("lets a call's queue override the hook's", async () => {
+    const hook = mount();
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")], { queue: true });
+    });
+    await flush();
+
+    // The running file keeps going, and the new one joins it.
+    expect(engineCall("a.txt").options.signal?.aborted).toBe(false);
+    expect(hook.current.files.map(({ fileName }) => fileName)).toEqual([
+      "a.txt",
+      "b.txt",
+    ]);
+    hook.unmount();
+
+    const queued = mount({ queue: true });
+    await act(async () => {
+      void queued.current.upload([txt("c.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      void queued.current.upload([txt("d.txt")], { queue: false });
+    });
+    await flush();
+
+    expect(getUploadAbortKind(engineCall("c.txt").options.signal?.reason)).toBe(
+      "cancel",
+    );
+    expect(queued.current.files.map(({ fileName }) => fileName)).toEqual([
+      "d.txt",
+    ]);
+    queued.unmount();
+  });
+
   it("reset removes settled files and keeps running ones, with a stable identity", async () => {
     const hook = mount({ queue: true, accept: [".txt"] });
     const { reset } = hook.current;

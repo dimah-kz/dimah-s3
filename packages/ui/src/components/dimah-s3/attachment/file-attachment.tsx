@@ -8,7 +8,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type { APIError } from "@dimah-s3/core";
-import { useFormatDimahError, useFormatFileSize } from "@dimah-s3/react";
+import { useFormatError, useFormatFileSize } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import {
@@ -87,7 +87,7 @@ export function FileAttachment({
   ...props
 }: FileAttachmentProps) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const formatFileSize = useFormatFileSize();
   const errorText =
     error == null
@@ -99,7 +99,7 @@ export function FileAttachment({
   const resolvedDescription =
     description ??
     (state === "error"
-      ? (errorText ?? t("Upload failed", { note: "status" }))
+      ? (errorText ?? t("Failed", { note: "status" }))
       : fileSize != null
         ? formatFileSize(fileSize)
         : null);

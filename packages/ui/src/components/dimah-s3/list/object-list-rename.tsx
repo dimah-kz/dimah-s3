@@ -9,7 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import {
-  useFormatDimahError,
+  useFormatError,
   type ObjectListEntry,
   type UseObjectListReturn,
 } from "@dimah-s3/react";
@@ -41,8 +41,8 @@ export function ObjectListRenameField<TItem>({
   entry: ObjectListEntry<TItem>;
 }) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
-  const { list, cancelRename } = useObjectListContext<TItem>();
+  const formatError = useFormatError();
+  const { list, endRename } = useObjectListContext<TItem>();
   const inputId = useId();
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -69,7 +69,7 @@ export function ObjectListRenameField<TItem>({
   function finish(focus: boolean) {
     if (closed.current) return;
     closed.current = true;
-    cancelRename(focus);
+    endRename(entry.key, focus);
   }
 
   async function save(focus: boolean) {
@@ -100,7 +100,8 @@ export function ObjectListRenameField<TItem>({
       lock.current = false;
       setPending(false);
       setError(formatError(err));
-      inputRef.current?.focus();
+      // Only a submit keeps focus here: a save on blur lets focus leave.
+      if (focus) inputRef.current?.focus();
       return;
     }
     finish(focus);

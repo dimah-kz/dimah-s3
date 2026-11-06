@@ -5,7 +5,7 @@ import type { UploadRequestOptions } from "@/types/upload";
  * Scope-wide when the source is `dbObjectSource`. A custom query can use the
  * same shape for its own totals.
  */
-export type ObjectListUsage = {
+export type ObjectListUsageData = {
   totalBytes: number;
   objectCount: number;
   /** Byte cap. Omit when there is none. */
@@ -93,7 +93,7 @@ export type ObjectListPage<TItem> = {
    * Totals for the catalog. A later page may omit this; the hook keeps the
    * previous value. A first page that omits it clears the usage line.
    */
-  usage?: ObjectListUsage;
+  usage?: ObjectListUsageData;
 };
 
 /**

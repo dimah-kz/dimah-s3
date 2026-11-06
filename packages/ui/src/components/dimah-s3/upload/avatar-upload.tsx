@@ -5,7 +5,7 @@ import { CameraIcon, UserIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import type { S3Api, S3RouteName } from "@dimah-s3/core";
 import {
-  useFormatDimahError,
+  useFormatError,
   type UploadFileState,
   type UploadResult,
   type UseUploadReturn,
@@ -86,8 +86,22 @@ export function AvatarUpload({
 }: AvatarUploadProps) {
   const { file } = upload;
   const inFlight = file != null && IN_FLIGHT.has(file.phase);
+  // After an upload, the local preview shows until `objectKey` moves to
+  // another image, such as when the photo is removed.
+  const [uploaded, setUploaded] = useState<{
+    id: string;
+    objectKey: string | null;
+  } | null>(null);
+  if (file?.phase === "success" && uploaded?.id !== file.id) {
+    setUploaded({ id: file.id, objectKey });
+  }
+  const previewCurrent =
+    file?.phase === "success" &&
+    (uploaded?.id !== file.id ||
+      objectKey === uploaded.objectKey ||
+      objectKey === file.result?.key);
   const previewUrl =
-    file?.phase === "error" ? null : (file?.previewUrl ?? null);
+    inFlight || previewCurrent ? (file?.previewUrl ?? null) : null;
   const announcement = useAnnouncement(upload);
 
   const reportUploaded = useEffectEvent((result: UploadResult) => {
@@ -180,7 +194,7 @@ export function AvatarUpload({
 /** What the live region says about the newest call. */
 function useAnnouncement(upload: UseUploadReturn): string {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const rejection = upload.fileRejections[0]?.errors[0];
   if (rejection) return formatError(rejection);
 

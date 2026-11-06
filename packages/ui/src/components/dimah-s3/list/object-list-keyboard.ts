@@ -58,7 +58,7 @@ export function useObjectListKeyboard<TItem>({
       selection.clear();
       return;
     }
-    if (event.code === "KeyA" && modifier && !event.altKey && !event.shiftKey) {
+    if (isSelectAllKey(event) && modifier && !event.altKey && !event.shiftKey) {
       if (!selection || selection.mode !== "multiple") return;
       if (selection.selectableCount === 0) return;
       event.preventDefault();
@@ -166,4 +166,13 @@ function isOverlayTarget(target: Element) {
       "[role=dialog], [role=alertdialog], [role=menu], [data-slot=dropdown-menu-content], [data-slot=alert-dialog-content]",
     ),
   );
+}
+
+/**
+ * The A key of the user's layout (AZERTY puts it where QWERTY has Q). A
+ * layout without Latin letters falls back to the physical key.
+ */
+function isSelectAllKey(event: KeyboardEvent<HTMLElement>): boolean {
+  if (/^[a-z]$/i.test(event.key)) return event.key.toLowerCase() === "a";
+  return event.code === "KeyA";
 }

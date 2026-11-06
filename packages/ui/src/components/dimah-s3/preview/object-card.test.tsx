@@ -17,8 +17,10 @@ function fakeDelete(operations: DeleteOperation[] = []): UseDeleteReturn {
     instanceId: "delete",
     operations,
     get: (key) => operations.findLast((operation) => operation.key === key),
-    pendingKeys: [],
-    isPending: false,
+    pendingKeys: operations
+      .filter((operation) => operation.phase === "deleting")
+      .map((operation) => operation.key),
+    isPending: operations.some((operation) => operation.phase === "deleting"),
     remove: vi.fn(),
     removeMany: vi.fn(async (items: readonly DeleteItem[]) => ({
       deleted: items.map((item) =>

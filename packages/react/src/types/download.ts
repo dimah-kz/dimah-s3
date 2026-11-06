@@ -5,12 +5,18 @@ import type {
   S3Api,
   S3RouteName,
 } from "@dimah-s3/core";
-import type { KeyError, OperationOutcome, TransferProgress } from "./operation";
+import type { OperationOutcome, TransferProgress } from "./operation";
 
 /** Options for one `download(key)` call. */
 export type DownloadOptions = {
   /** File name the browser saves, fitted to 255 UTF-8 bytes like an upload name. */
   fileName?: string;
+};
+
+/** Options for one `useFetchDownload` `download(key)` call. */
+export type FetchDownloadOptions = DownloadOptions & {
+  /** Size in bytes. The progress total until the response gives one. */
+  fileSize?: number | null;
 };
 
 /** Options for one presign request. */
@@ -19,15 +25,6 @@ export type PresignOptions = {
   fileName?: string;
   /** Requested URL lifetime in seconds. The server caps it at the route's limit. */
   expiresIn?: number;
-};
-
-/** How every key of one `presignMany` call ended. */
-export type PresignManyResult = {
-  /** Signed URLs, in the order of the request. */
-  signed: DownloadPresignResponse[];
-  failed: KeyError[];
-  /** Keys a `beforeDownload` callback blocked. */
-  blocked: string[];
 };
 
 /** One `useDownload` call for one key. */
@@ -92,14 +89,10 @@ export type UseDownloadReturn = {
     options?: DownloadOptions,
   ) => Promise<DownloadOutcome>;
   /**
-   * Presigns `key` without handing the URL to the browser. Runs
-   * `beforeDownload` only, and records no operation.
+   * Presigns `key` without handing the URL to the browser, such as for a
+   * share link. Runs `beforeDownload` only, and records no operation.
    */
   presign: (key: string, options?: PresignOptions) => Promise<DownloadOutcome>;
-  /** Like `presign` for many keys, four at a time. */
-  presignMany: (
-    files: readonly ({ key: string } & PresignOptions)[],
-  ) => Promise<PresignManyResult>;
   /** Aborts the running call for `key`, or every running call. */
   cancel: (key?: string) => void;
   /** Removes settled operations for `key`, or every settled operation. */
@@ -168,7 +161,7 @@ export type UseFetchDownloadReturn = {
    */
   download: (
     key: string,
-    options?: DownloadOptions & { fileSize?: number | null },
+    options?: FetchDownloadOptions,
   ) => Promise<FetchDownloadOutcome>;
   /** Aborts the running call for `key`, or every running call. */
   cancel: (key?: string) => void;

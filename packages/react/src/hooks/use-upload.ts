@@ -126,7 +126,7 @@ export type UseUploadReturn = {
  *
  * Every call validates its files against the route policy from the catalog
  * and rejects the invalid ones with catalog error codes, so
- * `useFormatDimahError` can show them. Valid files upload `concurrentFiles`
+ * `useFormatError` can show them. Valid files upload `concurrentFiles`
  * at a time, and each one can be cancelled with `cancel(id)`. A call's
  * `uploadOptions` merge over the hook's: call fields win, and `metadata`
  * merges key by key.

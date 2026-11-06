@@ -163,6 +163,16 @@
           "target": "@components/dimah-s3/upload/upload-toasts.tsx"
         },
         {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
+        },
+        {
           "path": "src/hooks/use-paste-files.ts",
           "type": "registry:hook",
           "target": "@hooks/use-paste-files.ts"
@@ -317,6 +327,16 @@
           "target": "@components/dimah-s3/upload/upload-toasts.tsx"
         },
         {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
+        },
+        {
           "path": "src/hooks/use-paste-files.ts",
           "type": "registry:hook",
           "target": "@hooks/use-paste-files.ts"
@@ -355,11 +375,6 @@
           "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
-        },
-        {
-          "path": "src/components/dimah-s3/attachment/file-name.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",
@@ -603,6 +618,11 @@
           "target": "@components/dimah-s3/download/download-toasts.tsx"
         },
         {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/delete/delete.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/delete/delete.tsx"
@@ -695,6 +715,11 @@
           "target": "@components/dimah-s3/download/download-toasts.tsx"
         },
         {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/attachment/file-name.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/file-name.tsx"
@@ -770,6 +795,11 @@
           "path": "src/lib/isolate-text.ts",
           "type": "registry:lib",
           "target": "@lib/isolate-text.ts"
+        },
+        {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-name.tsx",
@@ -903,9 +933,9 @@
           "target": "@components/dimah-s3/list/object-list-keyboard.ts"
         },
         {
-          "path": "src/lib/format-expires-in.ts",
-          "type": "registry:lib",
-          "target": "@lib/format-expires-in.ts"
+          "path": "src/hooks/use-share-expiry-label.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-share-expiry-label.ts"
         },
         {
           "path": "src/components/dimah-s3/upload/upload.tsx",
@@ -941,6 +971,16 @@
           "path": "src/components/dimah-s3/upload/upload-toasts.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-toasts.tsx"
+        },
+        {
+          "path": "src/lib/toast-content.tsx",
+          "type": "registry:lib",
+          "target": "@lib/toast-content.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/attachment/file-name.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/hooks/use-paste-files.ts",
@@ -981,11 +1021,6 @@
           "path": "src/components/dimah-s3/attachment/dismiss-attachment-action.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/dismiss-attachment-action.tsx"
-        },
-        {
-          "path": "src/components/dimah-s3/attachment/file-name.tsx",
-          "type": "registry:component",
-          "target": "@components/dimah-s3/attachment/file-name.tsx"
         },
         {
           "path": "src/components/dimah-s3/attachment/file-type-glyph.tsx",

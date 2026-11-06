@@ -124,7 +124,7 @@ export function Upload({
     handoffRef.current = null;
     // Only focus that was lost moves; focus the user moved stays.
     if (active instanceof HTMLElement && active !== document.body) return;
-    handoffTarget(handoff, rootId)?.focus();
+    focusFirst(handoffTargets(handoff, rootId));
   });
 
   return (
@@ -199,31 +199,33 @@ function focusHandoff(): FocusHandoff | null {
   };
 }
 
-function handoffTarget(
-  handoff: FocusHandoff,
-  rootId: string,
-): HTMLElement | null {
+/** Where focus may go, best first. */
+function handoffTargets(handoff: FocusHandoff, rootId: string): HTMLElement[] {
   const intake = document.querySelectorAll<HTMLElement>(
     `[${INTAKE_ATTRIBUTE}="${CSS.escape(rootId)}"]`,
   );
-  return (
-    [
-      ...handoff.candidates,
-      // The container can redraw its cards, as when one file is left.
-      ...(handoff.scope.isConnected
-        ? handoff.scope.querySelectorAll<HTMLElement>("button")
-        : []),
-      ...intake,
-      handoff.focusRoot,
-    ].find(
-      (element): element is HTMLElement =>
-        element != null && element.isConnected && isFocusable(element),
-    ) ?? null
+  return [
+    ...handoff.candidates,
+    // The container can redraw its cards, as when one file is left.
+    ...(handoff.scope.isConnected
+      ? handoff.scope.querySelectorAll<HTMLElement>("button")
+      : []),
+    ...intake,
+    handoff.focusRoot,
+  ].filter(
+    (element): element is HTMLElement => element != null && element.isConnected,
   );
 }
 
-function isFocusable(element: HTMLElement): boolean {
-  return !(element instanceof HTMLButtonElement && element.disabled);
+/**
+ * Focuses the first element that takes focus. A disabled button or a
+ * dropzone without `tabIndex` does not, so the next one gets it.
+ */
+function focusFirst(elements: readonly HTMLElement[]) {
+  for (const element of elements) {
+    element.focus();
+    if (document.activeElement === element) return;
+  }
 }
 
 /**

@@ -89,10 +89,11 @@ function isUploaded(file: UploadFileState): file is UploadedFile {
  * Form field whose value is the keys of the files uploaded through it.
  *
  * Each file that uploads successfully adds its key, so the value grows
- * across calls even though the hook replaces its queue. Files that fail,
- * are cancelled or are still in flight add nothing, and files that
- * uploaded before the field mounted are left out. Every key renders as a
- * hidden `<input name={name}>`, so the field submits with its form.
+ * across calls. The field's calls queue, so a new pick never cancels the
+ * files still uploading into it. Files that fail, are cancelled or are
+ * still in flight add nothing, and files that uploaded before the field
+ * mounted are left out. Every key renders as a hidden
+ * `<input name={name}>`, so the field submits with its form.
  *
  * Without `value`, a reset of its form (including React 19's automatic
  * reset after a `<form action>`) restores `defaultValue` and reports it
@@ -206,7 +207,7 @@ export function UploadField({
   const remaining =
     maxFiles == null ? null : Math.max(0, maxFiles - value.length - inFlight);
   const fieldUpload = useMemo(
-    () => (remaining == null ? upload : capUpload(upload, remaining)),
+    () => fieldUploadOf(upload, remaining),
     [remaining, upload],
   );
 
@@ -368,14 +369,16 @@ function retryFitting(
 }
 
 /**
- * `upload` whose calls take at most `remaining` files. With none left it
- * takes nothing: the picker stays closed, drops, pastes and retries are
- * ignored, and a dropzone is `aria-disabled`. The dropzone keeps `tabIndex`
- * 0 so it stays reachable, and focus on it is kept when the field fills.
+ * `upload` as the field's parts use it. Every call queues, so files still
+ * uploading into the value are never cancelled by a new pick. With
+ * `remaining`, calls take at most that many files; with none left it takes
+ * nothing: the picker stays closed, drops, pastes and retries are ignored,
+ * and a dropzone is `aria-disabled`. The dropzone keeps `tabIndex` 0 so it
+ * stays reachable, and focus on it is kept when the field fills.
  */
-function capUpload(
+function fieldUploadOf(
   upload: UseUploadReturn,
-  remaining: number,
+  remaining: number | null,
 ): UseUploadReturn {
   if (remaining === 0) {
     return {
@@ -393,7 +396,10 @@ function capUpload(
   }
   const cap = (call?: UploadCallOptions): UploadCallOptions => ({
     ...call,
-    maxFiles: Math.min(call?.maxFiles ?? remaining, remaining),
+    queue: true,
+    ...(remaining == null
+      ? {}
+      : { maxFiles: Math.min(call?.maxFiles ?? remaining, remaining) }),
   });
   const capInput = (call: CallInput): CallInput =>
     typeof call === "function" ? () => cap(call()) : cap(call);
@@ -402,7 +408,9 @@ function capUpload(
     ...upload,
     handleFiles: (files, call) => upload.handleFiles(files, cap(call)),
     retry: (id) =>
-      id === undefined ? retryFitting(upload, remaining) : upload.retry(id),
+      id === undefined && remaining != null
+        ? retryFitting(upload, remaining)
+        : upload.retry(id),
     open: (call) => upload.open(cap(call)),
     getRootProps: (props, call) => upload.getRootProps(props, capInput(call)),
     getDropTargetProps: (props, call) =>

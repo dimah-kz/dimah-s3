@@ -1,6 +1,5 @@
 "use client";
 
-import { DownloadIcon, Trash2Icon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { fileNameFromKey } from "@dimah-s3/core";
 import type {
@@ -78,7 +77,7 @@ export function ObjectCard({
   const operation =
     download?.mode === "fetch" ? download.get(objectKey) : undefined;
   const downloading = operation != null && isDownloadRunning(operation);
-  const deleting = del?.get(objectKey)?.phase === "deleting";
+  const deleting = del?.pendingKeys.includes(objectKey) ?? false;
   const state: AttachmentState = deleting
     ? "processing"
     : downloading
@@ -121,9 +120,7 @@ export function ObjectCard({
                   variables: { name },
                 })}
                 tooltip={t("Download", { note: "button" })}
-              >
-                <DownloadIcon />
-              </DownloadTrigger>
+              />
             ) : null}
             {del ? (
               <DeleteTrigger
@@ -138,9 +135,7 @@ export function ObjectCard({
                   variables: { name },
                 })}
                 tooltip={t("Delete", { note: "button" })}
-              >
-                <Trash2Icon />
-              </DeleteTrigger>
+              />
             ) : null}
           </>
         ) : undefined

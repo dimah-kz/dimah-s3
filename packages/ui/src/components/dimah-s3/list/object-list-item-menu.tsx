@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode, type RefObject } from "react";
 import { objectKeyOf } from "@dimah-s3/react/engine";
 import {
-  useFormatDimahError,
+  useFormatError,
   type AnyDownloadReturn,
   type UseDownloadReturn,
 } from "@dimah-s3/react";
@@ -34,7 +34,7 @@ import {
 import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
 import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
-import { useShareExpiryLabel } from "@/lib/format-expires-in";
+import { useShareExpiryLabel } from "@/hooks/use-share-expiry-label";
 
 /** One extra row in {@link ObjectListItemMenu}. */
 export type ObjectListMenuAction = {
@@ -224,9 +224,7 @@ export function ObjectListItemMenu({
                 key={`${action.label}-${index}`}
                 variant={action.destructive ? "destructive" : "default"}
                 disabled={action.disabled}
-                onClick={() => {
-                  action.onClick();
-                }}
+                onClick={action.onClick}
               >
                 {action.icon}
                 {action.label}
@@ -302,7 +300,7 @@ function CopyLinkItem({
   expiresIn: number | undefined;
 }) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const expiryLabel = useShareExpiryLabel();
   const report = useObjectListFeedback();
   const [copying, setCopying] = useState(false);
@@ -378,7 +376,7 @@ function DeleteItem({
 }) {
   const t = useTranslations();
   const { delete: del, request } = useDeleteContext();
-  const deleting = del.get(objectKey)?.phase === "deleting";
+  const deleting = del.pendingKeys.includes(objectKey);
 
   return (
     <DropdownMenuItem

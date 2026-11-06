@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormatDimahError } from "@dimah-s3/react";
+import { useFormatError } from "@dimah-s3/react";
 import { cn } from "cn";
 import {
   ObjectListEntryProvider,
@@ -26,7 +26,7 @@ import {
 export function ObjectListContent({ className }: { className?: string }) {
   const context = useObjectListContext();
   const { list, view, sizing } = context;
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const hasRows = list.entries.length > 0;
   const errorMessage = list.error ? formatError(list.error) : null;
@@ -66,7 +66,7 @@ export function ObjectListContent({ className }: { className?: string }) {
       ) : null}
 
       <ObjectListPagination
-        mode={context.loadMore}
+        mode={context.pagination}
         root={sizing ? scroller : null}
         ready={!sizing || scroller != null}
       />

@@ -40,6 +40,7 @@ import {
   ObjectListProvider,
   useObjectListContext,
   type ObjectListContextValue,
+  type ObjectListPagination,
   type ObjectListRenderers,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
@@ -129,10 +130,10 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
   /** Replaces the empty state. `ObjectListEmpty` takes your own text. */
   empty?: ReactNode;
   /**
-   * `auto` loads the next page as the end of the rows comes into view.
-   * `button` waits for Load more. @default "auto"
+   * How later pages load. `auto` loads the next page as the end of the
+   * rows comes into view; `button` waits for Load more. @default "auto"
    */
-  loadMore?: "auto" | "button";
+  pagination?: ObjectListPagination;
   /**
    * Fixed frame height. The header stays put and the rows scroll inside.
    * A number is pixels. A string is a CSS length, such as `"18rem"`.
@@ -183,7 +184,7 @@ export function ObjectList<TItem>({
   toolbar,
   selectionActions,
   empty,
-  loadMore = "auto",
+  pagination = "auto",
   height,
   maxHeight,
   className,
@@ -214,14 +215,15 @@ export function ObjectList<TItem>({
     const previous = previousRenaming.current;
     previousRenaming.current = renamingKey;
     if (previous == null || renamingKey != null) return;
-    if (renameFocusKey.current !== previous) return;
+    const focusKey = renameFocusKey.current;
     renameFocusKey.current = null;
-    document
-      .querySelector<HTMLElement>(
+    if (focusKey !== previous) return;
+    deleteFocus.frameRef.current
+      ?.querySelector<HTMLElement>(
         `[data-slot="object-list-entry-trigger"][data-entry-key="${CSS.escape(previous)}"]`,
       )
       ?.focus();
-  }, [renamingKey]);
+  }, [deleteFocus.frameRef, renamingKey]);
 
   const frameHeight = cssLength(height);
   const frameMaxHeight = cssLength(maxHeight);
@@ -246,7 +248,7 @@ export function ObjectList<TItem>({
     showBreadcrumb: breadcrumb,
     selectionActions,
     empty,
-    loadMore,
+    pagination,
     onOpenItem,
     resolveFolderKeys,
     renamingKey,
@@ -255,9 +257,10 @@ export function ObjectList<TItem>({
       if (!target || !canRenameEntry(target, list)) return;
       setRenamingKey(key);
     },
-    cancelRename(focus = false) {
-      if (focus) renameFocusKey.current = renamingKey;
-      setRenamingKey(null);
+    endRename(key, focus = false) {
+      if (focus) renameFocusKey.current = key;
+      // A save that lands after another rename started leaves that one open.
+      setRenamingKey((current) => (current === key ? null : current));
     },
     renderEntry,
     renderActions,

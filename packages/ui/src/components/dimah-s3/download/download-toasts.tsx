@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import {
-  useFormatDimahError,
+  useFormatError,
   useFormatFileSize,
   type AnyDownloadReturn,
   type DownloadOperation,
@@ -10,8 +10,8 @@ import {
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { toast } from "@/components/ui/toast";
-import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { useToastOwner } from "@/hooks/use-toast-owner";
+import { ToastFile } from "@/lib/toast-content";
 import {
   downloadDisplayName,
   isDownloadRunning,
@@ -61,7 +61,7 @@ function isFetchOperation(
 /** Toasts of the active owner. Mounting it takes over; unmounting hands over. */
 function ActiveDownloadToasts({ download }: DownloadToastsProps) {
   const t = useTranslations();
-  const formatDimahError = useFormatDimahError();
+  const formatError = useFormatError();
   const formatFileSize = useFormatFileSize();
   const formatDownloadedBytes = useFormatDownloadedBytes();
   const { operations, cancel } = download;
@@ -78,19 +78,16 @@ function ActiveDownloadToasts({ download }: DownloadToastsProps) {
     const open = loading.current;
     const current = new Set(operations.map((op) => op.id));
 
-    const describe = (operation: AnyDownloadOperation, detail?: string) => (
-      <span className="block">
-        <FileName name={downloadDisplayName(operation)} />
-        {detail ? (
-          <>
-            {" "}
-            ·{" "}
-            <bdi className="inline-block whitespace-nowrap tabular-nums">
-              {detail}
-            </bdi>
-          </>
-        ) : null}
-      </span>
+    const describe = (
+      operation: AnyDownloadOperation,
+      detail?: string | null,
+      error?: string,
+    ) => (
+      <ToastFile
+        name={downloadDisplayName(operation)}
+        detail={detail}
+        error={error}
+      />
     );
 
     const showProgress = (operation: FetchDownloadOperation) => {
@@ -100,7 +97,7 @@ function ActiveDownloadToasts({ download }: DownloadToastsProps) {
         title: t("Downloading", { note: "toast" }),
         description: describe(
           operation,
-          formatDownloadedBytes(operation.progress) ?? undefined,
+          formatDownloadedBytes(operation.progress),
         ),
         actionProps: {
           children: t("Cancel", { note: "toast action" }),
@@ -138,10 +135,10 @@ function ActiveDownloadToasts({ download }: DownloadToastsProps) {
           toast.add({
             type: "error",
             title: t("Download failed", { note: "toast" }),
-            description: (
-              <span className="block [overflow-wrap:anywhere]">
-                {formatDimahError(operation.error)}
-              </span>
+            description: describe(
+              operation,
+              null,
+              formatError(operation.error),
             ),
           });
           return;
@@ -187,7 +184,7 @@ function ActiveDownloadToasts({ download }: DownloadToastsProps) {
     operations,
     cancel,
     t,
-    formatDimahError,
+    formatError,
     formatFileSize,
     formatDownloadedBytes,
   ]);

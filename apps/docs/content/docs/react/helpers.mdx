@@ -60,17 +60,17 @@ export function FileLine({ file }: { file: UploadFileState }) {
 ## Errors
 
 Every error a hook reports is an `APIError` from `@dimah-s3/core` with a
-stable `code`. `useFormatDimahError()` turns it into a translated message,
+stable `code`. `useFormatError()` turns it into a translated message,
 with sizes and counts in the provider's locale:
 
 ```tsx
 "use client";
 
-import { useFormatDimahError, useUpload } from "@dimah-s3/react";
+import { useFormatError, useUpload } from "@dimah-s3/react";
 import { toast } from "@dimah-s3/ui";
 
 export function AttachmentUploader() {
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const upload = useUpload({
     route: "attachments",
     onError: (error) => {
@@ -115,16 +115,12 @@ pass the provider's for you.
 import {
   formatAcceptLabels,
   formatFileSize,
-  formatSpeed,
-  formatUploadProgress,
   toTimestamp,
   truncateFileName,
 } from "@dimah-s3/react/engine";
 
 formatFileSize(1_500_000); // "1.4 MB"
 formatFileSize(1_500_000, { locale: "fa", units: { MB: "مگابایت" } }); // "۱٫۴ مگابایت"
-formatUploadProgress(1_200_000, 2_000_000, 60); // "1.1 MB / 1.9 MB (60%)"
-formatSpeed(1_200_000); // "1.1 MB/s"
 formatAcceptLabels(["image/*", ".pdf", "application/zip"]); // ["Images", "PDF", "ZIP"]
 formatAcceptLabels(["image/*"], { groups: { image: "Bilder" } }); // ["Bilder"]
 truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi….png"

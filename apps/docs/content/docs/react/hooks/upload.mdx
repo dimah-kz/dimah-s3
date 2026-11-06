@@ -88,7 +88,8 @@ By default a new call cancels the files still in flight and replaces the
 queue once its own files start uploading. Earlier calls that are still
 preparing are cancelled at once. A call that is blocked, rejected, or fails
 before uploading leaves the queue alone. With `queue: true`, new files are
-added to the end and the files in flight keep going.
+added to the end and the files in flight keep going. A call's own `queue`
+wins over the hook's, as in `handleFiles(files, { queue: true })`.
 
 Each entry in `upload.files` has:
 
@@ -252,13 +253,13 @@ catalog is cached per `S3Api`, so every hook shares one request.
 Files that break the policy are rejected without stopping the others. Each
 rejection in `upload.fileRejections` carries `APIError`s with catalog codes:
 `FILE_TYPE_NOT_ALLOWED`, `FILE_EMPTY`, `FILE_TOO_LARGE`, or `TOO_MANY_FILES`.
-Show them with [`useFormatDimahError`](/docs/react/helpers#errors).
+Show them with [`useFormatError`](/docs/react/helpers#errors).
 
 ```tsx
-import { useFormatDimahError, type UseUploadReturn } from "@dimah-s3/react";
+import { useFormatError, type UseUploadReturn } from "@dimah-s3/react";
 
 export function Rejections({ upload }: { upload: UseUploadReturn }) {
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
 
   return upload.fileRejections.map(({ file, errors }) => (
     <p key={file.name} role="alert">

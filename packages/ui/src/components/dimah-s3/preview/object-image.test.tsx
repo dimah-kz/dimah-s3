@@ -134,4 +134,34 @@ describe("ObjectImage", () => {
     expect(screen.queryByRole("img")).toBeNull();
     expect(onError).toHaveBeenCalledOnce();
   });
+
+  it("signs a URL that fails to load again once, then shows the fallback", async () => {
+    const api = fakeApi();
+    let version = 0;
+    api.download.mockImplementation(async (payload) => ({
+      key: payload.key,
+      bucket: "bucket",
+      url: `https://s3.test/${payload.key}?v=${++version}`,
+      mode: "presign",
+      disposition: "inline",
+      expiresIn: 600,
+    }));
+    render(
+      <ObjectImage
+        api={api}
+        route="photos"
+        objectKey="stale.png"
+        alt="Stale"
+        fallback={<span>No photo</span>}
+      />,
+    );
+
+    fireEvent.error(await screen.findByRole("img", { name: "Stale" }));
+    const retried = await screen.findByRole("img", { name: "Stale" });
+    expect(retried.getAttribute("src")).toBe("https://s3.test/stale.png?v=2");
+
+    fireEvent.error(retried);
+    expect(screen.getByText("No photo")).toBeDefined();
+    expect(api.download).toHaveBeenCalledTimes(2);
+  });
 });

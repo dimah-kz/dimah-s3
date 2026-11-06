@@ -226,8 +226,10 @@ import { createLocalStorageStore } from "@dimah-s3/react/engine"; // [!code ++]
 
 `@dimah-s3/react/engine` has no `"use client"` directive and no React
 import, so you can use it in shared and server modules. The display
-formatters `formatFileSize` and `truncateFileName` live there too, with
-`formatSpeed` and `formatUploadProgress`; they are not in `@dimah-s3/core`.
+formatters `formatFileSize` and `truncateFileName` live there too; they are
+not in `@dimah-s3/core`. `formatSpeed` and `formatUploadProgress` are
+removed: use `useFormatSpeed()` and `useFormatFileSize()`, which follow the
+`S3Provider` locale and translations.
 
 ### Update `useUpload`
 
@@ -291,7 +293,7 @@ already running joins that call.
 | 1.7                          | 2.0 beta                                |
 | ---------------------------- | --------------------------------------- |
 | `S3UploadError`              | `APIError` with a catalog `code`        |
-| `useFormatValidateFileError` | `useFormatDimahError`                   |
+| `useFormatValidateFileError` | `useFormatError`                        |
 | `formatEta`                  | `useFormatEta`                          |
 | `UploadProgress`             | `TransferProgress`                      |
 | `FetchDownloadProgress`      | `TransferProgress`                      |
@@ -425,6 +427,8 @@ removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
 ### Update `ObjectList`
 
 - `usageLimits` is removed. Limits come from the source's `usage`.
+- The `ObjectListUsage` type from `@dimah-s3/react` is now
+  `ObjectListUsageData`. `ObjectListUsage` is the ui component that shows it.
 - The context field `remove` is now `delete`, and `onDeleted` receives
   react's `DeleteResult`.
 - `ObjectListItemMenu` no longer takes `download`, `delete`, or `onDeleted`.

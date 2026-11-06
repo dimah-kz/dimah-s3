@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { PauseIcon, RotateCwIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
-  useFormatDimahError,
+  useFormatError,
   useFormatEta,
   useFormatFileSize,
   useFormatNumber,
@@ -98,8 +98,8 @@ export function UploadStatus({
           state="processing"
           title={t("Preparing…", { note: "upload status" })}
         />
-      ) : files.length === 1 && layout === "list" ? (
-        <UploadFileItem file={files[0]} actions={pause} onDismiss={onDismiss} />
+      ) : shown.length === 1 && layout === "list" ? (
+        <UploadFileItem file={shown[0]} actions={pause} onDismiss={onDismiss} />
       ) : (
         <div
           data-slot="upload-status-panel"
@@ -134,7 +134,7 @@ function UploadSummary({
   onDismiss: (() => void) | undefined;
 }) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
+  const formatError = useFormatError();
   const formatEta = useFormatEta();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();

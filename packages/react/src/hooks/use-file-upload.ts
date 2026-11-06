@@ -458,7 +458,7 @@ function createUploadQueue(
 
   /**
    * Adds entries. A call that starts uploading (`replace`) replaces the queue
-   * unless `options.queue` is set; a failed call only appends its rows.
+   * unless it queues; a failed call only appends its rows.
    */
   function enqueue(
     entries: UploadFileState[],
@@ -466,7 +466,7 @@ function createUploadQueue(
     options: UseFileUploadOptions,
     replace: boolean,
   ) {
-    if (replace && !options.queue) {
+    if (replace && !queues(call, options)) {
       for (const task of tasks.values()) {
         abortTask(task, uploadAbortReason("cancel"));
       }
@@ -520,7 +520,7 @@ function createUploadQueue(
     if (files.length === 0) return settle(batchResult([]));
 
     const controller = new AbortController();
-    if (!options.queue && retried.length === 0) {
+    if (!queues(call, options) && retried.length === 0) {
       // This call replaces the queue, so an older call still preparing must
       // not enqueue over it once it finishes.
       const reason = uploadAbortReason("cancel");
@@ -751,6 +751,11 @@ function createUploadQueue(
     reset,
     dispose,
   };
+}
+
+/** Whether a call appends to the queue: its own `queue`, else the hook's. */
+function queues(call: UploadCallOptions, options: UseFileUploadOptions) {
+  return call.queue ?? options.queue ?? false;
 }
 
 function createEntry(file: File): UploadFileState {

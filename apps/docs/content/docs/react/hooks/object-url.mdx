@@ -63,7 +63,7 @@ A failed background refresh sets `error` but keeps the current `url` while it
 still works. A transient failure (status 408, 429, or 500 and up) is retried
 with backoff until the URL expires; any other failure is not retried. Once
 the URL expires, `url` is cleared. Show the error with
-[`useFormatDimahError`](/docs/react/helpers#errors), and call `refresh()` to
+[`useFormatError`](/docs/react/helpers#errors), and call `refresh()` to
 try again.
 
 ## Type reference

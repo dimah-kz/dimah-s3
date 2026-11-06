@@ -81,6 +81,7 @@ export {
   Delete,
   useDeleteContext,
   type DeleteProps,
+  type DeleteConfirmation,
   type DeleteContextValue,
   type DeleteTarget,
   type DeleteRequestOptions,
@@ -106,6 +107,7 @@ export {
   useObjectListEntry,
   type ObjectListContextValue,
   type ObjectListFeedback,
+  type ObjectListPagination,
   type ObjectListRenderers,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
@@ -114,10 +116,10 @@ export {
   ObjectListSelectAll,
   ObjectListSelectionBar,
   ObjectListBulkDelete,
-  NewFolderControl,
+  ObjectListNewFolder,
   type ObjectListHeaderProps,
   type ObjectListSelectionBarProps,
-  type NewFolderControlProps,
+  type ObjectListNewFolderProps,
 } from "@/components/dimah-s3/list/object-list-header";
 export { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
 export {
