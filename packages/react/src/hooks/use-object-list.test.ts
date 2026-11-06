@@ -95,6 +95,34 @@ describe("useObjectList", () => {
     hook.unmount();
   });
 
+  it("keeps each entry while its item is the same object", async () => {
+    const query = mockQuery().mockResolvedValue(
+      page(["a", "b"], { folders: [{ id: "f", name: "F" }] }),
+    );
+    const readFile = vi.fn((item: Item) => ({ name: `${item.id}.txt` }));
+    // Inline, as in a component that renders on every upload tick.
+    const hook = renderHook(() =>
+      useList({ query, getFile: (item) => readFile(item) }),
+    );
+    await flush();
+    const first = hook.current.entries;
+    const reads = readFile.mock.calls.length;
+
+    hook.rerender();
+    expect(hook.current.entries).toBe(first);
+    expect(readFile).toHaveBeenCalledTimes(reads);
+
+    act(() =>
+      hook.current.setItems((items) => [...items.slice(0, 1), { id: "c" }]),
+    );
+    const [folder, a, c] = hook.current.entries;
+    expect(folder).toBe(first[0]);
+    expect(a).toBe(first[1]);
+    expect(c).toMatchObject({ key: "file:c", name: "c.txt" });
+    expect(readFile).toHaveBeenCalledTimes(reads + 1);
+    hook.unmount();
+  });
+
   it("appends the next page and keeps the first page's folders", async () => {
     const query = mockQuery()
       .mockResolvedValueOnce(

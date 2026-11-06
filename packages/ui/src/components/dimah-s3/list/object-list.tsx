@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
@@ -14,6 +17,8 @@ import {
 import type {
   AnyDownloadReturn,
   DeleteResult,
+  DropTargetProps,
+  ObjectListEntry,
   ObjectListFolder,
   UseDeleteReturn,
   UseDownloadReturn,
@@ -37,14 +42,20 @@ import {
   useObjectListAnnouncement,
 } from "@/components/dimah-s3/list/object-list-feedback";
 import {
+  createObjectListEntryStore,
   ObjectListProvider,
   useObjectListContext,
+  useObjectListEntryScope,
   type ObjectListContextValue,
+  type ObjectListEntryScope,
   type ObjectListPagination,
   type ObjectListRenderers,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
-import { ObjectListHeader } from "@/components/dimah-s3/list/object-list-header";
+import {
+  ObjectListHeader,
+  useSelectionCount,
+} from "@/components/dimah-s3/list/object-list-header";
 import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
 import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import {
@@ -200,6 +211,7 @@ export function ObjectList<TItem>({
   useRefreshListAfterUpload(upload, list.refresh);
   const deleteFocus = useFocusAfterDelete();
   const { announcement, announce } = useObjectListAnnouncement();
+  const selectionCount = useSelectionCount(list, selection ?? null);
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const renameFocusKey = useRef<string | null>(null);
   const previousRenaming = useRef<string | null>(null);
@@ -227,46 +239,218 @@ export function ObjectList<TItem>({
 
   const frameHeight = cssLength(height);
   const frameMaxHeight = cssLength(maxHeight);
+  const sizing =
+    frameHeight != null ? "fixed" : frameMaxHeight != null ? "max" : null;
+  const label = rootLabel ?? t("Files", { note: "object list" });
 
-  const context: ObjectListContextValue<TItem> = {
+  // What the entries draw from. Per-entry state goes through the store, so
+  // a selection or an arrow key draws only the entries it changes. What can
+  // be selected changes with the entries, so it goes with the scope below.
+  const selectableKeys = useSelectableKeys(list.entries, selection ?? null);
+  const selectedKeys = selection?.selectedKeys ?? NO_KEYS;
+  const selecting = selection?.isSelecting === true;
+  const [store] = useState(() =>
+    createObjectListEntryStore({
+      selected: selectedKeys,
+      selecting,
+      renaming: null,
+      tabStop: list.entries[0]?.key ?? null,
+    }),
+  );
+  useLayoutEffect(() => {
+    const { tabStop } = store.get();
+    store.set({
+      selected: selectedKeys,
+      selecting,
+      renaming: renamingKey,
+      // The entry that had the tab stop left: the first one takes it.
+      tabStop:
+        tabStop != null && list.entries.some((entry) => entry.key === tabStop)
+          ? tabStop
+          : (list.entries[0]?.key ?? null),
+    });
+  }, [list.entries, renamingKey, selectedKeys, selecting, store]);
+
+  // Commands read the newest props when they run, so they never change.
+  const latest = useRef({
     list,
-    selection: selection ?? null,
-    upload: upload ?? null,
-    download: download ?? null,
-    share: share ?? null,
-    delete: del ?? null,
-    toasts,
-    announce,
-    view,
-    setView(next) {
-      if (viewProp === undefined) setLocalView(next);
-      onViewChange?.(next);
-    },
-    label: rootLabel ?? t("Files", { note: "object list" }),
-    sizing:
-      frameHeight != null ? "fixed" : frameMaxHeight != null ? "max" : null,
-    showBreadcrumb: breadcrumb,
-    selectionActions,
-    empty,
-    pagination,
+    selection,
+    upload,
     onOpenItem,
-    resolveFolderKeys,
-    renamingKey,
-    startRename(key) {
-      const target = list.entries.find((entry) => entry.key === key);
-      if (!target || !canRenameEntry(target, list)) return;
+    viewProp,
+    onViewChange,
+  });
+  useLayoutEffect(() => {
+    latest.current = {
+      list,
+      selection,
+      upload,
+      onOpenItem,
+      viewProp,
+      onViewChange,
+    };
+  });
+  const setView = useCallback((next: ObjectListView) => {
+    if (latest.current.viewProp === undefined) setLocalView(next);
+    latest.current.onViewChange?.(next);
+  }, []);
+  // The entry's field opens and closes in the same render as the list, so
+  // focus that follows a rename finds the row as it now is.
+  const startRename = useCallback(
+    (key: string) => {
+      const current = latest.current.list;
+      const target = current.entries.find((entry) => entry.key === key);
+      if (!target || !canRenameEntry(target, current)) return;
       setRenamingKey(key);
+      store.set({ renaming: key });
     },
-    endRename(key, focus = false) {
+    [store],
+  );
+  const endRename = useCallback(
+    (key: string, focus = false) => {
       if (focus) renameFocusKey.current = key;
       // A save that lands after another rename started leaves that one open.
       setRenamingKey((current) => (current === key ? null : current));
+      if (store.get().renaming === key) store.set({ renaming: null });
     },
-    renderEntry,
-    renderActions,
-    renderDescription,
-    renderMeta,
-  };
+    [store],
+  );
+  const open = useCallback((entry: ObjectListEntry<TItem>) => {
+    const current = latest.current;
+    if (entry.kind === "folder") current.list.openFolder(entry.folder);
+    else current.onOpenItem?.(entry.item);
+  }, []);
+  const toggle = useCallback(
+    (key: string, options?: { range?: boolean; value?: boolean }) => {
+      latest.current.selection?.toggle(key, options);
+    },
+    [],
+  );
+  const folderDropTarget = useCallback((id: string): DropTargetProps => {
+    // The upload hook's handlers follow its state, so each event asks for
+    // the current ones instead of keeping those of the row's last render.
+    const handler =
+      (name: DragHandlerName) => (event: DragEvent<HTMLElement>) => {
+        const current = latest.current;
+        current.upload
+          ?.getDropTargetProps(
+            {},
+            () => folderUploadCall(current.list, id) ?? {},
+          )
+          [name]?.(event);
+      };
+    return {
+      onDragEnter: handler("onDragEnter"),
+      onDragOver: handler("onDragOver"),
+      onDragLeave: handler("onDragLeave"),
+      onDrop: handler("onDrop"),
+    };
+  }, []);
+
+  const context = useMemo<ObjectListContextValue<TItem>>(
+    () => ({
+      list,
+      selection: selection ?? null,
+      upload: upload ?? null,
+      download: download ?? null,
+      share: share ?? null,
+      delete: del ?? null,
+      toasts,
+      announce,
+      view,
+      setView,
+      label,
+      sizing,
+      showBreadcrumb: breadcrumb,
+      selectionActions,
+      empty,
+      pagination,
+      onOpenItem,
+      resolveFolderKeys,
+      renamingKey,
+      startRename,
+      endRename,
+      renderEntry,
+      renderActions,
+      renderDescription,
+      renderMeta,
+    }),
+    [
+      announce,
+      breadcrumb,
+      del,
+      download,
+      empty,
+      endRename,
+      label,
+      list,
+      onOpenItem,
+      pagination,
+      renamingKey,
+      renderActions,
+      renderDescription,
+      renderEntry,
+      renderMeta,
+      resolveFolderKeys,
+      selection,
+      selectionActions,
+      setView,
+      share,
+      sizing,
+      startRename,
+      toasts,
+      upload,
+      view,
+    ],
+  );
+
+  const opensFiles = onOpenItem != null;
+  const folderUploads = upload != null && list.uploadOptions != null;
+  const canDownload = download != null;
+  const canShare = share != null || download?.mode === "navigate";
+  const canDelete = del != null;
+  const renameFile = list.renameFile != null;
+  const renameFolder = list.renameFolder != null;
+  const scope = useMemo<ObjectListEntryScope<TItem>>(
+    () => ({
+      store,
+      selectable: selectableKeys,
+      opensFiles,
+      folderUploads,
+      download: canDownload,
+      share: canShare,
+      delete: canDelete,
+      renameFile,
+      renameFolder,
+      open,
+      toggle,
+      folderDropTarget,
+      startRename,
+      endRename,
+      renderActions,
+      renderDescription,
+      renderMeta,
+    }),
+    [
+      canDelete,
+      canDownload,
+      canShare,
+      endRename,
+      folderDropTarget,
+      folderUploads,
+      open,
+      opensFiles,
+      renameFile,
+      renameFolder,
+      renderActions,
+      renderDescription,
+      renderMeta,
+      selectableKeys,
+      startRename,
+      store,
+      toggle,
+    ],
+  );
 
   /** Drops deleted files from the rows and the selection, then reloads. */
   function handleDeleted(result: DeleteResult) {
@@ -340,7 +524,7 @@ export function ObjectList<TItem>({
   if (upload) content = <Upload upload={upload}>{content}</Upload>;
 
   return (
-    <ObjectListProvider value={context}>
+    <ObjectListProvider value={context} scope={scope}>
       {content}
       {toasts ? (
         <>
@@ -348,16 +532,40 @@ export function ObjectList<TItem>({
           {download ? <BuiltInDownloadToasts download={download} /> : null}
           {del ? <ObjectListDeleteToasts delete={del} /> : null}
         </>
-      ) : (
-        <>
-          {del ? (
-            <ObjectListDeleteToasts delete={del} report={announce} />
-          ) : null}
-          <ObjectListAnnouncer announcement={announcement} />
-        </>
-      )}
+      ) : del ? (
+        <ObjectListDeleteToasts delete={del} report={announce} />
+      ) : null}
+      {/* Mounted from the start, so the first change is read out. */}
+      <ObjectListAnnouncer
+        announcement={announcement}
+        status={selectionCount}
+      />
     </ObjectListProvider>
   );
+}
+
+const NO_KEYS: ReadonlySet<string> = new Set();
+
+/**
+ * Keys of the loaded entries `selection` can select. The same set while
+ * they stay the same, also with an inline `isSelectable`.
+ */
+function useSelectableKeys<TItem>(
+  entries: readonly ObjectListEntry<TItem>[],
+  selection: UseObjectListSelectionReturn<TItem> | null,
+): ReadonlySet<string> {
+  const keys = selection
+    ? entries.flatMap((entry) =>
+        selection.canSelect(entry) ? [entry.key] : [],
+      )
+    : [];
+  const [kept, setKept] = useState<ReadonlySet<string>>(() => new Set(keys));
+  if (kept.size === keys.length && keys.every((key) => kept.has(key))) {
+    return kept;
+  }
+  const next = new Set(keys);
+  setKept(next);
+  return next;
 }
 
 /**
@@ -438,10 +646,12 @@ function ObjectListFrame({
 }) {
   const { list, selection, upload, view, label, sizing, startRename } =
     useObjectListContext();
+  const { store } = useObjectListEntryScope();
   const keyboard = useObjectListKeyboard({
     list,
     selection,
     view,
+    store,
     startRename,
   });
   const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
@@ -508,7 +718,10 @@ function ObjectListFrame({
       className,
     ),
     style,
-    onFocus,
+    onFocus: (event: FocusEvent<HTMLElement>) => {
+      onFocus(event);
+      keyboard.onFocus(event);
+    },
     onPaste,
     onDragEnter: (event: DragEvent<HTMLElement>) => {
       if (!takesFiles) return;
@@ -548,6 +761,8 @@ function ObjectListFrame({
 
 /** Drop targets inside the frame that take a drag for themselves. */
 type InnerDropTarget = "folder" | "dropzone";
+
+type DragHandlerName = "onDragEnter" | "onDragOver" | "onDragLeave" | "onDrop";
 
 const DROPZONE = "[data-slot=upload-dropzone]:not([data-disabled])";
 const INNER_DROP_TARGET = `[data-slot=object-list-entry][data-drag-active], ${DROPZONE}`;

@@ -30,9 +30,9 @@ import { useDeleteContext } from "@/components/dimah-s3/delete/delete";
 import {
   useObjectListEntry,
   useOptionalObjectListContext,
+  useOptionalObjectListEntryScope,
 } from "@/components/dimah-s3/list/object-list-context";
 import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
-import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
 import { useShareExpiryLabel } from "@/hooks/use-share-expiry-label";
 
@@ -112,47 +112,29 @@ export function ObjectListItemMenu({
   className,
 }: ObjectListItemMenuProps) {
   const t = useTranslations();
-  const context = useOptionalObjectListContext();
+  // Inside a list the trigger reads the list's features only, so upload
+  // progress does not draw every row's menu. The items read the hooks.
+  const scope = useOptionalObjectListEntryScope();
   const entry = useObjectListEntry();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const file = entry?.kind === "file" ? entry : null;
   const folder = entry?.kind === "folder" ? entry : null;
   const objectKey = objectKeyProp ?? (file ? objectKeyOf(file) : "");
-  const fileName = fileNameProp ?? file?.file.name;
-  const fileSize = fileSizeProp ?? file?.file.size;
   const isFile = objectKey !== "";
-
-  const download = isFile ? (context?.download ?? null) : null;
-  const linkSource = isFile
-    ? (shareProp ??
-      context?.share ??
-      (download?.mode === "navigate" ? download : null))
-    : null;
-  const remove = isFile ? (context?.delete ?? null) : null;
-  const listUpload = context?.upload ?? null;
-  // A folder takes uploads only when the source can place files in it.
-  const folderCall =
-    folder && listUpload && context
-      ? folderUploadCall(context.list, folder.id)
-      : undefined;
-  const uploadToFolder =
-    listUpload && folderCall ? () => listUpload.open(folderCall) : null;
-
-  const extra = actions ?? [];
-  const showTransfer = download != null || linkSource != null;
-  const showExtra = extra.length > 0 || children != null;
-  const canRename =
-    context != null && entry != null && canRenameEntry(entry, context.list);
+  const rows: MenuRows = {
+    // A folder takes uploads only when the source can place files in it.
+    upload: folder != null && scope?.folderUploads === true,
+    download: isFile && scope?.download === true,
+    link: isFile && (shareProp != null || scope?.share === true),
+    rename:
+      entry != null &&
+      (entry.kind === "file" ? scope?.renameFile : scope?.renameFolder) ===
+        true,
+    extra: (actions?.length ?? 0) > 0 || children != null,
+    delete: isFile && scope?.delete === true,
+  };
   if (!isFile && !folder) return null;
-  if (
-    !showTransfer &&
-    !showExtra &&
-    !uploadToFolder &&
-    !canRename &&
-    remove == null
-  ) {
-    return null;
-  }
+  if (!Object.values(rows).some(Boolean)) return null;
 
   return (
     <DropdownMenu>
@@ -163,6 +145,8 @@ export function ObjectListItemMenu({
             variant="ghost"
             size="icon-sm"
             data-slot="object-list-item-menu"
+            // In an entry, Tab and the arrow keys from the entry reach it.
+            tabIndex={entry ? -1 : undefined}
             className={className}
           />
         }
@@ -175,80 +159,157 @@ export function ObjectListItemMenu({
         </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
-        {uploadToFolder || showTransfer || canRename ? (
-          <DropdownMenuGroup>
-            {uploadToFolder ? (
-              <DropdownMenuItem
-                disabled={listUpload?.disabled}
-                onClick={uploadToFolder}
-              >
-                <CloudUpload />
-                {t("Upload to this folder", { note: "object list menu" })}
-              </DropdownMenuItem>
-            ) : null}
-            {download ? (
-              <DownloadItem
-                download={download}
-                objectKey={objectKey}
-                fileName={fileName}
-                fileSize={fileSize}
-              />
-            ) : null}
-            {linkSource ? (
-              <CopyLinkItem
-                share={linkSource}
-                objectKey={objectKey}
-                fileName={fileName}
-                expiresIn={expiresIn}
-              />
-            ) : null}
-            {canRename ? (
-              <DropdownMenuItem
-                onClick={() => {
-                  if (entry) context?.startRename(entry.key);
-                }}
-              >
-                <PencilIcon />
-                {t("Rename", { note: "object list menu" })}
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuGroup>
-        ) : null}
-        {showExtra && (showTransfer || uploadToFolder || canRename) ? (
-          <DropdownMenuSeparator />
-        ) : null}
-        {showExtra ? (
-          <DropdownMenuGroup>
-            {extra.map((action, index) => (
-              <DropdownMenuItem
-                key={`${action.label}-${index}`}
-                variant={action.destructive ? "destructive" : "default"}
-                disabled={action.disabled}
-                onClick={action.onClick}
-              >
-                {action.icon}
-                {action.label}
-              </DropdownMenuItem>
-            ))}
-            {children}
-          </DropdownMenuGroup>
-        ) : null}
-        {remove &&
-        (showTransfer || uploadToFolder || canRename || showExtra) ? (
-          <DropdownMenuSeparator />
-        ) : null}
-        {remove ? (
-          <DropdownMenuGroup>
-            <DeleteItem
+        <ItemMenuItems
+          rows={rows}
+          folderId={folder?.id ?? null}
+          entryKey={entry?.key ?? null}
+          objectKey={objectKey}
+          fileName={fileNameProp ?? file?.file.name}
+          fileSize={fileSizeProp ?? file?.file.size}
+          share={shareProp}
+          expiresIn={expiresIn}
+          actions={actions}
+          triggerRef={triggerRef}
+        >
+          {children}
+        </ItemMenuItems>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Which rows {@link ObjectListItemMenu} has. */
+type MenuRows = {
+  upload: boolean;
+  download: boolean;
+  link: boolean;
+  rename: boolean;
+  extra: boolean;
+  delete: boolean;
+};
+
+/** The menu's rows, drawn while it is open. */
+function ItemMenuItems({
+  rows,
+  folderId,
+  entryKey,
+  objectKey,
+  fileName,
+  fileSize,
+  share: shareProp,
+  expiresIn,
+  actions,
+  triggerRef,
+  children,
+}: {
+  rows: MenuRows;
+  folderId: string | null;
+  entryKey: string | null;
+  objectKey: string;
+  fileName: string | undefined;
+  fileSize: number | null | undefined;
+  share: UseDownloadReturn | undefined;
+  expiresIn: number | undefined;
+  actions: readonly ObjectListMenuAction[] | undefined;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  children: ReactNode;
+}) {
+  const t = useTranslations();
+  const context = useOptionalObjectListContext();
+  const download = rows.download ? (context?.download ?? null) : null;
+  const linkSource = rows.link
+    ? (shareProp ??
+      context?.share ??
+      (context?.download?.mode === "navigate" ? context.download : null))
+    : null;
+  const remove = rows.delete ? (context?.delete ?? null) : null;
+  const listUpload = context?.upload ?? null;
+  const folderCall =
+    rows.upload && context && folderId != null
+      ? folderUploadCall(context.list, folderId)
+      : undefined;
+  const uploadToFolder =
+    listUpload && folderCall ? () => listUpload.open(folderCall) : null;
+
+  const extra = actions ?? [];
+  const showTransfer = download != null || linkSource != null;
+  const showExtra = rows.extra;
+  const canRename = rows.rename && context != null && entryKey != null;
+
+  return (
+    <>
+      {uploadToFolder || showTransfer || canRename ? (
+        <DropdownMenuGroup>
+          {uploadToFolder ? (
+            <DropdownMenuItem
+              disabled={listUpload?.disabled}
+              onClick={uploadToFolder}
+            >
+              <CloudUpload />
+              {t("Upload to this folder", { note: "object list menu" })}
+            </DropdownMenuItem>
+          ) : null}
+          {download ? (
+            <DownloadItem
+              download={download}
               objectKey={objectKey}
               fileName={fileName}
               fileSize={fileSize}
-              triggerRef={triggerRef}
             />
-          </DropdownMenuGroup>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          ) : null}
+          {linkSource ? (
+            <CopyLinkItem
+              share={linkSource}
+              objectKey={objectKey}
+              fileName={fileName}
+              expiresIn={expiresIn}
+            />
+          ) : null}
+          {canRename ? (
+            <DropdownMenuItem
+              onClick={() => {
+                if (entryKey != null) context?.startRename(entryKey);
+              }}
+            >
+              <PencilIcon />
+              {t("Rename", { note: "object list menu" })}
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuGroup>
+      ) : null}
+      {showExtra && (showTransfer || uploadToFolder || canRename) ? (
+        <DropdownMenuSeparator />
+      ) : null}
+      {showExtra ? (
+        <DropdownMenuGroup>
+          {extra.map((action, index) => (
+            <DropdownMenuItem
+              key={`${action.label}-${index}`}
+              variant={action.destructive ? "destructive" : "default"}
+              disabled={action.disabled}
+              onClick={action.onClick}
+            >
+              {action.icon}
+              {action.label}
+            </DropdownMenuItem>
+          ))}
+          {children}
+        </DropdownMenuGroup>
+      ) : null}
+      {remove && (showTransfer || uploadToFolder || canRename || showExtra) ? (
+        <DropdownMenuSeparator />
+      ) : null}
+      {remove ? (
+        <DropdownMenuGroup>
+          <DeleteItem
+            objectKey={objectKey}
+            fileName={fileName}
+            fileSize={fileSize}
+            triggerRef={triggerRef}
+          />
+        </DropdownMenuGroup>
+      ) : null}
+    </>
   );
 }
 

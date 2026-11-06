@@ -434,6 +434,14 @@ removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
 - `ObjectListItemMenu` no longer takes `download`, `delete`, or `onDeleted`.
 - Built-in toasts step aside for your own `UploadToasts`, `DownloadToasts`, or
   `DeleteToasts`. Pass `toasts={false}` to turn them off.
+- The entries are one tab stop. An entry's checkbox and menu leave the tab
+  order: reach them with Tab from the entry, or with ArrowLeft and
+  ArrowRight in the list view. Update tests that tab through the rows.
+- `getKey` and `getFile` run once per item object. To change what a row
+  shows, replace the item with `setItems` or reload.
+- `ObjectListRow` and `ObjectListTile` are memoized. A `render*` function
+  that reads your own state must change with it, as one from `useCallback`
+  does.
 
 ---
 

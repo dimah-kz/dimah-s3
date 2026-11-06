@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useFormatError } from "@dimah-s3/react";
+import { memo, useEffect, useState, type ReactNode } from "react";
+import { useFormatError, type ObjectListEntry } from "@dimah-s3/react";
 import { cn } from "cn";
 import {
   ObjectListEntryProvider,
   useObjectListContext,
+  type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
 import {
   ObjectListRow,
@@ -59,7 +60,13 @@ export function ObjectListContent({ className }: { className?: string }) {
 
       {showEmpty ? (context.empty ?? <ObjectListEmpty />) : null}
 
-      {hasRows ? <ObjectListEntries /> : null}
+      {hasRows ? (
+        <ObjectListEntries
+          entries={list.entries}
+          view={view}
+          renderEntry={context.renderEntry}
+        />
+      ) : null}
 
       {hasRows && errorMessage ? (
         <ObjectListErrorBanner message={errorMessage} onRetry={list.retry} />
@@ -83,37 +90,55 @@ const ENTRY_VISIBILITY = {
   grid: "[contain-intrinsic-block-size:auto_9.5rem] [content-visibility:auto]",
 } as const;
 
-function ObjectListEntries() {
-  const { list, view, renderEntry } = useObjectListContext();
-
+/**
+ * The entries. Memoized, so it draws again only when the entries, the view,
+ * or `renderEntry` change, and not on every upload tick.
+ *
+ * The edges around them take focus for a moment when Tab leaves the
+ * entries, so the browser moves on from outside them: the entries are one
+ * tab stop.
+ */
+const ObjectListEntries = memo(function ObjectListEntries({
+  entries,
+  view,
+  renderEntry,
+}: {
+  entries: readonly ObjectListEntry<unknown>[];
+  view: ObjectListView;
+  renderEntry: ((entry: ObjectListEntry<unknown>) => ReactNode) | undefined;
+}) {
   return (
-    <div
-      role="list"
-      data-slot="object-list-entries"
-      data-view={view}
-      className={
-        view === "grid"
-          ? "grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2 p-2"
-          : "flex min-w-0 flex-col"
-      }
-    >
-      {list.entries.map((entry) => (
-        <div
-          key={entry.key}
-          role="listitem"
-          className={cn("min-w-0", ENTRY_VISIBILITY[view])}
-        >
-          <ObjectListEntryProvider entry={entry}>
-            {renderEntry ? (
-              renderEntry(entry)
-            ) : view === "grid" ? (
-              <ObjectListTile entry={entry} />
-            ) : (
-              <ObjectListRow entry={entry} />
-            )}
-          </ObjectListEntryProvider>
-        </div>
-      ))}
-    </div>
+    <>
+      <span data-slot="object-list-entries-start" tabIndex={-1} />
+      <div
+        role="list"
+        data-slot="object-list-entries"
+        data-view={view}
+        className={
+          view === "grid"
+            ? "grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2 p-2"
+            : "flex min-w-0 flex-col"
+        }
+      >
+        {entries.map((entry) => (
+          <div
+            key={entry.key}
+            role="listitem"
+            className={cn("min-w-0", ENTRY_VISIBILITY[view])}
+          >
+            <ObjectListEntryProvider entry={entry}>
+              {renderEntry ? (
+                renderEntry(entry)
+              ) : view === "grid" ? (
+                <ObjectListTile entry={entry} />
+              ) : (
+                <ObjectListRow entry={entry} />
+              )}
+            </ObjectListEntryProvider>
+          </div>
+        ))}
+      </div>
+      <span data-slot="object-list-entries-end" tabIndex={-1} />
+    </>
   );
-}
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type MouseEvent, type ReactNode } from "react";
+import { memo, useRef, type MouseEvent, type ReactNode } from "react";
 import {
   useFormatDate,
   useFormatFileSize,
@@ -14,12 +14,11 @@ import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 import { ObjectListItemMenu } from "@/components/dimah-s3/list/object-list-item-menu";
-import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import {
-  canRenameEntry,
-  ObjectListRenameField,
-} from "@/components/dimah-s3/list/object-list-rename";
-import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
+  useObjectListEntryScope,
+  useObjectListEntryStatus,
+} from "@/components/dimah-s3/list/object-list-context";
+import { ObjectListRenameField } from "@/components/dimah-s3/list/object-list-rename";
 
 /** Props shared by {@link ObjectListRow} and {@link ObjectListTile}. */
 export type ObjectListEntryProps<TItem> = {
@@ -41,12 +40,15 @@ export function ObjectListCheckbox({
   indeterminate,
   label,
   onCheckedChange,
+  tabIndex,
   className,
 }: {
   checked: boolean;
   indeterminate?: boolean;
   label: string;
   onCheckedChange: (checked: boolean, shiftKey: boolean) => void;
+  /** `-1` inside an entry: arrow keys and Tab from the entry reach it. */
+  tabIndex?: number;
   className?: string;
 }) {
   const shiftRef = useRef(false);
@@ -55,6 +57,7 @@ export function ObjectListCheckbox({
     <Checkbox
       checked={checked}
       indeterminate={indeterminate}
+      tabIndex={tabIndex}
       aria-label={label}
       className={cn("after:-inset-x-2 after:-inset-y-3", className)}
       onPointerDown={(event) => {
@@ -77,8 +80,13 @@ export function ObjectListCheckbox({
 const DROP_TARGET =
   "data-drag-active:bg-dimah-s3-primary/10 data-drag-active:ring-2 data-drag-active:ring-dimah-s3-primary data-drag-active:ring-inset";
 
-/** One row in the `list` view. */
-export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
+/**
+ * One row in the `list` view. Memoized: it draws again when its props or
+ * its own state change, not on every change of the list.
+ */
+export const ObjectListRow = memo(function ObjectListRow<TItem>(
+  props: ObjectListEntryProps<TItem>,
+) {
   const { entry, className } = props;
   const parts = useEntryParts(props);
 
@@ -87,6 +95,7 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
       {...parts.dropTarget}
       data-drop-name={parts.dropTarget ? entry.name : undefined}
       data-slot="object-list-entry"
+      data-entry-key={entry.key}
       data-kind={entry.kind}
       data-view="list"
       data-selected={parts.selected ? "" : undefined}
@@ -151,10 +160,12 @@ export function ObjectListRow<TItem>(props: ObjectListEntryProps<TItem>) {
       {parts.actions ? <div className="shrink-0">{parts.actions}</div> : null}
     </div>
   );
-}
+}) as <TItem>(props: ObjectListEntryProps<TItem>) => ReactNode;
 
-/** One tile in the `grid` view. */
-export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
+/** One tile in the `grid` view. Memoized like {@link ObjectListRow}. */
+export const ObjectListTile = memo(function ObjectListTile<TItem>(
+  props: ObjectListEntryProps<TItem>,
+) {
   const { entry, className } = props;
   const parts = useEntryParts(props);
 
@@ -163,6 +174,7 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
       {...parts.dropTarget}
       data-drop-name={parts.dropTarget ? entry.name : undefined}
       data-slot="object-list-entry"
+      data-entry-key={entry.key}
       data-kind={entry.kind}
       data-view="grid"
       data-selected={parts.selected ? "" : undefined}
@@ -228,7 +240,7 @@ export function ObjectListTile<TItem>(props: ObjectListEntryProps<TItem>) {
       ) : null}
     </div>
   );
-}
+}) as <TItem>(props: ObjectListEntryProps<TItem>) => ReactNode;
 
 type EntryParts = {
   selected: boolean;
@@ -236,6 +248,8 @@ type EntryParts = {
   selecting: boolean;
   /** The name is the rename field. The row is not a button. */
   renaming: boolean;
+  /** The trigger is the list's tab stop. */
+  tabStop: boolean;
   checkbox: ReactNode;
   actions: ReactNode;
   description: ReactNode;
@@ -257,94 +271,84 @@ function useEntryParts<TItem>({
   media,
 }: ObjectListEntryProps<TItem>): EntryParts {
   const t = useTranslations();
-  const context = useObjectListContext<TItem>();
-  const { list, selection, upload, onOpenItem } = context;
+  // The scope changes only with the list's features, and the status only
+  // with this entry's own state, so upload progress does not draw the row.
+  const scope = useObjectListEntryScope<TItem>();
+  const { selected, selectable, selecting, renaming, tabStop } =
+    useObjectListEntryStatus(entry.key);
   const defaultDescription = useDefaultDescription(entry);
-  const selectable = selection != null && selection.canSelect(entry);
-  const selected = selectable && selection.isSelected(entry.key);
-  const renaming = context.renamingKey === entry.key;
-  const canRename = canRenameEntry(entry, list);
-
-  const open =
-    entry.kind === "folder"
-      ? () => list.openFolder(entry.folder)
-      : onOpenItem
-        ? () => onOpenItem(entry.item)
-        : null;
-
+  const folder = entry.kind === "folder";
+  const canRename = folder ? scope.renameFolder : scope.renameFile;
+  const opens = folder || scope.opensFiles;
   // Folders take dropped files only when the source can place them there.
-  const folderCall =
-    entry.kind === "folder" && upload
-      ? folderUploadCall(list, entry.id)
-      : undefined;
-  const hasMenu =
-    entry.kind === "file"
-      ? context.download != null ||
-        context.share != null ||
-        context.delete != null ||
-        canRename
-      : folderCall != null || canRename;
+  const takesDrops = folder && scope.folderUploads;
+  const hasMenu = folder
+    ? takesDrops || canRename
+    : scope.download || scope.share || scope.delete || canRename;
 
   const resolvedActions =
     actions !== undefined ? (
       actions
-    ) : context.renderActions ? (
-      context.renderActions(entry)
+    ) : scope.renderActions ? (
+      scope.renderActions(entry)
     ) : hasMenu ? (
       <ObjectListItemMenu />
     ) : null;
 
   return {
     selected,
-    selecting: selection?.isSelecting === true,
+    selecting,
     renaming,
-    checkbox:
-      selectable && selection ? (
-        <ObjectListCheckbox
-          checked={selected}
-          label={t("Select {name}", {
-            note: "object list selection",
-            variables: { name: entry.name },
-          })}
-          onCheckedChange={(checked, shiftKey) =>
-            selection.toggle(entry.key, { value: checked, range: shiftKey })
-          }
-        />
-      ) : null,
+    tabStop,
+    checkbox: selectable ? (
+      <ObjectListCheckbox
+        checked={selected}
+        tabIndex={-1}
+        label={t("Select {name}", {
+          note: "object list selection",
+          variables: { name: entry.name },
+        })}
+        onCheckedChange={(checked, shiftKey) =>
+          scope.toggle(entry.key, { value: checked, range: shiftKey })
+        }
+      />
+    ) : null,
     actions: present(resolvedActions),
     description: present(
       description !== undefined
         ? description
-        : context.renderDescription
-          ? context.renderDescription(entry)
+        : scope.renderDescription
+          ? scope.renderDescription(entry)
           : defaultDescription,
     ),
-    meta: present(meta !== undefined ? meta : context.renderMeta?.(entry)),
+    meta: present(meta !== undefined ? meta : scope.renderMeta?.(entry)),
     media: present(media),
-    dropTarget:
-      upload && folderCall ? upload.getDropTargetProps({}, folderCall) : null,
+    dropTarget: takesDrops ? scope.folderDropTarget(entry.id) : null,
     entryKey: entry.key,
     onClick:
-      open || selectable
+      opens || selectable
         ? (event) => {
-            if (selectable && selection) {
+            if (selectable) {
               if (event.metaKey || event.ctrlKey) {
-                selection.toggle(entry.key);
+                scope.toggle(entry.key);
                 return;
               }
               if (event.shiftKey) {
-                selection.toggle(entry.key, { range: true, value: true });
+                scope.toggle(entry.key, { range: true, value: true });
                 return;
               }
             }
-            if (open) open();
-            else selection?.toggle(entry.key);
+            if (opens) scope.open(entry);
+            else scope.toggle(entry.key);
           }
         : null,
   };
 }
 
-/** The button that opens or selects an entry. Arrow keys move between these. */
+/**
+ * The button that opens or selects an entry. Arrow keys move between these,
+ * and only the list's tab stop takes Tab.
+ */
 function EntryTrigger({
   parts,
   className,
@@ -356,12 +360,13 @@ function EntryTrigger({
 }) {
   const focusRing =
     "outline-none focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50";
+  const tabIndex = parts.tabStop ? 0 : -1;
   if (!parts.onClick) {
-    // Not a button, but arrow keys, F2 and focus after a rename or delete
-    // still reach the row.
+    // Not a button, but Tab, arrow keys, F2 and focus after a rename or
+    // delete still reach the row.
     return (
       <div
-        tabIndex={-1}
+        tabIndex={tabIndex}
         data-slot="object-list-entry-trigger"
         data-entry-key={parts.entryKey}
         className={cn(focusRing, className)}
@@ -373,6 +378,7 @@ function EntryTrigger({
   return (
     <button
       type="button"
+      tabIndex={tabIndex}
       data-slot="object-list-entry-trigger"
       data-entry-key={parts.entryKey}
       className={cn("cursor-pointer select-none", focusRing, className)}

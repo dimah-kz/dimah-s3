@@ -11,7 +11,10 @@ import {
 import type { APIError } from "@dimah-s3/core";
 import { toClientError } from "@/internal/client-error";
 import { useControllableState, useLiveRef } from "@/internal/hooks";
-import { createObjectListEntries } from "@/list/entries";
+import {
+  reuseObjectListEntries,
+  type ObjectListEntryCache,
+} from "@/list/entries";
 import type {
   ObjectListEntry,
   ObjectListFile,
@@ -641,10 +644,7 @@ export function useObjectList<TItem>(
     pending,
     failure,
   });
-  const entries = useMemo(
-    () => createObjectListEntries(folders, items, getKey, getFile),
-    [folders, getFile, getKey, items],
-  );
+  const entries = useReusedEntries(folders, items, getKey, getFile);
   const nextCursor = fresh ? snapshot.nextCursor : null;
 
   return {
@@ -681,6 +681,28 @@ export function useObjectList<TItem>(
     renameFile: options.renameFile ? renameFile : undefined,
     renameFolder: options.renameFolder ? renameFolder : undefined,
   };
+}
+
+/**
+ * Entries for `folders` and `items`. A folder or item that is the same
+ * object as last time keeps its entry, so rows and the selection see one
+ * object until that row changes. `getKey` and `getFile` are pure: new
+ * functions alone, such as inline ones, rebuild nothing.
+ */
+function useReusedEntries<TItem>(
+  folders: readonly ObjectListFolder[],
+  items: readonly TItem[],
+  getKey: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): readonly ObjectListEntry<TItem>[] {
+  const [cache, setCache] = useState<ObjectListEntryCache<TItem>>(() =>
+    reuseObjectListEntries(null, folders, items, getKey, getFile),
+  );
+  if (cache.folders === folders && cache.items === items) return cache.entries;
+  // Adjusted during render, so the rows never draw the old entries.
+  const next = reuseObjectListEntries(cache, folders, items, getKey, getFile);
+  setCache(next);
+  return next.entries;
 }
 
 function readStatus({

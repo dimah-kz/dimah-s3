@@ -18,7 +18,10 @@ import {
   type UseDeleteReturn,
   type UseUploadReturn,
 } from "@dimah-s3/react";
-import { memoryObjectSource } from "@dimah-s3/react/engine";
+import {
+  memoryObjectSource,
+  type UploadTransport,
+} from "@dimah-s3/react/engine";
 import { act, render, screen, within } from "@/test/render";
 import { toast } from "@/components/ui/toast";
 import { DeleteToasts } from "@/components/dimah-s3/delete/delete-toasts";
@@ -111,7 +114,7 @@ function fakeApi(items: Item[]) {
       complete: unused,
       abort: unused,
     },
-    uploadTransport: vi.fn(async () => {}),
+    uploadTransport: vi.fn<UploadTransport>(async () => {}),
   } satisfies S3Api & S3ApiUploadTransport;
 }
 
@@ -288,6 +291,11 @@ function entry(name: string) {
   const element = trigger.closest<HTMLElement>("[data-slot=object-list-entry]");
   if (!element) throw new Error(`No entry for ${name}`);
   return element;
+}
+
+/** The button that opens or selects the entry named `name`. */
+function trigger(name: string) {
+  return screen.getByRole("button", { name: startsWith(name) });
 }
 
 async function openMenu(name: string, label = "File actions") {
@@ -1369,6 +1377,271 @@ describe("ObjectList", () => {
         name: "notes",
       });
       expect(screen.getByRole("button", { name: "notes" })).toBeDefined();
+    });
+  });
+
+  describe("keyboard", () => {
+    /** A list between two buttons, to see where Tab goes. */
+    function renderBetween() {
+      return renderList({
+        props: () => ({ toolbar: <button type="button">Before</button> }),
+        extra: () => <button type="button">After</button>,
+      });
+    }
+
+    const before = () => screen.getByRole("button", { name: "Before" });
+    const after = () => screen.getByRole("button", { name: "After" });
+
+    it("makes the entries one tab stop, starting at the first", async () => {
+      const user = userEvent.setup();
+      const { container } = renderBetween();
+      await settle();
+
+      // Rows: docs, a.txt, b.txt. Checkboxes and menus are not tab stops.
+      expect([
+        ...container.querySelectorAll(
+          "[data-slot=object-list-entries] [tabindex='0']",
+        ),
+      ]).toEqual([trigger("docs")]);
+
+      act(() => before().focus());
+      await user.tab();
+      expect(document.activeElement).toBe(trigger("docs"));
+      await user.tab();
+      expect(document.activeElement).toBe(after());
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(trigger("docs"));
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(before());
+    });
+
+    it("keeps the tab stop on the entry that last had focus", async () => {
+      const user = userEvent.setup();
+      renderBetween();
+      await settle();
+
+      act(() => trigger("docs").focus());
+      await user.keyboard("{ArrowDown}{ArrowDown}");
+      expect(document.activeElement).toBe(trigger("b.txt"));
+      expect(trigger("b.txt").tabIndex).toBe(0);
+      expect(trigger("docs").tabIndex).toBe(-1);
+
+      await user.click(after());
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(trigger("b.txt"));
+    });
+
+    it("gives the tab stop to the first entry when its entry leaves", async () => {
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+
+      act(() => trigger("a.txt").focus());
+      await user.click(trigger("docs"));
+      await settle();
+
+      expect(trigger("c.txt").tabIndex).toBe(0);
+    });
+
+    it("walks the focused row's own controls with Tab, then leaves", async () => {
+      const user = userEvent.setup();
+      renderBetween();
+      await settle();
+      const row = entry("a.txt");
+
+      act(() => trigger("a.txt").focus());
+      await user.tab();
+      expect(document.activeElement).toBe(
+        within(row).getByRole("button", { name: "File actions" }),
+      );
+      await user.tab();
+      expect(document.activeElement).toBe(after());
+
+      act(() => trigger("a.txt").focus());
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(
+        within(row).getByRole("checkbox", { name: "Select a.txt" }),
+      );
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(before());
+    });
+
+    it("moves between entries with the arrows, Home, and End", async () => {
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+
+      act(() => trigger("docs").focus());
+      await user.keyboard("{ArrowDown}");
+      expect(document.activeElement).toBe(trigger("a.txt"));
+      await user.keyboard("{ArrowDown}{ArrowDown}");
+      expect(document.activeElement).toBe(trigger("b.txt"));
+      await user.keyboard("{Home}");
+      expect(document.activeElement).toBe(trigger("docs"));
+      await user.keyboard("{End}");
+      expect(document.activeElement).toBe(trigger("b.txt"));
+      await user.keyboard("{ArrowUp}");
+      expect(document.activeElement).toBe(trigger("a.txt"));
+    });
+
+    it("moves through a row's checkbox, name, and menu with Left and Right", async () => {
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+      const row = entry("a.txt");
+      const checkbox = within(row).getByRole("checkbox", {
+        name: "Select a.txt",
+      });
+      const menu = within(row).getByRole("button", { name: "File actions" });
+
+      act(() => trigger("a.txt").focus());
+      await user.keyboard("{ArrowLeft}");
+      expect(document.activeElement).toBe(checkbox);
+      await user.keyboard("{ArrowLeft}");
+      expect(document.activeElement).toBe(checkbox);
+      await user.keyboard("{ArrowRight}{ArrowRight}");
+      expect(document.activeElement).toBe(menu);
+      await user.keyboard("{ArrowRight}");
+      expect(document.activeElement).toBe(menu);
+
+      // Down goes on to the next entry's name.
+      await user.keyboard("{ArrowLeft}{ArrowLeft}{ArrowDown}");
+      expect(document.activeElement).toBe(trigger("b.txt"));
+      expect(trigger("b.txt").tabIndex).toBe(0);
+    });
+
+    it("moves between tiles with every arrow in the grid", async () => {
+      const user = userEvent.setup();
+      renderList({ props: () => ({ defaultView: "grid" }) });
+      await settle();
+
+      act(() => trigger("docs").focus());
+      await user.keyboard("{ArrowRight}");
+      expect(document.activeElement).toBe(trigger("a.txt"));
+      await user.keyboard("{ArrowLeft}");
+      expect(document.activeElement).toBe(trigger("docs"));
+      // jsdom has no layout, so the grid has one column.
+      await user.keyboard("{ArrowDown}{ArrowDown}");
+      expect(document.activeElement).toBe(trigger("b.txt"));
+    });
+  });
+
+  describe("selection count", () => {
+    it("is read out from a live region that was there before it", async () => {
+      const user = userEvent.setup();
+      const { container } = renderList();
+      await settle();
+      const region = container.querySelector(
+        "[data-slot=object-list-announcer]",
+      );
+      expect(region?.getAttribute("aria-live")).toBe("polite");
+      expect(region?.textContent).toBe("");
+
+      act(() => trigger("a.txt").focus());
+      await user.keyboard(" ");
+      expect(container.querySelector("[data-slot=object-list-announcer]")).toBe(
+        region,
+      );
+      expect(region?.textContent).toBe("1 selected");
+      // The bar shows the count without a live region of its own.
+      expect(speakingRegions()).toEqual([region]);
+
+      await user.keyboard("{ArrowDown}{Shift>} {/Shift}");
+      expect(region?.textContent).toBe("2 selected");
+
+      await user.keyboard("{Escape}");
+      expect(region?.textContent).toBe("");
+    });
+  });
+
+  describe("rendering", () => {
+    it("draws no entry again while an upload reports progress", async () => {
+      const renderMeta = vi.fn(() => null);
+      const { api, container } = renderList({ props: () => ({ renderMeta }) });
+      acceptUploads(api);
+      const transfer = Promise.withResolvers<void>();
+      let report = (_loaded: number) => {};
+      api.uploadTransport.mockImplementation(
+        async (_file, _presign, { onProgress }) => {
+          report = (loaded) =>
+            onProgress?.({ loaded, total: 5, percent: loaded * 20 });
+          await transfer.promise;
+        },
+      );
+      await settle();
+      const frame = container.querySelector("[data-slot=object-list]");
+      if (!frame) throw new Error("No frame");
+      const drawn = renderMeta.mock.calls.length;
+
+      await fire(frame, dragEvent("drop", [textFile("x.txt")]));
+      for (const loaded of [1, 2, 3, 4]) {
+        await act(async () => report(loaded));
+      }
+
+      expect(
+        container.querySelector("[data-slot=object-list-upload-status]"),
+      ).not.toBeNull();
+      expect(renderMeta).toHaveBeenCalledTimes(drawn);
+      await act(async () => transfer.resolve());
+      await settle();
+    });
+
+    it("draws only the entries whose selection or tab stop changed", async () => {
+      const user = userEvent.setup();
+      const renderMeta = vi.fn((_entry: { name: string }) => null);
+      renderList({ props: () => ({ renderMeta }) });
+      await settle();
+      const drawn = () => renderMeta.mock.calls.map(([entry]) => entry.name);
+
+      act(() => trigger("a.txt").focus());
+      expect(drawn().slice(-2)).toEqual(["docs", "a.txt"]);
+      // The first selection draws every entry: the list is now selecting.
+      await user.keyboard(" ");
+      renderMeta.mockClear();
+
+      await user.keyboard("{ArrowDown}");
+      expect(drawn()).toEqual(["a.txt", "b.txt"]);
+      renderMeta.mockClear();
+      await user.keyboard(" ");
+      expect(drawn()).toEqual(["b.txt"]);
+    });
+
+    it("keeps each entry while an inline getFile and isSelectable change", async () => {
+      const user = userEvent.setup();
+      const renderMeta = vi.fn((_entry: { name: string }) => null);
+      function Inline() {
+        const [count, setCount] = useState(0);
+        const list = useObjectList({
+          ...memoryObjectSource(initialItems, {
+            getKey: (item) => item.key,
+            getFile: (item) => ({ name: item.name, size: item.size }),
+            getFolder: (item) => item.folder,
+          }),
+        });
+        const selection = useObjectListSelection(list, {
+          isSelectable: (item) => item.kind === "file",
+        });
+        return (
+          <>
+            <button type="button" onClick={() => setCount(count + 1)}>
+              Render {count}
+            </button>
+            <ObjectList
+              list={list}
+              selection={selection}
+              renderMeta={renderMeta}
+            />
+          </>
+        );
+      }
+      render(<Inline />);
+      await settle();
+      const drawn = renderMeta.mock.calls.length;
+
+      await user.click(screen.getByRole("button", { name: "Render 0" }));
+      await user.click(screen.getByRole("button", { name: "Render 1" }));
+
+      expect(renderMeta).toHaveBeenCalledTimes(drawn);
     });
   });
 

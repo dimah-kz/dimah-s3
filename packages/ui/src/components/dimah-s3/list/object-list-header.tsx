@@ -19,6 +19,8 @@ import {
   useFormatNumber,
   type ObjectListEntry,
   type ObjectListFolder,
+  type UseObjectListReturn,
+  type UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
@@ -219,11 +221,10 @@ export function ObjectListSelectionBar({
   className,
 }: ObjectListSelectionBarProps) {
   const t = useTranslations();
-  const formatNumber = useFormatNumber();
   const { list, selection, delete: del } = useObjectListContext();
+  const count = useSelectionCount(list, selection);
   if (!selection?.isSelecting) return null;
 
-  const count = formatNumber(selection.count);
   // Only selected files that are deleting make the bar inert.
   const busy =
     del != null &&
@@ -241,19 +242,9 @@ export function ObjectListSelectionBar({
       )}
     >
       <ObjectListSelectAll />
-      <p
-        aria-live="polite"
-        className="min-w-0 flex-1 truncate text-sm font-medium text-dimah-s3-foreground tabular-nums"
-      >
-        {selection.allSelected && list.hasMore && !selection.persist
-          ? t("{count} selected on this page", {
-              note: "object list selection",
-              variables: { count },
-            })
-          : t("{count} selected", {
-              note: "object list selection",
-              variables: { count },
-            })}
+      {/* The list's live region reads the count out. */}
+      <p className="min-w-0 flex-1 truncate text-sm font-medium text-dimah-s3-foreground tabular-nums">
+        {count}
       </p>
       <div className="flex shrink-0 items-center gap-1">
         {actions ? (
@@ -276,6 +267,29 @@ export function ObjectListSelectionBar({
       </div>
     </div>
   );
+}
+
+/**
+ * "3 selected", or "3 selected on this page" while select-all left pages
+ * unloaded. `null` while nothing is selected. @internal
+ */
+export function useSelectionCount<TItem>(
+  list: UseObjectListReturn<TItem>,
+  selection: UseObjectListSelectionReturn<TItem> | null,
+): string | null {
+  const t = useTranslations();
+  const formatNumber = useFormatNumber();
+  if (!selection?.isSelecting) return null;
+  const count = formatNumber(selection.count);
+  return selection.allSelected && list.hasMore && !selection.persist
+    ? t("{count} selected on this page", {
+        note: "object list selection",
+        variables: { count },
+      })
+    : t("{count} selected", {
+        note: "object list selection",
+        variables: { count },
+      });
 }
 
 /**

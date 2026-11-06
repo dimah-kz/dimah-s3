@@ -49,9 +49,10 @@ export function FileBrowser() {
 both kinds, a `name`, and either `folder` or `item` and `file`. `items` and
 `folders` are there too when you want them apart.
 
-Keep the source stable — define it outside the component, or in `useState` /
-`useMemo` — so the entries are not rebuilt on every render. `getFile` should
-be pure.
+An entry stays the same object while its item or folder does, also when the
+source is written inline, so rows can skip renders. `getKey` and `getFile`
+run once per item and must be pure: to change what a row shows, replace the
+item with `setItems` or reload.
 
 ## Query
 
