@@ -1,39 +1,50 @@
 core:changelogs:
-  - content: "---\npackages:\n  group:dimah-s3:\n    type: patch\n---\n\n### Docs at s3.dimah.dev\n\nPackage homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.\n"
-    filename: 2026-11-04-docs-domain.md
+  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: major\n---\n\n### List entries stay put between renders\n\n`useObjectList` keeps each entry object while its item or folder is the same object, so `entries`, and the selection maps built from them, keep their identity when a component renders again. An inline source no longer rebuilds them on every render.\n\n#### Breaking changes\n\n- **Keep `getKey` and `getFile` pure.** They run once per item object. A `getFile` that reads other state shows the old value until the item changes: replace the item with `setItems`, or reload.\n"
+    filename: 2026-11-06-object-list-stable-entries.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: major\n---\n\n### Per-call queueing, and list state that follows the rows\n\nAn upload call can pick its own queue mode, the object-list hooks keep their state in step with the rows on screen, and the formatter and type names line up with the rest of the API.\n\n- **`handleFiles(files, { queue })`** overrides the hook's `queue` for one call: `true` appends and leaves the files in flight alone, `false` replaces the queue. `UploadCallOptions` gains `queue`.\n- **Selection follows the rows.** Without `persist`, `useObjectListSelection` drops an entry that a reload or search no longer returns, so it does not come back selected when it shows again.\n- **Search resets with the folder.** A controlled `parent` that changes from outside, such as on browser back, clears the search the way `openFolder` does, and the old search never loads in the new folder.\n- **`createFolder` reloads under a name sort or a search**, as a rename does, so the new folder shows where the source puts it.\n- **Engine types.** `@dimah-s3/react/engine` exports the types its functions take and return: `UploadRequestOptions`, `UploadEnginePhase`, `UploadResult`, `TransferProgress`, `ObjectListSource`, `ObjectListFile`, `ObjectListFolder`, `ObjectListPage`, `ObjectListQuery`, `ObjectListQueryInput`, `ObjectListSort`, and `ObjectListUsageData`.\n- **Named option types.** `FetchDownloadOptions` types `useFetchDownload().download(key, options)`, and `DeleteOptions` types `useDelete().remove(key, options)`.\n\n#### Breaking changes\n\n- **Rename `useFormatDimahError` to `useFormatError`.** It works the same, and its name now matches the other `useFormat*` hooks.\n- **Rename the `ObjectListUsage` type to `ObjectListUsageData`.** The old name clashed with the `ObjectListUsage` component from `@dimah-s3/ui`.\n- **`useDownload` drops `presignMany`** and the `PresignManyResult` type. Call `presign(key)` for each key, or use `useObjectUrl` for previews, which caches and refreshes each URL.\n- **`@dimah-s3/react/engine` drops `formatSpeed` and `formatUploadProgress`.** Use `useFormatSpeed()` and `useFormatFileSize()`, which follow the `S3Provider` locale and translations.\n"
+    filename: 2026-11-06-react-hooks-cleanup.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: major\n---\n\n### Upload limits across calls\n\n`useUploadLimit` caps the files one `useUpload` takes in across its calls, and `retry` takes several ids at once.\n\n- **`useUploadLimit(upload, { available, counted })`** caps every call of the hook while the calling component is mounted: `handleFiles`, `open`, drops, pastes, and `retry`, wherever they come from. A call holds its slots from the moment it starts, so two quick calls never take the same ones. The hook rejects the files past the limit with `TOO_MANY_FILES`, and a retry sends only the failed files that fit. It returns the files that still fit, counting calls still preparing. The `UploadLimit` type names its argument.\n- **`retry(ids)`** takes one id or several. Failed files that came from one call go again as one call, so `beforeUpload`, `onUploadStart`, and `onSettled` run once for them.\n\n#### Breaking changes\n\n- **Accept an array in a `retry` stub.** `UseUploadReturn[\"retry\"]` now takes `string | readonly string[]`, so a test stub that implements `retry(id?: string)` must take `ids?: string | readonly string[]`.\n"
+    filename: 2026-11-06-upload-limit-react.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: major\n---\n\n### The object list is one tab stop\n\n`ObjectList` takes one Tab however many entries it shows, reads the selection count out, and stops drawing every entry while an upload reports progress.\n\n- **One tab stop.** Tab lands on the entry that last had focus, or the first one. Tab and Shift+Tab go through that entry's checkbox, menu, and actions, then leave the list.\n- **ArrowLeft and ArrowRight** move between a row's checkbox, name, and menu in the list view. In the grid they still move between tiles.\n- **F2** renames the focused entry from any of its controls.\n- **Selection count.** The list's polite live region is mounted with the list and reads \"{count} selected\" each time the count changes, also the first time.\n- **Fewer renders.** `ObjectListRow` and `ObjectListTile` are memoized. An entry draws again when it changes, when its selection, rename, or tab stop does, or when a `render*` function does. Upload progress, downloads, and deletes elsewhere in the list leave it alone.\n- **`data-entry-key`** on each row and tile holds `entry.key`.\n- **`ObjectListCheckbox`** takes `tabIndex`.\n\n#### Breaking changes\n\n- **Reach an entry's checkbox and menu from the entry.** They have `tabIndex={-1}`, and so does an `ObjectListItemMenu` inside an entry. Update tests that tab through the rows. Give your own controls in `renderActions` `tabIndex={-1}` too, so Tab lands on the entry and not on them.\n- **Keep `render*` functions in step with the state they read.** A memoized entry calls `renderActions`, `renderDescription`, and `renderMeta` again only when the function changes. Define them outside the component, or with `useCallback` and the state they read.\n- **The selection bar's count has no `aria-live`.** The list's own live region reads it. A bar of your own that read the count out can drop its live region.\n"
+    filename: 2026-11-06-object-list-tab-stop.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: major\n---\n\n### Sturdier list, delete, and upload components\n\nThe families fix their focus, state, and labelling edge cases, and a few names now match their siblings.\n\n- **`FileTypeGlyph`** labels a file with its own type: `song.flac` reads `flac` and `scan.tiff` reads `tiff`, where they read `mp3` and `png`. The styles come straight from `react-file-icon`.\n- **Deletes show at once.** `DeleteTrigger`, `ObjectCard`, and the file menu show a delete as running from the moment its key is claimed, also while `beforeDelete` runs. `DeleteTrigger` sets `data-phase`.\n- **`Delete` leaves no rejection unhandled.** A throw from `onDeleted` goes to `reportError`, and the dialog still closes. `confirm()` never rejects.\n- **Per-request `onDeleted`.** `request(targets, { onDeleted })` runs after the root's `onDeleted`, once that request's delete settles.\n- **Icon-size triggers.** `DownloadTrigger` and `DeleteTrigger` with an `icon*` size show the icon alone, and the spinner while they run. `ObjectCard` uses them, so its actions show the busy state.\n- **Upload.**\n  - `UploadField` queues its calls, so a new pick never cancels the files still uploading into the value.\n  - Inside a field, `UploadStatus` shows the one file left as its own card.\n  - `AvatarUpload` drops the upload's preview once `objectKey` moves to another image, such as when the photo is removed.\n  - Focus that leaves a removed card skips elements that cannot take it.\n- **`ObjectImage`** signs a URL that fails to load again once, as for one that expired while the tab slept, before it shows `fallback`. Its `ref` reaches the `<img>`, and the `ref` of `DownloadProgress` reaches its progressbar.\n- **`ObjectList`.**\n  - A rename whose save lands after another rename started leaves the newer field open, and a save that fails on blur no longer pulls focus back.\n  - A file row that neither opens nor selects still takes the arrow keys, F2, and focus after a rename or delete.\n  - With a `persist` selection, the selection bar sits under the path instead of replacing it, so you can change folders while you pick.\n  - A bulk delete resolves the selected folders at once, and a folder it empties leaves the selection.\n  - Ctrl+A or Cmd+A follows the keyboard layout.\n- **Toasts** name the file when an upload, download, or delete fails, and the upload progress toast reads \"{loaded} of {total}\" in your language.\n\n#### Breaking changes\n\n- **`useDeleteContext()`.** `pending` is now `confirmation`, and `cancel` is now `dismiss`. The new `isDeleting` is `true` while the confirmed delete runs, so a custom dialog no longer tracks its own busy state. The `DeleteConfirmation` type names the request.\n- **Rename `NewFolderControl` to `ObjectListNewFolder`**, and `NewFolderControlProps` to `ObjectListNewFolderProps`.\n- **`ObjectList` `loadMore` is now `pagination`** (`\"auto\"` or `\"button\"`), so it no longer shares a name with `list.loadMore()`. The context field is renamed too, and `ObjectListPagination` names its type.\n- **`ObjectListContextValue.cancelRename(focus?)` is now `endRename(key, focus?)`.** It closes the field only while `key` is the entry being renamed.\n- **`FileAttachment`.** An error card without `error` or `description` reads \"Failed\" instead of \"Upload failed\".\n- **Translations.** `\"{loaded} of {total}\"` now has the note `transfer progress` (it was `download progress`). `\"Failed\"` (note `status`) is new.\n"
+    filename: 2026-11-06-ui-families-fixes.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### UploadField holds its limit on every call\n\n`UploadField` enforces `maxFiles` through the hook, so code outside the field no longer pushes it past its limit.\n\n- **Every entry point.** The Retry action of an `UploadToasts`, `usePasteFiles(upload)`, and your own `upload.open()` or `upload.handleFiles()` take only the files that still fit, like the field's own parts. The field sets a `useUploadLimit` on the hook while it is mounted.\n- **Calls still preparing count.** Two quick picks or drops never take the same room, and `useUploadFieldContext().remaining` counts the files of calls still preparing, so the field shows as full from the moment its last room is taken.\n- **One retry call.** A retry in the field sends the failed files that fit as one call, so `beforeUpload`, `onUploadStart`, and `onSettled` run once.\n- **Full fields.** The retry actions of `UploadStatus` and `UploadFileList` stay focusable but are `aria-disabled`. A call through the field's `upload` is rejected with `TOO_MANY_FILES` instead of ignored.\n- **`FileAttachment` `retryDisabled`** shows the retry action as unavailable: focusable, `aria-disabled`, and inert.\n"
+    filename: 2026-11-06-upload-limit-ui.md
     v: 0.0.0
 core:packages:
-  - changelogIds:
-      - 2026-11-04-docs-domain.md
-    id: npm:@dimah-s3/cli
+  - id: npm:@dimah-s3/cli
+    updated: true
+  - id: npm:@dimah-s3/db
+    updated: true
+  - id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-11-04-docs-domain.md
-    id: npm:@dimah-s3/core
-    updated: true
-  - changelogIds:
-      - 2026-11-04-docs-domain.md
-    id: npm:@dimah-s3/db
-    updated: true
-  - changelogIds:
-      - 2026-11-04-docs-domain.md
+      - 2026-11-06-object-list-stable-entries.md
+      - 2026-11-06-react-hooks-cleanup.md
+      - 2026-11-06-upload-limit-react.md
     id: npm:@dimah-s3/react
     updated: true
-  - changelogIds:
-      - 2026-11-04-docs-domain.md
-    id: npm:@dimah-s3/server
+  - id: npm:@dimah-s3/server
     updated: true
   - changelogIds:
-      - 2026-11-04-docs-domain.md
+      - 2026-11-06-object-list-tab-stop.md
+      - 2026-11-06-ui-families-fixes.md
+      - 2026-11-06-upload-limit-ui.md
     id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: beta
     id: npm:@dimah-s3/cli
   - distTag: beta
-    id: npm:@dimah-s3/core
-  - distTag: beta
     id: npm:@dimah-s3/db
+  - distTag: beta
+    id: npm:@dimah-s3/core
   - distTag: beta
     id: npm:@dimah-s3/react
   - distTag: beta

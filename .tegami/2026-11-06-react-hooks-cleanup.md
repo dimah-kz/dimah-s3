@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/react": major
+  "@dimah-s3/react":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/react)
 ---
 
 ### Per-call queueing, and list state that follows the rows
