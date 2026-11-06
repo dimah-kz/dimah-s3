@@ -1,3 +1,65 @@
+## @dimah-s3/ui@2.0.0-beta.5 (beta)
+
+### The object list is one tab stop
+
+`ObjectList` takes one Tab however many entries it shows, reads the selection count out, and stops drawing every entry while an upload reports progress.
+
+- **One tab stop.** Tab lands on the entry that last had focus, or the first one. Tab and Shift+Tab go through that entry's checkbox, menu, and actions, then leave the list.
+- **ArrowLeft and ArrowRight** move between a row's checkbox, name, and menu in the list view. In the grid they still move between tiles.
+- **F2** renames the focused entry from any of its controls.
+- **Selection count.** The list's polite live region is mounted with the list and reads "{count} selected" each time the count changes, also the first time.
+- **Fewer renders.** `ObjectListRow` and `ObjectListTile` are memoized. An entry draws again when it changes, when its selection, rename, or tab stop does, or when a `render*` function does. Upload progress, downloads, and deletes elsewhere in the list leave it alone.
+- **`data-entry-key`** on each row and tile holds `entry.key`.
+- **`ObjectListCheckbox`** takes `tabIndex`.
+
+### Breaking changes
+
+- **Reach an entry's checkbox and menu from the entry.** They have `tabIndex={-1}`, and so does an `ObjectListItemMenu` inside an entry. Update tests that tab through the rows. Give your own controls in `renderActions` `tabIndex={-1}` too, so Tab lands on the entry and not on them.
+- **Keep `render*` functions in step with the state they read.** A memoized entry calls `renderActions`, `renderDescription`, and `renderMeta` again only when the function changes. Define them outside the component, or with `useCallback` and the state they read.
+- **The selection bar's count has no `aria-live`.** The list's own live region reads it. A bar of your own that read the count out can drop its live region.
+
+### Sturdier list, delete, and upload components
+
+The families fix their focus, state, and labelling edge cases, and a few names now match their siblings.
+
+- **`FileTypeGlyph`** labels a file with its own type: `song.flac` reads `flac` and `scan.tiff` reads `tiff`, where they read `mp3` and `png`. The styles come straight from `react-file-icon`.
+- **Deletes show at once.** `DeleteTrigger`, `ObjectCard`, and the file menu show a delete as running from the moment its key is claimed, also while `beforeDelete` runs. `DeleteTrigger` sets `data-phase`.
+- **`Delete` leaves no rejection unhandled.** A throw from `onDeleted` goes to `reportError`, and the dialog still closes. `confirm()` never rejects.
+- **Per-request `onDeleted`.** `request(targets, { onDeleted })` runs after the root's `onDeleted`, once that request's delete settles.
+- **Icon-size triggers.** `DownloadTrigger` and `DeleteTrigger` with an `icon*` size show the icon alone, and the spinner while they run. `ObjectCard` uses them, so its actions show the busy state.
+- **Upload.**
+  - `UploadField` queues its calls, so a new pick never cancels the files still uploading into the value.
+  - Inside a field, `UploadStatus` shows the one file left as its own card.
+  - `AvatarUpload` drops the upload's preview once `objectKey` moves to another image, such as when the photo is removed.
+  - Focus that leaves a removed card skips elements that cannot take it.
+- **`ObjectImage`** signs a URL that fails to load again once, as for one that expired while the tab slept, before it shows `fallback`. Its `ref` reaches the `<img>`, and the `ref` of `DownloadProgress` reaches its progressbar.
+- **`ObjectList`.**
+  - A rename whose save lands after another rename started leaves the newer field open, and a save that fails on blur no longer pulls focus back.
+  - A file row that neither opens nor selects still takes the arrow keys, F2, and focus after a rename or delete.
+  - With a `persist` selection, the selection bar sits under the path instead of replacing it, so you can change folders while you pick.
+  - A bulk delete resolves the selected folders at once, and a folder it empties leaves the selection.
+  - Ctrl+A or Cmd+A follows the keyboard layout.
+- **Toasts** name the file when an upload, download, or delete fails, and the upload progress toast reads "{loaded} of {total}" in your language.
+
+### Breaking changes
+
+- **`useDeleteContext()`.** `pending` is now `confirmation`, and `cancel` is now `dismiss`. The new `isDeleting` is `true` while the confirmed delete runs, so a custom dialog no longer tracks its own busy state. The `DeleteConfirmation` type names the request.
+- **Rename `NewFolderControl` to `ObjectListNewFolder`**, and `NewFolderControlProps` to `ObjectListNewFolderProps`.
+- **`ObjectList` `loadMore` is now `pagination`** (`"auto"` or `"button"`), so it no longer shares a name with `list.loadMore()`. The context field is renamed too, and `ObjectListPagination` names its type.
+- **`ObjectListContextValue.cancelRename(focus?)` is now `endRename(key, focus?)`.** It closes the field only while `key` is the entry being renamed.
+- **`FileAttachment`.** An error card without `error` or `description` reads "Failed" instead of "Upload failed".
+- **Translations.** `"{loaded} of {total}"` now has the note `transfer progress` (it was `download progress`). `"Failed"` (note `status`) is new.
+
+### UploadField holds its limit on every call
+
+`UploadField` enforces `maxFiles` through the hook, so code outside the field no longer pushes it past its limit.
+
+- **Every entry point.** The Retry action of an `UploadToasts`, `usePasteFiles(upload)`, and your own `upload.open()` or `upload.handleFiles()` take only the files that still fit, like the field's own parts. The field sets a `useUploadLimit` on the hook while it is mounted.
+- **Calls still preparing count.** Two quick picks or drops never take the same room, and `useUploadFieldContext().remaining` counts the files of calls still preparing, so the field shows as full from the moment its last room is taken.
+- **One retry call.** A retry in the field sends the failed files that fit as one call, so `beforeUpload`, `onUploadStart`, and `onSettled` run once.
+- **Full fields.** The retry actions of `UploadStatus` and `UploadFileList` stay focusable but are `aria-disabled`. A call through the field's `upload` is rejected with `TOO_MANY_FILES` instead of ignored.
+- **`FileAttachment` `retryDisabled`** shows the retry action as unavailable: focusable, `aria-disabled`, and inert.
+
 ## @dimah-s3/ui@2.0.0-beta.4 (beta)
 
 ### Docs at s3.dimah.dev

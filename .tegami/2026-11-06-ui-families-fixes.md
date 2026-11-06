@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/ui": major
+  "@dimah-s3/ui":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/ui)
 ---
 
 ### Sturdier list, delete, and upload components
