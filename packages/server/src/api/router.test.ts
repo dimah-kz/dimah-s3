@@ -194,6 +194,37 @@ describe("request body cap", () => {
     controller.abort();
     expect(signals[0]?.aborted).toBe(true);
   });
+
+  it("reads a request behind a Proxy, as Next.js route handlers pass it", async () => {
+    const signals: AbortSignal[] = [];
+    const s3 = createInstance({
+      guard: ({ request }) => {
+        signals.push(request.signal);
+      },
+    });
+    const controller = new AbortController();
+    const target = new Request(apiUrl("/echo"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "ok" }),
+      signal: controller.signal,
+    });
+    // Next.js forwards each read to the request, but the Proxy has none of
+    // the request's private fields.
+    const request = new Proxy(target, {
+      get(target, prop) {
+        const value: unknown = Reflect.get(target, prop, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    const res = await s3.handler(request);
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ text: "ok" });
+    controller.abort();
+    expect(signals[0]?.aborted).toBe(true);
+  });
 });
 
 describe("media types", () => {
