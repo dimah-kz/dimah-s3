@@ -118,6 +118,7 @@ export function llmFileLists(origin = getSiteUrl().origin): string {
 
 - [Full docs dump](${origin}/llms-full.txt): every page as markdown
 - [GitHub](${githubRepoUrl()}): source and examples
+- [Dimah Starter](https://github.com/dimah-kz/dimah-starter): open-source multi-tenant Next.js 16 SaaS that uses dimah-s3 2.0 beta for avatar and logo uploads
 - [X](${xProfileUrl}): updates
 `;
 }

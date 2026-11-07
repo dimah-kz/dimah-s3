@@ -1,0 +1,353 @@
+---
+title: "Multi-tenant uploads with dimah-s3: how Dimah Starter does it"
+description: Avatar and logo uploads in an open-source Next.js 16 SaaS. One dimah-s3 instance, a scope per user and organization, owned URLs, and cleanup.
+date: 2026-11-07
+tags: [Guide, Showcase]
+authors: [dimah]
+---
+
+[Dimah Starter](https://github.com/dimah-kz/dimah-starter) is an open-source (MIT), server-first starter for multi-tenant SaaS on Next.js 16. It comes with Better Auth (email, Google, organizations, admin), Drizzle and Postgres, oRPC, shadcn/ui, and English and Persian with RTL.
+
+Profile pictures and organization logos go through dimah-s3 2.0 beta. This note walks through that integration. The snippets come from the starter, shortened.
+
+## The shape
+
+- One `dimahS3()` instance in `packages/storage`, mounted at `/api/s3` with `toNextJsHandler`.
+- Two named routes. The user owns `avatar`. The active organization owns `logo`.
+- `db()` tracks every object under a scope: `user:{id}` or `org:{id}`.
+- Server actions turn an uploaded key into a public URL, save it with Better Auth, and delete the previous file.
+
+## One instance, one session read
+
+The instance guard reads the Better Auth session once per call and puts the ids in `locals`. Route guards and `resolveScope` read them from there.
+
+```ts title="packages/storage/src/s3.ts"
+const configuredBucket = process.env.S3_BUCKET?.trim();
+// `dimahS3()` throws on an empty bucket. A placeholder keeps the package
+// importable without `S3_*`, and the guard fails every call instead.
+export const bucket = configuredBucket || "unconfigured";
+
+export const s3 = dimahS3({
+  client: new S3Client({
+    region: process.env.S3_REGION,
+    endpoint: process.env.S3_ENDPOINT,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+    },
+    requestChecksumCalculation: "WHEN_REQUIRED",
+  }),
+  bucket,
+  guard: async ({ request, locals }) => {
+    if (!configuredBucket) throw new Error("[storage] S3_BUCKET is not set");
+    if (locals.system) return;
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session) throw s3Error("UNAUTHORIZED");
+    return {
+      locals: {
+        userId: session.user.id,
+        organizationId: session.session.activeOrganizationId,
+      },
+    };
+  },
+  plugins: [
+    db({
+      client: DimahS3DB.client(
+        drizzleAdapter({ db: drizzleDb, provider: "postgresql" }),
+      ),
+      resolveScope: ({ locals, route }) =>
+        toCallerScope(toRouteOwner(route), locals),
+      // Refuses `PATCH /db/object` and the folder endpoints: nothing uses them.
+      authorize: ({ operation }) => operation !== "update",
+      // A scope owns one avatar or logo; the rest covers uploads awaiting cleanup.
+      quota: { maxFiles: 10, maxBytes: 20 * 1024 * 1024 },
+    }),
+  ],
+  routes,
+});
+```
+
+The `locals` fields are typed once, by augmenting `DimahS3Locals`:
+
+```ts title="packages/storage/src/locals.ts"
+declare module "@dimah-s3/server" {
+  interface DimahS3Locals {
+    userId?: string;
+    organizationId?: string | null;
+    /** Server code already checked access. HTTP requests never carry `locals`. */
+    system?: boolean;
+  }
+}
+```
+
+`resolveScope` maps the caller to the scope of the route's owner. `null` rejects the call.
+
+```ts title="packages/storage/src/scope.ts"
+export function toScope(owner: Owner, ownerId: string) {
+  return owner === "organization" ? `org:${ownerId}` : `user:${ownerId}`;
+}
+
+export function toCallerScope(owner: Owner, locals: DimahS3Locals) {
+  const ownerId =
+    owner === "organization" ? locals.organizationId : locals.userId;
+  return ownerId ? toScope(owner, ownerId) : null;
+}
+```
+
+The scope follows the active organization. After a switch, logo calls reach only the new organization's objects: a key from another scope gets `OBJECT_NOT_FOUND`. The `quota` caps each scope, at upload and again at confirm.
+
+## Routes with owners
+
+Each route has an owner. `satisfies` makes a route without one a type error.
+
+```ts title="packages/storage/src/routes/index.ts"
+export const routes = { ...profile }; // { avatar, logo }
+
+export type RouteName = keyof typeof routes;
+
+export const routeOwners = {
+  avatar: "user",
+  logo: "organization",
+} as const satisfies Record<RouteName, Owner>;
+```
+
+Both routes share the image rules. `upload.object` puts each key in the owner's folder, such as `avatar/{userId}/{uuid}/{name}`. Every upload gets a new key, so the public URL can be cached forever.
+
+```ts title="packages/storage/src/routes/profile/image.ts"
+export const imageUpload = {
+  fileTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+  maxFileSize: 2 * 1024 * 1024,
+  verifyContent: true,
+};
+
+export function imageObject(ownerId: string | null | undefined) {
+  if (!ownerId) throw s3Error("FORBIDDEN");
+  return {
+    keyFolder: ownerId,
+    cacheControl: "public, max-age=31536000, immutable",
+  };
+}
+```
+
+The avatar route needs nothing more:
+
+```ts title="packages/storage/src/routes/profile/avatar.ts"
+export const avatar = route({
+  upload: {
+    ...imageUpload,
+    object: ({ locals }) => imageObject(locals.userId),
+  },
+  download: { disposition: "inline" },
+  delete: true,
+});
+```
+
+The logo route adds a guard. Members can read the logo. Uploading or deleting it needs `organization:update`, the same permission as saving it.
+
+```ts title="packages/storage/src/routes/profile/logo.ts"
+export const logo = route({
+  guard: async ({ request, locals, operation }) => {
+    if (locals.system) return;
+    const organizationId = locals.organizationId;
+    if (!organizationId) throw s3Error("FORBIDDEN");
+    if (operation === "download" || operation === "file") return;
+    const { success } = await auth.api.hasPermission({
+      headers: request.headers,
+      body: { organizationId, permissions: { organization: ["update"] } },
+    });
+    if (!success) throw s3Error("FORBIDDEN");
+  },
+  upload: {
+    ...imageUpload,
+    object: ({ locals }) => imageObject(locals.organizationId),
+  },
+  download: { disposition: "inline" },
+  delete: true,
+});
+```
+
+## The client
+
+Route names come from the server instance. The import is type-only, so no server code reaches the browser, and a new route needs no edit here.
+
+```tsx title="packages/storage/src/s3-client.tsx"
+"use client";
+
+import type { InferS3Routes } from "@dimah-s3/core";
+import { createS3Client } from "@dimah-s3/react";
+import type { s3 } from "./s3";
+
+declare module "@dimah-s3/core" {
+  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {}
+}
+
+const s3Client = createS3Client();
+// <s3Client.Provider translations={…} locale={locale}> wraps the dashboard.
+```
+
+One field serves both pictures. `route` is `"avatar" | "logo"`, and the logo passes `shape="square"`. When an upload confirms, the field hands the key to a server action.
+
+```tsx title="apps/web/src/components/form/avatar-upload-field.tsx"
+const upload = useUpload({ route, disabled: removing });
+
+const onChange = async (result: { key: string }) => {
+  const outcome = await setAction(result.key).catch(() => null);
+  if (!outcome?.success) return; // toast the error
+  setObjectKey(result.key);
+};
+
+return (
+  <>
+    <AvatarUpload
+      upload={upload}
+      route={route}
+      objectKey={objectKey}
+      label={labels.upload}
+      shape={shape}
+      onChange={(result) => void onChange(result)}
+    />
+    <UploadToasts upload={upload} />
+  </>
+);
+```
+
+## Saving the picture
+
+The key comes from the browser, so the action does not trust it. `toOwnedPublicUrl` returns a URL only for an active (confirmed) row of that route and owner:
+
+```ts title="packages/storage/src/objects.ts"
+const row = await s3.db.objects.find({ bucket, key });
+if (
+  !row ||
+  row.status !== "active" ||
+  row.route !== route ||
+  row.scope !== toScope(routeOwners[route], ownerId)
+) {
+  return { error: "invalidImageKey" };
+}
+// `buildPublicObjectUrl` from `@dimah-s3/core`, under S3_PUBLIC_BASE_URL.
+const url = toPublicUrl(row.key);
+return url ? { url } : { error: "storagePublicUrlMissing" };
+```
+
+The action writes the URL with Better Auth, then drops the previous file once the response is sent:
+
+```ts title="apps/web/src/app/action/dashboard/account/set-account-avatar-action.ts"
+"use server";
+
+export async function setAccountAvatarAction(key: string) {
+  const requestHeaders = await headers();
+  const session = await auth.api.getSession({ headers: requestHeaders });
+  if (!session) return { success: false, error: t("unauthorized") };
+
+  const userId = session.user.id;
+  const owned = await toOwnedPublicUrl({
+    route: "avatar",
+    ownerId: userId,
+    key,
+  });
+  if ("error" in owned) return { success: false, error: t(owned.error) };
+
+  await auth.api.updateUser({
+    headers: requestHeaders,
+    body: { image: owned.url },
+  });
+
+  // The profile points at the new image: drop the previous one.
+  after(() =>
+    deleteRouteObjects({
+      route: "avatar",
+      ownerId: userId,
+      keep: key,
+      headers: requestHeaders,
+    }),
+  );
+
+  updateTag(dashboardCacheTags.userProfileById(userId));
+  return { success: true };
+}
+```
+
+`deleteRouteObjects` pages through the owner's objects on that route and deletes all but `keep`. It calls `s3.api.deleteMany` with the caller's headers, so the route guards run again. Simplified (the real one also logs failures):
+
+```ts title="packages/storage/src/objects.ts"
+let cursor: string | null = null;
+do {
+  const page = await s3.db.objects.list({
+    scope,
+    route,
+    limit: DELETE_MANY_MAX_KEYS,
+    cursor,
+  });
+  const keys = page.objects
+    .map((object) => object.key)
+    .filter((objectKey) => objectKey !== keep);
+  if (keys.length > 0) await s3.api.deleteMany({ route, keys }, { headers });
+  cursor = page.nextCursor;
+} while (cursor);
+```
+
+The record points at the new key before anything is deleted, so no profile ever points at a missing file. If a delete fails, an extra file stays until the next save sweeps it. The organization logo follows the same steps with `route: "logo"`.
+
+## When an owner goes away
+
+Deleting an organization deletes its files too:
+
+```ts title="apps/web/src/app/action/dashboard/(organization)/manage/settings/delete-organization-action.ts"
+// The logo and any other files of the organization go with it.
+after(() => deleteOwnedObjects("organization", organizationId));
+```
+
+Nobody can pass the logo guard of a deleted organization, so `deleteOwnedObjects` runs as a server call with trusted `locals`. The guards return early on `system`. `resolveScope` still resolves `org:{id}`, so the call only reaches that organization's rows.
+
+```ts
+await s3.api.deleteMany(
+  { route, keys },
+  { locals: { system: true, organizationId } },
+);
+```
+
+## Abandoned uploads
+
+An upload that never confirms leaves a `pending` row, and can leave an object or an unfinished multipart upload. `pnpm storage:purge` cleans them up, then prunes rows soft-deleted more than 30 days ago:
+
+```ts title="packages/storage/scripts/purge.ts"
+for (;;) {
+  const run = await s3.db.purgeStale();
+  purged += run.purged;
+  failed += run.failed;
+  if (!run.more || run.purged === 0) break;
+}
+const { pruned } = await s3.db.pruneDeleted({
+  olderThan: Date.now() - 30 * 24 * 60 * 60 * 1000,
+});
+```
+
+Schedule it hourly: a crontab, your platform's cron jobs, or a scheduled GitHub Actions workflow. It exits with code `1` when any row fails, and the next run retries it.
+
+## Try it
+
+[starter.dimah.dev](https://starter.dimah.dev) is the live demo. To start your own app, click **Use this template** on [GitHub](https://github.com/dimah-kz/dimah-starter).
+
+<Cards>
+  <Card
+    title="Live demo"
+    href="https://starter.dimah.dev"
+    description="Sign in, upload an avatar, create an organization, and set its logo."
+  />
+  <Card
+    title="Source"
+    href="https://github.com/dimah-kz/dimah-starter"
+    description="Dimah Starter on GitHub, MIT licensed."
+  />
+  <Card
+    title="Database scopes"
+    href="/docs/db/setup#scope"
+    description="How resolveScope, authorize, and ownership checks work."
+  />
+  <Card
+    title="Purge"
+    href="/docs/db/purge"
+    description="What purgeStale and pruneDeleted clean up."
+  />
+</Cards>
