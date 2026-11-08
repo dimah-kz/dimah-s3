@@ -1,3 +1,13 @@
+## @dimah-s3/cli@2.0.0-beta.7 (beta)
+
+### Next.js starter lints on TypeScript 6
+
+The Next.js starter pins `typescript` to `^6.0.2`. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` exits before it checks the project.
+
+### Starters install a same-day react-dropzone
+
+Scaffolded projects exclude `react-dropzone` from pnpm's minimum release age. `@dimah-s3/react` depends on it, so a release published the same day still installs. Other packages keep the release-age check.
+
 ## @dimah-s3/cli@2.0.0-beta.4 (beta)
 
 ### Docs at s3.dimah.dev

@@ -1,28 +1,32 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n    replay: []\n---\n\n### Shipped schema files replaced by `generate`\n\nA database at schema `2.1.0` from an earlier beta keeps working. Generate the schema for your ORM and point it at the generated file. See [Upgrade the schema](https://s3.dimah.dev/docs/db/upgrade).\n\n#### Breaking changes\n\n- **`@dimah-s3/db/drizzle/sqlite`, `/drizzle/pg`, and `/drizzle/mysql` are removed, with `dimahS3Tables`.** Write the tables with `runCli` → `generate`, then import `relations` (or `storageObject`, `storageFolder`, and `private_dimah_s3_settings`) from the generated file.\n- **`prisma/dimah-s3.prisma` and `sql/<dialect>.sql` are no longer published.** Generate the Prisma models with `runCli` → `generate`. With Kysely, create the tables with `migrate(client)`.\n- **`drizzle-kit` and Prisma Migrate report small changes** against tables created from the shipped files: `varchar` lengths on PostgreSQL text columns, and the SQLite timestamp default. They do not change what the plugin reads. Apply them.\n- **A database left at the empty `0.0.1` step is no longer recognized.** `migrate:up` stopped there before it created the tables. Drop `private_dimah_s3_settings`, the only table at that step, and run `migrate` again.\n"
-    filename: 2026-11-08-db-generated-schema-beta.md
+  - content: "---\npackages:\n  \"@dimah-s3/cli\":\n    type: patch\n    replay: []\n---\n\n### Next.js starter lints on TypeScript 6\n\nThe Next.js starter pins `typescript` to `^6.0.2`. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` exits before it checks the project.\n"
+    filename: 2026-11-08-nextjs-starter-typescript-beta.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Generate the db() schema with the CLI\n\n`@dimah-s3/db` runs on FumaDB 0.7. Its schema declares the indexes, the MySQL index prefix lengths, and the collations, so `runCli` from `@dimah-s3/db/cli` writes complete Drizzle tables and Prisma models, and `migrate` creates complete tables with Kysely, on SQLite, PostgreSQL, and MySQL.\n\n- **`generate` needs no connection.** `runCli(DimahS3DB.client(drizzleAdapter({ db: undefined, provider })))` writes the Drizzle tables, and `prismaAdapter({ prisma: undefined, provider })` the Prisma models. Run it again after you upgrade `@dimah-s3/db`. See [Database Setup](https://s3.dimah.dev/docs/db/setup).\n- **`migrate` works on MySQL.** `migrate(client)` and the CLI's `migrate` command create the same tables and indexes.\n- **Drizzle tables.** The generated file exports `storageObject`, `storageFolder`, `private_dimah_s3_settings`, and `relations`. Pass `relations` to `drizzle()`, or the three tables to your own `defineRelations()`. The tables need no `@paralleldrive/cuid2`.\n- **Column types.** Text columns are `varchar` on every database: `key` and `path` hold 1024 characters, `status` 16, `upload_token` 64, and the others 255. `upload_id` stays `text`. Sizes are `bigint`, stored as `integer` on SQLite.\n- **MySQL.** Keys, scopes, and folders compare byte for byte (`utf8mb4_bin`), and `filename` ignores case (`utf8mb4_unicode_ci`). `key` and `path` are indexed on their first 512 characters, and timestamps are `datetime(3)`. Prisma has no collation attribute: add the collations to the generated migration.\n- **Folder conflicts with Drizzle.** Renaming or moving a folder onto a taken name returns `FOLDER_EXISTS` through the Drizzle adapter too, instead of `500` `INTERNAL_ERROR`.\n"
-    filename: 2026-11-08-db-generated-schema.md
+  - content: "---\npackages:\n  \"@dimah-s3/cli\":\n    type: patch\n---\n\n### Starters install a same-day react-dropzone\n\nScaffolded projects exclude `react-dropzone` from pnpm's minimum release age. `@dimah-s3/react` depends on it, so a release published the same day still installs. Other packages keep the release-age check.\n"
+    filename: 2026-11-08-starter-release-age.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/server\":\n    type: patch\n---\n\n### Next.js route handlers read request bodies\n\n`s3.handler` reads the body of a request wrapped in a `Proxy`, as Next.js App Router route handlers pass it. A presign, confirm, multipart, or `db()` call with a body returns its normal response instead of `500` `INTERNAL_ERROR`.\n"
-    filename: 2026-11-07-next-proxy-request.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n    replay: []\n---\n\n### Generate the schema again\n\n`@dimah-s3/db` runs on FumaDB 0.7.1. The settings `value` column is `text` in the Drizzle tables and Prisma models `generate` writes, as in the table `migrate` creates. Run `generate` again: the ORM widens `value` from `varchar(255)` to `text`.\n\n- **Sizes in the generated Drizzle tables are `bigint`.** Since beta.6 they read `size` and `declaredSize` with `mode: \"bigint\"`, where the shipped tables used `mode: \"number\"`. Code that queries the tables directly gets a `bigint`. `s3.db.objects` still returns numbers. The generated tables also drop the shipped `$type` on `status` and `s3Metadata`, and give `id` no default.\n- **Before `drizzle-kit` changes a PostgreSQL database from the shipped files,** run the length check on [Upgrade the schema](https://s3.dimah.dev/docs/db/upgrade#postgresql). The cast it writes truncates a longer value.\n\n#### Breaking changes\n\n- **Folder paths are capped at 1024 UTF-8 bytes, not 1024 characters.** A create, rename, or move that makes a path longer is `FOLDER_INVALID`. Folders already stored keep working until they are renamed or moved.\n"
+    filename: 2026-11-08-db-scope-path-limits-beta.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: patch\n---\n\n### Scopes and folder paths fit the database\n\n`db()` checks the scope and the folder path against the limits of the columns and indexes that hold them, so a value the database would reject fails with a clear error first, the same way on SQLite, PostgreSQL, and MySQL.\n\n- **Scopes.** `resolveScope` returns at most 255 characters, the length of the `scope` columns. A longer scope fails the call as a config error (`500` `INTERNAL_ERROR`, with the length in the server log) before any row is written.\n- **Folder paths.** A cached folder path is at most 1024 UTF-8 bytes, like an S3 key, so the `(scope, path)` unique key stays under PostgreSQL's 2704-byte limit for an index entry. A create, rename, or move past it is `FOLDER_INVALID`.\n- **Unique conflicts.** Folder and upload conflicts are read from FumaDB's `UniqueConstraintError`, on every adapter.\n"
+    filename: 2026-11-08-db-scope-path-limits.md
     v: 0.0.0
 core:packages:
-  - id: npm:@dimah-s3/cli
+  - changelogIds:
+      - 2026-11-08-nextjs-starter-typescript-beta.md
+      - 2026-11-08-starter-release-age.md
+    id: npm:@dimah-s3/cli
     updated: true
   - id: npm:@dimah-s3/core
     updated: true
   - changelogIds:
-      - 2026-11-08-db-generated-schema-beta.md
-      - 2026-11-08-db-generated-schema.md
+      - 2026-11-08-db-scope-path-limits-beta.md
+      - 2026-11-08-db-scope-path-limits.md
     id: npm:@dimah-s3/db
     updated: true
-  - changelogIds:
-      - 2026-11-07-next-proxy-request.md
-    id: npm:@dimah-s3/server
-    updated: true
   - id: npm:@dimah-s3/react
+    updated: true
+  - id: npm:@dimah-s3/server
     updated: true
   - id: npm:@dimah-s3/ui
     updated: true
@@ -34,8 +38,8 @@ npm:packages:
   - distTag: beta
     id: npm:@dimah-s3/db
   - distTag: beta
-    id: npm:@dimah-s3/server
-  - distTag: beta
     id: npm:@dimah-s3/react
+  - distTag: beta
+    id: npm:@dimah-s3/server
   - distTag: beta
     id: npm:@dimah-s3/ui

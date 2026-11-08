@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/db": patch
+  "@dimah-s3/db":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/db)
 ---
 
 ### Scopes and folder paths fit the database
