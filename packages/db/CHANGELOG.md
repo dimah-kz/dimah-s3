@@ -1,3 +1,20 @@
+## @dimah-s3/db@2.0.0-beta.8 (beta)
+
+### Timestamps written by Kysely outside UTC
+
+The Kysely adapter now reads and writes timestamps in UTC. Rows an earlier beta wrote from a Kysely process outside UTC need a one-time rewrite.
+
+### Breaking changes
+
+- **Kysely timestamps are UTC on PostgreSQL and MySQL.** Earlier betas wrote them in the local time of the process. If a Kysely process outside UTC wrote your rows, they now read shifted by its offset. Rewrite them once with the query on [Upgrade the schema](https://s3.dimah.dev/docs/db/upgrade#timestamps-written-by-kysely-outside-utc). Rows written by Drizzle or Prisma, or by a Kysely process in UTC, are unchanged.
+
+### UTC timestamps and PostgreSQL schemas
+
+`@dimah-s3/db` runs on FumaDB 0.7.2.
+
+- **Timestamps are UTC on every adapter.** On PostgreSQL and MySQL, the Kysely adapter writes and reads the timestamp columns in UTC, as Drizzle and Prisma do, whatever the time zone of the process. Instances in different zones agree on deadlines like `expiresAt`.
+- **Tables in a PostgreSQL schema.** Create the client from `DimahS3DB.names.schema("storage")` to keep the tables in the `storage` schema. `migrate` creates it, the generated Drizzle tables declare it with `pgSchema("storage")`, and the generated Prisma models with `@@schema("storage")`. The settings table, `private_dimah_s3_settings`, stays in the search path. See [Database Setup](https://s3.dimah.dev/docs/db/setup).
+
 ## @dimah-s3/db@2.0.0-beta.7 (beta)
 
 ### Generate the schema again
