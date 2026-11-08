@@ -1,5 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import Database from "better-sqlite3";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { drizzleAdapter } from "fumadb/adapters/drizzle";
 import { kyselyAdapter } from "fumadb/adapters/kysely";
 import {
   DummyDriver,
@@ -12,7 +14,9 @@ import {
 import { describe, expect, it } from "vitest";
 import { migrate } from "@/cli";
 import { DB_SCHEMA_VERSION, DimahS3DB } from "@/fuma-db";
+import { checkSchemaVersion } from "@/store/schema-version";
 import { pgliteDialect } from "@/test/databases";
+import { importDrizzleSchema } from "@/test/generated-schema";
 import { normalizeFolderPath } from "@/folder-path";
 import { dbSchema, SCOPE_MAX_LENGTH } from "./schema";
 
@@ -403,6 +407,99 @@ describe("migrate() on PostgreSQL", () => {
     await expect(orm.create("storageFolder", folder(long))).rejects.toThrow(
       /index row size/,
     );
+  });
+});
+
+describe("PostgreSQL through Kysely and Drizzle", () => {
+  /** One database migrated by Kysely, with a Drizzle client on the generated tables. */
+  async function create(dbSchema?: string) {
+    const pg = new PGlite();
+    const library = dbSchema ? DimahS3DB.names.schema(dbSchema) : DimahS3DB;
+    const viaKysely = library.client(
+      kyselyAdapter({
+        db: new Kysely<object>({ dialect: pgliteDialect(pg) }),
+        provider: "postgresql",
+      }),
+    );
+    await migrate(viaKysely);
+    const { relations } = await importDrizzleSchema("postgresql", dbSchema);
+    const viaDrizzle = library.client(
+      drizzleAdapter({
+        db: drizzlePglite({ client: pg, relations }),
+        provider: "postgresql",
+      }),
+    );
+    return { pg, viaKysely, viaDrizzle };
+  }
+
+  it("stores timestamps as UTC through both adapters", async () => {
+    // The tests run in Asia/Tehran (+03:30): see `test/time-zone.ts`.
+    const { pg, viaKysely, viaDrizzle } = await create();
+    const expiresAt = new Date("2026-01-02T03:04:05.678Z");
+    const row = { ...sampleObject, status: "pending", expiresAt };
+    await viaKysely
+      .orm(DB_SCHEMA_VERSION)
+      .create("storageObject", { ...row, key: "kysely" });
+    await viaDrizzle
+      .orm(DB_SCHEMA_VERSION)
+      .create("storageObject", { ...row, key: "drizzle" });
+
+    expect(
+      (
+        await pg.query(
+          `SELECT "key", "expires_at"::text AS "expiresAt" FROM "storage_object" ORDER BY "key"`,
+        )
+      ).rows,
+    ).toEqual([
+      { key: "drizzle", expiresAt: "2026-01-02 03:04:05.678" },
+      { key: "kysely", expiresAt: "2026-01-02 03:04:05.678" },
+    ]);
+    for (const client of [viaKysely, viaDrizzle]) {
+      const rows = await client
+        .orm(DB_SCHEMA_VERSION)
+        .findMany("storageObject", { orderBy: [["key", "asc"]] });
+      expect(rows.map((found) => found.expiresAt?.toISOString())).toEqual([
+        expiresAt.toISOString(),
+        expiresAt.toISOString(),
+      ]);
+    }
+  });
+
+  it("places the tables in a PostgreSQL schema with names.schema()", async () => {
+    const { pg, viaKysely, viaDrizzle } = await create("storage");
+
+    expect(
+      (
+        await pg.query(
+          `SELECT "table_schema" AS "schema", "table_name" AS "table" FROM "information_schema"."tables"
+           WHERE "table_name" IN ('storage_object', 'storage_folder', 'private_dimah_s3_settings')
+           ORDER BY "table_name"`,
+        )
+      ).rows,
+    ).toEqual([
+      // FumaDB keeps its settings table in the search path.
+      { schema: "public", table: "private_dimah_s3_settings" },
+      { schema: "storage", table: "storage_folder" },
+      { schema: "storage", table: "storage_object" },
+    ]);
+    expect(
+      (
+        await pg.query(
+          `SELECT "schemaname" AS "schema" FROM "pg_indexes" WHERE "indexname" = 'storage_object_scope_folder_idx'`,
+        )
+      ).rows,
+    ).toEqual([{ schema: "storage" }]);
+    await expect(checkSchemaVersion(viaKysely)).resolves.toBeUndefined();
+    await expect(checkSchemaVersion(viaDrizzle)).resolves.toBeUndefined();
+
+    const created = await viaKysely
+      .orm(DB_SCHEMA_VERSION)
+      .create("storageObject", sampleObject);
+    await expect(
+      viaDrizzle.orm(DB_SCHEMA_VERSION).findFirst("storageObject", {
+        where: (b) => b("id", "=", created.id),
+      }),
+    ).resolves.toMatchObject(sampleObject);
   });
 });
 

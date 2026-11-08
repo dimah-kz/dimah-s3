@@ -1,4 +1,4 @@
-import { PGlite, types } from "@electric-sql/pglite";
+import { PGlite } from "@electric-sql/pglite";
 import Database from "better-sqlite3";
 import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
@@ -80,19 +80,6 @@ async function migrated(
 }
 
 /**
- * PGlite sends a Date as UTC but reads `timestamp` back as local time, which
- * shifts every date by the machine's offset. Read it as UTC. Drizzle passes
- * its own parsers, so this only changes the Kysely adapter.
- */
-function utcPGlite() {
-  return new PGlite({
-    parsers: {
-      [types.TIMESTAMP]: (value) => new Date(`${value.replace(" ", "T")}Z`),
-    },
-  });
-}
-
-/**
  * The databases every store test runs against: the in-memory fake, SQLite
  * (better-sqlite3), and PostgreSQL (PGlite), through the Kysely adapter and
  * through the Drizzle adapter. `migrate()` creates the real ones; the Drizzle
@@ -116,7 +103,7 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
   {
     name: "kysely + pglite",
     create: async () => {
-      const pg = utcPGlite();
+      const pg = new PGlite();
       const database = await migrated(
         new Kysely({ dialect: pgliteDialect(pg) }),
         "postgresql",
@@ -151,7 +138,7 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
   {
     name: "drizzle + pglite",
     create: async () => {
-      const pg = utcPGlite();
+      const pg = new PGlite();
       await migrated(new Kysely({ dialect: pgliteDialect(pg) }), "postgresql");
       const { relations } = await importDrizzleSchema("postgresql");
       const db = drizzlePglite({ client: pg, relations });

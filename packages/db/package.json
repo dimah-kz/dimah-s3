@@ -68,7 +68,7 @@
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
-    "fumadb": "~0.7.1",
+    "fumadb": "~0.7.2",
     "zod": "catalog:"
   },
   "devDependencies": {

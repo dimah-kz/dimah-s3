@@ -11,20 +11,29 @@ const GENERATED_DIR = join(import.meta.dirname, "../../.vitest/generated");
 
 export type DrizzleProvider = "sqlite" | "postgresql" | "mysql";
 
+/** `DimahS3DB`, or its tables in the PostgreSQL schema `dbSchema`. */
+function library(dbSchema?: string) {
+  return dbSchema ? DimahS3DB.names.schema(dbSchema) : DimahS3DB;
+}
+
 /** The Drizzle schema `runCli` → `generate` writes for `provider`. */
-export function drizzleSchemaCode(provider: DrizzleProvider): string {
-  return DimahS3DB.client(
-    drizzleAdapter({ db: undefined, provider }),
-  ).generateSchema("latest").code;
+export function drizzleSchemaCode(
+  provider: DrizzleProvider,
+  dbSchema?: string,
+): string {
+  return library(dbSchema)
+    .client(drizzleAdapter({ db: undefined, provider }))
+    .generateSchema("latest").code;
 }
 
 /** The Prisma schema `runCli` → `generate` writes for `provider`. */
 export function prismaSchemaCode(
   provider: "sqlite" | "postgresql" | "mysql",
+  dbSchema?: string,
 ): string {
-  return DimahS3DB.client(
-    prismaAdapter({ prisma: undefined, provider }),
-  ).generateSchema("latest").code;
+  return library(dbSchema)
+    .client(prismaAdapter({ prisma: undefined, provider }))
+    .generateSchema("latest").code;
 }
 
 /**
@@ -33,8 +42,9 @@ export function prismaSchemaCode(
  */
 export async function importDrizzleSchema(
   provider: DrizzleProvider,
+  dbSchema?: string,
 ): Promise<{ relations: never }> {
-  const code = drizzleSchemaCode(provider);
+  const code = drizzleSchemaCode(provider, dbSchema);
   const hash = createHash("sha256").update(code).digest("hex").slice(0, 12);
   const file = join(GENERATED_DIR, `drizzle-${provider}-${hash}.ts`);
   if (!existsSync(file)) {
