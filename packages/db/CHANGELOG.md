@@ -1,3 +1,24 @@
+## @dimah-s3/db@2.0.0-beta.7 (beta)
+
+### Generate the schema again
+
+`@dimah-s3/db` runs on FumaDB 0.7.1. The settings `value` column is `text` in the Drizzle tables and Prisma models `generate` writes, as in the table `migrate` creates. Run `generate` again: the ORM widens `value` from `varchar(255)` to `text`.
+
+- **Sizes in the generated Drizzle tables are `bigint`.** Since beta.6 they read `size` and `declaredSize` with `mode: "bigint"`, where the shipped tables used `mode: "number"`. Code that queries the tables directly gets a `bigint`. `s3.db.objects` still returns numbers. The generated tables also drop the shipped `$type` on `status` and `s3Metadata`, and give `id` no default.
+- **Before `drizzle-kit` changes a PostgreSQL database from the shipped files,** run the length check on [Upgrade the schema](https://s3.dimah.dev/docs/db/upgrade#postgresql). The cast it writes truncates a longer value.
+
+### Breaking changes
+
+- **Folder paths are capped at 1024 UTF-8 bytes, not 1024 characters.** A create, rename, or move that makes a path longer is `FOLDER_INVALID`. Folders already stored keep working until they are renamed or moved.
+
+### Scopes and folder paths fit the database
+
+`db()` checks the scope and the folder path against the limits of the columns and indexes that hold them, so a value the database would reject fails with a clear error first, the same way on SQLite, PostgreSQL, and MySQL.
+
+- **Scopes.** `resolveScope` returns at most 255 characters, the length of the `scope` columns. A longer scope fails the call as a config error (`500` `INTERNAL_ERROR`, with the length in the server log) before any row is written.
+- **Folder paths.** A cached folder path is at most 1024 UTF-8 bytes, like an S3 key, so the `(scope, path)` unique key stays under PostgreSQL's 2704-byte limit for an index entry. A create, rename, or move past it is `FOLDER_INVALID`.
+- **Unique conflicts.** Folder and upload conflicts are read from FumaDB's `UniqueConstraintError`, on every adapter.
+
 ## @dimah-s3/db@2.0.0-beta.6 (beta)
 
 ### Shipped schema files replaced by `generate`

@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/cli": patch
+  "@dimah-s3/cli":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/cli)
 ---
 
 ### Starters install a same-day react-dropzone
