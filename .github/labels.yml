@@ -13,6 +13,15 @@
 - name: ci
   color: "333333"
   description: GitHub Actions or repo automation
+- name: breaking change
+  color: "b60205"
+  description: Breaks a public API, type, or consumer contract
+- name: release
+  color: "5319e7"
+  description: Tegami Version Packages pull request
+- name: triage
+  color: "fbca04"
+  description: Waiting for a maintainer to triage
 - name: good first issue
   color: "7057ff"
   description: Good for newcomers
@@ -49,3 +58,9 @@
 - name: "area:cli"
   color: "bfe5bf"
   description: packages/cli and templates
+- name: "area:examples"
+  color: "c2e0c6"
+  description: examples/ workspace demos
+- name: "area:tooling"
+  color: "e6e6e6"
+  description: tooling/, scripts/, and root workspace config

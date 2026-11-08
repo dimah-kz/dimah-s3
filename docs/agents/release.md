@@ -15,7 +15,7 @@ Only `main` may use the `latest` dist-tag. While `v2` is a beta, every bump adva
 
 Feature work for 2.0 branches from `v2` and merges back there. 1.x fixes branch from `main`. Cherry-pick the change and its `.tegami` file onto the other line when both need it. Never cherry-pick a Version Packages commit (`package.json` versions, `CHANGELOG.md`, and `.tegami/publish-lock.yaml` belong to one line).
 
-When 2.0.0 is ready, merge `v2` into `main`. `main` has no `prerelease`, so the next publish drops the suffix and moves `latest` to `2.0.0`. Before that merge, cut `v1` from the last 1.x commit, add `v1: { distTag: "v1" }` to `lines`, and add `v1` to the CI and Publish branch lists. `s3.dimah.dev` already serves the `v2` line and `v1.s3.dimah.dev` serves `main`. After the merge, point `s3.dimah.dev` at `main` and `v1.s3.dimah.dev` at the `v1` branch. See [Multiple Release Lines](https://tegami.fuma-nama.dev/multi-version).
+When 2.0.0 is ready, merge `v2` into `main`. `main` has no `prerelease`, so the next publish drops the suffix and moves `latest` to `2.0.0`. Before that merge, cut `v1` from the last 1.x commit, add `v1: { distTag: "v1" }` to `lines`, and add `v1` to the branch lists in `ci.yml`, `publish.yml` (trigger and `if`), and `tegami-pr.yml`. Give `v1` a branch ruleset like `Lock v2`, and switch `Lock main` to the single required check `CI passed`, which the 2.0 `ci.yml` reports. `s3.dimah.dev` already serves the `v2` line and `v1.s3.dimah.dev` serves `main`. After the merge, point `s3.dimah.dev` at `main` and `v1.s3.dimah.dev` at the `v1` branch. See [Multiple Release Lines](https://tegami.fuma-nama.dev/multi-version).
 
 Docs for this line deploy from the `dimah-s3-docs-v2` Vercel project. `s3.dimah.dev` is the canonical origin. `v2.s3.dimah.dev` redirects there. 1.x docs deploy from `dimah-s3-docs` at `v1.s3.dimah.dev`. The app treats `VERCEL_ENV=production` or `VERCEL_GIT_COMMIT_REF=v2` as `https://s3.dimah.dev`, including when Vercel marks the `v2` deployment as Preview.
 
@@ -61,7 +61,7 @@ pnpm test
 pnpm check:dist
 ```
 
-When changing `templates/**` or template maintenance scripts, also run `pnpm templates:build`. Before the new version is on npm, use `pnpm templates:build -- --local`, which packs the workspace packages instead.
+When changing `templates/**` or template maintenance scripts, also run `pnpm templates:build`. Before the new version is on npm, use `pnpm templates:build -- --local`, which packs the workspace packages instead. CI runs the `--local` build for every template in `templates/catalog.json` and `next build` for every example when their inputs change.
 
 CI posts a Tegami release preview comment on the PR. `pnpm tegami pr preview --number <pr> --artifact <file>` builds the same preview locally; it reads the pull request from GitHub, so it needs one.
 

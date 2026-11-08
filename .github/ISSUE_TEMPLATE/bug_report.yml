@@ -1,18 +1,44 @@
 name: Bug report
-description: Report a reproducible bug
+description: A package, the CLI, or a starter does not work as documented
 title: "[Bug]: "
 labels:
   - bug
+  - triage
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting a bug. Please include enough detail to reproduce it.
-        Usage questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions) or the [docs](https://s3.dimah.dev/docs).
+        Thanks for reporting a bug. Please search [existing issues](https://github.com/dimah-kz/dimah-s3/issues?q=is%3Aissue) first.
+
+        - Usage questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions).
+        - Report vulnerabilities [privately](https://github.com/dimah-kz/dimah-s3/security/advisories/new), never in a public issue.
+        - Never paste S3 credentials, `DIMAH_S3_SECRET`, or presigned URLs.
+
+  - type: dropdown
+    id: release-line
+    attributes:
+      label: Release line
+      options:
+        - 2.0 beta (`@beta`)
+        - 1.x (`@latest`)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Exact version from `npm ls @dimah-s3/server` (or the package you use).
+      placeholder: 2.0.0-beta.7
+    validations:
+      required: true
+
   - type: dropdown
     id: package
     attributes:
-      label: Package
+      label: Packages
+      description: Select every package involved.
+      multiple: true
       options:
         - "@dimah-s3/core"
         - "@dimah-s3/server"
@@ -20,40 +46,27 @@ body:
         - "@dimah-s3/ui"
         - "@dimah-s3/db"
         - "@dimah-s3/cli"
+        - Starter template
         - Docs
-        - Templates / examples
-        - Unsure
+        - Not sure
     validations:
       required: true
-  - type: textarea
-    id: description
+
+  - type: dropdown
+    id: framework
     attributes:
-      label: What happened?
-      description: Clear and concise description of the bug.
-    validations:
-      required: true
-  - type: textarea
-    id: reproduce
-    attributes:
-      label: Steps to reproduce
-      description: Minimal reproduction. A small repo or gist helps.
-      placeholder: |
-        1. Install package
-        2. Run code
-        3. See error
-    validations:
-      required: true
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected behavior
-    validations:
-      required: true
-  - type: input
-    id: version
-    attributes:
-      label: Package version
-      placeholder: "1.5.7"
+      label: Server framework
+      options:
+        - Next.js
+        - Hono
+        - Express
+        - Fastify
+        - Elysia
+        - SvelteKit
+        - Node.js (`node:http`)
+        - Other
+        - Not applicable
+
   - type: dropdown
     id: provider
     attributes:
@@ -64,9 +77,61 @@ body:
         - MinIO
         - Other S3-compatible
         - Not applicable
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What you did, what you saw, and any error `code` the API returned.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The smallest setup that shows the bug. Start from `npx @dimah-s3/cli@beta create` if you can.
+      placeholder: |
+        1. Scaffold with `npx @dimah-s3/cli@beta create my-app`
+        2. Add this route option: ...
+        3. Upload a file and see ...
+    validations:
+      required: true
+
+  - type: input
+    id: reproduction-url
+    attributes:
+      label: Reproduction link
+      description: A public repository or sandbox. Bugs with a reproduction get fixed first.
+      placeholder: https://github.com/you/repro
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Server output, browser console, or the failing response body. Pasted as code.
+      render: shell
+
   - type: input
     id: environment
     attributes:
       label: Environment
-      description: Node version and OS.
-      placeholder: "Node 24, Windows 11"
+      description: Node.js version, OS, browser, and package manager.
+      placeholder: Node 24.11, macOS 26, Chrome 142, pnpm 12
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I can reproduce this on the newest version of my release line.
+          required: true

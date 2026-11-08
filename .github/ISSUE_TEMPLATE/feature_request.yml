@@ -1,18 +1,23 @@
 name: Feature request
-description: Suggest an idea for dimah-s3
+description: Suggest a new option, hook, component, or API
 title: "[Feature]: "
 labels:
   - enhancement
+  - triage
 body:
   - type: markdown
     attributes:
       value: |
-        Please check the [docs](https://s3.dimah.dev/docs) and existing issues first.
-        Questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions).
+        Please check the [docs](https://s3.dimah.dev/docs) and [existing issues](https://github.com/dimah-kz/dimah-s3/issues?q=is%3Aissue) first. Open-ended ideas fit [Discussions](https://github.com/dimah-kz/dimah-s3/discussions) better.
+
+        dimah-s3 covers presigned upload, download, and delete. Auth and quotas live in your server hooks. Wrappers for other S3 APIs are usually out of scope: call [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3) directly.
+
   - type: dropdown
     id: package
     attributes:
-      label: Package
+      label: Packages
+      description: Select every package the change touches.
+      multiple: true
       options:
         - "@dimah-s3/core"
         - "@dimah-s3/server"
@@ -20,27 +25,40 @@ body:
         - "@dimah-s3/ui"
         - "@dimah-s3/db"
         - "@dimah-s3/cli"
+        - Starter template
         - Docs
-        - Templates / examples
-        - Unsure
+        - Not sure
     validations:
       required: true
+
   - type: textarea
     id: problem
     attributes:
       label: Problem
-      description: What problem does this feature solve?
+      description: What are you trying to do, and what blocks you today?
     validations:
       required: true
+
   - type: textarea
     id: proposal
     attributes:
       label: Proposal
-      description: Describe the API or behavior you want.
+      description: The API or behavior you want. A code sample of how you would call it helps most.
+      render: tsx
     validations:
       required: true
+
   - type: textarea
     id: alternatives
     attributes:
       label: Alternatives
-      description: Optional alternatives or trade-offs.
+      description: Workarounds you use today, or other designs you considered.
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you open a pull request?
+      options:
+        - Yes
+        - Maybe, with guidance
+        - No

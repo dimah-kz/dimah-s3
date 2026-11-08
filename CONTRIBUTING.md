@@ -4,7 +4,7 @@ Thanks for your interest in contributing to this project.
 
 ## Prerequisites
 
-- Node.js 24+ (see `.nvmrc`; CI uses Node 24)
+- Node.js 24+ (see `.node-version`; CI tests on Node 24 and 26)
 - pnpm 12+
 
 ## Development setup
@@ -69,12 +69,26 @@ A changelog file is created in `.tegami/` and must be committed with your PR. CI
 - Choose `minor` for additive features (new exports, new options with defaults, improved behavior).
 - Choose `major` when existing consumer code may break or output contracts change.
 
+## Continuous integration
+
+Every pull request into `main` or `v2` runs [CI](.github/workflows/ci.yml). The branch rulesets require one check, **CI passed**, which fails when any other job fails or is cancelled. Pushes to `main` and `v2` run every job. Pull requests skip the smoke builds their changes cannot affect.
+
+| Job                | Runs when                                                   | Reproduce locally                                                      |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Lint & format      | Always                                                      | `pnpm lint`, `pnpm format:check`, `pnpm sherif`, `pnpm examples:drift` |
+| Typecheck          | Always                                                      | `pnpm check-types`                                                     |
+| Build              | Always                                                      | `pnpm build:packages && pnpm check:dist`                               |
+| Test (Node 24, 26) | Always                                                      | `pnpm test`                                                            |
+| Registry           | `packages/ui` or `registry.json` changed                    | `pnpm registry:validate`                                               |
+| Example            | An example or a package it uses changed                     | `pnpm turbo run build --filter=./examples/with-nextjs`                 |
+| Template           | A template, a package it uses, or a template script changed | `pnpm build:packages && pnpm templates:build -- --local nextjs`        |
+
+Example builds need the placeholder S3 variables from the example's `.env.example` and a `DIMAH_S3_SECRET` of at least 32 characters. Template builds pack the workspace packages and install them into a temporary copy of the starter, so they test the code in your branch rather than the version on npm.
+
 ## Pull Request checklist
 
-- [ ] Build passes (`pnpm build`)
-- [ ] Type checks pass (`pnpm check-types`)
-- [ ] Lint passes (`pnpm lint`)
-- [ ] Tests pass (`pnpm test`)
+- [ ] Lint, type checks, and tests pass (`pnpm lint`, `pnpm check-types`, `pnpm test`)
+- [ ] Tests cover the change
 - [ ] Docs updated (if needed)
 - [ ] Changelog added (if package behavior changed)
 
