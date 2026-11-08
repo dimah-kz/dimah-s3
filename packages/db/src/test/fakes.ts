@@ -1,3 +1,4 @@
+import { UniqueConstraintError } from "fumadb";
 import { DB_SCHEMA_VERSION, type DimahS3DbClient } from "@/fuma-db";
 import { dbSchema } from "@/schema/schema";
 import type { StorageFolder, StorageObject } from "@/types/storage-object";
@@ -194,7 +195,10 @@ export function memoryDbClient(
           ),
       );
       if (duplicate) {
-        throw new Error(`UNIQUE constraint failed: ${constraint.name}`);
+        // What FumaDB throws on every adapter.
+        throw new UniqueConstraintError(constraint.name, {
+          cause: new Error(`UNIQUE constraint failed: ${constraint.name}`),
+        });
       }
     }
   };

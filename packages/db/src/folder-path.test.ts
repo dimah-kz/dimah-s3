@@ -64,11 +64,19 @@ describe("normalizeFolderPath", () => {
     expect(normalizeFolderPath(`${emoji}\u{1f4c1}`)).toBeNull();
   });
 
-  it("caps the path at 1024 characters", () => {
+  it("caps the path at 1024 UTF-8 bytes", () => {
     const path = Array.from({ length: 5 }, () => "a".repeat(204)).join("/");
     expect(path).toHaveLength(1024);
     expect(normalizeFolderPath(path)).toBe(path);
     expect(normalizeFolderPath(`${path}a`)).toBeNull();
+  });
+
+  it("counts a two-byte script by its bytes", () => {
+    // `س` is 2 bytes: 5 × 102 letters and 4 slashes are 1024 bytes.
+    const path = Array.from({ length: 5 }, () => "س".repeat(102)).join("/");
+    expect(path).toHaveLength(514);
+    expect(normalizeFolderPath(path)).toBe(path);
+    expect(normalizeFolderPath(`${path}س`)).toBeNull();
   });
 });
 

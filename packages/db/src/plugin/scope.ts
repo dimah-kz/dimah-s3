@@ -1,5 +1,7 @@
 import { s3Error } from "@dimah-s3/core";
 import type { DimahS3Locals } from "@dimah-s3/server";
+import { characterCount } from "@/folder-path";
+import { SCOPE_MAX_LENGTH } from "@/schema/schema";
 import type { DbPluginOptions, ScopeContext } from "@/types/plugin";
 
 /** The call a scope is resolved for: its request and the guards' `locals`. */
@@ -19,6 +21,8 @@ export type ResolvedScope<TSession = undefined> = ScopeContext<TSession> & {
 /**
  * Resolves the scope of a call.
  * @throws `UNAUTHORIZED` when `resolveScope` returns `null`.
+ * @throws a config error when the scope is longer than
+ * {@link SCOPE_MAX_LENGTH} characters.
  */
 export type ScopeResolver<TSession = undefined> = (
   call: ScopeCall,
@@ -89,6 +93,14 @@ export function createScopeResolver<TSession>(
     }
     const resolved = await scope;
     if (resolved === null) throw s3Error("UNAUTHORIZED");
+    const length = characterCount(resolved);
+    if (length > SCOPE_MAX_LENGTH) {
+      // A config error: the insert would fail on PostgreSQL and MySQL, and
+      // SQLite would store it.
+      throw new Error(
+        `[dimah-s3/db] resolveScope returned a scope of ${length} characters. A scope holds at most ${SCOPE_MAX_LENGTH}.`,
+      );
+    }
     return { ...context, scope: resolved };
   };
 }

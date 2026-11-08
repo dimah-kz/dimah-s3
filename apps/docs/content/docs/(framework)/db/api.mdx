@@ -152,8 +152,8 @@ id. Renaming it or moving it changes one row, then rewrites the cached
 `folderId`.
 
 A folder name is 1 to 255 characters, not `.` or `..`, and has no `/` or
-control characters. The cached path is at most 1024 characters and 32
-levels deep. Names are NFC-normalized. Anything else is `FOLDER_INVALID`
+control characters. The cached path is at most 1024 UTF-8 bytes, like an
+S3 key, and 32 levels deep. Names are NFC-normalized. Anything else is `FOLDER_INVALID`
 (`400`). Moving a folder into itself or into one of its descendants is
 `FOLDER_INVALID` too. A sibling with the same name is `FOLDER_EXISTS`
 (`409`). A missing id is `FOLDER_NOT_FOUND` (`404`). In JSON and in types

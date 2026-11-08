@@ -122,9 +122,10 @@ export type DbPluginOptions<
   /** Loads the session for a request. Called at most once per `Request`. */
   getSession?: (request: Request) => TSession | Promise<TSession>;
   /**
-   * Owning scope of the caller, such as `user:123`. `null` rejects the
-   * call with `UNAUTHORIZED`. It runs once per call and route, so the guard
-   * and the lifecycle hooks of one call share the result.
+   * Owning scope of the caller, such as `user:123`, at most 255 characters.
+   * `null` rejects the call with `UNAUTHORIZED`, and a longer scope fails it
+   * as a config error. It runs once per call and route, so the guard and the
+   * lifecycle hooks of one call share the result.
    */
   resolveScope: (
     context: ScopeContext<TSession>,

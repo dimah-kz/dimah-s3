@@ -25,9 +25,62 @@ rewrites cached paths without rewriting object rows.
 Earlier betas shipped `@dimah-s3/db/drizzle/<dialect>`, `prisma/`, and
 `sql/`. Generate the schema with `runCli` instead, and point your ORM at
 the generated file. A database created from the shipped files stays at
-`2.1.0`. `drizzle-kit` or Prisma Migrate then reports small changes, such
-as `varchar` lengths on PostgreSQL text columns and the SQLite timestamp
-default. They do not change what the plugin reads. Apply them.
+`2.1.0`. What the ORM then changes depends on the database.
+
+### PostgreSQL
+
+The text columns become `varchar(n)`. `drizzle-kit` writes
+`ALTER COLUMN "scope" SET DATA TYPE varchar(255) USING "scope"::varchar(255)`,
+and an explicit cast truncates a longer value instead of failing. Two
+scopes that share their first 255 characters would become one. Run this
+check first. Each value must fit the limit in its comment:
+
+```sql
+SELECT
+  max(length("scope")) AS "scope",               -- 255
+  max(length("bucket")) AS "bucket",             -- 255
+  max(length("key")) AS "key",                   -- 1024
+  max(length("route")) AS "route",               -- 255
+  max(length("folder_id")) AS "folder_id",       -- 255
+  max(length("filename")) AS "filename",         -- 255
+  max(length("content_type")) AS "content_type", -- 255
+  max(length("e_tag")) AS "e_tag",               -- 255
+  max(length("acl")) AS "acl",                   -- 255
+  max(length("upload_token")) AS "upload_token"  -- 64
+FROM "storage_object";
+
+SELECT
+  max(length("scope")) AS "scope",         -- 255
+  max(length("parent_id")) AS "parent_id", -- 255
+  max(length("name")) AS "name",           -- 255
+  max(length("path")) AS "path"            -- 1024
+FROM "storage_folder";
+```
+
+The change rewrites `storage_object`, `storage_folder`, and their indexes
+under an `ACCESS EXCLUSIVE` lock, so reads and writes wait until it ends.
+Raising a length later does not rewrite the table.
+
+### SQLite and MySQL
+
+On SQLite, `drizzle-kit` recreates the three tables and copies the rows.
+SQLite does not enforce `varchar` lengths, so no value changes. On MySQL,
+the tables already match the shipped `sql/mysql.sql`.
+
+### Code that reads the tables
+
+`s3.db.objects` returns the same rows as before. Code that queries the
+tables itself sees the generated types:
+
+- `size` and `declaredSize` are `bigint` in JavaScript, not `number`.
+  `JSON.stringify` throws on a `bigint`, and so does arithmetic with a
+  `number`. Convert with `Number(row.size)`.
+- `status` is a `string` and `s3Metadata` is `unknown`, without the
+  shipped `$type`.
+- `id` has no default. The plugin generates ids, so a row you insert
+  yourself needs one.
+- The Prisma models are `storageObject` and `storageFolder`, so the Prisma
+  Client types follow those names. `prisma.storageObject` is unchanged.
 
 ## Check
 

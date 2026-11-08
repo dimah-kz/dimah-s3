@@ -1,4 +1,5 @@
 import { s3Error } from "@dimah-s3/core";
+import { UniqueConstraintError } from "fumadb";
 import {
   childFolderPath,
   FOLDER_MAX_DEPTH,
@@ -71,25 +72,6 @@ export type StorageFolderStore = {
   retain: (folder: StorageFolder) => Promise<void>;
 };
 
-/**
- * A unique-constraint failure from PostgreSQL, SQLite, MySQL, Prisma, or the
- * memory fake. FumaDB passes the driver's error through, and Drizzle wraps it
- * in `cause`.
- */
-function isUniqueViolation(error: unknown): boolean {
-  for (let current = error; typeof current === "object" && current !== null;) {
-    const code = "code" in current ? String(current.code) : "";
-    if (code === "23505" || code === "ER_DUP_ENTRY" || code === "P2002") {
-      return true;
-    }
-    if (current instanceof Error && /unique/i.test(current.message)) {
-      return true;
-    }
-    current = "cause" in current ? current.cause : undefined;
-  }
-  return false;
-}
-
 /** `""` is how the root is stored. `null` is how the stores return it. */
 function storedParent(parentId: string | null): string {
   return parentId ?? "";
@@ -127,23 +109,6 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     const orm = await getOrm();
     const row = await orm.findFirst("storageFolder", {
       where: (b) => b.and(b("scope", "=", scope), b("id", "=", id)),
-    });
-    return row ? mapFolder(row) : null;
-  };
-
-  const findNamed = async (
-    scope: string,
-    parentId: string | null,
-    name: string,
-  ) => {
-    const orm = await getOrm();
-    const row = await orm.findFirst("storageFolder", {
-      where: (b) =>
-        b.and(
-          b("scope", "=", scope),
-          b("parentId", "=", storedParent(parentId)),
-          b("name", "=", name),
-        ),
     });
     return row ? mapFolder(row) : null;
   };
@@ -234,7 +199,13 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     try {
       await insertFolder(orm, folder);
     } catch (error) {
-      if (await find(folder.scope, folder.id)) return;
+      // A concurrent `retain` put the row back first.
+      if (
+        error instanceof UniqueConstraintError &&
+        (await find(folder.scope, folder.id))
+      ) {
+        return;
+      }
       throw error;
     }
   };
@@ -287,7 +258,8 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
           path,
         });
       } catch (error) {
-        if (await findNamed(scope, input.parentId, name)) {
+        // The parent already has the name, or the scope already has the path.
+        if (error instanceof UniqueConstraintError) {
           throw s3Error("FOLDER_EXISTS");
         }
         throw error;
@@ -332,7 +304,9 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
         } catch (error) {
           // PostgreSQL aborts the transaction on this error, so it cannot
           // be followed by another query here.
-          if (isUniqueViolation(error)) throw s3Error("FOLDER_EXISTS");
+          if (error instanceof UniqueConstraintError) {
+            throw s3Error("FOLDER_EXISTS");
+          }
           throw error;
         }
         for (const child of rewritten) {

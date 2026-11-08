@@ -16,6 +16,12 @@ const TEXT = { mysql: "utf8mb4_unicode_ci" };
  */
 const LONG_PREFIX = 512;
 
+/**
+ * Longest scope `resolveScope` may return, in characters. The `scope`
+ * columns are `varchar(255)`.
+ */
+export const SCOPE_MAX_LENGTH = 255;
+
 function string(name: string, length = 255) {
   return column(name, `varchar(${length})`).collate(BINARY);
 }
@@ -28,7 +34,7 @@ function string(name: string, length = 255) {
 const storageObject = table("storage_object", {
   id: idColumn("id", "varchar(255)").collate(BINARY).defaultTo$("auto"),
   /** Owner, for example `user:123` or `org:acme`. */
-  scope: string("scope"),
+  scope: string("scope", SCOPE_MAX_LENGTH),
   bucket: string("bucket"),
   key: string("key", 1024),
   /** Named dimah-s3 route that created the object. */
@@ -81,7 +87,7 @@ const storageObject = table("storage_object", {
  */
 const storageFolder = table("storage_folder", {
   id: idColumn("id", "varchar(255)").collate(BINARY).defaultTo$("auto"),
-  scope: string("scope"),
+  scope: string("scope", SCOPE_MAX_LENGTH),
   /** Id of the containing folder. `""` is the root. */
   parentId: string("parent_id").defaultTo(""),
   /** Last segment of `path`. */

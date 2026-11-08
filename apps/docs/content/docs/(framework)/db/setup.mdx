@@ -114,8 +114,12 @@ export const dimahS3Db = DimahS3DB.client(
 </Tab>
 </Tabs>
 
-On PostgreSQL, the timestamp columns have no time zone. The driver must
-write and read `Date` values the same way: `node-postgres` does by default.
+On PostgreSQL, the timestamp columns have no time zone, so they hold the
+wall time the driver writes. Drizzle writes UTC. With Kysely,
+`node-postgres` writes and reads the local time of the process, so run
+every instance in the same time zone, preferably UTC (`TZ=UTC`).
+Otherwise an instance in another zone reads `expiresAt` deadlines
+shifted by the difference.
 
 ### Register the plugin [step]
 
@@ -186,6 +190,10 @@ complete an upload in another.
 target object: the scope comes from the caller, so the same caller gets the
 same scope when an upload ticket is bound, used, and confirmed. Checks on
 the target belong in [`authorize`](#authorize).
+
+A scope is at most 255 characters, the length of the `scope` columns. A
+longer one fails the call as a config error (`500` `INTERNAL_ERROR`, with
+the length in the server log), before any row is written.
 
 - `getSession` runs at most once per `Request`.
 - `resolveScope` runs once per call, operation, and route. Two `s3.api`
