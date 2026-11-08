@@ -319,6 +319,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@dimah-s3/react':
+        specifier: workspace:*
+        version: link:../../packages/react
       '@dimah-s3/ui':
         specifier: workspace:*
         version: link:../../packages/ui
