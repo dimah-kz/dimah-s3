@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/server": patch
+  "@dimah-s3/server":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/server)
 ---
 
 ### Next.js route handlers read request bodies

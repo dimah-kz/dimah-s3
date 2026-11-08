@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/ui",
-  "version": "2.0.0-beta.5",
+  "version": "2.0.0-beta.6",
   "description": "Pre-built React UI components for S3 file upload, download, and delete",
   "keywords": [
     "s3",
@@ -95,8 +95,8 @@
   },
   "peerDependencies": {
     "@base-ui/react": ">=1.0.0",
-    "@dimah-s3/core": "2.0.0-beta.5",
-    "@dimah-s3/react": "2.0.0-beta.5",
+    "@dimah-s3/core": "2.0.0-beta.6",
+    "@dimah-s3/react": "2.0.0-beta.6",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": ">=0.7.0",
     "cn": ">=0.1.0",
