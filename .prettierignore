@@ -1,6 +1,10 @@
 # Built shadcn item JSON (shadcn build → apps/docs/public/r)
 apps/docs/public/r/
 
+# Written by Tegami when it versions, never by hand. A release PR must not
+# fail on its spacing: fix the `.tegami/*.md` source instead.
+packages/*/CHANGELOG.md
+
 # Generated Fuma Translate output
 packages/react/.translations/
 packages/react/src/translations/types.ts
