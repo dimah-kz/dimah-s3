@@ -64,6 +64,26 @@ describe("runCli generate", () => {
     );
   });
 
+  it("declares a PostgreSQL schema from names.schema()", () => {
+    const drizzle = drizzleSchemaCode("postgresql", "storage");
+    // Exported, so drizzle-kit creates the schema.
+    expect(drizzle).toContain(
+      'export const storageSchema = pgSchema("storage")',
+    );
+    expect(drizzle).toContain(
+      'export const storageObject = storageSchema.table("storage_object", {',
+    );
+    expect(drizzle).toContain(
+      'export const private_dimah_s3_settings = pgTable("private_dimah_s3_settings", {',
+    );
+    const prisma = prismaSchemaCode("postgresql", "storage");
+    expect(prisma.match(/@@schema\("\w+"\)/g)).toEqual([
+      '@@schema("storage")',
+      '@@schema("storage")',
+      '@@schema("public")',
+    ]);
+  });
+
   it("wrote the schema in examples/with-db", () => {
     const example = readFileSync(EXAMPLE_SCHEMA, "utf8").replaceAll(
       "\r\n",

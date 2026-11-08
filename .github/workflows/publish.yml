@@ -1,21 +1,24 @@
+# Versions or publishes the release line after CI passes on a push to it.
+#
+# `workflow_run` always runs this file from the default branch, then checks
+# out the commit that CI built. Keep the branch lists here and in `ci.yml` in
+# step with `lines` in scripts/tegami.mts.
 name: Publish
 
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
+    branches: [main, v2]
   workflow_dispatch:
 
+# Queue releases. Never cancel one halfway through a publish.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
-
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
   publish:
@@ -38,8 +41,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Setup
-        uses: ./.github/actions/setup
+      # No restored or remote Turbo cache: every published file is built in
+      # this job from the released commit.
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
 
       # Versions when pending `.tegami/*.md` changelogs exist (opens a Version
       # Packages PR). Otherwise publishes from `.tegami/publish-lock.yaml`.
@@ -53,3 +59,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          TURBO_TELEMETRY_DISABLED: "1"

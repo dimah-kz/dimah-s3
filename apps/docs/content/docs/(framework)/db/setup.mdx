@@ -114,12 +114,28 @@ export const dimahS3Db = DimahS3DB.client(
 </Tab>
 </Tabs>
 
-On PostgreSQL, the timestamp columns have no time zone, so they hold the
-wall time the driver writes. Drizzle writes UTC. With Kysely,
-`node-postgres` writes and reads the local time of the process, so run
-every instance in the same time zone, preferably UTC (`TZ=UTC`).
-Otherwise an instance in another zone reads `expiresAt` deadlines
-shifted by the difference.
+On PostgreSQL and MySQL, the timestamp columns have no time zone. Every
+adapter writes and reads them in UTC, whatever the time zone of the
+process, so instances in different zones agree on deadlines like
+`expiresAt`.
+
+#### PostgreSQL schema
+
+To keep the tables in a PostgreSQL schema, such as `storage`, create the
+client from `DimahS3DB.names.schema("storage")`, and generate with the same
+call:
+
+```ts title="lib/dimah-s3-db.ts"
+export const dimahS3Db = DimahS3DB.names
+  .schema("storage")
+  .client(drizzleAdapter({ db, provider: "postgresql" }));
+```
+
+`migrate` creates the schema. The generated Drizzle file exports it as
+`storageSchema`, so `drizzle-kit` creates it too. The generated Prisma
+models carry `@@schema("storage")`: list it in the datasource, as in
+`schemas = ["public", "storage"]`. FumaDB keeps its settings table,
+`private_dimah_s3_settings`, in the search path.
 
 ### Register the plugin [step]
 

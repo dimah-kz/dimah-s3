@@ -82,6 +82,32 @@ tables itself sees the generated types:
 - The Prisma models are `storageObject` and `storageFolder`, so the Prisma
   Client types follow those names. `prisma.storageObject` is unchanged.
 
+## Timestamps written by Kysely outside UTC
+
+Since beta.8, the Kysely adapter writes and reads timestamps in UTC on
+PostgreSQL and MySQL, as Drizzle and Prisma already did. Before, it wrote
+the local time of the process. If a Kysely process outside UTC wrote your
+rows, they now read shifted by its offset. Rewrite them once, with the zone
+that process ran in:
+
+```sql
+-- PostgreSQL. Asia/Tehran stands for the zone of that process.
+UPDATE "storage_object" SET
+  "expires_at" = ("expires_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
+  "confirmed_at" = ("confirmed_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
+  "created_at" = ("created_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
+  "updated_at" = ("updated_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
+  "deleted_at" = ("deleted_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC';
+
+UPDATE "storage_folder" SET
+  "created_at" = ("created_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
+  "updated_at" = ("updated_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC';
+```
+
+On MySQL, use `CONVERT_TZ(column, '+03:30', '+00:00')` with the offset of
+that process. Rows written by Drizzle or Prisma, or by a Kysely process in
+UTC, are already right: leave them.
+
 ## Check
 
 Call `checkSchema` at startup. It throws unless the database is at

@@ -1,3 +1,6 @@
+# Labels pull requests by changed paths. Every label here must exist in
+# .github/labels.yml.
+
 "area:core":
   - changed-files:
       - any-glob-to-any-file: packages/core/**
@@ -26,12 +29,32 @@
           - packages/cli/**
           - templates/**
 
+"area:examples":
+  - changed-files:
+      - any-glob-to-any-file: examples/**
+
+"area:tooling":
+  - changed-files:
+      - any-glob-to-any-file:
+          - tooling/**
+          - scripts/**
+          - turbo.json
+          - pnpm-workspace.yaml
+
 documentation:
   - changed-files:
       - any-glob-to-any-file:
           - apps/docs/**
           - docs/**
 
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: pnpm-lock.yaml
+
 ci:
   - changed-files:
       - any-glob-to-any-file: .github/**
+
+release:
+  - changed-files:
+      - any-glob-to-any-file: .tegami/publish-lock.yaml

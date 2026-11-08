@@ -1,10 +1,16 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-Security updates are provided for the latest published versions of the `@dimah-s3/*` packages.
+Fixes ship in the newest release of each line. Upgrade to it before reporting.
 
-## Reporting a Vulnerability
+| Line      | npm dist-tag | Supported           |
+| --------- | ------------ | ------------------- |
+| 2.0 beta  | `beta`       | Newest `2.0.0-beta` |
+| 1.x       | `latest`     | Newest `1.x`        |
+| Older 0.x | —            | No                  |
+
+## Reporting a vulnerability
 
 Report vulnerabilities privately with [GitHub private vulnerability reporting](https://github.com/dimah-kz/dimah-s3/security/advisories/new). Include:
 
@@ -13,6 +19,6 @@ Report vulnerabilities privately with [GitHub private vulnerability reporting](h
 - Potential impact
 - Any suggested mitigation
 
-Do not open a public issue for security vulnerabilities.
+Do not open a public issue, and never include real S3 credentials, `DIMAH_S3_SECRET` values, or live presigned URLs.
 
 We aim to acknowledge reports quickly and share a remediation plan after triage.

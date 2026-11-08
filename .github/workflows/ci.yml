@@ -1,3 +1,9 @@
+# Branch rulesets require one check: "CI passed". It fails when any job below
+# fails or is cancelled, so jobs can be added, renamed, or skipped by path
+# without touching the rulesets.
+#
+# The Publish workflow starts from a completed run of this workflow by name.
+# Keep `name: CI`.
 name: CI
 
 on:
@@ -5,161 +11,273 @@ on:
     branches: [main, v2]
   pull_request:
     branches: [main, v2]
+  workflow_dispatch:
 
+# A new push to a pull request cancels its older run. Release branches keep
+# every run, since Publish starts from each one.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
-# Remote cache: repo secret TURBO_TOKEN + variable TURBO_TEAM (Vercel team slug).
-# Without them, jobs still share a local .turbo cache via actions/cache.
 env:
+  # Vercel Remote Cache: repo secret TURBO_TOKEN and variable TURBO_TEAM.
+  # Without them, each job still restores its own local `.turbo/cache`.
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_TELEMETRY_DISABLED: "1"
+  # Bounds the local cache that actions/cache saves after each job.
+  TURBO_CACHE_MAX_SIZE: 1GB
 
 jobs:
-  quality:
-    name: Lint & Format
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    # Pushes and manual runs check everything. Pull requests skip the smoke
+    # builds their changes cannot affect.
+    outputs:
+      registry: ${{ github.event_name != 'pull_request' || steps.filter.outputs.registry == 'true' }}
+      examples: ${{ github.event_name != 'pull_request' || steps.filter.outputs.examples == 'true' }}
+      templates: ${{ github.event_name != 'pull_request' || steps.filter.outputs.templates == 'true' }}
+      example-ids: ${{ steps.matrix.outputs.examples }}
+      template-ids: ${{ steps.matrix.outputs.templates }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            examples/*/package.json
+            templates/catalog.json
+          sparse-checkout-cone-mode: false
+
+      # Every example folder, and every template in the CLI catalog.
+      - name: List examples and templates
+        id: matrix
+        run: |
+          echo "examples=$(find examples -mindepth 2 -maxdepth 2 -name package.json -printf '%h\n' | xargs -n1 basename | sort | jq -Rnc '[inputs]')" >> "$GITHUB_OUTPUT"
+          echo "templates=$(jq -c '[.templates[].id]' templates/catalog.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            shared: &shared
+              - .github/actions/**
+              - .github/workflows/ci.yml
+              - .node-version
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+              - tooling/**
+              - tsconfig.json
+              - turbo.json
+            registry:
+              - *shared
+              - packages/ui/**
+              - registry.json
+            examples:
+              - *shared
+              - examples/**
+              - packages/{core,server,react,ui,db}/**
+            templates:
+              - *shared
+              - packages/{core,server,react,ui}/**
+              - scripts/templates-*.mjs
+              - templates/**
+
+  lint:
+    name: Lint & format
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Setup
-        uses: ./.github/actions/setup
+      - uses: ./.github/actions/setup
 
-      - name: Lint
+      - name: ESLint
         run: pnpm lint
 
-      - name: Format
+      - name: Prettier
         run: pnpm format:check
 
-      - name: Monorepo versions
+      - name: Workspace dependency versions
         run: pnpm sherif
 
-      - name: Examples / templates drift
+      - name: Template and example drift
         run: pnpm examples:drift
 
-  packages:
-    name: Build, Test & Types
+  typecheck:
+    name: Typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: dorny/paths-filter@v4
-        id: filter
+      # Docs and examples run postinstall codegen (fumadocs-mdx).
+      - uses: ./.github/actions/setup
         with:
-          filters: |
-            packages:
-              - 'packages/**'
-              - 'tooling/**'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'turbo.json'
-              - 'package.json'
-              - 'scripts/templates-*.mjs'
-              - 'scripts/check-dist.mjs'
-            templates:
-              - 'templates/**'
-              - 'scripts/templates-*.mjs'
+          ignore-scripts: "false"
 
-      - name: Resolve Turbo affected range
-        if: steps.filter.outputs.packages == 'true'
-        uses: ./.github/actions/turbo-affected-range
+      # Packages, apps, examples, and tooling. Workspace dependencies build
+      # first so apps check against the published `dist` types.
+      - name: Typecheck
+        run: pnpm check-types
 
-      - name: Setup
-        if: steps.filter.outputs.packages == 'true' || steps.filter.outputs.templates == 'true'
-        uses: ./.github/actions/setup
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Build, test, and typecheck packages
-        if: steps.filter.outputs.packages == 'true'
-        run: pnpm turbo run build test check-types --affected --filter="./packages/*"
+      - uses: ./.github/actions/setup
 
-      # check:dist reads every package's dist, so build them all first. Turbo
-      # restores the unaffected ones from cache.
-      - name: Check package dist
-        if: steps.filter.outputs.packages == 'true'
-        run: pnpm build:packages && pnpm check:dist
+      # Includes the CLI template snapshot.
+      - name: Build packages
+        run: pnpm build:packages
 
-      # templates/ is outside the workspace, so --affected never sees it.
-      # CLI snapshot (build) is the cheap check; full templates:build stays local.
-      - name: Snapshot CLI templates
-        if: steps.filter.outputs.templates == 'true'
-        run: pnpm turbo run build --filter=@dimah-s3/cli
+      - name: Check package output
+        run: pnpm check:dist
+
+      - name: Check the build left no changes
+        run: git diff --exit-code
+
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # The `engines` floor and the current release.
+        node: [24, 26]
+    env:
+      # Turbo does not hash the Node.js version. Keep each leg on its own
+      # local cache so one leg never replays the other's results.
+      TURBO_CACHE: local:rw
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+          cache-scope: test-node${{ matrix.node }}
+
+      - name: Test packages
+        run: pnpm test
 
   registry:
-    name: Validate Registry
+    name: Registry
+    needs: changes
+    if: needs.changes.outputs.registry == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-
-      - uses: dorny/paths-filter@v4
-        id: filter
         with:
-          filters: |
-            registry:
-              - 'registry.json'
-              - 'packages/ui/**'
+          persist-credentials: false
 
-      - name: Setup
-        if: steps.filter.outputs.registry == 'true'
-        uses: ./.github/actions/setup
+      - uses: ./.github/actions/setup
+        with:
+          turbo-cache: "false"
 
       - name: Validate registry
-        if: steps.filter.outputs.registry == 'true'
         run: pnpm registry:validate
 
-      - name: Check generated registry.json
-        if: steps.filter.outputs.registry == 'true'
+      - name: Check generated registry.json is committed
         run: git diff --exit-code -- packages/ui/registry.json
 
-  apps:
-    name: Typecheck Apps
+  examples:
+    name: Example (${{ matrix.example }})
+    needs: changes
+    if: needs.changes.outputs.examples == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        example: ${{ fromJSON(needs.changes.outputs.example-ids) }}
+    # Placeholders from `.env.example`. Next.js loads the S3 route module at
+    # build time, and that constructs the handler.
+    env:
+      S3_ENDPOINT: https://your-endpoint.example.com
+      S3_REGION: auto
+      S3_ACCESS_KEY_ID: your-access-key-id
+      S3_SECRET_ACCESS_KEY: your-secret-access-key
+      S3_BUCKET: your-bucket-name
+      DIMAH_S3_SECRET: ci-example-build-secret-not-for-production
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            apps:
-              - 'apps/**'
-              - 'examples/**'
-              - 'packages/**'
-              - 'tooling/**'
-              - 'registry.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'turbo.json'
-              - 'package.json'
-
-      - name: Resolve Turbo affected range
-        if: steps.filter.outputs.apps == 'true'
-        uses: ./.github/actions/turbo-affected-range
-
-      # docs / examples postinstall (fumadocs-mdx, native addons) is required.
-      - name: Setup
-        if: steps.filter.outputs.apps == 'true'
-        uses: ./.github/actions/setup
+      # Native addons (better-sqlite3, sharp) install the way they do for users.
+      - uses: ./.github/actions/setup
         with:
           ignore-scripts: "false"
+          cache-scope: example-${{ matrix.example }}
 
-      # Dist types come from package builds. Skip docs/brand/examples themselves
-      # (typecheck only; Next production build is Vercel / local for brand).
-      - name: Build workspace dependencies
-        if: steps.filter.outputs.apps == 'true'
-        run: pnpm turbo run build --filter=docs... --filter=brand... --filter="./examples/*..." --filter=!docs --filter=!brand --filter="!./examples/*"
+      - name: Build example
+        env:
+          EXAMPLE: ${{ matrix.example }}
+        run: pnpm turbo run build --filter="./examples/$EXAMPLE"
 
-      - name: Typecheck apps and examples
-        if: steps.filter.outputs.apps == 'true'
-        run: pnpm turbo run check-types --affected --filter="./apps/*" --filter="./examples/*"
+  templates:
+    name: Template (${{ matrix.template }})
+    needs: changes
+    if: needs.changes.outputs.templates == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        template: ${{ fromJSON(needs.changes.outputs.template-ids) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          cache-scope: template-${{ matrix.template }}
+
+      - name: Build packages
+        run: pnpm build:packages
+
+      # Packs the workspace packages and installs them into a copy of the
+      # starter, the way `create` would after a release. Then build,
+      # check-types, and lint when the starter has it.
+      - name: Build template against workspace packages
+        env:
+          TEMPLATE: ${{ matrix.template }}
+        run: pnpm templates:build -- --local "$TEMPLATE"
+
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs:
+      [changes, lint, typecheck, build, test, registry, examples, templates]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check job results
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<< "$NEEDS"
+          jq -e 'all(.[]; .result == "success" or .result == "skipped")' <<< "$NEEDS" > /dev/null
