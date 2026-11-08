@@ -13,10 +13,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1164.0",
     "@base-ui/react": "^1.9.0",
-    "@dimah-s3/core": "2.0.0-beta.2",
-    "@dimah-s3/react": "2.0.0-beta.2",
-    "@dimah-s3/server": "2.0.0-beta.2",
-    "@dimah-s3/ui": "2.0.0-beta.2",
+    "@dimah-s3/core": "2.0.0-beta.6",
+    "@dimah-s3/react": "2.0.0-beta.6",
+    "@dimah-s3/server": "2.0.0-beta.6",
+    "@dimah-s3/ui": "2.0.0-beta.6",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
@@ -36,6 +36,6 @@
     "eslint-config-next": "^16.4.5",
     "shadcn": "^4.23.0",
     "tailwindcss": "^4.3.5",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.2"
   }
 }

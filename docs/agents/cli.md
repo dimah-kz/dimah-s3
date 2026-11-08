@@ -51,5 +51,5 @@ Starters live in `templates/` — **not** a workspace member. See [templates/AGE
 
 - New template: folder + `templates/catalog.json`. Add `examples/with-<id>/` only when it should be a monorepo demo.
 - Root scripts `templates:*` / `examples:drift` / `deps:update` are in the repo `package.json`.
-- Templates list `@dimah-s3/core` next to server, react, and ui. Source ranges are placeholders; the snapshot rewrites them to the CLI version (`^<version>` on `main`, the exact `2.0.0-beta.N` on `v2`). Before a release is on npm, check them with `pnpm templates:build -- --local`, which installs packed workspace packages.
+- Templates list `@dimah-s3/core` next to server, react, and ui. Source ranges are placeholders; the snapshot rewrites them to the CLI version (`^<version>` on `main`, the exact `2.0.0-beta.N` on `v2`). `pnpm templates:update` follows `latest` for other deps, then on a prerelease CLI pins `@dimah-s3/*` to the npm `beta` dist-tag. Before a release is on npm, check them with `pnpm templates:build -- --local`, which installs packed workspace packages.
 - Next.js is the example twin (`pnpm examples:drift`). Other starters may have no twin. `examples/with-db` is not a template twin.
