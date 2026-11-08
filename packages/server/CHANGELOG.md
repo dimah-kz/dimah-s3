@@ -1,3 +1,9 @@
+## @dimah-s3/server@2.0.0-beta.6 (beta)
+
+### Next.js route handlers read request bodies
+
+`s3.handler` reads the body of a request wrapped in a `Proxy`, as Next.js App Router route handlers pass it. A presign, confirm, multipart, or `db()` call with a body returns its normal response instead of `500` `INTERNAL_ERROR`.
+
 ## @dimah-s3/server@2.0.0-beta.4 (beta)
 
 ### Docs at s3.dimah.dev
