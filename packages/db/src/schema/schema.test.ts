@@ -13,7 +13,8 @@ import { describe, expect, it } from "vitest";
 import { migrate } from "@/cli";
 import { DB_SCHEMA_VERSION, DimahS3DB } from "@/fuma-db";
 import { pgliteDialect } from "@/test/databases";
-import { dbSchema } from "./schema";
+import { normalizeFolderPath } from "@/folder-path";
+import { dbSchema, SCOPE_MAX_LENGTH } from "./schema";
 
 const DEFINITIONS = {
   storage_object: dbSchema.tables.storageObject,
@@ -368,6 +369,40 @@ describe("migrate() on PostgreSQL", () => {
         where: (b) => b("id", "=", created.id),
       }),
     ).toMatchObject(sampleObject);
+  });
+
+  it("indexes the longest scope with the longest folder path", async () => {
+    const { client } = await create();
+    const orm = client.orm(DB_SCHEMA_VERSION);
+    // Distinct CJK characters (3 bytes each) do not compress in the index.
+    const cjk = (count: number, from = 0) =>
+      Array.from({ length: count }, (_, index) =>
+        String.fromCodePoint(0x4e00 + (((from + index) * 7919) % 20_000)),
+      ).join("");
+    const folder = (path: string) => ({
+      scope: "\u{1d49c}".repeat(SCOPE_MAX_LENGTH), // 4 bytes each
+      parentId: "",
+      name: path.slice(path.lastIndexOf("/") + 1),
+      path,
+    });
+
+    // 341 characters are 1023 bytes, the most normalizeFolderPath accepts.
+    const longest = cjk(341);
+    expect(normalizeFolderPath(longest)).toBeNull(); // a segment is 255 at most
+    const path = `${cjk(170)}/${cjk(170, 170)}`;
+    expect(new TextEncoder().encode(path).byteLength).toBe(1021);
+    expect(normalizeFolderPath(path)).toBe(path);
+    await expect(
+      orm.create("storageFolder", folder(path)),
+    ).resolves.toMatchObject({ path });
+
+    // A path of 900 such characters, which a 1024-character cap allowed, is
+    // past the 2704-byte index entry.
+    const long = [0, 225, 450, 675].map((from) => cjk(225, from)).join("/");
+    expect(normalizeFolderPath(long)).toBeNull();
+    await expect(orm.create("storageFolder", folder(long))).rejects.toThrow(
+      /index row size/,
+    );
   });
 });
 

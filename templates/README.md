@@ -15,16 +15,16 @@ Framework twin: `nextjs` ↔ `with-nextjs`. Keep shared app source in sync (`pnp
 
 Do **not** treat these as library packages. They are outside the pnpm workspace. Starters must install cleanly with concrete npm ranges only (no `catalog:`, `workspace:*`, or `@workspace/*`).
 
-Each starter ships a local `pnpm-workspace.yaml` for pnpm 11 `allowBuilds` and `minimumReleaseAgeExclude` on `@dimah-s3/*`. Lockfiles stay gitignored and are excluded from the CLI snapshot — users get a fresh lock on `create` install.
+Each starter ships a local `pnpm-workspace.yaml` for pnpm 11 `allowBuilds` and `minimumReleaseAgeExclude` on `@dimah-s3/*` and `react-dropzone` (a same-day dependency of `@dimah-s3/react`). Lockfiles stay gitignored and are excluded from the CLI snapshot — users get a fresh lock on `create` install.
 
 ## Maintenance (repo root)
 
-| Script                  | What it does                                                                                          |
-| ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/` (rewrites ranges; lockfiles stay local / gitignored) |
-| `pnpm templates:build`  | `pnpm install` + `build` + `check-types` smoke test per template                                      |
-| `pnpm examples:drift`   | Assert shared app source matches between `templates/<id>` and `examples/with-<id>`                    |
-| `pnpm deps:update`      | Workspace `pnpm -r update --latest`, then `templates:update`                                          |
+| Script                  | What it does                                                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/`. On a prerelease CLI, then pins `@dimah-s3/*` to the exact npm `beta` version. Lockfiles stay local / gitignored |
+| `pnpm templates:build`  | `pnpm install` + `build` + `check-types` smoke test per template                                                                                                  |
+| `pnpm examples:drift`   | Assert shared app source matches between `templates/<id>` and `examples/with-<id>`                                                                                |
+| `pnpm deps:update`      | Workspace `pnpm -r update --latest`, then `templates:update`                                                                                                      |
 
 Filter by id: `pnpm templates:build -- nextjs` / `pnpm templates:update -- vite hono`.
 

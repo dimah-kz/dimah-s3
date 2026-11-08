@@ -123,4 +123,26 @@ describe("createScopeResolver", () => {
       ),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED", statusCode: 401 });
   });
+
+  it("fails a scope longer than the column as a config error", async () => {
+    const call = { request: new Request("http://localhost/"), locals };
+    const resolveWith = (scope: string) =>
+      createScopeResolver({ resolveScope: () => scope })(call, {
+        operation: "upload",
+      });
+
+    // Characters, not UTF-16 units: 255 emoji fit.
+    const longest = "\u{1f4c1}".repeat(255);
+    await expect(resolveWith(longest)).resolves.toMatchObject({
+      scope: longest,
+    });
+    const error = await resolveWith(`user:${"a".repeat(251)}`).catch(
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toHaveProperty("code");
+    expect((error as Error).message).toBe(
+      "[dimah-s3/db] resolveScope returned a scope of 256 characters. A scope holds at most 255.",
+    );
+  });
 });

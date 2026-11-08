@@ -6,8 +6,12 @@ import { s3Error } from "@dimah-s3/core";
  * by id; the path is the cached label of that id.
  */
 
-/** Longest folder path, in characters. */
-export const FOLDER_PATH_MAX_LENGTH = 1024;
+/**
+ * Longest folder path, in UTF-8 bytes, like an S3 key. With the longest scope,
+ * the `(scope, path)` unique key stays under PostgreSQL's 2704-byte limit
+ * for a btree entry.
+ */
+export const FOLDER_PATH_MAX_BYTES = 1024;
 
 /** Longest folder name (one path segment), in characters. */
 export const FOLDER_NAME_MAX_LENGTH = 255;
@@ -18,8 +22,10 @@ export const FOLDER_MAX_DEPTH = 32;
 /** Control characters and lone surrogates. */
 const INVALID_CHARACTER = /[\p{Cc}\p{Cs}]/u;
 
+const utf8 = new TextEncoder();
+
 /** Counts code points, so a character outside the BMP counts once. */
-function characterCount(value: string): number {
+export function characterCount(value: string): number {
   return Array.from(value).length;
 }
 
@@ -43,7 +49,7 @@ export function isFolderName(name: string): boolean {
 export function normalizeFolderPath(path: string): string | null {
   if (!path.isWellFormed()) return null;
   const normalized = path.normalize("NFC");
-  if (characterCount(normalized) > FOLDER_PATH_MAX_LENGTH) return null;
+  if (utf8.encode(normalized).byteLength > FOLDER_PATH_MAX_BYTES) return null;
   const names = normalized.split("/");
   if (names.length > FOLDER_MAX_DEPTH) return null;
   return names.every(isFolderName) ? normalized : null;

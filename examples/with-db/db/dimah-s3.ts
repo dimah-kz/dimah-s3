@@ -65,7 +65,7 @@ export const storageFolder = sqliteTable("storage_folder", {
 
 export const private_dimah_s3_settings = sqliteTable("private_dimah_s3_settings", {
   key: text("key", { length: 255 }).primaryKey().notNull(),
-  version: text("value", { length: 255 }).notNull().default("2.1.0")
+  version: text("value").notNull().default("2.1.0")
 })
 
 export const relations = defineRelations({ storageObject, storageFolder, private_dimah_s3_settings })

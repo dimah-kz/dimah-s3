@@ -58,8 +58,9 @@ describe("runCli generate", () => {
       '@@index([scope, status, folderId, createdAt], map: "storage_object_scope_folder_idx")',
     );
     expect(code).toContain("key String @db.VarChar(1024)");
+    // The settings `value` is text everywhere, so it holds Kysely's name variants.
     expect(code).toContain(
-      `value String @db.VarChar(255) @default("${DB_SCHEMA_VERSION}")`,
+      `value String @db.Text @default(dbgenerated("('${DB_SCHEMA_VERSION}')"))`,
     );
   });
 

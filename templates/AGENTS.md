@@ -8,4 +8,4 @@ CLI starter source for `@dimah-s3/cli`. **Not** a pnpm workspace member.
 - New template: folder + [`catalog.json`](./catalog.json). Add `examples/with-<id>/` only when it should be a monorepo demo.
 - End-user agent notes live in each starter (`templates/<id>/AGENTS.md`) — no monorepo wording there.
 - Maintenance: root `pnpm templates:update` / `templates:build` / `deps:update`. Do not add `templates/*` to the workspace.
-- Each starter’s `pnpm-workspace.yaml` is for pnpm 11 `allowBuilds` / `@dimah-s3/*` release-age excludes. Lockfiles stay gitignored and out of the snapshot.
+- Each starter’s `pnpm-workspace.yaml` is for pnpm 11 `allowBuilds` / release-age excludes (`@dimah-s3/*` and `react-dropzone`, which ships with `@dimah-s3/react`). Lockfiles stay gitignored and out of the snapshot. The Next.js starter keeps `typescript` at `^6.0.2` so `lint` runs; `templates:update` restores that pin.

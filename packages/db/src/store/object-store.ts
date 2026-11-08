@@ -1,4 +1,5 @@
 import { s3Error } from "@dimah-s3/core";
+import { UniqueConstraintError } from "fumadb";
 import type { AbstractQuery, FindManyOptions } from "fumadb/query";
 import type { dbSchema } from "@/schema/schema";
 import type { DbListSort, DbUsage } from "@/types/client";
@@ -563,8 +564,8 @@ export function createObjectStore<TAttributes = never>(
         try {
           await orm.create("storageObject", fresh);
         } catch (error) {
-          // A concurrent upload inserted the row first.
-          if (await find(ref)) throw s3Error("CONFLICT");
+          // A concurrent upload inserted the row at `(bucket, key)` first.
+          if (error instanceof UniqueConstraintError) throw s3Error("CONFLICT");
           throw error;
         }
       };

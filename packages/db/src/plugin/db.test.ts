@@ -405,6 +405,24 @@ describe("db plugin", () => {
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("fails an upload whose scope is too long before it writes a row", async () => {
+    const setup = createSetup({
+      plugin: { resolveScope: () => `user:${"a".repeat(300)}` },
+    });
+
+    const error = await setup.instance.api
+      .upload({ route: "uploads", name: "a.txt", size: 10 })
+      .catch((thrown: unknown) => thrown);
+
+    expect(error).toMatchObject({ code: "INTERNAL_ERROR" });
+    expect(String(setup.logger.error.mock.calls.flat())).toContain(
+      "resolveScope returned a scope of 305 characters",
+    );
+    await expect(
+      setup.database.orm("2.1.0").count("storageObject", {}),
+    ).resolves.toBe(0);
+  });
+
   it("exposes the stores and jobs on s3.db", async () => {
     const { instance: s3 } = createSetup();
 

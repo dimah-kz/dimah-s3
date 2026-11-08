@@ -3,8 +3,10 @@
 allowBuilds:
   esbuild: true
 # Fresh @dimah-s3 publishes are expected from the CLI sync bump.
+# react-dropzone ships with @dimah-s3/react and can be published the same day.
 minimumReleaseAgeExclude:
   - "@dimah-s3/core"
   - "@dimah-s3/react"
   - "@dimah-s3/server"
   - "@dimah-s3/ui"
+  - react-dropzone
