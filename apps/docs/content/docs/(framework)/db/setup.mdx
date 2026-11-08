@@ -18,15 +18,16 @@ npm i @dimah-s3/db@beta
 ```
 
 You do not install `fumadb`. The adapters ship from
-`@dimah-s3/db/adapters/*`. Copy the Drizzle or Prisma schema from the
-package, or create the tables from `sql/` or `migrate(client)`.
+`@dimah-s3/db/adapters/*`, and `runCli` from `@dimah-s3/db/cli` generates
+the Drizzle tables or the Prisma models. With Kysely, `migrate(client)`
+creates the tables.
 
 ### Tables [step]
 
 The plugin uses two tables, `storage_object` and `storage_folder`, plus a
 small settings table that records the schema version (`2.1.0`).
 
-<Tabs items={["Drizzle", "Prisma", "SQL", "Kysely"]}>
+<Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
 
 <include>../../../_includes/db/drizzle-schema.mdx</include>
@@ -37,25 +38,12 @@ small settings table that records the schema version (`2.1.0`).
 <include>../../../_includes/db/prisma-schema.mdx</include>
 
 </Tab>
-<Tab value="SQL">
-
-Run the file for your database once. Each one creates the tables, the
-indexes, and the settings row:
-
-```bash
-psql "$DATABASE_URL" -f node_modules/@dimah-s3/db/sql/pg.sql
-# or sql/sqlite.sql, sql/mysql.sql
-```
-
-`sql/mysql.sql` indexes `key` on its first 512 characters and `folder` on
-its first 255. Two keys in one bucket that share their first 512 characters
-count as the same key.
-
-</Tab>
 <Tab value="Kysely">
 
-`migrate(client)` creates the tables and the indexes. It does not upgrade
-a 1.x database. It needs the Kysely adapter (next step):
+`migrate(client)` creates the tables and the indexes on SQLite,
+PostgreSQL, and MySQL. It does nothing on a database already at `2.1.0`
+and does not upgrade a 1.x database. It needs the Kysely adapter (next
+step):
 
 ```ts title="scripts/migrate.ts"
 import { migrate } from "@dimah-s3/db/cli";
@@ -64,7 +52,8 @@ import { dimahS3Db } from "@/lib/dimah-s3-db";
 await migrate(dimahS3Db);
 ```
 
-`migrate` does not work on MySQL. Use `sql/mysql.sql` there.
+The [CLI](#cli) `migrate` command does the same. Its `generate` command
+writes the SQL instead, for a migration tool of your own.
 
 </Tab>
 </Tabs>
@@ -83,19 +72,18 @@ drizzle-orm 1.x is required (`1.0.0-rc.5` or later).
 import { DimahS3DB } from "@dimah-s3/db";
 import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
 import Database from "better-sqlite3";
-import { defineRelations } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3"; // or your driver
-import { dimahS3Tables } from "../db/schema";
+import { relations } from "../db/dimah-s3"; // written by `generate`
 
-export const db = drizzle({
-  client: new Database("local.db"),
-  relations: defineRelations({ ...dimahS3Tables }),
-});
+export const db = drizzle({ client: new Database("local.db"), relations });
 
 export const dimahS3Db = DimahS3DB.client(
   drizzleAdapter({ db, provider: "sqlite" }), // or "postgresql" | "mysql"
 );
 ```
+
+With tables of your own, build the relations from both:
+`defineRelations({ ...appTables, storageObject, storageFolder, private_dimah_s3_settings })`.
 
 </Tab>
 <Tab value="Prisma">
@@ -386,25 +374,37 @@ await s3.put(
 
 ## CLI
 
-`runCli` runs the FumaDB CLI against your client, for example to generate an
-ORM schema. Prefer `migrate(client)` to migrate: the CLI's `migrate` command
-jumps straight to the latest schema and skips the 2.1.0 indexes. Only
-`migrate:up`, one version at a time, runs them.
+`runCli` runs the FumaDB CLI for the `@dimah-s3/db` schema. `generate`
+writes the Drizzle tables or Prisma models for the client's adapter (with
+Kysely, the SQL that creates the tables), and `migrate` creates the tables
+with Kysely. Generating does not query the database:
 
-```ts title="scripts/db-cli.ts"
+```ts title="scripts/dimah-s3.ts"
 import { runCli } from "@dimah-s3/db/cli";
 import { dimahS3Db } from "@/lib/dimah-s3-db";
 
 await runCli(dimahS3Db);
 ```
 
-The shipped tables, models, and SQL files already include these indexes:
+```bash
+npx tsx scripts/dimah-s3.ts generate latest -o db/dimah-s3.ts
+npx tsx scripts/dimah-s3.ts migrate latest
+```
 
-| Index                               | Table            | Columns                                   |
-| ----------------------------------- | ---------------- | ----------------------------------------- |
-| `storage_object_scope_folder_idx`   | `storage_object` | `scope`, `status`, `folder`, `created_at` |
-| `storage_object_scope_updated_idx`  | `storage_object` | `scope`, `status`, `updated_at`           |
-| `storage_object_scope_filename_idx` | `storage_object` | `scope`, `status`, `filename`             |
-| `storage_object_scope_size_idx`     | `storage_object` | `scope`, `status`, `size`                 |
-| `storage_object_status_expires_idx` | `storage_object` | `status`, `expires_at`                    |
-| `storage_folder_scope_parent_idx`   | `storage_folder` | `scope`, `parent`                         |
+The schema declares these indexes, so `migrate`, `drizzle-kit`, and Prisma
+Migrate create them:
+
+| Index                                 | Table            | Columns                                      |
+| ------------------------------------- | ---------------- | -------------------------------------------- |
+| `storage_object_bucket_key_uk`        | `storage_object` | `bucket`, `key` (unique)                     |
+| `storage_object_scope_folder_idx`     | `storage_object` | `scope`, `status`, `folder_id`, `created_at` |
+| `storage_object_scope_updated_idx`    | `storage_object` | `scope`, `status`, `updated_at`              |
+| `storage_object_scope_filename_idx`   | `storage_object` | `scope`, `status`, `filename`                |
+| `storage_object_scope_size_idx`       | `storage_object` | `scope`, `status`, `size`                    |
+| `storage_object_status_expires_idx`   | `storage_object` | `status`, `expires_at`                       |
+| `storage_folder_scope_path_uk`        | `storage_folder` | `scope`, `path` (unique)                     |
+| `storage_folder_scope_parent_name_uk` | `storage_folder` | `scope`, `parent_id`, `name` (unique)        |
+
+On MySQL, `key` and `path` are indexed on their first 512 characters. Two
+keys in one bucket that share their first 512 characters count as the same
+key.

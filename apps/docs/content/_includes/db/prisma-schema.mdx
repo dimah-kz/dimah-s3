@@ -1,17 +1,31 @@
-The models ship in `prisma/dimah-s3.prisma`, with no generator or
-datasource. With a multi-file schema, copy the file into your schema folder.
-Otherwise, paste its models into `schema.prisma`.
+Generate the models with the package's CLI. Generating does not connect to
+the database, so the script only needs the provider:
+
+```ts title="scripts/dimah-s3.ts"
+import { DimahS3DB } from "@dimah-s3/db";
+import { prismaAdapter } from "@dimah-s3/db/adapters/prisma";
+import { runCli } from "@dimah-s3/db/cli";
+
+await runCli(
+  DimahS3DB.client(
+    prismaAdapter({ prisma: undefined, provider: "postgresql" }), // or "sqlite" | "mysql"
+  ),
+);
+```
 
 ```bash
-cp node_modules/@dimah-s3/db/prisma/dimah-s3.prisma prisma/schema/
+npx tsx scripts/dimah-s3.ts generate latest -o prisma/schema/dimah-s3.prisma
 npx prisma migrate dev --name dimah-s3
 ```
 
-Keep the model names `StorageObject`, `StorageFolder`, and
-`private_dimah_s3_settings`. The adapter calls them by name. The models
-declare the secondary indexes, so the migration creates them too.
+The file holds the models only, with no generator or datasource. Keep it in
+a multi-file schema folder, or paste its models into `schema.prisma`. Keep
+the model names `storageObject`, `storageFolder`, and
+`private_dimah_s3_settings`: the adapter calls them by name. The models
+declare the indexes and the MySQL prefix lengths, so the migration creates
+them too. Run `generate` again after you upgrade `@dimah-s3/db`.
 
-The models work as they are on PostgreSQL and SQLite. On MySQL, follow the
-header of the file: add `@db.VarChar(1024)` to `key`, `folder`, `path`, and
-`parent`, `@db.DateTime(3)` to the timestamps, and index prefixes such as
-`@@unique([bucket, key(length: 512)])`.
+Prisma has no collation attribute. On MySQL, create the migration with
+`--create-only` and add `COLLATE utf8mb4_bin` to the text columns, and
+`COLLATE utf8mb4_unicode_ci` to `filename`, before you apply it. Without
+that, keys compare by the database's default collation, which ignores case.

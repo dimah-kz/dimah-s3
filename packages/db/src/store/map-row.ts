@@ -3,12 +3,6 @@ import type {
   StorageObjectStatus,
 } from "@/types/storage-object";
 
-/**
- * A byte count as a driver returns it: a number, a bigint, or a string
- * (PostgreSQL int8).
- */
-type ByteCount = number | bigint | string | null;
-
 /** Raw `storage_object` row as the FumaDB ORM returns it. */
 export type StorageObjectRow = {
   id: string;
@@ -19,8 +13,8 @@ export type StorageObjectRow = {
   folderId: string | null;
   filename: string;
   contentType: string | null;
-  size: ByteCount;
-  declaredSize: ByteCount;
+  size: bigint | null;
+  declaredSize: bigint | null;
   eTag: string | null;
   status: string;
   s3Metadata: unknown;
@@ -35,7 +29,8 @@ export type StorageObjectRow = {
   deletedAt: Date | null;
 };
 
-function toNumber(value: ByteCount): number | null {
+/** Sizes are `bigint` columns. Every S3 object size fits a number. */
+function toNumber(value: bigint | null): number | null {
   return value === null ? null : Number(value);
 }
 

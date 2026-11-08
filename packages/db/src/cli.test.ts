@@ -5,13 +5,15 @@ import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import { migrate } from "./cli";
 import { DB_SCHEMA_VERSION, DimahS3DB } from "./fuma-db";
-import { PREDECESSOR_VERSION, schemaIndexes } from "./schema/schema";
+import { dbSchema } from "./schema/schema";
 import { createDbStore } from "./store/create-db-store";
 import { checkSchemaVersion } from "./store/schema-version";
 import { pgliteDialect } from "./test/databases";
 import { memoryDbClient } from "./test/fakes";
 
-const INDEX_NAMES = schemaIndexes.map((index) => index.name).sort();
+const INDEX_NAMES = Object.values(dbSchema.tables)
+  .flatMap((table) => table.getIndexes().map((index) => index.name))
+  .sort();
 
 describe("migrate", () => {
   const cleanups: (() => Promise<void>)[] = [];
@@ -75,13 +77,10 @@ describe("migrate", () => {
       expect(await indexes()).toEqual(INDEX_NAMES);
     });
 
-    it("finishes a migration that stopped before the indexes", async () => {
+    it("creates the same indexes as the FumaDB CLI's migrate", async () => {
       const { client, indexes } = connect();
-      await (
-        await client.createMigrator().migrateTo(PREDECESSOR_VERSION)
-      ).execute();
 
-      await migrate(client);
+      await (await client.createMigrator().migrateToLatest()).execute();
 
       await expect(client.version()).resolves.toBe(DB_SCHEMA_VERSION);
       expect(await indexes()).toEqual(INDEX_NAMES);
@@ -105,7 +104,7 @@ describe("migrate", () => {
     );
   });
 
-  it("stores SQLite sizes as numbers, which sort with each other", async () => {
+  it("stores SQLite sizes as integers, which sort by value", async () => {
     const { database, client } = sqlite();
     await migrate(client);
     const objects = createDbStore(client).objects;
@@ -117,24 +116,24 @@ describe("migrate", () => {
     };
     await client.orm(DB_SCHEMA_VERSION).create("storageObject", {
       ...row,
-      key: "users/1/a.txt",
-      filename: "a.txt",
-      size: 42,
+      key: "users/1/new.txt",
+      filename: "new.txt",
+      size: 5497558138880n,
     });
     await client.orm(DB_SCHEMA_VERSION).create("storageObject", {
       ...row,
-      key: "users/1/new.txt",
-      filename: "new.txt",
-      size: 5497558138880,
+      key: "users/1/a.txt",
+      filename: "a.txt",
+      size: 42n,
     });
 
     expect(
       database
         .prepare(
-          `SELECT count(*) AS "blobs" FROM "storage_object" WHERE typeof("size") = 'blob' OR typeof("declared_size") = 'blob'`,
+          `SELECT DISTINCT typeof("size") AS "type" FROM "storage_object"`,
         )
-        .get(),
-    ).toEqual({ blobs: 0 });
+        .all(),
+    ).toEqual([{ type: "integer" }]);
     const page = await objects.list({
       scope: "user:1",
       sort: { field: "size", direction: "asc" },

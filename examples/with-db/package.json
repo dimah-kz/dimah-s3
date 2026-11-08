@@ -6,6 +6,7 @@
   "scripts": {
     "build": "next build",
     "check-types": "next typegen && tsc --noEmit",
+    "db:generate": "node --import tsx scripts/dimah-s3.mts generate latest -o db/dimah-s3.ts",
     "db:purge": "node --import tsx --env-file-if-exists=.env scripts/purge.mts",
     "db:push": "drizzle-kit push",
     "dev": "next dev",
@@ -13,7 +14,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1162.0",
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@base-ui/react": "^1.9.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/db": "workspace:*",
@@ -21,12 +22,11 @@
     "@dimah-s3/server": "workspace:*",
     "@dimah-s3/ui": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
-    "@paralleldrive/cuid2": "^3.3.0",
     "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "drizzle-orm": "1.0.0-rc.5",
-    "lucide-react": "^1.69.0",
+    "lucide-react": "^1.70.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",
     "react": "catalog:",

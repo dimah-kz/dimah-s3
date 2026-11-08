@@ -11,7 +11,7 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
     folderId: "docs",
     filename: "a.txt",
     contentType: "text/plain",
-    size: 10,
+    size: 10n,
     declaredSize: null,
     eTag: "abc",
     status: "active",
@@ -30,12 +30,10 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
 }
 
 describe("mapStorageObjectRow", () => {
-  it.each([
-    ["a number", 5497558138880],
-    ["a bigint", 5497558138880n],
-    ["an int8 string", "5497558138880"],
-  ])("reads a size given as %s", (_, size) => {
-    const mapped = mapStorageObjectRow(row({ size, declaredSize: size }));
+  it("reads the bigint sizes as numbers", () => {
+    const mapped = mapStorageObjectRow(
+      row({ size: 5497558138880n, declaredSize: 5497558138880n }),
+    );
     expect(mapped.size).toBe(5497558138880);
     expect(mapped.declaredSize).toBe(5497558138880);
   });

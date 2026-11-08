@@ -530,7 +530,8 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await insertObject(client(), {
         key: "overwriting",
         uploadToken: "t-live",
-        expiresAt: inAMinute(),
+        // After `live`, so the two never tie and fall back to random ids.
+        expiresAt: new Date(Date.now() + 2 * MINUTE),
       });
     }
 

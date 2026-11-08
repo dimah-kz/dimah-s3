@@ -356,6 +356,16 @@ function filterConditions(
  */
 type ListSegment = { nulls: boolean; after?: ListCursor };
 
+/** A byte count as the `bigint` columns store it. */
+function toByteCount(value: number | null | undefined): bigint | null {
+  return value == null ? null : BigInt(value);
+}
+
+/** A cursor's sort value as its column compares it: sizes are `bigint`. */
+function toColumnValue(value: Date | number | string): Date | bigint | string {
+  return typeof value === "number" ? BigInt(value) : value;
+}
+
 /** Creates the `storage_object` store over `getOrm`. */
 export function createObjectStore<TAttributes = never>(
   getOrm: GetDbOrm,
@@ -413,13 +423,11 @@ export function createObjectStore<TAttributes = never>(
           } else {
             if (nullable) parts.push(b.isNotNull(field));
             if (position && position.value !== null) {
+              const value = toColumnValue(position.value);
               parts.push(
                 b.or(
-                  b(field, after, position.value),
-                  b.and(
-                    b(field, "=", position.value),
-                    b("id", after, position.id),
-                  ),
+                  b(field, after, value),
+                  b.and(b(field, "=", value), b("id", after, position.id)),
                 ),
               );
             }
@@ -528,7 +536,7 @@ export function createObjectStore<TAttributes = never>(
       const upload = {
         uploadId: input.uploadId ?? null,
         uploadToken: input.uploadToken,
-        declaredSize: input.declaredSize ?? null,
+        declaredSize: toByteCount(input.declaredSize),
         expiresAt: input.expiresAt,
       };
       const now = new Date();
@@ -602,7 +610,7 @@ export function createObjectStore<TAttributes = never>(
         where: (b) => b.and(byUpload(b, input), uploading(b)),
         set: {
           status: "active",
-          size: input.size,
+          size: BigInt(input.size),
           declaredSize: null,
           eTag: input.eTag ?? null,
           ...(input.contentType !== undefined && {

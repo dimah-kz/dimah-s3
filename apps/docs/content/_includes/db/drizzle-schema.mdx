@@ -1,34 +1,31 @@
-Copy the schema for your database into the app. The tables are then yours:
-add columns next to the ones in the file. Keep the table names, the column
-names, and the `dimahS3Tables` keys. The adapter finds the tables by those
-keys. A column you add must be nullable or have a default, because the
-plugin does not read or write it.
+Generate the tables with the package's CLI. Generating does not connect to
+the database, so the script only needs the dialect:
 
-The file needs `drizzle-orm` and `@paralleldrive/cuid2`.
+```ts title="scripts/dimah-s3.ts"
+import { DimahS3DB } from "@dimah-s3/db";
+import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
+import { runCli } from "@dimah-s3/db/cli";
+
+await runCli(
+  DimahS3DB.client(
+    drizzleAdapter({ db: undefined, provider: "sqlite" }), // or "postgresql" | "mysql"
+  ),
+);
+```
 
 ```bash
-pnpm add @paralleldrive/cuid2
-cp node_modules/@dimah-s3/db/src/drizzle/sqlite.ts db/schema.ts
-# or src/drizzle/pg.ts, src/drizzle/mysql.ts
+npx tsx scripts/dimah-s3.ts generate latest -o db/dimah-s3.ts
 npx drizzle-kit push
 ```
 
-Pass `dimahS3Tables` from that file to `defineRelations`. Add your own tables
-next to the spread.
+The file exports `storageObject`, `storageFolder`,
+`private_dimah_s3_settings`, and `relations`. Keep the table names, the
+column names, and those keys: the adapter finds the tables by them. The
+tables declare the indexes, and on MySQL the prefix lengths and collations
+(`utf8mb4_bin`, so keys and folders compare byte for byte, and
+`utf8mb4_unicode_ci` on `filename`, so search ignores case), so
+`drizzle-kit` creates them too.
 
-The tables carry the secondary indexes, so `drizzle-kit` creates those too.
-On MySQL, the tables set the same collations as `sql/mysql.sql`:
-`utf8mb4_bin`, so keys and folders compare byte for byte, and
-`utf8mb4_unicode_ci` on `filename`, so search ignores case.
-
-### Import the tables
-
-Leave the tables as published and re-export them. `drizzle-kit` follows the
-import, and a later push drops a column that is not part of it.
-
-```ts title="db/schema.ts"
-import { dimahS3Tables } from "@dimah-s3/db/drizzle/sqlite"; // or /pg, /mysql
-
-export const { storageObject, storageFolder, private_dimah_s3_settings } =
-  dimahS3Tables;
-```
+Run `generate` again after you upgrade `@dimah-s3/db`. That overwrites the
+file. A column you add to it must be nullable or have a default, because
+the plugin does not read or write it.

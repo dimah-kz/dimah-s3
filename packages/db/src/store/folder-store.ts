@@ -71,13 +71,23 @@ export type StorageFolderStore = {
   retain: (folder: StorageFolder) => Promise<void>;
 };
 
-/** A unique-constraint failure from PostgreSQL, SQLite, MySQL, or the memory fake. */
+/**
+ * A unique-constraint failure from PostgreSQL, SQLite, MySQL, Prisma, or the
+ * memory fake. FumaDB passes the driver's error through, and Drizzle wraps it
+ * in `cause`.
+ */
 function isUniqueViolation(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const code = "code" in error ? String(error.code) : "";
-  if (code === "23505" || code === "ER_DUP_ENTRY") return true;
-  const message = error instanceof Error ? error.message : "";
-  return /unique/i.test(message);
+  for (let current = error; typeof current === "object" && current !== null;) {
+    const code = "code" in current ? String(current.code) : "";
+    if (code === "23505" || code === "ER_DUP_ENTRY" || code === "P2002") {
+      return true;
+    }
+    if (current instanceof Error && /unique/i.test(current.message)) {
+      return true;
+    }
+    current = "cause" in current ? current.cause : undefined;
+  }
+  return false;
 }
 
 /** `""` is how the root is stored. `null` is how the stores return it. */

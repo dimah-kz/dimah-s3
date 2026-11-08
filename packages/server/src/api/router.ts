@@ -81,7 +81,14 @@ async function capRequestBody(
     }
     chunks.push(value);
   }
-  return new Request(request, { body: new Blob(chunks) });
+  // Copy the parts, not the request: `new Request(request)` reads private
+  // fields that a Proxy (as Next.js route handlers pass) does not carry.
+  return new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: new Blob(chunks),
+    signal: request.signal,
+  });
 }
 
 /** better-call answers a path no endpoint serves with an empty 404. */

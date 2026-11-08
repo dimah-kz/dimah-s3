@@ -1,37 +1,30 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import Database from "better-sqlite3";
 import { kyselyAdapter } from "fumadb/adapters/kysely";
 import {
-  CompiledQuery,
+  DummyDriver,
   Kysely,
-  PostgresAdapter,
-  PostgresIntrospector,
-  PostgresQueryCompiler,
+  MysqlAdapter,
+  MysqlIntrospector,
+  MysqlQueryCompiler,
   SqliteDialect,
-  type DatabaseConnection,
-  type Dialect,
 } from "kysely";
 import { describe, expect, it } from "vitest";
 import { migrate } from "@/cli";
 import { DB_SCHEMA_VERSION, DimahS3DB } from "@/fuma-db";
-import { dbSchema, PREDECESSOR_VERSION, schemaIndexes } from "./schema";
+import { pgliteDialect } from "@/test/databases";
+import { dbSchema } from "./schema";
 
-const SQL_DIR = join(import.meta.dirname, "../../sql");
 const DEFINITIONS = {
   storage_object: dbSchema.tables.storageObject,
   storage_folder: dbSchema.tables.storageFolder,
 };
 const TABLES = ["storage_object", "storage_folder"] as const;
 
-function readSql(path: string): string {
-  return readFileSync(join(SQL_DIR, path), "utf8");
-}
-
+type Index = { name: string; unique: boolean; columns: string[] };
 type Shape = {
-  columns: { name: string; nullable: boolean; type?: string }[];
-  indexes: { name: string; unique: boolean; columns: string[] }[];
+  columns: { name: string; nullable: boolean }[];
+  indexes: Index[];
 };
 
 const byName = (a: { name: string }, b: { name: string }) =>
@@ -41,16 +34,11 @@ function columnList(entries: [name: string, nullable: boolean][]) {
   return entries.map(([name, nullable]) => ({ name, nullable })).sort(byName);
 }
 
-function withoutTypes(shape: Shape): Shape {
-  return {
-    ...shape,
-    columns: shape.columns.map(({ name, nullable }) => ({ name, nullable })),
-  };
-}
-
 /** Columns and indexes schema 2.1.0 declares for a SQL table. */
 function expectedShape(table: (typeof TABLES)[number]): Shape {
   const definition = DEFINITIONS[table];
+  const sqlNames = (columns: { names: { sql: string } }[]) =>
+    columns.map((column) => column.names.sql);
   return {
     columns: Object.values(definition.columns)
       .map((column) => ({
@@ -62,31 +50,24 @@ function expectedShape(table: (typeof TABLES)[number]): Shape {
       ...definition.getUniqueConstraints().map((constraint) => ({
         name: constraint.name,
         unique: true,
-        columns: constraint.columns.map((column) => column.names.sql),
+        columns: sqlNames(constraint.columns),
       })),
-      ...schemaIndexes
-        .filter((index) => index.table === table)
-        .map((index) => ({
-          name: index.name,
-          unique: false,
-          columns: [...index.columns],
-        })),
+      ...definition.getIndexes().map((index) => ({
+        name: index.name,
+        unique: false,
+        columns: sqlNames(index.columns),
+      })),
     ].sort(byName),
   };
 }
 
-function sqliteShape(db: Database.Database, table: string): Shape {
+function sqliteShape(db: Database.Database, table: string) {
   const columns = db
     .prepare<
       [string],
       { name: string; type: string; notnull: number; pk: number }
     >(`SELECT "name", "type", "notnull", "pk" FROM pragma_table_info(?)`)
-    .all(table)
-    .map((column) => ({
-      name: column.name,
-      nullable: column.notnull === 0 && column.pk === 0,
-      type: column.type.toLowerCase(),
-    }));
+    .all(table);
   const indexes = db
     .prepare<[string], { name: string; unique: number }>(
       `SELECT "name", "unique" FROM pragma_index_list(?) WHERE "origin" != 'pk'`,
@@ -102,24 +83,35 @@ function sqliteShape(db: Database.Database, table: string): Shape {
         .all(index.name)
         .map((column) => column.name),
     }));
-  return { columns: columns.sort(byName), indexes: indexes.sort(byName) };
+  return {
+    shape: {
+      columns: columns
+        .map((column) => ({
+          name: column.name,
+          nullable: column.notnull === 0 && column.pk === 0,
+        }))
+        .sort(byName),
+      indexes: indexes.sort(byName),
+    } satisfies Shape,
+    types: Object.fromEntries(
+      columns.map((column) => [column.name, column.type.toLowerCase()]),
+    ),
+  };
 }
 
-async function pgShape(pg: PGlite, table: string): Promise<Shape> {
+async function pgShape(pg: PGlite, table: string) {
   const columns = await pg.query<{
     name: string;
     nullable: string;
     type: string;
+    length: number | null;
   }>(
-    `SELECT "column_name" AS "name", "is_nullable" AS "nullable", "data_type" AS "type"
+    `SELECT "column_name" AS "name", "is_nullable" AS "nullable", "data_type" AS "type",
+       "character_maximum_length" AS "length"
      FROM "information_schema"."columns" WHERE "table_name" = $1`,
     [table],
   );
-  const indexes = await pg.query<{
-    name: string;
-    unique: boolean;
-    columns: string[];
-  }>(
+  const indexes = await pg.query<Index>(
     `SELECT "i"."relname" AS "name", "x"."indisunique" AS "unique",
        array_agg("a"."attname" ORDER BY "k"."ord")::text[] AS "columns"
      FROM "pg_index" "x"
@@ -132,89 +124,42 @@ async function pgShape(pg: PGlite, table: string): Promise<Shape> {
     [table],
   );
   return {
-    columns: columns.rows
-      .map((column) => ({
-        name: column.name,
-        nullable: column.nullable === "YES",
-        type: column.type,
-      }))
-      .sort(byName),
-    indexes: indexes.rows.sort(byName),
+    shape: {
+      columns: columns.rows
+        .map((column) => ({
+          name: column.name,
+          nullable: column.nullable === "YES",
+        }))
+        .sort(byName),
+      indexes: indexes.rows.sort(byName),
+    } satisfies Shape,
+    types: Object.fromEntries(
+      columns.rows.map((column) => [
+        column.name,
+        column.length === null
+          ? column.type
+          : `${column.type}(${column.length})`,
+      ]),
+    ),
   };
 }
 
-/** Reads `CREATE TABLE` blocks of the MySQL file. Prefix lengths are dropped. */
-function mysqlShape(sql: string, table: string): Shape {
-  const body = new RegExp(
-    `CREATE TABLE \`${table}\` \\(\\n([\\s\\S]*?)\\n\\)`,
-  ).exec(sql)?.[1];
-  if (!body) throw new Error(`No CREATE TABLE for ${table}`);
-  const shape: Shape = { columns: [], indexes: [] };
-  for (const line of body.split("\n").map((item) => item.trim())) {
-    const column = /^`(\w+)` /.exec(line);
-    const index = /^(UNIQUE )?KEY `(\w+)` \((.+)\),?$/.exec(line);
-    if (column) {
-      const nullable = !line.includes("NOT NULL") && column[1] !== "id";
-      shape.columns.push({ name: column[1], nullable });
-    } else if (index) {
-      shape.indexes.push({
-        name: index[2],
-        unique: index[1] !== undefined,
-        columns: index[3]
-          .split(", ")
-          .map((item) => item.replaceAll("`", "").replace(/\(\d+\)$/, "")),
-      });
-    }
-  }
-  shape.columns.sort(byName);
-  shape.indexes.sort(byName);
-  return shape;
-}
-
-/** A Kysely dialect over one PGlite instance. */
-function pgliteDialect(pg: PGlite): Dialect {
-  const connection: DatabaseConnection = {
-    async executeQuery<R>(query: CompiledQuery) {
-      const result = await pg.query<R>(query.sql, [...query.parameters]);
-      return {
-        rows: result.rows,
-        numAffectedRows:
-          result.affectedRows === undefined
-            ? undefined
-            : BigInt(result.affectedRows),
-      };
+/**
+ * The SQL `migrate` runs on an empty MySQL database. `DummyDriver` answers
+ * every query with no rows, so the migrator sees no tables and no version.
+ */
+async function mysqlMigrationSql(): Promise<string> {
+  const db = new Kysely<object>({
+    dialect: {
+      createAdapter: () => new MysqlAdapter(),
+      createDriver: () => new DummyDriver(),
+      createIntrospector: (kysely) => new MysqlIntrospector(kysely),
+      createQueryCompiler: () => new MysqlQueryCompiler(),
     },
-    streamQuery() {
-      throw new Error("PGlite dialect does not stream");
-    },
-  };
-  const run = async (sql: string) => {
-    await connection.executeQuery(CompiledQuery.raw(sql));
-  };
-  return {
-    createAdapter: () => new PostgresAdapter(),
-    createDriver: () => ({
-      init: async () => {},
-      acquireConnection: async () => connection,
-      beginTransaction: () => run("begin"),
-      commitTransaction: () => run("commit"),
-      rollbackTransaction: () => run("rollback"),
-      releaseConnection: async () => {},
-      destroy: async () => {},
-    }),
-    createIntrospector: (db) => new PostgresIntrospector(db),
-    createQueryCompiler: () => new PostgresQueryCompiler(),
-  };
-}
-
-function sqliteClient(database: Database.Database) {
-  const db = new Kysely<object>({ dialect: new SqliteDialect({ database }) });
-  return DimahS3DB.client(kyselyAdapter({ db, provider: "sqlite" }));
-}
-
-function pgClient(pg: PGlite) {
-  const db = new Kysely<object>({ dialect: pgliteDialect(pg) });
-  return DimahS3DB.client(kyselyAdapter({ db, provider: "postgresql" }));
+  });
+  const client = DimahS3DB.client(kyselyAdapter({ db, provider: "mysql" }));
+  const plan = await client.createMigrator().migrateToLatest();
+  return plan.getSQL?.() ?? "";
 }
 
 const sampleObject = {
@@ -225,20 +170,17 @@ const sampleObject = {
   folderId: "folder-1",
   filename: "a.txt",
   status: "active",
-  size: 5497558138880,
+  size: 5497558138880n,
   s3Metadata: { "x-amz-meta-a": "1" },
   attributes: { starred: true },
   uploadToken: "token",
 };
 
 describe("schema 2.1.0", () => {
-  it("is the schema the stores read", () => {
-    const client = sqliteClient(new Database(":memory:"));
-    expect(client.schemas.map((schema) => schema.version)).toEqual([
-      PREDECESSOR_VERSION,
-      DB_SCHEMA_VERSION,
+  it("is the only schema", () => {
+    expect(DimahS3DB.client(kyselyAdapter({} as never)).schemas).toEqual([
+      dbSchema,
     ]);
-    expect(Object.keys(client.schemas[0]?.tables ?? {})).toEqual([]);
     expect(DB_SCHEMA_VERSION).toBe("2.1.0");
   });
 
@@ -281,90 +223,181 @@ describe("schema 2.1.0", () => {
       ]),
     );
   });
-});
 
-describe("sql/sqlite.sql", () => {
-  function create() {
-    const database = new Database(":memory:");
-    database.exec(readSql("sqlite.sql"));
-    return database;
-  }
-
-  it.each(TABLES)("creates %s as declared", (table) => {
-    expect(withoutTypes(sqliteShape(create(), table))).toEqual(
-      expectedShape(table),
+  it("declares the spec indexes", () => {
+    expect(expectedShape("storage_object").indexes).toEqual(
+      [
+        {
+          name: "storage_object_bucket_key_uk",
+          unique: true,
+          columns: ["bucket", "key"],
+        },
+        {
+          name: "storage_object_scope_folder_idx",
+          unique: false,
+          columns: ["scope", "status", "folder_id", "created_at"],
+        },
+        {
+          name: "storage_object_scope_updated_idx",
+          unique: false,
+          columns: ["scope", "status", "updated_at"],
+        },
+        {
+          name: "storage_object_scope_filename_idx",
+          unique: false,
+          columns: ["scope", "status", "filename"],
+        },
+        {
+          name: "storage_object_scope_size_idx",
+          unique: false,
+          columns: ["scope", "status", "size"],
+        },
+        {
+          name: "storage_object_status_expires_idx",
+          unique: false,
+          columns: ["status", "expires_at"],
+        },
+      ].sort(byName),
+    );
+    expect(expectedShape("storage_folder").indexes).toEqual(
+      [
+        {
+          name: "storage_folder_scope_path_uk",
+          unique: true,
+          columns: ["scope", "path"],
+        },
+        {
+          name: "storage_folder_scope_parent_name_uk",
+          unique: true,
+          columns: ["scope", "parent_id", "name"],
+        },
+      ].sort(byName),
     );
   });
-
-  it("stores sizes as INTEGER through the Kysely adapter", async () => {
-    const database = create();
-    const client = sqliteClient(database);
-    expect(await client.version()).toBe("2.1.0");
-
-    const created = await client
-      .orm("2.1.0")
-      .create("storageObject", sampleObject);
-    expect(created).toMatchObject({
-      ...sampleObject,
-      size: 5497558138880,
-      declaredSize: null,
-    });
-    expect(created.createdAt).toBeInstanceOf(Date);
-    expect(
-      database
-        .prepare(`SELECT typeof("size") AS "type" FROM "storage_object"`)
-        .get(),
-    ).toEqual({ type: "integer" });
-  });
 });
 
-describe("sql/pg.sql", () => {
+describe("migrate() on SQLite", () => {
   async function create() {
-    const pg = new PGlite();
-    await pg.exec(readSql("pg.sql"));
-    return pg;
+    const database = new Database(":memory:");
+    const client = DimahS3DB.client(
+      kyselyAdapter({
+        db: new Kysely<object>({ dialect: new SqliteDialect({ database }) }),
+        provider: "sqlite",
+      }),
+    );
+    await migrate(client);
+    return { database, client };
   }
 
   it.each(TABLES)("creates %s as declared", async (table) => {
-    expect(withoutTypes(await pgShape(await create(), table))).toEqual(
-      expectedShape(table),
-    );
+    const { database } = await create();
+    expect(sqliteShape(database, table).shape).toEqual(expectedShape(table));
   });
 
-  it.each(TABLES)(
-    "matches the columns and indexes migrate() creates for %s",
-    async (table) => {
-      const fuma = new PGlite();
-      await migrate(pgClient(fuma));
-      expect(await pgShape(await create(), table)).toEqual(
-        await pgShape(fuma, table),
-      );
-    },
-  );
-
-  it("round-trips a row through the Kysely adapter", async () => {
-    const client = pgClient(await create());
-    expect(await client.version()).toBe("2.1.0");
-    const orm = client.orm("2.1.0");
-    const created = await orm.create("storageObject", sampleObject);
-    const found = await orm.findFirst("storageObject", {
-      where: (b) => b("id", "=", created.id),
+  it("stores sizes as integer, JSON as text, and dates as integer", async () => {
+    const { database } = await create();
+    expect(sqliteShape(database, "storage_object").types).toMatchObject({
+      size: "integer",
+      declared_size: "integer",
+      s3_metadata: "text",
+      created_at: "integer",
     });
-    expect(found).toMatchObject({ ...sampleObject, size: 5497558138880 });
+  });
+
+  it("round-trips a row", async () => {
+    const { database, client } = await create();
+    const orm = client.orm(DB_SCHEMA_VERSION);
+    const created = await orm.create("storageObject", sampleObject);
+    expect(
+      await orm.findFirst("storageObject", {
+        where: (b) => b("id", "=", created.id),
+      }),
+    ).toMatchObject({ ...sampleObject, declaredSize: null });
+    expect(
+      database
+        .prepare(
+          `SELECT typeof("size") AS "size", typeof("created_at") AS "createdAt" FROM "storage_object"`,
+        )
+        .get(),
+    ).toEqual({ size: "integer", createdAt: "integer" });
   });
 });
 
-describe("sql/mysql.sql", () => {
-  it.each(TABLES)("creates %s as declared", (table) => {
-    expect(mysqlShape(readSql("mysql.sql"), table)).toEqual(
-      expectedShape(table),
+describe("migrate() on PostgreSQL", () => {
+  async function create() {
+    const pg = new PGlite();
+    const client = DimahS3DB.client(
+      kyselyAdapter({
+        db: new Kysely<object>({ dialect: pgliteDialect(pg) }),
+        provider: "postgresql",
+      }),
+    );
+    await migrate(client);
+    return { pg, client };
+  }
+
+  it.each(TABLES)("creates %s as declared", async (table) => {
+    const { pg } = await create();
+    expect((await pgShape(pg, table)).shape).toEqual(expectedShape(table));
+  });
+
+  it("bounds text columns and keeps sizes as int8", async () => {
+    const { pg } = await create();
+    expect((await pgShape(pg, "storage_object")).types).toMatchObject({
+      key: "character varying(1024)",
+      scope: "character varying(255)",
+      status: "character varying(16)",
+      upload_token: "character varying(64)",
+      upload_id: "text",
+      size: "bigint",
+      s3_metadata: "json",
+      created_at: "timestamp without time zone",
+    });
+    expect((await pgShape(pg, "storage_folder")).types).toMatchObject({
+      path: "character varying(1024)",
+      parent_id: "character varying(255)",
+    });
+  });
+
+  it("round-trips a row", async () => {
+    const { client } = await create();
+    const orm = client.orm(DB_SCHEMA_VERSION);
+    const created = await orm.create("storageObject", sampleObject);
+    expect(
+      await orm.findFirst("storageObject", {
+        where: (b) => b("id", "=", created.id),
+      }),
+    ).toMatchObject(sampleObject);
+  });
+});
+
+describe("migrate() on MySQL", () => {
+  it("indexes long columns by prefix", async () => {
+    const sql = await mysqlMigrationSql();
+    expect(sql).toContain(
+      "create unique index `storage_object_bucket_key_uk` on `storage_object` (`bucket`, `key`(512))",
+    );
+    expect(sql).toContain(
+      "create unique index `storage_folder_scope_path_uk` on `storage_folder` (`scope`, `path`(512))",
+    );
+    expect(sql).toContain(
+      "create index `storage_object_scope_folder_idx` on `storage_object` (`scope`, `status`, `folder_id`, `created_at`)",
     );
   });
 
-  it("indexes long columns by prefix", () => {
-    const sql = readSql("mysql.sql");
-    expect(sql).toContain("(`bucket`, `key`(512))");
-    expect(sql).toContain("(`scope`, `status`, `folder_id`, `created_at`)");
-    expect(sql).toContain("(`scope`, `path`(512))");
+  it("compares keys byte for byte and file names case-insensitively", async () => {
+    const sql = await mysqlMigrationSql();
+    expect(sql).toContain("`key` varchar(1024) collate utf8mb4_bin not null");
+    expect(sql).toContain("`upload_id` text collate utf8mb4_bin");
+    expect(sql).toContain(
+      "`filename` varchar(255) collate utf8mb4_unicode_ci not null",
+    );
+  });
+
+  it("keeps milliseconds", async () => {
+    const sql = await mysqlMigrationSql();
+    expect(sql).toContain(
+      "`created_at` datetime(3) default CURRENT_TIMESTAMP(3) not null",
+    );
   });
 });

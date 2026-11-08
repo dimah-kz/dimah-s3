@@ -1,5 +1,5 @@
 /**
- * The FumaDB Kysely adapter. It can also migrate the schema:
+ * The FumaDB Kysely adapter. `migrate(client)` creates the schema through it:
  * `DimahS3DB.client(kyselyAdapter({ db, provider: "postgresql" }))`.
  */
 export { kyselyAdapter } from "fumadb/adapters/kysely";

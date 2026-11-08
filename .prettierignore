@@ -28,3 +28,6 @@ coverage/
 
 # Misc
 *.tsbuildinfo
+
+# Written by `pnpm db:generate` (FumaDB CLI)
+examples/with-db/db/dimah-s3.ts
