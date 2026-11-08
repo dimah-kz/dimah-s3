@@ -1,30 +1,26 @@
 import { createCli } from "fumadb/cli";
 import { DB_SCHEMA_VERSION, type DimahS3DbClient } from "./fuma-db";
-import { PREDECESSOR_VERSION } from "./schema/schema";
 
 declare const __DIMAH_S3_DB_VERSION__: string;
 
 /**
- * Versions `migrate` may continue from: an empty database, a migration that
- * stopped on the empty predecessor, or a database already at
- * {@link DB_SCHEMA_VERSION}.
- */
-const RESUMABLE = new Set<string>([PREDECESSOR_VERSION, DB_SCHEMA_VERSION]);
-
-/**
- * Runs the interactive FumaDB CLI: generate the ORM schema, or migrate when
- * the client uses the Kysely adapter. Prefer {@link migrate}. Only
- * `migrate:up`, one version at a time, runs the steps the schema needs,
- * including the indexes. The CLI `migrate` command jumps to the latest
- * schema and skips them.
+ * Runs the FumaDB CLI for the @dimah-s3/db schema. `generate` writes the
+ * Drizzle or Prisma schema for the client's adapter, and with Kysely, the SQL
+ * that creates the tables. `migrate` creates them with Kysely.
+ *
+ * Generating does not query the database, so the client can wrap an adapter
+ * that has no connection yet.
  *
  * ```ts
- * // scripts/db.ts
+ * // scripts/dimah-s3.mts
+ * import { DimahS3DB } from "@dimah-s3/db";
+ * import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
  * import { runCli } from "@dimah-s3/db/cli";
- * import { dimahS3Db } from "../lib/s3";
  *
- * await runCli(dimahS3Db);
+ * await runCli(DimahS3DB.client(drizzleAdapter({ db: undefined, provider: "postgresql" })));
  * ```
+ *
+ * `node scripts/dimah-s3.mts generate latest -o db/dimah-s3.ts`
  */
 export function runCli(client: DimahS3DbClient): Promise<void> {
   const { main } = createCli({
@@ -38,10 +34,11 @@ export function runCli(client: DimahS3DbClient): Promise<void> {
 }
 
 /**
- * Creates the schema this package reads, one version at a time, so the
- * schema's own steps run (the indexes among them). It needs the Kysely
- * adapter; with Drizzle or Prisma, use your ORM's migrations or the files
- * in `sql/`. It does not upgrade a database at another version.
+ * Creates the schema this package reads, with its indexes, on an empty
+ * database. It needs the Kysely adapter; with Drizzle or Prisma, generate the
+ * schema with {@link runCli} and apply it with your ORM. It does nothing on a
+ * database already at {@link DB_SCHEMA_VERSION}, and throws on a database at
+ * another version: this package does not upgrade one.
  *
  * ```ts
  * import { DimahS3DB } from "@dimah-s3/db";
@@ -58,13 +55,11 @@ export async function migrate(client: DimahS3DbClient): Promise<void> {
   } catch {
     version = undefined;
   }
-  if (version !== undefined && !RESUMABLE.has(version)) {
+  if (version === DB_SCHEMA_VERSION) return;
+  if (version !== undefined) {
     throw new Error(
       `[dimah-s3/db] The database is at schema ${version}, which this package does not upgrade. Create schema ${DB_SCHEMA_VERSION} on a new database.`,
     );
   }
-  const migrator = client.createMigrator();
-  for (let next = await migrator.next(); next; next = await migrator.next()) {
-    await (await migrator.up()).execute();
-  }
+  await (await client.createMigrator().migrateToLatest()).execute();
 }

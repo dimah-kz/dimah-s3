@@ -1,5 +1,8 @@
 import { PGlite, types } from "@electric-sql/pglite";
 import Database from "better-sqlite3";
+import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { drizzleAdapter } from "fumadb/adapters/drizzle";
 import { kyselyAdapter } from "fumadb/adapters/kysely";
 import {
   CompiledQuery,
@@ -16,6 +19,7 @@ import { migrate } from "@/cli";
 import { DB_SCHEMA_VERSION, DimahS3DB, type DimahS3DbClient } from "@/fuma-db";
 import type { StorageObject } from "@/types/storage-object";
 import { memoryDbClient } from "./fakes";
+import { importDrizzleSchema } from "./generated-schema";
 
 /** A fresh, migrated database for one test. */
 export type TestDatabase = {
@@ -76,9 +80,23 @@ async function migrated(
 }
 
 /**
+ * PGlite sends a Date as UTC but reads `timestamp` back as local time, which
+ * shifts every date by the machine's offset. Read it as UTC. Drizzle passes
+ * its own parsers, so this only changes the Kysely adapter.
+ */
+function utcPGlite() {
+  return new PGlite({
+    parsers: {
+      [types.TIMESTAMP]: (value) => new Date(`${value.replace(" ", "T")}Z`),
+    },
+  });
+}
+
+/**
  * The databases every store test runs against: the in-memory fake, SQLite
- * (better-sqlite3), and PostgreSQL (PGlite). The real ones are created by
- * `migrate()`, through the Kysely adapter.
+ * (better-sqlite3), and PostgreSQL (PGlite), through the Kysely adapter and
+ * through the Drizzle adapter. `migrate()` creates the real ones; the Drizzle
+ * clients use the schema `generate` writes.
  */
 export const testDatabases: readonly TestDatabaseFactory[] = [
   {
@@ -86,7 +104,7 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
     create: async () => ({ client: memoryDbClient(), close: async () => {} }),
   },
   {
-    name: "better-sqlite3",
+    name: "kysely + better-sqlite3",
     create: () =>
       migrated(
         new Kysely({
@@ -96,15 +114,9 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
       ),
   },
   {
-    name: "pglite",
+    name: "kysely + pglite",
     create: async () => {
-      // PGlite sends a Date as UTC but reads `timestamp` back as local time,
-      // which shifts every date by the machine's offset. Read it as UTC.
-      const pg = new PGlite({
-        parsers: {
-          [types.TIMESTAMP]: (value) => new Date(`${value.replace(" ", "T")}Z`),
-        },
-      });
+      const pg = utcPGlite();
       const database = await migrated(
         new Kysely({ dialect: pgliteDialect(pg) }),
         "postgresql",
@@ -115,6 +127,39 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
           await database.close();
           await pg.close();
         },
+      };
+    },
+  },
+  {
+    name: "drizzle + better-sqlite3",
+    create: async () => {
+      const sqlite = new Database(":memory:");
+      await migrated(
+        new Kysely({ dialect: new SqliteDialect({ database: sqlite }) }),
+        "sqlite",
+      );
+      const { relations } = await importDrizzleSchema("sqlite");
+      const db = drizzleSqlite({ client: sqlite, relations });
+      return {
+        client: DimahS3DB.client(drizzleAdapter({ db, provider: "sqlite" })),
+        close: async () => {
+          sqlite.close();
+        },
+      };
+    },
+  },
+  {
+    name: "drizzle + pglite",
+    create: async () => {
+      const pg = utcPGlite();
+      await migrated(new Kysely({ dialect: pgliteDialect(pg) }), "postgresql");
+      const { relations } = await importDrizzleSchema("postgresql");
+      const db = drizzlePglite({ client: pg, relations });
+      return {
+        client: DimahS3DB.client(
+          drizzleAdapter({ db, provider: "postgresql" }),
+        ),
+        close: () => pg.close(),
       };
     },
   },
@@ -154,12 +199,15 @@ export async function insertObject(
   client: DimahS3DbClient,
   values: Partial<StorageObject<unknown>> & { key: string },
 ) {
+  const { size, declaredSize, ...rest } = values;
   return client.orm(DB_SCHEMA_VERSION).create("storageObject", {
     scope: "user:1",
     bucket: "b",
     route: "uploads",
     filename: values.key,
     status: "active",
-    ...values,
+    ...rest,
+    ...(size != null && { size: BigInt(size) }),
+    ...(declaredSize != null && { declaredSize: BigInt(declaredSize) }),
   });
 }

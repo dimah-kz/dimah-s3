@@ -513,9 +513,6 @@ importers:
       '@fuma-translate/react':
         specifier: ^1.0.2
         version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@paralleldrive/cuid2':
-        specifier: ^3.3.0
-        version: 3.3.0
       better-sqlite3:
         specifier: ^13.0.3
         version: 13.0.3
@@ -772,9 +769,6 @@ importers:
       '@dimah-s3/core':
         specifier: workspace:*
         version: link:../core
-      '@paralleldrive/cuid2':
-        specifier: ^3.3.0
-        version: 3.3.0
       '@prisma/client':
         specifier: ^6.0.0 || ^7.0.0
         version: 7.10.1(typescript@7.0.2)

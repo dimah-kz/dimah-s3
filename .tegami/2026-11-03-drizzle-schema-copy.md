@@ -5,6 +5,6 @@ packages:
       - exit-prerelease(npm:@dimah-s3/db)
 ---
 
-### Copy the Drizzle schema into your app
+### Add columns to the Drizzle tables
 
-Copy `src/drizzle/sqlite.ts`, `pg.ts`, or `mysql.ts` from the package into your schema when you want to add columns. Keep the table and column names. Importing `dimahS3Tables` from `@dimah-s3/db/drizzle/*` still works when you leave the tables as they are.
+`runCli` → `generate` writes the Drizzle tables into your app, so you can add columns to them. Keep the table and column names. A column you add must be nullable or have a default, because the plugin does not read or write it. Generating again overwrites the file.

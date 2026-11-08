@@ -10,15 +10,24 @@ see [Upgrade to 2.0 beta](/docs/migration-2-0).
 
 ## A new database
 
-Create the tables from [Setup](/docs/db/setup): the SQL file, the Drizzle
-tables, the Prisma schema, or `migrate(client)` with Kysely. Point those
-tools at a new database. An ORM diff against an older database can drop
-columns.
+Create the tables from [Setup](/docs/db/setup): generate the Drizzle tables
+or the Prisma models with `runCli`, or call `migrate(client)` with Kysely.
+Point those tools at a new database. An ORM diff against an older database
+can drop columns.
 
 A database from an earlier 2.0 beta, including one already at `2.0.0`, is
 not migrated. Create schema `2.1.0` on a new database. Folders are rows
 with ids: an object stores `folderId`, and renaming or moving a folder
 rewrites cached paths without rewriting object rows.
+
+## From the shipped schema files
+
+Earlier betas shipped `@dimah-s3/db/drizzle/<dialect>`, `prisma/`, and
+`sql/`. Generate the schema with `runCli` instead, and point your ORM at
+the generated file. A database created from the shipped files stays at
+`2.1.0`. `drizzle-kit` or Prisma Migrate then reports small changes, such
+as `varchar` lengths on PostgreSQL text columns and the SQLite timestamp
+default. They do not change what the plugin reads. Apply them.
 
 ## Check
 

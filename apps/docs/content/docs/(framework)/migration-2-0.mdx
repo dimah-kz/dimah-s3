@@ -507,8 +507,9 @@ other version throws.
 
 - Create the tables from [Setup](/docs/db/setup). With Kysely, call
   `migrate(client)` from `@dimah-s3/db/cli` on an empty database.
-- Remove `fumadb` and the `fumadb/cuid` path alias from your app. Import
-  tables from `@dimah-s3/db/drizzle/<dialect>` and adapters from
+- Remove `fumadb` and the `fumadb/cuid` path alias from your app.
+  Generate the Drizzle tables or Prisma models with `runCli` from
+  `@dimah-s3/db/cli`, and import adapters from
   `@dimah-s3/db/adapters/<orm>`.
 - With Drizzle, upgrade `drizzle-orm` to `1.0.0-rc.5` or later first.
   0.44 and 0.45 are no longer supported. See [Setup](/docs/db/setup).

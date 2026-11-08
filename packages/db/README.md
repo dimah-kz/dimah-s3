@@ -12,16 +12,25 @@ Optional database plugin for [dimah-s3](https://github.com/dimah-kz/dimah-s3). I
 pnpm add @dimah-s3/db@beta @dimah-s3/server@beta
 ```
 
-You do not install `fumadb`: the adapters ship from `@dimah-s3/db/adapters/*`.
+You do not install `fumadb`: the adapters ship from `@dimah-s3/db/adapters/*`, and the FumaDB CLI from `@dimah-s3/db/cli`.
 
 ## Tables
 
-Create the schema with one of:
+`runCli(client)` from `@dimah-s3/db/cli` runs the FumaDB CLI for this schema:
 
-- Drizzle: copy `src/drizzle/{sqlite,pg,mysql}.ts` from the package into your schema so you can add columns. Or import `dimahS3Tables` from `@dimah-s3/db/drizzle/{sqlite,pg,mysql}` when the tables stay as they are.
-- Prisma: copy [`prisma/dimah-s3.prisma`](./prisma/dimah-s3.prisma) into your schema.
-- Plain SQL: run [`sql/<dialect>.sql`](./sql).
-- Kysely: call `migrate(client)` from `@dimah-s3/db/cli`. It creates the tables and the indexes. The FumaDB CLI from `runCli` does the same only with `migrate:up`; its `migrate` command jumps straight to the latest schema and skips the indexes.
+- Drizzle or Prisma: `generate` writes the tables or models, with the indexes and the MySQL prefix lengths and collations. Apply them with `drizzle-kit` or Prisma Migrate. Generating does not connect to the database.
+- Kysely: `migrate` creates the tables and the indexes, and so does `migrate(client)`.
+
+```ts
+// scripts/dimah-s3.ts — npx tsx scripts/dimah-s3.ts generate latest -o db/dimah-s3.ts
+import { DimahS3DB } from "@dimah-s3/db";
+import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
+import { runCli } from "@dimah-s3/db/cli";
+
+await runCli(
+  DimahS3DB.client(drizzleAdapter({ db: undefined, provider: "sqlite" })),
+);
+```
 
 The package reads schema `2.1.0` and does not upgrade a 1.x or `2.0.0` database: create the tables on a new database. A database at another schema version throws on the first query. Call `s3.db.checkSchema()` at startup to fail fast.
 
