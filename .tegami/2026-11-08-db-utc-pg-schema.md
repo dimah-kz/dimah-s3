@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/db": minor
+  "@dimah-s3/db":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/db)
 ---
 
 ### UTC timestamps and PostgreSQL schemas
