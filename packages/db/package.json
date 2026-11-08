@@ -86,11 +86,11 @@
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
     "@paralleldrive/cuid2": "^3.3.0",
-    "fumadb": "~0.6.0",
+    "fumadb": "~0.7.0",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1162.0",
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
     "@electric-sql/pglite": "^0.5.15",
