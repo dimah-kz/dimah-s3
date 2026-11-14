@@ -19,7 +19,7 @@
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
-    "lucide-react": "^1.70.0",
+    "lucide-react": "^1.73.0",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -34,7 +34,7 @@
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "eslint": "catalog:",
-    "postcss": "^8.5.32",
+    "postcss": "^8.5.33",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"
   },
