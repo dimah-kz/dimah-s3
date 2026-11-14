@@ -1,7 +1,11 @@
 ---
 packages:
-  "@dimah-s3/server": patch
-  "@dimah-s3/cli": patch
+  "@dimah-s3/server":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/server)
+  "@dimah-s3/cli":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/cli)
 ---
 
 ### Current dependencies
