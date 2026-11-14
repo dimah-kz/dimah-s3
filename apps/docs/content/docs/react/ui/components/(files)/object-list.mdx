@@ -17,9 +17,11 @@ does not fetch and does not call the hooks you give it.
 
 The preview lists records in memory with `memoryObjectSource`. Six files
 load at a time. Search, sort, switch to the grid, select rows with
-Shift-click or Ctrl+A, or drop a file onto the frame. A row's menu
-downloads, renames, or deletes it. New folder is in the header. Swap the
-source for your API, or for `dbObjectSource`, without changing the component.
+Shift-click or Ctrl+A, or drop a file onto the frame. A search also looks in
+the folders below the open one, and each result says where it lives. A
+row's menu downloads, renames, or deletes it. New folder is in the header.
+Swap the source for your API, or for `dbObjectSource`, without changing the
+component.
 
 ## Install
 
@@ -97,8 +99,8 @@ export function Library({ source }: { source: ObjectListSource<LibraryFile> }) {
 
 Rows read `list.getFile(item)`: the name, object key, size, type, date, and
 thumbnail you return from `getFile` on the source. The second line shows the
-size and the date. A file with `previewUrl` shows the image; the name stays
-the accessible label.
+size and the date, after the location of a search result. A file with
+`previewUrl` shows the image; the name stays the accessible label.
 
 The list is the [`Upload`](/docs/react/ui/components/upload),
 [`Download`](/docs/react/ui/components/download), and
@@ -144,22 +146,24 @@ import {
 </ObjectList>;
 ```
 
-| Part                     | Renders                                                                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `ObjectListHeader`       | Select-all, the path, a reload spinner, New folder, and `children`. The selection bar while selecting                     |
-| `ObjectListBreadcrumb`   | The path. It shortens to fit, and a menu lists the folders above the open one                                             |
-| `ObjectListSearch`       | Debounced search for `list.search`. In the header, a button that opens a field across the bar                             |
-| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                                                |
-| `ObjectListViewToggle`   | List and grid buttons                                                                                                     |
-| `ObjectListSelectAll`    | The select-all checkbox                                                                                                   |
-| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                                                  |
-| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                                         |
-| `ObjectListNewFolder`    | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one |
-| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                                              |
-| `ObjectListUploadStatus` | Upload progress and errors                                                                                                |
-| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                        |
-| `ObjectListEmpty`        | The empty state, with your own text or a call to action                                                                   |
-| `ObjectListItemMenu`     | Download, Copy link, Rename, your actions, and Delete for a file. Upload to this folder and Rename for a folder           |
+| Part                     | Renders                                                                                                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ObjectListHeader`       | Select-all, the path, a reload spinner, New folder, and `children`. The search bar while searching, and the selection bar while selecting                |
+| `ObjectListBreadcrumb`   | The path. It shortens to fit, and a menu lists the folders above the open one                                                                            |
+| `ObjectListSearch`       | Debounced search for `list.search`. In the header, a button that opens a field across the bar                                                            |
+| `ObjectListSearchBar`    | Where a search looks, with a choice between the open folder and the root, and the result count. `ObjectListHeader` already has one                       |
+| `ObjectListLocation`     | Where a search result lives: `Docs › 2024`. A result's default second line starts with it                                                                |
+| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                                                                               |
+| `ObjectListViewToggle`   | List and grid buttons                                                                                                                                    |
+| `ObjectListSelectAll`    | The select-all checkbox                                                                                                                                  |
+| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                                                                                 |
+| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                                                                        |
+| `ObjectListNewFolder`    | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one                                |
+| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                                                                             |
+| `ObjectListUploadStatus` | Upload progress and errors                                                                                                                               |
+| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                                                       |
+| `ObjectListEmpty`        | The empty state, with your own text or a call to action. While searching, Search everywhere and Clear search                                             |
+| `ObjectListItemMenu`     | Download, Copy link, Rename, your actions, and Delete for a file. Upload to this folder and Rename for a folder. Show in folder first on a search result |
 
 ## Header
 
@@ -173,10 +177,16 @@ a page:
   above the open one.
 - Under 36rem, the labels of New folder, Sort, bulk Delete, and the default
   `UploadTrigger` hide, leaving square icon buttons with the same names.
-- `ObjectListSearch` is a search button. A click opens a field across the
-  whole bar; it stays open while it has text. Escape clears the text, then
-  closes it, and Close search does both. Pass `collapsible={false}` to keep
-  the field in the bar.
+- `ObjectListSearch` is a search button. A click, or `/` from the list,
+  opens a field across the whole bar; it stays open while it has text. Its
+  placeholder names where it looks: "Search files", `Search in “Docs”`, or
+  "Search all files". A spinner shows while results load, and ArrowDown
+  moves to the first result. Escape clears the text, then closes it, and
+  Close search does both. Pass `collapsible={false}` to keep the field in
+  the bar.
+- While a search is on, `ObjectListSearchBar` sits under the bar: where the
+  search looks and how many results it found. Pass `searchBar={false}` to
+  hide it.
 - New folder opens the same way. A click replaces the bar with the name
   field, the create button, and Cancel. Enter creates the folder; Escape or
   Cancel closes the field and brings the path and the other controls back.
@@ -216,8 +226,8 @@ Change part of every entry with a `render*` prop. Each receives the entry:
 ```
 
 - `onOpenItem` runs when a file is clicked or activated with Enter. Folders always open in place.
-- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, `delete`, or `renameFile`, and folders get it when files can be uploaded into them or the source has `renameFolder`. Return `null` to hide it.
-- `renderDescription` replaces the second line. `renderMeta` sits beside the name.
+- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, `delete`, or `renameFile`, and folders get it when files can be uploaded into them or the source has `renameFolder`. A search result with a `location` always gets it, for Show in folder. Return `null` to hide it.
+- `renderDescription` replaces the second line, including a search result's location; put `ObjectListLocation` in yours to keep it. `renderMeta` sits beside the name.
 - `renderEntry` replaces the whole row or tile. Return `ObjectListRow` or `ObjectListTile` with your own `className`, `media`, or `actions` to keep selection, keyboard, and opening.
 
 Each entry sets `data-slot="object-list-entry"`, `data-entry-key`, `data-kind`, `data-view`, and `data-selected` for styling.
@@ -238,10 +248,11 @@ larger glyph for other files.
 ## Search and sort
 
 `list.setSearch` and `list.setSort` reload the first page. The query receives
-`search` (trimmed) and `sort`; the source decides what they mean.
-`memoryObjectSource` matches names and sorts by name, size, date, or
-`sortValue`. A query of your own passes them to your API. While the new page
-loads, the current rows stay on screen.
+`search` (trimmed), `searchScope`, and `sort`; the source decides what they
+mean. `memoryObjectSource` matches names in the open folder and every folder
+below it, and sorts by name, size, date, or `sortValue`. `dbObjectSource`
+does the same on the server. A query of your own passes them to your API.
+While the new page loads, the current rows stay on screen.
 
 ```tsx
 <ObjectListSortMenu
@@ -253,8 +264,25 @@ loads, the current rows stay on screen.
 />
 ```
 
-Opening another folder clears the search. With a search and no match, the
-empty state says nothing matches.
+While a search is on, `ObjectListSearchBar` under the header's bar says
+where it looks and how many results it found: "12 results", "50+ results" while more pages
+are left and the source sent no `total`, or "No results". The list's live
+region reads the count out. When the source has both
+[`searchScopes`](/docs/react/hooks/object-list#search) and a folder is open,
+"Search in" chooses between that folder, with the folders in it, and the
+root.
+
+The text that matched is marked in each result's name. A result with a
+`location` shows where it lives before its size and date: `Docs › 2024`,
+the root label at the root, and `… › 2024 › March` deeper. Its menu starts
+with Show in folder, which leaves the search, opens the folder that holds
+the entry, and focuses it. Opening a folder result opens its whole path.
+Opening another folder clears the search.
+
+With no match, the empty state says where the search looked. Its default
+actions are Search everywhere, when the search can reach past the open
+folder, and Clear search. Pass children to `ObjectListEmpty` to replace
+them.
 
 ## Selection
 
@@ -328,6 +356,7 @@ deleted one, else the one before it, else the frame.
 | Escape                  | Clear the selection                                                      |
 | Backspace / Alt+ArrowUp | Open the parent folder                                                   |
 | F2                      | Rename the focused entry, when the source can                            |
+| /                       | Open and focus the search field                                          |
 
 The entries are one tab stop. Tab lands on the entry that last had focus, or
 the first one. Tab and Shift+Tab then go through that entry's own controls
@@ -336,7 +365,9 @@ takes one Tab, not one per row. Give your own controls in `renderActions`
 `tabIndex={-1}`, as the built-in checkbox and menu have, so Tab lands on the
 entry and not on them.
 
-Fields, menus, and dialogs inside the list keep their own keys.
+Fields, menus, and dialogs inside the list keep their own keys. In the
+search field, ArrowDown moves to the first result, and Escape clears the
+text, then closes the field.
 
 ## Upload into folders
 
@@ -404,7 +435,8 @@ Escape or Cancel restores the name, and leaving the field saves it. F2 does
 the same from the focused row. Download and Copy link then send the name the
 row shows. Inside a list every prop is optional: the object key, name, and
 size come from the entry, and the hooks come from the list. Delete asks the
-list's confirmation.
+list's confirmation. On a search result with a `location`, the menu starts
+with Show in folder.
 
 Copy link signs one URL through `share` when the list has it, otherwise
 through a navigate-mode `download`, then writes it to the clipboard. Signing

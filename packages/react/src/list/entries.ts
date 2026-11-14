@@ -1,7 +1,9 @@
 import type {
   ObjectListEntry,
   ObjectListFile,
+  ObjectListFileEntry,
   ObjectListFolder,
+  ObjectListFolderEntry,
 } from "./types";
 
 /**
@@ -15,6 +17,35 @@ export function objectListEntryKey(
   return `${kind}:${id}`;
 }
 
+function folderEntry(folder: ObjectListFolder): ObjectListFolderEntry {
+  return {
+    kind: "folder",
+    key: objectListEntryKey("folder", folder.id),
+    id: folder.id,
+    name: folder.name,
+    folder,
+    ...(folder.location && { location: folder.location }),
+  };
+}
+
+function fileEntry<TItem>(
+  item: TItem,
+  getKey: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): ObjectListFileEntry<TItem> {
+  const id = getKey(item);
+  const file = getFile(item);
+  return {
+    kind: "file",
+    key: objectListEntryKey("file", id),
+    id,
+    name: file.name,
+    item,
+    file,
+    ...(file.location && { location: file.location }),
+  };
+}
+
 /** Folders first, then files. */
 export function createObjectListEntries<TItem>(
   folders: readonly ObjectListFolder[],
@@ -22,29 +53,10 @@ export function createObjectListEntries<TItem>(
   getKey: (item: TItem) => string,
   getFile: (item: TItem) => ObjectListFile,
 ): ObjectListEntry<TItem>[] {
-  const entries: ObjectListEntry<TItem>[] = [];
-  for (const folder of folders) {
-    entries.push({
-      kind: "folder",
-      key: objectListEntryKey("folder", folder.id),
-      id: folder.id,
-      name: folder.name,
-      folder,
-    });
-  }
-  for (const item of items) {
-    const id = getKey(item);
-    const file = getFile(item);
-    entries.push({
-      kind: "file",
-      key: objectListEntryKey("file", id),
-      id,
-      name: file.name,
-      item,
-      file,
-    });
-  }
-  return entries;
+  return [
+    ...folders.map(folderEntry),
+    ...items.map((item) => fileEntry(item, getKey, getFile)),
+  ];
 }
 
 /** Entries built for one set of folders and items. @internal */
@@ -82,32 +94,10 @@ export function reuseObjectListEntries<TItem>(
   }
   const entries: ObjectListEntry<TItem>[] = [];
   for (const folder of folders) {
-    entries.push(
-      folderEntries.get(folder) ?? {
-        kind: "folder",
-        key: objectListEntryKey("folder", folder.id),
-        id: folder.id,
-        name: folder.name,
-        folder,
-      },
-    );
+    entries.push(folderEntries.get(folder) ?? folderEntry(folder));
   }
   for (const item of items) {
-    const kept = fileEntries.get(item);
-    if (kept) {
-      entries.push(kept);
-      continue;
-    }
-    const id = getKey(item);
-    const file = getFile(item);
-    entries.push({
-      kind: "file",
-      key: objectListEntryKey("file", id),
-      id,
-      name: file.name,
-      item,
-      file,
-    });
+    entries.push(fileEntries.get(item) ?? fileEntry(item, getKey, getFile));
   }
   const same =
     entries.length === previous.entries.length &&

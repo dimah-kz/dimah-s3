@@ -127,7 +127,102 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
     });
   });
 
+  describe("descendants and ancestors", () => {
+    it("finds folders at any depth, by name, with a folded search", async () => {
+      await nest("Docs/Invoices/2024");
+      await nest("Docs/Archive/invoices-old");
+      await nest("Photos/Invoices");
+      await nest("Facturé");
+      const docs = (await folders().children("user:1", null)).find(
+        (folder) => folder.name === "Docs",
+      );
+      if (!docs) throw new Error("missing Docs");
+      const pathsOf = (rows: StorageFolder[]) => rows.map((row) => row.path);
+
+      await expect(
+        folders().descendants("user:1", docs.id).then(pathsOf),
+      ).resolves.toEqual([
+        "Docs/Invoices/2024",
+        "Docs/Archive",
+        "Docs/Invoices",
+        "Docs/Archive/invoices-old",
+      ]);
+      await expect(
+        folders()
+          .descendants("user:1", docs.id, { search: "INVOICE" })
+          .then(pathsOf),
+      ).resolves.toEqual(["Docs/Invoices", "Docs/Archive/invoices-old"]);
+      await expect(
+        folders()
+          .descendants("user:1", null, { search: "invoices" })
+          .then(pathsOf),
+      ).resolves.toEqual([
+        "Docs/Invoices",
+        "Photos/Invoices",
+        "Docs/Archive/invoices-old",
+      ]);
+      await expect(
+        folders()
+          .descendants("user:1", null, { search: "facture" })
+          .then(pathsOf),
+      ).resolves.toEqual(["Facturé"]);
+      await expect(
+        folders().descendants("user:1", "missing"),
+      ).rejects.toMatchObject({ code: "FOLDER_NOT_FOUND" });
+    });
+
+    it("cuts to the first folders by name, below a folder and at the root", async () => {
+      // Created deepest first, so a walk by level would meet "a" last.
+      await nest("top/x/y/a");
+      await nest("top/c");
+      await nest("top/b");
+      const top = (await folders().children("user:1", null))[0];
+      if (!top) throw new Error("missing top");
+      const names = (rows: StorageFolder[]) => rows.map((row) => row.name);
+
+      await expect(
+        folders().descendants("user:1", top.id, { limit: 2 }).then(names),
+      ).resolves.toEqual(["a", "b"]);
+      await expect(
+        folders().descendants("user:1", null, { limit: 2 }).then(names),
+      ).resolves.toEqual(["a", "b"]);
+      await expect(folders().subtreeIds("user:1", "missing")).resolves.toEqual(
+        [],
+      );
+    });
+
+    it("lists every folder on the way to some folders, once", async () => {
+      const leaf = await nest("a/b/c");
+      const other = await nest("a/d");
+      const rows = await folders().ancestors("user:1", [
+        leaf.id,
+        other.id,
+        leaf.id,
+        "missing",
+      ]);
+      expect(rows.map((row) => row.path)).toEqual(["a", "a/b", "a/b/c", "a/d"]);
+      await expect(folders().ancestors("user:2", [leaf.id])).resolves.toEqual(
+        [],
+      );
+    });
+  });
+
   describe("update", () => {
+    it("rewrites the paths below names that read as LIKE patterns", async () => {
+      // `_`, `%`, and `\` are patterns or escapes in a LIKE on the path.
+      const tricky = await nest("a_b\\c%/child");
+      await nest("axb\\c%/child");
+      const top = await folders().find("user:1", tricky.parentId ?? "");
+      if (!top) throw new Error("missing top");
+      await folders().update("user:1", top.id, { name: "renamed" });
+      await expect(paths()).resolves.toEqual([
+        "axb\\c%",
+        "axb\\c%/child",
+        "renamed",
+        "renamed/child",
+      ]);
+    });
+
     it("renames a folder and rewrites descendant paths", async () => {
       const leaf = await nest("docs/q4/plan");
       const docs = await folders().find(

@@ -61,7 +61,9 @@ export function readObjectListLevel<TItem>(
 }
 
 /** Collapse `.` / `..` and empty segments. `null` means the root. */
-function normalizeFolder(folder: string | null | undefined): string | null {
+export function normalizeFolder(
+  folder: string | null | undefined,
+): string | null {
   if (folder == null) return null;
   const parts: string[] = [];
   for (const raw of folder.split("/")) {

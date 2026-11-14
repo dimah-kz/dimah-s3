@@ -31,9 +31,10 @@ export function createDbStore<TAttributes = never>(
     await checkSchema();
     return client.orm(DB_SCHEMA_VERSION);
   };
+  const folders = createFolderStore(getOrm);
   return {
-    objects: createObjectStore<TAttributes>(getOrm),
-    folders: createFolderStore(getOrm),
+    objects: createObjectStore<TAttributes>(getOrm, folders.subtreeIds),
+    folders,
     checkSchema,
   };
 }

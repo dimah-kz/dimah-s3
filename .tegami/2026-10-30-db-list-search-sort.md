@@ -14,7 +14,7 @@ packages:
 
 `GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
 
-- `search` keeps rows whose `filename` contains the text. It runs in the database (`LIKE` on SQL), so case follows its collation.
+- `search` keeps rows whose `filename` contains the text. Case, accents, and look-alike letters do not count, the same on SQLite, PostgreSQL, and MySQL, and `%` and `_` are plain text.
 - `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `filename`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
 - `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
 

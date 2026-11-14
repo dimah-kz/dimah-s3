@@ -25,7 +25,7 @@ creates the tables.
 ### Tables [step]
 
 The plugin uses two tables, `storage_object` and `storage_folder`, plus a
-small settings table that records the schema version (`2.1.0`).
+small settings table that records the schema version (`2.2.0`).
 
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
@@ -41,7 +41,7 @@ small settings table that records the schema version (`2.1.0`).
 <Tab value="Kysely">
 
 `migrate(client)` creates the tables and the indexes on SQLite,
-PostgreSQL, and MySQL. It does nothing on a database already at `2.1.0`
+PostgreSQL, and MySQL. It does nothing on a database already at `2.2.0`
 and does not upgrade a 1.x database. It needs the Kysely adapter (next
 step):
 
@@ -245,6 +245,14 @@ the stored row when the request targets one: confirm, the multipart calls,
 download, delete, read, and update. It is the server view, with `scope`,
 `s3Metadata`, and the attributes as stored, not what `attributes.toClient`
 sends the browser.
+
+`recursive` is `true` for a `list` that also covers every folder below
+`folder`, as a `dbObjectSource` search does. Such a listing returns rows
+from those folders too, so a rule that hides a folder from `list` must also
+cover a recursive listing of any folder above it. Return `false` for
+`recursive` to keep listings to one folder, and pass
+`dbObjectSource(api.db, { recursiveSearch: false })` so the list searches
+the open folder only instead of failing with `FORBIDDEN`.
 
 <AutoTypeTable path="packages/db/src/types/plugin.ts" name="AuthorizeContext" />
 

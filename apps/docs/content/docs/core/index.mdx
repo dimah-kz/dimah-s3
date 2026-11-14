@@ -206,18 +206,19 @@ const url = buildPublicObjectUrl({
 });
 ```
 
-| Helper                                                     | Does                                                                         |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `validateFile`, `matchesFileTypes`                         | Checks a file against `accept` tokens and a size limit                       |
-| `sha256Blob`, `sha256Base64`                               | SHA-256 in the form S3 and the upload `checksum` expect                      |
-| `resolveInlineDisposition`, `DEFAULT_INLINE_TYPES`         | The server's inline rule. Pass the catalog `download.inlineTypes` as `allow` |
-| `sniffContentType`, `matchesMagicBytes`, `isSniffableType` | Reads a type from the first bytes, as `verifyContent` does                   |
-| `buildContentDisposition`, `parseFileName`                 | Builds and reads `Content-Disposition` with Unicode names                    |
-| `buildObjectKey`, `normalizeObjectKey`                     | Joins key segments, and rejects unsafe keys (`..`, `\`, NUL)                 |
-| `objectKeyByteLength`, `S3_MAX_OBJECT_KEY_BYTES`           | A key's UTF-8 length, and the 1024-byte limit `normalizeObjectKey` enforces  |
-| `fitFileName`, `S3_MAX_FILE_FIELD_BYTES`                   | Fits a file name to the 255-byte wire rule                                   |
-| `buildPublicObjectUrl`                                     | Joins a public origin and an encoded key                                     |
-| `base64UrlEncode`, `base64UrlDecode`                       | base64url without `Buffer`                                                   |
+| Helper                                                          | Does                                                                         |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `validateFile`, `matchesFileTypes`                              | Checks a file against `accept` tokens and a size limit                       |
+| `sha256Blob`, `sha256Base64`                                    | SHA-256 in the form S3 and the upload `checksum` expect                      |
+| `resolveInlineDisposition`, `DEFAULT_INLINE_TYPES`              | The server's inline rule. Pass the catalog `download.inlineTypes` as `allow` |
+| `sniffContentType`, `matchesMagicBytes`, `isSniffableType`      | Reads a type from the first bytes, as `verifyContent` does                   |
+| `buildContentDisposition`, `parseFileName`                      | Builds and reads `Content-Disposition` with Unicode names                    |
+| `buildObjectKey`, `normalizeObjectKey`                          | Joins key segments, and rejects unsafe keys (`..`, `\`, NUL)                 |
+| `objectKeyByteLength`, `S3_MAX_OBJECT_KEY_BYTES`                | A key's UTF-8 length, and the 1024-byte limit `normalizeObjectKey` enforces  |
+| `fitFileName`, `S3_MAX_FILE_FIELD_BYTES`                        | Fits a file name to the 255-byte wire rule                                   |
+| `buildPublicObjectUrl`                                          | Joins a public origin and an encoded key                                     |
+| `base64UrlEncode`, `base64UrlDecode`                            | base64url without `Buffer`                                                   |
+| `normalizeSearchText`, `matchesSearchText`, `findSearchMatches` | Folds names for search, the way list search and `db()` match them            |
 
 `DEFAULT_INLINE_TYPES` holds raster images, PDF, audio, video, and
 `text/plain`. A wildcard never matches HTML, XML (including SVG and
@@ -230,6 +231,27 @@ presign, so a long name uploads under a shortened name.
 
 `sniffContentType` looks past a leading ID3v2 tag, so ID3-tagged FLAC sniffs
 as `audio/flac`.
+
+`normalizeSearchText` lowercases, drops accents and other combining marks,
+joins look-alike letters (Arabic and Persian `ي`/`ی` and `ك`/`ک`, Greek
+final `ς`, `ß` as `ss`), reads Persian and Arabic-Indic digits as `0`–`9`,
+removes zero-width joiners and the tatweel, and collapses whitespace.
+`matchesSearchText(name, search)` is `true` when the folded name contains
+the folded search; blank search matches everything. `findSearchMatches`
+returns the `[start, end)` ranges of each match in the original name, for a
+highlight.
+
+```ts
+import {
+  findSearchMatches,
+  matchesSearchText,
+  normalizeSearchText,
+} from "@dimah-s3/core";
+
+normalizeSearchText("  Résumé  Final.PDF"); // "resume final.pdf"
+matchesSearchText("گزارش ۱۴۰۲.xlsx", "1402"); // true
+findSearchMatches("Café.pdf", "cafe"); // [[0, 4]]
+```
 
 ---
 

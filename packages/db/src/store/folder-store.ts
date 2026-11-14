@@ -2,14 +2,28 @@ import { s3Error } from "@dimah-s3/core";
 import { UniqueConstraintError } from "fumadb";
 import {
   childFolderPath,
+  folderAncestors,
   FOLDER_MAX_DEPTH,
   normalizeFolderPath,
 } from "@/folder-path";
 import type { StorageFolder } from "@/types/storage-object";
 import { liveObject, type DbOrm, type GetDbOrm } from "./object-store";
+import { toSearchName } from "./search-name";
 
 /** Most child folders `children` returns when `limit` is not given. */
 export const DEFAULT_FOLDER_CHILDREN_LIMIT = 1000;
+
+/** Most folders `descendants` returns when `limit` is not given. */
+export const DEFAULT_FOLDER_DESCENDANTS_LIMIT = 1000;
+
+/**
+ * Most folders below the open one that a recursive listing covers. Their
+ * ids go into one `in` list, well under every driver's parameter cap.
+ */
+export const FOLDER_SUBTREE_LIMIT = 10_000;
+
+/** Values per `in` list when a lookup is split up. */
+const IN_BATCH = 500;
 
 /** Where a new or moved folder sits. `null` is the root. */
 export type FolderPlacement = {
@@ -26,6 +40,13 @@ export type FolderPlacement = {
 export type StorageFolderStore = {
   /** Loads one folder of the scope. */
   find: (scope: string, id: string) => Promise<StorageFolder | null>;
+  /**
+   * Ids of the folders below `id` at any depth, up to
+   * {@link FOLDER_SUBTREE_LIMIT}, in no order. Empty for a folder the scope
+   * does not have. Lookups for the same folder that overlap share one walk.
+   * @internal Recursive listings use it.
+   */
+  subtreeIds: (scope: string, id: string) => Promise<string[]>;
   /** Direct child folders of `parentId` (`null` is the root), by name. */
   children: (
     scope: string,
@@ -37,6 +58,27 @@ export type StorageFolderStore = {
    * @throws `FOLDER_NOT_FOUND` when the scope has no such folder.
    */
   trail: (scope: string, id: string) => Promise<StorageFolder[]>;
+  /**
+   * Folders below `parentId` at any depth (`null`: every folder of the
+   * scope), by name, then path. With `search`, only those whose name
+   * contains it, folded the way file search folds (case, accents, and
+   * look-alike letters do not count). `parentId` itself is not included.
+   * @throws `FOLDER_NOT_FOUND` when `parentId` is not in the scope.
+   */
+  descendants: (
+    scope: string,
+    parentId: string | null,
+    options?: { search?: string; limit?: number },
+  ) => Promise<StorageFolder[]>;
+  /**
+   * Every folder from the top level down to each of `ids`, `ids` included,
+   * once each, in path order. Ids the scope does not have are skipped.
+   * Draws the location of rows that come from several folders.
+   */
+  ancestors: (
+    scope: string,
+    ids: readonly string[],
+  ) => Promise<StorageFolder[]>;
   /**
    * Creates `name` inside `parentId`. The parent must already exist.
    * @throws `FOLDER_NOT_FOUND` when the parent is missing.
@@ -91,6 +133,25 @@ type FolderRow = {
   updatedAt: Date;
 };
 
+/** `values` in runs of at most `size`. */
+function batches<T>(values: readonly T[], size: number): T[][] {
+  const runs: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    runs.push(values.slice(index, index + size));
+  }
+  return runs;
+}
+
+/** By name, then by path, the way the list shows folders. */
+function byNameThenPath(a: StorageFolder, b: StorageFolder): number {
+  return (
+    a.name.localeCompare(b.name, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
+  );
+}
+
 function mapFolder(row: FolderRow): StorageFolder {
   return {
     id: row.id,
@@ -131,6 +192,7 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
       scope: folder.scope,
       parentId: storedParent(folder.parentId),
       name: folder.name,
+      searchName: toSearchName(folder.name),
       path: folder.path,
       createdAt: folder.createdAt ?? now,
       updatedAt: folder.updatedAt ?? now,
@@ -183,14 +245,50 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     return folders + objects;
   };
 
-  const descendants = async (scope: string, path: string) => {
+  /**
+   * Every folder below `id`, level by level through `parent_id`, at most
+   * `limit`. It never matches the path with `LIKE`, which reads `%`, `_`,
+   * and `\` in a name as a pattern.
+   */
+  const subtree = async (scope: string, id: string, limit = Infinity) => {
     const orm = await getOrm();
-    const rows = await orm.findMany("storageFolder", {
-      where: (b) =>
-        b.and(b("scope", "=", scope), b("path", "starts with", `${path}/`)),
-      orderBy: [["id", "asc"]],
-    });
-    return rows.map(mapFolder);
+    const found: StorageFolder[] = [];
+    const seen = new Set([id]);
+    let level = [id];
+    for (let depth = 0; depth < FOLDER_MAX_DEPTH && level.length > 0; depth++) {
+      const next: string[] = [];
+      for (const parents of batches(level, IN_BATCH)) {
+        const rows = await orm.findMany("storageFolder", {
+          where: (b) =>
+            b.and(b("scope", "=", scope), b("parentId", "in", parents)),
+          orderBy: [["id", "asc"]],
+        });
+        for (const row of rows) {
+          if (seen.has(row.id)) continue;
+          seen.add(row.id);
+          found.push(mapFolder(row));
+          next.push(row.id);
+          if (found.length >= limit) return found;
+        }
+      }
+      level = next;
+    }
+    return found;
+  };
+
+  /** Walks below a folder still in flight, so one listing's lookups share one. */
+  const walks = new Map<string, Promise<StorageFolder[]>>();
+  /** {@link subtree} up to {@link FOLDER_SUBTREE_LIMIT}, shared while in flight. */
+  const sharedSubtree = (scope: string, id: string) => {
+    const key = JSON.stringify([scope, id]);
+    let walk = walks.get(key);
+    if (!walk) {
+      walk = subtree(scope, id, FOLDER_SUBTREE_LIMIT).finally(() => {
+        walks.delete(key);
+      });
+      walks.set(key, walk);
+    }
+    return walk;
   };
 
   const retain: StorageFolderStore["retain"] = async (folder) => {
@@ -212,6 +310,11 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
 
   return {
     find,
+
+    async subtreeIds(scope, id) {
+      const below = await sharedSubtree(scope, id);
+      return below.map((folder) => folder.id);
+    },
 
     async children(scope, parentId, options = {}) {
       const orm = await getOrm();
@@ -242,6 +345,65 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
         current = await find(scope, current.parentId);
       }
       return chain.reverse();
+    },
+
+    async descendants(scope, parentId, options = {}) {
+      const limit = options.limit ?? DEFAULT_FOLDER_DESCENDANTS_LIMIT;
+      const needle = options.search ? toSearchName(options.search) : "";
+      let folders: StorageFolder[];
+      if (parentId === null) {
+        const orm = await getOrm();
+        const rows = await orm.findMany("storageFolder", {
+          where: (b) =>
+            b.and(
+              b("scope", "=", scope),
+              needle === "" || b("searchName", "contains", needle),
+            ),
+          orderBy: [["path", "asc"]],
+          limit: FOLDER_SUBTREE_LIMIT,
+        });
+        folders = rows.map(mapFolder);
+      } else {
+        const [parent, below] = await Promise.all([
+          find(scope, parentId),
+          sharedSubtree(scope, parentId),
+        ]);
+        if (!parent) throw s3Error("FOLDER_NOT_FOUND");
+        // A copy: the walk may be shared with another lookup.
+        folders = below.filter(
+          (folder) =>
+            needle === "" || toSearchName(folder.name).includes(needle),
+        );
+      }
+      // The first `limit` by name, the same below a folder and at the root.
+      return folders.sort(byNameThenPath).slice(0, limit);
+    },
+
+    async ancestors(scope, ids) {
+      if (ids.length === 0) return [];
+      const orm = await getOrm();
+      const byPath = new Map<string, StorageFolder>();
+      for (const run of batches([...new Set(ids)], IN_BATCH)) {
+        const rows = await orm.findMany("storageFolder", {
+          where: (b) => b.and(b("scope", "=", scope), b("id", "in", run)),
+        });
+        for (const row of rows) byPath.set(row.path, mapFolder(row));
+      }
+      const missing = new Set<string>();
+      for (const path of byPath.keys()) {
+        for (const above of folderAncestors(path)) {
+          if (!byPath.has(above)) missing.add(above);
+        }
+      }
+      for (const run of batches([...missing], IN_BATCH)) {
+        const rows = await orm.findMany("storageFolder", {
+          where: (b) => b.and(b("scope", "=", scope), b("path", "in", run)),
+        });
+        for (const row of rows) byPath.set(row.path, mapFolder(row));
+      }
+      return [...byPath.values()].sort((a, b) =>
+        a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+      );
     },
 
     async create(scope, input) {
@@ -278,7 +440,7 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
       const path = childFolderPath(parent?.path ?? null, name);
       if (path === null) throw s3Error("FOLDER_INVALID");
       const storedName = path.slice(path.lastIndexOf("/") + 1);
-      const below = await descendants(scope, folder.path);
+      const below = await subtree(scope, id);
       const prefix = folder.path;
       const rewritten = below.map((child) => ({
         id: child.id,
@@ -296,6 +458,7 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
             where: (b) => b.and(b("scope", "=", scope), b("id", "=", id)),
             set: {
               name: storedName,
+              searchName: toSearchName(storedName),
               parentId: storedParent(parentId),
               path,
               updatedAt: now,

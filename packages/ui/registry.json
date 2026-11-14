@@ -888,6 +888,11 @@
           "target": "@components/dimah-s3/list/object-list-controls.tsx"
         },
         {
+          "path": "src/components/dimah-s3/list/object-list-search.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-search.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/list/object-list-content.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-content.tsx"

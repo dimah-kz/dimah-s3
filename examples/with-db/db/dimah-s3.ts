@@ -26,6 +26,7 @@ export const storageObject = sqliteTable("storage_object", {
   route: text("route", { length: 255 }).notNull(),
   folderId: text("folder_id", { length: 255 }),
   filename: text("filename", { length: 255 }).notNull(),
+  searchName: text("search_name", { length: 1024 }).notNull(),
   contentType: text("content_type", { length: 255 }),
   size: customBigInt("size"),
   declaredSize: customBigInt("declared_size"),
@@ -55,6 +56,7 @@ export const storageFolder = sqliteTable("storage_folder", {
   scope: text("scope", { length: 255 }).notNull(),
   parentId: text("parent_id", { length: 255 }).notNull().default(""),
   name: text("name", { length: 255 }).notNull(),
+  searchName: text("search_name", { length: 1024 }).notNull(),
   path: text("path", { length: 1024 }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(cast((julianday('now') - 2440587.5)*86400000 as integer))`),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(sql`(cast((julianday('now') - 2440587.5)*86400000 as integer))`)
@@ -65,7 +67,7 @@ export const storageFolder = sqliteTable("storage_folder", {
 
 export const private_dimah_s3_settings = sqliteTable("private_dimah_s3_settings", {
   key: text("key", { length: 255 }).primaryKey().notNull(),
-  version: text("value").notNull().default("2.1.0")
+  version: text("value").notNull().default("2.2.0")
 })
 
 export const relations = defineRelations({ storageObject, storageFolder, private_dimah_s3_settings })

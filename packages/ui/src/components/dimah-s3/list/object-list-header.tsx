@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  createContext,
-  useContext,
   useEffect,
   useId,
   useLayoutEffect,
@@ -33,9 +31,15 @@ import {
   type DeleteTarget,
 } from "@/components/dimah-s3/delete/delete";
 import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
-import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  ObjectListHeaderContext,
+  useObjectListContext,
+  useOptionalObjectListHeader,
+  type ObjectListHeaderContextValue,
+} from "@/components/dimah-s3/list/object-list-context";
 import { ObjectListCheckbox } from "@/components/dimah-s3/list/object-list-entry";
 import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
+import { ObjectListSearchBar } from "@/components/dimah-s3/list/object-list-search";
 
 /** Props for {@link ObjectListHeader}. */
 export type ObjectListHeaderProps = {
@@ -43,26 +47,15 @@ export type ObjectListHeaderProps = {
   children?: ReactNode;
   /** Show the path. Defaults to the list's `breadcrumb`. */
   breadcrumb?: boolean;
+  /**
+   * Show `ObjectListSearchBar` under the bar while a search is on: where
+   * it looks, and how many results it found. @default true
+   */
+  searchBar?: boolean;
   /** Extra controls on the selection bar. Defaults to the list's `selectionActions`. */
   selectionActions?: ReactNode;
   className?: string;
 };
-
-/** What {@link ObjectListHeader} shares with the controls inside it. @internal */
-type ObjectListHeaderContextValue = {
-  /** A search field inside the header is open and takes the whole bar. */
-  setSearchExpanded: (expanded: boolean) => void;
-  /** The new-folder field is open and takes the whole bar. */
-  setFolderExpanded: (expanded: boolean) => void;
-};
-
-const ObjectListHeaderContext =
-  createContext<ObjectListHeaderContextValue | null>(null);
-
-/** The nearest {@link ObjectListHeader}, or `null` outside one. @internal */
-export function useOptionalObjectListHeader() {
-  return useContext(ObjectListHeaderContext);
-}
 
 /**
  * Hides a label below this header width, so the control shows its icon
@@ -87,10 +80,14 @@ export const OBJECT_LIST_HEADER_COMPACT_BUTTON =
  * `ObjectListSearch` among `children` shows as a search button, and opens
  * into a field across the whole bar. New folder does the same with its
  * name field: the path and the other controls hide until it closes.
+ *
+ * While a search is on, `ObjectListSearchBar` sits under the bar: where the
+ * search looks (the open folder or everywhere) and how many it found.
  */
 export function ObjectListHeader({
   children,
   breadcrumb,
+  searchBar = true,
   selectionActions,
   className,
 }: ObjectListHeaderProps) {
@@ -162,6 +159,9 @@ export function ObjectListHeader({
             </div>
           </div>
         )}
+        {searchBar && list.isSearching ? (
+          <ObjectListSearchBar className="border-t border-dimah-s3-border" />
+        ) : null}
         {selecting && !replaced ? (
           <ObjectListSelectionBar
             className="border-t border-dimah-s3-border bg-dimah-s3-primary/10"

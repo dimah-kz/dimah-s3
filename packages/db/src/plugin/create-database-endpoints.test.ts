@@ -240,6 +240,111 @@ describe("GET /db/objects", () => {
     expect(body.objects).toMatchObject([{ key: "old-invoice.pdf" }]);
   });
 
+  it("searches the folders below with recursive, with locations and a total", async () => {
+    const { instance, insert, request } = createSetup();
+    const docs = await nest(instance.db.folders, "user:1", "Docs");
+    const year = await nest(instance.db.folders, "user:1", "Docs/2024");
+    const invoices = await nest(
+      instance.db.folders,
+      "user:1",
+      "Docs/2024/Invoices",
+    );
+    await nest(instance.db.folders, "user:1", "Photos/Invoices");
+    await insert({ key: "a", filename: "Invoice-1.pdf", folderId: year.id });
+    await insert({
+      key: "b",
+      filename: "invoice-2.pdf",
+      folderId: invoices.id,
+    });
+    await insert({ key: "c", filename: "INVOICE-3.pdf" });
+    await insert({ key: "d", filename: "photo.png", folderId: year.id });
+
+    const first = await request<ListBody>("GET", "/objects", {
+      query: {
+        folderId: docs.id,
+        recursive: "true",
+        search: "invoice",
+        limit: "1",
+        sort: JSON.stringify({ field: "filename", direction: "asc" }),
+      },
+    });
+
+    expect(first.status).toBe(200);
+    expect(first.body.objects).toMatchObject([{ key: "a" }]);
+    expect(first.body.total).toBe(2);
+    expect(first.body.folders?.map((folder) => folder.path)).toEqual([
+      "Docs/2024/Invoices",
+    ]);
+    expect(first.body.trail?.map((folder) => folder.name)).toEqual(["Docs"]);
+    expect(first.body.locations?.map((folder) => folder.path)).toEqual([
+      "Docs",
+      "Docs/2024",
+    ]);
+
+    const second = await request<ListBody>("GET", "/objects", {
+      query: {
+        folderId: docs.id,
+        recursive: "true",
+        search: "invoice",
+        limit: "1",
+        sort: JSON.stringify({ field: "filename", direction: "asc" }),
+        cursor: first.body.nextCursor ?? "",
+      },
+    });
+    expect(second.body.objects).toMatchObject([{ key: "b" }]);
+    expect(second.body).not.toHaveProperty("total");
+    expect(second.body.locations?.map((folder) => folder.path)).toEqual([
+      "Docs",
+      "Docs/2024",
+      "Docs/2024/Invoices",
+    ]);
+
+    const everywhere = await request<ListBody>("GET", "/objects", {
+      query: { folderId: "", recursive: "true", search: "invoice" },
+    });
+    expect(everywhere.body.total).toBe(3);
+    expect(everywhere.body.folders?.map((folder) => folder.path)).toEqual([
+      "Docs/2024/Invoices",
+      "Photos/Invoices",
+    ]);
+
+    const level = await request<ListBody>("GET", "/objects", {
+      query: { folderId: docs.id, search: "invoice" },
+    });
+    expect(level.body.objects).toEqual([]);
+    expect(level.body.total).toBe(0);
+    expect(level.body).not.toHaveProperty("locations");
+  });
+
+  it("tells authorize when a listing covers the folders below", async () => {
+    const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
+      ({ recursive }) => recursive !== true,
+    );
+    const { instance, request } = createSetup({ plugin: { authorize } });
+    const docs = await nest(instance.db.folders, "user:1", "docs");
+
+    await expect(
+      request("GET", "/objects", { query: { folderId: docs.id } }),
+    ).resolves.toMatchObject({ status: 200 });
+    await expect(
+      request("GET", "/objects", {
+        query: { folderId: docs.id, recursive: "true" },
+      }),
+    ).resolves.toMatchObject({ status: 403 });
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operation: "list",
+        folder: "docs",
+        folderId: docs.id,
+        recursive: true,
+      }),
+    );
+    // A flat listing already covers every folder: recursive changes nothing.
+    await expect(
+      request("GET", "/objects", { query: { recursive: "true" } }),
+    ).resolves.toMatchObject({ status: 200 });
+  });
+
   it("authorizes the listing with op list and the folder", async () => {
     const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
       () => false,

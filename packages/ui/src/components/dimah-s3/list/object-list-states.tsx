@@ -18,20 +18,26 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ObjectListView } from "@/components/dimah-s3/list/object-list-context";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
+import { canChooseSearchScope } from "@/components/dimah-s3/list/object-list-search";
 
 /** Props for {@link ObjectListEmpty}. */
 export type ObjectListEmptyProps = {
   /** Defaults to "This folder is empty", or "No results" while searching. */
   title?: ReactNode;
   description?: ReactNode;
-  /** Below the text, such as an upload button. */
+  /**
+   * Below the text, such as an upload button. While searching it defaults
+   * to Search everywhere (when the search can reach past the open folder)
+   * and Clear search.
+   */
   children?: ReactNode;
   className?: string;
 };
 
 /**
  * Empty state for the open folder. Pass it as `empty` with your own text
- * or a call to action. It reads the search text from the list.
+ * or a call to action. It reads the search text and where the search
+ * looked from the list.
  */
 export function ObjectListEmpty({
   title,
@@ -42,15 +48,30 @@ export function ObjectListEmpty({
   const t = useTranslations();
   const { list, upload } = useObjectListContext();
   const search = list.search.trim();
+  const folder = list.trail.at(-1);
+  // A source with scopes searches the folders below the open one too.
+  const recursive = list.searchScopes.length > 0;
+  const everywhere =
+    canChooseSearchScope(list) && list.searchScope === "folder";
 
   const defaultTitle = search
     ? t("No results", { note: "object list" })
     : t("This folder is empty", { note: "object list" });
   const defaultDescription = search
-    ? t("Nothing in this folder matches “{search}”.", {
-        note: "object list",
-        variables: { search },
-      })
+    ? !recursive && folder
+      ? t("Nothing in this folder matches “{search}”.", {
+          note: "object list",
+          variables: { search },
+        })
+      : folder && list.searchScope === "folder"
+        ? t("Nothing in “{folder}” or its folders matches “{search}”.", {
+            note: "object list search",
+            variables: { folder: folder.name, search },
+          })
+        : t("Nothing matches “{search}”.", {
+            note: "object list search",
+            variables: { search },
+          })
     : upload
       ? t("Drop files here to add them to this folder.", {
           note: "object list",
@@ -74,7 +95,24 @@ export function ObjectListEmpty({
           {description ?? defaultDescription}
         </EmptyDescription>
       </EmptyHeader>
-      {children ? <EmptyContent>{children}</EmptyContent> : null}
+      {children ? (
+        <EmptyContent>{children}</EmptyContent>
+      ) : search ? (
+        <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+          {everywhere ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => list.setSearchScope("all")}
+            >
+              {t("Search everywhere", { note: "object list search" })}
+            </Button>
+          ) : null}
+          <Button variant="ghost" size="sm" onClick={() => list.setSearch("")}>
+            {t("Clear search", { note: "object list" })}
+          </Button>
+        </EmptyContent>
+      ) : null}
     </Empty>
   );
 }

@@ -27,6 +27,7 @@ function input(
     cursor: null,
     sort: null,
     search: "",
+    searchScope: "folder",
     signal: new AbortController().signal,
     ...patch,
   };
@@ -94,10 +95,80 @@ describe("memoryObjectSource", () => {
     );
     expect(page.items.map((record) => record.id)).toEqual(["4"]);
     expect(page.folders).toEqual([]);
+    expect(page.total).toBe(1);
 
     const folders = await source.query(input({ search: "doc" }));
-    expect(folders.folders).toEqual([{ id: "Docs", name: "Docs" }]);
+    expect(folders.folders).toEqual([
+      { id: "Docs", name: "Docs", location: [] },
+    ]);
     expect(folders.items).toEqual([]);
+  });
+
+  it("searches every folder below the open one, or everywhere", async () => {
+    const tree = memoryObjectSource(RECORDS, {
+      getKey: (record) => record.id,
+      getFile: (record) => ({ name: record.name }),
+      getFolder: (record) => record.folder,
+    });
+    expect(tree.searchScopes).toEqual(["folder", "all"]);
+
+    const fromRoot = await tree.query(input({ search: "e" }));
+    expect(fromRoot.items.map((record) => record.id).sort()).toEqual([
+      "4",
+      "5",
+      "6",
+    ]);
+    expect(fromRoot.folders).toEqual([
+      { id: "Archive", name: "Archive", location: [] },
+      {
+        id: "Docs/Images",
+        name: "Images",
+        location: [{ id: "Docs", name: "Docs" }],
+      },
+    ]);
+    expect(fromRoot.total).toBe(3);
+
+    const inDocs = await tree.query(input({ parent: "Docs", search: "e" }));
+    expect(inDocs.items.map((record) => record.id).sort()).toEqual(["4", "5"]);
+    expect(inDocs.folders?.map((folder) => folder.id)).toEqual(["Docs/Images"]);
+
+    const everywhere = await tree.query(
+      input({ parent: "Docs", search: "notes", searchScope: "all" }),
+    );
+    expect(everywhere.items.map((record) => record.id)).toEqual(["6"]);
+  });
+
+  it("adds each record's location to the file", () => {
+    const deep = RECORDS.find((record) => record.id === "5");
+    const atRoot = RECORDS.find((record) => record.id === "1");
+    if (!deep || !atRoot) throw new Error("missing records");
+    expect(source.getFile(deep).location).toEqual([
+      { id: "Docs", name: "Docs" },
+      { id: "Docs/Images", name: "Images" },
+    ]);
+    expect(source.getFile(atRoot).location).toEqual([]);
+
+    const flat = memoryObjectSource(RECORDS, {
+      getKey: (record) => record.id,
+      getFile: (record) => ({ name: record.name }),
+    });
+    expect(flat.getFile(deep)).toEqual({ name: "deep.png" });
+    expect(flat.searchScopes).toBeUndefined();
+  });
+
+  it("matches look-alike letters and Persian digits", async () => {
+    const records = [
+      { id: "a", name: "كتاب علي.pdf", folder: null, size: 1 },
+      { id: "b", name: "گزارش ۱۴۰۲.xlsx", folder: null, size: 1 },
+    ];
+    const persian = memoryObjectSource(records, {
+      getKey: (record) => record.id,
+      getFile: (record) => ({ name: record.name }),
+    });
+    const ids = async (search: string) =>
+      (await persian.query(input({ search }))).items.map((record) => record.id);
+    await expect(ids("کتاب علی")).resolves.toEqual(["a"]);
+    await expect(ids("1402")).resolves.toEqual(["b"]);
   });
 
   it("reads the latest records from a function", async () => {

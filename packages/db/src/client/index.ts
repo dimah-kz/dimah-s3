@@ -20,6 +20,7 @@ export type {
   DbObjectSourceOptions,
   DbObjectSourcePage,
   DbObjectSourceQueryInput,
+  DbObjectSourceSearchScope,
   DbQuota,
   DbUsage,
 } from "@/types/client";

@@ -1,12 +1,12 @@
 ---
 title: Upgrade the Schema
-description: Schema 2.1.0 is the only schema this line reads.
+description: Schema 2.2.0 is the only schema this line reads.
 ---
 
-`@dimah-s3/db` 2.0 beta reads and writes schema `2.1.0`, and that schema is
+`@dimah-s3/db` 2.0 beta reads and writes schema `2.2.0`, and that schema is
 the only one in the package. It does not upgrade a 1.x database or a
-database created at schema `2.0.0`. For the code changes in every package,
-see [Upgrade to 2.0 beta](/docs/migration-2-0).
+database created at schema `2.0.0` or `2.1.0`. For the code changes in
+every package, see [Upgrade to 2.0 beta](/docs/migration-2-0).
 
 ## A new database
 
@@ -15,57 +15,25 @@ or the Prisma models with `runCli`, or call `migrate(client)` with Kysely.
 Point those tools at a new database. An ORM diff against an older database
 can drop columns.
 
-A database from an earlier 2.0 beta, including one already at `2.0.0`, is
-not migrated. Create schema `2.1.0` on a new database. Folders are rows
-with ids: an object stores `folderId`, and renaming or moving a folder
-rewrites cached paths without rewriting object rows.
+A database from an earlier 2.0 beta, at `2.0.0` or `2.1.0`, is not
+migrated. Run `generate` again and create schema `2.2.0` on a new database,
+or call `migrate(client)` on an empty one. Folders are rows with ids: an
+object stores `folderId`, and renaming or moving a folder rewrites cached
+paths without rewriting object rows.
+
+Schema `2.2.0` adds a not-null `search_name` column to `storage_object` and
+`storage_folder`: the name folded for search, so a search matches the same
+way on every database. The plugin writes it with every name it stores. An
+ORM diff against a `2.1.0` database cannot fill it for the rows already
+there, and the recorded version stays `2.1.0`, so the database still
+throws.
 
 ## From the shipped schema files
 
 Earlier betas shipped `@dimah-s3/db/drizzle/<dialect>`, `prisma/`, and
-`sql/`. Generate the schema with `runCli` instead, and point your ORM at
-the generated file. A database created from the shipped files stays at
-`2.1.0`. What the ORM then changes depends on the database.
-
-### PostgreSQL
-
-The text columns become `varchar(n)`. `drizzle-kit` writes
-`ALTER COLUMN "scope" SET DATA TYPE varchar(255) USING "scope"::varchar(255)`,
-and an explicit cast truncates a longer value instead of failing. Two
-scopes that share their first 255 characters would become one. Run this
-check first. Each value must fit the limit in its comment:
-
-```sql
-SELECT
-  max(length("scope")) AS "scope",               -- 255
-  max(length("bucket")) AS "bucket",             -- 255
-  max(length("key")) AS "key",                   -- 1024
-  max(length("route")) AS "route",               -- 255
-  max(length("folder_id")) AS "folder_id",       -- 255
-  max(length("filename")) AS "filename",         -- 255
-  max(length("content_type")) AS "content_type", -- 255
-  max(length("e_tag")) AS "e_tag",               -- 255
-  max(length("acl")) AS "acl",                   -- 255
-  max(length("upload_token")) AS "upload_token"  -- 64
-FROM "storage_object";
-
-SELECT
-  max(length("scope")) AS "scope",         -- 255
-  max(length("parent_id")) AS "parent_id", -- 255
-  max(length("name")) AS "name",           -- 255
-  max(length("path")) AS "path"            -- 1024
-FROM "storage_folder";
-```
-
-The change rewrites `storage_object`, `storage_folder`, and their indexes
-under an `ACCESS EXCLUSIVE` lock, so reads and writes wait until it ends.
-Raising a length later does not rewrite the table.
-
-### SQLite and MySQL
-
-On SQLite, `drizzle-kit` recreates the three tables and copies the rows.
-SQLite does not enforce `varchar` lengths, so no value changes. On MySQL,
-the tables already match the shipped `sql/mysql.sql`.
+`sql/`. Generate the schema with `runCli` instead, point your ORM at the
+generated file, and create the tables on a new database, as above. A
+database created from the shipped files is at an older schema and throws.
 
 ### Code that reads the tables
 
@@ -79,6 +47,10 @@ tables itself sees the generated types:
   shipped `$type`.
 - `id` has no default. The plugin generates ids, so a row you insert
   yourself needs one.
+- `searchName` is the name folded for search. The plugin sets it whenever
+  it writes `filename` or a folder `name`. A rename you write through the
+  ORM leaves search on the old name: rename through `s3.db.objects.update`
+  or `s3.db.folders.update`.
 - The Prisma models are `storageObject` and `storageFolder`, so the Prisma
   Client types follow those names. `prisma.storageObject` is unchanged.
 
@@ -111,7 +83,7 @@ UTC, are already right: leave them.
 ## Check
 
 Call `checkSchema` at startup. It throws unless the database is at
-`2.1.0`:
+`2.2.0`:
 
 ```ts
 await s3.db.checkSchema();

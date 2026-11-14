@@ -20,7 +20,23 @@ export type ObjectListFolder = {
   id: string;
   /** Label for the row and the breadcrumb. */
   name: string;
+  /**
+   * Folders from the root down to the one that holds this folder, root
+   * excluded. Set it on the results of a search that reaches other
+   * folders: the row shows where it lives, and opening it opens the whole
+   * path.
+   */
+  location?: readonly ObjectListFolder[];
 };
+
+/**
+ * Where a search looks.
+ * - `folder`: the open folder and every folder below it.
+ * - `all`: every folder.
+ *
+ * At the root both cover everything.
+ */
+export type ObjectListSearchScope = "folder" | "all";
 
 /**
  * What the list knows about one file. `getFile` reads it from your item.
@@ -43,6 +59,12 @@ export type ObjectListFile = {
   updatedAt?: Date | string | number | null;
   /** Image thumbnail. The name stays the accessible label. */
   previewUrl?: string | null;
+  /**
+   * Folders from the root down to the one that holds the file, root
+   * excluded. Set it on the results of a search that reaches other
+   * folders: the row shows where the file lives and offers to open there.
+   */
+  location?: readonly ObjectListFolder[] | null;
 };
 
 export type ObjectListSortDirection = "asc" | "desc";
@@ -64,8 +86,17 @@ export type ObjectListQueryInput = {
   cursor: string | null;
   /** Requested order. `null` leaves the order to the source. */
   sort: ObjectListSort | null;
-  /** Trimmed search text. Empty when nothing is searched. */
+  /**
+   * Trimmed search text. Empty when nothing is searched, also when the
+   * text has only joiners or accents (`normalizeSearchText` from
+   * `@dimah-s3/core` folds it to nothing).
+   */
   search: string;
+  /**
+   * Where `search` looks. Only means something while `search` is set; a
+   * source without `searchScopes` can ignore it.
+   */
+  searchScope: ObjectListSearchScope;
   /**
    * Aborted when the folder, sort, search, or `queryKey` changes, when the
    * list refreshes, or when the hook unmounts.
@@ -94,6 +125,11 @@ export type ObjectListPage<TItem> = {
    * previous value. A first page that omits it clears the usage line.
    */
   usage?: ObjectListUsageData;
+  /**
+   * Files that match the search, across every page. Read from the first
+   * page. Omit it and the result count says how many have loaded.
+   */
+  total?: number;
 };
 
 /**
@@ -111,6 +147,12 @@ export type ObjectListQuery<TItem> = (
  */
 export type ObjectListSource<TItem> = {
   query: ObjectListQuery<TItem>;
+  /**
+   * The `searchScope` values the query understands. With both, the search
+   * bar offers "this folder" and "everywhere" while a folder is open. Omit
+   * it for a query that searches one way.
+   */
+  searchScopes?: readonly ObjectListSearchScope[];
   /** Stable id for a file row. Unique among the files of one listing. */
   getKey: (item: TItem) => string;
   /**
@@ -154,6 +196,8 @@ export type ObjectListFolderEntry = {
   id: string;
   name: string;
   folder: ObjectListFolder;
+  /** `folder.location`: where a search result lives. */
+  location?: readonly ObjectListFolder[];
 };
 
 /** A file row in {@link ObjectListEntry} order. */
@@ -167,6 +211,8 @@ export type ObjectListFileEntry<TItem> = {
   item: TItem;
   /** `getFile(item)`. */
   file: ObjectListFile;
+  /** `file.location`: where a search result lives. */
+  location?: readonly ObjectListFolder[];
 };
 
 /** Folders first, then files, in the order the query returned them. */
@@ -212,6 +258,11 @@ export type UseObjectListOptions<TItem> = ObjectListSource<TItem> & {
   onSearchChange?: (search: string) => void;
   /** Uncontrolled starting search text. @default "" */
   defaultSearch?: string;
+  /** Controlled search scope. Pass it with `onSearchScopeChange`. */
+  searchScope?: ObjectListSearchScope;
+  onSearchScopeChange?: (scope: ObjectListSearchScope) => void;
+  /** Uncontrolled starting search scope. @default "folder" */
+  defaultSearchScope?: ObjectListSearchScope;
   /**
    * Extra identity for the first-page fetch, such as a route or a filter.
    * Changing it clears the rows and loads again. JSON-serializable. The

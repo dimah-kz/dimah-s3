@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { APIError } from "@dimah-s3/core";
+import { normalizeSearchText, type APIError } from "@dimah-s3/core";
 import { toClientError } from "@/internal/client-error";
 import { useControllableState, useLiveRef } from "@/internal/hooks";
 import {
@@ -19,6 +19,7 @@ import type {
   ObjectListEntry,
   ObjectListFile,
   ObjectListFolder,
+  ObjectListSearchScope,
   ObjectListSort,
   ObjectListStatus,
   ObjectListUsageData,
@@ -35,6 +36,7 @@ export type {
   ObjectListPage,
   ObjectListQuery,
   ObjectListQueryInput,
+  ObjectListSearchScope,
   ObjectListSort,
   ObjectListSortDirection,
   ObjectListSource,
@@ -60,8 +62,25 @@ export type UseObjectListReturn<TItem> = {
   /** Open folder id. `null` is the root. */
   parent: string | null;
   sort: ObjectListSort | null;
-  /** Search text as typed. The query receives it trimmed. */
+  /**
+   * Search text as typed. The query receives it trimmed, or `""` when it
+   * has only whitespace, joiners, or accents.
+   */
   search: string;
+  /** True while the query receives search text. */
+  isSearching: boolean;
+  /** Where a search looks. The query receives it with the search text. */
+  searchScope: ObjectListSearchScope;
+  /**
+   * The source's `searchScopes`: where it can search. Empty when it did
+   * not say.
+   */
+  searchScopes: readonly ObjectListSearchScope[];
+  /**
+   * Files that match the search across every page, from the first page.
+   * `null` when the source did not send it, or nothing is searched.
+   */
+  total: number | null;
   /**
    * Totals from the latest page that sent them. `null` when the source
    * did not.
@@ -86,7 +105,11 @@ export type UseObjectListReturn<TItem> = {
   refresh: () => Promise<void>;
   /** Repeat the request that failed: the next page, or a reload. */
   retry: () => Promise<void>;
-  /** Open a child folder and load its first page. */
+  /**
+   * Open a folder and load its first page: a child of the open folder, a
+   * folder of the trail, or a search result with a `location`, whose whole
+   * path opens.
+   */
   openFolder: (folder: ObjectListFolder) => void;
   /** Replace the path. Pass `[]` for the root. */
   navigate: (trail: readonly ObjectListFolder[]) => void;
@@ -96,6 +119,8 @@ export type UseObjectListReturn<TItem> = {
   setSort: (sort: ObjectListSort | null) => void;
   /** Change the search text. Reloads the first page. Debounce it yourself. */
   setSearch: (search: string) => void;
+  /** Change where a search looks. Reloads the first page while searching. */
+  setSearchScope: (scope: ObjectListSearchScope) => void;
   /**
    * Edit the loaded files without a request, for example after your own
    * update. The next reload replaces them. Prefer `renameFile` when the
@@ -149,6 +174,8 @@ type Snapshot<TItem> = {
   folders: readonly ObjectListFolder[];
   nextCursor: string | null;
   usage: ObjectListUsageData | null;
+  /** The first page's `total`. */
+  total: number | null;
   /** Pages loaded for `key`. `refresh` reloads this many. */
   pageCount: number;
 };
@@ -167,6 +194,7 @@ type Request = {
   parent: string | null;
   sort: ObjectListSort | null;
   search: string;
+  searchScope: ObjectListSearchScope;
 };
 
 const EMPTY_SNAPSHOT: Snapshot<never> = {
@@ -176,8 +204,11 @@ const EMPTY_SNAPSHOT: Snapshot<never> = {
   folders: [],
   nextCursor: null,
   usage: null,
+  total: null,
   pageCount: 0,
 };
+
+const NO_SCOPES: readonly ObjectListSearchScope[] = [];
 
 const INITIAL_STATE: State<never> = {
   snapshot: EMPTY_SNAPSHOT,
@@ -203,8 +234,11 @@ const INITIAL_STATE: State<never> = {
  * ```
  *
  * Changing the folder or `queryKey` clears the rows and shows the loading
- * state. Changing the sort or search keeps the rows on screen until the new
- * first page arrives.
+ * state. Changing the sort, search, or search scope keeps the rows on
+ * screen until the new first page arrives.
+ *
+ * A source with `searchScopes` searches below the open folder, or
+ * everywhere, and says where each result lives (`entry.location`).
  */
 export function useObjectList<TItem>(
   options: UseObjectListOptions<TItem>,
@@ -239,6 +273,12 @@ export function useObjectList<TItem>(
     () => options.defaultSearch ?? "",
     options.onSearchChange,
   );
+  const [searchScope, setSearchScope] =
+    useControllableState<ObjectListSearchScope>(
+      options.searchScope,
+      () => options.defaultSearchScope ?? "folder",
+      options.onSearchScopeChange,
+    );
   // Another folder starts without a search, also when a controlled `parent`
   // changes from outside. A layout effect, so the old search never loads
   // in the new folder.
@@ -250,7 +290,8 @@ export function useObjectList<TItem>(
   }, [parent, setSearchValue]);
 
   const queryKey = JSON.stringify(options.queryKey ?? []);
-  const trimmedSearch = search.trim();
+  // Text that folds to nothing (a lone joiner or accent) searches nothing.
+  const trimmedSearch = normalizeSearchText(search) === "" ? "" : search.trim();
   const request = useMemo<Request>(() => {
     const scope = JSON.stringify([queryKey, parent]);
     return {
@@ -258,13 +299,16 @@ export function useObjectList<TItem>(
         scope,
         sort ? `${sort.field}:${sort.direction}` : "",
         trimmedSearch,
+        // The scope matters only while something is searched.
+        trimmedSearch ? searchScope : "",
       ]),
       scope,
       parent,
       sort,
       search: trimmedSearch,
+      searchScope,
     };
-  }, [parent, queryKey, sort, trimmedSearch]);
+  }, [parent, queryKey, searchScope, sort, trimmedSearch]);
   const requestRef = useLiveRef(request);
   const trailRef = useLiveRef(trail);
 
@@ -309,6 +353,7 @@ export function useObjectList<TItem>(
         parent: target.parent,
         sort: target.sort,
         search: target.search,
+        searchScope: target.searchScope,
         signal: controller.signal,
       };
 
@@ -341,6 +386,7 @@ export function useObjectList<TItem>(
         let folders: readonly ObjectListFolder[] = [];
         let serverTrail: readonly ObjectListFolder[] | undefined;
         let usage: ObjectListUsageData | null = null;
+        let total: number | null = null;
         let cursor: string | null = null;
         let pageCount = 0;
         do {
@@ -349,6 +395,7 @@ export function useObjectList<TItem>(
           if (pageCount === 0) {
             folders = page.folders ?? [];
             if (page.trail) serverTrail = page.trail;
+            if (target.search && page.total != null) total = page.total;
           }
           for (const item of page.items) items.push(item);
           usage = page.usage ?? usage;
@@ -366,6 +413,7 @@ export function useObjectList<TItem>(
             folders,
             nextCursor: cursor,
             usage,
+            total,
             pageCount,
           },
         }));
@@ -434,9 +482,15 @@ export function useObjectList<TItem>(
 
   const openFolder = useCallback(
     (folder: ObjectListFolder) => {
+      // A search result knows its own path; the trail keeps plain folders.
+      const { location, ...opened } = folder;
+      if (location) {
+        navigate([...location.map(plainFolder), opened]);
+        return;
+      }
       const current = trailRef.current;
       const index = current.findIndex((entry) => entry.id === folder.id);
-      navigate(index >= 0 ? current.slice(0, index + 1) : [...current, folder]);
+      navigate(index >= 0 ? current.slice(0, index + 1) : [...current, opened]);
     },
     [navigate, trailRef],
   );
@@ -655,6 +709,10 @@ export function useObjectList<TItem>(
     parent,
     sort,
     search,
+    isSearching: trimmedSearch !== "",
+    searchScope,
+    searchScopes: options.searchScopes ?? NO_SCOPES,
+    total: fresh && trimmedSearch ? snapshot.total : null,
     usage: visible ? snapshot.usage : null,
     error: fresh ? (failure?.error ?? null) : null,
     status,
@@ -671,6 +729,7 @@ export function useObjectList<TItem>(
     goUp,
     setSort: setSortValue,
     setSearch: setSearchValue,
+    setSearchScope,
     setItems,
     setFolders,
     removeItems,
@@ -731,6 +790,11 @@ function readStatus({
 /** A name sort or a search can drop or reorder the row that was renamed. */
 function namesNeedReload(request: Request): boolean {
   return request.sort?.field === "name" || request.search !== "";
+}
+
+/** A trail entry: the id and name, without a search result's location. */
+function plainFolder(folder: ObjectListFolder): ObjectListFolder {
+  return { id: folder.id, name: folder.name };
 }
 
 function sortsEqual(a: ObjectListSort | null, b: ObjectListSort | null) {

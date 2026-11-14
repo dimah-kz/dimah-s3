@@ -1,4 +1,4 @@
-import { pluginPath, s3Error } from "@dimah-s3/core";
+import { matchesSearchText, pluginPath, s3Error } from "@dimah-s3/core";
 import type { DimahS3Config } from "@dimah-s3/server";
 import { createS3Endpoint } from "@dimah-s3/server/plugins";
 import { childFolderPath } from "@/folder-path";
@@ -79,14 +79,16 @@ function resolveBucket(
   return bucket;
 }
 
-/** The child folders whose name contains the search text, ignoring case. */
+/**
+ * The child folders whose name contains the search text, folded the way
+ * file search folds it.
+ */
 function matchingFolders(
   children: readonly StorageFolder[],
   search: string | undefined,
 ): readonly StorageFolder[] {
   if (!search) return children;
-  const text = search.toLowerCase();
-  return children.filter((child) => child.name.toLowerCase().includes(text));
+  return children.filter((child) => matchesSearchText(child.name, search));
 }
 
 /** `""` and `null` are the root. `undefined` means the field was omitted. */
@@ -109,9 +111,11 @@ function folderTarget(
  * The `db` plugin's HTTP endpoints. Each one resolves the caller's scope and
  * runs `authorize` before it reads or writes a row:
  *
- * - `GET /db/objects` (op `list`): one page of the scope's objects. The
- *   first page also carries usage, the quota, the child folders (those
- *   whose name contains `search`, when it is set), and the breadcrumb trail.
+ * - `GET /db/objects` (op `list`): one page of the scope's objects, from
+ *   one folder or, with `recursive`, from it and every folder below. The
+ *   first page also carries usage, the quota, the folders (those whose name
+ *   contains `search`, when it is set), the breadcrumb trail, and a
+ *   search's `total`. A recursive page carries the `locations` of its rows.
  * - `GET /db/object` (op `read`): one object.
  * - `PATCH /db/object` (op `update`): renames, moves, or sets attributes.
  * - `POST /db/folder`, `PATCH /db/folder`, and `DELETE /db/folder`
@@ -180,50 +184,86 @@ export function createDatabaseEndpoints<
       pluginPath("db", "objects"),
       { method: "GET", query: dbListQuerySchema },
       async (ctx): Promise<DbClientListResponse<TClientAttributes>> => {
-        const { folderId: wireFolder, ...filters } = ctx.query;
+        const {
+          folderId: wireFolder,
+          recursive: wantsSubtree,
+          ...filters
+        } = ctx.query;
         const peeked = await resolveScope(ctx.context, {
           operation: "list",
           route: filters.route,
         });
         const opened = await openFolder(peeked.scope, wireFolder);
+        // A flat listing already covers every folder.
+        const recursive = wantsSubtree === true && opened !== undefined;
         const scope = await access.scope(ctx.context, {
           operation: "list",
           route: filters.route,
           ...(opened !== undefined && folderTarget(opened)),
+          ...(recursive && { recursive }),
         });
-        const page = await objects.list({
-          ...filters,
-          scope: scope.scope,
-          folderId: opened === undefined ? undefined : (opened?.id ?? null),
-        });
+        const folderId =
+          opened === undefined ? undefined : (opened?.id ?? null);
+        const filter = { ...filters, scope: scope.scope, folderId, recursive };
+        const firstPage = () =>
+          Promise.all([
+            objects.getUsage(scope.scope),
+            quota.limits(scope),
+            opened === undefined
+              ? undefined
+              : recursive
+                ? folders.descendants(scope.scope, folderId ?? null, {
+                    search: filters.search,
+                  })
+                : folders
+                    .children(scope.scope, folderId ?? null)
+                    .then((children) =>
+                      matchingFolders(children, filters.search),
+                    ),
+            opened === undefined
+              ? undefined
+              : opened === null
+                ? []
+                : folders.trail(scope.scope, opened.id),
+            filters.search ? objects.count(filter) : undefined,
+          ]);
+        // Without a cursor this is the first page: its extras load beside
+        // it and share its walk below the folder.
+        const early = filters.cursor ? null : firstPage();
+        early?.catch(() => undefined);
+        const page = await objects.list(filter);
         const response: DbClientListResponse<TClientAttributes> = {
           objects: page.objects.map((object) => toClientObject(object)),
           nextCursor: page.nextCursor,
         };
-        if (!page.firstPage) return response;
+        /** Folders whose location this page draws. */
+        const located = page.objects.flatMap((object) =>
+          object.folderId === null ? [] : [object.folderId],
+        );
+        if (!page.firstPage) {
+          if (!recursive) return response;
+          const locations = await folders.ancestors(scope.scope, located);
+          return { ...response, locations: locations.map(toDbClientFolder) };
+        }
 
-        const [usage, limits, children, trail] = await Promise.all([
-          objects.getUsage(scope.scope),
-          quota.limits(scope),
-          opened === undefined
-            ? undefined
-            : folders.children(scope.scope, opened?.id ?? null),
-          opened === undefined
-            ? undefined
-            : opened === null
-              ? []
-              : folders.trail(scope.scope, opened.id),
-        ]);
+        const [usage, limits, listed, trail, total] = await (early ??
+          firstPage());
+        const locations = recursive
+          ? await folders.ancestors(scope.scope, [
+              ...located,
+              ...(listed ?? []).flatMap((folder) =>
+                folder.parentId === null ? [] : [folder.parentId],
+              ),
+            ])
+          : undefined;
         return {
           ...response,
           usage,
           limits,
-          ...(children && {
-            folders: matchingFolders(children, filters.search).map(
-              toDbClientFolder,
-            ),
-          }),
+          ...(listed && { folders: listed.map(toDbClientFolder) }),
           ...(trail && { trail: trail.map(toDbClientFolder) }),
+          ...(locations && { locations: locations.map(toDbClientFolder) }),
+          ...(total !== undefined && { total }),
         };
       },
     ),

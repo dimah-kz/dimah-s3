@@ -419,7 +419,7 @@ describe("db plugin", () => {
       "resolveScope returned a scope of 305 characters",
     );
     await expect(
-      setup.database.orm("2.1.0").count("storageObject", {}),
+      setup.database.orm("2.2.0").count("storageObject", {}),
     ).resolves.toBe(0);
   });
 

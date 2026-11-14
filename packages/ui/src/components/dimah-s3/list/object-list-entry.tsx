@@ -6,6 +6,7 @@ import {
   useFormatFileSize,
   type DropTargetProps,
   type ObjectListEntry,
+  type ObjectListFolder,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
@@ -19,6 +20,7 @@ import {
   useObjectListEntryStatus,
 } from "@/components/dimah-s3/list/object-list-context";
 import { ObjectListRenameField } from "@/components/dimah-s3/list/object-list-rename";
+import { ObjectListLocation } from "@/components/dimah-s3/list/object-list-search";
 
 /** Props shared by {@link ObjectListRow} and {@link ObjectListTile}. */
 export type ObjectListEntryProps<TItem> = {
@@ -80,6 +82,9 @@ export function ObjectListCheckbox({
 const DROP_TARGET =
   "data-drag-active:bg-dimah-s3-primary/10 data-drag-active:ring-2 data-drag-active:ring-dimah-s3-primary data-drag-active:ring-inset";
 
+/** A moment of highlight on the entry Show in folder opened. */
+const REVEALED = "data-revealed:bg-dimah-s3-primary/15";
+
 /**
  * One row in the `list` view. Memoized: it draws again when its props or
  * its own state change, not on every change of the list.
@@ -112,6 +117,7 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
           ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
           : "hover:bg-dimah-s3-muted",
         DROP_TARGET,
+        REVEALED,
         className,
       )}
     >
@@ -143,7 +149,11 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
           >
             <span className="flex min-w-0 items-center gap-2">
               <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-                <FileName name={entry.name} extension={entry.kind === "file"} />
+                <FileName
+                  name={entry.name}
+                  extension={entry.kind === "file"}
+                  highlight={parts.highlight}
+                />
               </span>
               {parts.meta ? (
                 <span className="shrink-0">{parts.meta}</span>
@@ -184,6 +194,7 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
           ? "border-dimah-s3-primary bg-dimah-s3-primary/10"
           : "border-dimah-s3-border hover:bg-dimah-s3-muted",
         DROP_TARGET,
+        REVEALED,
         className,
       )}
     >
@@ -207,7 +218,11 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
           <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
             <span className="flex min-w-0 items-center gap-1.5">
               <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-                <FileName name={entry.name} extension={entry.kind === "file"} />
+                <FileName
+                  name={entry.name}
+                  extension={entry.kind === "file"}
+                  highlight={parts.highlight}
+                />
               </span>
               {parts.meta ? (
                 <span className="shrink-0">{parts.meta}</span>
@@ -257,6 +272,8 @@ type EntryParts = {
   media: ReactNode;
   /** Drag and drop handlers on a folder that takes uploads, or `null`. */
   dropTarget: DropTargetProps | null;
+  /** Search text to mark in the name. */
+  highlight: string | undefined;
   entryKey: string;
   /** `null` when the entry neither opens nor selects. */
   onClick: ((event: MouseEvent<HTMLElement>) => void) | null;
@@ -276,15 +293,19 @@ function useEntryParts<TItem>({
   const scope = useObjectListEntryScope<TItem>();
   const { selected, selectable, selecting, renaming, tabStop } =
     useObjectListEntryStatus(entry.key);
-  const defaultDescription = useDefaultDescription(entry);
+  // A search result says where it lives, and can open there.
+  const location = scope.search ? entry.location : undefined;
+  const defaultDescription = useDefaultDescription(entry, location);
   const folder = entry.kind === "folder";
   const canRename = folder ? scope.renameFolder : scope.renameFile;
   const opens = folder || scope.opensFiles;
   // Folders take dropped files only when the source can place them there.
   const takesDrops = folder && scope.folderUploads;
-  const hasMenu = folder
-    ? takesDrops || canRename
-    : scope.download || scope.share || scope.delete || canRename;
+  const hasMenu =
+    location != null ||
+    (folder
+      ? takesDrops || canRename
+      : scope.download || scope.share || scope.delete || canRename);
 
   const resolvedActions =
     actions !== undefined ? (
@@ -324,6 +345,7 @@ function useEntryParts<TItem>({
     meta: present(meta !== undefined ? meta : scope.renderMeta?.(entry)),
     media: present(media),
     dropTarget: takesDrops ? scope.folderDropTarget(entry.id) : null,
+    highlight: scope.search || undefined,
     entryKey: entry.key,
     onClick:
       opens || selectable
@@ -428,16 +450,31 @@ function EntryMedia<TItem>({
   );
 }
 
-/** Size and date of a file. Folders have none. */
-function useDefaultDescription<TItem>(entry: ObjectListEntry<TItem>) {
+/**
+ * Size and date of a file; folders have none. A search result starts with
+ * where it lives.
+ */
+function useDefaultDescription<TItem>(
+  entry: ObjectListEntry<TItem>,
+  location: readonly ObjectListFolder[] | undefined,
+): ReactNode {
   const formatFileSize = useFormatFileSize();
   const formatDate = useFormatDate();
-  if (entry.kind === "folder") return null;
-  const parts = [
-    entry.file.size != null ? formatFileSize(entry.file.size) : "",
-    formatDate(entry.file.updatedAt),
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  const parts =
+    entry.kind === "folder"
+      ? []
+      : [
+          entry.file.size != null ? formatFileSize(entry.file.size) : "",
+          formatDate(entry.file.updatedAt),
+        ].filter(Boolean);
+  const details = parts.length > 0 ? parts.join(" · ") : null;
+  if (!location) return details;
+  return (
+    <>
+      <ObjectListLocation location={location} />
+      {details ? ` · ${details}` : null}
+    </>
+  );
 }
 
 function present(node: ReactNode): ReactNode {

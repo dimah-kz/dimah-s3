@@ -31,7 +31,7 @@ export type DbObjects<TAttributes = never> = Pick<
 };
 
 /** `s3.db.folders`: the `storage_folder` rows. The root is never stored. */
-export type DbFolders = StorageFolderStore;
+export type DbFolders = Omit<StorageFolderStore, "subtreeIds">;
 
 /** `""` is the root, the same as `null`. */
 function rootId(folderId: string | null): string | null {
@@ -43,7 +43,7 @@ function rootId(folderId: string | null): string | null {
  * `undefined` leaves the object's folder alone.
  */
 async function targetFolder(
-  folders: StorageFolderStore,
+  folders: Pick<StorageFolderStore, "find">,
   scope: string,
   folderId: string | null | undefined,
 ): Promise<StorageFolder | null | undefined> {
@@ -59,7 +59,9 @@ async function targetFolder(
 export function createPublicStores<TAttributes>(
   store: Pick<DbStore<TAttributes>, "objects" | "folders">,
 ): { objects: DbObjects<TAttributes>; folders: DbFolders } {
-  const { objects, folders } = store;
+  const { objects } = store;
+  // `subtreeIds` stays internal.
+  const { subtreeIds: _subtreeIds, ...folders } = store.folders;
   return {
     objects: {
       find: objects.find,
