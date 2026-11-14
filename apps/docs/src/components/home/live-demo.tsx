@@ -46,27 +46,21 @@ export function LiveDemo() {
   return (
     <section
       aria-labelledby="live-demo-title"
-      className="overflow-hidden rounded-2xl border border-fd-border bg-fd-card shadow-lg shadow-black/5 dark:shadow-black/30"
+      className="overflow-hidden rounded-2xl border border-fd-border bg-fd-card shadow-xl shadow-black/5 dark:shadow-black/40"
     >
-      <div className="flex items-center justify-between gap-3 border-b border-fd-border px-4 py-3">
+      <div className="flex items-center justify-between gap-3 px-4 pt-3.5">
         <h2 id="live-demo-title" className="text-sm font-medium">
           Live demo
         </h2>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-fd-border px-2 py-0.5 text-[11px] text-fd-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 text-xs text-fd-muted-foreground">
           <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
-          Runs in your browser
+          In your browser
         </span>
       </div>
-      <div className="p-4">
+      <div className="p-4 pt-3">
         <DemoS3Provider>
           <DemoFiles />
         </DemoS3Provider>
-      </div>
-      <div className="flex items-center justify-between gap-3 border-t border-fd-border bg-fd-muted/40 px-4 py-2.5 text-xs text-fd-muted-foreground">
-        <code className="truncate font-mono text-[11px]">
-          useUpload({"{"} route: &quot;{ROUTE}&quot; {"}"})
-        </code>
-        <span className="shrink-0">Mock bucket, nothing is sent</span>
       </div>
     </section>
   );
@@ -188,11 +182,7 @@ function DemoFiles() {
                 </ViewTransition>
               ))}
             </ul>
-          ) : (
-            <p className="py-1 text-center text-xs text-fd-muted-foreground">
-              Uploaded files show here, with download and delete.
-            </p>
-          )}
+          ) : null}
         </Delete>
       </Download>
 

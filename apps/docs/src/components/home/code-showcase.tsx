@@ -1,11 +1,10 @@
-import { cacheLife } from "next/cache";
 import {
   CodeBlockTab,
   CodeBlockTabs,
   CodeBlockTabsList,
   CodeBlockTabsTrigger,
 } from "fumadocs-ui/components/codeblock";
-import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
+import { CachedCode } from "@/components/home/cached-code";
 
 const files = [
   {
@@ -69,23 +68,6 @@ export function AvatarUpload() {
 }`,
   },
 ] as const;
-
-/** Highlighting runs once at build time; the page stays fully static. */
-async function CachedCode({ code, lang }: { code: string; lang: string }) {
-  "use cache";
-  cacheLife("max");
-
-  return (
-    <ServerCodeBlock
-      code={code}
-      lang={lang}
-      codeblock={{
-        className: "border-0",
-        viewportProps: { className: "max-h-none" },
-      }}
-    />
-  );
-}
 
 /** Server route, handler, and client component as one tabbed code block. */
 export function CodeShowcase() {
