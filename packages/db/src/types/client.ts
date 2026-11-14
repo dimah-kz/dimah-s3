@@ -77,15 +77,23 @@ export type DbClientListInput = {
    * every folder.
    */
   folderId?: string | null;
+  /**
+   * With `folderId`, also list every folder below it: objects from the
+   * whole subtree, and every folder in it as `folders`. At the root that is
+   * the whole scope. Each page carries `locations`, so a row can say where
+   * it is. `authorize` sees `recursive: true`.
+   */
+  recursive?: boolean;
   route?: S3RouteName;
   /** @default "active" */
   status?: DbClientObjectStatus;
   /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
   /**
-   * Text the `filename` contains. The database decides case: PostgreSQL
-   * matches it exactly, SQLite ignores ASCII case, and MySQL follows the
-   * column collation.
+   * Text the `filename` contains. Case, accents, and look-alike letters
+   * (`ي`/`ی`, `ك`/`ک`) do not count, Persian and Arabic-Indic digits match
+   * `0`–`9`, and `%` and `_` are plain text, the same on every database.
+   * With `folderId`, folder names are matched the same way.
    */
   search?: string;
   /** @default { field: "createdAt", direction: "desc" } */
@@ -105,8 +113,10 @@ export type DbClientListResponse<TClientAttributes = never> = {
   /** `null` on the last page. */
   nextCursor: string | null;
   /**
-   * Direct child folders of `folderId`, at most 1000, and only those whose
-   * name contains `search` when it is set. First page only.
+   * Direct child folders of `folderId`, or with `recursive` every folder
+   * below it, by name. At most 1000, and only those whose name contains
+   * `search` when it is set. First page only, and only when `folderId` is
+   * set.
    */
   folders?: DbClientFolder[];
   /**
@@ -114,6 +124,14 @@ export type DbClientListResponse<TClientAttributes = never> = {
    * First page only, and only when `folderId` is set.
    */
   trail?: DbClientFolder[];
+  /**
+   * With `recursive`, every folder on the way to the objects of this page
+   * and, on the first page, to `folders`: walk `parentId` from a row's
+   * `folderId` to draw where it lives. Every page.
+   */
+  locations?: DbClientFolder[];
+  /** Objects that match, across every page. First page of a search only. */
+  total?: number;
   /** First page only. */
   usage?: DbUsage;
   /** Caps for the scope, `null` when there are none. First page only. */
@@ -199,12 +217,27 @@ export type DbObjectSourceOptions = {
   limit?: number;
   /** List one folder at a time, with folder rows. @default true */
   folders?: boolean;
+  /**
+   * With `folders` on, search the folders below the open one too, or the
+   * whole scope (`searchScopes`). Turn it off when `authorize` keeps
+   * listings to one folder: a search then matches the open folder only.
+   * @default true
+   */
+  recursiveSearch?: boolean;
 };
+
+/** Where a search looks. Mirrors react's `ObjectListSearchScope`. */
+export type DbObjectSourceSearchScope = "folder" | "all";
 
 /** A folder row of {@link DbObjectSource}. `id` is the folder id. */
 export type DbObjectSourceFolder = {
   id: string;
   name: string;
+  /**
+   * Folders from the root down to the one that holds this folder. Set on
+   * the results of a search.
+   */
+  location?: readonly DbObjectSourceFolder[];
 };
 
 /** The `useObjectList` query input. Mirrors react's `ObjectListQueryInput`. */
@@ -215,6 +248,11 @@ export type DbObjectSourceQueryInput = {
   /** `name`, `size`, or `updatedAt`. Other fields keep the default order. */
   sort: { field: string; direction: "asc" | "desc" } | null;
   search: string;
+  /**
+   * `folder`: the open folder and every folder below it. `all`: the whole
+   * scope. @default "folder"
+   */
+  searchScope?: DbObjectSourceSearchScope;
   signal: AbortSignal;
 };
 
@@ -231,6 +269,8 @@ export type DbObjectSourcePage<TClientAttributes = never> = {
   nextCursor: string | null;
   /** Scope usage with its caps. First page only. */
   usage?: DbUsage & DbQuota;
+  /** Files that match a search, across every page. First page only. */
+  total?: number;
 };
 
 /** How the list reads one row. Mirrors react's `ObjectListFile`. */
@@ -241,6 +281,11 @@ export type DbObjectSourceFile = {
   contentType: string | null;
   /** The row's `updatedAt`. */
   updatedAt: string;
+  /**
+   * Folders from the root down to the row's folder. Set on the rows of a
+   * search.
+   */
+  location?: readonly DbObjectSourceFolder[];
 };
 
 /**
@@ -253,6 +298,8 @@ export type DbObjectSource<TClientAttributes = never> = {
   ) => Promise<DbObjectSourcePage<TClientAttributes>>;
   getKey: (item: DbClientObject<TClientAttributes>) => string;
   getFile: (item: DbClientObject<TClientAttributes>) => DbObjectSourceFile;
+  /** `["folder", "all"]` with `folders` on: search reaches every folder. */
+  searchScopes?: readonly DbObjectSourceSearchScope[];
   /** Upload options for files dropped into `parent`. The root sends `""`. */
   uploadOptions?: (parent: string | null) => {
     metadata: Record<string, string>;

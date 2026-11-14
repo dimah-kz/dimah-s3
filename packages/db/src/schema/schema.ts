@@ -6,8 +6,14 @@ import { column, idColumn, schema, table } from "fumadb/schema";
  */
 const BINARY = { mysql: "utf8mb4_bin" };
 
-/** MySQL collation of `filename`: case-insensitive, for search. */
+/** MySQL collation of `filename`: case-insensitive, for the name sort. */
 const TEXT = { mysql: "utf8mb4_unicode_ci" };
+
+/**
+ * Longest `search_name`, in characters. Folding can lengthen a name (`ß`
+ * becomes `ss`), so it has more room than the 255-character name.
+ */
+export const SEARCH_NAME_MAX_LENGTH = 1024;
 
 /**
  * InnoDB indexes at most 3072 bytes, so S3 keys and folder paths are indexed
@@ -42,6 +48,12 @@ const storageObject = table("storage_object", {
   /** Folder that holds the object. `null` is the root. */
   folderId: string("folder_id").nullable(),
   filename: column("filename", "varchar(255)").collate(TEXT),
+  /**
+   * `filename` folded for search: lowercase, without accents, with `%`,
+   * `_`, and `\` kept literal. Search matches it on every database the
+   * same way.
+   */
+  searchName: string("search_name", SEARCH_NAME_MAX_LENGTH),
   contentType: string("content_type").nullable(),
   /** Verified size from HeadObject, set on confirm. */
   size: column("size", "bigint").nullable(),
@@ -92,6 +104,8 @@ const storageFolder = table("storage_folder", {
   parentId: string("parent_id").defaultTo(""),
   /** Last segment of `path`. */
   name: string("name"),
+  /** `name` folded for search, like `storage_object.search_name`. */
+  searchName: string("search_name", SEARCH_NAME_MAX_LENGTH),
   /** Full folder path. */
   path: string("path", 1024),
   createdAt: column("created_at", "timestamp").defaultTo$("now"),
@@ -103,12 +117,12 @@ const storageFolder = table("storage_folder", {
   .unique("storage_folder_scope_parent_name_uk", ["scope", "parentId", "name"]);
 
 /**
- * The @dimah-s3/db schema, version `2.1.0`. The tables, their indexes, and
+ * The @dimah-s3/db schema, version `2.2.0`. The tables, their indexes, and
  * the MySQL collations and prefix lengths are all declared here, so FumaDB
  * creates them (`migrate`) and generates them for Drizzle and Prisma.
  */
 export const dbSchema = schema({
-  version: "2.1.0",
+  version: "2.2.0",
   tables: {
     storageObject,
     storageFolder,

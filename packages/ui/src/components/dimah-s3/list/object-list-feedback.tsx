@@ -52,15 +52,17 @@ export function useObjectListAnnouncement() {
 /**
  * The list's polite live region, mounted with the list so a change is read
  * out from the first one. It reads `status`, such as the selection count,
- * whenever it changes, and list feedback while the list's toasts are off.
- * @internal
+ * and `search`, the result count, whenever they change, and list feedback
+ * while the list's toasts are off. @internal
  */
 export function ObjectListAnnouncer({
   announcement,
   status,
+  search = null,
 }: {
   announcement: ObjectListAnnouncement | null;
   status: string | null;
+  search?: string | null;
 }) {
   return (
     <div
@@ -69,6 +71,7 @@ export function ObjectListAnnouncer({
       aria-live="polite"
     >
       <p data-slot="object-list-status">{status}</p>
+      <p data-slot="object-list-search-announcement">{search}</p>
       {announcement ? (
         <p key={announcement.id}>
           {announcement.feedback.title}

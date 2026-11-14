@@ -62,6 +62,11 @@ export type AuthorizeContext<
   folder?: string | null;
   /** Id of the target folder. `null` is the root. */
   folderId?: string | null;
+  /**
+   * `true` when a `list` also covers every folder below `folder`, as a
+   * search across folders does. Deny it to keep listings to one folder.
+   */
+  recursive?: boolean;
   /** Client extras of the upload. Set on `upload` only. */
   clientMetadata?: Record<string, string>;
   /**

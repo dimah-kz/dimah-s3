@@ -15,6 +15,8 @@ export const DEFAULT_LIST_SORT: DbListSort = {
 export type ListCursorFilters = {
   /** `undefined` lists every folder; `null` is the root. */
   folderId: string | null | undefined;
+  /** The folders below `folderId` are listed too. */
+  recursive: boolean;
   search: string | undefined;
   status: StorageObjectStatus;
   route: string | undefined;
@@ -48,6 +50,7 @@ function fingerprint(filters: ListCursorFilters): string {
   const text = JSON.stringify([
     filters.folderId === undefined,
     filters.folderId ?? null,
+    filters.recursive,
     filters.search ?? null,
     filters.status,
     filters.route ?? null,

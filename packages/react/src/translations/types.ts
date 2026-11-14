@@ -1,5 +1,6 @@
 export type Translations = {
   "1 file(object list usage)": string;
+  "1 result(object list search)": string;
   "A file checksum is required(API error)": string;
   "A file with this name already exists(API error)": string;
   "A folder with this name already exists(API error)": string;
@@ -115,6 +116,8 @@ export type Translations = {
   "No results(object list)": string;
   "Not found(API error)": string;
   "Nothing in this folder matches “{search}”.(object list)": string;
+  "Nothing in “{folder}” or its folders matches “{search}”.(object list search)": string;
+  "Nothing matches “{search}”.(object list search)": string;
   "Nothing to delete(object list selection)": string;
   "Object key is invalid(API error)": string;
   "PB(file size unit)": string;
@@ -130,11 +133,18 @@ export type Translations = {
   "Retry {name}(attachment action)": string;
   "Retry(object list)": string;
   "Retry(toast action)": string;
+  "Search all files(object list search)": string;
+  "Search everywhere(object list search)": string;
   "Search files(object list)": string;
+  "Search in “{folder}”(object list search)": string;
+  "Search in(object list search)": string;
+  "Searching(object list search)": string;
+  "Searching…(object list search)": string;
   "Select all(object list selection)": string;
   "Select this page(object list selection)": string;
   "Select {name}(object list selection)": string;
   "Selected folders stay in the list.(object list selection)": string;
+  "Show in folder(object list menu)": string;
   "Size(object list sort)": string;
   "Some operations failed(API error)": string;
   "Something went wrong(API error)": string;
@@ -182,8 +192,10 @@ export type Translations = {
   "{count} files were rejected(toast)": string;
   "{count} files(object list usage)": string;
   "{count} of {max} files(object list usage)": string;
+  "{count} results(object list search)": string;
   "{count} selected on this page(object list selection)": string;
   "{count} selected(object list selection)": string;
+  "{count}+ results(object list search)": string;
   "{done} of {total} files uploaded(upload progress)": string;
   "{failed} of {total} failed(API error)": string;
   "{hours}h left(time remaining)": string;

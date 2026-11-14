@@ -1,6 +1,7 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { findSearchMatches } from "@dimah-s3/core";
 import { cn } from "cn";
 
 /** A short suffix after the last dot. Longer or odd suffixes stay in the stem. */
@@ -26,7 +27,41 @@ export type FileNameProps = Omit<ComponentProps<"span">, "children"> & {
    * folder names. @default true
    */
   extension?: boolean;
+  /**
+   * Search text to mark in the name. It matches the way list search does:
+   * case, accents, and look-alike letters do not count.
+   */
+  highlight?: string;
 };
+
+/** `text`, which starts at `offset` in the name, with the matches marked. */
+function markMatches(
+  text: string,
+  offset: number,
+  ranges: readonly [number, number][],
+): ReactNode {
+  if (ranges.length === 0) return text;
+  const parts: ReactNode[] = [];
+  let at = 0;
+  for (const [start, end] of ranges) {
+    const from = Math.max(start - offset, at);
+    const to = Math.min(end - offset, text.length);
+    if (to <= from) continue;
+    if (from > at) parts.push(text.slice(at, from));
+    parts.push(
+      <mark
+        key={from}
+        data-slot="file-name-match"
+        className="rounded-[2px] bg-dimah-s3-warning/30 text-inherit"
+      >
+        {text.slice(from, to)}
+      </mark>,
+    );
+    at = to;
+  }
+  if (at < text.length) parts.push(text.slice(at));
+  return parts;
+}
 
 /**
  * A file name that fits the width it has: the stem ends in an ellipsis and
@@ -37,12 +72,14 @@ export type FileNameProps = Omit<ComponentProps<"span">, "children"> & {
 export function FileName({
   name,
   extension: keepExtension = true,
+  highlight,
   className,
   ...props
 }: FileNameProps) {
   const { stem, extension } = keepExtension
     ? splitFileName(name)
     : { stem: name, extension: "" };
+  const ranges = highlight ? findSearchMatches(name, highlight) : [];
   return (
     <span
       data-slot="file-name"
@@ -51,8 +88,12 @@ export function FileName({
       {...props}
       className={cn("inline-flex max-w-full min-w-0 align-top", className)}
     >
-      <span className="min-w-0 truncate">{stem}</span>
-      {extension ? <span className="shrink-0">{extension}</span> : null}
+      <span className="min-w-0 truncate">{markMatches(stem, 0, ranges)}</span>
+      {extension ? (
+        <span className="shrink-0">
+          {markMatches(extension, stem.length, ranges)}
+        </span>
+      ) : null}
     </span>
   );
 }

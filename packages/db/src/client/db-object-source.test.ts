@@ -75,6 +75,7 @@ describe("dbObjectSource query", () => {
 
     expect(listObjects.mock.calls[0]?.[0]).toEqual({
       folderId: "work/drafts",
+      recursive: true,
       cursor: "cursor-1",
       search: "q3",
       route: "docs",
@@ -149,6 +150,81 @@ describe("dbObjectSource query", () => {
       trail: [{ id: "work", name: "work" }],
       usage: { totalBytes: 12, objectCount: 1, maxBytes: 1024, maxFiles: 10 },
     });
+  });
+
+  it("searches the open folder's subtree, or the whole scope", async () => {
+    const listObjects = listObjectsReturning();
+    const source = dbObjectSource({ listObjects });
+
+    await source.query(queryInput({ parent: "work", search: "q" }));
+    await source.query(
+      queryInput({ parent: "work", search: "q", searchScope: "all" }),
+    );
+    await source.query(queryInput({ parent: "work", searchScope: "all" }));
+
+    expect(listObjects.mock.calls.map(([input]) => input)).toEqual([
+      { folderId: "work", recursive: true, search: "q" },
+      { folderId: "", recursive: true, search: "q" },
+      { folderId: "work" },
+    ]);
+    expect(source.searchScopes).toEqual(["folder", "all"]);
+    expect(
+      dbObjectSource({ listObjects }, { folders: false }).searchScopes,
+    ).toBeUndefined();
+  });
+
+  it("keeps a search to the open folder with recursiveSearch: false", async () => {
+    const listObjects = listObjectsReturning();
+    const source = dbObjectSource({ listObjects }, { recursiveSearch: false });
+
+    await source.query(
+      queryInput({ parent: "work", search: "q", searchScope: "all" }),
+    );
+
+    expect(listObjects.mock.calls[0]?.[0]).toEqual({
+      folderId: "work",
+      search: "q",
+    });
+    expect(source.searchScopes).toBeUndefined();
+  });
+
+  it("says where each search result lives", async () => {
+    const folder = (id: string, name: string, parentId: string | null) => ({
+      id,
+      name,
+      parentId,
+      path: name,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+    const atRoot = row({ id: "a" });
+    const nested = row({ id: "b", folderId: "f-2024" });
+    const listObjects = listObjectsReturning({
+      objects: [atRoot, nested],
+      nextCursor: null,
+      folders: [folder("f-inv", "Invoices", "f-2024")],
+      locations: [
+        folder("f-docs", "Docs", null),
+        folder("f-2024", "2024", "f-docs"),
+      ],
+      total: 2,
+    });
+    const source = dbObjectSource({ listObjects });
+
+    const result = await source.query(queryInput({ search: "inv" }));
+
+    const docs = [
+      { id: "f-docs", name: "Docs" },
+      { id: "f-2024", name: "2024" },
+    ];
+    expect(result).toMatchObject({
+      folders: [{ id: "f-inv", name: "Invoices", location: docs }],
+      total: 2,
+    });
+    expect(source.getFile(atRoot).location).toEqual([]);
+    expect(source.getFile(nested).location).toEqual(docs);
+    // A row the source did not return has no location.
+    expect(source.getFile(row({ id: "c" }))).not.toHaveProperty("location");
   });
 
   it("keeps usage without caps when the scope has none", async () => {

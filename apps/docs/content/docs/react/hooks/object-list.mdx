@@ -61,19 +61,76 @@ The query receives:
 - `parent` — folder id, or `null` at the root. The id is opaque: a database id, a path, or a key prefix.
 - `cursor` — `null` on the first page. Return `nextCursor: null` on the last page.
 - `sort` — `{ field, direction }`, or `null` to leave the order to the source.
-- `search` — trimmed text, `""` when nothing is searched.
+- `search` — trimmed text, `""` when nothing is searched or the text has
+  only joiners or accents.
+- `searchScope` — where `search` looks: `"folder"` or `"all"`. It only means something while `search` is set. See [Search](#search).
 - `signal` — aborted when the folder, sort, search, or `queryKey` changes, when the list reloads, or when the hook unmounts.
 
-Return `folders` from the first page only. Later pages append `items`.
+Return `folders` from the first page only. Later pages append `items`. The
+first page of a search can also return `total`, the files that match across
+every page.
 
 Changing the folder or `queryKey` clears the rows and shows the loading
 state. Use `queryKey` for filters of your own, such as the route. Changing
-the sort or search keeps the current rows on screen, with `isRefreshing`,
-until the new first page arrives. Opening another folder clears the search.
+the sort, the search, or the search scope keeps the current rows on screen,
+with `isRefreshing`, until the new first page arrives. Opening another
+folder clears the search.
 
 A query that rejects sets `status` to `error`. `error` is an `APIError`; a
 rejection that is not one becomes `UNKNOWN_ERROR`, with the original as its
 `cause`.
+
+## Search
+
+`setSearch(text)` reloads the first page; debounce it yourself. `isSearching`
+is `true` while the query receives search text. What matches is up to the
+source.
+
+A source that can search past the open folder lists the scopes it
+understands in `searchScopes`:
+
+- `"folder"` (the default) — the open folder and every folder below it.
+- `"all"` — every folder.
+
+At the root both cover everything. `setSearchScope` reloads the first page
+while a search is on. `list.searchScopes` is what the source declared, or
+`[]`.
+
+```ts
+const source: ObjectListSource<FileRow> = {
+  searchScopes: ["folder", "all"],
+  query: async ({ parent, cursor, search, searchScope, signal }) => {
+    const page = await fetchFiles({
+      folderId: search && searchScope === "all" ? null : parent,
+      recursive: search !== "",
+      cursor,
+      search,
+      signal,
+    });
+    return {
+      items: page.files,
+      folders: page.folders, // each with `location` while searching
+      nextCursor: page.nextCursor,
+      total: page.total, // files that match, across every page
+    };
+  },
+  getKey: (file) => file.id,
+  getFile: (file) => ({
+    name: file.name,
+    objectKey: file.key,
+    location: file.location,
+  }),
+};
+```
+
+A search result can carry `location`: the folders from the root down to the
+one that holds it, root excluded. Set it on the folder, or on what
+`getFile` returns. The entry has it as `entry.location`. `openFolder` on a
+folder with a `location` opens its whole path, and the search clears as it
+does on any folder change.
+
+`list.total` is the first page's `total` while a search is on, and `null`
+when the source did not send one.
 
 ## Usage and limits
 
@@ -191,9 +248,14 @@ const list = useObjectList(source);
 `usage: true`. It totals every record, not only the open folder. Pass
 `usage: false` to turn it off.
 
-Search matches the name, ignoring case and accents; pass `matches` to change
-that. Sort understands `name`, `size`, and `updatedAt`; pass `sortValue` for
-other fields. Records without a value sort last.
+Search matches the name with `matchesSearchText` from `@dimah-s3/core`:
+case, accents, and look-alike letters do not count. Pass `matches` to change
+that for records; folder names always match that way. With `getFolder`, a
+search covers every folder below the open one (`searchScope: "folder"`) or
+every record (`"all"`), and returns the folders whose name matches along
+with the files. `getFile` adds each record's `location`, and a search's
+first page sends `total`. Sort understands `name`, `size`, and `updatedAt`;
+pass `sortValue` for other fields. Records without a value sort last.
 
 `readObjectListLevel` is the folder step on its own: it splits a flat list
 into the folders and files at one level. Pass the full set for that listing.
@@ -247,20 +309,25 @@ export function DbFiles() {
 }
 ```
 
-Search and sort run on the server: the search text matches the filename,
-`name` sorts by filename, `updatedAt` by last change, and `size` by verified
-size. `usage` is the scope's total with its quota caps, not the open
-folder's. Scope comes from the server `resolveScope` option; the query does
-not accept one.
+Search and sort run on the server. The search text matches the filename,
+and folder names, without case, accents, or look-alike letters, the same on
+every database. With folders on, the source has both `searchScopes`:
+`"folder"` searches the open folder and every folder below it, and `"all"`
+the whole scope. Each result has its `location`, and the first page sends
+`total`. `name` sorts by filename, `updatedAt` by last change, and `size` by
+verified size. `usage` is the scope's total with its quota caps, not the
+open folder's. Scope comes from the server `resolveScope` option; the query
+does not accept one.
 
 ## Navigation
 
 Omit `parent` and the hook owns the folder. Pass `parent` and
 `onParentChange` together when the URL owns it. `parent={null}` is the
 controlled root. `defaultTrail` labels the starting path; its last id should
-match `defaultParent`. `sort` / `onSortChange` and `search` /
-`onSearchChange` work the same way, with `defaultSort` and `defaultSearch`
-for uncontrolled starts.
+match `defaultParent`. `sort` / `onSortChange`, `search` /
+`onSearchChange`, and `searchScope` / `onSearchScopeChange` work the same
+way, with `defaultSort`, `defaultSearch`, and `defaultSearchScope` for
+uncontrolled starts.
 
 ```tsx
 const list = useObjectList({
@@ -271,6 +338,8 @@ const list = useObjectList({
 ```
 
 `openFolder`, `navigate(trail)`, and `goUp()` move between folders.
+`openFolder` takes a child of the open folder, a folder of the trail, or a
+search result with a `location`, whose whole path opens.
 
 ## Loading and edits
 

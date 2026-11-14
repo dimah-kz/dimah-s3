@@ -54,6 +54,7 @@ export type {
   ObjectListPage,
   ObjectListQuery,
   ObjectListQueryInput,
+  ObjectListSearchScope,
   ObjectListSort,
   ObjectListSource,
   ObjectListUsageData,

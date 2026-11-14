@@ -34,6 +34,16 @@ function queryInt(schema: z.ZodInt) {
   );
 }
 
+/** A query-string boolean: `true` or `false`. `s3.api` may pass a boolean. */
+const queryBoolean = z.codec(
+  z.union([z.enum(["true", "false"]), z.boolean()]),
+  z.boolean(),
+  {
+    decode: (value) => value === true || value === "true",
+    encode: (value) => value,
+  },
+);
+
 const dbListSortSchema = z.object({
   field: z.enum(["createdAt", "updatedAt", "size", "filename"]),
   direction: z.enum(["asc", "desc"]),
@@ -67,15 +77,17 @@ const dbListSortQuerySchema = z.codec(
 
 /**
  * Query of `GET /db/objects`. `folderId` of `""` is the root. Omit it for a
- * flat list. Blank `search`, `contentType`, and `cursor` values are omitted.
+ * flat list. `recursive` also lists the folders below `folderId`. Blank
+ * `search`, `contentType`, and `cursor` values are omitted.
  */
 export const dbListQuerySchema = z.strictObject({
   folderId: z.string().optional(),
+  recursive: queryBoolean.optional(),
   route: routeNameSchema.optional(),
   // Rows that purge has claimed stay internal, as on `GET /db/object`.
   status: z.enum(["pending", "active", "deleted"]).optional(),
   contentType: optionalContentTypeSchema,
-  /** Text the filename contains. */
+  /** Text the filename contains, ignoring case and accents. */
   search: optionalTrimmedString.pipe(
     z.string().max(MAX_SEARCH_LENGTH).optional(),
   ),

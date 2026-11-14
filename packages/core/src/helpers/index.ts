@@ -31,3 +31,8 @@ export {
   sniffContentType,
 } from "./magic-bytes";
 export { buildPublicObjectUrl } from "./public-object-url";
+export {
+  findSearchMatches,
+  matchesSearchText,
+  normalizeSearchText,
+} from "./search-text";

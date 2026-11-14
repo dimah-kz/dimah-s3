@@ -118,12 +118,14 @@ describe("migrate", () => {
       ...row,
       key: "users/1/new.txt",
       filename: "new.txt",
+      searchName: "new.txt",
       size: 5497558138880n,
     });
     await client.orm(DB_SCHEMA_VERSION).create("storageObject", {
       ...row,
       key: "users/1/a.txt",
       filename: "a.txt",
+      searchName: "a.txt",
       size: 42n,
     });
 

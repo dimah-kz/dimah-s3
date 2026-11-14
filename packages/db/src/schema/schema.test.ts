@@ -39,7 +39,7 @@ function columnList(entries: [name: string, nullable: boolean][]) {
   return entries.map(([name, nullable]) => ({ name, nullable })).sort(byName);
 }
 
-/** Columns and indexes schema 2.1.0 declares for a SQL table. */
+/** Columns and indexes schema 2.2.0 declares for a SQL table. */
 function expectedShape(table: (typeof TABLES)[number]): Shape {
   const definition = DEFINITIONS[table];
   const sqlNames = (columns: { names: { sql: string } }[]) =>
@@ -174,6 +174,7 @@ const sampleObject = {
   route: "files",
   folderId: "folder-1",
   filename: "a.txt",
+  searchName: "a.txt",
   status: "active",
   size: 5497558138880n,
   s3Metadata: { "x-amz-meta-a": "1" },
@@ -181,12 +182,12 @@ const sampleObject = {
   uploadToken: "token",
 };
 
-describe("schema 2.1.0", () => {
+describe("schema 2.2.0", () => {
   it("is the only schema", () => {
     expect(DimahS3DB.client(kyselyAdapter({} as never)).schemas).toEqual([
       dbSchema,
     ]);
-    expect(DB_SCHEMA_VERSION).toBe("2.1.0");
+    expect(DB_SCHEMA_VERSION).toBe("2.2.0");
   });
 
   it("declares the spec columns", () => {
@@ -199,6 +200,7 @@ describe("schema 2.1.0", () => {
         ["route", false],
         ["folder_id", true],
         ["filename", false],
+        ["search_name", false],
         ["content_type", true],
         ["size", true],
         ["declared_size", true],
@@ -222,6 +224,7 @@ describe("schema 2.1.0", () => {
         ["scope", false],
         ["parent_id", false],
         ["name", false],
+        ["search_name", false],
         ["path", false],
         ["created_at", false],
         ["updated_at", false],
@@ -387,6 +390,7 @@ describe("migrate() on PostgreSQL", () => {
       scope: "\u{1d49c}".repeat(SCOPE_MAX_LENGTH), // 4 bytes each
       parentId: "",
       name: path.slice(path.lastIndexOf("/") + 1),
+      searchName: "",
       path,
     });
 

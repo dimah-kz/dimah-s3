@@ -36,7 +36,7 @@ import {
 } from "@/components/dimah-s3/upload/upload-dropzone";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
-import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-controls";
+import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-search";
 
 // jsdom does no layout, so it has no element scrolling.
 Element.prototype.scrollTo ??= () => {};
@@ -1522,6 +1522,173 @@ describe("ObjectList", () => {
       expect(document.activeElement).toBe(trigger("docs"));
       // jsdom has no layout, so the grid has one column.
       await user.keyboard("{ArrowDown}{ArrowDown}");
+      expect(document.activeElement).toBe(trigger("b.txt"));
+    });
+  });
+
+  describe("search", () => {
+    const toolbar = () => ({ toolbar: <ObjectListSearch /> });
+
+    async function search(text: string) {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /^Search/ }));
+      await user.keyboard(`${text}{Enter}`);
+      await settle();
+      return user;
+    }
+
+    function searchBar() {
+      return document.querySelector("[data-slot=object-list-search-bar]");
+    }
+
+    it("finds files in the folders below and says where each one lives", async () => {
+      renderList({ props: toolbar });
+      await settle();
+      expect(searchBar()).toBeNull();
+
+      await search("C.T");
+
+      const row = entry("c.txt");
+      expect(
+        row.querySelector("[data-slot=object-list-location]")?.textContent,
+      ).toContain("docs");
+      // The match runs across the stem and the extension.
+      expect(
+        [...row.querySelectorAll("[data-slot=file-name-match]")]
+          .map((mark) => mark.textContent)
+          .join(""),
+      ).toBe("c.t");
+      expect(searchBar()?.textContent).toContain("1 result");
+      expect(
+        document.querySelector("[data-slot=object-list-search-announcement]")
+          ?.textContent,
+      ).toBe("1 result");
+      expect(
+        screen.queryByRole("button", { name: startsWith("a.txt") }),
+      ).toBeNull();
+    });
+
+    it("names the open folder in the field and searches everywhere on request", async () => {
+      const user = userEvent.setup();
+      renderList({ props: toolbar });
+      await settle();
+      await user.click(trigger("docs"));
+      await settle();
+      expect(
+        screen.getByRole("button", { name: "Search in “docs”" }),
+      ).toBeDefined();
+
+      await search("a.t");
+      expect(
+        screen.getByText("Nothing in “docs” or its folders matches “a.t”."),
+      ).toBeDefined();
+      expect(
+        screen
+          .getByRole("radio", { name: "docs" })
+          .getAttribute("aria-checked"),
+      ).toBe("true");
+
+      await user.click(
+        screen.getByRole("button", { name: "Search everywhere" }),
+      );
+      await settle();
+      expect(
+        screen
+          .getByRole("radio", { name: "Files" })
+          .getAttribute("aria-checked"),
+      ).toBe("true");
+      expect(
+        entry("a.txt").querySelector("[data-slot=object-list-location]")
+          ?.textContent,
+      ).toContain("Files");
+      expect(
+        screen.getByRole("searchbox", { name: "Search all files" }),
+      ).toBeDefined();
+    });
+
+    it("clears the search from the empty state", async () => {
+      const user = userEvent.setup();
+      renderList({ props: toolbar });
+      await settle();
+      await search("nothing-here");
+
+      const empty = document.querySelector("[data-slot=object-list-empty]");
+      if (!(empty instanceof HTMLElement))
+        throw new TypeError("No empty state");
+      expect(
+        within(empty).queryByRole("button", { name: "Search everywhere" }),
+      ).toBeNull();
+      await user.click(
+        within(empty).getByRole("button", { name: "Clear search" }),
+      );
+      await settle();
+      expect(trigger("a.txt")).toBeDefined();
+      expect(searchBar()).toBeNull();
+    });
+
+    it("opens the folder of a result with Show in folder and focuses it", async () => {
+      const user = userEvent.setup();
+      renderList({ props: toolbar });
+      await settle();
+      await search("c.t");
+
+      const menu = await openMenu("c.txt");
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Show in folder" }),
+      );
+      await settle();
+
+      expect(searchBar()).toBeNull();
+      // The empty field gives the bar back to the path.
+      expect(screen.queryByRole("searchbox")).toBeNull();
+      expect(
+        document.querySelector("[data-slot=object-list-breadcrumb]")
+          ?.textContent,
+      ).toContain("docs");
+      expect(document.activeElement).toBe(trigger("c.txt"));
+      expect(entry("c.txt").hasAttribute("data-revealed")).toBe(true);
+    });
+
+    it("opens a folder result along its whole path", async () => {
+      const user = userEvent.setup();
+      renderList({
+        items: [
+          ...initialItems(),
+          {
+            key: "docs/2026/r.txt",
+            name: "r.txt",
+            size: 1,
+            folder: "docs/2026",
+          },
+        ],
+        props: toolbar,
+      });
+      await settle();
+      await search("2026");
+
+      await user.click(trigger("2026"));
+      await settle();
+      const crumbs = document.querySelector(
+        "[data-slot=object-list-breadcrumb]",
+      );
+      expect(crumbs?.textContent).toContain("docs");
+      expect(crumbs?.textContent).toContain("2026");
+      expect(trigger("r.txt")).toBeDefined();
+    });
+
+    it("opens with / from the list and moves into the results with ArrowDown", async () => {
+      const user = userEvent.setup();
+      renderList({ props: toolbar });
+      await settle();
+      trigger("a.txt").focus();
+
+      await user.keyboard("/");
+      const field = screen.getByRole("searchbox", { name: "Search files" });
+      expect(document.activeElement).toBe(field);
+
+      await user.keyboard("b.t{Enter}");
+      await settle();
+      await user.keyboard("{ArrowDown}");
       expect(document.activeElement).toBe(trigger("b.txt"));
     });
   });

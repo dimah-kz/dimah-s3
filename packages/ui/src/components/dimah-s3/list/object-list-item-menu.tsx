@@ -11,6 +11,7 @@ import { useTranslations } from "@fuma-translate/react";
 import {
   CloudUpload,
   DownloadIcon,
+  FolderOpenIcon,
   LinkIcon,
   LoaderIcon,
   MoreHorizontalIcon,
@@ -91,6 +92,8 @@ export type ObjectListItemMenuProps = {
  * - Folders: Upload to this folder (the keyboard path to a folder drop),
  *   Rename when the source has `renameFolder`, then your actions. Upload
  *   is disabled while the list's `upload` is.
+ * - Search results that know where they live start with Show in folder,
+ *   which leaves the search, opens that folder, and focuses the entry.
  *
  * Inside an `ObjectList` every prop is optional: the key, name, size, and
  * hooks come from the entry and the list. Download runs the list's
@@ -122,6 +125,7 @@ export function ObjectListItemMenu({
   const objectKey = objectKeyProp ?? (file ? objectKeyOf(file) : "");
   const isFile = objectKey !== "";
   const rows: MenuRows = {
+    reveal: entry?.location != null && Boolean(scope?.search),
     // A folder takes uploads only when the source can place files in it.
     upload: folder != null && scope?.folderUploads === true,
     download: isFile && scope?.download === true,
@@ -180,6 +184,7 @@ export function ObjectListItemMenu({
 
 /** Which rows {@link ObjectListItemMenu} has. */
 type MenuRows = {
+  reveal: boolean;
   upload: boolean;
   download: boolean;
   link: boolean;
@@ -235,9 +240,26 @@ function ItemMenuItems({
   const showTransfer = download != null || linkSource != null;
   const showExtra = rows.extra;
   const canRename = rows.rename && context != null && entryKey != null;
+  const entry = useObjectListEntry();
+  const reveal =
+    rows.reveal && context != null && entry != null
+      ? () => context.revealEntry(entry)
+      : null;
+  const showMain = uploadToFolder != null || showTransfer || canRename;
 
   return (
     <>
+      {reveal ? (
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={reveal}>
+            <FolderOpenIcon />
+            {t("Show in folder", { note: "object list menu" })}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      ) : null}
+      {reveal && (showMain || showExtra || rows.delete) ? (
+        <DropdownMenuSeparator />
+      ) : null}
       {uploadToFolder || showTransfer || canRename ? (
         <DropdownMenuGroup>
           {uploadToFolder ? (

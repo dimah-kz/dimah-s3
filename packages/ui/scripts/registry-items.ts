@@ -104,6 +104,7 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/list/object-list-header.tsx"),
   sourceFile("components/dimah-s3/list/object-list-breadcrumb.tsx"),
   sourceFile("components/dimah-s3/list/object-list-controls.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-search.tsx"),
   sourceFile("components/dimah-s3/list/object-list-content.tsx"),
   sourceFile("components/dimah-s3/list/object-list-entry.tsx"),
   sourceFile("components/dimah-s3/list/object-list-states.tsx"),

@@ -33,6 +33,7 @@ const CONTROL =
  * - Ctrl+A / Cmd+A: select every loaded entry. Escape: clear.
  * - Backspace or Alt+ArrowUp: open the parent folder.
  * - F2: rename the focused row, when the source can.
+ * - `/`: open and focus the list's search field.
  *
  * Fields, menus, and dialogs keep their own keys.
  */
@@ -103,6 +104,17 @@ export function useObjectListKeyboard<TItem>({
       if (!found || !canRenameEntry(found, list)) return;
       event.preventDefault();
       startRename(found.key);
+      return;
+    }
+    if (isSearchKey(event) && !modifier && !event.altKey) {
+      const search = frame.querySelector<HTMLElement>(
+        "[data-slot=object-list-search]",
+      );
+      if (!search) return;
+      event.preventDefault();
+      // A collapsed search is its button; the open one holds the field.
+      if (search instanceof HTMLButtonElement) search.click();
+      else search.querySelector("input")?.focus();
       return;
     }
     if (event.key === " " && !modifier) {
@@ -260,6 +272,16 @@ function isOverlayTarget(target: Element) {
       "[role=dialog], [role=alertdialog], [role=menu], [data-slot=dropdown-menu-content], [data-slot=alert-dialog-content]",
     ),
   );
+}
+
+/**
+ * `/`, or the key where US layouts have it when the layout types a
+ * character outside ASCII there. A layout that types another ASCII
+ * character on that key keeps it.
+ */
+function isSearchKey(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.key === "/") return true;
+  return event.code === "Slash" && !/^[\x20-\x7e]$/.test(event.key);
 }
 
 /**

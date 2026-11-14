@@ -123,12 +123,18 @@ export {
 } from "@/components/dimah-s3/list/object-list-header";
 export { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
 export {
-  ObjectListSearch,
   ObjectListSortMenu,
   ObjectListViewToggle,
-  type ObjectListSearchProps,
   type ObjectListSortOption,
 } from "@/components/dimah-s3/list/object-list-controls";
+export {
+  ObjectListLocation,
+  ObjectListSearch,
+  ObjectListSearchBar,
+  type ObjectListLocationProps,
+  type ObjectListSearchBarProps,
+  type ObjectListSearchProps,
+} from "@/components/dimah-s3/list/object-list-search";
 export { ObjectListContent } from "@/components/dimah-s3/list/object-list-content";
 export {
   ObjectListRow,

@@ -11,6 +11,7 @@ import {
 
 const filters: ListCursorFilters = {
   folderId: "docs",
+  recursive: false,
   search: undefined,
   status: "active",
   route: undefined,
@@ -70,6 +71,7 @@ describe("list cursor", () => {
     ["folder", { folderId: "other" }],
     ["flat listing", { folderId: undefined }],
     ["root", { folderId: null }],
+    ["depth", { recursive: true }],
     ["search", { search: "a" }],
     ["status", { status: "pending" }],
     ["route", { route: "avatars" }],

@@ -90,6 +90,11 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
    * With `focus`, the row takes focus once its button is back.
    */
   endRename: (key: string, focus?: boolean) => void;
+  /**
+   * Leave the search and open the folder that holds a search result (its
+   * `location`), then focus the entry there once it loads.
+   */
+  revealEntry: (entry: ObjectListEntry<TItem>) => void;
 };
 
 /**
@@ -119,6 +124,11 @@ export type ObjectListEntryScope<TItem> = Omit<
   delete: boolean;
   renameFile: boolean;
   renameFolder: boolean;
+  /**
+   * The search text while a search is on, else `""`. Entries mark it in
+   * their names and show where they live.
+   */
+  search: string;
   /** Opens a folder in place, or calls `onOpenItem` for a file. */
   open: (entry: ObjectListEntry<TItem>) => void;
   /** `selection.toggle`. */
@@ -127,6 +137,7 @@ export type ObjectListEntryScope<TItem> = Omit<
   folderDropTarget: (id: string) => DropTargetProps;
   startRename: (key: string) => void;
   endRename: (key: string, focus?: boolean) => void;
+  revealEntry: (entry: ObjectListEntry<TItem>) => void;
 };
 
 /** State each entry reads by its key. @internal */
@@ -173,6 +184,23 @@ export function createObjectListEntryStore(
       };
     },
   };
+}
+
+/** What `ObjectListHeader` shares with the controls inside it. @internal */
+export type ObjectListHeaderContextValue = {
+  /** A search field inside the header is open and takes the whole bar. */
+  setSearchExpanded: (expanded: boolean) => void;
+  /** The new-folder field is open and takes the whole bar. */
+  setFolderExpanded: (expanded: boolean) => void;
+};
+
+/** @internal */
+export const ObjectListHeaderContext =
+  createContext<ObjectListHeaderContextValue | null>(null);
+
+/** The nearest `ObjectListHeader`, or `null` outside one. @internal */
+export function useOptionalObjectListHeader() {
+  return useContext(ObjectListHeaderContext);
 }
 
 const ObjectListContext = createContext<ObjectListContextValue<unknown> | null>(

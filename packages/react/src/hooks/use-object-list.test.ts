@@ -333,6 +333,91 @@ describe("useObjectList", () => {
     hook.unmount();
   });
 
+  it("sends the search scope, and reloads for it only while searching", async () => {
+    const query = mockQuery().mockResolvedValue(page(["a"]));
+    const hook = renderHook(() =>
+      useList({ query, searchScopes: ["folder", "all"] }),
+    );
+    await flush();
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "", searchScope: "folder" }),
+    );
+    expect(hook.current).toMatchObject({
+      searchScope: "folder",
+      searchScopes: ["folder", "all"],
+      isSearching: false,
+      total: null,
+    });
+
+    act(() => {
+      hook.current.setSearchScope("all");
+    });
+    await flush();
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(hook.current.searchScope).toBe("all");
+
+    query.mockResolvedValue(page(["a"], { total: 7 }));
+    act(() => {
+      hook.current.setSearch(" a ");
+    });
+    await flush();
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "a", searchScope: "all" }),
+    );
+    expect(hook.current).toMatchObject({ isSearching: true, total: 7 });
+
+    act(() => {
+      hook.current.setSearchScope("folder");
+    });
+    expect(hook.current.isRefreshing).toBe(true);
+    expect(hook.current.total).toBeNull();
+    await flush();
+    expect(query).toHaveBeenCalledTimes(3);
+    expect(query).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: "a", searchScope: "folder" }),
+    );
+    hook.unmount();
+  });
+
+  it("treats text that folds to nothing as no search", async () => {
+    const query = mockQuery().mockResolvedValue(page(["a"]));
+    const hook = renderHook(() => useList({ query }));
+    await flush();
+
+    act(() => {
+      // A lone zero-width non-joiner.
+      hook.current.setSearch(String.fromCodePoint(0x200c));
+    });
+    await flush();
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(hook.current.isSearching).toBe(false);
+    hook.unmount();
+  });
+
+  it("opens a search result's folder through its location", async () => {
+    const docs = { id: "docs", name: "Docs" };
+    const query = mockQuery().mockResolvedValue(
+      page([], {
+        folders: [{ id: "invoices", name: "Invoices", location: [docs] }],
+      }),
+    );
+    const hook = renderHook(() => useList({ query, defaultSearch: "inv" }));
+    await flush();
+    const [result] = hook.current.entries;
+    expect(result).toMatchObject({ kind: "folder", location: [docs] });
+    if (result?.kind !== "folder") throw new Error("missing folder");
+
+    act(() => {
+      hook.current.openFolder(result.folder);
+    });
+    expect(hook.current).toMatchObject({
+      parent: "invoices",
+      search: "",
+      trail: [docs, { id: "invoices", name: "Invoices" }],
+    });
+    hook.unmount();
+  });
+
   it("calls onSortChange and follows the controlled sort", async () => {
     const query = mockQuery().mockResolvedValue(page(["a"]));
     const onSortChange = vi.fn();

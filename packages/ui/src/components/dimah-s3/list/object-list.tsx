@@ -56,6 +56,7 @@ import {
   ObjectListHeader,
   useSelectionCount,
 } from "@/components/dimah-s3/list/object-list-header";
+import { useObjectListSearchStatus } from "@/components/dimah-s3/list/object-list-search";
 import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
 import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import {
@@ -212,6 +213,9 @@ export function ObjectList<TItem>({
   const deleteFocus = useFocusAfterDelete();
   const { announcement, announce } = useObjectListAnnouncement();
   const selectionCount = useSelectionCount(list, selection ?? null);
+  const searchStatus = useObjectListSearchStatus(list);
+  // The entry Show in folder opened, focused once its folder has loaded.
+  const revealRef = useRef<string | null>(null);
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const renameFocusKey = useRef<string | null>(null);
   const previousRenaming = useRef<string | null>(null);
@@ -315,6 +319,14 @@ export function ObjectList<TItem>({
     },
     [store],
   );
+  const revealEntry = useCallback((entry: ObjectListEntry<TItem>) => {
+    const { location } = entry;
+    if (!location) return;
+    const current = latest.current.list;
+    revealRef.current = entry.key;
+    current.setSearch("");
+    current.navigate(location);
+  }, []);
   const open = useCallback((entry: ObjectListEntry<TItem>) => {
     const current = latest.current;
     if (entry.kind === "folder") current.list.openFolder(entry.folder);
@@ -370,6 +382,7 @@ export function ObjectList<TItem>({
       renamingKey,
       startRename,
       endRename,
+      revealEntry,
       renderEntry,
       renderActions,
       renderDescription,
@@ -392,6 +405,7 @@ export function ObjectList<TItem>({
       renderEntry,
       renderMeta,
       resolveFolderKeys,
+      revealEntry,
       selection,
       selectionActions,
       setView,
@@ -404,6 +418,32 @@ export function ObjectList<TItem>({
     ],
   );
 
+  useEffect(() => {
+    const revealKey = revealRef.current;
+    if (revealKey == null) return;
+    if (list.isSearching || list.isLoading || list.isRefreshing) return;
+    revealRef.current = null;
+    const trigger = deleteFocus.frameRef.current?.querySelector<HTMLElement>(
+      `[data-slot="object-list-entry-trigger"][data-entry-key="${CSS.escape(revealKey)}"]`,
+    );
+    // Not on the first page of its folder: the folder is open, and that is all.
+    if (!trigger) return;
+    store.set({ tabStop: revealKey });
+    trigger.focus({ preventScroll: true });
+    trigger.scrollIntoView({ block: "nearest" });
+    const row = trigger.closest<HTMLElement>("[data-slot=object-list-entry]");
+    row?.setAttribute("data-revealed", "");
+    // Outlives the effect, so a render meanwhile does not keep the highlight.
+    window.setTimeout(() => row?.removeAttribute("data-revealed"), 2000);
+  }, [
+    deleteFocus.frameRef,
+    list.entries,
+    list.isLoading,
+    list.isRefreshing,
+    list.isSearching,
+    store,
+  ]);
+
   const opensFiles = onOpenItem != null;
   const folderUploads = upload != null && list.uploadOptions != null;
   const canDownload = download != null;
@@ -411,6 +451,13 @@ export function ObjectList<TItem>({
   const canDelete = del != null;
   const renameFile = list.renameFile != null;
   const renameFolder = list.renameFolder != null;
+  // The search the rows on screen answer. While a new search loads, the
+  // previous rows stay and keep what they were: results, or a folder.
+  const currentSearch = list.isSearching ? list.search.trim() : "";
+  const [search, setShownSearch] = useState(currentSearch);
+  if (!list.isLoading && !list.isRefreshing && search !== currentSearch) {
+    setShownSearch(currentSearch);
+  }
   const scope = useMemo<ObjectListEntryScope<TItem>>(
     () => ({
       store,
@@ -422,11 +469,13 @@ export function ObjectList<TItem>({
       delete: canDelete,
       renameFile,
       renameFolder,
+      search,
       open,
       toggle,
       folderDropTarget,
       startRename,
       endRename,
+      revealEntry,
       renderActions,
       renderDescription,
       renderMeta,
@@ -445,6 +494,8 @@ export function ObjectList<TItem>({
       renderActions,
       renderDescription,
       renderMeta,
+      revealEntry,
+      search,
       selectableKeys,
       startRename,
       store,
@@ -539,6 +590,7 @@ export function ObjectList<TItem>({
       <ObjectListAnnouncer
         announcement={announcement}
         status={selectionCount}
+        search={searchStatus?.settled ? searchStatus.label : null}
       />
     </ObjectListProvider>
   );

@@ -23,8 +23,8 @@ The file exports `storageObject`, `storageFolder`,
 column names, and those keys: the adapter finds the tables by them. The
 tables declare the indexes, and on MySQL the prefix lengths and collations
 (`utf8mb4_bin`, so keys and folders compare byte for byte, and
-`utf8mb4_unicode_ci` on `filename`, so search ignores case), so
-`drizzle-kit` creates them too.
+`utf8mb4_unicode_ci` on `filename`, for the name sort), so `drizzle-kit`
+creates them too.
 
 Run `generate` again after you upgrade `@dimah-s3/db`. That overwrites the
 file. A column you add to it must be nullable or have a default, because

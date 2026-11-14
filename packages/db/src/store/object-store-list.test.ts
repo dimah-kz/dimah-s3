@@ -225,6 +225,88 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
       await expect(keys(undefined)).resolves.toEqual(["docs", "root", "sub"]);
     });
 
+    it("covers the folders below one folder with recursive", async () => {
+      const store_ = createDbStore(client());
+      const docs = await store_.folders.create("user:1", {
+        parentId: null,
+        name: "docs",
+      });
+      const sub = await store_.folders.create("user:1", {
+        parentId: docs.id,
+        name: "sub",
+      });
+      const deep = await store_.folders.create("user:1", {
+        parentId: sub.id,
+        name: "deep",
+      });
+      const other = await store_.folders.create("user:1", {
+        parentId: null,
+        name: "other",
+      });
+      await insertObject(client(), { key: "root" });
+      await insertObject(client(), { key: "docs", folderId: docs.id });
+      await insertObject(client(), { key: "sub", folderId: sub.id });
+      await insertObject(client(), { key: "deep", folderId: deep.id });
+      await insertObject(client(), { key: "other", folderId: other.id });
+      const keys = async (folderId: string | null) =>
+        (
+          await store_.objects.list({
+            scope: "user:1",
+            folderId,
+            recursive: true,
+          })
+        ).objects
+          .map((object) => object.key)
+          .sort();
+
+      await expect(keys(docs.id)).resolves.toEqual(["deep", "docs", "sub"]);
+      await expect(keys(deep.id)).resolves.toEqual(["deep"]);
+      await expect(keys(null)).resolves.toEqual([
+        "deep",
+        "docs",
+        "other",
+        "root",
+        "sub",
+      ]);
+      await expect(keys("missing")).resolves.toEqual([]);
+      await expect(
+        store_.objects.count({
+          scope: "user:1",
+          folderId: sub.id,
+          recursive: true,
+        }),
+      ).resolves.toBe(2);
+    });
+
+    it("searches names without case, accents, or wildcards", async () => {
+      const names = [
+        "Invoice-March.PDF",
+        "facture-été.pdf",
+        "كتاب علي.txt",
+        "گزارش ۱۴۰۲.xlsx",
+        "50%_off.png",
+        "50 percent off.png",
+        "back\\slash.txt",
+      ];
+      for (const [index, filename] of names.entries()) {
+        await insertObject(client(), { key: `k${index}`, filename });
+      }
+      const found = async (search: string) =>
+        (await store().list({ scope: "user:1", search })).objects
+          .map((object) => object.filename)
+          .sort();
+
+      await expect(found("invoice-march")).resolves.toEqual([
+        "Invoice-March.PDF",
+      ]);
+      await expect(found("ETE")).resolves.toEqual(["facture-été.pdf"]);
+      await expect(found("کتاب علی")).resolves.toEqual(["كتاب علي.txt"]);
+      await expect(found("1402")).resolves.toEqual(["گزارش ۱۴۰۲.xlsx"]);
+      await expect(found("%_")).resolves.toEqual(["50%_off.png"]);
+      await expect(found("_")).resolves.toEqual(["50%_off.png"]);
+      await expect(found("k\\s")).resolves.toEqual(["back\\slash.txt"]);
+    });
+
     it("filters by status, route, and content type", async () => {
       await insertObject(client(), { key: "a", contentType: "image/png" });
       await insertObject(client(), {

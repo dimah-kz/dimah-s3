@@ -15,6 +15,7 @@ import {
   type ListCursorFilters,
 } from "./list-cursor";
 import { mapStorageObjectRow } from "./map-row";
+import { toSearchName } from "./search-name";
 
 /** The FumaDB ORM for the schema the stores read. */
 export type DbOrm = AbstractQuery<typeof dbSchema>;
@@ -92,6 +93,12 @@ export type ObjectFilter = {
   /** Folder to cover. `null` is the root. Omit for every folder. */
   folderId?: string | null;
   /**
+   * With `folderId`, also cover every folder below it, up to
+   * `FOLDER_SUBTREE_LIMIT` (10,000) folders. At the root that is the whole
+   * scope. A folder the scope does not have covers nothing.
+   */
+  recursive?: boolean;
+  /**
    * @default "active". `pending` covers only rows that have not expired.
    */
   status?: StorageObjectStatus;
@@ -99,9 +106,10 @@ export type ObjectFilter = {
   /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
   /**
-   * Text the `filename` contains (`LIKE` on SQL), where `%` and `_` act as
-   * wildcards. The database decides case: PostgreSQL matches it exactly,
-   * SQLite ignores ASCII case, and MySQL follows the column collation.
+   * Text the `filename` contains. Both sides are folded the same way on
+   * every database: case, accents, and look-alike letters (`ي`/`ی`,
+   * `ك`/`ک`) do not count, Persian and Arabic-Indic digits match `0`–`9`,
+   * and `%`, `_`, and `\` match as themselves.
    */
   search?: string;
 };
@@ -321,9 +329,16 @@ function claimDeadline(): Date {
   return new Date(lastClaimDeadline);
 }
 
+/**
+ * The folders a filter covers: `undefined` for every folder, `null` for the
+ * root, else these ids.
+ */
+type FolderSet = readonly string[] | null | undefined;
+
 function filterConditions(
   b: ObjectConditions,
   filter: ObjectFilter,
+  folders: FolderSet,
   now: Date,
 ): Condition[] {
   const status = filter.status ?? "active";
@@ -333,9 +348,13 @@ function filterConditions(
       ? b.and(b("status", "=", "pending"), b("expiresAt", ">=", now))
       : b("status", "=", status),
   ];
-  if (filter.folderId === null) parts.push(b.isNull("folderId"));
-  else if (filter.folderId !== undefined) {
-    parts.push(b("folderId", "=", filter.folderId));
+  if (folders === null) parts.push(b.isNull("folderId"));
+  else if (folders !== undefined) {
+    parts.push(
+      folders.length === 1
+        ? b("folderId", "=", folders[0] ?? "")
+        : b("folderId", "in", [...folders]),
+    );
   }
   if (filter.route) parts.push(b("route", "=", filter.route));
   if (filter.contentType?.endsWith("/*")) {
@@ -345,7 +364,8 @@ function filterConditions(
   } else if (filter.contentType) {
     parts.push(b("contentType", "=", filter.contentType));
   }
-  if (filter.search) parts.push(b("filename", "contains", filter.search));
+  const needle = filter.search ? toSearchName(filter.search) : "";
+  if (needle) parts.push(b("searchName", "contains", needle));
   return parts;
 }
 
@@ -367,11 +387,22 @@ function toColumnValue(value: Date | number | string): Date | bigint | string {
   return typeof value === "number" ? BigInt(value) : value;
 }
 
-/** Creates the `storage_object` store over `getOrm`. */
+/**
+ * Creates the `storage_object` store over `getOrm`. `subtreeIds` lists the
+ * folders below a folder, for recursive listings.
+ */
 export function createObjectStore<TAttributes = never>(
   getOrm: GetDbOrm,
+  subtreeIds: (scope: string, folderId: string) => Promise<string[]>,
 ): StorageObjectStore<TAttributes> {
   const map = mapStorageObjectRow<TAttributes>;
+
+  const folderSet = async (filter: ObjectFilter): Promise<FolderSet> => {
+    const { folderId } = filter;
+    if (folderId == null) return filter.recursive ? undefined : folderId;
+    if (!filter.recursive) return [folderId];
+    return [folderId, ...(await subtreeIds(filter.scope, folderId))];
+  };
 
   const find = async (ref: ObjectRef) => {
     const orm = await getOrm();
@@ -403,6 +434,7 @@ export function createObjectStore<TAttributes = never>(
       const nullable = field === "size";
       const filters: ListCursorFilters = {
         folderId: input.folderId,
+        recursive: input.recursive === true && input.folderId !== undefined,
         search: input.search || undefined,
         status: input.status ?? "active",
         route: input.route || undefined,
@@ -412,11 +444,12 @@ export function createObjectStore<TAttributes = never>(
       const cursor = input.cursor
         ? decodeListCursor(input.cursor, filters)
         : null;
+      const folders = await folderSet(input);
 
       const where =
         (segment: ListSegment) =>
         (b: ObjectConditions): Condition => {
-          const parts = filterConditions(b, input, now);
+          const parts = filterConditions(b, input, folders, now);
           const position = segment.after;
           if (segment.nulls) {
             parts.push(b.isNull(field));
@@ -480,8 +513,9 @@ export function createObjectStore<TAttributes = never>(
     async count(filter) {
       const orm = await getOrm();
       const now = new Date();
+      const folders = await folderSet(filter);
       return orm.count("storageObject", {
-        where: (b) => b.and(...filterConditions(b, filter, now)),
+        where: (b) => b.and(...filterConditions(b, filter, folders, now)),
       });
     },
 
@@ -548,6 +582,7 @@ export function createObjectStore<TAttributes = never>(
         route: input.route,
         folderId: input.folderId,
         filename: input.filename,
+        searchName: toSearchName(input.filename),
         contentType: input.contentType ?? null,
         size: null,
         eTag: null,
@@ -617,7 +652,10 @@ export function createObjectStore<TAttributes = never>(
           ...(input.contentType !== undefined && {
             contentType: input.contentType,
           }),
-          ...(input.filename !== undefined && { filename: input.filename }),
+          ...(input.filename !== undefined && {
+            filename: input.filename,
+            searchName: toSearchName(input.filename),
+          }),
           ...(input.s3Metadata !== undefined && {
             s3Metadata: input.s3Metadata,
           }),
@@ -651,7 +689,10 @@ export function createObjectStore<TAttributes = never>(
             ref.scope === undefined || b("scope", "=", ref.scope),
           ),
         set: {
-          ...(input.filename !== undefined && { filename: input.filename }),
+          ...(input.filename !== undefined && {
+            filename: input.filename,
+            searchName: toSearchName(input.filename),
+          }),
           ...(input.folderId !== undefined && { folderId: input.folderId }),
           ...(input.attributes !== undefined && {
             attributes: input.attributes,

@@ -39,6 +39,14 @@ describe("createPublicStores", () => {
     ).resolves.toMatchObject({ folderId: null });
   });
 
+  it("keeps the subtree walk off the public folder store", () => {
+    const { folders, store } = setup();
+
+    expect(store.folders).toHaveProperty("subtreeIds");
+    expect(folders).not.toHaveProperty("subtreeIds");
+    expect(folders).toHaveProperty("descendants");
+  });
+
   it("keeps the upload lifecycle off the public object store", () => {
     const { objects } = setup();
 

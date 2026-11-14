@@ -17,6 +17,7 @@ import {
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import { migrate } from "@/cli";
 import { DB_SCHEMA_VERSION, DimahS3DB, type DimahS3DbClient } from "@/fuma-db";
+import { toSearchName } from "@/store/search-name";
 import type { StorageObject } from "@/types/storage-object";
 import { memoryDbClient } from "./fakes";
 import { importDrizzleSchema } from "./generated-schema";
@@ -187,11 +188,13 @@ export async function insertObject(
   values: Partial<StorageObject<unknown>> & { key: string },
 ) {
   const { size, declaredSize, ...rest } = values;
+  const filename = values.filename ?? values.key;
   return client.orm(DB_SCHEMA_VERSION).create("storageObject", {
     scope: "user:1",
     bucket: "b",
     route: "uploads",
-    filename: values.key,
+    filename,
+    searchName: toSearchName(filename),
     status: "active",
     ...rest,
     ...(size != null && { size: BigInt(size) }),
