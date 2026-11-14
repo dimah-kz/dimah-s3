@@ -1,3 +1,22 @@
+## @dimah-s3/core@2.0.0-beta.9 (beta)
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.2.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+### One way to match search text
+
+`@dimah-s3/core` exports the folding that list search uses everywhere, so your own source or renderer matches names the way `db()` and `memoryObjectSource` do.
+
+- **`normalizeSearchText(value)`** lowercases, drops accents and other combining marks, joins look-alike letters (`ي`/`ی`, `ك`/`ک`, final `ς`, `ß` as `ss`), reads Persian and Arabic-Indic digits as `0`–`9`, removes zero-width joiners and the tatweel, and collapses whitespace.
+- **`matchesSearchText(text, search)`** is true when the folded `text` contains the folded `search`. Blank search text matches everything.
+- **`findSearchMatches(text, search)`** returns the `[start, end)` ranges of each match in `text`, for a highlight. A combining accent stays with its letter.
+
 ## @dimah-s3/core@2.0.0-beta.4 (beta)
 
 ### Docs at s3.dimah.dev

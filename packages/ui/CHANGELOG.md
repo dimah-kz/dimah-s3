@@ -1,3 +1,24 @@
+## @dimah-s3/ui@2.0.0-beta.9 (beta)
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.2.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+### Search that shows where results live
+
+`ObjectList` search works across folders: results say which folder they are in, the matching text is marked, and you can choose where to look.
+
+- **`ObjectListSearchBar`.** While a search is on, `ObjectListHeader` shows it under the bar: "Search in" with the open folder or the root, when the source can search both, and the result count, which the list's live region reads out. Pass `searchBar={false}` to the header to hide it.
+- **Results.** A row from another folder starts its second line with `ObjectListLocation` (`Docs › 2024`), and `FileName` marks the match through its new `highlight` prop. Opening a folder result opens its whole path.
+- **Show in folder.** The menu of a result leaves the search, opens its folder, and focuses the entry there.
+- **`ObjectListSearch`.** The placeholder names where it looks (`Search in “Docs”`), a spinner shows while results load, `/` from the list opens it, and ArrowDown moves into the results.
+- **Empty search.** The empty state names where it looked and offers Search everywhere and Clear search.
+
 ## @dimah-s3/ui@2.0.0-beta.5 (beta)
 
 ### The object list is one tab stop

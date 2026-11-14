@@ -1,25 +1,52 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n    replay: []\n---\n\n### Timestamps written by Kysely outside UTC\n\nThe Kysely adapter now reads and writes timestamps in UTC. Rows an earlier beta wrote from a Kysely process outside UTC need a one-time rewrite.\n\n#### Breaking changes\n\n- **Kysely timestamps are UTC on PostgreSQL and MySQL.** Earlier betas wrote them in the local time of the process. If a Kysely process outside UTC wrote your rows, they now read shifted by its offset. Rewrite them once with the query on [Upgrade the schema](https://s3.dimah.dev/docs/db/upgrade#timestamps-written-by-kysely-outside-utc). Rows written by Drizzle or Prisma, or by a Kysely process in UTC, are unchanged.\n"
-    filename: 2026-11-08-db-utc-pg-schema-beta.md
+  - content: "---\npackages:\n  \"@dimah-s3/server\":\n    type: patch\n  \"@dimah-s3/cli\":\n    type: patch\n---\n\n### Current dependencies\n\n`@dimah-s3/server` and the starters that `@dimah-s3/cli` scaffolds move to the latest patch and minor releases of their dependencies.\n\n- **`@dimah-s3/server`** depends on `@aws-sdk/s3-presigned-post` and `@aws-sdk/s3-request-presigner` `^3.1169.0`.\n- **`@dimah-s3/cli`** uses `@clack/prompts` `^1.9.0`. The Next.js, Vite, and Hono starters scaffold with `next` `^16.4.6`, `vite` `^8.3.8`, `hono` `^4.13.18`, and `@aws-sdk/client-s3` `^3.1169.0`.\n"
+    filename: 2026-11-15-dependency-updates.md
     v: 0.0.0
-  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### UTC timestamps and PostgreSQL schemas\n\n`@dimah-s3/db` runs on FumaDB 0.7.2.\n\n- **Timestamps are UTC on every adapter.** On PostgreSQL and MySQL, the Kysely adapter writes and reads the timestamp columns in UTC, as Drizzle and Prisma do, whatever the time zone of the process. Instances in different zones agree on deadlines like `expiresAt`.\n- **Tables in a PostgreSQL schema.** Create the client from `DimahS3DB.names.schema(\"storage\")` to keep the tables in the `storage` schema. `migrate` creates it, the generated Drizzle tables declare it with `pgSchema(\"storage\")`, and the generated Prisma models with `@@schema(\"storage\")`. The settings table, `private_dimah_s3_settings`, stays in the search path. See [Database Setup](https://s3.dimah.dev/docs/db/setup).\n"
-    filename: 2026-11-08-db-utc-pg-schema.md
+  - content: "---\npackages:\n  group:dimah-s3:\n    type: major\n---\n\n### Search reaches every folder\n\nA search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.2.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.\n\n#### Breaking changes\n\n- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.\n- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.\n"
+    filename: 2026-11-15-search-folders-line.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/core\":\n    type: minor\n---\n\n### One way to match search text\n\n`@dimah-s3/core` exports the folding that list search uses everywhere, so your own source or renderer matches names the way `db()` and `memoryObjectSource` do.\n\n- **`normalizeSearchText(value)`** lowercases, drops accents and other combining marks, joins look-alike letters (`ي`/`ی`, `ك`/`ک`, final `ς`, `ß` as `ss`), reads Persian and Arabic-Indic digits as `0`–`9`, removes zero-width joiners and the tatweel, and collapses whitespace.\n- **`matchesSearchText(text, search)`** is true when the folded `text` contains the folded `search`. Blank search text matches everything.\n- **`findSearchMatches(text, search)`** returns the `[start, end)` ranges of each match in `text`, for a highlight. A combining accent stays with its letter.\n"
+    filename: 2026-11-15-search-text-core.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: major\n---\n\n### Search across folders in db()\n\n`GET /db/objects` searches a folder and every folder below it, and search ignores case, accents, and look-alike letters the same way on SQLite, PostgreSQL, and MySQL.\n\n- **`recursive`.** With `folderId`, `api.db.listObjects({ folderId, recursive: true })` lists the objects of that folder and every folder below it, up to 10,000 folders. At the root that is the whole scope. `folders` then holds every folder below that matches `search`, by name. `s3.db.objects.list` and `count` take `recursive` too.\n- **`locations`.** Each page of a recursive listing carries the folders on the way to its rows. Walk `parentId` from a row's `folderId` to draw where it lives.\n- **`total`.** The first page of a search carries the number of objects that match across every page.\n- **Search text.** `search` matches a folded copy of the name, built with `normalizeSearchText` from `@dimah-s3/core`, so `invoice` finds `Invoice.PDF` on PostgreSQL too, and `%`, `_`, and `\\` match as themselves. Folder names match the same way.\n- **`s3.db.folders.descendants(scope, parentId, { search, limit })`** lists the folders below a folder at any depth, and **`s3.db.folders.ancestors(scope, ids)`** every folder on the way to some folders.\n- **`dbObjectSource`** searches below the open folder (`searchScope: \"folder\"`) or the whole scope (`\"all\"`), sets `searchScopes`, and gives each result a `location`. Pass `recursiveSearch: false` to search the open folder only, for an `authorize` that refuses `recursive`.\n- **Folder names with `_`, `%`, or `\\`.** Renaming or moving a folder finds the folders below it through their parent ids, so such a name no longer misses its own subfolders or rewrites another folder's.\n\n#### Breaking changes\n\n- **Create schema `2.2.0` on a new database.** `storage_object` and `storage_folder` gain a required `search_name` column. A database at `2.1.0` is not upgraded: regenerate the Drizzle or Prisma schema with `runCli`, or call `migrate(client)` on an empty database.\n- **Search results change.** `search` is no longer a `LIKE` on `filename`: case and accents do not count on any database, and `%` and `_` are no longer wildcards.\n- **Check `recursive` in `authorize`.** A `list` call with `recursive: true` returns the objects of every folder below `folder`. An `authorize` that allows a folder and denies a folder inside it must now deny a recursive listing of the outer one, or that listing shows the inner folder's objects. Return `false` for `recursive` to keep listings to one folder, and pass `dbObjectSource(api.db, { recursiveSearch: false })` so the list searches the open folder only.\n"
+    filename: 2026-11-15-search-folders-db.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/react\":\n    type: major\n---\n\n### Search scope and result locations in useObjectList\n\n`useObjectList` can search the open folder and the folders below it, or everywhere, and keeps where each result lives.\n\n- **`searchScope`.** `\"folder\"` (the default) looks in the open folder and every folder below it, `\"all\"` everywhere. Control it with `searchScope` / `onSearchScopeChange`, or start with `defaultSearchScope`. The query receives it, and changing it reloads only while something is searched. A source lists the scopes it understands in `searchScopes`.\n- **`location`.** A folder or file of a search can carry `location`, the folders from the root down to the one that holds it. Entries copy it, and `openFolder` on a folder with a `location` opens its whole path.\n- **`total`.** A first page can send `total`, the files that match across every page. The hook returns it while searching.\n- **New on the return:** `isSearching`, `searchScope`, `setSearchScope`, `searchScopes`, and `total`.\n- **`memoryObjectSource`** with `getFolder` searches below the open folder or every record, returns the matching folders with their `location`, sends `total`, and adds each record's `location` to `getFile`. It matches with `matchesSearchText` from `@dimah-s3/core`, so look-alike letters and Persian digits match too.\n\n#### Breaking changes\n\n- **`ObjectListQueryInput` has `searchScope`.** Pass it when you call a source's `query` yourself.\n- **`memoryObjectSource` searches below the open folder.** A search used to match the open folder only. To keep that, write your own `query` over `readObjectListLevel`.\n"
+    filename: 2026-11-15-search-folders-react.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: minor\n---\n\n### Search that shows where results live\n\n`ObjectList` search works across folders: results say which folder they are in, the matching text is marked, and you can choose where to look.\n\n- **`ObjectListSearchBar`.** While a search is on, `ObjectListHeader` shows it under the bar: \"Search in\" with the open folder or the root, when the source can search both, and the result count, which the list's live region reads out. Pass `searchBar={false}` to the header to hide it.\n- **Results.** A row from another folder starts its second line with `ObjectListLocation` (`Docs › 2024`), and `FileName` marks the match through its new `highlight` prop. Opening a folder result opens its whole path.\n- **Show in folder.** The menu of a result leaves the search, opens its folder, and focuses the entry there.\n- **`ObjectListSearch`.** The placeholder names where it looks (`Search in “Docs”`), a spinner shows while results load, `/` from the list opens it, and ArrowDown moves into the results.\n- **Empty search.** The empty state names where it looked and offers Search everywhere and Clear search.\n"
+    filename: 2026-11-15-search-folders-ui.md
     v: 0.0.0
 core:packages:
-  - id: npm:@dimah-s3/cli
-    updated: true
-  - id: npm:@dimah-s3/core
+  - changelogIds:
+      - 2026-11-15-dependency-updates.md
+      - 2026-11-15-search-folders-line.md
+    id: npm:@dimah-s3/cli
     updated: true
   - changelogIds:
-      - 2026-11-08-db-utc-pg-schema-beta.md
-      - 2026-11-08-db-utc-pg-schema.md
+      - 2026-11-15-search-folders-line.md
+      - 2026-11-15-search-text-core.md
+    id: npm:@dimah-s3/core
+    updated: true
+  - changelogIds:
+      - 2026-11-15-search-folders-db.md
+      - 2026-11-15-search-folders-line.md
     id: npm:@dimah-s3/db
     updated: true
-  - id: npm:@dimah-s3/react
+  - changelogIds:
+      - 2026-11-15-dependency-updates.md
+      - 2026-11-15-search-folders-line.md
+    id: npm:@dimah-s3/server
     updated: true
-  - id: npm:@dimah-s3/server
+  - changelogIds:
+      - 2026-11-15-search-folders-line.md
+      - 2026-11-15-search-folders-react.md
+    id: npm:@dimah-s3/react
     updated: true
-  - id: npm:@dimah-s3/ui
+  - changelogIds:
+      - 2026-11-15-search-folders-line.md
+      - 2026-11-15-search-folders-ui.md
+    id: npm:@dimah-s3/ui
     updated: true
 npm:packages:
   - distTag: beta
@@ -29,8 +56,8 @@ npm:packages:
   - distTag: beta
     id: npm:@dimah-s3/db
   - distTag: beta
-    id: npm:@dimah-s3/react
-  - distTag: beta
     id: npm:@dimah-s3/server
+  - distTag: beta
+    id: npm:@dimah-s3/react
   - distTag: beta
     id: npm:@dimah-s3/ui
