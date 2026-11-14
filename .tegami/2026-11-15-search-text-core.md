@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/core": minor
+  "@dimah-s3/core":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/core)
 ---
 
 ### One way to match search text

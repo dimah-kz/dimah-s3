@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/react": major
+  "@dimah-s3/react":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/react)
 ---
 
 ### Search scope and result locations in useObjectList

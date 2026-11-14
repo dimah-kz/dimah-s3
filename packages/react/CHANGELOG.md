@@ -1,3 +1,29 @@
+## @dimah-s3/react@2.0.0-beta.9 (beta)
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.2.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+### Search scope and result locations in useObjectList
+
+`useObjectList` can search the open folder and the folders below it, or everywhere, and keeps where each result lives.
+
+- **`searchScope`.** `"folder"` (the default) looks in the open folder and every folder below it, `"all"` everywhere. Control it with `searchScope` / `onSearchScopeChange`, or start with `defaultSearchScope`. The query receives it, and changing it reloads only while something is searched. A source lists the scopes it understands in `searchScopes`.
+- **`location`.** A folder or file of a search can carry `location`, the folders from the root down to the one that holds it. Entries copy it, and `openFolder` on a folder with a `location` opens its whole path.
+- **`total`.** A first page can send `total`, the files that match across every page. The hook returns it while searching.
+- **New on the return:** `isSearching`, `searchScope`, `setSearchScope`, `searchScopes`, and `total`.
+- **`memoryObjectSource`** with `getFolder` searches below the open folder or every record, returns the matching folders with their `location`, sends `total`, and adds each record's `location` to `getFile`. It matches with `matchesSearchText` from `@dimah-s3/core`, so look-alike letters and Persian digits match too.
+
+### Breaking changes
+
+- **`ObjectListQueryInput` has `searchScope`.** Pass it when you call a source's `query` yourself.
+- **`memoryObjectSource` searches below the open folder.** A search used to match the open folder only. To keep that, write your own `query` over `readObjectListLevel`.
+
 ## @dimah-s3/react@2.0.0-beta.5 (beta)
 
 ### List entries stay put between renders
