@@ -37,6 +37,7 @@ export type { StandardSchemaV1 } from "./standard-schema";
 
 // Store inputs and pages (`s3.db.objects`, `s3.db.folders`)
 export type {
+  CreateObjectInput,
   ListObjectsInput,
   ListObjectsPage,
   ObjectFilter,

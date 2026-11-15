@@ -142,6 +142,27 @@ export type UpdateObjectInput<TAttributes = never> = {
   attributes?: TAttributes | null;
 };
 
+/**
+ * An object you put in the bucket yourself, for example with S3
+ * `CopyObject`, to track as an active row. The facts come from your own S3
+ * call (`CopyObjectResult`, `HeadObject`): the store never calls S3.
+ */
+export type CreateObjectInput<TAttributes = never> = ObjectRef & {
+  scope: string;
+  /** Named route the key belongs to. Its later calls check the key there. */
+  route: string;
+  /** Folder that holds the object. `null` is the root. */
+  folderId?: string | null;
+  filename: string;
+  /** Size in bytes, as S3 reports it. */
+  size: number;
+  contentType?: string | null;
+  eTag?: string | null;
+  s3Metadata?: Record<string, string> | null;
+  acl?: string | null;
+  attributes?: TAttributes | null;
+};
+
 /** Data access for the `storage_object` table. It never calls S3. */
 export type StorageObjectStore<TAttributes = never> = {
   /** Loads the row at `(bucket, key)`, whatever its status. */
@@ -163,6 +184,16 @@ export type StorageObjectStore<TAttributes = never> = {
     scope: string,
     options?: { excluding?: ObjectRef },
   ) => Promise<DbUsage>;
+  /**
+   * Writes an active row for an object already in the bucket, put there by
+   * the app itself. A deleted row at `(bucket, key)` is replaced by a new row
+   * with a new id.
+   * @throws `OBJECT_EXISTS` when an active row is there; `CONFLICT` when an
+   * upload or purge holds the row, or a concurrent write wins.
+   */
+  createActive: (
+    input: CreateObjectInput<TAttributes>,
+  ) => Promise<StorageObject<TAttributes>>;
   /**
    * Starts an upload at `(bucket, key)`: writes a fresh pending row over a
    * missing, pending, or deleted one (a deleted row is replaced by a new row
@@ -557,6 +588,64 @@ export function createObjectStore<TAttributes = never>(
         objectCount += 1;
       }
       return { totalBytes, objectCount };
+    },
+
+    async createActive(input) {
+      if (!Number.isSafeInteger(input.size) || input.size < 0) {
+        throw s3Error("VALIDATION_ERROR", {
+          issue: "[size] A whole number of bytes",
+        });
+      }
+      const ref = { bucket: input.bucket, key: input.key };
+      const existing = await find(ref);
+      if (existing?.status === "active") throw s3Error("OBJECT_EXISTS");
+      if (existing && existing.status !== "deleted") {
+        throw s3Error("CONFLICT");
+      }
+
+      const orm = await getOrm();
+      if (existing) {
+        await orm.deleteMany("storageObject", {
+          where: (b) =>
+            b.and(b("id", "=", existing.id), b("status", "=", "deleted")),
+        });
+      }
+      const now = new Date();
+      try {
+        await orm.create("storageObject", {
+          ...ref,
+          scope: input.scope,
+          route: input.route,
+          folderId: input.folderId ?? null,
+          filename: input.filename,
+          searchName: toSearchName(input.filename),
+          contentType: input.contentType ?? null,
+          size: BigInt(input.size),
+          declaredSize: null,
+          eTag: input.eTag ?? null,
+          status: "active",
+          s3Metadata: input.s3Metadata ?? null,
+          attributes: input.attributes ?? null,
+          acl: input.acl ?? null,
+          uploadId: null,
+          uploadToken: null,
+          expiresAt: null,
+          confirmedAt: now,
+          createdAt: now,
+          updatedAt: now,
+          deletedAt: null,
+        });
+      } catch (error) {
+        // An upload or another create inserted the row at `(bucket, key)`.
+        if (error instanceof UniqueConstraintError) throw s3Error("CONFLICT");
+        throw error;
+      }
+
+      const row = await find(ref);
+      if (row?.status !== "active" || row.scope !== input.scope) {
+        throw s3Error("CONFLICT");
+      }
+      return row;
     },
 
     async upsertPending(input) {

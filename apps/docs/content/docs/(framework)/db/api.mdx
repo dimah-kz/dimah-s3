@@ -65,7 +65,7 @@ const path = await s3.db.folders.ancestors(
 ```
 
 The stores never call S3, and the upload lifecycle stays with the plugin,
-so they have no write besides `update`. To remove a file, use the normal
+so their only writes are `update` and `create`. To remove a file, use the normal
 [delete path](/docs/db/setup#delete-behavior). A move needs a folder that
 already exists (`FOLDER_NOT_FOUND`). Renaming or moving a folder rewrites
 the cached paths under it and leaves every id as it is:
@@ -77,6 +77,44 @@ await s3.db.objects.update(
 );
 await s3.db.folders.update(scope, reports.id, { name: "archive" });
 ```
+
+### Track an object you put in the bucket
+
+dimah-s3 does not wrap S3 `CopyObject`: copy with your own `S3Client`, then
+record the copy with `s3.db.objects.create`. The row is active at once, so it
+lists, downloads, and counts toward quota like an upload. Like `update`, it
+runs no guard and no quota check, so check both before you copy. Pick a key
+inside the route's key prefix, or that route's later calls refuse it.
+
+```ts
+const usage = await s3.db.objects.getUsage(scope);
+if (usage.totalBytes + source.size! > maxBytes) throw new Error("Storage full");
+
+const key = `uploads/${crypto.randomUUID()}/${source.filename}`;
+const copied = await client.send(
+  new CopyObjectCommand({
+    Bucket: source.bucket,
+    CopySource: `${source.bucket}/${encodeURIComponent(source.key)}`,
+    Key: key,
+  }),
+);
+
+await s3.db.objects.create({
+  bucket: source.bucket,
+  key,
+  scope,
+  route: source.route,
+  folderId: target.id, // must exist in scope
+  filename: `${source.filename} (copy)`,
+  size: source.size!,
+  contentType: source.contentType,
+  eTag: copied.CopyObjectResult?.ETag,
+});
+```
+
+An active row at the key is `OBJECT_EXISTS`. A row an upload or purge holds
+is `CONFLICT`. A deleted row is replaced by a new one. Copies over 5 GB need
+`UploadPartCopy` instead of `CopyObject`.
 
 ### DbObjects
 

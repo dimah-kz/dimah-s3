@@ -300,6 +300,73 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
     });
   });
 
+  describe("createActive", () => {
+    const copy = {
+      bucket: "b",
+      key: "uploads/copy/plan.pdf",
+      scope: "user:1",
+      route: "uploads",
+      filename: "plan (copy).pdf",
+      size: 2048,
+      contentType: "application/pdf",
+      eTag: '"abc"',
+    };
+
+    it("tracks an object the app put in the bucket as an active row", async () => {
+      const row = await store().createActive(copy);
+
+      expect(row).toMatchObject({
+        status: "active",
+        scope: "user:1",
+        route: "uploads",
+        folderId: null,
+        filename: "plan (copy).pdf",
+        size: 2048,
+        declaredSize: null,
+        eTag: '"abc"',
+        uploadToken: null,
+        expiresAt: null,
+      });
+      expect(row.confirmedAt).toBeInstanceOf(Date);
+      await expect(store().getUsage("user:1")).resolves.toEqual({
+        totalBytes: 2048,
+        objectCount: 1,
+      });
+    });
+
+    it("refuses a key an active object or an upload holds", async () => {
+      await insertObject(client(), { key: copy.key });
+      await expect(store().createActive(copy)).rejects.toMatchObject({
+        code: "OBJECT_EXISTS",
+      });
+
+      await store().upsertPending(pending({ key: "uploads/busy" }));
+      await expect(
+        store().createActive({ ...copy, key: "uploads/busy" }),
+      ).rejects.toMatchObject({ code: "CONFLICT" });
+    });
+
+    it("replaces a deleted row with a fresh one", async () => {
+      const deleted = await insertObject(client(), {
+        key: copy.key,
+        status: "deleted",
+        deletedAt: new Date(),
+      });
+
+      const row = await store().createActive(copy);
+      expect(row.status).toBe("active");
+      expect(row.id).not.toBe(deleted.id);
+    });
+
+    it("refuses a size that is not a whole number of bytes", async () => {
+      for (const size of [-1, 1.5, Number.NaN]) {
+        await expect(
+          store().createActive({ ...copy, size }),
+        ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      }
+    });
+  });
+
   describe("update", () => {
     it("changes the given fields of an active row", async () => {
       await insertObject(client(), { key: "k", filename: "a.txt", size: 5 });

@@ -2,6 +2,7 @@ import { s3Error } from "@dimah-s3/core";
 import type { DbStore } from "@/store/create-db-store";
 import type { StorageFolderStore } from "@/store/folder-store";
 import type {
+  CreateObjectInput,
   ObjectRef,
   StorageObjectStore,
   UpdateObjectInput,
@@ -12,7 +13,8 @@ import type { StorageFolder, StorageObject } from "@/types/storage-object";
  * `s3.db.objects`: the `storage_object` rows, for your routes, jobs, and
  * scripts. It takes the scope as an argument, so it reads any scope. It
  * never calls S3, and the upload lifecycle stays with the plugin: delete
- * files through `s3.api.delete`.
+ * files through `s3.api.delete`. `create` tracks an object your own code
+ * put in the bucket, such as a copy.
  */
 export type DbObjects<TAttributes = never> = Pick<
   StorageObjectStore<TAttributes>,
@@ -28,6 +30,20 @@ export type DbObjects<TAttributes = never> = Pick<
     ref: ObjectRef & { id?: string; scope?: string },
     input: UpdateObjectInput<TAttributes>,
   ) => Promise<StorageObject<TAttributes> | null>;
+  /**
+   * Tracks an object your code put in the bucket itself, for example with
+   * `CopyObject`, as an active row: it lists, downloads, and counts toward
+   * quota like an upload. It runs no guard and no quota check, like
+   * `update`: check `getUsage` against your caps before you copy. The key
+   * must sit inside `route`'s key prefix, or that route's later calls
+   * refuse it. A `folderId` must already exist in `scope`
+   * (`FOLDER_NOT_FOUND`).
+   * @throws `OBJECT_EXISTS` when an active row is at the key; `CONFLICT`
+   * when an upload or purge holds it.
+   */
+  create: (
+    input: CreateObjectInput<TAttributes>,
+  ) => Promise<StorageObject<TAttributes>>;
 };
 
 /** `s3.db.folders`: the `storage_folder` rows. The root is never stored. */
@@ -68,6 +84,15 @@ export function createPublicStores<TAttributes>(
       list: objects.list,
       count: objects.count,
       getUsage: objects.getUsage,
+      async create(input) {
+        const folderId =
+          input.folderId === undefined ? null : rootId(input.folderId);
+        const folder = await targetFolder(folders, input.scope, folderId);
+        const row = await objects.createActive({ ...input, folderId });
+        // After the write: a folder delete in between sees the row or is undone.
+        if (folder) await folders.retain(folder);
+        return row;
+      },
       async update(ref, input) {
         const folderId =
           input.folderId === undefined ? undefined : rootId(input.folderId);
