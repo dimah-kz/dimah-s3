@@ -1,9 +1,17 @@
 ---
 packages:
-  "@dimah-s3/core": patch
-  "@dimah-s3/server": patch
-  "@dimah-s3/react": patch
-  "@dimah-s3/db": patch
+  "@dimah-s3/core":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/core)
+  "@dimah-s3/server":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/server)
+  "@dimah-s3/react":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/react)
+  "@dimah-s3/db":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/db)
 ---
 
 ### Types resolve under NodeNext
