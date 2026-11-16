@@ -76,7 +76,7 @@ Public hooks that hit the API take a typed `route` (`S3RouteName` — augment `D
 
 Each package: `tsup` → `dist/`. New public path → `package.json` `exports`. Shared configs live in `tooling/`. Client entries get `"use client"` from `packageConfig({ clientEntries })`, never from a source banner.
 
-After `pnpm build`, `pnpm check:dist` checks that every `exports` path exists and declares its runtime exports, that `"use client"` starts only the react and ui `dist/index.js`, that `@dimah-s3/react/engine` imports no React, that the `@dimah-s3/core` root imports no Zod, and that exact `@dimah-s3/*` peers match the current version.
+After `pnpm build`, `pnpm check:dist` checks that every `exports` path exists and declares its runtime exports, that `"use client"` starts only the react and ui `dist/index.js`, that `@dimah-s3/react/engine` imports no React, that the `@dimah-s3/core` root imports no Zod, that exact `@dimah-s3/*` peers match the current version, and that every relative import in a `.d.ts` names its `.js` path (consumers on `moduleResolution: NodeNext` read the declarations as ES modules). Library builds add those extensions with `tooling/tsup-config/dts-extensions.mjs` after `tsc-alias`.
 
 ## Done
 

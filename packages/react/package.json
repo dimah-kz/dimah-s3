@@ -50,7 +50,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
+    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "pnpm compile:translations && tsc --noEmit",
     "compile:translations": "node ./scripts/compile-translations.mjs",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
