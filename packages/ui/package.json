@@ -48,7 +48,7 @@
     "css"
   ],
   "scripts": {
-    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
+    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",

@@ -12,6 +12,8 @@
  *    the browser entry of `@dimah-s3/core` imports no Zod (the schemas live
  *    in `@dimah-s3/core/schema`).
  * 5. An exact peer range on another `@dimah-s3/*` package equals its version.
+ * 6. Every relative import in a `.d.ts` names the `.js` path of an emitted
+ *    declaration, so the types resolve under `moduleResolution: NodeNext`.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -38,6 +40,7 @@ const REACT_MODULE =
   /^(?:react|react-dom|react-dropzone|@fuma-translate\/react)(?:\/|$)/;
 const CLIENT_DIRECTIVE = /^(["'])use client\1/;
 const JS_FILE = /\.(?:c|m)?js$/;
+const DECLARATION_FILE = /\.d\.ts$/;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/;
 
 /** @type {string[]} */
@@ -245,16 +248,17 @@ function hasClientDirective(source) {
 
 /**
  * @param {string} dir
+ * @param {RegExp} pattern
  * @returns {string[]}
  */
-function jsFiles(dir) {
+function distFiles(dir, pattern) {
   if (!existsSync(dir)) return [];
   /** @type {string[]} */
   const out = [];
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...jsFiles(full));
-    else if (JS_FILE.test(entry)) out.push(full);
+    if (statSync(full).isDirectory()) out.push(...distFiles(full, pattern));
+    else if (pattern.test(entry)) out.push(full);
   }
   return out;
 }
@@ -338,7 +342,7 @@ for (const { dir, manifest } of packages) {
       );
     }
   }
-  for (const file of jsFiles(join(dir, "dist"))) {
+  for (const file of distFiles(join(dir, "dist"), JS_FILE)) {
     if (clientEntries.has(file)) continue;
     if (hasClientDirective(read(file))) {
       fail(
@@ -383,6 +387,23 @@ for (const { dir, manifest } of packages) {
     if (!version || !EXACT_VERSION.test(range)) continue;
     if (range !== version) {
       fail(name, `peer ${peer} is "${range}", but ${peer} is ${version}`);
+    }
+  }
+
+  // 6. Relative imports in declarations resolve under NodeNext. The packages
+  //    are ESM, so `./helpers` must be `./helpers.js` or `./helpers/index.js`.
+  for (const file of distFiles(join(dir, "dist"), DECLARATION_FILE)) {
+    for (const specifier of new Set(importSpecifiers(read(file)))) {
+      if (!specifier.startsWith(".")) continue;
+      const target = resolve(
+        dirname(file),
+        specifier.replace(/\.js$/, ".d.ts"),
+      );
+      if (specifier.endsWith(".js") && existsSync(target)) continue;
+      fail(
+        name,
+        `"${toPosix(relative(dir, file))}" imports "${specifier}", which does not resolve under moduleResolution NodeNext`,
+      );
     }
   }
 }
