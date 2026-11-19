@@ -8,6 +8,7 @@ export type {
   PurgeStaleOptions,
   PurgeStaleResult,
 } from "./plugin/purge";
+export type { RecordObjectCall, RecordObjectInput } from "./plugin/record";
 export type { DbFolders, DbObjects } from "./plugin/public-stores";
 export type {
   AuthorizeContext,

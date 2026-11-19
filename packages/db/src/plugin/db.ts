@@ -21,6 +21,11 @@ import {
 } from "./public-stores";
 import { createPurge, type Purge } from "./purge";
 import { createQuota } from "./quota";
+import {
+  createRecord,
+  type RecordObjectCall,
+  type RecordObjectInput,
+} from "./record";
 import { createScopeResolver } from "./scope";
 import { toDbClientObject } from "./to-db-client-object";
 
@@ -30,6 +35,15 @@ export type DbPluginContext<TAttributes = never> = {
   objects: DbObjects<TAttributes>;
   /** The `storage_folder` rows. */
   folders: DbFolders;
+  /**
+   * Writes an active row for an object the app already put in the bucket.
+   * It HEADs the object and runs the scope, authorize, and quota checks.
+   * It does not copy bytes.
+   */
+  record: (
+    input: RecordObjectInput,
+    call?: RecordObjectCall,
+  ) => Promise<StorageObject<TAttributes>>;
   /**
    * Throws unless the database is at the schema this version needs. Call it
    * at startup to fail fast; the first query runs the same check.
@@ -97,6 +111,13 @@ export function db<
     client: routes.client,
     logger: () => env?.logger,
   });
+  const record = createRecord({
+    store,
+    resolveScope,
+    access,
+    quota,
+    env: () => env,
+  });
 
   return definePlugin({
     id: "db",
@@ -124,6 +145,7 @@ export function db<
     context: {
       objects: stores.objects,
       folders: stores.folders,
+      record,
       checkSchema: store.checkSchema,
       purgeStale: purge.purgeStale,
       pruneDeleted: purge.pruneDeleted,

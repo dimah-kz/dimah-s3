@@ -439,3 +439,237 @@ describe("db plugin", () => {
     ).resolves.toEqual({ pruned: 0 });
   });
 });
+
+describe("s3.db.record", () => {
+  const copy = {
+    route: "uploads",
+    key: "uploads/plan.pdf",
+    name: "plan (copy).pdf",
+  };
+
+  async function putObject(
+    setup: ReturnType<typeof createSetup>,
+    key: string,
+    body = "plan-bytes",
+    type = "application/pdf",
+  ) {
+    const bytes = new TextEncoder().encode(body);
+    await setup.s3.client.send(
+      new PutObjectCommand({
+        Bucket: "bucket",
+        Key: key,
+        Body: bytes,
+        ContentType: type,
+      }),
+    );
+    return bytes.byteLength;
+  }
+
+  it("records a copied object from HeadObject and counts its bytes", async () => {
+    const setup = createSetup();
+    const docs = await setup.instance.db.folders.create("user:1", {
+      parentId: null,
+      name: "docs",
+    });
+    const size = await putObject(setup, copy.key);
+
+    const row = await setup.instance.db.record(
+      { ...copy, folderId: docs.id },
+      asUser("1"),
+    );
+
+    expect(row).toMatchObject({
+      scope: "user:1",
+      route: "uploads",
+      key: copy.key,
+      folderId: docs.id,
+      filename: "plan (copy).pdf",
+      contentType: "application/pdf",
+      size,
+      status: "active",
+      eTag: "e1",
+      uploadToken: null,
+    });
+    await expect(setup.instance.db.objects.getUsage("user:1")).resolves.toEqual(
+      { totalBytes: size, objectCount: 1 },
+    );
+  });
+
+  it("rejects a key outside the route namespace before HeadObject", async () => {
+    const setup = createSetup();
+    await putObject(setup, "other/plan.pdf");
+    vi.mocked(setup.s3.client.send).mockClear();
+
+    await expect(
+      setup.instance.db.record({ ...copy, key: "other/plan.pdf" }, asUser("1")),
+    ).rejects.toMatchObject({ code: "KEY_INVALID" });
+    expect(setup.s3.client.send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing object, a signed-out caller, and a bad name", async () => {
+    const setup = createSetup();
+
+    await expect(
+      setup.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+    await expect(setup.instance.db.record(copy)).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    await expect(
+      setup.instance.db.record({ ...copy, name: "a/b.pdf" }, asUser("1")),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(
+      setup.instance.db.record({ ...copy, route: "missing" }, asUser("1")),
+    ).rejects.toMatchObject({ code: "UNKNOWN_ROUTE" });
+  });
+
+  it("rejects a caller authorize does not allow, before HeadObject", async () => {
+    const setup = createSetup({
+      plugin: { authorize: ({ operation }) => operation !== "record" },
+    });
+    await putObject(setup, copy.key);
+    vi.mocked(setup.s3.client.send).mockClear();
+
+    await expect(
+      setup.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(setup.s3.client.send).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing folder before HeadObject", async () => {
+    const setup = createSetup();
+    await putObject(setup, copy.key);
+    vi.mocked(setup.s3.client.send).mockClear();
+
+    await expect(
+      setup.instance.db.record({ ...copy, folderId: "missing" }, asUser("1")),
+    ).rejects.toMatchObject({ code: "FOLDER_NOT_FOUND" });
+    expect(setup.s3.client.send).not.toHaveBeenCalled();
+  });
+
+  it("keeps an active row and refuses a row an upload or another scope holds", async () => {
+    const setup = createSetup();
+    await putObject(setup, copy.key);
+    await insertObject(setup.database, {
+      key: copy.key,
+      bucket: "bucket",
+      scope: "user:1",
+      status: "active",
+    });
+
+    await expect(
+      setup.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "OBJECT_EXISTS" });
+    expect(setup.s3.objects.has(copy.key)).toBe(true);
+
+    await insertObject(setup.database, {
+      key: "uploads/held.pdf",
+      bucket: "bucket",
+      status: "pending",
+      uploadToken: "token",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await expect(
+      setup.instance.db.record(
+        { ...copy, key: "uploads/held.pdf", name: "held.pdf" },
+        asUser("1"),
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+
+    await insertObject(setup.database, {
+      key: "uploads/theirs.pdf",
+      bucket: "bucket",
+      scope: "user:2",
+    });
+    await expect(
+      setup.instance.db.record(
+        { ...copy, key: "uploads/theirs.pdf", name: "theirs.pdf" },
+        asUser("1"),
+      ),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("replaces a deleted row", async () => {
+    const setup = createSetup();
+    await putObject(setup, copy.key);
+    const deleted = await insertObject(setup.database, {
+      key: copy.key,
+      bucket: "bucket",
+      status: "deleted",
+    });
+
+    const row = await setup.instance.db.record(copy, asUser("1"));
+
+    expect(row.status).toBe("active");
+    expect(row.id).not.toBe(deleted.id);
+    expect(row.filename).toBe("plan (copy).pdf");
+  });
+
+  it("deletes an object that is empty or does not fit the quota", async () => {
+    const quota = createSetup({ plugin: { quota: { maxBytes: 4 } } });
+    await putObject(quota, copy.key, "hello");
+
+    await expect(
+      quota.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({
+      code: "QUOTA_EXCEEDED",
+      params: { limit: "bytes" },
+    });
+    expect(quota.s3.objects.has(copy.key)).toBe(false);
+    await expect(
+      quota.instance.db.objects.find({ bucket: "bucket", key: copy.key }),
+    ).resolves.toBeNull();
+
+    const empty = createSetup();
+    await empty.s3.client.send(
+      new PutObjectCommand({
+        Bucket: "bucket",
+        Key: copy.key,
+        Body: new Uint8Array(),
+        ContentType: "application/pdf",
+      }),
+    );
+    await expect(
+      empty.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "FILE_EMPTY" });
+    expect(empty.s3.objects.has(copy.key)).toBe(false);
+  });
+
+  it("refuses a route that does not track objects", async () => {
+    const setup = createSetup({
+      routes: {
+        uploads: route({ upload: true }),
+        open: route({ plugins: { db: false }, upload: true }),
+      },
+    });
+
+    await expect(
+      setup.instance.db.record(
+        { route: "open", key: "open/a.pdf", name: "a.pdf" },
+        asUser("1"),
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("accepts a key under the route prefix and not the route name", async () => {
+    const setup = createSetup({
+      routes: {
+        drawings: route({ keyPrefix: "files", upload: true }),
+      },
+    });
+    await putObject(setup, "files/a.pdf");
+
+    await expect(
+      setup.instance.db.record(
+        { route: "drawings", key: "files/a.pdf", name: "a.pdf" },
+        asUser("1"),
+      ),
+    ).resolves.toMatchObject({ key: "files/a.pdf", route: "drawings" });
+    await expect(
+      setup.instance.db.record(
+        { route: "drawings", key: "drawings/a.pdf", name: "a.pdf" },
+        asUser("1"),
+      ),
+    ).rejects.toMatchObject({ code: "KEY_INVALID" });
+  });
+});

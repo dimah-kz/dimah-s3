@@ -21,4 +21,4 @@ export {
   deleteObjectIfMatch,
   type ConditionalDeleteInput,
 } from "./helpers/best-effort";
-export { readUploadMarker } from "./helpers/object-meta";
+export { readObjectMetadata, readUploadMarker } from "./helpers/object-meta";

@@ -87,6 +87,23 @@ export type MarkActiveInput = UploadRef & {
   acl?: string | null;
 };
 
+/**
+ * An object already in the bucket, recorded as active. The size and eTag
+ * come from HeadObject. There is no upload token: purge does not own it.
+ */
+export type InsertActiveInput = ObjectRef & {
+  scope: string;
+  route: string;
+  /** Folder that holds the object. `null` is the root. */
+  folderId: string | null;
+  filename: string;
+  contentType: string | null;
+  /** Verified size from HeadObject. */
+  size: number;
+  eTag: string | null;
+  s3Metadata: Record<string, string> | null;
+};
+
 /** Which rows of a scope a listing or count covers. */
 export type ObjectFilter = {
   scope: string;
@@ -184,6 +201,14 @@ export type StorageObjectStore<TAttributes = never> = {
    * purging, or taken by another upload).
    */
   markActive: (input: MarkActiveInput) => Promise<StorageObject<TAttributes>>;
+  /**
+   * Writes an active row for an object already in the bucket. A deleted row
+   * at the key is replaced by a new one. An active row is `OBJECT_EXISTS`.
+   * A pending or purging row, or a concurrent insert, is `CONFLICT`.
+   */
+  insertActive: (
+    input: InsertActiveInput,
+  ) => Promise<StorageObject<TAttributes>>;
   /**
    * Changes an active row. With `id` or `scope`, only that row, so a check
    * made on it still holds. Returns `null` when no row matches.
@@ -676,6 +701,58 @@ export function createObjectStore<TAttributes = never>(
         return row;
       }
       throw s3Error("OBJECT_NOT_FOUND");
+    },
+
+    async insertActive(input) {
+      const ref = { bucket: input.bucket, key: input.key };
+      const existing = await find(ref);
+      if (existing?.status === "active") throw s3Error("OBJECT_EXISTS");
+      if (existing && existing.status !== "deleted") throw s3Error("CONFLICT");
+
+      const orm = await getOrm();
+      const now = new Date();
+      const fresh = {
+        ...ref,
+        scope: input.scope,
+        route: input.route,
+        folderId: input.folderId,
+        filename: input.filename,
+        searchName: toSearchName(input.filename),
+        contentType: input.contentType,
+        size: BigInt(input.size),
+        declaredSize: null,
+        eTag: input.eTag,
+        status: "active",
+        s3Metadata: input.s3Metadata,
+        attributes: null,
+        acl: null,
+        uploadId: null,
+        uploadToken: null,
+        expiresAt: null,
+        confirmedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      };
+      if (existing?.status === "deleted") {
+        // A fresh row with a fresh id. Only one caller deletes the row; the
+        // unique (bucket, key) settles the rest.
+        await orm.deleteMany("storageObject", {
+          where: (b) =>
+            b.and(b("id", "=", existing.id), b("status", "=", "deleted")),
+        });
+      }
+      try {
+        await orm.create("storageObject", fresh);
+      } catch (error) {
+        if (error instanceof UniqueConstraintError) throw s3Error("CONFLICT");
+        throw error;
+      }
+      const row = await find(ref);
+      if (row?.status !== "active" || row.scope !== input.scope) {
+        throw s3Error("CONFLICT");
+      }
+      return row;
     },
 
     async update(ref, input) {
