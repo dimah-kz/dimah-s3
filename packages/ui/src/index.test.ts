@@ -59,6 +59,7 @@ describe("@dimah-s3/ui", () => {
       "toast",
       "useDeleteContext",
       "useDownloadContext",
+      "useObjectListCommands",
       "useObjectListContext",
       "useObjectListEntry",
       "usePasteFiles",
