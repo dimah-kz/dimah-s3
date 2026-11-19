@@ -1,7 +1,10 @@
 import type { ContentDispositionType, S3ObjectAcl } from "@dimah-s3/core";
 import type { DimahS3Locals } from "./locals";
 
-/** The call a hook runs in. Plugin endpoints use `"plugin"`. */
+/**
+ * The call a hook runs in. Plugin endpoints use `"plugin"`. `"record"` is
+ * `s3.db.record`, which is not an HTTP route.
+ */
 export type S3Operation =
   | "upload"
   | "confirm"
@@ -16,7 +19,8 @@ export type S3Operation =
   | "multipart.listParts"
   | "multipart.complete"
   | "multipart.abort"
-  | "plugin";
+  | "plugin"
+  | "record";
 
 /**
  * How the bytes reach S3: a presigned POST or PUT, a multipart upload, or

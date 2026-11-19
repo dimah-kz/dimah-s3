@@ -68,9 +68,8 @@ The stores never call S3, and the upload lifecycle stays with the plugin,
 so they have no write besides `update`. To remove a file, use the normal
 [delete path](/docs/db/setup#delete-behavior). A move needs a folder that
 already exists (`FOLDER_NOT_FOUND`). Renaming or moving a folder rewrites
-the cached paths under it and leaves every id as it is. An object the app
-put in the bucket itself, such as a copy, is recorded with
-[`s3.db.record`](#recording-a-copy).
+the cached paths under it and leaves every id as it is. An object already
+in the bucket is recorded with [`s3.db.record`](#recording-an-object).
 
 ```ts
 await s3.db.objects.update(
@@ -80,23 +79,27 @@ await s3.db.objects.update(
 await s3.db.folders.update(scope, reports.id, { name: "archive" });
 ```
 
-### Recording a copy
+### Recording an object
 
-Copying bytes stays with your `S3Client` (`CopyObject`, or `UploadPartCopy`
-over 5 GB). `s3.db.record` then writes the row. It does not copy. The size,
-type, and eTag come from HeadObject, and the key must sit inside the route
-namespace (`KEY_INVALID`).
+`s3.db.record` writes a row for an object that is already in the bucket: a
+copy, an import, or a file another system wrote. It does not copy the bytes
+and it does not delete them. The size, type, and eTag come from HeadObject.
+The key must sit inside the route namespace (`KEY_INVALID`).
 
-`resolveScope` and `authorize` run with `operation: "record"`. Pass the
-`headers`, `request`, or `locals` that `resolveScope` reads. `record` does
-not run the route guard. Quota counts the verified size. An empty object is
-`FILE_EMPTY`. An object that does not fit is deleted and no row is written,
-the same as a confirm that no longer fits.
+Pass `{ headers }`, `{ request }`, or `{ locals }` the way you call
+`s3.api`. The instance guard and the route guard run first, then
+`resolveScope` and `authorize`, all with `operation: "record"`. `locals`
+seeds the guards. The route's `fileTypes` and `maxFileSize` apply, and so
+does the quota. An empty object is `FILE_EMPTY`. A file the route does not
+allow, or one that does not fit the quota, is refused and left in the
+bucket. Delete it yourself if you do not want the bytes.
 
-An active row at the key is `OBJECT_EXISTS`. A row an upload or purge holds
-is `CONFLICT`. A deleted row is replaced by a new one. `folderId` must
-already exist (`FOLDER_NOT_FOUND`); `null` and `""` are the root. `name` is
-the display name, one segment of at most 255 characters.
+Calling `record` again for the same bytes returns the same row. A different
+object at that key is `OBJECT_EXISTS`. A row an upload or purge holds is
+`CONFLICT`. A deleted row is replaced by a new one. `folderId` must already
+exist (`FOLDER_NOT_FOUND`); `null` and `""` are the root. `name` is the
+display name and defaults to the last segment of the key. It is one segment
+of at most 255 characters.
 
 ```ts
 // Your S3 client. dimah-s3 does not wrap CopyObject.

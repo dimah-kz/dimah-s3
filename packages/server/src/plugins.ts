@@ -18,6 +18,10 @@ export type {
 // S3 helpers for plugins that track uploads, such as `db()`.
 export { isAwsNotFound } from "./helpers/aws-errors";
 export {
+  assertFileConstraints,
+  type FileConstraints,
+} from "./helpers/constraints";
+export {
   deleteObjectIfMatch,
   type ConditionalDeleteInput,
 } from "./helpers/best-effort";

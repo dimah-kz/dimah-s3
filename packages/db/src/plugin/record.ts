@@ -3,12 +3,16 @@ import { normalizeObjectKey, s3Error } from "@dimah-s3/core";
 import type {
   DimahS3Config,
   DimahS3Locals,
+  DimahS3RouteConfig,
+  Guard,
+  RouteGuardContext,
   S3ServerCallOptions,
 } from "@dimah-s3/server";
 import {
-  deleteObjectIfMatch,
+  assertFileConstraints,
   isAwsNotFound,
   readObjectMetadata,
+  type FileConstraints,
   type PluginInitEnv,
 } from "@dimah-s3/server/plugins";
 import { isFolderName } from "@/folder-path";
@@ -18,7 +22,11 @@ import type { ObjectAccess } from "./object-access";
 import type { Quota } from "./quota";
 import type { ScopeCall, ScopeResolver } from "./scope";
 
-/** An object the app already put in the bucket, to record as a row. */
+/**
+ * An object already in the bucket, to record as a row. The app put the
+ * bytes there itself: a copy, an import, or another writer. dimah-s3 does
+ * not copy them and does not delete them.
+ */
 export type RecordObjectInput = {
   /** Named route whose namespace holds `key`. */
   route: string;
@@ -32,15 +40,17 @@ export type RecordObjectInput = {
    * id is `FOLDER_NOT_FOUND`.
    */
   folderId?: string | null;
-  /** Display name, one path segment, at most 255 characters. */
-  name: string;
+  /**
+   * Display name, one path segment, at most 255 characters. Defaults to
+   * the last segment of `key`.
+   */
+  name?: string;
 };
 
 /**
  * Who is recording: the same options as an in-process `s3.api` call.
- * `resolveScope` and `authorize` see it. `record` does not run the route
- * guard, so pass the `request`, `headers`, or `locals` that `resolveScope`
- * reads. `request` wins over `headers` and `signal`.
+ * Instance and route guards run first and see `operation: "record"`.
+ * `locals` seeds them. `request` wins over `headers` and `signal`.
  */
 export type RecordObjectCall = Pick<
   S3ServerCallOptions,
@@ -57,15 +67,15 @@ export type CreateRecordOptions<TSession, TAttributes> = {
 };
 
 /**
- * Records an object the app put in the bucket itself, such as a `CopyObject`
- * made with the app's own `S3Client`. dimah-s3 does not copy the bytes.
+ * Records an object the app already put in the bucket. The size, type, and
+ * eTag come from HeadObject. Guards, `resolveScope`, and `authorize` run
+ * with `operation: "record"`, then the route's `fileTypes` and
+ * `maxFileSize`, then the quota.
  *
- * The size, type, and eTag come from HeadObject. `resolveScope` and
- * `authorize` run with `operation: "record"`, then the quota. An empty
- * object is `FILE_EMPTY`. An object that does not fit the quota is deleted
- * and no row is written, the same as a confirm that no longer fits. An
- * active row at the key is `OBJECT_EXISTS`. A row an upload or purge holds
- * is `CONFLICT`. A deleted row is replaced.
+ * A second call for the same bytes (the same eTag and size, in the same
+ * scope) returns the row. A different object at that key is
+ * `OBJECT_EXISTS`. A row an upload or purge holds is `CONFLICT`. A deleted
+ * row is replaced. A refusal leaves the object where it is.
  */
 export function createRecord<TSession, TAttributes>(
   options: CreateRecordOptions<TSession, TAttributes>,
@@ -90,9 +100,11 @@ export function createRecord<TSession, TAttributes>(
       });
     }
     const key = routeKey(input.key, located.keyPrefix);
-    const filename = fileName(input.name);
+    const filename = fileName(
+      input.name ?? key.slice(key.lastIndexOf("/") + 1),
+    );
     const folderId = rootId(input.folderId);
-    const scopeCall = scopeCallOf(env.config, call);
+    const scopeCall = await scopeCallOf(env, input.route, located.route, call);
     const peeked = await resolveScope(scopeCall, {
       operation: "record",
       route: input.route,
@@ -115,28 +127,31 @@ export function createRecord<TSession, TAttributes>(
     const existing = await store.objects.find(ref);
     if (existing && existing.status !== "deleted") {
       if (existing.scope !== scope.scope) throw s3Error("FORBIDDEN");
-      if (existing.status === "active") throw s3Error("OBJECT_EXISTS");
-      throw s3Error("CONFLICT");
+      if (existing.status !== "active") throw s3Error("CONFLICT");
     }
 
-    const client = routeClient(env, input.route);
     const head = await headStored(
-      client,
+      clientOf(env, input.route),
       located.bucket,
       key,
       scopeCall.request.signal,
     );
-    if (head.size === 0) {
-      await removeRefused(client, located.bucket, key, head.rawETag);
-      throw s3Error("FILE_EMPTY");
+    assertFileConstraints(uploadConstraints(located.route), {
+      name: filename,
+      size: head.size,
+      type: head.contentType ?? undefined,
+    });
+    if (
+      existing?.status === "active" &&
+      head.eTag !== null &&
+      existing.eTag === head.eTag &&
+      existing.size === head.size
+    ) {
+      return existing;
     }
-    try {
-      await quota.assert(scope, { size: head.size, excluding: ref });
-    } catch (error) {
-      await removeRefused(client, located.bucket, key, head.rawETag);
-      throw error;
-    }
+    if (existing?.status === "active") throw s3Error("OBJECT_EXISTS");
 
+    await quota.assert(scope, { size: head.size, excluding: ref });
     const row = await store.objects.insertActive({
       ...ref,
       scope: scope.scope,
@@ -157,6 +172,7 @@ export function createRecord<TSession, TAttributes>(
 }
 
 type LocatedRoute = {
+  route: DimahS3RouteConfig;
   bucket: string;
   keyPrefix: string | false;
 };
@@ -169,10 +185,17 @@ function locateRoute(config: DimahS3Config, name: string): LocatedRoute | null {
   if (!route) return null;
   const bucket = route.bucket ?? config.bucket;
   if (!bucket) return null;
-  if (route.keyPrefix === false) return { bucket, keyPrefix: false };
+  if (route.keyPrefix === false) return { route, bucket, keyPrefix: false };
   const keyPrefix = normalizeObjectKey(route.keyPrefix ?? name);
   if (!keyPrefix) return null;
-  return { bucket, keyPrefix };
+  return { route, bucket, keyPrefix };
+}
+
+/** `fileTypes` and `maxFileSize` when the route's upload sets them. */
+function uploadConstraints(route: DimahS3RouteConfig): FileConstraints {
+  const { upload } = route;
+  if (!upload || typeof upload === "boolean") return {};
+  return { fileTypes: upload.fileTypes, maxFileSize: upload.maxFileSize };
 }
 
 /** A safe key inside the route namespace. Otherwise `KEY_INVALID`. */
@@ -205,10 +228,16 @@ function fileName(name: string): string {
   return normalized;
 }
 
-function scopeCallOf(config: DimahS3Config, call: RecordObjectCall): ScopeCall {
+/** Guards first, so `resolveScope` sees the locals they set. */
+async function scopeCallOf(
+  env: PluginInitEnv,
+  routeName: string,
+  route: DimahS3RouteConfig,
+  call: RecordObjectCall,
+): Promise<ScopeCall> {
   const request =
     call.request ??
-    new Request(requestUrl(config), {
+    new Request(requestUrl(env.config), {
       headers: call.headers,
       signal: call.signal,
     });
@@ -216,7 +245,50 @@ function scopeCallOf(config: DimahS3Config, call: RecordObjectCall): ScopeCall {
     Object.create(null),
     call.locals,
   ) as DimahS3Locals;
+  const context: RouteGuardContext = {
+    request,
+    operation: "record",
+    locals,
+    route: routeName,
+  };
+  await runUserGuard(env.config.guard, context);
+  await runUserGuard(route.guard, context);
   return { request, locals };
+}
+
+/**
+ * One user guard, with the same result rule as the server: nothing allows,
+ * `{ locals }` is copied in, and any other return is a config error. A
+ * throw rejects the call.
+ */
+async function runUserGuard(
+  guard: Guard<RouteGuardContext> | undefined,
+  context: RouteGuardContext,
+): Promise<void> {
+  if (!guard) return;
+  const result: unknown = await guard(context);
+  if (result === undefined) return;
+  if (isLocalsResult(result)) {
+    Object.assign(context.locals, result.locals);
+    return;
+  }
+  throw new Error(
+    `[dimah-s3/db] A guard for "${context.operation}" returned a value s3.db.record cannot use. Return nothing or { locals }, and throw to reject.`,
+  );
+}
+
+function isLocalsResult(
+  value: unknown,
+): value is { locals: Partial<DimahS3Locals> } {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const keys = Object.keys(value);
+  if (keys.length !== 1 || keys[0] !== "locals") return false;
+  const locals = (value as { locals: unknown }).locals;
+  return (
+    locals !== null && typeof locals === "object" && !Array.isArray(locals)
+  );
 }
 
 function requestUrl(config: DimahS3Config): string {
@@ -224,7 +296,7 @@ function requestUrl(config: DimahS3Config): string {
   return new URL(config.basePath ?? "/api/s3", "http://localhost").href;
 }
 
-function routeClient(env: PluginInitEnv, route: string): S3Client {
+function clientOf(env: PluginInitEnv, route: string): S3Client {
   const { routes, client } = env.config;
   const config = Object.hasOwn(routes, route) ? routes[route] : undefined;
   const resolved = config?.client ?? client;
@@ -239,8 +311,6 @@ type HeadedObject = {
   contentType: string | null;
   /** Stored eTag, without the quotes HeadObject sends. */
   eTag: string | null;
-  /** HeadObject ETag as returned, for a conditional delete. */
-  rawETag: string | undefined;
   metadata: Record<string, string> | null;
 };
 
@@ -263,25 +333,10 @@ async function headStored(
       size: head.ContentLength,
       contentType: head.ContentType || null,
       eTag: head.ETag ? head.ETag.replaceAll('"', "") : null,
-      rawETag: head.ETag,
       metadata: Object.keys(metadata).length > 0 ? metadata : null,
     };
   } catch (error) {
     if (isAwsNotFound(error)) throw s3Error("OBJECT_NOT_FOUND");
     throw error;
-  }
-}
-
-/** Deletes an object this call refuses to record. A failure stays quiet. */
-async function removeRefused(
-  client: S3Client,
-  bucket: string,
-  key: string,
-  eTag: string | undefined,
-): Promise<void> {
-  try {
-    await deleteObjectIfMatch(client, { bucket, key, eTag });
-  } catch {
-    // The refusal still stands. An object left behind is the app's to delete.
   }
 }

@@ -8,6 +8,7 @@ import {
 import {
   dimahS3,
   route,
+  s3Error,
   type DimahS3Config,
   type DimahS3RouteConfig,
 } from "@dimah-s3/server";
@@ -605,7 +606,7 @@ describe("s3.db.record", () => {
     expect(row.filename).toBe("plan (copy).pdf");
   });
 
-  it("deletes an object that is empty or does not fit the quota", async () => {
+  it("leaves the object when it is empty or does not fit the quota", async () => {
     const quota = createSetup({ plugin: { quota: { maxBytes: 4 } } });
     await putObject(quota, copy.key, "hello");
 
@@ -615,7 +616,7 @@ describe("s3.db.record", () => {
       code: "QUOTA_EXCEEDED",
       params: { limit: "bytes" },
     });
-    expect(quota.s3.objects.has(copy.key)).toBe(false);
+    expect(quota.s3.objects.has(copy.key)).toBe(true);
     await expect(
       quota.instance.db.objects.find({ bucket: "bucket", key: copy.key }),
     ).resolves.toBeNull();
@@ -632,7 +633,81 @@ describe("s3.db.record", () => {
     await expect(
       empty.instance.db.record(copy, asUser("1")),
     ).rejects.toMatchObject({ code: "FILE_EMPTY" });
-    expect(empty.s3.objects.has(copy.key)).toBe(false);
+    expect(empty.s3.objects.has(copy.key)).toBe(true);
+  });
+
+  it("returns the same row when the bytes have not changed", async () => {
+    const setup = createSetup();
+    await putObject(setup, copy.key);
+
+    const first = await setup.instance.db.record(copy, asUser("1"));
+    const second = await setup.instance.db.record(
+      { route: copy.route, key: copy.key },
+      asUser("1"),
+    );
+
+    expect(second).toEqual(first);
+    await expect(setup.instance.db.objects.getUsage("user:1")).resolves.toEqual(
+      { totalBytes: first.size, objectCount: 1 },
+    );
+  });
+
+  it("uses the key's last segment when no name is given", async () => {
+    const setup = createSetup();
+    await putObject(setup, "uploads/id/plan.pdf");
+
+    await expect(
+      setup.instance.db.record(
+        { route: "uploads", key: "uploads/id/plan.pdf" },
+        asUser("1"),
+      ),
+    ).resolves.toMatchObject({ filename: "plan.pdf" });
+  });
+
+  it("runs the route guard before HeadObject", async () => {
+    const setup = createSetup({
+      routes: {
+        uploads: route({
+          upload: true,
+          guard: ({ request }) => {
+            if (request.headers.get("x-user") !== "1")
+              throw s3Error("FORBIDDEN");
+          },
+        }),
+      },
+    });
+    await putObject(setup, copy.key);
+    vi.mocked(setup.s3.client.send).mockClear();
+
+    await expect(
+      setup.instance.db.record(copy, asUser("2")),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(setup.s3.client.send).not.toHaveBeenCalled();
+  });
+
+  it("applies the route file type and size limits and leaves the object", async () => {
+    const setup = createSetup({
+      routes: {
+        uploads: route({
+          upload: { fileTypes: ["image/*"], maxFileSize: 4 },
+        }),
+      },
+    });
+    await putObject(setup, copy.key);
+
+    await expect(
+      setup.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "FILE_TYPE_NOT_ALLOWED" });
+    expect(setup.s3.objects.has(copy.key)).toBe(true);
+
+    await putObject(setup, "uploads/a.png", "hello", "image/png");
+    await expect(
+      setup.instance.db.record(
+        { route: "uploads", key: "uploads/a.png", name: "a.png" },
+        asUser("1"),
+      ),
+    ).rejects.toMatchObject({ code: "FILE_TOO_LARGE" });
+    expect(setup.s3.objects.has("uploads/a.png")).toBe(true);
   });
 
   it("refuses a route that does not track objects", async () => {

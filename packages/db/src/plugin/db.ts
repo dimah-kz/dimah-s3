@@ -36,9 +36,9 @@ export type DbPluginContext<TAttributes = never> = {
   /** The `storage_folder` rows. */
   folders: DbFolders;
   /**
-   * Writes an active row for an object the app already put in the bucket.
-   * It HEADs the object and runs the scope, authorize, and quota checks.
-   * It does not copy bytes.
+   * Writes an active row for an object already in the bucket. It HEADs the
+   * object, runs the instance and route guards, then the scope, authorize,
+   * route file limits, and quota. It does not copy or delete bytes.
    */
   record: (
     input: RecordObjectInput,
