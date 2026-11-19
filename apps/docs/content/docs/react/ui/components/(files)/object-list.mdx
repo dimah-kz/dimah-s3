@@ -178,12 +178,13 @@ a page:
 - Under 36rem, the labels of New folder, Sort, bulk Delete, and the default
   `UploadTrigger` hide, leaving square icon buttons with the same names.
 - `ObjectListSearch` is a search button. A click, or `/` from the list,
-  opens a field across the whole bar; it stays open while it has text. Its
-  placeholder names where it looks: "Search files", `Search in “Docs”`, or
-  "Search all files". A spinner shows while results load, and ArrowDown
-  moves to the first result. Escape clears the text, then closes it, and
-  Close search does both. Pass `collapsible={false}` to keep the field in
-  the bar.
+  opens a field across the whole bar. Shift+/ does not: `?`, and «؟» on a
+  Persian layout, stay with the page. The field stays open while it has
+  text. Its placeholder names where it looks: "Search files",
+  `Search in “Docs”`, or "Search all files". A spinner shows while results
+  load, and ArrowDown moves to the first result. Escape clears the text,
+  then closes it, and Close search does both. Pass `collapsible={false}` to
+  keep the field in the bar.
 - While a search is on, `ObjectListSearchBar` sits under the bar: where the
   search looks and how many results it found. Pass `searchBar={false}` to
   hide it.

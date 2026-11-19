@@ -1676,6 +1676,48 @@ describe("ObjectList", () => {
       expect(trigger("r.txt")).toBeDefined();
     });
 
+    it("opens on / and on the unshifted slash key, and leaves Shift+/ alone", async () => {
+      const user = userEvent.setup();
+      renderList({ props: toolbar });
+      await settle();
+      trigger("a.txt").focus();
+
+      // What a browser sends. user-event's US map has no Slash key.
+      const press = (init: KeyboardEventInit) => {
+        act(() => {
+          document.activeElement?.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              bubbles: true,
+              cancelable: true,
+              ...init,
+            }),
+          );
+        });
+      };
+      const searchbox = () => screen.queryByRole("searchbox");
+
+      press({ key: "?", code: "Slash", shiftKey: true });
+      press({ key: "؟", code: "Slash", shiftKey: true });
+      press({ key: ".", code: "Slash" });
+      expect(searchbox()).toBeNull();
+
+      // `/` from another key, including with Shift, is still search.
+      press({ key: "/", code: "Digit7", shiftKey: true });
+      expect(document.activeElement).toBe(
+        screen.getByRole("searchbox", { name: "Search files" }),
+      );
+
+      await user.keyboard("{Escape}");
+      expect(searchbox()).toBeNull();
+      trigger("a.txt").focus();
+
+      // A layout that types a non-ASCII character on the unshifted slash key.
+      press({ key: "٫", code: "Slash" });
+      expect(document.activeElement).toBe(
+        screen.getByRole("searchbox", { name: "Search files" }),
+      );
+    });
+
     it("opens with / from the list and moves into the results with ArrowDown", async () => {
       const user = userEvent.setup();
       renderList({ props: toolbar });
