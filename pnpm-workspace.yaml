@@ -19,19 +19,19 @@ catalog:
   eslint-plugin-react: ^7.37.5
   eslint-plugin-react-hooks: ^7.1.1
   eslint-plugin-regexp: ^3.3.3
-  eslint-plugin-turbo: ^2.11.11
-  eslint-plugin-unicorn: ^79.0.0
+  eslint-plugin-turbo: ^2.11.13
+  eslint-plugin-unicorn: ^80.0.0
   globals: ^17.14.0
-  typescript-eslint: ^8.72.2
+  typescript-eslint: ^8.73.0
   prettier: ^3.10.1
   prettier-plugin-packagejson: ^3.1.0
   prettier-plugin-tailwindcss: ^0.8.1
   sherif: ^1.13.0
   tegami: ^1.5.0
-  turbo: ^2.11.11
+  turbo: ^2.11.13
   tsc-alias: ^1.9.10
   tsup: ^9.0.0
-  vitest: ^5.1.0
+  vitest: ^5.1.1
   react: ^19.3.1
   react-dom: ^19.3.1
   "@types/node": ^26.6.6
@@ -39,7 +39,7 @@ catalog:
   "@types/react-dom": ^19.3.0
   next: 16.4.6
   zod: ^4.6.7
-  better-call: 1.4.5
+  better-call: 1.4.6
   "@better-fetch/fetch": 1.3.3
   tailwindcss: ^4.3.5
   "@tailwindcss/postcss": ^4.3.5
