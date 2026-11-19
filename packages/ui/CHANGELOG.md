@@ -1,3 +1,21 @@
+## @dimah-s3/ui@2.0.0-beta.11 (beta)
+
+### Open New folder and a row menu from outside
+
+`useObjectListCommands()` opens list UI that your own shortcut or menu cannot reach by itself. Pass the object to `ObjectList` as `commands`.
+
+- **`startNewFolder()`.** Opens the New folder name field. It does nothing when the source has no `createFolder`.
+- **`openMenu(entryKey)`.** Opens that row's menu. It does nothing when the entry is not on screen.
+- **Right-click.** On a row with the default menu, the browser menu stays closed and the row menu opens.
+
+### Search opens on slash, not on Shift+/
+
+`ObjectList` opens its search on `/`. Shift+/ stays with your page, so `?` and the Persian «؟» can be your own shortcut.
+
+- **`/`.** The slash character opens search from the list, on any key, including when a layout types it with Shift.
+- **The unshifted slash key.** A layout that types a character outside ASCII there still opens search. A layout that types another ASCII character, such as `.` on a Persian layout, keeps that character.
+- **Shift+slash.** `?` and «؟» do not open search.
+
 ## @dimah-s3/ui@2.0.0-beta.9 (beta)
 
 ### Search reaches every folder

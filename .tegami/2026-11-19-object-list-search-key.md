@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/ui": patch
+  "@dimah-s3/ui":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/ui)
 ---
 
 ### Search opens on slash, not on Shift+/
