@@ -103,6 +103,10 @@ export {
   type ObjectListProps,
 } from "@/components/dimah-s3/list/object-list";
 export {
+  useObjectListCommands,
+  type ObjectListCommands,
+} from "@/components/dimah-s3/list/object-list-commands";
+export {
   useObjectListContext,
   useObjectListEntry,
   type ObjectListContextValue,

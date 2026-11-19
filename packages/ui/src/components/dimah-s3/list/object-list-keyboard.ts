@@ -33,7 +33,7 @@ const CONTROL =
  * - Ctrl+A / Cmd+A: select every loaded entry. Escape: clear.
  * - Backspace or Alt+ArrowUp: open the parent folder.
  * - F2: rename the focused row, when the source can.
- * - `/`: open and focus the list's search field.
+ * - `/`: open and focus the list's search field. Shift+/ stays with the page.
  *
  * Fields, menus, and dialogs keep their own keys.
  */
@@ -275,13 +275,20 @@ function isOverlayTarget(target: Element) {
 }
 
 /**
- * `/`, or the key where US layouts have it when the layout types a
- * character outside ASCII there. A layout that types another ASCII
- * character on that key keeps it.
+ * The slash character, on whichever key the layout puts it. The physical
+ * slash key also counts when the layout types a character outside ASCII
+ * there, and only while Shift is up: Shift+/ is `?` in English and «؟» on
+ * a Persian layout, and both stay with the page. A layout that types
+ * another ASCII character on that key, such as `.` unshifted in Persian,
+ * keeps it.
  */
 function isSearchKey(event: KeyboardEvent<HTMLElement>): boolean {
   if (event.key === "/") return true;
-  return event.code === "Slash" && !/^[\x20-\x7e]$/.test(event.key);
+  return (
+    event.code === "Slash" &&
+    !event.shiftKey &&
+    !/^[\x20-\x7e]$/.test(event.key)
+  );
 }
 
 /**

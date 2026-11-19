@@ -68,7 +68,8 @@ The stores never call S3, and the upload lifecycle stays with the plugin,
 so they have no write besides `update`. To remove a file, use the normal
 [delete path](/docs/db/setup#delete-behavior). A move needs a folder that
 already exists (`FOLDER_NOT_FOUND`). Renaming or moving a folder rewrites
-the cached paths under it and leaves every id as it is:
+the cached paths under it and leaves every id as it is. An object already
+in the bucket is recorded with [`s3.db.record`](#recording-an-object).
 
 ```ts
 await s3.db.objects.update(
@@ -76,6 +77,49 @@ await s3.db.objects.update(
   { folderId: reports.id, attributes: { starred: true } },
 );
 await s3.db.folders.update(scope, reports.id, { name: "archive" });
+```
+
+### Recording an object
+
+`s3.db.record` writes a row for an object that is already in the bucket: a
+copy, an import, or a file another system wrote. It does not copy the bytes
+and it does not delete them. The size, type, and eTag come from HeadObject.
+The key must sit inside the route namespace (`KEY_INVALID`).
+
+Pass `{ headers }`, `{ request }`, or `{ locals }` the way you call
+`s3.api`. The instance guard and the route guard run first, then
+`resolveScope` and `authorize`, all with `operation: "record"`. `locals`
+seeds the guards. The route's `fileTypes` and `maxFileSize` apply, and so
+does the quota. An empty object is `FILE_EMPTY`. A file the route does not
+allow, or one that does not fit the quota, is refused and left in the
+bucket. Delete it yourself if you do not want the bytes.
+
+Calling `record` again for the same bytes returns the same row. A different
+object at that key is `OBJECT_EXISTS`. A row an upload or purge holds is
+`CONFLICT`. A deleted row is replaced by a new one. `folderId` must already
+exist (`FOLDER_NOT_FOUND`); `null` and `""` are the root. `name` is the
+display name and defaults to the last segment of the key. It is one segment
+of at most 255 characters.
+
+```ts
+// Your S3 client. dimah-s3 does not wrap CopyObject.
+await s3Client.send(
+  new CopyObjectCommand({
+    Bucket: bucket,
+    Key: key, // inside the route namespace, for example `project-files/…`
+    CopySource: `${bucket}/${sourceKey}`,
+  }),
+);
+
+const copy = await s3.db.record(
+  {
+    route: "project-files",
+    key,
+    folderId: reports.id,
+    name: "plan (copy).pdf",
+  },
+  { headers }, // or { request } or { locals }
+);
 ```
 
 ### DbObjects

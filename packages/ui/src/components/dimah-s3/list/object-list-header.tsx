@@ -457,37 +457,36 @@ export type ObjectListNewFolderProps = {
  */
 export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
   const t = useTranslations();
-  const { list } = useObjectListContext();
+  const { list, newFolderOpen, setNewFolderOpen } = useObjectListContext();
   const header = useOptionalObjectListHeader();
-  const [editing, setEditing] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Set when the field closes, so focus goes back to the button.
   const returnFocusRef = useRef(false);
   const setFolderExpanded = header?.setFolderExpanded;
 
   useEffect(() => {
-    if (editing || !returnFocusRef.current) return;
+    if (newFolderOpen || !returnFocusRef.current) return;
     returnFocusRef.current = false;
     buttonRef.current?.focus();
-  }, [editing]);
+  }, [newFolderOpen]);
 
   // The header gives the name field the whole bar. Cleared on close.
   useLayoutEffect(() => {
     if (!setFolderExpanded) return;
-    setFolderExpanded(editing);
+    setFolderExpanded(newFolderOpen);
     return () => setFolderExpanded(false);
-  }, [editing, setFolderExpanded]);
+  }, [newFolderOpen, setFolderExpanded]);
 
   if (!list.createFolder) return null;
 
-  if (editing) {
+  if (newFolderOpen) {
     return (
       <NewFolderForm
         createFolder={list.createFolder}
         wide={header != null}
         onClose={() => {
           returnFocusRef.current = true;
-          setEditing(false);
+          setNewFolderOpen(false);
         }}
         className={className}
       />
@@ -501,7 +500,7 @@ export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
       size="sm"
       data-slot="object-list-new-folder"
       className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
-      onClick={() => setEditing(true)}
+      onClick={() => setNewFolderOpen(true)}
     >
       <FolderPlusIcon data-icon="inline-start" />
       <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>

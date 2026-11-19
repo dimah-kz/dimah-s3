@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { objectKeyOf } from "@dimah-s3/react/engine";
 import {
   useFormatError,
@@ -119,6 +125,13 @@ export function ObjectListItemMenu({
   // progress does not draw every row's menu. The items read the hooks.
   const scope = useOptionalObjectListEntryScope();
   const entry = useObjectListEntry();
+  const entryKey = entry?.key ?? null;
+  const menuStore = scope?.store;
+  const menuOpen = useSyncExternalStore(
+    menuStore?.subscribe ?? subscribeNothing,
+    () => entryKey != null && menuStore?.get().menu === entryKey,
+    () => false,
+  );
   const triggerRef = useRef<HTMLButtonElement>(null);
   const file = entry?.kind === "file" ? entry : null;
   const folder = entry?.kind === "folder" ? entry : null;
@@ -140,8 +153,16 @@ export function ObjectListItemMenu({
   if (!isFile && !folder) return null;
   if (!Object.values(rows).some(Boolean)) return null;
 
+  const inRow = entryKey != null && menuStore != null;
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      open={inRow ? menuOpen : undefined}
+      onOpenChange={
+        inRow
+          ? (open) => menuStore.set({ menu: open ? entryKey : null })
+          : undefined
+      }
+    >
       <DropdownMenuTrigger
         render={
           <Button
@@ -180,6 +201,10 @@ export function ObjectListItemMenu({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function subscribeNothing() {
+  return () => {};
 }
 
 /** Which rows {@link ObjectListItemMenu} has. */

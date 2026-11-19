@@ -104,6 +104,7 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
       data-kind={entry.kind}
       data-view="list"
       data-selected={parts.selected ? "" : undefined}
+      onContextMenu={parts.onContextMenu}
       className={cn(
         "grid min-h-11 min-w-0 items-center gap-2 overflow-hidden py-1 ps-1.5 pe-1 transition-colors duration-150",
         parts.checkbox
@@ -188,6 +189,7 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
       data-kind={entry.kind}
       data-view="grid"
       data-selected={parts.selected ? "" : undefined}
+      onContextMenu={parts.onContextMenu}
       className={cn(
         "group/entry relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border transition-colors duration-150",
         parts.selected
@@ -277,6 +279,8 @@ type EntryParts = {
   entryKey: string;
   /** `null` when the entry neither opens nor selects. */
   onClick: ((event: MouseEvent<HTMLElement>) => void) | null;
+  /** Opens the row menu and keeps the browser menu closed. */
+  onContextMenu?: (event: MouseEvent<HTMLElement>) => void;
 };
 
 /** Selection, open, and slot content for one entry. */
@@ -315,6 +319,8 @@ function useEntryParts<TItem>({
     ) : hasMenu ? (
       <ObjectListItemMenu />
     ) : null;
+  const usesDefaultMenu =
+    actions === undefined && scope.renderActions == null && hasMenu;
 
   return {
     selected,
@@ -364,6 +370,19 @@ function useEntryParts<TItem>({
             else scope.toggle(entry.key);
           }
         : null,
+    onContextMenu: usesDefaultMenu
+      ? (event) => {
+          const target = event.target;
+          if (
+            !(target instanceof Element) ||
+            target.closest("input, textarea")
+          ) {
+            return;
+          }
+          event.preventDefault();
+          scope.store.set({ menu: entry.key });
+        }
+      : undefined,
   };
 }
 

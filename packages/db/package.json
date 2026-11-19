@@ -68,11 +68,11 @@
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
-    "fumadb": "~0.7.2",
+    "fumadb": "~0.7.3",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/client-s3": "^3.1172.0",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
     "@electric-sql/pglite": "^0.5.16",

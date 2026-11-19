@@ -14,6 +14,7 @@ import type { StorageObject } from "./storage-object";
  * - `list`: `GET /db/objects`
  * - `read`: `GET /db/object`
  * - `update`: `PATCH /db/object` and the folder endpoints
+ * - `record`: `s3.db.record`, an object the app already put in the bucket
  */
 export type ScopeOperation =
   | "upload"
@@ -23,7 +24,8 @@ export type ScopeOperation =
   | "delete"
   | "list"
   | "read"
-  | "update";
+  | "update"
+  | "record";
 
 /**
  * Who is calling: what `resolveScope` and a `quota` function see. The

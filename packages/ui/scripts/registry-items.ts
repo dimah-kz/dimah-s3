@@ -114,6 +114,10 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/list/object-list-rename.tsx"),
   sourceFile("components/dimah-s3/list/object-list-feedback.tsx"),
   sourceFile(
+    "components/dimah-s3/list/object-list-commands.ts",
+    "registry:hook",
+  ),
+  sourceFile(
     "components/dimah-s3/list/object-list-keyboard.ts",
     "registry:hook",
   ),

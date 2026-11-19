@@ -58,7 +58,7 @@
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
-    "react-dropzone": "^20.2.0"
+    "react-dropzone": "^20.2.1"
   },
   "devDependencies": {
     "@fuma-translate/react": "^1.0.2",
