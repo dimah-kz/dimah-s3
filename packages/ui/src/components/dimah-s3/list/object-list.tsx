@@ -57,6 +57,10 @@ import {
   useSelectionCount,
 } from "@/components/dimah-s3/list/object-list-header";
 import { useObjectListSearchStatus } from "@/components/dimah-s3/list/object-list-search";
+import {
+  bindObjectListCommands,
+  type ObjectListCommands,
+} from "@/components/dimah-s3/list/object-list-commands";
 import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
 import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import {
@@ -139,6 +143,11 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
   toolbar?: ReactNode;
   /** Extra controls on the selection bar, beside Delete. */
   selectionActions?: ReactNode;
+  /**
+   * Opens New folder and a row menu from outside the list. Create it with
+   * `useObjectListCommands`.
+   */
+  commands?: ObjectListCommands;
   /** Replaces the empty state. `ObjectListEmpty` takes your own text. */
   empty?: ReactNode;
   /**
@@ -195,6 +204,7 @@ export function ObjectList<TItem>({
   breadcrumb = true,
   toolbar,
   selectionActions,
+  commands,
   empty,
   pagination = "auto",
   height,
@@ -217,6 +227,7 @@ export function ObjectList<TItem>({
   // The entry Show in folder opened, focused once its folder has loaded.
   const revealRef = useRef<string | null>(null);
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
   const renameFocusKey = useRef<string | null>(null);
   const previousRenaming = useRef<string | null>(null);
   // The row left the page (another folder, a search). Drop the field.
@@ -258,20 +269,21 @@ export function ObjectList<TItem>({
       selected: selectedKeys,
       selecting,
       renaming: null,
+      menu: null,
       tabStop: list.entries[0]?.key ?? null,
     }),
   );
   useLayoutEffect(() => {
-    const { tabStop } = store.get();
+    const { tabStop, menu } = store.get();
+    const present = (key: string | null) =>
+      key != null && list.entries.some((entry) => entry.key === key);
     store.set({
       selected: selectedKeys,
       selecting,
       renaming: renamingKey,
+      menu: present(menu) ? menu : null,
       // The entry that had the tab stop left: the first one takes it.
-      tabStop:
-        tabStop != null && list.entries.some((entry) => entry.key === tabStop)
-          ? tabStop
-          : (list.entries[0]?.key ?? null),
+      tabStop: present(tabStop) ? tabStop : (list.entries[0]?.key ?? null),
     });
   }, [list.entries, renamingKey, selectedKeys, selecting, store]);
 
@@ -294,6 +306,20 @@ export function ObjectList<TItem>({
       onViewChange,
     };
   });
+  useLayoutEffect(() => {
+    if (!commands) return;
+    bindObjectListCommands(commands, {
+      startNewFolder() {
+        if (latest.current.list.createFolder) setNewFolderOpen(true);
+      },
+      openMenu(entryKey) {
+        const entries = latest.current.list.entries;
+        if (!entries.some((entry) => entry.key === entryKey)) return;
+        store.set({ menu: entryKey });
+      },
+    });
+    return () => bindObjectListCommands(commands, null);
+  }, [commands, store]);
   const setView = useCallback((next: ObjectListView) => {
     if (latest.current.viewProp === undefined) setLocalView(next);
     latest.current.onViewChange?.(next);
@@ -380,6 +406,8 @@ export function ObjectList<TItem>({
       onOpenItem,
       resolveFolderKeys,
       renamingKey,
+      newFolderOpen,
+      setNewFolderOpen,
       startRename,
       endRename,
       revealEntry,
@@ -398,6 +426,7 @@ export function ObjectList<TItem>({
       label,
       list,
       onOpenItem,
+      newFolderOpen,
       pagination,
       renamingKey,
       renderActions,

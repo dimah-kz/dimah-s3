@@ -83,6 +83,10 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
     ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined;
   /** Entry key whose name is a field, or `null`. */
   renamingKey: string | null;
+  /** The New folder name field is open. */
+  newFolderOpen: boolean;
+  /** Opens or closes the New folder name field. */
+  setNewFolderOpen: (open: boolean) => void;
   /** Turn that entry's name into the rename field. */
   startRename: (key: string) => void;
   /**
@@ -147,6 +151,8 @@ export type ObjectListEntryState = {
   selecting: boolean;
   /** The entry whose name is a field. */
   renaming: string | null;
+  /** The entry whose actions menu is open. */
+  menu: string | null;
   /** The entry whose trigger takes Tab: the last one focused, else the first. */
   tabStop: string | null;
 };

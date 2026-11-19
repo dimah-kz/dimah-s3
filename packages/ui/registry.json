@@ -933,6 +933,11 @@
           "target": "@components/dimah-s3/list/object-list-feedback.tsx"
         },
         {
+          "path": "src/components/dimah-s3/list/object-list-commands.ts",
+          "type": "registry:hook",
+          "target": "@components/dimah-s3/list/object-list-commands.ts"
+        },
+        {
           "path": "src/components/dimah-s3/list/object-list-keyboard.ts",
           "type": "registry:hook",
           "target": "@components/dimah-s3/list/object-list-keyboard.ts"

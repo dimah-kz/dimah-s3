@@ -22,7 +22,7 @@ import {
   memoryObjectSource,
   type UploadTransport,
 } from "@dimah-s3/react/engine";
-import { act, render, screen, within } from "@/test/render";
+import { act, fireEvent, render, screen, within } from "@/test/render";
 import { toast } from "@/components/ui/toast";
 import { DeleteToasts } from "@/components/dimah-s3/delete/delete-toasts";
 import {
@@ -37,6 +37,10 @@ import {
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-search";
+import {
+  useObjectListCommands,
+  type ObjectListCommands,
+} from "@/components/dimah-s3/list/object-list-commands";
 
 // jsdom does no layout, so it has no element scrolling.
 Element.prototype.scrollTo ??= () => {};
@@ -175,7 +179,10 @@ function renderList(options: RenderOptions = {}) {
   const api = fakeApi(items);
   /** Called once per list query. */
   const records = vi.fn(() => items);
+  const commandsRef: { current: ObjectListCommands | null } = { current: null };
   function Harness() {
+    const commands = useObjectListCommands();
+    commandsRef.current = commands;
     const list = useObjectList({
       ...memoryObjectSource(records, {
         getKey: (item) => item.key,
@@ -207,13 +214,14 @@ function renderList(options: RenderOptions = {}) {
           upload={upload}
           delete={remove}
           share={share}
+          commands={commands}
           {...options.props?.(hooks)}
         />
         {options.extra?.(hooks)}
       </>
     );
   }
-  return { api, items, records, ...render(<Harness />) };
+  return { api, items, records, commands: commandsRef, ...render(<Harness />) };
 }
 
 /** Lets the hooks load the catalog and the list, and run their calls. */
@@ -1377,6 +1385,50 @@ describe("ObjectList", () => {
         name: "notes",
       });
       expect(screen.getByRole("button", { name: "notes" })).toBeDefined();
+    });
+  });
+
+  describe("commands", () => {
+    it("opens New folder from outside the list", async () => {
+      const { commands } = renderList({
+        source: { createFolder: async ({ name }) => ({ id: name, name }) },
+      });
+      await settle();
+
+      act(() => commands.current?.startNewFolder());
+
+      const field = screen.getByRole("textbox", { name: "Folder name" });
+      expect(document.activeElement).toBe(field);
+    });
+
+    it("opens a row menu from outside and from a right-click", async () => {
+      const user = userEvent.setup();
+      const { commands } = renderList();
+      await settle();
+
+      act(() => commands.current?.openMenu("file:a.txt"));
+      const menu = await screen.findByRole("menu");
+      expect(
+        within(menu).getByRole("menuitem", { name: "Copy link" }),
+      ).toBeDefined();
+
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("menu")).toBeNull();
+
+      fireEvent.contextMenu(entry("b.txt"));
+      const next = await screen.findByRole("menu");
+      expect(
+        within(next).getByRole("menuitem", { name: "Copy link" }),
+      ).toBeDefined();
+    });
+
+    it("does nothing for a row that is not on screen", async () => {
+      const { commands } = renderList();
+      await settle();
+
+      act(() => commands.current?.openMenu("missing"));
+
+      expect(screen.queryByRole("menu")).toBeNull();
     });
   });
 
