@@ -21,8 +21,8 @@ export type ResolvedScope<TSession = undefined> = ScopeContext<TSession> & {
 /**
  * Resolves the scope of a call.
  * @throws `UNAUTHORIZED` when `resolveScope` returns `null`.
- * @throws a config error when the scope is longer than
- * {@link SCOPE_MAX_LENGTH} characters.
+ * @throws a config error when the scope is empty, has whitespace at either
+ * end, or is longer than {@link SCOPE_MAX_LENGTH} characters.
  */
 export type ScopeResolver<TSession = undefined> = (
   call: ScopeCall,
@@ -93,6 +93,13 @@ export function createScopeResolver<TSession>(
     }
     const resolved = await scope;
     if (resolved === null) throw s3Error("UNAUTHORIZED");
+    if (resolved === "" || resolved !== resolved.trim()) {
+      // A config error: MySQL compares `user:1` and `user:1 ` as equal, so
+      // the two would share their rows there and nowhere else.
+      throw new Error(
+        "[dimah-s3/db] resolveScope returned an empty scope or one with whitespace at either end. Return the id as it is stored, or null to reject the call.",
+      );
+    }
     const length = characterCount(resolved);
     if (length > SCOPE_MAX_LENGTH) {
       // A config error: the insert would fail on PostgreSQL and MySQL, and

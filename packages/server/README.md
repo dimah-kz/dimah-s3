@@ -15,6 +15,9 @@ Full documentation: [s3.dimah.dev/docs/server](https://s3.dimah.dev/docs/server)
 pnpm add @dimah-s3/server@beta @aws-sdk/client-s3
 ```
 
+Requires Node.js 22 or newer, or another runtime with the Fetch API and Web
+Crypto.
+
 Set the upload ticket secret, at least 32 characters and the same on every
 instance:
 
@@ -92,12 +95,13 @@ export const s3 = dimahS3({
 
 `upload.onStart` runs once an upload can begin, and `upload.onConfirmed` runs
 after HeadObject verifies the stored object. `onConfirmed` runs at least once:
-dedupe on `uploadToken`.
+dedupe on `uploadToken`. `upload.onRejected` runs when confirm refuses an
+upload and deletes its object.
 
 ## In process
 
-`s3.api` has the browser client's shape, with `{ headers, request, locals }`
-last:
+`s3.api` has the browser client's shape, with
+`{ headers, signal, request, locals }` last:
 
 ```ts
 await s3.api.download({ route: "uploads", key }, { headers: await headers() });

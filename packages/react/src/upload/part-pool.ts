@@ -90,7 +90,7 @@ export async function uploadParts(
 
     loaded[index] = part.size;
     report();
-    onPartUpload?.({ partNumber, totalParts: partCount });
+    onPartUpload?.({ partNumber, partCount });
   };
 
   try {

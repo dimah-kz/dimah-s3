@@ -40,7 +40,7 @@ function fakeFetchDownload(
     .filter((op) => op.phase === "presigning" || op.phase === "downloading")
     .map((op) => op.key);
   return {
-    mode: "fetch",
+    kind: "fetch",
     instanceId: "download",
     operations,
     get: (key) => operations.findLast((operation) => operation.key === key),

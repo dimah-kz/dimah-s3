@@ -30,6 +30,7 @@ export const LLM_PAGE_PRIORITY = [
   "/docs/server/hooks/global-guard",
   "/docs/server/hooks/upload",
   "/docs/react",
+  "/docs/ui",
   "/docs/db",
 ] as const;
 
@@ -83,7 +84,7 @@ export function llmDecisionSheet(): string {
 
 TypeScript packages: \`@dimah-s3/server\` (handlers and hooks), \`@dimah-s3/react\` (headless client), optional \`@dimah-s3/ui\` (shadcn) and \`@dimah-s3/db\` (object tracking). Protocol types live in \`@dimah-s3/core\`. You pass an AWS SDK \`S3Client\`.
 
-HTTP adapters: Next.js App Router, Express, Hono, Fastify, Elysia, SvelteKit, Node, and Fetch. CLI starters include Next.js, Vite + Hono, and Hono. Compatible storage: Amazon S3, Cloudflare R2, MinIO, Wasabi, DigitalOcean Spaces, and any S3-compatible API.
+HTTP adapters: Next.js App Router, Express, Hono, Fastify, Elysia, SvelteKit, Node, and Fetch. CLI starters include Next.js, Vite + Hono, and Hono. Compatible storage: Amazon S3, Cloudflare R2, MinIO, ArvanCloud, Wasabi, DigitalOcean Spaces, and any S3-compatible API.
 
 Use it for direct uploads to a bucket you own, typed authorization, multipart/resume, and the same route rules for download and delete. Skip it when you need image or video transforms. List, copy, arbitrary post-upload tagging, and other general S3 operations stay in your own AWS SDK code.
 
@@ -98,7 +99,7 @@ This documentation is the 2.0 beta. Install with the \`beta\` dist-tag: \`npx @d
 - Trust \`onConfirmed\` (HeadObject, including multipart complete) for size and type, not the presign body. It runs at least once per upload, so dedupe on \`uploadToken\`; reject content in \`confirmGuard\`. \`fileTypes\` checks the Content-Type header and filename; \`upload.verifyContent\` adds a byte sniff.
 - Guards return nothing or \`{ locals }\`, and reject by throwing \`s3Error("UNAUTHORIZED")\` or another \`S3_ERROR_CODES\` code. Every error is an \`APIError\` with a catalog \`code\` and \`params\`.
 - Without \`db()\`, download can presign unconfirmed keys under \`keyPrefix\`. Auth and quota stay in consumer hooks.
-- File catalogs use \`useObjectList\` with a source: your own query plus \`getKey\` / \`getFile\`, \`memoryObjectSource\` from \`@dimah-s3/react/engine\` for records you hold, or \`dbObjectSource(api.db, { route })\` from \`@dimah-s3/db/client\` when \`db()\` is installed. That hook does not call S3 ListObjects. \`useObjectListSelection\` adds selection; \`ObjectList\` from \`@dimah-s3/ui\` renders both.
+- File catalogs use \`useObjectList\` with a source: your own query plus \`getId\` / \`getFile\`, \`memoryObjectSource\` from \`@dimah-s3/react/engine\` for records you hold, or \`dbObjectSource(api.db, { route })\` from \`@dimah-s3/db/client\` when \`db()\` is installed. That hook does not call S3 ListObjects. \`useObjectListSelection\` adds selection; \`ObjectList\` from \`@dimah-s3/ui\` renders both.
 - \`@dimah-s3/react\` exports hooks, the provider, and types. Import plain functions (\`uploadFile\`, upload stores, \`memoryObjectSource\`) from \`@dimah-s3/react/engine\`, and \`APIError\`, \`S3_ERROR_CODES\`, and protocol helpers from \`@dimah-s3/core\`.
 - UI components are families: \`<Upload upload>\` with \`UploadTrigger\` or \`UploadDropzone\`, \`<Download download>\` with \`DownloadTrigger\`, and \`<Delete delete>\` with \`DeleteTrigger\`. \`ObjectCard\` shows a stored file with download and delete actions. They do not toast on their own: mount \`UploadToasts\`, \`DownloadToasts\`, or \`DeleteToasts\` once per hook, plus one \`<Toaster />\`.
 `;

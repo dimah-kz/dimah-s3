@@ -1,27 +1,49 @@
 ---
-title: Server
-description: Backend handlers, route policies, and lifecycle hooks for S3 file flows.
+title: Overview
+description: "@dimah-s3/server presigns S3 uploads and downloads, runs deletes, and enforces your route policies, guards, and lifecycle hooks."
 icon: Server
 ---
 
-[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) presigns
-uploads and downloads, enforces route constraints, runs your guards, and calls
-your lifecycle hooks.
+[`@dimah-s3/server`](https://www.npmjs.com/package/@dimah-s3/server) is the
+backend half of dimah-s3. It holds your S3 credentials, signs short-lived URLs
+for the browser, and runs your guards and hooks around every file operation.
 
-Uploads, and by default downloads, go straight between the browser and the
-bucket through short-lived signed URLs. Downloads can instead stream through
-your server in proxy mode. S3 credentials stay on the server, and deletes run
-there too.
+```ts title="lib/s3.ts"
+import { dimahS3, route } from "@dimah-s3/server";
 
-## Key features
+export const s3 = dimahS3({
+  client: awsS3, // your S3Client
+  bucket: process.env.S3_BUCKET!,
+  routes: {
+    avatar: route({
+      upload: { fileTypes: ["image/*"], maxFileSize: 2 * 1024 * 1024 },
+      download: true,
+      delete: true,
+    }),
+  },
+});
+```
 
-- **One instance** — `dimahS3()` returns an HTTP `handler`, an in-process `api` with the browser client's shape, and `put` for server-side uploads.
-- **Server-owned keys** — The browser sends a route name. The server builds the object key.
-- **Upload tickets** — Presign returns a signed ticket. Confirm and every later multipart call send only that ticket, optionally bound to a user.
-- **HeadObject verification** — Confirm reads the stored size and type from S3, not from the browser.
-- **Guards and locals** — Guards authorize each call and can pass typed `locals` to later hooks.
-- **Hardened proxy** — `GET /file` streams objects with a sandbox CSP, single-range support, and conditional requests.
-- **Framework adapters** — Next.js, Hono, Express, Fastify, SvelteKit, Elysia, Node, and any Fetch runtime.
+```ts title="app/api/s3/[...s3]/route.ts"
+import { toNextJsHandler } from "@dimah-s3/server/next";
+import { s3 } from "@/lib/s3";
+
+export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
+```
+
+## How it works
+
+- **Direct transfers.** Uploads, and by default downloads, go straight between
+  the browser and the bucket through signed URLs. Deletes run on the server.
+- **Server-owned keys.** The browser sends a route name. The server builds the
+  object key and signs it into an upload ticket.
+- **Verified objects.** Confirm reads the stored size and type from S3, not
+  from the browser.
+- **Guards and hooks.** Guards authorize each call. Lifecycle hooks record
+  what happened.
+- **One instance.** `dimahS3()` returns an HTTP `handler` for Next.js, Hono,
+  Express, Fastify, SvelteKit, Elysia, Node, or any Fetch runtime, an
+  in-process `api`, and `put` for server-side uploads.
 
 ## Documentation
 
@@ -34,12 +56,22 @@ there too.
   <Card
     title="Routes"
     href="/docs/server/routes"
-    description="Configure routes, file constraints, operations, and key prefixes."
+    description="Route constraints, operations, object keys, and options."
+  />
+  <Card
+    title="Guards and Locals"
+    href="/docs/server/hooks/global-guard"
+    description="Authorize every call and pass values to later hooks."
+  />
+  <Card
+    title="Upload Hooks"
+    href="/docs/server/hooks/upload"
+    description="Track uploads from start to confirm, and handle rejections."
   />
   <Card
     title="Security"
     href="/docs/server/security"
-    description="Guards, key isolation, tenant scoping, and metadata validation."
+    description="Key isolation, ownership checks, and request hardening."
   />
   <Card
     title="Upload Tickets"
@@ -49,21 +81,16 @@ there too.
   <Card
     title="File Proxy"
     href="/docs/server/file-proxy"
-    description="Stream downloads through GET /file with Range and caching."
+    description="Stream downloads through GET /file with ranges and caching."
   />
   <Card
     title="Errors"
     href="/docs/server/errors"
-    description="The error catalog, s3Error, and client mapping."
-  />
-  <Card
-    title="Lifecycle Hooks"
-    href="/docs/server/hooks/upload"
-    description="Start, confirm, download, delete, and multipart hooks."
+    description="Error codes, s3Error, and error reporting."
   />
   <Card
     title="Plugins"
     href="/docs/server/plugins"
-    description="Extend the server with hooks, endpoints, and context."
+    description="Add hooks, endpoints, and context with definePlugin."
   />
 </Cards>

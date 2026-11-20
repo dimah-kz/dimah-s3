@@ -37,7 +37,7 @@ export function initMultipart(
       {
         route: body.route,
         file: { name: body.name, size: body.size, type: body.type },
-        clientMetadata: body.metadata,
+        clientMetadata: body.clientMetadata,
       },
       "multipart",
     );

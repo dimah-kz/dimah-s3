@@ -5,27 +5,49 @@
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).
 
-Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react/ui) ·
+Full documentation: [s3.dimah.dev/docs/ui](https://s3.dimah.dev/docs/ui) ·
 [llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
 
 ```bash
-pnpm add @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react
+pnpm add @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @base-ui/react class-variance-authority cn lucide-react
 ```
 
-Requires React 19.2. Or copy items from the shadcn registry — see
-[UI Setup](https://s3.dimah.dev/docs/react/ui).
+Requires React 19.2 and Tailwind CSS v4. Every package on that line is a
+peer dependency: `@dimah-s3/core` and `@dimah-s3/react` at the same version
+as `@dimah-s3/ui`, and the rest are what the bundled shadcn primitives
+import.
+
+Or copy items from the shadcn registry — see
+[UI Setup](https://s3.dimah.dev/docs/ui). Registry items need a shadcn
+project on a [Base UI](https://base-ui.com) style: the copied source uses
+your project's own `button`, `tooltip`, `dropdown-menu` and other primitives
+through Base UI props such as `render`. The npm package bundles its
+primitives, so it works in any project.
 
 ## Styles
 
-Import once in your CSS (Tailwind v4 source scan + shadcn color bridge):
+The components are styled with Tailwind v4 utilities and shadcn theme
+variables. Import the stylesheet once, after Tailwind and the two packages
+the primitives animate with:
 
 ```css
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @import "@dimah-s3/ui/styles.css";
 ```
 
-Colors default to your shadcn theme (`--primary`, `--muted`, …). To theme
+`@dimah-s3/ui/styles.css` registers the package with Tailwind's source scan
+and maps its colors onto your theme. It adds no animations of its own:
+`tw-animate-css` animates the menus, dialogs and tooltips, and
+`shadcn/tailwind.css` has the `shimmer` utility of loading text. Install
+both (`pnpm add -D tw-animate-css shadcn`).
+
+Colors come from the shadcn theme variables that `shadcn init` writes
+(`--background`, `--foreground`, `--card`, `--popover`, `--primary`,
+`--muted`, `--border`, `--ring`, `--destructive`, …), so define them. To theme
 the library alone, override the `--dimah-s3-<token>` variables on `:root` or
 on any container:
 
@@ -36,11 +58,11 @@ on any container:
 ```
 
 The tokens are `background`, `foreground`, `card`, `card-foreground`,
-`primary`, `primary-foreground`, `muted`, `muted-foreground`, `accent`,
-`border`, `ring`, `destructive`, `success` and `warning`. `success` and
+`primary`, `muted`, `muted-foreground`, `border`, `ring`, `destructive`,
+`success` and `warning`. `success` and
 `warning` read your theme's `--success` / `--warning` when it defines them, and
 fall back to a green and an amber otherwise. See
-[Theming](https://s3.dimah.dev/docs/react/ui/customization/theming).
+[Theming](https://s3.dimah.dev/docs/ui/theming).
 
 ## Quick start
 

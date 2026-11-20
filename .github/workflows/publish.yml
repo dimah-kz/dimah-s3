@@ -12,9 +12,11 @@ on:
     branches: [main, v2]
   workflow_dispatch:
 
-# Queue releases. Never cancel one halfway through a publish.
+# Queue releases per release line. Never cancel one halfway through a
+# publish. `github.ref` is the default branch for every `workflow_run`, so
+# the group is keyed on the branch that CI built.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: false
 
 permissions:

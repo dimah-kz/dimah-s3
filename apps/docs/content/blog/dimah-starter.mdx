@@ -52,7 +52,7 @@ export const s3 = dimahS3({
   },
   plugins: [
     db({
-      client: DimahS3DB.client(
+      client: DimahS3Db.client(
         drizzleAdapter({ db: drizzleDb, provider: "postgresql" }),
       ),
       resolveScope: ({ locals, route }) =>
@@ -204,7 +204,7 @@ return (
       objectKey={objectKey}
       label={labels.upload}
       shape={shape}
-      onChange={(result) => void onChange(result)}
+      onUploaded={(result) => void onChange(result)}
     />
     <UploadToasts upload={upload} />
   </>
@@ -273,8 +273,7 @@ export async function setAccountAvatarAction(key: string) {
 ```ts title="packages/storage/src/objects.ts"
 let cursor: string | null = null;
 do {
-  const page = await s3.db.objects.list({
-    scope,
+  const page = await s3.db.objects.list(scope, {
     route,
     limit: DELETE_MANY_MAX_KEYS,
     cursor,

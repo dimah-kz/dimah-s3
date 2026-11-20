@@ -1,5 +1,6 @@
 import { HeadObjectCommand, type S3Client } from "@aws-sdk/client-s3";
-import { normalizeObjectKey, s3Error } from "@dimah-s3/core";
+import { fitFileName, normalizeObjectKey, s3Error } from "@dimah-s3/core";
+import { fileNameSchema } from "@dimah-s3/core/schema";
 import type {
   DimahS3Config,
   DimahS3Locals,
@@ -15,7 +16,6 @@ import {
   type FileConstraints,
   type PluginInitEnv,
 } from "@dimah-s3/server/plugins";
-import { isFolderName } from "@/folder-path";
 import type { DbStore } from "@/store/create-db-store";
 import type { StorageObject } from "@/types/storage-object";
 import type { ObjectAccess } from "./object-access";
@@ -41,8 +41,9 @@ export type RecordObjectInput = {
    */
   folderId?: string | null;
   /**
-   * Display name, one path segment, at most 255 characters. Defaults to
-   * the last segment of `key`.
+   * Display name, under the rule of an uploaded file name: 1 to 255 UTF-8
+   * bytes, no control or bidi characters. Defaults to the last segment of
+   * `key`, fitted to that rule.
    */
   name?: string;
 };
@@ -93,16 +94,17 @@ export function createRecord<TSession, TAttributes>(
       );
     }
     const located = locateRoute(env.config, input.route);
-    if (!located) throw s3Error("UNKNOWN_ROUTE", { route: input.route });
+    if (!located) throw s3Error("ROUTE_NOT_FOUND", { route: input.route });
     if (env.routeOptions(input.route) === false) {
       throw s3Error("VALIDATION_ERROR", {
         issue: `[route] "${input.route}" does not track objects`,
       });
     }
     const key = routeKey(input.key, located.keyPrefix);
-    const filename = fileName(
-      input.name ?? key.slice(key.lastIndexOf("/") + 1),
-    );
+    const name =
+      input.name === undefined
+        ? fitFileName(key.slice(key.lastIndexOf("/") + 1))
+        : fileName(input.name);
     const folderId = rootId(input.folderId);
     const scopeCall = await scopeCallOf(env, input.route, located.route, call);
     const peeked = await resolveScope(scopeCall, {
@@ -137,7 +139,7 @@ export function createRecord<TSession, TAttributes>(
       scopeCall.request.signal,
     );
     assertFileConstraints(uploadConstraints(located.route), {
-      name: filename,
+      name,
       size: head.size,
       type: head.contentType ?? undefined,
     });
@@ -157,7 +159,7 @@ export function createRecord<TSession, TAttributes>(
       scope: scope.scope,
       route: input.route,
       folderId,
-      filename,
+      name,
       contentType: head.contentType,
       size: head.size,
       eTag: head.eTag,
@@ -212,20 +214,18 @@ function rootId(folderId: string | null | undefined): string | null {
   return folderId === undefined || folderId === "" ? null : folderId;
 }
 
-/** One display-name segment. Otherwise `VALIDATION_ERROR`. */
+/**
+ * A display name under the rule of an uploaded file name, the one
+ * `PATCH /db/object` checks too. Otherwise `VALIDATION_ERROR`.
+ */
 function fileName(name: string): string {
-  if (!name.isWellFormed()) {
+  const parsed = fileNameSchema.safeParse(name);
+  if (!parsed.success) {
     throw s3Error("VALIDATION_ERROR", {
-      issue: "[name] File name is invalid",
+      issue: `[name] ${parsed.error.issues[0]?.message ?? "File name is invalid"}`,
     });
   }
-  const normalized = name.normalize("NFC");
-  if (!isFolderName(normalized) || normalized.includes("\\")) {
-    throw s3Error("VALIDATION_ERROR", {
-      issue: "[name] File name is invalid",
-    });
-  }
-  return normalized;
+  return parsed.data;
 }
 
 /** Guards first, so `resolveScope` sees the locals they set. */

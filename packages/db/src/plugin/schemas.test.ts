@@ -22,6 +22,16 @@ describe("dbListQuerySchema", () => {
     });
   });
 
+  it("reads usage from a string or a boolean", () => {
+    expect(dbListQuerySchema.parse({ usage: "true" })).toMatchObject({
+      usage: true,
+    });
+    expect(dbListQuerySchema.parse({ usage: false })).toMatchObject({
+      usage: false,
+    });
+    expect(dbListQuerySchema.safeParse({ usage: "yes" }).success).toBe(false);
+  });
+
   it("reads limit from a string or a number", () => {
     expect(dbListQuerySchema.parse({ limit: "10" })).toEqual({ limit: 10 });
     expect(dbListQuerySchema.parse({ limit: 10 })).toEqual({ limit: 10 });
@@ -105,8 +115,8 @@ describe("dbObjectQuerySchema", () => {
 describe("dbUpdateObjectBodySchema", () => {
   it("accepts a rename, a move to a folder or the root, and attributes", () => {
     expect(
-      dbUpdateObjectBodySchema.parse({ key: "a", filename: " b.txt " }),
-    ).toEqual({ key: "a", filename: "b.txt" });
+      dbUpdateObjectBodySchema.parse({ key: "a", name: " b.txt " }),
+    ).toEqual({ key: "a", name: "b.txt" });
     expect(
       dbUpdateObjectBodySchema.parse({ key: "a", folderId: null }),
     ).toEqual({
@@ -120,8 +130,8 @@ describe("dbUpdateObjectBodySchema", () => {
 
   it("rejects a bad file name, non-object attributes, and unknown keys", () => {
     for (const body of [
-      { key: "a", filename: "" },
-      { key: "a", filename: "a\u0000b" },
+      { key: "a", name: "" },
+      { key: "a", name: "a\u0000b" },
       { key: "a", attributes: ["x"] },
       { key: "a", scope: "user:2" },
     ]) {

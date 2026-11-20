@@ -59,7 +59,7 @@ export type ObjectListSearchProps = {
    */
   placeholder?: string;
   /** Milliseconds to wait after typing before the list reloads. @default 250 */
-  delay?: number;
+  debounceMs?: number;
   /**
    * Inside `ObjectListHeader`, start as a search button that opens into a
    * field across the whole bar. `false` keeps the field in the bar. Outside
@@ -86,7 +86,7 @@ export type ObjectListSearchProps = {
  */
 export function ObjectListSearch({
   placeholder,
-  delay = 250,
+  debounceMs = 250,
   collapsible = true,
   className,
 }: ObjectListSearchProps) {
@@ -117,9 +117,9 @@ export function ObjectListSearch({
     const timer = window.setTimeout(() => {
       setSearch(draft);
       setDraft(null);
-    }, delay);
+    }, debounceMs);
     return () => window.clearTimeout(timer);
-  }, [delay, draft, setSearch]);
+  }, [debounceMs, draft, setSearch]);
 
   // The header gives an open field the whole bar.
   const setSearchExpanded = header?.setSearchExpanded;
@@ -367,7 +367,7 @@ export type ObjectListSearchBarProps = {
  */
 export function ObjectListSearchBar({ className }: ObjectListSearchBarProps) {
   const t = useTranslations();
-  const { list, label: rootLabel } = useObjectListContext();
+  const { list, rootLabel } = useObjectListContext();
   const status = useObjectListSearchStatus(list);
   if (!status) return null;
   const folder = list.trail.at(-1);
@@ -497,7 +497,7 @@ export function ObjectListLocation({
   location,
   className,
 }: ObjectListLocationProps) {
-  const { label: rootLabel } = useObjectListContext();
+  const { rootLabel } = useObjectListContext();
   const names =
     location.length === 0 ? [rootLabel] : location.map((folder) => folder.name);
   const shown = names.length > 2 ? ["…", ...names.slice(-2)] : names;

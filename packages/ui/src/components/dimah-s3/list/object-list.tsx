@@ -46,9 +46,11 @@ import {
   ObjectListProvider,
   useObjectListContext,
   useObjectListEntryScope,
+  useObjectListInternal,
   type ObjectListContextValue,
   type ObjectListEntryScope,
-  type ObjectListPagination,
+  type ObjectListInternalValue,
+  type ObjectListPaginationMode,
   type ObjectListRenderers,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
@@ -99,8 +101,8 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
    */
   download?: AnyDownloadReturn;
   /**
-   * Navigate-mode `useDownload` for Copy link, such as one with
-   * `disposition: "inline"`. Falls back to a navigate-mode `download`.
+   * `useDownload` return for Copy link, such as one with
+   * `disposition: "inline"`. Falls back to a `useDownload` `download`.
    */
   share?: UseDownloadReturn;
   /**
@@ -154,7 +156,7 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
    * How later pages load. `auto` loads the next page as the end of the
    * rows comes into view; `button` waits for Load more. @default "auto"
    */
-  pagination?: ObjectListPagination;
+  pagination?: ObjectListPaginationMode;
   /**
    * Fixed frame height. The header stays put and the rows scroll inside.
    * A number is pixels. A string is a CSS length, such as `"18rem"`.
@@ -256,7 +258,7 @@ export function ObjectList<TItem>({
   const frameMaxHeight = cssLength(maxHeight);
   const sizing =
     frameHeight != null ? "fixed" : frameMaxHeight != null ? "max" : null;
-  const label = rootLabel ?? t("Files", { note: "object list" });
+  const resolvedRootLabel = rootLabel ?? t("Files", { note: "object list" });
 
   // What the entries draw from. Per-entry state goes through the store, so
   // a selection or an arrow key draws only the entries it changes. What can
@@ -306,12 +308,14 @@ export function ObjectList<TItem>({
       onViewChange,
     };
   });
+  const startNewFolder = useCallback(() => {
+    if (latest.current.list.createFolder) setNewFolderOpen(true);
+  }, []);
+  const closeNewFolder = useCallback(() => setNewFolderOpen(false), []);
   useLayoutEffect(() => {
     if (!commands) return;
     bindObjectListCommands(commands, {
-      startNewFolder() {
-        if (latest.current.list.createFolder) setNewFolderOpen(true);
-      },
+      startNewFolder,
       openMenu(entryKey) {
         const entries = latest.current.list.entries;
         if (!entries.some((entry) => entry.key === entryKey)) return;
@@ -319,7 +323,7 @@ export function ObjectList<TItem>({
       },
     });
     return () => bindObjectListCommands(commands, null);
-  }, [commands, store]);
+  }, [commands, startNewFolder, store]);
   const setView = useCallback((next: ObjectListView) => {
     if (latest.current.viewProp === undefined) setLocalView(next);
     latest.current.onViewChange?.(next);
@@ -397,53 +401,52 @@ export function ObjectList<TItem>({
       announce,
       view,
       setView,
-      label,
+      rootLabel: resolvedRootLabel,
+      startNewFolder,
+      startRename,
+      revealEntry,
+    }),
+    [
+      announce,
+      del,
+      download,
+      list,
+      resolvedRootLabel,
+      revealEntry,
+      selection,
+      setView,
+      share,
+      startNewFolder,
+      startRename,
+      toasts,
+      upload,
+      view,
+    ],
+  );
+  const internal = useMemo<ObjectListInternalValue<TItem>>(
+    () => ({
       sizing,
       showBreadcrumb: breadcrumb,
       selectionActions,
       empty,
       pagination,
-      onOpenItem,
       resolveFolderKeys,
-      renamingKey,
       newFolderOpen,
-      setNewFolderOpen,
-      startRename,
+      closeNewFolder,
       endRename,
-      revealEntry,
       renderEntry,
-      renderActions,
-      renderDescription,
-      renderMeta,
     }),
     [
-      announce,
       breadcrumb,
-      del,
-      download,
+      closeNewFolder,
       empty,
       endRename,
-      label,
-      list,
-      onOpenItem,
       newFolderOpen,
       pagination,
-      renamingKey,
-      renderActions,
-      renderDescription,
       renderEntry,
-      renderMeta,
       resolveFolderKeys,
-      revealEntry,
-      selection,
       selectionActions,
-      setView,
-      share,
       sizing,
-      startRename,
-      toasts,
-      upload,
-      view,
     ],
   );
 
@@ -476,7 +479,7 @@ export function ObjectList<TItem>({
   const opensFiles = onOpenItem != null;
   const folderUploads = upload != null && list.uploadOptions != null;
   const canDownload = download != null;
-  const canShare = share != null || download?.mode === "navigate";
+  const canShare = share != null || download?.kind === "navigate";
   const canDelete = del != null;
   const renameFile = list.renameFile != null;
   const renameFolder = list.renameFolder != null;
@@ -547,7 +550,7 @@ export function ObjectList<TItem>({
         items.filter(
           (item) =>
             !gone.has(
-              objectKeyOf({ id: list.getKey(item), file: list.getFile(item) }),
+              objectKeyOf({ id: list.getId(item), file: list.getFile(item) }),
             ),
         ),
       );
@@ -604,7 +607,7 @@ export function ObjectList<TItem>({
   if (upload) content = <Upload upload={upload}>{content}</Upload>;
 
   return (
-    <ObjectListProvider value={context} scope={scope}>
+    <ObjectListProvider value={context} internal={internal} scope={scope}>
       {content}
       {toasts ? (
         <>
@@ -725,8 +728,9 @@ function ObjectListFrame({
   style: CSSProperties;
   children: ReactNode;
 }) {
-  const { list, selection, upload, view, label, sizing, startRename } =
+  const { list, selection, upload, view, rootLabel, startRename } =
     useObjectListContext();
+  const { sizing } = useObjectListInternal();
   const { store } = useObjectListEntryScope();
   const keyboard = useObjectListKeyboard({
     list,
@@ -779,7 +783,7 @@ function ObjectListFrame({
     "data-slot": "object-list",
     "data-view": view,
     "data-dimah-s3-focus-root": "",
-    "aria-label": label,
+    "aria-label": rootLabel,
     "aria-busy": busy || undefined,
     tabIndex: -1,
     ref: frameRef,

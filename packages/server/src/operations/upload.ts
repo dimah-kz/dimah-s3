@@ -40,7 +40,7 @@ export function presignUpload(
       {
         route: body.route,
         file: { name: body.name, size: body.size, type: body.type },
-        clientMetadata: body.metadata,
+        clientMetadata: body.clientMetadata,
         checksum: body.checksum,
       },
       kind,
@@ -80,7 +80,7 @@ export function presignUpload(
       tagging: object.tagging,
     };
     const presigned =
-      kind === "post"
+      kind === "presignedPost"
         ? {
             method: "POST" as const,
             ...(await presignPost(route.client, input)),
@@ -111,8 +111,8 @@ export function presignUpload(
 /** The upload kind a presign on this route produces, from `upload.method`. */
 function presignKind(
   route: ResolvedRoute,
-): Extract<UploadKind, "post" | "put"> {
+): Extract<UploadKind, "presignedPost" | "presignedPut"> {
   return route.upload.enabled && route.upload.method === "POST"
-    ? "post"
-    : "put";
+    ? "presignedPost"
+    : "presignedPut";
 }

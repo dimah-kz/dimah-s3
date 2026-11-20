@@ -128,9 +128,9 @@ async function fire(element: Element, event: Event) {
   await settle();
 }
 
-/** The `metadata` of every presign request, in order. */
+/** The `clientMetadata` of every presign request, in order. */
 function sentMetadata(api: Api) {
-  return api.upload.mock.calls.map(([payload]) => payload.metadata);
+  return api.upload.mock.calls.map(([payload]) => payload.clientMetadata);
 }
 
 /**
@@ -148,7 +148,7 @@ function listContext(
 }
 
 const folderOptions = (parent: string | null) => ({
-  metadata: { folder: parent ?? "", source: "list" },
+  clientMetadata: { folder: parent ?? "", source: "list" },
 });
 
 describe("Upload", () => {
@@ -174,6 +174,19 @@ describe("Upload", () => {
 });
 
 describe("UploadTrigger", () => {
+  it("shows the icon alone at an icon size and keeps its name", async () => {
+    renderUpload((upload) => (
+      <Upload upload={upload}>
+        <UploadTrigger size="icon" />
+      </Upload>
+    ));
+    await settle();
+
+    const trigger = screen.getByRole("button", { name: "Upload file" });
+    expect(trigger.querySelector(".sr-only")?.textContent).toBe("Upload file");
+    expect(trigger.querySelector("svg")).not.toBeNull();
+  });
+
   it("names itself after the file count", async () => {
     const { unmount } = renderUpload((upload) => (
       <Upload upload={upload}>
@@ -234,7 +247,7 @@ describe("UploadTrigger", () => {
     const { api } = renderUpload((upload) => (
       <Upload upload={upload}>
         <UploadTrigger
-          call={{ uploadOptions: { metadata: { from: "trigger" } } }}
+          call={{ uploadOptions: { clientMetadata: { from: "trigger" } } }}
         />
       </Upload>
     ));
@@ -249,7 +262,7 @@ describe("UploadTrigger", () => {
     expect(api.upload.mock.calls[0][0]).toMatchObject({
       route: "uploads",
       name: "a.txt",
-      metadata: { from: "trigger" },
+      clientMetadata: { from: "trigger" },
     });
   });
 
@@ -332,7 +345,7 @@ describe("UploadTrigger", () => {
       <ObjectListProvider value={listContext(upload, folderOptions)}>
         <Upload upload={upload}>
           <UploadTrigger
-            call={{ uploadOptions: { metadata: { source: "trigger" } } }}
+            call={{ uploadOptions: { clientMetadata: { source: "trigger" } } }}
           />
         </Upload>
       </ObjectListProvider>
@@ -364,7 +377,7 @@ describe("UploadTrigger", () => {
 
     expect(api.upload.mock.calls[0][0]).toMatchObject({
       name: "copy-a.txt",
-      metadata: { folder: "docs", source: "list" },
+      clientMetadata: { folder: "docs", source: "list" },
     });
   });
 
@@ -516,7 +529,7 @@ describe("UploadDropzone", () => {
       (upload) => (
         <Upload upload={upload}>
           <UploadDropzone
-            call={{ uploadOptions: { metadata: { from: "dropzone" } } }}
+            call={{ uploadOptions: { clientMetadata: { from: "dropzone" } } }}
           />
         </Upload>
       ),
@@ -546,7 +559,7 @@ describe("UploadDropzone", () => {
           <UploadDropzone />
         </Upload>
       ),
-      { queue: true, maxFiles: 2 },
+      { append: true, maxFiles: 2 },
     );
     api.upload.mockImplementation(() => new Promise(() => {}));
     await settle();
@@ -625,7 +638,7 @@ describe("UploadDropzone", () => {
           <UploadDropzone className="custom" />
         </Upload>
       ),
-      { queue: true, maxFiles: 2 },
+      { append: true, maxFiles: 2 },
     );
     api.upload.mockImplementationOnce(() => new Promise(() => {}));
     await settle();

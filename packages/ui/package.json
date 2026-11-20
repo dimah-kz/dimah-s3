@@ -19,7 +19,7 @@
     "nextjs",
     "components"
   ],
-  "homepage": "https://s3.dimah.dev/docs/react/ui",
+  "homepage": "https://s3.dimah.dev/docs/ui",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -28,6 +28,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/ui"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": [
@@ -40,7 +41,8 @@
       "default": "./dist/index.js"
     },
     "./styles.css": "./styles.css",
-    "./css/shadcn.css": "./css/shadcn.css"
+    "./css/shadcn.css": "./css/shadcn.css",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -82,7 +84,7 @@
     "cn": "^0.5.2",
     "eslint": "catalog:",
     "jsdom": "^31.0.1",
-    "lucide-react": "^1.76.0",
+    "lucide-react": "^1.77.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "shadcn": "^4.23.0",
@@ -94,14 +96,18 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@base-ui/react": ">=1.0.0",
+    "@base-ui/react": "^1.0.0",
     "@dimah-s3/core": "2.0.0-beta.11",
     "@dimah-s3/react": "2.0.0-beta.11",
     "@fuma-translate/react": "^1.0.2",
-    "class-variance-authority": ">=0.7.0",
-    "cn": ">=0.1.0",
-    "lucide-react": ">=0.400.0",
-    "react": ">=19.2"
+    "class-variance-authority": "^0.7.0",
+    "cn": "^0.5.2",
+    "lucide-react": ">=0.400.0 <2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

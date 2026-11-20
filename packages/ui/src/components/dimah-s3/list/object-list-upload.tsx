@@ -62,11 +62,18 @@ export function useRefreshListAfterUpload(
   }, [files, settled]);
 }
 
+/** Props for {@link ObjectListUploadStatus}. */
+export type ObjectListUploadStatusProps = {
+  className?: string;
+};
+
 /**
  * Progress and errors for the list's `upload`, under the header.
  * Hidden while idle and after a queue that fully succeeded.
  */
-export function ObjectListUploadStatus({ className }: { className?: string }) {
+export function ObjectListUploadStatus({
+  className,
+}: ObjectListUploadStatusProps) {
   const { upload } = useObjectListContext();
   if (!upload || upload.phase === "idle" || upload.phase === "success") {
     return null;

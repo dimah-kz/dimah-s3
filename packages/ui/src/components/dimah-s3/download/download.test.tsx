@@ -84,7 +84,7 @@ function fakeFetchDownload(instanceId = `fetch-${++instances}`) {
   const at = (
     operations: readonly FetchDownloadOperation[] = [],
   ): UseFetchDownloadReturn => ({
-    mode: "fetch",
+    kind: "fetch",
     instanceId,
     ...keyedState(operations),
     ...actions,
@@ -109,7 +109,7 @@ function fakeNavigateDownload(instanceId = `navigate-${++instances}`) {
   const at = (
     operations: readonly DownloadOperation[] = [],
   ): UseDownloadReturn => ({
-    mode: "navigate",
+    kind: "navigate",
     instanceId,
     ...keyedState(operations),
     ...actions,
@@ -251,8 +251,21 @@ describe("DownloadTrigger", () => {
     const button = screen.getByRole("button", {
       name: "Cancel download of report.pdf",
     });
-    expect(button.textContent).toBe("");
+    // "Cancel" stays for screen readers, visually hidden.
+    expect(button.querySelector(".sr-only")?.textContent).toBe("Cancel");
     expect(button.querySelector("svg")).not.toBeNull();
+  });
+
+  it("names an icon button without an aria-label", () => {
+    render(
+      inRoot(
+        fakeNavigateDownload().at(),
+        <DownloadTrigger objectKey={KEY} size="icon-sm" />,
+      ),
+    );
+
+    const button = screen.getByRole("button", { name: "Download" });
+    expect(button.querySelector(".sr-only")?.textContent).toBe("Download");
   });
 
   it("fills without a width until the total size is known", () => {

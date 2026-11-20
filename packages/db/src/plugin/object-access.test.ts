@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { sampleObject } from "@/test/fakes";
 import type { DbPluginOptions } from "@/types/plugin";
-import type { StorageObject } from "@/types/storage-object";
+import type { StorageFolder, StorageObject } from "@/types/storage-object";
 import { createObjectAccess } from "./object-access";
 import { createScopeResolver } from "./scope";
 
@@ -9,16 +9,33 @@ const call = { request: new Request("http://localhost/"), locals: {} };
 const target = { operation: "download" as const, route: "uploads", key: "k" };
 const ref = { bucket: "b", key: "k" };
 
+const docs: StorageFolder = {
+  id: "docs",
+  scope: "user:1",
+  parentId: null,
+  name: "Docs",
+  path: "Docs",
+  createdAt: new Date(0),
+  updatedAt: new Date(0),
+};
+
 function access(
   options: {
     row?: StorageObject | null;
     scope?: string | null;
     authorize?: DbPluginOptions["authorize"];
+    findFolder?: (scope: string, id: string) => Promise<StorageFolder | null>;
   } = {},
 ) {
   const { row = sampleObject(), scope = "user:1" } = options;
   return createObjectAccess({
     objects: { find: async () => row },
+    folders: {
+      find:
+        options.findFolder ??
+        (async (owner, id) =>
+          owner === docs.scope && id === docs.id ? docs : null),
+    },
     resolveScope: createScopeResolver({ resolveScope: () => scope }),
     authorize: options.authorize,
   });
@@ -95,6 +112,73 @@ describe("createObjectAccess", () => {
         object: row,
       }),
     );
+  });
+
+  it("tells authorize where a stored object is, whatever the call names", async () => {
+    const row = sampleObject({ folderId: "docs" });
+    const authorize = vi.fn(() => true);
+    const move = {
+      ...target,
+      operation: "update" as const,
+      // A caller cannot pass off another folder as the object's own.
+      folder: "Elsewhere",
+      folderId: "elsewhere",
+      destination: { folder: null, folderId: null },
+    };
+
+    await access({ row, authorize }).object(call, move, ref);
+
+    expect(authorize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: "update",
+        folder: "Docs",
+        folderId: "docs",
+        destination: { folder: null, folderId: null },
+        object: row,
+      }),
+    );
+  });
+
+  it("reports the root for an object outside every folder", async () => {
+    const authorize = vi.fn(() => true);
+    const findFolder = vi.fn(async () => null);
+
+    await access({
+      row: sampleObject({ folderId: null }),
+      authorize,
+      findFolder,
+    }).object(call, target, ref);
+
+    expect(authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: null, folderId: null }),
+    );
+    expect(findFolder).not.toHaveBeenCalled();
+  });
+
+  it("leaves the path out when the object's folder is gone", async () => {
+    const authorize = vi.fn(() => true);
+
+    await access({
+      row: sampleObject({ folderId: "gone" }),
+      authorize,
+    }).object(call, target, ref);
+
+    const [context] = authorize.mock.calls[0] as unknown as [
+      Record<string, unknown>,
+    ];
+    expect(context.folderId).toBe("gone");
+    expect(context).not.toHaveProperty("folder");
+  });
+
+  it("does not read the folder without authorize", async () => {
+    const findFolder = vi.fn(async () => docs);
+
+    await access({
+      row: sampleObject({ folderId: "docs" }),
+      findFolder,
+    }).object(call, target, ref);
+
+    expect(findFolder).not.toHaveBeenCalled();
   });
 
   it("runs authorize without an object for a scope check", async () => {

@@ -3,12 +3,12 @@ import { TranslationProvider, useTranslations } from "@fuma-translate/react";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
 import { useFormatNumber } from "@/helpers/format-number";
-import { S3Provider, useApi } from "./s3-provider";
+import { S3Provider, useS3Api } from "./s3-provider";
 
 function useProbe() {
   const t = useTranslations();
   return {
-    api: useApi(),
+    api: useS3Api(),
     text: t("Upload failed", { note: "toast" }),
     number: useFormatNumber()(12),
   };

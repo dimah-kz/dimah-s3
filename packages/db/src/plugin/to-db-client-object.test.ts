@@ -18,7 +18,7 @@ describe("toDbClientObject", () => {
       key: "k",
       route: "uploads",
       folderId: "docs",
-      filename: "a.txt",
+      name: "a.txt",
       contentType: "text/plain",
       size: 10,
       declaredSize: null,

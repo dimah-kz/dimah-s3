@@ -5,11 +5,11 @@ packages:
       - exit-prerelease(npm:@dimah-s3/react)
 ---
 
-### Per-call queueing, and list state that follows the rows
+### Per-call append, and list state that follows the rows
 
-An upload call can pick its own queue mode, the object-list hooks keep their state in step with the rows on screen, and the formatter and type names line up with the rest of the API.
+An upload call can choose to append or replace, the object-list hooks keep their state in step with the rows on screen, and the formatter and type names line up with the rest of the API.
 
-- **`handleFiles(files, { queue })`** overrides the hook's `queue` for one call: `true` appends and leaves the files in flight alone, `false` replaces the queue. `UploadCallOptions` gains `queue`.
+- **`handleFiles(files, { append })`** overrides the hook's `append` for one call: `true` adds the files and leaves the files in flight alone, `false` replaces the queue. `UploadCallOptions` gains `append`.
 - **Selection follows the rows.** Without `persist`, `useObjectListSelection` drops an entry that a reload or search no longer returns, so it does not come back selected when it shows again.
 - **Search resets with the folder.** A controlled `parent` that changes from outside, such as on browser back, clears the search the way `openFolder` does, and the old search never loads in the new folder.
 - **`createFolder` reloads under a name sort or a search**, as a rename does, so the new folder shows where the source puts it.

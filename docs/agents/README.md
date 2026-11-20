@@ -19,3 +19,4 @@ If an agent can see it in source (paths, schemas, hook names, current endpoints)
 | [changelog.md](./changelog.md)       | Writing or editing a `.tegami` changelog        |
 | [release.md](./release.md)           | Tegami version bump / publish                   |
 | [brand.md](./brand.md)               | Brand studio still / video                      |
+| [docs.md](./docs.md)                 | Product docs page or navigation                 |

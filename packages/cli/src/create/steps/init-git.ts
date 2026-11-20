@@ -6,8 +6,12 @@ import type { CreateStep } from "@/create/step";
 
 const execFileAsync = promisify(execFile);
 
-async function git(args: string[], cwd: string): Promise<void> {
-  await execFileAsync("git", args, { cwd });
+async function git(
+  args: string[],
+  cwd: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await execFileAsync("git", args, { cwd, signal });
 }
 
 async function isInsideRepo(cwd: string): Promise<boolean> {
@@ -33,7 +37,7 @@ export const initGitStep: CreateStep = {
   title: "Initializing git repository",
   enabled: (ctx) => ctx.config.git,
   recoverable: true,
-  async run(ctx, report) {
+  async run(ctx, report, signal) {
     const cwd = ctx.config.targetDir;
 
     if (!(await isGitAvailable())) {
@@ -44,15 +48,15 @@ export const initGitStep: CreateStep = {
     }
 
     try {
-      await git(["init", "-b", "main"], cwd);
+      await git(["init", "-b", "main"], cwd, signal);
     } catch {
       // `-b` needs git >= 2.28; fall back to the user's default branch name.
-      await git(["init"], cwd);
+      await git(["init"], cwd, signal);
     }
 
     report("Creating the initial commit");
     try {
-      await git(["add", "-A"], cwd);
+      await git(["add", "-A"], cwd, signal);
       await git(
         [
           "commit",
@@ -61,6 +65,7 @@ export const initGitStep: CreateStep = {
           `Initial commit from @dimah-s3/cli v${cliVersion()}`,
         ],
         cwd,
+        signal,
       );
     } catch {
       return "Initialized git repository (no initial commit — configure git user.name/user.email)";

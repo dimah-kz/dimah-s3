@@ -11,6 +11,7 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "cn";
 import type { BlogAuthor, BlogPost, BlogTag } from "@/lib/blog";
+import { languageAttributes } from "@/lib/page-language";
 import { BlogPanel } from "./panel";
 
 const dateFormat = new Intl.DateTimeFormat("en-US", {
@@ -54,7 +55,10 @@ export function BlogCard({ post }: { post: BlogPost }) {
           className="aspect-video w-full object-cover"
         />
       )}
-      <div className="flex flex-1 flex-col p-4">
+      <div
+        className="flex flex-1 flex-col p-4"
+        {...languageAttributes(post.lang)}
+      >
         <p className="font-medium">{post.title}</p>
         <p className="text-sm text-fd-muted-foreground empty:hidden">
           {post.description}

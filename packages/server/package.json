@@ -34,6 +34,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/server"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -74,7 +75,8 @@
     "./plugins": {
       "types": "./dist/plugins.d.ts",
       "default": "./dist/plugins.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -86,14 +88,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@aws-sdk/s3-presigned-post": "^3.1172.0",
-    "@aws-sdk/s3-request-presigner": "^3.1172.0",
+    "@aws-sdk/s3-presigned-post": "^3.1174.0",
+    "@aws-sdk/s3-request-presigner": "^3.1174.0",
     "@dimah-s3/core": "workspace:*",
     "better-call": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1172.0",
+    "@aws-sdk/client-s3": "^3.1174.0",
     "@types/node": "catalog:",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/tsup-config": "workspace:*",
@@ -106,7 +108,10 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@aws-sdk/client-s3": ">=3"
+    "@aws-sdk/client-s3": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

@@ -1,0 +1,195 @@
+---
+title: Download
+description: Download buttons, a progress bar, and toasts that render useDownload or useFetchDownload.
+---
+
+import { DownloadDemo } from "@/components/demos/download-demo";
+import { DownloadProgressDemo } from "@/components/demos/download-progress-demo";
+import { DownloadVariantsDemo } from "@/components/demos/download-variants-demo";
+
+Download stored files with a button. `Download` holds one
+[download hook](/docs/react/hooks/download), and every `DownloadTrigger`
+inside it downloads one object. Each key has its own state, so one hook
+serves a whole list.
+
+For a file card with download and delete actions, use
+[Object Card](/docs/ui/components/object-card).
+
+<DemoPreview name="download-demo.tsx">
+  <DownloadDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import {
+  Download,
+  DownloadProgress,
+  DownloadToasts,
+  DownloadTrigger,
+} from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/download
+```
+
+The parts land in `components/dimah-s3/download/`, one file each, such as
+`@/components/dimah-s3/download/download-trigger`.
+
+</Tab>
+
+</Tabs>
+
+<include>../../../_includes/ui/component-prereq.mdx</include>
+
+## Usage
+
+```tsx
+"use client";
+
+import { useDownload } from "@dimah-s3/react";
+import { Download, DownloadToasts, DownloadTrigger } from "@dimah-s3/ui";
+
+type Invoice = { key: string; name: string };
+
+export function InvoiceList({ invoices }: { invoices: Invoice[] }) {
+  const download = useDownload({ route: "invoices" });
+
+  return (
+    <>
+      <Download download={download}>
+        <ul>
+          {invoices.map((invoice) => (
+            <li key={invoice.key}>
+              {invoice.name}
+              <DownloadTrigger
+                objectKey={invoice.key}
+                fileName={invoice.name}
+                size="sm"
+              />
+            </li>
+          ))}
+        </ul>
+      </Download>
+      <DownloadToasts download={download} />
+    </>
+  );
+}
+```
+
+## Anatomy
+
+```tsx
+<Download download={download}>
+  <DownloadTrigger objectKey={key} />
+  <DownloadProgress objectKey={key} />
+</Download>
+<DownloadToasts download={download} />
+```
+
+| Part               | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `Download`         | Root. Holds the hook. Renders no element                        |
+| `DownloadTrigger`  | A `Button` that downloads one object                            |
+| `DownloadProgress` | A progress bar for the running fetch download of one object     |
+| `DownloadToasts`   | Started, progress, done, and failed toasts. Mount once per hook |
+
+## Examples
+
+### Progress bar
+
+`DownloadProgress` shows the bytes of a fetch download, next to the trigger
+that started it.
+
+<DemoPreview name="download-progress-demo.tsx">
+  <DownloadProgressDemo />
+</DemoPreview>
+
+### Button styles
+
+`DownloadTrigger` is a `Button`: pass `variant`, `size`, and `children` to
+restyle it. At an icon size it shows the icon alone; pass an `aria-label` that
+names the file.
+
+<DemoPreview name="download-variants-demo.tsx">
+  <DownloadVariantsDemo />
+</DemoPreview>
+
+## Navigate or fetch
+
+| Hook               | What happens                                            | While it runs                                        |
+| ------------------ | ------------------------------------------------------- | ---------------------------------------------------- |
+| `useDownload`      | Signs a URL and hands it to the browser, which saves it | The trigger shows a spinner                          |
+| `useFetchDownload` | Fetches the bytes in the page, then saves them          | The trigger fills with the progress; a click cancels |
+
+Use `useFetchDownload` for progress and cancel:
+
+```tsx
+const download = useFetchDownload({ route: "exports" });
+
+<Download download={download}>
+  <DownloadTrigger objectKey={report.key} fileSize={report.size} />
+  <DownloadProgress objectKey={report.key} />
+</Download>;
+```
+
+## Toasts
+
+Mount `DownloadToasts` once per hook. It shows when a download starts,
+finishes, fails, or is cancelled, with a progress toast for fetch downloads.
+
+## Accessibility
+
+- At an icon size the trigger keeps "Download" as its accessible name.
+- While a fetch download runs, the trigger is named `Cancel download of {name}`.
+- `DownloadProgress` is a `progressbar` named after the file.
+
+## API Reference
+
+### Download
+
+| Prop       | Type                | Default  | Description                                  |
+| ---------- | ------------------- | -------- | -------------------------------------------- |
+| `download` | `AnyDownloadReturn` | required | A `useDownload` or `useFetchDownload` return |
+| `children` | `ReactNode`         | required | The parts                                    |
+
+### DownloadTrigger
+
+Also accepts every `Button` prop.
+
+| Prop        | Type             | Default             | Description                                                  |
+| ----------- | ---------------- | ------------------- | ------------------------------------------------------------ |
+| `objectKey` | `string`         | required            | Key of the object to download                                |
+| `fileName`  | `string`         | —                   | Name the browser saves                                       |
+| `fileSize`  | `number \| null` | —                   | Size in bytes. The progress total until the response has one |
+| `tooltip`   | `ReactNode`      | —                   | Tooltip on hover and focus                                   |
+| `children`  | `ReactNode`      | Icon and "Download" | Replaces the icon and label                                  |
+
+### DownloadProgress
+
+Also accepts every `div` prop except `children`.
+
+| Prop        | Type     | Default  | Description                 |
+| ----------- | -------- | -------- | --------------------------- |
+| `objectKey` | `string` | required | Key of the download to show |
+
+### DownloadToasts
+
+| Prop       | Type                | Default  | Description               |
+| ---------- | ------------------- | -------- | ------------------------- |
+| `download` | `AnyDownloadReturn` | required | The hook return to report |
+
+### useDownloadContext
+
+Returns `{ download }`, the root's hook, inside `Download`. Call
+`download.download(key)` and read `download.get(key)` to build your own
+trigger.

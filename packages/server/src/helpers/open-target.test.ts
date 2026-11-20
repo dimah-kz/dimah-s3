@@ -50,11 +50,11 @@ describe("getRoute / assertFeature", () => {
   });
 
   it.each(["missing", "toString", "constructor"])(
-    "rejects %j with UNKNOWN_ROUTE",
+    "rejects %j with ROUTE_NOT_FOUND",
     (name) => {
       expect(() => getRoute(testConfig(), name)).toThrow(
         expect.objectContaining({
-          code: "UNKNOWN_ROUTE",
+          code: "ROUTE_NOT_FOUND",
           statusCode: 404,
           params: { route: name },
         }),
@@ -148,7 +148,7 @@ describe("openUploadTarget", () => {
       configWith({ upload: testUpload({ object }) }),
       ctx,
       { route: "uploads", file, clientMetadata: { folder: "docs" } },
-      "put",
+      "presignedPut",
     );
 
     expect(object).toHaveBeenCalledWith({
@@ -165,7 +165,7 @@ describe("openUploadTarget", () => {
       route: "uploads",
       key: `uploads/${UUID}/a.png`,
       bucket: "bucket",
-      kind: "put",
+      kind: "presignedPut",
       file,
       acl: "private",
       metadata: { author: "José" },
@@ -187,7 +187,7 @@ describe("openUploadTarget", () => {
         configWith({ upload: testUpload({ object, fileTypes: ["image/*"] }) }),
         guardContext(),
         { route: "uploads", file: { name: "a.pdf", size: 1 } },
-        "put",
+        "presignedPut",
       ),
     ).rejects.toMatchObject({ code: "FILE_TYPE_NOT_ALLOWED" });
     expect(object).not.toHaveBeenCalled();
@@ -205,7 +205,7 @@ describe("openUploadTarget", () => {
         config,
         guardContext(),
         { route: "uploads", file: { name: "a.bin", size: 6 * 1024 ** 3 } },
-        "put",
+        "presignedPut",
       ),
     ).rejects.toMatchObject({ code: "FILE_TOO_LARGE" });
     await expect(
@@ -213,7 +213,7 @@ describe("openUploadTarget", () => {
         config,
         guardContext(),
         { route: "uploads", file },
-        "post",
+        "presignedPost",
       ),
     ).rejects.toMatchObject({ code: "CHECKSUM_REQUIRED" });
     expect(object).not.toHaveBeenCalled();
@@ -247,7 +247,7 @@ describe("openUploadTarget", () => {
         configWith({ upload: testUpload({ object }) }),
         guardContext(),
         { route: "uploads", file },
-        "post",
+        "presignedPost",
       ),
     ).rejects.toBeInstanceOf(ConfigError);
   });
@@ -272,9 +272,9 @@ describe("openUploadTarget", () => {
         config,
         guardContext(),
         { route: "uploads", file },
-        "put",
+        "presignedPut",
       ),
-    ).resolves.toMatchObject({ context: { kind: "put" } });
+    ).resolves.toMatchObject({ context: { kind: "presignedPut" } });
   });
 
   it("resolves the ticket subject after the route guard", async () => {
@@ -290,7 +290,7 @@ describe("openUploadTarget", () => {
       config,
       guardContext(),
       { route: "uploads", file },
-      "put",
+      "presignedPut",
     );
 
     expect(target.ticketSubject).toBe("u1");
@@ -316,7 +316,7 @@ describe("openUploadTarget", () => {
 describe("openTicket", () => {
   const single: UploadTicketInput = {
     mode: "single",
-    kind: "put",
+    kind: "presignedPut",
     id: "token-1",
     route: "uploads",
     key: "uploads/abc/a.png",

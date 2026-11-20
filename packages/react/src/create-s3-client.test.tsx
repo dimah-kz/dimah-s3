@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createS3Client } from "./create-s3-client";
-import { useApi } from "./s3-provider";
+import { useS3Api } from "./s3-provider";
 import { renderHook } from "./test/render-hook";
 
 describe("createS3Client (react)", () => {
@@ -20,10 +20,10 @@ describe("createS3Client (react)", () => {
     hook.unmount();
   });
 
-  it("throws useApi outside a provider", () => {
+  it("throws useS3Api outside a provider", () => {
     const hook = renderHook(() => {
       try {
-        return useApi();
+        return useS3Api();
       } catch (err) {
         return err as Error;
       }

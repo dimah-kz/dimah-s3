@@ -1,18 +1,17 @@
 ---
 title: Upload Store
-description: Persist multipart uploads and resume when the user selects the same file again.
+description: Persist multipart uploads so they resume from the parts S3 already has when the user selects the same file again.
 icon: Database
 ---
 
-An `UploadStore` keeps what is needed to resume a multipart upload: the
-upload ticket, the object key, the upload id, and the part layout. It does not
-keep the `File`. After a reload, the user selects the same local file and the
-upload continues from the parts S3 already has.
+An `UploadStore` keeps what a multipart upload needs to resume, but not the
+`File`. After a reload, the user selects the same local file and the upload
+continues from the parts S3 already has.
 
 ```ts title="lib/upload-store.ts"
-import { createLocalStorageStore } from "@dimah-s3/react/engine";
+import { createLocalStorageUploadStore } from "@dimah-s3/react/engine";
 
-export const uploadStore = createLocalStorageStore();
+export const uploadStore = createLocalStorageUploadStore();
 ```
 
 ```tsx title="app/video-uploader.tsx"
@@ -36,7 +35,8 @@ export function VideoUploader() {
 ```
 
 Only multipart uploads are stored: the route must allow multipart, and the
-file must be at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`).
+file must be at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`). Smaller files
+upload in one request and are never stored.
 
 ## How resume works
 
@@ -44,41 +44,34 @@ file must be at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`).
 2. `detach()`, a closed tab, or an unmount stops the upload but keeps the record and the server session.
 3. When the same file is selected again, the engine finds the record, lists the parts already uploaded, and sends only the rest.
 4. Once the upload completes or is cancelled, the record is deleted.
-5. A failure that may pass on a later try, such as a network error or S3 answering `429` or `5xx`, keeps the record. A failure that retrying cannot fix, such as `FORBIDDEN` or `CHECKSUM_MISMATCH`, aborts the server upload and deletes the record.
 
-If the ticket has expired, or the server no longer knows the upload, the
+A retryable error keeps the record, and any other error deletes it; see
+[Cancel, detach, and unmount](/docs/react/hooks/upload#cancel-detach-and-unmount).
+If the ticket has expired or the server no longer knows the upload, the
 engine aborts it, deletes the record, and starts over.
+
+### Which file resumes
 
 The record is looked up by `multipartResumeKey`: the route, the file's name,
 size, and last-modified time, plus the request's `fileName`, `contentType`,
-and `metadata`. So a file resumes only with the same request options, and
-never completes into another folder. The key is a lookup key, not a
-collision-resistant hash.
+and `clientMetadata`. A file resumes only with the same request options, so it
+never completes into another folder.
 
 ## Built-in stores
 
-```ts
-import {
-  createLocalStorageStore,
-  createMemoryStore,
-} from "@dimah-s3/react/engine";
+Both ship from `@dimah-s3/react/engine`:
 
-const localStore = createLocalStorageStore();
-const memoryStore = createMemoryStore();
-```
-
-- **`createLocalStorageStore()`** — keeps records in `localStorage` across reloads. It does nothing when `localStorage` is unavailable, such as during SSR, in private browsing, or with a full quota.
-- **`createMemoryStore()`** — keeps records in memory, so uploads resume only within the page session. Safe for SSR and tests.
-
-Records with an unknown shape, such as ones written by 1.x, are ignored and
-deleted.
+| Store                             | Keeps records                     | Notes                                                                                   |
+| --------------------------------- | --------------------------------- | --------------------------------------------------------------------------------------- |
+| `createLocalStorageUploadStore()` | In `localStorage`, across reloads | Does nothing when `localStorage` is unavailable: SSR, private browsing, or a full quota |
+| `createMemoryUploadStore()`       | In memory, for the page session   | Safe for SSR and tests                                                                  |
 
 ## Custom store
 
 Implement `UploadStore` to keep records anywhere else, such as IndexedDB or
 your own API:
 
-```ts
+```ts title="lib/upload-store.ts"
 import type { UploadStore } from "@dimah-s3/react/engine";
 
 export const apiStore: UploadStore = {
@@ -103,19 +96,31 @@ export const apiStore: UploadStore = {
 };
 ```
 
+A store that throws never fails the upload: the error goes to the global
+`reportError`, and a failed `get` counts as no record.
+
+## API Reference
+
 ### UploadStore
 
-<AutoTypeTable
-  path="packages/react/src/types/upload-store.ts"
-  name="UploadStore"
-/>
+| Method                     | Returns                                    | Description                                                     |
+| -------------------------- | ------------------------------------------ | --------------------------------------------------------------- |
+| `get(resumeKey, fileSize)` | `StoredUpload \| null`, or a promise of it | The pending upload for this resume key and file size            |
+| `set(upload)`              | `void`, or a promise                       | Saves an upload after `multipart.init`, before any part is sent |
+| `delete(resumeKey)`        | `void`, or a promise                       | Removes an upload. Does nothing when the key is unknown         |
 
 ### StoredUpload
 
-<AutoTypeTable
-  path="packages/react/src/types/upload-store.ts"
-  name="StoredUpload"
-/>
+| Property    | Type      | Description                                                              |
+| ----------- | --------- | ------------------------------------------------------------------------ |
+| `resumeKey` | `string`  | Resume identity from `multipartResumeKey`                                |
+| `ticket`    | `string`  | Upload ticket from `multipart.init`. Every later multipart call sends it |
+| `key`       | `string`  | Object key the server generated                                          |
+| `uploadId`  | `string`  | S3 multipart `UploadId`                                                  |
+| `fileSize`  | `number`  | Total file size in bytes, so a different file never resumes              |
+| `partSize`  | `number`  | Part size the server chose, in bytes                                     |
+| `partCount` | `number`  | Number of parts the server chose                                         |
+| `checksum`  | `boolean` | Every part must send a SHA-256                                           |
 
 ## Frequently asked questions
 
@@ -125,23 +130,9 @@ export const apiStore: UploadStore = {
 
 No. [`@dimah-s3/db`](/docs/db) tracks pending uploads on the server. An
 `UploadStore` maps a browser-side resume key to the ticket and upload id. Use
-`createLocalStorageStore()` for reloads in the same browser, or a custom store
-for other devices. Either way, the user must select the same local file.
-
-</Accordion>
-
-<Accordion title="When should I set an upload store?">
-
-Set `uploadStore` for large files that users may need to resume after a
-refresh or a lost connection. Small files upload in one request and are never
-stored.
-
-</Accordion>
-
-<Accordion title="What happens to stored uploads on unmount?">
-
-Files whose call had an `uploadStore` are detached, so they can resume. Files
-without one are cancelled.
+`createLocalStorageUploadStore()` for reloads in the same browser, or a
+custom store for other devices. Either way, the user must select the same
+local file.
 
 </Accordion>
 

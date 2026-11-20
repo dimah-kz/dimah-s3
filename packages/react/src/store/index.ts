@@ -1,3 +1,3 @@
 export type { StoredUpload, UploadStore } from "@/types/upload-store";
-export { createLocalStorageStore } from "./local-storage-store";
-export { createMemoryStore } from "./memory-store";
+export { createLocalStorageUploadStore } from "./local-storage-store";
+export { createMemoryUploadStore } from "./memory-store";

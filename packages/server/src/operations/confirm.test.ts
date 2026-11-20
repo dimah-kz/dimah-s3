@@ -23,6 +23,7 @@ import {
 import type {
   UploadConfirmGuardContext,
   UploadOnConfirmedContext,
+  UploadOnRejectedContext,
 } from "@/types";
 import type { ResolvedConfig, ResolvedUpload } from "@/types/resolved";
 import { confirmUpload } from "./confirm";
@@ -121,7 +122,7 @@ describe("confirmUpload", () => {
       route: "uploads",
       key: presigned.key,
       bucket: TEST_BUCKET,
-      kind: "put",
+      kind: "presignedPut",
       uploadToken: marker(presigned),
       acl: "private",
       object: { name: "a.png", size: 10, type: "image/png", metadata: {} },
@@ -156,7 +157,7 @@ describe("confirmUpload", () => {
       confirmUpload(config, { ticket: presigned.ticket }),
     ).resolves.toMatchObject({ key: presigned.key, size: 10 });
     expect(onConfirmed).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "post" }),
+      expect.objectContaining({ kind: "presignedPost" }),
     );
   });
 
@@ -467,7 +468,7 @@ describe("confirmUpload confirmGuard", () => {
     expect(confirmGuard).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: "confirm",
-        kind: "put",
+        kind: "presignedPut",
         key: presigned.key,
         uploadToken: marker(presigned),
         file: { name: "a.png", size: 10, type: "image/png" },
@@ -670,6 +671,159 @@ describe("confirmUpload onConfirmed failure rules", () => {
     expect(
       onConfirmed.mock.calls.map(([context]) => context.uploadToken),
     ).toEqual([marker(presigned), marker(presigned)]);
+  });
+});
+
+describe("confirmUpload onRejected", () => {
+  it("runs after a failed check deleted the object, plugins first", async () => {
+    const order: string[] = [];
+    const onRejected = vi.fn<(context: UploadOnRejectedContext) => void>(
+      () => void order.push("user"),
+    );
+    const { s3, config } = setup({
+      onRejected: [
+        { plugin: "db", hook: () => void order.push("db") },
+        { hook: onRejected },
+      ],
+    });
+    const presigned = await presignUpload(config, defaultUploadBody);
+    s3.seed(presigned.key, "01234", {
+      contentType: "image/png",
+      metadata: { "dimah-upload": marker(presigned) },
+    });
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).rejects.toMatchObject({ code: "UPLOAD_SIZE_MISMATCH" });
+
+    expect(order).toEqual(["db", "user"]);
+    expect(s3.get(presigned.key)).toBeUndefined();
+    expect(onRejected.mock.calls[0][0]).toMatchObject({
+      operation: "confirm",
+      route: "uploads",
+      key: presigned.key,
+      bucket: TEST_BUCKET,
+      kind: "presignedPut",
+      uploadToken: marker(presigned),
+      file: { name: "a.png", size: 10, type: "image/png" },
+      acl: "private",
+      error: { code: "UPLOAD_SIZE_MISMATCH", statusCode: 400 },
+    });
+  });
+
+  it("runs when confirmGuard rejects", async () => {
+    const onRejected = vi.fn<(context: UploadOnRejectedContext) => void>();
+    const { s3, config } = setup({
+      confirmGuard: [
+        {
+          hook: () => {
+            throw s3Error("FORBIDDEN");
+          },
+        },
+      ],
+      onRejected: [{ hook: onRejected }],
+    });
+    const presigned = await upload(s3, config);
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(onRejected).toHaveBeenCalledOnce();
+    expect(onRejected.mock.calls[0][0].error.code).toBe("FORBIDDEN");
+  });
+
+  it("runs when a plugin onConfirmed rejects", async () => {
+    const onRejected = vi.fn<(context: UploadOnRejectedContext) => void>();
+    const { s3, config } = setup({
+      onConfirmed: [
+        {
+          plugin: "db",
+          hook: () => {
+            throw s3Error("QUOTA_EXCEEDED", { limit: "bytes" });
+          },
+        },
+      ],
+      onRejected: [{ hook: onRejected }],
+    });
+    const presigned = await upload(s3, config);
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).rejects.toMatchObject({ code: "QUOTA_EXCEEDED" });
+    expect(onRejected).toHaveBeenCalledOnce();
+    expect(s3.get(presigned.key)).toBeUndefined();
+  });
+
+  it("does not run when the object is kept", async () => {
+    const onRejected = vi.fn();
+    const { s3, config } = setup(
+      {
+        onConfirmed: [
+          {
+            hook: () => {
+              throw new Error("webhook failed");
+            },
+          },
+        ],
+        onRejected: [{ hook: onRejected }],
+      },
+      { logger: {} },
+    );
+    const presigned = await upload(s3, config);
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+    expect(s3.get(presigned.key)).toBeDefined();
+    expect(onRejected).not.toHaveBeenCalled();
+
+    await expect(
+      confirmUpload(config, { ticket: "v1.invalid.ticket" }),
+    ).rejects.toMatchObject({ code: "UPLOAD_TICKET_INVALID" });
+    expect(onRejected).not.toHaveBeenCalled();
+  });
+
+  it("reports a throw, runs the later hooks and still returns the rejection", async () => {
+    const error = vi.fn();
+    const onError = vi.fn();
+    const failure = new Error("cleanup failed");
+    const later = vi.fn();
+    const { s3, config } = setup(
+      {
+        confirmGuard: [
+          {
+            hook: () => {
+              throw s3Error("FORBIDDEN");
+            },
+          },
+        ],
+        onRejected: [
+          {
+            plugin: "db",
+            hook: () => {
+              throw failure;
+            },
+          },
+          { hook: later },
+        ],
+      },
+      { logger: { error }, onError },
+    );
+    const presigned = await upload(s3, config);
+
+    await expect(
+      confirmUpload(config, { ticket: presigned.ticket }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", statusCode: 403 });
+
+    expect(later).toHaveBeenCalledOnce();
+    expect(error).toHaveBeenCalledWith(
+      "upload.onRejected failed",
+      expect.objectContaining({ cause: failure }),
+    );
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ cause: failure }),
+      expect.objectContaining({ operation: "confirm" }),
+    );
   });
 });
 

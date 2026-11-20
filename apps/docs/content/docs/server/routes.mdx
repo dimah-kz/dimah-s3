@@ -1,15 +1,12 @@
 ---
 title: Routes
-description: Named file routes — server-owned keys, constraints, and object policies.
+description: Define named routes that own their file constraints, enabled operations, and server-generated object keys.
 icon: Route
 ---
 
-A **route** is a named storage policy on your server. Each route owns its
-constraints, object keys, and enabled operations (`upload`, `download`,
-`delete`, and `upload.multipart`).
-
-The browser sends a route name with each request. The server enforces file
-constraints, validates permissions, and generates object keys.
+A route is a named storage policy on your server. The browser sends a route
+name; the server checks the file against the route's constraints, runs its
+guards, and generates the object key.
 
 ```ts title="lib/s3.ts"
 import { dimahS3, route } from "@dimah-s3/server";
@@ -20,10 +17,7 @@ export const s3 = dimahS3({
   bucket: process.env.S3_BUCKET!,
   routes: {
     avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
+      upload: { fileTypes: ["image/*"], maxFileSize: 2 * 1024 * 1024 },
       download: true,
       delete: true,
     }),
@@ -47,288 +41,218 @@ export const s3 = dimahS3({
 ```
 
 `awsS3` is the `S3Client` from [Server Setup](/docs/server/setup#configure-s3-and-routes).
-
----
+A route name starts with a letter and has at most 64 letters, digits, `_`,
+or `-`. Every operation is off until you set it, and a route must turn on at
+least one of `upload`, `download`, or `delete`.
 
 ## Combining operations
 
-Enable operations on the **same route** when they manage the same objects. For example, if users upload, view, and remove their avatars:
+Download and delete accept only keys under the route's `keyPrefix`. Turn them
+on in the same route that uploads the objects, as `avatar` does above:
+another route cannot delete keys that `avatar` wrote.
 
-```ts
-avatar: route({
-  upload: {
-    fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
-  },
-  download: true, // [!code ++]
-  delete: true, // [!code ++]
-}),
-```
-
-With the default `keyPrefix` (the route name), download and delete must target
-keys within that route's namespace. That is route isolation, not per-user
-ownership — see
+That is route isolation, not per-user ownership: see
 [Security](/docs/server/security#route-namespace-vs-ownership).
 
----
+## Object keys
 
-## Key generation and object identity
-
-By default, the server generates object keys formatted as:
+The server generates every upload key:
 
 ```
 {keyPrefix}/{uuid}/{sanitizedName}
 ```
 
-`keyPrefix` defaults to the **route name** (`avatar` → `avatar/…`, `document`
-→ `document/…`). The same prefix is used twice:
+`keyPrefix` defaults to the route name, so `avatar` uploads land under
+`avatar/`. The client never sends an upload key. For download and delete it
+sends one, and the server accepts it only under the route's prefix:
 
-1. **Upload and multipart init** — the server _generates_ the key. The client
-   sends a route name, not an object key. The key travels inside the
-   [upload ticket](/docs/server/upload-tickets), so confirm and the later
-   multipart calls never send it.
-2. **Download and delete** — the client _sends_ a key. The server accepts it
-   only if it sits under that route's prefix.
+- `?route=avatar&key=avatar/{uuid}/photo.jpg` is valid.
+- `?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
 
-So `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is valid, and
-`DELETE ?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
-Two routes cannot share or nest prefixes (`files` and `files/images`);
-`dimahS3()` throws at startup.
+Two routes on the same bucket cannot share or nest prefixes (`files` and
+`files/images`); `dimahS3()` throws at startup.
 
-<Callout type="warn" title="Disabling namespace isolation">
-  `keyPrefix: false` allows download and delete to target any safe key in the
-  bucket. Use it only when strict route or operation guards enforce the complete
-  access policy.
+<Callout type="warn" title="keyPrefix: false">
+  `keyPrefix: false` lets download and delete target any safe key in the bucket.
+  Use it only when strict route or operation guards enforce the whole access
+  policy. Sharing a bucket with other routes logs a warning.
 </Callout>
 
-To customize key generation or organize files by user or tenant, return
-`keyFolder` or `key` from `upload.object`:
+### Choose the key
+
+Return `keyFolder` or `key` from `upload.object` to organize objects by user
+or tenant. Both are nested under `keyPrefix`:
 
 ```ts
 avatar: route({
   upload: {
     fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
-    object: async ({ request }) => {
-      const session = await getSession(request);
-      return {
-        keyFolder: `users/${session.userId}`, // [!code ++]
-        // Results in: avatar/users/{userId}/{uuid}/{name}
-      };
-    },
-  },
-}),
-```
-
-`object` runs after the instance and route guards, so it can also read
-[`locals`](/docs/server/hooks/global-guard#locals) instead of loading the
-session again.
-
-Keys are limited to 1024 UTF-8 bytes. A generated key turns `${` in the file
-name into `_{`. On a `method: "POST"` route, a key from `object` that
-contains `${filename}` returns `KEY_INVALID`, so the presigned form always
-pins the exact key.
-
-Route lifetimes and sizes (`upload.expiresIn`, `upload.confirmWindow`,
-`upload.maxFileSize`, `upload.multipart.partSize`,
-`upload.multipart.ticketExpiresIn`, and `download.maxExpiresIn`) must be
-positive integers. Any other value throws at `dimahS3()`.
-
----
-
-## Type reference
-
-```ts
-import type {
-  DimahS3RouteConfig,
-  UploadConfig,
-  DownloadConfig,
-  DeleteConfig,
-  MultipartConfig,
-  UploadObjectInfo,
-} from "@dimah-s3/server";
-```
-
-### DimahS3RouteConfig
-
-<AutoTypeTable
-  path="packages/server/src/types/config.ts"
-  name="DimahS3RouteConfig"
-/>
-
----
-
-### UploadConfig
-
-<AutoTypeTable path="packages/server/src/types/config.ts" name="UploadConfig" />
-
----
-
-### UploadObjectInfo
-
-What `upload.object` returns.
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="UploadObjectInfo"
-/>
-
----
-
-### DownloadConfig
-
-<AutoTypeTable
-  path="packages/server/src/types/config.ts"
-  name="DownloadConfig"
-/>
-
----
-
-### DeleteConfig
-
-<AutoTypeTable path="packages/server/src/types/config.ts" name="DeleteConfig" />
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How do I overwrite the same avatar key instead of generating a UUID?">
-
-Return a deterministic `key` from `object`. S3 replaces the object at that
-key when the new upload lands:
-
-```ts
-avatar: route({
-  upload: {
-    fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
-    object: async ({ request }) => {
-      const session = await getSession(request);
-      return {
-        key: `avatars/${session.userId}/avatar.png`, // [!code ++]
-      };
-    },
-  },
-}),
-```
-
-With [`db()`](/docs/db), an upload onto a key that already holds an active
-object fails with `CONFLICT`. Allow it per route with
-`plugins: { db: { replace: "overwrite" } }`.
-
-</Accordion>
-
-<Accordion title="How do I clean up the user's previous avatar after a new upload?">
-
-Return `previousKey` from `upload.object`. After the new upload is confirmed
-and every hook succeeds, dimah-s3 deletes the previous object from S3:
-
-```ts
-avatar: route({
-  upload: {
-    fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
-    object: async ({ request }) => {
-      const user = await getCurrentUser(request);
-      return {
-        keyFolder: `users/${user.id}`,
-        previousKey: user.currentAvatarKey, // [!code ++]
-      };
-    },
-  },
-}),
-```
-
-`previousKey` must sit under the same route prefix.
-
-</Accordion>
-
-<Accordion title="How do I set storage class, Cache-Control, or object tags?">
-
-Return them from `upload.object`. They are signed into PUT, POST, and
-multipart init (and applied by `s3.put`) so the browser cannot change
-them. Tag values are visible to the client — do not put secrets there.
-
-```ts
-avatar: route({
-  upload: {
-    fileTypes: ["image/*"],
-    object: () => ({
-      storageClass: "STANDARD_IA", // [!code ++]
-      cacheControl: "max-age=31536000, immutable", // [!code ++]
-      tagging: { purpose: "avatar" }, // [!code ++]
+    object: ({ locals }) => ({
+      keyFolder: `users/${locals.userId}`, // [!code ++]
+      // avatar/users/{userId}/{uuid}/{name}
     }),
   },
 }),
 ```
 
-Tags must be printable ASCII, at most 10 per object. User `metadata` may hold
-any text: non-ASCII values are RFC 2047-encoded on write and decoded on read.
-Metadata keys and values share a 2 KB budget. Going over either limit is a
-config error that returns `500` and is logged.
+`upload.object` runs before `upload.guard`. Authenticate in the instance or
+route guard, which run first, and read
+[`locals`](/docs/server/hooks/global-guard#locals) here.
 
-</Accordion>
+### Replace an object
 
-<Accordion title="How do I enforce SHA-256 integrity checksums?">
-
-Set `checksum: true`. The React client hashes the file in the browser, and
-the server signs the SHA-256 into the upload, so S3 rejects any other bytes.
-Multipart uploads hash and sign every part:
+Return a fixed `key` to overwrite the same object on every upload:
 
 ```ts
-avatar: route({
-  upload: {
-    fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
-    checksum: true, // [!code ++]
-  },
+object: ({ locals }) => ({
+  key: `users/${locals.userId}/avatar.png`, // [!code ++]
 }),
+```
+
+To keep generated keys and remove the old object instead, return
+`previousKey`. The server deletes it after the new upload is confirmed and
+every hook succeeds. It must stay under the same route prefix.
+
+```ts
+object: async ({ locals }) => {
+  const user = await getUser(locals.userId);
+  return {
+    keyFolder: `users/${user.id}`,
+    previousKey: user.avatarKey, // [!code ++]
+  };
+},
+```
+
+With [`db()`](/docs/db), an upload onto a key that holds an active object
+fails with `OBJECT_EXISTS`. Allow it per route with
+`plugins: { db: { replace: "overwrite" } }`.
+
+## Object settings
+
+Return storage class, `Cache-Control`, tags, ACL, and S3 metadata from
+`upload.object`. They are signed into the upload, so the browser cannot
+change them:
+
+```ts
+upload: {
+  object: ({ file }) => ({
+    storageClass: "STANDARD_IA",
+    cacheControl: "max-age=31536000, immutable",
+    tagging: { purpose: "avatar" },
+    metadata: { "original-name": file.name },
+  }),
+},
+```
+
+- Tags are printable ASCII, at most 10 per object. The client can see their
+  values, so keep secrets out.
+- Metadata values may hold any text. Keys and values share a 2 KB budget.
+- Going over either limit is a config error: it is logged and returns `500`.
+
+## Integrity checks
+
+### Checksums
+
+Set `checksum: true` to sign a SHA-256 into every upload, so S3 rejects any
+other bytes. The React client hashes the file, and every multipart part, in
+the browser:
+
+```ts
+upload: {
+  fileTypes: ["image/*"],
+  checksum: true, // [!code ++]
+},
 ```
 
 A presign or part request without a checksum returns `CHECKSUM_REQUIRED`.
-`GET /routes` reports the setting as `upload.checksum`, so custom clients
-know to send one.
+Custom clients read the setting from `GET /routes` as `upload.checksum`.
 
-</Accordion>
+### Content verification
 
-<Accordion title="How do I check that the bytes match the declared type?">
-
-Set `verifyContent: true`. After confirm, the server reads the first bytes of
-the object and compares their signature with the declared type. A mismatch
-deletes the object and returns `FILE_CONTENT_MISMATCH`. An upload without a
-type is checked against the type its name gives, so `x.png` is checked as
-`image/png`:
+Set `verifyContent: true` to check the object's first bytes against its
+declared type after confirm. A mismatch deletes the object and returns
+`FILE_CONTENT_MISMATCH`:
 
 ```ts
-avatar: route({
-  upload: {
-    fileTypes: ["image/png", "image/jpeg", "image/webp"],
-    verifyContent: true, // [!code ++]
-  },
-}),
+upload: {
+  fileTypes: ["image/png", "image/jpeg", "image/webp"],
+  verifyContent: true, // [!code ++]
+},
 ```
 
-`verifyContent` turns `checksum` on, because the signed checksum pins the
-bytes that were checked. Setting `checksum: false` with it throws at
-`dimahS3()`. Types without a known signature, such as `text/plain`, pass
-without a read.
+- An upload without a type is checked against the type its name gives, so
+  `x.png` is checked as `image/png`.
+- Types without a known signature, such as `text/plain`, pass unread.
+- `verifyContent` turns `checksum` on, so the checked bytes are the bytes
+  that stay. `checksum: false` with it throws at `dimahS3()`.
 
-</Accordion>
+## API Reference
 
-<Accordion title="How do I stream downloads through my server without direct bucket URLs?">
+### route()
 
-Set `mode: "proxy"` on `download`. The returned URL points to the
-`/api/s3/file` endpoint, which streams the object through your server. See
-[File Proxy](/docs/server/file-proxy):
+`route(config)` returns its argument typed as a route policy.
 
-```ts
-avatar: route({
-  download: {
-    mode: "proxy", // [!code ++]
-  },
-}),
-```
+| Prop        | Type                        | Default | Description                                                                 |
+| ----------- | --------------------------- | ------- | --------------------------------------------------------------------------- |
+| `upload`    | `boolean \| UploadConfig`   | —       | Turns on uploads                                                            |
+| `download`  | `boolean \| DownloadConfig` | —       | Turns on downloads. See [Download Hooks](/docs/server/hooks/download)       |
+| `delete`    | `boolean \| DeleteConfig`   | —       | Turns on deletes. See [Delete Hooks](/docs/server/hooks/delete)             |
+| `keyPrefix` | `string \| false`           | —       | Object-key namespace. Defaults to the route name. `false` removes the bound |
+| `guard`     | `Guard<RouteGuardContext>`  | —       | Runs before every operation on this route, after the instance guard         |
+| `client`    | `S3Client`                  | —       | Overrides the instance client                                               |
+| `bucket`    | `string`                    | —       | Overrides the instance bucket                                               |
+| `plugins`   | `DimahS3RoutePluginOptions` | —       | Plugin options by plugin id. `false` turns a plugin off for this route      |
 
-</Accordion>
+### upload
 
-</Accordions>
+| Prop            | Type                                      | Default     | Description                                                                                                    |
+| --------------- | ----------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
+| `fileTypes`     | `string[]`                                | —           | HTML `accept` tokens: `image/*`, `.pdf`, `application/pdf`                                                     |
+| `maxFileSize`   | `number`                                  | —           | Largest file in bytes. Checked on the declared size and again after HeadObject                                 |
+| `object`        | `(context) => UploadObjectInfo \| void`   | —           | Chooses the key and object settings. Context: [`UploadObjectContext`](/docs/server/hooks/upload#api-reference) |
+| `acl`           | `"private" \| "public-read"`              | `"private"` | ACL when `object` returns none                                                                                 |
+| `method`        | `"PUT" \| "POST"`                         | `"PUT"`     | Presign verb. Cloudflare R2 has no presigned POST                                                              |
+| `expiresIn`     | `number`                                  | `600`       | Presigned URL TTL in seconds, capped by the instance `maxExpiresIn`                                            |
+| `confirmWindow` | `number`                                  | `3600`      | Seconds after the URL expires during which confirm is still accepted                                           |
+| `checksum`      | `boolean`                                 | `false`     | Requires a SHA-256 from the client and signs it into the upload                                                |
+| `verifyContent` | `boolean`                                 | `false`     | Checks the first bytes against the type after confirm. Turns on `checksum`                                     |
+| `multipart`     | `boolean \| MultipartConfig`              | —           | Turns on multipart uploads. See [Multipart Hooks](/docs/server/hooks/multipart#api-reference)                  |
+| `guard`         | `Guard<UploadGuardContext>`               | —           | Authorizes presign, multipart init, and `s3.put`                                                               |
+| `onStart`       | `LifecycleHook<UploadOnStartContext>`     | —           | Runs once the upload can begin. A throw cancels it                                                             |
+| `confirmGuard`  | `Guard<UploadConfirmGuardContext>`        | —           | Authorizes the stored object on confirm and multipart complete. A rejection deletes it                         |
+| `onConfirmed`   | `LifecycleHook<UploadOnConfirmedContext>` | —           | Runs at least once after the object is verified                                                                |
+| `onRejected`    | `LifecycleHook<UploadOnRejectedContext>`  | —           | Runs after an upload is refused and its object deleted                                                         |
+
+The hooks are covered in [Upload Hooks](/docs/server/hooks/upload).
+
+### upload.object result
+
+| Property       | Type                         | Description                                                                                                                 |
+| -------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `keyFolder`    | `string`                     | Path segment under `keyPrefix`: `{keyPrefix}/{keyFolder}/{uuid}/{name}`. Ignored with `key`                                 |
+| `key`          | `string`                     | The object key, at most 1024 UTF-8 bytes. Nested under `keyPrefix` unless it is already inside it or `keyPrefix` is `false` |
+| `metadata`     | `Record<string, string>`     | S3 user metadata (`x-amz-meta-*`). Keys and values share 2048 UTF-8 bytes                                                   |
+| `acl`          | `"private" \| "public-read"` | Overrides the route ACL for this object                                                                                     |
+| `storageClass` | `string`                     | S3 storage class, such as `STANDARD_IA` or `INTELLIGENT_TIERING`. Signed                                                    |
+| `cacheControl` | `string`                     | `Cache-Control` written on the object. Signed                                                                               |
+| `tagging`      | `Record<string, string>`     | Object tags, at most 10, printable ASCII. Signed, and visible to the client                                                 |
+| `previousKey`  | `string`                     | Key to delete after a successful confirm. Must stay under `keyPrefix`                                                       |
+
+### download
+
+| Prop           | Type                                        | Default                | Description                                                                                |
+| -------------- | ------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------ |
+| `maxExpiresIn` | `number`                                    | `600`                  | Largest presign TTL in seconds. A shorter client `expiresIn` is used as is                 |
+| `disposition`  | `"inline" \| "attachment"`                  | `"attachment"`         | Disposition when the client asks for none                                                  |
+| `inlineTypes`  | `readonly string[] \| false`                | `DEFAULT_INLINE_TYPES` | MIME types or `type/*` wildcards that may open inline. `false` never opens inline          |
+| `mode`         | `"presign" \| "proxy"`                      | `"presign"`            | `"proxy"` returns a [`/file`](/docs/server/file-proxy) URL that streams through the server |
+| `resolve`      | `(context) => DownloadResolveInfo \| void`  | —                      | Sets the name, disposition, TTL, or `cacheControl` per request                             |
+| `guard`        | `Guard<DownloadGuardContext>`               | —                      | Authorizes the download                                                                    |
+| `onPresigned`  | `LifecycleHook<DownloadOnPresignedContext>` | —                      | Runs with the URL that is returned                                                         |
+
+### delete
+
+| Prop        | Type                                    | Default | Description                       |
+| ----------- | --------------------------------------- | ------- | --------------------------------- |
+| `guard`     | `Guard<DeleteGuardContext>`             | —       | Authorizes the delete of each key |
+| `onDeleted` | `LifecycleHook<DeleteOnDeletedContext>` | —       | Runs after S3 deletes the object  |

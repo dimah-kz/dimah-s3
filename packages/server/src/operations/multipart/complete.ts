@@ -25,7 +25,7 @@ import { openMultipart, type MultipartTicketBody } from "./open-multipart";
  * Completes a multipart upload (`POST /presign/multipart/complete`,
  * `s3.api.multipart.complete`).
  *
- * After `upload.multipart.guard` (`action: "complete"`), it reads every
+ * After `upload.multipart.guard`, it reads every
  * ListParts page and checks the parts against the layout chosen at init
  * (see {@link completedParts}). CompleteMultipartUpload assembles parts
  * `1..partCount`, then HeadObject reads the object and
@@ -46,7 +46,7 @@ export function completeMultipart(
       await openMultipart(config, call, body.ticket);
     await runGuards(route.upload.multipart.guard, {
       ...context,
-      action: "complete",
+      operation: "multipart.complete",
     });
     const { bucket, key, uploadId } = context;
 
@@ -73,6 +73,7 @@ export function completeMultipart(
 
     const head = await headObjectOrNotFound(route.client, bucket, key);
     const confirmed = await finalizeConfirmed({
+      config,
       route,
       context: objectContext,
       kind: "multipart",

@@ -1,7 +1,7 @@
 {
   "title": "Providers",
-  "description": "Amazon S3, Cloudflare R2, and MinIO — CORS, PUT vs POST, and addressing",
+  "description": "Amazon S3, Cloudflare R2, MinIO, and ArvanCloud — CORS, PUT vs POST, and addressing",
   "icon": "HardDrive",
   "defaultOpen": false,
-  "pages": ["index", "aws-s3", "cloudflare-r2", "minio"]
+  "pages": ["index", "aws-s3", "cloudflare-r2", "minio", "arvancloud"]
 }

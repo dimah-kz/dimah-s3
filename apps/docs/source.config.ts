@@ -6,6 +6,7 @@ import {
 import { remarkSteps } from "fumadocs-core/mdx-plugins/remark-steps";
 import { metaSchema, pageSchema } from "fumadocs-core/source/schema";
 import { blogPageSchema } from "./src/lib/blog";
+import { pageLanguageFields } from "./src/lib/page-language";
 
 // https://fumadocs.dev/docs/integrations/blog
 export const blogPosts = defineCollections({
@@ -20,7 +21,7 @@ export const blogPosts = defineCollections({
 export const docs = defineDocs({
   dir: "content/docs",
   docs: {
-    schema: pageSchema,
+    schema: pageSchema.extend(pageLanguageFields),
     postprocess: {
       includeProcessedMarkdown: true,
     },

@@ -1,11 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { mapWithConcurrency } from "./pool";
+import { concurrencyLimit, mapWithConcurrency } from "./pool";
 
 function tick() {
   return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
+describe("concurrencyLimit", () => {
+  it.each([
+    [undefined, 4],
+    [Number.NaN, 4],
+    [3, 3],
+    [2.9, 2],
+    [0, 1],
+    [-5, 1],
+    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+  ])("%s → %s", (value, expected) => {
+    expect(concurrencyLimit(value, 4)).toBe(expected);
+  });
+});
+
 describe("mapWithConcurrency", () => {
+  it("still runs every item when the limit is not a number", async () => {
+    await expect(
+      mapWithConcurrency([1, 2, 3], Number.NaN, async (value) => value * 2),
+    ).resolves.toEqual([2, 4, 6]);
+  });
+
   it("keeps input order and never exceeds the limit", async () => {
     let active = 0;
     let peak = 0;

@@ -58,7 +58,7 @@ export type UpsertPendingInput = ObjectRef & {
   route: string;
   /** Folder that holds the object. `null` is the root. */
   folderId: string | null;
-  filename: string;
+  name: string;
   contentType?: string | null;
   /** Size the client declared. Quota counts it until the row expires. */
   declaredSize?: number | null;
@@ -82,7 +82,7 @@ export type MarkActiveInput = UploadRef & {
   size: number;
   eTag?: string | null;
   contentType?: string | null;
-  filename?: string;
+  name?: string;
   s3Metadata?: Record<string, string> | null;
   acl?: string | null;
 };
@@ -96,7 +96,7 @@ export type InsertActiveInput = ObjectRef & {
   route: string;
   /** Folder that holds the object. `null` is the root. */
   folderId: string | null;
-  filename: string;
+  name: string;
   contentType: string | null;
   /** Verified size from HeadObject. */
   size: number;
@@ -106,7 +106,6 @@ export type InsertActiveInput = ObjectRef & {
 
 /** Which rows of a scope a listing or count covers. */
 export type ObjectFilter = {
-  scope: string;
   /** Folder to cover. `null` is the root. Omit for every folder. */
   folderId?: string | null;
   /**
@@ -123,7 +122,7 @@ export type ObjectFilter = {
   /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
   /**
-   * Text the `filename` contains. Both sides are folded the same way on
+   * Text the `name` contains. Both sides are folded the same way on
    * every database: case, accents, and look-alike letters (`ي`/`ی`,
    * `ك`/`ک`) do not count, Persian and Arabic-Indic digits match `0`–`9`,
    * and `%`, `_`, and `\` match as themselves.
@@ -153,7 +152,7 @@ export type ListObjectsPage<TAttributes = never> = {
 
 /** Fields `update` changes. Omitted fields stay as they are. */
 export type UpdateObjectInput<TAttributes = never> = {
-  filename?: string;
+  name?: string;
   /** Folder id. `null` moves the object to the root. */
   folderId?: string | null;
   attributes?: TAttributes | null;
@@ -165,21 +164,35 @@ export type StorageObjectStore<TAttributes = never> = {
   find: (ref: ObjectRef) => Promise<StorageObject<TAttributes> | null>;
   /**
    * One page of a scope's rows. Pages follow a cursor, ordered by `sort`
-   * with ties broken on `id`. Rows with no `size` come last.
+   * with ties broken on `id`. The `name` sort orders by the folded name
+   * search matches (case and accents do not count). Rows with no `size`
+   * come last.
    */
-  list: (input: ListObjectsInput) => Promise<ListObjectsPage<TAttributes>>;
-  /** Counts the rows a filter covers. */
-  count: (filter: ObjectFilter) => Promise<number>;
+  list: (
+    scope: string,
+    input?: ListObjectsInput,
+  ) => Promise<ListObjectsPage<TAttributes>>;
+  /** Counts the rows of a scope that a filter covers. */
+  count: (scope: string, filter?: ObjectFilter) => Promise<number>;
   /**
    * Bytes and files of a scope: the size of each active row plus the
    * declared size of each pending row that has not expired. An active row
    * with an overwrite in flight counts the larger of the two. `excluding`
-   * leaves one row out, such as the row an upload replaces.
+   * leaves one row out, such as the row an upload replaces. It reads every
+   * live row of the scope.
    */
-  getUsage: (
+  usage: (
     scope: string,
     options?: { excluding?: ObjectRef },
   ) => Promise<DbUsage>;
+  /**
+   * The file count of {@link StorageObjectStore.usage}, as one `COUNT`.
+   * @internal The quota uses it when only `maxFiles` is capped.
+   */
+  liveCount: (
+    scope: string,
+    options?: { excluding?: ObjectRef },
+  ) => Promise<number>;
   /**
    * Starts an upload at `(bucket, key)`: writes a fresh pending row over a
    * missing, pending, or deleted one (a deleted row is replaced by a new row
@@ -362,13 +375,14 @@ type FolderSet = readonly string[] | null | undefined;
 
 function filterConditions(
   b: ObjectConditions,
+  scope: string,
   filter: ObjectFilter,
   folders: FolderSet,
   now: Date,
 ): Condition[] {
   const status = filter.status ?? "active";
   const parts: Condition[] = [
-    b("scope", "=", filter.scope),
+    b("scope", "=", scope),
     status === "pending"
       ? b.and(b("status", "=", "pending"), b("expiresAt", ">=", now))
       : b("status", "=", status),
@@ -422,12 +436,29 @@ export function createObjectStore<TAttributes = never>(
 ): StorageObjectStore<TAttributes> {
   const map = mapStorageObjectRow<TAttributes>;
 
-  const folderSet = async (filter: ObjectFilter): Promise<FolderSet> => {
+  const folderSet = async (
+    scope: string,
+    filter: ObjectFilter,
+  ): Promise<FolderSet> => {
     const { folderId } = filter;
     if (folderId == null) return filter.recursive ? undefined : folderId;
     if (!filter.recursive) return [folderId];
-    return [folderId, ...(await subtreeIds(filter.scope, folderId))];
+    return [folderId, ...(await subtreeIds(scope, folderId))];
   };
+
+  /** Live rows of the scope, without `excluding`. */
+  const liveRows =
+    (scope: string, now: Date, excluding: ObjectRef | undefined) =>
+    (b: ObjectConditions): Condition =>
+      b.and(
+        b("scope", "=", scope),
+        liveObject(b, now),
+        excluding === undefined ||
+          b.or(
+            b("bucket", "!=", excluding.bucket),
+            b("key", "!=", excluding.key),
+          ),
+      );
 
   const find = async (ref: ObjectRef) => {
     const orm = await getOrm();
@@ -448,12 +479,14 @@ export function createObjectStore<TAttributes = never>(
   return {
     find,
 
-    async list(input) {
+    async list(scope, input = {}) {
       const orm = await getOrm();
       const now = new Date();
       const sort = input.sort ?? DEFAULT_LIST_SORT;
       const limit = input.limit ?? DEFAULT_LIST_LIMIT;
-      const { field, direction } = sort;
+      const { direction } = sort;
+      // The name sort orders by the folded name, the same on every database.
+      const field = sort.field === "name" ? "searchName" : sort.field;
       const after = direction === "desc" ? "<" : ">";
       // Only a pending row has no `size`; every other sort field is required.
       const nullable = field === "size";
@@ -469,12 +502,12 @@ export function createObjectStore<TAttributes = never>(
       const cursor = input.cursor
         ? decodeListCursor(input.cursor, filters)
         : null;
-      const folders = await folderSet(input);
+      const folders = await folderSet(scope, input);
 
       const where =
         (segment: ListSegment) =>
         (b: ObjectConditions): Condition => {
-          const parts = filterConditions(b, input, folders, now);
+          const parts = filterConditions(b, scope, input, folders, now);
           const position = segment.after;
           if (segment.nulls) {
             parts.push(b.isNull(field));
@@ -535,36 +568,26 @@ export function createObjectStore<TAttributes = never>(
       };
     },
 
-    async count(filter) {
+    async count(scope, filter = {}) {
       const orm = await getOrm();
       const now = new Date();
-      const folders = await folderSet(filter);
+      const folders = await folderSet(scope, filter);
       return orm.count("storageObject", {
-        where: (b) => b.and(...filterConditions(b, filter, folders, now)),
+        where: (b) =>
+          b.and(...filterConditions(b, scope, filter, folders, now)),
       });
     },
 
-    async getUsage(scope, options = {}) {
+    async usage(scope, options = {}) {
       const orm = await getOrm();
       const now = new Date();
       const rows = await orm.findMany("storageObject", {
-        select: [
-          "bucket",
-          "key",
-          "status",
-          "size",
-          "declaredSize",
-          "expiresAt",
-        ],
-        where: (b) => b.and(b("scope", "=", scope), liveObject(b, now)),
+        select: ["status", "size", "declaredSize", "expiresAt"],
+        where: liveRows(scope, now, options.excluding),
       });
-      const { excluding } = options;
       let totalBytes = 0;
       let objectCount = 0;
       for (const row of rows) {
-        if (excluding?.bucket === row.bucket && excluding.key === row.key) {
-          continue;
-        }
         const size = Number(row.size ?? 0);
         const declared = Number(row.declaredSize ?? 0);
         // An overwrite in flight reserves its declared bytes until it is
@@ -582,6 +605,13 @@ export function createObjectStore<TAttributes = never>(
         objectCount += 1;
       }
       return { totalBytes, objectCount };
+    },
+
+    async liveCount(scope, options = {}) {
+      const orm = await getOrm();
+      return orm.count("storageObject", {
+        where: liveRows(scope, new Date(), options.excluding),
+      });
     },
 
     async upsertPending(input) {
@@ -606,8 +636,8 @@ export function createObjectStore<TAttributes = never>(
         scope: input.scope,
         route: input.route,
         folderId: input.folderId,
-        filename: input.filename,
-        searchName: toSearchName(input.filename),
+        name: input.name,
+        searchName: toSearchName(input.name),
         contentType: input.contentType ?? null,
         size: null,
         eTag: null,
@@ -677,9 +707,9 @@ export function createObjectStore<TAttributes = never>(
           ...(input.contentType !== undefined && {
             contentType: input.contentType,
           }),
-          ...(input.filename !== undefined && {
-            filename: input.filename,
-            searchName: toSearchName(input.filename),
+          ...(input.name !== undefined && {
+            name: input.name,
+            searchName: toSearchName(input.name),
           }),
           ...(input.s3Metadata !== undefined && {
             s3Metadata: input.s3Metadata,
@@ -716,8 +746,8 @@ export function createObjectStore<TAttributes = never>(
         scope: input.scope,
         route: input.route,
         folderId: input.folderId,
-        filename: input.filename,
-        searchName: toSearchName(input.filename),
+        name: input.name,
+        searchName: toSearchName(input.name),
         contentType: input.contentType,
         size: BigInt(input.size),
         declaredSize: null,
@@ -766,9 +796,9 @@ export function createObjectStore<TAttributes = never>(
             ref.scope === undefined || b("scope", "=", ref.scope),
           ),
         set: {
-          ...(input.filename !== undefined && {
-            filename: input.filename,
-            searchName: toSearchName(input.filename),
+          ...(input.name !== undefined && {
+            name: input.name,
+            searchName: toSearchName(input.name),
           }),
           ...(input.folderId !== undefined && { folderId: input.folderId }),
           ...(input.attributes !== undefined && {

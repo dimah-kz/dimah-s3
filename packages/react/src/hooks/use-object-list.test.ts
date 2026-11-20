@@ -28,8 +28,8 @@ function mockQuery() {
   >();
 }
 
-function useList(options: Omit<UseObjectListOptions<Item>, "getKey">) {
-  return useObjectList<Item>({ getKey: (item) => item.id, ...options });
+function useList(options: Omit<UseObjectListOptions<Item>, "getId">) {
+  return useObjectList<Item>({ getId: (item) => item.id, ...options });
 }
 
 async function flush() {
@@ -688,7 +688,7 @@ describe("useObjectList", () => {
     it("returns the source's uploadOptions", async () => {
       const query = mockQuery().mockResolvedValue(page([]));
       const uploadOptions = (parent: string | null) => ({
-        metadata: { folder: parent ?? "" },
+        clientMetadata: { folder: parent ?? "" },
       });
       const hook = renderHook(() => useList({ query, uploadOptions }));
       await flush();

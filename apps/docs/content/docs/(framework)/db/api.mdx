@@ -1,13 +1,18 @@
 ---
-title: API
-description: List, move, and annotate objects, manage folders, and cap usage, on the server and in the browser.
+title: Database API
+description: Read and change db() rows with s3.db on the server and dbClient() in the browser, for listings, folders, attributes, quotas, and recorded objects.
 ---
+
+The plugin gives you two ways to the same rows: `s3.db` on the server, with
+no access checks, and `api.db` in the browser, which calls the
+[`/db/*` endpoints](#http-endpoints) as the caller.
 
 ## Server
 
-With the plugin registered, `s3.db.objects` and `s3.db.folders` are
-available in your routes, jobs, and scripts. They take the scope as an
-argument, so they can read any scope:
+`s3.db.objects` and `s3.db.folders` read and change any scope. Use them in
+routes, jobs, and scripts. Each method takes the scope first, except
+`objects.find` and `objects.update`, which address one row by
+`(bucket, key)`.
 
 ```ts
 const scope = "user:123";
@@ -16,60 +21,45 @@ const reports = await s3.db.folders.create(scope, {
   parentId: null,
   name: "reports",
 });
-const page = await s3.db.objects.list({
-  scope,
+const page = await s3.db.objects.list(scope, {
   folderId: reports.id, // null is the root; omit for every folder
   sort: { field: "updatedAt", direction: "desc" },
-  limit: 50,
 });
-const next = await s3.db.objects.list({
-  scope,
+const next = await s3.db.objects.list(scope, {
   folderId: reports.id,
   sort: { field: "updatedAt", direction: "desc" },
   cursor: page.nextCursor,
 });
 
-const count = await s3.db.objects.count({ scope, status: "active" });
-const usage = await s3.db.objects.getUsage(scope);
+const usage = await s3.db.objects.usage(scope); // { totalBytes, objectCount }
 const object = await s3.db.objects.find({ bucket: "my-bucket", key });
-
 const children = await s3.db.folders.children(scope, null);
 ```
 
-`list` returns `{ objects, nextCursor, firstPage }`. It defaults to active
-rows, 50 per page, newest first. A cursor made under other filters is
-ignored, and the listing starts again at the first page (`firstPage` is
-then `true`).
+`list` returns `{ objects, nextCursor, firstPage }`. Send the same filters
+with each `cursor`: a cursor made under other filters is ignored, and the
+listing starts again at the first page, with `firstPage` set to `true`.
 
-With `folderId`, `recursive: true` also covers every folder below it, up to
-10,000 folders; at the root (`null`) that is the whole scope. `count` takes
-the same filter. `folders.descendants` and `folders.ancestors` say where the
-rows of such a listing live:
+### Search below a folder
 
 ```ts
-const found = await s3.db.objects.list({
-  scope,
+const found = await s3.db.objects.list(scope, {
   folderId: reports.id,
-  recursive: true,
+  recursive: true, // every folder below too; at the root, the whole scope
   search: "invoice",
 });
-// Folders below `reports` whose name contains "2026", by name
+// Folders below `reports` whose name contains "2026"
 const below = await s3.db.folders.descendants(scope, reports.id, {
   search: "2026",
 });
-// Every folder from the top level down to each id, in path order
+// The folders on the way to each result, in path order
 const path = await s3.db.folders.ancestors(
   scope,
   found.objects.flatMap((object) => object.folderId ?? []),
 );
 ```
 
-The stores never call S3, and the upload lifecycle stays with the plugin,
-so they have no write besides `update`. To remove a file, use the normal
-[delete path](/docs/db/setup#delete-behavior). A move needs a folder that
-already exists (`FOLDER_NOT_FOUND`). Renaming or moving a folder rewrites
-the cached paths under it and leaves every id as it is. An object already
-in the bucket is recorded with [`s3.db.record`](#recording-an-object).
+### Update and move
 
 ```ts
 await s3.db.objects.update(
@@ -79,34 +69,27 @@ await s3.db.objects.update(
 await s3.db.folders.update(scope, reports.id, { name: "archive" });
 ```
 
+- `objects.update` changes an active row, and returns `null` when none
+  matches. It skips what [`PATCH /db/object`](#update-an-object) checks:
+  access, the name rule, and the attributes schema. Validate the input
+  yourself.
+- A move needs a folder in the row's scope (`FOLDER_NOT_FOUND`).
+- The stores never call S3. Remove a file through the
+  [delete path](/docs/db/lifecycle-hooks#deletes), and add one already in
+  the bucket with [`s3.db.record`](#recording-an-object).
+
 ### Recording an object
 
-`s3.db.record` writes a row for an object that is already in the bucket: a
-copy, an import, or a file another system wrote. It does not copy the bytes
-and it does not delete them. The size, type, and eTag come from HeadObject.
-The key must sit inside the route namespace (`KEY_INVALID`).
-
-Pass `{ headers }`, `{ request }`, or `{ locals }` the way you call
-`s3.api`. The instance guard and the route guard run first, then
-`resolveScope` and `authorize`, all with `operation: "record"`. `locals`
-seeds the guards. The route's `fileTypes` and `maxFileSize` apply, and so
-does the quota. An empty object is `FILE_EMPTY`. A file the route does not
-allow, or one that does not fit the quota, is refused and left in the
-bucket. Delete it yourself if you do not want the bytes.
-
-Calling `record` again for the same bytes returns the same row. A different
-object at that key is `OBJECT_EXISTS`. A row an upload or purge holds is
-`CONFLICT`. A deleted row is replaced by a new one. `folderId` must already
-exist (`FOLDER_NOT_FOUND`); `null` and `""` are the root. `name` is the
-display name and defaults to the last segment of the key. It is one segment
-of at most 255 characters.
+`s3.db.record` writes an active row for an object already in the bucket: a
+copy, an import, or a file another system wrote. It does not copy or delete
+bytes, and reads the size, type, and ETag with HeadObject.
 
 ```ts
 // Your S3 client. dimah-s3 does not wrap CopyObject.
 await s3Client.send(
   new CopyObjectCommand({
     Bucket: bucket,
-    Key: key, // inside the route namespace, for example `project-files/…`
+    Key: key, // inside the route namespace, such as `project-files/…`
     CopySource: `${bucket}/${sourceKey}`,
   }),
 );
@@ -122,27 +105,24 @@ const copy = await s3.db.record(
 );
 ```
 
-### DbObjects
+The second argument works as for `s3.api`. The checks run with
+`operation: "record"`: the instance and route guards, `resolveScope` and
+`authorize`, the route's `fileTypes` and `maxFileSize` (an empty object is
+`FILE_EMPTY`), then the quota. A refused object stays in the bucket: delete
+it yourself if you do not want the bytes.
 
-```ts
-import type { DbObjects } from "@dimah-s3/db";
-```
+| Situation at the key                  | Result                     |
+| ------------------------------------- | -------------------------- |
+| No row, or a deleted row              | A new active row           |
+| An active row with the same bytes     | That row (a retry is safe) |
+| An active row with a different object | `OBJECT_EXISTS`            |
+| A row an upload or purge holds        | `CONFLICT`                 |
+| A row of another scope                | `FORBIDDEN`                |
+| A key outside the route namespace     | `KEY_INVALID`              |
+| No object in the bucket               | `OBJECT_NOT_FOUND`         |
 
-<AutoTypeTable
-  path="packages/db/src/plugin/public-stores.ts"
-  name="DbObjects"
-/>
-
-### DbFolders
-
-```ts
-import type { DbFolders } from "@dimah-s3/db";
-```
-
-<AutoTypeTable
-  path="packages/db/src/store/folder-store.ts"
-  name="StorageFolderStore"
-/>
+An unknown route is `ROUTE_NOT_FOUND`, and a route with
+`plugins: { db: false }` is a `VALIDATION_ERROR`.
 
 ## HTTP endpoints
 
@@ -150,61 +130,32 @@ import type { DbFolders } from "@dimah-s3/db";
 the caller's scope from the request and runs `authorize` with the
 `operation` shown. Body endpoints accept JSON only.
 
-| Endpoint                  | Browser action | `operation` |
-| ------------------------- | -------------- | ----------- |
-| `GET /db/objects`         | `listObjects`  | `list`      |
-| `GET /db/object`          | `getObject`    | `read`      |
-| `PATCH /db/object`        | `updateObject` | `update`    |
-| `POST /db/folder`         | `createFolder` | `update`    |
-| `DELETE /db/folder?path=` | `deleteFolder` | `update`    |
+| Endpoint                | Browser action | `operation`     |
+| ----------------------- | -------------- | --------------- |
+| `GET /db/objects`       | `listObjects`  | `list`          |
+| `GET /db/object`        | `getObject`    | `read`          |
+| `PATCH /db/object`      | `updateObject` | `update`        |
+| `POST /db/folder`       | `createFolder` | `folder.create` |
+| `PATCH /db/folder`      | `updateFolder` | `folder.update` |
+| `DELETE /db/folder?id=` | `deleteFolder` | `folder.delete` |
 
-`GET` and `PATCH /db/object` take an optional `bucket`. It defaults to the
-only bucket your routes use. When routes use several buckets, `bucket` is
-required, and a bucket no route uses is a `VALIDATION_ERROR`.
+- Only the instance `guard` runs here, not a route `guard`
+  ([Setup](/docs/db/setup#register-the-plugin-step)).
+- `GET` and `PATCH /db/object` take an optional `bucket`, which defaults to
+  the only bucket your routes use. With several buckets it is required, and
+  a bucket no route uses is a `VALIDATION_ERROR`.
+- No action takes a scope, and no response names it. To read another scope,
+  use `s3.db` on the server.
 
 ### Listing
 
-`GET /db/objects` defaults to `status: "active"` and `limit: 50`, and
-rejects a `limit` above `100`. Unknown query keys, such as the 1.x `offset`
-and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
-`status=purging`: rows that purge has claimed are never listed.
-
-- `folderId` lists one folder: `""` is the root, and any other value is
-  that folder's id. Omit it for a flat list of every folder. A missing id
-  is `FOLDER_NOT_FOUND` (`404`).
-- `recursive=true`, with `folderId`, also covers every folder below it, up
-  to 10,000 folders: objects come from the whole subtree, and `folders`
-  holds every folder in it. With `folderId=""` that is the whole scope.
-  Without `folderId` it changes nothing. `authorize` sees `recursive: true`.
-- `search` keeps rows whose `filename` contains the text. Case, accents, and
-  look-alike letters (`ي`/`ی`, `ك`/`ک`) do not count, Persian and
-  Arabic-Indic digits match `0`–`9`, and `%` and `_` are plain text, the
-  same on SQLite, PostgreSQL, and MySQL. Each row stores its name folded
-  with `normalizeSearchText` from `@dimah-s3/core` (the `search_name`
-  column), and the search text is folded the same way.
-- `contentType` is an exact type, or `type/*` for every subtype
-  (`image/*`).
-- `sort` takes `{ field, direction }`, with `field` set to `createdAt`,
-  `updatedAt`, `size`, or `filename`. The default is `createdAt`, newest
-  first. Ties break on the row id, and rows with no value (a pending row's
-  `size`) come last in both directions.
-- `nextCursor` is `null` on the last page. A cursor made under other
-  filters is ignored, and the list starts again at the first page.
-
-The first page also carries `usage`, `limits`, and, when `folderId` is set,
-`folders` and `trail`, the folders from the root down to the open one.
-`folders` holds the direct child folders, or with `recursive` every folder
-below the open one, by name. It has at most 1000, and with `search` only
-those whose name contains it, matched like file names. The first page of a
-search carries `total`, the objects that match across every page. Every
-page of a recursive listing carries `locations`: the folders on the way to
-its objects and, on the first page, to `folders`. Walk `parentId` from a
-row's `folderId` to say where it lives. The response never names the
-caller's scope: it stays on the server.
+`GET /db/objects` returns one page of the caller's objects. The query is
+[`DbClientListObjectsInput`](#dbclientlistobjectsinput), and the page
+[`DbClientListObjectsResponse`](#dbclientlistobjectsresponse):
 
 ```ts
 const page = await api.db.listObjects({
-  folderId: "",
+  folderId: "", // the root
   search: "invoice",
   sort: { field: "size", direction: "desc" },
 });
@@ -225,37 +176,24 @@ found.total; // objects that match, across every page
 found.locations; // folders on the way to each row
 ```
 
-<Callout title="Scope is resolved on the server">
-  No browser action takes a scope. The plugin resolves it from the request with
-  `resolveScope`. To read another scope, use `s3.db.objects` on the server.
-</Callout>
+- Unknown query keys, such as `offset` and `prefix`, are a
+  `VALIDATION_ERROR` (`400`), and so is `status=purging`. A missing folder
+  is `FOLDER_NOT_FOUND` (`404`).
+- `search` matches the name folded with
+  [`normalizeSearchText`](/docs/core#search-folding): case, accents, and
+  look-alike letters do not count, and `%` and `_` are plain text, on every
+  database.
+- The `name` sort orders by that folded name, and folders are listed in the
+  same order. Rows with no value (a pending row's `size`) come last in both
+  directions.
+- A flat list (no `folderId`) reads the whole scope, so `authorize` sees a
+  [recursive listing](/docs/db/setup#recursive-listings) of the root.
 
 ## Folders
 
-Folders are logical: an object's `folderId` and the `storage_folder` table.
-They never change the S3 key. Empty folders are listed too. A folder is its
-id. Renaming it or moving it changes one row, then rewrites the cached
-`path` of that folder and everything inside it. Object rows keep the same
-`folderId`.
-
-A folder name is 1 to 255 characters, not `.` or `..`, and has no `/` or
-control characters. The cached path is at most 1024 UTF-8 bytes, like an
-S3 key, and 32 levels deep. Names are NFC-normalized. Anything else is `FOLDER_INVALID`
-(`400`). Moving a folder into itself or into one of its descendants is
-`FOLDER_INVALID` too. A sibling with the same name is `FOLDER_EXISTS`
-(`409`). A missing id is `FOLDER_NOT_FOUND` (`404`). In JSON and in types
-the root is `null`; on the wire (`?folderId=`, `clientMetadata.folderId`)
-it is `""`.
-
-An upload goes to the folder in `clientMetadata.folderId`. That folder must
-already exist. [`dbObjectSource`](#browser) sets it for uploads into the
-open folder. With your own `useUpload`, pass the id per call:
-
-```ts
-await upload.handleFiles(files, {
-  uploadOptions: { metadata: { folderId: reports.id } },
-});
-```
+Folders are logical: they never change the S3 key, and empty folders are
+listed too. They belong to the [scope](/docs/db/setup#scope), and a rename
+or move keeps every id.
 
 ```ts
 const reports = await api.db.createFolder({ name: "reports" });
@@ -264,37 +202,68 @@ await api.db.updateFolder({ id: reports.folder.id, name: "archive" });
 await api.db.deleteFolder({ id: reports.folder.id });
 ```
 
-- `createFolder` creates one folder. The parent must already exist. An
-  existing name in that parent is `FOLDER_EXISTS` (`409`).
+- `createFolder` creates one folder in a parent that already exists.
+  `parentId` omitted or `null` is the root.
 - `updateFolder` renames (`name`), moves (`parentId`, `null` is the root),
   or both.
-- `deleteFolder` removes an empty folder. A folder with child folders, or
-  with active or pending objects, is `FOLDER_NOT_EMPTY` (`409`). A missing
-  folder is not an error.
+- `deleteFolder` removes an empty folder. A missing folder is not an error.
+- In JSON and in types the root is `null`. On the wire (`?folderId=`,
+  `clientMetadata.folderId`) it is `""`.
+
+| Rule                                                                                                                | Error                      |
+| ------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| A name is 1 to 255 characters, not `.` or `..`, with no `/`, no control characters, and no whitespace at either end | `FOLDER_INVALID` (`400`)   |
+| A path is at most 1024 UTF-8 bytes and 32 levels deep                                                               | `FOLDER_INVALID` (`400`)   |
+| A folder cannot move into itself or one of its descendants                                                          | `FOLDER_INVALID` (`400`)   |
+| The folder, or its parent, must exist                                                                               | `FOLDER_NOT_FOUND` (`404`) |
+| No two siblings share a name                                                                                        | `FOLDER_EXISTS` (`409`)    |
+| A folder you delete has no child folders and no active or pending objects                                           | `FOLDER_NOT_EMPTY` (`409`) |
+| A new folder stays within the quota's `maxFolders`                                                                  | `QUOTA_EXCEEDED` (`403`)   |
+| Two moves at once that would put each folder inside the other: one is undone                                        | `CONFLICT` (`409`)         |
+
+Folder names are NFC-normalized, so an accented name typed composed or
+decomposed is the same name.
+
+### Upload into a folder
+
+An upload goes to the folder in `clientMetadata.folderId`, which must
+already exist. [`dbObjectSource`](#browser) sets it for uploads into the
+open folder. With your own `useUpload`, pass the id per call under
+`DB_FOLDER_ID_KEY`:
+
+```ts
+import { DB_FOLDER_ID_KEY } from "@dimah-s3/db/client";
+
+await upload.handleFiles(files, {
+  uploadOptions: { clientMetadata: { [DB_FOLDER_ID_KEY]: reports.id } },
+});
+```
 
 ## Update an object
 
 `PATCH /db/object` renames an object, moves it to another folder, or sets
-its attributes. Omitted fields stay as they are. Only active objects can be
-updated; anything else is `OBJECT_NOT_FOUND`.
+its attributes. Omitted fields stay as they are.
 
 ```ts
 const { object } = await api.db.updateObject({
   key: file.key,
-  filename: "Q3 report.pdf",
+  name: "Q3 report.pdf",
   folderId: reports.id, // null moves it to the root
 });
 ```
 
-A move requires the target folder to exist and runs `authorize` with that
-folder's path and id. Renames and moves change only the row: the S3 key
-stays as it is.
+- Only active objects can be updated. Anything else is `OBJECT_NOT_FOUND`.
+- `name` follows the rule of an uploaded file name: 1 to 255 UTF-8 bytes,
+  with no control or bidi characters.
+- A move needs the target folder to exist. `authorize` sees the current
+  folder as `folder`, and the target as `destination`.
+- The S3 key never changes.
 
 ## Attributes
 
 Attributes are your own JSON on each row, such as a description or tags.
 Enable them with a [Standard Schema](https://standardschema.dev) (Zod,
-Valibot, ArkType):
+Valibot, ArkType) in [`DbAttributesOptions`](#dbattributesoptions):
 
 ```ts title="lib/s3.ts"
 import * as z from "zod";
@@ -321,10 +290,10 @@ await api.db.updateObject({ key: file.key, attributes: { tags: ["q3"] } });
 - Without `attributes.schema`, a PATCH with `attributes` is a
   `VALIDATION_ERROR`.
 - The access check runs first, so a caller without access never reaches
-  your schema. Then a schema failure, or attributes larger than `maxBytes`
-  as JSON (default 16 KiB), is a `VALIDATION_ERROR` (`400`).
-- `toClient` maps the stored attributes to what the browser sees. Without
-  it, the browser sees all of them. `authorize` always sees them as stored.
+  your schema. A schema failure, or attributes over `maxBytes` as JSON, is a
+  `VALIDATION_ERROR` (`400`).
+- `toClient` maps the stored attributes to what the browser sees.
+  `authorize` always sees them as stored.
 
 Type the browser side by passing the client attributes to `dbClient`:
 
@@ -332,15 +301,12 @@ Type the browser side by passing the client attributes to `dbClient`:
 dbClient<{ description?: string; tags?: string[] }>();
 ```
 
-<AutoTypeTable
-  path="packages/db/src/types/plugin.ts"
-  name="DbAttributesOptions"
-/>
-
 ## Quota
 
-`quota` caps the bytes and files of a scope. Pass fixed caps, or a function
-that returns them per request (`null` for no cap):
+`quota` caps the bytes, files, and folders of a scope. Pass fixed caps, or a
+function that returns them per request (`null` for no cap). The function
+receives a [`ScopeContext`](/docs/db/setup#scopecontext) with the resolved
+`scope`:
 
 ```ts
 db({
@@ -354,74 +320,33 @@ db({
 });
 ```
 
-The function gets the [scope context](/docs/db/setup#scope) plus the
-resolved `scope`. The quota is checked twice:
+| Cap          | Checked                                                                           |
+| ------------ | --------------------------------------------------------------------------------- |
+| `maxBytes`   | At upload, then at confirm with the verified size from HeadObject                 |
+| `maxFiles`   | At upload, then at confirm                                                        |
+| `maxFolders` | When `POST /db/folder` creates a folder. `s3.db.folders.create` does not check it |
 
-1. At upload, against the scope's usage: active sizes plus the declared
-   sizes of pending uploads that have not expired. The row the upload
-   replaces is left out.
-2. At confirm, against the verified size from HeadObject. When that fails,
-   the server deletes the object and the plugin removes its row. A
-   confirm replay is not checked again.
-
-A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to `"bytes"`
-or `"files"`.
-
-The first page of `GET /db/objects` carries `usage` and `limits` (the caps
-for the scope, or `null`). `dbObjectSource` merges them into the list's
-`usage`, so `ObjectListUsage` shows the meter against the server's caps.
-
-<Accordions>
-<Accordion title="How should I check quotas for a large scope?">
-
-`getUsage` sums every live row of the scope on each call. That is fine for
-demos and light use, but not for frequent uploads on large scopes. Keep a
-counter of your own in that case, and return caps from the `quota` function
-that account for it.
-
-</Accordion>
-</Accordions>
+- Usage is the size of each active row plus the declared size of each
+  pending upload that has not expired. The row an upload replaces is left
+  out.
+- When the check at confirm fails, the server deletes the object and the
+  plugin removes its row. A confirm replay is not checked again.
+- A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to
+  `"bytes"`, `"files"`, or `"folders"`.
+- With a quota, the first page of `GET /db/objects` carries `usage` and
+  `limits`, and `ObjectListUsage` shows the meter against them. Without one,
+  `usage` is sent only when asked (`dbObjectSource(api.db, { usage: true })`).
+- A byte cap sums every live row of the scope on each upload and confirm,
+  and `usage` does the same on each first page. `maxFiles` alone is one
+  `COUNT`. For frequent uploads on large scopes, keep a counter of your own
+  and return caps from the `quota` function that account for it.
 
 ## Browser
 
-Register `dbClient()` once. In a client component, `s3Client.useApi()`
-gives you `api.db`:
-
-```ts title="lib/s3-client.ts"
-"use client";
-
-import { createS3Client } from "@dimah-s3/react";
-import { dbClient } from "@dimah-s3/db/client"; // [!code ++]
-
-export const s3Client = createS3Client({
-  basePath: "/api/s3",
-  plugins: [dbClient()], // [!code ++]
-});
-```
-
-<AutoTypeTable path="packages/db/src/types/client.ts" name="DbClientActions" />
-
-`dbObjectSource(api.db, options)` turns those actions into a
+With [`dbClient()` registered](/docs/db/setup#register-the-client-plugin-step),
+`s3Client.useApi().db` holds the [actions](#dbclientactions) above.
+`dbObjectSource(api.db, options)` turns them into a
 [`useObjectList`](/docs/react/hooks/object-list) source:
-
-- Each page lists one folder, and the first page carries its child folders
-  and the breadcrumb `trail`. `parent` is a folder id.
-- A search is recursive, and `searchScopes` is `["folder", "all"]`:
-  `searchScope: "folder"` sends the open folder with `recursive`, and
-  `"all"` the root. Each result gets its `location` from `locations`, and
-  the first page's `total` becomes the list's `total`. Pass
-  `recursiveSearch: false` to search the open folder only, for an
-  `authorize` that refuses `recursive`.
-- Uploads from the list go to the open folder (`uploadOptions`).
-- "New folder" calls `api.db.createFolder`.
-- Rename calls `api.db.updateObject` (`filename`) or `api.db.updateFolder`
-  (`name`). The object key stays. `folders: false` still renames files.
-- The list's `search` becomes `search`, and its sort maps `name` to
-  `filename`. `size` and `updatedAt` keep their names.
-- `usage` is the scope total with its caps, not the open folder's.
-
-Pass `folders: false` for a flat list with no folder actions. Its search
-covers every object of the scope, without search scopes or locations.
 
 ```tsx title="components/files.tsx"
 "use client";
@@ -456,10 +381,196 @@ export function Files() {
 }
 ```
 
-[`ObjectList`](/docs/react/ui/components/object-list) renders the same
-state with folders, upload, and usage: `<ObjectList list={list} />`.
+[`ObjectList`](/docs/ui/components/object-list) renders the same state with
+folders, upload, and usage: `<ObjectList list={list} />`.
 
-<AutoTypeTable
-  path="packages/db/src/types/client.ts"
-  name="DbObjectSourceOptions"
-/>
+- Each page lists one folder, and `parent` is a folder id. Uploads go to
+  the open folder, and "New folder" calls `api.db.createFolder`.
+- Rename calls `api.db.updateObject` or `api.db.updateFolder`. The object
+  key stays.
+- Search is recursive. `searchScopes` is `["folder", "all"]`: the open
+  folder and every folder below it, or the whole scope. Each result gets
+  its `location`.
+- The sort takes `name`, `size`, and `updatedAt`.
+- The usage line is the scope's total with its caps, not the open folder's.
+- `folders: false` gives a flat list that searches the whole scope, with
+  file rename and no folder actions.
+
+## API Reference
+
+### s3.db
+
+The plugin's context, also on `s3.context.db` (`DbPluginContext`).
+
+| Property       | Type                                                                            | Description                                                                 |
+| -------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `objects`      | `DbObjects`                                                                     | The `storage_object` rows ([DbObjects](#dbobjects))                         |
+| `folders`      | `DbFolders`                                                                     | The `storage_folder` rows ([DbFolders](#dbfolders))                         |
+| `record`       | `(input: RecordObjectInput, call?: RecordObjectCall) => Promise<StorageObject>` | Writes an active row for an object already in the bucket                    |
+| `checkSchema`  | `() => Promise<void>`                                                           | Throws unless the database is at schema `2.3.0` and both tables can be read |
+| `purgeStale`   | `(options?: PurgeStaleOptions) => Promise<PurgeStaleResult>`                    | Cleans up uploads past their deadline ([Purge](/docs/db/purge))             |
+| `pruneDeleted` | `(options: PruneDeletedOptions) => Promise<{ pruned: number }>`                 | Removes soft-deleted rows older than `olderThan`                            |
+
+### DbObjects
+
+`s3.db.objects`. It never calls S3.
+
+| Property | Type                                                                                             | Description                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `find`   | `(ref: ObjectRef) => Promise<StorageObject \| null>`                                             | Loads the row at `(bucket, key)`, whatever its status                                                              |
+| `list`   | `(scope, input?: ListObjectsInput) => Promise<ListObjectsPage>`                                  | One page of a scope's rows: `{ objects, nextCursor, firstPage }`                                                   |
+| `count`  | `(scope, filter?: ObjectFilter) => Promise<number>`                                              | Counts the rows of a scope that a filter covers                                                                    |
+| `usage`  | `(scope, options?: { excluding?: ObjectRef }) => Promise<DbUsage>`                               | Bytes and files of a scope; an active row with an overwrite in flight counts the larger size. Reads every live row |
+| `update` | `(ref: ObjectRef & { id?; scope? }, input: UpdateObjectInput) => Promise<StorageObject \| null>` | Sets `name`, `folderId`, or `attributes` of an active row. With `id` or `scope`, only that row changes             |
+
+### ListObjectsInput
+
+The options of `s3.db.objects.list`. `count` takes the same filter, without
+`sort`, `limit`, and `cursor` (`ObjectFilter`).
+
+| Prop          | Type                  | Default                                     | Description                                                              |
+| ------------- | --------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
+| `folderId`    | `string \| null`      | —                                           | Folder to cover; `null` is the root. Omit for every folder               |
+| `recursive`   | `boolean`             | `false`                                     | With `folderId`, also covers every folder below it, up to 10,000 folders |
+| `status`      | `StorageObjectStatus` | `"active"`                                  | Row status; `"pending"` covers only rows that have not expired           |
+| `route`       | `string`              | —                                           | Only rows of this route                                                  |
+| `contentType` | `string`              | —                                           | Exact type, or `type/*` for every subtype                                |
+| `search`      | `string`              | —                                           | Text the name contains, folded like the HTTP search                      |
+| `sort`        | `DbListSort`          | `{ field: "createdAt", direction: "desc" }` | Order of the rows; ties break on `id`                                    |
+| `limit`       | `number`              | `50`                                        | Rows per page                                                            |
+| `cursor`      | `string \| null`      | —                                           | `nextCursor` of the previous page                                        |
+
+### DbFolders
+
+`s3.db.folders`. Every method takes the scope first. The root is never
+stored, and `null` stands for it.
+
+| Property      | Type                                                                           | Description                                                                                          |
+| ------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `find`        | `(scope, id) => Promise<StorageFolder \| null>`                                | Loads one folder                                                                                     |
+| `count`       | `(scope) => Promise<number>`                                                   | How many folders the scope has                                                                       |
+| `children`    | `(scope, parentId, options?: { limit? }) => Promise<StorageFolder[]>`          | Direct child folders of `parentId`, by name; up to 1000 by default                                   |
+| `trail`       | `(scope, id) => Promise<StorageFolder[]>`                                      | The folders from the root down to `id`, `id` included; `FOLDER_NOT_FOUND` when it is missing         |
+| `descendants` | `(scope, parentId, options?: { search?; limit? }) => Promise<StorageFolder[]>` | Folders below `parentId` at any depth, by name then path, `parentId` excluded; up to 1000 by default |
+| `ancestors`   | `(scope, ids) => Promise<StorageFolder[]>`                                     | Every folder from the top level down to each id, once each, in path order; unknown ids are skipped   |
+| `create`      | `(scope, { parentId, name }) => Promise<StorageFolder>`                        | Creates a folder inside a parent that already exists                                                 |
+| `update`      | `(scope, id, { name?; parentId? }) => Promise<StorageFolder>`                  | Renames or moves a folder; ids stay, and the paths below it are rewritten                            |
+| `delete`      | `(scope, id) => Promise<void>`                                                 | Removes an empty folder; a missing folder does nothing                                               |
+
+### RecordObjectInput
+
+The first argument of `s3.db.record`. The second takes `request`,
+`headers`, `signal`, and `locals`, as for an in-process `s3.api` call.
+`request` wins over `headers` and `signal`.
+
+| Prop       | Type             | Default  | Description                                                                                                                   |
+| ---------- | ---------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `route`    | `string`         | required | Named route whose namespace holds `key`                                                                                       |
+| `key`      | `string`         | required | Object key the app wrote, inside the route namespace                                                                          |
+| `folderId` | `string \| null` | `null`   | Folder that holds the object; `""` is the root too. A missing id is `FOLDER_NOT_FOUND`                                        |
+| `name`     | `string`         | —        | Display name: 1 to 255 UTF-8 bytes, no control or bidi characters. Defaults to the last segment of `key`, fitted to that rule |
+
+### DbAttributesOptions
+
+The `attributes` option of `db()`.
+
+| Prop       | Type                                | Default  | Description                                                              |
+| ---------- | ----------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `schema`   | `StandardSchemaV1`                  | required | Validates the `attributes` of a `PATCH /db/object` body                  |
+| `toClient` | `(attributes) => TClientAttributes` | —        | Maps stored attributes to what the browser sees; defaults to all of them |
+| `maxBytes` | `number`                            | `16384`  | Largest JSON size of the attributes, in bytes                            |
+
+### DbQuota
+
+What the `quota` option or function returns. Omit a field for no cap.
+
+| Prop         | Type     | Default | Description                     |
+| ------------ | -------- | ------- | ------------------------------- |
+| `maxBytes`   | `number` | —       | Most bytes the scope may store  |
+| `maxFiles`   | `number` | —       | Most files the scope may hold   |
+| `maxFolders` | `number` | —       | Most folders the scope may hold |
+
+### DbClientActions
+
+`api.db`, from `dbClient()`. Each action also takes `{ signal, headers }` as
+a second argument.
+
+| Property       | Type                                                                                       | Description         |
+| -------------- | ------------------------------------------------------------------------------------------ | ------------------- |
+| `listObjects`  | `(input?) => Promise<DbClientListObjectsResponse>`                                         | `GET /db/objects`   |
+| `getObject`    | `({ key, bucket? }) => Promise<{ object: DbClientObject }>`                                | `GET /db/object`    |
+| `updateObject` | `({ key, bucket?, name?, folderId?, attributes? }) => Promise<{ object: DbClientObject }>` | `PATCH /db/object`  |
+| `createFolder` | `({ parentId?, name }) => Promise<{ folder: DbClientFolder }>`                             | `POST /db/folder`   |
+| `updateFolder` | `({ id, name?, parentId? }) => Promise<{ folder: DbClientFolder }>`                        | `PATCH /db/folder`  |
+| `deleteFolder` | `({ id }) => Promise<{ id: string }>`                                                      | `DELETE /db/folder` |
+
+### DbClientListObjectsInput
+
+The query of `listObjects` (`GET /db/objects`).
+
+| Prop          | Type                                 | Default                                     | Description                                                                      |
+| ------------- | ------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `folderId`    | `string \| null`                     | —                                           | Folder to list; `""` or `null` is the root. Omit for a flat list of every folder |
+| `recursive`   | `boolean`                            | `false`                                     | With `folderId`, also covers every folder below it, up to 10,000 folders         |
+| `route`       | `S3RouteName`                        | —                                           | Only objects of this route                                                       |
+| `status`      | `"pending" \| "active" \| "deleted"` | `"active"`                                  | Row status                                                                       |
+| `contentType` | `string`                             | —                                           | Exact type, or `type/*` for every subtype (`image/*`)                            |
+| `search`      | `string`                             | —                                           | Text the name contains, at most 255 characters                                   |
+| `sort`        | `DbListSort`                         | `{ field: "createdAt", direction: "desc" }` | `field` is `createdAt`, `updatedAt`, `size`, or `name`                           |
+| `limit`       | `number`                             | `50`                                        | Rows per page, 1 to 100                                                          |
+| `cursor`      | `string`                             | —                                           | `nextCursor` of the previous page                                                |
+| `usage`       | `boolean`                            | `false`                                     | Asks for the scope's `usage` when the plugin sets no quota; reads every row      |
+
+### DbClientListObjectsResponse
+
+One page of `listObjects`. Fields marked `?` are optional.
+
+| Property     | Type               | Description                                                                                                                                            |
+| ------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `objects`    | `DbClientObject[]` | The rows of this page                                                                                                                                  |
+| `nextCursor` | `string \| null`   | Cursor for the next page; `null` on the last page                                                                                                      |
+| `folders?`   | `DbClientFolder[]` | First page, with `folderId`: the direct child folders, or with `recursive` every folder below, by name. At most 1000, and with `search` only matches   |
+| `trail?`     | `DbClientFolder[]` | First page, with `folderId`: the folders from the root down to the open one. Empty at the root                                                         |
+| `locations?` | `DbClientFolder[]` | Every page of a recursive listing: the folders on the way to its objects and, on the first page, to `folders`. Walk `parentId` from a row's `folderId` |
+| `total?`     | `number`           | First page of a search: the objects that match, across every page                                                                                      |
+| `usage?`     | `DbUsage`          | First page, with a quota or `usage: true`: the scope's bytes and files                                                                                 |
+| `limits?`    | `DbQuota \| null`  | First page: the scope's caps, `null` when there are none                                                                                               |
+
+### DbClientObject
+
+An object row as the browser sees it. It has no scope, S3 metadata, or
+upload state.
+
+| Property       | Type                                 | Description                                       |
+| -------------- | ------------------------------------ | ------------------------------------------------- |
+| `id`           | `string`                             | Row id                                            |
+| `bucket`       | `string`                             | Bucket of the object                              |
+| `key`          | `string`                             | Object key                                        |
+| `route`        | `string`                             | Named route that created the object               |
+| `folderId`     | `string \| null`                     | Folder that holds the object; `null` is the root  |
+| `name`         | `string`                             | Display name                                      |
+| `contentType`  | `string \| null`                     | Content type                                      |
+| `size`         | `number \| null`                     | Verified size; `null` while the object is pending |
+| `declaredSize` | `number \| null`                     | Size the client declared                          |
+| `status`       | `"pending" \| "active" \| "deleted"` | Row status                                        |
+| `attributes`   | `TClientAttributes \| null`          | The `attributes.toClient` output                  |
+| `createdAt`    | `string`                             | ISO 8601 timestamp                                |
+| `updatedAt`    | `string`                             | ISO 8601 timestamp                                |
+
+A folder row (`DbClientFolder`) has `id`, `name`, `parentId` (`null` at the
+root), `path` (from the root, rewritten when an ancestor is renamed),
+`createdAt`, and `updatedAt`.
+
+### DbObjectSourceOptions
+
+The second argument of `dbObjectSource(api.db, options)`.
+
+| Prop              | Type                                 | Default    | Description                                                                                                                      |
+| ----------------- | ------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `route`           | `S3RouteName`                        | —          | Lists only this route's objects                                                                                                  |
+| `status`          | `"pending" \| "active" \| "deleted"` | `"active"` | Row status                                                                                                                       |
+| `contentType`     | `string`                             | —          | Exact type, or `type/*` for every subtype                                                                                        |
+| `limit`           | `number`                             | `50`       | Rows per page, clamped to 1 to 100                                                                                               |
+| `usage`           | `boolean`                            | `false`    | Asks for the usage line when the plugin sets no quota; reads every row of the scope                                              |
+| `folders`         | `boolean`                            | `true`     | Lists one folder at a time, with folder rows                                                                                     |
+| `recursiveSearch` | `boolean`                            | `true`     | With `folders` on, searches the folders below the open one, or the whole scope. Turn it off when `authorize` refuses `recursive` |

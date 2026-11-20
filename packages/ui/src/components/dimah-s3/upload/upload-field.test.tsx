@@ -369,7 +369,7 @@ describe("UploadField", () => {
     const { api } = renderField(
       { name: "files", maxFiles: 3 },
       <UploadTrigger />,
-      { onFileReject, queue: true },
+      { onFileReject, append: true },
     );
     const finish: (() => void)[] = [];
     api.uploadTransport.mockImplementation(
@@ -474,7 +474,7 @@ describe("UploadField", () => {
     const { api } = renderField(
       { name: "files", defaultValue: ["old.txt"], maxFiles: 2 },
       <UploadFieldValue />,
-      { onFileReject, queue: true },
+      { onFileReject, append: true },
       (upload) => (
         <AddFiles
           upload={upload}
@@ -497,7 +497,7 @@ describe("UploadField", () => {
     const { api } = renderField(
       { name: "files", defaultValue: ["old.txt"], maxFiles: 2 },
       <UploadFieldValue />,
-      { onFileReject, queue: true },
+      { onFileReject, append: true },
       (upload) => <PasteFiles upload={upload} />,
     );
 
@@ -522,7 +522,7 @@ describe("UploadField", () => {
       </>,
       {
         onFileReject,
-        queue: true,
+        append: true,
         // The first call waits, so the second starts while it prepares.
         beforeUpload: () => (++calls === 1 ? gate.promise : true),
       },
@@ -817,7 +817,7 @@ describe("UploadField", () => {
 
     expect(handleFiles).toHaveBeenCalledWith([file], {
       maxFiles: 3,
-      queue: true,
+      append: true,
     });
   });
 });

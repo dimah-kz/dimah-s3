@@ -10,6 +10,7 @@ import { usePasteFiles } from "@/hooks/use-paste-files";
 const emptyBatch: UploadBatchResult = {
   uploaded: [],
   failed: [],
+  rejected: [],
   blocked: [],
   aborted: [],
 };

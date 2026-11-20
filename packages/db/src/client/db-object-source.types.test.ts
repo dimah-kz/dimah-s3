@@ -40,6 +40,6 @@ describe("DbObjectSource types", () => {
     expectTypeOf(dbObjectSource(db)).toEqualTypeOf<
       DbObjectSource<Attributes>
     >();
-    expect(dbObjectSource(db).getKey).toBeTypeOf("function");
+    expect(dbObjectSource(db).getId).toBeTypeOf("function");
   });
 });

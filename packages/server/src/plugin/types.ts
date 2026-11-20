@@ -26,7 +26,7 @@ export type DimahS3PluginHooks = {
   ticketSubject?: TicketSubject;
   upload?: Pick<
     UploadConfig,
-    "guard" | "onStart" | "confirmGuard" | "onConfirmed"
+    "guard" | "onStart" | "confirmGuard" | "onConfirmed" | "onRejected"
   > & { multipart?: Pick<MultipartConfig, "guard" | "onAbort"> };
   download?: Pick<DownloadConfig, "guard" | "onPresigned">;
   delete?: Pick<DeleteConfig, "guard" | "onDeleted">;

@@ -1,19 +1,17 @@
 import type { ResolvedTemplate } from "@/templates/registry";
 import { loadCatalog, resolveTemplate } from "@/templates/registry";
 import type { CreateConfig, CreateFlags, PackageManager } from "@/types";
-import { CliError, EXIT_CANCEL, errorMessage } from "@/utils/errors";
+import { CliError, errorMessage } from "@/utils/errors";
 import { listDir } from "@/utils/fs";
 import {
   detectPackageManager,
   parsePackageManagerFlag,
 } from "@/utils/package-manager";
-import {
-  assertValidPackageName,
-  sanitizeProjectName,
-} from "@/utils/project-name";
+import { assertProjectName } from "@/utils/project-name";
 import { ask, isInteractive, logWarn, p } from "@/utils/ui";
 import { PRESERVED_ENTRIES, resolveTarget } from "./target.js";
 
+/** Placeholder and default of the project name prompt. */
 const DEFAULT_PROJECT_NAME = "my-app";
 
 export type ResolvedCreate = {
@@ -33,9 +31,14 @@ async function resolveOption<T>(
   return options.interactive ? options.prompt() : options.fallback;
 }
 
-function validateNameInput(value: string | undefined): string | undefined {
+/** Resolves the directory the way `create` will, so `.` is a valid answer. */
+function validateNameInput(
+  value: string | undefined,
+  cwd: string,
+): string | undefined {
+  const input = value || DEFAULT_PROJECT_NAME;
   try {
-    assertValidPackageName(sanitizeProjectName(value || DEFAULT_PROJECT_NAME));
+    assertProjectName(resolveTarget(input, cwd).projectName, input);
     return undefined;
   } catch (error) {
     return errorMessage(error);
@@ -81,12 +84,18 @@ export async function resolveCreateConfig(
         message: "Project name",
         placeholder: DEFAULT_PROJECT_NAME,
         defaultValue: DEFAULT_PROJECT_NAME,
-        validate: validateNameInput,
+        validate: (value) => validateNameInput(value, cwd),
       }),
     ));
 
   const target = resolveTarget(dirInput, cwd);
-  assertValidPackageName(target.projectName);
+  assertProjectName(target.projectName, dirInput);
+
+  // Asked first: a target that will not be used should not cost four answers.
+  const overwrite = await resolveOverwrite(target.targetDir, {
+    flag: Boolean(flags.overwrite),
+    interactive,
+  });
 
   const firstTemplate = templates[0];
   if (!firstTemplate) {
@@ -156,11 +165,6 @@ export async function resolveCreateConfig(
     );
   }
 
-  const overwrite = await resolveOverwrite(target.targetDir, {
-    flag: Boolean(flags.overwrite),
-    interactive,
-  });
-
   return {
     config: {
       projectName: target.projectName,
@@ -180,6 +184,9 @@ export async function resolveCreateConfig(
 /**
  * Decides whether existing files in the target may be replaced. Confirmation
  * happens here so every filesystem mutation stays inside the pipeline steps.
+ *
+ * Answering "no" is a failure (exit code 1), like the same directory on a
+ * non-interactive run. Ctrl+C at the prompt is a cancellation (130).
  */
 async function resolveOverwrite(
   targetDir: string,
@@ -205,8 +212,9 @@ async function resolveOverwrite(
   );
 
   if (!confirmed) {
-    p.cancel("Target directory is not empty.");
-    throw new CliError("Cancelled", EXIT_CANCEL);
+    throw new CliError(
+      `Target directory "${targetDir}" is not empty. Nothing was changed.`,
+    );
   }
   return true;
 }

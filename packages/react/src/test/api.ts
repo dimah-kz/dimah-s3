@@ -50,7 +50,7 @@ export function fakeS3Api(overrides: FakeS3ApiOverrides = {}): S3Api {
       name: payload.name,
       size: payload.size,
       type: payload.type,
-      metadata: payload.metadata ?? {},
+      metadata: payload.clientMetadata ?? {},
       uploadId,
       partSize,
       partCount: Math.max(1, Math.ceil(payload.size / partSize)),

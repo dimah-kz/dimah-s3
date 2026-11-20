@@ -106,7 +106,7 @@ export function FileAttachment({
   const resolvedDescription =
     description ??
     (state === "error"
-      ? (errorText ?? t("Failed", { note: "status" }))
+      ? (errorText ?? t("Failed", { note: "attachment status" }))
       : fileSize != null
         ? formatFileSize(fileSize)
         : null);

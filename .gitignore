@@ -22,6 +22,15 @@ coverage/
 # Vercel
 .vercel/
 
+# Starter lockfiles. `templates/*` are installed for smoke builds only. A
+# starter's own .gitignore must not list them: a scaffolded app commits its
+# lockfile.
+templates/*/pnpm-lock.yaml
+templates/*/package-lock.json
+templates/*/yarn.lock
+templates/*/bun.lock
+templates/*/bun.lockb
+
 # Build outputs
 .next/
 out/

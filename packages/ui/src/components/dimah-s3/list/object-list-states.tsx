@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import type { ObjectListView } from "@/components/dimah-s3/list/object-list-context";
-import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  useObjectListContext,
+  type ObjectListPaginationMode,
+  type ObjectListView,
+} from "@/components/dimah-s3/list/object-list-context";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
 import { canChooseSearchScope } from "@/components/dimah-s3/list/object-list-search";
 
@@ -223,12 +226,12 @@ export function ObjectListSkeleton({ view }: { view: ObjectListView }) {
  * The next page. `auto` loads it when the end of the rows is on screen;
  * `button` waits for Load more.
  */
-export function ObjectListPagination({
+export function ObjectListNextPage({
   mode,
   root,
   ready,
 }: {
-  mode: "auto" | "button";
+  mode: ObjectListPaginationMode;
   /** Scroll parent. `null` uses the viewport. */
   root: HTMLElement | null;
   ready: boolean;
@@ -268,10 +271,18 @@ export function ObjectListPagination({
         <Button
           variant="ghost"
           size="sm"
+          aria-busy={pending || undefined}
           disabled={pending}
           onClick={() => void list.loadMore()}
         >
-          {pending ? <Spinner data-icon="inline-start" /> : null}
+          {pending ? (
+            <Spinner
+              data-icon="inline-start"
+              aria-hidden
+              aria-label={undefined}
+              role={undefined}
+            />
+          ) : null}
           {t("Load more", { note: "object list" })}
         </Button>
       </div>

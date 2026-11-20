@@ -15,7 +15,7 @@ import {
 export type DownloadProgressProps = {
   /** S3 object key whose download to show. */
   objectKey: string;
-} & ComponentProps<"div">;
+} & Omit<ComponentProps<"div">, "children">;
 
 /**
  * Progress bar for the running `useFetchDownload` call of one key, with the
@@ -35,7 +35,7 @@ export function DownloadProgress({
   const formatNumber = useFormatNumber();
   const formatDownloadedBytes = useFormatDownloadedBytes();
   const { download } = useDownloadContext();
-  if (download.mode !== "fetch") return null;
+  if (download.kind !== "fetch") return null;
 
   const operation = download.get(objectKey);
   if (!operation || !isDownloadRunning(operation)) return null;

@@ -99,6 +99,7 @@ describe("resolveRoutes: features", () => {
       onStart: [],
       confirmGuard: [],
       onConfirmed: [],
+      onRejected: [],
     });
   });
 

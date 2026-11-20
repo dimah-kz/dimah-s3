@@ -69,7 +69,6 @@ describe("useFetchDownload", () => {
       useFetchDownload({
         api,
         route: "uploads",
-        disposition: "attachment",
         onDownloadStart,
         onProgress,
         onSuccess,
@@ -83,13 +82,13 @@ describe("useFetchDownload", () => {
     });
 
     expect(api.download).toHaveBeenCalledWith(
-      { route: "uploads", key: "docs/a.txt", disposition: "attachment" },
+      { route: "uploads", key: "docs/a.txt" },
       { signal: expect.any(AbortSignal) },
     );
     expect(fetchMock).toHaveBeenCalledWith("https://s3.test/dl/docs/a.txt", {
       signal: expect.any(AbortSignal),
     });
-    const data = { fileName: "greeting.txt", size: 11 };
+    const data = { fileName: "greeting.txt", fileSize: 11 };
     expect(outcome).toEqual({ status: "success", key: "docs/a.txt", data });
     expect(saveBlob).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -117,7 +116,7 @@ describe("useFetchDownload", () => {
       },
     ]);
     expect(hook.current).toMatchObject({
-      mode: "fetch",
+      kind: "fetch",
       instanceId: expect.any(String),
       pendingKeys: [],
       isPending: false,
@@ -416,7 +415,7 @@ describe("useFetchDownload", () => {
     expect(retried).toEqual({
       status: "success",
       key: "a.txt",
-      data: { fileName: "a.txt", size: 2 },
+      data: { fileName: "a.txt", fileSize: 2 },
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(hook.current.pendingKeys).toEqual([]);

@@ -20,8 +20,8 @@ describe("@dimah-s3/react/engine", () => {
       const engine = await import("./engine");
       expect(Object.keys(engine).sort()).toEqual([
         "DEFAULT_MULTIPART_THRESHOLD",
-        "createLocalStorageStore",
-        "createMemoryStore",
+        "createLocalStorageUploadStore",
+        "createMemoryUploadStore",
         "defineApi",
         "formatAcceptLabels",
         "formatFileSize",

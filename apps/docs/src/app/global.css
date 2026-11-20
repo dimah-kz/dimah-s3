@@ -134,6 +134,15 @@
   html {
     @apply font-sans;
   }
+  /* Persian text in Vazirmatn; Latin words in it stay in Geist. */
+  [lang="fa"] {
+    font-family: var(--font-persian), var(--font-sans), sans-serif;
+  }
+  /* Inline code keeps its own direction inside right-to-left text. */
+  [dir="rtl"] :not(pre) > code {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
 }
 
 .framework {
@@ -148,16 +157,22 @@
   --color-fd-primary: var(--react-color);
 }
 
+.ui {
+  --color-fd-primary: var(--ui-color);
+}
+
 :root {
   --framework-color: hsl(32, 72%, 38%);
   --server-color: hsl(158, 58%, 38%);
   --react-color: hsl(193, 95%, 43%);
+  --ui-color: hsl(262, 60%, 52%);
 }
 
 .dark {
   --framework-color: hsl(38, 62%, 68%);
   --server-color: hsl(158, 45%, 58%);
   --react-color: hsl(193, 95%, 65%);
+  --ui-color: hsl(262, 85%, 74%);
 }
 
 #nd-home-layout {

@@ -27,39 +27,39 @@ export function useShareExpiryLabel() {
     (seconds: number | null) => {
       if (seconds === null) {
         return t("This link works while you can access this file.", {
-          note: "object list menu",
+          note: "share link",
         });
       }
       const { unit, count } = durationParts(seconds);
       const value = formatNumber(count);
       if (unit === "day") {
         return count === 1
-          ? t("Expires in 1 day", { note: "object list menu" })
+          ? t("Expires in 1 day", { note: "share link" })
           : t("Expires in {count} days", {
-              note: "object list menu",
+              note: "share link",
               variables: { count: value },
             });
       }
       if (unit === "hour") {
         return count === 1
-          ? t("Expires in 1 hour", { note: "object list menu" })
+          ? t("Expires in 1 hour", { note: "share link" })
           : t("Expires in {count} hours", {
-              note: "object list menu",
+              note: "share link",
               variables: { count: value },
             });
       }
       if (unit === "minute") {
         return count === 1
-          ? t("Expires in 1 minute", { note: "object list menu" })
+          ? t("Expires in 1 minute", { note: "share link" })
           : t("Expires in {count} minutes", {
-              note: "object list menu",
+              note: "share link",
               variables: { count: value },
             });
       }
       return count === 1
-        ? t("Expires in 1 second", { note: "object list menu" })
+        ? t("Expires in 1 second", { note: "share link" })
         : t("Expires in {count} seconds", {
-            note: "object list menu",
+            note: "share link",
             variables: { count: value },
           });
     },

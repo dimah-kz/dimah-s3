@@ -66,7 +66,7 @@ export type DbPluginContext<TAttributes = never> = {
  *   bucket,
  *   plugins: [
  *     db({
- *       client: DimahS3DB.client(adapter),
+ *       client: DimahS3Db.client(adapter),
  *       getSession: (request) => auth.getSession(request),
  *       resolveScope: ({ session }) => (session ? `user:${session.userId}` : null),
  *       quota: { maxBytes: 1024 ** 3 },
@@ -102,6 +102,7 @@ export function db<
     toDbClientObject(object, options.attributes?.toClient);
   const access = createObjectAccess({
     objects: store.objects,
+    folders: store.folders,
     resolveScope,
     authorize: options.authorize,
   });

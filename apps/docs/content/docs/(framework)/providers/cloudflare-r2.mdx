@@ -1,50 +1,44 @@
 ---
 title: Cloudflare R2
-description: Endpoint configuration, CORS, and public URLs for Cloudflare R2.
+description: Connect dimah-s3 to Cloudflare R2 with presigned PUT uploads, bucket CORS from the dashboard, and public URLs.
 ---
 
-Cloudflare R2 supports the S3 API with two important differences: it has no
-presigned POST, and object ACLs are ignored.
+Cloudflare R2 speaks the S3 API with two differences that matter here: it has
+no presigned POST, and it ignores object ACLs.
 
-## 1. Server configuration
+## Server configuration
 
-Point the `S3Client` at your account's R2 endpoint. Uploads use presigned PUT
-by default, which is what R2 needs:
+```dotenv title=".env"
+S3_ENDPOINT="https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+S3_REGION="auto"
+S3_ACCESS_KEY_ID="your-access-key-id"
+S3_SECRET_ACCESS_KEY="your-secret-access-key"
+S3_BUCKET="your-bucket-name"
+```
+
+The keys come from an R2 API token with **Object Read & Write** permission.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
-  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
-});
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: process.env.R2_BUCKET!,
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
-    }),
-  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 ```
 
-Do not set `upload.method: "POST"` on R2 routes. The presign succeeds, but R2
-rejects the form upload.
+Keep the default `upload.method`, `"PUT"`. A route with `method: "POST"`
+presigns fine, then R2 rejects the upload.
 
-## 2. Bucket CORS policy
+## Bucket CORS
 
-Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
+Add a CORS policy in the bucket's **Settings** in the R2 dashboard:
 
 ```json
 [
@@ -52,23 +46,26 @@ Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
     "AllowedOrigins": ["https://your-app.example"],
     "AllowedMethods": ["GET", "PUT", "HEAD"],
     "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag", "Content-Type"],
+    "ExposeHeaders": ["Content-Disposition", "Content-Encoding"],
     "MaxAgeSeconds": 3000
   }
 ]
 ```
 
-## Frequently asked questions
+[Allow your origin in bucket CORS](/docs/providers#allow-your-origin-in-bucket-cors)
+explains each field.
 
-<Accordions>
+## Public files
 
-<Accordion title="How do I serve R2 files publicly?">
+`acl: "public-read"` does not make an object public on R2. Turn on the bucket's
+public `r2.dev` URL, or connect a custom domain, and use it as the public base:
 
-Enable public access for the bucket or connect a custom domain such as
-`cdn.example.com`. Then build URLs from that public base URL and the
-server-issued object key; [`buildPublicObjectUrl`](/docs/core#helpers)
-handles URL encoding for you.
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="https://cdn.example.com"
+```
 
-</Accordion>
+Then build URLs with
+[`buildPublicObjectUrl`](/docs/providers#make-files-public). The `r2.dev` URL
+is rate-limited, so use a custom domain in production.
 
-</Accordions>
+Upload failing? See [Troubleshooting](/docs/providers#troubleshooting).

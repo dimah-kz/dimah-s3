@@ -79,12 +79,7 @@ export function useFetchDownload(
 
         call.publish({ ...base, phase: "presigning" });
         const { url } = await api.download(
-          {
-            route: opts.route,
-            key,
-            name: fileName,
-            disposition: opts.disposition,
-          },
+          { route: opts.route, key, name: fileName },
           { signal },
         );
         call.update({ phase: "downloading" });
@@ -135,7 +130,7 @@ export function useFetchDownload(
         return {
           status: "success",
           key,
-          data: { fileName: name, size: blob.size },
+          data: { fileName: name, fileSize: blob.size },
         };
       } catch (error) {
         if (signal.aborted) {
@@ -164,7 +159,7 @@ export function useFetchDownload(
   const reset = useCallback((key?: string) => store.reset(key), [store]);
 
   return {
-    mode: "fetch",
+    kind: "fetch",
     instanceId,
     operations,
     get,

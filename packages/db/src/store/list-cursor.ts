@@ -4,6 +4,7 @@ import type {
   StorageObject,
   StorageObjectStatus,
 } from "@/types/storage-object";
+import { toSearchName } from "./search-name";
 
 /** Listing order when none is given: newest first. */
 export const DEFAULT_LIST_SORT: DbListSort = {
@@ -71,7 +72,9 @@ export function encodeListCursor(
   filters: ListCursorFilters,
   object: StorageObject<unknown>,
 ): string {
-  const value = object[filters.sort.field];
+  const { field } = filters.sort;
+  // The name sort orders by the folded name, so that is its position.
+  const value = field === "name" ? toSearchName(object.name) : object[field];
   const payload: CursorPayload = {
     f: fingerprint(filters),
     v: value instanceof Date ? value.toISOString() : value,
@@ -119,7 +122,7 @@ function decodeValue(
         (typeof value === "number" && Number.isSafeInteger(value) && value >= 0)
         ? value
         : undefined;
-    case "filename":
+    case "name":
       return typeof value === "string" ? value : undefined;
   }
 }

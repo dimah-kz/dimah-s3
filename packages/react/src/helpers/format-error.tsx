@@ -78,7 +78,7 @@ export function useFormatError(): (error: unknown) => string {
               })
             : t("Could not reach storage", { note: "API error" });
         }
-        case "UNKNOWN_ROUTE":
+        case "ROUTE_NOT_FOUND":
           return t("Unknown file route", { note: "API error" });
         case "FEATURE_DISABLED":
           switch (text("feature")) {
@@ -132,9 +132,14 @@ export function useFormatError(): (error: unknown) => string {
         case "CHECKSUM_REQUIRED":
           return t("A file checksum is required", { note: "API error" });
         case "QUOTA_EXCEEDED":
-          return text("limit") === "files"
-            ? t("File limit reached", { note: "API error" })
-            : t("Storage quota exceeded", { note: "API error" });
+          switch (text("limit")) {
+            case "files":
+              return t("File limit reached", { note: "API error" });
+            case "folders":
+              return t("Folder limit reached", { note: "API error" });
+            default:
+              return t("Storage quota exceeded", { note: "API error" });
+          }
         case "UPLOAD_TICKET_INVALID":
           return t("Upload session is invalid", { note: "API error" });
         case "UPLOAD_TICKET_EXPIRED":

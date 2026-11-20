@@ -12,17 +12,19 @@ npx @dimah-s3/cli@beta create my-app --template hono
 
 `npm run dev` starts Hono (`:3000`) and Vite (`:5173`). Open the Vite URL; `/api` is proxied to Hono. `npm start` after `npm run build` serves the API and static UI from Hono alone.
 
+The `avatar` route is open: anyone who can reach the app can upload until you add a `guard` (there is a commented stub in `src/lib/s3.ts`). See [Security](https://s3.dimah.dev/docs/server/security).
+
 ## What’s included
 
 | Path                   | Role                                                  |
 | ---------------------- | ----------------------------------------------------- |
-| `src/lib/s3.ts`        | `awsS3` + `dimahS3({ secret, routes })`               |
+| `src/lib/s3.ts`        | `awsS3` + `dimahS3({ routes })`                       |
 | `src/lib/s3-client.ts` | `createS3Client()` (same origin via the `/api` proxy) |
 | `src/server.ts`        | Hono app (`toHonoHandler` + static after build)       |
 | `src/main.tsx`         | `s3Client.Provider` + `Toaster`                       |
 | `src/App.tsx`          | Sample `Upload` + `UploadTrigger` + `UploadToasts`    |
 
-Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Hono tab), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/react/ui).
+Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Hono tab), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/ui).
 
 ## License
 

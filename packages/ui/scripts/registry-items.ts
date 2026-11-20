@@ -110,7 +110,7 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/list/object-list-states.tsx"),
   sourceFile("components/dimah-s3/list/object-list-usage.tsx"),
   sourceFile("components/dimah-s3/list/object-list-upload.tsx"),
-  sourceFile("components/dimah-s3/list/object-list-item-menu.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-entry-menu.tsx"),
   sourceFile("components/dimah-s3/list/object-list-rename.tsx"),
   sourceFile("components/dimah-s3/list/object-list-feedback.tsx"),
   sourceFile(
@@ -124,9 +124,19 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("hooks/use-share-expiry-label.ts", "registry:hook"),
 ];
 
+/**
+ * The `@dimah-s3/*` packages the copied source imports, with a range: a
+ * bare name installs the `latest` dist-tag, which can be another major.
+ * This range takes every 2.x release and the 2.0.0 prereleases, so it
+ * never needs editing.
+ */
+const dimahS3Dependencies = [
+  "@dimah-s3/core@^2.0.0-beta.0",
+  "@dimah-s3/react@^2.0.0-beta.0",
+] as const;
+
 const componentDependencies = [
-  "@dimah-s3/core",
-  "@dimah-s3/react",
+  ...dimahS3Dependencies,
   "@fuma-translate/react",
   "cn",
   "lucide-react",
@@ -139,10 +149,8 @@ const themeTokens = [
   "card",
   "card-foreground",
   "primary",
-  "primary-foreground",
   "muted",
   "muted-foreground",
-  "accent",
   "border",
   "ring",
   "destructive",
@@ -274,7 +282,7 @@ export const components: Registry["items"] = [
     files: files(
       [sourceFile("components/dimah-s3/upload/avatar-upload.tsx")],
       uploadRootFiles,
-      [objectImageFile, circleProgressFile],
+      [objectImageFile, circleProgressFile, toastOwnerFile],
     ),
   },
   {
@@ -284,7 +292,7 @@ export const components: Registry["items"] = [
     description:
       "Image that loads an S3 object through a presigned URL and refreshes it before it expires.",
     ...installMeta,
-    dependencies: ["@dimah-s3/core", "@dimah-s3/react"],
+    dependencies: [...dimahS3Dependencies],
     files: [objectImageFile],
   },
   {

@@ -40,7 +40,11 @@ async function ogPayload(slug: string[]) {
   const page = source.getPage(slug.slice(0, -1));
   if (!page) return null;
 
-  const card = ogCard(page.slugs, page.data.title, page.data.description);
+  const card = ogCard(
+    page.slugs,
+    page.data.ogTitle ?? page.data.title,
+    page.data.ogDescription ?? page.data.description,
+  );
   const fonts = await ogFonts();
 
   // `use cache` only keeps plain data. ImageResponse is built by the handler.

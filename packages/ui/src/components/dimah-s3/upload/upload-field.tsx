@@ -17,10 +17,11 @@ import { fileNameFromKey } from "@dimah-s3/core";
 import { useUploadLimit } from "@dimah-s3/react";
 import type {
   DropTargetProps,
-  DropzoneRootProps,
+  UploadCallInput,
   UploadCallOptions,
   UploadFileState,
   UploadResult,
+  UploadRootProps,
   UseUploadReturn,
 } from "@dimah-s3/react";
 import { cn } from "cn";
@@ -76,9 +77,6 @@ export type UploadFieldContextValue = {
   /** Drops `key` from the value. The stored object is kept. */
   remove: (key: string) => void;
 };
-
-/** Optional arguments of `getRootProps` and `getDropTargetProps`. */
-type CallInput = Parameters<UseUploadReturn["getRootProps"]>[1];
 
 const UploadFieldContext = createContext<UploadFieldContextValue | null>(null);
 
@@ -363,9 +361,9 @@ function fieldUploadOf(
 ): UseUploadReturn {
   const queued = (call?: UploadCallOptions): UploadCallOptions => ({
     ...call,
-    queue: true,
+    append: true,
   });
-  const queuedInput = (call: CallInput): CallInput =>
+  const queuedInput = (call: UploadCallInput | undefined): UploadCallInput =>
     typeof call === "function" ? () => queued(call()) : queued(call);
 
   const fieldUpload: UseUploadReturn = {
@@ -382,7 +380,7 @@ function fieldUploadOf(
     ...fieldUpload,
     open: () => {},
     // Not `upload.getRootProps`: its handlers would open the picker.
-    getRootProps: <T extends DropzoneRootProps>(props?: T) =>
+    getRootProps: <T extends UploadRootProps>(props?: T) =>
       ({ tabIndex: 0, ...props, "aria-disabled": true }) as T,
     getDropTargetProps: <T extends object = DropTargetProps>(
       props?: T & DropTargetProps,

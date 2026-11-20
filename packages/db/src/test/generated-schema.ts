@@ -4,16 +4,16 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { drizzleAdapter } from "@/adapters/drizzle";
 import { prismaAdapter } from "@/adapters/prisma";
-import { DimahS3DB } from "@/fuma-db";
+import { DimahS3Db } from "@/fuma-db";
 
 /** Git-ignored; Vite still transforms files here, unlike `node_modules`. */
 const GENERATED_DIR = join(import.meta.dirname, "../../.vitest/generated");
 
 export type DrizzleProvider = "sqlite" | "postgresql" | "mysql";
 
-/** `DimahS3DB`, or its tables in the PostgreSQL schema `dbSchema`. */
+/** `DimahS3Db`, or its tables in the PostgreSQL schema `dbSchema`. */
 function library(dbSchema?: string) {
-  return dbSchema ? DimahS3DB.names.schema(dbSchema) : DimahS3DB;
+  return dbSchema ? DimahS3Db.names.schema(dbSchema) : DimahS3Db;
 }
 
 /** The Drizzle schema `runCli` → `generate` writes for `provider`. */

@@ -1,4 +1,5 @@
 import { s3Error } from "@dimah-s3/core";
+import type { StorageFolderStore } from "@/store/folder-store";
 import type { ObjectRef, StorageObjectStore } from "@/store/object-store";
 import type { AuthorizeContext, DbPluginOptions } from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
@@ -13,7 +14,12 @@ import type {
 export type AccessTarget = ScopeTarget &
   Pick<
     AuthorizeContext,
-    "key" | "folder" | "folderId" | "recursive" | "clientMetadata"
+    | "key"
+    | "folder"
+    | "folderId"
+    | "destination"
+    | "recursive"
+    | "clientMetadata"
   >;
 
 export type CreateObjectAccessOptions<TSession, TAttributes> = Pick<
@@ -21,6 +27,8 @@ export type CreateObjectAccessOptions<TSession, TAttributes> = Pick<
   "authorize"
 > & {
   objects: Pick<StorageObjectStore<TAttributes>, "find">;
+  /** Reads the folder of a stored object for `authorize`. */
+  folders: Pick<StorageFolderStore, "find">;
   resolveScope: ScopeResolver<TSession>;
 };
 
@@ -68,22 +76,45 @@ export type ObjectAccess<TSession, TAttributes> = {
 
 /**
  * Creates the access checks. A row belongs to the scope that wrote it, and
- * `authorize` can only narrow that: it runs after the ownership check.
+ * `authorize` can only narrow that: it runs after the ownership check. For
+ * a stored object, `authorize` sees the folder the row is in, whatever the
+ * call names; the folder is read only when `authorize` is configured.
  */
 export function createObjectAccess<TSession, TAttributes>(
   options: CreateObjectAccessOptions<TSession, TAttributes>,
 ): ObjectAccess<TSession, TAttributes> {
+  /**
+   * Where a stored object is: its folder id, and the folder's path while
+   * the folder exists.
+   */
+  const locationOf = async (
+    object: StorageObject<TAttributes>,
+  ): Promise<Pick<AuthorizeContext, "folder" | "folderId">> => {
+    if (object.folderId === null) return { folder: null, folderId: null };
+    const folder = await options.folders.find(object.scope, object.folderId);
+    return {
+      folderId: object.folderId,
+      ...(folder && { folder: folder.path }),
+    };
+  };
+
   const authorize = async (
     scope: ResolvedScope<TSession>,
     target: AccessTarget | undefined,
     object?: StorageObject<TAttributes>,
   ) => {
     if (!options.authorize) return;
+    const location = object
+      ? await locationOf(object)
+      : { folder: target?.folder, folderId: target?.folderId };
     const allowed = await options.authorize({
       ...scope,
       ...(target?.key !== undefined && { key: target.key }),
-      ...(target?.folder !== undefined && { folder: target.folder }),
-      ...(target?.folderId !== undefined && { folderId: target.folderId }),
+      ...(location.folder !== undefined && { folder: location.folder }),
+      ...(location.folderId !== undefined && { folderId: location.folderId }),
+      ...(target?.destination !== undefined && {
+        destination: target.destination,
+      }),
       ...(target?.recursive === true && { recursive: true }),
       ...(target?.clientMetadata !== undefined && {
         clientMetadata: target.clientMetadata,

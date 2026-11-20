@@ -1,5 +1,0 @@
-{
-  "title": "Upload",
-  "defaultOpen": true,
-  "pages": ["upload", "upload-field", "avatar-upload"]
-}

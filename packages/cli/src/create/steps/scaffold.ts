@@ -1,6 +1,7 @@
 import { join } from "pathe";
 
 import type { CreateContext } from "@/types";
+import { throwIfCancelled } from "@/utils/cancel";
 import { CliError } from "@/utils/errors";
 import {
   copyDir,
@@ -8,6 +9,7 @@ import {
   ensureDir,
   pathExists,
   readJson,
+  removeFile,
   renameIfExists,
   writeJson,
 } from "@/utils/fs";
@@ -54,6 +56,18 @@ export async function applyProjectName(ctx: CreateContext): Promise<void> {
   );
 }
 
+/** pnpm settings file of the starter. Other package managers ignore it. */
+const PNPM_WORKSPACE_FILE = "pnpm-workspace.yaml";
+
+/**
+ * Drops the starter's `pnpm-workspace.yaml` unless the project uses pnpm:
+ * it only holds pnpm settings.
+ */
+export async function applyPackageManager(ctx: CreateContext): Promise<void> {
+  if (ctx.config.packageManager === "pnpm") return;
+  await removeFile(join(ctx.config.targetDir, PNPM_WORKSPACE_FILE));
+}
+
 /**
  * Writes `.env` with generated values such as `DIMAH_S3_SECRET`. An existing
  * `.env` is only appended to, and a key that already has a value is kept.
@@ -71,16 +85,20 @@ export async function applySrcLayout(ctx: CreateContext): Promise<void> {
 export const scaffoldStep: CreateStep = {
   id: "scaffold",
   title: (ctx) => `Scaffolding ${ctx.template.title} template`,
-  async run(ctx, report) {
+  async run(ctx, report, signal) {
     await prepareTarget(ctx);
+    throwIfCancelled(signal);
     report("Copying template files");
     await copyTemplate(ctx);
+    throwIfCancelled(signal);
     report("Applying project name");
     await applyProjectName(ctx);
+    await applyPackageManager(ctx);
     if (!ctx.config.src) {
       report("Flattening src/ directory");
       await applySrcLayout(ctx);
     }
+    throwIfCancelled(signal);
     report("Writing .env");
     await writeEnv(ctx);
     return `Scaffolded ${ctx.template.title} template`;

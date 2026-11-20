@@ -1,6 +1,0 @@
-{
-  "title": "Components",
-  "description": "Upload, download, delete, and file browsing",
-  "defaultOpen": true,
-  "pages": ["(upload)", "(actions)", "(files)"]
-}

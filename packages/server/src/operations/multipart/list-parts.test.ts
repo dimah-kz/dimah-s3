@@ -63,7 +63,7 @@ describe("listMultipartParts", () => {
     });
   });
 
-  it("runs upload.multipart.guard with action list", async () => {
+  it("runs upload.multipart.guard for multipart.listParts", async () => {
     const guard = vi.fn<(context: MultipartGuardContext) => void>();
     const { config } = setup({ guard: [{ hook: guard }] });
     const upload = await initMultipart(config, defaultUploadBody);
@@ -74,7 +74,6 @@ describe("listMultipartParts", () => {
     expect(guard).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: "multipart.listParts",
-        action: "list",
         uploadId: upload.uploadId,
         key: upload.key,
       }),

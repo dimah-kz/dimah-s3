@@ -160,7 +160,6 @@ describe("signMultipartPart", () => {
       uploadId,
       uploadToken: expect.any(String),
       file: { name: "a.png", size: SIZE, type: "image/png" },
-      action: "part",
       partNumber: 2,
       size: 3,
     });

@@ -20,7 +20,7 @@ export function UploadFileListDemo() {
     route: "uploads",
     maxFiles: 5,
     maxFileSize: 75 * 1024 * 1024,
-    queue: true,
+    append: true,
   });
   const formatFileSize = useFormatFileSize();
 

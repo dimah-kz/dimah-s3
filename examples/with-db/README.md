@@ -17,12 +17,12 @@ Open `/`. Drop files onto the list or onto a folder, or use **Upload files**. **
 
 Browser uploads need bucket CORS that allows `PUT` from your origin.
 
-Coming from the 1.x example: delete `local.db` and run `pnpm db:push` again.
+Coming from an earlier version of this example: delete `local.db` and run `pnpm db:push` again. The schema is created on a new database, not upgraded.
 
 ## What's wired
 
 1. [db/dimah-s3.ts](db/dimah-s3.ts): the Drizzle tables `pnpm db:generate` writes from the `@dimah-s3/db` schema ([scripts/dimah-s3.mts](scripts/dimah-s3.mts) runs `runCli`). `drizzle-kit push` creates them.
-2. [src/lib/db.ts](src/lib/db.ts): Drizzle over better-sqlite3, and `DimahS3DB.client(drizzleAdapter(…))` from `@dimah-s3/db/adapters/drizzle`
+2. [src/lib/db.ts](src/lib/db.ts): Drizzle over better-sqlite3, and `DimahS3Db.client(drizzleAdapter(…))` from `@dimah-s3/db/adapters/drizzle`
 3. [src/lib/s3.ts](src/lib/s3.ts): `dimahS3({ secret, routes })` with the `files` route and `db({ client, resolveScope, quota })`
 4. [src/app/api/s3/[...s3]/route.ts](src/app/api/s3/[...s3]/route.ts): Next.js adapter
 5. [src/lib/s3-client.ts](src/lib/s3-client.ts): `createS3Client({ plugins: [dbClient()] })` and `S3Provider`

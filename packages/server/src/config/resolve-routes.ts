@@ -192,6 +192,11 @@ function resolveUpload(
       (p) => hooks(p)?.onConfirmed,
       upload.onConfirmed,
     ),
+    onRejected: hookList(
+      env.plugins,
+      (p) => hooks(p)?.onRejected,
+      upload.onRejected,
+    ),
   };
   return resolved;
 }

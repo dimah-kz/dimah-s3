@@ -16,7 +16,7 @@ export type DbClientObject<TClientAttributes = never> = {
   route: string;
   /** Folder that holds the object. `null` is the root. */
   folderId: string | null;
-  filename: string;
+  name: string;
   contentType: string | null;
   /** Verified size. `null` while the object is pending. */
   size: number | null;
@@ -44,7 +44,7 @@ export type DbClientFolder = {
 };
 
 /** Column a listing can be ordered by. */
-export type DbListSortField = "createdAt" | "updatedAt" | "size" | "filename";
+export type DbListSortField = "createdAt" | "updatedAt" | "size" | "name";
 
 /**
  * Listing order. Ties break on row `id` in the same direction. Rows with no
@@ -65,13 +65,15 @@ export type DbUsage = {
 export type DbQuota = {
   maxBytes?: number;
   maxFiles?: number;
+  /** Most folders the scope may hold. `POST /db/folder` checks it. */
+  maxFolders?: number;
 };
 
 /**
  * Query for `GET /db/objects`. The scope is not an input: the server
  * resolves it from the request.
  */
-export type DbClientListInput = {
+export type DbClientListObjectsInput = {
   /**
    * Folder to list. `null` (or `""`) is the root. Omit for a flat list of
    * every folder.
@@ -90,7 +92,7 @@ export type DbClientListInput = {
   /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
   /**
-   * Text the `filename` contains. Case, accents, and look-alike letters
+   * Text the `name` contains. Case, accents, and look-alike letters
    * (`ي`/`ی`, `ك`/`ک`) do not count, Persian and Arabic-Indic digits match
    * `0`–`9`, and `%` and `_` are plain text, the same on every database.
    * With `folderId`, folder names are matched the same way.
@@ -105,10 +107,16 @@ export type DbClientListInput = {
    * ignored, and the list starts again at the first page.
    */
   cursor?: string;
+  /**
+   * Ask for the scope's `usage` on the first page. It reads every row of
+   * the scope, so it is off unless the plugin sets a `quota`, which sends
+   * it either way.
+   */
+  usage?: boolean;
 };
 
 /** One page of `GET /db/objects`. */
-export type DbClientListResponse<TClientAttributes = never> = {
+export type DbClientListObjectsResponse<TClientAttributes = never> = {
   objects: DbClientObject<TClientAttributes>[];
   /** `null` on the last page. */
   nextCursor: string | null;
@@ -132,21 +140,25 @@ export type DbClientListResponse<TClientAttributes = never> = {
   locations?: DbClientFolder[];
   /** Objects that match, across every page. First page of a search only. */
   total?: number;
-  /** First page only. */
+  /**
+   * Bytes and files of the scope. First page only, and only when the plugin
+   * sets a `quota` or the query asks with `usage: true`.
+   */
   usage?: DbUsage;
   /** Caps for the scope, `null` when there are none. First page only. */
   limits?: DbQuota | null;
 };
 
 /** Identifies one object. `bucket` defaults to the only configured bucket. */
-export type DbClientGetInput = {
+export type DbClientGetObjectInput = {
   key: string;
   bucket?: string;
 };
 
 /** Body of `PATCH /db/object`. Omitted fields stay as they are. */
-export type DbClientUpdateInput = DbClientGetInput & {
-  filename?: string;
+export type DbClientUpdateObjectInput = DbClientGetObjectInput & {
+  /** New display name. The object key stays as it is. */
+  name?: string;
   /** Folder id. `null` moves the object to the root. */
   folderId?: string | null;
   /**
@@ -181,15 +193,15 @@ export type DbClientDeleteFolderInput = {
  */
 export type DbClientActions<TClientAttributes = never> = {
   listObjects(
-    input?: DbClientListInput,
+    input?: DbClientListObjectsInput,
     options?: S3RequestOptions,
-  ): Promise<DbClientListResponse<TClientAttributes>>;
+  ): Promise<DbClientListObjectsResponse<TClientAttributes>>;
   getObject(
-    input: DbClientGetInput,
+    input: DbClientGetObjectInput,
     options?: S3RequestOptions,
   ): Promise<{ object: DbClientObject<TClientAttributes> }>;
   updateObject(
-    input: DbClientUpdateInput,
+    input: DbClientUpdateObjectInput,
     options?: S3RequestOptions,
   ): Promise<{ object: DbClientObject<TClientAttributes> }>;
   createFolder(
@@ -213,8 +225,15 @@ export type DbObjectSourceOptions = {
   status?: DbClientObjectStatus;
   /** Exact type, or `type/*` for every subtype (`image/*`). */
   contentType?: string;
-  /** Rows per page. The server caps it at 100. */
+  /** Rows per page, 1 to 100. A value outside that is clamped to it. */
   limit?: number;
+  /**
+   * Ask the server for the scope's usage line when the plugin sets no
+   * `quota`. With a quota, the list has it either way. It reads every row
+   * of the scope on the first page.
+   * @default false
+   */
+  usage?: boolean;
   /** List one folder at a time, with folder rows. @default true */
   folders?: boolean;
   /**
@@ -296,13 +315,13 @@ export type DbObjectSource<TClientAttributes = never> = {
   query: (
     input: DbObjectSourceQueryInput,
   ) => Promise<DbObjectSourcePage<TClientAttributes>>;
-  getKey: (item: DbClientObject<TClientAttributes>) => string;
+  getId: (item: DbClientObject<TClientAttributes>) => string;
   getFile: (item: DbClientObject<TClientAttributes>) => DbObjectSourceFile;
   /** `["folder", "all"]` with `folders` on: search reaches every folder. */
   searchScopes?: readonly DbObjectSourceSearchScope[];
   /** Upload options for files dropped into `parent`. The root sends `""`. */
   uploadOptions?: (parent: string | null) => {
-    metadata: Record<string, string>;
+    clientMetadata: Record<string, string>;
   };
   /** Creates `name` inside `parent`. */
   createFolder?: (input: {
@@ -310,7 +329,7 @@ export type DbObjectSource<TClientAttributes = never> = {
     name: string;
   }) => Promise<DbObjectSourceFolder>;
   /**
-   * Renames a file's `filename`. The object `key` stays. Set when `api.db`
+   * Renames a file's `name`. The object `key` stays. Set when `api.db`
    * has `updateObject`.
    */
   renameFile?: (input: {

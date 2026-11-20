@@ -30,7 +30,9 @@ export type UploadTriggerProps = ComponentProps<typeof Button> & {
  * inside `<Upload>`.
  *
  * The default content is an icon and "Upload file" (or "Upload files" when
- * the hook takes more than one). An `onClick` that prevents the default
+ * the hook takes more than one). An icon-size button shows the icon alone
+ * and keeps that label as its accessible name. An `onClick` that prevents
+ * the default
  * keeps the picker closed. It is disabled while the hook is
  * (`upload.disabled`); a `disabled` prop replaces that default, but the
  * picker stays closed while the hook is disabled. While the root is full, as
@@ -44,9 +46,12 @@ export function UploadTrigger({
   className,
   children,
   onClick,
+  size,
   ...props
 }: UploadTriggerProps) {
   const t = useTranslations();
+  // An icon button shows the icon alone and keeps the label as its name.
+  const iconOnly = size?.startsWith("icon") ?? false;
   const { upload, isFull } = useUploadContext();
   const uploadCall = useUploadCall(upload, call);
   const { intakeProps } = useUploadFocus();
@@ -54,6 +59,7 @@ export function UploadTrigger({
   const button = (
     <Button
       data-slot="upload-trigger"
+      size={size}
       {...intakeProps}
       {...props}
       disabled={(disabled ?? upload.disabled) || isFull}
@@ -63,6 +69,7 @@ export function UploadTrigger({
         "aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
         // Square while the default label hides in a narrow ObjectListHeader.
         children == null &&
+          !iconOnly &&
           "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!",
         className,
       )}
@@ -75,7 +82,11 @@ export function UploadTrigger({
         <>
           <CloudUpload data-icon="inline-start" aria-hidden />
           {/* In a narrow ObjectListHeader the default label hides. */}
-          <span className="@max-[36rem]/object-list-header:sr-only">
+          <span
+            className={
+              iconOnly ? "sr-only" : "@max-[36rem]/object-list-header:sr-only"
+            }
+          >
             {upload.policy.maxFiles > 1
               ? t("Upload files", { note: "button" })
               : t("Upload file", { note: "button" })}

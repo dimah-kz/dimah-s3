@@ -1,8 +1,10 @@
 import { createGetUrl } from "fumadocs-core/source";
 import { pageSchema } from "fumadocs-core/source/schema";
 import { z } from "zod";
+import { pageLanguageFields, type PageLanguage } from "./page-language";
 
 export const blogPageSchema = pageSchema.extend({
+  ...pageLanguageFields,
   /** publish date, posts are sorted by it */
   date: z.iso.date().or(z.date()).optional(),
   tags: z.array(z.string()).optional(),
@@ -38,6 +40,8 @@ export interface BlogPost {
   date?: Date;
   /** cover image URL */
   image?: string;
+  /** language the post is written in, English when unset */
+  lang?: PageLanguage;
   tags: BlogTag[];
   authors: BlogAuthor[];
 }
@@ -78,6 +82,7 @@ export function getPosts(
       description: data.description,
       date: data.date === undefined ? undefined : new Date(data.date),
       image: data.image,
+      lang: data.lang,
       tags: [],
       authors: [],
     };

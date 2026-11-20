@@ -87,7 +87,7 @@ describe("useDownload", () => {
     ]);
     expect(hook.current.get("a.png")?.phase).toBe("success");
     expect(hook.current).toMatchObject({
-      mode: "navigate",
+      kind: "navigate",
       instanceId: expect.any(String),
       pendingKeys: [],
       isPending: false,

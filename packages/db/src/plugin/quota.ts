@@ -18,7 +18,8 @@ export type Quota<TSession> = {
   limits: (scope: ResolvedScope<TSession>) => Promise<DbQuota | null>;
   /**
    * Checks that one more file of `size` bytes fits the caps. Usage counts
-   * active rows and pending rows that have not expired.
+   * active rows and pending rows that have not expired. `maxFolders` is not
+   * checked here: `POST /db/folder` checks it.
    * @throws `QUOTA_EXCEEDED` with `limit: "files"` or `limit: "bytes"`.
    */
   assert: (scope: ResolvedScope<TSession>, input: QuotaInput) => Promise<void>;
@@ -26,7 +27,7 @@ export type Quota<TSession> = {
 
 /** Creates the quota checks over `objects`. Without `option`, nothing is capped. */
 export function createQuota<TSession>(
-  objects: Pick<StorageObjectStore, "getUsage">,
+  objects: Pick<StorageObjectStore, "usage" | "liveCount">,
   option: DbQuotaOption<TSession> | undefined,
 ): Quota<TSession> {
   const limits = async (scope: ResolvedScope<TSession>) =>
@@ -43,9 +44,16 @@ export function createQuota<TSession>(
       ) {
         return;
       }
-      const usage = await objects.getUsage(scope.scope, {
-        excluding: input.excluding,
-      });
+      const { excluding } = input;
+      if (caps.maxBytes === undefined) {
+        // Only the file count is capped: one COUNT, no rows read.
+        const files = await objects.liveCount(scope.scope, { excluding });
+        if (caps.maxFiles !== undefined && files >= caps.maxFiles) {
+          throw s3Error("QUOTA_EXCEEDED", { limit: "files" });
+        }
+        return;
+      }
+      const usage = await objects.usage(scope.scope, { excluding });
       if (caps.maxFiles !== undefined && usage.objectCount >= caps.maxFiles) {
         throw s3Error("QUOTA_EXCEEDED", { limit: "files" });
       }

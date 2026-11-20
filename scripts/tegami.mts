@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { tegami, type TegamiPlugin } from "tegami";
 import { runCli } from "tegami/cli";
 import { github } from "tegami/plugins/github";
@@ -7,7 +7,9 @@ import { github } from "tegami/plugins/github";
  * One file on every release branch. `main` is stable 1.x (`latest`).
  * `v2` is the 2.0 beta (`2.0.0-beta.N` on the `beta` dist-tag).
  * When 2.0.0 ships, drop `v2` after merging it into `main`, and add a
- * `v1` maintenance line with `distTag: "v1"` cut from the last 1.x commit.
+ * `v1` maintenance line with `distTag: "release-1.x"` cut from the last 1.x
+ * commit. The tag cannot be `v1`: npm refuses a dist-tag that parses as a
+ * semver range. Steps: docs/agents/release.md.
  */
 interface ReleaseLine {
   /** npm dist-tag. Only `main` may claim `latest`. */
@@ -57,15 +59,13 @@ function buildOnPublish(): TegamiPlugin {
   return {
     name: "build-on-publish",
     async willPublish({ pkg }) {
-      execFileSync(
-        "pnpm",
-        ["exec", "turbo", "run", "build", "--filter", pkg.name],
-        {
-          cwd: this.cwd,
-          stdio: "inherit",
-          shell: true,
-        },
-      );
+      // One command string: `pnpm` is a `.cmd` shim on Windows and needs
+      // the shell, and an argument array with a shell is deprecated in Node.
+      // `pkg.name` is a workspace package name.
+      execSync(`pnpm exec turbo run build --filter ${pkg.name}`, {
+        cwd: this.cwd,
+        stdio: "inherit",
+      });
     },
   };
 }

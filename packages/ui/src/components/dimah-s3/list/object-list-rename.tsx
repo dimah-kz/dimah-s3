@@ -19,7 +19,10 @@ import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { splitFileName } from "@/components/dimah-s3/attachment/file-name";
-import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  useObjectListContext,
+  useObjectListInternal,
+} from "@/components/dimah-s3/list/object-list-context";
 
 /** True when the source can rename this entry. */
 export function canRenameEntry<TItem>(
@@ -42,7 +45,8 @@ export function ObjectListRenameField<TItem>({
 }) {
   const t = useTranslations();
   const formatError = useFormatError();
-  const { list, endRename } = useObjectListContext<TItem>();
+  const { list } = useObjectListContext<TItem>();
+  const { endRename } = useObjectListInternal();
   const inputId = useId();
   const errorId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +57,7 @@ export function ObjectListRenameField<TItem>({
   const [error, setError] = useState<string | null>(null);
   const folder = entry.kind === "folder";
   const label = folder
-    ? t("Folder name", { note: "object list new folder" })
+    ? t("Folder name", { note: "object list rename" })
     : t("File name", { note: "object list rename" });
 
   useEffect(() => {
@@ -78,7 +82,7 @@ export function ObjectListRenameField<TItem>({
     if (!trimmed) {
       setError(
         folder
-          ? t("Enter a folder name", { note: "object list new folder" })
+          ? t("Enter a folder name", { note: "object list rename" })
           : t("Enter a file name", { note: "object list rename" }),
       );
       return;
@@ -126,12 +130,17 @@ export function ObjectListRenameField<TItem>({
       variant="ghost"
       size="icon-sm"
       className="shrink-0"
-      aria-label={t("Rename", { note: "object list menu" })}
+      aria-label={t("Save name", { note: "object list rename" })}
+      aria-busy={pending || undefined}
       disabled={pending}
       focusableWhenDisabled
       onMouseDown={(event) => event.preventDefault()}
     >
-      {pending ? <Spinner /> : <CheckIcon />}
+      {pending ? (
+        <Spinner aria-hidden aria-label={undefined} role={undefined} />
+      ) : (
+        <CheckIcon />
+      )}
     </Button>
   );
   const cancel = (

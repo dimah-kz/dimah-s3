@@ -14,6 +14,7 @@ import { cn } from "cn";
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import { ObjectImage } from "@/components/dimah-s3/preview/object-image";
 import { Upload } from "@/components/dimah-s3/upload/upload";
+import { useToastOwner } from "@/hooks/use-toast-owner";
 
 /** Props for {@link AvatarUpload}. */
 export type AvatarUploadProps = {
@@ -26,7 +27,7 @@ export type AvatarUploadProps = {
   /** Accessible name of the button, such as "Change profile photo". */
   label: string;
   /** Runs once per uploaded image. Store `result.key` and pass it back as `objectKey`. */
-  onChange?: (result: UploadResult) => void;
+  onUploaded?: (result: UploadResult) => void;
   /** Width and height in pixels. @default 96 */
   size?: number;
   /** `circle` for people, `square` (rounded corners) for logos and covers. @default "circle" */
@@ -58,7 +59,8 @@ function isUploaded(
  * It shows the picked file's preview while it uploads and after, with a
  * progress ring while it is in flight. Otherwise it shows `objectKey`, or a
  * placeholder. A polite live region announces the upload phase, errors
- * and rejected files.
+ * and rejected files; it stays silent while an `UploadToasts` is mounted for
+ * the same hook, which announces them instead.
  *
  * @example
  * ```tsx
@@ -69,7 +71,7 @@ function isUploaded(
  *   route="avatars"
  *   objectKey={user.avatarKey}
  *   label="Change profile photo"
- *   onChange={(result) => saveAvatar(result.key)}
+ *   onUploaded={(result) => saveAvatar(result.key)}
  * />
  * ```
  */
@@ -78,7 +80,7 @@ export function AvatarUpload({
   route,
   objectKey = null,
   label,
-  onChange,
+  onUploaded,
   size = 96,
   shape = "circle",
   api,
@@ -103,9 +105,11 @@ export function AvatarUpload({
   const previewUrl =
     inFlight || previewCurrent ? (file?.previewUrl ?? null) : null;
   const announcement = useAnnouncement(upload);
+  // A weak owner: an `UploadToasts` for the same hook announces instead.
+  const announces = useToastOwner(upload.instanceId, { weak: true });
 
   const reportUploaded = useEffectEvent((result: UploadResult) => {
-    onChange?.(result);
+    onUploaded?.(result);
   });
   // Images that uploaded before the avatar mounted are not reported.
   const [reported] = useState(
@@ -184,7 +188,7 @@ export function AvatarUpload({
           </span>
         )}
         <span className="sr-only" aria-live="polite">
-          {announcement}
+          {announces ? announcement : ""}
         </span>
       </div>
     </Upload>
@@ -208,7 +212,7 @@ function useAnnouncement(upload: UseUploadReturn): string {
     case "error":
       return file.error
         ? formatError(file.error)
-        : t("Upload failed", { note: "status" });
+        : t("Upload failed", { note: "upload status" });
     default:
       return t("Uploading…", { note: "upload status" });
   }

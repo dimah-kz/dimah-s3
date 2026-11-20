@@ -42,7 +42,7 @@ function Example({
         label={`Change image (${label})`}
         size={size}
         shape={shape}
-        onChange={(result) => setImageKey(result.key)}
+        onUploaded={(result) => setImageKey(result.key)}
       />
       <span className="text-xs text-muted-foreground">{label}</span>
       <UploadToasts upload={upload} />

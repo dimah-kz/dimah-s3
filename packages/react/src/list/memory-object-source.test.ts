@@ -34,7 +34,7 @@ function input(
 }
 
 const source = memoryObjectSource(RECORDS, {
-  getKey: (record) => record.id,
+  getId: (record) => record.id,
   getFile: (record) => ({
     name: record.name,
     size: record.size,
@@ -72,7 +72,7 @@ describe("memoryObjectSource", () => {
     ]);
 
     const bySize = memoryObjectSource(RECORDS, {
-      getKey: (record) => record.id,
+      getId: (record) => record.id,
       getFile: (record) => ({ name: record.name, size: record.size }),
       getFolder: (record) => record.folder,
     });
@@ -106,7 +106,7 @@ describe("memoryObjectSource", () => {
 
   it("searches every folder below the open one, or everywhere", async () => {
     const tree = memoryObjectSource(RECORDS, {
-      getKey: (record) => record.id,
+      getId: (record) => record.id,
       getFile: (record) => ({ name: record.name }),
       getFolder: (record) => record.folder,
     });
@@ -149,7 +149,7 @@ describe("memoryObjectSource", () => {
     expect(source.getFile(atRoot).location).toEqual([]);
 
     const flat = memoryObjectSource(RECORDS, {
-      getKey: (record) => record.id,
+      getId: (record) => record.id,
       getFile: (record) => ({ name: record.name }),
     });
     expect(flat.getFile(deep)).toEqual({ name: "deep.png" });
@@ -162,7 +162,7 @@ describe("memoryObjectSource", () => {
       { id: "b", name: "گزارش ۱۴۰۲.xlsx", folder: null, size: 1 },
     ];
     const persian = memoryObjectSource(records, {
-      getKey: (record) => record.id,
+      getId: (record) => record.id,
       getFile: (record) => ({ name: record.name }),
     });
     const ids = async (search: string) =>
@@ -174,7 +174,7 @@ describe("memoryObjectSource", () => {
   it("reads the latest records from a function", async () => {
     const records: Record[] = [];
     const live = memoryObjectSource(() => records, {
-      getKey: (record) => record.id,
+      getId: (record) => record.id,
       getFile: (record) => ({ name: record.name }),
     });
     records.push({ id: "n", name: "new.txt", folder: null, size: 1 });
@@ -185,7 +185,7 @@ describe("memoryObjectSource", () => {
 
   it("sends limits with usage, and turns usage on when limits are set", async () => {
     const options = {
-      getKey: (record: Record) => record.id,
+      getId: (record: Record) => record.id,
       getFile: (record: Record) => ({ name: record.name, size: record.size }),
       limits: { maxBytes: 100, maxFiles: 10 },
     };
@@ -202,7 +202,7 @@ describe("memoryObjectSource", () => {
     expect((await hidden.query(input())).usage).toBeUndefined();
 
     const plain = memoryObjectSource(RECORDS, {
-      getKey: options.getKey,
+      getId: options.getId,
       getFile: options.getFile,
     });
     expect((await plain.query(input())).usage).toBeUndefined();

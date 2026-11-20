@@ -4,90 +4,11 @@ description: Implement multipart init, part signing, resume, completion, and abo
 ---
 
 Large files upload in parts. Each part is a presigned PUT, and your backend
-runs the session: init, signing, complete, and abort.
+runs the session. The browser uses multipart for files of at least 50 MiB
+when the route's catalog entry has `multipart: true`.
 
-**Flow:** `init` → `signPart` (per part) → `complete` or `abort` · `listParts`
-to resume.
-
-The browser uses multipart for files of at least 50 MiB when the route's
-catalog entry has `multipart: true`.
-
-## Init
-
-Same file fields as a [simple upload](/docs/react/custom-backend/upload),
-without `checksum`.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartInitPayload"
-/>
-
-Your backend picks the part layout. Return `partSize` (every part but the
-last) and `partCount`; the browser slices the file exactly that way. Set
-`checksum: true` to make every part send a SHA-256. The `ticket` goes with
-every later call, so it must identify the route, key, and upload id.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartInitResponse"
-/>
-
-## Sign part
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartSignPartPayload"
-/>
-
-Sign the part's exact byte `size` into the URL, and the checksum when there is
-one. The browser sends exactly `headers` on the PUT. When a part URL expires
-mid-upload, the browser calls `signPart` again rather than reusing it.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartPartResponse"
-/>
-
-## List parts, complete, and abort
-
-These three take only the ticket.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="TicketPayload"
-/>
-
-`listParts` returns the parts S3 already has, so a resumed upload sends only
-the rest. Read every page of S3's `ListParts`.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartListPartsResponse"
-/>
-
-`complete` lists the parts on the server, completes the upload, and returns
-the object `HeadObject` reports, plus the upload id.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartCompleteResponse"
-/>
-
-`abort` ends the session. The browser calls it when the user cancels.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartAbortResponse"
-/>
-
-When a resumed upload's ticket has expired, or the upload is gone, throw
-`UPLOAD_TICKET_EXPIRED`, `UPLOAD_TICKET_INVALID`, or `OBJECT_NOT_FOUND`. The
-browser then aborts, forgets the stored upload, and starts over.
-
-## Example
-
-[`@dimah-s3/server`](/docs/server) mounts these under
-`/api/s3/presign/multipart/*`.
+**Flow:** `init` → `signPart` for each part → `complete`, or `abort` on
+cancel. `listParts` resumes a stored upload.
 
 ```ts title="lib/s3-api/multipart.ts"
 import type {
@@ -126,5 +47,74 @@ export const abort = (payload: TicketPayload, options?: S3RequestOptions) =>
   post<MultipartAbortResponse>("/abort", payload, options);
 ```
 
-`$fetch` and `call` come from the
+[`@dimah-s3/server`](/docs/server) mounts these under
+`/api/s3/presign/multipart/*`. `$fetch` and `call` come from the
 [skeleton](/docs/react/custom-backend#skeleton).
+
+## Init
+
+The payload has the same file fields as a
+[simple upload](/docs/react/custom-backend/upload#presign) without
+`checksum`: `route`, `name`, `size`, `type?`, and `clientMetadata?`.
+
+Your backend picks the part layout, and the browser slices the file exactly
+that way. The `ticket` goes with every later call, so it must identify the
+route, key, and upload id.
+
+| Property    | Type      | Description                                  |
+| ----------- | --------- | -------------------------------------------- |
+| `key`       | `string`  | The object key your backend picked           |
+| `bucket`    | `string`  | Target bucket                                |
+| `uploadId`  | `string`  | S3 multipart upload id                       |
+| `ticket`    | `string`  | Upload ticket for every later multipart call |
+| `partSize`  | `number`  | Size of every part but the last, in bytes    |
+| `partCount` | `number`  | Number of parts                              |
+| `checksum`  | `boolean` | `true` makes every part send a SHA-256       |
+
+## Sign part
+
+The payload is `{ ticket, partNumber, checksum? }`. `partNumber` is 1-based,
+up to 10000. `checksum` is the part's base64 SHA-256, sent when init returned
+`checksum: true`.
+
+Sign the part's exact byte `size` into the URL, and the checksum when there
+is one. The browser sends exactly `headers` on the PUT. When a part URL
+expires mid-upload, the browser calls `signPart` again rather than reusing
+it.
+
+| Property     | Type                     | Description                         |
+| ------------ | ------------------------ | ----------------------------------- |
+| `url`        | `string`                 | Presigned PUT URL for this part     |
+| `partNumber` | `number`                 | 1-based part number                 |
+| `size`       | `number`                 | Exact byte size signed into the URL |
+| `expiresIn`  | `number`                 | URL lifetime in seconds             |
+| `headers`    | `Record<string, string>` | Headers the browser sends exactly   |
+
+## List parts, complete, and abort
+
+These three take only `{ ticket }`.
+
+**`listParts`** returns `{ parts }`: the parts S3 already has, so a resumed
+upload sends only the rest. Read every page of S3's `ListParts`.
+
+| Property     | Type     | Description                                    |
+| ------------ | -------- | ---------------------------------------------- |
+| `partNumber` | `number` | 1-based part number                            |
+| `size`       | `number` | Part size in bytes                             |
+| `eTag`       | `string` | Part ETag from S3                              |
+| `checksum?`  | `string` | Base64 SHA-256 of the part, when S3 stored one |
+
+**`complete`** lists the parts on the server, completes the upload, and
+returns the object `HeadObject` reports, plus `uploadId`. The fields are the
+[confirm response](/docs/react/custom-backend/upload#confirm) and
+`uploadId: string`.
+
+**`abort`** ends the session and returns `{ key, bucket, uploadId }`. The
+browser calls it when the user cancels, or when the upload fails in a way a
+retry cannot fix.
+
+## Expired sessions
+
+When a resumed upload's ticket has expired, or the upload is gone, throw
+`UPLOAD_TICKET_EXPIRED`, `UPLOAD_TICKET_INVALID`, or `OBJECT_NOT_FOUND`. The
+browser then aborts, forgets the stored upload, and starts over.

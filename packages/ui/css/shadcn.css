@@ -40,16 +40,11 @@
     var(--card-foreground)
   );
   --color-dimah-s3-primary: var(--dimah-s3-primary, var(--primary));
-  --color-dimah-s3-primary-foreground: var(
-    --dimah-s3-primary-foreground,
-    var(--primary-foreground)
-  );
   --color-dimah-s3-muted: var(--dimah-s3-muted, var(--muted));
   --color-dimah-s3-muted-foreground: var(
     --dimah-s3-muted-foreground,
     var(--muted-foreground)
   );
-  --color-dimah-s3-accent: var(--dimah-s3-accent, var(--accent));
   --color-dimah-s3-border: var(--dimah-s3-border, var(--border));
   --color-dimah-s3-ring: var(--dimah-s3-ring, var(--ring));
   --color-dimah-s3-destructive: var(--dimah-s3-destructive, var(--destructive));

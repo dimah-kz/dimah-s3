@@ -235,7 +235,7 @@ function focusFirst(elements: readonly HTMLElement[]) {
  * Inside an `ObjectList` whose `upload` is this same hook (by
  * `instanceId`, so the copy `UploadField` passes its parts counts), the source's
  * `uploadOptions` for the open folder apply first, so files land in that
- * folder. `call` merges over them: its fields win, and `metadata` merges
+ * folder. `call` merges over them: its fields win, and `clientMetadata` merges
  * key by key.
  */
 export function useUploadCall(

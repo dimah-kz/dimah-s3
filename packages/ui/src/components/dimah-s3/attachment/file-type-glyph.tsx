@@ -85,7 +85,11 @@ function stylesOf(ext: string): Partial<FileIconProps> | null {
 export type FileTypeGlyphStyle = {
   /** The label on the glyph, or `null` for none. */
   label: string | null;
-  styles: Partial<FileIconProps>;
+  /**
+   * Style props for `react-file-icon`. Typed loosely, so the published
+   * declarations never import that package's types.
+   */
+  styles: Readonly<Record<string, unknown>>;
 };
 
 /**
@@ -105,9 +109,10 @@ export function resolveFileTypeGlyph(
   const styles = (mimeExt ? stylesOf(mimeExt) : null) ??
     (ext ? stylesOf(ext) : null) ??
     familyStyle(mime) ?? { type: "document" };
-  return { label: mimeExt ?? ext, styles };
+  return { label: mimeExt ?? ext, styles: { ...styles } };
 }
 
+/** Props for {@link FileTypeGlyph}. */
 export type FileTypeGlyphProps = {
   fileName: string;
   /** MIME type. It wins over the file extension when it is known. */
@@ -144,7 +149,10 @@ export function FileTypeGlyph({
       )}
       aria-hidden
     >
-      <FileIcon extension={label ?? undefined} {...styles} />
+      <FileIcon
+        extension={label ?? undefined}
+        {...(styles as Partial<FileIconProps>)}
+      />
     </span>
   );
 }

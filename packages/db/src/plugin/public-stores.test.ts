@@ -39,12 +39,15 @@ describe("createPublicStores", () => {
     ).resolves.toMatchObject({ folderId: null });
   });
 
-  it("keeps the subtree walk off the public folder store", () => {
+  it("keeps the subtree walk and retain off the public folder store", () => {
     const { folders, store } = setup();
 
     expect(store.folders).toHaveProperty("subtreeIds");
+    expect(store.folders).toHaveProperty("retain");
     expect(folders).not.toHaveProperty("subtreeIds");
+    expect(folders).not.toHaveProperty("retain");
     expect(folders).toHaveProperty("descendants");
+    expect(folders).toHaveProperty("count");
   });
 
   it("keeps the upload lifecycle off the public object store", () => {
@@ -53,9 +56,9 @@ describe("createPublicStores", () => {
     expect(Object.keys(objects).sort()).toEqual([
       "count",
       "find",
-      "getUsage",
       "list",
       "update",
+      "usage",
     ]);
   });
 });

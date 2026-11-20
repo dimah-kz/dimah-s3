@@ -14,7 +14,11 @@ Upload keys are server-owned: core upload / multipart-init schemas must not take
 
 Presign and multipart init return a signed upload `ticket`. Confirm and every later multipart call send only `{ ticket }`; the server reads the key, upload id, declared file and part layout from it. Do not add a follow-up call that trusts a client key or upload id.
 
-Wire and server-context file fields are `name` / `size` / `type`. React props, options and stored records use `fileName` / `fileSize` / `contentType`. `db()` rows, and the `DbClientObject` that mirrors them, use their column names (`filename`, `contentType`, `size`).
+Wire and server-context file fields are `name` / `size` / `type`. React props, options and stored records use `fileName` / `fileSize` / `contentType`. A listed object is `name` / `size` / `contentType`: `ObjectListFile` in react, and the `db()` rows and the `DbClientObject` that mirrors them.
+
+Client extras are `clientMetadata` everywhere: the wire body, the client option and the hook contexts. `metadata` is the object's S3 user metadata, never the client's.
+
+One word per thing across packages. An option in milliseconds ends in `Ms` (`baseDelayMs`); server options in seconds follow AWS and have no suffix (`expiresIn`). A hook context is told apart by `operation`, not by a second field.
 
 Every `S3Api` method takes `(payload, options?)`. In the browser `options` is `{ signal, headers }`; on the server `s3.api` takes `{ headers, request, locals }`. Keep `s3.api` the same shape as the browser client.
 
@@ -27,7 +31,7 @@ Changelog prose: [changelog.md](./changelog.md). Version bump and publish: [rele
 3. Extend hook context types in `types/hook-contexts.ts` if the endpoint runs consumer hooks. Every context carries `operation` and `locals`.
 4. Gate with the route feature flags already used by the open-route helpers. Disabled features stay registered and return `FEATURE_DISABLED`.
 5. Auth and side effects belong in consumer `guard` / `on*` hooks, not new library auth.
-6. Body endpoints accept JSON only (`createS3Endpoint` sets `allowedMediaTypes`). Bodies are capped by `maxRequestBodySize`.
+6. Body endpoints (`POST`, `PUT`, `PATCH`) accept JSON only (`createS3Endpoint` sets `allowedMediaTypes`). Bodies are capped by `maxRequestBodySize`.
 7. A new way to start an upload runs `upload.object()` and `upload.guard`, then `upload.onStart({ kind, ... })` with a new `kind`, the way presign, multipart init and `s3.put` do. A browser upload returns a ticket from `issueTicket` (`helpers/ticket.ts`), and every follow-up call verifies it. Add the `kind` to `UploadKind`.
 
 Reuse helpers already in `packages/server/src/helpers/` (keys, constraints, HeadObject, tickets, part layout). Do not reimplement them.
@@ -44,10 +48,11 @@ Contract and merge live in `packages/server/src/plugin/`. Feature plugins (like 
 - Expose data on `plugin.context` (`s3.context[id]` / flattened `s3[id]`). Do not hardcode per-plugin fields on `DimahS3`.
 - Hook order is load-bearing: guards run instance → route → feature, and within each, **plugins first, then the user**. Lifecycle **`on*`** hooks also run plugins first, so user hooks see consistent db state.
 - A plugin may bind tickets to a caller with `hooks.ticketSubject`.
+- A plugin that records an upload in `upload.onStart` undoes it in `upload.onRejected`, which runs once the server refused the upload and deleted its object. A throw there is reported, never returned.
 
 ## db schema
 
-The `@dimah-s3/db` schema lives in one place: `dbSchema` in `src/schema/schema.ts`, version `2.1.0`. Indexes, MySQL prefix lengths (`length`), and collations (`collate`) are declared there, not in custom `up` SQL. The package ships no Drizzle, Prisma, or SQL copies: users generate them with `runCli` → `generate`, and Kysely users create the tables with `migrate`. The package does not migrate a 1.x database or an earlier beta schema.
+The `@dimah-s3/db` schema lives in one place: `dbSchema` in `src/schema/schema.ts`, version `2.3.0`. Indexes, MySQL prefix lengths (`length`), and collations (`collate`) are declared there, not in custom `up` SQL. The package ships no Drizzle, Prisma, or SQL copies: users generate them with `runCli` → `generate`, and Kysely users create the tables with `migrate`. Every write of an object or folder `name` sets `search_name` with `toSearchName`, which caps it at `SEARCH_NAME_MAX_BYTES`; the name sort and its list cursor read that value. The package does not migrate a database at another version.
 
 While 2.0 is in beta, a table change replaces `dbSchema` in place and bumps its version. Do not add an upgrade chain. A database at another version is recreated.
 
@@ -64,11 +69,13 @@ Public hooks that hit the API take a typed `route` (`S3RouteName` — augment `D
 
 - Keep state per key in the operation store. A second call for a key in flight joins it. Actions return an outcome or result object.
 - Every client error is an `APIError` built with `s3Error`; aborts reject with a `DOMException`.
+- Whether a failure is sent again is decided in one place, `isRetryableError` (`upload/retry.ts`). The server keeps an upload it could not confirm, so a `5xx` must never abort a stored multipart upload.
+- After-callbacks (`onSuccess`, `onError`, `onSettled`) read the newest render's options. No `crypto.randomUUID()`: it is missing on plain-HTTP origins.
 - Export hooks and types from `src/index.ts` (the `"use client"` entry). Plain functions go in `src/engine.ts` (`@dimah-s3/react/engine`), which must not import React. Do not re-export anything from core.
 
 ## Strings and errors
 
-- React / UI: `t()` / `useTranslations()` from `@fuma-translate/react` (do not re-export). Then `pnpm --filter @dimah-s3/react compile:translations`. Formatters that map codes to copy must call `useTranslations()` themselves; a new catalog code needs a case in `useFormatDimahError`.
+- React / UI: `t()` / `useTranslations()` from `@fuma-translate/react` (do not re-export). Then `pnpm --filter @dimah-s3/react compile:translations`. Formatters that map codes to copy must call `useTranslations()` themselves; a new catalog code needs a case in `useFormatError`.
 - Codes live in `S3_ERROR_CODES` (`packages/core/src/error-codes.ts`): each entry has a `status`, an English message template filled from typed `params`, and `client: true` when only the browser raises it. Name codes noun first (`UPLOAD_TICKET_INVALID`). First-party plugin codes (`FOLDER_*`, `OBJECT_EXISTS`) live there too, so react can word them. `CONFLICT` means a concurrent change won; use a specific code for a state the user must change.
 - Throw `s3Error(code, params)`; plugin-only codes use `APIError.from(status, { code, message })`. Detect with `isS3ErrorCode(error, code)`. Do not add a custom HTTP serializer — throw and let the error boundary build the response. Config problems are logged and return `500 INTERNAL_ERROR`.
 

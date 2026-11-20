@@ -1,0 +1,155 @@
+---
+title: Overview
+description: Accessible shadcn components for uploading, downloading, deleting, and browsing files stored in S3.
+icon: Component
+---
+
+import { UploadDemo } from "@/components/demos/upload-demo";
+
+[`@dimah-s3/ui`](https://www.npmjs.com/package/@dimah-s3/ui) is a set of
+accessible React components for file uploads and stored files. They render the
+[`@dimah-s3/react`](/docs/react) hooks, follow your
+[shadcn](https://ui.shadcn.com) theme, and install as an npm package or as
+source code you own through the shadcn registry.
+
+<DemoPreview name="upload-demo.tsx">
+  <UploadDemo />
+</DemoPreview>
+
+## Components
+
+### Upload
+
+<Cards>
+  <Card
+    title="Upload"
+    href="/docs/ui/components/upload"
+    description="Button, dropzone, progress, and toasts for any upload flow."
+  />
+  <Card
+    title="Upload Field"
+    href="/docs/ui/components/upload-field"
+    description="Form field that submits the object keys of its uploads."
+  />
+  <Card
+    title="Avatar Upload"
+    href="/docs/ui/components/avatar-upload"
+    description="Image button that shows a picture and uploads a new one."
+  />
+</Cards>
+
+### Files
+
+<Cards>
+  <Card
+    title="Object List"
+    href="/docs/ui/components/object-list"
+    description="File browser with folders, search, sort, selection, and upload."
+  />
+  <Card
+    title="Object Card"
+    href="/docs/ui/components/object-card"
+    description="One stored file with download and delete actions."
+  />
+  <Card
+    title="Object Image"
+    href="/docs/ui/components/object-image"
+    description="An <img> for a private object, signed and refreshed for you."
+  />
+</Cards>
+
+### Actions and building blocks
+
+<Cards>
+  <Card
+    title="Download"
+    href="/docs/ui/components/download"
+    description="Download buttons with progress and cancel."
+  />
+  <Card
+    title="Delete"
+    href="/docs/ui/components/delete"
+    description="Delete buttons with one confirm dialog."
+  />
+  <Card
+    title="Attachment"
+    href="/docs/ui/components/attachment"
+    description="File cards, progress rings, and type glyphs for your own parts."
+  />
+</Cards>
+
+## How the components work
+
+You create the hook; the component renders it. The upload, download, and
+delete components are **families**: a root takes one hook return, and the
+parts inside it read that hook.
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import {
+  Upload,
+  UploadStatus,
+  UploadToasts,
+  UploadTrigger,
+} from "@dimah-s3/ui";
+
+export function AvatarUploader() {
+  const upload = useUpload({ route: "avatar" }); // you own the hook
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadTrigger /> {/* opens the file picker */}
+        <UploadStatus /> {/* shows progress and errors */}
+      </Upload>
+      <UploadToasts upload={upload} /> {/* toasts for this hook */}
+    </>
+  );
+}
+```
+
+- **Your hook, your rules.** Route, limits, and callbacks live in the hook
+  options. Components never call a hook themselves.
+- **Roots render no element.** Place the parts anywhere inside the root, in
+  your own layout. Several parts can share one hook.
+- **Toasts are opt-in.** Parts never toast. Mount `UploadToasts`,
+  `DownloadToasts`, or `DeleteToasts` once per hook, and one `<Toaster />` in
+  your layout.
+- **Parts are elements.** Each part forwards the props of the element it
+  renders: triggers take every `Button` prop, lists take `ul` props, and so on.
+
+| Family   | Root       | Hook                                                            | Parts                                                               |
+| -------- | ---------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Upload   | `Upload`   | [`useUpload`](/docs/react/hooks/upload)                         | `UploadTrigger`, `UploadDropzone`, `UploadStatus`, `UploadFileList` |
+| Download | `Download` | [`useDownload`, `useFetchDownload`](/docs/react/hooks/download) | `DownloadTrigger`, `DownloadProgress`                               |
+| Delete   | `Delete`   | [`useDelete`](/docs/react/hooks/delete)                         | `DeleteTrigger`, `DeleteConfirmDialog`                              |
+
+`UploadField`, `AvatarUpload`, `ObjectCard`, and `ObjectList` build on these
+families, so the same hooks drive them.
+
+## npm package or shadcn registry
+
+|            | npm package                        | shadcn registry                                    |
+| ---------- | ---------------------------------- | -------------------------------------------------- |
+| You get    | `@dimah-s3/ui` in `node_modules`   | The component source in `components/dimah-s3/`     |
+| Updates    | Bump the package version           | Run `shadcn add` again and merge                   |
+| Primitives | Bundled, so any shadcn style works | Your own `button`, `tooltip`, … in a Base UI style |
+| Customize  | Props, `className`, theme tokens   | Edit the code                                      |
+
+Start with the npm package. Switch an item to the registry when you need to
+change its markup. See [Installation](/docs/ui/installation).
+
+## Built in
+
+- **Accessible.** Built on [Base UI](https://base-ui.com) primitives, with
+  keyboard support, focus management, and live regions that announce
+  progress and results.
+- **Translatable.** Every string goes through `@fuma-translate/react`, and
+  layouts work right to left. See [Internationalization](/docs/i18n).
+- **Themeable.** Colors follow your shadcn variables, and `--dimah-s3-*`
+  tokens override them for the components alone. See
+  [Theming](/docs/ui/theming).
+- **Headless underneath.** Need a different design? Build on the same hooks.
+  See [Custom UI](/docs/ui/custom-ui).

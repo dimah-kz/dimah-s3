@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
   DbClientActions,
-  DbClientListResponse,
+  DbClientListObjectsResponse,
   DbClientObject,
   DbObjectSourceQueryInput,
 } from "@/types/client";
@@ -14,7 +14,7 @@ function row(patch: Partial<DbClientObject> = {}): DbClientObject {
     key: "users/1/uuid/notes.md",
     route: "docs",
     folderId: null,
-    filename: "Notes.md",
+    name: "Notes.md",
     contentType: "text/markdown",
     size: 4096,
     declaredSize: 4096,
@@ -26,12 +26,12 @@ function row(patch: Partial<DbClientObject> = {}): DbClientObject {
   };
 }
 
-const page: DbClientListResponse = {
+const page: DbClientListObjectsResponse = {
   objects: [row()],
   nextCursor: "cursor-2",
 };
 
-function listObjectsReturning(response: DbClientListResponse = page) {
+function listObjectsReturning(response: DbClientListObjectsResponse = page) {
   return vi.fn<DbClientActions["listObjects"]>(async () => response);
 }
 
@@ -85,6 +85,37 @@ describe("dbObjectSource query", () => {
     });
   });
 
+  it("clamps limit to what the server takes", async () => {
+    const listObjects = listObjectsReturning();
+    const sent = async (limit: number) => {
+      listObjects.mockClear();
+      await dbObjectSource({ listObjects }, { limit }).query(queryInput());
+      return listObjects.mock.calls[0]?.[0]?.limit;
+    };
+
+    await expect(sent(500)).resolves.toBe(100);
+    await expect(sent(0)).resolves.toBe(1);
+    await expect(sent(-3)).resolves.toBe(1);
+    await expect(sent(20.9)).resolves.toBe(20);
+    await expect(sent(Number.NaN)).resolves.toBe(100);
+  });
+
+  it("asks for the usage on the first page with usage: true", async () => {
+    const listObjects = listObjectsReturning();
+    const source = dbObjectSource({ listObjects }, { usage: true });
+
+    await source.query(queryInput());
+    await source.query(queryInput({ cursor: "cursor-2" }));
+
+    expect(listObjects.mock.calls.map(([input]) => input?.usage)).toEqual([
+      true,
+      undefined,
+    ]);
+    listObjects.mockClear();
+    await dbObjectSource({ listObjects }).query(queryInput());
+    expect(listObjects.mock.calls[0]?.[0]).not.toHaveProperty("usage");
+  });
+
   it("lists every folder flat with folders: false", async () => {
     const listObjects = listObjectsReturning();
     const source = dbObjectSource({ listObjects }, { folders: false });
@@ -105,7 +136,7 @@ describe("dbObjectSource query", () => {
     await source.query(queryInput({ sort: null }));
 
     expect(listObjects.mock.calls.map(([input]) => input?.sort)).toEqual([
-      { field: "filename", direction: "asc" },
+      { field: "name", direction: "asc" },
       { field: "size", direction: "asc" },
       { field: "updatedAt", direction: "asc" },
       undefined,
@@ -244,10 +275,10 @@ describe("dbObjectSource rows", () => {
   const source = dbObjectSource({ listObjects: listObjectsReturning() });
 
   it("keys rows by id", () => {
-    expect(source.getKey(row())).toBe("row-1");
+    expect(source.getId(row())).toBe("row-1");
   });
 
-  it("reads the filename, object key, size, type, and updatedAt", () => {
+  it("reads the name, object key, size, type, and updatedAt", () => {
     expect(source.getFile(row())).toEqual({
       name: "Notes.md",
       objectKey: "users/1/uuid/notes.md",
@@ -269,10 +300,10 @@ describe("dbObjectSource folders", () => {
     const source = dbObjectSource({ listObjects: listObjectsReturning() });
 
     expect(source.uploadOptions?.("work/drafts")).toEqual({
-      metadata: { folderId: "work/drafts" },
+      clientMetadata: { folderId: "work/drafts" },
     });
     expect(source.uploadOptions?.(null)).toEqual({
-      metadata: { folderId: "" },
+      clientMetadata: { folderId: "" },
     });
   });
 
@@ -325,7 +356,7 @@ describe("dbObjectSource folders", () => {
 
   it("renames a file through updateObject and keeps the key", async () => {
     const updateObject = vi.fn<DbClientActions["updateObject"]>(async () => ({
-      object: row({ filename: "Renamed.md" }),
+      object: row({ name: "Renamed.md" }),
     }));
     const source = dbObjectSource({
       listObjects: listObjectsReturning(),
@@ -337,12 +368,12 @@ describe("dbObjectSource folders", () => {
     ).resolves.toMatchObject({
       key: row().key,
       bucket: "b",
-      filename: "Renamed.md",
+      name: "Renamed.md",
     });
     expect(updateObject).toHaveBeenCalledWith({
       key: row().key,
       bucket: "b",
-      filename: "Renamed.md",
+      name: "Renamed.md",
     });
   });
 

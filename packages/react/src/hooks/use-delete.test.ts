@@ -100,6 +100,49 @@ describe("useDelete remove", () => {
     expect(hook.current.isPending).toBe(false);
   });
 
+  it("runs the after-callbacks of the newest render", async () => {
+    const api = fakeS3Api();
+    const request = deferred<DeleteResponse>();
+    const many = deferred<DeleteManyResponse>();
+    vi.mocked(api.delete).mockReturnValueOnce(request.promise);
+    vi.mocked(api.deleteMany).mockReturnValueOnce(many.promise);
+    const calls: string[] = [];
+    let render = "first";
+    const hook = renderHook(() => {
+      const from = render;
+      return useDelete({
+        api,
+        route: "uploads",
+        onSuccess: (_data, key) => void calls.push(`${from}:success:${key}`),
+        onSettled: () => void calls.push(`${from}:settled`),
+      });
+    });
+    mounted.push(hook);
+
+    let one!: Promise<DeleteOutcome>;
+    let batch!: Promise<DeleteResult>;
+    await act(async () => {
+      one = hook.current.remove("a.png");
+      batch = hook.current.removeMany(["b.png"]);
+    });
+    // The component renders again while the requests run.
+    render = "second";
+    hook.rerender();
+
+    await act(async () => {
+      request.resolve({ key: "a.png", bucket: "bucket" });
+      many.resolve({ deleted: ["b.png"], failed: [] });
+      await Promise.all([one, batch]);
+    });
+
+    expect(calls.toSorted()).toEqual([
+      "second:settled",
+      "second:settled",
+      "second:success:a.png",
+      "second:success:b.png",
+    ]);
+  });
+
   it("returns an error outcome with an APIError", async () => {
     const api = fakeS3Api();
     const failure = s3Error("FORBIDDEN");

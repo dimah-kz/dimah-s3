@@ -372,7 +372,7 @@ type Catalog = ReturnType<typeof createCatalog>;
  */
 function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
   const source = memoryObjectSource(catalog.files, {
-    getKey: (file) => file.id,
+    getId: (file) => file.id,
     getFile: (file) => ({
       name: file.name,
       objectKey: fileObjectKey(file),
@@ -409,8 +409,8 @@ function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
       }
       return { ...page, folders };
     },
-    // Sent as client metadata. A real route reads it in `object()`.
-    uploadOptions: (parent) => ({ metadata: { folder: parent ?? "" } }),
+    // Sent as `clientMetadata`. A real route reads it in `object()`.
+    uploadOptions: (parent) => ({ clientMetadata: { folder: parent ?? "" } }),
     createFolder: async ({ parent, name }) =>
       catalog.createFolder(parent, name),
     renameFile: async ({ item, name }) => catalog.renameFile(item.id, name),
@@ -452,7 +452,7 @@ export function ObjectListDemo() {
   const upload = useUpload({
     route: "uploads",
     maxFiles: 8,
-    queue: true,
+    append: true,
     onSuccess: (result, file) => {
       rememberDemoFile(result.key, file);
       // The demo API echoes the request metadata, so the folder comes back.

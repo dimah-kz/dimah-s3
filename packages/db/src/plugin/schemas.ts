@@ -7,10 +7,10 @@ import {
   trimmedString,
 } from "@dimah-s3/core/schema";
 import * as z from "zod";
+import { DB_LIST_MAX_LIMIT } from "@/constants";
 import { DEFAULT_LIST_LIMIT } from "@/store/object-store";
 
-/** Most rows one page of `GET /db/objects` returns. */
-export const DB_LIST_MAX_LIMIT = 100;
+export { DB_LIST_MAX_LIMIT };
 
 /** Longest `search` text, in characters. */
 const MAX_SEARCH_LENGTH = 255;
@@ -45,7 +45,7 @@ const queryBoolean = z.codec(
 );
 
 const dbListSortSchema = z.object({
-  field: z.enum(["createdAt", "updatedAt", "size", "filename"]),
+  field: z.enum(["createdAt", "updatedAt", "size", "name"]),
   direction: z.enum(["asc", "desc"]),
 });
 
@@ -77,8 +77,9 @@ const dbListSortQuerySchema = z.codec(
 
 /**
  * Query of `GET /db/objects`. `folderId` of `""` is the root. Omit it for a
- * flat list. `recursive` also lists the folders below `folderId`. Blank
- * `search`, `contentType`, and `cursor` values are omitted.
+ * flat list. `recursive` also lists the folders below `folderId`. `usage`
+ * asks for the scope's usage when the plugin has no quota. Blank `search`,
+ * `contentType`, and `cursor` values are omitted.
  */
 export const dbListQuerySchema = z.strictObject({
   folderId: z.string().optional(),
@@ -87,7 +88,7 @@ export const dbListQuerySchema = z.strictObject({
   // Rows that purge has claimed stay internal, as on `GET /db/object`.
   status: z.enum(["pending", "active", "deleted"]).optional(),
   contentType: optionalContentTypeSchema,
-  /** Text the filename contains, ignoring case and accents. */
+  /** Text the name contains, ignoring case and accents. */
   search: optionalTrimmedString.pipe(
     z.string().max(MAX_SEARCH_LENGTH).optional(),
   ),
@@ -98,6 +99,7 @@ export const dbListQuerySchema = z.strictObject({
   cursor: optionalTrimmedString.pipe(
     z.string().max(MAX_CURSOR_LENGTH).optional(),
   ),
+  usage: queryBoolean.optional(),
 });
 
 /** Query of `GET /db/object`. */
@@ -113,7 +115,7 @@ export const dbObjectQuerySchema = z.strictObject({
 export const dbUpdateObjectBodySchema = z.strictObject({
   key: objectKeySchema,
   bucket: trimmedString.optional(),
-  filename: fileNameSchema.optional(),
+  name: fileNameSchema.optional(),
   folderId: z.string().nullable().optional(),
   /** `null` clears the attributes. */
   attributes: z.record(z.string(), z.unknown()).nullable().optional(),

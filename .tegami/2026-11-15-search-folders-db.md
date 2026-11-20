@@ -19,6 +19,6 @@ packages:
 
 #### Breaking changes
 
-- **Create schema `2.2.0` on a new database.** `storage_object` and `storage_folder` gain a required `search_name` column. A database at `2.1.0` is not upgraded: regenerate the Drizzle or Prisma schema with `runCli`, or call `migrate(client)` on an empty database.
-- **Search results change.** `search` is no longer a `LIKE` on `filename`: case and accents do not count on any database, and `%` and `_` are no longer wildcards.
+- **Create schema `2.3.0` on a new database.** `storage_object` and `storage_folder` gain a required `search_name` column. A database at an earlier version is not upgraded: regenerate the Drizzle or Prisma schema with `runCli`, or call `migrate(client)` on an empty database.
+- **Search results change.** `search` is no longer a `LIKE` on the file name: case and accents do not count on any database, and `%` and `_` are no longer wildcards.
 - **Check `recursive` in `authorize`.** A `list` call with `recursive: true` returns the objects of every folder below `folder`. An `authorize` that allows a folder and denies a folder inside it must now deny a recursive listing of the outer one, or that listing shows the inner folder's objects. Return `false` for `recursive` to keep listings to one folder, and pass `dbObjectSource(api.db, { recursiveSearch: false })` so the list searches the open folder only.

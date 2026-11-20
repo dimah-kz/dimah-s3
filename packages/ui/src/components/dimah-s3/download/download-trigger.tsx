@@ -40,7 +40,8 @@ export type DownloadTriggerProps = ComponentProps<typeof Button> & {
  *   icon-size button shows only the cancel icon.
  *
  * `children` replace the default icon and label while no cancel is offered.
- * An icon-size button shows the icon alone, so give it an `aria-label`.
+ * An icon-size button shows the icon alone and keeps "Download" as its
+ * accessible name.
  * `data-phase` carries the phase of the newest call for the key.
  */
 export function DownloadTrigger({
@@ -62,8 +63,8 @@ export function DownloadTrigger({
   const { download } = useDownloadContext();
   const operation = download.get(objectKey);
   const running = download.pendingKeys.includes(objectKey);
-  const cancellable = running && download.mode === "fetch";
-  const signing = running && download.mode === "navigate";
+  const cancellable = running && download.kind === "fetch";
+  const signing = running && download.kind === "navigate";
   const progress =
     cancellable && operation?.phase === "downloading"
       ? operation.progress
@@ -73,17 +74,15 @@ export function DownloadTrigger({
       ? Math.min(100, Math.max(0, progress.percent))
       : null;
 
-  // An icon button keeps its size: the icon alone, named by `aria-label`.
+  // An icon button keeps its size: the icon alone, with the label as its
+  // accessible name.
   const iconOnly = size?.startsWith("icon") ?? false;
-  const withLabel = (icon: ReactNode, label: string) =>
-    iconOnly ? (
-      icon
-    ) : (
-      <>
-        {icon}
-        {label}
-      </>
-    );
+  const withLabel = (icon: ReactNode, label: string) => (
+    <>
+      {icon}
+      {iconOnly ? <span className="sr-only">{label}</span> : label}
+    </>
+  );
   const content = cancellable
     ? withLabel(
         <XIcon data-icon="inline-start" />,
@@ -124,7 +123,7 @@ export function DownloadTrigger({
       onClick={(event) => {
         onClick?.(event);
         if (event.defaultPrevented) return;
-        if (download.mode === "fetch") {
+        if (download.kind === "fetch") {
           if (!cancellable) {
             void download.download(objectKey, { fileName, fileSize });
           } else if (event.detail <= 1) {

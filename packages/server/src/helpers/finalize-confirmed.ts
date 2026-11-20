@@ -3,11 +3,13 @@ import {
   isAPIError,
   resolveStoredFileName,
   s3Error,
+  type APIError,
   type ConfirmedObjectResponse,
   type S3ObjectAcl,
 } from "@dimah-s3/core";
 import { deleteObjectBestEffort } from "@/helpers/best-effort";
 import { assertFileConstraints } from "@/helpers/constraints";
+import { reportFailure, type ErrorBoundaryEnv } from "@/helpers/error-boundary";
 import { runGuards, runLifecycle } from "@/helpers/hooks";
 import { readObjectMetadata } from "@/helpers/object-meta";
 import { assertStoredKey } from "@/helpers/resolve-target";
@@ -22,6 +24,8 @@ import type {
 import type { OpenedRoute } from "@/types/resolved";
 
 export type FinalizeConfirmedInput = {
+  /** Logger and `onError`, for a failing `upload.onRejected`. */
+  config: ErrorBoundaryEnv;
   route: OpenedRoute<"upload">;
   /** Context of the call, with the uploaded key and bucket. */
   context: ObjectContext;
@@ -55,14 +59,16 @@ export type FinalizeConfirmedInput = {
  * 5. `upload.onConfirmed` runs: plugins first, then the user hook.
  *
  * A rejection (a `4xx` `APIError`) in steps 2 to 4, or from a plugin
- * `onConfirmed`, deletes the object and returns the error. That delete is
- * conditional on the HeadObject ETag where the provider supports `If-Match`,
- * so a newer upload at the same key is kept. Any other failure, such as an
- * S3 network error or a hook whose database is down, keeps the object, so
- * the confirm can be retried. A throw from the user `onConfirmed` keeps the
- * object and returns `500 INTERNAL_ERROR`, even for an `APIError`, so a
- * retried confirm replays the hooks with the same `uploadToken`. After every
- * hook succeeds, `upload.object().previousKey` is deleted.
+ * `onConfirmed`, deletes the object, runs `upload.onRejected` and returns
+ * the error. That delete is conditional on the HeadObject ETag where the
+ * provider supports `If-Match`, so a newer upload at the same key is kept.
+ * A throw from `onRejected` is reported and never replaces the rejection.
+ * Any other failure, such as an S3 network error or a hook whose database is
+ * down, keeps the object, so the confirm can be retried. A throw from the
+ * user `onConfirmed` keeps the object and returns `500 INTERNAL_ERROR`, even
+ * for an `APIError`, so a retried confirm replays the hooks with the same
+ * `uploadToken`. After every hook succeeds, `upload.object().previousKey` is
+ * deleted.
  */
 export async function finalizeConfirmed(
   input: FinalizeConfirmedInput,
@@ -74,15 +80,18 @@ export async function finalizeConfirmed(
     throw s3Error("OBJECT_NOT_FOUND");
   }
 
-  // Conditional on this HEAD, so a newer upload at the same key is kept.
-  const deleteObject = () =>
-    deleteObjectBestEffort(route.client, bucket, key, head.ETag);
+  // The delete is conditional on this HEAD, so a newer upload at the same
+  // key is kept.
+  const reject = async (error: APIError) => {
+    await deleteObjectBestEffort(route.client, bucket, key, head.ETag);
+    await runRejected(input, error);
+  };
   let object: VerifiedObject;
   try {
     object = verifiedObject(head, key, stored.metadata);
     await verifyUpload(input, object);
   } catch (error) {
-    if (isRejection(error)) await deleteObject();
+    if (isRejection(error)) await reject(error);
     throw error;
   }
 
@@ -108,7 +117,7 @@ export async function finalizeConfirmed(
     {
       // A transient plugin failure keeps the object for the retry.
       onPluginError: async (error) => {
-        if (isRejection(error)) await deleteObject();
+        if (isRejection(error)) await reject(error);
       },
     },
   );
@@ -182,8 +191,39 @@ async function verifyUpload(
 }
 
 /** A `4xx` `APIError`: the upload was checked and refused. */
-function isRejection(error: unknown): boolean {
+function isRejection(error: unknown): error is APIError {
   return isAPIError(error) && error.statusCode < 500;
+}
+
+/**
+ * Runs every `upload.onRejected` hook, plugins first. Each one runs even
+ * when an earlier one throws, and a throw is reported, not rethrown: the
+ * caller is already returning the rejection.
+ */
+async function runRejected(
+  input: FinalizeConfirmedInput,
+  error: APIError,
+): Promise<void> {
+  const { route, context } = input;
+  for (const { hook } of route.upload.onRejected) {
+    try {
+      await hook({
+        ...context,
+        kind: input.kind,
+        uploadToken: input.uploadToken,
+        uploadId: input.uploadId,
+        file: input.file,
+        acl: input.acl,
+        error,
+      });
+    } catch (hookError) {
+      reportFailure(
+        new Error("upload.onRejected failed", { cause: hookError }),
+        input.config,
+        { request: context.request, operation: context.operation },
+      );
+    }
+  }
 }
 
 /**

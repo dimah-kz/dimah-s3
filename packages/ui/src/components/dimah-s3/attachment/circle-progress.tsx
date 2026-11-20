@@ -7,22 +7,31 @@ import { cn } from "cn";
 /** Side of the drawing box. The ring scales with the CSS size. */
 const VIEW_BOX = 20;
 
+/** Props for {@link CircleProgress}. One of `fileName` and `label` is required. */
 export type CircleProgressProps = {
   /** Progress from 0 to 100. Values outside are clamped; NaN counts as 0. */
   percent: number;
-  /** File the progress belongs to. It names the progressbar "Progress for {name}". */
-  fileName?: string;
-  /** Accessible name in place of the one from `fileName`, such as for a whole queue. */
-  label?: string;
   /** Ring thickness in a 20 by 20 box. @default 2.5 */
   strokeWidth?: number;
   /** Sets the size, for example `size-6`. @default "size-5" */
   className?: string;
-};
+} & (
+  | {
+      /** File the progress belongs to. It names the progressbar "Progress for {name}". */
+      fileName: string;
+      /** Accessible name in place of the one from `fileName`. */
+      label?: string;
+    }
+  | {
+      fileName?: string;
+      /** Accessible name, such as for a whole queue. */
+      label: string;
+    }
+);
 
 /**
  * Determinate progress ring with `role="progressbar"`, named by `label` or
- * by its file. Pass one of them.
+ * by its file.
  */
 export function CircleProgress({
   percent,

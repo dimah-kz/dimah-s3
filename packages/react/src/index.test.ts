@@ -6,7 +6,6 @@ describe("@dimah-s3/react", () => {
     expect(Object.keys(root).sort()).toEqual([
       "S3Provider",
       "createS3Client",
-      "useApi",
       "useDelete",
       "useDownload",
       "useFetchDownload",
@@ -21,6 +20,7 @@ describe("@dimah-s3/react", () => {
       "useObjectListSelection",
       "useObjectUrl",
       "useRouteUploadPolicy",
+      "useS3Api",
       "useUpload",
       "useUploadLimit",
     ]);

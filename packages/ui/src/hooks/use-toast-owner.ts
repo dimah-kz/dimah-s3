@@ -3,7 +3,14 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 // Bundlers replace this; declared here so the ui types need no Node typings.
-declare const process: { env: { NODE_ENV?: string } };
+// A page that loads the module without a bundler has no `process` at all.
+declare const process: { env: { NODE_ENV?: string } } | undefined;
+
+function isDevelopment(): boolean {
+  return (
+    typeof process !== "undefined" && process.env.NODE_ENV !== "production"
+  );
+}
 
 /** `token` identifies one mounted component, also across StrictMode replays. */
 type ToastOwner = { token: object; weak: boolean };
@@ -31,7 +38,7 @@ function register(instanceId: string, owner: ToastOwner) {
     !owner.weak &&
     current.some((other) => !other.weak) &&
     !warned.has(owner.token) &&
-    process.env.NODE_ENV !== "production"
+    isDevelopment()
   ) {
     warned.add(owner.token);
     console.warn(
@@ -66,8 +73,8 @@ function activeToken(instanceId: string) {
  *
  * - Strong (default): the first mounted strong owner is active. Extra strong
  *   owners render nothing and warn in development.
- * - Weak (ObjectList built-ins): active only while no strong owner is
- *   mounted for the same hook.
+ * - Weak (the `ObjectList` built-ins and `AvatarUpload`): active only while
+ *   no strong owner is mounted for the same hook.
  *
  * Returns `false` on the server and until the owner has mounted.
  */

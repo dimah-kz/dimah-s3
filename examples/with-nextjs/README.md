@@ -19,7 +19,9 @@ pnpm --filter @dimah-s3/example-with-nextjs dev
 
 Open `/` — upload a file with `UploadTrigger`. `next dev` uses a random development secret when `DIMAH_S3_SECRET` is empty; set it for `next start`.
 
-`next build` loads `src/lib/s3.ts`, and `dimahS3()` needs a bucket, so `S3_BUCKET` must be set (any non-empty value) when you build.
+`next build` loads `src/lib/s3.ts`, which reads `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` and `S3_BUCKET`, so they must be set (any non-empty value) when you build.
+
+The `avatar` route is open: anyone who can reach the app can upload until you add a `guard` (there is a commented stub in `src/lib/s3.ts`). See [Security](https://s3.dimah.dev/docs/server/security).
 
 ## License
 

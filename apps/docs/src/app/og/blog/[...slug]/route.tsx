@@ -76,10 +76,12 @@ function ogCard(slug: string[]) {
   const page = blog.getPage(slug.slice(0, -1));
   if (!page) return null;
 
-  const text = (page.data.description ?? "").replaceAll("`", "").trim();
+  const text = (page.data.ogDescription ?? page.data.description ?? "")
+    .replaceAll("`", "")
+    .trim();
 
   return {
-    title: page.data.title,
+    title: page.data.ogTitle ?? page.data.title,
     description: text || undefined,
   };
 }

@@ -9,7 +9,7 @@ import {
 import type { ComponentType, ReactNode } from "react";
 import {
   S3Provider as BaseS3Provider,
-  useApi as useBaseApi,
+  useS3Api as useBaseApi,
   type S3ProviderProps,
 } from "./s3-provider";
 

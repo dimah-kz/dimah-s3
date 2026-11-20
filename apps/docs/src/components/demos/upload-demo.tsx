@@ -8,7 +8,7 @@ export function UploadDemo() {
     route: "uploads",
     maxFiles: 4,
     maxFileSize: 75 * 1024 * 1024,
-    queue: true,
+    append: true,
   });
 
   return (

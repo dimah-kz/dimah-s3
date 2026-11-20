@@ -21,7 +21,7 @@ export type StorageObject<TAttributes = never> = {
   route: string;
   /** Folder that holds the object. `null` is the root. */
   folderId: string | null;
-  filename: string;
+  name: string;
   contentType: string | null;
   /** Verified size in bytes, set on confirm. */
   size: number | null;

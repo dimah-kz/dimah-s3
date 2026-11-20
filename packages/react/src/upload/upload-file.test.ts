@@ -144,7 +144,7 @@ describe("uploadFile", () => {
         request: {
           fileName: "renamed.png",
           contentType: "image/webp",
-          metadata: { folder: "docs" },
+          clientMetadata: { folder: "docs" },
         },
       }),
     );
@@ -155,7 +155,7 @@ describe("uploadFile", () => {
         name: "renamed.png",
         size: 4,
         type: "image/webp",
-        metadata: { folder: "docs" },
+        clientMetadata: { folder: "docs" },
       },
       expect.anything(),
     );
@@ -240,7 +240,7 @@ describe("uploadFile", () => {
     const api = fakeS3Api();
     vi.mocked(api.confirm).mockRejectedValueOnce(s3Error("NETWORK_ERROR"));
 
-    await uploadFile(api, png(), options({ retry: { baseDelay: 1 } }));
+    await uploadFile(api, png(), options({ retry: { baseDelayMs: 1 } }));
 
     expect(api.upload).toHaveBeenCalledOnce();
     expect(api.confirm).toHaveBeenCalledTimes(2);
@@ -253,7 +253,7 @@ describe("uploadFile", () => {
       throw s3Error("UPLOAD_FAILED", { status: 403 }, { status: 403 });
     });
 
-    await uploadFile(api, png(), options({ retry: { baseDelay: 1 } }));
+    await uploadFile(api, png(), options({ retry: { baseDelayMs: 1 } }));
 
     expect(api.upload).toHaveBeenCalledTimes(2);
     expect(api.confirm).toHaveBeenCalledWith(

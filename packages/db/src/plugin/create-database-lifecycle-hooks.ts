@@ -7,6 +7,7 @@ import type {
   UploadGuardContext,
 } from "@dimah-s3/server";
 import type { DimahS3PluginHooks } from "@dimah-s3/server/plugins";
+import { DB_FOLDER_ID_KEY } from "@/constants";
 import type { DbStore } from "@/store/create-db-store";
 import { isUploading, type ObjectRef } from "@/store/object-store";
 import type { ScopeOperation } from "@/types/plugin";
@@ -63,7 +64,7 @@ function objectTarget(
 function requestedFolderId(
   metadata: Record<string, string> | undefined,
 ): string | null {
-  const value = metadata?.folderId ?? "";
+  const value = metadata?.[DB_FOLDER_ID_KEY] ?? "";
   return value === "" ? null : value;
 }
 
@@ -107,6 +108,8 @@ function confirmedBy<T>(
  *   upload, or a confirm it already finished; `onConfirmed` checks the quota
  *   against the verified size, marks the row active, and retires the row of
  *   the `previousKey` the server deletes next.
+ * - `onRejected` removes the row of an upload the server refused, whose
+ *   object it deleted.
  * - `download.guard` and `delete.guard` check ownership; `onDeleted` aborts a
  *   multipart upload in flight and deletes the row. Deleting a deleted row
  *   again succeeds, like a plain delete.
@@ -242,7 +245,7 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
           scope,
           route: context.route,
           folderId: written.target.folderId ?? null,
-          filename: context.file.name,
+          name: context.file.name,
           contentType: context.file.type ?? null,
           declaredSize: context.file.size,
           acl: context.acl,
@@ -271,26 +274,19 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
           context,
           objectTarget(context, "confirm"),
         );
-        try {
-          await quota.assert(scope, {
-            size: context.object.size,
-            excluding: ref,
-          });
-        } catch (error) {
-          // The server deletes the object; its row goes with it.
-          await objects.discardUpload({
-            ...ref,
-            uploadToken: context.uploadToken,
-          });
-          throw error;
-        }
+        // Over the quota, the server deletes the object, and `onRejected`
+        // removes the row.
+        await quota.assert(scope, {
+          size: context.object.size,
+          excluding: ref,
+        });
         await objects.markActive({
           ...ref,
           uploadToken: context.uploadToken,
           size: context.object.size,
           eTag: context.object.eTag ?? null,
           contentType: context.object.type,
-          filename: context.object.name,
+          name: context.object.name,
           s3Metadata: context.object.metadata,
           acl: context.acl,
         });
@@ -305,15 +301,26 @@ export function createDatabaseLifecycleHooks<TSession, TAttributes>(
         }
       },
 
+      async onRejected(context) {
+        // The server deleted the object: a size, type, or content mismatch,
+        // a `confirmGuard` that refused it, or the quota. The row of this
+        // upload goes with it, also an active row it was overwriting, whose
+        // previous bytes the upload already replaced.
+        await objects.discardUpload({
+          ...refOf(context),
+          uploadToken: context.uploadToken,
+        });
+      },
+
       multipart: {
         async guard(context) {
-          if (context.action !== "abort") {
+          if (context.operation !== "multipart.abort") {
             await assertUploadRow(
               context,
               "multipart",
               // Complete is retried after it finished; the confirm step then
               // checks the ETag of what it finished.
-              context.action === "complete" ? {} : undefined,
+              context.operation === "multipart.complete" ? {} : undefined,
             );
             return;
           }

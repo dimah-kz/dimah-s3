@@ -7,26 +7,27 @@
     "build": "vite build",
     "check-types": "tsc --noEmit",
     "dev": "concurrently -k -n web,api -c green,blue \"npm:dev:web\" \"npm:dev:api\"",
-    "dev:api": "tsx watch --env-file=.env src/server.ts",
+    "dev:api": "tsx watch --env-file-if-exists=.env src/server.ts",
     "dev:web": "vite",
-    "start": "tsx --env-file=.env src/server.ts"
+    "start": "tsx --env-file-if-exists=.env src/server.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1171.0",
+    "@aws-sdk/client-s3": "^3.1173.0",
     "@base-ui/react": "^1.9.0",
-    "@dimah-s3/core": "2.0.0-beta.10",
-    "@dimah-s3/react": "2.0.0-beta.10",
-    "@dimah-s3/server": "2.0.0-beta.10",
-    "@dimah-s3/ui": "2.0.0-beta.10",
+    "@dimah-s3/core": "2.0.0-beta.11",
+    "@dimah-s3/react": "2.0.0-beta.11",
+    "@dimah-s3/server": "2.0.0-beta.11",
+    "@dimah-s3/ui": "2.0.0-beta.11",
     "@fuma-translate/react": "^1.0.2",
     "@hono/node-server": "^2.1.9",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "hono": "^4.13.19",
-    "lucide-react": "^1.75.0",
+    "lucide-react": "^1.76.0",
     "next-themes": "^0.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "tsx": "^4.23.15",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
@@ -38,7 +39,6 @@
     "concurrently": "^10.0.7",
     "shadcn": "^4.23.0",
     "tailwindcss": "^4.3.5",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8"
   }

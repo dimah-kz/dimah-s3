@@ -23,7 +23,7 @@ export function listMultipartParts(
     const { route, context } = await openMultipart(config, call, body.ticket);
     await runGuards(route.upload.multipart.guard, {
       ...context,
-      action: "list",
+      operation: "multipart.listParts",
     });
     const parts = await listAllParts(route.client, context);
     return { parts: parts.flatMap(toPartInfo) };

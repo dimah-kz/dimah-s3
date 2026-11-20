@@ -30,10 +30,10 @@ function folderEntry(folder: ObjectListFolder): ObjectListFolderEntry {
 
 function fileEntry<TItem>(
   item: TItem,
-  getKey: (item: TItem) => string,
+  getId: (item: TItem) => string,
   getFile: (item: TItem) => ObjectListFile,
 ): ObjectListFileEntry<TItem> {
-  const id = getKey(item);
+  const id = getId(item);
   const file = getFile(item);
   return {
     kind: "file",
@@ -50,12 +50,12 @@ function fileEntry<TItem>(
 export function createObjectListEntries<TItem>(
   folders: readonly ObjectListFolder[],
   items: readonly TItem[],
-  getKey: (item: TItem) => string,
+  getId: (item: TItem) => string,
   getFile: (item: TItem) => ObjectListFile,
 ): ObjectListEntry<TItem>[] {
   return [
     ...folders.map(folderEntry),
-    ...items.map((item) => fileEntry(item, getKey, getFile)),
+    ...items.map((item) => fileEntry(item, getId, getFile)),
   ];
 }
 
@@ -69,21 +69,21 @@ export type ObjectListEntryCache<TItem> = {
 /**
  * Like {@link createObjectListEntries}, but a folder or item that is the
  * same object as in `previous` keeps its entry, and the same entries keep
- * the same array. `getKey` and `getFile` are pure, so they run only for
+ * the same array. `getId` and `getFile` are pure, so they run only for
  * new items. @internal
  */
 export function reuseObjectListEntries<TItem>(
   previous: ObjectListEntryCache<TItem> | null,
   folders: readonly ObjectListFolder[],
   items: readonly TItem[],
-  getKey: (item: TItem) => string,
+  getId: (item: TItem) => string,
   getFile: (item: TItem) => ObjectListFile,
 ): ObjectListEntryCache<TItem> {
   if (!previous) {
     return {
       folders,
       items,
-      entries: createObjectListEntries(folders, items, getKey, getFile),
+      entries: createObjectListEntries(folders, items, getId, getFile),
     };
   }
   const folderEntries = new Map<ObjectListFolder, ObjectListEntry<TItem>>();
@@ -97,7 +97,7 @@ export function reuseObjectListEntries<TItem>(
     entries.push(folderEntries.get(folder) ?? folderEntry(folder));
   }
   for (const item of items) {
-    entries.push(fileEntries.get(item) ?? fileEntry(item, getKey, getFile));
+    entries.push(fileEntries.get(item) ?? fileEntry(item, getId, getFile));
   }
   const same =
     entries.length === previous.entries.length &&

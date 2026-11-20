@@ -19,16 +19,21 @@ import { useFileUpload } from "./use-file-upload";
 import {
   useFileIntake,
   type DropTargetProps,
-  type DropzoneInputProps,
-  type DropzoneRootProps,
   type UploadCallInput,
+  type UploadInputProps,
+  type UploadRootProps,
 } from "./use-file-intake";
 import {
   useRouteUploadPolicyState,
   type UseRouteUploadPolicyReturn,
 } from "./use-route-upload-policy";
 
-export type { DropTargetProps, DropzoneInputProps, DropzoneRootProps };
+export type {
+  DropTargetProps,
+  UploadCallInput,
+  UploadInputProps,
+  UploadRootProps,
+};
 export type { FileRejection, UseUploadOptions } from "@/types/upload";
 
 /**
@@ -87,17 +92,20 @@ export type UseUploadReturn = {
    * with nothing to retry, at once and without callbacks.
    */
   retry: (ids?: string | readonly string[]) => Promise<UploadBatchResult>;
-  /** Cancels one file by `id`, or every file. */
-  cancel: (id?: string) => void;
+  /** Cancels the files `ids` (one id or several), or every file. */
+  cancel: (ids?: string | readonly string[]) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
   detach: () => void;
-  /** Removes settled files and rejections. Stable identity. */
-  reset: () => void;
+  /**
+   * Removes the settled files `ids` (one id or several), or every settled
+   * file and the rejections. Running files keep going. Stable identity.
+   */
+  reset: (ids?: string | readonly string[]) => void;
   /**
    * Spread on a dropzone: drag and drop, paste, click and keyboard to open
    * the picker. `call` applies to the files it takes in.
    */
-  getRootProps: <T extends DropzoneRootProps>(
+  getRootProps: <T extends UploadRootProps>(
     props?: T,
     call?: UploadCallInput,
   ) => T;
@@ -112,7 +120,7 @@ export type UseUploadReturn = {
     call?: UploadCallInput,
   ) => T & DropTargetProps;
   /** Spread on a hidden `<input type="file">`. */
-  getInputProps: <T extends DropzoneInputProps>(props?: T) => T;
+  getInputProps: <T extends UploadInputProps>(props?: T) => T;
   /** `true` while files are dragged over a dropzone or drop target. */
   isDragActive: boolean;
   /** `true` while the dragged files match `accept` and `maxFiles`. */
@@ -130,7 +138,7 @@ export type UseUploadReturn = {
  * and rejects the invalid ones with catalog error codes, so
  * `useFormatError` can show them. Valid files upload `concurrentFiles`
  * at a time, and each one can be cancelled with `cancel(id)`. A call's
- * `uploadOptions` merge over the hook's: call fields win, and `metadata`
+ * `uploadOptions` merge over the hook's: call fields win, and `clientMetadata`
  * merges key by key.
  */
 export function useUpload(options: UseUploadOptions): UseUploadReturn {

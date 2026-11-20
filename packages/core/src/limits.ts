@@ -37,8 +37,8 @@ export const S3_MAX_FILE_FIELD_BYTES = 255;
 /** Upload ticket maximum, in characters. */
 export const UPLOAD_TICKET_MAX_LENGTH = 8192;
 
-/** Max user-defined metadata entries on an upload body. */
-export const S3_MAX_METADATA_ENTRIES = 32;
+/** Most `clientMetadata` entries an upload body may carry. */
+export const CLIENT_METADATA_MAX_ENTRIES = 32;
 
 /** Most keys one `deleteMany` request may carry. */
 export const DELETE_MANY_MAX_KEYS = 100;

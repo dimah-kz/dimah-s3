@@ -65,7 +65,8 @@ const tickets = new Map<string, PendingUpload>();
 const objects = new Map<string, DemoObject>();
 
 function routeEntry(route: string): RouteCatalogEntry {
-  if (!Object.hasOwn(routes, route)) throw s3Error("UNKNOWN_ROUTE", { route });
+  if (!Object.hasOwn(routes, route))
+    throw s3Error("ROUTE_NOT_FOUND", { route });
   return routes[route];
 }
 
@@ -123,7 +124,7 @@ export const demoS3Api: S3Api & Required<S3ApiUploadTransport> = {
       name: payload.name,
       size: payload.size,
       type: payload.type,
-      metadata: payload.metadata ?? {},
+      metadata: payload.clientMetadata ?? {},
     });
 
     const headers: Record<string, string> = {};

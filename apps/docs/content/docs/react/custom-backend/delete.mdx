@@ -1,49 +1,10 @@
 ---
 title: Delete
-description: Delete one or many objects through your custom backend.
+description: Delete one object, or up to 100 per request, through a custom backend.
 ---
 
-Deleting is a request to your backend, not a presigned transfer. Delete is
-idempotent: a key that does not exist still succeeds.
-
-## Delete one
-
-`delete` receives a `route` and one object `key`.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="DeletePayload"
-/>
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="DeleteResponse"
-/>
-
-## Delete many
-
-`deleteMany` receives one route and between 1 and 100 keys
-(`DELETE_MANY_MAX_KEYS`). `useDelete` splits larger calls into batches of that
-size.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="DeleteManyPayload"
-/>
-
-Delete each key on its own. Put it in `deleted`, or in `failed` with an error
-body `{ code, message, params? }`. A key you leave out of both fails with
-`UNKNOWN_ERROR`.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="DeleteManyResponse"
-/>
-
-## Example
-
-[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?route=…&key=…`
-and `POST /api/s3/delete/batch`.
+Deleting is a request to your backend, not a presigned transfer. Keep it
+idempotent, as S3 is: a key that does not exist still succeeds.
 
 ```ts title="lib/s3-api/delete.ts"
 import type {
@@ -76,5 +37,29 @@ export const deleteMany = (
   });
 ```
 
-`$fetch` and `call` come from the
+[`@dimah-s3/server`](/docs/server) uses `DELETE /api/s3/delete?route=…&key=…`
+and `POST /api/s3/delete/batch`. `$fetch` and `call` come from the
 [skeleton](/docs/react/custom-backend#skeleton).
+
+## Delete one
+
+`delete` receives `{ route, key }` and returns:
+
+| Property | Type     | Description   |
+| -------- | -------- | ------------- |
+| `key`    | `string` | Object key    |
+| `bucket` | `string` | Target bucket |
+
+## Delete many
+
+`deleteMany` receives one `route` and `keys`: between 1 and 100 keys
+(`DELETE_MANY_MAX_KEYS`). `useDelete` splits larger calls into batches of that
+size.
+
+Delete each key on its own. Put it in `deleted`, or in `failed` with an error
+body. A key you leave out of both fails with `UNKNOWN_ERROR`.
+
+| Property  | Type                                           | Description                               |
+| --------- | ---------------------------------------------- | ----------------------------------------- |
+| `deleted` | `string[]`                                     | Keys that were deleted                    |
+| `failed`  | `{ key, error: { code, message, params? } }[]` | Keys that failed, each with an error body |

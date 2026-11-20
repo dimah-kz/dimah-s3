@@ -1,65 +1,68 @@
 ---
 title: MinIO
-description: Self-hosted S3 storage with local path-style addressing and server CORS.
+description: Connect dimah-s3 to a self-hosted MinIO server with path-style addressing and the MinIO CORS setting.
 ---
 
-MinIO is a lightweight, self-hosted S3-compatible object store.
+MinIO is a self-hosted, S3-compatible object store. Point the client at the
+MinIO API port, turn on path-style addressing, and allow your app's origin on
+the MinIO server.
 
-## Configuration
+## Server configuration
 
-For the local host-and-port endpoint below, set `forcePathStyle: true` so
-object URLs use the `http://host:9000/bucket/key` form:
+```dotenv title=".env"
+S3_ENDPOINT="http://localhost:9000"
+S3_REGION="us-east-1"
+S3_ACCESS_KEY_ID="minioadmin"
+S3_SECRET_ACCESS_KEY="minioadmin"
+S3_BUCKET="my-bucket"
+```
+
+- `S3_ENDPOINT` is the API port, typically `9000`, not the web console port,
+  typically `9001`.
+- `minioadmin` is the root login of a local server. Use your own keys anywhere
+  else.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
-  region: "us-east-1",
-  endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
-  forcePathStyle: true, // Required for this host-and-port setup // [!code ++]
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: true, // [!code highlight]
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "minioadmin",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "minioadmin",
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
-  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
-});
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: "my-bucket",
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
-    }),
-  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 ```
 
-MinIO can also use virtual-hosted bucket URLs when DNS and TLS are configured
-for bucket subdomains; in that setup, `forcePathStyle` is not required.
+`forcePathStyle: true` puts the bucket in the path, as in
+`http://localhost:9000/my-bucket/key`. A host-and-port endpoint needs it.
+Leave it off only when DNS and TLS serve bucket subdomains.
 
-## MinIO CORS configuration
+## Server CORS
 
-Set the `MINIO_API_CORS_ALLOW_ORIGIN` environment variable on your MinIO server:
+MinIO takes its CORS origins from the server environment, not from the bucket.
+Set `MINIO_API_CORS_ALLOW_ORIGIN` on the MinIO server to a comma-separated list
+of your app's exact origins:
 
 ```bash
-MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example
+MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example,http://localhost:3000
 ```
 
-## Frequently asked questions
+## Public files
 
-<Accordions>
+MinIO grants access with bucket policies, not object ACLs. Allow anonymous
+reads with a bucket policy, such as `mc anonymous set download local/my-bucket`,
+and use the bucket URL as the public base:
 
-<Accordion title="Why is my browser upload failing with a network error on localhost?">
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="http://localhost:9000/my-bucket"
+```
 
-First, make sure `S3_ENDPOINT` points to the MinIO API port (typically `9000`),
-not the web console port (typically `9001`). Also allow your app's exact origin
-in `MINIO_API_CORS_ALLOW_ORIGIN`.
+Then build URLs with
+[`buildPublicObjectUrl`](/docs/providers#make-files-public).
 
-</Accordion>
-
-</Accordions>
+Upload failing? See [Troubleshooting](/docs/providers#troubleshooting).

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { DB_SCHEMA_VERSION } from "@/fuma-db";
+import { describe, expect, it, vi } from "vitest";
+import { DB_SCHEMA_VERSION, type DimahS3DbClient } from "@/fuma-db";
 import { insertObject, testDatabases, useTestDatabase } from "@/test/databases";
 import type { StorageFolder } from "@/types/storage-object";
 import { createDbStore } from "./create-db-store";
@@ -32,7 +32,56 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
     return folder;
   };
 
+  type Orm = ReturnType<DimahS3DbClient["orm"]>;
+
+  /**
+   * Makes every store over this client see `wrap(orm)`: a way to run a
+   * write of "another request" between a store's check and its own write.
+   */
+  const intercept = (wrap: (orm: Orm) => Partial<Orm>) => {
+    const database = client();
+    const real = database.orm.bind(database);
+    vi.spyOn(database, "orm").mockImplementation(((
+      ...args: Parameters<typeof real>
+    ) => {
+      const orm = real(...args);
+      return { ...orm, ...wrap(orm) };
+    }) as typeof database.orm);
+  };
+
   describe("create", () => {
+    it("puts the parent back when it is deleted while a child is created", async () => {
+      const parent = await nest("a");
+      intercept((orm) => ({
+        create: (async (table: "storageFolder", values: never) => {
+          // The parent goes after the store checked it and before the child lands.
+          await orm.deleteMany("storageFolder", {
+            where: (b) => b("id", "=", parent.id),
+          });
+          return orm.create(table, values);
+        }) as Orm["create"],
+      }));
+
+      const child = await folders().create("user:1", {
+        parentId: parent.id,
+        name: "b",
+      });
+
+      expect(child).toMatchObject({ parentId: parent.id, path: "a/b" });
+      await expect(folders().find("user:1", parent.id)).resolves.toMatchObject({
+        id: parent.id,
+        path: "a",
+      });
+    });
+
+    it("counts the folders of a scope", async () => {
+      await nest("a/b");
+      await nest("c", "user:2");
+
+      await expect(folders().count("user:1")).resolves.toBe(2);
+      await expect(folders().count("user:3")).resolves.toBe(0);
+    });
+
     it("creates one folder under a parent that exists", async () => {
       const parent = await folders().create("user:1", {
         parentId: null,
@@ -106,6 +155,26 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
 
       const root = await folders().children("user:1", null);
       expect(root.map((folder) => folder.name)).toEqual(["a", "b", "c"]);
+
+      // By folded name, like the name sort of the objects: case and accents
+      // do not count, on every database.
+      for (const name of ["Zebra", "apple", "Édith", "dora"]) {
+        await folders().create("user:3", { parentId: null, name });
+      }
+      const mixed = await folders().children("user:3", null);
+      expect(mixed.map((folder) => folder.name)).toEqual([
+        "apple",
+        "dora",
+        "Édith",
+        "Zebra",
+      ]);
+      const below = await folders().descendants("user:3", null);
+      expect(below.map((folder) => folder.name)).toEqual([
+        "apple",
+        "dora",
+        "Édith",
+        "Zebra",
+      ]);
       const parent = await folders().find("user:1", a.parentId ?? "");
       const children = await folders().children("user:1", parent?.id ?? null);
       expect(children.map((folder) => folder.name)).toEqual(["x", "y", "z"]);
@@ -258,6 +327,83 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
         id: leaf.id,
         path: "photos/docs/q4",
       });
+    });
+
+    it("puts the new parent back when it is deleted during the move", async () => {
+      const folder = await nest("a");
+      const target = await nest("b");
+      intercept((orm) => ({
+        transaction: (async (run: never) => {
+          await orm.deleteMany("storageFolder", {
+            where: (b) => b("id", "=", target.id),
+          });
+          return orm.transaction(run);
+        }) as Orm["transaction"],
+      }));
+
+      await expect(
+        folders().update("user:1", folder.id, { parentId: target.id }),
+      ).resolves.toMatchObject({ parentId: target.id, path: "b/a" });
+      await expect(folders().find("user:1", target.id)).resolves.toMatchObject({
+        id: target.id,
+        path: "b",
+      });
+    });
+
+    it("undoes a move that a concurrent move turned into a cycle", async () => {
+      const a = await nest("a");
+      const b = await nest("b");
+      let raced = false;
+      intercept((orm) => ({
+        transaction: (async (run: never) => {
+          if (!raced) {
+            raced = true;
+            // Another request moves `b` below `a` after this move checked
+            // that `b` is not below `a`.
+            await orm.updateMany("storageFolder", {
+              where: (where) => where("id", "=", b.id),
+              set: { parentId: a.id, path: "a/b" },
+            });
+          }
+          return orm.transaction(run);
+        }) as Orm["transaction"],
+      }));
+
+      await expect(
+        folders().update("user:1", a.id, { parentId: b.id }),
+      ).rejects.toMatchObject({ code: "CONFLICT", statusCode: 409 });
+
+      // `a` is back at the root, so both folders are reachable again.
+      await expect(folders().find("user:1", a.id)).resolves.toMatchObject({
+        parentId: null,
+        path: "a",
+      });
+      await expect(
+        folders()
+          .trail("user:1", b.id)
+          .then((trail) => trail.map((folder) => folder.name)),
+      ).resolves.toEqual(["a", "b"]);
+    });
+
+    it("moves a subfolder that was created while the folder was renamed", async () => {
+      const folder = await nest("a");
+      intercept((orm) => ({
+        transaction: (async (run: never) => {
+          // Lands after the rename read nothing below the folder.
+          await orm.create("storageFolder", {
+            scope: "user:1",
+            parentId: folder.id,
+            name: "late",
+            searchName: "late",
+            path: "a/late",
+          });
+          return orm.transaction(run);
+        }) as Orm["transaction"],
+      }));
+
+      await folders().update("user:1", folder.id, { name: "renamed" });
+
+      await expect(paths()).resolves.toEqual(["renamed", "renamed/late"]);
     });
 
     it("rejects a move into itself or a descendant, and a taken name", async () => {

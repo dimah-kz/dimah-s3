@@ -7,8 +7,8 @@ import type { db } from "@/plugin/db";
 import type {
   DbClientActions,
   DbClientFolder,
-  DbClientListInput,
-  DbClientListResponse,
+  DbClientListObjectsInput,
+  DbClientListObjectsResponse,
   DbClientObject,
 } from "@/types/client";
 
@@ -18,7 +18,7 @@ function call(options: S3RequestOptions | undefined) {
 }
 
 /** The list query on the wire, where the root folder is `""`. */
-function listQuery(input: DbClientListInput | undefined) {
+function listQuery(input: DbClientListObjectsInput | undefined) {
   if (input?.folderId !== null) return input;
   return { ...input, folderId: "" };
 }
@@ -48,7 +48,7 @@ export function dbClient<TClientAttributes = never>() {
     $InferServerPlugin: {} as ReturnType<typeof db>,
     getActions: ($fetch): DbClientActions<TClientAttributes> => ({
       listObjects: (input, options) =>
-        $fetch<DbClientListResponse<TClientAttributes>>(
+        $fetch<DbClientListObjectsResponse<TClientAttributes>>(
           pluginPath("db", "objects"),
           { method: "GET", query: listQuery(input), ...call(options) },
         ),

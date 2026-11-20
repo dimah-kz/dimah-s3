@@ -185,7 +185,13 @@ describe("UploadStatus", () => {
             retry,
           }),
         );
-        return { uploaded: [], failed: [], blocked: [], aborted: [] };
+        return {
+          uploaded: [],
+          failed: [],
+          rejected: [],
+          blocked: [],
+          aborted: [],
+        };
       });
       return (
         <Upload upload={upload}>

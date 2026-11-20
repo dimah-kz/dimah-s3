@@ -6,7 +6,7 @@ import { insertObject } from "@/test/databases";
 import { memoryDbClient } from "@/test/fakes";
 import type {
   DbClientFolder,
-  DbClientListResponse,
+  DbClientListObjectsResponse,
   DbClientObject,
 } from "@/types/client";
 import type { DbPluginOptions } from "@/types/plugin";
@@ -20,7 +20,7 @@ const DB_URL = "http://localhost/api/s3/db";
 type Attributes = { title: string; internal?: string };
 type ClientAttributes = { title: string };
 type PluginOptions = DbPluginOptions<undefined, Attributes, ClientAttributes>;
-type ListBody = DbClientListResponse<ClientAttributes>;
+type ListBody = DbClientListObjectsResponse<ClientAttributes>;
 type ObjectBody = { object: DbClientObject<ClientAttributes> };
 type FolderBody = { folder: DbClientFolder };
 
@@ -173,7 +173,7 @@ describe("GET /db/objects", () => {
     await insert({ key: "b.txt", folderId: docs.id });
 
     const { body } = await request<ListBody>("GET", "/objects", {
-      query: { sort: JSON.stringify({ field: "filename", direction: "asc" }) },
+      query: { sort: JSON.stringify({ field: "name", direction: "asc" }) },
     });
 
     expect(body.objects.map((object) => object.key)).toEqual([
@@ -181,7 +181,26 @@ describe("GET /db/objects", () => {
       "b.txt",
     ]);
     expect(body).not.toHaveProperty("folders");
-    expect(body.usage).toEqual({ totalBytes: 0, objectCount: 2 });
+    // No quota and no `usage=true`: the scope's rows are not summed.
+    expect(body).not.toHaveProperty("usage");
+    expect(body.limits).toBeNull();
+  });
+
+  it("sends the usage when the query asks or a quota is set", async () => {
+    const plain = createSetup();
+    await plain.insert({ key: "a.txt", size: 3 });
+    const asked = await plain.request<ListBody>("GET", "/objects", {
+      query: { usage: "true" },
+    });
+    expect(asked.body.usage).toEqual({ totalBytes: 3, objectCount: 1 });
+
+    const capped = createSetup({ plugin: { quota: { maxBytes: 100 } } });
+    await capped.insert({ key: "a.txt", size: 3 });
+    const { body } = await capped.request<ListBody>("GET", "/objects");
+    expect(body).toMatchObject({
+      usage: { totalBytes: 3, objectCount: 1 },
+      limits: { maxBytes: 100 },
+    });
   });
 
   it("pages with the cursor and sends usage on the first page only", async () => {
@@ -218,7 +237,12 @@ describe("GET /db/objects", () => {
       query: { limit: "1" },
     });
     const restarted = await request<ListBody>("GET", "/objects", {
-      query: { limit: "1", search: "b", cursor: String(first.body.nextCursor) },
+      query: {
+        limit: "1",
+        search: "b",
+        usage: "true",
+        cursor: String(first.body.nextCursor),
+      },
     });
 
     expect(restarted.body).toMatchObject({
@@ -250,14 +274,14 @@ describe("GET /db/objects", () => {
       "Docs/2024/Invoices",
     );
     await nest(instance.db.folders, "user:1", "Photos/Invoices");
-    await insert({ key: "a", filename: "Invoice-1.pdf", folderId: year.id });
+    await insert({ key: "a", name: "Invoice-1.pdf", folderId: year.id });
     await insert({
       key: "b",
-      filename: "invoice-2.pdf",
+      name: "invoice-2.pdf",
       folderId: invoices.id,
     });
-    await insert({ key: "c", filename: "INVOICE-3.pdf" });
-    await insert({ key: "d", filename: "photo.png", folderId: year.id });
+    await insert({ key: "c", name: "INVOICE-3.pdf" });
+    await insert({ key: "d", name: "photo.png", folderId: year.id });
 
     const first = await request<ListBody>("GET", "/objects", {
       query: {
@@ -265,7 +289,7 @@ describe("GET /db/objects", () => {
         recursive: "true",
         search: "invoice",
         limit: "1",
-        sort: JSON.stringify({ field: "filename", direction: "asc" }),
+        sort: JSON.stringify({ field: "name", direction: "asc" }),
       },
     });
 
@@ -287,7 +311,7 @@ describe("GET /db/objects", () => {
         recursive: "true",
         search: "invoice",
         limit: "1",
-        sort: JSON.stringify({ field: "filename", direction: "asc" }),
+        sort: JSON.stringify({ field: "name", direction: "asc" }),
         cursor: first.body.nextCursor ?? "",
       },
     });
@@ -339,10 +363,18 @@ describe("GET /db/objects", () => {
         recursive: true,
       }),
     );
-    // A flat listing already covers every folder: recursive changes nothing.
-    await expect(
-      request("GET", "/objects", { query: { recursive: "true" } }),
-    ).resolves.toMatchObject({ status: 200 });
+    // A flat listing covers every folder, so the same rule refuses it.
+    await expect(request("GET", "/objects")).resolves.toMatchObject({
+      status: 403,
+    });
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operation: "list",
+        folder: null,
+        folderId: null,
+        recursive: true,
+      }),
+    );
   });
 
   it("authorizes the listing with op list and the folder", async () => {
@@ -491,22 +523,72 @@ describe("PATCH /db/object", () => {
     await insert({ key: "a.txt", updatedAt: new Date("2024-01-01") });
 
     const { status, body } = await request<ObjectBody>("PATCH", "/object", {
-      body: { key: "a.txt", filename: "notes.txt", folderId: quarter.id },
+      body: { key: "a.txt", name: "notes.txt", folderId: quarter.id },
     });
 
     expect(status).toBe(200);
     expect(body.object).toMatchObject({
-      filename: "notes.txt",
+      name: "notes.txt",
       folderId: quarter.id,
     });
     expect(body.object.updatedAt).not.toBe("2024-01-01T00:00:00.000Z");
+    // Where the object is, and where the move puts it.
     expect(authorize).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: "update",
-        folder: "docs/q4",
-        folderId: quarter.id,
+        folder: null,
+        folderId: null,
+        destination: { folder: "docs/q4", folderId: quarter.id },
       }),
     );
+  });
+
+  it("lets authorize keep a folder read-only by where the object is", async () => {
+    const inArchive = (folder?: string | null) =>
+      folder === "archive" || folder?.startsWith("archive/") === true;
+    const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
+      ({ operation, folder, destination }) =>
+        operation === "read" ||
+        (!inArchive(folder) && !inArchive(destination?.folder)),
+    );
+    const { instance, insert, request } = createSetup({
+      plugin: { authorize },
+    });
+    const archive = await nest(instance.db.folders, "user:1", "archive");
+    await insert({ key: "kept.txt", folderId: archive.id });
+    await insert({ key: "free.txt" });
+
+    // A rename inside the archive names no folder in its body.
+    await expect(
+      request("PATCH", "/object", {
+        body: { key: "kept.txt", name: "renamed.txt" },
+      }),
+    ).resolves.toMatchObject({ status: 403 });
+    // Out of the archive, and into it.
+    await expect(
+      request("PATCH", "/object", {
+        body: { key: "kept.txt", folderId: null },
+      }),
+    ).resolves.toMatchObject({ status: 403 });
+    await expect(
+      request("PATCH", "/object", {
+        body: { key: "free.txt", folderId: archive.id },
+      }),
+    ).resolves.toMatchObject({ status: 403 });
+    // The archive itself cannot be renamed or deleted.
+    await expect(
+      request("PATCH", "/folder", { body: { id: archive.id, name: "old" } }),
+    ).resolves.toMatchObject({ status: 403 });
+    await expect(
+      request("POST", "/folder", {
+        body: { parentId: archive.id, name: "2024" },
+      }),
+    ).resolves.toMatchObject({ status: 403 });
+    await expect(
+      request("PATCH", "/object", {
+        body: { key: "free.txt", name: "still-free.txt" },
+      }),
+    ).resolves.toMatchObject({ status: 200 });
   });
 
   it("moves an object to the root with null", async () => {
@@ -609,7 +691,7 @@ describe("PATCH /db/object", () => {
 
     await expect(
       request("PATCH", "/object", {
-        body: { key: "a.txt", bucket: "other", filename: "b.txt" },
+        body: { key: "a.txt", bucket: "other", name: "b.txt" },
       }),
     ).resolves.toMatchObject({
       status: 400,
@@ -625,7 +707,7 @@ describe("PATCH /db/object", () => {
     });
     await expect(
       request("PATCH", "/object", {
-        body: { key: "pending.txt", filename: "b.txt" },
+        body: { key: "pending.txt", name: "b.txt" },
       }),
     ).resolves.toMatchObject({
       status: 404,
@@ -638,7 +720,7 @@ describe("PATCH /db/object", () => {
     await insert({ key: "a.txt", scope: "user:2" });
 
     await expect(
-      request("PATCH", "/object", { body: { key: "a.txt", filename: "b" } }),
+      request("PATCH", "/object", { body: { key: "a.txt", name: "b" } }),
     ).resolves.toMatchObject({
       status: 404,
       body: { code: "OBJECT_NOT_FOUND" },
@@ -656,7 +738,7 @@ describe("PATCH /db/object", () => {
           "x-user": "1",
           "content-type": "application/x-www-form-urlencoded",
         },
-        body: "key=a.txt&filename=b.txt",
+        body: "key=a.txt&name=b.txt",
       }),
     );
 
@@ -685,9 +767,47 @@ describe("POST /db/folder", () => {
       name: "q4",
       parentId: docs.id,
     });
+    // The folder it goes into, and the path it will have.
     expect(authorize).toHaveBeenCalledWith(
-      expect.objectContaining({ operation: "update", folder: "docs/q4" }),
+      expect.objectContaining({
+        operation: "folder.create",
+        folder: "docs",
+        folderId: docs.id,
+        destination: { folder: "docs/q4", folderId: docs.id },
+      }),
     );
+  });
+
+  it("refuses a name with whitespace at either end", async () => {
+    const { request } = createSetup();
+
+    for (const name of [" docs", "docs ", " "]) {
+      await expect(
+        request("POST", "/folder", { body: { name } }),
+      ).resolves.toMatchObject({
+        status: 400,
+        body: { code: "FOLDER_INVALID" },
+      });
+    }
+  });
+
+  it("stops at the quota's maxFolders", async () => {
+    const { instance, request } = createSetup({
+      plugin: { quota: { maxFolders: 2 } },
+    });
+    await nest(instance.db.folders, "user:1", "a");
+    // Another scope's folders do not count.
+    await nest(instance.db.folders, "user:2", "theirs");
+
+    await expect(
+      request("POST", "/folder", { body: { name: "b" } }),
+    ).resolves.toMatchObject({ status: 200 });
+    await expect(
+      request("POST", "/folder", { body: { name: "c" } }),
+    ).resolves.toMatchObject({
+      status: 403,
+      body: { code: "QUOTA_EXCEEDED", params: { limit: "folders" } },
+    });
   });
 
   it("stores the NFC form of the name", async () => {
@@ -768,6 +888,39 @@ describe("PATCH /db/folder", () => {
     ).resolves.toMatchObject({
       path: "files/q4",
     });
+  });
+
+  it("tells authorize where the folder is and where it goes", async () => {
+    const authorize = vi.fn<NonNullable<PluginOptions["authorize"]>>(
+      () => true,
+    );
+    const { instance, request } = createSetup({ plugin: { authorize } });
+    const leaf = await nest(instance.db.folders, "user:1", "docs/q4");
+    const photos = await nest(instance.db.folders, "user:1", "photos");
+
+    await request("PATCH", "/folder", {
+      body: { id: leaf.id, name: "last", parentId: photos.id },
+    });
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operation: "folder.update",
+        folder: "docs/q4",
+        folderId: leaf.id,
+        destination: { folder: "photos/last", folderId: photos.id },
+      }),
+    );
+
+    await request("DELETE", "/folder", { query: { id: leaf.id } });
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        operation: "folder.delete",
+        folder: "photos/last",
+        folderId: leaf.id,
+      }),
+    );
+    expect(authorize).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ destination: expect.anything() }),
+    );
   });
 
   it("refuses a move into a descendant", async () => {

@@ -39,6 +39,7 @@ export function confirmUpload(
       context.key,
     );
     return finalizeConfirmed({
+      config,
       route,
       context,
       kind: ticket.kind,

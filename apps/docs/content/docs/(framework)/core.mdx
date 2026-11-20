@@ -1,0 +1,462 @@
+---
+title: "@dimah-s3/core"
+description: The protocol shared by the server and React packages, with the fetch client, endpoint paths, error catalog, limits, schemas, and helpers.
+icon: Braces
+---
+
+`@dimah-s3/core` is the protocol source of truth: `@dimah-s3/server`
+implements it, and `@dimah-s3/react` calls it. Use it directly to call the API
+without React, to build a custom backend or client plugin, or for its helpers.
+It has no React and no AWS SDK code, so it runs in the browser, on the server,
+and in any Fetch runtime.
+
+```npm
+npm i @dimah-s3/core@beta
+```
+
+| Export                                                                 | What it is                                                                        |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [`createS3Client`](#client)                                            | Fetch client for the HTTP API. Implements `S3Api` and takes client plugins        |
+| [`S3_API_ROUTES`, `S3_API_BASE_PATH`](#protocol)                       | Endpoint paths                                                                    |
+| `S3_ERROR_CODES`, `APIError`, `s3Error`, `isS3ErrorCode`               | The error catalog and its helpers. See [Errors](/docs/server/errors)              |
+| [Limits](#limits)                                                      | Protocol and S3 limits as plain constants                                         |
+| [Schemas](#schemas)                                                    | Zod schemas in `@dimah-s3/core/schema`, kept out of browser bundles               |
+| [`defineClientPlugin`, `createS3Fetch`, `pluginPath`](#client-plugins) | Client plugin helpers                                                             |
+| [Helpers](#helpers)                                                    | `validateFile`, `sha256Blob`, `resolveInlineDisposition`, `fitFileName`, and more |
+
+`@dimah-s3/react` does not re-export any of this, so import it from
+`@dimah-s3/core`. Display formatters such as `formatFileSize` and
+`truncateFileName` live in [`@dimah-s3/react/engine`](/docs/react/guides/engine).
+
+## Client
+
+```ts title="lib/s3-client.ts"
+import { createS3Client } from "@dimah-s3/core";
+
+export const api = createS3Client({
+  basePath: "/api/s3",
+  credentials: "include",
+  headers: async () => ({ Authorization: `Bearer ${await getToken()}` }),
+});
+```
+
+In a React app, use `createS3Client` from `@dimah-s3/react` instead. It takes
+the same [options](#creates3clientoptions) and adds a bound `Provider` and
+`useApi` to the client.
+
+### Calls
+
+Every method takes a payload, then optional
+[per-call options](#s3requestoptions):
+
+```ts
+const controller = new AbortController();
+
+const presign = await api.upload(
+  { route: "avatar", name: file.name, size: file.size, type: file.type },
+  { signal: controller.signal, headers: { "X-Request-Id": requestId } },
+);
+```
+
+| Method                | Payload                                                    | Returns                                               |
+| --------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
+| `upload`              | `{ route, name, size, type?, clientMetadata?, checksum? }` | [`UploadPresignResponse`](#uploadpresignresponse)     |
+| `confirm`             | `{ ticket }`                                               | [`ConfirmedObjectResponse`](#confirmedobjectresponse) |
+| `download`            | `{ route, key, name?, disposition?, expiresIn? }`          | [`DownloadPresignResponse`](#downloadpresignresponse) |
+| `catalog`             | none                                                       | Every route's public policy                           |
+| `delete`              | `{ route, key }`                                           | `{ key, bucket }`                                     |
+| `deleteMany`          | `{ route, keys }`                                          | `{ deleted, failed }`                                 |
+| `multipart.init`      | `{ route, name, size, type?, clientMetadata? }`            | [`MultipartInitResponse`](#multipartinitresponse)     |
+| `multipart.signPart`  | `{ ticket, partNumber, checksum? }`                        | [`MultipartPartResponse`](#multipartpartresponse)     |
+| `multipart.listParts` | `{ ticket }`                                               | `{ parts }`                                           |
+| `multipart.complete`  | `{ ticket }`                                               | `ConfirmedObjectResponse` and `uploadId`              |
+| `multipart.abort`     | `{ ticket }`                                               | `{ key, bucket, uploadId }`                           |
+
+- File fields are always `name`, `size`, and `type`. `name` and `type` are at
+  most 255 UTF-8 bytes, with no control characters.
+- `clientMetadata` holds up to 32 string entries for the server hooks, and
+  is never written to S3 on its own. A confirmed object's `metadata` is the
+  S3 user metadata the server wrote.
+- Confirm and every multipart call after init send only the
+  [upload ticket](/docs/server/upload-tickets).
+- In proxy mode, `download` returns a `/file` URL and no `expiresIn`. With an
+  absolute `baseURL`, the client makes that URL absolute too.
+
+The client also has `$fetch` (the shared fetch for plugin calls),
+`$ERROR_CODES`, and `$Infer`.
+
+### Errors
+
+Every failure rejects with an `APIError` that has a catalog `code`:
+
+```ts
+import { isS3ErrorCode } from "@dimah-s3/core";
+
+try {
+  await api.confirm({ ticket });
+} catch (error) {
+  if (isS3ErrorCode(error, "UPLOAD_TICKET_EXPIRED")) {
+    // Start the upload again
+  }
+}
+```
+
+| Failure                                                  | Rejects with                                              |
+| -------------------------------------------------------- | --------------------------------------------------------- |
+| JSON error body                                          | Its `code`, `params`, and HTTP status                     |
+| Non-JSON error response                                  | `INTERNAL_ERROR` (status 500 or above) or `UNKNOWN_ERROR` |
+| `2xx` body that is not JSON, such as an SPA `index.html` | `UNKNOWN_ERROR`                                           |
+| No response                                              | `NETWORK_ERROR`                                           |
+| Aborted call                                             | The signal's reason                                       |
+
+The full list is on [Errors](/docs/server/errors).
+
+## Protocol
+
+Paths are relative to `basePath`:
+
+| Key                  | Method | Path                          |
+| -------------------- | ------ | ----------------------------- |
+| `upload`             | POST   | `/presign/upload`             |
+| `confirm`            | POST   | `/presign/upload/confirm`     |
+| `download`           | GET    | `/presign/download`           |
+| `file`               | GET    | `/file`                       |
+| `catalog`            | GET    | `/routes`                     |
+| `delete`             | DELETE | `/delete`                     |
+| `deleteMany`         | POST   | `/delete/batch`               |
+| `multipartInit`      | POST   | `/presign/multipart/init`     |
+| `multipartSignPart`  | POST   | `/presign/multipart/part`     |
+| `multipartListParts` | POST   | `/presign/multipart/parts`    |
+| `multipartComplete`  | POST   | `/presign/multipart/complete` |
+| `multipartAbort`     | POST   | `/presign/multipart/abort`    |
+
+- `GET` and `DELETE` read a query. Every other endpoint reads a JSON body and
+  accepts `application/json` only.
+- `file` is the [file proxy](/docs/server/file-proxy) that proxy-mode
+  downloads point to. It is not an `S3Api` method.
+
+To back the React hooks with your own server, implement `S3Api`. See
+[Custom Backend](/docs/react/custom-backend).
+
+### Schemas
+
+`@dimah-s3/core/schema` exports the Zod schemas the server validates with, so
+a custom backend or a plugin checks requests the same way:
+
+```ts
+import { uploadBodySchema } from "@dimah-s3/core/schema";
+
+const body = uploadBodySchema.parse(await request.json());
+```
+
+| Schemas                                                                                                                            | For                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `uploadBodySchema`, `ticketBodySchema`                                                                                             | Presign, and every call that sends only a ticket |
+| `downloadQuerySchema`, `fileQuerySchema`                                                                                           | Presigned download and `/file`                   |
+| `deleteQuerySchema`, `deleteManyBodySchema`                                                                                        | Delete one key, or many                          |
+| `multipartInitBodySchema`, `multipartSignPartBodySchema`                                                                           | Multipart init and sign part                     |
+| `routeCatalogResponseSchema`, `routeCatalogEntrySchema`, `downloadModeSchema`, `downloadDispositionSchema`                         | The route catalog                                |
+| `routeNameSchema`, `objectKeySchema`, `fileNameSchema`, `contentTypeSchema`, `clientMetadataSchema`, `uploadTicketSchema`          | Single fields                                    |
+| `sha256ChecksumSchema`, `partNumberSchema`, `s3ObjectAclSchema`, `trimmedString`, and the `optional*` variants of the fields above | Single fields                                    |
+
+- `objectKeySchema` returns the normalized key and rejects unsafe ones.
+- `sha256ChecksumSchema` accepts base64 with or without padding and returns
+  it padded.
+
+### Limits
+
+Plain constants from the root entry, so browser code can use them without
+Zod:
+
+| Constant                      | Value      | What it limits                                          |
+| ----------------------------- | ---------- | ------------------------------------------------------- |
+| `S3_DEFAULT_EXPIRES_IN`       | 600 s      | Presign TTL when a route sets none                      |
+| `S3_MAX_EXPIRES_IN`           | 604,800 s  | The SigV4 maximum, 7 days                               |
+| `S3_MAX_POST_OBJECT_BYTES`    | 5 GiB      | One presigned PUT or POST                               |
+| `S3_MAX_OBJECT_SIZE`          | 5 TiB      | One object, through multipart                           |
+| `S3_DEFAULT_PART_SIZE`        | 8 MiB      | Multipart part size when a route sets none              |
+| `S3_MIN_PART_SIZE`            | 5 MiB      | Every part but the last                                 |
+| `S3_MAX_PART_SIZE`            | 5 GiB      | One part                                                |
+| `S3_MAX_PART_NUMBER`          | 10,000     | Parts per upload                                        |
+| `S3_MAX_FILE_FIELD_BYTES`     | 255 bytes  | `name` and `type` on the wire                           |
+| `S3_MAX_OBJECT_KEY_BYTES`     | 1024 bytes | An object key                                           |
+| `UPLOAD_TICKET_MAX_LENGTH`    | 8192 chars | An upload ticket                                        |
+| `CLIENT_METADATA_MAX_ENTRIES` | 32         | Entries of `clientMetadata`                             |
+| `DELETE_MANY_MAX_KEYS`        | 100        | Keys in one `deleteMany` request                        |
+| `ROUTE_NAME_PATTERN`          | a `RegExp` | A route name or plugin id: a letter, then up to 63 more |
+
+## Client plugins
+
+A client plugin adds methods that call a server plugin's endpoints through
+the shared `$fetch`. `pluginPath` builds the same path the server mounts:
+
+```ts
+import { createS3Client, defineClientPlugin, pluginPath } from "@dimah-s3/core";
+
+export function auditClient() {
+  return defineClientPlugin({
+    id: "audit",
+    // Type only: the id must equal the server plugin's id.
+    $InferServerPlugin: {} as typeof auditPlugin,
+    getActions: ($fetch) => ({
+      recent: (limit?: number) =>
+        $fetch<{ events: unknown[] }>(pluginPath("audit", "recent"), {
+          method: "GET",
+          query: { limit },
+        }),
+    }),
+  });
+}
+
+const api = createS3Client({ plugins: [auditClient()] });
+await api.audit.recent(20);
+```
+
+- The id becomes `api[id]`. Core method names such as `upload` and `delete`
+  are reserved (`RESERVED_CLIENT_KEYS`).
+- `$InferServerPlugin` is optional and never read at runtime: a mismatched
+  `id` fails to compile. Import the server plugin as a type only.
+- The server side is on [Plugins](/docs/server/plugins).
+
+## Helpers
+
+```ts
+import {
+  buildPublicObjectUrl,
+  resolveInlineDisposition,
+  sha256Blob,
+  validateFile,
+} from "@dimah-s3/core";
+
+// null when valid, otherwise an APIError:
+// FILE_TYPE_NOT_ALLOWED, FILE_EMPTY, or FILE_TOO_LARGE
+const error = validateFile(file, {
+  accept: ["image/*"],
+  maxFileSize: 2 * 1024 * 1024,
+});
+
+// SHA-256 as unpadded base64, read in 1 MiB chunks
+const checksum = await sha256Blob(file, { signal });
+
+// "inline" only when the type is on the allow-list
+const { disposition } = resolveInlineDisposition({
+  contentType: "image/png",
+  requested: "inline",
+});
+
+// Public URL for public-read objects or a CDN. It does not sign.
+const url = buildPublicObjectUrl({
+  baseURL: "https://cdn.example.com",
+  key: "avatar/uuid/avatar.png",
+});
+```
+
+| Helper                                                          | Does                                                                           |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `validateFile`, `matchesFileTypes`                              | Checks a file against `accept` tokens and a size limit                         |
+| `sha256Blob`, `sha256Base64`                                    | SHA-256 in the form S3 and the upload `checksum` expect                        |
+| `resolveInlineDisposition`, `DEFAULT_INLINE_TYPES`              | The server's inline rule. Pass the catalog `download.inlineTypes` as `allow`   |
+| `sniffContentType`, `matchesMagicBytes`, `isSniffableType`      | Reads a type from the first bytes, as `verifyContent` does                     |
+| `buildContentDisposition`, `parseFileName`                      | Builds and reads `Content-Disposition` with Unicode names                      |
+| `buildObjectKey`, `normalizeObjectKey`                          | Joins key segments, and rejects unsafe keys (`..`, `\`, NUL)                   |
+| `objectKeyByteLength`, `S3_MAX_OBJECT_KEY_BYTES`                | A key's UTF-8 length, and the 1024-byte limit `normalizeObjectKey` enforces    |
+| `fitFileName`, `S3_MAX_FILE_FIELD_BYTES`                        | Fits a file name to the 255-byte wire rule                                     |
+| `buildPublicObjectUrl`                                          | Joins a public origin and an encoded key                                       |
+| `base64UrlEncode`, `base64UrlDecode`                            | base64url without `Buffer`                                                     |
+| `normalizeSearchText`, `matchesSearchText`, `findSearchMatches` | Folds names for search, the way list search and `db()` match them              |
+| `effectiveContentType`, `describeFileType`                      | The type an object is served as, and the label a refused type gets             |
+| `fileNameFromKey`, `resolveStoredFileName`                      | A file name from a key, or from `Content-Disposition` with the key as fallback |
+| `SNIFF_BYTE_LENGTH`                                             | How many leading bytes `sniffContentType` reads                                |
+| `normalizeS3ApiBasePath`                                        | A base path in its one form: leading `/`, no trailing one                      |
+| `defineErrorCodes`, `formatErrorMessage`                        | Builds an error catalog like `S3_ERROR_CODES`, and fills a message template    |
+
+- `DEFAULT_INLINE_TYPES` holds raster images, PDF, audio, video, and
+  `text/plain`. A wildcard never matches HTML, XML (including SVG and
+  `text/xsl`), or JavaScript.
+- `fitFileName(name)` removes control and bidi characters, trims, and cuts a
+  longer name to 255 UTF-8 bytes, keeping an extension of up to 32 bytes. An
+  empty result becomes `"file"`. The React upload engine applies it before
+  presign, so a long name uploads under a shortened name.
+
+### Search folding
+
+`normalizeSearchText` lowercases, drops accents and other combining marks,
+joins look-alike letters (Arabic and Persian `ي`/`ی` and `ك`/`ک`, Greek final
+`ς`, `ß` as `ss`), reads Persian and Arabic-Indic digits as `0`–`9`, removes
+zero-width joiners and the tatweel, and collapses whitespace.
+
+```ts
+import {
+  findSearchMatches,
+  matchesSearchText,
+  normalizeSearchText,
+} from "@dimah-s3/core";
+
+normalizeSearchText("  Résumé  Final.PDF"); // "resume final.pdf"
+matchesSearchText("گزارش ۱۴۰۲.xlsx", "1402"); // true
+findSearchMatches("Café.pdf", "cafe"); // [[0, 4]]
+```
+
+A blank search matches everything. `findSearchMatches` returns the
+`[start, end)` ranges of each match in the original name, for a highlight.
+
+## API Reference
+
+Import these types from `@dimah-s3/core`.
+
+### CreateS3ClientOptions
+
+The options of `createS3Client`.
+
+| Prop          | Type                                                       | Default        | Description                                                                        |
+| ------------- | ---------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| `basePath`    | `string`                                                   | `"/api/s3"`    | API path prefix. Must match the server `basePath`                                  |
+| `baseURL`     | `string`                                                   | —              | Absolute API URL, such as `https://api.example.com/api/s3`. Wins over `basePath`   |
+| `headers`     | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | —              | Static headers, or a function called before each request                           |
+| `credentials` | `RequestCredentials`                                       | —              | Fetch credentials mode, such as `"include"` to send cookies cross-origin           |
+| `fetch`       | `(input, init) => Promise<Response>`                       | global `fetch` | Replaces `fetch`, for SSR, tests, or logging                                       |
+| `plugins`     | `S3ClientPlugin[]`                                         | —              | [Client plugins](#client-plugins), such as `dbClient()` from `@dimah-s3/db/client` |
+
+### S3RequestOptions
+
+The optional second argument of every client method.
+
+| Prop      | Type          | Default | Description                                         |
+| --------- | ------------- | ------- | --------------------------------------------------- |
+| `signal`  | `AbortSignal` | —       | Aborts the request                                  |
+| `headers` | `HeadersInit` | —       | Merged over the client headers. Per-call values win |
+
+### UploadPresignResponse
+
+What `upload` returns. Narrow on `method`.
+
+| Property    | Type                     | Description                                                      |
+| ----------- | ------------------------ | ---------------------------------------------------------------- |
+| `key`       | `string`                 | S3 object key                                                    |
+| `bucket`    | `string`                 | Target bucket                                                    |
+| `url`       | `string`                 | Presigned upload URL                                             |
+| `expiresIn` | `number`                 | URL validity in seconds                                          |
+| `ticket`    | `string`                 | Upload ticket. Send it to `confirm`                              |
+| `method`    | `"PUT" \| "POST"`        | Upload verb                                                      |
+| `headers`   | `Record<string, string>` | `PUT` only. Send exactly these, never `Content-Length` or `Host` |
+| `fields`    | `Record<string, string>` | `POST` only. Append them to `FormData` before the file           |
+
+### ConfirmedObjectResponse
+
+What `confirm` returns, and `multipart.complete` with an added `uploadId`.
+Every value comes from HeadObject, except `acl`.
+
+| Property       | Type                       | Description                                           |
+| -------------- | -------------------------- | ----------------------------------------------------- |
+| `key`          | `string`                   | S3 object key                                         |
+| `bucket`       | `string`                   | Target bucket                                         |
+| `name`         | `string \| undefined`      | Stored file name                                      |
+| `size`         | `number`                   | Verified size in bytes                                |
+| `type`         | `string \| undefined`      | MIME type                                             |
+| `eTag`         | `string \| undefined`      | ETag                                                  |
+| `versionId`    | `string \| undefined`      | S3 version ID                                         |
+| `lastModified` | `string \| undefined`      | Last modified timestamp                               |
+| `metadata`     | `Record<string, string>`   | S3 user metadata, without internal keys               |
+| `acl`          | `S3ObjectAcl \| undefined` | ACL from the upload policy (`upload.acl` or `object`) |
+
+### DownloadPresignResponse
+
+What `download` returns. Narrow on `mode`: only a presigned URL expires.
+
+| Property      | Type                       | Description                                             |
+| ------------- | -------------------------- | ------------------------------------------------------- |
+| `key`         | `string`                   | S3 object key                                           |
+| `bucket`      | `string`                   | Target bucket                                           |
+| `disposition` | `"inline" \| "attachment"` | `Content-Disposition` used on the signed or proxied GET |
+| `mode`        | `"presign" \| "proxy"`     | How the file is served                                  |
+| `url`         | `string`                   | Presigned S3 URL, or the `/file` URL in proxy mode      |
+| `expiresIn`   | `number \| undefined`      | URL validity in seconds. Set in `"presign"` mode only   |
+
+A proxy URL does not expire: each request is authorized again.
+
+### MultipartInitResponse
+
+What `multipart.init` returns. The server picks the part layout.
+
+| Property    | Type      | Description                                          |
+| ----------- | --------- | ---------------------------------------------------- |
+| `key`       | `string`  | S3 object key                                        |
+| `bucket`    | `string`  | Target bucket                                        |
+| `uploadId`  | `string`  | S3 multipart upload ID                               |
+| `ticket`    | `string`  | Upload ticket. Send it to every later multipart call |
+| `partSize`  | `number`  | Size of every part except the last, in bytes         |
+| `partCount` | `number`  | Number of parts to upload                            |
+| `checksum`  | `boolean` | Every part must send a SHA-256 checksum              |
+
+### MultipartPartResponse
+
+What `multipart.signPart` returns.
+
+| Property     | Type                     | Description                                 |
+| ------------ | ------------------------ | ------------------------------------------- |
+| `url`        | `string`                 | Presigned PUT URL for this part             |
+| `partNumber` | `number`                 | 1-based part number                         |
+| `size`       | `number`                 | Exact byte size signed into this part's URL |
+| `expiresIn`  | `number`                 | URL validity in seconds                     |
+| `headers`    | `Record<string, string>` | Send exactly these on the part PUT          |
+
+### ResolveInlineDispositionInput
+
+The input of `resolveInlineDisposition`.
+
+| Prop          | Type                         | Default                | Description                                                                                                    |
+| ------------- | ---------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `contentType` | `string`                     | —                      | Stored type, such as HeadObject `ContentType`                                                                  |
+| `fileName`    | `string`                     | —                      | Gives the type when `contentType` is missing, empty, `application/octet-stream`, or `binary/octet-stream`      |
+| `allow`       | `readonly string[] \| false` | `DEFAULT_INLINE_TYPES` | MIME types or `type/*` wildcards that may open inline. File extensions are not accepted. `false` never inlines |
+| `requested`   | `"inline" \| "attachment"`   | —                      | The client request or route default. Anything but `"inline"` resolves to `"attachment"`                        |
+
+It returns `{ disposition, contentType? }`. `contentType` is set when inline
+is allowed but the type came from `fileName`: sign it as
+`ResponseContentType` so the browser renders the object.
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can I call the API without the React package?">
+
+Yes. `createS3Client` works in any JavaScript runtime with `fetch`. You run
+the upload steps yourself: presign, send the bytes to S3, then confirm.
+
+```ts
+const presign = await api.upload({
+  route: "avatar",
+  name: file.name,
+  size: file.size,
+  type: file.type,
+});
+
+if (presign.method === "PUT") {
+  const response = await fetch(presign.url, {
+    method: "PUT",
+    headers: presign.headers,
+    body: file,
+  });
+  if (!response.ok) throw new Error(`S3 returned ${response.status}`);
+}
+
+const object = await api.confirm({ ticket: presign.ticket });
+```
+
+When the route sets `checksum`, send `checksum: await sha256Blob(file)` with
+the presign. `GET /routes` (`api.catalog()`) reports it as
+`upload.checksum`.
+
+</Accordion>
+
+<Accordion title="I am upgrading from 1.7. What changed?">
+
+File fields are renamed to `name`, `size`, and `type`, confirm and multipart
+calls take a `ticket`, the Zod schemas moved to `@dimah-s3/core/schema`, and
+several route keys and errors are renamed. See
+[Upgrade to 2.0 beta](/docs/migration-2-0#custom-backends-and-transports).
+
+</Accordion>
+
+</Accordions>

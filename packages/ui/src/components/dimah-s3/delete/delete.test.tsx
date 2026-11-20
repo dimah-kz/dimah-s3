@@ -392,19 +392,16 @@ describe("DeleteTrigger", () => {
     expect(busy.getAttribute("aria-busy")).toBe("true");
   });
 
-  it("shows the icon alone at an icon size", () => {
+  it("shows the icon alone at an icon size and keeps its name", () => {
     render(
       <Delete delete={fakeDelete()}>
-        <DeleteTrigger
-          objectKey="docs/a.pdf"
-          size="icon"
-          aria-label="Delete A"
-        />
+        <DeleteTrigger objectKey="docs/a.pdf" size="icon" />
       </Delete>,
     );
 
-    const button = screen.getByRole("button", { name: "Delete A" });
-    expect(button.textContent).toBe("");
+    // The label is still there for screen readers, visually hidden.
+    const button = screen.getByRole("button", { name: "Delete" });
+    expect(button.querySelector(".sr-only")?.textContent).toBe("Delete");
     expect(button.querySelector("svg")).not.toBeNull();
   });
 

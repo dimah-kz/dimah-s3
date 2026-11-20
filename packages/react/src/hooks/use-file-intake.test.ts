@@ -106,10 +106,10 @@ function pick(input: HTMLInputElement, files: File[]) {
 }
 
 const rootCall: UploadCallOptions = {
-  uploadOptions: { metadata: { at: "root" } },
+  uploadOptions: { clientMetadata: { at: "root" } },
 };
 const rowCall: UploadCallOptions = {
-  uploadOptions: { metadata: { at: "row" } },
+  uploadOptions: { clientMetadata: { at: "row" } },
 };
 
 /** A dropzone root with an input and a drop target inside it. */

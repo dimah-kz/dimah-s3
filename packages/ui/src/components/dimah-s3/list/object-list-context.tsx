@@ -22,14 +22,14 @@ import type {
 export type ObjectListView = "list" | "grid";
 
 /** `auto` loads the next page on scroll; `button` waits for Load more. */
-export type ObjectListPagination = "auto" | "button";
+export type ObjectListPaginationMode = "auto" | "button";
 
 /** Per-entry render hooks. Each returns the default when left out. */
 export type ObjectListRenderers<TItem> = {
   /** Replaces the whole row or tile. Compose `ObjectListRow` or `ObjectListTile` to keep selection. */
   renderEntry?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
-   * Trailing controls. Defaults to `ObjectListItemMenu` on files when the
+   * Trailing controls. Defaults to `ObjectListEntryMenu` on files when the
    * list has `download`, `share`, `delete`, or `renameFile`, and on folders
    * when files can be uploaded into them or the source has `renameFolder`.
    * Return `null` to hide them.
@@ -52,12 +52,12 @@ export type ObjectListFeedback = {
 };
 
 /** What `ObjectList` shares with its parts. Read it with {@link useObjectListContext}. */
-export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
+export type ObjectListContextValue<TItem> = {
   list: UseObjectListReturn<TItem>;
   selection: UseObjectListSelectionReturn<TItem> | null;
   upload: UseUploadReturn | null;
   download: AnyDownloadReturn | null;
-  /** Signs Copy link. Falls back to a navigate-mode `download`. */
+  /** Signs Copy link. Falls back to a navigate `download`. */
   share: UseDownloadReturn | null;
   delete: UseDeleteReturn | null;
   /**
@@ -69,36 +69,48 @@ export type ObjectListContextValue<TItem> = ObjectListRenderers<TItem> & {
   announce: (feedback: ObjectListFeedback) => void;
   view: ObjectListView;
   setView: (view: ObjectListView) => void;
-  /** Root breadcrumb label and the list's accessible name. */
-  label: string;
-  /** `fixed` with `height`, `max` with `maxHeight`. Rows scroll inside. */
-  sizing: "fixed" | "max" | null;
-  showBreadcrumb: boolean;
-  selectionActions: ReactNode;
-  empty: ReactNode;
-  pagination: ObjectListPagination;
-  onOpenItem: ((item: TItem) => void) | undefined;
-  /** Object keys stored in a folder. Lets bulk delete include folders. */
-  resolveFolderKeys:
-    ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined;
-  /** Entry key whose name is a field, or `null`. */
-  renamingKey: string | null;
-  /** The New folder name field is open. */
-  newFolderOpen: boolean;
-  /** Opens or closes the New folder name field. */
-  setNewFolderOpen: (open: boolean) => void;
+  /** The `rootLabel` prop: the root breadcrumb label and the list's accessible name. */
+  rootLabel: string;
+  /**
+   * Opens the New folder name field. Does nothing when the source has no
+   * `createFolder`.
+   */
+  startNewFolder: () => void;
   /** Turn that entry's name into the rename field. */
   startRename: (key: string) => void;
-  /**
-   * Close the rename field of entry `key`, if it is still the one open.
-   * With `focus`, the row takes focus once its button is back.
-   */
-  endRename: (key: string, focus?: boolean) => void;
   /**
    * Leave the search and open the folder that holds a search result (its
    * `location`), then focus the entry there once it loads.
    */
   revealEntry: (entry: ObjectListEntry<TItem>) => void;
+};
+
+/**
+ * What only the list's own parts read: layout props of `ObjectList` and the
+ * state behind its fields. Not part of the public context. @internal
+ */
+export type ObjectListInternalValue<TItem> = Pick<
+  ObjectListRenderers<TItem>,
+  "renderEntry"
+> & {
+  /** `fixed` with `height`, `max` with `maxHeight`. Rows scroll inside. */
+  sizing: "fixed" | "max" | null;
+  showBreadcrumb: boolean;
+  selectionActions: ReactNode;
+  empty: ReactNode;
+  pagination: ObjectListPaginationMode;
+  /** Object keys stored in a folder. Lets bulk delete include folders. */
+  resolveFolderKeys:
+    ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined;
+  /** The New folder name field is open. */
+  newFolderOpen: boolean;
+  /** Closes the New folder name field. */
+  closeNewFolder: () => void;
+  /**
+   * Close the rename field of entry `key`, if it is still the one open.
+   * With `focus`, the row takes focus once its button is back.
+   */
+  endRename: (key: string, focus?: boolean) => void;
 };
 
 /**
@@ -212,18 +224,24 @@ export function useOptionalObjectListHeader() {
 const ObjectListContext = createContext<ObjectListContextValue<unknown> | null>(
   null,
 );
+const ObjectListInternalContext =
+  createContext<ObjectListInternalValue<unknown> | null>(null);
 const ObjectListEntryScopeContext =
   createContext<ObjectListEntryScope<unknown> | null>(null);
 const ObjectListEntryContext = createContext<ObjectListEntry<unknown> | null>(
   null,
 );
 
+/** @internal */
 export function ObjectListProvider<TItem>({
   value,
+  internal,
   scope,
   children,
 }: {
   value: ObjectListContextValue<TItem>;
+  /** What the list's own parts read. `ObjectList` always sets it. */
+  internal?: ObjectListInternalValue<TItem>;
   /** What entries read. Parts that draw no entries can do without it. */
   scope?: ObjectListEntryScope<TItem>;
   children: ReactNode;
@@ -232,15 +250,20 @@ export function ObjectListProvider<TItem>({
     <ObjectListContext.Provider
       value={value as unknown as ObjectListContextValue<unknown>}
     >
-      <ObjectListEntryScopeContext.Provider
-        value={(scope ?? null) as ObjectListEntryScope<unknown> | null}
+      <ObjectListInternalContext.Provider
+        value={(internal ?? null) as ObjectListInternalValue<unknown> | null}
       >
-        {children}
-      </ObjectListEntryScopeContext.Provider>
+        <ObjectListEntryScopeContext.Provider
+          value={(scope ?? null) as ObjectListEntryScope<unknown> | null}
+        >
+          {children}
+        </ObjectListEntryScopeContext.Provider>
+      </ObjectListInternalContext.Provider>
     </ObjectListContext.Provider>
   );
 }
 
+/** @internal */
 export function ObjectListEntryProvider<TItem>({
   entry,
   children,
@@ -256,8 +279,8 @@ export function ObjectListEntryProvider<TItem>({
 }
 
 /**
- * The list, selection, hooks, and view of the nearest `ObjectList`.
- * Use it to build your own parts.
+ * The list, selection, hooks, view, and commands of the nearest
+ * `ObjectList`. Use it to build your own parts.
  */
 export function useObjectListContext<
   TItem = unknown,
@@ -276,6 +299,19 @@ export function useOptionalObjectListContext<
   TItem = unknown,
 >(): ObjectListContextValue<TItem> | null {
   return useContext(ObjectListContext) as ObjectListContextValue<TItem> | null;
+}
+
+/** What the list's own parts read. Throws outside an `ObjectList`. @internal */
+export function useObjectListInternal<
+  TItem = unknown,
+>(): ObjectListInternalValue<TItem> {
+  const value = useContext(ObjectListInternalContext);
+  if (!value) {
+    throw new Error(
+      "[dimah-s3] Object list parts must be rendered inside <ObjectList>.",
+    );
+  }
+  return value as unknown as ObjectListInternalValue<TItem>;
 }
 
 /** The entry a row or tile renders. `null` outside one. */

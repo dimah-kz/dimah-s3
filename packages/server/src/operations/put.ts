@@ -91,6 +91,7 @@ export async function putObject(
       object.key,
     );
     return finalizeConfirmed({
+      config,
       route,
       context,
       kind: "server",

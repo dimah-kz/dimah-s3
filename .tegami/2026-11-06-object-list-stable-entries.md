@@ -11,4 +11,4 @@ packages:
 
 #### Breaking changes
 
-- **Keep `getKey` and `getFile` pure.** They run once per item object. A `getFile` that reads other state shows the old value until the item changes: replace the item with `setItems`, or reload.
+- **Keep `getId` and `getFile` pure.** They run once per item object. A `getFile` that reads other state shows the old value until the item changes: replace the item with `setItems`, or reload.

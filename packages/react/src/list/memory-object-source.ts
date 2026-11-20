@@ -17,7 +17,7 @@ type SortValue = string | number | null | undefined;
 /** Options for {@link memoryObjectSource}. */
 export type MemoryObjectSourceOptions<TItem> = {
   /** Stable id for a record. */
-  getKey: (item: TItem) => string;
+  getId: (item: TItem) => string;
   /** Name, object key, size, type, and date for a record. */
   getFile: (item: TItem) => ObjectListFile;
   /**
@@ -63,7 +63,7 @@ export type MemoryObjectSourceOptions<TItem> = {
  * ```ts
  * const list = useObjectList(
  *   memoryObjectSource(files, {
- *     getKey: (file) => file.id,
+ *     getId: (file) => file.id,
  *     getFile: (file) => ({ name: file.name, size: file.size }),
  *     getFolder: (file) => file.folder,
  *   }),
@@ -74,7 +74,7 @@ export function memoryObjectSource<TItem>(
   records: readonly TItem[] | (() => readonly TItem[]),
   options: MemoryObjectSourceOptions<TItem>,
 ): ObjectListSource<TItem> & { getFile: (item: TItem) => ObjectListFile } {
-  const { getKey, getFolder, matches, sortValue, limits } = options;
+  const { getId, getFolder, matches, sortValue, limits } = options;
   const sendUsage = options.usage ?? limits !== undefined;
   const pageSize = Math.max(
     1,
@@ -89,7 +89,7 @@ export function memoryObjectSource<TItem>(
     : options.getFile;
 
   return {
-    getKey,
+    getId,
     getFile,
     ...(getFolder && { searchScopes: SEARCH_SCOPES }),
     query({ parent, cursor, sort, search, searchScope }) {

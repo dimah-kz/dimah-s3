@@ -1,50 +1,22 @@
 ---
 title: Forms
-description: Store confirmed S3 object keys in a form, with UploadField, React Hook Form, or TanStack Form.
+description: Store the object keys of confirmed uploads in a form, with UploadField, React Hook Form, or TanStack Form.
 icon: FileInput
 ---
 
-Keep upload state and form state apart:
+Keep upload state and form state apart. `useUpload` owns the browser `File`s,
+validation, progress, retries, and confirmation. The form owns a value it can
+submit: the object keys of confirmed uploads.
 
-- **`useUpload`** — owns the browser `File`s, validation, progress, retries, and confirmation.
-- **The form** — owns a value it can submit, usually the confirmed object keys.
-
-A key belongs in the form once its file is confirmed. At that point the server
-has verified the object with `HeadObject`.
-
-## Upload flow
-
-<Flow
-  label="Upload field lifecycle"
-  steps={[
-    { name: "Select files", kind: "client", note: "UploadDropzone" },
-    { name: "Presign", kind: "server", note: "guards and server-owned key" },
-    { name: "Upload bytes", kind: "s3", note: "direct browser transfer" },
-    { name: "Confirm", kind: "server", note: "HeadObject verification" },
-    { name: "onSuccess", kind: "hook", note: "one confirmed UploadResult" },
-    {
-      name: "Set field value",
-      kind: "client",
-      note: "serializable object keys",
-    },
-  ]}
-/>
-
-`useUpload` stays the source of truth for progress and file UI. The form only
-holds the value your app submits.
-
-If some files of a call fail, the ones that uploaded stay confirmed and their
-keys stay in the form. Let the user retry the failed files, or delete the
-uploaded objects when the whole form is discarded.
-
----
+A key goes into the form once the server has verified its object with
+`HeadObject`. If some files of a call fail, the ones that uploaded keep their
+keys.
 
 ## UploadField
 
-[`UploadField`](/docs/react/ui/components/upload-field) from `@dimah-s3/ui`
-is a form field whose value is the keys of the files uploaded through it.
-Each key renders as a hidden `<input name>`, so it submits with a plain
-`<form>`:
+[`UploadField`](/docs/ui/components/upload-field) from `@dimah-s3/ui` is a
+form field whose value is the keys of the files uploaded through it. Each key
+renders as a hidden `<input name>`, so it submits with a plain `<form>`:
 
 ```tsx title="components/attachment-form.tsx"
 "use client";
@@ -73,13 +45,9 @@ export function AttachmentForm({
 }
 ```
 
-`maxFiles` on the field caps the keys it holds across calls. `maxFiles` on
-the hook caps the files of one call. Read the keys on the server with
-`formData.getAll("attachments")`.
-
-Pass `value` and `onValueChange` to control the field from a form library.
-
----
+- `maxFiles` on the field caps the keys it holds across calls. `maxFiles` on the hook caps the files of one call.
+- Read the keys on the server with `formData.getAll("attachments")`.
+- Pass `value` and `onValueChange` to control the field from a form library, as below.
 
 ## React Hook Form
 
@@ -93,7 +61,6 @@ import { useUpload } from "@dimah-s3/react";
 import { UploadDropzone, UploadField, UploadFieldValue } from "@dimah-s3/ui";
 
 const formSchema = z.object({
-  title: z.string().min(1, "Title is required."),
   objectKeys: z.array(z.string()).min(1, "Upload at least one file."),
 });
 
@@ -102,7 +69,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function AttachmentForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { title: "", objectKeys: [] },
+    defaultValues: { objectKeys: [] },
   });
   const upload = useUpload({ route: "attachments", maxFiles: 5 });
 
@@ -150,11 +117,6 @@ export function AttachmentForm() {
   );
 }
 ```
-
-The dropzone shows progress and per-file errors from `upload` inside it, so
-none of it is copied into the form.
-
----
 
 ## TanStack Form
 
@@ -217,14 +179,13 @@ export function AttachmentForm() {
 }
 ```
 
----
-
 ## Without UploadField
 
 With your own controls, write each key from `onSuccess`. It runs once per
 uploaded file, so a partly failed call still keeps its uploaded keys:
 
 ```ts
+const formatError = useFormatError();
 const upload = useUpload({
   route: "attachments",
   maxFiles: 5,
@@ -249,9 +210,7 @@ For a single file, such as an avatar, store one nullable key:
 ```ts
 const upload = useUpload({
   route: "avatar",
-  onSuccess: (result) => {
-    form.setValue("avatarKey", result.key);
-  },
+  onSuccess: (result) => form.setValue("avatarKey", result.key),
 });
 ```
 
@@ -261,31 +220,22 @@ If the submission also needs the verified size, type, or name, store
 ```ts
 import type { UploadResult } from "@dimah-s3/react";
 
-type FormValues = {
-  attachments: UploadResult[];
-};
+type FormValues = { attachments: UploadResult[] };
 ```
-
-Do not put `File` objects in a value you send to your server. They are
-browser-only and do not mean the upload finished.
-
----
 
 ## Rules
 
 1. Disable submit while `upload.isPending` is `true`.
-2. Set values from confirmed results only: `UploadField`, or `onSuccess`.
+2. Set values from confirmed results only, `UploadField` or `onSuccess`. Never submit `File` objects.
 3. Show `onError` or `upload.error` next to the field, even when you also toast.
 4. Call both `form.reset()` and `upload.reset()` when the form resets.
 5. Render progress, previews, and status from `upload.files`, not from form state.
 
-<Callout>
+<Callout title="Check the count on the server">
   `maxFiles` is a client-side limit. Server routes enforce each file's type and
   size, but not how many keys a form submits. Check the count in the endpoint
   that receives the form.
 </Callout>
-
----
 
 ## Frequently asked questions
 
@@ -309,11 +259,8 @@ Yes. Render `UploadTrigger` inside `UploadField` in place of `UploadDropzone`:
 
 Yes, with your own file picker. Keep the selected `File`s in local state, then
 call `upload.handleFiles(files)` from your submit handler. It resolves with
-the uploaded results once every file has ended.
-
-The built-in components upload as soon as files are picked. That is the
-simpler default, because the form already has confirmed keys when it
-validates and submits.
+the uploaded results once every file has ended. The built-in components
+upload as soon as files are picked.
 
 </Accordion>
 

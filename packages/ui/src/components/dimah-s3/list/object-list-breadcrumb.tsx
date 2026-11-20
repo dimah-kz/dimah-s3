@@ -46,12 +46,17 @@ function menuVisibility(depth: number) {
   return "hidden @max-[13rem]/object-list-breadcrumb:flex";
 }
 
+/** Props for {@link ObjectListBreadcrumb}. */
+export type ObjectListBreadcrumbProps = {
+  className?: string;
+};
+
 /**
  * Path from the root to the open folder. It shortens to fit its width,
  * down to the open folder alone, and a menu lists the folders above it.
  */
-export function ObjectListBreadcrumb({ className }: { className?: string }) {
-  const { list, label: rootLabel } = useObjectListContext();
+export function ObjectListBreadcrumb({ className }: ObjectListBreadcrumbProps) {
+  const { list, rootLabel } = useObjectListContext();
   const { trail, navigate } = list;
   const t = useTranslations();
   const depth = trail.length;
@@ -61,6 +66,7 @@ export function ObjectListBreadcrumb({ className }: { className?: string }) {
   return (
     <Breadcrumb
       data-slot="object-list-breadcrumb"
+      aria-label={t("Folder path", { note: "object list" })}
       className={cn(
         "@container/object-list-breadcrumb min-w-0 flex-1",
         className,

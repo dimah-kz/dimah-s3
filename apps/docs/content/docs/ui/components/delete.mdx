@@ -1,0 +1,257 @@
+---
+title: Delete
+description: Delete buttons that share one confirm dialog, with toasts, for useDelete.
+---
+
+import { DeleteDemo } from "@/components/demos/delete-demo";
+import { DeleteVariantsDemo } from "@/components/demos/delete-variants-demo";
+import { DeleteBulkDemo } from "@/components/demos/delete-bulk-demo";
+
+Delete stored files after a confirmation. `Delete` holds one
+[`useDelete`](/docs/react/hooks/delete) hook and one confirm dialog. Every
+`DeleteTrigger` inside it asks the root, which confirms, deletes, and reports
+the result.
+
+<DemoPreview name="delete-demo.tsx">
+  <DeleteDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import { Delete, DeleteToasts, DeleteTrigger } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/delete
+```
+
+The parts land in `components/dimah-s3/delete/`, one file each, such as
+`@/components/dimah-s3/delete/delete-trigger`.
+
+</Tab>
+
+</Tabs>
+
+<include>../../../_includes/ui/component-prereq.mdx</include>
+
+## Usage
+
+```tsx
+"use client";
+
+import { useDelete } from "@dimah-s3/react";
+import { Delete, DeleteToasts, DeleteTrigger } from "@dimah-s3/ui";
+
+type Attachment = { key: string; name: string; size: number };
+
+export function AttachmentList({
+  attachments,
+  onRemoved,
+}: {
+  attachments: Attachment[];
+  onRemoved: (keys: string[]) => void;
+}) {
+  const remove = useDelete({ route: "attachments" });
+
+  return (
+    <>
+      <Delete delete={remove} onDeleted={(result) => onRemoved(result.deleted)}>
+        <ul>
+          {attachments.map((file) => (
+            <li key={file.key}>
+              {file.name}
+              <DeleteTrigger
+                objectKey={file.key}
+                fileName={file.name}
+                fileSize={file.size}
+                size="sm"
+              />
+            </li>
+          ))}
+        </ul>
+      </Delete>
+      <DeleteToasts delete={remove} />
+    </>
+  );
+}
+```
+
+`onDeleted` gets the keys that were `deleted`, `failed`, or `blocked`. Remove
+the deleted rows there.
+
+## Anatomy
+
+```tsx
+<Delete delete={remove}>
+  <DeleteTrigger objectKey={key} />
+</Delete>
+<DeleteToasts delete={remove} />
+```
+
+| Part                  | Description                                                          |
+| --------------------- | -------------------------------------------------------------------- |
+| `Delete`              | Root. Holds the hook and renders one confirm dialog for its triggers |
+| `DeleteTrigger`       | A destructive `Button` that asks the root to delete one object       |
+| `DeleteConfirmDialog` | The default dialog. Pass it to `dialog` with your own copy           |
+| `DeleteToasts`        | Success and error toasts. Mount once per hook                        |
+
+## Examples
+
+### Triggers and dialogs
+
+`note` on a trigger adds a line to the dialog. `dialog` on the root replaces
+its copy, and `confirm={false}` deletes on click.
+
+<DemoPreview name="delete-variants-demo.tsx">
+  <DeleteVariantsDemo />
+</DemoPreview>
+
+### Delete several files
+
+A trigger of your own calls `request` from `useDeleteContext()` with every
+target. One dialog asks for all of them.
+
+<DemoPreview name="delete-bulk-demo.tsx">
+  <DeleteBulkDemo />
+</DemoPreview>
+
+## Confirmation
+
+Replace the dialog's copy with `dialog`:
+
+```tsx
+<Delete
+  delete={remove}
+  dialog={
+    <DeleteConfirmDialog
+      title="Remove profile picture?"
+      description="Your profile goes back to the default avatar."
+      confirmLabel="Remove"
+    />
+  }
+>
+  <DeleteTrigger objectKey={avatarKey} />
+</Delete>
+```
+
+For a dialog of your own, read `confirmation` and `isDeleting` from
+`useDeleteContext()`, and call `confirm()` and `dismiss()`.
+
+## Your own triggers
+
+`request` takes one target or a list, so one confirmation covers a bulk
+delete:
+
+```tsx
+function DeleteSelected({ files }: { files: Attachment[] }) {
+  const { request } = useDeleteContext();
+
+  return (
+    <Button
+      variant="destructive"
+      onClick={(event) =>
+        request(
+          files.map((file) => ({ objectKey: file.key, fileName: file.name })),
+          { trigger: event.currentTarget },
+        )
+      }
+    >
+      Delete {files.length} files
+    </Button>
+  );
+}
+```
+
+## Focus
+
+When a deleted row unmounts with its trigger, focus goes to the nearest
+`[data-dimah-s3-focus-root]`. Mark the list:
+
+```tsx
+<ul data-dimah-s3-focus-root tabIndex={-1}>
+  {/* rows with DeleteTrigger */}
+</ul>
+```
+
+## Toasts
+
+Mount `DeleteToasts` once per hook. It shows one result toast per call.
+
+## Accessibility
+
+- The dialog is an alert dialog with initial focus on Cancel.
+- At an icon size the trigger keeps "Delete" as its accessible name.
+
+## API Reference
+
+### Delete
+
+| Prop           | Type                                               | Default                   | Description                                              |
+| -------------- | -------------------------------------------------- | ------------------------- | -------------------------------------------------------- |
+| `delete`       | `UseDeleteReturn`                                  | required                  | The `useDelete` return                                   |
+| `confirm`      | `boolean`                                          | `true`                    | Asks before deleting                                     |
+| `dialog`       | `ReactNode`                                        | `<DeleteConfirmDialog />` | Replaces the confirm dialog                              |
+| `onDeleted`    | `(result: DeleteResult) => void`                   | —                         | Runs once per confirmed delete, before the dialog closes |
+| `restoreFocus` | `(targets: DeleteTarget[]) => HTMLElement \| null` | —                         | Where focus goes after the dialog closes                 |
+| `children`     | `ReactNode`                                        | required                  | The triggers                                             |
+
+### DeleteTrigger
+
+Also accepts every `Button` prop. `variant` defaults to `"destructive"`.
+
+| Prop        | Type             | Default             | Description                   |
+| ----------- | ---------------- | ------------------- | ----------------------------- |
+| `objectKey` | `string`         | required            | Key of the object to delete   |
+| `fileName`  | `string`         | Last segment of key | Name in the dialog and toasts |
+| `fileSize`  | `number \| null` | —                   | Size shown in the dialog      |
+| `note`      | `ReactNode`      | —                   | Extra line in the dialog      |
+| `tooltip`   | `ReactNode`      | —                   | Tooltip on hover and focus    |
+| `children`  | `ReactNode`      | Icon and "Delete"   | Replaces the icon and label   |
+
+### DeleteConfirmDialog
+
+Each prop replaces the default copy.
+
+| Prop           | Type        | Description          |
+| -------------- | ----------- | -------------------- |
+| `title`        | `ReactNode` | Dialog title         |
+| `description`  | `ReactNode` | Dialog description   |
+| `confirmLabel` | `ReactNode` | Confirm button label |
+| `cancelLabel`  | `ReactNode` | Cancel button label  |
+
+### DeleteToasts
+
+| Prop     | Type              | Default  | Description               |
+| -------- | ----------------- | -------- | ------------------------- |
+| `delete` | `UseDeleteReturn` | required | The hook return to report |
+
+### useDeleteContext
+
+Returns the root's state inside `Delete`.
+
+| Property       | Type                          | Description                                                       |
+| -------------- | ----------------------------- | ----------------------------------------------------------------- |
+| `delete`       | `UseDeleteReturn`             | The root's hook                                                   |
+| `confirmation` | `{ targets, note } \| null`   | The request the dialog asks about, or `null` while it is closed   |
+| `isDeleting`   | `boolean`                     | The confirmed request is deleting                                 |
+| `request`      | `(targets, options?) => void` | Asks to delete one target or a list. Replaces a waiting request   |
+| `confirm`      | `() => Promise<DeleteResult>` | Deletes the targets of `confirmation`, then closes. Never rejects |
+| `dismiss`      | `() => void`                  | Closes the dialog without deleting                                |
+
+A target is `{ objectKey, fileName?, fileSize? }`. `request` options:
+
+| Option        | Type                             | Description                                                  |
+| ------------- | -------------------------------- | ------------------------------------------------------------ |
+| `note`        | `ReactNode`                      | Extra line in the dialog                                     |
+| `trigger`     | `HTMLElement \| null`            | Where focus returns. Defaults to the focused element         |
+| `onDeleted`   | `(result: DeleteResult) => void` | Runs after the root's `onDeleted`, once this request settles |
+| `onDismissed` | `() => void`                     | Runs when the request ends without deleting                  |

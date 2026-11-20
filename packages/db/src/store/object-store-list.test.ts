@@ -16,32 +16,32 @@ function day(n: number): Date {
 const rows = [
   {
     id: "a",
-    filename: "report1",
+    name: "report1",
     size: 300,
     createdAt: day(1),
     updatedAt: day(9),
   },
-  { id: "b", filename: "report2", size: 100, createdAt: day(2) },
-  { id: "c", filename: "report3", size: 300, createdAt: day(2) },
-  { id: "d", filename: "data", size: 200, createdAt: day(3) },
-  { id: "e", filename: "reportdraft", size: null, createdAt: day(3) },
-  { id: "f", filename: "reportfinal", size: null, createdAt: day(4) },
-  { id: "g", filename: "notes", size: 50, createdAt: day(5) },
-  { id: "h", filename: "report3", size: 100, createdAt: day(5) },
-  { id: "x", scope: "user:2", filename: "reportx", createdAt: day(6) },
-  { id: "y", status: "deleted", filename: "reporty", createdAt: day(6) },
+  { id: "b", name: "report2", size: 100, createdAt: day(2) },
+  { id: "c", name: "report3", size: 300, createdAt: day(2) },
+  { id: "d", name: "data", size: 200, createdAt: day(3) },
+  { id: "e", name: "reportdraft", size: null, createdAt: day(3) },
+  { id: "f", name: "reportfinal", size: null, createdAt: day(4) },
+  { id: "g", name: "notes", size: 50, createdAt: day(5) },
+  { id: "h", name: "report3", size: 100, createdAt: day(5) },
+  { id: "x", scope: "user:2", name: "reportx", createdAt: day(6) },
+  { id: "y", status: "deleted", name: "reporty", createdAt: day(6) },
 ] as const;
 
 /** Pages through `list` the way `GET /db/objects` does. */
 async function listPages(
   store: StorageObjectStore,
-  input: Omit<ListObjectsInput, "scope" | "cursor" | "limit">,
+  input: Omit<ListObjectsInput, "cursor" | "limit">,
   limit: number,
 ): Promise<string[][]> {
   const pages: string[][] = [];
   let cursor: string | null = null;
   do {
-    const page = await store.list({ ...input, scope: "user:1", limit, cursor });
+    const page = await store.list("user:1", { ...input, limit, cursor });
     expect(page.firstPage).toBe(pages.length === 0);
     pages.push(page.objects.map((object) => object.id));
     cursor = page.nextCursor;
@@ -59,7 +59,7 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
     await insertObject(client(), { key: "c", contentType: "application/pdf" });
 
     const keys = async (contentType: string) =>
-      (await store().list({ scope: "user:1", contentType })).objects
+      (await store().list("user:1", { contentType })).objects
         .map((object) => object.key)
         .sort();
     await expect(keys("image/*")).resolves.toEqual(["a", "b"]);
@@ -120,14 +120,14 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
         ["g", "b", "h", "d", "a", "c", "e", "f"],
       ],
       [
-        "filename asc",
-        { field: "filename", direction: "asc" },
+        "name asc",
+        { field: "name", direction: "asc" },
         undefined,
         ["d", "g", "a", "b", "c", "h", "e", "f"],
       ],
       [
-        "filename desc",
-        { field: "filename", direction: "desc" },
+        "name desc",
+        { field: "name", direction: "desc" },
         "report",
         ["f", "e", "h", "c", "b", "a"],
       ],
@@ -143,29 +143,50 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
         );
         expect(pages.at(-1)?.length).toBeGreaterThan(0);
 
-        const all = await store().list({
-          scope: "user:1",
-          sort,
-          search,
-          limit: 100,
-        });
+        const all = await store().list("user:1", { sort, search, limit: 100 });
         expect(all.objects.map((object) => object.id)).toEqual(expected);
         expect(all.nextCursor).toBeNull();
       },
     );
 
+    it("orders names without regard to case or accents", async () => {
+      const names = ["Zebra.txt", "apple.txt", "Édith.txt", "dora.txt"];
+      for (const name of names) {
+        await insertObject(client(), { key: name, name, scope: "user:9" });
+      }
+
+      const sorted = async (direction: "asc" | "desc") => {
+        const pages: string[] = [];
+        let cursor: string | null = null;
+        do {
+          const page = await store().list("user:9", {
+            sort: { field: "name", direction },
+            limit: 3,
+            cursor,
+          });
+          pages.push(...page.objects.map((object) => object.name));
+          cursor = page.nextCursor;
+        } while (cursor);
+        return pages;
+      };
+
+      const ascending = ["apple.txt", "dora.txt", "Édith.txt", "Zebra.txt"];
+      await expect(sorted("asc")).resolves.toEqual(ascending);
+      await expect(sorted("desc")).resolves.toEqual(ascending.toReversed());
+    });
+
     it("returns 50 rows per page by default", async () => {
-      const page = await store().list({ scope: "user:1" });
+      const page = await store().list("user:1");
       expect(page.objects).toHaveLength(8);
       expect(page.nextCursor).toBeNull();
     });
 
     it("restarts at the first page when the filters change", async () => {
-      const first = await store().list({ scope: "user:1", limit: 2 });
+      const first = await store().list("user:1", { limit: 2 });
       const cursor = first.nextCursor;
       expect(cursor).not.toBeNull();
 
-      const next = await store().list({ scope: "user:1", limit: 2, cursor });
+      const next = await store().list("user:1", { limit: 2, cursor });
       expect(next.firstPage).toBe(false);
       expect(next.objects.map((object) => object.id)).toEqual(["f", "e"]);
 
@@ -178,27 +199,22 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
         { sort: { field: "createdAt", direction: "asc" } },
       ];
       for (const filters of changed) {
-        const restarted = await store().list({
+        const restarted = await store().list("user:1", {
           ...filters,
-          scope: "user:1",
           limit: 2,
           cursor,
         });
-        const fresh = await store().list({
-          ...filters,
-          scope: "user:1",
-          limit: 2,
-        });
+        const fresh = await store().list("user:1", { ...filters, limit: 2 });
         expect(restarted).toEqual(fresh);
         expect(restarted.firstPage).toBe(true);
       }
     });
 
     it("treats a malformed cursor as the first page", async () => {
-      const first = await store().list({ scope: "user:1", limit: 2 });
+      const first = await store().list("user:1", { limit: 2 });
       for (const cursor of ["not a cursor", "e30", "W10"]) {
         await expect(
-          store().list({ scope: "user:1", limit: 2, cursor }),
+          store().list("user:1", { limit: 2, cursor }),
         ).resolves.toEqual(first);
       }
     });
@@ -215,7 +231,7 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
         scope: "user:2",
       });
       const keys = async (folderId: string | null | undefined) =>
-        (await store().list({ scope: "user:1", folderId })).objects
+        (await store().list("user:1", { folderId })).objects
           .map((object) => object.key)
           .sort();
 
@@ -250,11 +266,7 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
       await insertObject(client(), { key: "other", folderId: other.id });
       const keys = async (folderId: string | null) =>
         (
-          await store_.objects.list({
-            scope: "user:1",
-            folderId,
-            recursive: true,
-          })
+          await store_.objects.list("user:1", { folderId, recursive: true })
         ).objects
           .map((object) => object.key)
           .sort();
@@ -270,11 +282,7 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
       ]);
       await expect(keys("missing")).resolves.toEqual([]);
       await expect(
-        store_.objects.count({
-          scope: "user:1",
-          folderId: sub.id,
-          recursive: true,
-        }),
+        store_.objects.count("user:1", { folderId: sub.id, recursive: true }),
       ).resolves.toBe(2);
     });
 
@@ -288,12 +296,12 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
         "50 percent off.png",
         "back\\slash.txt",
       ];
-      for (const [index, filename] of names.entries()) {
-        await insertObject(client(), { key: `k${index}`, filename });
+      for (const [index, name] of names.entries()) {
+        await insertObject(client(), { key: `k${index}`, name });
       }
       const found = async (search: string) =>
-        (await store().list({ scope: "user:1", search })).objects
-          .map((object) => object.filename)
+        (await store().list("user:1", { search })).objects
+          .map((object) => object.name)
           .sort();
 
       await expect(found("invoice-march")).resolves.toEqual([
@@ -325,8 +333,8 @@ describe.each(testDatabases)("object store list ($name)", (factory) => {
         status: "pending",
         expiresAt: new Date(Date.now() - 60_000),
       });
-      const keys = async (input: Omit<ListObjectsInput, "scope">) =>
-        (await store().list({ ...input, scope: "user:1" })).objects
+      const keys = async (input: ListObjectsInput) =>
+        (await store().list("user:1", input)).objects
           .map((object) => object.key)
           .sort();
 

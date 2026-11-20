@@ -20,7 +20,7 @@ function pending(
     scope: "user:1",
     route: "uploads",
     folderId: null,
-    filename: "a.txt",
+    name: "a.txt",
     contentType: "text/plain",
     declaredSize: 100,
     uploadToken: "t1",
@@ -52,15 +52,15 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await expect(
         store().update(
           { bucket: "b", key: "k", scope: "user:2" },
-          { filename: "x.txt" },
+          { name: "x.txt" },
         ),
       ).resolves.toBeNull();
       await expect(
         store().update(
           { bucket: "b", key: "k", id: row.id, scope: "user:1" },
-          { filename: "x.txt" },
+          { name: "x.txt" },
         ),
-      ).resolves.toMatchObject({ filename: "x.txt" });
+      ).resolves.toMatchObject({ name: "x.txt" });
     });
 
     it("writes a pending row with the ticket's token and deadline", async () => {
@@ -72,7 +72,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       expect(written).toMatchObject({
         status: "pending",
         folderId: "docs/q4",
-        filename: "a.txt",
+        name: "a.txt",
         declaredSize: 100,
         size: null,
         uploadId: "up-1",
@@ -101,7 +101,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
         attributes: null,
       });
       await expect(
-        store().count({ scope: "user:1", status: "pending" }),
+        store().count("user:1", { status: "pending" }),
       ).resolves.toBe(1);
     });
 
@@ -122,7 +122,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await insertObject(client(), {
         key: "k",
         folderId: "avatars",
-        filename: "me.png",
+        name: "me.png",
         size: 5,
         eTag: '"e0"',
         uploadToken: "old",
@@ -142,7 +142,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       expect(written).toMatchObject({
         status: "active",
         folderId: "avatars",
-        filename: "me.png",
+        name: "me.png",
         size: 5,
         eTag: '"e0"',
         attributes: { starred: true },
@@ -152,9 +152,9 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
         declaredSize: 100,
         expiresAt,
       });
-      await expect(store().count({ scope: "user:1" })).resolves.toBe(1);
+      await expect(store().count("user:1")).resolves.toBe(1);
       // The overwrite reserves its declared bytes until it lands or expires.
-      await expect(store().getUsage("user:1")).resolves.toEqual({
+      await expect(store().usage("user:1")).resolves.toEqual({
         totalBytes: 100,
         objectCount: 1,
       });
@@ -302,24 +302,24 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
 
   describe("update", () => {
     it("changes the given fields of an active row", async () => {
-      await insertObject(client(), { key: "k", filename: "a.txt", size: 5 });
+      await insertObject(client(), { key: "k", name: "a.txt", size: 5 });
 
       const updated = await store().update(
         { bucket: "b", key: "k" },
         { folderId: "docs", attributes: { starred: true } },
       );
       expect(updated).toMatchObject({
-        filename: "a.txt",
+        name: "a.txt",
         folderId: "docs",
         attributes: { starred: true },
       });
 
       const moved = await store().update(
         { bucket: "b", key: "k" },
-        { filename: "b.txt", folderId: null },
+        { name: "b.txt", folderId: null },
       );
       expect(moved).toMatchObject({
-        filename: "b.txt",
+        name: "b.txt",
         folderId: null,
         attributes: { starred: true },
       });
@@ -329,14 +329,12 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await insertObject(client(), { key: "p", status: "pending" });
       const ref = (key: string) => ({ bucket: "b", key });
 
+      await expect(store().update(ref("p"), { name: "x" })).resolves.toBeNull();
       await expect(
-        store().update(ref("p"), { filename: "x" }),
-      ).resolves.toBeNull();
-      await expect(
-        store().update(ref("none"), { filename: "x" }),
+        store().update(ref("none"), { name: "x" }),
       ).resolves.toBeNull();
       await expect(store().find(ref("p"))).resolves.toMatchObject({
-        filename: "p",
+        name: "p",
       });
     });
   });
@@ -424,7 +422,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
     });
   });
 
-  describe("count and getUsage", () => {
+  describe("count and usage", () => {
     async function seed() {
       await insertObject(client(), { key: "a1", size: 100, folderId: "docs" });
       await insertObject(client(), { key: "a2", size: 50, route: "avatars" });
@@ -462,29 +460,21 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await seed();
       const count = store().count;
 
-      await expect(count({ scope: "user:1" })).resolves.toBe(2);
-      await expect(count({ scope: "user:1", status: "pending" })).resolves.toBe(
-        1,
-      );
-      await expect(count({ scope: "user:1", status: "deleted" })).resolves.toBe(
-        1,
-      );
-      await expect(count({ scope: "user:1", folderId: "docs" })).resolves.toBe(
-        1,
-      );
-      await expect(count({ scope: "user:1", folderId: null })).resolves.toBe(1);
-      await expect(count({ scope: "user:1", route: "avatars" })).resolves.toBe(
-        1,
-      );
+      await expect(count("user:1")).resolves.toBe(2);
+      await expect(count("user:1", { status: "pending" })).resolves.toBe(1);
+      await expect(count("user:1", { status: "deleted" })).resolves.toBe(1);
+      await expect(count("user:1", { folderId: "docs" })).resolves.toBe(1);
+      await expect(count("user:1", { folderId: null })).resolves.toBe(1);
+      await expect(count("user:1", { route: "avatars" })).resolves.toBe(1);
     });
 
     it("sums active sizes and live pending declared sizes", async () => {
       await seed();
-      await expect(store().getUsage("user:1")).resolves.toEqual({
+      await expect(store().usage("user:1")).resolves.toEqual({
         totalBytes: 180,
         objectCount: 3,
       });
-      await expect(store().getUsage("user:3")).resolves.toEqual({
+      await expect(store().usage("user:3")).resolves.toEqual({
         totalBytes: 0,
         objectCount: 0,
       });
@@ -493,8 +483,29 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
     it("leaves the excluded row out", async () => {
       await seed();
       await expect(
-        store().getUsage("user:1", { excluding: { bucket: "b", key: "live" } }),
+        store().usage("user:1", { excluding: { bucket: "b", key: "live" } }),
       ).resolves.toEqual({ totalBytes: 150, objectCount: 2 });
+    });
+
+    it("counts the live rows like usage does, without reading them", async () => {
+      await seed();
+      const usage = await store().usage("user:1");
+
+      await expect(store().liveCount("user:1")).resolves.toBe(
+        usage.objectCount,
+      );
+      await expect(
+        store().liveCount("user:1", {
+          excluding: { bucket: "b", key: "live" },
+        }),
+      ).resolves.toBe(usage.objectCount - 1);
+      // Another bucket's key with the same name is not the excluded row.
+      await expect(
+        store().liveCount("user:1", {
+          excluding: { bucket: "other", key: "live" },
+        }),
+      ).resolves.toBe(usage.objectCount);
+      await expect(store().liveCount("user:3")).resolves.toBe(0);
     });
   });
 
@@ -595,7 +606,7 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       });
       expect(claimed && uploadTokenOf(claimed)).toBe("t-over");
       await expect(store().claimStale(overwrite.id)).resolves.toBeNull();
-      await expect(store().count({ scope: "user:1" })).resolves.toBe(3);
+      await expect(store().count("user:1")).resolves.toBe(3);
     });
 
     it("blocks the confirm of an overwrite once it is claimed", async () => {
@@ -700,9 +711,9 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
       await expect(store().pruneDeleted(cutoff)).resolves.toBe(1);
       await expect(store().pruneDeleted(cutoff)).resolves.toBe(0);
       await expect(
-        store().count({ scope: "user:1", status: "deleted" }),
+        store().count("user:1", { status: "deleted" }),
       ).resolves.toBe(1);
-      await expect(store().count({ scope: "user:1" })).resolves.toBe(1);
+      await expect(store().count("user:1")).resolves.toBe(1);
     });
   });
 });

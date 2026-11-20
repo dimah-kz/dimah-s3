@@ -3,7 +3,7 @@
 // protocol helpers and `APIError` from `@dimah-s3/core`.
 
 // ─── Provider and client ─────────────────────────────────────────────────────
-export { S3Provider, useApi, type S3ProviderProps } from "./s3-provider";
+export { S3Provider, useS3Api, type S3ProviderProps } from "./s3-provider";
 export { createS3Client, type ReactS3Client } from "./create-s3-client";
 /** Generated key map. Use it with `satisfies Partial<Translations>`. */
 export type { Translations } from "./translations";
@@ -12,9 +12,10 @@ export type { Translations } from "./translations";
 export {
   useUpload,
   type DropTargetProps,
-  type DropzoneInputProps,
-  type DropzoneRootProps,
+  type UploadCallInput,
+  type UploadInputProps,
   type UploadPolicy,
+  type UploadRootProps,
   type UseUploadReturn,
 } from "./hooks/use-upload";
 export { useUploadLimit } from "./hooks/use-upload-limit";

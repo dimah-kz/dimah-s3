@@ -1,0 +1,127 @@
+---
+title: آروان‌کلود (ArvanCloud) با dimah-s3
+description: راه‌اندازی فضای ابری آروان‌کلود با dimah-s3؛ آپلود مستقیم از مرورگر با presigned POST، هاست API درست، تنظیم CORS و آدرس عمومی فایل‌ها.
+lang: fa
+translations:
+  en: /docs/providers/arvancloud
+ogTitle: ArvanCloud
+ogDescription: Connect dimah-s3 to ArvanCloud Object Storage with presigned POST uploads, the right API host, bucket CORS, and public URLs.
+---
+
+فضای ابری آروان‌کلود (ArvanCloud Object Storage) از ابتدا تا انتها با dimah-s3
+کار می‌کند. دو تفاوت با Amazon S3 دارد: آپلود باید با presigned POST انجام شود،
+و هاستی که SDK به آن وصل می‌شود با هاستی که فایل‌های عمومی را سرو می‌کند یکی
+نیست.
+
+این تنظیمات روی یک باکت واقعی با dimah-s3 نسخهٔ 2.0 بتا تست شده است: آپلود
+presigned POST (فایل خصوصی و `public-read`)، تأیید با HeadObject، دانلود
+presigned و حذف.
+
+## پیکربندی سرور
+
+```dotenv title=".env"
+S3_ENDPOINT="https://hot.ir-central1.arvanstorage.ir"
+S3_REGION="auto"
+S3_ACCESS_KEY_ID="your-access-key-id"
+S3_SECRET_ACCESS_KEY="your-secret-access-key"
+S3_BUCKET="your-bucket-name"
+```
+
+```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+import { dimahS3, route } from "@dimah-s3/server";
+
+export const awsS3 = new S3Client({
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: true, // [!code highlight]
+  followRegionRedirects: true, // [!code highlight]
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  routes: {
+    avatar: route({
+      upload: {
+        method: "POST", // [!code highlight]
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
+  },
+});
+```
+
+### آپلود با POST
+
+روی همهٔ روت‌های آپلود `method: "POST"` بگذارید. آروان‌کلود presigned PUT را،
+که روش پیش‌فرض است، رد می‌کند: presign بی‌خطا انجام می‌شود، ولی آپلود در مرورگر
+شکست می‌خورد. سمت کلاینت تغییری لازم نیست.
+
+### از هاست APIای استفاده کنید که ریدایرکت نمی‌کند
+
+در ریجن `ir-central1`، هاست `s3.ir-central1.arvanstorage.ir` به درخواست POST
+با `301` جواب می‌دهد و آن را به `hot.ir-central1.arvanstorage.ir` می‌فرستد.
+مرورگر نمی‌تواند ریدایرکتِ آپلود فرم را دنبال کند، پس آپلود با خطای شبکه تمام
+می‌شود. `S3_ENDPOINT` را روی هاستی بگذارید که خودش POST را قبول می‌کند.
+
+## CORS باکت
+
+origin اپ و متد `POST` را در تنظیمات CORS باکت در پنل آروان‌کلود مجاز کنید، یا
+قانون را با `PutBucketCors` بفرستید:
+
+```json title="cors.json"
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://your-app.example"],
+      "AllowedMethods": ["GET", "POST", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["Content-Disposition", "Content-Encoding"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
+```
+
+```bash
+aws s3api put-bucket-cors \
+  --endpoint-url https://hot.ir-central1.arvanstorage.ir \
+  --bucket your-bucket \
+  --cors-configuration file://cors.json
+```
+
+## فایل‌های عمومی
+
+لینک‌های دانلود presigned از `S3_ENDPOINT` استفاده می‌کنند و تنظیم دیگری لازم
+ندارند. فایل‌های عمومی از virtual host `.s3.` باکت، یا از دامنهٔ اختصاصی یا CDN
+شما سرو می‌شوند. روی روت `acl: "public-read"` بگذارید یا باکت را عمومی کنید، و
+همان هاست را آدرس پایهٔ عمومی قرار دهید:
+
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="https://your-bucket-name.s3.ir-central1.arvanstorage.ir"
+```
+
+بعد آدرس فایل‌ها را با
+[`buildPublicObjectUrl`](/docs/providers#make-files-public) بسازید.
+
+فایل‌ها را از `your-bucket-name.hot.ir-central1.arvanstorage.ir` سرو نکنید.
+این هاست در یک حلقهٔ ریدایرکت می‌افتد و image optimizer در Next.js خطای `508`
+می‌دهد.
+
+## آپلود multipart
+
+پارت‌های multipart درخواست‌های presigned PUT هستند و تنظیماتی که تست شده فقط
+آپلود تکی را پوشش می‌دهد. `upload.multipart` را خاموش بگذارید، یا پیش از روشن
+کردنش یک آپلود multipart را روی باکت خودتان تست کنید. هر presigned POST تا ۵
+گیگابایت را می‌پذیرد.
+
+آپلود شکست می‌خورد؟ [Troubleshooting](/docs/providers#troubleshooting)
+(انگلیسی) را ببینید.

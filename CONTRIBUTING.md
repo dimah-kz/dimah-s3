@@ -4,8 +4,10 @@ Thanks for your interest in contributing to this project.
 
 ## Prerequisites
 
-- Node.js 24+ (see `.node-version`; CI tests on Node 24 and 26)
+- Node.js 24+ to work in this repository (see `.node-version`; CI tests on Node 24 and 26)
 - pnpm 12+
+
+The published `@dimah-s3/*` packages declare `engines.node >=22`, a lower floor than the one for contributors. `pnpm check:dist` fails when the six manifests disagree. CI does not run on Node 22 yet, so keep package code to what Node 22 has.
 
 ## Development setup
 

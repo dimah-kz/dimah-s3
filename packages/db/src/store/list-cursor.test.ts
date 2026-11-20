@@ -22,7 +22,7 @@ const filters: ListCursorFilters = {
 const object = sampleObject({
   id: "row-1",
   size: 42,
-  filename: "a.txt",
+  name: "a.txt",
   createdAt: new Date("2024-01-02T03:04:05.678Z"),
   updatedAt: new Date("2024-02-03T04:05:06.789Z"),
 });
@@ -46,7 +46,7 @@ describe("list cursor", () => {
     ["createdAt", object.createdAt],
     ["updatedAt", object.updatedAt],
     ["size", 42],
-    ["filename", "a.txt"],
+    ["name", "a.txt"],
   ] as const)("round-trips the %s position", (field, value) => {
     const cursor = encodeListCursor(sortedBy(field), object);
     expect(cursor).toMatch(/^[\w-]+$/);

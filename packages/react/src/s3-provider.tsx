@@ -6,7 +6,7 @@ import { TranslationProvider } from "@fuma-translate/react";
 import type { Translations } from "./translations/types";
 
 /**
- * Internal context — use `S3Provider` to supply and `useApi` to consume.
+ * Internal context — use `S3Provider` to supply and `useS3Api` to consume.
  */
 export const S3Context = createContext<S3Api | null>(null);
 
@@ -74,12 +74,13 @@ export function S3Provider<TApi extends S3Api>({
 
 /**
  * Returns the API from the nearest `S3Provider`.
- * Pass a generic (e.g. `useApi<typeof api>()`) when the client was created
- * with plugins so plugin methods stay typed.
+ * Pass a generic (e.g. `useS3Api<typeof api>()`) when the client was created
+ * with plugins so plugin methods stay typed, or use the bound
+ * `s3Client.useApi()` from {@link createS3Client}, which needs none.
  *
  * @throws if no `S3Provider` is found in the tree.
  */
-export function useApi<TApi extends S3Api = S3Api>(): TApi {
+export function useS3Api<TApi extends S3Api = S3Api>(): TApi {
   const ctx = useContext(S3Context);
   if (!ctx) {
     throw new Error(

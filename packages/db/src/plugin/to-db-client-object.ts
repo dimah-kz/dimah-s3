@@ -21,7 +21,7 @@ export function toDbClientObject<TAttributes, TClientAttributes = TAttributes>(
     key: object.key,
     route: object.route,
     folderId: object.folderId,
-    filename: object.filename,
+    name: object.name,
     contentType: object.contentType,
     size: object.size,
     declaredSize: object.declaredSize,

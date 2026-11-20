@@ -77,7 +77,7 @@ function mountLimited(
   const instanceId = `upload-${++instances}`;
   return renderHook(() => {
     const upload = useFileUpload(
-      { api, route: "uploads", queue: true, maxFiles: 5, ...options },
+      { api, route: "uploads", append: true, maxFiles: 5, ...options },
       instanceId,
     );
     const remaining = useUploadLimit(
@@ -183,6 +183,7 @@ describe("useFileUpload", () => {
         { file: b, result: resultFor(b) },
       ],
       failed: [],
+      rejected: [],
       blocked: [],
       aborted: [],
     });
@@ -225,7 +226,7 @@ describe("useFileUpload", () => {
         concurrentParts: 3,
         uploadOptions: (file) => ({
           fileName: `hook-${file.name}`,
-          metadata: { folder: "docs", owner: "hook" },
+          clientMetadata: { folder: "docs", owner: "hook" },
         }),
       },
       api,
@@ -233,7 +234,10 @@ describe("useFileUpload", () => {
 
     await act(async () => {
       void hook.current.upload([txt("a.txt")], {
-        uploadOptions: { contentType: "text/csv", metadata: { owner: "call" } },
+        uploadOptions: {
+          contentType: "text/csv",
+          clientMetadata: { owner: "call" },
+        },
       });
     });
     await flush();
@@ -245,7 +249,7 @@ describe("useFileUpload", () => {
       request: {
         fileName: "hook-a.txt",
         contentType: "text/csv",
-        metadata: { folder: "docs", owner: "call" },
+        clientMetadata: { folder: "docs", owner: "call" },
       },
     });
     hook.unmount();
@@ -308,6 +312,7 @@ describe("useFileUpload", () => {
     expect(result).toEqual({
       uploaded: [],
       failed: [],
+      rejected: hook.current.fileRejections,
       blocked: [],
       aborted: [],
     });
@@ -609,7 +614,7 @@ describe("useFileUpload", () => {
     const api = fakeS3Api();
     const hook = renderHook(() =>
       useFileUpload(
-        { api, route: "uploads", queue: true, uploadStore },
+        { api, route: "uploads", append: true, uploadStore },
         "upload-store",
       ),
     );
@@ -651,7 +656,7 @@ describe("useFileUpload", () => {
     act(() => {
       options.onPhaseChange?.("uploading");
       options.onProgress?.({ loaded: 2, total: 4, percent: 50 });
-      options.onPartUpload?.({ partNumber: 1, totalParts: 2 });
+      options.onPartUpload?.({ partNumber: 1, partCount: 2 });
       options.onMultipartInit?.({ uploadId: "u", key: "k" });
     });
 
@@ -741,7 +746,7 @@ describe("useFileUpload", () => {
   });
 
   it("appends to the queue when queue is true", async () => {
-    const hook = mount({ queue: true });
+    const hook = mount({ append: true });
 
     await act(async () => {
       void hook.current.upload([txt("a.txt")]);
@@ -772,7 +777,7 @@ describe("useFileUpload", () => {
     });
     await flush();
     await act(async () => {
-      void hook.current.upload([txt("b.txt")], { queue: true });
+      void hook.current.upload([txt("b.txt")], { append: true });
     });
     await flush();
 
@@ -784,13 +789,13 @@ describe("useFileUpload", () => {
     ]);
     hook.unmount();
 
-    const queued = mount({ queue: true });
+    const queued = mount({ append: true });
     await act(async () => {
       void queued.current.upload([txt("c.txt")]);
     });
     await flush();
     await act(async () => {
-      void queued.current.upload([txt("d.txt")], { queue: false });
+      void queued.current.upload([txt("d.txt")], { append: false });
     });
     await flush();
 
@@ -804,7 +809,7 @@ describe("useFileUpload", () => {
   });
 
   it("reset removes settled files and keeps running ones, with a stable identity", async () => {
-    const hook = mount({ queue: true, accept: [".txt"] });
+    const hook = mount({ append: true, accept: [".txt"] });
     const { reset } = hook.current;
 
     await act(async () => {
@@ -847,7 +852,7 @@ describe("useFileUpload", () => {
     let first!: ReturnType<typeof hook.current.upload>;
     await act(async () => {
       first = hook.current.upload([a, b], {
-        uploadOptions: { metadata: { folder: "docs" } },
+        uploadOptions: { clientMetadata: { folder: "docs" } },
       });
     });
     await flush();
@@ -872,7 +877,7 @@ describe("useFileUpload", () => {
 
     expect(beforeUpload).toHaveBeenLastCalledWith([a]);
     expect(lastEngineCall("a.txt").options.request).toEqual({
-      metadata: { folder: "docs" },
+      clientMetadata: { folder: "docs" },
     });
     await act(async () => {
       lastEngineCall("a.txt").succeed();
@@ -882,6 +887,7 @@ describe("useFileUpload", () => {
     expect(result).toEqual({
       uploaded: [{ file: a, result: resultFor(a) }],
       failed: [],
+      rejected: [],
       blocked: [],
       aborted: [],
     });
@@ -978,10 +984,133 @@ describe("useFileUpload", () => {
     await expect(hook.current.retry()).resolves.toEqual({
       uploaded: [],
       failed: [],
+      rejected: [],
       blocked: [],
       aborted: [],
     });
     expect(onSettled).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("retries files of separate calls separately when they share one options object", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const onFileReject = vi.fn();
+    const hook = mount({ append: true, beforeUpload, onFileReject });
+    const [a, b] = [txt("a.txt"), txt("b.txt")];
+    // One object for every call, as a module constant would be.
+    const call = { uploadOptions: { clientMetadata: { folder: "docs" } } };
+
+    await act(async () => {
+      void hook.current.upload([a], call);
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([b], call);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+
+    await act(async () => {
+      void hook.current.retry();
+    });
+    await flush();
+
+    // `maxFiles` is 1 per call: as one call, the second file would be
+    // rejected with TOO_MANY_FILES and leave the queue.
+    expect(onFileReject).not.toHaveBeenCalled();
+    expect(beforeUpload.mock.calls.slice(2)).toEqual([[[a]], [[b]]]);
+    expect(hook.current.files.map(({ phase }) => phase)).toEqual([
+      "queued",
+      "queued",
+    ]);
+    hook.unmount();
+  });
+
+  it("reports the files a call rejected next to the ones it uploaded", async () => {
+    const onSettled = vi.fn();
+    const hook = mount({ maxFiles: 2, maxFileSize: 5, onSettled });
+    const [small, big] = [txt("small.txt"), txt("big.txt", 10)];
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([small, big]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("small.txt").succeed();
+    });
+
+    const result = await pending;
+    expect(result.uploaded.map(({ file }) => file)).toEqual([small]);
+    expect(
+      result.rejected.map(({ file, errors }) => [file, errors[0].code]),
+    ).toEqual([[big, "FILE_TOO_LARGE"]]);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    hook.unmount();
+  });
+
+  it("removes only the settled files reset names", async () => {
+    const hook = mount({ maxFiles: 3, concurrentFiles: 3 });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt"), txt("c.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+    const [done, failed, running] = hook.current.files;
+
+    // A running file is not settled, so naming it does nothing.
+    act(() => hook.current.reset([done.id, running.id]));
+    expect(hook.current.files.map(({ id }) => id)).toEqual([
+      failed.id,
+      running.id,
+    ]);
+
+    act(() => hook.current.reset(failed.id));
+    expect(hook.current.files.map(({ id }) => id)).toEqual([running.id]);
+    hook.unmount();
+  });
+
+  it("cancels several files by id", async () => {
+    const hook = mount({ maxFiles: 3, concurrentFiles: 3 });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt"), txt("c.txt")]);
+    });
+    await flush();
+    const [first, second, third] = hook.current.files;
+
+    await act(async () => {
+      hook.current.cancel([first.id, third.id]);
+    });
+    await flush();
+
+    expect(hook.current.files.map(({ id }) => id)).toEqual([second.id]);
+    hook.unmount();
+  });
+
+  it("gives every file an id without crypto.randomUUID", async () => {
+    // Plain-HTTP origins other than localhost have no randomUUID.
+    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+      throw new TypeError("crypto.randomUUID is not a function");
+    });
+    const hook = mount({ maxFiles: 2 });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+
+    const ids = hook.current.files.map(({ id }) => id);
+    expect(new Set(ids).size).toBe(2);
     hook.unmount();
   });
 
@@ -1162,6 +1291,7 @@ describe("useFileUpload", () => {
     await expect(hook.current.retry()).resolves.toEqual({
       uploaded: [],
       failed: [],
+      rejected: [],
       blocked: [],
       aborted: [],
     });

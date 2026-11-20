@@ -44,7 +44,7 @@ export const S3_ERROR_CODES = defineErrorCodes({
     status: 502,
     message: "S3 endpoint unreachable ({code})",
   },
-  UNKNOWN_ROUTE: { status: 404, message: 'Unknown file route "{route}"' },
+  ROUTE_NOT_FOUND: { status: 404, message: 'Unknown file route "{route}"' },
   FEATURE_DISABLED: { status: 404, message: "{feature} is disabled" },
   KEY_INVALID: { status: 400, message: "Object key is invalid" },
   OBJECT_NOT_FOUND: { status: 404, message: "Object not found" },
@@ -152,7 +152,7 @@ export interface S3ErrorParamsMap {
   VALIDATION_ERROR: { issue: string };
   REQUEST_TOO_LARGE: { maxSize: number };
   S3_NETWORK_ERROR: { code: string };
-  UNKNOWN_ROUTE: { route: string };
+  ROUTE_NOT_FOUND: { route: string };
   /** `proxy` is `/file` on a route whose downloads are not in proxy mode. */
   FEATURE_DISABLED: {
     feature: "upload" | "download" | "delete" | "multipart" | "proxy";
@@ -161,7 +161,8 @@ export interface S3ErrorParamsMap {
   /** `allowed` is the allow-list joined with `", "`. */
   FILE_TYPE_NOT_ALLOWED: { type: string; allowed: string };
   FILE_CONTENT_MISMATCH: { type: string; detected: string };
-  QUOTA_EXCEEDED: { limit: "bytes" | "files" };
+  /** Which cap was hit. `folders` comes from the `db()` plugin. */
+  QUOTA_EXCEEDED: { limit: "bytes" | "files" | "folders" };
   UPLOAD_SIZE_MISMATCH: { expected: number; actual: number };
   MULTIPART_PART_MISSING: { partNumber: number };
   MULTIPART_PART_INVALID: { partNumber: number; partCount: number };

@@ -34,7 +34,7 @@ export function FileManager() {
     defaultSort: { field: "updatedAt", direction: "desc" },
   });
   const selection = useObjectListSelection(list);
-  const upload = useUpload({ route: "files", maxFiles: 20, queue: true });
+  const upload = useUpload({ route: "files", maxFiles: 20, append: true });
   const download = useDownload({ route: "files" });
   const del = useDelete({ route: "files" });
 

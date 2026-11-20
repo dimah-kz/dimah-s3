@@ -26,10 +26,10 @@ export type DeleteTriggerProps = ComponentProps<typeof Button> &
 /**
  * Button that asks the nearest `Delete` root to delete one object. It is
  * disabled, and shows a spinner, while a delete of that object runs.
- * Children replace the default icon and label; an icon-size button shows
- * the icon alone, so give it an `aria-label`. An `onClick` that prevents
- * the default stops the request. `data-phase` carries the phase of the
- * newest delete of the key.
+ * Children replace the default icon and label. An icon-size button shows
+ * the icon alone and keeps "Delete" as its accessible name. An `onClick`
+ * that prevents the default stops the request. `data-phase` carries the
+ * phase of the newest delete of the key.
  */
 export function DeleteTrigger({
   objectKey,
@@ -76,15 +76,16 @@ export function DeleteTrigger({
         );
       }}
     >
-      {children ??
-        (iconOnly ? (
-          icon
-        ) : (
-          <>
-            {icon}
-            {t("Delete", { note: "button" })}
-          </>
-        ))}
+      {children ?? (
+        <>
+          {icon}
+          {iconOnly ? (
+            <span className="sr-only">{t("Delete", { note: "button" })}</span>
+          ) : (
+            t("Delete", { note: "button" })
+          )}
+        </>
+      )}
     </Button>
   );
 

@@ -206,7 +206,7 @@ describe("deleteStoredObject errors", () => {
     await expect(
       deleteStoredObject(config, { route: "avatars", key: KEY }),
     ).rejects.toMatchObject({
-      code: "UNKNOWN_ROUTE",
+      code: "ROUTE_NOT_FOUND",
       params: { route: "avatars" },
     });
   });

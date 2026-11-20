@@ -1,3 +1,4 @@
+export { DB_FOLDER_ID_KEY } from "@/constants";
 export { dbClient } from "./db-client";
 export { dbObjectSource, type DbObjectSourceActions } from "./db-object-source";
 export type {
@@ -5,13 +6,13 @@ export type {
   DbClientCreateFolderInput,
   DbClientDeleteFolderInput,
   DbClientFolder,
-  DbClientGetInput,
-  DbClientListInput,
-  DbClientListResponse,
+  DbClientGetObjectInput,
+  DbClientListObjectsInput,
+  DbClientListObjectsResponse,
   DbClientObject,
   DbClientObjectStatus,
   DbClientUpdateFolderInput,
-  DbClientUpdateInput,
+  DbClientUpdateObjectInput,
   DbListSort,
   DbListSortField,
   DbObjectSource,
@@ -24,4 +25,3 @@ export type {
   DbQuota,
   DbUsage,
 } from "@/types/client";
-export type { StorageObjectStatus } from "@/types/storage-object";

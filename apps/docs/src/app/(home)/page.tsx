@@ -65,7 +65,7 @@ const features: {
     icon: Blocks,
     title: "Hooks and shadcn UI",
     body: "Headless hooks for your own UI, or components from the shadcn registry.",
-    href: "/docs/react/ui",
+    href: "/docs/ui",
   },
   {
     icon: Database,

@@ -71,7 +71,7 @@ export type UseDeleteOptions = {
   /** Runs once per deleted key, after every `onError` of the call. */
   onSuccess?: (data: DeleteData, key: string) => void | Promise<void>;
   /** Runs once per failed key. */
-  onError?: (error: APIError, key: string) => void;
+  onError?: (error: APIError, key: string) => void | Promise<void>;
   /** Runs once per call, after every other callback. */
   onSettled?: (result: DeleteResult) => void | Promise<void>;
 };

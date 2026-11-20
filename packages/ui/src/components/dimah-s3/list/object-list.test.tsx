@@ -36,6 +36,12 @@ import {
 } from "@/components/dimah-s3/upload/upload-dropzone";
 import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  ObjectListEntryMenu,
+  ObjectListEntryMenuItem,
+} from "@/components/dimah-s3/list/object-list-entry-menu";
+import { ObjectListRow } from "@/components/dimah-s3/list/object-list-entry";
 import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-search";
 import {
   useObjectListCommands,
@@ -185,7 +191,7 @@ function renderList(options: RenderOptions = {}) {
     commandsRef.current = commands;
     const list = useObjectList({
       ...memoryObjectSource(records, {
-        getKey: (item) => item.key,
+        getId: (item) => item.key,
         getFile: (item) => ({ name: item.name, size: item.size }),
         getFolder: (item) => item.folder,
         limits: options.limits,
@@ -232,7 +238,7 @@ async function settle() {
 }
 
 const folderOptions = (parent: string | null) => ({
-  metadata: { folder: parent ?? "" },
+  clientMetadata: { folder: parent ?? "" },
 });
 
 function textFile(name: string) {
@@ -278,7 +284,7 @@ async function pick(files: File[]) {
 }
 
 function sentMetadata(api: Api) {
-  return api.upload.mock.calls.map(([payload]) => payload.metadata);
+  return api.upload.mock.calls.map(([payload]) => payload.clientMetadata);
 }
 
 /** Polite live regions that say something right now. */
@@ -306,9 +312,16 @@ function trigger(name: string) {
   return screen.getByRole("button", { name: startsWith(name) });
 }
 
-async function openMenu(name: string, label = "File actions") {
+/** The actions menu button of entry `name`, named after it. */
+function menuButton(name: string) {
+  return within(entry(name)).getByRole("button", {
+    name: `Actions for ${name}`,
+  });
+}
+
+async function openMenu(name: string) {
   const user = userEvent.setup();
-  await user.click(within(entry(name)).getByRole("button", { name: label }));
+  await user.click(menuButton(name));
   return screen.findByRole("menu");
 }
 
@@ -677,7 +690,7 @@ describe("ObjectList", () => {
       const { api } = renderList({ source: { uploadOptions: folderOptions } });
       await settle();
 
-      const menu = await openMenu("docs", "Folder actions");
+      const menu = await openMenu("docs");
       await user.click(
         within(menu).getByRole("menuitem", { name: "Upload to this folder" }),
       );
@@ -693,7 +706,7 @@ describe("ObjectList", () => {
       });
       await settle();
 
-      const menu = await openMenu("docs", "Folder actions");
+      const menu = await openMenu("docs");
 
       expect(
         within(menu)
@@ -707,7 +720,9 @@ describe("ObjectList", () => {
       await settle();
 
       expect(
-        within(entry("docs")).queryByRole("button", { name: "Folder actions" }),
+        within(entry("docs")).queryByRole("button", {
+          name: "Actions for docs",
+        }),
       ).toBeNull();
     });
   });
@@ -873,7 +888,7 @@ describe("ObjectList", () => {
       function Harness() {
         const list = useObjectList(
           memoryObjectSource(records, {
-            getKey: (item) => item.key,
+            getId: (item) => item.key,
             getFile: (item) => ({ name: item.name, size: item.size }),
           }),
         );
@@ -1135,6 +1150,51 @@ describe("ObjectList", () => {
       ).toBeNull();
     });
 
+    it("is not busy for a row delete after its own dialog was dismissed", async () => {
+      const user = userEvent.setup();
+      const { api } = renderList();
+      let finish = () => {};
+      api.delete.mockImplementationOnce(
+        ({ key }) =>
+          new Promise((resolve) => {
+            finish = () => resolve({ key, bucket: "bucket" });
+          }),
+      );
+      api.deleteMany.mockImplementationOnce(
+        ({ keys }) =>
+          new Promise((resolve) => {
+            finish = () => resolve({ deleted: [...keys], failed: [] });
+          }),
+      );
+      await settle();
+
+      await user.click(screen.getByRole("checkbox", { name: "Select a.txt" }));
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog", {
+        name: "Delete file?",
+      });
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+      await settle();
+
+      // The same key, deleted from its row menu this time.
+      const menu = await openMenu("a.txt");
+      await user.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+      const again = await screen.findByRole("alertdialog");
+      await user.click(within(again).getByRole("button", { name: "Delete" }));
+      await settle();
+
+      // The dialog is open while the row's delete runs, so the bar behind
+      // it is hidden from queries by role.
+      const bulkDelete = document.querySelector(
+        "[data-slot=object-list-selection-bar] button[aria-label=Delete]",
+      );
+      expect(bulkDelete).not.toBeNull();
+      expect(bulkDelete?.hasAttribute("aria-busy")).toBe(false);
+
+      await act(async () => finish());
+      await settle();
+    });
+
     it("notes folders that a bulk delete leaves alone", async () => {
       const user = userEvent.setup();
       renderList({ selectFolders: true });
@@ -1151,7 +1211,90 @@ describe("ObjectList", () => {
     });
   });
 
+  describe("custom parts", () => {
+    it("takes its own rows in the entry menu", async () => {
+      const user = userEvent.setup();
+      const star = vi.fn();
+      renderList({
+        props: () => ({
+          renderActions: () => (
+            <ObjectListEntryMenu>
+              <ObjectListEntryMenuItem onClick={star}>
+                Star
+              </ObjectListEntryMenuItem>
+            </ObjectListEntryMenu>
+          ),
+        }),
+      });
+      await settle();
+
+      const menu = await openMenu("a.txt");
+      await user.click(within(menu).getByRole("menuitem", { name: "Star" }));
+
+      expect(star).toHaveBeenCalledOnce();
+    });
+
+    it("keeps the default menu on a row drawn by renderEntry", async () => {
+      renderList({
+        props: () => ({
+          renderEntry: (entry) => <ObjectListRow entry={entry} />,
+        }),
+      });
+      await settle();
+
+      const menu = await openMenu("a.txt");
+      expect(
+        within(menu).getByRole("menuitem", { name: "Copy link" }),
+      ).toBeDefined();
+    });
+
+    it("shares the root label and the list commands through the context", async () => {
+      function Probe() {
+        const { rootLabel, startNewFolder } = useObjectListContext();
+        return (
+          <button type="button" onClick={startNewFolder}>
+            New folder in {rootLabel}
+          </button>
+        );
+      }
+      const user = userEvent.setup();
+      renderList({
+        source: { createFolder: async ({ name }) => ({ id: name, name }) },
+        props: () => ({ rootLabel: "Drive", toolbar: <Probe /> }),
+      });
+      await settle();
+
+      await user.click(
+        screen.getByRole("button", { name: "New folder in Drive" }),
+      );
+
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Folder name" }),
+      );
+    });
+  });
+
   describe("Copy link", () => {
+    /** A `ClipboardItem` that takes promises, as browsers' does. */
+    class FakeClipboardItem {
+      readonly items: Record<string, Blob | string | Promise<Blob | string>>;
+
+      constructor(
+        items: Record<string, Blob | string | Promise<Blob | string>>,
+      ) {
+        this.items = items;
+      }
+
+      get types() {
+        return Object.keys(this.items);
+      }
+
+      async getType(type: string): Promise<Blob> {
+        const value = await this.items[type];
+        return typeof value === "string" ? new Blob([value], { type }) : value;
+      }
+    }
+
     it("signs one URL with share and copies it", async () => {
       vi.spyOn(toast, "add").mockReturnValue("toast");
       const user = userEvent.setup();
@@ -1173,6 +1316,87 @@ describe("ObjectList", () => {
         "https://s3.test/a.txt",
       );
       expect(toastTitles()).toEqual(["Link copied"]);
+    });
+
+    it("starts the clipboard write in the click, before the URL is signed", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      // Safari refuses a write that starts after the request: a
+      // ClipboardItem takes the URL as a promise instead.
+      vi.stubGlobal("ClipboardItem", FakeClipboardItem);
+      const user = userEvent.setup();
+      const { api } = renderList();
+      await settle();
+      const sign = Promise.withResolvers<void>();
+      const signed = api.download.getMockImplementation();
+      api.download.mockImplementationOnce(async (...args) => {
+        await sign.promise;
+        if (!signed) throw new Error("expected a download implementation");
+        return signed(...args);
+      });
+      const written: string[] = [];
+      const write = vi
+        .spyOn(navigator.clipboard, "write")
+        .mockImplementation(async (items) => {
+          const [item] = items as unknown as FakeClipboardItem[];
+          written.push(await (await item.getType("text/plain")).text());
+        });
+      const writeText = vi.spyOn(navigator.clipboard, "writeText");
+
+      const menu = await openMenu("a.txt");
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Copy link" }),
+      );
+
+      // The write has started while the URL is still being signed.
+      expect(write).toHaveBeenCalledOnce();
+      expect(written).toEqual([]);
+
+      await act(async () => sign.resolve());
+      await settle();
+
+      expect(written).toEqual(["https://s3.test/a.txt"]);
+      expect(writeText).not.toHaveBeenCalled();
+      expect(toastTitles()).toEqual(["Link copied"]);
+    });
+
+    it("falls back to writeText when the browser refuses the item", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      vi.stubGlobal("ClipboardItem", FakeClipboardItem);
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+      vi.spyOn(navigator.clipboard, "write").mockRejectedValue(
+        new DOMException("Not allowed", "NotAllowedError"),
+      );
+
+      const menu = await openMenu("a.txt");
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Copy link" }),
+      );
+      await settle();
+
+      expect(await navigator.clipboard.readText()).toBe(
+        "https://s3.test/a.txt",
+      );
+      expect(toastTitles()).toEqual(["Link copied"]);
+    });
+
+    it("shows the URL when the clipboard cannot be written", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+      vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(
+        new DOMException("Not allowed", "NotAllowedError"),
+      );
+
+      const menu = await openMenu("a.txt");
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Copy link" }),
+      );
+      await settle();
+
+      expect(toastTitles()).toEqual(["Could not copy link"]);
     });
 
     it("announces the result instead with toasts off", async () => {
@@ -1201,18 +1425,14 @@ describe("ObjectList", () => {
       renderList({ source: { uploadOptions: folderOptions } });
       await settle();
 
-      await user.click(
-        within(entry("a.txt")).getByRole("button", { name: "File actions" }),
-      );
+      await user.click(menuButton("a.txt"));
       const files = await screen.findByRole("menu");
       expect(
         within(files).queryByRole("menuitem", { name: "Rename" }),
       ).toBeNull();
 
       await user.keyboard("{Escape}");
-      await user.click(
-        within(entry("docs")).getByRole("button", { name: "Folder actions" }),
-      );
+      await user.click(menuButton("docs"));
       const folders = await screen.findByRole("menu");
       expect(
         within(folders).queryByRole("menuitem", { name: "Rename" }),
@@ -1227,9 +1447,7 @@ describe("ObjectList", () => {
       renderList({ source: { renameFile } });
       await settle();
 
-      await user.click(
-        within(entry("a.txt")).getByRole("button", { name: "File actions" }),
-      );
+      await user.click(menuButton("a.txt"));
       await user.click(
         within(await screen.findByRole("menu")).getByRole("menuitem", {
           name: "Rename",
@@ -1366,9 +1584,7 @@ describe("ObjectList", () => {
       renderList({ source: { renameFolder } });
       await settle();
 
-      await user.click(
-        within(entry("docs")).getByRole("button", { name: "Folder actions" }),
-      );
+      await user.click(menuButton("docs"));
       await user.click(
         within(await screen.findByRole("menu")).getByRole("menuitem", {
           name: "Rename",
@@ -1504,7 +1720,7 @@ describe("ObjectList", () => {
       act(() => trigger("a.txt").focus());
       await user.tab();
       expect(document.activeElement).toBe(
-        within(row).getByRole("button", { name: "File actions" }),
+        within(row).getByRole("button", { name: "Actions for a.txt" }),
       );
       await user.tab();
       expect(document.activeElement).toBe(after());
@@ -1544,7 +1760,9 @@ describe("ObjectList", () => {
       const checkbox = within(row).getByRole("checkbox", {
         name: "Select a.txt",
       });
-      const menu = within(row).getByRole("button", { name: "File actions" });
+      const menu = within(row).getByRole("button", {
+        name: "Actions for a.txt",
+      });
 
       act(() => trigger("a.txt").focus());
       await user.keyboard("{ArrowLeft}");
@@ -1874,7 +2092,7 @@ describe("ObjectList", () => {
         const [count, setCount] = useState(0);
         const list = useObjectList({
           ...memoryObjectSource(initialItems, {
-            getKey: (item) => item.key,
+            getId: (item) => item.key,
             getFile: (item) => ({ name: item.name, size: item.size }),
             getFolder: (item) => item.folder,
           }),

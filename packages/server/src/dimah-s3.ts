@@ -81,7 +81,7 @@ export type DimahS3<
  *   },
  * });
  *
- * export const { GET, POST, PATCH, DELETE } = toNextJsHandler(s3);
+ * export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
  *
  * await s3.api.download({ route: "invoices", key }, { headers: await headers() });
  * ```

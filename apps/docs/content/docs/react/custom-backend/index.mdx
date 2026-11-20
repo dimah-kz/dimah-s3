@@ -1,33 +1,28 @@
 ---
 title: Bring Your Own Backend
-description: Implement the complete S3Api contract for an existing backend.
+description: Implement the complete S3Api contract for an existing backend, so the React hooks and UI run against your own endpoints.
 ---
 
-`defineApi` from `@dimah-s3/react/engine` type-checks a complete `S3Api` and
-returns it unchanged. Your routes, transport, and server framework are up to
-you; they do not need to match [`@dimah-s3/server`](/docs/server). Mount the
-result with `S3Provider` as shown in [React Setup](/docs/react/setup).
+Implement `S3Api` when your backend is not
+[`@dimah-s3/server`](/docs/server). `defineApi` from `@dimah-s3/react/engine`
+type-checks the object and returns it unchanged. Your routes, transport, and
+server framework are up to you.
 
 ## Contract
 
 - **Every method takes `(payload, options?)`.** `options` is `{ signal, headers }`. Forward `signal` to your request so cancel reaches it.
-- **Return every required field** in the response tables. Optional fields may be left out.
-- **Every object call names a `route`.** `catalog()` is the exception. Upload and multipart init do not send a `key`: your backend picks it and returns it.
-- **Issue a ticket.** `upload` and `multipart.init` return a `ticket`. `confirm` and every later multipart call send only `{ ticket }` (plus the part number when signing), so the ticket must tell your backend the route, key, and upload id. Sign it, or store it server side. It may be up to 8192 characters.
-- **Throw an `APIError`** with a [catalog code](/docs/server/errors). The hooks retry `NETWORK_ERROR` and `S3_NETWORK_ERROR`, and show codes with `useFormatError`. Anything else becomes `UNKNOWN_ERROR`, which is not retried.
+- **Every method is required**, and so is every required response field. Optional fields may be left out.
+- **Every object call names a `route`.** `catalog()` is the exception. Upload and multipart init send no `key`: your backend picks it and returns it.
+- **Issue a ticket.** `upload` and `multipart.init` return a `ticket`. `confirm` and every later multipart call send only the ticket (plus the part number when signing), so it must tell your backend the route, key, and upload id. Sign it, or store it server side. It may be up to 8192 characters.
+- **Throw an `APIError`** with a [catalog code](/docs/server/errors). A throw that is not an `APIError` becomes `UNKNOWN_ERROR`, which is not retried.
+- **Make `confirm` and `multipart.complete` safe to call twice.** The hooks retry `NETWORK_ERROR`, `S3_NETWORK_ERROR`, and any error whose status is 408, 429, or 500 and above.
 - **Trust `HeadObject`, not the client.** Confirm and complete return the size and type S3 reports, not what the browser declared.
 
-`createS3Fetch` from `@dimah-s3/core` gives you a fetcher with these error
-rules: a `{ code, message, params? }` body becomes an `APIError` with that
-code and status, a failed request becomes `NETWORK_ERROR`, and an aborted
-signal rethrows its reason. The examples on these pages use it.
-
-Payload types are exported from `@dimah-s3/core`, and so is every response
-type.
+Payload and response types are exported from `@dimah-s3/core`.
 
 ## Flows
 
-| Flow           | Methods                                                             | Doc                                               |
+| Flow           | Methods                                                             | Page                                              |
 | -------------- | ------------------------------------------------------------------- | ------------------------------------------------- |
 | Route policies | `catalog`                                                           | [Route catalog](#route-catalog)                   |
 | Simple upload  | `upload` → browser uploads to S3 → `confirm`                        | [Upload](/docs/react/custom-backend/upload)       |
@@ -37,8 +32,10 @@ type.
 
 ## Skeleton
 
-One fetcher serves every method. `call` forwards the per-call signal and
-headers:
+`createS3Fetch` from `@dimah-s3/core` gives you a fetcher with the error rules
+above: a `{ code, message, params? }` body becomes an `APIError` with that
+code and status, a failed request becomes `NETWORK_ERROR`, and an aborted
+signal rethrows its reason. `call` forwards the per-call signal and headers:
 
 ```ts title="lib/s3-api/fetch.ts"
 import { createS3Fetch, type S3RequestOptions } from "@dimah-s3/core";
@@ -73,28 +70,25 @@ export const api = defineApi({
 });
 ```
 
-Every method is required. Response shapes must match the
-[core `S3Api` protocol](/docs/core).
+Response shapes must match the [core `S3Api` protocol](/docs/core). Pass the
+result to `S3Provider` in place of the [Setup](/docs/react/setup) client:
+
+```tsx title="components/s3-provider.tsx"
+"use client";
+
+import { S3Provider } from "@dimah-s3/react";
+import { api } from "@/lib/s3-api";
+
+export function AppS3Provider({ children }: { children: React.ReactNode }) {
+  return <S3Provider api={api}>{children}</S3Provider>;
+}
+```
 
 ## Route catalog
 
 `catalog()` returns, for every named route, which operations are on and the
-upload policy. `useUpload` loads it before every upload and checks files
-against `fileTypes` and `maxFileSize`. `multipart` turns on multipart for large
-files, and `checksum` makes single-shot uploads send a SHA-256.
-
-`catalog` is required. If it fails, every file of the upload fails with its
-error.
-
-<AutoTypeTable
-  path="packages/core/src/schema/catalog.ts"
-  name="RouteCatalogResponse"
-/>
-
-<AutoTypeTable
-  path="packages/core/src/schema/catalog.ts"
-  name="RouteCatalogEntry"
-/>
+upload policy. `useUpload` checks files against it before it presigns. If it
+fails, every file of that call fails with its error.
 
 ```ts title="lib/s3-api/catalog.ts"
 import type { RouteCatalogResponse, S3RequestOptions } from "@dimah-s3/core";
@@ -104,16 +98,36 @@ export const catalog = (options?: S3RequestOptions) =>
   $fetch<RouteCatalogResponse>("/routes", { method: "GET", ...call(options) });
 ```
 
+The response is `{ routes: Record<routeName, RouteCatalogEntry> }`. Each
+entry has `upload`, `download`, and `delete`. When `enabled` is `false`, that
+operation has no other field.
+
+| Field                   | Type                       | Description                                                 |
+| ----------------------- | -------------------------- | ----------------------------------------------------------- |
+| `upload.enabled`        | `boolean`                  | Uploads are on for this route                               |
+| `upload.fileTypes?`     | `string[]`                 | Accepted MIME types and extensions. Omit to accept any type |
+| `upload.maxFileSize?`   | `number`                   | Max bytes                                                   |
+| `upload.multipart`      | `boolean`                  | Large files go through multipart                            |
+| `upload.checksum`       | `boolean`                  | Single-shot uploads send a SHA-256                          |
+| `download.enabled`      | `boolean`                  | Downloads are on for this route                             |
+| `download.maxExpiresIn` | `number`                   | Longest URL lifetime in seconds, at most `604800`           |
+| `download.disposition`  | `"inline" \| "attachment"` | Default `Content-Disposition`                               |
+| `download.inlineTypes`  | `string[]`                 | Types that may open inline                                  |
+| `download.mode`         | `"presign" \| "proxy"`     | Signed S3 URLs, or a same-origin URL your backend streams   |
+| `delete.enabled`        | `boolean`                  | Deletes are on for this route                               |
+
 ## Upload transport
 
 The browser sends single-shot uploads to `presign.url` itself. To replace that
 transfer, for example with an in-memory backend in tests, add
-`uploadTransport` to the object. It must send `presign.fields` or
-`presign.headers` exactly, and reject with an `APIError` so the engine can
-retry: `UPLOAD_FAILED` with S3's status, `CHECKSUM_MISMATCH` when S3 rejects
-the bytes' checksum (never retried), or `NETWORK_ERROR`.
+`uploadTransport` to the object you pass `defineApi`:
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="S3ApiUploadTransport"
-/>
+```ts
+uploadTransport: (file, presign, { onProgress, signal }) => Promise<void>;
+```
+
+- Send `presign.fields` or `presign.headers` exactly.
+- Report progress through `onProgress`, and stop when `signal` aborts.
+- Reject with an `APIError` so the engine can retry: `UPLOAD_FAILED` with S3's status as `params.status`, `CHECKSUM_MISMATCH` when S3 rejects the bytes' checksum (never retried), or `NETWORK_ERROR`.
+
+Multipart parts do not use it.

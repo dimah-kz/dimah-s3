@@ -30,6 +30,13 @@ export type ObjectListSortOption = {
   direction?: ObjectListSortDirection;
 };
 
+/** Props for {@link ObjectListSortMenu}. */
+export type ObjectListSortMenuProps = {
+  /** The choices. Defaults to name, size, and date. */
+  options?: readonly ObjectListSortOption[];
+  className?: string;
+};
+
 /**
  * Sort picker for `list.sort`. The query receives the order; the source
  * applies it. Defaults to name, size, and date.
@@ -37,10 +44,7 @@ export type ObjectListSortOption = {
 export function ObjectListSortMenu({
   options,
   className,
-}: {
-  options?: readonly ObjectListSortOption[];
-  className?: string;
-}) {
+}: ObjectListSortMenuProps) {
   const t = useTranslations();
   const { list } = useObjectListContext();
   const choices = options ?? [
@@ -121,8 +125,13 @@ export function ObjectListSortMenu({
   );
 }
 
+/** Props for {@link ObjectListViewToggle}. */
+export type ObjectListViewToggleProps = {
+  className?: string;
+};
+
 /** List and grid buttons for the list's `view`. */
-export function ObjectListViewToggle({ className }: { className?: string }) {
+export function ObjectListViewToggle({ className }: ObjectListViewToggleProps) {
   const t = useTranslations();
   const { view, setView } = useObjectListContext();
   const options = [

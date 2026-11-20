@@ -49,6 +49,7 @@ export type {
   UploadObjectContext,
   UploadObjectInfo,
   UploadOnConfirmedContext,
+  UploadOnRejectedContext,
   UploadOnStartContext,
   VerifiedObject,
 } from "./types";
