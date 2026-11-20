@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/cli": major
+  "@dimah-s3/cli":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/cli)
 ---
 
 ### `create` refuses typos, cancels cleanly, and starters commit their lockfile

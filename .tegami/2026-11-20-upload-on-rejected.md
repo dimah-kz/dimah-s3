@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/server": major
+  "@dimah-s3/server":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/server)
 ---
 
 ### A hook for rejected uploads, and one vocabulary in hook contexts
