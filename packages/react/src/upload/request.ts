@@ -2,7 +2,7 @@ import type { UploadRequestInput, UploadRequestOptions } from "@/types/upload";
 
 /**
  * `override` over `base`, the way `useUpload` puts a call's `uploadOptions`
- * over the hook's: `override` fields win, and `metadata` merges key by key.
+ * over the hook's: `override` fields win, and `clientMetadata` merges key by key.
  */
 export function mergeUploadRequest(
   base: UploadRequestOptions | undefined,
@@ -10,8 +10,11 @@ export function mergeUploadRequest(
 ): UploadRequestOptions {
   if (!base || !override) return override ?? base ?? {};
   const merged = { ...base, ...override };
-  if (base.metadata && override.metadata) {
-    merged.metadata = { ...base.metadata, ...override.metadata };
+  if (base.clientMetadata && override.clientMetadata) {
+    merged.clientMetadata = {
+      ...base.clientMetadata,
+      ...override.clientMetadata,
+    };
   }
   return merged;
 }

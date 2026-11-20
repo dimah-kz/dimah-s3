@@ -2,12 +2,12 @@ Generate the tables with the package's CLI. Generating does not connect to
 the database, so the script only needs the dialect:
 
 ```ts title="scripts/dimah-s3.ts"
-import { DimahS3DB } from "@dimah-s3/db";
+import { DimahS3Db } from "@dimah-s3/db";
 import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
 import { runCli } from "@dimah-s3/db/cli";
 
 await runCli(
-  DimahS3DB.client(
+  DimahS3Db.client(
     drizzleAdapter({ db: undefined, provider: "sqlite" }), // or "postgresql" | "mysql"
   ),
 );
@@ -21,10 +21,11 @@ npx drizzle-kit push
 The file exports `storageObject`, `storageFolder`,
 `private_dimah_s3_settings`, and `relations`. Keep the table names, the
 column names, and those keys: the adapter finds the tables by them. The
-tables declare the indexes, and on MySQL the prefix lengths and collations
-(`utf8mb4_bin`, so keys and folders compare byte for byte, and
-`utf8mb4_unicode_ci` on `filename`, for the name sort), so `drizzle-kit`
-creates them too.
+tables declare the indexes, and on MySQL the prefix lengths and the
+`utf8mb4_bin` collation, so keys, names, and folders compare byte for byte,
+and `drizzle-kit` creates them too. Search and the name sort read
+`search_name`, which is already folded, so no column needs a
+case-insensitive collation.
 
 Run `generate` again after you upgrade `@dimah-s3/db`. That overwrites the
 file. A column you add to it must be nullable or have a default, because

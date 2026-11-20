@@ -102,7 +102,7 @@ describe("runLifecycle", () => {
       route: "uploads",
       key,
       bucket: "bucket",
-      kind: "put",
+      kind: "presignedPut",
       uploadToken: "token",
       file: { name: "a.png", size: 3 },
       acl: "private",

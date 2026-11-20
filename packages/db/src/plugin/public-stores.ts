@@ -10,19 +10,21 @@ import type { StorageFolder, StorageObject } from "@/types/storage-object";
 
 /**
  * `s3.db.objects`: the `storage_object` rows, for your routes, jobs, and
- * scripts. It takes the scope as an argument, so it reads any scope. It
- * never calls S3, and the upload lifecycle stays with the plugin: delete
- * files through `s3.api.delete`.
+ * scripts. `list`, `count`, and `usage` take the scope first, so they read
+ * any scope; `find` and `update` address a row by `(bucket, key)`. It never
+ * calls S3, and the upload lifecycle stays with the plugin: delete files
+ * through `s3.api.delete`.
  */
 export type DbObjects<TAttributes = never> = Pick<
   StorageObjectStore<TAttributes>,
-  "find" | "list" | "count" | "getUsage"
+  "find" | "list" | "count" | "usage"
 > & {
   /**
    * Renames, moves, or sets the attributes of an active row, like
    * `PATCH /db/object` without its access check. A `folderId` must already
-   * exist in the row's scope (`FOLDER_NOT_FOUND`). With `id` or `scope`,
-   * only that row changes. Returns `null` when no active row matches.
+   * exist in the row's scope (`FOLDER_NOT_FOUND`). The row is addressed by
+   * `(bucket, key)`, whatever its scope; with `id` or `scope`, only that
+   * row changes. Returns `null` when no active row matches.
    */
   update: (
     ref: ObjectRef & { id?: string; scope?: string },
@@ -30,8 +32,11 @@ export type DbObjects<TAttributes = never> = Pick<
   ) => Promise<StorageObject<TAttributes> | null>;
 };
 
-/** `s3.db.folders`: the `storage_folder` rows. The root is never stored. */
-export type DbFolders = Omit<StorageFolderStore, "subtreeIds">;
+/**
+ * `s3.db.folders`: the `storage_folder` rows of a scope, which every method
+ * takes first. The root is never stored.
+ */
+export type DbFolders = Omit<StorageFolderStore, "subtreeIds" | "retain">;
 
 /** `""` is the root, the same as `null`. */
 function rootId(folderId: string | null): string | null {
@@ -60,14 +65,14 @@ export function createPublicStores<TAttributes>(
   store: Pick<DbStore<TAttributes>, "objects" | "folders">,
 ): { objects: DbObjects<TAttributes>; folders: DbFolders } {
   const { objects } = store;
-  // `subtreeIds` stays internal.
-  const { subtreeIds: _subtreeIds, ...folders } = store.folders;
+  // `subtreeIds` and `retain` stay internal.
+  const { subtreeIds: _subtreeIds, retain, ...folders } = store.folders;
   return {
     objects: {
       find: objects.find,
       list: objects.list,
       count: objects.count,
-      getUsage: objects.getUsage,
+      usage: objects.usage,
       async update(ref, input) {
         const folderId =
           input.folderId === undefined ? undefined : rootId(input.folderId);
@@ -79,7 +84,7 @@ export function createPublicStores<TAttributes>(
         }
         const row = await objects.update(ref, { ...input, folderId });
         // After the move: a folder delete in between sees the row or is undone.
-        if (row && folder) await folders.retain(folder);
+        if (row && folder) await retain(folder);
         return row;
       },
     },

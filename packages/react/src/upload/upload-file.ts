@@ -96,7 +96,9 @@ function initPayload(
     name: fitFileName(request.fileName || file.name),
     size: file.size,
     ...(type ? { type } : {}),
-    ...(request.metadata ? { metadata: request.metadata } : {}),
+    ...(request.clientMetadata
+      ? { clientMetadata: request.clientMetadata }
+      : {}),
   };
 }
 

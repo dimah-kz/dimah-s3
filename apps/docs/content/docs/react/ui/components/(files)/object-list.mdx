@@ -43,6 +43,16 @@ import { ObjectList } from "@dimah-s3/ui";
 npx shadcn@latest add @dimah-s3/object-list
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { ObjectList } from "@/components/dimah-s3/list/object-list";
+import { ObjectListHeader } from "@/components/dimah-s3/list/object-list-header";
+import { ObjectListEntryMenu } from "@/components/dimah-s3/list/object-list-entry-menu";
+```
+
 </Tab>
 
 </Tabs>
@@ -71,7 +81,7 @@ type LibraryFile = { id: string; key: string; name: string; size: number };
 export function Library({ source }: { source: ObjectListSource<LibraryFile> }) {
   const list = useObjectList(source);
   const selection = useObjectListSelection(list);
-  const upload = useUpload({ route: "docs", maxFiles: 8, queue: true });
+  const upload = useUpload({ route: "docs", maxFiles: 8, append: true });
   const download = useDownload({ route: "docs" });
   const remove = useDelete({ route: "docs" });
 
@@ -146,24 +156,26 @@ import {
 </ObjectList>;
 ```
 
-| Part                     | Renders                                                                                                                                                  |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ObjectListHeader`       | Select-all, the path, a reload spinner, New folder, and `children`. The search bar while searching, and the selection bar while selecting                |
-| `ObjectListBreadcrumb`   | The path. It shortens to fit, and a menu lists the folders above the open one                                                                            |
-| `ObjectListSearch`       | Debounced search for `list.search`. In the header, a button that opens a field across the bar                                                            |
-| `ObjectListSearchBar`    | Where a search looks, with a choice between the open folder and the root, and the result count. `ObjectListHeader` already has one                       |
-| `ObjectListLocation`     | Where a search result lives: `Docs › 2024`. A result's default second line starts with it                                                                |
-| `ObjectListSortMenu`     | Name, size, and date order for `list.sort`. Pass `options` for your fields                                                                               |
-| `ObjectListViewToggle`   | List and grid buttons                                                                                                                                    |
-| `ObjectListSelectAll`    | The select-all checkbox                                                                                                                                  |
-| `ObjectListSelectionBar` | Count, `actions`, bulk Delete, and Clear                                                                                                                 |
-| `ObjectListBulkDelete`   | Bulk Delete for a bar of your own                                                                                                                        |
-| `ObjectListNewFolder`    | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one                                |
-| `ObjectListUsage`        | Bytes and files from `list.usage`, with a meter for its caps                                                                                             |
-| `ObjectListUploadStatus` | Upload progress and errors                                                                                                                               |
-| `ObjectListContent`      | Rows or tiles, loading, error, and empty states, and the next page                                                                                       |
-| `ObjectListEmpty`        | The empty state, with your own text or a call to action. While searching, Search everywhere and Clear search                                             |
-| `ObjectListItemMenu`     | Download, Copy link, Rename, your actions, and Delete for a file. Upload to this folder and Rename for a folder. Show in folder first on a search result |
+| Part                      | Renders                                                                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ObjectListHeader`        | Select-all, the path, a reload spinner, New folder, and `children`. The search bar while searching, and the selection bar while selecting                |
+| `ObjectListBreadcrumb`    | The path. It shortens to fit, and a menu lists the folders above the open one                                                                            |
+| `ObjectListSearch`        | Debounced search for `list.search`. In the header, a button that opens a field across the bar                                                            |
+| `ObjectListSearchBar`     | Where a search looks, with a choice between the open folder and the root, and the result count. `ObjectListHeader` already has one                       |
+| `ObjectListLocation`      | Where a search result lives: `Docs › 2024`. A result's default second line starts with it                                                                |
+| `ObjectListSortMenu`      | Name, size, and date order for `list.sort`. Pass `options` for your fields                                                                               |
+| `ObjectListViewToggle`    | List and grid buttons                                                                                                                                    |
+| `ObjectListSelectAll`     | The select-all checkbox                                                                                                                                  |
+| `ObjectListSelectionBar`  | Count, `actions`, bulk Delete, and Clear                                                                                                                 |
+| `ObjectListBulkDelete`    | Bulk Delete for a bar of your own                                                                                                                        |
+| `ObjectListNewFolder`     | New folder, when the source has `createFolder`. In the header it opens across the bar. `ObjectListHeader` already has one                                |
+| `ObjectListUsage`         | Bytes and files from `list.usage`, with a meter for its caps                                                                                             |
+| `ObjectListUploadStatus`  | Upload progress and errors                                                                                                                               |
+| `ObjectListContent`       | Rows or tiles, loading, error, and empty states, and the next page                                                                                       |
+| `ObjectListEmpty`         | The empty state, with your own text or a call to action. While searching, Search everywhere and Clear search                                             |
+| `ObjectListEntryMenu`     | Download, Copy link, Rename, your actions, and Delete for a file. Upload to this folder and Rename for a folder. Show in folder first on a search result |
+| `ObjectListEntryMenuItem` | One row of your own inside `ObjectListEntryMenu`                                                                                                         |
+| `ObjectListCheckbox`      | The checkbox of an entry or of select-all, for a row of your own. It reports Shift for ranges                                                            |
 
 ## Header
 
@@ -199,8 +211,12 @@ a page:
 Render the controls as direct children of the header, so an open search or
 new folder can take the bar from them.
 
-`useObjectListContext()` returns the list, selection, hooks, and view, for
-parts of your own. Inside an entry, `useObjectListEntry()` returns it.
+`useObjectListContext()` is for parts of your own. It returns what you gave
+the list (`list`, `selection`, `upload`, `download`, `share`, `delete`,
+`toasts`), the `view` with `setView`, the `rootLabel`, and three commands:
+`startNewFolder()`, `startRename(entry.key)` and `revealEntry(entry)`.
+`announce(feedback)` reads a message out in the list's live region. Inside
+an entry, `useObjectListEntry()` returns it.
 
 ## Entries
 
@@ -222,7 +238,7 @@ Change part of every entry with a `render*` prop. Each receives the entry:
   }
   renderActions={(entry) =>
     entry.kind === "file" ? (
-      <ObjectListItemMenu
+      <ObjectListEntryMenu
         actions={[{ label: "Details", onClick: () => openPreview(entry.item) }]}
       />
     ) : null
@@ -231,9 +247,9 @@ Change part of every entry with a `render*` prop. Each receives the entry:
 ```
 
 - `onOpenItem` runs when a file is clicked or activated with Enter. Folders always open in place.
-- `renderActions` replaces the trailing controls. Without it, files get `ObjectListItemMenu` when the list has `download`, `share`, `delete`, or `renameFile`, and folders get it when files can be uploaded into them or the source has `renameFolder`. A search result with a `location` always gets it, for Show in folder. Return `null` to hide it.
+- `renderActions` replaces the trailing controls. Without it, files get `ObjectListEntryMenu` when the list has `download`, `share`, `delete`, or `renameFile`, and folders get it when files can be uploaded into them or the source has `renameFolder`. A search result with a `location` always gets it, for Show in folder. Return `null` to hide it.
 - `renderDescription` replaces the second line, including a search result's location; put `ObjectListLocation` in yours to keep it. `renderMeta` sits beside the name.
-- `renderEntry` replaces the whole row or tile. Return `ObjectListRow` or `ObjectListTile` with your own `className`, `media`, or `actions` to keep selection, keyboard, and opening.
+- `renderEntry` replaces the whole row or tile. Return `ObjectListRow` or `ObjectListTile` with your own `className`, `media`, or `actions` to keep selection, keyboard, opening, and the default menu.
 
 Each entry sets `data-slot="object-list-entry"`, `data-entry-key`, `data-kind`, `data-view`, and `data-selected` for styling.
 
@@ -405,13 +421,13 @@ every file uploaded into the list sends the options for its folder:
   Their own `call` merges over it.
 
 `dbObjectSource` sets `uploadOptions` for its folders. With your own source,
-return the folder as metadata, read it as `clientMetadata` in the server's
-upload hook, and store it on your file row:
+return the folder as `clientMetadata`, read it in the server's upload hook,
+and store it on your file row:
 
 ```tsx
 const list = useObjectList({
   ...source,
-  uploadOptions: (parent) => ({ metadata: { folderId: parent ?? "" } }),
+  uploadOptions: (parent) => ({ clientMetadata: { folderId: parent ?? "" } }),
 });
 ```
 
@@ -431,9 +447,9 @@ Copy link and the bulk delete report their own result. With
 `toasts={false}`, they, and every delete result, speak through a polite live
 region instead. The drop overlay follows only drags over the list itself.
 
-## File menu
+## Entry menu
 
-`ObjectListItemMenu` downloads, copies a link, renames, and deletes one file.
+`ObjectListEntryMenu` downloads, copies a link, renames, and deletes one file.
 Rename is there when the source has `renameFile` for a file, or
 `renameFolder` for a folder. It turns the name into a field. Enter saves,
 Escape or Cancel restores the name, and leaving the field saves it. F2 does
@@ -441,19 +457,32 @@ the same from the focused row. Download and Copy link then send the name the
 row shows. Inside a list every prop is optional: the object key, name, and
 size come from the entry, and the hooks come from the list. Delete asks the
 list's confirmation. On a search result with a `location`, the menu starts
-with Show in folder.
+with Show in folder. Its button is named after the entry, "Actions for
+report.pdf", so one row's menu can be told from the next.
 
 Copy link signs one URL through `share` when the list has it, otherwise
-through a navigate-mode `download`, then writes it to the clipboard. Signing
-does not start a download. Pass `expiresIn` to ask for a shorter TTL than
-the route cap; the message shows the TTL that was signed. Pass `actions`, or
-`DropdownMenuItem` children, for more rows. They render after the built-in
-rows and before Delete.
+through the list's `download` when that is a `useDownload` return, then
+writes it to the clipboard. Signing does not start a download. Pass
+`expiresIn` to ask for a shorter TTL than the route cap; the message shows
+the TTL that was signed.
+
+Pass `actions` for more rows. They render after the built-in rows and before
+Delete. For a row that needs more than a label and a click, pass
+`ObjectListEntryMenuItem` children:
+
+```tsx
+<ObjectListEntryMenu>
+  <ObjectListEntryMenuItem onClick={() => star(entry.item)}>
+    <StarIcon />
+    Star
+  </ObjectListEntryMenuItem>
+</ObjectListEntryMenu>
+```
 
 Outside a list the menu has Copy link, with `share`, and your own rows:
 
 ```tsx
-<ObjectListItemMenu
+<ObjectListEntryMenu
   objectKey={file.key}
   fileName={file.name}
   share={share}
@@ -514,13 +543,46 @@ import type { ObjectListProps } from "@dimah-s3/ui";
   name="ObjectListProps"
 />
 
-### File menu
+### Entry menu
 
 ```ts
-import type { ObjectListItemMenuProps } from "@dimah-s3/ui";
+import type { ObjectListEntryMenuProps } from "@dimah-s3/ui";
 ```
 
 <AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/list/object-list-item-menu.tsx"
-  name="ObjectListItemMenuProps"
+  path="packages/ui/src/components/dimah-s3/list/object-list-entry-menu.tsx"
+  name="ObjectListEntryMenuProps"
+/>
+
+### Search
+
+```ts
+import type { ObjectListSearchProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/list/object-list-search.tsx"
+  name="ObjectListSearchProps"
+/>
+
+### Header
+
+```ts
+import type { ObjectListHeaderProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/list/object-list-header.tsx"
+  name="ObjectListHeaderProps"
+/>
+
+### Row and tile
+
+```ts
+import type { ObjectListEntryProps } from "@dimah-s3/ui";
+```
+
+<AutoTypeTable
+  path="packages/ui/src/components/dimah-s3/list/object-list-entry.tsx"
+  name="ObjectListEntryProps"
 />

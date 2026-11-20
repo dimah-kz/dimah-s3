@@ -128,11 +128,11 @@ beforeEach(() => {
 });
 
 describe("useUpload", () => {
-  it("merges call uploadOptions over the hook's, metadata key by key", async () => {
+  it("merges call uploadOptions over the hook's, clientMetadata key by key", async () => {
     const hook = mount({
       maxFiles: 2,
       uploadOptions: (file) => ({
-        metadata: { owner: "me", folder: "" },
+        clientMetadata: { owner: "me", folder: "" },
         contentType: `${file.type}; charset=utf-8`,
         fileName: `hook-${file.name}`,
       }),
@@ -140,13 +140,16 @@ describe("useUpload", () => {
 
     await act(async () => {
       await hook.current.handleFiles([txt("a.txt")], {
-        uploadOptions: { metadata: { folder: "docs" }, fileName: "call.txt" },
+        uploadOptions: {
+          clientMetadata: { folder: "docs" },
+          fileName: "call.txt",
+        },
       });
     });
 
     expect(engineRequests()).toEqual([
       {
-        metadata: { owner: "me", folder: "docs" },
+        clientMetadata: { owner: "me", folder: "docs" },
         contentType: "text/plain; charset=utf-8",
         fileName: "call.txt",
       },
@@ -176,6 +179,7 @@ describe("useUpload", () => {
           error: expect.objectContaining({ code: "NETWORK_ERROR" }),
         },
       ],
+      rejected: [],
       blocked: [],
       aborted: [],
     });
@@ -333,17 +337,17 @@ describe("useUpload", () => {
 
   it("uploads a drop on a folder row with the row's options merged over the hook's", async () => {
     const query = render(
-      { maxFiles: 5, uploadOptions: { metadata: { owner: "me" } } },
+      { maxFiles: 5, uploadOptions: { clientMetadata: { owner: "me" } } },
       (upload) =>
         createElement(
           "section",
           upload.getRootProps({ "data-testid": "list" }, () => ({
-            uploadOptions: { metadata: { folder: "" } },
+            uploadOptions: { clientMetadata: { folder: "" } },
           })),
           createElement(
             "div",
             upload.getDropTargetProps({ "data-testid": "row" }, () => ({
-              uploadOptions: { metadata: { folder: "photos" } },
+              uploadOptions: { clientMetadata: { folder: "photos" } },
             })),
           ),
         ),
@@ -353,8 +357,8 @@ describe("useUpload", () => {
     await drop(query("list"), [txt("b.txt")]);
 
     expect(engineRequests()).toEqual([
-      { metadata: { owner: "me", folder: "photos" } },
-      { metadata: { owner: "me", folder: "" } },
+      { clientMetadata: { owner: "me", folder: "photos" } },
+      { clientMetadata: { owner: "me", folder: "" } },
     ]);
   });
 

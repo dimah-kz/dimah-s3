@@ -26,12 +26,13 @@ server picks the object key.
 
 The package has two entries:
 
-- **`@dimah-s3/react`** — hooks, `S3Provider`, `createS3Client`, the formatter hooks, and types. Its build is marked `"use client"`.
+- **`@dimah-s3/react`** — hooks, `S3Provider`, `useS3Api`, `createS3Client`, the formatter hooks, and types. Its build is marked `"use client"`.
 - **`@dimah-s3/react/engine`** — plain functions with no React import, such as `uploadFile`, `defineApi`, `memoryObjectSource`, and the stores. Use them in shared or server modules. See [Engine](/docs/react/guides/engine).
 
 `APIError`, `S3_ERROR_CODES`, `validateFile`, and the other protocol helpers
-come from [`@dimah-s3/core`](/docs/core). The React package does not
-re-export them. It needs React 19.2.
+come from [`@dimah-s3/core`](/docs/core), a peer dependency. The React
+package does not re-export them. It needs React 19.2; see
+[Requirements](/docs/react/setup#requirements) for Node.js and browsers.
 
 <Callout>
   Upgrading from 1.7? See [Upgrade to 2.0 beta](/docs/migration-2-0) for the

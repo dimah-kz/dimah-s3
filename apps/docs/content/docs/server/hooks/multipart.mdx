@@ -53,19 +53,23 @@ export const s3 = dimahS3({
    (`kind: "multipart"`). If `onStart` throws, the upload is aborted. The
    response has the `uploadId`, the [upload ticket](/docs/server/upload-tickets),
    `partSize`, `partCount`, and whether parts need a `checksum`.
-2. **Sign part** runs `multipart.guard` with `action: "part"` and signs a PUT
-   URL for exactly that part's size.
-3. **List parts** (`action: "list"`) returns the parts S3 already has, so a
-   client can resume.
-4. **Complete** (`action: "complete"`) checks every part, assembles the
+2. **Sign part** (`operation: "multipart.signPart"`) runs `multipart.guard`
+   with the `partNumber` and its `size`, and signs a PUT URL for exactly
+   that size.
+3. **List parts** (`"multipart.listParts"`) returns the parts S3 already has,
+   so a client can resume.
+4. **Complete** (`"multipart.complete"`) checks every part, assembles the
    object, reads it with HeadObject, and runs `confirmGuard` and
-   `onConfirmed`, the same as a single-shot confirm.
-5. **Abort** (`action: "abort"`) aborts the upload and runs
+   `onConfirmed`, the same as a single-shot confirm. A rejected object is
+   deleted and runs [`onRejected`](/docs/server/hooks/upload#when-an-upload-is-rejected).
+5. **Abort** (`"multipart.abort"`) aborts the upload and runs
    `multipart.onAbort`. Like delete, it is idempotent: an upload that is
    already gone still succeeds and runs `onAbort`. An upload that was
    completed fails with `409 CONFLICT`.
 
-Every call after init sends only the ticket. The route guard runs on each one.
+Every call after init sends only the ticket. The route guard runs on each
+one, and `multipart.guard` runs on all four. Its context has no separate
+step field: narrow on `operation`.
 
 ---
 
@@ -196,14 +200,18 @@ confirm checks the stored size again.
 
 <Accordion title="How do I authorize parts differently from complete?">
 
-Branch on `action` in `multipart.guard`:
+Branch on `operation` in `multipart.guard`. Narrowing it to
+`"multipart.signPart"` also types `partNumber` and `size`:
 
 ```ts
 upload: {
   multipart: {
-    guard: ({ action, locals }) => {
-      if (action === "complete" && !locals.userId) {
+    guard: (context) => {
+      if (context.operation === "multipart.complete" && !context.locals.userId) {
         throw s3Error("UNAUTHORIZED");
+      }
+      if (context.operation === "multipart.signPart") {
+        console.log(context.partNumber, context.size);
       }
     },
   },

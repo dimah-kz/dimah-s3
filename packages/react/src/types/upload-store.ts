@@ -27,8 +27,8 @@ export type StoredUpload = {
 
 /**
  * Storage backend for resumable multipart uploads, looked up by
- * {@link StoredUpload.resumeKey}. `createLocalStorageStore()` and
- * `createMemoryStore()` are built in. Implement it to keep uploads in any
+ * {@link StoredUpload.resumeKey}. `createLocalStorageUploadStore()` and
+ * `createMemoryUploadStore()` are built in. Implement it to keep uploads in any
  * other storage, such as IndexedDB or a database.
  *
  * The engine ignores and deletes a record that is not a valid

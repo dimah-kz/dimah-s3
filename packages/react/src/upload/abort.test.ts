@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { S3_DEFAULT_PART_SIZE } from "@dimah-s3/core";
 import { abortable } from "@/internal/abortable";
-import { createMemoryStore } from "@/store/memory-store";
+import { createMemoryUploadStore } from "@/store/memory-store";
 import { fakeS3Api } from "@/test/api";
 import type { UploadStore } from "@/types/upload-store";
 import { getUploadAbortKind, uploadAbortReason } from "./abort";
@@ -65,7 +65,7 @@ describe("aborting a multipart upload", () => {
   }
 
   it("cancel rejects with its reason, aborts the upload and deletes the record", async () => {
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     const { api, controller, upload } = await startHanging(store);
     expect(await store.get(resumeKey, file.size)).not.toBeNull();
 
@@ -78,7 +78,7 @@ describe("aborting a multipart upload", () => {
   });
 
   it("detach keeps the server upload and the record", async () => {
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     const { api, controller, upload } = await startHanging(store);
 
     const reason = uploadAbortReason("detach");
@@ -101,7 +101,7 @@ describe("aborting a multipart upload", () => {
   });
 
   it("treats an abort without a kind as a cancel", async () => {
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     const { api, controller, upload } = await startHanging(store);
 
     controller.abort();

@@ -12,6 +12,15 @@ npm i @dimah-s3/react@beta @dimah-s3/core@beta @fuma-translate/react
 
 `@dimah-s3/react` needs React 19.2. `@dimah-s3/core` holds `APIError` and the
 protocol helpers, and `@fuma-translate/react` powers the translated strings.
+Both are peer dependencies. Keep `@dimah-s3/core` on the same version as
+`@dimah-s3/react`.
+
+### Requirements
+
+- **Node.js 22 or newer** for server rendering and builds.
+- **Browsers from Baseline 2024**: Chrome 119, Firefox 124, Safari 17.4, and
+  newer. The hooks use `Promise.withResolvers` and `AbortSignal.any`, so an
+  older browser fails on the first upload, download, or delete.
 
 ## 1. Create the client
 
@@ -151,12 +160,23 @@ export function FileUploader() {
 
 Every hook takes an optional `api` to use instead of the provider's.
 
+To call the API yourself, read it from the provider. `s3Client.useApi()` is
+typed with the client's plugins. `useS3Api()` from `@dimah-s3/react` reads
+whatever `S3Provider` holds, for a custom backend or a shared component:
+
+```tsx
+import { useS3Api } from "@dimah-s3/react";
+
+const api = useS3Api();
+const { url } = await api.download({ route: "avatar", key });
+```
+
 ---
 
 ## Shared and server modules
 
 The root entry is a client module. Plain functions that do not need React,
-such as `defineApi`, `memoryObjectSource`, and `createLocalStorageStore`,
+such as `defineApi`, `memoryObjectSource`, and `createLocalStorageUploadStore`,
 ship from `@dimah-s3/react/engine`, which has no `"use client"` directive:
 
 ```ts title="lib/s3-api.ts"
@@ -179,6 +199,34 @@ declare module "@dimah-s3/core" {
   // [!code ++]
   interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {} // [!code ++]
 }
+```
+
+---
+
+## Testing
+
+The pieces that talk to the network can each be swapped, so a test needs no
+S3 and no server:
+
+- **`fetch`** on `createS3Client({ fetch })` replaces the transport of every
+  API call. Answer with the JSON your server would send.
+- **`uploadTransport`** on a [custom API](/docs/react/custom-backend#upload-transport)
+  replaces the PUT or POST to the presigned URL for single-shot uploads.
+- **`createMemoryUploadStore()`** from `@dimah-s3/react/engine` is an
+  [upload store](/docs/react/upload-store) that keeps resumable uploads in
+  memory, so a test does not touch `localStorage`.
+- **`api`** on any hook takes an `S3Api` object directly. `defineApi` from the
+  engine entry type-checks a fake one.
+
+On the server, call the instance in process. `s3.api` runs the same
+guards and hooks as the HTTP handler, and `locals` seeds what your guards
+would have set:
+
+```ts
+const presigned = await s3.api.upload(
+  { route: "avatar", name: "a.png", size: 1024, type: "image/png" },
+  { locals: { userId: "user_1" } },
+);
 ```
 
 ---

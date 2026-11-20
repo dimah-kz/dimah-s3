@@ -21,7 +21,7 @@ const WHEN = {
   INTERNAL_ERROR:
     "Unhandled server error, or a non-JSON error response with status 500 or above.",
   S3_NETWORK_ERROR: "The server cannot reach the S3 endpoint.",
-  UNKNOWN_ROUTE: "The `route` name is not registered on the server.",
+  ROUTE_NOT_FOUND: "The `route` name is not registered on the server.",
   FEATURE_DISABLED:
     "The route does not enable the requested operation, or `/file` was asked for a route that is not in proxy mode.",
   KEY_INVALID: "The key is unsafe, or outside the route `keyPrefix`.",
@@ -50,12 +50,14 @@ const WHEN = {
   FOLDER_EXISTS: "That parent already has a folder with this name.",
   FOLDER_NOT_EMPTY: "A `db()` folder still holds folders or live objects.",
   TOO_MANY_FILES: "More files were added than `maxFiles` allows.",
-  HOOK_FAILED: "One of your callbacks, such as `onSuccess`, threw.",
+  HOOK_FAILED:
+    "A `before*` or `on*Start` callback, or an `uploadOptions` function, threw. `hook` names it.",
   NETWORK_ERROR: "The browser request failed before a response arrived.",
   UPLOAD_FAILED: "S3 rejected the upload. `status` is S3's HTTP status.",
   DOWNLOAD_FAILED: "`useFetchDownload` got a non-2xx response.",
   CHECKSUM_MISMATCH: "The uploaded bytes do not match their checksum.",
-  PARTIAL_FAILURE: "Some, but not all, files or keys in one call failed.",
+  PARTIAL_FAILURE:
+    "`useUpload().error` when two or more files of the queue failed, also when every file did.",
   UNKNOWN_ERROR:
     "Any other failure, or a non-JSON error response below status 500.",
 } satisfies Record<S3ErrorCode, string>;
@@ -76,7 +78,7 @@ const PARAMS = {
   VALIDATION_ERROR: { issue: true },
   REQUEST_TOO_LARGE: { maxSize: true },
   S3_NETWORK_ERROR: { code: true },
-  UNKNOWN_ROUTE: { route: true },
+  ROUTE_NOT_FOUND: { route: true },
   FEATURE_DISABLED: { feature: true },
   FILE_TOO_LARGE: { size: true, maxFileSize: true },
   FILE_TYPE_NOT_ALLOWED: { type: true, allowed: true },

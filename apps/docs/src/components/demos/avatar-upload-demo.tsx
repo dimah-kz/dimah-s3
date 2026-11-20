@@ -22,7 +22,7 @@ export function AvatarUploadDemo() {
         route="avatar"
         objectKey={avatarKey}
         label="Change profile photo"
-        onChange={(result) => setAvatarKey(result.key)}
+        onUploaded={(result) => setAvatarKey(result.key)}
       />
       <p className="text-sm text-fd-muted-foreground">
         Click or drop an image.

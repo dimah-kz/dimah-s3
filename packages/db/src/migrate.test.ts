@@ -3,8 +3,8 @@ import Database from "better-sqlite3";
 import { kyselyAdapter } from "fumadb/adapters/kysely";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { migrate } from "./cli";
-import { DB_SCHEMA_VERSION, DimahS3DB } from "./fuma-db";
+import { migrate } from "./migrate";
+import { DB_SCHEMA_VERSION, DimahS3Db } from "./fuma-db";
 import { dbSchema } from "./schema/schema";
 import { createDbStore } from "./store/create-db-store";
 import { checkSchemaVersion } from "./store/schema-version";
@@ -28,7 +28,7 @@ describe("migrate", () => {
       dialect: new SqliteDialect({ database }),
     });
     cleanups.push(() => kysely.destroy());
-    const client = DimahS3DB.client(
+    const client = DimahS3Db.client(
       kyselyAdapter({ db: kysely, provider: "sqlite" }),
     );
     const indexes = () =>
@@ -49,7 +49,7 @@ describe("migrate", () => {
       await kysely.destroy();
       await pg.close();
     });
-    const client = DimahS3DB.client(
+    const client = DimahS3Db.client(
       kyselyAdapter({ db: kysely, provider: "postgresql" }),
     );
     const indexes = async () =>
@@ -117,14 +117,14 @@ describe("migrate", () => {
     await client.orm(DB_SCHEMA_VERSION).create("storageObject", {
       ...row,
       key: "users/1/new.txt",
-      filename: "new.txt",
+      name: "new.txt",
       searchName: "new.txt",
       size: 5497558138880n,
     });
     await client.orm(DB_SCHEMA_VERSION).create("storageObject", {
       ...row,
       key: "users/1/a.txt",
-      filename: "a.txt",
+      name: "a.txt",
       searchName: "a.txt",
       size: 42n,
     });
@@ -136,8 +136,7 @@ describe("migrate", () => {
         )
         .all(),
     ).toEqual([{ type: "integer" }]);
-    const page = await objects.list({
-      scope: "user:1",
+    const page = await objects.list("user:1", {
       sort: { field: "size", direction: "asc" },
     });
     expect(page.objects.map((object) => object.size)).toEqual([

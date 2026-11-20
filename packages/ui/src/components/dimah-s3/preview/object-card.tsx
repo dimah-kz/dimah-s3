@@ -24,7 +24,14 @@ import type { AttachmentState } from "@/lib/attachment-layout";
 /** Props for {@link ObjectCard}. Other props go to `FileAttachment`. */
 export type ObjectCardProps = Omit<
   FileAttachmentProps,
-  "state" | "fileName" | "percent" | "error" | "onCancel" | "onDismiss"
+  | "state"
+  | "fileName"
+  | "percent"
+  | "error"
+  | "onCancel"
+  | "onRetry"
+  | "retryDisabled"
+  | "onDismiss"
 > & {
   /** Stored object key. Named `objectKey` because React reserves the `key` prop. */
   objectKey: string;
@@ -75,7 +82,7 @@ export function ObjectCard({
   const name = fileName ?? fileNameFromKey(objectKey) ?? objectKey;
 
   const operation =
-    download?.mode === "fetch" ? download.get(objectKey) : undefined;
+    download?.kind === "fetch" ? download.get(objectKey) : undefined;
   const downloading = operation != null && isDownloadRunning(operation);
   const deleting = del?.pendingKeys.includes(objectKey) ?? false;
   const state: AttachmentState = deleting

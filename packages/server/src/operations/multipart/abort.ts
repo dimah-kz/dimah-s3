@@ -19,9 +19,8 @@ import { openMultipart, type MultipartTicketBody } from "./open-multipart";
  * `s3.api.multipart.abort`).
  *
  * The ticket is accepted for 7 days after it expires, so an abandoned upload
- * can still be cleaned up. After `upload.multipart.guard`
- * (`action: "abort"`), AbortMultipartUpload runs, then
- * `upload.multipart.onAbort`.
+ * can still be cleaned up. After `upload.multipart.guard`,
+ * AbortMultipartUpload runs, then `upload.multipart.onAbort`.
  *
  * Abort is idempotent, like delete: an upload that is already gone (aborted
  * before, or removed by a bucket lifecycle rule) succeeds and still runs
@@ -37,7 +36,7 @@ export function abortMultipart(
     const { route, context } = await openMultipart(config, call, body.ticket);
     await runGuards(route.upload.multipart.guard, {
       ...context,
-      action: "abort",
+      operation: "multipart.abort",
     });
     try {
       await route.client.send(

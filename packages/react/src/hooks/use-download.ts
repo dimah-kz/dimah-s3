@@ -140,7 +140,7 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
   const reset = useCallback((key?: string) => store.reset(key), [store]);
 
   return {
-    mode: "navigate",
+    kind: "navigate",
     instanceId,
     operations,
     get,

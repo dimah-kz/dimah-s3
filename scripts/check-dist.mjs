@@ -14,6 +14,10 @@
  * 5. An exact peer range on another `@dimah-s3/*` package equals its version.
  * 6. Every relative import in a `.d.ts` names the `.js` path of an emitted
  *    declaration, so the types resolve under `moduleResolution: NodeNext`.
+ * 7. Every package declares the same `engines.node`.
+ * 8. A package on a stable version has no beta wording (`@beta`, "2.0 beta")
+ *    left in its `README.md`, nor in the starter READMEs the CLI ships. An
+ *    npm README cannot change without a republish.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -42,6 +46,9 @@ const CLIENT_DIRECTIVE = /^(["'])use client\1/;
 const JS_FILE = /\.(?:c|m)?js$/;
 const DECLARATION_FILE = /\.d\.ts$/;
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/;
+/** Wording that is only true while the line is a prerelease. */
+const BETA_WORDING = /@beta\b|\b2\.0 beta\b/i;
+const README_FILE = /^README\.md$/i;
 
 /** @type {string[]} */
 const failures = [];
@@ -73,6 +80,7 @@ function toPosix(file) {
  *   bin?: string | Record<string, string>;
  *   files?: string[];
  *   peerDependencies?: Record<string, string>;
+ *   engines?: { node?: string };
  * }} Manifest
  * @typedef {{ dir: string; manifest: Manifest }} PublishedPackage
  */
@@ -403,6 +411,44 @@ for (const { dir, manifest } of packages) {
       fail(
         name,
         `"${toPosix(relative(dir, file))}" imports "${specifier}", which does not resolve under moduleResolution NodeNext`,
+      );
+    }
+  }
+}
+
+// 7. One Node.js floor for the whole release group.
+const floors = packages.map(({ manifest }) => ({
+  name: manifest.name,
+  node: manifest.engines?.node,
+}));
+for (const { name, node } of floors) {
+  if (!node) fail(name, "engines.node is missing");
+}
+if (new Set(floors.map(({ node }) => node)).size > 1) {
+  fail(
+    "engines",
+    `engines.node must be the same in every package: ${floors
+      .map(({ name, node }) => `${name} "${node ?? "none"}"`)
+      .join(", ")}`,
+  );
+}
+
+// 8. No beta wording survives into a stable release.
+for (const { dir, manifest } of packages) {
+  if (manifest.version.includes("-")) continue;
+  const readmes = [join(dir, "README.md")];
+  if (manifest.name === "@dimah-s3/cli") {
+    readmes.push(...distFiles(join(dir, "dist", "templates"), README_FILE));
+  }
+  for (const file of readmes) {
+    if (!existsSync(file)) continue;
+    const line = read(file)
+      .split(/\r?\n/)
+      .find((text) => BETA_WORDING.test(text));
+    if (line !== undefined) {
+      fail(
+        manifest.name,
+        `"${toPosix(relative(dir, file))}" still has beta wording on stable ${manifest.version}: ${line.trim().slice(0, 80)}`,
       );
     }
   }

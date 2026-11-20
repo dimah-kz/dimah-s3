@@ -1,9 +1,10 @@
 import { s3Error } from "@dimah-s3/core";
+import { DB_FOLDER_ID_KEY, DB_LIST_MAX_LIMIT } from "@/constants";
 import { isFolderName } from "@/folder-path";
 import type {
   DbClientActions,
   DbClientFolder,
-  DbClientListInput,
+  DbClientListObjectsInput,
   DbClientObject,
   DbListSort,
   DbListSortField,
@@ -26,18 +27,28 @@ export type DbObjectSourceActions<TClientAttributes = never> = Pick<
     >
   >;
 
-/** List sort fields and the `listObjects` columns they order by. */
-const SORT_FIELDS = new Map<string, DbListSortField>([
-  ["name", "filename"],
-  ["size", "size"],
-  ["updatedAt", "updatedAt"],
+/** The list sort fields `listObjects` orders by. */
+const SORT_FIELDS: ReadonlySet<string> = new Set<DbListSortField>([
+  "name",
+  "size",
+  "updatedAt",
 ]);
 
 function toListSort(
   sort: DbObjectSourceQueryInput["sort"],
 ): DbListSort | undefined {
-  const field = sort ? SORT_FIELDS.get(sort.field) : undefined;
-  return sort && field ? { field, direction: sort.direction } : undefined;
+  if (!sort || !SORT_FIELDS.has(sort.field)) return undefined;
+  return {
+    field: sort.field as DbListSortField,
+    direction: sort.direction,
+  };
+}
+
+/** `limit` as the server takes it: a whole number from 1 to the maximum. */
+function pageLimit(limit: number): number {
+  const rows = Math.floor(limit);
+  if (Number.isNaN(rows)) return DB_LIST_MAX_LIMIT;
+  return Math.min(Math.max(rows, 1), DB_LIST_MAX_LIMIT);
 }
 
 /**
@@ -74,18 +85,18 @@ function locationsOf(
  * With `folders` on (the default), `parent` is a folder id: each page lists
  * one folder, the first page carries its child folders and the breadcrumb
  * trail, uploads go to the open folder, and "New folder" calls
- * `api.db.createFolder`. Rename calls `api.db.updateObject` (`filename`) or
- * `api.db.updateFolder` (`name`) and leaves the object key as it is. With
- * `folders: false`, the list is flat: file rename stays, and folder actions
- * do not.
+ * `api.db.createFolder`. Rename calls `api.db.updateObject` or
+ * `api.db.updateFolder` with the new `name` and leaves the object key as it
+ * is. With `folders: false`, the list is flat: file rename stays, and
+ * folder actions do not.
  *
  * `search` runs on the server and ignores case and accents. With `folders`
  * on it is recursive: `searchScope: "folder"` looks in the open folder and
  * every folder below it, `"all"` in the whole scope, and each result's
- * `location` says where it lives. `sort` maps `name` to `filename`; `size`
- * and `updatedAt` keep their names, and other fields keep the server's
- * order (newest first). `usage` is the scope total with its caps, not the
- * open folder's.
+ * `location` says where it lives. `sort` takes `name`, `size`, and
+ * `updatedAt`; other fields keep the server's order (newest first). The
+ * usage line is the scope total with its caps, not the open folder's. The
+ * server sends it when the plugin sets a `quota`, or when `usage` is on.
  *
  * ```ts
  * const list = useObjectList({
@@ -105,7 +116,7 @@ export function dbObjectSource<TClientAttributes = never>(
   const locations = new WeakMap<object, DbObjectSourceFolder[]>();
   const toFile = (object: DbClientObject<TClientAttributes>) => {
     const file: DbObjectSourceFile = {
-      name: object.filename,
+      name: object.name,
       objectKey: object.key,
       size: object.size,
       contentType: object.contentType,
@@ -117,10 +128,10 @@ export function dbObjectSource<TClientAttributes = never>(
   };
 
   const source: DbObjectSource<TClientAttributes> = {
-    getKey: (item) => item.id,
+    getId: (item) => item.id,
     getFile: toFile,
     async query({ parent, cursor, sort, search, searchScope, signal }) {
-      const input: DbClientListInput = {};
+      const input: DbClientListObjectsInput = {};
       // A search reaches the folders below; a listing shows one folder.
       const recursive = searchBelow && search !== "";
       if (folders) {
@@ -135,7 +146,8 @@ export function dbObjectSource<TClientAttributes = never>(
       if (options.route) input.route = options.route;
       if (options.status) input.status = options.status;
       if (options.contentType) input.contentType = options.contentType;
-      if (options.limit !== undefined) input.limit = options.limit;
+      if (options.limit !== undefined) input.limit = pageLimit(options.limit);
+      if (options.usage && !cursor) input.usage = true;
 
       const page = await db.listObjects(input, { signal });
       const locate = recursive
@@ -179,7 +191,7 @@ export function dbObjectSource<TClientAttributes = never>(
       const { object } = await updateObject({
         key: item.key,
         bucket: item.bucket,
-        filename: name,
+        name,
       });
       return object;
     };
@@ -187,7 +199,7 @@ export function dbObjectSource<TClientAttributes = never>(
   if (!folders) return source;
 
   source.uploadOptions = (parent) => ({
-    metadata: { folderId: parent ?? "" },
+    clientMetadata: { [DB_FOLDER_ID_KEY]: parent ?? "" },
   });
   const createFolder = db.createFolder?.bind(db);
   if (createFolder) {

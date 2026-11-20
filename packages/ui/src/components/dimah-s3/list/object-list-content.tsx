@@ -6,6 +6,7 @@ import { cn } from "cn";
 import {
   ObjectListEntryProvider,
   useObjectListContext,
+  useObjectListInternal,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
 import {
@@ -16,17 +17,22 @@ import {
   ObjectListEmpty,
   ObjectListError,
   ObjectListErrorBanner,
-  ObjectListPagination,
+  ObjectListNextPage,
   ObjectListSkeleton,
 } from "@/components/dimah-s3/list/object-list-states";
+
+/** Props for {@link ObjectListContent}. */
+export type ObjectListContentProps = {
+  className?: string;
+};
 
 /**
  * The rows, or the loading, error, and empty states, and the next page.
  * With `height` or `maxHeight` on the list, this is the part that scrolls.
  */
-export function ObjectListContent({ className }: { className?: string }) {
-  const context = useObjectListContext();
-  const { list, view, sizing } = context;
+export function ObjectListContent({ className }: ObjectListContentProps) {
+  const { list, view } = useObjectListContext();
+  const { sizing, empty, pagination, renderEntry } = useObjectListInternal();
   const formatError = useFormatError();
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const hasRows = list.entries.length > 0;
@@ -58,13 +64,13 @@ export function ObjectListContent({ className }: { className?: string }) {
         <ObjectListError message={errorMessage} onRetry={list.retry} />
       ) : null}
 
-      {showEmpty ? (context.empty ?? <ObjectListEmpty />) : null}
+      {showEmpty ? (empty ?? <ObjectListEmpty />) : null}
 
       {hasRows ? (
         <ObjectListEntries
           entries={list.entries}
           view={view}
-          renderEntry={context.renderEntry}
+          renderEntry={renderEntry}
         />
       ) : null}
 
@@ -72,8 +78,8 @@ export function ObjectListContent({ className }: { className?: string }) {
         <ObjectListErrorBanner message={errorMessage} onRetry={list.retry} />
       ) : null}
 
-      <ObjectListPagination
-        mode={context.pagination}
+      <ObjectListNextPage
+        mode={pagination}
         root={sizing ? scroller : null}
         ready={!sizing || scroller != null}
       />

@@ -62,7 +62,6 @@ describe("abortMultipart", () => {
     expect(order).toEqual(["guard", "onAbort"]);
     expect(guard.mock.calls[0][0]).toMatchObject({
       operation: "multipart.abort",
-      action: "abort",
       uploadId: upload.uploadId,
     });
     const context = onAbort.mock.calls[0][0];
@@ -74,7 +73,6 @@ describe("abortMultipart", () => {
       uploadToken: guard.mock.calls[0][0].uploadToken,
       file: { name: "a.png", size: 10, type: "image/png" },
     });
-    expect(context).not.toHaveProperty("action");
   });
 
   it("accepts an expired ticket for 7 days", async () => {

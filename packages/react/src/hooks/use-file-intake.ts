@@ -6,13 +6,13 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type HTMLAttributes,
+  type InputHTMLAttributes,
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
 import {
   useDropzone,
   type DropEvent,
-  type DropzoneInputProps,
   type DropzoneRootProps,
   type FileRejection as DropzoneFileRejection,
 } from "react-dropzone";
@@ -21,6 +21,19 @@ import type { UploadCallOptions } from "@/types/upload";
 
 /** Call options, or a function that returns them when the files arrive. */
 export type UploadCallInput = UploadCallOptions | (() => UploadCallOptions);
+
+/** Any `data-*` attribute. */
+type DataAttributes = { [name: `data-${string}`]: unknown };
+
+/**
+ * Props `getRootProps` merges its handlers into: any element props and
+ * `data-*` attributes.
+ */
+export type UploadRootProps = HTMLAttributes<HTMLElement> & DataAttributes;
+
+/** Props `getInputProps` merges into the hidden file input. */
+export type UploadInputProps = InputHTMLAttributes<HTMLInputElement> &
+  DataAttributes;
 
 /**
  * Props for a drop target that is not a dropzone, such as a folder row.
@@ -59,7 +72,7 @@ export type UseFileIntakeOptions = {
 /** What {@link useFileIntake} returns. */
 export type UseFileIntakeReturn = {
   /** Spread on the dropzone root. `call` applies to its drops, pastes and picker. */
-  getRootProps: <T extends DropzoneRootProps>(
+  getRootProps: <T extends UploadRootProps>(
     props?: T,
     call?: UploadCallInput,
   ) => T;
@@ -69,7 +82,7 @@ export type UseFileIntakeReturn = {
     call?: UploadCallInput,
   ) => T & DropTargetProps;
   /** Spread on a hidden `<input type="file">`. */
-  getInputProps: <T extends DropzoneInputProps>(props?: T) => T;
+  getInputProps: <T extends UploadInputProps>(props?: T) => T;
   /** Opens the native file picker. `call` applies to the picked files. */
   open: (call?: UploadCallOptions) => void;
   isDragActive: boolean;
@@ -165,7 +178,7 @@ export function useFileIntake(
       .join(",") || undefined;
 
   const getRootProps = useCallback(
-    <T extends DropzoneRootProps>(props?: T, call?: UploadCallInput): T => {
+    <T extends UploadRootProps>(props?: T, call?: UploadCallInput): T => {
       const {
         onClick,
         onKeyDown,
@@ -241,7 +254,7 @@ export function useFileIntake(
   );
 
   const getInputProps = useCallback(
-    <T extends DropzoneInputProps>(props?: T): T =>
+    <T extends UploadInputProps>(props?: T): T =>
       ({
         ...getDropzoneInputProps({
           ...props,
@@ -280,8 +293,6 @@ export function useFileIntake(
     isDragReject: dropzone.isDragReject,
   };
 }
-
-export type { DropzoneRootProps, DropzoneInputProps };
 
 /**
  * Drag handlers that run the consumer's handler, then the dropzone's unless

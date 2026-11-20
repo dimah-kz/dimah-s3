@@ -82,7 +82,7 @@ function DemoFiles() {
     route: ROUTE,
     maxFiles: 3,
     maxFileSize: 75 * 1024 * 1024,
-    queue: true,
+    append: true,
     onSuccess: (result, file) => {
       // Demo only: keep the bytes in the browser for the preview and download.
       rememberDemoFile(result.key, file);

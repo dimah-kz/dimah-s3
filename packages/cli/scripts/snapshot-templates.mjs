@@ -5,6 +5,10 @@
  * renames `.gitignore` → `_gitignore`,
  * fails on workspace/catalog leaks. Local env files (`.env`, `.env.local`, …)
  * are never copied, and `.env.example` must list an empty `DIMAH_S3_SECRET`.
+ * A starter's `.gitignore` must not ignore a lockfile: the app commits its own.
+ *
+ * The transform is imported as TypeScript source (Node strips the types),
+ * so it is never part of the published `dist`.
  */
 import {
   cpSync,
@@ -16,25 +20,20 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import {
   assertEnvExampleSecret,
+  assertLockfilesNotIgnored,
   catalogPath,
   copyTemplateDir,
   listCatalogEntries,
   templateDir,
 } from "../../../scripts/templates-shared.mjs";
+import { transformTemplatePackageJson } from "../src/snapshot/transform.ts";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = resolve(packageRoot, "dist", "templates");
-const transformUrl = pathToFileURL(
-  resolve(packageRoot, "dist", "snapshot", "transform.js"),
-).href;
 
-/** Scaffolded projects do not get the starter's AGENTS.md. */
-const SNAPSHOT_EXCLUDE = ["AGENTS.md"];
-
-const transform = await import(transformUrl);
 const cliVersion = JSON.parse(
   readFileSync(join(packageRoot, "package.json"), "utf8"),
 ).version;
@@ -49,8 +48,9 @@ for (const { id } of listCatalogEntries()) {
   const source = templateDir(id);
   // `create` fills DIMAH_S3_SECRET in `.env` from this line.
   assertEnvExampleSecret(source);
+  assertLockfilesNotIgnored(source);
   const dest = resolve(distRoot, id);
-  copyTemplateDir(source, dest, { exclude: SNAPSHOT_EXCLUDE });
+  copyTemplateDir(source, dest);
 
   const gitignore = join(dest, ".gitignore");
   if (existsSync(gitignore)) {
@@ -58,7 +58,7 @@ for (const { id } of listCatalogEntries()) {
   }
 
   const pkgPath = join(dest, "package.json");
-  const { pkg, warnings } = transform.transformTemplatePackageJson(
+  const { pkg, warnings } = transformTemplatePackageJson(
     JSON.parse(readFileSync(pkgPath, "utf8")),
     { cliVersion },
   );

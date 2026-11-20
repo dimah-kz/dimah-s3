@@ -14,7 +14,7 @@ export function sampleObject<TAttributes = never>(
     key: "k",
     route: "uploads",
     folderId: null,
-    filename: "a.txt",
+    name: "a.txt",
     contentType: "text/plain",
     size: 10,
     declaredSize: null,

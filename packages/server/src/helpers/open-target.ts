@@ -50,10 +50,10 @@ export type OpenedObject<F extends RouteFeature> = {
   context: ObjectContext;
 };
 
-/** The named route. Fails with `UNKNOWN_ROUTE`. */
+/** The named route. Fails with `ROUTE_NOT_FOUND`. */
 export function getRoute(config: RouteConfig, name: string): ResolvedRoute {
   if (!Object.hasOwn(config.routes, name)) {
-    throw s3Error("UNKNOWN_ROUTE", { route: name });
+    throw s3Error("ROUTE_NOT_FOUND", { route: name });
   }
   return config.routes[name];
 }
@@ -180,7 +180,10 @@ export async function openUploadTarget<K extends UploadKind>(
     kind === "server" ? undefined : await config.ticketSubject?.(routeContext);
   assertFileConstraints(route.upload, input.file);
   if (kind !== "multipart") assertSingleUploadSize(input.file.size);
-  if ((kind === "post" || kind === "put") && route.upload.checksum) {
+  if (
+    (kind === "presignedPost" || kind === "presignedPut") &&
+    route.upload.checksum
+  ) {
     if (!input.checksum) throw s3Error("CHECKSUM_REQUIRED");
   }
 

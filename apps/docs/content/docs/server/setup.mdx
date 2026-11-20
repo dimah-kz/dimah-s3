@@ -10,6 +10,9 @@ icon: Settings
 npm i @dimah-s3/server@beta @aws-sdk/client-s3
 ```
 
+The server runs on Node.js 22 or newer, and on any runtime with the Fetch
+API and Web Crypto.
+
 ## Set the ticket secret
 
 Presign returns an [upload ticket](/docs/server/upload-tickets) that the
@@ -268,7 +271,9 @@ export async function getAvatarDownloadUrl(key: string) {
 
 - **`headers`** — Copied onto a synthetic `GET` request to `baseURL`, or to
   `http://localhost` plus `basePath`. Guards read cookies and auth headers
-  from it. The request has no query or body.
+  from it. The request has no query or body. In a Node or Express handler,
+  convert `req.headers` with `fromNodeHeaders` from `@dimah-s3/server/node`
+  (also exported by `@dimah-s3/server/express`).
 - **`request`** — The request hooks see. Pass the incoming one when you have
   it; it is used as is, and `headers` is ignored.
 - **`locals`** — Trusted values that seed [`locals`](/docs/server/hooks/global-guard#locals)
@@ -279,6 +284,18 @@ await s3.api.deleteMany(
   { route: "files", keys },
   { locals: { userId: job.ownerId } }, // [!code ++]
 );
+```
+
+```ts title="server.ts"
+import { fromNodeHeaders } from "@dimah-s3/server/node";
+
+app.get("/avatar-url", async (req, res) => {
+  const { url } = await s3.api.download(
+    { route: "avatar", key: String(req.query.key) },
+    { headers: fromNodeHeaders(req.headers) }, // [!code ++]
+  );
+  res.json({ url });
+});
 ```
 
 Plugin endpoints, such as the `db()` list, are HTTP only. Plugins expose their
@@ -311,14 +328,59 @@ written.
 
 ---
 
+## The instance
+
+`dimahS3()` returns one object:
+
+| Member         | What it is                                                                      |
+| -------------- | ------------------------------------------------------------------------------- |
+| `handler`      | `(request: Request) => Promise<Response>`, which every adapter wraps.           |
+| `api`          | The browser client's methods, run in process.                                   |
+| `put`          | Server-side uploads through a route's policy.                                   |
+| `context`      | Plugin contexts by plugin id. Each one is on the instance too, such as `s3.db`. |
+| `getPlugin`    | `s3.getPlugin("db")` returns the registered plugin, or `undefined`.             |
+| `$ERROR_CODES` | The [error catalog](/docs/server/errors), the same object as `S3_ERROR_CODES`.  |
+| `$Infer`       | Type-only: `typeof s3.$Infer.routes` is the union of your route names.          |
+
+`InferS3Routes<typeof s3>` from `@dimah-s3/core` reads `$Infer.routes` to
+[type route names](/docs/react/setup#typescript-route-inference) on the
+client.
+
+## Logging
+
+The server logs config errors, unexpected failures, and warnings through
+`console.error` and `console.warn`, prefixed with `[dimah-s3]`. Rejections you
+throw with `s3Error` are not logged. Pass `logger` to send them elsewhere, or
+`false` to silence them:
+
+```ts
+export const s3 = dimahS3({
+  logger: {
+    warn: (message, ...args) => log.warn({ args }, message), // [!code ++]
+    error: (message, ...args) => log.error({ args }, message), // [!code ++]
+  },
+  // logger: false,
+  // ...
+});
+```
+
+Every method is optional (`debug`, `info`, `warn`, `error`). Use
+[`onError`](/docs/server/errors#reporting-errors) to report failures to an
+error tracker.
+
+---
+
 ## Type reference
 
 ```ts
 import type {
+  DimahS3,
   DimahS3Config,
+  DimahS3Logger,
   PutInput,
   S3ServerCallOptions,
 } from "@dimah-s3/server";
+import type { NodeHandlerOptions } from "@dimah-s3/server/node";
 ```
 
 ### DimahS3Config

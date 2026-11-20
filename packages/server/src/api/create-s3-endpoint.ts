@@ -17,17 +17,17 @@ import {
 import { resolvedConfig } from "./router-context";
 
 /** HTTP methods a dimah-s3 endpoint can use. */
-export type S3EndpointMethod = "GET" | "POST" | "PATCH" | "DELETE";
+export type S3EndpointMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /**
  * Options of {@link createS3Endpoint}. `GET` and `DELETE` read the `query`.
- * `POST` and `PATCH` read a JSON `body`.
+ * `POST`, `PUT` and `PATCH` read a JSON `body`.
  */
 export type S3EndpointOptions = Omit<EndpointBaseOptions, "disableBody"> &
   (
     | { method: "GET"; body?: never }
     | { method: "DELETE"; body?: never }
-    | { method: "POST" | "PATCH"; body?: StandardSchemaV1 }
+    | { method: "POST" | "PUT" | "PATCH"; body?: StandardSchemaV1 }
   );
 
 const pluginEndpoint = createEndpoint.create({
@@ -55,8 +55,8 @@ const CORE_PATHS: ReadonlySet<string> = new Set(Object.values(S3_API_ROUTES));
  * Creates an endpoint for a plugin's `endpoints`. The path is under
  * `basePath`, such as `/audit/recent`.
  *
- * - `GET` and `DELETE` read the `query`. `POST` and `PATCH` read a JSON
- *   `body`; any other content type returns `415 UNSUPPORTED_MEDIA_TYPE`.
+ * - `GET` and `DELETE` read the `query`. `POST`, `PUT` and `PATCH` read a
+ *   JSON `body`; any other content type returns `415 UNSUPPORTED_MEDIA_TYPE`.
  * - The instance guards run first (operation `"plugin"`), and the `locals`
  *   they return are on `ctx.context.locals`, next to `config` and `request`.
  * - A schema failure returns `400 VALIDATION_ERROR`. An `APIError` passes
@@ -144,12 +144,12 @@ function endpointOptions<Options extends S3EndpointOptions>(
   options: Options,
 ): Options {
   const { method } = options;
-  if (!["GET", "POST", "PATCH", "DELETE"].includes(method)) {
+  if (!["GET", "POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     throw new Error(
-      `createS3Endpoint("${path}"): method must be GET, POST, PATCH or DELETE.`,
+      `createS3Endpoint("${path}"): method must be GET, POST, PUT, PATCH or DELETE.`,
     );
   }
-  const readsBody = method === "POST" || method === "PATCH";
+  const readsBody = method === "POST" || method === "PUT" || method === "PATCH";
   if (!readsBody && options.body !== undefined) {
     throw new Error(
       `createS3Endpoint("${path}"): ${method} reads the query, so it cannot have a body schema.`,

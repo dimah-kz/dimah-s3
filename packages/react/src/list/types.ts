@@ -48,7 +48,7 @@ export type ObjectListFile = {
   name: string;
   /**
    * Stored S3 object key. Download, Copy link, and Delete use it.
-   * Falls back to the item key from `getKey`.
+   * Falls back to the item key from `getId`.
    */
   objectKey?: string | null;
   /** Size in bytes. */
@@ -154,10 +154,10 @@ export type ObjectListSource<TItem> = {
    */
   searchScopes?: readonly ObjectListSearchScope[];
   /** Stable id for a file row. Unique among the files of one listing. */
-  getKey: (item: TItem) => string;
+  getId: (item: TItem) => string;
   /**
    * Name, object key, size, and the other fields the UI shows.
-   * Keep it pure. Defaults to `{ name: getKey(item) }`.
+   * Keep it pure. Defaults to `{ name: getId(item) }`.
    */
   getFile?: (item: TItem) => ObjectListFile;
   /**
@@ -205,7 +205,7 @@ export type ObjectListFileEntry<TItem> = {
   kind: "file";
   /** Unique across files and folders. Selection uses it. */
   key: string;
-  /** `getKey(item)`. */
+  /** `getId(item)`. */
   id: string;
   name: string;
   item: TItem;

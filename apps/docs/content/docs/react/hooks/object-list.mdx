@@ -5,7 +5,7 @@ description: Headless hooks that page, search, sort, and select a folder catalog
 
 `useObjectList` keeps the open folder, the breadcrumb, cursor pages, search,
 and sort. It does not know where the rows live and it does not call S3. You
-pass a **source**: a `query` that loads one page, `getKey` for a stable row
+pass a **source**: a `query` that loads one page, `getId` for a stable row
 id, and `getFile` to read a row's name, object key, size, and type.
 
 ```tsx title="components/file-browser.tsx"
@@ -19,7 +19,7 @@ export function FileBrowser() {
   const list = useObjectList<FileRow>({
     query: ({ parent, cursor, sort, search, signal }) =>
       fetchFiles({ folderId: parent, cursor, sort, search, signal }),
-    getKey: (file) => file.id,
+    getId: (file) => file.id,
     getFile: (file) => ({
       name: file.name,
       objectKey: file.key,
@@ -49,8 +49,17 @@ export function FileBrowser() {
 both kinds, a `name`, and either `folder` or `item` and `file`. `items` and
 `folders` are there too when you want them apart.
 
+Three ids are in play, each with one job:
+
+- `getId(item)` is your row id. It becomes `entry.id`, and `removeItems(ids)`
+  takes it.
+- `entry.key` is the list's own key (`file:<id>` or `folder:<id>`). Use it as
+  the React key; selection takes it.
+- `file.objectKey` from `getFile` is the stored S3 object key. Download,
+  Copy link, and Delete use it. It falls back to the row id.
+
 An entry stays the same object while its item or folder does, also when the
-source is written inline, so rows can skip renders. `getKey` and `getFile`
+source is written inline, so rows can skip renders. `getId` and `getFile`
 run once per item and must be pure: to change what a row shows, replace the
 item with `setItems` or reload.
 
@@ -69,6 +78,11 @@ The query receives:
 Return `folders` from the first page only. Later pages append `items`. The
 first page of a search can also return `total`, the files that match across
 every page.
+
+The first page can also return `trail`: the folders from the root down to
+`parent`, each as `{ id, name }`. The hook then shows those names in the
+breadcrumb, which is how a deep link to a folder gets its labels. Leave it
+out and the hook keeps the trail it built while navigating.
 
 Changing the folder or `queryKey` clears the rows and shows the loading
 state. Use `queryKey` for filters of your own, such as the route. Changing
@@ -114,7 +128,7 @@ const source: ObjectListSource<FileRow> = {
       total: page.total, // files that match, across every page
     };
   },
-  getKey: (file) => file.id,
+  getId: (file) => file.id,
   getFile: (file) => ({
     name: file.name,
     objectKey: file.key,
@@ -165,8 +179,8 @@ A source can add these optional functions. The hook returns the ones you set.
 ```ts
 const source: ObjectListSource<FileRow> = {
   query,
-  getKey: (file) => file.id,
-  uploadOptions: (parent) => ({ metadata: { folder: parent ?? "" } }),
+  getId: (file) => file.id,
+  uploadOptions: (parent) => ({ clientMetadata: { folderId: parent ?? "" } }),
   createFolder: async ({ parent, name }) => {
     const folder = await api.createFolder({ parent, name });
     return { id: folder.id, name: folder.name };
@@ -189,7 +203,7 @@ With your own controls, pass the options to the upload hook. Drop targets use
 handlers:
 
 ```tsx
-const upload = useUpload({ route: "files", maxFiles: 20, queue: true });
+const upload = useUpload({ route: "files", maxFiles: 20, append: true });
 
 <div
   {...upload.getRootProps(undefined, () => ({
@@ -229,7 +243,7 @@ import { useObjectList } from "@dimah-s3/react";
 import { memoryObjectSource } from "@dimah-s3/react/engine";
 
 const source = memoryObjectSource(files, {
-  getKey: (file) => file.id,
+  getId: (file) => file.id,
   getFile: (file) => ({
     name: file.name,
     objectKey: file.key,
@@ -267,7 +281,7 @@ One page of a database query cannot be grouped after the fact.
 of the [`db()`](/docs/db) plugin. By default it lists one folder at a time:
 `parent` is a folder id, the first page carries the child folders, uploads
 go to the open folder, and "New folder" calls `api.db.createFolder`. Rename
-calls `api.db.updateObject` (`filename`) or `api.db.updateFolder` (`name`)
+calls `api.db.updateObject` (`name`) or `api.db.updateFolder` (`name`)
 and leaves the object key as it is. Pass `folders: false` for a flat list;
 file rename stays, and folder actions do not.
 
@@ -294,7 +308,7 @@ export function DbFiles() {
   const api = s3Client.useApi();
   const [source] = useState(() => dbObjectSource(api.db, { route: "files" }));
   const list = useObjectList({ ...source, queryKey: ["files"] });
-  const upload = useUpload({ route: "files", maxFiles: 20, queue: true });
+  const upload = useUpload({ route: "files", maxFiles: 20, append: true });
   const download = useDownload({ route: "files" });
   const remove = useDelete({ route: "files" });
 
@@ -347,7 +361,7 @@ search result with a `location`, whose whole path opens.
 - `refresh()` reloads every page on screen and swaps them in at once.
 - `retry()` repeats what failed: the next page, or the reload.
 - `status` is `idle`, `loading`, `refreshing`, `loading-more`, `ready`, or `error`. `isLoading`, `isRefreshing`, and `isLoadingMore` mirror it.
-- `setItems(updater)`, `setFolders(updater)`, and `removeItems(keys)` edit the loaded rows without a request. The next reload replaces them. Prefer `renameFile` and `renameFolder` when the source can rename.
+- `setItems(updater)`, `setFolders(updater)`, and `removeItems(ids)` edit the loaded rows without a request. `removeItems` takes `getId` values, not `entry.key`. The next reload replaces them. Prefer `renameFile` and `renameFolder` when the source can rename.
 
 ## Selection
 

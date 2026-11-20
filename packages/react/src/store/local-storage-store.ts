@@ -11,7 +11,7 @@ const STORAGE_PREFIX = "dimah-s3:upload:";
  * Does nothing when `localStorage` is unavailable (SSR, private browsing, or
  * a full quota).
  */
-export function createLocalStorageStore(): UploadStore {
+export function createLocalStorageUploadStore(): UploadStore {
   return {
     get(resumeKey, fileSize) {
       try {

@@ -399,7 +399,7 @@ describe("deleteManyObjects errors", () => {
     await expect(
       deleteManyObjects(config, { route: "avatars", keys: [A] }),
     ).rejects.toMatchObject({
-      code: "UNKNOWN_ROUTE",
+      code: "ROUTE_NOT_FOUND",
       params: { route: "avatars" },
     });
   });

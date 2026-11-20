@@ -1,92 +1,96 @@
 ---
 title: Upgrade the Schema
-description: Schema 2.2.0 is the only schema this line reads.
+description: Schema 2.3.0 is the only schema @dimah-s3/db reads. A database at another version is replaced, not upgraded.
 ---
 
-`@dimah-s3/db` 2.0 beta reads and writes schema `2.2.0`, and that schema is
-the only one in the package. It does not upgrade a 1.x database or a
-database created at schema `2.0.0` or `2.1.0`. For the code changes in
-every package, see [Upgrade to 2.0 beta](/docs/migration-2-0).
+`@dimah-s3/db` reads and writes schema `2.3.0`, and that schema is the only
+one in the package. It does not upgrade a database at another version: a
+1.x database, or one created at an earlier `2.x` schema. For the code
+changes in every package, see the
+[2.0 upgrade guide](/docs/migration-2-0).
 
 ## A new database
 
 Create the tables from [Setup](/docs/db/setup): generate the Drizzle tables
 or the Prisma models with `runCli`, or call `migrate(client)` with Kysely.
-Point those tools at a new database. An ORM diff against an older database
-can drop columns.
+Point those tools at a new database. An ORM diff against a database at
+another version can drop columns, and it cannot fill the columns the new
+schema requires for the rows already there.
 
-A database from an earlier 2.0 beta, at `2.0.0` or `2.1.0`, is not
-migrated. Run `generate` again and create schema `2.2.0` on a new database,
-or call `migrate(client)` on an empty one. Folders are rows with ids: an
-object stores `folderId`, and renaming or moving a folder rewrites cached
-paths without rewriting object rows.
+`migrate(client)` does nothing on a database already at `2.3.0` and throws
+on one at another version.
 
-Schema `2.2.0` adds a not-null `search_name` column to `storage_object` and
-`storage_folder`: the name folded for search, so a search matches the same
-way on every database. The plugin writes it with every name it stores. An
-ORM diff against a `2.1.0` database cannot fill it for the rows already
-there, and the recorded version stays `2.1.0`, so the database still
-throws.
+## Bring your objects over
 
-## From the shipped schema files
+The objects stay where they are in the bucket. Only the rows are new. Read
+your old rows with your own query, then write each object into the new
+database with [`s3.db.record`](/docs/db/api#recording-an-object): it reads
+the size, type, and ETag from HeadObject, so the new row describes what is
+really in the bucket.
 
-Earlier betas shipped `@dimah-s3/db/drizzle/<dialect>`, `prisma/`, and
-`sql/`. Generate the schema with `runCli` instead, point your ORM at the
-generated file, and create the tables on a new database, as above. A
-database created from the shipped files is at an older schema and throws.
+```ts title="scripts/import.ts"
+// `oldRows` is your own query on the old database.
+for (const row of oldRows) {
+  const locals = { userId: row.userId }; // what your guards and resolveScope read
+  await s3.db.record(
+    {
+      route: row.route,
+      key: row.key, // must sit inside the route's keyPrefix
+      name: row.fileName,
+      folderId: folderIds.get(row.folderPath) ?? null,
+    },
+    { locals },
+  );
+}
+```
 
-### Code that reads the tables
+- Create the folders first with `s3.db.folders.create(scope, { parentId, name })`,
+  parents before children, and keep the ids it returns. A folder is its id;
+  an object stores `folderId`.
+- `record` runs your guards, `resolveScope`, `authorize`, the route's
+  `fileTypes` and `maxFileSize`, and the quota. Pass the `locals` (or a
+  `request`) that resolve to the owner of each object.
+- An object whose key is outside the route's `keyPrefix` is `KEY_INVALID`.
+  Record it through a route whose namespace holds it.
+- Set app data with `s3.db.objects.update(ref, { attributes })` when the
+  plugin has an `attributes.schema`.
+- Calling `record` again for the same bytes returns the same row, so the
+  script can run again after a failure.
 
-`s3.db.objects` returns the same rows as before. Code that queries the
-tables itself sees the generated types:
+Rows that were pending or deleted in the old database describe no object
+worth keeping: leave them out.
 
+## Code that reads the tables
+
+`s3.db.objects` and `s3.db.folders` return plain rows with numbers for
+sizes. Code that queries the tables itself sees the generated types:
+
+- The display name of an object is `name` (column `name`), and the ETag
+  column is `etag`.
 - `size` and `declaredSize` are `bigint` in JavaScript, not `number`.
   `JSON.stringify` throws on a `bigint`, and so does arithmetic with a
   `number`. Convert with `Number(row.size)`.
-- `status` is a `string` and `s3Metadata` is `unknown`, without the
-  shipped `$type`.
+- `status` is a `string` and `s3Metadata` is `unknown`.
 - `id` has no default. The plugin generates ids, so a row you insert
   yourself needs one.
-- `searchName` is the name folded for search. The plugin sets it whenever
-  it writes `filename` or a folder `name`. A rename you write through the
-  ORM leaves search on the old name: rename through `s3.db.objects.update`
-  or `s3.db.folders.update`.
-- The Prisma models are `storageObject` and `storageFolder`, so the Prisma
-  Client types follow those names. `prisma.storageObject` is unchanged.
-
-## Timestamps written by Kysely outside UTC
-
-Since beta.8, the Kysely adapter writes and reads timestamps in UTC on
-PostgreSQL and MySQL, as Drizzle and Prisma already did. Before, it wrote
-the local time of the process. If a Kysely process outside UTC wrote your
-rows, they now read shifted by its offset. Rewrite them once, with the zone
-that process ran in:
-
-```sql
--- PostgreSQL. Asia/Tehran stands for the zone of that process.
-UPDATE "storage_object" SET
-  "expires_at" = ("expires_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
-  "confirmed_at" = ("confirmed_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
-  "created_at" = ("created_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
-  "updated_at" = ("updated_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
-  "deleted_at" = ("deleted_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC';
-
-UPDATE "storage_folder" SET
-  "created_at" = ("created_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC',
-  "updated_at" = ("updated_at" AT TIME ZONE 'Asia/Tehran') AT TIME ZONE 'UTC';
-```
-
-On MySQL, use `CONVERT_TZ(column, '+03:30', '+00:00')` with the offset of
-that process. Rows written by Drizzle or Prisma, or by a Kysely process in
-UTC, are already right: leave them.
+- `searchName` is the name folded for search and for the name sort. The
+  plugin sets it whenever it writes an object or folder `name`. A rename
+  you write through the ORM leaves search and the name sort on the old
+  name: rename through `s3.db.objects.update` or `s3.db.folders.update`.
+- `storage_folder.path` is a cache of the names from the root down. The
+  plugin rewrites it when a folder is renamed or moved. Do not write it
+  yourself.
+- The Prisma models are `storageObject` and `storageFolder`.
 
 ## Check
 
 Call `checkSchema` at startup. It throws unless the database is at
-`2.2.0`:
+`2.3.0` and both tables can be read:
 
 ```ts
 await s3.db.checkSchema();
 ```
 
-A database at any other version throws on the first query too.
+The first query runs the same check, so a database at another version, or
+one the generated schema was never applied to, never gets read with the
+wrong columns.

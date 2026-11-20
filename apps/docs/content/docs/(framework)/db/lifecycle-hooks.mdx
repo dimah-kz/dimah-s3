@@ -25,10 +25,11 @@ hooks too, so your `upload.onStart` sees the pending row, and your
 | `upload.onStart`           | Writes the `pending` row with the upload's token, its confirm deadline, and its folder. The folder must already exist.                               |
 | `upload.confirmGuard`      | Accepts only the row of this ticket's upload, owned by the caller, or a confirm it already finished (a retry).                                       |
 | `upload.onConfirmed`       | Checks the quota against the verified size, marks the row `active` with the size, type, and ETag from HeadObject, and retires the `previousKey` row. |
+| `upload.onRejected`        | Removes the row of an upload the server refused and deleted, including an active row that upload was overwriting.                                    |
 | `upload.multipart.guard`   | Part, list, and complete accept only the row of this ticket's upload. Abort checks the row only while it is still this upload's.                     |
 | `upload.multipart.onAbort` | Removes the pending row, or ends the overwrite and keeps the previous object.                                                                        |
-| `download.guard`           | Requires an `active` row owned by the caller, then runs `authorize` with it.                                                                         |
-| `delete.guard`             | Requires a row owned by the caller (a soft-deleted one deletes again), then runs `authorize` with it.                                                |
+| `download.guard`           | Requires an `active` row owned by the caller, then runs `authorize` with it and the folder it is in.                                                 |
+| `delete.guard`             | Requires a row owned by the caller (a soft-deleted one deletes again), then runs `authorize` with it and the folder it is in.                        |
 | `delete.onDeleted`         | Aborts a multipart upload in flight, then soft- or hard-deletes the row (`deleteMode`).                                                              |
 
 `onStart` runs for presigned POST and PUT uploads, multipart init, and
@@ -47,8 +48,18 @@ retried confirm or complete for an upload that is already confirmed returns
 the stored row, and the quota is not checked again. Your own `onConfirmed`
 can dedupe on `uploadToken`.
 
-When the quota check at confirm fails, the plugin removes the row, and the
-server deletes the object and returns `QUOTA_EXCEEDED`.
+When the quota check at confirm fails, the server deletes the object and
+returns `QUOTA_EXCEEDED`, and the plugin's `onRejected` removes the row.
+
+## Refused uploads
+
+The same holds for every upload the server refuses at confirm, multipart
+complete, or `s3.put`: a size, type, or content mismatch, or a
+`confirmGuard` that says no. The server deletes the object and runs
+`upload.onRejected`, and the plugin removes the row of that upload, so no
+row lists an object that is gone. A failure that keeps the object, such as
+your own `onConfirmed` throwing, keeps the row too, and the confirm can be
+retried.
 
 ## Overwrites
 
@@ -58,7 +69,8 @@ An upload to a key that already has an active object fails with
 
 - The active row stays active, with the previous object's metadata, until
   the new upload is confirmed. S3 replaces the bytes as soon as the new PUT
-  lands, and a rejected confirm deletes the key.
+  lands, and a rejected confirm deletes the key and its row: the previous
+  bytes are already gone.
 - The row keeps its folder, attributes, and `createdAt`. The overwrite's
   `clientMetadata.folderId` is ignored.
 - An abort keeps the previous object. An expired overwrite is cleaned up
@@ -79,6 +91,7 @@ purge finishes goes through.
 | Purge is cleaning the key, or a concurrent write won             | `409`  | `CONFLICT`              |
 | `clientMetadata.folderId` names a folder the scope does not have | `404`  | `FOLDER_NOT_FOUND`      |
 | The upload would exceed the quota                                | `403`  | `QUOTA_EXCEEDED`        |
+| `resolveScope` returns an empty, padded, or too long scope       | `500`  | `INTERNAL_ERROR`        |
 
 Route membership is still the server `keyPrefix` check (`KEY_INVALID`). The
 plugin looks rows up by `(bucket, key)` and compares the **scope**. It does

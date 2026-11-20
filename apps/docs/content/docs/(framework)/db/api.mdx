@@ -6,8 +6,9 @@ description: List, move, and annotate objects, manage folders, and cap usage, on
 ## Server
 
 With the plugin registered, `s3.db.objects` and `s3.db.folders` are
-available in your routes, jobs, and scripts. They take the scope as an
-argument, so they can read any scope:
+available in your routes, jobs, and scripts. Every method that reads or
+writes a scope takes it as the first argument, so they can read any scope.
+`objects.find` and `objects.update` address one row by `(bucket, key)`:
 
 ```ts
 const scope = "user:123";
@@ -16,24 +17,23 @@ const reports = await s3.db.folders.create(scope, {
   parentId: null,
   name: "reports",
 });
-const page = await s3.db.objects.list({
-  scope,
+const page = await s3.db.objects.list(scope, {
   folderId: reports.id, // null is the root; omit for every folder
   sort: { field: "updatedAt", direction: "desc" },
   limit: 50,
 });
-const next = await s3.db.objects.list({
-  scope,
+const next = await s3.db.objects.list(scope, {
   folderId: reports.id,
   sort: { field: "updatedAt", direction: "desc" },
   cursor: page.nextCursor,
 });
 
-const count = await s3.db.objects.count({ scope, status: "active" });
-const usage = await s3.db.objects.getUsage(scope);
+const count = await s3.db.objects.count(scope, { status: "active" });
+const usage = await s3.db.objects.usage(scope);
 const object = await s3.db.objects.find({ bucket: "my-bucket", key });
 
 const children = await s3.db.folders.children(scope, null);
+const folders = await s3.db.folders.count(scope);
 ```
 
 `list` returns `{ objects, nextCursor, firstPage }`. It defaults to active
@@ -47,8 +47,7 @@ the same filter. `folders.descendants` and `folders.ancestors` say where the
 rows of such a listing live:
 
 ```ts
-const found = await s3.db.objects.list({
-  scope,
+const found = await s3.db.objects.list(scope, {
   folderId: reports.id,
   recursive: true,
   search: "invoice",
@@ -98,8 +97,9 @@ Calling `record` again for the same bytes returns the same row. A different
 object at that key is `OBJECT_EXISTS`. A row an upload or purge holds is
 `CONFLICT`. A deleted row is replaced by a new one. `folderId` must already
 exist (`FOLDER_NOT_FOUND`); `null` and `""` are the root. `name` is the
-display name and defaults to the last segment of the key. It is one segment
-of at most 255 characters.
+display name, under the rule of an uploaded file name: 1 to 255 UTF-8
+bytes, with no control or bidi characters. It defaults to the last segment
+of the key, fitted to that rule.
 
 ```ts
 // Your S3 client. dimah-s3 does not wrap CopyObject.
@@ -140,8 +140,8 @@ import type { DbFolders } from "@dimah-s3/db";
 ```
 
 <AutoTypeTable
-  path="packages/db/src/store/folder-store.ts"
-  name="StorageFolderStore"
+  path="packages/db/src/plugin/public-stores.ts"
+  name="DbFolders"
 />
 
 ## HTTP endpoints
@@ -150,13 +150,17 @@ import type { DbFolders } from "@dimah-s3/db";
 the caller's scope from the request and runs `authorize` with the
 `operation` shown. Body endpoints accept JSON only.
 
-| Endpoint                  | Browser action | `operation` |
-| ------------------------- | -------------- | ----------- |
-| `GET /db/objects`         | `listObjects`  | `list`      |
-| `GET /db/object`          | `getObject`    | `read`      |
-| `PATCH /db/object`        | `updateObject` | `update`    |
-| `POST /db/folder`         | `createFolder` | `update`    |
-| `DELETE /db/folder?path=` | `deleteFolder` | `update`    |
+| Endpoint                | Browser action | `operation`     |
+| ----------------------- | -------------- | --------------- |
+| `GET /db/objects`       | `listObjects`  | `list`          |
+| `GET /db/object`        | `getObject`    | `read`          |
+| `PATCH /db/object`      | `updateObject` | `update`        |
+| `POST /db/folder`       | `createFolder` | `folder.create` |
+| `PATCH /db/folder`      | `updateFolder` | `folder.update` |
+| `DELETE /db/folder?id=` | `deleteFolder` | `folder.delete` |
+
+Only the instance `guard` runs on these endpoints. A route `guard` does
+not: see [Database Setup](/docs/db/setup#register-the-plugin).
 
 `GET` and `PATCH /db/object` take an optional `bucket`. It defaults to the
 only bucket your routes use. When routes use several buckets, `bucket` is
@@ -165,18 +169,20 @@ required, and a bucket no route uses is a `VALIDATION_ERROR`.
 ### Listing
 
 `GET /db/objects` defaults to `status: "active"` and `limit: 50`, and
-rejects a `limit` above `100`. Unknown query keys, such as the 1.x `offset`
-and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
-`status=purging`: rows that purge has claimed are never listed.
+rejects a `limit` above `100`. Unknown query keys, such as `offset` and
+`prefix`, are a `VALIDATION_ERROR` (`400`), and so is `status=purging`:
+rows that purge has claimed are never listed.
 
 - `folderId` lists one folder: `""` is the root, and any other value is
   that folder's id. Omit it for a flat list of every folder. A missing id
-  is `FOLDER_NOT_FOUND` (`404`).
+  is `FOLDER_NOT_FOUND` (`404`). A flat list reads the whole scope, so
+  `authorize` sees it as a recursive listing of the root (`folder: null`,
+  `recursive: true`).
 - `recursive=true`, with `folderId`, also covers every folder below it, up
   to 10,000 folders: objects come from the whole subtree, and `folders`
   holds every folder in it. With `folderId=""` that is the whole scope.
   Without `folderId` it changes nothing. `authorize` sees `recursive: true`.
-- `search` keeps rows whose `filename` contains the text. Case, accents, and
+- `search` keeps rows whose `name` contains the text. Case, accents, and
   look-alike letters (`ي`/`ی`, `ك`/`ک`) do not count, Persian and
   Arabic-Indic digits match `0`–`9`, and `%` and `_` are plain text, the
   same on SQLite, PostgreSQL, and MySQL. Each row stores its name folded
@@ -185,14 +191,20 @@ and `prefix`, are a `VALIDATION_ERROR` (`400`), and so is
 - `contentType` is an exact type, or `type/*` for every subtype
   (`image/*`).
 - `sort` takes `{ field, direction }`, with `field` set to `createdAt`,
-  `updatedAt`, `size`, or `filename`. The default is `createdAt`, newest
-  first. Ties break on the row id, and rows with no value (a pending row's
+  `updatedAt`, `size`, or `name`. The default is `createdAt`, newest
+  first. `name` orders by the folded name that search matches, so case and
+  accents do not count, on every database; folders are listed in the same
+  order. Ties break on the row id, and rows with no value (a pending row's
   `size`) come last in both directions.
+- `usage=true` asks for the scope's `usage` on the first page. Without a
+  [quota](#quota) it is left out unless asked, because it reads every row
+  of the scope.
 - `nextCursor` is `null` on the last page. A cursor made under other
   filters is ignored, and the list starts again at the first page.
 
-The first page also carries `usage`, `limits`, and, when `folderId` is set,
-`folders` and `trail`, the folders from the root down to the open one.
+The first page also carries `limits`, `usage` (with a quota, or with
+`usage=true`), and, when `folderId` is set, `folders` and `trail`, the
+folders from the root down to the open one.
 `folders` holds the direct child folders, or with `recursive` every folder
 below the open one, by name. It has at most 1000, and with `search` only
 those whose name contains it, matched like file names. The first page of a
@@ -238,22 +250,30 @@ id. Renaming it or moving it changes one row, then rewrites the cached
 `path` of that folder and everything inside it. Object rows keep the same
 `folderId`.
 
-A folder name is 1 to 255 characters, not `.` or `..`, and has no `/` or
-control characters. The cached path is at most 1024 UTF-8 bytes, like an
-S3 key, and 32 levels deep. Names are NFC-normalized. Anything else is `FOLDER_INVALID`
-(`400`). Moving a folder into itself or into one of its descendants is
-`FOLDER_INVALID` too. A sibling with the same name is `FOLDER_EXISTS`
-(`409`). A missing id is `FOLDER_NOT_FOUND` (`404`). In JSON and in types
-the root is `null`; on the wire (`?folderId=`, `clientMetadata.folderId`)
-it is `""`.
+A folder name is 1 to 255 characters, not `.` or `..`, and has no `/`, no
+control characters, and no whitespace at either end. The cached path is at
+most 1024 UTF-8 bytes, like an S3 key, and 32 levels deep. Names are
+NFC-normalized. Anything else is `FOLDER_INVALID` (`400`). Moving a folder
+into itself or into one of its descendants is `FOLDER_INVALID` too. A
+sibling with the same name is `FOLDER_EXISTS` (`409`). A missing id is
+`FOLDER_NOT_FOUND` (`404`). Two moves that run at once and would put each
+folder inside the other end with one of them undone and `CONFLICT`
+(`409`). In JSON and in types the root is `null`; on the wire
+(`?folderId=`, `clientMetadata.folderId`) it is `""`.
+
+Folders belong to the [scope](/docs/db/setup#scope), not to a route: every
+list of one scope shows the same tree.
 
 An upload goes to the folder in `clientMetadata.folderId`. That folder must
 already exist. [`dbObjectSource`](#browser) sets it for uploads into the
-open folder. With your own `useUpload`, pass the id per call:
+open folder. With your own `useUpload`, pass the id per call.
+`DB_FOLDER_ID_KEY` from `@dimah-s3/db/client` is that key:
 
 ```ts
+import { DB_FOLDER_ID_KEY } from "@dimah-s3/db/client";
+
 await upload.handleFiles(files, {
-  uploadOptions: { metadata: { folderId: reports.id } },
+  uploadOptions: { clientMetadata: { [DB_FOLDER_ID_KEY]: reports.id } },
 });
 ```
 
@@ -265,7 +285,9 @@ await api.db.deleteFolder({ id: reports.folder.id });
 ```
 
 - `createFolder` creates one folder. The parent must already exist. An
-  existing name in that parent is `FOLDER_EXISTS` (`409`).
+  existing name in that parent is `FOLDER_EXISTS` (`409`). With a
+  [quota](#quota) that sets `maxFolders`, one folder past the cap is
+  `QUOTA_EXCEEDED` (`403`).
 - `updateFolder` renames (`name`), moves (`parentId`, `null` is the root),
   or both.
 - `deleteFolder` removes an empty folder. A folder with child folders, or
@@ -281,14 +303,16 @@ updated; anything else is `OBJECT_NOT_FOUND`.
 ```ts
 const { object } = await api.db.updateObject({
   key: file.key,
-  filename: "Q3 report.pdf",
+  name: "Q3 report.pdf",
   folderId: reports.id, // null moves it to the root
 });
 ```
 
-A move requires the target folder to exist and runs `authorize` with that
-folder's path and id. Renames and moves change only the row: the S3 key
-stays as it is.
+`name` follows the rule of an uploaded file name: 1 to 255 UTF-8 bytes,
+with no control or bidi characters. A move requires the target folder to
+exist. `authorize` sees the folder the object is in as `folder` and
+`folderId`, and the target folder as `destination`. Renames and moves
+change only the row: the S3 key stays as it is.
 
 ## Attributes
 
@@ -339,8 +363,9 @@ dbClient<{ description?: string; tags?: string[] }>();
 
 ## Quota
 
-`quota` caps the bytes and files of a scope. Pass fixed caps, or a function
-that returns them per request (`null` for no cap):
+`quota` caps the bytes, files, and folders of a scope (`maxBytes`,
+`maxFiles`, `maxFolders`). Pass fixed caps, or a function that returns them
+per request (`null` for no cap):
 
 ```ts
 db({
@@ -355,7 +380,7 @@ db({
 ```
 
 The function gets the [scope context](/docs/db/setup#scope) plus the
-resolved `scope`. The quota is checked twice:
+resolved `scope`. Bytes and files are checked twice:
 
 1. At upload, against the scope's usage: active sizes plus the declared
    sizes of pending uploads that have not expired. The row the upload
@@ -364,20 +389,25 @@ resolved `scope`. The quota is checked twice:
    the server deletes the object and the plugin removes its row. A
    confirm replay is not checked again.
 
-A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to `"bytes"`
-or `"files"`.
+`maxFolders` is checked when `POST /db/folder` creates a folder.
 
-The first page of `GET /db/objects` carries `usage` and `limits` (the caps
-for the scope, or `null`). `dbObjectSource` merges them into the list's
-`usage`, so `ObjectListUsage` shows the meter against the server's caps.
+A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to
+`"bytes"`, `"files"`, or `"folders"`.
+
+With a quota, the first page of `GET /db/objects` carries `usage` and
+`limits` (the caps for the scope). `dbObjectSource` merges them into the
+list's `usage`, so `ObjectListUsage` shows the meter against the server's
+caps. Without a quota, `limits` is `null` and `usage` is sent only when the
+query asks with `usage: true` (`dbObjectSource(api.db, { usage: true })`).
 
 <Accordions>
 <Accordion title="How should I check quotas for a large scope?">
 
-`getUsage` sums every live row of the scope on each call. That is fine for
-demos and light use, but not for frequent uploads on large scopes. Keep a
-counter of your own in that case, and return caps from the `quota` function
-that account for it.
+A cap on files alone (`maxFiles`) is one `COUNT`. A byte cap sums every
+live row of the scope on each upload and confirm, and `usage` does the
+same on each first page. That is fine for demos and light use, but not for
+frequent uploads on large scopes. Keep a counter of your own in that case,
+and return caps from the `quota` function that account for it.
 
 </Accordion>
 </Accordions>
@@ -414,11 +444,13 @@ export const s3Client = createS3Client({
   `authorize` that refuses `recursive`.
 - Uploads from the list go to the open folder (`uploadOptions`).
 - "New folder" calls `api.db.createFolder`.
-- Rename calls `api.db.updateObject` (`filename`) or `api.db.updateFolder`
-  (`name`). The object key stays. `folders: false` still renames files.
-- The list's `search` becomes `search`, and its sort maps `name` to
-  `filename`. `size` and `updatedAt` keep their names.
-- `usage` is the scope total with its caps, not the open folder's.
+- Rename calls `api.db.updateObject` or `api.db.updateFolder` with the new
+  `name`. The object key stays. `folders: false` still renames files.
+- The list's `search` becomes `search`, and its sort takes `name`, `size`,
+  and `updatedAt`.
+- The usage line is the scope total with its caps, not the open folder's.
+  It shows when the plugin sets a quota, or with `usage: true`.
+- `limit` is clamped to the server's range, 1 to 100.
 
 Pass `folders: false` for a flat list with no folder actions. Its search
 covers every object of the scope, without search scopes or locations.

@@ -4,10 +4,10 @@
  *
  *   pnpm db:generate
  */
-import { DimahS3DB } from "@dimah-s3/db";
+import { DimahS3Db } from "@dimah-s3/db";
 import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
 import { runCli } from "@dimah-s3/db/cli";
 
 await runCli(
-  DimahS3DB.client(drizzleAdapter({ db: undefined, provider: "sqlite" })),
+  DimahS3Db.client(drizzleAdapter({ db: undefined, provider: "sqlite" })),
 );

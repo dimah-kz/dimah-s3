@@ -33,10 +33,12 @@ export function useUploadHints(policy: UploadHintsPolicy): UploadHints {
   const formatNumber = useFormatNumber();
   const { maxFiles, maxFileSize } = policy;
 
+  // Each part is a whole sentence with its own punctuation, and the list
+  // separator is a key too, so a translation owns every character.
   const limitParts: string[] = [];
   if (maxFiles > 1) {
     limitParts.push(
-      t("You can upload {count} files", {
+      t("You can upload {count} files.", {
         note: "dropzone hint",
         variables: { count: formatNumber(maxFiles) },
       }),
@@ -46,11 +48,11 @@ export function useUploadHints(policy: UploadHintsPolicy): UploadHints {
     const size = formatFileSize(maxFileSize);
     limitParts.push(
       maxFiles > 1
-        ? t("Each up to {size}", {
+        ? t("Each up to {size}.", {
             note: "dropzone hint",
             variables: { size },
           })
-        : t("Up to {size}", {
+        : t("Up to {size}.", {
             note: "dropzone hint",
             variables: { size },
           }),
@@ -59,12 +61,14 @@ export function useUploadHints(policy: UploadHintsPolicy): UploadHints {
 
   const acceptLabels = formatAcceptLabels(policy.accept);
   return {
-    limits: limitParts.length > 0 ? `${limitParts.join(". ")}.` : null,
+    limits: limitParts.length > 0 ? limitParts.join(" ") : null,
     accept:
       acceptLabels.length > 0
         ? t("Accepted {types}.", {
             note: "dropzone hint",
-            variables: { types: acceptLabels.join(", ") },
+            variables: {
+              types: acceptLabels.join(t(", ", { note: "list separator" })),
+            },
           })
         : null,
   };

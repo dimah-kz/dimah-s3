@@ -4,7 +4,7 @@ import { normalizeObjectKey } from "@/helpers/normalize-object-key";
 import {
   ROUTE_NAME_PATTERN,
   S3_MAX_FILE_FIELD_BYTES,
-  S3_MAX_METADATA_ENTRIES,
+  CLIENT_METADATA_MAX_ENTRIES,
   S3_MAX_PART_NUMBER,
   UPLOAD_TICKET_MAX_LENGTH,
 } from "@/limits";
@@ -121,8 +121,8 @@ const metadataKeySchema = z
   .regex(/^[a-z0-9][a-z0-9-]*$/i, "Invalid metadata key")
   .max(128);
 
-export const metadataSchema = z
+export const clientMetadataSchema = z
   .record(metadataKeySchema, z.string().max(2048))
-  .refine((value) => Object.keys(value).length <= S3_MAX_METADATA_ENTRIES, {
+  .refine((value) => Object.keys(value).length <= CLIENT_METADATA_MAX_ENTRIES, {
     message: "Too many metadata entries",
   });

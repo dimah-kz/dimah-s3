@@ -3,7 +3,7 @@ import { s3Error } from "@dimah-s3/core";
 import { URL_EXPIRY_MARGIN_MS } from "./constants";
 import { isRetryableError, withPresignedRetry, withRetry } from "./retry";
 
-const fast = { retry: { maxRetries: 3, baseDelay: 1 } };
+const fast = { retry: { maxRetries: 3, baseDelayMs: 1 } };
 
 function uploadFailed(status: number) {
   return s3Error("UPLOAD_FAILED", { status }, { status });
@@ -36,8 +36,28 @@ describe("isRetryableError", () => {
       false,
     ],
     ["UPLOAD_FAILED 503 without the status option", transportFailed(503), true],
+    ["UPLOAD_FAILED 408", uploadFailed(408), true],
     ["CHECKSUM_MISMATCH", s3Error("CHECKSUM_MISMATCH"), false],
-    ["INTERNAL_ERROR", s3Error("INTERNAL_ERROR"), false],
+    ["INTERNAL_ERROR", s3Error("INTERNAL_ERROR"), true],
+    [
+      "INTERNAL_ERROR from a 503 gateway",
+      s3Error("INTERNAL_ERROR", undefined, { status: 503 }),
+      true,
+    ],
+    [
+      "UNKNOWN_ERROR from a 429 without a JSON body",
+      s3Error("UNKNOWN_ERROR", undefined, { status: 429 }),
+      true,
+    ],
+    ["UNKNOWN_ERROR without a response", s3Error("UNKNOWN_ERROR"), false],
+    [
+      "UNKNOWN_ERROR from a 200 that is not JSON",
+      s3Error("UNKNOWN_ERROR", undefined, { status: 200 }),
+      false,
+    ],
+    ["HOOK_FAILED", s3Error("HOOK_FAILED", { hook: "onUploadStart" }), false],
+    ["FORBIDDEN", s3Error("FORBIDDEN"), false],
+    ["UPLOAD_TICKET_EXPIRED", s3Error("UPLOAD_TICKET_EXPIRED"), false],
     [
       "FILE_TOO_LARGE",
       s3Error("FILE_TOO_LARGE", { size: 2, maxFileSize: 1 }),
@@ -67,7 +87,7 @@ describe("withRetry", () => {
       .mockRejectedValueOnce(uploadFailed(500))
       .mockResolvedValue("ok");
 
-    const pending = withRetry(task, { retry: { baseDelay: 100 } });
+    const pending = withRetry(task, { retry: { baseDelayMs: 100 } });
     await vi.advanceTimersByTimeAsync(99);
     expect(task).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -83,7 +103,7 @@ describe("withRetry", () => {
       throw s3Error("NETWORK_ERROR");
     });
     await expect(
-      withRetry(task, { retry: { maxRetries: 2, baseDelay: 1 } }),
+      withRetry(task, { retry: { maxRetries: 2, baseDelayMs: 1 } }),
     ).rejects.toMatchObject({ code: "NETWORK_ERROR" });
     expect(task).toHaveBeenCalledTimes(3);
   });
@@ -107,7 +127,7 @@ describe("withRetry", () => {
     });
 
     const pending = withRetry(task, {
-      retry: { baseDelay: 10_000 },
+      retry: { baseDelayMs: 10_000 },
       signal: controller.signal,
     });
     await vi.advanceTimersByTimeAsync(0);

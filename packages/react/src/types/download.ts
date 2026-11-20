@@ -48,16 +48,19 @@ type DownloadBase = {
   api?: S3Api;
   /** Named server route. */
   route: S3RouteName;
-  /** Content-Disposition for the GET. The server can override it. */
-  disposition?: ContentDispositionType;
   /** Runs once per call, before presigning. Return `false` to block it. */
   beforeDownload?: (key: string) => boolean | Promise<boolean>;
   /** Runs once when a call fails. */
-  onError?: (error: APIError, key: string) => void;
+  onError?: (error: APIError, key: string) => void | Promise<void>;
 };
 
 /** Options for `useDownload`. */
 export type UseDownloadOptions = DownloadBase & {
+  /**
+   * Content-Disposition for the GET. The server can override it. With
+   * `"inline"` the browser opens the file in the current tab.
+   */
+  disposition?: ContentDispositionType;
   /** Runs once the browser has the URL, not when the download completes. */
   onSuccess?: (
     data: DownloadPresignResponse,
@@ -70,7 +73,7 @@ export type UseDownloadOptions = DownloadBase & {
 /** Return of `useDownload`. */
 export type UseDownloadReturn = {
   /** Tells this hook apart from `useFetchDownload`. */
-  mode: "navigate";
+  kind: "navigate";
   /** Stable per hook instance. Toast owners use it. */
   instanceId: string;
   /** Every `download` call, ordered by `id`. */
@@ -103,7 +106,7 @@ export type UseDownloadReturn = {
 export type FetchDownloadResult = {
   fileName: string;
   /** Saved size in bytes. */
-  size: number;
+  fileSize: number;
 };
 
 /** One `useFetchDownload` call for one key. */
@@ -144,7 +147,7 @@ export type UseFetchDownloadOptions = DownloadBase & {
 /** Return of `useFetchDownload`. */
 export type UseFetchDownloadReturn = {
   /** Tells this hook apart from `useDownload`. */
-  mode: "fetch";
+  kind: "fetch";
   /** Stable per hook instance. Toast owners use it. */
   instanceId: string;
   /** Every `download` call, ordered by `id`. */
@@ -169,5 +172,5 @@ export type UseFetchDownloadReturn = {
   reset: (key?: string) => void;
 };
 
-/** Either download hook's return. Narrow it on `mode`. */
+/** Either download hook's return. Narrow it on `kind`. */
 export type AnyDownloadReturn = UseDownloadReturn | UseFetchDownloadReturn;

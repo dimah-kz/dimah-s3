@@ -217,7 +217,7 @@ describe("putObject input", () => {
     });
     await expect(
       putObject(config, { ...input, route: "nope" }),
-    ).rejects.toMatchObject({ code: "UNKNOWN_ROUTE" });
+    ).rejects.toMatchObject({ code: "ROUTE_NOT_FOUND" });
   });
 });
 

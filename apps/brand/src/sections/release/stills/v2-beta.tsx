@@ -77,7 +77,7 @@ const FILES: LibraryFile[] = [
 
 function createSource() {
   return memoryObjectSource(FILES, {
-    getKey: (file) => file.id,
+    getId: (file) => file.id,
     getFile: (file) => ({
       name: file.name,
       objectKey: `uploads/${file.id}/${file.name}`,

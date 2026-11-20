@@ -49,15 +49,15 @@ const LOCAL_PACKAGES_DIR = ".local-packages";
 const local = process.argv.includes("--local");
 const ids = resolveTemplateIds();
 
-// Next.js collects the S3 route module at build time, which constructs
-// `dimahS3()` and requires a bucket. Smoke builds have no real credentials.
+// Next.js collects the S3 route module at build time, which reads the
+// required `S3_*` variables. Smoke builds have no real credentials.
 process.env.S3_BUCKET ??= "your-bucket-name";
 process.env.S3_REGION ??= "auto";
 process.env.S3_ENDPOINT ??= "https://your-endpoint.example.com";
 process.env.S3_ACCESS_KEY_ID ??= "your-access-key-id";
 process.env.S3_SECRET_ACCESS_KEY ??= "your-secret-access-key";
-// Templates pass `secret: process.env.DIMAH_S3_SECRET`, which must have at
-// least 32 characters when set.
+// The server reads the upload ticket secret from this variable. It must
+// have at least 32 characters.
 process.env[SECRET_ENV_KEY] ||= DEV_SECRET;
 
 /** @param {string} path */

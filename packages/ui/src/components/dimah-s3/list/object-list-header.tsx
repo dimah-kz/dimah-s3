@@ -34,6 +34,7 @@ import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-bre
 import {
   ObjectListHeaderContext,
   useObjectListContext,
+  useObjectListInternal,
   useOptionalObjectListHeader,
   type ObjectListHeaderContextValue,
 } from "@/components/dimah-s3/list/object-list-context";
@@ -92,10 +93,10 @@ export function ObjectListHeader({
   className,
 }: ObjectListHeaderProps) {
   const t = useTranslations();
-  const context = useObjectListContext();
-  const { list, selection } = context;
+  const { list, selection } = useObjectListContext();
+  const internal = useObjectListInternal();
   const selecting = selection?.isSelecting === true;
-  const showBreadcrumb = breadcrumb ?? context.showBreadcrumb;
+  const showBreadcrumb = breadcrumb ?? internal.showBreadcrumb;
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [folderExpanded, setFolderExpanded] = useState(false);
   const header = useMemo<ObjectListHeaderContextValue>(
@@ -124,7 +125,7 @@ export function ObjectListHeader({
       >
         {replaced ? (
           <ObjectListSelectionBar
-            actions={selectionActions ?? context.selectionActions}
+            actions={selectionActions ?? internal.selectionActions}
           />
         ) : (
           <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 py-1.5">
@@ -165,7 +166,7 @@ export function ObjectListHeader({
         {selecting && !replaced ? (
           <ObjectListSelectionBar
             className="border-t border-dimah-s3-border bg-dimah-s3-primary/10"
-            actions={selectionActions ?? context.selectionActions}
+            actions={selectionActions ?? internal.selectionActions}
           />
         ) : null}
       </div>
@@ -173,11 +174,16 @@ export function ObjectListHeader({
   );
 }
 
+/** Props for {@link ObjectListSelectAll}. */
+export type ObjectListSelectAllProps = {
+  className?: string;
+};
+
 /**
  * Checkbox for every loaded entry. With more pages to load, it selects the
  * rows on screen and says so. Hidden without a multiple selection.
  */
-export function ObjectListSelectAll({ className }: { className?: string }) {
+export function ObjectListSelectAll({ className }: ObjectListSelectAllProps) {
   const t = useTranslations();
   const { list, selection } = useObjectListContext();
   if (
@@ -292,15 +298,20 @@ export function useSelectionCount<TItem>(
       });
 }
 
+/** Props for {@link ObjectListBulkDelete}. */
+export type ObjectListBulkDeleteProps = {
+  className?: string;
+};
+
 /**
  * Delete button for the selected entries. The list's delete root asks for
  * confirmation. `ObjectListSelectionBar` already has one; use this in a bar
  * of your own.
  */
-export function ObjectListBulkDelete() {
+export function ObjectListBulkDelete({ className }: ObjectListBulkDeleteProps) {
   const { delete: del, selection } = useObjectListContext();
   if (!del || !selection?.isSelecting) return null;
-  return <BulkDeleteControl />;
+  return <BulkDeleteControl className={className} />;
 }
 
 /** What a bulk delete removes. */
@@ -317,10 +328,11 @@ type BulkDeletePlan = {
  * `resolveFolderKeys`) and hands them to the delete root in one request.
  * Busy while the keys resolve and while they delete.
  */
-function BulkDeleteControl() {
+function BulkDeleteControl({ className }: { className?: string }) {
   const t = useTranslations();
   const formatError = useFormatError();
-  const { selection, resolveFolderKeys } = useObjectListContext();
+  const { selection } = useObjectListContext();
+  const { resolveFolderKeys } = useObjectListInternal();
   const { delete: del, request } = useDeleteContext();
   const report = useObjectListFeedback();
   const [preparing, setPreparing] = useState(false);
@@ -366,6 +378,9 @@ function BulkDeleteControl() {
     request(plan.targets, {
       note,
       trigger,
+      // A dismissed dialog deletes nothing, so a later delete of one of
+      // these keys from a row menu must not show this button busy.
+      onDismissed: () => setRequested([]),
       onDeleted: (result) => {
         setRequested([]);
         // A folder whose every object went leaves the selection; the list
@@ -387,7 +402,7 @@ function BulkDeleteControl() {
     <Button
       variant="destructive"
       size="sm"
-      className={OBJECT_LIST_HEADER_COMPACT_BUTTON}
+      className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
       aria-label={label}
       aria-busy={busy || undefined}
       disabled={busy}
@@ -395,7 +410,12 @@ function BulkDeleteControl() {
       onClick={(event) => void onClick(event)}
     >
       {busy ? (
-        <Spinner data-icon="inline-start" />
+        <Spinner
+          data-icon="inline-start"
+          aria-hidden
+          aria-label={undefined}
+          role={undefined}
+        />
       ) : (
         <Trash2Icon data-icon="inline-start" />
       )}
@@ -457,7 +477,8 @@ export type ObjectListNewFolderProps = {
  */
 export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
   const t = useTranslations();
-  const { list, newFolderOpen, setNewFolderOpen } = useObjectListContext();
+  const { list, startNewFolder } = useObjectListContext();
+  const { newFolderOpen, closeNewFolder } = useObjectListInternal();
   const header = useOptionalObjectListHeader();
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Set when the field closes, so focus goes back to the button.
@@ -470,12 +491,14 @@ export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
     buttonRef.current?.focus();
   }, [newFolderOpen]);
 
-  // The header gives the name field the whole bar. Cleared on close.
+  // The header gives the name field the whole bar. Cleared on close, and
+  // when the source can no longer create folders, since the field is gone.
+  const fieldOpen = newFolderOpen && list.createFolder != null;
   useLayoutEffect(() => {
     if (!setFolderExpanded) return;
-    setFolderExpanded(newFolderOpen);
+    setFolderExpanded(fieldOpen);
     return () => setFolderExpanded(false);
-  }, [newFolderOpen, setFolderExpanded]);
+  }, [fieldOpen, setFolderExpanded]);
 
   if (!list.createFolder) return null;
 
@@ -486,7 +509,7 @@ export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
         wide={header != null}
         onClose={() => {
           returnFocusRef.current = true;
-          setNewFolderOpen(false);
+          closeNewFolder();
         }}
         className={className}
       />
@@ -500,7 +523,7 @@ export function ObjectListNewFolder({ className }: ObjectListNewFolderProps) {
       size="sm"
       data-slot="object-list-new-folder"
       className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
-      onClick={() => setNewFolderOpen(true)}
+      onClick={startNewFolder}
     >
       <FolderPlusIcon data-icon="inline-start" />
       <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>
@@ -543,10 +566,15 @@ function NewFolderForm({
       size={wide ? "icon-xs" : "icon-sm"}
       className="shrink-0"
       aria-label={t("Create folder", { note: "object list new folder" })}
+      aria-busy={pending || undefined}
       disabled={pending}
       focusableWhenDisabled
     >
-      {pending ? <Spinner /> : <CheckIcon />}
+      {pending ? (
+        <Spinner aria-hidden aria-label={undefined} role={undefined} />
+      ) : (
+        <CheckIcon />
+      )}
     </Button>
   );
   const cancel = (

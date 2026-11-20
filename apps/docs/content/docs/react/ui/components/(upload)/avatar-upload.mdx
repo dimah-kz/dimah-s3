@@ -36,6 +36,14 @@ import { AvatarUpload } from "@dimah-s3/ui";
 npx shadcn@latest add @dimah-s3/avatar-upload
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { AvatarUpload } from "@/components/dimah-s3/upload/avatar-upload";
+```
+
 </Tab>
 
 </Tabs>
@@ -66,7 +74,7 @@ export function ProfilePhoto({
         route="avatar"
         objectKey={avatarKey}
         label="Change profile photo"
-        onChange={(result) => saveAvatar(result.key)}
+        onUploaded={(result) => saveAvatar(result.key)}
       />
       <UploadToasts upload={upload} />
     </>
@@ -74,7 +82,7 @@ export function ProfilePhoto({
 }
 ```
 
-`onChange` runs once for each image that uploads. Store `result.key` and
+`onUploaded` runs once for each image that uploads. Store `result.key` and
 pass it back as `objectKey`. Images that uploaded before the avatar mounted
 are not reported.
 
@@ -105,7 +113,9 @@ The button is disabled while the hook is (`useUpload({ disabled: true })`).
 
 `label` is required: it is the button's accessible name. A polite live region
 announces the upload: "Preparing…", "Uploading…", "Upload complete", the
-error, or the reason a file was rejected.
+error, or the reason a file was rejected. While an `UploadToasts` is mounted
+for the same hook, as in the example above, the toasts announce those and the
+live region stays silent, so nothing is read out twice.
 
 ## Without a provider
 

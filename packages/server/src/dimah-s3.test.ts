@@ -370,14 +370,14 @@ describe("HTTP handler", () => {
     await expectErrorCode(res, 404, S3_ERROR_CODES.NOT_FOUND);
   });
 
-  it("returns UNKNOWN_ROUTE for an unknown file route", async () => {
+  it("returns ROUTE_NOT_FOUND for an unknown file route", async () => {
     const s3 = createInstance();
     const res = await s3.handler(
       jsonRequest(apiUrl(S3_API_ROUTES.upload), {
         body: { ...defaultUploadBody, route: "missing" },
       }),
     );
-    await expectErrorCode(res, 404, S3_ERROR_CODES.UNKNOWN_ROUTE);
+    await expectErrorCode(res, 404, S3_ERROR_CODES.ROUTE_NOT_FOUND);
   });
 
   it("returns the instance guard's error", async () => {

@@ -16,7 +16,7 @@ export function UploadGalleryDemo() {
     accept: ["image/*"],
     maxFiles: 8,
     maxFileSize: 10 * 1024 * 1024,
-    queue: true,
+    append: true,
   });
 
   return (

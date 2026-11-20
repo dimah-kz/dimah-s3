@@ -7,10 +7,17 @@ description: Plain functions from @dimah-s3/react/engine — upload a file witho
 React import and no `"use client"` directive, so shared modules, server
 modules, workers, and scripts can import it.
 
+Importing is not the same as running: `uploadFile` sends the bytes with
+`XMLHttpRequest`, so it runs in a browser page. Where there is no
+`XMLHttpRequest`, such as Node or a service worker, an
+[`uploadTransport`](/docs/react/custom-backend#upload-transport) on the API
+replaces the transfer for single-shot uploads only; multipart parts always
+use `XMLHttpRequest`.
+
 | Area         | Exports                                                                                                                            |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Upload       | `uploadFile`, `uploadAbortReason`, `getUploadAbortKind`, `multipartResumeKey`, `mergeUploadRequest`, `DEFAULT_MULTIPART_THRESHOLD` |
-| Stores       | `createLocalStorageStore`, `createMemoryStore`                                                                                     |
+| Stores       | `createLocalStorageUploadStore`, `createMemoryUploadStore`                                                                         |
 | Route policy | `loadRouteCatalog`, `resolveRouteUploadPolicy`, `mergeRouteUploadPolicy`                                                           |
 | Custom API   | `defineApi`                                                                                                                        |
 | Object list  | `memoryObjectSource`, `readObjectListLevel`, `objectListEntryKey`, `objectKeyOf`                                                   |
@@ -29,14 +36,14 @@ the file, so do both first:
 ```ts title="lib/upload-attachment.ts"
 import { createS3Client, validateFile } from "@dimah-s3/core";
 import {
-  createLocalStorageStore,
+  createLocalStorageUploadStore,
   loadRouteCatalog,
   resolveRouteUploadPolicy,
   uploadFile,
 } from "@dimah-s3/react/engine";
 
 const api = createS3Client();
-const uploadStore = createLocalStorageStore();
+const uploadStore = createLocalStorageUploadStore();
 
 export async function uploadAttachment(file: File, signal?: AbortSignal) {
   const catalog = await loadRouteCatalog(api);
@@ -48,7 +55,7 @@ export async function uploadAttachment(file: File, signal?: AbortSignal) {
   return uploadFile(api, file, {
     route: "attachments",
     policy,
-    request: { metadata: { source: "import" } },
+    request: { clientMetadata: { source: "import" } },
     uploadStore,
     signal,
     onProgress: (progress) => console.log(`${progress.percent}%`),
@@ -68,7 +75,19 @@ narrows the policy the way the hook options do.
 
 `mergeUploadRequest(base, override)` combines two `request` objects the way
 the hook puts a call's `uploadOptions` over its own: `override` fields win,
-and `metadata` merges key by key.
+and `clientMetadata` merges key by key.
+
+## Object list keys
+
+Two helpers name the keys of a [`useObjectList`](/docs/react/hooks/object-list)
+entry without the hook, for code that builds or matches entries itself:
+
+- `objectListEntryKey(kind, id)` returns the list key of a row:
+  `objectListEntryKey("file", id)` is the `entry.key` of the file whose
+  `getId` is `id`, and `"folder"` the same for a folder. Selection uses these
+  keys.
+- `objectKeyOf(entry)` returns the stored S3 object key of a file entry:
+  `entry.file.objectKey`, or the row id when the source set none.
 
 ## Cancel and detach
 

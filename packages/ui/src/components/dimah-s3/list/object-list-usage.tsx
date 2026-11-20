@@ -5,12 +5,17 @@ import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 
+/** Props for {@link ObjectListUsage}. */
+export type ObjectListUsageProps = {
+  className?: string;
+};
+
 /**
  * Bytes and file count from `list.usage`, with a meter when the usage
  * carries the server's `maxBytes` or `maxFiles`. Renders nothing until the
  * query sends `usage`.
  */
-export function ObjectListUsage({ className }: { className?: string }) {
+export function ObjectListUsage({ className }: ObjectListUsageProps) {
   const t = useTranslations();
   const { list } = useObjectListContext();
   const usage = list.usage ?? { totalBytes: 0, objectCount: 0 };

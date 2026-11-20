@@ -25,9 +25,11 @@ tracking of each upload.
 - **Lists files**: by scope on the server, and by folder, search, and sort
   in the browser.
 - **Adds folders**: logical folders, renames, moves, and typed attributes
-  per object. Folders never change the S3 key.
-- **Caps usage**: checks a quota at upload and again with the verified size
-  at confirm.
+  per object. Folders never change the S3 key, and belong to a scope, not
+  to a route.
+- **Caps usage**: checks a quota of bytes and files at upload and again
+  with the verified size at confirm, and a cap on folders when one is
+  created.
 
 Authentication, quota values, and business rules stay application-owned.
 The plugin manages object metadata and scope isolation, and compares usage
@@ -74,7 +76,7 @@ upload ticket, and [purge](/docs/db/purge) cleans up rows that never reached
   <Card
     title="Upgrade the Schema"
     href="/docs/db/upgrade"
-    description="This line reads schema 2.2.0. An older database is left as it is."
+    description="The package reads schema 2.3.0. A database at another version is left as it is."
   />
   <Card
     title="Full example"

@@ -180,6 +180,7 @@ export function testUpload(
     onStart: [],
     confirmGuard: [],
     onConfirmed: [],
+    onRejected: [],
     ...overrides,
   };
 }

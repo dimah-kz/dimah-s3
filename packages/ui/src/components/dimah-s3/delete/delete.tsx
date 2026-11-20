@@ -40,6 +40,11 @@ export type DeleteRequestOptions = {
    * `onDeleted`. Not called when the dialog is dismissed.
    */
   onDeleted?: (result: DeleteResult) => void;
+  /**
+   * Called when this request ends without deleting: the dialog is
+   * dismissed, or another request replaces it.
+   */
+  onDismissed?: () => void;
 };
 
 /** Props for {@link Delete}. */
@@ -101,6 +106,7 @@ type ActiveRequest = {
   targets: readonly DeleteTarget[];
   note?: ReactNode;
   onDeleted?: (result: DeleteResult) => void;
+  onDismissed?: () => void;
   trigger: HTMLElement | null;
   /** The trigger's nearest focus root, found while the trigger is mounted. */
   focusRoot: HTMLElement | null;
@@ -198,12 +204,17 @@ export function Delete({
         targets,
         note: options.note,
         onDeleted: options.onDeleted,
+        onDismissed: options.onDismissed,
         trigger,
         focusRoot: trigger?.closest<HTMLElement>(FOCUS_ROOT) ?? null,
       };
       if (latest.current.confirmFirst) {
+        // A request still waiting for an answer is replaced. One that is
+        // deleting keeps going and reports through its `onDeleted`.
+        const replaced = runningRef.current ? null : activeRef.current;
         activeRef.current = next;
         setActive(next);
+        if (replaced) notifyDismissed(replaced);
         return;
       }
       void removeTargets(next).then(() => {
@@ -229,8 +240,10 @@ export function Delete({
   }, [close, removeTargets]);
 
   const dismiss = useCallback(() => {
-    if (runningRef.current || !activeRef.current) return;
-    close(activeRef.current);
+    const current = activeRef.current;
+    if (runningRef.current || !current) return;
+    close(current);
+    notifyDismissed(current);
   }, [close]);
 
   useEffect(() => {
@@ -276,6 +289,15 @@ export function useDeleteContext(): DeleteContextValue {
     );
   }
   return value;
+}
+
+/** Runs a request's `onDismissed`. A throw is reported. */
+function notifyDismissed(request: ActiveRequest) {
+  try {
+    request.onDismissed?.();
+  } catch (error) {
+    reportError(error);
+  }
 }
 
 function isTargetList(

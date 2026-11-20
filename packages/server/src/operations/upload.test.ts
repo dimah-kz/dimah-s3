@@ -242,7 +242,7 @@ describe("presignUpload hooks", () => {
 
     const presigned = await presignUpload(config, {
       ...defaultUploadBody,
-      metadata: { folder: "docs" },
+      clientMetadata: { folder: "docs" },
     });
 
     if (presigned.method !== "PUT") throw new Error("expected PUT");
@@ -251,7 +251,7 @@ describe("presignUpload hooks", () => {
     expect(context).toMatchObject({
       operation: "upload",
       route: "uploads",
-      kind: "put",
+      kind: "presignedPut",
       key: presigned.key,
       bucket: TEST_BUCKET,
       file: { name: "a.png", size: 10, type: "image/png" },
@@ -270,7 +270,7 @@ describe("presignUpload hooks", () => {
     const { config } = setup({ method: "POST", onStart: [{ hook: onStart }] });
     await presignUpload(config, defaultUploadBody);
     expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "post" }),
+      expect.objectContaining({ kind: "presignedPost" }),
     );
   });
 
@@ -454,7 +454,7 @@ describe("presignUpload checks", () => {
     const { config } = setup();
     await expect(
       presignUpload(config, { ...defaultUploadBody, route: "nope" }),
-    ).rejects.toMatchObject({ code: "UNKNOWN_ROUTE" });
+    ).rejects.toMatchObject({ code: "ROUTE_NOT_FOUND" });
 
     config.routes.uploads.upload = {
       enabled: false,
@@ -498,7 +498,7 @@ describe("presignUpload object identity and metadata", () => {
     });
     const presigned = await presignUpload(config, {
       ...defaultUploadBody,
-      metadata: { author: "user_123", source: "web" },
+      clientMetadata: { author: "user_123", source: "web" },
     });
 
     if (presigned.method !== "PUT") throw new Error("expected PUT");

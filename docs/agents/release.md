@@ -15,7 +15,43 @@ Only `main` may use the `latest` dist-tag. While `v2` is a beta, every bump adva
 
 Feature work for 2.0 branches from `v2` and merges back there. 1.x fixes branch from `main`. Cherry-pick the change and its `.tegami` file onto the other line when both need it. Never cherry-pick a Version Packages commit (`package.json` versions, `CHANGELOG.md`, and `.tegami/publish-lock.yaml` belong to one line).
 
-When 2.0.0 is ready, merge `v2` into `main`. `main` has no `prerelease`, so the next publish drops the suffix and moves `latest` to `2.0.0`. Before that merge, cut `v1` from the last 1.x commit, add `v1: { distTag: "v1" }` to `lines`, and add `v1` to the branch lists in `ci.yml`, `publish.yml` (trigger and `if`), and `tegami-pr.yml`. Give `v1` a branch ruleset like `Lock v2`, and switch `Lock main` to the single required check `CI passed`, which the 2.0 `ci.yml` reports. `s3.dimah.dev` already serves the `v2` line and `v1.s3.dimah.dev` serves `main`. After the merge, point `s3.dimah.dev` at `main` and `v1.s3.dimah.dev` at the `v1` branch. See [Multiple Release Lines](https://tegami.fuma-nama.dev/multi-version).
+`workflow_run` always runs `publish.yml` from the default branch. A change to that file on `v2` does nothing until it is also on `main`: cherry-pick workflow changes there.
+
+## Shipping 2.0.0
+
+When 2.0.0 is ready, `v2` is merged into `main`. `main` has no `prerelease`, so Tegami treats every `2.0.0-beta.N` version as pending there: the first green CI run on the merged `main` opens **version packages (2.0.0)** with no new changelog, and merging that PR publishes `2.0.0` as `latest`. Nothing defers it, so everything below that says "before" must be in the merge. See [Multiple Release Lines](https://tegami.fuma-nama.dev/multi-version).
+
+Before the merge:
+
+1. **Cut `v1`** from the last 1.x commit on `main`. On the `v1` branch, add `v1: { distTag: "release-1.x" }` to `lines` in `scripts/tegami.mts` and add `v1` to the branch lists in `ci.yml` and `tegami-pr.yml`. The dist-tag cannot be `v1`: npm refuses a tag name that parses as a semver range, and `npm i pkg@v1` would resolve as the range, never as the tag.
+2. **On `main`**, add `v1` to `publish.yml` (the trigger and the `if`), since that is the copy that runs. Give `v1` a branch ruleset like `Lock v2`, and switch `Lock main` to the single required check `CI passed`, which the 2.0 `ci.yml` reports.
+3. **Carry over 1.x-only fixes.** Cherry-pick into `v2` any fix that exists only on `main`, with its `.tegami` file. Never cherry-pick a Version Packages commit.
+4. **Flip the beta wording** on the branch that will be merged (the checklist below). On a stable version, `pnpm check:dist` fails while a package `README.md` or a snapshotted starter `README.md` still says `@beta` or "2.0 beta": an npm README cannot change without a republish.
+
+The merge:
+
+1. `main` has commits that `v2` does not, including a 1.x Version Packages commit. A plain merge conflicts in every `packages/*/package.json` version, every `CHANGELOG.md`, `.tegami/publish-lock.yaml`, and `pnpm-lock.yaml`. **`v2` wins for all of them.**
+2. The simplest way to say that: on a branch from `v2`, run `git merge -s ours origin/main` (it records `main` as merged and keeps the `v2` tree), add the flip commit, and open that branch as the PR into `main`.
+3. In the same PR, remove `v2` from `lines` in `scripts/tegami.mts` and from the branch lists in `ci.yml`, `publish.yml`, and `tegami-pr.yml`. A changelog pushed to a `v2` that is still a release line would publish `2.0.1-beta.0`. Then lock or delete the `v2` branch.
+
+After `2.0.0` is on npm:
+
+1. **Move the `beta` dist-tag.** It still points at the last beta, and every published beta README says `npx @dimah-s3/cli@beta create`. For each of the six packages run `npm dist-tag add @dimah-s3/<pkg>@2.0.0 beta`, or remove the tag with `npm dist-tag rm @dimah-s3/<pkg> beta`. Optionally deprecate the `2.0.0-beta.*` versions.
+2. **Docs.** `s3.dimah.dev` already serves the `v2` line and `v1.s3.dimah.dev` serves `main`. Point `s3.dimah.dev` at `main` and `v1.s3.dimah.dev` at the `v1` branch.
+3. Run `pnpm templates:update` so the starters pin `^2.0.0`.
+
+### Flip the beta wording
+
+Every place that says "2.0 beta", `@beta`, or "betas can include breaking changes":
+
+- [ ] `packages/{core,server,react,ui,db,cli}/README.md` (banner and install lines)
+- [ ] `templates/{nextjs,vite,hono}/README.md` (shipped inside the CLI and copied into every new app), `templates/README.md`
+- [ ] Root `README.md` (the badge points at the `beta` tag), `SECURITY.md` (the supported-versions table gains the `release-1.x` line), `CONTRIBUTING.md`
+- [ ] `.github/ISSUE_TEMPLATE/*`, `.github/pull_request_template.md`
+- [ ] `examples/with-nextjs/README.md`, `examples/with-nextjs/AGENTS.md`, `examples/with-db/README.md`
+- [ ] `docs/agents/` (this file's release-lines table, `cli.md`, `packages.md`, `changelog.md`)
+- [ ] `apps/docs`: the beta banner, the `@beta` install commands, and the "Upgrade to 2.0 beta" titles
+- [ ] `scripts/templates-update.mjs` (it pins starters to the npm `beta` tag while the CLI is a prerelease)
 
 Docs for this line deploy from the `dimah-s3-docs-v2` Vercel project. `s3.dimah.dev` is the canonical origin. `v2.s3.dimah.dev` redirects there. 1.x docs deploy from `dimah-s3-docs` at `v1.s3.dimah.dev`. The app treats `VERCEL_ENV=production` or `VERCEL_GIT_COMMIT_REF=v2` as `https://s3.dimah.dev`, including when Vercel marks the `v2` deployment as Preview.
 

@@ -1,4 +1,8 @@
-import type { ContentDispositionType, S3ObjectAcl } from "@dimah-s3/core";
+import type {
+  APIError,
+  ContentDispositionType,
+  S3ObjectAcl,
+} from "@dimah-s3/core";
 import type { DimahS3Locals } from "./locals";
 
 /**
@@ -23,10 +27,11 @@ export type S3Operation =
   | "record";
 
 /**
- * How the bytes reach S3: a presigned POST or PUT, a multipart upload, or
- * `s3.put` on the server.
+ * How the bytes reach S3: a presigned POST or PUT from the browser, a
+ * multipart upload, or `s3.put` on the server.
  */
-export type UploadKind = "post" | "put" | "multipart" | "server";
+export type UploadKind =
+  "presignedPost" | "presignedPut" | "multipart" | "server";
 
 /** Context for the instance `guard`. Every other context extends it. */
 export type GuardContext = {
@@ -140,9 +145,9 @@ export type UploadOnStartContext = UploadGuardContext & {
   uploadToken: string;
   /** Multipart only. */
   uploadId?: string;
-  /** Presigned URL. POST and PUT only. */
+  /** Presigned URL. `presignedPost` and `presignedPut` only. */
   url?: string;
-  /** When the presigned URL expires. POST and PUT only. */
+  /** When the presigned URL expires. `presignedPost` and `presignedPut` only. */
   urlExpiresAt?: Date;
   /** Confirm deadline: the ticket expiry, or 15 minutes for `s3.put`. */
   expiresAt: Date;
@@ -193,6 +198,23 @@ export type UploadOnConfirmedContext = Omit<
    * `onConfirmed` hook succeeds. Retire your own record of it here.
    */
   previousKey?: string;
+};
+
+/**
+ * Context for `upload.onRejected`. It runs after confirm, multipart complete
+ * or `s3.put` refused the upload and deleted its object.
+ */
+export type UploadOnRejectedContext = ObjectContext & {
+  kind: UploadKind;
+  uploadToken: string;
+  /** Multipart only. */
+  uploadId?: string;
+  /** File declared at presign, init or `s3.put`. */
+  file: UploadFile;
+  /** ACL from the upload policy. */
+  acl: S3ObjectAcl;
+  /** Why the upload was refused. The client receives the same error. */
+  error: APIError;
 };
 
 /** Context for `download.resolve`. */
@@ -250,17 +272,20 @@ export type MultipartUploadContext = ObjectContext & {
 
 /**
  * Context for `upload.multipart.guard`. It runs on part signing, list,
- * abort and complete. Init uses `upload.guard`.
+ * abort and complete; narrow on `operation`. Init uses `upload.guard`.
  */
 export type MultipartGuardContext =
   | (MultipartUploadContext & {
-      action: "part";
+      operation: "multipart.signPart";
       /** 1-based part number. */
       partNumber: number;
       /** Byte size signed into the part URL. */
       size: number;
     })
-  | (MultipartUploadContext & { action: "list" | "abort" | "complete" });
+  | (MultipartUploadContext & {
+      operation:
+        "multipart.listParts" | "multipart.complete" | "multipart.abort";
+    });
 
 /** Context for `upload.multipart.onAbort`. */
 export type MultipartOnAbortContext = MultipartUploadContext;

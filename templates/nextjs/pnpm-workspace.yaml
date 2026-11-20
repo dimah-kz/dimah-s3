@@ -1,13 +1,11 @@
-# Standalone starter (not part of the dimah-s3 monorepo).
-# pnpm 11+ requires allowBuilds for packages with install scripts.
+# pnpm settings for this app. Other package managers do not read this file.
+# pnpm asks before it runs a dependency's install script. These may run.
 allowBuilds:
   unrs-resolver: true
   sharp: true
-# Fresh @dimah-s3 publishes are expected from the CLI sync bump.
-# react-dropzone ships with @dimah-s3/react and can be published the same day.
+# pnpm waits a day before it installs a new release. The dimah-s3 packages
+# are released together, and react-dropzone ships with @dimah-s3/react, so
+# their new releases install at once.
 minimumReleaseAgeExclude:
-  - "@dimah-s3/core"
-  - "@dimah-s3/react"
-  - "@dimah-s3/server"
-  - "@dimah-s3/ui"
+  - "@dimah-s3/*"
   - react-dropzone

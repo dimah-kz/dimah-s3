@@ -11,12 +11,19 @@ description: Install shadcn-compatible upload, download, and delete UI component
 
 <Tab value="npm package">
 
-`@dimah-s3/core`, `@dimah-s3/react`, and `@fuma-translate/react` are peer
-dependencies. Install them with the package:
+Install the package with its peer dependencies: `@dimah-s3/core` and
+`@dimah-s3/react` at the same version, `@fuma-translate/react` for the
+strings, and what the bundled shadcn primitives import (`@base-ui/react`,
+`class-variance-authority`, `cn`, `lucide-react`). `shadcn` and
+`tw-animate-css` provide the stylesheets of step 2.
 
 ```npm
-npm i @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react shadcn
+npm i @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @base-ui/react class-variance-authority cn lucide-react shadcn tw-animate-css
 ```
+
+It needs React 19.2 and Tailwind CSS v4. The package bundles its own
+primitives, so it works in any project, whatever style your shadcn
+components use.
 
 </Tab>
 
@@ -31,13 +38,26 @@ npx shadcn@latest add @dimah-s3/upload
 The registry copies the component source into your project and installs the
 packages it needs.
 
+<Callout type="warn" title="Needs a Base UI style">
+
+The copied source uses your project's own shadcn primitives (`button`,
+`tooltip`, `dropdown-menu`, `alert-dialog`, …) with [Base UI](https://base-ui.com)
+props such as `render`. Add the items to a project created with a Base UI
+style. In a Radix style project the same primitives have other props, and the
+components do not type-check; use the npm package there.
+
+</Callout>
+
 </Tab>
 
 </Tabs>
 
 ## 2. Import CSS stylesheet
 
-Import the UI stylesheet in your global CSS to enable animations and design tokens:
+Import the UI stylesheet in your global CSS, after Tailwind, `tw-animate-css`
+(the menus, dialogs and tooltips animate with it) and `shadcn/tailwind.css`.
+It registers the components with Tailwind and maps their colors onto your
+shadcn theme variables, which must be defined, as `shadcn init` does:
 
 <include>../../../_includes/ui/index.mdx#styles</include>
 

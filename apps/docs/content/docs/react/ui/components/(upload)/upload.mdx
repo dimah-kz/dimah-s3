@@ -58,6 +58,27 @@ import {
 npx shadcn@latest add @dimah-s3/upload
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { Upload } from "@/components/dimah-s3/upload/upload";
+import {
+  UploadDropzone,
+  UploadDropzoneTrigger,
+} from "@/components/dimah-s3/upload/upload-dropzone";
+import {
+  UploadFileItem,
+  UploadFileList,
+} from "@/components/dimah-s3/upload/upload-file-list";
+import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
+import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
+import { usePasteFiles } from "@/hooks/use-paste-files";
+import { useUploadHints } from "@/lib/upload-hints";
+```
+
 </Tab>
 
 </Tabs>
@@ -73,7 +94,7 @@ import { useUpload } from "@dimah-s3/react";
 import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
 
 export function Attachments() {
-  const upload = useUpload({ route: "attachments", maxFiles: 5, queue: true });
+  const upload = useUpload({ route: "attachments", maxFiles: 5, append: true });
 
   return (
     <>
@@ -114,9 +135,10 @@ until a file is picked.
 ### Button styles
 
 `UploadTrigger` is a `Button`: `variant`, `size`, and every other prop are
-forwarded, and `children` replace the icon and label. An icon-only trigger
-needs an `aria-label`. `tooltip` adds a tooltip. All the triggers below share
-one hook and one status.
+forwarded, and `children` replace the icon and label. At an icon `size` the
+trigger shows the icon alone and keeps "Upload file" as its accessible name.
+`tooltip` adds a tooltip. All the triggers below share one hook and one
+status.
 
 <DemoPreview name="upload-trigger-variants-demo.tsx">
   <UploadTriggerVariantsDemo />
@@ -211,7 +233,7 @@ and a polite live region announces it. The dropzone sets `data-disabled`
 while the hook is disabled or the root is full.
 
 The trigger and the dropzone stay enabled while files upload. New files join
-the queue when the hook has `queue: true`, and replace it otherwise. While
+the queue when the hook has `append: true`, and replace it otherwise. While
 the root is full, as in a full [`UploadField`](/docs/react/ui/components/upload-field),
 "Maximum files reached." leads the trigger's description.
 
@@ -257,7 +279,7 @@ hook's limit for that call.
 
 ```tsx
 <UploadTrigger
-  call={{ uploadOptions: { metadata: { album: albumId } } }}
+  call={{ uploadOptions: { clientMetadata: { album: albumId } } }}
   tooltip="Add photos"
 />
 ```

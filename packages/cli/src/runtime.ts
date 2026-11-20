@@ -4,7 +4,8 @@ import { dirname, join } from "pathe";
 
 import { CliError } from "./utils/errors.js";
 
-const MIN_NODE = { major: 20, minor: 19 };
+/** The `engines.node` floor of every published `@dimah-s3/*` package. */
+const MIN_NODE_MAJOR = 22;
 
 /**
  * Package root, one level up from both `src/runtime.ts` and the bundled
@@ -31,13 +32,10 @@ export function cliVersion(): string {
 }
 
 export function assertSupportedNode(version = process.versions.node): void {
-  const [major = 0, minor = 0] = version.split(".").map(Number);
-  const supported =
-    major > MIN_NODE.major ||
-    (major === MIN_NODE.major && minor >= MIN_NODE.minor);
-  if (supported) return;
+  const major = Number(version.split(".")[0]);
+  if (major >= MIN_NODE_MAJOR) return;
 
   throw new CliError(
-    `Node.js ${MIN_NODE.major}.${MIN_NODE.minor} or newer is required (running ${version}).`,
+    `Node.js ${MIN_NODE_MAJOR} or newer is required (running ${version}).`,
   );
 }

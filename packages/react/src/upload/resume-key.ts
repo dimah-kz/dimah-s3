@@ -13,9 +13,9 @@ export function multipartResumeKey(
   request: UploadRequestOptions = {},
 ): string {
   const key = `${route}:${file.name}:${file.size}:${file.lastModified}`;
-  const { fileName = "", contentType = "", metadata = {} } = request;
+  const { fileName = "", contentType = "", clientMetadata = {} } = request;
   // Sorted, so the key does not depend on the order metadata was built in.
-  const entries = Object.entries(metadata).toSorted(([a], [b]) =>
+  const entries = Object.entries(clientMetadata).toSorted(([a], [b]) =>
     a < b ? -1 : a > b ? 1 : 0,
   );
   if (!fileName && !contentType && entries.length === 0) return key;

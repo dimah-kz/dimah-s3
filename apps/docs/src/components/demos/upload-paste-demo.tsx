@@ -15,7 +15,7 @@ export function UploadPasteDemo() {
     accept: ["image/*"],
     maxFiles: 4,
     maxFileSize: 10 * 1024 * 1024,
-    queue: true,
+    append: true,
   });
   // Files pasted anywhere on the page upload, except into text fields.
   usePasteFiles(upload);

@@ -23,6 +23,7 @@ import type {
   UploadConfirmGuardContext,
   UploadGuardContext,
   UploadOnConfirmedContext,
+  UploadOnRejectedContext,
   UploadOnStartContext,
 } from "./hook-contexts";
 import type { DimahS3RoutePluginOptions, Guard, LifecycleHook } from "./locals";
@@ -74,6 +75,7 @@ export type ResolvedUpload = {
   onStart: HookList<LifecycleHook<UploadOnStartContext>>;
   confirmGuard: HookList<Guard<UploadConfirmGuardContext>>;
   onConfirmed: HookList<LifecycleHook<UploadOnConfirmedContext>>;
+  onRejected: HookList<LifecycleHook<UploadOnRejectedContext>>;
 };
 
 export type ResolvedDownload = {

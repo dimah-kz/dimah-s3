@@ -13,9 +13,39 @@ also writes a generated `DIMAH_S3_SECRET` to `.env`.
 npx @dimah-s3/cli@beta create
 ```
 
+It asks for the project name, the starter, and whether to install
+dependencies and initialize git. Flags answer those questions up front, and
+`--yes` takes the defaults for the rest:
+
+```bash
+npx @dimah-s3/cli@beta create my-app --template vite --no-git --yes
+```
+
+| Flag                         | Does                                                                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `[dir]`                      | Project directory and package name. `.` uses the current directory. Required with `--yes` or without a terminal. |
+| `-t, --template <id>`        | `nextjs` (default), `vite` (React SPA with a Hono API), or `hono` (Hono API that serves a Vite React app).       |
+| `--package-manager <pm>`     | `pnpm`, `npm`, `yarn`, or `bun`. Defaults to the one that ran the command.                                       |
+| `--install` / `--no-install` | Install dependencies. Default yes.                                                                               |
+| `--git` / `--no-git`         | Initialize a repository with a first commit. Default yes.                                                        |
+| `--src` / `--no-src`         | Next.js only: keep app code under `src/`, or flatten it to the root.                                             |
+| `--overwrite`                | Replace the contents of a non-empty directory. `.git` and `.env` are kept.                                       |
+| `-y, --yes`                  | Skip the prompts and use the defaults.                                                                           |
+
+The CLI needs Node.js 22 or newer.
+
 ---
 
 ## Manual installation
+
+<Callout title="Before you start">
+  The steps below add dimah-s3 to an existing React 19.2 app on Node.js 22 or
+  newer. The server steps work in any framework. The client steps show Next.js
+  App Router file paths; in Vite or another SPA, the same code goes in your
+  entry file and your page component. The UI step also needs Tailwind CSS v4 and
+  a project initialized with `shadcn init`, because the components read the
+  shadcn theme variables.
+</Callout>
 
 ### Install dependencies [step]
 
@@ -23,7 +53,8 @@ npx @dimah-s3/cli@beta create
 npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @aws-sdk/client-s3
 ```
 
-`@dimah-s3/react` needs React 19.2 or later.
+`@dimah-s3/react` needs React 19.2 or later. Keep every `@dimah-s3/*` package
+on the same version.
 
 ### Configure S3 and routes [step]
 
@@ -103,6 +134,9 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 
 <Tab value="Vite">
 
+Vite serves the page only, so the handler runs in a small API server next to
+it. This one uses Hono:
+
 ```ts title="server/index.ts"
 import { Hono } from "hono";
 import { toHonoHandler } from "@dimah-s3/server/hono";
@@ -116,6 +150,19 @@ app.on(
 );
 ```
 
+The client calls `/api/s3` on the page's own origin. In development, proxy
+that path from the Vite dev server to the API server:
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  server: {
+    proxy: {
+      "/api": { target: "http://127.0.0.1:8787", changeOrigin: true }, // [!code ++]
+    },
+  },
+});
+```
+
 </Tab>
 
 <Tab value="Express">
@@ -126,7 +173,8 @@ import { toExpressHandler } from "@dimah-s3/server/express";
 import { s3 } from "./s3";
 
 const app = express();
-app.all("/api/s3/*", toExpressHandler(s3));
+// The adapter reads the raw stream, so mount it before JSON middleware.
+app.use("/api/s3", toExpressHandler(s3));
 app.use(express.json());
 ```
 
@@ -168,6 +216,11 @@ export const DELETE = handler;
 </Tabs>
 
 Other runtimes: [Server Setup](/docs/server/setup).
+
+From here on, the file paths are Next.js App Router paths. In a Vite app or
+another SPA, mount the provider in `src/main.tsx` as
+[React Setup](/docs/react/setup#2-mount-s3provider) shows, and put the page
+code in a component.
 
 ### Create the client and provider [step]
 
@@ -252,6 +305,10 @@ export default function RootLayout({
 
 ### Add an upload button [step]
 
+<Tabs items={["npm package", "shadcn registry"]}>
+
+<Tab value="npm package">
+
 ```tsx title="app/page.tsx"
 "use client";
 
@@ -272,9 +329,56 @@ export default function Page() {
 }
 ```
 
+</Tab>
+
+<Tab value="shadcn registry">
+
+The registry copied the components into your project, so import them from
+there:
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { Upload } from "@/components/dimah-s3/upload/upload";
+import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
+
+export default function Page() {
+  const upload = useUpload({ route: "avatar" });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadTrigger />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+</Tab>
+
+</Tabs>
+
 Selecting a file presigns a secure URL and uploads directly to your bucket.
 `UploadToasts` reports progress, success, and errors for this hook. See
 [Upload](/docs/react/ui/components/upload) for the dropzone and status parts.
+
+### Type your route names [step]
+
+Optional. Tell the client which routes the server has, and `route` is checked
+and completed in every hook and component:
+
+```ts title="lib/s3-routes.ts"
+import type { InferS3Routes } from "@dimah-s3/core";
+import type { s3 } from "@/lib/s3";
+
+declare module "@dimah-s3/core" {
+  interface DimahS3Routes extends Record<InferS3Routes<typeof s3>, true> {}
+}
+```
 
 ## Frequently asked questions
 
@@ -321,6 +425,7 @@ avatar: route({
     onConfirmed: async ({ key, request }) => {
       // [!code ++]
       const session = await getSession(request); // [!code ++]
+      if (!session) return; // [!code ++]
       await db.user.update({
         // [!code ++]
         where: { id: session.userId }, // [!code ++]

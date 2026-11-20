@@ -1,5 +1,7 @@
 // FumaDB client
-export { DB_SCHEMA_VERSION, DimahS3DB, type DimahS3DbClient } from "./fuma-db";
+export { DB_SCHEMA_VERSION, DimahS3Db, type DimahS3DbClient } from "./fuma-db";
+export { migrate } from "./migrate";
+export { DB_FOLDER_ID_KEY } from "./constants";
 
 // Plugin
 export { db, type DbPluginContext } from "./plugin/db";
@@ -29,6 +31,7 @@ export type {
 export type {
   DbClientFolder,
   DbClientObject,
+  DbClientObjectStatus,
   DbListSort,
   DbListSortField,
   DbQuota,

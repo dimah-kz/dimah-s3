@@ -318,13 +318,13 @@ describe("buildPublicObjectUrl", () => {
   it("joins origin and encoded key segments", () => {
     expect(
       buildPublicObjectUrl({
-        baseUrl: "https://cdn.example.com/",
+        baseURL: "https://cdn.example.com/",
         key: "uploads/a b.png",
       }),
     ).toBe("https://cdn.example.com/uploads/a%20b.png");
     expect(
       buildPublicObjectUrl({
-        baseUrl: `https://cdn.example.com${"/".repeat(100_000)}`,
+        baseURL: `https://cdn.example.com${"/".repeat(100_000)}`,
         key: "/uploads/a.png/",
       }),
     ).toBe("https://cdn.example.com/uploads/a.png");

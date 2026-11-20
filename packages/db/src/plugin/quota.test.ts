@@ -14,7 +14,10 @@ const scope: ResolvedScope = {
 const excluding = { bucket: "b", key: "k" };
 
 function usage(value: DbUsage) {
-  return { getUsage: vi.fn(async () => value) };
+  return {
+    usage: vi.fn(async () => value),
+    liveCount: vi.fn(async () => value.objectCount),
+  };
 }
 
 describe("createQuota", () => {
@@ -53,7 +56,18 @@ describe("createQuota", () => {
     const quota = createQuota(objects, { maxBytes: 10 });
 
     await quota.assert(scope, { size: 1, excluding });
-    expect(objects.getUsage).toHaveBeenCalledWith("user:1", { excluding });
+    expect(objects.usage).toHaveBeenCalledWith("user:1", { excluding });
+  });
+
+  it("counts the files without reading rows when only files are capped", async () => {
+    const objects = usage({ totalBytes: 0, objectCount: 2 });
+    const quota = createQuota(objects, { maxFiles: 3 });
+
+    await expect(
+      quota.assert(scope, { size: 1, excluding }),
+    ).resolves.toBeUndefined();
+    expect(objects.liveCount).toHaveBeenCalledWith("user:1", { excluding });
+    expect(objects.usage).not.toHaveBeenCalled();
   });
 
   it("reads caps per scope from a function", async () => {
@@ -80,6 +94,7 @@ describe("createQuota", () => {
     await expect(
       createQuota(objects, undefined).limits(scope),
     ).resolves.toBeNull();
-    expect(objects.getUsage).not.toHaveBeenCalled();
+    expect(objects.usage).not.toHaveBeenCalled();
+    expect(objects.liveCount).not.toHaveBeenCalled();
   });
 });

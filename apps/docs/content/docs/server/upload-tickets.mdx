@@ -48,13 +48,14 @@ Or pass it in code:
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
-  secret: process.env.DIMAH_S3_SECRET || undefined, // [!code ++]
+  secret: process.env.MY_TICKET_SECRET, // [!code ++]
   // ...
 });
 ```
 
-An explicit `secret` is checked when `dimahS3()` runs, so an empty string
-throws. `|| undefined` falls back to reading the environment on first use.
+An explicit `secret` is checked when `dimahS3()` runs, so a short one throws
+at startup. An empty string or a missing variable counts as not set: the
+server then reads `DIMAH_S3_SECRET` on first use.
 
 - Every value must have at least **32 characters**. A short `secret` option
   throws at `dimahS3()`. A short `DIMAH_S3_SECRET` returns

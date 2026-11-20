@@ -577,9 +577,6 @@ importers:
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../tooling/typescript-config
-      babel-plugin-react-compiler:
-        specifier: 1.0.0
-        version: 1.0.0
       drizzle-kit:
         specifier: 1.0.0-rc.5
         version: 1.0.0-rc.5(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.5.17)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7))
@@ -665,9 +662,6 @@ importers:
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../../tooling/typescript-config
-      babel-plugin-react-compiler:
-        specifier: 1.0.0
-        version: 1.0.0
       eslint:
         specifier: 'catalog:'
         version: 10.15.0(jiti@2.7.0)
@@ -686,25 +680,16 @@ importers:
       citty:
         specifier: ^0.2.2
         version: 0.2.2
-      nypm:
-        specifier: ^0.6.12
-        version: 0.6.12
       pathe:
         specifier: ^2.0.3
         version: 2.0.3
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
-      validate-npm-package-name:
-        specifier: ^8.0.0
-        version: 8.0.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6
-      '@types/validate-npm-package-name':
-        specifier: ^4.0.2
-        version: 4.0.2
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
@@ -848,13 +833,13 @@ importers:
 
   packages/react:
     dependencies:
-      '@dimah-s3/core':
-        specifier: workspace:*
-        version: link:../core
       react-dropzone:
         specifier: ^20.2.1
         version: 20.2.1(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
+      '@dimah-s3/core':
+        specifier: workspace:*
+        version: link:../core
       '@fuma-translate/react':
         specifier: ^1.0.2
         version: 1.0.2(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -5301,11 +5286,6 @@ packages:
     resolution: {integrity: sha512-K1HmQeZT2HrjpsR6KgqbN2FAXL2NrJJmNUSD9ck7HGTVu1JKXox8n9SB+tjbU8m8JGLF4OscrroPepew/L7/Xw==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  nypm@0.6.12:
-    resolution: {integrity: sha512-4AhWntz+ds/P5kz1rN25yGegTPYsO5ffOy+8S0TeuXKZrgjlmgcEBLA1xubzcP/dWX4zYfNybv4TQERlL9Z0LQ==}
-    engines: {node: '>=18'}
-    hasBin: true
-
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
     engines: {node: '>=0.10.0'}
@@ -6358,10 +6338,6 @@ packages:
   validate-npm-package-name@7.0.2:
     resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
     engines: {node: ^20.17.0 || >=22.9.0}
-
-  validate-npm-package-name@8.0.0:
-    resolution: {integrity: sha512-SCv6OOV6Xj2/3cXy3dGmADluJTNcL3o7hZAglNPTe+WYuEuvxgJzxPrSDLZhF+CwyQOubqgecjMmTJGMVLWjYQ==}
-    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   vfile-message@4.0.4:
     resolution: {integrity: sha512-66ycRswIkNmHH9PHku7ADtv5RVwgIrOcuv3J8Svz6h4qgGRrKVa+9/neuKyJZUXyOpYwLTvS+whZ4R2urHHgQg==}
@@ -8478,6 +8454,7 @@ snapshots:
   babel-plugin-react-compiler@1.0.0:
     dependencies:
       '@babel/types': 7.29.14
+    optional: true
 
   bail@2.0.2: {}
 
@@ -10658,12 +10635,6 @@ snapshots:
 
   npm-to-yarn@3.2.0: {}
 
-  nypm@0.6.12:
-    dependencies:
-      citty: 0.2.2
-      pathe: 2.0.3
-      tinyexec: 1.3.1
-
   object-assign@4.1.1: {}
 
   object-inspect@1.14.0: {}
@@ -11931,8 +11902,6 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   validate-npm-package-name@7.0.2: {}
-
-  validate-npm-package-name@8.0.0: {}
 
   vfile-message@4.0.4:
     dependencies:

@@ -67,9 +67,13 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
           );
           return outcome;
         },
+        // The callbacks of the newest render, like the other hooks.
         async (outcome) => {
-          await reportOutcomes(opts, [outcome]);
-          await runAfterCallback(opts.onSettled, toResult([outcome]));
+          await reportOutcomes(optionsRef.current, [outcome]);
+          await runAfterCallback(
+            optionsRef.current.onSettled,
+            toResult([outcome]),
+          );
         },
       );
     },
@@ -113,7 +117,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
         let reported: Promise<void> | undefined;
         const report = () =>
           (reported ??= outcomes.then((settled) =>
-            reportOutcomes(opts, settled),
+            reportOutcomes(optionsRef.current, settled),
           ));
         targets.forEach(({ claim }, index) => {
           void claim.settle(
@@ -124,7 +128,7 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
       }
 
       const result = toResult(await Promise.all(calls.values()));
-      await runAfterCallback(opts.onSettled, result);
+      await runAfterCallback(optionsRef.current.onSettled, result);
       return result;
     },
     [apiRef, optionsRef, store],

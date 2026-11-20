@@ -129,11 +129,11 @@ export type UseObjectListReturn<TItem> = {
   setItems: (items: Updater<readonly TItem[]>) => void;
   /** Edit the loaded folders without a request. */
   setFolders: (folders: Updater<readonly ObjectListFolder[]>) => void;
-  /** Drop loaded files by `getKey`. */
-  removeItems: (keys: readonly string[]) => void;
-  /** The `getKey` option. */
-  getKey: (item: TItem) => string;
-  /** The `getFile` option, or `{ name: getKey(item) }`. */
+  /** Drop loaded files by `getId`. */
+  removeItems: (ids: readonly string[]) => void;
+  /** The `getId` option. */
+  getId: (item: TItem) => string;
+  /** The `getFile` option, or `{ name: getId(item) }`. */
   getFile: (item: TItem) => ObjectListFile;
   /** The source's `uploadOptions`. Set when it supports drop-on-folder. */
   uploadOptions: ((parent: string | null) => UploadRequestOptions) | undefined;
@@ -220,7 +220,7 @@ const INITIAL_STATE: State<never> = {
  * Page through a folder catalog without knowing the backend.
  *
  * Pass a source: `query` loads one page for a folder, cursor, sort, and
- * search; `getKey` and `getFile` read a row. `dbObjectSource` from
+ * search; `getId` and `getFile` read a row. `dbObjectSource` from
  * `@dimah-s3/db/client` and `memoryObjectSource` are ready-made sources;
  * a route handler is another. The hook never calls S3.
  *
@@ -228,7 +228,7 @@ const INITIAL_STATE: State<never> = {
  * const list = useObjectList({
  *   query: ({ parent, cursor, sort, search, signal }) =>
  *     fetchFiles({ folderId: parent, cursor, sort, search, signal }),
- *   getKey: (file) => file.id,
+ *   getId: (file) => file.id,
  *   getFile: (file) => ({ name: file.name, objectKey: file.key, size: file.size }),
  * });
  * ```
@@ -537,7 +537,7 @@ export function useObjectList<TItem>(
     (keys: readonly string[]) => {
       if (keys.length === 0) return;
       const drop = new Set(keys);
-      const { getKey: keyOf } = optionsRef.current;
+      const { getId: keyOf } = optionsRef.current;
       setItems((items) => items.filter((item) => !drop.has(keyOf(item))));
     },
     [optionsRef, setItems],
@@ -595,7 +595,7 @@ export function useObjectList<TItem>(
       if (!rename) {
         throw new Error("[dimah-s3] The source has no renameFile.");
       }
-      const { getFile: read, getKey: keyOf } = optionsRef.current;
+      const { getFile: read, getId: keyOf } = optionsRef.current;
       if ((read ? read(item).name : keyOf(item)) === name) return item;
       const key = keyOf(item);
       const { scope } = requestRef.current;
@@ -609,7 +609,7 @@ export function useObjectList<TItem>(
         const replacement = next;
         update((draft) => {
           if (draft.snapshot.scope !== scope) return draft;
-          const idOf = optionsRef.current.getKey;
+          const idOf = optionsRef.current.getId;
           return {
             ...draft,
             snapshot: {
@@ -676,11 +676,11 @@ export function useObjectList<TItem>(
     [optionsRef, requestRef, settleRename, trailRef, update],
   );
   // ── View ──────────────────────────────────────────────────────────────
-  const { getKey, getFile: readFile } = options;
+  const { getId, getFile: readFile } = options;
   const getFile = useMemo(
     () =>
-      readFile ?? ((item: TItem): ObjectListFile => ({ name: getKey(item) })),
-    [getKey, readFile],
+      readFile ?? ((item: TItem): ObjectListFile => ({ name: getId(item) })),
+    [getId, readFile],
   );
   const { snapshot, pending, failure } = state;
   const fresh = snapshot.key === request.key;
@@ -698,7 +698,7 @@ export function useObjectList<TItem>(
     pending,
     failure,
   });
-  const entries = useReusedEntries(folders, items, getKey, getFile);
+  const entries = useReusedEntries(folders, items, getId, getFile);
   const nextCursor = fresh ? snapshot.nextCursor : null;
 
   return {
@@ -733,7 +733,7 @@ export function useObjectList<TItem>(
     setItems,
     setFolders,
     removeItems,
-    getKey,
+    getId,
     getFile,
     uploadOptions: options.uploadOptions,
     createFolder: options.createFolder ? createFolder : undefined,
@@ -745,21 +745,21 @@ export function useObjectList<TItem>(
 /**
  * Entries for `folders` and `items`. A folder or item that is the same
  * object as last time keeps its entry, so rows and the selection see one
- * object until that row changes. `getKey` and `getFile` are pure: new
+ * object until that row changes. `getId` and `getFile` are pure: new
  * functions alone, such as inline ones, rebuild nothing.
  */
 function useReusedEntries<TItem>(
   folders: readonly ObjectListFolder[],
   items: readonly TItem[],
-  getKey: (item: TItem) => string,
+  getId: (item: TItem) => string,
   getFile: (item: TItem) => ObjectListFile,
 ): readonly ObjectListEntry<TItem>[] {
   const [cache, setCache] = useState<ObjectListEntryCache<TItem>>(() =>
-    reuseObjectListEntries(null, folders, items, getKey, getFile),
+    reuseObjectListEntries(null, folders, items, getId, getFile),
   );
   if (cache.folders === folders && cache.items === items) return cache.entries;
   // Adjusted during render, so the rows never draw the old entries.
-  const next = reuseObjectListEntries(cache, folders, items, getKey, getFile);
+  const next = reuseObjectListEntries(cache, folders, items, getId, getFile);
   setCache(next);
   return next.entries;
 }

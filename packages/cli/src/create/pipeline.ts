@@ -2,9 +2,10 @@ import { relative } from "pathe";
 import pc from "picocolors";
 
 import type { CreateContext } from "@/types";
+import { isCancelledError, listenForCancel } from "@/utils/cancel";
 import { removeDir } from "@/utils/fs";
 import { installCommand, runDevCommand } from "@/utils/package-manager";
-import { logWarn, note, outro } from "@/utils/ui";
+import { cancel, logWarn, note, outro } from "@/utils/ui";
 import type { ResolvedCreate } from "./config.js";
 import type { CreateStep } from "./step.js";
 import { runSteps } from "./step.js";
@@ -43,25 +44,41 @@ export async function runCreatePipeline({
     generatedEnv: [],
   };
 
+  // Ctrl+C from here on stops the running step, then rolls back.
+  const cancellation = listenForCancel();
   let failedSteps: string[];
   try {
-    ({ failedSteps } = await runSteps(createSteps, ctx));
+    ({ failedSteps } = await runSteps(createSteps, ctx, cancellation.signal));
   } catch (error) {
-    await rollback(ctx);
+    const removed = await rollback(ctx);
+    if (isCancelledError(error)) {
+      cancel(
+        removed
+          ? `Cancelled. Removed ${ctx.config.targetDir}.`
+          : `Cancelled. Files already written to ${ctx.config.targetDir} were left in place.`,
+      );
+    }
     throw error;
+  } finally {
+    cancellation.dispose();
   }
 
   printNextSteps(ctx);
   return { failedSteps };
 }
 
-/** Only removes a directory this run created, never pre-existing content. */
-async function rollback(ctx: CreateContext): Promise<void> {
-  if (!ctx.createdTargetDir) return;
+/**
+ * Only removes a directory this run created, never pre-existing content.
+ * Resolves to whether the directory is gone.
+ */
+async function rollback(ctx: CreateContext): Promise<boolean> {
+  if (!ctx.createdTargetDir) return false;
   try {
     await removeDir(ctx.config.targetDir);
+    return true;
   } catch {
     logWarn(`Could not clean up ${ctx.config.targetDir}. Remove it manually.`);
+    return false;
   }
 }
 

@@ -23,7 +23,10 @@ export type {
 export type { TransferProgress } from "./types/operation";
 
 // ─── Stores ──────────────────────────────────────────────────────────────────
-export { createLocalStorageStore, createMemoryStore } from "./store";
+export {
+  createLocalStorageUploadStore,
+  createMemoryUploadStore,
+} from "./store";
 export type { StoredUpload, UploadStore } from "./types/upload-store";
 
 // ─── Route policy ────────────────────────────────────────────────────────────

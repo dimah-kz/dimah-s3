@@ -22,9 +22,11 @@ npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @dimah-s3/u
 
 - `@dimah-s3/react` and `@dimah-s3/ui` need React 19.2 or later, as
   `@fuma-translate/react` does.
-- `@dimah-s3/core` is now a direct dependency. React no longer re-exports it.
-- `@fuma-translate/react` is a peer dependency of `@dimah-s3/react`. Install
-  it yourself.
+- `@dimah-s3/core` and `@fuma-translate/react` are peer dependencies of
+  `@dimah-s3/react`. Install both yourself, with `@dimah-s3/core` on the same
+  version as `@dimah-s3/react`. React no longer re-exports core.
+- Node.js 22 or newer is required. In the browser, the hooks need Chrome 119,
+  Firefox 124, Safari 17.4, or newer.
 - With `db()`, add `@dimah-s3/db@beta` and follow
   [Database](#database) below.
 
@@ -46,7 +48,7 @@ DIMAH_S3_SECRET="your-generated-secret"
 
 `dimahS3()` reads `DIMAH_S3_SECRET` on the first upload. Pass `secret` to
 read it from somewhere else, or an array to rotate: the first value signs,
-and every value verifies.
+and every value verifies. An empty `secret` counts as not set.
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -74,8 +76,9 @@ With the SDK default, the first presign logs the problem and returns `500`.
 
 ### Update the route config
 
-- `upload.method` defaults to `"PUT"`, which every provider supports,
-  including R2. Set `method: "POST"` to keep presigned POST.
+- `upload.method` defaults to `"PUT"`, which AWS, R2, and MinIO support.
+  Set `method: "POST"` to keep presigned POST, or for a provider that
+  rejects presigned PUT, such as [ArvanCloud](/docs/providers/arvancloud).
 - `download.expiresIn` is now `download.maxExpiresIn`.
 - `upload.replace` is now the db route option
   `plugins: { db: { replace: "overwrite" } }`.
@@ -90,6 +93,12 @@ With the SDK default, the first presign logs the problem and returns `500`.
   route returns `404 FEATURE_DISABLED` there.
 - Routes on different buckets may share a `keyPrefix`; on one bucket they
   still may not overlap.
+- A zero-byte file is rejected with `FILE_EMPTY`.
+- S3 user metadata from `upload.object` is limited to 2 KB in total, keys and
+  values together. Non-ASCII values are RFC 2047-encoded when written and
+  decoded when read, so `object.metadata` returns what you set.
+- `download.resolve` must return `expiresIn` as a positive integer. Anything
+  else is a config error and returns `500`.
 
 ### Rewrite guards and errors
 
@@ -128,21 +137,34 @@ export const s3 = dimahS3({
 ```
 
 Lifecycle `on*` hooks now run plugin hooks first, then yours, the same as
-guards. `onError` is called as `onError(error, { request })`.
+guards. `onError` is called as `onError(error, { request, operation })`.
+Every hook context has `operation` and `locals`.
 
 ### Rename the upload hooks
 
-| 1.7                       | 2.0 beta                                  |
-| ------------------------- | ----------------------------------------- |
-| `upload.onPresigned`      | `upload.onStart` (`kind` is `post`/`put`) |
-| `upload.multipart.onInit` | `upload.onStart` (`kind` is `multipart`)  |
-| `upload.multipart.onList` | Removed                                   |
-| `StoredObjectContext`     | `ObjectContext`                           |
-| `file: { fileName, ... }` | `file: { name, size, type }`              |
-| `onDeleted({ existed })`  | `onDeleted` without `existed`             |
+| 1.7                                                                            | 2.0 beta                                                          |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `upload.onPresigned`                                                           | `upload.onStart` (`kind` is `presignedPost` or `presignedPut`)    |
+| `upload.multipart.onInit`                                                      | `upload.onStart` (`kind` is `multipart`)                          |
+| `upload.multipart.onList`                                                      | Removed                                                           |
+| `StoredObjectContext`                                                          | `ObjectContext`                                                   |
+| `ObjectFile`                                                                   | `UploadFile` (declared file) and `VerifiedObject` (stored object) |
+| `UploadOnPresignedContext`, `MultipartOnInitContext`, `MultipartOnListContext` | `UploadOnStartContext`                                            |
+| `file: { fileName, ... }`                                                      | `file: { name, size, type }`                                      |
+| `onDeleted({ existed })`                                                       | `onDeleted` without `existed`                                     |
+| `RouteFeature`, `RouteOperation`                                               | `operation: S3Operation` on every context                         |
 
 `upload.onStart({ kind, uploadToken, uploadId, url, urlExpiresAt, expiresAt })`
 also runs for `s3.put`, with `kind: "server"`.
+
+`upload.multipart.guard` runs for sign part, list parts, complete, and abort.
+Narrow on `operation` (`"multipart.signPart"`, `"multipart.listParts"`,
+`"multipart.complete"`, `"multipart.abort"`); the sign-part context also has
+`partNumber` and `size`.
+
+What the browser sends with an upload is `clientMetadata` in every upload
+hook. It is never written to S3 unless `upload.object` copies it into
+`metadata`.
 
 `upload.onConfirmed` runs **at least once** per upload. A retried confirm
 calls it again with the same `uploadToken`, so make its writes idempotent:
@@ -165,6 +187,11 @@ A throw from `onConfirmed`, including an `APIError`, returns `500` and keeps
 the object. To reject a file after upload, throw from `upload.confirmGuard`
 instead: that deletes the object.
 
+`upload.onRejected` is new. It runs after confirm, multipart complete, or
+`s3.put` refused an upload and deleted its object, so you can undo what
+`onStart` recorded. See
+[Upload Hooks](/docs/server/hooks/upload#when-an-upload-is-rejected).
+
 ### Update server calls
 
 `s3.api` has the browser client's shape. Each method takes the browser
@@ -181,10 +208,13 @@ const { url } = await s3.api.download(
 ```
 
 The aliases `deleteBatch`, `multipart*`, and `file` are removed. Use
-`deleteMany` and `multipart.*`.
+`deleteMany` and `multipart.*`. Plugin endpoints, such as the `db()` list,
+are HTTP only and no longer on `s3.api`; a plugin's server API is on the
+instance (`s3.db`).
 
 `s3.put` takes `name` and `type` in place of `fileName` and `contentType`,
-and moves `headers` to the second argument:
+and moves `headers` to the second argument. `metadata` is written to S3, and
+`clientMetadata` only reaches the hooks:
 
 ```ts
 await s3.put({
@@ -195,9 +225,33 @@ await s3.put({
 });
 ```
 
-`definePlugin`, `createS3Endpoint`, `createS3Middleware`, and `isFeatureOn`
-are exported from `@dimah-s3/server/plugins` only, and the
-`@dimah-s3/server/api` entry is gone.
+`putObject`, `PutObjectInput`, and the `Resolved*`, `Opened*`, `Enabled*`,
+and `Disabled*` types are no longer exported.
+
+### Update plugins
+
+If you wrote a server plugin:
+
+- `definePlugin`, `createS3Endpoint`, `createS3Middleware`, `isFeatureOn`, and
+  the plugin types (`DimahS3Plugin`, `DimahS3PluginHooks`, `PluginContextMap`,
+  `PluginInitEnv`, `S3EndpointContext`) are exported from
+  `@dimah-s3/server/plugins` only. Config and hook-context types, and
+  `chainHooks`, come from `@dimah-s3/server` only. The `@dimah-s3/server/api`
+  entry is gone.
+- `init` must be synchronous. A returned promise throws at `dimahS3()`.
+- `createS3Endpoint(path, options, handler)` always takes a path, and throws
+  for a core path. `method` is `GET`, `POST`, `PUT`, `PATCH`, or `DELETE`;
+  body endpoints accept JSON only.
+- Endpoints are HTTP only. Expose server-side functions through `context`.
+  `DimahS3Plugin` has no endpoint type parameter, and `PluginEndpointMap` is
+  removed.
+- Only a rejection (a `4xx` `APIError`) from a plugin `onConfirmed` deletes
+  the object. Any other throw keeps it and returns `500`, so the client can
+  retry. Add `upload.onRejected` to undo what your `onStart` wrote.
+- Reserved plugin ids are the instance keys: `handler`, `api`, `put`,
+  `context`, `getPlugin`, `$ERROR_CODES`, and `$Infer`.
+- A switch on `operation` needs cases for `"plugin"` (plugin endpoints) and
+  `"record"` (`s3.db.record`).
 
 ### Check custom proxies and CORS
 
@@ -221,7 +275,7 @@ functions from `@dimah-s3/react/engine`:
 ```ts
 import { useUpload } from "@dimah-s3/react";
 import { APIError, isS3ErrorCode } from "@dimah-s3/core"; // [!code ++]
-import { createLocalStorageStore } from "@dimah-s3/react/engine"; // [!code ++]
+import { createLocalStorageUploadStore } from "@dimah-s3/react/engine"; // [!code ++]
 ```
 
 `@dimah-s3/react/engine` has no `"use client"` directive and no React
@@ -242,7 +296,8 @@ const upload = useUpload({
   onSuccess: (result) => setValue("avatarKey", result.key), // [!code highlight]
 });
 
-const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
+const { uploaded, failed, rejected, blocked, aborted } =
+  await upload.handleFiles(files);
 ```
 
 - `onFileSuccess`, `onFileError`, `onFileProgress`, and `onCancel` are
@@ -250,15 +305,34 @@ const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
   `onProgress(progress, file)`, and `onSettled(result)`.
 - `files[].status` is now `phase`, and `isUploading` is now `isPending`.
 - `getUploadOptions` is merged into `uploadOptions`, which can be a function
-  of the file.
+  of the file. Its `metadata` field is now `clientMetadata`, the name the
+  server hooks use.
+- The upload result (`UploadResult`) uses `name`, `size`, and `type`. Its
+  `metadata` is the S3 user metadata the server wrote.
 - The `checksum` options and `multipartPartSize` are removed. The server's
   route config decides both.
-- An invalid file no longer stops the batch, and `cancel(id)` cancels one
-  file. Pass `queue: true` to append new files instead of replacing the queue.
+- An invalid file no longer stops the batch: it is in the result's
+  `rejected`. `cancel(ids?)` and `reset(ids?)` take one id or several. Pass
+  `append: true` to add new files to the queue instead of replacing it.
 - `retry(ids?)` sends failed files again in place: one id, several, or every
   failed file. A test stub that builds a whole `UseUploadReturn` must add
   `retry` and `disabled`.
-- Resume records from 1.7 are ignored.
+- File ids are short strings such as `upload-1`, not UUIDs.
+- `retry: { baseDelay }` is now `retry: { baseDelayMs }`. Requests are also
+  retried when your API answers 408, 429, or 500 and above, and a stored
+  multipart upload is kept after such a failure.
+- `onPartUpload` receives `{ partNumber, partCount }`; `totalParts` is now
+  `partCount`.
+- The types `DropzoneRootProps` and `DropzoneInputProps` are now
+  `UploadRootProps` and `UploadInputProps`.
+- `uploadStore: false` is removed; leave the option out. `createMemoryStore`
+  and `createLocalStorageStore` are now `createMemoryUploadStore` and
+  `createLocalStorageUploadStore`. A custom `UploadStore` implements
+  `get(resumeKey, fileSize)`, `set(upload)`, and `delete(resumeKey)`, and a
+  `StoredUpload` holds the upload ticket and the server's part layout. Resume
+  records from 1.7 are ignored.
+- `FileUploadConfig` is removed. Use `UseUploadOptions` for the hook and
+  `UploadFileOptions` for `uploadFile`.
 
 ### Split fetch downloads
 
@@ -271,9 +345,14 @@ const download = useFetchDownload({ route: "invoices" });
 ```
 
 `onInitiated` is now `onSuccess(data, key)`, and `isFetchDownload` is
-removed: narrow on `download.mode`. `download(key, { fileName })` and
-`presign(key, options)` return an outcome. A cancelled call settles with an
-`aborted` outcome instead of `onCancel`.
+removed: narrow on `download.kind` (`"navigate"` or `"fetch"`).
+`download(key, { fileName })` and `presign(key, options)` return an outcome.
+A cancelled call settles with an `aborted` outcome instead of `onCancel`.
+
+`useFetchDownload` has no `disposition` option, since it always saves the
+file, and its result is `{ fileName, fileSize }`. `UseNavigateDownloadOptions`
+and `UseNavigateDownloadReturn` are now `UseDownloadOptions` and
+`UseDownloadReturn`.
 
 ### Move the delete confirmation
 
@@ -281,7 +360,8 @@ removed: narrow on `download.mode`. `download(key, { fileName })` and
 `cancelDelete`, and `isConfirming` are removed. Call `remove(key)` directly,
 or let the ui `Delete` root show the dialog. Callbacks are
 `onSuccess(data, key)`, `onError(error, key)`, and `onSettled(result)`, and
-`removeMany(items)` returns `{ deleted, failed, blocked }`.
+`removeMany(items)` returns `{ deleted, failed, blocked }`. `reset()` removes
+settled operations only; it no longer cancels a delete that is running.
 
 ### Read per-key state
 
@@ -300,6 +380,7 @@ already running joins that call.
 | `FetchDownloadProgress`      | `TransferProgress`                      |
 | `useObjectUrl().expiresIn`   | `useObjectUrl().expiresAt` (epoch ms)   |
 | `uploadFiles(...)`           | `uploadFile(api, file, { route, ... })` |
+| `useApi()`                   | `useS3Api()`, or `s3Client.useApi()`    |
 
 An aborted upload rejects with an `AbortError` `DOMException`. Use
 `getUploadAbortKind` from `@dimah-s3/react/engine` to tell a cancel from a
@@ -408,7 +489,12 @@ trigger, and tooltips are opt-in through `tooltip`. `FileAttachment` drops
 
 With the shadcn registry, the items `upload-button`, `upload-dropzone`,
 `download-button`, `progress-download-button`, and `delete-button` are
-replaced by `upload`, `download`, and `delete`.
+replaced by `upload`, `download`, and `delete`. The items need a shadcn
+project on a Base UI style.
+
+`AvatarUpload` `onChange` is now `onUploaded`. An icon-size `UploadTrigger`,
+`DownloadTrigger`, or `DeleteTrigger` keeps its label for screen readers, so
+it needs no `aria-label` of its own.
 
 ### Rename theme overrides
 
@@ -421,8 +507,9 @@ Override the `--dimah-s3-*` tokens instead of `--color-dimah-s3-*`, on
 }
 ```
 
-The `secondary`, `secondary-foreground`, and `accent-foreground` tokens are
-removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
+The `secondary`, `secondary-foreground`, `accent`, `accent-foreground`, and
+`primary-foreground` tokens are removed, with their utilities. Other Tailwind
+utilities such as `bg-dimah-s3-card` are unchanged. See
 [Theming](/docs/react/ui/customization/theming).
 
 ### Update `ObjectList`
@@ -432,13 +519,24 @@ removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
   `ObjectListUsageData`. `ObjectListUsage` is the ui component that shows it.
 - The context field `remove` is now `delete`, and `onDeleted` receives
   react's `DeleteResult`.
-- `ObjectListItemMenu` no longer takes `download`, `delete`, or `onDeleted`.
+- `useObjectListContext()` returns the list, the selection, the hooks, the
+  view, `rootLabel` (was `label`), and the commands `startNewFolder()`,
+  `startRename(key)`, and `revealEntry(entry)`. Layout props such as
+  `pagination`, `empty`, and the `render*` functions are no longer on it:
+  read them from the props you pass to `ObjectList`.
+- `ObjectListItemMenu` is now `ObjectListEntryMenu`
+  (`ObjectListEntryMenuProps`, `ObjectListEntryMenuAction`). It no longer
+  takes `download`, `delete`, or `onDeleted`, and extra rows are
+  `ObjectListEntryMenuItem` children. Its button is named after the entry,
+  such as "Actions for report.pdf".
+- The type `ObjectListPagination` is now `ObjectListPaginationMode`, and
+  `ObjectListSearch` `delay` is now `debounceMs`.
 - Built-in toasts step aside for your own `UploadToasts`, `DownloadToasts`, or
   `DeleteToasts`. Pass `toasts={false}` to turn them off.
 - The entries are one tab stop. An entry's checkbox and menu leave the tab
   order: reach them with Tab from the entry, or with ArrowLeft and
   ArrowRight in the list view. Update tests that tab through the rows.
-- `getKey` and `getFile` run once per item object. To change what a row
+- `getId` and `getFile` run once per item object. To change what a row
   shows, replace the item with `setItems` or reload.
 - `ObjectListRow` and `ObjectListTile` are memoized. A `render*` function
   that reads your own state must change with it, as one from `useCallback`
@@ -449,20 +547,25 @@ removed. Tailwind utilities such as `bg-dimah-s3-card` are unchanged. See
 ## Errors
 
 `S3_ERROR_CODES` is the one error catalog. Every `APIError` has a `code`, a
-`status`, and typed `params`. Read details from `error.params`, not from the
-message.
+`statusCode`, and typed `params`. Read details from `error.params`, not from
+the message. The `APIError` constructor requires a `code`.
 
-| 1.7                           | 2.0 beta                                      |
-| ----------------------------- | --------------------------------------------- |
-| `PAYLOAD_TOO_LARGE`           | `FILE_TOO_LARGE` with `{ size, maxFileSize }` |
-| `INVALID_KEY`                 | `KEY_INVALID`                                 |
-| `QUOTA_EXCEEDED`              | `QUOTA_EXCEEDED` (403) with `{ limit }`       |
-| `APIError.fromStatus(...)`    | `s3Error(code, params)` or `APIError.from`    |
-| `DELETE_BATCH_MAX_KEYS`       | `DELETE_MANY_MAX_KEYS`                        |
-| `S3_MAX_OBJECT_KEY_LENGTH`    | `S3_MAX_OBJECT_KEY_BYTES` (1024 UTF-8 bytes)  |
-| `S3_API_ROUTES.uploadConfirm` | `S3_API_ROUTES.confirm`                       |
-| `S3_API_ROUTES.deleteBatch`   | `S3_API_ROUTES.deleteMany`                    |
-| `S3_API_ROUTES.multipartPart` | `S3_API_ROUTES.multipartSignPart`             |
+| 1.7                                 | 2.0 beta                                            |
+| ----------------------------------- | --------------------------------------------------- |
+| `PAYLOAD_TOO_LARGE`                 | `FILE_TOO_LARGE` with `{ size, maxFileSize }`       |
+| `INVALID_KEY`                       | `KEY_INVALID`                                       |
+| `UNKNOWN_ROUTE`                     | `ROUTE_NOT_FOUND`                                   |
+| `QUOTA_EXCEEDED`                    | `QUOTA_EXCEEDED` (403) with `{ limit }`             |
+| `APIError.fromStatus(...)`          | `s3Error(code, params)` or `APIError.from`          |
+| `DELETE_BATCH_MAX_KEYS`             | `DELETE_MANY_MAX_KEYS`                              |
+| `S3_MAX_OBJECT_KEY_LENGTH`          | `S3_MAX_OBJECT_KEY_BYTES` (1024 UTF-8 bytes)        |
+| `S3_API_ROUTES.uploadConfirm`       | `S3_API_ROUTES.confirm`                             |
+| `S3_API_ROUTES.deleteBatch`         | `S3_API_ROUTES.deleteMany`                          |
+| `S3_API_ROUTES.multipartPart`       | `S3_API_ROUTES.multipartSignPart`                   |
+| `sha256File`                        | `sha256Blob`                                        |
+| `sanitizeFileName`                  | `fitFileName`                                       |
+| `buildPublicObjectUrl({ baseUrl })` | `buildPublicObjectUrl({ baseURL })`                 |
+| `S3ApiHeaders`                      | Per-call `{ signal, headers }` (`S3RequestOptions`) |
 
 `validateFile` returns `APIError | null`. `isAPIError` and
 `isS3ErrorCode(error, code)` match only real `APIError`s, whose `code` and
@@ -478,7 +581,8 @@ full list is on [Errors](/docs/server/errors).
 If you call the HTTP API yourself or wrote an `UploadTransport`:
 
 - File fields are `name`, `size`, and `type` on the wire. The download and
-  `/file` query parameter `fileName` is now `name`.
+  `/file` query parameter `fileName` is now `name`. The upload and multipart
+  init bodies carry the client's extras as `clientMetadata`, not `metadata`.
 - `confirm`, `multipart.signPart`, `multipart.listParts`,
   `multipart.complete`, and `multipart.abort` take `{ ticket }`. `listParts`
   is a POST, and `complete` takes no `parts`.
@@ -486,12 +590,24 @@ If you call the HTTP API yourself or wrote an `UploadTransport`:
   `checksum`, and `signPart` returns the part `size` and the `headers` to send.
 - A presigned PUT signs every header it returns. Send `headers` exactly.
 - Every `S3Api` method takes `(payload, { signal, headers })`.
+- Responses changed shape. Confirm and multipart complete return
+  `{ key, bucket, name, size, type, eTag, versionId, lastModified, metadata, acl }`.
+  `delete` returns `{ key, bucket }` with no `existed`. `deleteMany` returns
+  `{ deleted, failed: { key, error }[] }`. `multipart.abort` returns
+  `{ key, bucket, uploadId }`. `download` is a union on `mode`: `expiresIn`
+  is set in `"presign"` mode and absent in `"proxy"` mode.
+- The route catalog (`catalog()`) has no `upload.replace`, its
+  `download.expiresIn` is now `maxExpiresIn`, and `checksum`, `disposition`,
+  `inlineTypes`, and `mode` are always present.
+- The hooks retry a request whose error has status 408, 429, or 500 and
+  above, so `confirm` and `multipart.complete` must be safe to call twice.
 - In `@dimah-s3/core`, `DeleteBatchPayload` and `DeleteBatchResponse` are now
   `DeleteManyPayload` and `DeleteManyResponse`. Confirm, listParts, complete, and
   abort all take one `TicketPayload` (`{ ticket }`), validated by
   `ticketBodySchema`.
 - The Zod schemas moved to `@dimah-s3/core/schema`, so the browser entry
   ships without Zod. Import `uploadBodySchema` and the others from there.
+  `deleteBatchBodySchema` is now `deleteManyBodySchema`.
 
 See [Custom backend](/docs/react/custom-backend).
 
@@ -499,18 +615,23 @@ See [Custom backend](/docs/react/custom-backend).
 
 ## Database
 
-`@dimah-s3/db` reads schema `2.2.0` only: folders are rows with ids, an
-object stores `folderId`, and each row has typed `attributes`, an upload
-token, and its name folded for search. It does not upgrade a 1.x database
-or a `2.0.0` or `2.1.0` beta database. Create the tables on a new database
-before you deploy. Any other version throws.
+`@dimah-s3/db` reads schema `2.3.0` only: folders are rows with ids, an
+object stores `folderId` and its `name`, and each row has typed
+`attributes`, an upload token, and its name folded for search and for the
+name sort. It does not upgrade a database at any other version, 1.x
+included. Create the tables on a new database before you deploy. Any other
+version throws.
 
 - Create the tables from [Setup](/docs/db/setup). With Kysely, call
-  `migrate(client)` from `@dimah-s3/db/cli` on an empty database.
+  `migrate(client)` from `@dimah-s3/db` on an empty database.
 - Remove `fumadb` and the `fumadb/cuid` path alias from your app.
   Generate the Drizzle tables or Prisma models with `runCli` from
-  `@dimah-s3/db/cli`, and import adapters from
-  `@dimah-s3/db/adapters/<orm>`.
+  `@dimah-s3/db/cli`, build the client with `DimahS3Db.client(adapter)`,
+  and import adapters from `@dimah-s3/db/adapters/<orm>`.
+- Install `@aws-sdk/client-s3` next to `@dimah-s3/db`: it is a required
+  peer.
+- A row's file name is `name` (`StorageObject.name`, `DbClientObject.name`,
+  `PATCH /db/object` `{ name }`, and the sort field `"name"`).
 - With Drizzle, upgrade `drizzle-orm` to `1.0.0-rc.5` or later first.
   0.44 and 0.45 are no longer supported. See [Setup](/docs/db/setup).
 - `createObjectAccessGuard` and `createQuotaGuard` are replaced by the
@@ -522,9 +643,20 @@ before you deploy. Any other version throws.
 - `resolveScope` receives only the caller (`request`, `session`, `locals`,
   `operation`, `route`). Move checks on `key`, `folder`, or
   `clientMetadata` into `authorize`, which also gets the stored row.
-- `s3.db.objects` keeps `find`, `list`, `count`, `getUsage`, and `update`.
-  Delete files through `s3.api.delete`, and prune with
-  `s3.db.pruneDeleted`.
+- In `authorize`, `folder` and `folderId` are where the target is now, for
+  every operation on a stored object. A move or a rename reports the new
+  place in `destination`. A listing without `folderId` asks for the whole
+  scope (`recursive: true`).
+- The folder endpoints run with the operations `"folder.create"`,
+  `"folder.update"`, and `"folder.delete"`. `"update"` is `PATCH /db/object`
+  only, and `s3.db.record` runs with `"record"`.
+- Uploads do not create folders: send `clientMetadata.folderId` for a
+  folder that already exists.
+- `s3.db.objects` keeps `find`, `list(scope, filter)`,
+  `count(scope, filter)`, `usage(scope)`, and `update`. Delete files
+  through `s3.api.delete`, and prune with `s3.db.pruneDeleted`.
+- A scope, a folder name, and a file name may not start or end with
+  whitespace.
 - `purgeStale` returns `{ purged, failed, skipped, more }`.
 
 [Upgrade the database](/docs/db/upgrade) says what happens to an existing

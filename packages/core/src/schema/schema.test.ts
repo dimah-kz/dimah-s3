@@ -23,7 +23,7 @@ import {
 import {
   contentTypeSchema,
   fileNameSchema,
-  metadataSchema,
+  clientMetadataSchema,
   objectKeySchema,
   optionalChecksumSchema,
   optionalTrimmedString,
@@ -211,17 +211,17 @@ describe("uploadBodySchema", () => {
     ).toBe(false);
   });
 
-  it("accepts optional metadata and type", () => {
+  it("accepts optional clientMetadata and type", () => {
     expect(
       uploadBodySchema.parse({
         ...uploadBody,
         type: "image/png",
-        metadata: { source: "web" },
+        clientMetadata: { source: "web" },
       }),
     ).toEqual({
       ...uploadBody,
       type: "image/png",
-      metadata: { source: "web" },
+      clientMetadata: { source: "web" },
     });
   });
 
@@ -623,14 +623,16 @@ describe("objectKeySchema", () => {
   });
 });
 
-describe("metadataSchema", () => {
+describe("clientMetadataSchema", () => {
   it("accepts http-header-safe keys", () => {
-    expect(metadataSchema.parse({ source: "web" })).toEqual({ source: "web" });
+    expect(clientMetadataSchema.parse({ source: "web" })).toEqual({
+      source: "web",
+    });
   });
 
   it("rejects empty keys and oversized maps", () => {
-    expect(metadataSchema.validate({ "": "x" })).toBe(false);
-    expect(metadataSchema.validate({ "has space": "x" })).toBe(false);
+    expect(clientMetadataSchema.validate({ "": "x" })).toBe(false);
+    expect(clientMetadataSchema.validate({ "has space": "x" })).toBe(false);
   });
 });
 
@@ -712,7 +714,7 @@ describe("z.compile", () => {
       uploadTicketSchema,
       objectKeySchema,
       partNumberSchema,
-      metadataSchema,
+      clientMetadataSchema,
       sha256ChecksumSchema,
       optionalChecksumSchema,
       uploadBodySchema,

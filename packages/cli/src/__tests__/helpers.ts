@@ -15,7 +15,12 @@ export const cliEntry = join(packageRoot, "dist", "index.js");
 export const distTemplatesRoot = join(packageRoot, "dist", "templates");
 export const cliPkg = JSON.parse(
   readFileSync(join(packageRoot, "package.json"), "utf8"),
-) as { version: string };
+) as {
+  version: string;
+  engines: { node: string };
+  exports: Record<string, string>;
+  files: string[];
+};
 
 export const CREATE_TIMEOUT_MS = 60_000;
 

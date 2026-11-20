@@ -174,7 +174,7 @@ function UploadSummary({
           files.length === 1
             ? t("Upload complete", { note: "upload status" })
             : t("All {count} files uploaded", {
-                note: "status",
+                note: "upload status",
                 variables: { count: formatNumber(files.length) },
               })
         }
@@ -191,7 +191,7 @@ function UploadSummary({
       <StatusAttachment
         state="error"
         className={ROW_CLASS}
-        title={t("Upload failed", { note: "status" })}
+        title={t("Upload failed", { note: "upload status" })}
         description={upload.error ? formatError(upload.error) : undefined}
         actions={summaryActions(
           t("Retry failed uploads", { note: "upload control" }),
@@ -213,7 +213,7 @@ function UploadSummary({
       media={
         <CircleProgress
           percent={percent}
-          label={t("Upload progress", { note: "progress" })}
+          label={t("Upload progress", { note: "upload progress" })}
           strokeWidth={2}
           className="size-5"
         />

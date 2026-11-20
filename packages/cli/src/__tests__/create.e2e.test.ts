@@ -53,9 +53,9 @@ describe("create e2e", () => {
         "pnpm-workspace.yaml",
       ]),
     );
+    expect(files).toContain("AGENTS.md");
     expect(files).not.toContain("app");
     expect(files).not.toContain("_gitignore");
-    expect(files).not.toContain("AGENTS.md");
     expect(files).not.toContain("node_modules");
     expect(files).not.toContain("pnpm-lock.yaml");
 
@@ -210,6 +210,71 @@ describe("create --no-src", () => {
   );
 });
 
+describe("package manager files", () => {
+  it(
+    "drops pnpm-workspace.yaml for another package manager",
+    async () => {
+      const result = await createApp(workDir, "npm-app", [
+        "--package-manager",
+        "npm",
+      ]);
+      expect(result.exitCode).toBe(0);
+
+      const files = await readdir(join(workDir, "npm-app"));
+      expect(files).not.toContain("pnpm-workspace.yaml");
+      expect(files).toContain("package.json");
+    },
+    CREATE_TIMEOUT_MS,
+  );
+
+  it(
+    "leaves lockfiles out of the app's .gitignore",
+    async () => {
+      const gitignore = await readFile(
+        join(workDir, "demo-app", ".gitignore"),
+        "utf8",
+      );
+      expect(gitignore).not.toMatch(/lock/i);
+    },
+    CREATE_TIMEOUT_MS,
+  );
+});
+
+describe("argument checks", () => {
+  it.each([
+    [["create", "typo-app", "--templte", "vite"], /Unknown option "--templte"/],
+    [["create", "typo-app", "--no-instal"], /Unknown option "--no-instal"/],
+    [["create", "typo-app", "-x"], /Unknown option "-x"/],
+    [["create", "typo-app", "extra"], /Unexpected argument "extra"/],
+  ])(
+    "rejects %j before writing anything",
+    async (args, message) => {
+      const result = await runCli(
+        [...args, "--yes", "--no-install", "--no-git"],
+        workDir,
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(message);
+      expect(await readdir(workDir)).not.toContain("typo-app");
+      expect(await readdir(workDir)).not.toContain("vite");
+    },
+    CREATE_TIMEOUT_MS,
+  );
+
+  it(
+    "refuses a directory name that gives no package name",
+    async () => {
+      const result = await createApp(workDir, "___");
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/cannot name the package/);
+      expect(await readdir(workDir)).not.toContain("___");
+    },
+    CREATE_TIMEOUT_MS,
+  );
+});
+
 describe("version flag", () => {
   it("prints the package version", async () => {
     const result = await runCli(["--version"], workDir);
@@ -251,7 +316,9 @@ describe("non-empty target directory", () => {
       const result = await createApp(workDir, "occupied");
 
       expect(result.exitCode).toBe(1);
-      expect(`${result.stdout}${result.stderr}`).toContain("--overwrite");
+      // Errors go to stderr, so a piped stdout stays clean.
+      expect(result.stderr).toContain("--overwrite");
+      expect(result.stdout).not.toContain("--overwrite");
       expect(await readdir(dir)).toEqual(["keep-me.txt"]);
     },
     CREATE_TIMEOUT_MS,

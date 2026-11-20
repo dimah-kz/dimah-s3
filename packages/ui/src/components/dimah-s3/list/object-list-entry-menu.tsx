@@ -11,6 +11,7 @@ import { objectKeyOf } from "@dimah-s3/react/engine";
 import {
   useFormatError,
   type AnyDownloadReturn,
+  type DownloadOutcome,
   type UseDownloadReturn,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
@@ -43,8 +44,8 @@ import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-fe
 import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
 import { useShareExpiryLabel } from "@/hooks/use-share-expiry-label";
 
-/** One extra row in {@link ObjectListItemMenu}. */
-export type ObjectListMenuAction = {
+/** One extra row in {@link ObjectListEntryMenu}. */
+export type ObjectListEntryMenuAction = {
   /** Row label. */
   label: string;
   onClick: () => void;
@@ -55,8 +56,8 @@ export type ObjectListMenuAction = {
   destructive?: boolean;
 };
 
-/** Props for {@link ObjectListItemMenu}. */
-export type ObjectListItemMenuProps = {
+/** Props for {@link ObjectListEntryMenu}. */
+export type ObjectListEntryMenuProps = {
   /**
    * S3 object key. Inside an `ObjectList` file row it defaults to the
    * entry's `objectKey`. Named `objectKey` because React reserves `key`.
@@ -67,10 +68,10 @@ export type ObjectListItemMenuProps = {
   /** Shown in the delete confirmation. Defaults to the entry size. */
   fileSize?: number | null;
   /**
-   * Navigate-mode `useDownload` used only for Copy link. Defaults to the
-   * list's `share`, then to a navigate-mode list `download`. Pass one with
-   * `{ disposition: "inline" }` when the link should open in a browser
-   * while Download stays an attachment.
+   * `useDownload` return used only for Copy link. Defaults to the list's
+   * `share`, then to the list's `download` when it is a `useDownload`
+   * return. Pass one with `{ disposition: "inline" }` when the link should
+   * open in a browser while Download stays an attachment.
    */
   share?: UseDownloadReturn;
   /**
@@ -83,8 +84,8 @@ export type ObjectListItemMenuProps = {
    * Extra rows, after Copy link and Rename, and before Delete.
    * Use this for actions the menu does not provide.
    */
-  actions?: readonly ObjectListMenuAction[];
-  /** More `DropdownMenuItem`s, after `actions`. */
+  actions?: readonly ObjectListEntryMenuAction[];
+  /** More rows, after `actions`: {@link ObjectListEntryMenuItem}s. */
   children?: ReactNode;
   /** Classes on the trigger button. */
   className?: string;
@@ -110,7 +111,7 @@ export type ObjectListItemMenuProps = {
  * Copy link signs one URL and writes it to the clipboard. Signing does not
  * start a download.
  */
-export function ObjectListItemMenu({
+export function ObjectListEntryMenu({
   objectKey: objectKeyProp,
   fileName: fileNameProp,
   fileSize: fileSizeProp,
@@ -119,7 +120,7 @@ export function ObjectListItemMenu({
   actions,
   children,
   className,
-}: ObjectListItemMenuProps) {
+}: ObjectListEntryMenuProps) {
   const t = useTranslations();
   // Inside a list the trigger reads the list's features only, so upload
   // progress does not draw every row's menu. The items read the hooks.
@@ -153,6 +154,18 @@ export function ObjectListItemMenu({
   if (!isFile && !folder) return null;
   if (!Object.values(rows).some(Boolean)) return null;
 
+  // The name tells one row's button from the next, as the checkbox does.
+  const name = entry?.name ?? fileNameProp;
+  const menuLabel =
+    name != null
+      ? t("Actions for {name}", {
+          note: "object list menu",
+          variables: { name },
+        })
+      : folder
+        ? t("Folder actions", { note: "object list menu" })
+        : t("File actions", { note: "object list menu" });
+
   const inRow = entryKey != null && menuStore != null;
   return (
     <DropdownMenu
@@ -169,7 +182,7 @@ export function ObjectListItemMenu({
             ref={triggerRef}
             variant="ghost"
             size="icon-sm"
-            data-slot="object-list-item-menu"
+            data-slot="object-list-entry-menu"
             // In an entry, Tab and the arrow keys from the entry reach it.
             tabIndex={entry ? -1 : undefined}
             className={className}
@@ -177,11 +190,7 @@ export function ObjectListItemMenu({
         }
       >
         <MoreHorizontalIcon />
-        <span className="sr-only">
-          {folder
-            ? t("Folder actions", { note: "object list menu" })
-            : t("File actions", { note: "object list menu" })}
-        </span>
+        <span className="sr-only">{menuLabel}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
         <ItemMenuItems
@@ -207,7 +216,52 @@ function subscribeNothing() {
   return () => {};
 }
 
-/** Which rows {@link ObjectListItemMenu} has. */
+/** Props for {@link ObjectListEntryMenuItem}. */
+export type ObjectListEntryMenuItemProps = {
+  onClick?: () => void;
+  disabled?: boolean;
+  /** Destructive color, as Delete has. */
+  destructive?: boolean;
+  className?: string;
+  /** An icon, then the label. */
+  children?: ReactNode;
+};
+
+/**
+ * One row for the `children` of {@link ObjectListEntryMenu}, when `actions`
+ * is not enough, such as a row that reads state of its own.
+ *
+ * @example
+ * ```tsx
+ * <ObjectListEntryMenu>
+ *   <ObjectListEntryMenuItem onClick={() => star(entry)}>
+ *     <StarIcon />
+ *     Star
+ *   </ObjectListEntryMenuItem>
+ * </ObjectListEntryMenu>
+ * ```
+ */
+export function ObjectListEntryMenuItem({
+  onClick,
+  disabled,
+  destructive = false,
+  className,
+  children,
+}: ObjectListEntryMenuItemProps) {
+  return (
+    <DropdownMenuItem
+      data-slot="object-list-entry-menu-item"
+      variant={destructive ? "destructive" : "default"}
+      disabled={disabled}
+      className={className}
+      onClick={onClick}
+    >
+      {children}
+    </DropdownMenuItem>
+  );
+}
+
+/** Which rows {@link ObjectListEntryMenu} has. */
 type MenuRows = {
   reveal: boolean;
   upload: boolean;
@@ -240,7 +294,7 @@ function ItemMenuItems({
   fileSize: number | null | undefined;
   share: UseDownloadReturn | undefined;
   expiresIn: number | undefined;
-  actions: readonly ObjectListMenuAction[] | undefined;
+  actions: readonly ObjectListEntryMenuAction[] | undefined;
   triggerRef: RefObject<HTMLButtonElement | null>;
   children: ReactNode;
 }) {
@@ -250,7 +304,7 @@ function ItemMenuItems({
   const linkSource = rows.link
     ? (shareProp ??
       context?.share ??
-      (context?.download?.mode === "navigate" ? context.download : null))
+      (context?.download?.kind === "navigate" ? context.download : null))
     : null;
   const remove = rows.delete ? (context?.delete ?? null) : null;
   const listUpload = context?.upload ?? null;
@@ -379,7 +433,7 @@ function DownloadItem({
     <DropdownMenuItem
       disabled={pending}
       onClick={() => {
-        if (download.mode === "fetch") {
+        if (download.kind === "fetch") {
           void download.download(objectKey, { fileName, fileSize });
         } else {
           void download.download(objectKey, { fileName });
@@ -416,11 +470,16 @@ function CopyLinkItem({
   async function copyLink() {
     if (copying) return;
     setCopying(true);
+    const signing = share.presign(objectKey, {
+      fileName,
+      ...(expiresIn != null ? { expiresIn } : {}),
+    });
+    // Started now, inside the click, and given its text once the URL is
+    // signed. A rejection is read below, after a signed URL only.
+    const written = writeLink(signing);
+    written.catch(() => undefined);
     try {
-      const outcome = await share.presign(objectKey, {
-        fileName,
-        ...(expiresIn != null ? { expiresIn } : {}),
-      });
+      const outcome = await signing;
       if (outcome.status === "error") {
         report({
           type: "error",
@@ -436,7 +495,7 @@ function CopyLinkItem({
       if (outcome.status !== "success") return;
       const signed = outcome.data;
       try {
-        await navigator.clipboard.writeText(signed.url);
+        await written;
       } catch {
         report({
           type: "error",
@@ -465,6 +524,39 @@ function CopyLinkItem({
       {t("Copy link", { note: "object list menu" })}
     </DropdownMenuItem>
   );
+}
+
+/**
+ * Writes the URL `signing` resolves with to the clipboard. Rejects when
+ * nothing was written.
+ *
+ * Safari only lets a page write to the clipboard during the click itself,
+ * and signing takes a request. A `ClipboardItem` takes a promise, so the
+ * write starts at once and gets its text when the URL is signed. Browsers
+ * without `ClipboardItem`, or that refuse the item, get `writeText` once
+ * the URL is there.
+ */
+async function writeLink(signing: Promise<DownloadOutcome>): Promise<void> {
+  const url = signing.then((outcome) => {
+    if (outcome.status !== "success") throw new Error("No link to copy.");
+    return outcome.data.url;
+  });
+  const { clipboard } = navigator;
+  if (typeof ClipboardItem === "function" && clipboard.write != null) {
+    try {
+      await clipboard.write([
+        new ClipboardItem({
+          "text/plain": url.then(
+            (text) => new Blob([text], { type: "text/plain" }),
+          ),
+        }),
+      ]);
+      return;
+    } catch {
+      // Try plain text below.
+    }
+  }
+  await clipboard.writeText(await url);
 }
 
 /**

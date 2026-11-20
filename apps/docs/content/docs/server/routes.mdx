@@ -92,8 +92,8 @@ By default, the server generates object keys formatted as:
 
 So `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is valid, and
 `DELETE ?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
-Two routes cannot share or nest prefixes (`files` and `files/images`);
-`dimahS3()` throws at startup.
+Two routes on the same bucket cannot share or nest prefixes (`files` and
+`files/images`); `dimahS3()` throws at startup.
 
 <Callout type="warn" title="Disabling namespace isolation">
   `keyPrefix: false` allows download and delete to target any safe key in the
@@ -111,6 +111,7 @@ avatar: route({
     maxFileSize: 2 * 1024 * 1024,
     object: async ({ request }) => {
       const session = await getSession(request);
+      if (!session) throw s3Error("UNAUTHORIZED");
       return {
         keyFolder: `users/${session.userId}`, // [!code ++]
         // Results in: avatar/users/{userId}/{uuid}/{name}
@@ -120,9 +121,10 @@ avatar: route({
 }),
 ```
 
-`object` runs after the instance and route guards, so it can also read
-[`locals`](/docs/server/hooks/global-guard#locals) instead of loading the
-session again.
+`object` runs before `upload.guard`, so it must not assume a signed-in
+caller. It runs after the instance and route guards: authenticate there and
+read [`locals`](/docs/server/hooks/global-guard#locals) in `object` instead
+of loading the session again.
 
 Keys are limited to 1024 UTF-8 bytes. A generated key turns `${` in the file
 name into `_{`. On a `method: "POST"` route, a key from `object` that
@@ -204,6 +206,7 @@ avatar: route({
     maxFileSize: 2 * 1024 * 1024,
     object: async ({ request }) => {
       const session = await getSession(request);
+      if (!session) throw s3Error("UNAUTHORIZED");
       return {
         key: `avatars/${session.userId}/avatar.png`, // [!code ++]
       };
@@ -213,7 +216,7 @@ avatar: route({
 ```
 
 With [`db()`](/docs/db), an upload onto a key that already holds an active
-object fails with `CONFLICT`. Allow it per route with
+object fails with `OBJECT_EXISTS`. Allow it per route with
 `plugins: { db: { replace: "overwrite" } }`.
 
 </Accordion>

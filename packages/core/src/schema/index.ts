@@ -6,7 +6,7 @@
 export {
   contentTypeSchema,
   fileNameSchema,
-  metadataSchema,
+  clientMetadataSchema,
   objectKeySchema,
   optionalChecksumSchema,
   optionalContentTypeSchema,

@@ -1,13 +1,9 @@
-import { isS3ErrorCode } from "@dimah-s3/core";
 import { describe, expect, it } from "vitest";
 import {
   folderAncestors,
-  folderName,
-  formatFolder,
+  isFolderName,
   joinFolderPath,
   normalizeFolderPath,
-  parentFolderPath,
-  parseFolder,
 } from "./folder-path";
 
 describe("normalizeFolderPath", () => {
@@ -44,6 +40,8 @@ describe("normalizeFolderPath", () => {
     ["a C1 control", "docs\u0085"],
     ["a DEL", "docs\u007f"],
     ["a lone surrogate", "docs/\ud800"],
+    ["a name that ends in a space", "docs /q4"],
+    ["a name that starts with a space", "docs/ q4"],
   ])("rejects %s", (_, path) => {
     expect(normalizeFolderPath(path)).toBeNull();
   });
@@ -80,43 +78,20 @@ describe("normalizeFolderPath", () => {
   });
 });
 
-describe("parseFolder", () => {
-  it("reads the wire root as null", () => {
-    expect(parseFolder("")).toBeNull();
-  });
-
-  it("returns the normalized path", () => {
-    expect(parseFolder("café")).toBe("café");
-  });
-
-  it("throws FOLDER_INVALID", () => {
-    let error: unknown;
-    try {
-      parseFolder("/docs");
-    } catch (thrown) {
-      error = thrown;
-    }
-    expect(isS3ErrorCode(error, "FOLDER_INVALID")).toBe(true);
-    expect(error).toMatchObject({ statusCode: 400 });
+describe("isFolderName", () => {
+  it("rejects whitespace at either end and keeps it inside", () => {
+    expect(isFolderName("my files")).toBe(true);
+    expect(isFolderName(" docs")).toBe(false);
+    expect(isFolderName("docs ")).toBe(false);
+    expect(isFolderName("docs\u00a0")).toBe(false);
+    expect(isFolderName(" ")).toBe(false);
   });
 });
 
 describe("path helpers", () => {
-  it("formats the root as an empty string", () => {
-    expect(formatFolder(null)).toBe("");
-    expect(formatFolder("docs/q4")).toBe("docs/q4");
-  });
-
   it("joins a name to a parent", () => {
     expect(joinFolderPath(null, "docs")).toBe("docs");
     expect(joinFolderPath("docs", "q4")).toBe("docs/q4");
-  });
-
-  it("splits a path into parent and name", () => {
-    expect(parentFolderPath("docs")).toBeNull();
-    expect(parentFolderPath("docs/2026/q4")).toBe("docs/2026");
-    expect(folderName("docs")).toBe("docs");
-    expect(folderName("docs/2026/q4")).toBe("q4");
   });
 
   it("lists the ancestors down to the path", () => {

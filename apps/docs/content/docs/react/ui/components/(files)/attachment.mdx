@@ -36,6 +36,15 @@ import { FileAttachment, StatusAttachment } from "@dimah-s3/ui";
 npx shadcn@latest add @dimah-s3/file-attachment
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
+import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
+```
+
 </Tab>
 
 </Tabs>

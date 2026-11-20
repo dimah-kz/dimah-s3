@@ -1,5 +1,5 @@
 import { normalizeSearchText } from "@dimah-s3/core";
-import { SEARCH_NAME_MAX_LENGTH } from "@/schema/schema";
+import { SEARCH_NAME_MAX_BYTES, SEARCH_NAME_MAX_LENGTH } from "@/schema/schema";
 
 /**
  * `LIKE` reads `%` and `_` as wildcards, and PostgreSQL and MySQL read `\`
@@ -13,18 +13,36 @@ const LIKE_LITERALS: Readonly<Record<string, string>> = {
   "\\": "\uE002",
 };
 
+const utf8 = new TextEncoder();
+
 /**
  * The `search_name` of a file or folder name, or the text a search looks
  * for: folded with `normalizeSearchText` from `@dimah-s3/core`, with the
- * `LIKE` specials kept literal, and cut to the column's length.
+ * `LIKE` specials kept literal, and cut to the column's length in
+ * characters and in bytes. The name sort orders by it too.
  */
 export function toSearchName(value: string): string {
   const folded = normalizeSearchText(value).replaceAll(
     /[%_\\]/g,
     (char) => LIKE_LITERALS[char] ?? char,
   );
-  const characters = Array.from(folded);
-  return characters.length > SEARCH_NAME_MAX_LENGTH
-    ? characters.slice(0, SEARCH_NAME_MAX_LENGTH).join("")
-    : folded;
+  // An ASCII name of the column's length is the common case, and fits.
+  if (
+    folded.length <= SEARCH_NAME_MAX_LENGTH &&
+    utf8.encode(folded).byteLength <= SEARCH_NAME_MAX_BYTES
+  ) {
+    return folded;
+  }
+  let cut = "";
+  let characters = 0;
+  let bytes = 0;
+  for (const character of folded) {
+    characters += 1;
+    bytes += utf8.encode(character).byteLength;
+    if (characters > SEARCH_NAME_MAX_LENGTH || bytes > SEARCH_NAME_MAX_BYTES) {
+      break;
+    }
+    cut += character;
+  }
+  return cut;
 }

@@ -13,7 +13,12 @@ Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) Â
 pnpm add @dimah-s3/react@beta @dimah-s3/core@beta @fuma-translate/react
 ```
 
-Requires React 19.2.
+Requires React 19.2 and Node.js 22 or newer. `@dimah-s3/core` and
+`@fuma-translate/react` are peer dependencies; keep `@dimah-s3/core` on the
+same version as `@dimah-s3/react`.
+
+Browsers: Chrome 119, Firefox 124, Safari 17.4, and newer (Baseline 2024).
+The hooks use `Promise.withResolvers` and `AbortSignal.any`.
 
 ## Minimal setup
 
@@ -60,11 +65,11 @@ export function AvatarPicker() {
 
 - `@dimah-s3/react`: the hooks (`useUpload`, `useDownload`,
   `useFetchDownload`, `useDelete`, `useObjectUrl`, `useObjectList`, â€¦),
-  `S3Provider`, `createS3Client`, and the types. It is a `"use client"`
-  module.
+  `S3Provider`, `useS3Api`, `createS3Client`, and the types. It is a
+  `"use client"` module.
 - `@dimah-s3/react/engine`: plain functions with no React import, such as
   `uploadFile`, `memoryObjectSource`, `defineApi`, `loadRouteCatalog`, and
-  `createLocalStorageStore`. Shared and server modules can import it.
+  `createLocalStorageUploadStore`. Shared and server modules can import it.
 - `APIError`, `S3_ERROR_CODES`, and the other protocol helpers come from
   `@dimah-s3/core`.
 

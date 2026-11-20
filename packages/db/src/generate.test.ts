@@ -42,8 +42,9 @@ describe("runCli generate", () => {
       'key: varchar("key", { length: 1024 }).collate("utf8mb4_bin").notNull()',
     );
     expect(code).toContain(
-      'filename: varchar("filename", { length: 255 }).collate("utf8mb4_unicode_ci").notNull()',
+      'name: varchar("name", { length: 255 }).collate("utf8mb4_bin").notNull()',
     );
+    expect(code).not.toContain("utf8mb4_unicode_ci");
     expect(code).toContain(
       'createdAt: datetime("created_at", { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`)',
     );

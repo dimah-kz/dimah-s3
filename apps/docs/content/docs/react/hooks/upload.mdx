@@ -80,20 +80,20 @@ const upload = useUpload({
   route: "attachments",
   maxFiles: 10,
   concurrentFiles: 3,
-  queue: true,
+  append: true,
 });
 ```
 
 By default a new call cancels the files still in flight and replaces the
 queue once its own files start uploading. Earlier calls that are still
 preparing are cancelled at once. A call that is blocked, rejected, or fails
-before uploading leaves the queue alone. With `queue: true`, new files are
-added to the end and the files in flight keep going. A call's own `queue`
-wins over the hook's, as in `handleFiles(files, { queue: true })`.
+before uploading leaves the queue alone. With `append: true`, new files are
+added to the end and the files in flight keep going. A call's own `append`
+wins over the hook's, as in `handleFiles(files, { append: true })`.
 
 Each entry in `upload.files` has:
 
-- **`id`** — pass it to `cancel(id)`.
+- **`id`** — unique on the page. Pass it to `cancel`, `retry`, or `reset`.
 - **`phase`** — `queued`, `preparing`, `presigning`, `uploading`, `finalizing`, `success`, or `error`.
 - **`progress`** — `{ loaded, total, percent, speed? }`.
 - **`error`** — an `APIError`, set when `phase` is `error`.
@@ -123,17 +123,20 @@ The hook also sums up the queue:
 - **`isPending`** — `true` while a call is preparing or a file is in flight.
 - **`file`** — the first file, or `null`. Handy when `maxFiles` is `1`.
 
-`cancel()` with no id cancels every file. `reset()` removes settled files and
-rejections; files in flight keep going.
+`cancel(id)` cancels one file, `cancel([id, id])` several, and `cancel()`
+every file. `reset()` removes settled files and rejections, and `reset(id)` or
+`reset([id, id])` only those settled files, such as one finished row a user
+dismisses. Files in flight keep going.
 
 `retry(id)` uploads a failed file again, `retry([id, id])` several, and
 `retry()` every failed file. A retried file keeps its place and `id`, and goes
 back to `queued`. It goes with the call options it was first sent with, so it
 lands in the same folder: it is validated again, and `beforeUpload` and
 `onUploadStart` run again. Files that came from one call go again as one
-call, so those callbacks run once for them. A retry never replaces the queue,
-even without `queue: true`. It resolves like `handleFiles`, and the callbacks
-run as for a new call.
+call, so those callbacks run once for them, and files of separate calls go
+again as separate calls. A retry never replaces the queue, even without
+`append: true`. It resolves like `handleFiles`, and the callbacks run as for a
+new call.
 
 ```tsx
 {
@@ -157,7 +160,7 @@ sets one for its `maxFiles`.
 ```tsx
 import { useUpload, useUploadLimit } from "@dimah-s3/react";
 
-const upload = useUpload({ route: "attachments", maxFiles: 5, queue: true });
+const upload = useUpload({ route: "attachments", maxFiles: 5, append: true });
 // At most five files across calls: queued, in flight, or uploaded.
 const remaining = useUploadLimit(upload, { available: 5 });
 ```
@@ -190,15 +193,18 @@ reaches `0`.
 the call has ended:
 
 ```ts
-const { uploaded, failed, blocked, aborted } = await upload.handleFiles(files);
+const { uploaded, failed, rejected, blocked, aborted } =
+  await upload.handleFiles(files);
 
 for (const { file, result } of uploaded) console.log(file.name, result.key);
 for (const { file, error } of failed) console.log(file.name, error.code);
+for (const { file, errors } of rejected) console.log(file.name, errors[0].code);
 ```
 
-`blocked` holds the files `beforeUpload` stopped, and `aborted` the files that
-were cancelled or detached. Files rejected before upload are in
-`upload.fileRejections`, not in the result.
+`rejected` holds the files the policy refused before upload, each with its
+errors. `blocked` holds the files `beforeUpload` stopped, and `aborted` the
+files that were cancelled or detached. `upload.fileRejections` shows the
+rejections of the newest call only, so read `rejected` when calls overlap.
 
 `result` is the object the server verified with `HeadObject`: `key`,
 `bucket`, `size`, `name`, `type`, `metadata`, and the other fields of
@@ -217,12 +223,12 @@ Callbacks run per call or per file:
 | `onUploadStart(files)`           | Once per call, after `beforeUpload` allows it.                               |
 | `onProgress(progress, file)`     | As bytes are sent.                                                           |
 | `onMultipartInit(session, file)` | When a multipart upload starts or resumes.                                   |
-| `onPartUpload(part, file)`       | After each multipart part.                                                   |
+| `onPartUpload(part, file)`       | After each multipart part. `part` is `{ partNumber, partCount }`.            |
 | `onError(error, file)`           | Once per failed file, after every file of the call has ended.                |
 | `onSuccess(result, file)`        | Once per uploaded file, after every `onError` of the call.                   |
 | `onSettled(result)`              | Once per call, last. It also runs when every file was rejected.              |
 
-`onSuccess`, `onSettled`, and the other after-hooks are awaited. If one
+`onError`, `onSuccess`, and `onSettled` may be async and are awaited. If one
 throws, the error goes to the global `reportError` and the result does not
 change.
 
@@ -230,25 +236,25 @@ change.
 
 ## Request options
 
-`uploadOptions` sets the request for each file: `metadata` for the server
-`object` callback, and `fileName` or `contentType` to override what the
-browser reports. Pass an object, or a function that gets the file.
+`uploadOptions` sets the request for each file: `clientMetadata` for the
+server hooks, and `fileName` or `contentType` to override what the browser
+reports. Pass an object, or a function that gets the file.
 
 ```ts
 const upload = useUpload({
   route: "attachments",
   uploadOptions: (file) => ({
-    metadata: { originalName: file.name },
+    clientMetadata: { originalName: file.name },
   }),
 });
 ```
 
-A single call can add its own options. Call fields win, and `metadata`
+A single call can add its own options. Call fields win, and `clientMetadata`
 merges key by key:
 
 ```ts
 await upload.handleFiles(files, {
-  uploadOptions: { metadata: { folderId: "folder id" } },
+  uploadOptions: { clientMetadata: { folderId: "folder id" } },
   maxFiles: 3, // lowers maxFiles for this call
 });
 ```
@@ -260,7 +266,7 @@ files arrive:
 ```tsx
 <li
   {...upload.getDropTargetProps({ className: "folder-row" }, () => ({
-    uploadOptions: { metadata: { folder: folder.id } },
+    uploadOptions: { clientMetadata: { folderId: folder.id } },
   }))}
 >
   {folder.name}
@@ -269,8 +275,9 @@ files arrive:
 
 A drop on a target inside a dropzone uses the target's call options.
 
-`metadata` reaches the server as `clientMetadata`. It is written to S3 only
-when the route's `object` callback copies it.
+`clientMetadata` reaches the server hooks under the same name. It is never
+written to S3 on its own: the route's `object` callback decides what becomes
+S3 `metadata`, and that is the `metadata` of the upload result.
 
 ---
 
@@ -326,13 +333,22 @@ the policy allows it. The server picks the part size and count. Parts upload
 streams when the server asks for checksums.
 
 Failed requests retry with exponential backoff. Set `retry: { maxRetries,
-baseDelay }` (defaults `3` and `1000` ms). Network errors, S3 errors with
-status 429 or 500 and above, and expired part URLs are retried. An expired URL
-is signed again first. A file that still fails can be sent again with
-`upload.retry(id)`; with an `uploadStore`, a multipart upload that failed on a
-retryable error resumes from the parts S3 already has.
+baseDelayMs }` (defaults `3` and `1000` ms). These are retried:
 
-- **`cancel(id?)`** aborts the upload, aborts the multipart session on the server, and deletes its stored record.
+- `NETWORK_ERROR` and `S3_NETWORK_ERROR`.
+- `UPLOAD_FAILED` when S3 answered 408, 429, or 500 and above.
+- Any response from your API with status 408, 429, or 500 and above, such as
+  `INTERNAL_ERROR` from a gateway or from a server hook that failed. Confirm
+  and multipart complete are safe to send again, because the server keeps an
+  upload it could not confirm.
+- An expired presigned URL, which is signed again first.
+
+`HOOK_FAILED` and every other 4xx are not retried. A file that still fails can
+be sent again with `upload.retry(id)`. With an `uploadStore`, a multipart
+upload that failed on a retryable error keeps its stored record and resumes
+from the parts S3 already has; any other failure aborts it.
+
+- **`cancel(ids?)`** aborts the upload, aborts the multipart session on the server, and deletes its stored record.
 - **`detach()`** stops every file but keeps the multipart session and its stored record, so the upload can [resume](/docs/react/upload-store).
 - **Unmounting** detaches files whose call had an `uploadStore` and cancels the rest.
 
@@ -343,15 +359,23 @@ retryable error resumes from the parts S3 already has.
 ```ts
 import type {
   UploadBatchResult,
+  UploadCallInput,
   UploadCallOptions,
   UploadFileState,
+  UploadInputProps,
   UploadLimit,
   UploadPolicy,
   UploadRequestOptions,
+  UploadRootProps,
   UseUploadOptions,
   UseUploadReturn,
 } from "@dimah-s3/react";
 ```
+
+`UploadRootProps` and `UploadInputProps` are what `getRootProps` and
+`getInputProps` accept: any element props and `data-*` attributes.
+`UploadCallInput` is the `call` argument of the prop getters: call options, or
+a function that returns them.
 
 ### UseUploadOptions
 
@@ -456,8 +480,8 @@ export function AvatarWithPreview() {
 
 <Accordion title="Why did my earlier files stop when I picked new ones?">
 
-Without `queue: true`, a new call replaces the queue and cancels the files in
-flight. Set `queue: true` to append instead.
+Without `append: true`, a new call replaces the queue and cancels the files in
+flight. Set `append: true` to add to the queue instead.
 
 </Accordion>
 

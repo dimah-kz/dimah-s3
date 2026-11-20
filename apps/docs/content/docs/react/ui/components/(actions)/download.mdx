@@ -49,6 +49,17 @@ import {
 npx shadcn@latest add @dimah-s3/download
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { Download } from "@/components/dimah-s3/download/download";
+import { DownloadProgress } from "@/components/dimah-s3/download/download-progress";
+import { DownloadToasts } from "@/components/dimah-s3/download/download-toasts";
+import { DownloadTrigger } from "@/components/dimah-s3/download/download-trigger";
+```
+
 </Tab>
 
 </Tabs>
@@ -107,10 +118,11 @@ that started it.
 ### Button styles
 
 `DownloadTrigger` is a `Button`, so `variant`, `size`, and the other
-props are forwarded, and `children` replace the icon and label. An icon-only
-trigger needs an `aria-label`; while it cancels a fetch download, it shows
-only the cancel icon. These triggers use `useDownload`, which hands the file
-to the browser.
+props are forwarded, and `children` replace the icon and label. At an icon
+`size` the trigger shows the icon alone and keeps "Download" as its
+accessible name; pass an `aria-label` to name the file. While it cancels a
+fetch download, it shows only the cancel icon. These triggers use
+`useDownload`, which hands the file to the browser.
 
 <DemoPreview name="download-variants-demo.tsx">
   <DownloadVariantsDemo />

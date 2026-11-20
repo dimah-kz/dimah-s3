@@ -168,7 +168,6 @@ describe("completeMultipart", () => {
     expect(order).toEqual(["multipart.guard", "confirmGuard", "onConfirmed"]);
     expect(guard.mock.calls[0][0]).toMatchObject({
       operation: "multipart.complete",
-      action: "complete",
       uploadId: upload.uploadId,
     });
     const uploadToken = guard.mock.calls[0][0].uploadToken;

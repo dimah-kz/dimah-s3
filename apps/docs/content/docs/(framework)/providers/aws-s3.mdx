@@ -17,7 +17,7 @@ CORS policy:
     "AllowedOrigins": ["https://your-app.example", "http://localhost:3000"],
     "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
     "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag", "Content-Type"],
+    "ExposeHeaders": ["Content-Disposition", "Content-Encoding"],
     "MaxAgeSeconds": 3000
   }
 ]
@@ -87,8 +87,9 @@ First, make sure `AllowedOrigins` exactly matches the browser origin, including
 the scheme and development port. Then allow the upload method and request
 headers used by the presigned request. A presigned PUT sends metadata,
 checksum, and tag headers, so `AllowedHeaders: ["*"]` is the simplest rule.
-`ExposeHeaders` does not fix a 403, but it must include `ETag` when the
-browser needs to read multipart responses.
+`ExposeHeaders` does not fix a 403. It lets `useFetchDownload` read the saved
+file name from `Content-Disposition`; without it, the file is named after its
+key. Uploads read no response header, so `ETag` need not be exposed.
 
 A 403 with `SignatureDoesNotMatch` usually means the client changed or
 dropped a header. A custom client must send exactly the `headers` from the

@@ -7,11 +7,11 @@ import type { StoredUpload, UploadStore } from "@/types/upload-store";
  *
  * @example
  * ```ts
- * const store = createMemoryStore();
+ * const store = createMemoryUploadStore();
  * useUpload({ api, route: "uploads", uploadStore: store });
  * ```
  */
-export function createMemoryStore(): UploadStore {
+export function createMemoryUploadStore(): UploadStore {
   const uploads = new Map<string, StoredUpload>();
 
   return {

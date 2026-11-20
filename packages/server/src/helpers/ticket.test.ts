@@ -36,7 +36,7 @@ function context(operation: S3Operation = "confirm"): RouteGuardContext {
 
 const single: UploadTicketInput = {
   mode: "single",
-  kind: "put",
+  kind: "presignedPut",
   id: "token-1",
   route: "uploads",
   key: "uploads/abc/a.png",
@@ -456,12 +456,18 @@ describe("parseSecretOption", () => {
     ]);
   });
 
-  it("throws on a short value or an empty list", () => {
+  it("throws on a short value", () => {
     expect(() => parseSecretOption("short")).toThrow(/at least 32 characters/);
     expect(() => parseSecretOption([TEST_SECRET, "short"])).toThrow(
       /at least 32 characters/,
     );
-    expect(() => parseSecretOption([])).toThrow(/empty array/);
+  });
+
+  it("treats an empty string or an empty list as unset", () => {
+    expect(parseSecretOption("")).toBeUndefined();
+    expect(parseSecretOption([])).toBeUndefined();
+    expect(parseSecretOption(["", ""])).toBeUndefined();
+    expect(parseSecretOption(["", TEST_SECRET])).toEqual([TEST_SECRET]);
   });
 });
 

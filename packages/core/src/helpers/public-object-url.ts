@@ -6,10 +6,10 @@ import { stripTrailingSlashes } from "./strip-slashes";
  */
 export function buildPublicObjectUrl(options: {
   /** Origin with no trailing slash, e.g. `https://cdn.example.com`. */
-  baseUrl: string;
+  baseURL: string;
   key: string;
 }): string {
-  const base = stripTrailingSlashes(options.baseUrl);
+  const base = stripTrailingSlashes(options.baseURL);
   const path = options.key
     .split("/")
     .filter((part) => part.length > 0)

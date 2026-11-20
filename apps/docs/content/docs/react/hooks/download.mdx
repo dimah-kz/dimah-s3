@@ -44,6 +44,11 @@ to the URL. The response's `Content-Disposition` decides whether the browser
 saves the file or opens it. `disposition` on the hook asks for `inline` or
 `attachment`; the server can override it.
 
+With `disposition: "inline"`, the browser opens the file in the current tab,
+in place of your page. To open it elsewhere, sign the URL with
+[`presign()`](#presign-without-downloading) and put it on your own link, such
+as `<a href={url} target="_blank" rel="noopener">`.
+
 ```tsx
 const { download } = useDownload({
   route: "reports",
@@ -84,7 +89,8 @@ which caches each URL and refreshes it before it expires.
 ## useFetchDownload
 
 `useFetchDownload` fetches the bytes in the page and saves them as a file. It
-reports progress and can be cancelled.
+reports progress and can be cancelled. The file is always saved, so this hook
+has no `disposition` option.
 
 ```tsx title="components/fetch-download.tsx"
 "use client";
@@ -120,7 +126,7 @@ await download(objectKey, { fileName: "video.mp4", fileSize: 52_428_800 });
 
 `onDownloadStart(key)` runs when the transfer begins and
 `onProgress(progress, key)` as bytes arrive. On success, `data` is
-`{ fileName, size }`.
+`{ fileName, fileSize }`.
 
 A cancelled download ends with an `aborted` outcome, not an error.
 
@@ -160,22 +166,27 @@ switch (outcome.status) {
 
 `beforeDownload(key)` runs once per call. Return `false` to block it; a throw
 fails it with `HOOK_FAILED`. `onError(error, key)` runs when a call fails, and
-`onSettled(outcome)` once per call, however it ended. A call that joins a
-running call does not run the callbacks again.
+`onSettled(outcome)` once per call, however it ended. Both may be async and
+are awaited. A call that joins a running call does not run the callbacks
+again.
 
 ### Accept either hook
 
-Each return has a `mode`: `"navigate"` for `useDownload`, `"fetch"` for
-`useFetchDownload`. Type a prop as `AnyDownloadReturn` and narrow on `mode`:
+Each return has a `kind`: `"navigate"` for `useDownload`, `"fetch"` for
+`useFetchDownload`. Type a prop as `AnyDownloadReturn` and narrow on `kind`:
 
 ```ts
 import type { AnyDownloadReturn } from "@dimah-s3/react";
 
 function progressOf(download: AnyDownloadReturn, key: string) {
-  if (download.mode === "fetch") return download.get(key)?.progress.percent;
+  if (download.kind === "fetch") return download.get(key)?.progress.percent;
   return undefined;
 }
 ```
+
+`kind` is how the hook hands over the bytes. The `mode` of a download
+response (`"presign"` or `"proxy"`) is the route's `download.mode`, which is
+a different thing.
 
 ---
 
@@ -255,9 +266,12 @@ Yes. Each key has its own operation, so render each button from `get(key)`.
 
 <Accordion title="Does useFetchDownload send my client headers?">
 
-It fetches the signed URL with plain `fetch`. On a route with
-`download.mode: "proxy"`, the `/file` request sends same-origin cookies but
-not the `headers` set on `createS3Client`. Use cookie auth for proxy routes.
+No. It presigns through the client, then fetches the URL it got with plain
+`fetch`. On a route with `download.mode: "proxy"`, that `/file` request sends
+same-origin cookies but neither the `headers` nor the `credentials` set on
+`createS3Client`. So a proxy route fetched this way needs cookie auth on the
+same origin as the page. With header auth or an API on another origin, use
+presign mode, or `useDownload`.
 
 </Accordion>
 

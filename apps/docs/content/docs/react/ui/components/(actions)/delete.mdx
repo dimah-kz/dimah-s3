@@ -40,6 +40,16 @@ import { Delete, DeleteToasts, DeleteTrigger } from "@dimah-s3/ui";
 npx shadcn@latest add @dimah-s3/delete
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { Delete } from "@/components/dimah-s3/delete/delete";
+import { DeleteToasts } from "@/components/dimah-s3/delete/delete-toasts";
+import { DeleteTrigger } from "@/components/dimah-s3/delete/delete-trigger";
+```
+
 </Tab>
 
 </Tabs>

@@ -2,12 +2,12 @@ Generate the models with the package's CLI. Generating does not connect to
 the database, so the script only needs the provider:
 
 ```ts title="scripts/dimah-s3.ts"
-import { DimahS3DB } from "@dimah-s3/db";
+import { DimahS3Db } from "@dimah-s3/db";
 import { prismaAdapter } from "@dimah-s3/db/adapters/prisma";
 import { runCli } from "@dimah-s3/db/cli";
 
 await runCli(
-  DimahS3DB.client(
+  DimahS3Db.client(
     prismaAdapter({ prisma: undefined, provider: "postgresql" }), // or "sqlite" | "mysql"
   ),
 );
@@ -26,6 +26,6 @@ declare the indexes and the MySQL prefix lengths, so the migration creates
 them too. Run `generate` again after you upgrade `@dimah-s3/db`.
 
 Prisma has no collation attribute. On MySQL, create the migration with
-`--create-only` and add `COLLATE utf8mb4_bin` to the text columns, and
-`COLLATE utf8mb4_unicode_ci` to `filename`, before you apply it. Without
-that, keys compare by the database's default collation, which ignores case.
+`--create-only` and add `COLLATE utf8mb4_bin` to the text columns before
+you apply it. Without that, keys, names, and scopes compare by the
+database's default collation, which ignores case.

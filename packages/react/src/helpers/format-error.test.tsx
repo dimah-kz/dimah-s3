@@ -60,6 +60,9 @@ describe("useFormatError", () => {
     expect(format(s3Error("QUOTA_EXCEEDED", { limit: "bytes" }))).toBe(
       "Storage quota exceeded",
     );
+    expect(format(s3Error("QUOTA_EXCEEDED", { limit: "folders" }))).toBe(
+      "Folder limit reached",
+    );
   });
 
   it("formats validateFile errors", () => {

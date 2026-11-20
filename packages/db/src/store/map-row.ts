@@ -11,7 +11,7 @@ export type StorageObjectRow = {
   key: string;
   route: string;
   folderId: string | null;
-  filename: string;
+  name: string;
   contentType: string | null;
   size: bigint | null;
   declaredSize: bigint | null;
@@ -45,7 +45,7 @@ export function mapStorageObjectRow<TAttributes = never>(
     key: row.key,
     route: row.route,
     folderId: row.folderId,
-    filename: row.filename,
+    name: row.name,
     contentType: row.contentType,
     size: toNumber(row.size),
     declaredSize: toNumber(row.declaredSize),

@@ -95,7 +95,7 @@ const { deleted, failed } = await s3.api.deleteMany(
 // failed: [{ key, error: { code, message, params? } }]
 ```
 
-A route error, such as `UNKNOWN_ROUTE` or a route guard rejection, fails the
+A route error, such as `ROUTE_NOT_FOUND` or a route guard rejection, fails the
 whole call. So does a DeleteObjects request that fails as a whole.
 
 ---

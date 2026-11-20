@@ -70,6 +70,19 @@ export function toAPIError(
   return result;
 }
 
+/**
+ * Logs a failure that does not change the response, such as a throw from
+ * `upload.onRejected`, and passes it to `onError`.
+ */
+export function reportFailure(
+  error: unknown,
+  env: ErrorBoundaryEnv,
+  context: { request: Request; operation?: S3Operation },
+): void {
+  const result = s3Error("INTERNAL_ERROR", undefined, { cause: error });
+  report(error, result, env, context);
+}
+
 function report(
   error: unknown,
   result: APIError,

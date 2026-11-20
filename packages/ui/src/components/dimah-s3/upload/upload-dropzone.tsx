@@ -10,7 +10,7 @@ import {
 } from "react";
 import { BanIcon, CloudUpload, FileUpIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
-import type { DropzoneRootProps, UploadCallOptions } from "@dimah-s3/react";
+import type { UploadRootProps, UploadCallOptions } from "@dimah-s3/react";
 import { cn } from "cn";
 import {
   useUploadCall,
@@ -45,7 +45,7 @@ export type UploadDropzoneProps = HTMLAttributes<HTMLDivElement> & {
  * Files dropped anywhere on it upload, also over the status inside it. Its
  * drag state follows only the files over this element, not the whole hook,
  * and a polite live region announces whether they can be dropped. It stays
- * usable while files upload, so new files follow the hook's `queue` option.
+ * usable while files upload, so new files follow the hook's `append` option.
  *
  * Without `children` it renders an `UploadDropzoneTrigger` and an
  * `UploadStatus`, so progress shows inside the dropzone. Pass `children`
@@ -196,7 +196,7 @@ export function UploadDropzoneTrigger({
   const Icon = dragReject ? BanIcon : dragActive ? FileUpIcon : CloudUpload;
 
   const rootProps = withoutDrag(
-    upload.getRootProps<DropzoneRootProps>(
+    upload.getRootProps<UploadRootProps>(
       {
         role: "button",
         "aria-labelledby": custom || props["aria-label"] ? undefined : labelId,
@@ -275,7 +275,7 @@ export function UploadDropzoneTrigger({
 }
 
 /** The dropzone takes the drag, so its trigger keeps click, keys and paste. */
-function withoutDrag(props: DropzoneRootProps): DropzoneRootProps {
+function withoutDrag(props: UploadRootProps): UploadRootProps {
   const { onDragEnter, onDragOver, onDragLeave, onDrop, ...rest } = props;
   return rest;
 }

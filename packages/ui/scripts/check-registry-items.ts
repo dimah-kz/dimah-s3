@@ -28,6 +28,12 @@ function packageName(specifier: string): string | null {
   return specifier.split("/")[0] ?? specifier;
 }
 
+/** The name of a `name@range` dependency. A scope keeps its leading `@`. */
+function dependencyName(dependency: string): string {
+  const range = dependency.lastIndexOf("@");
+  return range > 0 ? dependency.slice(0, range) : dependency;
+}
+
 function typesPackage(pkg: string): string {
   if (pkg.startsWith("@")) {
     return `@types/${pkg.slice(1).replace("/", "__")}`;
@@ -83,7 +89,9 @@ for (const item of components) {
   const files = item.files ?? [];
   const fileKeys = new Set<string>(files.map((file) => fileKey(file.path)));
   const registryDeps = new Set<string>(item.registryDependencies ?? []);
-  const npmDeps = new Set<string>(item.dependencies ?? []);
+  const npmDeps = new Set<string>(
+    (item.dependencies ?? []).map(dependencyName),
+  );
   const npmDevDeps = new Set<string>(item.devDependencies ?? []);
 
   for (const file of files) {

@@ -2,7 +2,7 @@ import * as z from "zod";
 import { S3_MAX_OBJECT_SIZE } from "@/limits";
 import {
   fileNameSchema,
-  metadataSchema,
+  clientMetadataSchema,
   optionalChecksumSchema,
   optionalContentTypeSchema,
   routeNameSchema,
@@ -19,7 +19,8 @@ export const uploadBodySchema = z.strictObject({
   size: z.int().nonnegative().max(S3_MAX_OBJECT_SIZE),
   /** MIME type. A blank value is omitted. */
   type: optionalContentTypeSchema,
-  metadata: metadataSchema.optional(),
+  /** Client extras for the hooks. Never written to S3 on their own. */
+  clientMetadata: clientMetadataSchema.optional(),
   /**
    * Base64 SHA-256 (padding optional), as `sha256Blob` / `sha256Base64`
    * return it. Required when the route sets `upload.checksum`.

@@ -12,6 +12,7 @@ import { requireApi, toClientError } from "@/internal/client-error";
 import { useLiveRef } from "@/internal/hooks";
 import { createLruCache, type LruCache } from "@/internal/lru";
 import { S3Context } from "@/s3-provider";
+import { isRetryableError } from "@/upload/retry";
 
 export type UseObjectUrlOptions = {
   /** S3Api. Optional when an `<S3Provider>` is present in the tree. */
@@ -138,12 +139,6 @@ function refreshAt(entry: CachedUrl, refreshBeforeMs: number): number | null {
   return entry.expiresAt - lead;
 }
 
-/** `true` for a presign failure that may pass when sent again. */
-function isTransient(error: APIError): boolean {
-  const status = error.statusCode;
-  return status >= 500 || status === 408 || status === 429;
-}
-
 /** `true` until `entry` reaches its refresh point. */
 function isFresh(entry: CachedUrl, refreshBeforeMs: number): boolean {
   const at = refreshAt(entry, refreshBeforeMs);
@@ -249,7 +244,7 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
         error,
         isLoading: false,
       });
-      if (isTransient(error)) {
+      if (isRetryableError(error)) {
         // Retries until the URL expires; the retry at expiry clears it.
         arm(load, Math.min(RETRY_BASE_DELAY_MS * 2 ** retries++, remaining));
       } else {

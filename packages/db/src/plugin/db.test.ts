@@ -13,6 +13,7 @@ import {
   type DimahS3RouteConfig,
 } from "@dimah-s3/server";
 import { describe, expect, it, vi } from "vitest";
+import { DB_SCHEMA_VERSION } from "@/fuma-db";
 import { insertObject } from "@/test/databases";
 import { memoryDbClient } from "@/test/fakes";
 import type { DbPluginOptions } from "@/types/plugin";
@@ -152,10 +153,16 @@ function createSetup(
 async function presignAndUpload(
   { instance, s3 }: ReturnType<typeof createSetup>,
   user: string,
-  metadata?: Record<string, string>,
+  clientMetadata?: Record<string, string>,
 ) {
   const presigned = await instance.api.upload(
-    { route: "uploads", name: "a.txt", size: 10, type: "text/plain", metadata },
+    {
+      route: "uploads",
+      name: "a.txt",
+      size: 10,
+      type: "text/plain",
+      clientMetadata,
+    },
     asUser(user),
   );
   if (presigned.method !== "PUT") throw new Error("expected a PUT upload");
@@ -183,7 +190,7 @@ describe("db plugin", () => {
     await expect(setup.instance.db.objects.find(ref)).resolves.toMatchObject({
       status: "active",
       size: 10,
-      filename: "a.txt",
+      name: "a.txt",
     });
     await expect(
       setup.instance.db.folders.find("user:1", docs.id),
@@ -231,6 +238,45 @@ describe("db plugin", () => {
     await expect(
       setup.instance.db.objects.find({ bucket: "bucket", key: presigned.key }),
     ).resolves.toBeNull();
+  });
+
+  it("removes the row of an overwrite the server refused and deleted", async () => {
+    const setup = createSetup({
+      routes: {
+        avatars: route({
+          upload: { object: () => ({ key: "me.png" }) },
+          plugins: { db: { replace: "overwrite" } },
+        }),
+      },
+    });
+    const ref = { bucket: "bucket", key: "avatars/me.png" };
+    const start = async () => {
+      const presigned = await setup.instance.api.upload(
+        { route: "avatars", name: "me.png", size: 10, type: "image/png" },
+        asUser("1"),
+      );
+      if (presigned.method !== "PUT") throw new Error("expected a PUT upload");
+      return presigned;
+    };
+
+    const first = await start();
+    setup.s3.receive(first, 10);
+    await setup.instance.api.confirm({ ticket: first.ticket }, asUser("1"));
+    await expect(setup.instance.db.objects.find(ref)).resolves.toMatchObject({
+      status: "active",
+    });
+
+    // The second upload replaces the bytes, but with another size than it
+    // declared: the server deletes the object and refuses the confirm.
+    const second = await start();
+    setup.s3.receive(second, 4);
+    await expect(
+      setup.instance.api.confirm({ ticket: second.ticket }, asUser("1")),
+    ).rejects.toMatchObject({ code: "UPLOAD_SIZE_MISMATCH" });
+
+    expect(setup.s3.objects.has(ref.key)).toBe(false);
+    // No row is left listing an object that is gone.
+    await expect(setup.instance.db.objects.find(ref)).resolves.toBeNull();
   });
 
   it("tracks s3.put in the folder from clientMetadata", async () => {
@@ -326,7 +372,7 @@ describe("db plugin", () => {
           eTag: stored?.eTag,
         });
         await expect(
-          s3.db.objects.list({ scope: "user:1", folderId: profile.id }),
+          s3.db.objects.list("user:1", { folderId: profile.id }),
         ).resolves.toMatchObject({ objects: [{ key: put.key }] });
         await expect(
           s3.api.download({ route: "avatars", key: put.key }, user),
@@ -406,6 +452,23 @@ describe("db plugin", () => {
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("fails a call whose scope is empty or has whitespace at either end", async () => {
+    for (const scope of ["", " user:1", "user:1 "]) {
+      const setup = createSetup({ plugin: { resolveScope: () => scope } });
+
+      await expect(
+        setup.instance.api.upload({
+          route: "uploads",
+          name: "a.txt",
+          size: 10,
+        }),
+      ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+      expect(String(setup.logger.error.mock.calls.flat())).toContain(
+        "resolveScope returned an empty scope or one with whitespace",
+      );
+    }
+  });
+
   it("fails an upload whose scope is too long before it writes a row", async () => {
     const setup = createSetup({
       plugin: { resolveScope: () => `user:${"a".repeat(300)}` },
@@ -420,7 +483,7 @@ describe("db plugin", () => {
       "resolveScope returned a scope of 305 characters",
     );
     await expect(
-      setup.database.orm("2.2.0").count("storageObject", {}),
+      setup.database.orm(DB_SCHEMA_VERSION).count("storageObject", {}),
     ).resolves.toBe(0);
   });
 
@@ -484,16 +547,17 @@ describe("s3.db.record", () => {
       route: "uploads",
       key: copy.key,
       folderId: docs.id,
-      filename: "plan (copy).pdf",
+      name: "plan (copy).pdf",
       contentType: "application/pdf",
       size,
       status: "active",
       eTag: "e1",
       uploadToken: null,
     });
-    await expect(setup.instance.db.objects.getUsage("user:1")).resolves.toEqual(
-      { totalBytes: size, objectCount: 1 },
-    );
+    await expect(setup.instance.db.objects.usage("user:1")).resolves.toEqual({
+      totalBytes: size,
+      objectCount: 1,
+    });
   });
 
   it("rejects a key outside the route namespace before HeadObject", async () => {
@@ -516,12 +580,22 @@ describe("s3.db.record", () => {
     await expect(setup.instance.db.record(copy)).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
+    // The rule of an uploaded file name: 255 UTF-8 bytes at most.
     await expect(
-      setup.instance.db.record({ ...copy, name: "a/b.pdf" }, asUser("1")),
+      setup.instance.db.record(
+        { ...copy, name: `${"a".repeat(252)}.pdf` },
+        asUser("1"),
+      ),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: { issue: expect.stringContaining("[name]") },
+    });
+    await expect(
+      setup.instance.db.record({ ...copy, name: "   " }, asUser("1")),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     await expect(
       setup.instance.db.record({ ...copy, route: "missing" }, asUser("1")),
-    ).rejects.toMatchObject({ code: "UNKNOWN_ROUTE" });
+    ).rejects.toMatchObject({ code: "ROUTE_NOT_FOUND" });
   });
 
   it("rejects a caller authorize does not allow, before HeadObject", async () => {
@@ -603,7 +677,7 @@ describe("s3.db.record", () => {
 
     expect(row.status).toBe("active");
     expect(row.id).not.toBe(deleted.id);
-    expect(row.filename).toBe("plan (copy).pdf");
+    expect(row.name).toBe("plan (copy).pdf");
   });
 
   it("leaves the object when it is empty or does not fit the quota", async () => {
@@ -647,9 +721,10 @@ describe("s3.db.record", () => {
     );
 
     expect(second).toEqual(first);
-    await expect(setup.instance.db.objects.getUsage("user:1")).resolves.toEqual(
-      { totalBytes: first.size, objectCount: 1 },
-    );
+    await expect(setup.instance.db.objects.usage("user:1")).resolves.toEqual({
+      totalBytes: first.size,
+      objectCount: 1,
+    });
   });
 
   it("uses the key's last segment when no name is given", async () => {
@@ -661,7 +736,29 @@ describe("s3.db.record", () => {
         { route: "uploads", key: "uploads/id/plan.pdf" },
         asUser("1"),
       ),
-    ).resolves.toMatchObject({ filename: "plan.pdf" });
+    ).resolves.toMatchObject({ name: "plan.pdf" });
+  });
+
+  it("fits a long last segment to the file name rule", async () => {
+    const setup = createSetup();
+    const key = `uploads/${"a".repeat(300)}.pdf`;
+    await putObject(setup, key);
+
+    const row = await setup.instance.db.record(
+      { route: "uploads", key },
+      asUser("1"),
+    );
+    expect(new TextEncoder().encode(row.name).byteLength).toBe(255);
+    expect(row.name.endsWith(".pdf")).toBe(true);
+  });
+
+  it("takes a name with a slash, like an uploaded file name", async () => {
+    const setup = createSetup();
+    await putObject(setup, copy.key);
+
+    await expect(
+      setup.instance.db.record({ ...copy, name: "2024/plan.pdf" }, asUser("1")),
+    ).resolves.toMatchObject({ name: "2024/plan.pdf" });
   });
 
   it("runs the route guard before HeadObject", async () => {

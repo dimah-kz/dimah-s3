@@ -68,16 +68,22 @@ the [cleanup helpers](#cleaning-up-uploads) come from
 - **Guards** run instance, then route, then feature (`upload.guard`,
   `download.guard`, …). At each level, plugin guards run first in plugin
   order, and your guard runs last.
-- **Lifecycle hooks** (`onStart`, `onConfirmed`, `onPresigned`, `onDeleted`,
-  `onAbort`) also run plugins first, then yours. Your hook sees state the
-  plugins already wrote, such as the `db()` row.
+- **Lifecycle hooks** (`onStart`, `onConfirmed`, `onRejected`,
+  `onPresigned`, `onDeleted`, `onAbort`) also run plugins first, then yours.
+  Your hook sees state the plugins already wrote, such as the `db()` row.
 - A route with `plugins: { [id]: false }` skips that plugin's route hooks.
 
-A rejection (`4xx`) from a plugin `onConfirmed` deletes the object and
-returns the error: the plugin refused it. Any other throw, such as a
-database outage, keeps the object so the client can retry, and a throw from
-yours keeps it too. `init` must be synchronous: a returned promise throws
-at `dimahS3()`.
+A rejection (`4xx`) from a plugin `onConfirmed` deletes the object, runs
+`onRejected`, and returns the error: the plugin refused it. Any other throw,
+such as a database outage, keeps the object so the client can retry, and a
+throw from yours keeps it too.
+
+A plugin that records an upload in `onStart` adds `upload.onRejected` to
+undo it when confirm refuses the object. Every `onRejected` hook runs, also
+after an earlier one threw; a throw is logged and passed to `onError`, and
+the client still gets the rejection.
+
+`init` must be synchronous: a returned promise throws at `dimahS3()`.
 See [Upload Hooks](/docs/server/hooks/upload#failure-rules).
 
 ### Binding tickets
@@ -94,9 +100,9 @@ binds tickets to the scope this way.
 `createS3Endpoint(path, options, handler)` builds a plugin endpoint. The path
 is under `basePath` and must not be a core path.
 
-- `method` is `GET`, `POST`, `PATCH`, or `DELETE`. `GET` and `DELETE` read the
-  `query`. `POST` and `PATCH` read a JSON `body`; any other content type
-  returns `415 UNSUPPORTED_MEDIA_TYPE`.
+- `method` is `GET`, `POST`, `PUT`, `PATCH`, or `DELETE`. `GET` and `DELETE`
+  read the `query`. `POST`, `PUT`, and `PATCH` read a JSON `body`; any other
+  content type returns `415 UNSUPPORTED_MEDIA_TYPE`.
 - The instance guards run first, with `operation: "plugin"`. The handler
   reads `ctx.context.request`, `ctx.context.locals` (what those guards
   returned), and `ctx.context.config`.
@@ -169,6 +175,17 @@ async function removeUpload(client: S3Client, row: TrackedUpload) {
 - `isAwsNotFound(error)` is true for a missing object or multipart upload,
   by error name, `Code`, or HTTP status.
 
+Three more helpers read what the server wrote or enforce what a route allows:
+
+- `readObjectMetadata(metadata)` splits HeadObject `Metadata` into the decoded
+  user `metadata`, the `uploadToken`, and the `previousKey`.
+- `assertFileConstraints({ fileTypes, maxFileSize }, { name, size, type })`
+  throws the same `FILE_TYPE_NOT_ALLOWED`, `FILE_EMPTY`, or `FILE_TOO_LARGE`
+  the server throws for an upload. Use it for an object your plugin takes in
+  another way, as `s3.db.record` does.
+- `isFeatureOn(toggle)` is true for `true` or an options object, the way
+  route features (`upload`, `download`, `delete`) are switched on.
+
 ---
 
 ## Startup and route options
@@ -213,12 +230,22 @@ avatar: route({
 
 ```ts
 import type {
+  ConditionalDeleteInput,
   DimahS3Plugin,
   DimahS3PluginHooks,
+  FileConstraints,
+  PluginContextMap,
   PluginInitEnv,
+  S3Endpoint,
   S3EndpointContext,
+  S3EndpointMethod,
+  S3EndpointOptions,
 } from "@dimah-s3/server/plugins";
 ```
+
+`S3Endpoint`, `S3EndpointMethod`, and `S3EndpointOptions` type what
+`createS3Endpoint` takes and returns. `PluginContextMap<Plugins>` maps a
+plugin list to the contexts on `s3.context`.
 
 ### DimahS3Plugin
 
@@ -265,10 +292,13 @@ Create a client plugin with `defineClientPlugin` from `@dimah-s3/core`. Use
 
 ```ts
 import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
+import type { auditPlugin } from "./s3-audit-plugin";
 
 export function auditClient() {
   return defineClientPlugin({
     id: "audit",
+    // Type only: fails to compile when the two ids differ.
+    $InferServerPlugin: {} as typeof auditPlugin,
     getActions: ($fetch) => ({
       recent: (limit?: number) =>
         $fetch(pluginPath("audit", "recent"), {
@@ -279,6 +309,9 @@ export function auditClient() {
   });
 }
 ```
+
+Pass it to `createS3Client({ plugins: [auditClient()] })`, and the actions
+are on `api.audit`.
 
 </Accordion>
 

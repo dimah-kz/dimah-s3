@@ -156,7 +156,7 @@ const hash = await sha256Blob(file);
 
 // Public CDN URL. It does not sign; use it for public-read objects only.
 const url = buildPublicObjectUrl({
-  baseUrl: "https://cdn.example.com",
+  baseURL: "https://cdn.example.com",
   key: "avatar/uuid/avatar.png",
 });
 ```

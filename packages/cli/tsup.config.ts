@@ -4,12 +4,11 @@ import { packageConfig } from "@workspace/tsup-config";
 const SHEBANG = "#!/usr/bin/env node\n";
 
 export default packageConfig({
-  entry: {
-    index: "src/index.ts",
-    "snapshot/transform": "src/snapshot/transform.ts",
-  },
+  // Only the bin is published. The snapshot script reads
+  // `src/snapshot/transform.ts` as source.
+  entry: { index: "src/index.ts" },
   platform: "node",
-  target: "node20",
+  target: "node22",
   async onSuccess() {
     const indexPath = "dist/index.js";
     const content = readFileSync(indexPath, "utf8");

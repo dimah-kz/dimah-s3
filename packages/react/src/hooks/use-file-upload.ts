@@ -36,6 +36,7 @@ import {
   runStartCallback,
 } from "@/internal/callbacks";
 import { requireApi, toClientError } from "@/internal/client-error";
+import { concurrencyLimit } from "@/internal/pool";
 import { freeUploadSlots, reserveUploadSlots } from "@/internal/upload-limits";
 import type { TransferProgress } from "@/types/operation";
 import type {
@@ -91,12 +92,15 @@ export type UseFileUploadReturn = {
   ) => Promise<UploadBatchResult>;
   /** Uploads the failed files `ids` again, or every failed file. */
   retry: (ids?: string | readonly string[]) => Promise<UploadBatchResult>;
-  /** Cancels one file by `id`, or every file and preparing call. */
-  cancel: (id?: string) => void;
+  /** Cancels the files `ids`, or every file and preparing call. */
+  cancel: (ids?: string | readonly string[]) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
   detach: () => void;
-  /** Removes settled files and rejections. Running files keep going. */
-  reset: () => void;
+  /**
+   * Removes the settled files `ids`, or every settled file and the
+   * rejections. Running files keep going.
+   */
+  reset: (ids?: string | readonly string[]) => void;
 };
 
 /**
@@ -165,13 +169,20 @@ type FileOutcome =
   | { status: "error"; file: File; error: APIError }
   | { status: "aborted"; file: File };
 
-/** What a call settled before any file entered the queue. */
-type Prepared =
+/**
+ * What a call settled before any file entered the queue. `files` are the
+ * ones still in the call; `rejected` are the ones validation refused.
+ */
+type Prepared = { rejected: FileRejection[] } & (
   | { status: "ready"; files: File[]; policy: EnginePolicy }
   | { status: "rejected" }
   | { status: "blocked"; files: File[] }
   | { status: "aborted"; files: File[] }
-  | { status: "error"; files: File[]; error: APIError };
+  | { status: "error"; files: File[]; error: APIError }
+);
+
+/** The options of one `upload` call. A retry sends them again under its `id`. */
+type EntryCall = { id: number; options: UploadCallOptions };
 
 type EnginePolicy = { multipart: boolean; checksum: boolean };
 
@@ -210,8 +221,9 @@ function createUploadQueue(
   const tasks = new Map<string, Task>();
   const waiting: Task[] = [];
   const preparingCalls = new Set<AbortController>();
-  /** The call options each entry was added with, which `retry` sends again. */
-  const entryCalls = new Map<string, UploadCallOptions>();
+  /** The call each entry was added by, which `retry` sends again. */
+  const entryCalls = new Map<string, EntryCall>();
+  let callCount = 0;
   /** Entries a retry put back in the queue, by id, while its call prepares. */
   const retrying = new Map<string, AbortController>();
   let running = 0;
@@ -301,9 +313,9 @@ function createUploadQueue(
   }
 
   function pump() {
-    const limit = Math.max(
-      1,
-      latest.options.concurrentFiles ?? DEFAULT_CONCURRENT_FILES,
+    const limit = concurrencyLimit(
+      latest.options.concurrentFiles,
+      DEFAULT_CONCURRENT_FILES,
     );
     while (running < limit && waiting.length > 0) {
       const task = waiting.shift();
@@ -399,6 +411,7 @@ function createUploadQueue(
     signal: AbortSignal,
   ): Promise<Prepared> {
     let pending = files;
+    const rejected: FileRejection[] = [];
     try {
       let catalog: RouteCatalogResponse;
       try {
@@ -406,7 +419,12 @@ function createUploadQueue(
       } catch (error) {
         if (signal.aborted) throw error;
         commit({ fileRejections: [] });
-        return { status: "error", files, error: toClientError(error) };
+        return {
+          status: "error",
+          files,
+          error: toClientError(error),
+          rejected,
+        };
       }
 
       const policy = mergeRouteUploadPolicy(
@@ -418,7 +436,6 @@ function createUploadQueue(
         },
       );
       const accepted: File[] = [];
-      const rejected: FileRejection[] = [];
       for (const file of files) {
         const error =
           validateFile(file, policy) ??
@@ -430,7 +447,7 @@ function createUploadQueue(
       }
       commit({ fileRejections: rejected });
       if (rejected.length > 0) notify(latest.options.onFileReject, rejected);
-      if (accepted.length === 0) return { status: "rejected" };
+      if (accepted.length === 0) return { status: "rejected", rejected };
       pending = accepted;
 
       const before = await abortable(
@@ -442,7 +459,7 @@ function createUploadQueue(
         signal,
       );
       if (before.status === "blocked") {
-        return { status: "blocked", files: accepted };
+        return { status: "blocked", files: accepted, rejected };
       }
       const error =
         before.status === "error"
@@ -452,29 +469,32 @@ function createUploadQueue(
               latest.options.onUploadStart,
               accepted,
             );
-      if (error) return { status: "error", files: accepted, error };
+      if (error) return { status: "error", files: accepted, error, rejected };
       return {
         status: "ready",
         files: accepted,
         policy: { multipart: policy.multipart, checksum: policy.checksum },
+        rejected,
       };
     } catch (error) {
-      if (signal.aborted) return { status: "aborted", files: pending };
+      if (signal.aborted) {
+        return { status: "aborted", files: pending, rejected };
+      }
       throw error;
     }
   }
 
   /**
    * Adds entries. A call that starts uploading (`replace`) replaces the queue
-   * unless it queues; a failed call only appends its rows.
+   * unless it appends; a failed call only adds its rows.
    */
   function enqueue(
     entries: UploadFileState[],
-    call: UploadCallOptions,
+    call: EntryCall,
     options: UseFileUploadOptions,
     replace: boolean,
   ) {
-    if (replace && !queues(call, options)) {
+    if (replace && !appends(call.options, options)) {
       for (const task of tasks.values()) {
         abortTask(task, uploadAbortReason("cancel"));
       }
@@ -488,14 +508,11 @@ function createUploadQueue(
     input: readonly File[],
     call: UploadCallOptions = {},
   ): Promise<UploadBatchResult> {
-    return startCall([...input], call, []);
+    return startCall([...input], { id: ++callCount, options: call }, []);
   }
 
   function retry(ids?: string | readonly string[]): Promise<UploadBatchResult> {
-    const wanted =
-      ids === undefined
-        ? null
-        : new Set<string>(typeof ids === "string" ? [ids] : ids);
+    const wanted = ids === undefined ? null : new Set(toIds(ids));
     const failed = snapshot.files
       .filter(
         (entry) => entry.phase === "error" && (wanted?.has(entry.id) ?? true),
@@ -503,13 +520,23 @@ function createUploadQueue(
       // Under a limit, only the failed files that fit go again.
       .slice(0, freeUploadSlots(instanceId, snapshot.files));
     if (failed.length === 0) return Promise.resolve(batchResult([]));
-    // Each file goes again with the options of the call it came from.
-    const calls = Map.groupBy(
-      failed,
-      (entry) => entryCalls.get(entry.id) ?? {},
-    );
+    // Each file goes again with the call it came from. Files are grouped by
+    // the call, not by its options object, which two calls may share.
+    const calls = new Map<
+      number,
+      { call: EntryCall; entries: UploadFileState[] }
+    >();
+    for (const entry of failed) {
+      const call = entryCalls.get(entry.id) ?? {
+        id: ++callCount,
+        options: {},
+      };
+      const group = calls.get(call.id);
+      if (group) group.entries.push(entry);
+      else calls.set(call.id, { call, entries: [entry] });
+    }
     return Promise.all(
-      [...calls].map(([call, entries]) =>
+      Array.from(calls.values(), ({ call, entries }) =>
         startCall(
           entries.map((entry) => entry.file),
           call,
@@ -527,15 +554,16 @@ function createUploadQueue(
    */
   async function startCall(
     files: File[],
-    call: UploadCallOptions,
+    entryCall: EntryCall,
     retried: readonly UploadFileState[],
   ): Promise<UploadBatchResult> {
     const { options } = latest;
+    const call = entryCall.options;
     const api = requireApi(options.api ?? latest.contextApi, "useUpload");
     if (files.length === 0) return settle(batchResult([]));
 
     const controller = new AbortController();
-    if (!queues(call, options) && retried.length === 0) {
+    if (!appends(call, options) && retried.length === 0) {
       // This call replaces the queue, so an older call still preparing must
       // not enqueue over it once it finishes.
       const reason = uploadAbortReason("cancel");
@@ -592,11 +620,12 @@ function createUploadQueue(
       removeFiles((entry) => previous.has(entry.id) && !kept.has(entry.id));
     };
 
+    const { rejected } = prepared;
     let outcomes: FileOutcome[];
     switch (prepared.status) {
       case "rejected":
         dropRetried();
-        return settle(batchResult([]));
+        return settle(batchResult([], { rejected }));
       case "blocked": {
         // A blocked retry leaves each file as it failed.
         const restored = new Set<string>();
@@ -608,13 +637,14 @@ function createUploadQueue(
           restored.has(entry.id) ? previous.get(entry.id) : undefined,
         );
         dropRetried(restored);
-        return settle(batchResult([], prepared.files));
+        return settle(batchResult([], { rejected, blocked: prepared.files }));
       }
       case "aborted":
         dropRetried();
         return settle(
           batchResult(
             prepared.files.map((file) => ({ status: "aborted", file })),
+            { rejected },
           ),
         );
       case "error": {
@@ -627,7 +657,7 @@ function createUploadQueue(
               phase: "error",
               error,
             })),
-            call,
+            entryCall,
             options,
             false,
           );
@@ -671,7 +701,7 @@ function createUploadQueue(
         let scheduled: Promise<FileOutcome>[];
         if (retried.length === 0) {
           const entries = prepared.files.map(createEntry);
-          enqueue(entries, call, options, true);
+          enqueue(entries, entryCall, options, true);
           scheduled = entries.map((entry) => schedule(entry, config));
         } else {
           const kept = new Set<string>();
@@ -710,7 +740,7 @@ function createUploadQueue(
         break;
       }
     }
-    return settle(batchResult(outcomes));
+    return settle(batchResult(outcomes, { rejected }));
   }
 
   async function settle(result: UploadBatchResult) {
@@ -734,12 +764,16 @@ function createUploadQueue(
     return snapshot;
   }
 
-  function cancel(id?: string) {
+  function cancel(ids?: string | readonly string[]) {
     const reason = uploadAbortReason("cancel");
-    if (id === undefined) {
+    if (ids === undefined) {
       abortAll(reason);
       return;
     }
+    for (const id of toIds(ids)) cancelFile(id, reason);
+  }
+
+  function cancelFile(id: string, reason: DOMException) {
     const task = tasks.get(id);
     if (task) {
       abortTask(task, reason);
@@ -758,9 +792,15 @@ function createUploadQueue(
     abortAll(uploadAbortReason("detach"));
   }
 
-  function reset() {
-    removeFiles((entry) => !ACTIVE_PHASES.has(entry.phase));
-    if (snapshot.fileRejections.length > 0) commit({ fileRejections: [] });
+  function reset(ids?: string | readonly string[]) {
+    const wanted = ids === undefined ? null : new Set(toIds(ids));
+    removeFiles(
+      (entry) =>
+        !ACTIVE_PHASES.has(entry.phase) && (wanted?.has(entry.id) ?? true),
+    );
+    if (wanted === null && snapshot.fileRejections.length > 0) {
+      commit({ fileRejections: [] });
+    }
   }
 
   /**
@@ -791,14 +831,24 @@ function createUploadQueue(
   };
 }
 
-/** Whether a call appends to the queue: its own `queue`, else the hook's. */
-function queues(call: UploadCallOptions, options: UseFileUploadOptions) {
-  return call.queue ?? options.queue ?? false;
+/** Whether a call adds to the queue: its own `append`, else the hook's. */
+function appends(call: UploadCallOptions, options: UseFileUploadOptions) {
+  return call.append ?? options.append ?? false;
 }
+
+function toIds(ids: string | readonly string[]): readonly string[] {
+  return typeof ids === "string" ? [ids] : ids;
+}
+
+/**
+ * Ids are a page-wide count, not `crypto.randomUUID()`, which only exists
+ * on secure origins (a phone on `http://192.168.…` has none).
+ */
+let entryCount = 0;
 
 function createEntry(file: File): UploadFileState {
   return {
-    id: crypto.randomUUID(),
+    id: `upload-${++entryCount}`,
     file,
     fileName: file.name,
     fileSize: file.size,
@@ -824,12 +874,13 @@ function requeued(entry: UploadFileState): UploadFileState {
 
 function batchResult(
   outcomes: readonly FileOutcome[],
-  blocked: File[] = [],
+  early: { rejected?: FileRejection[]; blocked?: File[] } = {},
 ): UploadBatchResult {
   const result: UploadBatchResult = {
     uploaded: [],
     failed: [],
-    blocked,
+    rejected: early.rejected ?? [],
+    blocked: early.blocked ?? [],
     aborted: [],
   };
   for (const outcome of outcomes) {
@@ -850,6 +901,7 @@ function mergeBatchResults(
   return {
     uploaded: results.flatMap((result) => result.uploaded),
     failed: results.flatMap((result) => result.failed),
+    rejected: results.flatMap((result) => result.rejected),
     blocked: results.flatMap((result) => result.blocked),
     aborted: results.flatMap((result) => result.aborted),
   };

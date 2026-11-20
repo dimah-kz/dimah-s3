@@ -111,7 +111,7 @@ export {
   useObjectListEntry,
   type ObjectListContextValue,
   type ObjectListFeedback,
-  type ObjectListPagination,
+  type ObjectListPaginationMode,
   type ObjectListRenderers,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
@@ -121,15 +121,22 @@ export {
   ObjectListSelectionBar,
   ObjectListBulkDelete,
   ObjectListNewFolder,
+  type ObjectListBulkDeleteProps,
   type ObjectListHeaderProps,
+  type ObjectListSelectAllProps,
   type ObjectListSelectionBarProps,
   type ObjectListNewFolderProps,
 } from "@/components/dimah-s3/list/object-list-header";
-export { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
+export {
+  ObjectListBreadcrumb,
+  type ObjectListBreadcrumbProps,
+} from "@/components/dimah-s3/list/object-list-breadcrumb";
 export {
   ObjectListSortMenu,
   ObjectListViewToggle,
+  type ObjectListSortMenuProps,
   type ObjectListSortOption,
+  type ObjectListViewToggleProps,
 } from "@/components/dimah-s3/list/object-list-controls";
 export {
   ObjectListLocation,
@@ -139,24 +146,36 @@ export {
   type ObjectListSearchBarProps,
   type ObjectListSearchProps,
 } from "@/components/dimah-s3/list/object-list-search";
-export { ObjectListContent } from "@/components/dimah-s3/list/object-list-content";
+export {
+  ObjectListContent,
+  type ObjectListContentProps,
+} from "@/components/dimah-s3/list/object-list-content";
 export {
   ObjectListRow,
   ObjectListTile,
   ObjectListCheckbox,
+  type ObjectListCheckboxProps,
   type ObjectListEntryProps,
 } from "@/components/dimah-s3/list/object-list-entry";
 export {
   ObjectListEmpty,
   type ObjectListEmptyProps,
 } from "@/components/dimah-s3/list/object-list-states";
-export { ObjectListUsage } from "@/components/dimah-s3/list/object-list-usage";
-export { ObjectListUploadStatus } from "@/components/dimah-s3/list/object-list-upload";
 export {
-  ObjectListItemMenu,
-  type ObjectListMenuAction,
-  type ObjectListItemMenuProps,
-} from "@/components/dimah-s3/list/object-list-item-menu";
+  ObjectListUsage,
+  type ObjectListUsageProps,
+} from "@/components/dimah-s3/list/object-list-usage";
+export {
+  ObjectListUploadStatus,
+  type ObjectListUploadStatusProps,
+} from "@/components/dimah-s3/list/object-list-upload";
+export {
+  ObjectListEntryMenu,
+  ObjectListEntryMenuItem,
+  type ObjectListEntryMenuAction,
+  type ObjectListEntryMenuItemProps,
+  type ObjectListEntryMenuProps,
+} from "@/components/dimah-s3/list/object-list-entry-menu";
 export {
   FileAttachment,
   type FileAttachmentProps,

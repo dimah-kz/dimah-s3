@@ -1,4 +1,5 @@
 import { AbortMultipartUploadCommand, type S3Client } from "@aws-sdk/client-s3";
+import { s3Error } from "@dimah-s3/core";
 import type {
   DeleteOnDeletedContext,
   MultipartGuardContext,
@@ -6,6 +7,7 @@ import type {
   S3Operation,
   UploadConfirmGuardContext,
   UploadOnConfirmedContext,
+  UploadOnRejectedContext,
   UploadOnStartContext,
 } from "@dimah-s3/server";
 import { describe, expect, it, vi } from "vitest";
@@ -45,6 +47,7 @@ function setup(options: SetupOptions = {}) {
     resolveScope,
     access: createObjectAccess({
       objects: store.objects,
+      folders: store.folders,
       resolveScope,
       authorize: options.authorize,
     }),
@@ -83,7 +86,7 @@ function startContext(
 ): UploadOnStartContext {
   return {
     ...objectContext("upload"),
-    kind: "put",
+    kind: "presignedPut",
     file: { name: "a.txt", size: 10, type: "text/plain" },
     acl: "private",
     uploadToken: "t1",
@@ -97,7 +100,7 @@ function confirmContext(
 ): UploadConfirmGuardContext {
   return {
     ...objectContext("confirm"),
-    kind: "put",
+    kind: "presignedPut",
     uploadToken: "t1",
     file: { name: "a.txt", size: 10, type: "text/plain" },
     acl: "private",
@@ -117,7 +120,7 @@ function confirmedContext(
 ): UploadOnConfirmedContext {
   return {
     ...objectContext("confirm"),
-    kind: "put",
+    kind: "presignedPut",
     uploadToken: "t1",
     file: { name: "a.txt", size: 12, type: "text/plain" },
     acl: "private",
@@ -133,7 +136,7 @@ function confirmedContext(
 }
 
 function multipartContext(
-  action: "part" | "list" | "abort" | "complete",
+  step: "part" | "list" | "abort" | "complete",
 ): MultipartGuardContext {
   const base = {
     ...objectContext("multipart.signPart"),
@@ -141,9 +144,22 @@ function multipartContext(
     uploadToken: "t1",
     file: { name: "a.bin", size: 100 },
   };
-  return action === "part"
-    ? { ...base, action, partNumber: 1, size: 100 }
-    : { ...base, action };
+  if (step === "part") {
+    return {
+      ...base,
+      operation: "multipart.signPart",
+      partNumber: 1,
+      size: 100,
+    };
+  }
+  const operation = (
+    {
+      list: "multipart.listParts",
+      abort: "multipart.abort",
+      complete: "multipart.complete",
+    } as const
+  )[step];
+  return { ...base, operation };
 }
 
 /** A pending row of upload `t1`, as `onStart` writes it. */
@@ -381,7 +397,7 @@ describe("createDatabaseLifecycleHooks", () => {
         route: "uploads",
         status: "pending",
         folderId: null,
-        filename: "a.txt",
+        name: "a.txt",
         contentType: "text/plain",
         declaredSize: 10,
         acl: "private",
@@ -648,7 +664,7 @@ describe("createDatabaseLifecycleHooks", () => {
       });
     });
 
-    it("checks the quota against the verified size and drops the row", async () => {
+    it("checks the quota against the verified size", async () => {
       const { hooks, insert, row } = setup({ quota: { maxBytes: 20 } });
       await insert({ key: "other", size: 10 });
       await insert({ ...pendingRow, declaredSize: 10 });
@@ -663,7 +679,8 @@ describe("createDatabaseLifecycleHooks", () => {
         code: "QUOTA_EXCEEDED",
         params: { limit: "bytes" },
       });
-      await expect(row()).resolves.toBeNull();
+      // The server deletes the object next and runs `onRejected` for the row.
+      await expect(row()).resolves.toMatchObject({ status: "pending" });
     });
 
     it("confirms an overwrite in place and quota-checks it without the old size", async () => {
@@ -680,15 +697,59 @@ describe("createDatabaseLifecycleHooks", () => {
       });
     });
 
-    it("drops an overwritten row when the verified size breaks the quota", async () => {
-      const { hooks, insert, row } = setup({ quota: { maxBytes: 11 } });
+    it("rejects an overwrite whose verified size breaks the quota", async () => {
+      const { hooks, insert } = setup({ quota: { maxBytes: 11 } });
       await insert(overwrittenRow);
 
-      // The server deletes the overwrite's object, which already replaced the old one.
       await expect(
         defined(hooks.upload?.onConfirmed)(confirmedContext()),
       ).rejects.toMatchObject({ code: "QUOTA_EXCEEDED" });
+    });
+  });
+
+  describe("upload.onRejected", () => {
+    const rejected = (overrides: Partial<UploadOnRejectedContext> = {}) => ({
+      ...objectContext("confirm"),
+      kind: "presignedPut" as const,
+      uploadToken: "t1",
+      file: { name: "a.txt", size: 10, type: "text/plain" },
+      acl: "private" as const,
+      error: s3Error("UPLOAD_SIZE_MISMATCH", { expected: 10, actual: 4 }),
+      ...overrides,
+    });
+
+    it("removes the pending row of the refused upload", async () => {
+      const { hooks, insert, row } = setup();
+      await insert(pendingRow);
+
+      await defined(hooks.upload?.onRejected)(rejected());
       await expect(row()).resolves.toBeNull();
+    });
+
+    it("removes an active row the refused upload was overwriting", async () => {
+      const { hooks, insert, row } = setup();
+      await insert(overwrittenRow);
+
+      // The upload's bytes already replaced the old object, and the server
+      // deleted them: the row would list an object that is gone.
+      await defined(hooks.upload?.onRejected)(rejected());
+      await expect(row()).resolves.toBeNull();
+    });
+
+    it("leaves the row of another upload at the key alone", async () => {
+      const { hooks, insert, row } = setup();
+      await insert({ ...pendingRow, uploadToken: "t2" });
+
+      await defined(hooks.upload?.onRejected)(rejected());
+      await expect(row()).resolves.toMatchObject({ uploadToken: "t2" });
+    });
+
+    it("leaves a confirmed row alone", async () => {
+      const { hooks, insert, row } = setup();
+      await insert({ status: "active", size: 10, uploadToken: "t1" });
+
+      await defined(hooks.upload?.onRejected)(rejected());
+      await expect(row()).resolves.toMatchObject({ status: "active" });
     });
   });
 

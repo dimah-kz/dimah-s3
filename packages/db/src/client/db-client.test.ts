@@ -38,7 +38,7 @@ const object: DbClientObject = {
   key: "users/1/notes.md",
   route: "docs",
   folderId: "work",
-  filename: "Notes.md",
+  name: "Notes.md",
   contentType: "text/markdown",
   size: 4096,
   declaredSize: 4096,
@@ -121,7 +121,7 @@ describe("dbClient", () => {
     await api.db.updateObject({
       key: object.key,
       folderId: null,
-      filename: "a.md",
+      name: "a.md",
     });
 
     expect(calls[0]?.init.method).toBe("PATCH");
@@ -129,7 +129,7 @@ describe("dbClient", () => {
     expect(jsonBody(calls[0]?.init)).toEqual({
       key: object.key,
       folderId: null,
-      filename: "a.md",
+      name: "a.md",
     });
   });
 

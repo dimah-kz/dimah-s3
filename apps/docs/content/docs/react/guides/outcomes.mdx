@@ -36,13 +36,14 @@ if (outcome.status === "error") {
 
 Batch actions resolve with one result that sorts every unit:
 
-| Action                    | Result                                           |
-| ------------------------- | ------------------------------------------------ |
-| `useUpload().handleFiles` | `{ uploaded, failed, blocked, aborted }` by file |
-| `useDelete().removeMany`  | `{ deleted, failed, blocked }` by key            |
+| Action                    | Result                                                     |
+| ------------------------- | ---------------------------------------------------------- |
+| `useUpload().handleFiles` | `{ uploaded, failed, rejected, blocked, aborted }` by file |
+| `useDelete().removeMany`  | `{ deleted, failed, blocked }` by key                      |
 
 `failed` entries pair the unit with its `APIError`, such as
-`{ key, error }`.
+`{ key, error }`. An upload's `rejected` entries are the files the policy
+refused before upload, each as `{ file, errors }`.
 
 ## Joined calls
 
@@ -60,8 +61,9 @@ Every hook runs its callbacks the same way:
 3. **`onError`** runs once per failed unit, then **`onSuccess`** once per successful unit.
 4. **`onSettled`** runs once per call, last.
 
-`onSuccess`, `onSettled`, and the other after-hooks are awaited. If one throws,
-the error goes to the global `reportError` and the outcome does not change.
+`onError`, `onSuccess`, and `onSettled` may be async and are awaited. They are
+the ones of the newest render, so they see current state. If one throws, the
+error goes to the global `reportError` and the outcome does not change.
 
 ## Errors
 
@@ -78,11 +80,11 @@ browser only:
 | Code              | When                                                         |
 | ----------------- | ------------------------------------------------------------ |
 | `TOO_MANY_FILES`  | A call has more valid files than `maxFiles`.                 |
-| `HOOK_FAILED`     | A `before*` or `on*Start` callback threw.                    |
+| `HOOK_FAILED`     | A `before*`, `on*Start`, or `uploadOptions` function threw.  |
 | `NETWORK_ERROR`   | A request got no response.                                   |
 | `UPLOAD_FAILED`   | S3 rejected an upload. `params.status` is S3's status.       |
 | `DOWNLOAD_FAILED` | A fetch download got a non-2xx response.                     |
-| `PARTIAL_FAILURE` | `upload.error` when more than one file failed.               |
+| `PARTIAL_FAILURE` | `upload.error` when two or more files failed, or all did.    |
 | `UNKNOWN_ERROR`   | Anything that is not an `APIError`. The original is `cause`. |
 
 The full table is in [Errors](/docs/server/errors).

@@ -39,6 +39,14 @@ import { ObjectCard } from "@dimah-s3/ui";
 npx shadcn@latest add @dimah-s3/object-card
 ```
 
+The registry copies each part into its own file under
+`components/dimah-s3/`. The examples on this page import from
+`@dimah-s3/ui`; import the same names from those files instead:
+
+```tsx
+import { ObjectCard } from "@/components/dimah-s3/preview/object-card";
+```
+
 </Tab>
 
 </Tabs>

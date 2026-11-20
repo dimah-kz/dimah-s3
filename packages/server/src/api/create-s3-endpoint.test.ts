@@ -153,14 +153,35 @@ describe("createS3Endpoint: methods", () => {
     await expect(res.json()).resolves.toEqual({ limit: 5 });
   });
 
-  it.each(["PUT", "HEAD", "*"])("rejects the %s method", (method) => {
+  it.each(["HEAD", "OPTIONS", "*"])("rejects the %s method", (method) => {
     expect(() =>
       createS3Endpoint(
         "/files/x",
         { method } as unknown as S3EndpointOptions,
         async () => ({}),
       ),
-    ).toThrow(/GET, POST, PATCH or DELETE/);
+    ).toThrow(/GET, POST, PUT, PATCH or DELETE/);
+  });
+
+  it("reads a JSON body on PUT", async () => {
+    const handler = mount({
+      replace: createS3Endpoint(
+        "/files/x",
+        { method: "PUT", body: renameBody },
+        async (ctx) => ({ name: ctx.body.name }),
+      ),
+    });
+
+    const res = await handler(
+      new Request(apiUrl("/files/x"), {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ key: "a", name: "b" }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ name: "b" });
   });
 
   it("rejects a body schema on DELETE", () => {
@@ -523,8 +544,8 @@ describe("createS3Endpoint: types", () => {
 
   it("rejects methods and bodies the endpoint does not support", () => {
     expect(() =>
-      // @ts-expect-error -- PUT is not a dimah-s3 endpoint method
-      createS3Endpoint("/x", { method: "PUT" }, async () => ({})),
+      // @ts-expect-error -- HEAD is not a dimah-s3 endpoint method
+      createS3Endpoint("/x", { method: "HEAD" }, async () => ({})),
     ).toThrow();
     expect(() =>
       createS3Endpoint(

@@ -14,10 +14,10 @@ export type UploadResult = ConfirmedObjectResponse;
 /** Per-upload options sent to the presign API. */
 export type UploadRequestOptions = {
   /**
-   * Client extras sent to the server `object` callback as `clientMetadata`.
+   * Client extras the server hooks receive as `clientMetadata`.
    * Not written to S3 unless the route copies them into `object().metadata`.
    */
-  metadata?: Record<string, string>;
+  clientMetadata?: Record<string, string>;
   /** Overrides the browser's content type. */
   contentType?: string;
   /** Overrides the browser's file name. */
@@ -33,17 +33,18 @@ export type UploadRequestInput =
 
 /**
  * Options for one `handleFiles` call. Call `uploadOptions` shallow-merge over
- * the hook's: call fields win, and `metadata` merges key by key.
+ * the hook's: call fields win, and `clientMetadata` merges key by key.
  */
 export type UploadCallOptions = {
   uploadOptions?: UploadRequestInput;
   /** Lowers `maxFiles` for this call. */
   maxFiles?: number;
   /**
-   * Overrides the hook's `queue` for this call: `true` appends its files
-   * and leaves the files in flight alone, `false` replaces the queue.
+   * Overrides the hook's `append` for this call: `true` adds its files to
+   * the queue and leaves the files in flight alone, `false` replaces the
+   * queue.
    */
-  queue?: boolean;
+  append?: boolean;
 };
 
 /** Where one file is in its upload. */
@@ -95,6 +96,8 @@ export type UploadFileState = UploadFileInfo & {
 export type UploadBatchResult = {
   uploaded: { file: File; result: UploadResult }[];
   failed: { file: File; error: APIError }[];
+  /** Files refused before upload for their type, size or count. */
+  rejected: FileRejection[];
   /** Files a `beforeUpload` callback blocked. */
   blocked: File[];
   /** Files cancelled or detached before they finished. */
@@ -125,8 +128,8 @@ export type UploadLimit = {
 export type RetryConfig = {
   /** Retries per request after the first attempt. @default 3 */
   maxRetries?: number;
-  /** Base delay in ms for exponential backoff. @default 1000 */
-  baseDelay?: number;
+  /** First backoff delay in ms. Each retry doubles it. @default 1000 */
+  baseDelayMs?: number;
 };
 
 /** Options for `useUpload`. */
@@ -156,19 +159,19 @@ export type UseUploadOptions = {
   /** Request options for every file. A call's `uploadOptions` merge over them. */
   uploadOptions?: UploadRequestInput;
   /**
-   * `true` appends new files to the queue instead of replacing it. Without it,
+   * `true` adds new files to the queue instead of replacing it. Without it,
    * a new call cancels the calls still preparing, and replaces the queue once
    * its files start uploading. A call that is blocked, rejected or fails
    * before uploading leaves the queue alone.
    * @default false
    */
-  queue?: boolean;
+  append?: boolean;
   /**
    * Disables every intake interaction: the root, drop targets and paste, and
    * `open()` does nothing. `handleFiles` still uploads what it is given.
    */
   disabled?: boolean;
-  /** Disables drag and drop on the root. */
+  /** Disables drag and drop on the root and on drop targets. */
   noDrag?: boolean;
   /** Disables click-to-open on the root. */
   noClick?: boolean;
@@ -182,7 +185,7 @@ export type UseUploadOptions = {
   onProgress?: (progress: TransferProgress, file: File) => void;
   /** Runs after each multipart part is uploaded. */
   onPartUpload?: (
-    part: { partNumber: number; totalParts: number },
+    part: { partNumber: number; partCount: number },
     file: File,
   ) => void;
   /** Runs once a multipart upload has started or resumed. */
@@ -196,7 +199,7 @@ export type UseUploadOptions = {
    */
   onSuccess?: (result: UploadResult, file: File) => void | Promise<void>;
   /** Runs once per failed file, after every file of the call has ended. */
-  onError?: (error: APIError, file: File) => void;
+  onError?: (error: APIError, file: File) => void | Promise<void>;
   /**
    * Runs once per call, after every other callback, including a call with
    * no valid file.
@@ -248,7 +251,7 @@ export type UploadFileOptions = {
   signal?: AbortSignal;
   onProgress?: (progress: TransferProgress) => void;
   onPhaseChange?: (phase: UploadEnginePhase) => void;
-  onPartUpload?: (part: { partNumber: number; totalParts: number }) => void;
+  onPartUpload?: (part: { partNumber: number; partCount: number }) => void;
   onMultipartInit?: (session: { uploadId: string; key: string }) => void;
 };
 

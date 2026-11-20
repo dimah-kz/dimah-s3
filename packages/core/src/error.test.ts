@@ -148,7 +148,7 @@ describe("s3Error", () => {
 
   it("types params per code and fills only what it gets", () => {
     expectTypeOf<S3ErrorParams<"QUOTA_EXCEEDED">>().toEqualTypeOf<{
-      limit: "bytes" | "files";
+      limit: "bytes" | "files" | "folders";
     }>();
     expectTypeOf<S3ErrorParams<"FORBIDDEN">>().toEqualTypeOf<undefined>();
     expectTypeOf<S3ErrorShape<"HOOK_FAILED">["params"]>().toEqualTypeOf<

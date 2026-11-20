@@ -14,7 +14,7 @@ export function UploadTriggerVariantsDemo() {
     route: "uploads",
     maxFiles: 3,
     maxFileSize: 75 * 1024 * 1024,
-    queue: true,
+    append: true,
   });
 
   return (

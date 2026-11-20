@@ -31,6 +31,19 @@ export const SECRET_ENV_KEY = "DIMAH_S3_SECRET";
 export const DEV_SECRET =
   "dimah-s3-templates-build-dev-secret-not-for-production";
 
+/**
+ * Lockfiles a package manager may write into `templates/<id>/`. The root
+ * `.gitignore` keeps them out of this repository. A starter's own
+ * `.gitignore` must not list them: a scaffolded app commits its lockfile.
+ */
+export const LOCKFILES = [
+  "pnpm-lock.yaml",
+  "package-lock.json",
+  "yarn.lock",
+  "bun.lock",
+  "bun.lockb",
+];
+
 /** Local-only files and build output that never leave `templates/<id>/`. */
 export const TEMPLATE_COPY_EXCLUDE = new Set([
   "node_modules",
@@ -38,9 +51,7 @@ export const TEMPLATE_COPY_EXCLUDE = new Set([
   ".turbo",
   "dist",
   "dist-server",
-  "pnpm-lock.yaml",
-  "package-lock.json",
-  "yarn.lock",
+  ...LOCKFILES,
   "next-env.d.ts",
   ".vercel",
   ".DS_Store",
@@ -203,6 +214,25 @@ export function assertEnvExampleSecret(dir) {
   const value = (match[2] ?? "").replace(/\s+#.*$/, "").trim();
   if (value !== "" && value !== '""' && value !== "''") {
     throw new Error(`${path} must leave ${SECRET_ENV_KEY} empty`);
+  }
+}
+
+/**
+ * Fails when the starter's `.gitignore` ignores a lockfile. `create` ships
+ * that file to every new app, which must commit the lockfile it installs.
+ * @param {string} dir
+ */
+export function assertLockfilesNotIgnored(dir) {
+  const path = join(dir, ".gitignore");
+  if (!existsSync(path)) return;
+  const ignored = readFileSync(path, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^\//, ""))
+    .filter((line) => LOCKFILES.includes(line));
+  if (ignored.length > 0) {
+    throw new Error(
+      `${path} must not ignore ${ignored.join(", ")}: the root .gitignore covers templates/, and a scaffolded app commits its lockfile`,
+    );
   }
 }
 

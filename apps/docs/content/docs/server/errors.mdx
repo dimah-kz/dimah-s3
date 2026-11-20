@@ -18,6 +18,11 @@ Every failed request returns an HTTP status and a JSON body:
 Show users your own text: map `code` and `params` to it, as
 `useFormatError` does.
 
+The error helpers live in `@dimah-s3/core`. Server code imports them from
+`@dimah-s3/server`, which re-exports `APIError`, `s3Error`, `isAPIError`,
+`isS3ErrorCode`, and `S3_ERROR_CODES`. Browser code imports them from
+`@dimah-s3/core`.
+
 ## Throwing errors
 
 Throw `s3Error` with a catalog code to reject a call from a guard or hook.
@@ -53,7 +58,7 @@ throw APIError.from(402, {
 `createS3Client` and the React hooks reject with an `APIError`. Narrow it by
 code with `isS3ErrorCode`:
 
-```ts
+```ts title="Browser"
 import { isAPIError, isS3ErrorCode } from "@dimah-s3/core";
 
 try {
@@ -109,7 +114,11 @@ A throw from your `upload.onConfirmed`, even an `APIError`, returns
 `500 INTERNAL_ERROR` and keeps the object, so the client can retry the
 confirm. `onError` gets a wrapping `Error` with the original as `cause`.
 Reject content in `confirmGuard` instead; a rejection there deletes the
-object.
+object and runs [`upload.onRejected`](/docs/server/hooks/upload#when-an-upload-is-rejected).
+
+A throw from `upload.onRejected` never replaces the rejection the client
+gets. It is logged and reaches `onError` as an `Error` with the original as
+`cause`.
 
 ---
 
@@ -137,12 +146,15 @@ Use `useFormatError` from `@dimah-s3/react`. It maps each code and its
 
 ```tsx
 import { useDownload, useFormatError } from "@dimah-s3/react";
+import { toast } from "@dimah-s3/ui";
 
 const formatError = useFormatError();
 
 const { download } = useDownload({
   route: "avatar",
-  onError: (error) => toast.error(formatError(error)), // [!code ++]
+  onError: (error) => {
+    toast.add({ type: "error", title: formatError(error) }); // [!code ++]
+  },
 });
 ```
 

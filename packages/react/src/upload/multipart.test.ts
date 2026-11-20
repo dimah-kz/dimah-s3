@@ -7,7 +7,7 @@ import {
   type S3Api,
 } from "@dimah-s3/core";
 import { abortable } from "@/internal/abortable";
-import { createMemoryStore } from "@/store/memory-store";
+import { createMemoryUploadStore } from "@/store/memory-store";
 import { fakeS3Api } from "@/test/api";
 import type { UploadFileOptions } from "@/types/upload";
 import type { StoredUpload, UploadStore } from "@/types/upload-store";
@@ -122,8 +122,8 @@ describe("uploadMultipart", () => {
     await run(api, file, { onProgress, onPartUpload, concurrentParts: 1 });
 
     expect(onPartUpload.mock.calls).toEqual([
-      [{ partNumber: 1, totalParts: 2 }],
-      [{ partNumber: 2, totalParts: 2 }],
+      [{ partNumber: 1, partCount: 2 }],
+      [{ partNumber: 2, partCount: 2 }],
     ]);
     expect(onProgress).toHaveBeenLastCalledWith({
       loaded: file.size,
@@ -187,7 +187,7 @@ describe("uploadMultipart", () => {
   it("stores the session and deletes it once complete", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     const set = vi.spyOn(store, "set");
 
     await run(api, file, { uploadStore: store });
@@ -210,7 +210,7 @@ describe("uploadMultipart", () => {
   it("resumes a stored session and sends only the missing parts", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     vi.mocked(uploadPart)
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(s3Error("NETWORK_ERROR"));
@@ -253,7 +253,7 @@ describe("uploadMultipart", () => {
   it("sends a listed part again when its size does not match the layout", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     vi.mocked(uploadPart).mockRejectedValueOnce(s3Error("NETWORK_ERROR"));
     await expect(
       run(api, file, {
@@ -279,7 +279,7 @@ describe("uploadMultipart", () => {
   ] as const)("aborts and starts fresh when resuming hits %s", async (code) => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     await store.set(storedUpload(file, { ticket: "stale" }));
     vi.mocked(api.multipart.listParts).mockRejectedValueOnce(s3Error(code));
 
@@ -296,7 +296,7 @@ describe("uploadMultipart", () => {
   it("keeps a stored session when listParts fails with a network error", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     await store.set(storedUpload(file, { ticket: "kept" }));
     vi.mocked(api.multipart.listParts).mockRejectedValue(
       s3Error("NETWORK_ERROR"),
@@ -318,7 +318,7 @@ describe("uploadMultipart", () => {
   it("aborts and deletes a stored session when listParts fails for good", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     await store.set(storedUpload(file, { ticket: "denied" }));
     vi.mocked(api.multipart.listParts).mockRejectedValue(s3Error("FORBIDDEN"));
 
@@ -336,7 +336,7 @@ describe("uploadMultipart", () => {
   it("aborts and deletes a stored session when cancelled while resuming", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     await store.set(storedUpload(file, { ticket: "resuming" }));
     const listing = Promise.withResolvers<void>();
     vi.mocked(api.multipart.listParts).mockImplementation((_body, options) => {
@@ -363,7 +363,7 @@ describe("uploadMultipart", () => {
   it("keeps a stored session when detached while resuming", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     await store.set(storedUpload(file, { ticket: "resuming" }));
     const controller = new AbortController();
     controller.abort(uploadAbortReason("detach"));
@@ -381,8 +381,8 @@ describe("uploadMultipart", () => {
   it("does not resume a session stored for other request options", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
-    const inFolder = (folder: string) => ({ metadata: { folder } });
+    const store = createMemoryUploadStore();
+    const inFolder = (folder: string) => ({ clientMetadata: { folder } });
     vi.mocked(uploadPart).mockRejectedValueOnce(s3Error("NETWORK_ERROR"));
     await expect(
       run(api, file, {
@@ -410,7 +410,7 @@ describe("uploadMultipart", () => {
   it("does not share a session between concurrent uploads of one file", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     const set = vi.spyOn(store, "set");
     const started = Promise.withResolvers<void>();
     const gate = Promise.withResolvers<void>();
@@ -485,7 +485,7 @@ describe("uploadMultipart", () => {
     async (_label, failure) => {
       const api = fakeS3Api();
       const file = bigFile();
-      const store = createMemoryStore();
+      const store = createMemoryUploadStore();
       vi.mocked(uploadPart).mockRejectedValue(failure);
 
       await expect(
@@ -502,7 +502,7 @@ describe("uploadMultipart", () => {
   it("keeps a stored session when a part fails with a network error", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     vi.mocked(uploadPart).mockRejectedValue(s3Error("NETWORK_ERROR"));
 
     await expect(
@@ -515,10 +515,47 @@ describe("uploadMultipart", () => {
     ).toMatchObject({ ticket: "ticket-1" });
   });
 
+  it("retries complete after a 5xx and never aborts the upload it finished", async () => {
+    const api = fakeS3Api();
+    const file = bigFile();
+    const store = createMemoryUploadStore();
+    const complete = vi.mocked(api.multipart.complete);
+    const completed = complete.getMockImplementation();
+    // The server keeps the object when its own hook fails, so the same
+    // ticket completes on the next call.
+    complete.mockRejectedValueOnce(s3Error("INTERNAL_ERROR"));
+    if (completed) complete.mockImplementation(completed);
+
+    await expect(
+      run(api, file, { uploadStore: store, retry: { baseDelayMs: 1 } }),
+    ).resolves.toMatchObject({ key: expect.any(String) });
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(api.multipart.abort).not.toHaveBeenCalled();
+  });
+
+  it("keeps a stored session when complete keeps failing with a 5xx", async () => {
+    const api = fakeS3Api();
+    const file = bigFile();
+    const store = createMemoryUploadStore();
+    vi.mocked(api.multipart.complete).mockRejectedValue(
+      s3Error("INTERNAL_ERROR", undefined, { status: 503 }),
+    );
+
+    await expect(
+      run(api, file, { uploadStore: store, retry: noRetry }),
+    ).rejects.toMatchObject({ code: "INTERNAL_ERROR" });
+
+    expect(api.multipart.abort).not.toHaveBeenCalled();
+    expect(
+      await store.get(multipartResumeKey("videos", file), file.size),
+    ).toMatchObject({ ticket: "ticket-1" });
+  });
+
   it("aborts and deletes a stored session when complete fails for good", async () => {
     const api = fakeS3Api();
     const file = bigFile();
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     vi.mocked(api.multipart.complete).mockRejectedValue(
       s3Error("UPLOAD_TICKET_EXPIRED"),
     );
@@ -560,19 +597,25 @@ describe("multipartResumeKey", () => {
   it("is route, name, size and mtime without request options", () => {
     const key = `videos:a.bin:${file.size}:1`;
     expect(multipartResumeKey("videos", file)).toBe(key);
-    expect(multipartResumeKey("videos", file, { metadata: {} })).toBe(key);
+    expect(multipartResumeKey("videos", file, { clientMetadata: {} })).toBe(
+      key,
+    );
   });
 
-  it("depends on the request options but not on metadata order", () => {
+  it("depends on the request options but not on clientMetadata order", () => {
     const key = multipartResumeKey("videos", file, {
-      metadata: { a: "1", b: "2" },
+      clientMetadata: { a: "1", b: "2" },
     });
 
     expect(
-      multipartResumeKey("videos", file, { metadata: { b: "2", a: "1" } }),
+      multipartResumeKey("videos", file, {
+        clientMetadata: { b: "2", a: "1" },
+      }),
     ).toBe(key);
     expect(
-      multipartResumeKey("videos", file, { metadata: { a: "1", b: "3" } }),
+      multipartResumeKey("videos", file, {
+        clientMetadata: { a: "1", b: "3" },
+      }),
     ).not.toBe(key);
     expect(multipartResumeKey("videos", file, { fileName: "b.bin" })).not.toBe(
       multipartResumeKey("videos", file, { contentType: "b.bin" }),

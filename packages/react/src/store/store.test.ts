@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createLocalStorageStore } from "./local-storage-store";
-import { createMemoryStore } from "./memory-store";
+import { createLocalStorageUploadStore } from "./local-storage-store";
+import { createMemoryUploadStore } from "./memory-store";
 import type { StoredUpload } from "@/types/upload-store";
 
 const resumeKey = "uploads:photo.jpg:10:1";
@@ -17,9 +17,9 @@ const sample: StoredUpload = {
   checksum: false,
 };
 
-describe("createMemoryStore", () => {
+describe("createMemoryUploadStore", () => {
   it("returns a record only for its file size", async () => {
-    const store = createMemoryStore();
+    const store = createMemoryUploadStore();
     await store.set(sample);
     expect(await store.get(resumeKey, 10)).toEqual(sample);
     expect(await store.get(resumeKey, 11)).toBeNull();
@@ -28,7 +28,7 @@ describe("createMemoryStore", () => {
   });
 });
 
-describe("createLocalStorageStore", () => {
+describe("createLocalStorageUploadStore", () => {
   const map = new Map<string, string>();
   const storage = {
     getItem: (key: string) => map.get(key) ?? null,
@@ -47,7 +47,7 @@ describe("createLocalStorageStore", () => {
   });
 
   it("round-trips a record for its file size", async () => {
-    const store = createLocalStorageStore();
+    const store = createLocalStorageUploadStore();
     await store.set(sample);
     expect(JSON.parse(map.get(storageKey) ?? "")).toEqual(sample);
     expect(await store.get(resumeKey, 10)).toEqual(sample);
@@ -67,13 +67,13 @@ describe("createLocalStorageStore", () => {
         fileSize: 10,
       }),
     );
-    expect(await createLocalStorageStore().get(resumeKey, 10)).toBeNull();
+    expect(await createLocalStorageUploadStore().get(resumeKey, 10)).toBeNull();
     expect(map.has(storageKey)).toBe(false);
   });
 
   it("ignores and deletes invalid JSON", async () => {
     map.set(storageKey, "{");
-    expect(await createLocalStorageStore().get(resumeKey, 10)).toBeNull();
+    expect(await createLocalStorageUploadStore().get(resumeKey, 10)).toBeNull();
     expect(map.has(storageKey)).toBe(false);
   });
 
@@ -82,7 +82,7 @@ describe("createLocalStorageStore", () => {
       storageKey,
       JSON.stringify({ ...sample, resumeKey: "other:file:10:1" }),
     );
-    expect(await createLocalStorageStore().get(resumeKey, 10)).toBeNull();
+    expect(await createLocalStorageUploadStore().get(resumeKey, 10)).toBeNull();
     expect(map.has(storageKey)).toBe(false);
   });
 
@@ -98,7 +98,7 @@ describe("createLocalStorageStore", () => {
         throw new Error("denied");
       },
     });
-    const store = createLocalStorageStore();
+    const store = createLocalStorageUploadStore();
     expect(() => store.set(sample)).not.toThrow();
     expect(store.get(resumeKey, 10)).toBeNull();
     expect(() => store.delete(resumeKey)).not.toThrow();

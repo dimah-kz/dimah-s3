@@ -23,6 +23,7 @@ import type {
   UploadObjectContext,
   UploadObjectInfo,
   UploadOnConfirmedContext,
+  UploadOnRejectedContext,
   UploadOnStartContext,
 } from "./hook-contexts";
 import type {
@@ -59,8 +60,8 @@ export type TicketSubject = (
 
 /**
  * Multipart uploads under `upload.multipart`. Init runs `upload.guard` and
- * `upload.onStart`. Complete runs `guard` (`action: "complete"`), then
- * `upload.confirmGuard` and `upload.onConfirmed`.
+ * `upload.onStart`. Complete runs `guard` (`operation: "multipart.complete"`),
+ * then `upload.confirmGuard` and `upload.onConfirmed`.
  */
 export type MultipartConfig = {
   /**
@@ -75,7 +76,7 @@ export type MultipartConfig = {
    * @default 86400
    */
   ticketExpiresIn?: number;
-  /** Authorizes part signing, list, abort and complete. Branch on `action` if needed. */
+  /** Authorizes part signing, list, abort and complete. Branch on `operation` if needed. */
   guard?: Guard<MultipartGuardContext>;
   onAbort?: LifecycleHook<MultipartOnAbortContext>;
 };
@@ -143,6 +144,14 @@ export type UploadConfig = {
    * reject content in `confirmGuard` instead.
    */
   onConfirmed?: LifecycleHook<UploadOnConfirmedContext>;
+  /**
+   * After confirm, multipart complete or `s3.put` refuses an upload and
+   * deletes its object: a size, type or content mismatch, a `confirmGuard`
+   * rejection, or a plugin that rejects it. Undo what `onStart` recorded
+   * here. A throw is logged and passed to `onError`; the client still gets
+   * the rejection.
+   */
+  onRejected?: LifecycleHook<UploadOnRejectedContext>;
 };
 
 /** Download feature. A config object, or `true`, turns it on. */
@@ -244,7 +253,8 @@ export type DimahS3Config = {
   /**
    * Upload ticket secret, at least 32 characters. Pass an array to rotate:
    * the first value signs, and every value verifies. Defaults to the
-   * `DIMAH_S3_SECRET` environment variable.
+   * `DIMAH_S3_SECRET` environment variable; an empty string counts as not
+   * set.
    */
   secret?: string | readonly string[];
   /** Binds upload tickets to a subject. Defaults to the first plugin that provides one. */

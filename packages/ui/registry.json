@@ -7,8 +7,8 @@
       "title": "Attachment",
       "description": "FileAttachment and StatusAttachment rows, file type and folder glyphs, and a progress ring for upload, download, and delete feedback.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react",
@@ -29,10 +29,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -91,8 +89,8 @@
       "title": "Upload",
       "description": "Composable upload family: Upload root, trigger button, dropzone with the progress inside, status and file list as rows or a grid, paste, and toasts.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react",
@@ -113,10 +111,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -245,8 +241,8 @@
       "title": "Upload Field",
       "description": "Form field whose value is the keys of the files uploaded through it, with the upload family to fill it.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react",
@@ -267,10 +263,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -404,8 +398,8 @@
       "title": "Avatar Upload",
       "description": "Round image button that uploads a new picture, with a preview, a progress ring, and live status.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react"
@@ -425,10 +419,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -461,6 +453,11 @@
           "path": "src/components/dimah-s3/attachment/circle-progress.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/attachment/circle-progress.tsx"
+        },
+        {
+          "path": "src/hooks/use-toast-owner.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-toast-owner.ts"
         }
       ]
     },
@@ -469,7 +466,10 @@
       "type": "registry:component",
       "title": "Object Image",
       "description": "Image that loads an S3 object through a presigned URL and refreshes it before it expires.",
-      "dependencies": ["@dimah-s3/core", "@dimah-s3/react"],
+      "dependencies": [
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0"
+      ],
       "cssVars": {
         "light": {
           "dimah-s3-success-default": "oklch(0.627 0.194 149.214)",
@@ -485,10 +485,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -510,8 +508,8 @@
       "title": "Object Card",
       "description": "Card for one stored object with download and delete actions, its download progress, and a deleting state.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react",
@@ -532,10 +530,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -660,8 +656,8 @@
       "title": "Download",
       "description": "Composable download family: Download root, trigger button, progress, and toasts.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react"
@@ -681,10 +677,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -737,8 +731,8 @@
       "title": "Delete",
       "description": "Composable delete family: Delete root with its confirm dialog, trigger button, and toasts.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react"
@@ -758,10 +752,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -819,8 +811,8 @@
       "title": "Object List",
       "description": "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk delete, drop upload, and a file menu.",
       "dependencies": [
-        "@dimah-s3/core",
-        "@dimah-s3/react",
+        "@dimah-s3/core@^2.0.0-beta.0",
+        "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react",
@@ -841,10 +833,8 @@
           "color-dimah-s3-card": "var(--dimah-s3-card, var(--card))",
           "color-dimah-s3-card-foreground": "var(--dimah-s3-card-foreground, var(--card-foreground))",
           "color-dimah-s3-primary": "var(--dimah-s3-primary, var(--primary))",
-          "color-dimah-s3-primary-foreground": "var(--dimah-s3-primary-foreground, var(--primary-foreground))",
           "color-dimah-s3-muted": "var(--dimah-s3-muted, var(--muted))",
           "color-dimah-s3-muted-foreground": "var(--dimah-s3-muted-foreground, var(--muted-foreground))",
-          "color-dimah-s3-accent": "var(--dimah-s3-accent, var(--accent))",
           "color-dimah-s3-border": "var(--dimah-s3-border, var(--border))",
           "color-dimah-s3-ring": "var(--dimah-s3-ring, var(--ring))",
           "color-dimah-s3-destructive": "var(--dimah-s3-destructive, var(--destructive))",
@@ -918,9 +908,9 @@
           "target": "@components/dimah-s3/list/object-list-upload.tsx"
         },
         {
-          "path": "src/components/dimah-s3/list/object-list-item-menu.tsx",
+          "path": "src/components/dimah-s3/list/object-list-entry-menu.tsx",
           "type": "registry:component",
-          "target": "@components/dimah-s3/list/object-list-item-menu.tsx"
+          "target": "@components/dimah-s3/list/object-list-entry-menu.tsx"
         },
         {
           "path": "src/components/dimah-s3/list/object-list-rename.tsx",

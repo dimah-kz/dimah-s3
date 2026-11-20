@@ -17,6 +17,8 @@ const IGNORE_NAMES = new Set([
   "pnpm-lock.yaml",
   "package-lock.json",
   "yarn.lock",
+  "bun.lock",
+  "bun.lockb",
   "eslint.config.js",
   "tsconfig.json",
   "tsconfig.server.json",

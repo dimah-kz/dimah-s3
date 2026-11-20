@@ -1,7 +1,7 @@
 {
   "name": "@dimah-s3/db",
   "version": "2.0.0-beta.11",
-  "description": "Optional database plugin for dimah-s3 — track S3 object ownership, listings, and resumable uploads",
+  "description": "Optional database plugin for dimah-s3 — track S3 objects, folders, ownership, and quotas",
   "keywords": [
     "s3",
     "s3-compatible",
@@ -11,12 +11,13 @@
     "object-storage",
     "database",
     "file-upload",
-    "resumable-upload",
     "file-tracking",
     "object-tracking",
     "prisma",
     "fumadb",
-    "typescript"
+    "typescript",
+    "folders",
+    "quota"
   ],
   "homepage": "https://s3.dimah.dev/docs/db",
   "bugs": {
@@ -27,6 +28,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/db"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -55,7 +57,8 @@
     "./adapters/prisma": {
       "types": "./dist/adapters/prisma.d.ts",
       "default": "./dist/adapters/prisma.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -93,16 +96,13 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@aws-sdk/client-s3": ">=3",
+    "@aws-sdk/client-s3": "^3.0.0",
     "@dimah-s3/server": "2.0.0-beta.11",
     "@prisma/client": "^6.0.0 || ^7.0.0",
     "drizzle-orm": ">=1.0.0-rc.5 <2.0.0",
-    "kysely": "^0.29.5"
+    "kysely": "^0.29.8"
   },
   "peerDependenciesMeta": {
-    "@aws-sdk/client-s3": {
-      "optional": true
-    },
     "@prisma/client": {
       "optional": true
     },
@@ -112,6 +112,9 @@
     "kysely": {
       "optional": true
     }
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

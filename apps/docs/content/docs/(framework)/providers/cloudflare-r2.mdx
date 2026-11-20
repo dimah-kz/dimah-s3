@@ -52,7 +52,7 @@ Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
     "AllowedOrigins": ["https://your-app.example"],
     "AllowedMethods": ["GET", "PUT", "HEAD"],
     "AllowedHeaders": ["*"],
-    "ExposeHeaders": ["ETag", "Content-Type"],
+    "ExposeHeaders": ["Content-Disposition", "Content-Encoding"],
     "MaxAgeSeconds": 3000
   }
 ]

@@ -1,4 +1,4 @@
-import { rename } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "pathe";
 
 import {
@@ -12,7 +12,8 @@ import {
 /**
  * Template apps ship with a `src/` directory. When the user opts out on a
  * `srcLayout` template (Next.js), move everything under `src/` to the project
- * root and rewrite path aliases in `tsconfig.json` / `components.json`.
+ * root and rewrite path aliases in `tsconfig.json` / `components.json`, and
+ * the `src/…` paths the starter README names.
  * Do not use this for Vite/Hono — their entry HTML and scripts assume `src/`.
  */
 export async function flattenSrcDirectory(targetDir: string): Promise<void> {
@@ -26,6 +27,20 @@ export async function flattenSrcDirectory(targetDir: string): Promise<void> {
 
   await patchTsconfigPaths(targetDir);
   await patchComponentsCss(targetDir);
+  await patchReadmePaths(targetDir);
+}
+
+/** A path in code font that starts with `src/` and names something under it. */
+const README_SRC_PATH = /`src\/(?=[^`\s])/g;
+
+/** Points the README's `src/lib/s3.ts`-style paths at the flattened files. */
+async function patchReadmePaths(targetDir: string): Promise<void> {
+  const path = join(targetDir, "README.md");
+  if (!(await pathExists(path))) return;
+
+  const readme = await readFile(path, "utf8");
+  const next = readme.replaceAll(README_SRC_PATH, "`");
+  if (next !== readme) await writeFile(path, next, "utf8");
 }
 
 async function patchTsconfigPaths(targetDir: string): Promise<void> {

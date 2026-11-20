@@ -32,6 +32,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/react"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -44,7 +45,8 @@
     "./engine": {
       "types": "./dist/engine.d.ts",
       "default": "./dist/engine.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -57,10 +59,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@dimah-s3/core": "workspace:*",
     "react-dropzone": "^20.2.1"
   },
   "devDependencies": {
+    "@dimah-s3/core": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
@@ -79,8 +81,12 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@dimah-s3/core": "2.0.0-beta.11",
     "@fuma-translate/react": "^1.0.2",
-    "react": ">=19.2"
+    "react": "^19.2.0"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

@@ -11,22 +11,24 @@ the components without changing your app.
 
 ## Tokens
 
-| Token                           | When unset                      |
-| ------------------------------- | ------------------------------- |
-| `--dimah-s3-background`         | `var(--background)`             |
-| `--dimah-s3-foreground`         | `var(--foreground)`             |
-| `--dimah-s3-card`               | `var(--card)`                   |
-| `--dimah-s3-card-foreground`    | `var(--card-foreground)`        |
-| `--dimah-s3-primary`            | `var(--primary)`                |
-| `--dimah-s3-primary-foreground` | `var(--primary-foreground)`     |
-| `--dimah-s3-muted`              | `var(--muted)`                  |
-| `--dimah-s3-muted-foreground`   | `var(--muted-foreground)`       |
-| `--dimah-s3-accent`             | `var(--accent)`                 |
-| `--dimah-s3-border`             | `var(--border)`                 |
-| `--dimah-s3-ring`               | `var(--ring)`                   |
-| `--dimah-s3-destructive`        | `var(--destructive)`            |
-| `--dimah-s3-success`            | `var(--success)`, else a green  |
-| `--dimah-s3-warning`            | `var(--warning)`, else an amber |
+| Token                         | When unset                      |
+| ----------------------------- | ------------------------------- |
+| `--dimah-s3-background`       | `var(--background)`             |
+| `--dimah-s3-foreground`       | `var(--foreground)`             |
+| `--dimah-s3-card`             | `var(--card)`                   |
+| `--dimah-s3-card-foreground`  | `var(--card-foreground)`        |
+| `--dimah-s3-primary`          | `var(--primary)`                |
+| `--dimah-s3-muted`            | `var(--muted)`                  |
+| `--dimah-s3-muted-foreground` | `var(--muted-foreground)`       |
+| `--dimah-s3-border`           | `var(--border)`                 |
+| `--dimah-s3-ring`             | `var(--ring)`                   |
+| `--dimah-s3-destructive`      | `var(--destructive)`            |
+| `--dimah-s3-success`          | `var(--success)`, else a green  |
+| `--dimah-s3-warning`          | `var(--warning)`, else an amber |
+
+The tokens color the dimah-s3 components. The shadcn primitives the package
+bundles (buttons, menus, dialogs, tooltips, toasts) keep reading your shadcn
+variables, such as `--primary-foreground`, `--accent` and `--popover`.
 
 shadcn has no `--success` or `--warning`. When your theme defines them, the
 components use them; otherwise they fall back to

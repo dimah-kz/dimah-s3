@@ -59,7 +59,7 @@ type TicketBase = {
 export type SingleTicket = TicketBase & {
   mode: "single";
   /** How the URL was presigned, so confirm reports the kind that was signed. */
-  kind: "post" | "put";
+  kind: "presignedPost" | "presignedPut";
 };
 
 export type MultipartTicket = TicketBase & {
@@ -121,17 +121,19 @@ export function createUploadToken(): string {
 
 /**
  * Checks the `secret` option when `dimahS3()` runs. Every value must have
- * at least 32 characters. Returns `undefined` when it is not set, so the
- * environment is read on first use.
+ * at least 32 characters. An empty string counts as not set, so
+ * `secret: process.env.MY_SECRET` works while the variable is missing.
+ * Returns `undefined` when nothing is set, so the environment is read on
+ * first use.
  */
 export function parseSecretOption(
   secret: string | readonly string[] | undefined,
 ): readonly string[] | undefined {
   if (secret === undefined) return undefined;
-  const secrets = typeof secret === "string" ? [secret] : [...secret];
-  if (secrets.length === 0) {
-    throw new Error("dimahS3: secret must not be an empty array.");
-  }
+  const secrets = (typeof secret === "string" ? [secret] : [...secret]).filter(
+    (value) => value !== "",
+  );
+  if (secrets.length === 0) return undefined;
   if (secrets.some((value) => value.length < MIN_SECRET_LENGTH)) {
     throw new Error(
       `dimahS3: every secret must have at least ${MIN_SECRET_LENGTH} characters.`,
@@ -169,7 +171,7 @@ export async function issueTicket(
           ps: input.partSize,
           pc: input.partCount,
         }
-      : { m: "single", v: input.kind }),
+      : { m: "single", v: input.kind === "presignedPost" ? "post" : "put" }),
   };
 
   const body = `${VERSION}.${base64UrlEncode(JSON.stringify(payload))}`;
@@ -283,7 +285,11 @@ function fromPayload(payload: TicketPayload): UploadTicket {
         partSize: payload.ps,
         partCount: payload.pc,
       }
-    : { ...base, mode: "single", kind: payload.v };
+    : {
+        ...base,
+        mode: "single",
+        kind: payload.v === "post" ? "presignedPost" : "presignedPut",
+      };
 }
 
 async function subjectHash(key: CryptoKey, subject: string): Promise<string> {

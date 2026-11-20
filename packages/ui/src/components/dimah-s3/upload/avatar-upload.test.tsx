@@ -16,6 +16,7 @@ import {
   AvatarUpload,
   type AvatarUploadProps,
 } from "@/components/dimah-s3/upload/avatar-upload";
+import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 
 const unused = () => Promise.reject(new Error("not used in this test"));
 
@@ -213,8 +214,8 @@ describe("AvatarUpload", () => {
   });
 
   it("shows progress and announces each phase of an upload", async () => {
-    const onChange = vi.fn();
-    const { api } = renderAvatar({ objectKey: "avatars/old.png", onChange });
+    const onUploaded = vi.fn();
+    const { api } = renderAvatar({ objectKey: "avatars/old.png", onUploaded });
     let finish: () => void = () => {};
     api.uploadTransport.mockImplementationOnce(
       () => new Promise<void>((resolve) => (finish = resolve)),
@@ -239,14 +240,45 @@ describe("AvatarUpload", () => {
     );
     expect(avatarButton().hasAttribute("aria-busy")).toBe(false);
     expect(screen.queryByRole("progressbar")).toBeNull();
-    expect(onChange).toHaveBeenCalledExactlyOnceWith(
+    expect(onUploaded).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ key: "avatars/new.png" }),
     );
   });
 
+  it("leaves the announcements to an UploadToasts for the same hook", async () => {
+    const api = fakeApi();
+    function View() {
+      const upload = useUpload({ api, route: "avatars" });
+      return (
+        <>
+          <AvatarUpload
+            upload={upload}
+            api={api}
+            route="avatars"
+            label="Change profile photo"
+          />
+          <UploadToasts upload={upload} />
+        </>
+      );
+    }
+    render(<View />);
+
+    await pick([image("new.png")]);
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(avatarButton().hasAttribute("aria-busy")).toBe(false),
+    );
+
+    // The toast owner reads the result out, so the avatar says nothing.
+    expect(
+      document.querySelector("[data-slot=avatar-upload] [aria-live=polite]")
+        ?.textContent,
+    ).toBe("");
+  });
+
   it("announces a failed upload and shows the stored image again", async () => {
-    const onChange = vi.fn();
-    const { api } = renderAvatar({ objectKey: "avatars/old.png", onChange });
+    const onUploaded = vi.fn();
+    const { api } = renderAvatar({ objectKey: "avatars/old.png", onUploaded });
     api.confirm.mockRejectedValueOnce(s3Error("FORBIDDEN"));
 
     await pick([image("new.png")]);
@@ -259,7 +291,7 @@ describe("AvatarUpload", () => {
         "https://s3.test/avatars/old.png",
       ),
     );
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onUploaded).not.toHaveBeenCalled();
   });
 
   it("announces a rejected file", async () => {

@@ -13,7 +13,10 @@ import type { StorageObject } from "./storage-object";
  * - `delete`: delete, and each key of `deleteMany`
  * - `list`: `GET /db/objects`
  * - `read`: `GET /db/object`
- * - `update`: `PATCH /db/object` and the folder endpoints
+ * - `update`: `PATCH /db/object`
+ * - `folder.create`: `POST /db/folder`
+ * - `folder.update`: `PATCH /db/folder`, a rename or a move
+ * - `folder.delete`: `DELETE /db/folder`
  * - `record`: `s3.db.record`, an object the app already put in the bucket
  */
 export type ScopeOperation =
@@ -25,6 +28,9 @@ export type ScopeOperation =
   | "list"
   | "read"
   | "update"
+  | "folder.create"
+  | "folder.update"
+  | "folder.delete"
   | "record";
 
 /**
@@ -41,7 +47,7 @@ export type ScopeContext<TSession = undefined> = {
   operation: ScopeOperation;
   /**
    * Named route of the call. `list` has one only when the client filters
-   * by route; `read`, `update`, and the folder endpoints have none.
+   * by route; `read`, `update`, and the folder operations have none.
    */
   route?: string;
 };
@@ -55,18 +61,30 @@ export type AuthorizeContext<
   TAttributes = never,
 > = ScopeContext<TSession> & {
   scope: string;
-  /** Object key. Absent on `list` and the folder endpoints. */
+  /** Object key. Absent on `list` and the folder operations. */
   key?: string;
   /**
-   * Path of the target folder. `null` is the root. Absent when the call is
-   * not aimed at one folder. A rename or move reports the destination.
+   * Where the target is now, as a folder path. `null` is the root. For an
+   * object it is the folder that holds it, also on download, delete, and a
+   * move. For a folder that is renamed, moved, or deleted it is that folder.
+   * For an upload, a `record`, and a new folder it is the folder they go
+   * into, and for a `list` the folder it opens. Absent when the folder of a
+   * stored object no longer exists.
    */
   folder?: string | null;
-  /** Id of the target folder. `null` is the root. */
+  /** Id of the folder `folder` names. `null` is the root. */
   folderId?: string | null;
   /**
+   * Where the call puts the target, when it moves or creates one. For an
+   * object move: the folder it moves into. For a folder that is created,
+   * renamed, or moved: `folder` is its new path, and `folderId` the id of
+   * the folder that will hold it. `null` is the root.
+   */
+  destination?: { folder: string | null; folderId: string | null };
+  /**
    * `true` when a `list` also covers every folder below `folder`, as a
-   * search across folders does. Deny it to keep listings to one folder.
+   * search across folders and a flat listing do. Deny it to keep listings
+   * to one folder.
    */
   recursive?: boolean;
   /** Client extras of the upload. Set on `upload` only. */
@@ -124,7 +142,7 @@ export type DbPluginOptions<
   TAttributes = never,
   TClientAttributes = TAttributes,
 > = {
-  /** `DimahS3DB.client(adapter)`. */
+  /** `DimahS3Db.client(adapter)`. */
   client: DimahS3DbClient;
   /** Loads the session for a request. Called at most once per `Request`. */
   getSession?: (request: Request) => TSession | Promise<TSession>;
@@ -141,13 +159,17 @@ export type DbPluginOptions<
    * Runs after the scope is resolved and, for a stored object, after the
    * ownership check, so it can only narrow access. `object` is set when the
    * call targets a stored row, including the active object an overwrite
-   * replaces; that upload's `folder` is the folder of the object it
-   * replaces. `false` rejects the call with `FORBIDDEN`.
+   * replaces. `folder` is where the target is now, and `destination` where
+   * a move or a new folder puts it. `false` rejects the call with
+   * `FORBIDDEN`.
    */
   authorize?: (
     context: AuthorizeContext<TSession, TAttributes>,
   ) => boolean | Promise<boolean>;
-  /** Byte and file caps, checked at upload and again at confirm. */
+  /**
+   * Byte and file caps, checked at upload and again at confirm, and the
+   * folder cap, checked when a folder is created.
+   */
   quota?: DbQuotaOption<TSession>;
   /** `"soft"` keeps a `deleted` row; `"hard"` removes it. @default "soft" */
   deleteMode?: "soft" | "hard";

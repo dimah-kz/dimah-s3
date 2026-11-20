@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CreateStep } from "@/create/step";
 import { runSteps } from "@/create/step";
 import type { CreateContext } from "@/types";
-import { CliError } from "@/utils/errors";
+import { CliError, EXIT_CANCEL } from "@/utils/errors";
 
 function context(): CreateContext {
   return {
@@ -108,6 +108,72 @@ describe("runSteps", () => {
 
     expect(ran).toEqual(["git"]);
     expect(failedSteps).toEqual(["install"]);
+  });
+
+  it("stops with exit code 130 once the signal aborts", async () => {
+    const controller = new AbortController();
+    const ran: string[] = [];
+    const run = runSteps(
+      [
+        step("scaffold", async (_ctx, _report, signal) => {
+          ran.push("scaffold");
+          controller.abort();
+          expect(signal.aborted).toBe(true);
+        }),
+        step("install", async () => {
+          ran.push("install");
+        }),
+      ],
+      context(),
+      controller.signal,
+    );
+
+    await expect(run).rejects.toMatchObject({ exitCode: EXIT_CANCEL });
+    expect(ran).toEqual(["scaffold"]);
+  });
+
+  it("treats a recoverable step that fails after a cancel as cancelled", async () => {
+    const controller = new AbortController();
+    const ran: string[] = [];
+    const run = runSteps(
+      [
+        step(
+          "install",
+          async () => {
+            controller.abort();
+            throw new Error("the install was stopped");
+          },
+          { recoverable: true },
+        ),
+        step("git", async () => {
+          ran.push("git");
+        }),
+      ],
+      context(),
+      controller.signal,
+    );
+
+    await expect(run).rejects.toMatchObject({ exitCode: EXIT_CANCEL });
+    expect(ran).toEqual([]);
+  });
+
+  it("runs no step when the signal aborted before the first one", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const ran: string[] = [];
+
+    await expect(
+      runSteps(
+        [
+          step("scaffold", async () => {
+            ran.push("scaffold");
+          }),
+        ],
+        context(),
+        controller.signal,
+      ),
+    ).rejects.toMatchObject({ exitCode: EXIT_CANCEL });
+    expect(ran).toEqual([]);
   });
 
   it("passes the context so steps can record outcomes", async () => {

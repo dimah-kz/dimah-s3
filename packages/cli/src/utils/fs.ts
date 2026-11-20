@@ -76,3 +76,8 @@ export async function renameIfExists(
 export async function removeDir(path: string): Promise<void> {
   await rm(path, { recursive: true, force: true });
 }
+
+/** Removes a file. Does nothing when it does not exist. */
+export async function removeFile(path: string): Promise<void> {
+  await rm(path, { force: true });
+}

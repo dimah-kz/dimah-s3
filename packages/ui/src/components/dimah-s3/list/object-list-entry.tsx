@@ -14,8 +14,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FileName } from "@/components/dimah-s3/attachment/file-name";
 import { FileTypeGlyph } from "@/components/dimah-s3/attachment/file-type-glyph";
 import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
-import { ObjectListItemMenu } from "@/components/dimah-s3/list/object-list-item-menu";
+import { ObjectListEntryMenu } from "@/components/dimah-s3/list/object-list-entry-menu";
 import {
+  ObjectListEntryProvider,
   useObjectListEntryScope,
   useObjectListEntryStatus,
 } from "@/components/dimah-s3/list/object-list-context";
@@ -36,6 +37,19 @@ export type ObjectListEntryProps<TItem> = {
   media?: ReactNode;
 };
 
+/** Props for {@link ObjectListCheckbox}. */
+export type ObjectListCheckboxProps = {
+  checked: boolean;
+  indeterminate?: boolean;
+  /** Accessible name. */
+  label: string;
+  /** `shiftKey` is `true` when Shift was held, for a range selection. */
+  onCheckedChange: (checked: boolean, shiftKey: boolean) => void;
+  /** `-1` inside an entry: arrow keys and Tab from the entry reach it. */
+  tabIndex?: number;
+  className?: string;
+};
+
 /** Checkbox for an entry or the select-all control. Reports Shift. */
 export function ObjectListCheckbox({
   checked,
@@ -44,15 +58,7 @@ export function ObjectListCheckbox({
   onCheckedChange,
   tabIndex,
   className,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  label: string;
-  onCheckedChange: (checked: boolean, shiftKey: boolean) => void;
-  /** `-1` inside an entry: arrow keys and Tab from the entry reach it. */
-  tabIndex?: number;
-  className?: string;
-}) {
+}: ObjectListCheckboxProps) {
   const shiftRef = useRef(false);
 
   return (
@@ -96,80 +102,82 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
   const parts = useEntryParts(props);
 
   return (
-    <div
-      {...parts.dropTarget}
-      data-drop-name={parts.dropTarget ? entry.name : undefined}
-      data-slot="object-list-entry"
-      data-entry-key={entry.key}
-      data-kind={entry.kind}
-      data-view="list"
-      data-selected={parts.selected ? "" : undefined}
-      onContextMenu={parts.onContextMenu}
-      className={cn(
-        "grid min-h-11 min-w-0 items-center gap-2 overflow-hidden py-1 ps-1.5 pe-1 transition-colors duration-150",
-        parts.checkbox
-          ? parts.actions
-            ? "grid-cols-[auto_minmax(0,1fr)_auto]"
-            : "grid-cols-[auto_minmax(0,1fr)]"
-          : parts.actions
-            ? "grid-cols-[minmax(0,1fr)_auto]"
-            : "grid-cols-[minmax(0,1fr)]",
-        parts.selected
-          ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
-          : "hover:bg-dimah-s3-muted",
-        DROP_TARGET,
-        REVEALED,
-        className,
-      )}
-    >
-      {parts.checkbox}
-      {parts.renaming ? (
-        <div className="flex min-w-0 items-center gap-2.5 self-stretch">
-          <span className="flex size-8 shrink-0 items-center justify-center">
-            {parts.media ?? (
-              <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
-            )}
-          </span>
-          <ObjectListRenameField entry={entry} />
-        </div>
-      ) : (
-        <EntryTrigger
-          parts={parts}
-          className="flex min-w-0 items-center gap-2.5 self-stretch rounded-md text-start"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center">
-            {parts.media ?? (
-              <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
-            )}
-          </span>
-          <span
-            className={cn(
-              "flex min-w-0 flex-1 flex-col",
-              parts.actions && "pe-2",
-            )}
+    <ObjectListEntryProvider entry={entry}>
+      <div
+        {...parts.dropTarget}
+        data-drop-name={parts.dropTarget ? entry.name : undefined}
+        data-slot="object-list-entry"
+        data-entry-key={entry.key}
+        data-kind={entry.kind}
+        data-view="list"
+        data-selected={parts.selected ? "" : undefined}
+        onContextMenu={parts.onContextMenu}
+        className={cn(
+          "grid min-h-11 min-w-0 items-center gap-2 overflow-hidden py-1 ps-1.5 pe-1 transition-colors duration-150",
+          parts.checkbox
+            ? parts.actions
+              ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+              : "grid-cols-[auto_minmax(0,1fr)]"
+            : parts.actions
+              ? "grid-cols-[minmax(0,1fr)_auto]"
+              : "grid-cols-[minmax(0,1fr)]",
+          parts.selected
+            ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
+            : "hover:bg-dimah-s3-muted",
+          DROP_TARGET,
+          REVEALED,
+          className,
+        )}
+      >
+        {parts.checkbox}
+        {parts.renaming ? (
+          <div className="flex min-w-0 items-center gap-2.5 self-stretch">
+            <span className="flex size-8 shrink-0 items-center justify-center">
+              {parts.media ?? (
+                <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
+              )}
+            </span>
+            <ObjectListRenameField entry={entry} />
+          </div>
+        ) : (
+          <EntryTrigger
+            parts={parts}
+            className="flex min-w-0 items-center gap-2.5 self-stretch rounded-md text-start"
           >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-                <FileName
-                  name={entry.name}
-                  extension={entry.kind === "file"}
-                  highlight={parts.highlight}
-                />
+            <span className="flex size-8 shrink-0 items-center justify-center">
+              {parts.media ?? (
+                <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
+              )}
+            </span>
+            <span
+              className={cn(
+                "flex min-w-0 flex-1 flex-col",
+                parts.actions && "pe-2",
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
+                  <FileName
+                    name={entry.name}
+                    extension={entry.kind === "file"}
+                    highlight={parts.highlight}
+                  />
+                </span>
+                {parts.meta ? (
+                  <span className="shrink-0">{parts.meta}</span>
+                ) : null}
               </span>
-              {parts.meta ? (
-                <span className="shrink-0">{parts.meta}</span>
+              {parts.description ? (
+                <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
+                  {parts.description}
+                </span>
               ) : null}
             </span>
-            {parts.description ? (
-              <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
-                {parts.description}
-              </span>
-            ) : null}
-          </span>
-        </EntryTrigger>
-      )}
-      {parts.actions ? <div className="shrink-0">{parts.actions}</div> : null}
-    </div>
+          </EntryTrigger>
+        )}
+        {parts.actions ? <div className="shrink-0">{parts.actions}</div> : null}
+      </div>
+    </ObjectListEntryProvider>
   );
 }) as <TItem>(props: ObjectListEntryProps<TItem>) => ReactNode;
 
@@ -181,81 +189,83 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
   const parts = useEntryParts(props);
 
   return (
-    <div
-      {...parts.dropTarget}
-      data-drop-name={parts.dropTarget ? entry.name : undefined}
-      data-slot="object-list-entry"
-      data-entry-key={entry.key}
-      data-kind={entry.kind}
-      data-view="grid"
-      data-selected={parts.selected ? "" : undefined}
-      onContextMenu={parts.onContextMenu}
-      className={cn(
-        "group/entry relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border transition-colors duration-150",
-        parts.selected
-          ? "border-dimah-s3-primary bg-dimah-s3-primary/10"
-          : "border-dimah-s3-border hover:bg-dimah-s3-muted",
-        DROP_TARGET,
-        REVEALED,
-        className,
-      )}
-    >
-      {parts.renaming ? (
-        <div className="flex h-full min-w-0 flex-col">
-          <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
-            {parts.media ?? <EntryMedia entry={entry} tile />}
-          </span>
-          <span className="min-w-0 px-2 py-1.5">
-            <ObjectListRenameField entry={entry} />
-          </span>
-        </div>
-      ) : (
-        <EntryTrigger
-          parts={parts}
-          className="flex h-full min-w-0 flex-col text-start"
-        >
-          <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
-            {parts.media ?? <EntryMedia entry={entry} tile />}
-          </span>
-          <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
-            <span className="flex min-w-0 items-center gap-1.5">
-              <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
-                <FileName
-                  name={entry.name}
-                  extension={entry.kind === "file"}
-                  highlight={parts.highlight}
-                />
+    <ObjectListEntryProvider entry={entry}>
+      <div
+        {...parts.dropTarget}
+        data-drop-name={parts.dropTarget ? entry.name : undefined}
+        data-slot="object-list-entry"
+        data-entry-key={entry.key}
+        data-kind={entry.kind}
+        data-view="grid"
+        data-selected={parts.selected ? "" : undefined}
+        onContextMenu={parts.onContextMenu}
+        className={cn(
+          "group/entry relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border transition-colors duration-150",
+          parts.selected
+            ? "border-dimah-s3-primary bg-dimah-s3-primary/10"
+            : "border-dimah-s3-border hover:bg-dimah-s3-muted",
+          DROP_TARGET,
+          REVEALED,
+          className,
+        )}
+      >
+        {parts.renaming ? (
+          <div className="flex h-full min-w-0 flex-col">
+            <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
+              {parts.media ?? <EntryMedia entry={entry} tile />}
+            </span>
+            <span className="min-w-0 px-2 py-1.5">
+              <ObjectListRenameField entry={entry} />
+            </span>
+          </div>
+        ) : (
+          <EntryTrigger
+            parts={parts}
+            className="flex h-full min-w-0 flex-col text-start"
+          >
+            <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
+              {parts.media ?? <EntryMedia entry={entry} tile />}
+            </span>
+            <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
+                  <FileName
+                    name={entry.name}
+                    extension={entry.kind === "file"}
+                    highlight={parts.highlight}
+                  />
+                </span>
+                {parts.meta ? (
+                  <span className="shrink-0">{parts.meta}</span>
+                ) : null}
               </span>
-              {parts.meta ? (
-                <span className="shrink-0">{parts.meta}</span>
+              {parts.description ? (
+                <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
+                  {parts.description}
+                </span>
               ) : null}
             </span>
-            {parts.description ? (
-              <span className="min-w-0 truncate text-xs leading-4 text-dimah-s3-muted-foreground">
-                {parts.description}
-              </span>
-            ) : null}
+          </EntryTrigger>
+        )}
+        {parts.checkbox ? (
+          <span
+            className={cn(
+              "absolute start-2 top-2 flex rounded-[4px] bg-dimah-s3-card/90 transition-opacity",
+              !parts.selected &&
+                !parts.selecting &&
+                "opacity-0 group-focus-within/entry:opacity-100 group-hover/entry:opacity-100 pointer-coarse:opacity-100",
+            )}
+          >
+            {parts.checkbox}
           </span>
-        </EntryTrigger>
-      )}
-      {parts.checkbox ? (
-        <span
-          className={cn(
-            "absolute start-2 top-2 flex rounded-[4px] bg-dimah-s3-card/90 transition-opacity",
-            !parts.selected &&
-              !parts.selecting &&
-              "opacity-0 group-focus-within/entry:opacity-100 group-hover/entry:opacity-100 pointer-coarse:opacity-100",
-          )}
-        >
-          {parts.checkbox}
-        </span>
-      ) : null}
-      {parts.actions ? (
-        <span className="absolute end-1 top-1 flex rounded-md bg-dimah-s3-card/90">
-          {parts.actions}
-        </span>
-      ) : null}
-    </div>
+        ) : null}
+        {parts.actions ? (
+          <span className="absolute end-1 top-1 flex rounded-md bg-dimah-s3-card/90">
+            {parts.actions}
+          </span>
+        ) : null}
+      </div>
+    </ObjectListEntryProvider>
   );
 }) as <TItem>(props: ObjectListEntryProps<TItem>) => ReactNode;
 
@@ -317,7 +327,7 @@ function useEntryParts<TItem>({
     ) : scope.renderActions ? (
       scope.renderActions(entry)
     ) : hasMenu ? (
-      <ObjectListItemMenu />
+      <ObjectListEntryMenu />
     ) : null;
   const usesDefaultMenu =
     actions === undefined && scope.renderActions == null && hasMenu;

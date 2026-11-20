@@ -14,6 +14,9 @@ Full documentation: [s3.dimah.dev/docs/core](https://s3.dimah.dev/docs/core) ·
 pnpm add @dimah-s3/core@beta
 ```
 
+Requires Node.js 22 or newer on the server. In the browser it needs Chrome
+119, Firefox 124, Safari 17.4, or newer.
+
 ## Minimal setup
 
 ```ts
@@ -40,7 +43,7 @@ return an upload `ticket`; confirm and the later multipart calls send only
 that ticket.
 
 For React apps, use `createS3Client` from `@dimah-s3/react`. It takes the same
-options and adds a bound `Provider` and `useApi`.
+options and adds a bound `Provider` and `useApi` to the client object.
 
 ## Errors
 

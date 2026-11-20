@@ -44,7 +44,7 @@ export function signMultipartPart(
     const size = partByteSize(layout, partNumber);
     await runGuards(route.upload.multipart.guard, {
       ...context,
-      action: "part",
+      operation: "multipart.signPart",
       partNumber,
       size,
     });

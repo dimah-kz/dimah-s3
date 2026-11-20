@@ -9,7 +9,7 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
     key: "k",
     route: "uploads",
     folderId: "docs",
-    filename: "a.txt",
+    name: "a.txt",
     contentType: "text/plain",
     size: 10n,
     declaredSize: null,

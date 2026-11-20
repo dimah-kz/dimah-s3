@@ -1,34 +1,55 @@
-import { isS3ErrorCode, type APIError } from "@dimah-s3/core";
+import { isAPIError, isS3ErrorCode, type APIError } from "@dimah-s3/core";
 import { delay } from "@/internal/abortable";
 import type { RetryConfig } from "@/types/upload";
 import {
   MAX_RETRIES,
-  RETRY_BASE_DELAY,
+  RETRY_BASE_DELAY_MS,
   URL_EXPIRY_MARGIN_MS,
 } from "./constants";
 
 export type RetryOptions = { retry?: RetryConfig; signal?: AbortSignal };
 
 /**
- * Whether a failed request may succeed if sent again: `NETWORK_ERROR`,
- * `S3_NETWORK_ERROR`, and `UPLOAD_FAILED` with a 5xx or 429 status.
+ * Whether a failed request may succeed if sent again.
+ *
+ * - `NETWORK_ERROR` and `S3_NETWORK_ERROR` always may.
+ * - `UPLOAD_FAILED` and `DOWNLOAD_FAILED` may when S3 answered 5xx, 408 or
+ *   429.
+ * - Any error the API answered with 5xx, 408 or 429 may, such as
+ *   `INTERNAL_ERROR` from a gateway or from a server hook that failed. The
+ *   server keeps an upload it could not confirm, so confirm and multipart
+ *   complete are safe to send again.
+ * - `HOOK_FAILED`, and an `UNKNOWN_ERROR` that carries no response status,
+ *   never may: the failure is in the browser.
  */
 export function isRetryableError(error: unknown): boolean {
-  if (
-    isS3ErrorCode(error, "NETWORK_ERROR") ||
-    isS3ErrorCode(error, "S3_NETWORK_ERROR")
-  ) {
-    return true;
+  if (!isAPIError(error)) return false;
+  switch (error.code) {
+    case "NETWORK_ERROR":
+    case "S3_NETWORK_ERROR":
+      return true;
+    case "UPLOAD_FAILED":
+    case "DOWNLOAD_FAILED":
+      return isTransientStatus(s3Status(error));
+    case "HOOK_FAILED":
+      return false;
+    case "UNKNOWN_ERROR":
+      // Its catalog status is 500; a response never gives it one of 500+.
+      return error.statusCode === 408 || error.statusCode === 429;
+    default:
+      return isTransientStatus(error.statusCode);
   }
-  if (!isS3ErrorCode(error, "UPLOAD_FAILED")) return false;
-  const status = s3Status(error);
-  return status >= 500 || status === 429;
+}
+
+function isTransientStatus(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
 }
 
 /**
- * The S3 status of an `UPLOAD_FAILED` error: its `status` param, which
- * holds what S3 answered, else its HTTP status. A transport may build the
- * error without the `status` option, which leaves the catalog status 502.
+ * The S3 status of an `UPLOAD_FAILED` or `DOWNLOAD_FAILED` error: its
+ * `status` param, which holds what S3 answered, else its HTTP status. A
+ * transport may build the error without the `status` option, which leaves
+ * the catalog status 502.
  */
 function s3Status(error: APIError): number {
   return Number(error.params?.status ?? error.statusCode);
@@ -45,7 +66,7 @@ export async function withRetry<T>(
 ): Promise<T> {
   const { retry, signal, canRetry = isRetryableError } = options;
   const maxRetries = retry?.maxRetries ?? MAX_RETRIES;
-  const baseDelay = retry?.baseDelay ?? RETRY_BASE_DELAY;
+  const baseDelayMs = retry?.baseDelayMs ?? RETRY_BASE_DELAY_MS;
 
   for (let attempt = 0; ; attempt++) {
     signal?.throwIfAborted();
@@ -55,7 +76,7 @@ export async function withRetry<T>(
       signal?.throwIfAborted();
       if (attempt >= maxRetries || !canRetry(error)) throw error;
     }
-    await delay(baseDelay * 2 ** attempt, signal);
+    await delay(baseDelayMs * 2 ** attempt, signal);
   }
 }
 

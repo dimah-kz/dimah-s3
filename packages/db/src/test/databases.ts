@@ -15,8 +15,8 @@ import {
   type Dialect,
 } from "kysely";
 import { afterAll, beforeAll, beforeEach } from "vitest";
-import { migrate } from "@/cli";
-import { DB_SCHEMA_VERSION, DimahS3DB, type DimahS3DbClient } from "@/fuma-db";
+import { migrate } from "@/migrate";
+import { DB_SCHEMA_VERSION, DimahS3Db, type DimahS3DbClient } from "@/fuma-db";
 import { toSearchName } from "@/store/search-name";
 import type { StorageObject } from "@/types/storage-object";
 import { memoryDbClient } from "./fakes";
@@ -75,7 +75,7 @@ async function migrated(
   db: Kysely<object>,
   provider: "sqlite" | "postgresql",
 ): Promise<TestDatabase> {
-  const client = DimahS3DB.client(kyselyAdapter({ db, provider }));
+  const client = DimahS3Db.client(kyselyAdapter({ db, provider }));
   await migrate(client);
   return { client, close: () => db.destroy() };
 }
@@ -129,7 +129,7 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
       const { relations } = await importDrizzleSchema("sqlite");
       const db = drizzleSqlite({ client: sqlite, relations });
       return {
-        client: DimahS3DB.client(drizzleAdapter({ db, provider: "sqlite" })),
+        client: DimahS3Db.client(drizzleAdapter({ db, provider: "sqlite" })),
         close: async () => {
           sqlite.close();
         },
@@ -144,7 +144,7 @@ export const testDatabases: readonly TestDatabaseFactory[] = [
       const { relations } = await importDrizzleSchema("postgresql");
       const db = drizzlePglite({ client: pg, relations });
       return {
-        client: DimahS3DB.client(
+        client: DimahS3Db.client(
           drizzleAdapter({ db, provider: "postgresql" }),
         ),
         close: () => pg.close(),
@@ -188,13 +188,13 @@ export async function insertObject(
   values: Partial<StorageObject<unknown>> & { key: string },
 ) {
   const { size, declaredSize, ...rest } = values;
-  const filename = values.filename ?? values.key;
+  const name = values.name ?? values.key;
   return client.orm(DB_SCHEMA_VERSION).create("storageObject", {
     scope: "user:1",
     bucket: "b",
     route: "uploads",
-    filename,
-    searchName: toSearchName(filename),
+    name,
+    searchName: toSearchName(name),
     status: "active",
     ...rest,
     ...(size != null && { size: BigInt(size) }),

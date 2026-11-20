@@ -4,6 +4,7 @@ import {
   childFolderPath,
   folderAncestors,
   FOLDER_MAX_DEPTH,
+  joinFolderPath,
   normalizeFolderPath,
 } from "@/folder-path";
 import type { StorageFolder } from "@/types/storage-object";
@@ -40,6 +41,8 @@ export type FolderPlacement = {
 export type StorageFolderStore = {
   /** Loads one folder of the scope. */
   find: (scope: string, id: string) => Promise<StorageFolder | null>;
+  /** How many folders the scope has. */
+  count: (scope: string) => Promise<number>;
   /**
    * Ids of the folders below `id` at any depth, up to
    * {@link FOLDER_SUBTREE_LIMIT}, in no order. Empty for a folder the scope
@@ -47,7 +50,10 @@ export type StorageFolderStore = {
    * @internal Recursive listings use it.
    */
   subtreeIds: (scope: string, id: string) => Promise<string[]>;
-  /** Direct child folders of `parentId` (`null` is the root), by name. */
+  /**
+   * Direct child folders of `parentId` (`null` is the root), by name. Case
+   * and accents do not count, as in the name sort of the objects.
+   */
   children: (
     scope: string,
     parentId: string | null,
@@ -95,6 +101,8 @@ export type StorageFolderStore = {
    * @throws `FOLDER_INVALID` when the name is not a folder name, the folder
    * would sit inside itself, or a path would be too long or too deep.
    * @throws `FOLDER_EXISTS` when the destination already has the name.
+   * @throws `CONFLICT` when a concurrent move put the new parent below this
+   * folder. The move is undone.
    */
   update: (
     scope: string,
@@ -109,7 +117,8 @@ export type StorageFolderStore = {
   delete: (scope: string, id: string) => Promise<void>;
   /**
    * Puts `folder` back when a concurrent delete removed it, with the same
-   * id. An object written in between still points at that id.
+   * id. An object or a subfolder written in between still points at that id.
+   * @internal Writers call it after they write into a folder.
    */
   retain: (folder: StorageFolder) => Promise<void>;
 };
@@ -142,14 +151,21 @@ function batches<T>(values: readonly T[], size: number): T[][] {
   return runs;
 }
 
-/** By name, then by path, the way the list shows folders. */
-function byNameThenPath(a: StorageFolder, b: StorageFolder): number {
-  return (
-    a.name.localeCompare(b.name, undefined, {
-      numeric: true,
-      sensitivity: "base",
-    }) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
-  );
+function compare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * `folders` by folded name, then by path: the order `children` reads from
+ * the database, which is the name sort of the objects.
+ */
+function sortByName(folders: readonly StorageFolder[]): StorageFolder[] {
+  return folders
+    .map((folder) => ({ folder, key: toSearchName(folder.name) }))
+    .sort(
+      (a, b) => compare(a.key, b.key) || compare(a.folder.path, b.folder.path),
+    )
+    .map(({ folder }) => folder);
 }
 
 function mapFolder(row: FolderRow): StorageFolder {
@@ -246,12 +262,16 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
   };
 
   /**
-   * Every folder below `id`, level by level through `parent_id`, at most
-   * `limit`. It never matches the path with `LIKE`, which reads `%`, `_`,
-   * and `\` in a name as a pattern.
+   * Every folder below `id`, level by level through `parent_id`, parents
+   * before their children, at most `limit`. It never matches the path with
+   * `LIKE`, which reads `%`, `_`, and `\` in a name as a pattern.
    */
-  const subtree = async (scope: string, id: string, limit = Infinity) => {
-    const orm = await getOrm();
+  const subtree = async (
+    orm: DbOrm,
+    scope: string,
+    id: string,
+    limit = Infinity,
+  ) => {
     const found: StorageFolder[] = [];
     const seen = new Set([id]);
     let level = [id];
@@ -283,9 +303,11 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     const key = JSON.stringify([scope, id]);
     let walk = walks.get(key);
     if (!walk) {
-      walk = subtree(scope, id, FOLDER_SUBTREE_LIMIT).finally(() => {
-        walks.delete(key);
-      });
+      walk = getOrm()
+        .then((orm) => subtree(orm, scope, id, FOLDER_SUBTREE_LIMIT))
+        .finally(() => {
+          walks.delete(key);
+        });
       walks.set(key, walk);
     }
     return walk;
@@ -308,8 +330,89 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     }
   };
 
+  /**
+   * Writes where a folder sits (its name, parent, and path) and the path of
+   * every folder below it, in one transaction. The folders below are read
+   * inside it, and each path is joined from its parent's, so a subfolder
+   * created meanwhile gets its path too.
+   * @throws `FOLDER_NOT_FOUND` when the folder is gone.
+   * @throws `FOLDER_INVALID` when a path below would be too long or too deep.
+   * @throws `FOLDER_EXISTS` when the parent already has the name.
+   */
+  const place = async (
+    scope: string,
+    id: string,
+    next: { name: string; parentId: string | null; path: string },
+  ) => {
+    const orm = await getOrm();
+    const now = new Date();
+    await orm.transaction(async (tx) => {
+      const paths = new Map([[id, next.path]]);
+      const below = await subtree(tx, scope, id);
+      for (const child of below) {
+        const above = paths.get(child.parentId ?? "");
+        // `subtree` lists a parent before its children.
+        if (above === undefined) continue;
+        const path = joinFolderPath(above, child.name);
+        if (normalizeFolderPath(path) !== path) throw s3Error("FOLDER_INVALID");
+        paths.set(child.id, path);
+      }
+      try {
+        await tx.updateMany("storageFolder", {
+          where: (b) => b.and(b("scope", "=", scope), b("id", "=", id)),
+          set: {
+            name: next.name,
+            searchName: toSearchName(next.name),
+            parentId: storedParent(next.parentId),
+            path: next.path,
+            updatedAt: now,
+          },
+        });
+      } catch (error) {
+        // PostgreSQL aborts the transaction on this error, so it cannot
+        // be followed by another query here.
+        if (error instanceof UniqueConstraintError) {
+          throw s3Error("FOLDER_EXISTS");
+        }
+        throw error;
+      }
+      for (const child of below) {
+        const path = paths.get(child.id);
+        if (path === undefined || path === child.path) continue;
+        await tx.updateMany("storageFolder", {
+          where: (b) => b.and(b("scope", "=", scope), b("id", "=", child.id)),
+          set: { path, updatedAt: now },
+        });
+      }
+    });
+  };
+
+  /**
+   * False when walking up from `id` comes back to a folder it already
+   * passed: two moves that ran at once put each folder below the other.
+   */
+  const reachesRoot = async (scope: string, id: string) => {
+    const seen = new Set<string>();
+    let cursor = await find(scope, id);
+    while (cursor) {
+      if (seen.has(cursor.id)) return false;
+      seen.add(cursor.id);
+      if (cursor.parentId === null) return true;
+      cursor = await find(scope, cursor.parentId);
+    }
+    // A parent is missing: a delete ran at once, and `retain` puts it back.
+    return true;
+  };
+
   return {
     find,
+
+    async count(scope) {
+      const orm = await getOrm();
+      return orm.count("storageFolder", {
+        where: (b) => b("scope", "=", scope),
+      });
+    },
 
     async subtreeIds(scope, id) {
       const below = await sharedSubtree(scope, id);
@@ -324,8 +427,9 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
             b("scope", "=", scope),
             b("parentId", "=", storedParent(parentId)),
           ),
+        // The folded name, like the name sort of the objects.
         orderBy: [
-          ["name", "asc"],
+          ["searchName", "asc"],
           ["id", "asc"],
         ],
         limit: options.limit ?? DEFAULT_FOLDER_CHILDREN_LIMIT,
@@ -376,7 +480,7 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
         );
       }
       // The first `limit` by name, the same below a folder and at the root.
-      return folders.sort(byNameThenPath).slice(0, limit);
+      return sortByName(folders).slice(0, limit);
     },
 
     async ancestors(scope, ids) {
@@ -412,20 +516,25 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
       if (path === null) throw s3Error("FOLDER_INVALID");
       const name = path.slice(path.lastIndexOf("/") + 1);
       const orm = await getOrm();
+      let folder: StorageFolder;
       try {
-        return await insertFolder(orm, {
+        folder = await insertFolder(orm, {
           scope,
           parentId: input.parentId,
           name,
           path,
         });
       } catch (error) {
-        // The parent already has the name, or the scope already has the path.
+        // The parent already has the name.
         if (error instanceof UniqueConstraintError) {
           throw s3Error("FOLDER_EXISTS");
         }
         throw error;
       }
+      // After the row, so a delete of the parent in between sees it or is
+      // undone.
+      if (parent) await retain(parent);
+      return folder;
     },
 
     async update(scope, id, input) {
@@ -440,45 +549,20 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
       const path = childFolderPath(parent?.path ?? null, name);
       if (path === null) throw s3Error("FOLDER_INVALID");
       const storedName = path.slice(path.lastIndexOf("/") + 1);
-      const below = await subtree(scope, id);
-      const prefix = folder.path;
-      const rewritten = below.map((child) => ({
-        id: child.id,
-        path: `${path}${child.path.slice(prefix.length)}`,
-      }));
-      for (const next of [path, ...rewritten.map((child) => child.path)]) {
-        if (normalizeFolderPath(next) !== next) throw s3Error("FOLDER_INVALID");
+      await place(scope, id, { name: storedName, parentId, path });
+      // After the write, so a delete of the new parent in between sees the
+      // folder or is undone.
+      if (parent) await retain(parent);
+      if (parentId !== folder.parentId && !(await reachesRoot(scope, id))) {
+        // The check above ran before a concurrent move of the new parent
+        // below this folder was written. Put this folder back.
+        await place(scope, id, {
+          name: folder.name,
+          parentId: folder.parentId,
+          path: folder.path,
+        }).catch(() => undefined);
+        throw s3Error("CONFLICT");
       }
-
-      const orm = await getOrm();
-      const now = new Date();
-      await orm.transaction(async (tx) => {
-        try {
-          await tx.updateMany("storageFolder", {
-            where: (b) => b.and(b("scope", "=", scope), b("id", "=", id)),
-            set: {
-              name: storedName,
-              searchName: toSearchName(storedName),
-              parentId: storedParent(parentId),
-              path,
-              updatedAt: now,
-            },
-          });
-        } catch (error) {
-          // PostgreSQL aborts the transaction on this error, so it cannot
-          // be followed by another query here.
-          if (error instanceof UniqueConstraintError) {
-            throw s3Error("FOLDER_EXISTS");
-          }
-          throw error;
-        }
-        for (const child of rewritten) {
-          await tx.updateMany("storageFolder", {
-            where: (b) => b.and(b("scope", "=", scope), b("id", "=", child.id)),
-            set: { path: child.path, updatedAt: now },
-          });
-        }
-      });
       const updated = await find(scope, id);
       if (!updated) throw s3Error("FOLDER_NOT_FOUND");
       return updated;

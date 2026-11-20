@@ -12,13 +12,14 @@ import {
   SqliteDialect,
 } from "kysely";
 import { describe, expect, it } from "vitest";
-import { migrate } from "@/cli";
-import { DB_SCHEMA_VERSION, DimahS3DB } from "@/fuma-db";
+import { migrate } from "@/migrate";
+import { DB_SCHEMA_VERSION, DimahS3Db } from "@/fuma-db";
 import { checkSchemaVersion } from "@/store/schema-version";
 import { pgliteDialect } from "@/test/databases";
 import { importDrizzleSchema } from "@/test/generated-schema";
 import { normalizeFolderPath } from "@/folder-path";
-import { dbSchema, SCOPE_MAX_LENGTH } from "./schema";
+import { toSearchName } from "@/store/search-name";
+import { dbSchema, SCOPE_MAX_LENGTH, SEARCH_NAME_MAX_LENGTH } from "./schema";
 
 const DEFINITIONS = {
   storage_object: dbSchema.tables.storageObject,
@@ -162,7 +163,7 @@ async function mysqlMigrationSql(): Promise<string> {
       createQueryCompiler: () => new MysqlQueryCompiler(),
     },
   });
-  const client = DimahS3DB.client(kyselyAdapter({ db, provider: "mysql" }));
+  const client = DimahS3Db.client(kyselyAdapter({ db, provider: "mysql" }));
   const plan = await client.createMigrator().migrateToLatest();
   return plan.getSQL?.() ?? "";
 }
@@ -173,7 +174,7 @@ const sampleObject = {
   key: "users/1/a.txt",
   route: "files",
   folderId: "folder-1",
-  filename: "a.txt",
+  name: "a.txt",
   searchName: "a.txt",
   status: "active",
   size: 5497558138880n,
@@ -182,12 +183,12 @@ const sampleObject = {
   uploadToken: "token",
 };
 
-describe("schema 2.2.0", () => {
+describe("schema 2.3.0", () => {
   it("is the only schema", () => {
-    expect(DimahS3DB.client(kyselyAdapter({} as never)).schemas).toEqual([
+    expect(DimahS3Db.client(kyselyAdapter({} as never)).schemas).toEqual([
       dbSchema,
     ]);
-    expect(DB_SCHEMA_VERSION).toBe("2.2.0");
+    expect(DB_SCHEMA_VERSION).toBe("2.3.0");
   });
 
   it("declares the spec columns", () => {
@@ -199,12 +200,12 @@ describe("schema 2.2.0", () => {
         ["key", false],
         ["route", false],
         ["folder_id", true],
-        ["filename", false],
+        ["name", false],
         ["search_name", false],
         ["content_type", true],
         ["size", true],
         ["declared_size", true],
-        ["e_tag", true],
+        ["etag", true],
         ["status", false],
         ["s3_metadata", true],
         ["attributes", true],
@@ -251,9 +252,9 @@ describe("schema 2.2.0", () => {
           columns: ["scope", "status", "updated_at"],
         },
         {
-          name: "storage_object_scope_filename_idx",
+          name: "storage_object_scope_name_idx",
           unique: false,
-          columns: ["scope", "status", "filename"],
+          columns: ["scope", "status", "search_name"],
         },
         {
           name: "storage_object_scope_size_idx",
@@ -270,8 +271,8 @@ describe("schema 2.2.0", () => {
     expect(expectedShape("storage_folder").indexes).toEqual(
       [
         {
-          name: "storage_folder_scope_path_uk",
-          unique: true,
+          name: "storage_folder_scope_path_idx",
+          unique: false,
           columns: ["scope", "path"],
         },
         {
@@ -287,7 +288,7 @@ describe("schema 2.2.0", () => {
 describe("migrate() on SQLite", () => {
   async function create() {
     const database = new Database(":memory:");
-    const client = DimahS3DB.client(
+    const client = DimahS3Db.client(
       kyselyAdapter({
         db: new Kysely<object>({ dialect: new SqliteDialect({ database }) }),
         provider: "sqlite",
@@ -334,7 +335,7 @@ describe("migrate() on SQLite", () => {
 describe("migrate() on PostgreSQL", () => {
   async function create() {
     const pg = new PGlite();
-    const client = DimahS3DB.client(
+    const client = DimahS3Db.client(
       kyselyAdapter({
         db: new Kysely<object>({ dialect: pgliteDialect(pg) }),
         provider: "postgresql",
@@ -354,6 +355,10 @@ describe("migrate() on PostgreSQL", () => {
     expect((await pgShape(pg, "storage_object")).types).toMatchObject({
       key: "character varying(1024)",
       scope: "character varying(255)",
+      route: "character varying(64)",
+      name: "character varying(255)",
+      etag: "character varying(255)",
+      acl: "character varying(16)",
       status: "character varying(16)",
       upload_token: "character varying(64)",
       upload_id: "text",
@@ -412,13 +417,41 @@ describe("migrate() on PostgreSQL", () => {
       /index row size/,
     );
   });
+
+  it("indexes the longest scope with the longest search name", async () => {
+    const { client } = await create();
+    const orm = client.orm(DB_SCHEMA_VERSION);
+    // Distinct CJK characters (3 bytes each) do not compress in the index.
+    const cjk = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        String.fromCodePoint(0x4e00 + ((index * 7919) % 20_000)),
+      ).join("");
+    const object = (key: string, searchName: string) => ({
+      ...sampleObject,
+      scope: "\u{1d49c}".repeat(SCOPE_MAX_LENGTH), // 4 bytes each
+      key,
+      searchName,
+    });
+
+    // The cap `toSearchName` cuts to: 341 such characters are 1023 bytes.
+    const capped = toSearchName(cjk(SEARCH_NAME_MAX_LENGTH));
+    expect(new TextEncoder().encode(capped).byteLength).toBe(1023);
+    await expect(
+      orm.create("storageObject", object("capped", capped)),
+    ).resolves.toMatchObject({ searchName: capped });
+
+    // The column's 1024 characters alone are past the 2704-byte index entry.
+    await expect(
+      orm.create("storageObject", object("full", cjk(SEARCH_NAME_MAX_LENGTH))),
+    ).rejects.toThrow(/index row size/);
+  });
 });
 
 describe("PostgreSQL through Kysely and Drizzle", () => {
   /** One database migrated by Kysely, with a Drizzle client on the generated tables. */
   async function create(dbSchema?: string) {
     const pg = new PGlite();
-    const library = dbSchema ? DimahS3DB.names.schema(dbSchema) : DimahS3DB;
+    const library = dbSchema ? DimahS3Db.names.schema(dbSchema) : DimahS3Db;
     const viaKysely = library.client(
       kyselyAdapter({
         db: new Kysely<object>({ dialect: pgliteDialect(pg) }),
@@ -514,20 +547,24 @@ describe("migrate() on MySQL", () => {
       "create unique index `storage_object_bucket_key_uk` on `storage_object` (`bucket`, `key`(512))",
     );
     expect(sql).toContain(
-      "create unique index `storage_folder_scope_path_uk` on `storage_folder` (`scope`, `path`(512))",
+      "create index `storage_folder_scope_path_idx` on `storage_folder` (`scope`, `path`(512))",
+    );
+    expect(sql).toContain(
+      "create index `storage_object_scope_name_idx` on `storage_object` (`scope`, `status`, `search_name`(255))",
     );
     expect(sql).toContain(
       "create index `storage_object_scope_folder_idx` on `storage_object` (`scope`, `status`, `folder_id`, `created_at`)",
     );
   });
 
-  it("compares keys byte for byte and file names case-insensitively", async () => {
+  it("compares keys and names byte for byte", async () => {
     const sql = await mysqlMigrationSql();
     expect(sql).toContain("`key` varchar(1024) collate utf8mb4_bin not null");
     expect(sql).toContain("`upload_id` text collate utf8mb4_bin");
-    expect(sql).toContain(
-      "`filename` varchar(255) collate utf8mb4_unicode_ci not null",
-    );
+    expect(sql).toContain("`name` varchar(255) collate utf8mb4_bin not null");
+    // The name sort and search read the folded name, so no column needs a
+    // case-insensitive collation.
+    expect(sql).not.toContain("utf8mb4_unicode_ci");
   });
 
   it("keeps milliseconds", async () => {
