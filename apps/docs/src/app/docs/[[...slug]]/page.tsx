@@ -25,6 +25,7 @@ import {
   ogLocale,
   translationLinks,
 } from "@/lib/page-language";
+import { DocsSponsors } from "@/components/docs-sponsors";
 import { TranslationLink } from "@/components/translation-link";
 import { documentTitle } from "@/lib/source/navigation";
 
@@ -52,7 +53,12 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
           __html: serializeJsonLd(jsonLd),
         }}
       />
-      <DocsPage toc={page.data.toc} full={page.data.full}>
+      <DocsPage
+        toc={page.data.toc}
+        full={page.data.full}
+        tableOfContent={{ footer: <DocsSponsors /> }}
+        tableOfContentPopover={{ footer: <DocsSponsors /> }}
+      >
         <DocsTitle {...language}>{page.data.title}</DocsTitle>
         <DocsDescription className="mb-0" {...language}>
           {page.data.description}

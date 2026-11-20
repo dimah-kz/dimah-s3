@@ -407,6 +407,9 @@ importers:
       '@dimah-s3/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@fumari/sponsors':
+        specifier: 0.1.4
+        version: 0.1.4(react@19.3.1)
       '@icons-pack/react-simple-icons':
         specifier: ^13.15.1
         version: 13.15.1(react@19.3.1)
@@ -1776,6 +1779,11 @@ packages:
 
   '@fumari/image-size@0.1.1':
     resolution: {integrity: sha512-iaiV2wyzJ4mW358NX4CX3yGit+WjKYzpaQ+rldK9BjL/5jFpeV6ruWnZVq7MEyMn3Gd0DLi8g/79NZAAQaGscw==}
+
+  '@fumari/sponsors@0.1.4':
+    resolution: {integrity: sha512-h0mCdZX8b2UjpR1QD3hResfR75sWfjGhBHR9tL/fS/U3NeQg+u4HpOeSAlOtVul4gIFfC5AICV54hCjDsbcJoQ==}
+    peerDependencies:
+      react: ^19.0.0
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -7105,6 +7113,10 @@ snapshots:
       tailwindcss: 4.3.5
 
   '@fumari/image-size@0.1.1': {}
+
+  '@fumari/sponsors@0.1.4(react@19.3.1)':
+    dependencies:
+      react: 19.3.1
 
   '@humanfs/core@0.19.2':
     dependencies:
