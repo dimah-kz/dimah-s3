@@ -103,6 +103,8 @@ export function docsArticleJsonLd(input: {
   url: string;
   title: string;
   description: string;
+  /** @default "en" */
+  language?: string;
 }) {
   const pageUrl = `${input.origin}${input.url}`;
 
@@ -112,7 +114,7 @@ export function docsArticleJsonLd(input: {
     headline: input.title,
     description: input.description,
     url: pageUrl,
-    inLanguage: "en",
+    inLanguage: input.language ?? "en",
     isPartOf: {
       "@type": "WebSite",
       name: appName,

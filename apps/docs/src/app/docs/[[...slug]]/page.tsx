@@ -19,6 +19,13 @@ import {
   serializeJsonLd,
 } from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
+import {
+  languageAlternates,
+  languageAttributes,
+  ogLocale,
+  translationLinks,
+} from "@/lib/page-language";
+import { TranslationLink } from "@/components/translation-link";
 
 export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const params = await props.params;
@@ -27,11 +34,13 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
 
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
+  const language = languageAttributes(page.data.lang);
   const jsonLd = docsArticleJsonLd({
     origin: getSiteUrl().origin,
     url: page.url,
     title: page.data.title,
     description: page.data.description ?? "",
+    language: page.data.lang,
   });
 
   return (
@@ -43,18 +52,21 @@ export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
         }}
       />
       <DocsPage toc={page.data.toc} full={page.data.full}>
-        <DocsTitle>{page.data.title}</DocsTitle>
-        <DocsDescription className="mb-0">
+        <DocsTitle {...language}>{page.data.title}</DocsTitle>
+        <DocsDescription className="mb-0" {...language}>
           {page.data.description}
         </DocsDescription>
-        <div className="flex flex-row items-center gap-2 border-b pb-6">
+        <div className="flex flex-row flex-wrap items-center gap-2 border-b pb-6">
           <MarkdownCopyButton markdownUrl={markdownUrl} />
           <ViewOptionsPopover
             markdownUrl={markdownUrl}
             githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/${gitConfig.contentPath}/${page.path}`}
           />
+          {translationLinks(page.data.translations).map((link) => (
+            <TranslationLink key={link.lang} {...link} />
+          ))}
         </div>
-        <DocsBody>
+        <DocsBody {...language}>
           <MDX
             components={getMDXComponents({
               // this allows you to link to other pages with relative file paths
@@ -87,6 +99,11 @@ export async function generateMetadata(
     keywords: docsPageKeywords(page.data.title),
     alternates: {
       canonical: page.url,
+      languages: languageAlternates(
+        page.url,
+        page.data.lang,
+        page.data.translations,
+      ),
       types: {
         "text/markdown": markdownUrl,
       },
@@ -97,6 +114,7 @@ export async function generateMetadata(
       url: page.url,
       siteName: appName,
       images: image,
+      locale: ogLocale(page.data.lang),
       type: "article",
     },
     twitter: {

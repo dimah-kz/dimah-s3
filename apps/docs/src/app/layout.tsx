@@ -1,7 +1,7 @@
 import "./global.css";
 import { Body } from "@/app/layout.client";
 import { RootProvider } from "fumadocs-ui/provider/next";
-import { Geist } from "next/font/google";
+import { Geist, Vazirmatn } from "next/font/google";
 import type { Metadata } from "next";
 import { cn } from "cn";
 import {
@@ -20,6 +20,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const fontSans = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
+});
+
+/** Persian pages (`lang="fa"`). Not preloaded: only those pages download it. */
+const fontPersian = Vazirmatn({
+  subsets: ["arabic"],
+  variable: "--font-persian",
+  preload: false,
 });
 
 const siteUrl = getSiteUrl();
@@ -69,7 +76,12 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn(fontSans.className, "font-sans", fontSans.variable)}
+      className={cn(
+        fontSans.className,
+        "font-sans",
+        fontSans.variable,
+        fontPersian.variable,
+      )}
       suppressHydrationWarning
     >
       <head>
