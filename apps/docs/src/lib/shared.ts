@@ -23,6 +23,7 @@ export const siteKeywords = [
   "aws sdk v3",
   "cloudflare r2",
   "minio",
+  "arvancloud",
   "dimah s3",
   "dimah-s3",
   "object storage",
@@ -171,7 +172,7 @@ export function siteJsonLd(origin: string) {
         },
         featureList: [
           "Presigned S3-compatible direct uploads",
-          "S3-compatible storage, with guides for Amazon S3, Cloudflare R2, and MinIO",
+          "S3-compatible storage, with guides for Amazon S3, Cloudflare R2, MinIO, and ArvanCloud",
           "Presigned downloads & proxy preview",
           "Server-side deletion with lifecycle guards",
           "Resumable multipart uploads for large files",

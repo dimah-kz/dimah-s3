@@ -1,11 +1,11 @@
 ---
 title: Providers
-description: Configure Amazon S3, Cloudflare R2, MinIO, and other S3-compatible storage.
+description: Configure Amazon S3, Cloudflare R2, MinIO, ArvanCloud, and other S3-compatible storage.
 ---
 
 dimah-s3 talks to storage through the AWS SDK `S3Client`. Any service that
-speaks enough of the S3 API can work — Amazon S3, Cloudflare R2, MinIO, and
-similar backends.
+speaks enough of the S3 API can work — Amazon S3, Cloudflare R2, MinIO,
+ArvanCloud, and similar backends.
 
 S3-compatible is not the same as Amazon S3. Providers skip or ignore parts of
 the API. With a presign-first stack, those gaps show up quickly: the browser
@@ -14,7 +14,7 @@ match what the provider actually supports.
 
 | Topic                 | Why it matters                                                                                     |
 | --------------------- | -------------------------------------------------------------------------------------------------- |
-| Presigned PUT vs POST | Default upload is PUT. POST is opt-in, and some providers have no presigned POST.                  |
+| Presigned PUT vs POST | Default upload is PUT. Some providers have no presigned POST; others accept only POST.             |
 | SDK checksums         | The `S3Client` must set `requestChecksumCalculation: "WHEN_REQUIRED"`, or presigned uploads fail.  |
 | Object ACL            | `acl: "public-read"` needs real ACL support. Others use bucket policies or a public-access toggle. |
 | Endpoint & addressing | Custom endpoints often need `endpoint`, and sometimes `forcePathStyle: true`.                      |
@@ -26,13 +26,13 @@ below only for the extras that defaults do not cover.
 
 ## Comparison
 
-|                   | [AWS S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) |
-| ----------------- | :------------------------------: | :--------------------------------------------: | :----------------------------: |
-| Presigned PUT     |          Yes (default)           |                 Yes (default)                  |         Yes (default)          |
-| Presigned POST    |               Yes                |                       No                       |              Yes               |
-| Object ACL        |               Yes                |                    Ignored                     |          Use policies          |
-| Custom `endpoint` |             Optional             |                    Required                    |            Required            |
-| `forcePathStyle`  |           Usually off            |                      Off                       |          Typically on          |
+|                   | [AWS S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) | [ArvanCloud](/docs/providers/arvancloud) |
+| ----------------- | :------------------------------: | :--------------------------------------------: | :----------------------------: | :--------------------------------------: |
+| Presigned PUT     |          Yes (default)           |                 Yes (default)                  |         Yes (default)          |                    No                    |
+| Presigned POST    |               Yes                |                       No                       |              Yes               |              Yes (required)              |
+| Object ACL        |               Yes                |                    Ignored                     |          Use policies          |                   Yes                    |
+| Custom `endpoint` |             Optional             |                    Required                    |            Required            |                 Required                 |
+| `forcePathStyle`  |           Usually off            |                      Off                       |          Typically on          |                    On                    |
 
 ## Configuration
 
@@ -56,8 +56,9 @@ export const s3 = dimahS3({
 });
 ```
 
-The default upload method is PUT, which every provider here supports. Switch
-to POST only when you want a form upload and the provider has presigned POST.
+The default upload method is PUT, which every provider here supports except
+ArvanCloud. Switch to POST on ArvanCloud, or when you want a form upload and
+the provider has presigned POST.
 Confirm reports the ACL from `upload.acl` or `object`; there is no
 `GetObjectAcl` lookup.
 
@@ -81,5 +82,10 @@ Change it on the server only.
     title="MinIO"
     href="/docs/providers/minio"
     description="Path-style addressing and server CORS for self-hosted S3."
+  />
+  <Card
+    title="ArvanCloud"
+    href="/docs/providers/arvancloud"
+    description="Presigned POST uploads, the API host, and public URLs."
   />
 </Cards>

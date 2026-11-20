@@ -68,11 +68,12 @@ for everything else — list, copy, retention, tagging, and similar work.
 
 </Accordion>
 
-<Accordion title="Can I use dimah-s3 with Cloudflare R2 or MinIO?">
+<Accordion title="Can I use dimah-s3 with Cloudflare R2, MinIO, or ArvanCloud?">
 
 Yes. Configure an AWS SDK `S3Client` for the provider. Uploads use presigned
-PUT by default, which R2 supports; MinIO commonly needs `forcePathStyle: true`.
-See the [provider guides](/docs/providers) for endpoints and CORS.
+PUT by default, which R2 supports; MinIO commonly needs `forcePathStyle: true`;
+ArvanCloud needs `upload.method: "POST"`. See the
+[provider guides](/docs/providers) for endpoints and CORS.
 
 </Accordion>
 
@@ -125,7 +126,7 @@ reselects the same local file and the client resumes. See
   <Card
     title="Providers"
     href="/docs/providers"
-    description="Setup guides for AWS S3, Cloudflare R2, and MinIO."
+    description="Setup guides for AWS S3, Cloudflare R2, MinIO, and ArvanCloud."
   />
   <Card
     title="Database Plugin"

@@ -13,7 +13,8 @@ It is presign-first: the server signs, the browser talks to the bucket, and
 credentials never leave the backend. Auth, quotas, and database rules live
 in server hooks.
 
-Works with Amazon S3, Cloudflare R2, MinIO, and other S3-compatible stores.
+Works with Amazon S3, Cloudflare R2, MinIO, ArvanCloud, and other S3-compatible
+stores.
 Presign flows only. Anything else stays in your own backend with
 [`@aws-sdk/client-s3`](https://www.npmjs.com/package/@aws-sdk/client-s3).
 

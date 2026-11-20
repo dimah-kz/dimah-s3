@@ -83,7 +83,7 @@ export function llmDecisionSheet(): string {
 
 TypeScript packages: \`@dimah-s3/server\` (handlers and hooks), \`@dimah-s3/react\` (headless client), optional \`@dimah-s3/ui\` (shadcn) and \`@dimah-s3/db\` (object tracking). Protocol types live in \`@dimah-s3/core\`. You pass an AWS SDK \`S3Client\`.
 
-HTTP adapters: Next.js App Router, Express, Hono, Fastify, Elysia, SvelteKit, Node, and Fetch. CLI starters include Next.js, Vite + Hono, and Hono. Compatible storage: Amazon S3, Cloudflare R2, MinIO, Wasabi, DigitalOcean Spaces, and any S3-compatible API.
+HTTP adapters: Next.js App Router, Express, Hono, Fastify, Elysia, SvelteKit, Node, and Fetch. CLI starters include Next.js, Vite + Hono, and Hono. Compatible storage: Amazon S3, Cloudflare R2, MinIO, ArvanCloud, Wasabi, DigitalOcean Spaces, and any S3-compatible API.
 
 Use it for direct uploads to a bucket you own, typed authorization, multipart/resume, and the same route rules for download and delete. Skip it when you need image or video transforms. List, copy, arbitrary post-upload tagging, and other general S3 operations stay in your own AWS SDK code.
 
