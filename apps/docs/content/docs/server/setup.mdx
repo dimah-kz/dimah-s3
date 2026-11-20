@@ -18,8 +18,8 @@ and Web Crypto.
 
 ## Set the ticket secret
 
-Presign returns an [upload ticket](/docs/server/upload-tickets) signed with a
-secret. Set `DIMAH_S3_SECRET` to a random value of at least 32 characters, the
+Presign returns an [upload ticket](/docs/server/upload-tickets) signed with
+`DIMAH_S3_SECRET`. Set it to a random value of at least 32 characters, the
 same on every instance:
 
 ```bash title=".env"
@@ -27,9 +27,9 @@ same on every instance:
 DIMAH_S3_SECRET="…"
 ```
 
-The secret is read on the first upload, not at startup. Without one, uploads
-return `500 INTERNAL_ERROR`. When `NODE_ENV` is `development` or `test`, a
-random secret is used instead and a warning is logged.
+Without it, uploads return `500 INTERNAL_ERROR`. Development and test fall
+back to a random secret, so a missing one first fails in production. See
+[Secret](/docs/server/upload-tickets#secret).
 
 ## Configure S3 and routes
 
@@ -68,23 +68,21 @@ export const s3 = dimahS3({
 ```
 
 <Callout type="warn" title="requestChecksumCalculation">
-  Recent AWS SDK versions default to `"WHEN_SUPPORTED"`, which adds checksum
-  parameters that a presigned browser upload cannot match. The server checks
-  each client before its first presign. Any value other than `"WHEN_REQUIRED"`
-  is logged as a config error, and the request returns `500 INTERNAL_ERROR`.
+  The SDK default, `"WHEN_SUPPORTED"`, signs checksum parameters that a
+  presigned browser upload cannot match. With any value other than
+  `"WHEN_REQUIRED"`, presign logs a config error and returns `500
+  INTERNAL_ERROR`.
 </Callout>
 
-<Callout title="Files over 5 GiB">
-  A single presigned PUT or POST cannot exceed 5 GiB, so larger files return
-  `FILE_TOO_LARGE`. Turn on [`upload.multipart`](/docs/server/hooks/multipart)
-  for them. The route's `maxFileSize` still applies.
-</Callout>
+The browser uploads straight to the bucket, so the bucket must also allow
+your app's origin in its CORS rules. See
+[Providers](/docs/providers#allow-your-origin-in-bucket-cors).
 
 ## Mount the handler
 
 Mount the handler at the `basePath` the client uses, `/api/s3` by default.
 
-<Tabs items={["Next.js", "Express", "Hono", "SvelteKit", "Fastify", "Elysia", "Node", "Web"]}>
+<Tabs items={["Next.js", "Express", "Hono / Vite", "SvelteKit", "Fastify", "Elysia", "Node", "Web"]}>
 
 <Tab value="Next.js">
 
@@ -94,12 +92,6 @@ import { s3 } from "@/lib/s3";
 
 export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 ```
-
-<Callout title="Cache Components">
-  Next.js 16.4 enables Cache Components on new apps. Leave this handler
-  uncached: it reads the request, so presign, download, and delete must run on
-  each request. A `use cache` wrapper would reuse one presign across requests.
-</Callout>
 
 </Tab>
 
@@ -116,13 +108,11 @@ app.use("/api/s3", toExpressHandler(s3));
 app.use(express.json());
 ```
 
-A mount (`app.use`) and a route (`app.all("/api/s3/*", …)`, or
-`"/api/s3/*splat"` on Express 5) both work. The adapter reads
-`req.originalUrl`, which keeps the mount path.
+A route works too: `app.all("/api/s3/*splat", …)` on Express 5.
 
 </Tab>
 
-<Tab value="Hono">
+<Tab value="Hono / Vite">
 
 ```ts title="src/index.ts"
 import { Hono } from "hono";
@@ -135,6 +125,19 @@ app.on(
   "/api/s3/*",
   toHonoHandler(s3),
 );
+```
+
+With a Vite React app, run this API server next to Vite and proxy `/api` to
+it in development, so the client keeps calling its own origin:
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  server: {
+    proxy: {
+      "/api": { target: "http://127.0.0.1:8787", changeOrigin: true }, // [!code ++]
+    },
+  },
+});
 ```
 
 </Tab>
@@ -171,9 +174,6 @@ app.register(async (scope) => {
   scope.all("/api/s3/*", toFastifyHandler(s3));
 });
 ```
-
-Fastify parses JSON bodies before the handler runs. Turn parsing off for the
-dimah-s3 routes, as above, so the adapter can read the body.
 
 </Tab>
 
@@ -225,16 +225,12 @@ export default {
 
 </Tabs>
 
-### Node, Express, and Fastify
-
-These adapters stream the request body from `req`, so the body cap is counted
-as bytes arrive. They stream response bodies, such as a
-[`/file`](/docs/server/file-proxy) download, to `res`. When the client
-disconnects, the request signal aborts, and so does the S3 call behind it.
+### Behind a reverse proxy
 
 Behind a proxy that sets `X-Forwarded-Proto` and `X-Forwarded-Host`, pass
-`trustProxy` so the request URL uses them. Turn it on only behind such a
-proxy, since clients can send those headers too.
+`trustProxy` to the Node, Express, or Fastify adapter, so `request.url` in
+your hooks is the public URL. Turn it on only behind such a proxy, since
+clients can send those headers too.
 
 ```ts
 toNodeHandler(s3, { trustProxy: true });
@@ -245,8 +241,7 @@ toFastifyHandler(s3, { trustProxy: true });
 ### Custom base path or API origin
 
 Set `basePath` to serve the API somewhere else, or `baseURL` when it has its
-own origin. With `baseURL`, proxy download URLs are absolute. Configure the
-client to match:
+own origin, and configure the client to match:
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -260,6 +255,10 @@ export const s3Client = createS3Client({
   baseURL: "https://api.example.com/api/storage", // [!code ++]
 });
 ```
+
+The handler sends no CORS headers. An API on another origin needs CORS from
+your framework: allow the app's origin, the `Content-Type` header, and
+credentials when the client sends cookies (`credentials: "include"`).
 
 ## Server-side API (`s3.api`)
 
@@ -281,23 +280,11 @@ export async function getAvatarDownloadUrl(key: string) {
 }
 ```
 
-In a Node or Express handler, convert `req.headers` with `fromNodeHeaders`
-from `@dimah-s3/server/node` (also exported by `@dimah-s3/server/express`):
+In Node or Express, pass `{ headers: fromNodeHeaders(req.headers) }`, with
+`fromNodeHeaders` from `@dimah-s3/server/node`.
 
-```ts title="server.ts"
-import { fromNodeHeaders } from "@dimah-s3/server/node";
-
-app.get("/avatar-url", async (req, res) => {
-  const { url } = await s3.api.download(
-    { route: "avatar", key: String(req.query.key) },
-    { headers: fromNodeHeaders(req.headers) }, // [!code ++]
-  );
-  res.json({ url });
-});
-```
-
-For jobs with no request, seed trusted [`locals`](/docs/server/hooks/global-guard#locals)
-instead. HTTP requests can never set them.
+For jobs with no request, seed trusted
+[`locals`](/docs/server/hooks/global-guard#locals) instead:
 
 ```ts title="jobs/cleanup.ts"
 await s3.api.deleteMany(
@@ -306,8 +293,8 @@ await s3.api.deleteMany(
 );
 ```
 
-Plugin endpoints, such as the `db()` list, are HTTP only. Plugins expose their
-server-side API on the instance instead (`s3.db`).
+Plugin endpoints are HTTP only. A plugin exposes its server-side functions on
+the instance instead, such as `s3.db`.
 
 ## Server-side uploads (`s3.put`)
 
@@ -326,19 +313,15 @@ const object = await s3.put(
 // object: { key, bucket, name, size, type, eTag, metadata, acl, … }
 ```
 
-- It runs `upload.object`, `upload.guard`, `upload.onStart` with
-  `kind: "server"`, the PutObject, and `upload.onConfirmed`.
-  `upload.confirmGuard` does not run.
-- The object gets a `Content-Disposition` with the file name.
-- `metadata` is written to S3 on top of `upload.object().metadata`.
-  `clientMetadata` reaches the hooks and is never written.
+It runs the route's upload hooks with `kind: "server"`, except
+`confirmGuard`. See [Upload Hooks](/docs/server/hooks/upload#upload-lifecycle).
 
 ## Logging
 
-The server logs config errors, unexpected failures, and warnings with
-`console.error` and `console.warn`, prefixed with `[dimah-s3]`. Rejections you
-throw with `s3Error` are not logged. Pass `logger` to send logs elsewhere, or
-`false` to silence them:
+The server logs config errors, unexpected failures, and warnings to
+`console`, prefixed with `[dimah-s3]`. Rejections you throw with `s3Error`
+are not logged. Pass `logger` to send logs elsewhere, or `false` to silence
+them:
 
 ```ts
 export const s3 = dimahS3({
@@ -350,15 +333,15 @@ export const s3 = dimahS3({
 });
 ```
 
-Every logger method is optional (`debug`, `info`, `warn`, `error`). To send
-failures to an error tracker, use [`onError`](/docs/server/errors#reporting-errors).
+To send failures to an error tracker, use
+[`onError`](/docs/server/errors#reporting-errors).
 
 ## API Reference
 
 ### dimahS3()
 
-`dimahS3(config)` checks the config and throws at startup on a mistake. The
-ticket secret is the exception: `DIMAH_S3_SECRET` is read on the first upload.
+`dimahS3(config)` throws at startup on an invalid config. Only the ticket
+secret is checked later, on the first upload.
 
 | Prop                 | Type                                        | Default     | Description                                                                                                                                                    |
 | -------------------- | ------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -371,8 +354,8 @@ ticket secret is the exception: `DIMAH_S3_SECRET` is read on the first upload.
 | `ticketSubject`      | `TicketSubject`                             | —           | Binds [upload tickets](/docs/server/upload-tickets#binding-a-ticket-to-a-user) to a subject, such as a user id. Defaults to the first plugin that provides one |
 | `guard`              | `Guard<GuardContext>`                       | —           | Runs before every operation, before route lookup. See [Guards](/docs/server/hooks/global-guard)                                                                |
 | `maxExpiresIn`       | `number`                                    | `604800`    | Largest presign TTL in seconds for any route. 7 days is also the maximum                                                                                       |
-| `maxRequestBodySize` | `number`                                    | `1048576`   | Largest JSON request body in bytes, counted on the stream                                                                                                      |
-| `logger`             | `DimahS3Logger \| false`                    | —           | Receives config errors, unexpected failures, and warnings. Defaults to `console`. `false` silences it                                                          |
+| `maxRequestBodySize` | `number`                                    | `1048576`   | Largest JSON request body in bytes, counted on the stream. Over it: `413 REQUEST_TOO_LARGE`                                                                    |
+| `logger`             | `DimahS3Logger \| false`                    | `console`   | Object with optional `debug`, `info`, `warn`, and `error` methods. `false` silences it                                                                         |
 | `onError`            | `(error, context) => void \| Promise<void>` | —           | Receives every unexpected failure with `{ request, operation? }`. See [Reporting errors](/docs/server/errors#reporting-errors)                                 |
 | `plugins`            | `readonly DimahS3Plugin[]`                  | —           | Server [plugins](/docs/server/plugins), such as `db()`                                                                                                         |
 
@@ -408,11 +391,11 @@ The last argument of every `s3.api` method and of `s3.put`
 | Prop             | Type                                                                        | Default  | Description                                                               |
 | ---------------- | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- |
 | `route`          | `string`                                                                    | required | Route name                                                                |
-| `name`           | `string`                                                                    | required | File name                                                                 |
+| `name`           | `string`                                                                    | required | File name. Also written as the object's `Content-Disposition`             |
 | `body`           | `Blob \| ReadableStream<Uint8Array> \| Uint8Array \| ArrayBuffer \| string` | required | File content                                                              |
 | `type`           | `string`                                                                    | —        | MIME type                                                                 |
 | `size`           | `number`                                                                    | —        | Byte size. Required for a `ReadableStream`, and must match any other body |
-| `metadata`       | `Record<string, string>`                                                    | —        | S3 user metadata written on the object                                    |
+| `metadata`       | `Record<string, string>`                                                    | —        | S3 user metadata, written on top of the `metadata` from `upload.object`   |
 | `clientMetadata` | `Record<string, string>`                                                    | —        | Visible to hooks. Never written to S3                                     |
 
 ### Adapter options
@@ -423,26 +406,3 @@ The last argument of every `s3.api` method and of `s3.put`
 | Prop         | Type      | Default | Description                                                            |
 | ------------ | --------- | ------- | ---------------------------------------------------------------------- |
 | `trustProxy` | `boolean` | `false` | Builds the request URL from `X-Forwarded-Proto` and `X-Forwarded-Host` |
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How large can a request body be?">
-
-`maxRequestBodySize` caps every request body, 1 MiB by default. It is counted
-on the stream before parsing, so a chunked body cannot get around it. Going
-over returns `413 REQUEST_TOO_LARGE`. Body endpoints accept `application/json`
-only and return `415 UNSUPPORTED_MEDIA_TYPE` for anything else.
-
-</Accordion>
-
-<Accordion title="How do I reject a call, and what status does it return?">
-
-Throw `s3Error("FORBIDDEN")`, or another catalog code, from a guard or hook.
-A plain `Error` thrown anywhere is logged, passed to `onError`, and returns
-`500 INTERNAL_ERROR`. See [Errors](/docs/server/errors).
-
-</Accordion>
-
-</Accordions>

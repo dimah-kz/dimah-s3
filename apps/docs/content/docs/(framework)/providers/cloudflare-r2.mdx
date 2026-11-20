@@ -4,52 +4,41 @@ description: Connect dimah-s3 to Cloudflare R2 with presigned PUT uploads, bucke
 ---
 
 Cloudflare R2 speaks the S3 API with two differences that matter here: it has
-no presigned POST, and it ignores object ACLs. Keep the default PUT upload
-method.
-
-## Settings
-
-| Setting                      | Value                                           |
-| ---------------------------- | ----------------------------------------------- |
-| `region`                     | `"auto"`                                        |
-| `endpoint`                   | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
-| `forcePathStyle`             | Leave unset                                     |
-| `requestChecksumCalculation` | `"WHEN_REQUIRED"`                               |
-| `upload.method`              | `"PUT"` (default). Never `"POST"`               |
+no presigned POST, and it ignores object ACLs.
 
 ## Server configuration
 
+```dotenv title=".env"
+S3_ENDPOINT="https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+S3_REGION="auto"
+S3_ACCESS_KEY_ID="your-access-key-id"
+S3_SECRET_ACCESS_KEY="your-secret-access-key"
+S3_BUCKET="your-bucket-name"
+```
+
+The keys come from an R2 API token with **Object Read & Write** permission.
+
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
-  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
-});
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: process.env.R2_BUCKET!,
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
-    }),
-  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 ```
 
+Keep the default `upload.method`, `"PUT"`. A route with `method: "POST"`
+presigns fine, then R2 rejects the upload.
+
 ## Bucket CORS
 
-Add a CORS policy to the bucket in the Cloudflare R2 dashboard:
+Add a CORS policy in the bucket's **Settings** in the R2 dashboard:
 
 ```json
 [
@@ -66,28 +55,17 @@ Add a CORS policy to the bucket in the Cloudflare R2 dashboard:
 [Allow your origin in bucket CORS](/docs/providers#allow-your-origin-in-bucket-cors)
 explains each field.
 
-## Provider notes
+## Public files
 
-- **No presigned POST.** Do not set `upload.method: "POST"` on an R2 route.
-  The presign succeeds, but R2 rejects the form upload.
-- **ACLs are ignored.** `acl: "public-read"` does not make an object public.
-- **Public files.** Turn on public access for the bucket, or connect a custom
-  domain such as `cdn.example.com`. Build URLs from that base and the
-  server-issued key with [`buildPublicObjectUrl`](/docs/core#helpers), which
-  encodes the key.
+`acl: "public-read"` does not make an object public on R2. Turn on the bucket's
+public `r2.dev` URL, or connect a custom domain, and use it as the public base:
 
-## Troubleshooting
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="https://cdn.example.com"
+```
 
-<Accordions>
+Then build URLs with
+[`buildPublicObjectUrl`](/docs/providers#make-files-public). The `r2.dev` URL
+is rate-limited, so use a custom domain in production.
 
-<Accordion title="Presign succeeds, then the upload fails">
-
-- The route must use `PUT`. Remove `upload.method: "POST"`.
-- The bucket's CORS policy must allow your exact origin and `PUT`. A missing
-  rule shows up as a network error in the browser.
-
-</Accordion>
-
-</Accordions>
-
-More symptoms: [Troubleshooting](/docs/providers#troubleshooting).
+Upload failing? See [Troubleshooting](/docs/providers#troubleshooting).

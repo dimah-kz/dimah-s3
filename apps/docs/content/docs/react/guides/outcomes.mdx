@@ -27,12 +27,8 @@ type OperationOutcome<TData> =
   | { status: "aborted"; key: string };
 ```
 
-| Status    | Means                                                                     |
-| --------- | ------------------------------------------------------------------------- |
-| `success` | `data` holds the response                                                 |
-| `error`   | `error` is an `APIError`                                                  |
-| `blocked` | A `before*` callback returned `false`                                     |
-| `aborted` | The call was cancelled. A delete has no cancel, so it never ends this way |
+- **`blocked`** — a `before*` callback returned `false`.
+- **`aborted`** — the call was cancelled. A delete has no cancel, so it never ends this way.
 
 ## Results
 
@@ -42,10 +38,6 @@ Batch actions resolve with one result that sorts every unit:
 | ------------------------- | ---------------------------------------------------------- |
 | `useUpload().handleFiles` | `{ uploaded, failed, rejected, blocked, aborted }` by file |
 | `useDelete().removeMany`  | `{ deleted, failed, blocked }` by key                      |
-
-Each `failed` entry pairs the unit with its `APIError`, such as
-`{ key, error }`. An upload's `rejected` entries are the files the policy
-refused before upload, each as `{ file, errors }`.
 
 ## Joined calls
 
@@ -108,24 +100,9 @@ The full list is in [Errors](/docs/server/errors#client-codes).
 ## Aborts
 
 A cancel is not an error. Hooks report it as an `aborted` outcome, or in the
-`aborted` list of an upload result.
-
-Engine functions such as `uploadFile` reject with the signal's reason
-instead. Upload abort reasons are `DOMException`s named `AbortError`; read
-which kind with `getUploadAbortKind`:
-
-```ts
-import { getUploadAbortKind } from "@dimah-s3/react/engine";
-
-try {
-  await uploadFile(api, file, options);
-} catch (error) {
-  const kind = getUploadAbortKind(error); // "cancel", "detach", or null
-  if (kind === null) throw error;
-}
-```
-
-See [Engine](/docs/react/guides/engine#cancel-and-detach).
+`aborted` list of an upload result. Engine functions such as `uploadFile`
+reject with the signal's reason instead; see
+[Cancel and detach](/docs/react/guides/engine#cancel-and-detach).
 
 ## API Reference
 

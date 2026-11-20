@@ -3,8 +3,8 @@ title: Delete
 description: Delete one object, or up to 100 per request, through a custom backend.
 ---
 
-Deleting is a request to your backend, not a presigned transfer. Delete is
-idempotent: a key that does not exist still succeeds.
+Deleting is a request to your backend, not a presigned transfer. Keep it
+idempotent, as S3 is: a key that does not exist still succeeds.
 
 ```ts title="lib/s3-api/delete.ts"
 import type {
@@ -43,7 +43,7 @@ and `POST /api/s3/delete/batch`. `$fetch` and `call` come from the
 
 ## Delete one
 
-`delete` receives `{ route, key }` and returns `{ key, bucket }`.
+`delete` receives `{ route, key }` and returns:
 
 | Property | Type     | Description   |
 | -------- | -------- | ------------- |

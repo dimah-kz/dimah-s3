@@ -63,15 +63,8 @@ as for any download.
 
 ## Fallback
 
-`fallback` renders in place of the image:
-
-- while there is no key,
-- while the URL is being signed,
-- when signing fails,
-- and when the image fails to load.
-
-It defaults to nothing. A failed image is not signed again until the next
-refresh. Your `onError` still runs.
+`fallback` shows while there is no key or URL yet, and when signing or loading
+the image fails.
 
 ## Accessibility
 

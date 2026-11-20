@@ -34,20 +34,16 @@ export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 ## How it works
 
 - **Direct transfers.** Uploads, and by default downloads, go straight between
-  the browser and the bucket through signed URLs. Proxy mode streams downloads
-  through your server instead. Deletes always run on the server.
+  the browser and the bucket through signed URLs. Deletes run on the server.
 - **Server-owned keys.** The browser sends a route name. The server builds the
-  object key.
-- **Upload tickets.** Presign returns a signed ticket. Confirm and every later
-  multipart call send only that ticket, which can be bound to a user.
-- **Verified objects.** Confirm reads the stored size and type with HeadObject,
-  not from the browser.
-- **Guards and locals.** Guards authorize each call and pass typed `locals` to
-  later hooks.
-- **One instance.** `dimahS3()` returns an HTTP `handler`, an in-process `api`,
-  and `put` for server-side uploads.
-- **Adapters.** Next.js, Hono, Express, Fastify, SvelteKit, Elysia, Node, and any
-  Fetch runtime.
+  object key and signs it into an upload ticket.
+- **Verified objects.** Confirm reads the stored size and type from S3, not
+  from the browser.
+- **Guards and hooks.** Guards authorize each call. Lifecycle hooks record
+  what happened.
+- **One instance.** `dimahS3()` returns an HTTP `handler` for Next.js, Hono,
+  Express, Fastify, SvelteKit, Elysia, Node, or any Fetch runtime, an
+  in-process `api`, and `put` for server-side uploads.
 
 ## Documentation
 

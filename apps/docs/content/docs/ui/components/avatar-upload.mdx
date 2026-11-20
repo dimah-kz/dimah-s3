@@ -72,8 +72,8 @@ export function ProfilePhoto({
 }
 ```
 
-Save `result.key` in `onUploaded`, and pass it back as `objectKey`. `route` is
-the route that signs the image URL, usually the one the hook uploads to.
+Save `result.key` in `onUploaded`, and pass it back as `objectKey`. `route`
+signs the image URL, so it needs `download` turned on.
 
 ## Examples
 
@@ -86,39 +86,10 @@ corners instead of the whole image, for logos and covers.
   <AvatarUploadShapesDemo />
 </DemoPreview>
 
-## What it shows
-
-1. While an image uploads, and after it succeeds: the picked file's preview.
-2. Otherwise: the image at `objectKey`, signed through `route` with
-   [`ObjectImage`](/docs/ui/components/object-image).
-3. Without a key, or when the image fails to load: a placeholder icon.
-
-The button is disabled while the hook is (`useUpload({ disabled: true })`).
-
-## Without a provider
-
-`AvatarUpload` signs the image URL with the API from `S3Provider`. Without a
-provider, pass the same `api` to the hook and to the component:
-
-```tsx
-const upload = useUpload({ api, route: "avatar" });
-
-<AvatarUpload
-  api={api}
-  upload={upload}
-  route="avatar"
-  objectKey={avatarKey}
-  label="Change profile photo"
-/>;
-```
-
 ## Accessibility
 
 - `label` is required: it is the button's accessible name.
-- A polite live region announces the upload: preparing, uploading, complete,
-  the error, or why a file was rejected.
-- While an `UploadToasts` for the same hook is mounted, the toasts announce
-  instead, so nothing is read out twice.
+- A polite live region announces the upload's progress and errors.
 
 ## API Reference
 

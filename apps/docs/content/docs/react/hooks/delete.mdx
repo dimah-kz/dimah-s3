@@ -28,16 +28,14 @@ export function DeleteFile({ objectKey }: { objectKey: string }) {
 }
 ```
 
-The hook has no confirm step. To ask first, use the
-[`Delete`](/docs/ui/components/delete) component, which owns one confirm
-dialog for every trigger inside it, or open your own dialog and call `remove`
-when the user confirms.
+The hook has no confirm step. Call `remove` from your own dialog, or use the
+[`Delete`](/docs/ui/components/delete) component.
 
 ## Delete one key
 
 `remove(key, { fileName })` resolves with an
-[outcome](/docs/react/guides/outcomes) and does not throw. `fileName` is
-stored on the operation for display, such as in a toast.
+[outcome](/docs/react/guides/outcomes) and does not throw. `fileName` is only
+for display, such as in a toast.
 
 ```ts
 const outcome = await remove(objectKey, { fileName: "invoice.pdf" });
@@ -66,27 +64,23 @@ for (const { key, error } of failed) console.log(key, error.code);
 ```
 
 - Keys go out in batches of up to 100 (`DELETE_MANY_MAX_KEYS`), one request after another. A failed request fails only the keys of its batch.
-- Every operation of the call shares one `batchId`.
 - Keys already being deleted are joined, not sent again, and their outcomes are folded into the result.
 
 ## Track each key
 
-Read the newest operation for a key with `get(key)`, or render `operations`.
-Each has `key`, `fileName`, `batchId`, `phase` (`deleting`, `success`, or
-`error`), and `error`.
-
-`pendingKeys` lists the keys being deleted, and `isPending` is `true` while
-there is one. `reset(key?)` removes settled operations for one key or for
-every key, such as to dismiss an error. It does not stop a running delete.
+Read the newest [operation](#deleteoperation) for a key with `get(key)`, or
+render `operations`. `reset(key?)` removes settled operations, such as to
+dismiss an error. It does not stop a running delete.
 
 ```tsx
 const { get, reset } = useDelete({ route: "attachments" });
+const formatError = useFormatError();
 const error = get(objectKey)?.error;
 
 if (error) {
   return (
     <button type="button" onClick={() => reset(objectKey)}>
-      {error.message} — dismiss
+      {formatError(error)} — dismiss
     </button>
   );
 }
@@ -102,10 +96,9 @@ if (error) {
 | `onSuccess(data, key)` | Once per deleted key, after every `onError` of the call                             |
 | `onSettled(result)`    | Once per call, last, with its `DeleteResult`                                        |
 
-`data` is `{ key, bucket? }`. Only `remove` sets `bucket`, because batch
-responses do not carry it. `onError`, `onSuccess`, and `onSettled` may be
-async and are awaited. A `remove` that joins a running delete does not run
-the callbacks again.
+`data` is `{ key, bucket? }`. Only `remove` sets `bucket`; batch responses do
+not carry it. `onError`, `onSuccess`, and `onSettled` may be async and are
+awaited. A call that joins a running delete does not run them again.
 
 ## API Reference
 
@@ -159,24 +152,9 @@ the callbacks again.
 
 <Accordion title="How do I make sure only the owner can delete a file?">
 
-Check ownership on the server in `delete.guard`. Client checks are not an
-authorization boundary. The route's `keyPrefix` only keeps keys inside the
-route's folder; it does not know who owns a file. See
-[Security](/docs/server/security).
-
-```ts title="lib/s3.ts"
-import { route, s3Error } from "@dimah-s3/server";
-
-export const attachments = route({
-  delete: {
-    guard: async ({ key, request }) => {
-      const session = await getSession(request);
-      if (!session) throw s3Error("UNAUTHORIZED");
-      if (!(await isOwner(session.userId, key))) throw s3Error("FORBIDDEN");
-    },
-  },
-});
-```
+Check ownership on the server, in `delete.guard`. Client checks are not an
+authorization boundary, and the route's `keyPrefix` does not know who owns a
+file. See [Enforce ownership](/docs/server/security#enforce-ownership).
 
 </Accordion>
 

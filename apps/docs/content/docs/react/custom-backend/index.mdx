@@ -6,8 +6,7 @@ description: Implement the complete S3Api contract for an existing backend, so t
 Implement `S3Api` when your backend is not
 [`@dimah-s3/server`](/docs/server). `defineApi` from `@dimah-s3/react/engine`
 type-checks the object and returns it unchanged. Your routes, transport, and
-server framework are up to you. Mount the result with `S3Provider`, as in
-[Setup](/docs/react/setup).
+server framework are up to you.
 
 ## Contract
 
@@ -71,14 +70,25 @@ export const api = defineApi({
 });
 ```
 
-Response shapes must match the [core `S3Api` protocol](/docs/core).
+Response shapes must match the [core `S3Api` protocol](/docs/core). Pass the
+result to `S3Provider` in place of the [Setup](/docs/react/setup) client:
+
+```tsx title="components/s3-provider.tsx"
+"use client";
+
+import { S3Provider } from "@dimah-s3/react";
+import { api } from "@/lib/s3-api";
+
+export function AppS3Provider({ children }: { children: React.ReactNode }) {
+  return <S3Provider api={api}>{children}</S3Provider>;
+}
+```
 
 ## Route catalog
 
 `catalog()` returns, for every named route, which operations are on and the
-upload policy. `useUpload` loads it before every upload and checks files
-against `fileTypes` and `maxFileSize`. If it fails, every file of the upload
-fails with its error.
+upload policy. `useUpload` checks files against it before it presigns. If it
+fails, every file of that call fails with its error.
 
 ```ts title="lib/s3-api/catalog.ts"
 import type { RouteCatalogResponse, S3RequestOptions } from "@dimah-s3/core";

@@ -59,8 +59,8 @@ export function AvatarUploader() {
 }
 ```
 
-`onSuccess` runs once per file, after the server's `HeadObject` confirm, so
-the key it saves points at a verified object.
+`onSuccess` runs once per file, after the server verified it with
+`HeadObject`, so the saved key points at a real object.
 
 ## Many files
 
@@ -83,14 +83,12 @@ For form fields that store object keys, see [Forms](/docs/react/forms).
 ## Do not wrap useUpload in useMutation
 
 ```tsx
-// Avoid — loses per-file progress and double-tracks pending state
 const mutation = useMutation({
   // [!code --]
   mutationFn: (file: File) => upload.handleFiles(file), // [!code --]
 }); // [!code --]
 ```
 
-`useUpload` already tracks `isPending`, per-file progress, errors, and
-retries. A mutation duplicates that state and loses per-file progress. It also
-reports success when files fail: `handleFiles` does not throw, it resolves
-with `{ uploaded, failed, rejected, blocked, aborted }`.
+`useUpload` already tracks pending state, per-file progress, errors, and
+retries. A mutation also reports success when files fail, because
+`handleFiles` resolves with its result instead of throwing.

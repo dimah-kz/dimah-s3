@@ -7,78 +7,62 @@ MinIO is a self-hosted, S3-compatible object store. Point the client at the
 MinIO API port, turn on path-style addressing, and allow your app's origin on
 the MinIO server.
 
-## Settings
-
-| Setting                      | Value                                              |
-| ---------------------------- | -------------------------------------------------- |
-| `region`                     | `"us-east-1"`                                      |
-| `endpoint`                   | The MinIO API URL, such as `http://localhost:9000` |
-| `forcePathStyle`             | `true` for a host-and-port endpoint                |
-| `requestChecksumCalculation` | `"WHEN_REQUIRED"`                                  |
-| `upload.method`              | `"PUT"` (default) or `"POST"`                      |
-
 ## Server configuration
+
+```dotenv title=".env"
+S3_ENDPOINT="http://localhost:9000"
+S3_REGION="us-east-1"
+S3_ACCESS_KEY_ID="minioadmin"
+S3_SECRET_ACCESS_KEY="minioadmin"
+S3_BUCKET="my-bucket"
+```
+
+- `S3_ENDPOINT` is the API port, typically `9000`, not the web console port,
+  typically `9001`.
+- `minioadmin` is the root login of a local server. Use your own keys anywhere
+  else.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
-  region: "us-east-1",
-  endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
-  forcePathStyle: true, // [!code ++]
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: true, // [!code highlight]
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "minioadmin",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "minioadmin",
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
-  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
-});
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: "my-bucket",
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
-    }),
-  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 ```
+
+`forcePathStyle: true` puts the bucket in the path, as in
+`http://localhost:9000/my-bucket/key`. A host-and-port endpoint needs it.
+Leave it off only when DNS and TLS serve bucket subdomains.
 
 ## Server CORS
 
-MinIO takes its CORS origins from the server environment. Set
-`MINIO_API_CORS_ALLOW_ORIGIN` on the MinIO server:
+MinIO takes its CORS origins from the server environment, not from the bucket.
+Set `MINIO_API_CORS_ALLOW_ORIGIN` on the MinIO server to a comma-separated list
+of your app's exact origins:
 
 ```bash
-MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example
+MINIO_API_CORS_ALLOW_ORIGIN=https://your-app.example,http://localhost:3000
 ```
 
-## Provider notes
+## Public files
 
-- **Path-style addressing.** With `forcePathStyle: true`, object URLs take the
-  form `http://host:9000/bucket/key`. Virtual-hosted bucket URLs also work
-  when DNS and TLS are set up for bucket subdomains; then `forcePathStyle` is
-  not required.
-- **Access.** MinIO grants access with bucket policies, not object ACLs.
-- **Local credentials.** The `minioadmin` fallback in the example is for a
-  local server only.
+MinIO grants access with bucket policies, not object ACLs. Allow anonymous
+reads with a bucket policy, such as `mc anonymous set download local/my-bucket`,
+and use the bucket URL as the public base:
 
-## Troubleshooting
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="http://localhost:9000/my-bucket"
+```
 
-<Accordions>
+Then build URLs with
+[`buildPublicObjectUrl`](/docs/providers#make-files-public).
 
-<Accordion title="Browser uploads fail with a network error on localhost">
-
-- `S3_ENDPOINT` must point to the MinIO API port (typically `9000`), not the
-  web console port (typically `9001`).
-- `MINIO_API_CORS_ALLOW_ORIGIN` must include your app's exact origin.
-
-</Accordion>
-
-</Accordions>
-
-More symptoms: [Troubleshooting](/docs/providers#troubleshooting).
+Upload failing? See [Troubleshooting](/docs/providers#troubleshooting).

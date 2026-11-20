@@ -79,9 +79,6 @@ export function Attachments() {
 }
 ```
 
-The dropzone shows the route's limits, and the progress of each file inside
-it. `UploadToasts` reports on the same hook, from anywhere in the tree.
-
 ## Anatomy
 
 ```tsx
@@ -106,16 +103,14 @@ it. `UploadToasts` reports on the same hook, from anywhere in the tree.
 | `UploadFileList`        | Every file in the queue, as rows or a grid. Render each file yourself        |
 | `UploadToasts`          | Progress, results, and rejected files as toasts. Mount once per hook         |
 
-Place the parts anywhere inside `Upload`, in your own layout. Several parts
-can share the hook: a button in a toolbar and a dropzone below it feed one
-queue.
+Place the parts anywhere inside `Upload`. Several parts can share one hook,
+such as a toolbar button and a dropzone.
 
 ## Examples
 
 ### Button
 
-A trigger with the status under it. The status renders nothing until a file
-is picked.
+A trigger with the status under it.
 
 <DemoPreview name="upload-button-demo.tsx">
   <UploadButtonDemo />
@@ -178,8 +173,7 @@ dropzone disable, and drops and pastes do nothing.
 
 ## Dropzone
 
-`UploadDropzone` takes files dropped anywhere on it, also over the status
-inside it. Without children it renders this:
+Without children, `UploadDropzone` renders this:
 
 ```tsx
 <UploadDropzone>
@@ -188,10 +182,9 @@ inside it. Without children it renders this:
 </UploadDropzone>
 ```
 
-Pass children to change the layout, for example to move `UploadStatus`
-outside the dropzone. Give `UploadDropzoneTrigger` children to replace its
-icon and title; the route's limits stay attached to it for screen readers. The
-trigger is a button, so put links and other buttons next to it, not inside.
+Pass children to change the layout, such as moving `UploadStatus` outside.
+`UploadDropzoneTrigger` is a button: put links and other buttons next to it,
+not inside.
 
 Style the drag states with data attributes:
 
@@ -201,12 +194,7 @@ Style the drag states with data attributes:
 | `data-drag-reject` | The dragged files break `accept` or `maxFiles` |
 | `data-disabled`    | The hook is disabled, or the root is full      |
 
-The dropzone stays enabled while files upload. New files join the queue when
-the hook has `append: true`, and replace it otherwise.
-
 ## Status
-
-`UploadStatus` renders nothing until files are picked.
 
 - **One file** shows as its own card, with cancel, retry, or dismiss.
 - **Several files** show a summary, with the overall progress, the count, and
@@ -219,15 +207,11 @@ Call `upload.reset()` to clear the status from your own code.
 
 ## Toasts
 
-Parts never toast. Mount `UploadToasts` once per hook, and one `<Toaster />` in
-your layout ([Installation](/docs/ui/installation#mount-the-toaster-step)). It shows:
+Parts never toast. Mount `UploadToasts` once per hook. It shows:
 
 - A progress toast with a cancel action while files upload.
 - The result once the queue settles. A failure has a retry action.
 - The reason for each call that rejects files, such as a file that is too large.
-
-A second `UploadToasts` for the same hook renders nothing and warns in
-development.
 
 ## Per-call options
 
@@ -253,8 +237,6 @@ files go to the open folder, and your `call` merges over that.
   and a paste while it has focus uploads. The route's limits are its
   description.
 - A polite live region announces when dragged files can or cannot be dropped.
-- When cancel or dismiss removes the focused card, focus moves to the next
-  action in the list, then to the trigger or dropzone.
 
 ## API Reference
 

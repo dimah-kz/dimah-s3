@@ -74,9 +74,7 @@ export function TicketForm({
 }
 ```
 
-Files in flight show in the dropzone. Once a file uploads it moves to
-`UploadFieldValue`, which lists the keys the field holds. On the server, read
-them with `formData.getAll("attachments")`.
+On the server, read the keys with `formData.getAll("attachments")`.
 
 <Callout type="warn">
   `maxFiles` and the value are client-side. Check the keys, their count, and who
@@ -94,8 +92,7 @@ them with `formData.getAll("attachments")`.
 ```
 
 `UploadField` is an [`Upload`](/docs/ui/components/upload) root, so every
-upload part works inside it. Inside the field, `UploadStatus` and
-`UploadFileList` show only files in flight or failed; uploaded files show in
+upload part works inside it. Uploaded files move from the status to
 `UploadFieldValue`.
 
 ## Examples
@@ -152,30 +149,18 @@ function AttachmentNames() {
 
 ## Value
 
-- A file adds its key once it uploads. Failed, cancelled, and in-flight files
-  add nothing.
-- The value grows across picks. The field's own calls always append, so a new
-  pick never cancels files still uploading.
-- Removing a key from the value does not delete the stored object.
-- Keys the field did not upload, such as a `defaultValue`, show the last
-  segment of the key as their name.
-- `onValueChange` runs after an upload adds a key or `remove` drops one.
+- A file adds its key once it uploads. Failed and cancelled files add nothing.
+- New picks append; they never cancel files still uploading.
+- Removing a key does not delete the stored object.
 
 ## Limit
 
-With `maxFiles`, each call takes only the files that still fit: `maxFiles`
-minus the keys in the value and the files still uploading. The hook rejects
-the rest with `TOO_MANY_FILES`.
+With `maxFiles`, the field takes only the files that still fit and rejects
+the rest with `TOO_MANY_FILES`. The limit holds for every upload through the
+hook, not only the field's own parts. When other code also uploads through it,
+pass `append: true` to `useUpload`.
 
-The field sets the limit on the hook itself, with
-[`useUploadLimit`](/docs/react/hooks/upload#limit-across-calls), so it also
-holds for calls outside the field: a toast's retry, `usePasteFiles`, or your
-own `upload.open()`. Those calls follow the hook's `append` option, so pass
-`append: true` to `useUpload` when other code uploads through it.
-
-A full field renders its triggers and retry actions focusable but
-`aria-disabled`, and drops and pastes do nothing. Read
-`useUploadContext().isFull` to show your own hint:
+Read `useUploadContext().isFull` to show your own hint when it is full:
 
 ```tsx
 function FullHint() {
@@ -186,10 +171,9 @@ function FullHint() {
 
 ## Form reset
 
-An uncontrolled field restores `defaultValue` when its form resets, including
-React 19's automatic reset after a `<form action>`, and reports it through
-`onValueChange`. Call `upload.reset()` to clear the status too. A controlled
-field resets `value` itself.
+An uncontrolled field goes back to `defaultValue` when its form resets,
+including React's reset after a `<form action>`. Call `upload.reset()` to
+clear the status too. A controlled field resets `value` itself.
 
 ## API Reference
 

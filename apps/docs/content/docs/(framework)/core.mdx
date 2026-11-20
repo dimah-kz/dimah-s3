@@ -41,20 +41,13 @@ export const api = createS3Client({
 ```
 
 In a React app, use `createS3Client` from `@dimah-s3/react` instead. It takes
-the same options and adds a bound `Provider` and `useApi` to the client.
-
-| Prop          | Type                                                       | Default        | Description                                                                        |
-| ------------- | ---------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------- |
-| `basePath`    | `string`                                                   | `"/api/s3"`    | API path prefix. Must match the server `basePath`                                  |
-| `baseURL`     | `string`                                                   | —              | Absolute API URL, such as `https://api.example.com/api/s3`. Wins over `basePath`   |
-| `headers`     | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | —              | Static headers, or a function called before each request                           |
-| `credentials` | `RequestCredentials`                                       | —              | Fetch credentials mode, such as `"include"` to send cookies cross-origin           |
-| `fetch`       | `(input, init) => Promise<Response>`                       | global `fetch` | Replaces `fetch`, for SSR, tests, or logging                                       |
-| `plugins`     | `S3ClientPlugin[]`                                         | —              | [Client plugins](#client-plugins), such as `dbClient()` from `@dimah-s3/db/client` |
+the same [options](#creates3clientoptions) and adds a bound `Provider` and
+`useApi` to the client.
 
 ### Calls
 
-Every method takes a payload, then optional per-call options:
+Every method takes a payload, then optional
+[per-call options](#s3requestoptions):
 
 ```ts
 const controller = new AbortController();
@@ -64,11 +57,6 @@ const presign = await api.upload(
   { signal: controller.signal, headers: { "X-Request-Id": requestId } },
 );
 ```
-
-| Prop      | Type          | Default | Description                                         |
-| --------- | ------------- | ------- | --------------------------------------------------- |
-| `signal`  | `AbortSignal` | —       | Aborts the request                                  |
-| `headers` | `HeadersInit` | —       | Merged over the client headers. Per-call values win |
 
 | Method                | Payload                                                    | Returns                                               |
 | --------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
@@ -86,13 +74,11 @@ const presign = await api.upload(
 
 - File fields are always `name`, `size`, and `type`. `name` and `type` are at
   most 255 UTF-8 bytes, with no control characters.
-- `clientMetadata` holds up to 32 string entries for the server hooks. It is
-  never written to S3 on its own. The `metadata` of a confirmed object is the
-  S3 user metadata the server wrote, which is something else.
+- `clientMetadata` holds up to 32 string entries for the server hooks, and
+  is never written to S3 on its own. A confirmed object's `metadata` is the
+  S3 user metadata the server wrote.
 - Confirm and every multipart call after init send only the
-  [upload ticket](/docs/server/upload-tickets). The server picks the
-  multipart part layout.
-- Send a presigned PUT with exactly the returned `headers`. They are signed.
+  [upload ticket](/docs/server/upload-tickets).
 - In proxy mode, `download` returns a `/file` URL and no `expiresIn`. With an
   absolute `baseURL`, the client makes that URL absolute too.
 
@@ -148,7 +134,6 @@ Paths are relative to `basePath`:
   accepts `application/json` only.
 - `file` is the [file proxy](/docs/server/file-proxy) that proxy-mode
   downloads point to. It is not an `S3Api` method.
-- `deleteMany` takes at most `DELETE_MANY_MAX_KEYS` (100) keys.
 
 To back the React hooks with your own server, implement `S3Api`. See
 [Custom Backend](/docs/react/custom-backend).
@@ -229,11 +214,9 @@ await api.audit.recent(20);
 
 - The id becomes `api[id]`. Core method names such as `upload` and `delete`
   are reserved (`RESERVED_CLIENT_KEYS`).
-- `$InferServerPlugin` is optional and never read at runtime. It ties the
-  client plugin's `id` to the server plugin's, so a mismatch fails to compile.
-  Import the server plugin as a type only.
-- `dbClient()` from `@dimah-s3/db/client` is a client plugin. See
-  [Plugins](/docs/server/plugins) for the server side.
+- `$InferServerPlugin` is optional and never read at runtime: a mismatched
+  `id` fails to compile. Import the server plugin as a type only.
+- The server side is on [Plugins](/docs/server/plugins).
 
 ## Helpers
 
@@ -291,12 +274,9 @@ const url = buildPublicObjectUrl({
   `text/plain`. A wildcard never matches HTML, XML (including SVG and
   `text/xsl`), or JavaScript.
 - `fitFileName(name)` removes control and bidi characters, trims, and cuts a
-  longer name to 255 UTF-8 bytes on a character boundary. It keeps an
-  extension of up to 32 bytes and falls back to `"file"`. The React upload
-  engine applies it before presign, so a long name uploads under a shortened
-  name.
-- `sniffContentType` looks past a leading ID3v2 tag, so ID3-tagged FLAC
-  sniffs as `audio/flac`.
+  longer name to 255 UTF-8 bytes, keeping an extension of up to 32 bytes. An
+  empty result becomes `"file"`. The React upload engine applies it before
+  presign, so a long name uploads under a shortened name.
 
 ### Search folding
 
@@ -317,14 +297,34 @@ matchesSearchText("گزارش ۱۴۰۲.xlsx", "1402"); // true
 findSearchMatches("Café.pdf", "cafe"); // [[0, 4]]
 ```
 
-`matchesSearchText(name, search)` is `true` when the folded name contains the
-folded search; a blank search matches everything. `findSearchMatches` returns
-the `[start, end)` ranges of each match in the original name, for a
-highlight.
+A blank search matches everything. `findSearchMatches` returns the
+`[start, end)` ranges of each match in the original name, for a highlight.
 
-## Type reference
+## API Reference
 
 Import these types from `@dimah-s3/core`.
+
+### CreateS3ClientOptions
+
+The options of `createS3Client`.
+
+| Prop          | Type                                                       | Default        | Description                                                                        |
+| ------------- | ---------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| `basePath`    | `string`                                                   | `"/api/s3"`    | API path prefix. Must match the server `basePath`                                  |
+| `baseURL`     | `string`                                                   | —              | Absolute API URL, such as `https://api.example.com/api/s3`. Wins over `basePath`   |
+| `headers`     | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | —              | Static headers, or a function called before each request                           |
+| `credentials` | `RequestCredentials`                                       | —              | Fetch credentials mode, such as `"include"` to send cookies cross-origin           |
+| `fetch`       | `(input, init) => Promise<Response>`                       | global `fetch` | Replaces `fetch`, for SSR, tests, or logging                                       |
+| `plugins`     | `S3ClientPlugin[]`                                         | —              | [Client plugins](#client-plugins), such as `dbClient()` from `@dimah-s3/db/client` |
+
+### S3RequestOptions
+
+The optional second argument of every client method.
+
+| Prop      | Type          | Default | Description                                         |
+| --------- | ------------- | ------- | --------------------------------------------------- |
+| `signal`  | `AbortSignal` | —       | Aborts the request                                  |
+| `headers` | `HeadersInit` | —       | Merged over the client headers. Per-call values win |
 
 ### UploadPresignResponse
 

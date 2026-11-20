@@ -44,8 +44,8 @@ export const s3 = dimahS3({
 ```
 
 Presign and confirm are separate calls, so `locals` from `upload.guard` do not
-reach `onConfirmed`. Set values both need in the instance or route guard, as
-above: they run on every call.
+reach `onConfirmed`. Set what both need in the instance or route guard, as
+above.
 
 ## Upload lifecycle
 
@@ -94,13 +94,12 @@ tells them apart:
 | `"multipart"`     | [Multipart](/docs/server/hooks/multipart) upload |
 | `"server"`        | `s3.put`. Skips `confirmGuard`                   |
 
-`kind` is not `operation`: `s3.put` runs with `operation: "put"` and
-`kind: "server"`.
-
 ## Track an upload
 
-Record a pending upload in `onStart`. Its `expiresAt` is the deadline after
-which the upload can never be confirmed:
+Record a pending upload in `onStart`, and activate it in `onConfirmed`.
+`onConfirmed` runs **at least once** per upload: a retried confirm runs every
+check and hook again with the same `uploadToken`. Dedupe on it, as this
+`updateMany` does:
 
 ```ts
 upload: {
@@ -118,9 +117,8 @@ upload: {
 },
 ```
 
-`expiresAt` is the ticket expiry, or 15 minutes from now for `s3.put`.
-Presigned uploads also get `url` and `urlExpiresAt`; multipart uploads get
-`uploadId`.
+Expire pending records that pass `expiresAt`: after it, the upload can never
+be confirmed.
 
 ## When an upload is rejected
 
@@ -131,9 +129,6 @@ the object. Undo what `onStart` recorded:
 
 ```ts
 upload: {
-  onStart: async ({ uploadToken, key }) => {
-    await db.upload.create({ data: { token: uploadToken, key } });
-  },
   onRejected: async ({ uploadToken, error }) => {
     await db.upload.deleteMany({ where: { token: uploadToken } });
     console.log("Upload refused:", error.code);
@@ -142,11 +137,9 @@ upload: {
 ```
 
 - `error` is the `APIError` the client receives.
-- A throw from `onRejected` is logged and passed to `onError`. It never
-  replaces the rejection, and the hooks after it still run.
 - It does not run when the object is kept (an infrastructure failure, or a
   throw from your own `onConfirmed`), or for an upload that was never
-  confirmed. Expire those pending records on `onStart`'s `expiresAt`.
+  confirmed.
 
 ## Failure rules
 
@@ -161,12 +154,7 @@ upload: {
 
 A confirm that fails for an infrastructure reason, such as an S3 network
 error or a guard whose database is down, keeps the object so the client can
-retry.
-
-`onConfirmed` runs **at least once** per upload. Confirm is stateless, so a
-retried confirm runs every check and hook again with the same `uploadToken`.
-Make the hook safe to replay, and reject content in `confirmGuard`, not in
-`onConfirmed`.
+retry. Reject content in `confirmGuard`, not in `onConfirmed`.
 
 ## API Reference
 
@@ -273,14 +261,6 @@ declared `file`.
 
 <Accordions>
 
-<Accordion title="Why record the file size in onConfirmed, not at presign?">
-
-In `onConfirmed`, `object.size` comes from S3 HeadObject. `file` in the
-earlier hooks holds what the browser declared. Confirm also rejects an object
-whose stored size differs from the declared one.
-
-</Accordion>
-
 <Accordion title="How do I attach custom S3 user metadata?">
 
 Return `metadata` from `upload.object`. What the client sends is
@@ -299,8 +279,7 @@ avatar: route({
 }),
 ```
 
-Keys and values share a 2 KB budget, and non-ASCII values are encoded for
-you. In `onConfirmed`, `object.metadata` returns them decoded.
+In `onConfirmed`, `object.metadata` returns them.
 
 </Accordion>
 

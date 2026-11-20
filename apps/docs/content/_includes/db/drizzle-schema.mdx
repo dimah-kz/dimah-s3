@@ -21,11 +21,8 @@ npx drizzle-kit push
 - The file exports `storageObject`, `storageFolder`,
   `private_dimah_s3_settings`, and `relations`. Keep those exports and the
   table and column names: the adapter finds the tables by them.
-- The tables declare their indexes and, on MySQL, the prefix lengths and the
-  `utf8mb4_bin` collation, so `drizzle-kit` creates them too. Keys, names,
-  and folders compare byte for byte. Search and the name sort read the
-  folded `search_name` column, so no column needs a case-insensitive
-  collation.
+- The tables declare their indexes and, on MySQL, the `utf8mb4_bin`
+  collation, so `drizzle-kit` creates them too.
 - Run `generate` again after you upgrade `@dimah-s3/db`. It overwrites the
   file. A column you add to it must be nullable or have a default: the
-  plugin does not read or write it.
+  plugin does not write it.

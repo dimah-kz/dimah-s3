@@ -16,7 +16,7 @@ Helpers come from three places:
 
 Each hook returns a formatter. Digits and unit labels follow the
 `S3Provider` `locale` and your translations; see
-[Internationalization](/docs/i18n). The built-in UI uses the same hooks.
+[Internationalization](/docs/i18n).
 
 ```tsx
 "use client";
@@ -96,18 +96,7 @@ export function AttachmentUploader() {
 ```
 
 Codes it does not know, and plain `Error`s, return their `message`. To branch
-on a code, use `isS3ErrorCode` from core:
-
-```ts
-import { isS3ErrorCode } from "@dimah-s3/core";
-
-if (isS3ErrorCode(error, "FILE_TOO_LARGE")) {
-  console.log(error.params); // { size, maxFileSize }
-}
-```
-
-The full list of codes is in [Errors](/docs/server/errors). See also
-[Outcomes and errors](/docs/react/guides/outcomes).
+on a code, see [Outcomes and errors](/docs/react/guides/outcomes#errors).
 
 ## Plain formatters
 
@@ -139,32 +128,12 @@ toTimestamp("2026-10-31T12:00:00Z"); // 1793448000000, or null when invalid
 | `toTimestamp(value)`                   | Returns epoch ms, or `null` when the value is missing or invalid |
 
 `truncateFileName` is for plain text, such as a document title. In markup,
-the UI's `FileName` shortens a name to the width it has and keeps the
-extension visible.
+[`FileName`](/docs/ui/components/attachment#filename) shortens a name to the
+width it has.
 
 ## Core helpers
 
-`useUpload` already validates files and sends checksums when the route asks
-for them. Use these in your own pickers or server code.
-
-```ts
-import { buildPublicObjectUrl, sha256Blob, validateFile } from "@dimah-s3/core";
-
-// null when valid, otherwise an APIError:
-// FILE_TYPE_NOT_ALLOWED, FILE_EMPTY, or FILE_TOO_LARGE
-const error = validateFile(file, {
-  accept: ["image/*"],
-  maxFileSize: 2 * 1024 * 1024,
-});
-
-// SHA-256 as unpadded base64, read in 1 MiB chunks
-const hash = await sha256Blob(file);
-
-// Public CDN URL. It does not sign; use it for public-read objects only.
-const url = buildPublicObjectUrl({
-  baseURL: "https://cdn.example.com",
-  key: "avatar/uuid/avatar.png",
-});
-```
-
-See [Core](/docs/core) for the other protocol helpers.
+`validateFile`, `sha256Blob`, `buildPublicObjectUrl`, and the other protocol
+helpers come from `@dimah-s3/core`; see [Core](/docs/core#helpers). You need
+them only in your own pickers or server code: `useUpload` already validates
+files and sends checksums.

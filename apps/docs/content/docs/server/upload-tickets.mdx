@@ -55,13 +55,11 @@ export const s3 = dimahS3({
   `500 INTERNAL_ERROR` on the first upload.
 - Use the **same value on every instance**, so a ticket issued by one server
   verifies on another.
-- An empty `secret` or a missing variable counts as not set. The server then
-  reads `DIMAH_S3_SECRET` on the first upload, not at `dimahS3()`, since
-  `next build` runs without your runtime environment.
+- `DIMAH_S3_SECRET` is read on the first upload, not at `dimahS3()`, so
+  `next build` works without it. An empty value counts as not set.
 - With no secret, uploads return `500 INTERNAL_ERROR` and the cause is logged.
-  When `NODE_ENV` is exactly `development` or `test`, a random secret is used
-  and one warning is logged. It survives hot reloads but not a restart, so
-  tickets issued before a restart stop verifying.
+  When `NODE_ENV` is `development` or `test`, a random secret is used instead,
+  so tickets stop verifying after a restart.
 
 ### Rotate the secret
 
@@ -98,15 +96,14 @@ upload: {
 },
 ```
 
-`upload.onStart` receives the ticket expiry as `expiresAt`, and the URL's own
-expiry as `urlExpiresAt`. Use `expiresAt` for pending records: once it passes,
-the upload can never be confirmed.
+`upload.onStart` receives the ticket expiry as `expiresAt`: after it, the
+upload can never be confirmed.
 
 ## Binding a ticket to a user
 
 On its own, a ticket lets its holder confirm or continue one upload until it
-expires. Bind it to a subject, such as a user or tenant id, so it works only
-for that subject:
+expires. Return a subject, such as a user or tenant id, from `ticketSubject`
+to make it work only for that subject:
 
 ```ts title="lib/s3.ts"
 declare module "@dimah-s3/server" {
@@ -134,42 +131,18 @@ export const s3 = dimahS3({
 - Return `undefined` to issue an unbound ticket.
 - Without a `ticketSubject` option, the first plugin that provides one is
   used. [`db()`](/docs/db) binds tickets to the resolved scope.
-- The ticket stores a keyed hash of the subject, not the subject. The binding
-  survives a secret rotation.
-- `s3.put` has no ticket, so `ticketSubject` does not run for it.
 
-## Upload token and marker
+## Upload token
 
 Each upload has an `uploadToken`, a random id carried in the ticket. Hooks
-receive it, and the server writes it to the object as signed S3 metadata
-(`x-amz-meta-dimah-upload`).
+receive it, and the server writes it to the object as signed S3 metadata.
 
 - Confirm and multipart complete require the stored object to carry the same
-  token. Otherwise the key holds another upload's object: the call returns
-  `OBJECT_NOT_FOUND` and nothing is deleted.
-- The marker is removed from responses and from hook `metadata`.
-
-### Confirm runs at least once
-
-Confirm is stateless. A retried confirm with the same ticket runs every check
-and `upload.onConfirmed` again. Dedupe on `uploadToken`:
-
-```ts
-upload: {
-  onStart: async ({ uploadToken, key, expiresAt, locals }) => {
-    await db.upload.create({
-      data: { token: uploadToken, key, userId: locals.userId, expiresAt },
-    });
-  },
-  onConfirmed: async ({ uploadToken, object }) => {
-    // A replay finds the row already active and changes nothing.
-    await db.upload.updateMany({
-      where: { token: uploadToken, status: "pending" },
-      data: { status: "active", size: object.size },
-    });
-  },
-},
-```
+  token. Otherwise another upload has replaced the object at that key: the
+  call returns `OBJECT_NOT_FOUND` and nothing is deleted.
+- Confirm is stateless, so a retried confirm with the same ticket runs every
+  check and `upload.onConfirmed` again. Dedupe on `uploadToken`, as in
+  [Track an upload](/docs/server/hooks/upload#track-an-upload).
 
 ## Handling tickets
 

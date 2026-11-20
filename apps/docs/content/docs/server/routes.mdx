@@ -41,24 +41,17 @@ export const s3 = dimahS3({
 ```
 
 `awsS3` is the `S3Client` from [Server Setup](/docs/server/setup#configure-s3-and-routes).
-Every operation is off until you set it. A route must turn on at least one of
-`upload`, `download`, or `delete`.
+A route name starts with a letter and has at most 64 letters, digits, `_`,
+or `-`. Every operation is off until you set it, and a route must turn on at
+least one of `upload`, `download`, or `delete`.
 
 ## Combining operations
 
-Turn on several operations on the same route when they manage the same
-objects. Users who upload, view, and remove their avatars need all three:
+Download and delete accept only keys under the route's `keyPrefix`. Turn them
+on in the same route that uploads the objects, as `avatar` does above:
+another route cannot delete keys that `avatar` wrote.
 
-```ts
-avatar: route({
-  upload: { fileTypes: ["image/*"], maxFileSize: 2 * 1024 * 1024 },
-  download: true, // [!code ++]
-  delete: true, // [!code ++]
-}),
-```
-
-Download and delete accept only keys inside the route's namespace. That is
-route isolation, not per-user ownership: see
+That is route isolation, not per-user ownership: see
 [Security](/docs/server/security#route-namespace-vs-ownership).
 
 ## Object keys
@@ -70,15 +63,11 @@ The server generates every upload key:
 ```
 
 `keyPrefix` defaults to the route name, so `avatar` uploads land under
-`avatar/`. The prefix is used both ways:
+`avatar/`. The client never sends an upload key. For download and delete it
+sends one, and the server accepts it only under the route's prefix:
 
-- **Upload and multipart init** — the server generates the key. The client
-  sends a route name, never a key. The key travels inside the
-  [upload ticket](/docs/server/upload-tickets), so confirm and later multipart
-  calls never send it.
-- **Download and delete** — the client sends a key. The server accepts it only
-  under the route's prefix: `?route=avatar&key=avatar/{uuid}/photo.jpg` is
-  valid, and `?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
+- `?route=avatar&key=avatar/{uuid}/photo.jpg` is valid.
+- `?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
 
 Two routes on the same bucket cannot share or nest prefixes (`files` and
 `files/images`); `dimahS3()` throws at startup.
@@ -106,14 +95,13 @@ avatar: route({
 }),
 ```
 
-`upload.object` runs before `upload.guard`, so it must not assume a signed-in
-caller. It runs after the instance and route guards: authenticate there and
-read [`locals`](/docs/server/hooks/global-guard#locals) here.
+`upload.object` runs before `upload.guard`. Authenticate in the instance or
+route guard, which run first, and read
+[`locals`](/docs/server/hooks/global-guard#locals) here.
 
 ### Replace an object
 
-Return a fixed `key` to overwrite the same object on every upload. S3 replaces
-it when the new upload lands:
+Return a fixed `key` to overwrite the same object on every upload:
 
 ```ts
 object: ({ locals }) => ({
@@ -122,8 +110,8 @@ object: ({ locals }) => ({
 ```
 
 To keep generated keys and remove the old object instead, return
-`previousKey`. After the new upload is confirmed and every hook succeeds, the
-server deletes it. It must stay under the same route prefix.
+`previousKey`. The server deletes it after the new upload is confirmed and
+every hook succeeds. It must stay under the same route prefix.
 
 ```ts
 object: async ({ locals }) => {
@@ -142,8 +130,8 @@ fails with `OBJECT_EXISTS`. Allow it per route with
 ## Object settings
 
 Return storage class, `Cache-Control`, tags, ACL, and S3 metadata from
-`upload.object`. They are signed into the presigned PUT, POST, and multipart
-init, and applied by `s3.put`, so the browser cannot change them:
+`upload.object`. They are signed into the upload, so the browser cannot
+change them:
 
 ```ts
 upload: {
@@ -156,21 +144,18 @@ upload: {
 },
 ```
 
-- Tags are printable ASCII, at most 10 per object. Their values are visible to
-  the client, so keep secrets out.
-- Metadata values may hold any text: non-ASCII values are RFC 2047-encoded on
-  write and decoded on read. Keys and values share a 2 KB budget.
+- Tags are printable ASCII, at most 10 per object. The client can see their
+  values, so keep secrets out.
+- Metadata values may hold any text. Keys and values share a 2 KB budget.
 - Going over either limit is a config error: it is logged and returns `500`.
-- Uploads are `private` unless the route's `acl` or `upload.object` says
-  otherwise.
 
 ## Integrity checks
 
 ### Checksums
 
 Set `checksum: true` to sign a SHA-256 into every upload, so S3 rejects any
-other bytes. The React client hashes the file in the browser, and every part
-of a multipart upload:
+other bytes. The React client hashes the file, and every multipart part, in
+the browser:
 
 ```ts
 upload: {
@@ -180,8 +165,7 @@ upload: {
 ```
 
 A presign or part request without a checksum returns `CHECKSUM_REQUIRED`.
-`GET /routes` reports the setting as `upload.checksum`, so custom clients know
-to send one.
+Custom clients read the setting from `GET /routes` as `upload.checksum`.
 
 ### Content verification
 
@@ -198,26 +182,9 @@ upload: {
 
 - An upload without a type is checked against the type its name gives, so
   `x.png` is checked as `image/png`.
-- Types without a known signature, such as `text/plain`, pass without a read.
-- `verifyContent` turns `checksum` on, so the bytes that were checked are the
-  bytes that stay. `checksum: false` with it throws at `dimahS3()`.
-
-## Validation
-
-`dimahS3()` throws at startup when:
-
-- A route name is not a letter followed by up to 63 letters, digits,
-  underscores, or hyphens.
-- A route has no `client` or `bucket`, on the route or the instance.
-- A lifetime or size (`upload.expiresIn`, `upload.confirmWindow`,
-  `upload.maxFileSize`, `upload.multipart.partSize`,
-  `upload.multipart.ticketExpiresIn`, `download.maxExpiresIn`) is not a
-  positive integer.
-
-At request time, keys are limited to 1024 UTF-8 bytes. A generated key turns
-`${` in the file name into `_{`. On a `method: "POST"` route, a key from
-`upload.object` that contains `${filename}` returns `KEY_INVALID`, so the
-presigned form always pins the exact key.
+- Types without a known signature, such as `text/plain`, pass unread.
+- `verifyContent` turns `checksum` on, so the checked bytes are the bytes
+  that stay. `checksum: false` with it throws at `dimahS3()`.
 
 ## API Reference
 
@@ -260,16 +227,16 @@ The hooks are covered in [Upload Hooks](/docs/server/hooks/upload).
 
 ### upload.object result
 
-| Property       | Type                         | Description                                                                                       |
-| -------------- | ---------------------------- | ------------------------------------------------------------------------------------------------- |
-| `keyFolder`    | `string`                     | Path segment under `keyPrefix`: `{keyPrefix}/{keyFolder}/{uuid}/{name}`. Ignored with `key`       |
-| `key`          | `string`                     | The object key, nested under `keyPrefix` unless it is already inside it or `keyPrefix` is `false` |
-| `metadata`     | `Record<string, string>`     | S3 user metadata (`x-amz-meta-*`). Keys and values share 2048 UTF-8 bytes                         |
-| `acl`          | `"private" \| "public-read"` | Overrides the route ACL for this object                                                           |
-| `storageClass` | `string`                     | S3 storage class, such as `STANDARD_IA` or `INTELLIGENT_TIERING`. Signed                          |
-| `cacheControl` | `string`                     | `Cache-Control` written on the object. Signed                                                     |
-| `tagging`      | `Record<string, string>`     | Object tags, at most 10, printable ASCII. Signed, and visible to the client                       |
-| `previousKey`  | `string`                     | Key to delete after a successful confirm. Must stay under `keyPrefix`                             |
+| Property       | Type                         | Description                                                                                                                 |
+| -------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `keyFolder`    | `string`                     | Path segment under `keyPrefix`: `{keyPrefix}/{keyFolder}/{uuid}/{name}`. Ignored with `key`                                 |
+| `key`          | `string`                     | The object key, at most 1024 UTF-8 bytes. Nested under `keyPrefix` unless it is already inside it or `keyPrefix` is `false` |
+| `metadata`     | `Record<string, string>`     | S3 user metadata (`x-amz-meta-*`). Keys and values share 2048 UTF-8 bytes                                                   |
+| `acl`          | `"private" \| "public-read"` | Overrides the route ACL for this object                                                                                     |
+| `storageClass` | `string`                     | S3 storage class, such as `STANDARD_IA` or `INTELLIGENT_TIERING`. Signed                                                    |
+| `cacheControl` | `string`                     | `Cache-Control` written on the object. Signed                                                                               |
+| `tagging`      | `Record<string, string>`     | Object tags, at most 10, printable ASCII. Signed, and visible to the client                                                 |
+| `previousKey`  | `string`                     | Key to delete after a successful confirm. Must stay under `keyPrefix`                                                       |
 
 ### download
 

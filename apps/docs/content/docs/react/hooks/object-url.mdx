@@ -33,15 +33,14 @@ For a ready-made image with loading and error states, use
 ## Keys
 
 - `url` is only ever the URL for the current `objectKey`. When the key changes, `url` is `null` and `isLoading` is `true` until the new URL is signed. A late response for the old key is ignored.
-- An `objectKey` of `null`, `undefined`, or `""` clears the URL. With no key, the hook needs no `S3Api`.
+- An `objectKey` of `null`, `undefined`, or `""` clears the URL, and needs no `S3Api`.
 
 ## Cache and refresh
 
-URLs are cached per `S3Api`, keyed by route, object key, disposition, and
-file name. Hooks that show the same object share one request.
+Hooks that show the same object, with the same disposition and file name,
+share one cached URL and one request.
 
-- **Refresh** — the hook signs again `refreshBeforeMs` before `expiresAt` (default 60 seconds). A URL that lives less than twice `refreshBeforeMs` refreshes at half its lifetime instead. The current URL stays until the new one arrives.
-- **Expiry** — `expiresAt` is computed in the browser from the response's `expiresIn`, in milliseconds since the epoch.
+- **Refresh** — the hook signs again `refreshBeforeMs` before `expiresAt` (default 60 seconds), or at half the URL's lifetime when it is shorter than twice that. The current URL stays until the new one arrives.
 - **Proxy URLs** — on a route with `download.mode: "proxy"`, the URL does not expire. `expiresAt` is `null`, and the URL stays until you call `refresh()`.
 - **`refresh()`** — drops the cached URL and signs again. A request already running for the same object is joined.
 

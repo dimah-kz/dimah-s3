@@ -7,48 +7,33 @@ Amazon S3 supports everything dimah-s3 uses: presigned PUT and POST, object
 ACLs, SHA-256 checksums, and multipart uploads. Set the region and
 credentials, then allow your app's origin in bucket CORS.
 
-## Settings
-
-| Setting                      | Value                                    |
-| ---------------------------- | ---------------------------------------- |
-| `region`                     | The bucket's region, such as `us-east-1` |
-| `endpoint`                   | Leave unset                              |
-| `forcePathStyle`             | Leave unset                              |
-| `requestChecksumCalculation` | `"WHEN_REQUIRED"`                        |
-| `upload.method`              | `"PUT"` (default) or `"POST"`            |
-
 ## Server configuration
+
+```dotenv title=".env"
+S3_REGION="us-east-1"
+S3_ACCESS_KEY_ID="your-access-key-id"
+S3_SECRET_ACCESS_KEY="your-secret-access-key"
+S3_BUCKET="your-bucket-name"
+```
+
+Leave `S3_ENDPOINT` unset: the SDK derives the endpoint from the region.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, route } from "@dimah-s3/server";
 
 export const awsS3 = new S3Client({
-  region: process.env.S3_REGION!,
+  region: process.env.S3_REGION,
   credentials: {
     accessKeyId: process.env.S3_ACCESS_KEY_ID!,
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
-  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
-});
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket: process.env.S3_BUCKET!,
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
-    }),
-  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 ```
 
-AWS SDK versions from 3.729 default to `"WHEN_SUPPORTED"`, and dimah-s3
-refuses to presign with such a client. See
-[Set the checksum mode](/docs/providers#set-the-checksum-mode).
+Pass it to `dimahS3({ client: awsS3 })`, as in the
+[Quickstart](/docs/quickstart#configure-s3-and-a-route-step).
 
 ## Bucket CORS
 
@@ -58,8 +43,8 @@ In the S3 console, open the bucket's **Permissions** tab and edit
 ```json
 [
   {
-    "AllowedOrigins": ["https://your-app.example", "http://localhost:3000"],
-    "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
+    "AllowedOrigins": ["https://your-app.example"],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["Content-Disposition", "Content-Encoding"],
     "MaxAgeSeconds": 3000
@@ -67,50 +52,23 @@ In the S3 console, open the bucket's **Permissions** tab and edit
 ]
 ```
 
-`PUT` covers the default upload method and multipart parts. `POST` is needed
-only on routes with `upload.method: "POST"`.
+Add `POST` if a route sets `upload.method: "POST"`.
 [Allow your origin in bucket CORS](/docs/providers#allow-your-origin-in-bucket-cors)
 explains each field.
 
-## Provider notes
+## Public files
 
-### Public files
+New S3 buckets default to **Bucket owner enforced** Object Ownership, which
+turns ACLs off. Keep uploads private on those buckets, and grant public reads
+through a bucket policy or CloudFront. Set the public base to the bucket or
+CloudFront URL:
 
-If the bucket allows object ACLs, set `acl: "public-read"` on the route:
-
-```ts
-avatar: route({
-  upload: {
-    acl: "public-read", // [!code ++]
-    fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
-  },
-}),
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="https://your-bucket-name.s3.us-east-1.amazonaws.com"
 ```
 
-New S3 buckets commonly use **Bucket owner enforced** Object Ownership, which
-disables ACLs. For those buckets, keep uploads private and grant public reads
-through a bucket policy or a CDN. Build the URLs with
-[`buildPublicObjectUrl`](/docs/core#helpers).
+Then build URLs with
+[`buildPublicObjectUrl`](/docs/providers#make-files-public). On a bucket with
+ACLs on, set `acl: "public-read"` on the route instead.
 
-## Troubleshooting
-
-<Accordions>
-
-<Accordion title="The upload fails with a 403 or a CORS error">
-
-- `AllowedOrigins` must match the browser origin exactly, including the scheme
-  and the development port.
-- `AllowedMethods` must include the upload method: `PUT`, or `POST` on a
-  `method: "POST"` route.
-- A presigned PUT sends metadata, checksum, and tag headers, so
-  `AllowedHeaders: ["*"]` is the simplest rule.
-- `403` with `SignatureDoesNotMatch` means the client changed or dropped a
-  header. A custom client must send exactly the `headers` from the presign
-  response.
-
-</Accordion>
-
-</Accordions>
-
-More symptoms: [Troubleshooting](/docs/providers#troubleshooting).
+Upload failing? See [Troubleshooting](/docs/providers#troubleshooting).

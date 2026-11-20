@@ -41,13 +41,17 @@ const { url, mode, expiresIn } = await api.download({ route: "invoices", key });
   ]}
 />
 
-- The `/file` URL is **not signed** and does not expire. Every request to it
-  runs the instance, route, and download guards again, so they must authorize
-  from what a plain browser `GET` carries, usually a session cookie. An
-  `<img>` or `<a href>` sends no `Authorization` header.
+Each request to `/file` runs the instance and route guards, `download.resolve`,
+and `download.guard`, then streams one GetObject to the client.
+
+- The `/file` URL is **not signed** and does not expire. Every request runs
+  the guards again, so they must authorize from what a plain browser `GET`
+  carries, usually a session cookie. An `<img>` or `<a href>` sends no
+  `Authorization` header.
 - The URL is relative to the API (`{basePath}/file?…`) unless `baseURL` is set.
-  `createS3Client` resolves a root-relative URL against an absolute `baseURL`,
-  so a cross-origin API still works.
+- `Cross-Origin-Resource-Policy: same-origin` stops a page on another origin
+  from embedding `/file` in `<img>` or `<video>`. Links still work. To embed
+  objects from an API on another origin, use presign mode.
 - `/file` serves only routes with `download.mode: "proxy"`. Any other route
   returns `404 FEATURE_DISABLED` with `params.feature` set to `"proxy"`.
 - There is no `s3.api` method for `/file`. On the server, read the object with
@@ -55,8 +59,8 @@ const { url, mode, expiresIn } = await api.download({ route: "invoices", key });
 
 ## Response headers
 
-Every `/file` response carries these headers, including `206`, `304`, `412`,
-`416`, and errors:
+Every `/file` response carries these headers, errors included. They keep the
+object from running as a page on your API origin:
 
 | Header                         | Value                                                                                            |
 | ------------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -69,10 +73,6 @@ Every `/file` response carries these headers, including `206`, `304`, `412`,
 A successful response also sends `Content-Type`, `Content-Disposition`, and
 `Content-Length`, plus `ETag`, `Last-Modified`, `Content-Encoding`, and
 `Content-Language` when S3 reports them.
-
-The object is served from your API origin, so it must never run as a page
-there. The CSP sandboxes it, and `nosniff` stops the browser from guessing
-another type.
 
 ### Inline display
 
@@ -92,7 +92,7 @@ download: {
 
 `private, no-cache` lets the browser keep a copy but revalidate it on each
 use. Return `cacheControl` from `download.resolve` to change it for successful
-responses:
+responses. Error responses keep the default.
 
 ```ts
 download: {
@@ -100,9 +100,6 @@ download: {
   resolve: () => ({ cacheControl: "private, max-age=3600" }), // [!code ++]
 },
 ```
-
-Error responses always send `private, no-cache`, so a shared cache never
-serves one caller's refusal to another.
 
 ## Byte ranges
 
@@ -125,13 +122,6 @@ Conditional headers are forwarded to GetObject:
 | `If-Match`, `If-Unmodified-Since`    | `412 PRECONDITION_FAILED` when it fails                                                  |
 | `If-Range`                           | The range when `ETag` or `Last-Modified` still matches, else `200` with the whole object |
 
-## Disconnects
-
-`/file` passes the request's abort signal to GetObject, so the S3 read stops
-when the client goes away. The Node, Express, and Fastify adapters abort that
-signal when the connection closes, and stream the body without buffering it.
-See [Server Setup](/docs/server/setup#node-express-and-fastify).
-
 ## API Reference
 
 The route options that shape proxy downloads. The rest are in
@@ -146,14 +136,6 @@ The route options that shape proxy downloads. The rest are in
 ## Frequently asked questions
 
 <Accordions>
-
-<Accordion title="Why does the download response have no expiresIn?">
-
-A proxy URL does not expire: every request to it is authorized again. The
-`download` response omits `expiresIn`, and `download.guard` sees
-`expiresIn: undefined`. Hooks can branch on `mode`.
-
-</Accordion>
 
 <Accordion title="Can I put a CDN in front of /file?">
 

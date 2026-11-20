@@ -30,9 +30,11 @@ export const s3 = dimahS3({
 ```
 
 On these routes the React client uploads files of 50 MiB or more in parts
-(`DEFAULT_MULTIPART_THRESHOLD`), and smaller files in one request. There is no
-second confirm call: complete runs the same checks and hooks as a single-shot
-confirm.
+(`DEFAULT_MULTIPART_THRESHOLD`), and smaller files in one request. Complete
+runs the same checks and hooks as a single-shot confirm.
+
+Turn multipart on for files over 5 GiB: S3 takes at most that in one PUT or
+POST, so a larger single upload returns `FILE_TOO_LARGE`.
 
 ## Multipart lifecycle
 
@@ -97,7 +99,7 @@ upload: {
 ## Part layout
 
 The server picks the layout at init from the declared size, and the client
-follows it. Init does not accept a part size.
+follows it.
 
 - `partSize` starts at `multipart.partSize`, 8 MiB by default.
 - It grows when the file would need more than 10,000 parts, rounds up to a
@@ -105,9 +107,16 @@ follows it. Init does not accept a part size.
 - Every part but the last is exactly `partSize`; the last holds the rest.
 - Files over 5 TiB return `FILE_TOO_LARGE`.
 
-Size limits follow from this. Init checks the declared size against
-`upload.maxFileSize` before S3 is called, the layout fixes each part's size,
-and complete rejects a part of any other size.
+```ts
+upload: {
+  multipart: {
+    partSize: 16 * 1024 * 1024, // [!code ++]
+  },
+},
+```
+
+Init checks the declared size against `upload.maxFileSize`. Sign part and
+complete enforce the layout:
 
 | Check                                         | Error                    |
 | --------------------------------------------- | ------------------------ |
@@ -115,8 +124,6 @@ and complete rejects a part of any other size.
 | Complete: a part in `1..partCount` is missing | `MULTIPART_PART_MISSING` |
 | Complete: a part is not its layout size       | `UPLOAD_SIZE_MISMATCH`   |
 | Complete: checksums on, a part has no SHA-256 | `CHECKSUM_REQUIRED`      |
-
-Sign part never calls ListParts. Complete reads every ListParts page.
 
 ## Part checksums
 
@@ -132,26 +139,12 @@ the server verifies the stored object and runs the hooks again, as long as the
 object carries this upload's marker. So, as with confirm, `onConfirmed` runs
 at least once: dedupe on `uploadToken`.
 
-## Ticket lifetime
+## Abandoned uploads
 
-A multipart ticket is valid for `multipart.ticketExpiresIn` seconds, one day
-by default. After that, every call returns `UPLOAD_TICKET_EXPIRED`, except
-abort, which accepts the ticket for 7 more days.
-
-```ts
-upload: {
-  multipart: {
-    partSize: 16 * 1024 * 1024, // [!code ++]
-    ticketExpiresIn: 6 * 60 * 60, // [!code ++]
-  },
-},
-```
-
-<Callout title="Clean up abandoned uploads">
-  Add an S3 lifecycle rule that aborts incomplete multipart uploads. Parts of
-  uploads that nobody completes or aborts otherwise stay in the bucket, and you
-  pay for them.
-</Callout>
+A multipart ticket is valid for one day by default, and abort accepts it for
+7 more days ([Lifetime](/docs/server/upload-tickets#lifetime)). Parts of an
+upload that nobody completes or aborts stay in the bucket, and you pay for
+them: add an S3 lifecycle rule that aborts incomplete multipart uploads.
 
 ## API Reference
 
@@ -159,15 +152,12 @@ upload: {
 
 Pass it as `upload.multipart`, or pass `true` for the defaults.
 
-| Option            | Type                                      | Default           | Description                                                      |
+| Prop              | Type                                      | Default           | Description                                                      |
 | ----------------- | ----------------------------------------- | ----------------- | ---------------------------------------------------------------- |
 | `partSize`        | `number`                                  | `8388608` (8 MiB) | Preferred part size in bytes. Raised for files over 10,000 parts |
 | `ticketExpiresIn` | `number`                                  | `86400`           | Seconds a ticket stays valid. Abort accepts it for 7 more days   |
 | `guard`           | `(context: MultipartGuardContext) => …`   | —                 | Authorizes sign part, list parts, complete, and abort            |
 | `onAbort`         | `(context: MultipartOnAbortContext) => …` | —                 | Runs after an abort                                              |
-
-Guards return nothing or `{ locals }`, and reject by throwing `s3Error()`, as
-on every [hook](/docs/server/hooks/global-guard).
 
 ### multipart.guard
 

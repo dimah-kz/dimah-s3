@@ -16,10 +16,9 @@ export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   guard: async ({ request }) => {
-    // [!code ++]
-    const session = await getSession(request); // [!code ++]
-    if (!session) throw s3Error("UNAUTHORIZED"); // [!code ++]
-  }, // [!code ++]
+    const session = await getSession(request);
+    if (!session) throw s3Error("UNAUTHORIZED");
+  },
   routes: {
     avatar: route({
       upload: { fileTypes: ["image/*"], maxFileSize: 2 * 1024 * 1024 },
@@ -42,12 +41,10 @@ A signed-in session does not prove the caller owns a given key. Check that in
 | Throws a plain `Error`                     | `500 INTERNAL_ERROR`, logged               |
 | Returns anything else (`true`, `false`, …) | Config error: `500`, logged, never allowed |
 
-`guard: () => isAdmin()` does not work: a boolean is never read as an answer.
-Throw to reject.
-
 ## Guard order
 
-Every operation runs its guards in this order:
+Every operation runs the instance guard, then `route.guard`, then the feature
+guard (`upload.guard`, `download.guard`, …), then the operation itself:
 
 <Flow
   label="Guard order"
@@ -117,24 +114,16 @@ export const s3 = dimahS3({
 });
 ```
 
-- Each call gets its own null-prototype `locals` object, and each `{ locals }`
-  result is merged into it.
+- Each `{ locals }` result is merged into the call's `locals`.
 - `locals` lives for one call. Presign and confirm are separate calls, so set
   values that hooks on both need in the instance or route guard, which run on
   every call.
-- An HTTP request can never set `locals`. Only guards, and in-process calls
-  through [`s3.api`](/docs/server/setup#server-side-api-s3api) and `s3.put`,
-  can. In-process `options.locals` seeds the object before any guard runs:
-
-```ts
-await s3.api.download(
-  { route: "reports", key },
-  { locals: { userId: "system", role: "admin" } }, // [!code ++]
-);
-```
-
-`ticketSubject` sees the locals from the instance and route guards only. See
-[Upload Tickets](/docs/server/upload-tickets#binding-a-ticket-to-a-user).
+- An HTTP request can never set `locals`. In-process calls through `s3.api`
+  and `s3.put` can seed them with
+  [`options.locals`](/docs/server/setup#server-side-api-s3api) before any
+  guard runs.
+- [`ticketSubject`](/docs/server/upload-tickets#binding-a-ticket-to-a-user)
+  sees the locals from the instance and route guards only.
 
 ## API Reference
 
@@ -164,19 +153,10 @@ return it from an async function.
 
 <Accordions>
 
-<Accordion title="How does the browser send custom request headers?">
+<Accordion title="How does the browser send an auth header or cookies?">
 
-Set `headers` in `createS3Client`. Per-call `headers` on a method override
-them:
-
-```ts
-export const s3Client = createS3Client({
-  headers: async () => ({
-    // [!code ++]
-    Authorization: `Bearer ${await getToken()}`, // [!code ++]
-  }), // [!code ++]
-});
-```
+Set `headers` or `credentials` on `createS3Client`. See
+[React Setup](/docs/react/setup).
 
 </Accordion>
 

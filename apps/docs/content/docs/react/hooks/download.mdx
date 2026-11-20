@@ -38,8 +38,8 @@ For ready-made buttons, pass either return value to the
 
 ## useDownload
 
-`download(key, { fileName })` presigns the key, then clicks a temporary link
-to the URL. The response's `Content-Disposition` decides whether the browser
+`download(key, { fileName })` presigns the key and hands the URL to the
+browser. The response's `Content-Disposition` decides whether the browser
 saves the file or opens it. `disposition` on the hook asks for `"inline"` or
 `"attachment"`; the server can override it.
 
@@ -56,13 +56,12 @@ if (outcome.status === "error") console.log(outcome.error.code);
 
 - `onSuccess` runs once the browser has the URL, not when the file finishes saving.
 - With `disposition: "inline"`, the browser opens the file in the current tab, in place of your page. To open it elsewhere, sign the URL with [`presign`](#presign-without-downloading) and put it on your own `<a target="_blank" rel="noopener">`.
-- `fileName` is fitted to 255 UTF-8 bytes, like an upload name.
 
 ### Presign without downloading
 
 `presign(key, options?)` returns the signed URL without handing it to the
-browser, for example to copy a link. It runs `beforeDownload`, records no
-operation, and runs no other callback.
+browser, such as to copy a link. It runs `beforeDownload` only, and records
+no operation.
 
 ```ts
 const outcome = await presign(objectKey, {
@@ -79,9 +78,7 @@ which caches each URL and refreshes it before it expires.
 
 ## useFetchDownload
 
-`useFetchDownload` fetches the bytes in the page with progress and cancel,
-then saves them as a file. It always saves, so it has no `disposition`
-option.
+`useFetchDownload` always saves the file, so it has no `disposition` option.
 
 ```tsx title="components/fetch-download.tsx"
 "use client";
@@ -107,13 +104,9 @@ export function FetchDownload({ objectKey }: { objectKey: string }) {
 ```
 
 - **File name** — the `fileName` you pass, else the response's `Content-Disposition` name, else the last segment of the key.
-- **Progress total** — the response's `Content-Length`, else `fileSize`. Pass `fileSize` when you know it, so progress has a total before the response arrives.
+- **Progress total** — the response's `Content-Length`, else `fileSize`. Pass `download(key, { fileSize })` when you know it, so progress has a total before the response arrives.
 - **Cancel** — `cancel(key)` ends the call with an `aborted` outcome, not an error.
 - **Errors** — a non-2xx response fails with `DOWNLOAD_FAILED` and its status, and a failed request with `NETWORK_ERROR`.
-
-```ts
-await download(objectKey, { fileName: "video.mp4", fileSize: 52_428_800 });
-```
 
 <Callout type="warn" title="Proxy routes do not get client headers">
   `useFetchDownload` fetches the signed URL with plain `fetch`. On a route with
@@ -133,31 +126,13 @@ with `get(key)`, or render `operations`:
 | `error` | `APIError \| null`                             | `APIError \| null`                                            |
 | Extra   | `result`: the signed URL response              | `progress`, `fileSize`, and the saved `fileName`              |
 
-- `pendingKeys` lists the keys with a running call; `isPending` is `true` while there is one.
-- `cancel(key?)` aborts one key, or every key.
-- `reset(key?)` removes settled operations for one key, or all of them.
+Many buttons can share one hook: render each from `get(key)`. `cancel(key?)`
+and `reset(key?)` act on one key, or on every key without one.
 
-Many buttons can share one hook: render each from `get(key)`.
-
-## Outcomes and callbacks
+## Callbacks
 
 `download` resolves with an [outcome](/docs/react/guides/outcomes) and does
-not throw:
-
-```ts
-const outcome = await download(objectKey);
-
-switch (outcome.status) {
-  case "success":
-    break; // outcome.data
-  case "error":
-    break; // outcome.error is an APIError
-  case "blocked":
-    break; // beforeDownload returned false
-  case "aborted":
-    break; // cancel(key) ran
-}
-```
+not throw. Callbacks run in this order:
 
 | Callback                    | Runs                                                                                           |
 | --------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -169,9 +144,9 @@ switch (outcome.status) {
 | `onSettled(outcome)`        | Once per call, however it ended                                                                |
 
 `onError`, `onSuccess`, and `onSettled` may be async and are awaited. A call
-that joins a running call does not run the callbacks again.
+that joins a running call does not run them again.
 
-### Accept either hook
+## Accept either hook
 
 Each return has a `kind`: `"navigate"` for `useDownload` and `"fetch"` for
 `useFetchDownload`. Type a prop as `AnyDownloadReturn` and narrow on `kind`:
@@ -184,10 +159,6 @@ function progressOf(download: AnyDownloadReturn, key: string) {
   return undefined;
 }
 ```
-
-`kind` is how the hook hands over the bytes. It is not the `mode` of a
-download response (`"presign"` or `"proxy"`), which is the route's
-`download.mode`.
 
 ## API Reference
 

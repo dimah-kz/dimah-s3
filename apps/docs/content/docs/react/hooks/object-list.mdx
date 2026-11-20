@@ -45,8 +45,7 @@ export function FileBrowser() {
 }
 ```
 
-For a ready-made browser with search, sort, a grid view, upload, folders,
-usage, and a file menu, pass the return value to
+For a ready-made file browser, pass the return value to
 [`ObjectList`](/docs/ui/components/object-list).
 
 ## Entries and ids
@@ -63,8 +62,7 @@ Three ids are in play, each with one job:
 | `entry.key`      | The list: `file:<id>` or `folder:<id>` | React keys and selection                                  |
 | `file.objectKey` | `getFile(item)`                        | Download, Copy link, and Delete. Falls back to the row id |
 
-`getId` and `getFile` run once per item and must be pure. An entry stays the
-same object while its item does, so rows can skip renders. To change what a
+`getId` and `getFile` run once per item, so keep them pure. To change what a
 row shows, replace the item with `setItems`, or reload.
 
 ## Query
@@ -90,16 +88,15 @@ What a change does to the rows on screen:
 | Sort, search, or search scope | Kept, with `isRefreshing`, until the new first page |
 
 Opening another folder also clears the search. Use `queryKey` for filters of
-your own, such as the route. A query that
-rejects sets `status` to `error`. `error` is an `APIError`; any other
-rejection becomes `UNKNOWN_ERROR` with the original as its `cause`.
+your own, such as the route.
+
+A query that rejects sets `status` to `error`. Reject with an `APIError`; any
+other rejection becomes `UNKNOWN_ERROR` with the original as its `cause`.
 
 ## Search
 
 `setSearch(text)` reloads the first page; debounce it yourself. The query
-receives the text trimmed, or `""` when it has only whitespace, joiners, or
-accents. `isSearching` is `true` while the query receives search text. What
-matches is up to the source.
+receives the text trimmed, and what matches is up to the source.
 
 A source that can search past the open folder lists the scopes it
 understands in `searchScopes`:
@@ -108,8 +105,7 @@ understands in `searchScopes`:
 - `"all"` — every folder.
 
 At the root both cover everything. `setSearchScope` reloads the first page
-while a search is on. `list.searchScopes` is what the source declared, or
-`[]`.
+while a search is on.
 
 ```ts
 const source: ObjectListSource<FileRow> = {
@@ -222,9 +218,9 @@ const source: ObjectListSource<FileRow> = {
 - A name sort or a search reloads afterwards, and so does a rename the source returns nothing for, so the order stays right.
 - All three reject with an `APIError`.
 
-With your own controls, pass the options to [`useUpload`](/docs/react/hooks/upload).
-Use `getDropTargetProps` on folder rows so they keep their own click and
-keyboard handlers. A drop on a row inside the dropzone goes to that folder:
+With your own controls, pass `list.uploadOptions` to `useUpload` as
+[call options](/docs/react/hooks/upload#request-options): the open folder's on
+the dropzone, and each folder's on its row.
 
 ```tsx
 const upload = useUpload({ route: "files", maxFiles: 20, append: true });
@@ -281,7 +277,7 @@ const source = memoryObjectSource(files, {
 const list = useObjectList(source);
 ```
 
-- **Search** matches the name with `matchesSearchText` from `@dimah-s3/core`, ignoring case, accents, and look-alike letters. `matches` replaces it for records; folder names always match that way. With `getFolder`, both search scopes work, matching folders are returned with the files, each result has its `location`, and the first page sends `total`.
+- **Search** ignores case, accents, and look-alike letters. `matches` replaces it for records. With `getFolder`, both search scopes work, matching folders come with the files, each result has its `location`, and the first page sends `total`.
 - **Sort** understands `name`, `size`, and `updatedAt`. Pass `sortValue` for other fields. Records without a value sort last.
 - **Usage** totals every record, not only the open folder. It is sent when `limits` is set, or with `usage: true`.
 
@@ -293,51 +289,16 @@ after the fact.
 ### dbObjectSource
 
 `dbObjectSource(api.db, options)` from `@dimah-s3/db/client` lists the rows of
-the [`db()`](/docs/db) plugin. Search and sort run on the server.
+the [`db()`](/docs/db) plugin. Folders, rename, search, sort, and usage run on
+the server. See [Browser](/docs/db/api#browser) for its options.
 
-```tsx title="components/db-files.tsx"
-"use client";
-
-import { useState } from "react";
-import { dbClient, dbObjectSource } from "@dimah-s3/db/client";
-import {
-  createS3Client,
-  useDelete,
-  useDownload,
-  useObjectList,
-  useUpload,
-} from "@dimah-s3/react";
-import { ObjectList } from "@dimah-s3/ui";
-
-const s3Client = createS3Client({
-  basePath: "/api/s3",
-  plugins: [dbClient()],
+```tsx
+const api = s3Client.useApi();
+const list = useObjectList({
+  ...dbObjectSource(api.db, { route: "files" }),
+  queryKey: ["files"],
 });
-
-export function DbFiles() {
-  const api = s3Client.useApi();
-  const [source] = useState(() => dbObjectSource(api.db, { route: "files" }));
-  const list = useObjectList({ ...source, queryKey: ["files"] });
-  const upload = useUpload({ route: "files", maxFiles: 20, append: true });
-  const download = useDownload({ route: "files" });
-  const remove = useDelete({ route: "files" });
-
-  return (
-    <ObjectList
-      list={list}
-      upload={upload}
-      download={download}
-      delete={remove}
-    />
-  );
-}
 ```
-
-- **Folders** — on by default: `parent` is a folder id, the first page carries the child folders, uploads go to the open folder, and New folder calls `api.db.createFolder`. Pass `folders: false` for a flat list; file rename stays, folder actions do not.
-- **Rename** — calls `api.db.updateObject` or `api.db.updateFolder` with the new `name`, and leaves the object key as it is.
-- **Search** — matches file and folder names without case, accents, or look-alike letters, the same on every database. With folders on, both search scopes work, each result has its `location`, and the first page sends `total`.
-- **Sort** — `name` by filename, `updatedAt` by last change, and `size` by verified size.
-- **Usage** — the scope's total with its quota caps, not the open folder's. The scope comes from the server `resolveScope` option; the query does not accept one.
 
 ## Selection
 
@@ -357,10 +318,9 @@ selection.selectedItems; // your records
 ```
 
 By default only files can be selected. The selection clears when the folder
-changes, and drops entries a reload or search no longer returns, so they never
-come back selected. `mode: "single"` keeps one entry. `persist: true` keeps
-entries from other folders, as in a picker that collects files from several
-places.
+changes, unless you pass `persist: true`, as in a picker that collects files
+from several folders. Entries a reload or search no longer returns are
+dropped.
 
 ## API Reference
 

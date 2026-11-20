@@ -53,14 +53,14 @@ export const s3 = dimahS3({
   ]}
 />
 
-- Before `delete.guard`, the server rejects keys outside the route's
-  `keyPrefix` with `KEY_INVALID`.
+The instance and route guards run, then `delete.guard`, `DeleteObject`, and
+`onDeleted`. The response is `{ key, bucket }`.
+
 - Delete is idempotent. A key that never landed, or one already gone,
   succeeds and still runs `onDeleted`, so the records of a pending or expired
   upload are cleaned up.
-- The S3 call does not stop when the client disconnects, so `onDeleted` runs
-  for every delete that happened.
-- The response is `{ key, bucket }`.
+- A client that disconnects does not stop the delete, so `onDeleted` runs for
+  every object S3 removed.
 
 ## Delete many keys
 
@@ -85,12 +85,7 @@ const { deleted, failed } = await s3.api.deleteMany(
   the whole call. So does a DeleteObjects request that fails as a whole.
 
 In React, `removeMany` from [`useDelete`](/docs/react/hooks/delete) calls
-`deleteMany`:
-
-```ts
-const { removeMany } = useDelete({ route: "avatar" });
-const { deleted, failed } = await removeMany([key1, key2]);
-```
+`deleteMany`.
 
 ## When S3 fails
 

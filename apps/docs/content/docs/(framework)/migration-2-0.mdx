@@ -4,15 +4,14 @@ description: Upgrade a 1.7 app to the 2.0 beta package by package, with before-a
 icon: CircleArrowUp
 ---
 
-Use this guide to move a 1.7 app onto the 2.0 beta. The beta changes the wire
-protocol, the hook contracts, and the components of every `@dimah-s3/*`
-package, and a 1.7 client does not work against a 2.0 beta server, so upgrade
-every package together.
+Move a 1.7 app to the 2.0 beta. The wire protocol, the hooks, and the
+components all changed, and a 1.7 client does not work against a 2.0 server,
+so upgrade every `@dimah-s3/*` package together.
 
 <Callout title="Beta releases">
   A new `2.0.0-beta` ships every few days and can include breaking changes until
-  `2.0.0`. Install with the `beta` dist-tag; `@latest` stays on 1.x. Each
-  package's changelog lists every change. This page covers what most apps need.
+  `2.0.0`. Install with the `beta` dist-tag: `@latest` is still 1.x. Each
+  package's changelog lists every change.
 </Callout>
 
 ## At a glance
@@ -74,11 +73,10 @@ npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @dimah-s3/u
 
 - Node.js 22 or newer is required. In the browser, the hooks need Chrome 119,
   Firefox 124, Safari 17.4, or newer.
-- `@dimah-s3/react` and `@dimah-s3/ui` need React 19.2 or later, as
-  `@fuma-translate/react` does.
+- `@dimah-s3/react` and `@dimah-s3/ui` need React 19.2 or later.
 - `@dimah-s3/core` and `@fuma-translate/react` are peer dependencies of
-  `@dimah-s3/react`. Install both yourself, with `@dimah-s3/core` on the same
-  version as `@dimah-s3/react`. React no longer re-exports core.
+  `@dimah-s3/react`: install both, with `@dimah-s3/core` on the same version.
+  React no longer re-exports core.
 - `@dimah-s3/ui` and `@dimah-s3/db` pin their `@dimah-s3/*` peers to the same
   version.
 - With `db()`, add `@dimah-s3/db@beta` and follow [Database](#database).
@@ -97,24 +95,18 @@ every instance:
 DIMAH_S3_SECRET="your-generated-secret"
 ```
 
-- `dimahS3()` reads `DIMAH_S3_SECRET` on the first upload. An empty value
-  counts as not set.
-- Without a secret, uploads return `500`. When `NODE_ENV` is `development` or
-  `test`, a random secret is used instead, with a warning.
-- Pass `secret` to read it from somewhere else, or an array to rotate: the
-  first value signs, and every value verifies.
-
-```ts title="lib/s3.ts"
-export const s3 = dimahS3({
-  // ...
-  secret: [process.env.DIMAH_S3_SECRET!, process.env.DIMAH_S3_SECRET_OLD!], // [!code ++]
-});
-```
+- The server reads `DIMAH_S3_SECRET` on the first upload. Without it, or with
+  an empty value, uploads return `500`.
+- When `NODE_ENV` is `development` or `test`, a random secret is used instead,
+  with a warning, so a missing secret first fails in production.
+- Pass `secret` to read it from somewhere else, or an array to
+  [rotate it](/docs/server/upload-tickets#rotate-the-secret): the first value
+  signs, and every value verifies.
 
 ### Configure the `S3Client` checksums
 
-The AWS SDK default (`WHEN_SUPPORTED`) breaks presigned uploads. Every
-`S3Client` you pass must set:
+The AWS SDK default (`WHEN_SUPPORTED`) breaks presigned uploads. Set this on
+every `S3Client` you pass:
 
 ```ts title="lib/s3.ts"
 export const awsS3 = new S3Client({
@@ -123,8 +115,8 @@ export const awsS3 = new S3Client({
 });
 ```
 
-With the SDK default, the first presign logs the problem and returns `500`.
-See [Providers](/docs/providers#set-the-checksum-mode).
+Otherwise the first presign logs a config error and returns `500`. See
+[Providers](/docs/providers#set-the-checksum-mode).
 
 ### Update the route config
 
@@ -141,10 +133,10 @@ invoices: route({
 }),
 ```
 
-- `upload.method` now defaults to `"PUT"` (1.7 used `"POST"`). AWS, R2, and
-  MinIO support PUT: allow `PUT` in the bucket CORS rule. Set
-  `method: "POST"` to keep presigned POST, or for a provider that rejects
-  presigned PUT, such as [ArvanCloud](/docs/providers/arvancloud).
+- `upload.method` now defaults to `"PUT"` (1.7 used `"POST"`), so bucket CORS
+  must allow `PUT`. Set `method: "POST"` to keep presigned POST, or for a
+  provider that rejects presigned PUT, such as
+  [ArvanCloud](/docs/providers/arvancloud).
 - `download.expiresIn` is now `download.maxExpiresIn`.
 - `upload.replace` is now the db route option
   `plugins: { db: { replace: "overwrite" } }`.
@@ -153,16 +145,16 @@ invoices: route({
   video, and plain text. Set `download.inlineTypes` to change the list.
 - `upload.expiresIn`, `upload.confirmWindow`, `upload.maxFileSize`,
   `upload.multipart.partSize`, `upload.multipart.ticketExpiresIn`, and
-  `download.maxExpiresIn` must be positive integers. A fractional value now
-  throws at `dimahS3()`.
-- `/file` serves only routes with `download.mode: "proxy"`. A presign-mode
-  route returns `404 FEATURE_DISABLED` there.
+  `download.maxExpiresIn` must be positive integers. A fraction throws at
+  `dimahS3()`.
+- `/file` serves only `download.mode: "proxy"` routes. A presign-mode route
+  returns `404 FEATURE_DISABLED` there.
 - Routes on different buckets may share a `keyPrefix`. On one bucket they
   still may not overlap.
 - A zero-byte file is rejected with `FILE_EMPTY`.
-- S3 user metadata from `upload.object` is limited to 2 KB in total, keys and
-  values together. Non-ASCII values are RFC 2047-encoded when written and
-  decoded when read, so `object.metadata` returns what you set.
+- S3 user metadata from `upload.object` is capped at 2 KB, keys and values
+  together. Non-ASCII values are RFC 2047-encoded on write and decoded on
+  read, so `object.metadata` returns what you set.
 - `download.resolve` must return `expiresIn` as a positive integer. Anything
   else is a config error and returns `500`.
 
@@ -181,8 +173,8 @@ throw s3Error("UNAUTHORIZED"); // [!code ++]
 A plain `Error` thrown from a hook returns `500 INTERNAL_ERROR` and is logged.
 
 A guard returns nothing to allow, or `{ locals }` to allow and pass values to
-later hooks in the same call. Any other return value, such as `true`, is a
-config error.
+later hooks in the same call. Any other value, such as `true`, is a config
+error.
 
 ```ts title="lib/s3.ts"
 import { dimahS3, route, s3Error } from "@dimah-s3/server";
@@ -210,8 +202,7 @@ export const s3 = dimahS3({
 });
 ```
 
-- Lifecycle `on*` hooks now run plugin hooks first, then yours, the same as
-  guards.
+- Lifecycle `on*` hooks now run plugin hooks first, then yours, as guards do.
 - `onError` is called as `onError(error, { request, operation })`.
 - Every hook context has `operation` and `locals`.
 
@@ -246,8 +237,7 @@ upload: {
   `"multipart.listParts"`, `"multipart.complete"`, `"multipart.abort"`). The
   sign-part context also has `partNumber` and `size`.
 - What the browser sends with an upload is `clientMetadata` in every upload
-  hook. It is never written to S3 unless `upload.object` copies it into
-  `metadata`.
+  hook. It reaches S3 only if `upload.object` copies it into `metadata`.
 
 `upload.onConfirmed` runs **at least once** per upload. A retried confirm
 calls it again with the same `uploadToken`, so make its writes idempotent:
@@ -269,9 +259,9 @@ avatar: route({
 - A throw from `onConfirmed`, including an `APIError`, returns `500` and keeps
   the object. To reject a file after upload, throw from `upload.confirmGuard`
   instead: that deletes the object.
-- `upload.onRejected` is new. It runs after confirm, multipart complete, or
-  `s3.put` refused an upload and deleted its object, so you can undo what
-  `onStart` recorded. See
+- New `upload.onRejected` runs after confirm, multipart complete, or `s3.put`
+  refused an upload and deleted its object, so you can undo what `onStart`
+  recorded. See
   [Upload Hooks](/docs/server/hooks/upload#when-an-upload-is-rejected).
 
 ### Update server calls
@@ -294,8 +284,8 @@ const { url } = await s3.api.download(query, { headers: await headers() }); // [
 - Plugin endpoints, such as the `db()` list, are HTTP only and no longer on
   `s3.api`. A plugin's server API is on the instance (`s3.db`).
 
-`s3.put` takes `name` and `type` in place of `fileName` and `contentType`,
-and moves `headers` to the second argument:
+`s3.put` takes `name` and `type` instead of `fileName` and `contentType`, and
+moves `headers` to the second argument:
 
 ```ts
 await s3.put(
@@ -326,11 +316,11 @@ If you wrote a server plugin:
   `@dimah-s3/server/plugins` only. Config and hook-context types, and
   `chainHooks`, come from `@dimah-s3/server` only. The `@dimah-s3/server/api`
   entry is gone.
-- `init` must be synchronous. A returned promise throws at `dimahS3()`.
+- `init` must be synchronous: a returned promise throws at `dimahS3()`.
 - `createS3Endpoint(path, options, handler)` always takes a path, and throws
   for a core path. `method` is `GET`, `POST`, `PUT`, `PATCH`, or `DELETE`;
   body endpoints accept JSON only.
-- Endpoints are HTTP only. Expose server-side functions through `context`.
+- Endpoints are HTTP only: expose server-side functions through `context`.
   `DimahS3Plugin` has no endpoint type parameter, and `PluginEndpointMap` is
   removed.
 - Only a rejection (a `4xx` `APIError`) from a plugin `onConfirmed` deletes
@@ -365,8 +355,8 @@ import { APIError, isS3ErrorCode } from "@dimah-s3/core"; // [!code ++]
 import { createLocalStorageUploadStore } from "@dimah-s3/react/engine"; // [!code ++]
 ```
 
-- `@dimah-s3/react/engine` has no `"use client"` directive and no React
-  import, so shared and server modules can use it.
+- `@dimah-s3/react/engine` has no `"use client"` and no React import, so
+  server modules can import it.
 - The display formatters `formatFileSize` and `truncateFileName` live in the
   engine entry, not in `@dimah-s3/core`.
 - `formatSpeed` and `formatUploadProgress` are removed. Use `useFormatSpeed()`
@@ -412,16 +402,15 @@ const { uploaded, failed } = await upload.handleFiles(files); // [!code ++]
 
 - The upload result (`UploadResult`) uses `name`, `size`, and `type`. Its
   `metadata` is the S3 user metadata the server wrote.
-- An invalid file no longer stops the batch: it is in the result's
-  `rejected`.
+- An invalid file no longer stops the batch: it lands in `rejected`.
 - `cancel(ids?)` and `reset(ids?)` take one id or several. Pass
   `append: true` to add new files to the queue instead of replacing it.
 - `retry(ids?)` sends failed files again in place: one id, several, or every
   failed file. A test stub that builds a whole `UseUploadReturn` must add
   `retry` and `disabled`.
 - File ids are short strings such as `upload-1`, not UUIDs.
-- Requests are also retried when your API answers 408, 429, or 500 and above,
-  and a stored multipart upload is kept after such a failure.
+- Requests are also retried when your API answers 408, 429, or 500 and above.
+  A stored multipart upload is kept after such a failure.
 - A custom `UploadStore` implements `get(resumeKey, fileSize)`, `set(upload)`,
   and `delete(resumeKey)`. A `StoredUpload` holds the upload ticket and the
   server's part layout. Resume records from 1.7 are ignored.
@@ -444,8 +433,8 @@ const download = useFetchDownload({ route: "invoices" }); // [!code ++]
 - `download(key, { fileName })` and `presign(key, options)` return an
   outcome. A cancelled call settles with an `aborted` outcome instead of
   `onCancel`.
-- `useFetchDownload` has no `disposition` option, since it always saves the
-  file. Its result is `{ fileName, fileSize }`.
+- `useFetchDownload` always saves the file, so it has no `disposition`
+  option. Its result is `{ fileName, fileSize }`.
 - `UseNavigateDownloadOptions` and `UseNavigateDownloadReturn` are now
   `UseDownloadOptions` and `UseDownloadReturn`.
 
@@ -513,7 +502,7 @@ Components no longer toast: mount one toast component per hook and one
 | `confirmTitle` / `confirmDescription` | `<Delete dialog={<DeleteConfirmDialog title description />}>`    |
 | `toast` props, `use*Toast` hooks      | `UploadToasts`, `DownloadToasts`, `DeleteToasts`                 |
 
-In 1.7, one component rendered the button, the status, and the toasts:
+In 1.7, one component rendered the button, status, and toasts:
 
 ```tsx
 <UploadButton upload={upload} />
@@ -590,16 +579,16 @@ to put it:
 <UploadStatus />
 ```
 
-- Control props such as `buttonClassName` are now plain `Button` props on the
-  trigger, and tooltips are opt-in through `tooltip`.
+- Control props such as `buttonClassName` are now `Button` props on the
+  trigger. Tooltips are opt-in through `tooltip`.
 - `FileAttachment` drops `size` and `orientation`. Size it with `className`.
 - `AvatarUpload` `onChange` is now `onUploaded`.
 - An icon-size `UploadTrigger`, `DownloadTrigger`, or `DeleteTrigger` keeps its
-  label for screen readers, so it needs no `aria-label` of its own.
-- With the shadcn registry, the items `upload-button`, `upload-dropzone`,
-  `download-button`, `progress-download-button`, and `delete-button` are
-  replaced by `upload`, `download`, and `delete`. The items need a shadcn
-  project on a Base UI style.
+  label for screen readers, so it needs no `aria-label`.
+- In the shadcn registry, `upload`, `download`, and `delete` replace
+  `upload-button`, `upload-dropzone`, `download-button`,
+  `progress-download-button`, and `delete-button`. They need a shadcn project
+  on a Base UI style.
 
 See [Upload](/docs/ui/components/upload),
 [Download](/docs/ui/components/download), and
@@ -736,20 +725,18 @@ See [Custom backend](/docs/react/custom-backend).
 
 ## Database
 
-`@dimah-s3/db` reads schema `2.3.0` only: folders are rows with ids, an
-object stores `folderId` and its `name`, and each row has typed `attributes`,
-an upload token, and its name folded for search and for the name sort. It
-does not upgrade a database at any other version, 1.x included, and any other
-version throws. [Upgrade the database](/docs/db/upgrade) says what happens to
-an existing database.
+`@dimah-s3/db` reads schema `2.3.0` only: folders are rows with ids, and an
+object stores its `folderId` and `name`. Any other version, 1.x included,
+throws: `db()` does not upgrade it. [Upgrade the database](/docs/db/upgrade)
+covers an existing database.
 
 ### Create the tables
 
 - Create the tables on a new database before you deploy, from
   [Setup](/docs/db/setup). With Kysely, call `migrate(client)` from
   `@dimah-s3/db` on an empty database.
-- Remove `fumadb` and the `fumadb/cuid` path alias from your app. Generate the
-  Drizzle tables or Prisma models with `runCli` from `@dimah-s3/db/cli`, build
+- Remove `fumadb` and the `fumadb/cuid` path alias. Generate the Drizzle
+  tables or Prisma models with `runCli` from `@dimah-s3/db/cli`, build
   the client with `DimahS3Db.client(adapter)`, and import adapters from
   `@dimah-s3/db/adapters/<orm>`.
 - Install `@aws-sdk/client-s3` next to `@dimah-s3/db`: it is a required peer.

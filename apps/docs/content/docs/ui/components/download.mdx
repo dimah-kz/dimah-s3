@@ -126,15 +126,12 @@ names the file.
 
 ## Navigate or fetch
 
-The trigger follows the hook you pass to the root.
-
 | Hook               | What happens                                            | While it runs                                        |
 | ------------------ | ------------------------------------------------------- | ---------------------------------------------------- |
 | `useDownload`      | Signs a URL and hands it to the browser, which saves it | The trigger shows a spinner                          |
 | `useFetchDownload` | Fetches the bytes in the page, then saves them          | The trigger fills with the progress; a click cancels |
 
-Use `useFetchDownload` when you want progress and cancel. Pass `fileSize` to
-the trigger to give the progress a total before the response does.
+Use `useFetchDownload` for progress and cancel:
 
 ```tsx
 const download = useFetchDownload({ route: "exports" });
@@ -145,25 +142,16 @@ const download = useFetchDownload({ route: "exports" });
 </Download>;
 ```
 
-`DownloadProgress` renders nothing with `useDownload`, which has no byte
-progress, and while no download of its key runs.
-
 ## Toasts
 
-Mount `DownloadToasts` once per hook, next to one `<Toaster />`.
-
-- `useDownload`: "Download started" once the browser has the URL.
-- `useFetchDownload`: a progress toast with the bytes and a cancel action, then
-  "Download complete".
-- Both: "Download failed" with the error, and "Download cancelled".
+Mount `DownloadToasts` once per hook. It shows when a download starts,
+finishes, fails, or is cancelled, with a progress toast for fetch downloads.
 
 ## Accessibility
 
 - At an icon size the trigger keeps "Download" as its accessible name.
 - While a fetch download runs, the trigger is named `Cancel download of {name}`.
-  The second click of a double-click does not cancel.
-- `DownloadProgress` has `role="progressbar"`, names the file, and reads out
-  the bytes received. It is indeterminate until the total is known.
+- `DownloadProgress` is a `progressbar` named after the file.
 
 ## API Reference
 

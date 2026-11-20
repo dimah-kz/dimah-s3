@@ -126,9 +126,7 @@ target. One dialog asks for all of them.
 
 ## Confirmation
 
-The dialog names the file and its size, or the count for several files. It
-stays open, with Confirm busy, until the delete settles. Replace its copy with
-`dialog`:
+Replace the dialog's copy with `dialog`:
 
 ```tsx
 <Delete
@@ -173,14 +171,10 @@ function DeleteSelected({ files }: { files: Attachment[] }) {
 }
 ```
 
-A new request replaces one that is still waiting.
-
 ## Focus
 
-When the dialog closes, focus returns to the trigger that asked. If that
-element is gone, as when its row was deleted, focus goes to its nearest
-`[data-dimah-s3-focus-root]` container. Mark the container of a list whose rows
-unmount:
+When a deleted row unmounts with its trigger, focus goes to the nearest
+`[data-dimah-s3-focus-root]`. Mark the list:
 
 ```tsx
 <ul data-dimah-s3-focus-root tabIndex={-1}>
@@ -188,23 +182,14 @@ unmount:
 </ul>
 ```
 
-Return an element from `restoreFocus` to choose another target. Pass
-`trigger` to `request` when the element that asked can unmount, such as a
-menu item: pass the menu's button.
-
 ## Toasts
 
-Mount `DeleteToasts` once per hook, next to one `<Toaster />`. It shows one
-success toast and one error toast per call, once every key has settled.
+Mount `DeleteToasts` once per hook. It shows one result toast per call.
 
 ## Accessibility
 
-- The dialog is an alert dialog with initial focus on Cancel. Escape and Cancel
-  do nothing while the delete runs.
-- A trigger whose key is deleting stays focusable, is disabled, and shows a
-  spinner. At an icon size it keeps "Delete" as its accessible name.
-- `note` is part of the dialog's description, so it is read out when the
-  dialog opens.
+- The dialog is an alert dialog with initial focus on Cancel.
+- At an icon size the trigger keeps "Delete" as its accessible name.
 
 ## API Reference
 

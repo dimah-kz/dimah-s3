@@ -139,9 +139,7 @@ renders a header, the usage, the upload status, and the content.
 | `ObjectListRow`, `ObjectListTile` | One entry, for `renderEntry`                                                            |
 
 Render the header's controls as its direct children, so the search and New
-folder fields can take the bar from them. The header lays out by its own
-width: below 36rem its button labels hide, and it fits a sidebar as well as a
-page.
+folder fields can take the bar from them.
 
 ## Customize entries
 
@@ -176,22 +174,14 @@ Change part of every entry with a `render*` prop. Each receives the entry:
 | `renderActions`     | The trailing controls. Return `null` to hide the menu                                            |
 | `renderEntry`       | The whole row or tile. Return `ObjectListRow` or `ObjectListTile` to keep selection and keyboard |
 
-`onOpenItem` runs when a file is clicked or opened with Enter. Folders always
-open in place.
-
-<Callout>
-  Entries are memoized. Define `render*` functions outside the component, or
-  wrap them in `useCallback`, so your own renders do not redraw every entry.
-</Callout>
-
-Style entries with their data attributes: `data-kind` (`file` or `folder`),
-`data-view`, `data-selected`, and `data-entry-key`.
+`onOpenItem` runs when a file is opened; folders always open in place. Define
+`render*` functions outside the component, or wrap them in `useCallback`, so
+your renders do not redraw every entry.
 
 ## Views
 
-The list starts in `defaultView` (`"list"`). Pass `view` and `onViewChange`
-to keep the view in your own state, such as the URL. The grid shows
-`previewUrl` thumbnails at full width.
+`defaultView="grid"` starts in the grid. Pass `view` and `onViewChange` to
+keep the view in your own state, such as the URL.
 
 ## Search and sort
 
@@ -215,17 +205,13 @@ Pass your own sort fields with `options`:
 />
 ```
 
-Search results mark the text that matched and show where each one lives, such
-as `Docs › 2024`. A result's menu starts with **Show in folder**. When the
-source has [`searchScopes`](/docs/react/hooks/object-list#search), the search
-bar lets the user search the open folder or everything.
+When the source has [`searchScopes`](/docs/react/hooks/object-list#search),
+users can search the open folder or everything.
 
 ## Selection
 
 Pass `useObjectListSelection(list)` as `selection`. Only files can be selected
-by default. Click a checkbox, Shift-click to extend a range, or Ctrl-click a
-row. The selection bar shows the count, your `selectionActions`, bulk delete,
-and Clear.
+by default. Put your own bulk actions in `selectionActions`:
 
 ```tsx
 const selection = useObjectListSelection(list);
@@ -241,16 +227,9 @@ const selection = useObjectListSelection(list);
 />;
 ```
 
-With a `persist` selection, the bar sits under the path, so the user can pick
-files across folders.
-
 ## Delete
 
-The file menus and the selection bar share one confirmation. Deleted files
-leave the rows at once, then the list reloads. `onDeleted` receives the
-`DeleteResult` of each confirmed delete.
-
-To delete folders, make them selectable and say which keys each one holds.
+`onDeleted` receives the result of each confirmed delete. To delete folders, make them selectable and say which keys each one holds.
 Without `resolveFolderKeys`, selected folders stay out of a delete.
 
 ```tsx
@@ -266,9 +245,8 @@ const selection = useObjectListSelection(list, { isSelectable: () => true });
 
 ## Upload into folders
 
-With `upload`, the whole list takes drops and pastes into the open folder. It
-is a drop target, not a dropzone: clicking it does not open the picker. Add an
-`UploadTrigger` to the header, the `toolbar`, or the empty state for that:
+With `upload`, the list takes drops and pastes into the open folder. For a
+file picker, add an `UploadTrigger` to the `toolbar` or the empty state:
 
 ```tsx
 <ObjectList
@@ -282,8 +260,7 @@ is a drop target, not a dropzone: clicking it does not open the picker. Add an
 />
 ```
 
-Where a file lands comes from the source's `uploadOptions(parent)`. With it,
-folder rows take drops too, and their menu has **Upload to this folder**.
+The source's `uploadOptions(parent)` decides where files land.
 `dbObjectSource` sets it for you. With your own source, send the folder as
 `clientMetadata` and read it in the server's upload hook:
 
@@ -293,8 +270,6 @@ const list = useObjectList({
   uploadOptions: (parent) => ({ clientMetadata: { folderId: parent ?? "" } }),
 });
 ```
-
-The list reloads once each time the upload queue settles.
 
 ## Folders
 
@@ -309,10 +284,9 @@ The list reloads once each time the upload queue settles.
 
 ## Entry menu
 
-`ObjectListEntryMenu` is the default trailing control. It has **Download**,
-**Copy link**, **Rename**, your `actions`, and **Delete**, each when the list
-can do it. Inside a list every prop is optional: the key, name, and hooks come
-from the entry and the list.
+`ObjectListEntryMenu` is the default trailing control, with **Download**,
+**Copy link**, **Rename**, and **Delete** when the list can do them. Add your
+own rows with `actions`, or with children:
 
 ```tsx
 <ObjectListEntryMenu>
@@ -324,30 +298,25 @@ from the entry and the list.
 ```
 
 Copy link signs a URL through `share`, else through a `useDownload`
-`download`, and writes it to the clipboard. Pass `expiresIn` for a shorter
-link than the route allows.
+`download`.
 
 ## Frame and paging
 
-- `height` fixes the frame: the header stays and the entries scroll. A number
-  is pixels; a string is a CSS length.
-- `maxHeight` lets the frame grow with its entries up to a cap.
-- `pagination="auto"` (default) loads the next page as the end comes into
-  view. `"button"` shows **Load more**. A failed page shows **Retry**.
+Pass `height` to keep the header in place and scroll the entries, or
+`maxHeight` to let the list grow up to a cap. Later pages load as the user
+scrolls; `pagination="button"` shows **Load more** instead.
 
 ## Storage usage
 
-Return `usage` from the source's query and `ObjectListUsage` shows the bytes
-and file count. With `maxBytes` or `maxFiles` it adds a meter that turns
-destructive at the cap. The caps come from `memoryObjectSource({ limits })`
-or the `db({ quota })` caps through `dbObjectSource`.
+Return `usage` from the source's query, with `maxBytes` or `maxFiles` for a
+meter, and `ObjectListUsage` shows it. `dbObjectSource` sends the
+[`db()` quota](/docs/db/api#quota).
 
 ## Toasts
 
-With `toasts` on (default), the list shows toasts for `upload`, `download`,
-and `delete`. They step aside for an `UploadToasts`, `DownloadToasts`, or
-`DeleteToasts` you mount for the same hook. Mount one `<Toaster />` either way.
-With `toasts={false}`, results are announced in a polite live region instead.
+The list shows toasts for its hooks by default, so it needs no
+`UploadToasts`, `DownloadToasts`, or `DeleteToasts`. Pass `toasts={false}` to
+turn them off.
 
 ## Keyboard
 

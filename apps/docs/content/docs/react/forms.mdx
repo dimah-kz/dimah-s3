@@ -8,25 +8,9 @@ Keep upload state and form state apart. `useUpload` owns the browser `File`s,
 validation, progress, retries, and confirmation. The form owns a value it can
 submit: the object keys of confirmed uploads.
 
-<Flow
-  label="Upload field lifecycle"
-  steps={[
-    { name: "Select files", kind: "client", note: "UploadDropzone" },
-    { name: "Presign", kind: "server", note: "guards and server-owned key" },
-    { name: "Upload bytes", kind: "s3", note: "direct browser transfer" },
-    { name: "Confirm", kind: "server", note: "HeadObject verification" },
-    { name: "onSuccess", kind: "hook", note: "one confirmed UploadResult" },
-    {
-      name: "Set field value",
-      kind: "client",
-      note: "serializable object keys",
-    },
-  ]}
-/>
-
-A key belongs in the form once its file is confirmed, which means the server
-has verified the object with `HeadObject`. If some files of a call fail, the
-ones that uploaded stay confirmed and keep their keys in the form.
+A key goes into the form once the server has verified its object with
+`HeadObject`. If some files of a call fail, the ones that uploaded keep their
+keys.
 
 ## UploadField
 
@@ -77,7 +61,6 @@ import { useUpload } from "@dimah-s3/react";
 import { UploadDropzone, UploadField, UploadFieldValue } from "@dimah-s3/ui";
 
 const formSchema = z.object({
-  title: z.string().min(1, "Title is required."),
   objectKeys: z.array(z.string()).min(1, "Upload at least one file."),
 });
 
@@ -86,7 +69,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function AttachmentForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { title: "", objectKeys: [] },
+    defaultValues: { objectKeys: [] },
   });
   const upload = useUpload({ route: "attachments", maxFiles: 5 });
 
@@ -134,9 +117,6 @@ export function AttachmentForm() {
   );
 }
 ```
-
-The dropzone shows progress and per-file errors from `upload`, so none of it
-is copied into the form.
 
 ## TanStack Form
 
@@ -243,13 +223,10 @@ import type { UploadResult } from "@dimah-s3/react";
 type FormValues = { attachments: UploadResult[] };
 ```
 
-Never put `File` objects in a value you send to your server. They are
-browser-only and do not mean the upload finished.
-
 ## Rules
 
 1. Disable submit while `upload.isPending` is `true`.
-2. Set values from confirmed results only: `UploadField`, or `onSuccess`.
+2. Set values from confirmed results only, `UploadField` or `onSuccess`. Never submit `File` objects.
 3. Show `onError` or `upload.error` next to the field, even when you also toast.
 4. Call both `form.reset()` and `upload.reset()` when the form resets.
 5. Render progress, previews, and status from `upload.files`, not from form state.
@@ -282,11 +259,8 @@ Yes. Render `UploadTrigger` inside `UploadField` in place of `UploadDropzone`:
 
 Yes, with your own file picker. Keep the selected `File`s in local state, then
 call `upload.handleFiles(files)` from your submit handler. It resolves with
-the uploaded results once every file has ended.
-
-The built-in components upload as soon as files are picked. That is the
-simpler default, because the form already has confirmed keys when it
-validates and submits.
+the uploaded results once every file has ended. The built-in components
+upload as soon as files are picked.
 
 </Accordion>
 

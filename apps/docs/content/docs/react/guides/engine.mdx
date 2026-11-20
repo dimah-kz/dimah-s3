@@ -20,14 +20,6 @@ The types `UploadFileOptions`, `UploadStore`, `StoredUpload`,
 `UploadTransport`, `S3ApiUploadTransport`, `RetryConfig`, `UploadAbortKind`,
 and `RouteUploadPolicy` ship from it too.
 
-<Callout title="Importing is not running">
-  `uploadFile` sends bytes with `XMLHttpRequest`, so it runs in a browser page.
-  Where there is none, such as Node or a service worker, an
-  [`uploadTransport`](/docs/react/custom-backend#upload-transport) on the API
-  replaces the transfer for single-shot uploads only. Multipart parts always use
-  `XMLHttpRequest`.
-</Callout>
-
 ## Upload a file without hooks
 
 `uploadFile(api, file, options)` presigns, uploads, and confirms one file,
@@ -64,6 +56,12 @@ export async function uploadAttachment(file: File, signal?: AbortSignal) {
 }
 ```
 
+`uploadFile` sends bytes with `XMLHttpRequest`, so it needs a browser page.
+In Node or a service worker, an
+[`uploadTransport`](/docs/react/custom-backend#upload-transport) on the API
+replaces single-shot transfers only; multipart parts always use
+`XMLHttpRequest`.
+
 `policy` decides two things:
 
 - **Multipart** — files of at least `DEFAULT_MULTIPART_THRESHOLD` (50 MiB) use multipart when `policy.multipart` is true.
@@ -71,7 +69,7 @@ export async function uploadAttachment(file: File, signal?: AbortSignal) {
 
 The route policy helpers work like the hook:
 
-- `loadRouteCatalog(api)` caches the catalog per `S3Api`. A failure is not cached, so the next call loads again.
+- `loadRouteCatalog(api)` loads the catalog once per `S3Api`. A failure is not cached, so the next call loads again.
 - `resolveRouteUploadPolicy(catalog, route)` returns no constraints, and neither multipart nor checksums, for a missing route or a route with uploads off.
 - `mergeRouteUploadPolicy(policy, { accept, maxFileSize, multipart })` narrows a policy the way the hook options do.
 

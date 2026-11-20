@@ -44,20 +44,17 @@ Every hook works the same way:
 
 ## Entries
 
-| Entry                    | Exports                                                                                                   | Use it in                                      |
-| ------------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `@dimah-s3/react`        | Hooks, `S3Provider`, `useS3Api`, `createS3Client`, formatter hooks, and types                             | Client components. The build is `"use client"` |
-| `@dimah-s3/react/engine` | Plain functions with no React import: `uploadFile`, `defineApi`, `memoryObjectSource`, stores, formatters | Shared modules, server modules, and workers    |
+| Entry                                                 | Exports                                                                                                   | Use it in                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `@dimah-s3/react`                                     | Hooks, `S3Provider`, `useS3Api`, `createS3Client`, formatter hooks, and types                             | Client components. The build is `"use client"` |
+| [`@dimah-s3/react/engine`](/docs/react/guides/engine) | Plain functions with no React import: `uploadFile`, `defineApi`, `memoryObjectSource`, stores, formatters | Shared modules, server modules, and workers    |
 
 `APIError`, `S3_ERROR_CODES`, `validateFile`, and the other protocol helpers
 come from [`@dimah-s3/core`](/docs/core), a peer dependency. The React package
-does not re-export them. See [Requirements](/docs/react/setup#requirements)
-for the React, Node.js, and browser versions.
+does not re-export them. For the React, Node.js, and browser versions, see
+[Requirements](/docs/react/setup#requirements).
 
-<Callout>
-  Upgrading from 1.7? See [Upgrade to 2.0 beta](/docs/migration-2-0) for the
-  renamed hooks, callbacks, and entries.
-</Callout>
+Upgrading from 1.7? See [Upgrade to 2.0 beta](/docs/migration-2-0).
 
 ## Hooks
 
@@ -144,11 +141,3 @@ for the React, Node.js, and browser versions.
 [`@dimah-s3/ui`](/docs/ui) renders these hooks as accessible shadcn
 components: dropzones, form fields, file lists, and download and delete
 buttons.
-
-<Cards>
-  <Card
-    title="UI components"
-    href="/docs/ui"
-    description="Accessible shadcn components built on these hooks."
-  />
-</Cards>

@@ -5,9 +5,8 @@ icon: Scale
 ---
 
 File tools cover different layers: upload UI, managed storage, or the server
-policy around an object for its whole life. dimah-s3 is the last kind: it runs
-upload, verified confirm, download, and delete for an S3-compatible bucket you
-own.
+policy around an object for its whole life. dimah-s3 is the last kind: upload,
+verified confirm, download, and delete on an S3-compatible bucket you own.
 
 | Choose            | When you want                                                                                      |
 | ----------------- | -------------------------------------------------------------------------------------------------- |
@@ -31,34 +30,31 @@ own.
 | **React UI**              | Headless + optional shadcn       | Hooks + shadcn upload UI                   | Components + hooks                     | Headless core + Dashboard   |
 | **Cost and operations**   | Cloud + application operations   | Cloud + application operations             | Managed plan + usage                   | Backend + destination costs |
 
-The table covers first-party scope. You can extend any option with your own
-code; the sections below show where the practical boundary is.
+The table shows what each tool ships, not what you can build on top of it.
 
 ## dimah-s3 or Better Upload?
 
 Both upload straight to an S3-compatible bucket you own. Better Upload fits
-when the upload is the whole job: it has concise routes, React hooks, shadcn
-components, automatic multipart, and a set of S3 helpers.
+when the upload is the whole job: concise routes, React hooks, shadcn
+components, automatic multipart, and S3 helpers.
 
 Choose dimah-s3 when the app also needs:
 
-- **Verified confirmation.** Confirm takes a signed upload ticket, so it only
-  finishes uploads the server started. It reads `HeadObject`, rechecks size and
-  type, can check the first bytes against the type, and deletes the object
-  when a check or `confirmGuard` rejects it.
+- **Verified confirmation.** Confirm accepts only a signed upload ticket, so
+  it finishes only uploads the server started. It reads `HeadObject`, rechecks
+  size and type, can check the first bytes against the type, and deletes the
+  object when a check or `confirmGuard` rejects it.
 - **One policy for the whole lifecycle.** One named route and key namespace
   govern upload, private download, proxy delivery, and server-side delete.
 - **Resume after a reload.** An `UploadStore` keeps multipart state. When the
-  user picks the same file again, the client reconciles the parts already in
-  S3.
+  user picks the same file again, the client reuses the parts already in S3.
 - **Optional records.** `@dimah-s3/db` adds scoped ownership, lifecycle state,
-  folder listings, and quotas, without an ORM in the server package.
+  folder listings, and quotas.
 
 ## dimah-s3 or UploadThing?
 
 UploadThing fits when you want a managed file backend, with no bucket, IAM
-policy, CORS rules, or delivery layer to set up. It includes hosted storage,
-file APIs, components, and managed public or private URLs.
+policy, CORS rules, or delivery layer to set up.
 
 Choose dimah-s3 when you need control of storage:
 
@@ -66,10 +62,8 @@ Choose dimah-s3 when you need control of storage:
   other S3-compatible bucket.
 - **Your policy.** Authentication, key generation, quotas, and lifecycle hooks
   run in your server.
-- **No file-service fee.** There is no upload SaaS subscription. You still pay
-  for storage, transfer, compute, and maintenance.
-- **Your framework.** Adapters cover Next.js, Hono, Express, Fastify, Elysia,
-  SvelteKit, Node, and standard Fetch handlers.
+- **No file-service fee.** You pay your provider for storage and transfer, and
+  run the server yourself.
 
 ## dimah-s3 or Uppy?
 
@@ -86,73 +80,27 @@ If you only need drag-and-drop UI, use the headless
 
 ### Raw presigned S3 URLs
 
-The AWS SDK alone is a reasonable choice for one small upload flow. You own
-every decision, dependency, and endpoint. As requirements grow, you also own
-confirmation, key isolation, multipart coordination, retries, download
-authorization, deletion, client state, and error contracts.
-
-dimah-s3 packages those boundaries and still leaves the AWS SDK client in your
-hands. It does not replace general S3 APIs such as list, copy, or arbitrary
-tagging.
+The AWS SDK alone is a reasonable choice for one small upload flow. As
+requirements grow, you also own confirmation, key isolation, multipart
+coordination, retries, download authorization, deletion, client state, and
+error contracts. dimah-s3 packages those and leaves the `S3Client` in your
+hands.
 
 ### React Dropzone
 
 React Dropzone handles file selection and drag-and-drop; it is not an upload
 backend. `@dimah-s3/react` uses it for file intake, then adds route
 constraints, transfer state, progress, retries, confirmation, and multipart.
-
-Use React Dropzone directly when you only need intake. Use the dimah-s3 hooks
-or components when you also need the transfer and the server lifecycle.
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="Is dimah-s3 a drop-in replacement for Better Upload?">
-
-No. The libraries use different route, hook, and response contracts, so a
-migration changes both server and client code. Both target the
-bring-your-own-bucket model: Better Upload focuses on upload, and dimah-s3
-covers upload, confirm, download, and delete.
-
-</Accordion>
-
-<Accordion title="Does Better Upload support multipart uploads?">
-
-Yes. Better Upload can use multipart automatically when a route turns it on.
-The dimah-s3 difference is resume after a reload, through `UploadStore`, not
-multipart itself.
-
-</Accordion>
-
-<Accordion title="Is UploadThing more expensive than dimah-s3?">
-
-Not always. dimah-s3 has no file-service fee, but self-hosting still has
-storage, transfer, compute, and engineering costs. UploadThing bundles managed
-infrastructure and support into its pricing. Compare total cost at your file
-sizes, traffic, regions, and operational needs.
-
-</Accordion>
-
-<Accordion title="Does dimah-s3 replace the AWS SDK?">
-
-No. dimah-s3 owns presigned upload, download, and delete. Keep using the AWS
-SDK for app-specific operations such as list, copy, retention, or arbitrary
-object tagging.
-
-</Accordion>
-
-</Accordions>
+Use React Dropzone directly when you only need intake.
 
 ## Sources
 
-Competitor capabilities change. This page was last reviewed on
-**September 6, 2026** against the official
+Competitor capabilities change. Last reviewed on **September 6, 2026**
+against the official
 [Better Upload routes](https://better-upload.com/docs/routes-single),
 [Better Upload helpers](https://better-upload.com/docs/helpers-server),
 [UploadThing documentation](https://docs.uploadthing.com), and
-[Uppy S3 documentation](https://uppy.io/docs/aws-s3). Check them against your
-own requirements.
+[Uppy S3 documentation](https://uppy.io/docs/aws-s3).
 
 ## Next steps
 
@@ -173,3 +121,41 @@ own requirements.
     description="Configure AWS S3, Cloudflare R2, MinIO, or another compatible service."
   />
 </Cards>
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Is dimah-s3 a drop-in replacement for Better Upload?">
+
+No. The libraries use different route, hook, and response contracts, so a
+migration changes both server and client code.
+
+</Accordion>
+
+<Accordion title="Does Better Upload support multipart uploads?">
+
+Yes. Better Upload can use multipart automatically when a route turns it on.
+The dimah-s3 difference is resume after a reload, through `UploadStore`, not
+multipart itself.
+
+</Accordion>
+
+<Accordion title="Is UploadThing more expensive than dimah-s3?">
+
+Not always. dimah-s3 has no file-service fee, but you pay for storage,
+transfer, compute, and the engineering time to run them. UploadThing bundles
+managed infrastructure and support into its price. Compare total cost at your
+file sizes, traffic, and regions.
+
+</Accordion>
+
+<Accordion title="Does dimah-s3 replace the AWS SDK?">
+
+No. dimah-s3 owns presigned upload, download, and delete. Keep using the AWS
+SDK for app-specific operations such as list, copy, retention, or arbitrary
+object tagging.
+
+</Accordion>
+
+</Accordions>

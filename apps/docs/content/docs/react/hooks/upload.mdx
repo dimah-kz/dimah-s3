@@ -39,13 +39,10 @@ For ready-made controls, pass the return value to the
 
 ## Take files in
 
-| Function                            | Use it for                                                                                                       |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `getRootProps(props?, call?)`       | A dropzone: drag and drop, paste, click, and Enter or Space to open the picker                                   |
-| `getInputProps(props?)`             | The hidden `<input type="file">` that a dropzone or `open()` uses                                                |
-| `open(call?)`                       | Opening the picker from your own button                                                                          |
-| `handleFiles(files, call?)`         | A `File`, `File[]`, or `FileList` from your own code, such as a camera capture                                   |
-| `getDropTargetProps(props?, call?)` | A drop target that keeps its own click and keyboard handlers, such as a folder row. Adds no `tabIndex` or `role` |
+An element with `getRootProps()` takes drops, pastes, clicks, and Enter or
+Space. To open the picker from your own button, call `open()`. To upload a
+`File`, `File[]`, or `FileList` from your own code, such as a camera capture,
+call `handleFiles(files)`.
 
 ```tsx
 const upload = useUpload({ route: "avatar", noClick: true });
@@ -60,22 +57,19 @@ return (
 );
 ```
 
-`isDragActive`, `isDragAccept`, and `isDragReject` describe files dragged over
-a dropzone or drop target. `noDrag`, `noClick`, and `noKeyboard` turn off one
-kind of intake. `disabled` turns off all of it, including `open()`, and sets
-the return's `disabled` so you can render your pickers disabled.
-`handleFiles` still uploads what you pass it.
+- `getDropTargetProps()` makes a drop target that keeps its own click and keyboard handlers, such as a folder row.
+- `noDrag`, `noClick`, and `noKeyboard` turn off one kind of intake. `disabled` turns off all of it, including `open()`. `handleFiles` still uploads what you pass it.
 
 ## The queue
 
 Every file of a call joins one queue. `maxFiles` caps the files per call
 (default `1`), and `concurrentFiles` uploads that many at once (default `2`).
+Each entry of `upload.files` is an [`UploadFileState`](#uploadfilestate).
 
 ```tsx
 const upload = useUpload({
   route: "attachments",
   maxFiles: 10,
-  concurrentFiles: 3,
   append: true,
 });
 
@@ -84,7 +78,11 @@ return (
     {upload.files.map((file) => (
       <li key={file.id}>
         {file.fileName} — {file.phase} ({file.progress.percent}%)
-        {file.phase !== "success" && file.phase !== "error" ? (
+        {file.phase === "error" ? (
+          <button type="button" onClick={() => void upload.retry(file.id)}>
+            Retry
+          </button>
+        ) : file.phase !== "success" ? (
           <button type="button" onClick={() => upload.cancel(file.id)}>
             Cancel
           </button>
@@ -98,28 +96,13 @@ return (
 - **Replace (default)** — a new call cancels the files in flight and replaces the queue once its own files start uploading. Earlier calls still preparing are cancelled at once. A call that is blocked, rejected, or fails before uploading leaves the queue alone.
 - **Append** — with `append: true`, new files join the end and files in flight keep going. A call's own `append` wins, as in `handleFiles(files, { append: true })`.
 
-Each entry of `upload.files` is an [`UploadFileState`](#uploadfilestate). The
-hook also sums up the queue in `phase`, `progress`, `error`, and `isPending`.
-
 ### Cancel, retry, and reset
 
 Each takes one id, an array of ids, or nothing for every file:
 
 - **`cancel(ids?)`** — aborts the files and their multipart sessions, and removes them from the queue.
-- **`retry(ids?)`** — uploads failed files again. Each keeps its `id` and place and goes back to `queued`. Files from one call go again as one call, with that call's options, so they land in the same folder: they are validated again, and `beforeUpload` and `onUploadStart` run once for them. A retry never replaces the queue. It resolves like `handleFiles`.
+- **`retry(ids?)`** — uploads failed files again, each in its place and with its `id`. Files from one call go again as one call with that call's options, so they land in the same folder. They are validated again, and `beforeUpload` and `onUploadStart` run once for them. A retry never replaces the queue, and resolves like `handleFiles`.
 - **`reset(ids?)`** — removes settled files, such as a finished row the user dismisses. With no ids it also clears `fileRejections`. Files in flight keep going.
-
-```tsx
-{
-  upload.files.map((file) =>
-    file.phase === "error" ? (
-      <button key={file.id} type="button" onClick={() => upload.retry(file.id)}>
-        Retry {file.fileName}
-      </button>
-    ) : null,
-  );
-}
-```
 
 ### Limit across calls
 
@@ -139,15 +122,10 @@ const remaining = useUploadLimit(upload, { available: 5 });
 - **`available`** — files the hook may still take in. Files queued or in flight, uploaded files not in `counted`, and calls still preparing take from it. `reset()` gives the room of uploaded files back.
 - **`counted`** — ids of uploaded files that take nothing from `available`. When you keep the uploaded keys yourself, as `UploadField` does, pass `available: max - keys.length` and the ids whose keys you hold, so they do not count twice.
 
-While the component is mounted, the limit applies to every call: `handleFiles`,
-`open`, drops, pastes, and `retry`. A call holds its slots from the moment it
-starts, so two quick calls never take the same ones. Files past the limit are
-rejected with `TOO_MANY_FILES`. A retry takes only the failed files that fit,
-in queue order. With several limits on one hook, the strictest wins; `null`
-sets none.
-
-`useUploadLimit` returns how many files still fit, or `null` without a limit.
-Render your pickers disabled when it reaches `0`.
+While the component is mounted, the limit applies to every call, including
+drops, pastes, and `retry`. Files past it are rejected with `TOO_MANY_FILES`,
+and a retry takes only the failed files that fit. `remaining` is how many
+files still fit; render your pickers disabled at `0`.
 
 ## Results
 
@@ -163,11 +141,9 @@ for (const { file, error } of failed) console.log(file.name, error.code);
 for (const { file, errors } of rejected) console.log(file.name, errors[0].code);
 ```
 
-`result` is the object the server verified with `HeadObject`: its `key`,
-`bucket`, `size`, `type`, `metadata`, and the other fields of
-[`UploadResult`](/docs/react/custom-backend/upload#confirm).
-`upload.fileRejections` shows only the newest call's rejections, so read
-`rejected` when calls overlap.
+`result` is the [`UploadResult`](/docs/react/custom-backend/upload#confirm)
+the server verified with `HeadObject`. `upload.fileRejections` holds only the
+newest call's rejections, so read `rejected` when calls overlap.
 
 ## Callbacks
 
@@ -185,9 +161,9 @@ Callbacks run in this order:
 | `onSuccess(result, file)`        | Once per uploaded file, after every `onError` of the call                       |
 | `onSettled(result)`              | Once per call, last. Also runs when every file was rejected                     |
 
-`onError`, `onSuccess`, and `onSettled` may be async and are awaited. If one
-throws, the error goes to the global `reportError` and the result does not
-change.
+`onError`, `onSuccess`, and `onSettled` may be async and are awaited. A throw
+from one never changes the result; see
+[Callback order](/docs/react/guides/outcomes#callback-order).
 
 ## Request options
 
@@ -196,6 +172,9 @@ server hooks, and `fileName` or `contentType` to override what the browser
 reports. Pass an object, or a function of the file. A throw from the function
 fails that file with `HOOK_FAILED`.
 
+A call can add its own options. Call fields win, and `clientMetadata` merges
+key by key:
+
 ```ts
 const upload = useUpload({
   route: "attachments",
@@ -203,14 +182,9 @@ const upload = useUpload({
     clientMetadata: { originalName: file.name },
   }),
 });
-```
 
-A call can add its own options. Call fields win, and `clientMetadata` merges
-key by key:
-
-```ts
 await upload.handleFiles(files, {
-  uploadOptions: { clientMetadata: { folderId: "folder id" } },
+  uploadOptions: { clientMetadata: { folderId } },
   maxFiles: 3, // lowers maxFiles for this call
 });
 ```
@@ -229,22 +203,19 @@ a target inside a dropzone uses the target's options:
 </li>
 ```
 
-`clientMetadata` reaches the server hooks under the same name. It holds at
-most 32 entries: keys of letters, digits, and hyphens up to 128 characters,
-and values up to 2048 characters. It is never written to S3 on its own: the
-route's `object` callback decides what becomes S3 `metadata`, which is the
-`metadata` of the upload result.
+`clientMetadata` holds at most 32 entries: keys of letters, digits, and
+hyphens up to 128 characters, and values up to 2048 characters. It is never
+written to S3 on its own; the route's `object` callback decides what becomes
+the object's `metadata`.
 
 ## Route policy
 
-Each call loads the route catalog (`GET /routes`) before it presigns. The
-catalog is cached per `S3Api`, so every hook shares one request.
-
-`upload.policy` is the route's policy narrowed by the hook options:
+`upload.policy` is the route's policy from the catalog (`GET /routes`),
+narrowed by the hook options:
 
 - **`accept`** and **`maxFileSize`** — the stricter of the route and the hook wins.
 - **`multipart`** — on when the route allows it and the hook does not pass `multipart: false`.
-- **`checksum`** — follows the route. When on, single-shot uploads send a SHA-256 of the file.
+- **`checksum`** — follows the route. When on, single-shot uploads send a SHA-256.
 - **`status`** and **`error`** — where the catalog is in loading. Until it loads, only the hook options apply.
 
 Files that break the policy are rejected without stopping the others. Each
@@ -266,30 +237,22 @@ export function Rejections({ upload }: { upload: UseUploadReturn }) {
 }
 ```
 
-To read a route's policy without uploading, for example to label a custom
-picker, call [`useRouteUploadPolicy`](#userouteuploadpolicy):
-
-```ts
-import { useRouteUploadPolicy } from "@dimah-s3/react";
-
-const policy = useRouteUploadPolicy({ route: "avatar" });
-// policy.accept, policy.maxFileSize, policy.status
-```
+To read a route's policy without uploading, such as to label a custom picker,
+call [`useRouteUploadPolicy`](#userouteuploadpolicy).
 
 ## Multipart and retries
 
-Files of at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`) use multipart when
-the policy allows it. The server picks the part size and count. Parts upload
-`concurrentParts` at a time (default `4`), and each part is hashed as it
-streams when the server asks for checksums.
+Files of at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`) upload in parts when
+the policy allows multipart, `concurrentParts` at a time (default `4`). The
+server picks the part size.
 
-Failed requests retry with exponential backoff. The `retry` option sets
-`maxRetries` (default `3`) and `baseDelayMs` (default `1000`), which doubles on
-each retry. These are retried:
+Failed requests retry with exponential backoff: `maxRetries` (default `3`)
+times, starting at `baseDelayMs` (default `1000`) and doubling. These are
+retried:
 
 - `NETWORK_ERROR` and `S3_NETWORK_ERROR`.
 - `UPLOAD_FAILED` when S3 answered 408, 429, or 500 and above.
-- Any API response with status 408, 429, or 500 and above, such as `INTERNAL_ERROR`. Confirm and multipart complete are safe to send again: the server keeps an upload it could not confirm.
+- Any API response with status 408, 429, or 500 and above, such as `INTERNAL_ERROR`.
 - An expired presigned URL, which is signed again first.
 
 `HOOK_FAILED`, `CHECKSUM_MISMATCH`, and every other 4xx are not retried. Send a
@@ -466,8 +429,8 @@ implement `catalog()`; see [Bring Your Own Backend](/docs/react/custom-backend#r
 <Accordion title="How do I show a local image preview before uploading?">
 
 Read `previewUrl` from an entry of `upload.files`, or `upload.file?.previewUrl`
-for a single file. It is an object URL for images and `null` for other files.
-The hook revokes it, so do not revoke it yourself.
+for a single file. It is `null` for files that are not images. The hook
+revokes it, so do not revoke it yourself.
 
 ```tsx
 const preview = upload.file?.previewUrl;
@@ -479,8 +442,8 @@ return preview ? <img src={preview} alt="Selected avatar" /> : null;
 
 <Accordion title="Why did my earlier files stop when I picked new ones?">
 
-Without `append: true`, a new call replaces the queue and cancels the files in
-flight. Set `append: true` to add to the queue instead.
+Without `append: true`, a new call [replaces the queue](#the-queue) and
+cancels the files in flight.
 
 </Accordion>
 

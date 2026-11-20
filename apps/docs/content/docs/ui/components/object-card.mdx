@@ -87,8 +87,9 @@ export function Attachments({
 
 - Pass only the hooks for the actions you want. Many cards share one hook.
 - The card stays after a delete. Remove it in `onDeleted`.
-- Each card is its own `Download` and `Delete` root and does not toast. Mount
-  `DownloadToasts` and `DeleteToasts` once for the hooks.
+- Mount `DownloadToasts` and `DeleteToasts` once for the hooks.
+- With `useFetchDownload`, the card shows the download progress and the action
+  cancels.
 
 ## Examples
 
@@ -100,16 +101,6 @@ with the same download hook.
 <DemoPreview name="object-card-actions-demo.tsx">
   <ObjectCardActionsDemo />
 </DemoPreview>
-
-## Download progress
-
-`download` takes either download hook:
-
-- [`useDownload`](/docs/react/hooks/download) hands a signed URL to the
-  browser, which saves the file.
-- [`useFetchDownload`](/docs/react/hooks/download) fetches the bytes in the
-  page. The card shows a progress ring and the bytes received, and the action
-  cancels.
 
 ## API Reference
 

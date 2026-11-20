@@ -57,9 +57,9 @@ export const s3 = dimahS3({
 s3.audit.log("Storage ready"); // [!code ++]
 ```
 
-`definePlugin`, `createS3Endpoint`, `createS3Middleware`, `isFeatureOn`, and
-the [cleanup helpers](#cleaning-up-uploads) come from
-`@dimah-s3/server/plugins`. `chainHooks` comes from `@dimah-s3/server`.
+`definePlugin`, `createS3Endpoint`, `createS3Middleware`, and the
+[helpers](#helpers) come from `@dimah-s3/server/plugins`. `chainHooks` comes
+from `@dimah-s3/server`.
 
 ## Hook execution order
 
@@ -71,17 +71,10 @@ the [cleanup helpers](#cleaning-up-uploads) come from
   what the plugins already wrote, such as the `db()` row.
 - A route with `plugins: { [id]: false }` skips that plugin's route hooks.
 
-A plugin's `upload.onConfirmed` can refuse an object:
-
-- A rejection (`4xx`) deletes the object, runs `onRejected`, and returns the
-  error.
-- Any other throw, such as a database outage, keeps the object so the client
-  can retry. A throw from your own `onConfirmed` keeps it too.
-
-A plugin that records an upload in `onStart` should undo it in
-`upload.onRejected`. Every `onRejected` hook runs, even after an earlier one
-threw; a throw is logged and passed to `onError`, and the client still gets
-the rejection. See [Upload Hooks](/docs/server/hooks/upload#failure-rules).
+Unlike the user hook, a plugin's `upload.onConfirmed` can refuse an object
+with a `4xx` rejection, which deletes it. A plugin that records an upload in
+`onStart` should undo it in `upload.onRejected`. See
+[Failure rules](/docs/server/hooks/upload#failure-rules).
 
 ### Binding tickets
 
@@ -192,8 +185,6 @@ async function removeUpload(client: S3Client, row: TrackedUpload) {
   });
 }
 ```
-
-The helpers are listed in the [API Reference](#helpers).
 
 ## API Reference
 

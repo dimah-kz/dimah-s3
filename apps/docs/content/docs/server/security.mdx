@@ -5,8 +5,8 @@ icon: Shield
 ---
 
 dimah-s3 is presign-first: S3 credentials stay on the server, and the browser
-reaches storage only through short-lived signed URLs. This page covers what
-the server enforces for you, and what your guards must add.
+reaches storage only through short-lived signed URLs. The server enforces the
+rules below; ownership is yours to add.
 
 <Callout type="warn">
   Never expose S3 credentials in the browser or a client bundle. Create the
@@ -32,13 +32,12 @@ export const awsS3 = new S3Client({
 2. **Uploads carry signed tickets.** Presign returns an HMAC-signed
    [ticket](/docs/server/upload-tickets) naming the route, key, and declared
    file. Confirm and later multipart calls send only the ticket, so a client
-   cannot point them at another key. A ticket can be bound to a user.
-3. **Routes are isolated.** `keyPrefix` defaults to the route name. Upload
-   generates keys under it; download and delete reject keys outside it with
-   `KEY_INVALID`. This check always runs.
-4. **Confirm trusts S3, not the browser.** The declared size and type are
-   untrusted. Confirm reads the stored object with HeadObject and checks it
-   against the ticket and the route limits before `onConfirmed` runs.
+   cannot point them at another key.
+3. **Routes are isolated.** Download and delete reject keys outside the
+   route's `keyPrefix` with `KEY_INVALID`. This check always runs.
+4. **Confirm trusts S3, not the browser.** Confirm reads the stored object
+   with HeadObject and checks it against the ticket and the route limits
+   before `onConfirmed` runs.
 5. **Guards decide who may act.** The instance `guard`, route `guard`, and
    feature guards (`upload.guard`, `download.guard`, `delete.guard`) are where
    you authorize each caller.
@@ -52,21 +51,9 @@ export const awsS3 = new S3Client({
 | `keyPrefix`                  | Always, in `@dimah-s3/server` | Is this key inside this route's folder? | `KEY_INVALID`         |
 | Guards or [`db()`](/docs/db) | Only if you add them          | May this caller touch this object?      | `401` / `403` / `404` |
 
-With these two routes:
-
-```ts
-avatar: route({ upload: { fileTypes: ["image/*"] }, delete: true }),
-document: route({ upload: { fileTypes: ["application/pdf"] }, delete: true }),
-```
-
-- An upload on `avatar` creates `avatar/{uuid}/photo.jpg`. The client sends no
-  key.
-- `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is in the namespace.
-- `DELETE ?route=avatar&key=document/{uuid}/cv.pdf` returns `KEY_INVALID`.
-
-[`db()`](/docs/db) does not replace the prefix check. Its guards look up the
-object by bucket and key and compare its scope; a key from another route is
-rejected before they run.
+The prefix check is shown in [Object keys](/docs/server/routes#object-keys).
+[`db()`](/docs/db) adds the ownership check on top; it does not replace the
+prefix check.
 
 <Callout type="warn" title="An enabled operation is not an ownership check">
   `delete: true` or `download: true` with no ownership guard lets anyone who can
@@ -124,8 +111,8 @@ export const s3 = dimahS3({
 });
 ```
 
-- `ticketSubject` binds each ticket to the user who started the upload. A
-  leaked ticket cannot confirm or continue that upload for anyone else.
+- `ticketSubject` binds each ticket to the user who started the upload, so a
+  leaked ticket is useless to anyone else.
 - `onConfirmed` runs at least once per upload, so keep it safe to replay, as
   this update is.
 - `keyFolder` only shapes the key. It does not stop one signed-in user from
@@ -149,14 +136,13 @@ avatar: route({
 
 ## Verify file content
 
-The declared type is untrusted. Set `verifyContent: true` on the route's
-`upload` to check the object's first bytes against it after confirm. A
-mismatch deletes the object and returns `FILE_CONTENT_MISMATCH`. See
-[Routes](/docs/server/routes#content-verification).
+The declared type is untrusted. Set
+[`verifyContent: true`](/docs/server/routes#content-verification) to check the
+object's first bytes against it after confirm.
 
-For a stricter rule, inspect the object yourself in `confirmGuard`: a
-rejection there deletes the object too. `sniffContentType` from
-`@dimah-s3/core` returns the detected type of a byte prefix.
+For a stricter rule, inspect the object in `confirmGuard`: a rejection there
+deletes the object. `sniffContentType` from `@dimah-s3/core` returns the
+detected type of a byte prefix.
 
 ## Object ACL
 
@@ -178,24 +164,15 @@ avatar: route({
   `application/json` only. A cross-site HTML form cannot send it, so a form
   post returns `415 UNSUPPORTED_MEDIA_TYPE`.
 - **Body cap.** `maxRequestBodySize` (1 MiB by default) is counted on the
-  stream before parsing.
+  stream before parsing. Over it: `413 REQUEST_TOO_LARGE`.
 - **Signed headers.** A presigned PUT signs every header the server returns in
   `headers`: type, disposition, metadata, ACL, tags, storage class, and
   checksum. A custom client must send exactly those headers.
-- **Inline allow-list.** Downloads open in the browser only for raster images,
-  PDF, audio, video, and plain text, unless you set `download.inlineTypes`.
+- **Inline allow-list.** Downloads open in the browser only for
+  [known safe types](/docs/server/hooks/download#open-in-the-browser-only-for-known-types).
   HTML, SVG, and other types that run as a page download as attachments.
 - **Hardened proxy.** [`GET /file`](/docs/server/file-proxy) sends a sandbox
   CSP, `nosniff`, and `Cross-Origin-Resource-Policy` on every response.
-
-## Hook errors
-
-| Thrown                                   | Result                                            |
-| ---------------------------------------- | ------------------------------------------------- |
-| `s3Error(code)` or another `APIError`    | Its own status and `code`                         |
-| A plain `Error`, anywhere                | `500 INTERNAL_ERROR`, logged, passed to `onError` |
-| Any throw from your `upload.onConfirmed` | `500 INTERNAL_ERROR`; the object is kept          |
-
-A guard that returns anything other than nothing or `{ locals }`, such as
-`true` or `false`, is a config error: it is logged and returns `500`. It never
-allows the call. See [Errors](/docs/server/errors).
+- **Hook errors stay private.** A plain `Error` from your code returns
+  `500 INTERNAL_ERROR`; its message never reaches the client. See
+  [Errors](/docs/server/errors).

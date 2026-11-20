@@ -16,13 +16,12 @@ Every failed request returns an HTTP status and a JSON body with a stable
 }
 ```
 
-`code` is always set. `message` is English, filled from `params`. Show users
-your own text by mapping `code` and `params`, as `useFormatError` does.
+`message` is English, filled from `params`. To show users your own text, map
+`code` and `params`, as [`useFormatError`](/docs/react/helpers#errors) does.
 
-The helpers live in `@dimah-s3/core`. `@dimah-s3/server` re-exports
-`APIError`, `s3Error`, `isAPIError`, `isS3ErrorCode`, and `S3_ERROR_CODES`, so
-server code imports them from there. Browser code imports from
-`@dimah-s3/core`.
+Server code imports the helpers (`APIError`, `s3Error`, `isAPIError`,
+`isS3ErrorCode`, `S3_ERROR_CODES`) from `@dimah-s3/server`. Browser code
+imports them from `@dimah-s3/core`.
 
 ## Throwing errors
 
@@ -54,6 +53,9 @@ throw APIError.from(402, {
 });
 ```
 
+A throw from `upload.onConfirmed` or `upload.onRejected` has its own rules:
+see [Failure rules](/docs/server/hooks/upload#failure-rules).
+
 ## Handling errors
 
 `createS3Client` and the React hooks reject with an `APIError`. Narrow it with
@@ -75,18 +77,17 @@ try {
 
 The client turns every failure into an `APIError`:
 
-| Failure                                                                           | Result                                                                                           |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| JSON error body                                                                   | Keeps its `code`, `params`, and HTTP status. Non-string, non-number `params` entries are dropped |
-| Any other error response                                                          | `INTERNAL_ERROR` (status 500 or above) or `UNKNOWN_ERROR`, with the real status                  |
-| `2xx` whose body is not a JSON object or array, such as an SPA `index.html`       | `UNKNOWN_ERROR` with that status                                                                 |
-| S3 rejects a checksummed PUT or part (`BadDigest`, `XAmzContentChecksumMismatch`) | `CHECKSUM_MISMATCH`, from the browser upload transport                                           |
-| No response at all                                                                | `NETWORK_ERROR`                                                                                  |
-| Aborted request                                                                   | The signal's abort reason, not an `APIError`                                                     |
+| Failure                                                                           | Result                                                                          |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| JSON error body                                                                   | Keeps its `code`, `params`, and HTTP status                                     |
+| Any other error response                                                          | `INTERNAL_ERROR` (status 500 or above) or `UNKNOWN_ERROR`, with the real status |
+| `2xx` whose body is not a JSON object or array, such as an SPA `index.html`       | `UNKNOWN_ERROR`. Usually the client's `basePath` misses the handler             |
+| S3 rejects a checksummed PUT or part (`BadDigest`, `XAmzContentChecksumMismatch`) | `CHECKSUM_MISMATCH`                                                             |
+| No response at all                                                                | `NETWORK_ERROR`                                                                 |
+| Aborted request                                                                   | The signal's abort reason, not an `APIError`                                    |
 
 `deleteMany` reports per-key failures as wire bodies in `failed[].error`.
-Rebuild one with `APIError.fromShape(error)`; the status comes from the
-catalog.
+Rebuild one with `APIError.fromShape(error)`.
 
 ## Reporting errors
 
@@ -105,22 +106,9 @@ export const s3 = dimahS3({
 
 - Rejections you throw with `s3Error` never reach it. Neither does a failure
   after the client disconnected.
-- The context has the `request` and, when known, the `operation`.
-- It may be async. A throw or rejection from it is logged, never unhandled.
-- An error from another library that is only named `APIError` counts as an
-  unexpected failure, so it reaches `onError` too.
-
-Two hooks never change the response the way other throws do:
-
-- A throw from your `upload.onConfirmed`, even an `APIError`, returns
-  `500 INTERNAL_ERROR` and keeps the object, so the client can retry the
-  confirm. An `APIError` reaches `onError` wrapped in an `Error`, with the
-  original as `cause`. Reject content in `confirmGuard` instead: a rejection
-  there deletes the object and runs
-  [`upload.onRejected`](/docs/server/hooks/upload#when-an-upload-is-rejected).
-- A throw from `upload.onRejected` never replaces the rejection the client
-  gets. It is logged and reaches `onError` as an `Error` with the original as
-  `cause`.
+- A throw from your `upload.onConfirmed` or `upload.onRejected`, even an
+  `APIError`, reaches it wrapped in an `Error`, with the original as `cause`.
+- It may be async. A throw from it is logged, never sent to the client.
 
 ## Server codes
 
@@ -159,27 +147,6 @@ never sends them.
 ## Frequently asked questions
 
 <Accordions>
-
-<Accordion title="How do I show friendly error messages on the client?">
-
-Use `useFormatError` from `@dimah-s3/react`. It maps each code and its
-`params` to a translated string:
-
-```tsx
-import { useDownload, useFormatError } from "@dimah-s3/react";
-import { toast } from "@dimah-s3/ui";
-
-const formatError = useFormatError();
-
-const { download } = useDownload({
-  route: "avatar",
-  onError: (error) => {
-    toast.add({ type: "error", title: formatError(error) }); // [!code ++]
-  },
-});
-```
-
-</Accordion>
 
 <Accordion title="Where do I find the message template for a code?">
 

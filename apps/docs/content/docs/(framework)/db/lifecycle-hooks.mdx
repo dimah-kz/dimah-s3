@@ -6,8 +6,7 @@ description: The guards and lifecycle hooks db() adds to every tracked route, wh
 [`db()`](/docs/db/setup) adds guards and lifecycle hooks to every route that
 does not set `plugins: { db: false }`. They keep `storage_object` in step
 with S3, and check that each call acts only on rows of its own scope. You do
-not call them. Read this page to know what your own hooks see, and which
-errors reach the client.
+not call them, but your own hooks run after them:
 
 ```ts title="lib/s3.ts"
 files: route({
@@ -37,7 +36,7 @@ order, so your `upload.onStart` sees the pending row, and your
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Upload ticket              | Binds the ticket to the caller's scope. A ticket from another scope is `UPLOAD_TICKET_INVALID`.                                                      |
 | `upload.guard`             | Checks `clientMetadata.folderId`, runs `authorize` with that folder, checks who owns the key, then checks the [quota](/docs/db/api#quota).           |
-| `upload.onStart`           | Writes the `pending` row with the upload's token, its confirm deadline, and its folder. The folder must already exist.                               |
+| `upload.onStart`           | Writes the `pending` row with the upload's token, its [deadline](/docs/db/purge#deadlines), and its folder. The folder must already exist.           |
 | `upload.confirmGuard`      | Accepts only the row of this ticket's upload, owned by the caller, or a confirm it already finished (a retry).                                       |
 | `upload.onConfirmed`       | Checks the quota against the verified size, marks the row `active` with the size, type, and ETag from HeadObject, and retires the `previousKey` row. |
 | `upload.onRejected`        | Removes the row of an upload the server refused and deleted, including an active row that upload was overwriting.                                    |
@@ -45,33 +44,18 @@ order, so your `upload.onStart` sees the pending row, and your
 | `upload.multipart.onAbort` | Removes the pending row, or ends the overwrite and keeps the previous object.                                                                        |
 | `download.guard`           | Requires an `active` row owned by the caller, then runs `authorize` with it and the folder it is in.                                                 |
 | `delete.guard`             | Requires a row owned by the caller (a soft-deleted one deletes again), then runs `authorize` with it and the folder it is in.                        |
-| `delete.onDeleted`         | Aborts a multipart upload in flight, then soft- or hard-deletes the row (`deleteMode`).                                                              |
+| `delete.onDeleted`         | Aborts a multipart upload in flight, then soft- or hard-deletes the row ([Deletes](#deletes)).                                                       |
 
-The plugin does not compare the stored `route` column with the request
-route. It looks rows up by `(bucket, key)` and compares the **scope**. Route
-membership stays the server's `keyPrefix` check (`KEY_INVALID`): see
+The plugin looks rows up by `(bucket, key)` and compares the **scope**, not
+the stored `route`. Route membership stays the server's `keyPrefix` check
+(`KEY_INVALID`): see
 [route namespace vs ownership](/docs/server/security#route-namespace-vs-ownership).
-
-## Upload deadline
-
-`onStart` runs for presigned POST and PUT uploads, multipart init, and
-`s3.put` (`kind: "server"`). The row's `expiresAt` is the upload ticket's
-expiry, or 15 minutes for `s3.put`.
-
-A pending row past that deadline stops counting toward the quota, and
-[purge](/docs/db/purge) cleans it up. There is no separate option: set the
-deadline with the server's ticket settings, `upload.confirmWindow` and
-`upload.multipart.ticketExpiresIn`.
 
 ## Confirm and refused uploads
 
-Confirm is stateless, and `onConfirmed` runs at least once:
-
-- The plugin marks the row active with a compare-and-set on its status and
-  upload token.
-- A retried confirm or complete for an upload already confirmed returns the
-  stored row, and the quota is not checked again. Your own `onConfirmed` can
-  dedupe on `uploadToken`.
+`onConfirmed` runs at least once. A retried confirm or complete for an
+upload already confirmed returns the stored row, and the quota is not
+checked again. Dedupe your own `onConfirmed` on `uploadToken`.
 
 When the server refuses an upload at confirm, multipart complete, or
 `s3.put`, it deletes the object and runs `upload.onRejected`, and the plugin
@@ -95,47 +79,50 @@ An upload to a key that already has an active object fails with
 - The row keeps its folder, attributes, and `createdAt`. The overwrite's
   `clientMetadata.folderId` is ignored.
 - Until the confirm, the quota counts the larger of the two sizes.
-- A retried confirm of the upload before it still succeeds, even after the
-  overwrite started.
+- A retried confirm of the previous upload still succeeds after the
+  overwrite starts.
 - An abort keeps the previous object. An expired overwrite is cleaned up by
   [purge](/docs/db/purge).
 
-An upload to a key that purge is cleaning up gets `CONFLICT`. A retry after
-purge finishes goes through.
+## Deletes
+
+Deletes go through the server's delete path: `delete` on `s3.api` or the
+browser client, [`useDelete`](/docs/react/hooks/delete), or the
+[`Delete`](/docs/ui/components/delete) component. `s3.db.objects` has no
+delete: it never touches S3.
+
+After `DeleteObject`, the plugin aborts a multipart upload in flight on the
+key, then updates the row by the `deleteMode` option of `db()`:
+
+| `deleteMode`       | S3 object           | Database row                                     |
+| ------------------ | ------------------- | ------------------------------------------------ |
+| `"soft"` (default) | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
+| `"hard"`           | permanently deleted | removed                                          |
+
+```ts
+db({ client: dimahS3Db, resolveScope, deleteMode: "hard" });
+```
+
+- Soft delete is a history record, not a recycle bin. Listings hide
+  deleted rows by default.
+- Use `"hard"` when a delete must also erase the row, as for GDPR-style
+  erasure. To keep deleted rows for a while, run
+  [`pruneDeleted`](/docs/db/purge#prune-deleted-rows) from a job.
+- A `pending` row whose upload never landed deletes the same way, so it
+  stops counting toward the quota before purge runs.
+- Deleting a soft-deleted object again succeeds, like a plain S3 delete. A
+  key with no row is `OBJECT_NOT_FOUND`: its owner cannot be checked.
 
 ## Errors
 
-| Situation                                                        | Status | Code                    |
-| ---------------------------------------------------------------- | ------ | ----------------------- |
-| `resolveScope` returns `null`                                    | `401`  | `UNAUTHORIZED`          |
-| An upload key belongs to another scope, or `authorize` says no   | `403`  | `FORBIDDEN`             |
-| The upload ticket was issued to another scope                    | `403`  | `UPLOAD_TICKET_INVALID` |
-| The upload would exceed the quota                                | `403`  | `QUOTA_EXCEEDED`        |
-| The row is missing, another scope's, or not this upload's        | `404`  | `OBJECT_NOT_FOUND`      |
-| `clientMetadata.folderId` names a folder the scope does not have | `404`  | `FOLDER_NOT_FOUND`      |
-| An active object is at the key                                   | `409`  | `OBJECT_EXISTS`         |
-| Purge is cleaning the key, or a concurrent write won             | `409`  | `CONFLICT`              |
-| `resolveScope` returns an empty, padded, or too long scope       | `500`  | `INTERNAL_ERROR`        |
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="What happens on a route with plugins: { db: false }?">
-
-None of these hooks run: no rows, no ownership checks, and upload tickets
-are not bound to a scope. Add your own `download.guard` and `delete.guard`.
-The plugin warns at startup when such a route enables download or delete
-with no route or feature guard.
-
-</Accordion>
-
-<Accordion title="Can authorize allow access to another scope's objects?">
-
-No. The ownership check runs first, and `authorize` can only narrow it. To
-share objects, resolve both callers to the same scope, for example
-`org:acme`.
-
-</Accordion>
-
-</Accordions>
+| Situation                                                                 | Status | Code                    |
+| ------------------------------------------------------------------------- | ------ | ----------------------- |
+| `resolveScope` returns `null`                                             | `401`  | `UNAUTHORIZED`          |
+| An upload key belongs to another scope, or `authorize` says no            | `403`  | `FORBIDDEN`             |
+| The upload ticket was issued to another scope                             | `403`  | `UPLOAD_TICKET_INVALID` |
+| The upload would exceed the quota                                         | `403`  | `QUOTA_EXCEEDED`        |
+| The row is missing, another scope's, or not this upload's                 | `404`  | `OBJECT_NOT_FOUND`      |
+| `clientMetadata.folderId` names a folder the scope does not have          | `404`  | `FOLDER_NOT_FOUND`      |
+| An active object is at the key                                            | `409`  | `OBJECT_EXISTS`         |
+| Purge is cleaning the key (retry once it ends), or a concurrent write won | `409`  | `CONFLICT`              |
+| `resolveScope` returns an empty, padded, or too long scope                | `500`  | `INTERNAL_ERROR`        |

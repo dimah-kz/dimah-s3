@@ -28,6 +28,24 @@ Four sidebar tabs, one root folder each. Each page lives in exactly one tab.
 - Name exports in code font on first use, and link them to their page: [`useUpload`](/docs/react/hooks/upload).
 - No "simply", "just", "easy", "powerful", or marketing adjectives.
 
+## What to leave out
+
+Every sentence has to earn its place. If a reader would not miss it, delete it. If only some readers need it, move it to the page where they look for it and link there.
+
+- **Reference on a getting-started page.** Option and flag tables, every variant, and every runtime belong on a reference page. A quickstart shows one path; the CLI flags live on `/docs/cli`, all adapters on `/docs/server/setup`.
+- **Prose that repeats the code.** Do not describe what the example above already shows, or restate the heading.
+- **Internals the reader cannot act on.** Focus hand-off order, memoization, batch sizes, retry internals, render counts, development-only warnings.
+- **Obvious defaults.** "It defaults to nothing", "other props pass through". The API table carries defaults and forwarded props.
+- **The same fact on several pages.** Each fact has one home page. Elsewhere, link to it in a few words (`Mount one <Toaster />, see Installation`).
+- **Parallel examples of one thing.** Show the main path (npm, Next.js). Link to the alternative instead of repeating the whole block for it.
+- **Callouts for ordinary notes.** A `<Callout>` is for a security rule, data loss, or a setup mistake that breaks things. Everything else is a sentence.
+- **Meta text and hedges.** "This page covers", "as described above", "note that", "for example in CI".
+- **Rare edge cases in the main flow.** One bullet, an FAQ entry, or nothing.
+
+Keep: every step the happy path needs, security and correctness rules (credentials, ownership, `onConfirmed` running at least once, CORS), the errors a reader will hit and their fix, and behavior that surprises.
+
+Add what is missing: a runnable example, the next page a reader needs (`## Next steps` on guides), and a reference page when details have no home.
+
 ## Frontmatter
 
 - `title`: a short noun phrase, or the export name (`useUpload`).

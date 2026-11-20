@@ -22,11 +22,12 @@ npx prisma migrate dev --name dimah-s3
   in a multi-file schema folder, or paste its models into `schema.prisma`.
 - Keep the model names `storageObject`, `storageFolder`, and
   `private_dimah_s3_settings`: the adapter calls them by name.
-- The models declare the indexes and the MySQL prefix lengths, so the
-  migration creates them too.
+- The models declare their indexes, so the migration creates them too.
 - Run `generate` again after you upgrade `@dimah-s3/db`.
 
-Prisma has no collation attribute. On MySQL, create the migration with
-`--create-only` and add `COLLATE utf8mb4_bin` to the text columns before
-you apply it. Without that, keys, names, and scopes compare by the
-database's default collation, which ignores case.
+<Callout type="warn" title="MySQL needs a binary collation">
+  Prisma has no collation attribute. On MySQL, create the migration with
+  `--create-only` and add `COLLATE utf8mb4_bin` to the text columns before you
+  apply it. Otherwise keys, names, and scopes compare by the database's default
+  collation, which ignores case.
+</Callout>

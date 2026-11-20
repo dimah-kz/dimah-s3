@@ -29,9 +29,8 @@ export const s3 = dimahS3({
 
 dimah-s3 works without a database. Without `db()`, the server checks that a
 key sits in its route's namespace, and your own `download.guard` and
-`delete.guard` decide who may touch it.
-
-Add the plugin when you need any of these:
+`delete.guard` decide who may touch it. With `db()`, that check stays, and
+the plugin adds:
 
 - **Ownership.** Each object belongs to a scope you define, such as
   `user:123`. Upload tickets are bound to it, and download and delete reach
@@ -40,20 +39,11 @@ Add the plugin when you need any of these:
   server and in the browser ([`ObjectList`](/docs/ui/components/object-list)).
 - **Folders.** Logical folders you can rename and move. They never change
   the S3 key.
-- **Quotas.** Caps on bytes, files, and folders per scope. Bytes and files
-  are checked at upload, and again with the verified size at confirm.
+- **Quotas.** Caps on bytes, files, and folders per scope.
 - **Lifecycle.** A row from upload start to delete, and a
   [purge job](/docs/db/purge) for uploads that never confirmed.
 
-Authentication, quota values, and business rules stay in your app. The
-plugin stores object metadata, keeps scopes apart, and compares usage with
-the caps you return.
-
-<Callout title="Scope is not the route namespace">
-  The plugin isolates callers from each other. It does not replace the route
-  `keyPrefix` check, which [`@dimah-s3/server` always
-  runs](/docs/server/security#route-namespace-vs-ownership).
-</Callout>
+Authentication, quota values, and business rules stay in your app.
 
 ## Object lifecycle
 
