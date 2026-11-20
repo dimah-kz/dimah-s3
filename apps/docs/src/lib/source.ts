@@ -6,6 +6,7 @@ import type { BlogAuthor } from "@/lib/blog";
 import { blogRoute, docsImageRoute, docsRoute } from "./shared";
 import { getSiteUrl } from "./site-url";
 import { absolutizeMarkdownUrls, LLM_PAGE_PRIORITY } from "./llm-intro";
+import { inlineMdxComponents } from "./llm-markdown";
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
@@ -44,7 +45,10 @@ export function getPageMarkdownUrl(page: InferPageType<typeof source>) {
 export async function getLLMText(page: InferPageType<typeof source>) {
   const processed = await page.data.getText("processed");
   const origin = getSiteUrl().origin;
-  const absolute = absolutizeMarkdownUrls(processed, origin);
+  const absolute = absolutizeMarkdownUrls(
+    inlineMdxComponents(processed),
+    origin,
+  );
 
   return `# ${page.data.title} (${origin}${page.url})
 

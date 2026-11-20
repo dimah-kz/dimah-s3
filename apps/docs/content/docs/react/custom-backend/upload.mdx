@@ -1,57 +1,14 @@
 ---
 title: Upload
-description: Implement single-part presigning and server-side confirmation for a custom backend.
+description: Implement single-part presigning and HeadObject confirmation for a custom backend.
 ---
 
+A single-part upload takes three steps. For files the route sends in parts,
+see [Multipart](/docs/react/custom-backend/multipart).
+
 1. **`upload`** — your backend picks the object key and returns a presigned URL (POST fields or PUT headers) and a `ticket`.
-2. The browser uploads directly to S3.
+2. The browser uploads the file directly to S3.
 3. **`confirm`** — the browser sends the `ticket`. Your backend verifies the object with `HeadObject` and returns what S3 reports.
-
-Large files: [Multipart](/docs/react/custom-backend/multipart).
-
-## Presign
-
-The payload declares the file as `name`, `size`, and `type`. `checksum` is a
-base64 SHA-256 of the file. The client sends it when the route's catalog entry
-has `checksum: true`; sign it into the request so S3 checks it.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="UploadPayload"
-/>
-
-Return `fields` when `method` is `"POST"`, and `headers` when it is `"PUT"`.
-The browser appends `fields` to the form before the file, or sends exactly
-`headers` on the PUT.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="UploadPresignResponse"
-/>
-
-## Confirm
-
-`confirm` sends only the ticket from the presign response. Read the route and
-key from it, never from the client.
-
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="TicketPayload"
-/>
-
-Return the size and type from `HeadObject`, not the declared ones. If the
-object is missing or does not match what was declared, throw an `APIError`
-with a catalog code, such as `OBJECT_NOT_FOUND` or `UPLOAD_SIZE_MISMATCH`.
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="UploadConfirmResponse"
-/>
-
-## Example
-
-Paths are yours. [`@dimah-s3/server`](/docs/server) uses
-`POST /api/s3/presign/upload` and `POST /api/s3/presign/upload/confirm`.
 
 ```ts title="lib/s3-api/upload.ts"
 import type {
@@ -78,5 +35,58 @@ export const confirm = (payload: TicketPayload, options?: S3RequestOptions) =>
   });
 ```
 
+Paths are yours. [`@dimah-s3/server`](/docs/server) uses
+`POST /api/s3/presign/upload` and `POST /api/s3/presign/upload/confirm`.
 `$fetch` and `call` come from the
 [skeleton](/docs/react/custom-backend#skeleton).
+
+## Presign
+
+The payload declares the file. Fields marked `?` are optional.
+
+| Property          | Type                     | Description                                                                                                                    |
+| ----------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `route`           | `string`                 | Named route                                                                                                                    |
+| `name`            | `string`                 | File name, 1 to 255 UTF-8 bytes                                                                                                |
+| `size`            | `number`                 | Declared size in bytes. Check it against `HeadObject` on confirm                                                               |
+| `type?`           | `string`                 | MIME type                                                                                                                      |
+| `clientMetadata?` | `Record<string, string>` | Extras for your hooks. At most 32 entries. Not for S3 on their own                                                             |
+| `checksum?`       | `string`                 | Base64 SHA-256 of the file. Sent when the route's catalog entry has `checksum: true`. Sign it into the request so S3 checks it |
+
+Return `fields` when `method` is `"POST"`, and `headers` when it is `"PUT"`.
+The browser appends `fields` to the form before the file, or sends exactly
+`headers` on the PUT.
+
+| Property    | Type                     | Description                                                     |
+| ----------- | ------------------------ | --------------------------------------------------------------- |
+| `key`       | `string`                 | The object key your backend picked                              |
+| `bucket`    | `string`                 | Target bucket                                                   |
+| `url`       | `string`                 | Presigned upload URL                                            |
+| `expiresIn` | `number`                 | URL lifetime in seconds                                         |
+| `ticket`    | `string`                 | Upload ticket the browser sends to `confirm`                    |
+| `method`    | `"POST" \| "PUT"`        | How the browser sends the file                                  |
+| `fields`    | `Record<string, string>` | `POST` only. Form fields, appended before the file              |
+| `headers`   | `Record<string, string>` | `PUT` only. Sent exactly, never with `Content-Length` or `Host` |
+
+## Confirm
+
+`confirm` sends only `{ ticket }` from the presign response. Read the route
+and key from the ticket, never from the client.
+
+Return the size and type from `HeadObject`, not the declared ones. If the
+object is missing or does not match what was declared, throw an `APIError`
+with a catalog code, such as `OBJECT_NOT_FOUND` or `UPLOAD_SIZE_MISMATCH`.
+The hooks hand this response to `onSuccess` as the `UploadResult`.
+
+| Property        | Type                         | Description                               |
+| --------------- | ---------------------------- | ----------------------------------------- |
+| `key`           | `string`                     | Object key                                |
+| `bucket`        | `string`                     | Target bucket                             |
+| `size`          | `number`                     | Verified size in bytes, from `HeadObject` |
+| `metadata`      | `Record<string, string>`     | User metadata, without internal keys      |
+| `name?`         | `string`                     | Stored file name                          |
+| `type?`         | `string`                     | MIME type from `HeadObject`               |
+| `eTag?`         | `string`                     | ETag from `HeadObject`                    |
+| `versionId?`    | `string`                     | S3 version id                             |
+| `lastModified?` | `string`                     | Last modified timestamp                   |
+| `acl?`          | `"private" \| "public-read"` | ACL from the upload policy                |

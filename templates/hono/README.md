@@ -24,7 +24,7 @@ The `avatar` route is open: anyone who can reach the app can upload until you ad
 | `src/main.tsx`         | `s3Client.Provider` + `Toaster`                       |
 | `src/App.tsx`          | Sample `Upload` + `UploadTrigger` + `UploadToasts`    |
 
-Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Hono tab), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/react/ui).
+Same wiring as [Quickstart](https://s3.dimah.dev/docs/quickstart) (Hono tab), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/ui).
 
 ## License
 

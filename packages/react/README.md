@@ -73,7 +73,7 @@ export function AvatarPicker() {
 - `APIError`, `S3_ERROR_CODES`, and the other protocol helpers come from
   `@dimah-s3/core`.
 
-For prebuilt components, see [`@dimah-s3/ui`](https://s3.dimah.dev/docs/react/ui).
+For prebuilt components, see [`@dimah-s3/ui`](https://s3.dimah.dev/docs/ui).
 
 ## License
 

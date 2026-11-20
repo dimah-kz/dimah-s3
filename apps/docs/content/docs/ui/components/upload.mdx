@@ -1,6 +1,6 @@
 ---
 title: Upload
-description: Composable file picker, dropzone, status, and toasts for one useUpload hook.
+description: File picker button, dropzone, progress, and toasts that render one useUpload hook.
 ---
 
 import { UploadDemo } from "@/components/demos/upload-demo";
@@ -12,78 +12,50 @@ import { UploadFileListDemo } from "@/components/demos/upload-file-list-demo";
 import { UploadPasteDemo } from "@/components/demos/upload-paste-demo";
 import { UploadDisabledDemo } from "@/components/demos/upload-disabled-demo";
 
-The upload family renders one [`useUpload`](/docs/react/hooks/upload) hook.
-`Upload` holds the hook, and the parts inside it read it: a button that opens
-the file picker, a dropzone with the progress inside it, and the status of
-the queue. `UploadToasts` reports on the same hook from anywhere in the tree.
+Upload files with a button, a dropzone, or a paste, and show their progress.
+`Upload` holds one [`useUpload`](/docs/react/hooks/upload) hook, and the parts
+inside it render that hook.
 
-For a form value, use [`UploadField`](/docs/react/ui/components/upload-field).
-
-## Preview
-
-Drop files on the dropzone or click it. Progress shows inside the dropzone.
+For a form value, use [Upload Field](/docs/ui/components/upload-field). For a
+profile picture, use [Avatar Upload](/docs/ui/components/avatar-upload).
 
 <DemoPreview name="upload-demo.tsx">
   <UploadDemo />
 </DemoPreview>
 
-## Install
+## Installation
 
-<include>../../../../../_includes/ui/component-prereq.mdx</include>
+<Tabs items={["npm", "shadcn"]}>
 
-<Tabs items={["npm package", "shadcn registry"]}>
-
-<Tab value="npm package">
+<Tab value="npm">
 
 ```tsx
 import {
   Upload,
   UploadDropzone,
-  UploadDropzoneTrigger,
-  UploadFileItem,
-  UploadFileList,
   UploadStatus,
   UploadToasts,
   UploadTrigger,
-  usePasteFiles,
-  useUploadHints,
 } from "@dimah-s3/ui";
 ```
 
 </Tab>
 
-<Tab value="shadcn registry">
+<Tab value="shadcn">
 
 ```npm
 npx shadcn@latest add @dimah-s3/upload
 ```
 
-The registry copies each part into its own file under
-`components/dimah-s3/`. The examples on this page import from
-`@dimah-s3/ui`; import the same names from those files instead:
-
-```tsx
-import { Upload } from "@/components/dimah-s3/upload/upload";
-import {
-  UploadDropzone,
-  UploadDropzoneTrigger,
-} from "@/components/dimah-s3/upload/upload-dropzone";
-import {
-  UploadFileItem,
-  UploadFileList,
-} from "@/components/dimah-s3/upload/upload-file-list";
-import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
-import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
-import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
-import { usePasteFiles } from "@/hooks/use-paste-files";
-import { useUploadHints } from "@/lib/upload-hints";
-```
+The parts land in `components/dimah-s3/upload/`, one file each, such as
+`@/components/dimah-s3/upload/upload-dropzone`. `usePasteFiles` is in
+`@/hooks/use-paste-files`, and `useUploadHints` in `@/lib/upload-hints`.
 
 </Tab>
 
 </Tabs>
 
----
+<include>../../../_includes/ui/component-prereq.mdx</include>
 
 ## Usage
 
@@ -107,26 +79,43 @@ export function Attachments() {
 }
 ```
 
-`Upload` renders the hidden file input and no element of its own, so place
-its parts in your own layout. One hook can have several parts: a button in a
-toolbar and a dropzone below it share the same queue.
+The dropzone shows the route's limits, and the progress of each file inside
+it. `UploadToasts` reports on the same hook, from anywhere in the tree.
 
-| Part                    | Renders                                                                   |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `UploadTrigger`         | A `Button` that opens the file picker                                     |
-| `UploadDropzone`        | A drop area. By default, a trigger with the route's limits and the status |
-| `UploadDropzoneTrigger` | The part of a dropzone you click, or focus and press Enter, to pick files |
-| `UploadStatus`          | One card for one file, or a summary above the file list for several       |
-| `UploadFileList`        | Every file in the queue, as rows or a grid. A function child renders each |
-| `UploadFileItem`        | The card for one file, with its progress, error, and cancel or retry      |
-| `UploadToasts`          | Progress, results, and rejected files as toasts. It renders no element    |
+## Anatomy
+
+```tsx
+<Upload upload={upload}>
+  <UploadTrigger />
+  <UploadDropzone>
+    <UploadDropzoneTrigger />
+    <UploadStatus />
+  </UploadDropzone>
+  <UploadFileList />
+</Upload>
+<UploadToasts upload={upload} />
+```
+
+| Part                    | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `Upload`                | Root. Holds the hook and the hidden file input. Renders no element           |
+| `UploadTrigger`         | A `Button` that opens the file picker                                        |
+| `UploadDropzone`        | A drop area. By default it holds a dropzone trigger and the status           |
+| `UploadDropzoneTrigger` | The clickable part of a dropzone, with an icon, a title, and the limits      |
+| `UploadStatus`          | Progress of the queue: one card for one file, a summary and rows for several |
+| `UploadFileList`        | Every file in the queue, as rows or a grid. Render each file yourself        |
+| `UploadToasts`          | Progress, results, and rejected files as toasts. Mount once per hook         |
+
+Place the parts anywhere inside `Upload`, in your own layout. Several parts
+can share the hook: a button in a toolbar and a dropzone below it feed one
+queue.
 
 ## Examples
 
 ### Button
 
-`UploadTrigger` with `UploadStatus` under it. The status renders nothing
-until a file is picked.
+A trigger with the status under it. The status renders nothing until a file
+is picked.
 
 <DemoPreview name="upload-button-demo.tsx">
   <UploadButtonDemo />
@@ -134,11 +123,9 @@ until a file is picked.
 
 ### Button styles
 
-`UploadTrigger` is a `Button`: `variant`, `size`, and every other prop are
-forwarded, and `children` replace the icon and label. At an icon `size` the
-trigger shows the icon alone and keeps "Upload file" as its accessible name.
-`tooltip` adds a tooltip. All the triggers below share one hook and one
-status.
+`UploadTrigger` is a `Button`: pass `variant`, `size`, and `children` to
+restyle it, and `tooltip` to add a tooltip. At an icon size it shows the icon
+alone and keeps its accessible name.
 
 <DemoPreview name="upload-trigger-variants-demo.tsx">
   <UploadTriggerVariantsDemo />
@@ -146,10 +133,8 @@ status.
 
 ### Image grid
 
-Give `UploadDropzone` children to arrange it yourself. Here the trigger has
-its own text, and `UploadStatus layout="grid"` shows the images as tiles
-inside the dropzone. The route's limits still describe the trigger for
-screen readers.
+Give `UploadDropzone` children to arrange it yourself. `layout="grid"` shows
+the files as tiles.
 
 <DemoPreview name="upload-gallery-demo.tsx">
   <UploadGalleryDemo />
@@ -158,8 +143,7 @@ screen readers.
 ### Compact dropzone
 
 A one-line dropzone for a form, with the status outside it. `useUploadHints`
-returns the route's limits as text, the same lines the default dropzone
-shows.
+returns the route's limits as text.
 
 <DemoPreview name="upload-compact-demo.tsx">
   <UploadCompactDemo />
@@ -167,8 +151,8 @@ shows.
 
 ### Custom file rows
 
-Pass a function to `UploadFileList` to render each file yourself. It gets one
-entry of `upload.files` with its `phase`, `progress`, and `error`.
+Pass a function to `UploadFileList` to render each file from `upload.files`,
+with its `phase`, `progress`, and `error`.
 
 <DemoPreview name="upload-file-list-demo.tsx">
   <UploadFileListDemo />
@@ -176,9 +160,8 @@ entry of `upload.files` with its `phase`, `progress`, and `error`.
 
 ### Paste
 
-`usePasteFiles` uploads files pasted anywhere on the page. It leaves pastes
-into form fields and editable text alone, and pastes a focused dropzone
-already took.
+`usePasteFiles` uploads files pasted anywhere on the page. Pastes into text
+fields are left alone.
 
 <DemoPreview name="upload-paste-demo.tsx">
   <UploadPasteDemo />
@@ -186,7 +169,7 @@ already took.
 
 ### Disabled
 
-Pass `disabled` to `useUpload`. Every part follows it: the trigger and the
+Pass `disabled` to `useUpload`. Every part follows it: triggers and the
 dropzone disable, and drops and pastes do nothing.
 
 <DemoPreview name="upload-disabled-demo.tsx">
@@ -196,187 +179,183 @@ dropzone disable, and drops and pastes do nothing.
 ## Dropzone
 
 `UploadDropzone` takes files dropped anywhere on it, also over the status
-inside it. Its default content is an `UploadDropzoneTrigger` and an
-`UploadStatus`:
+inside it. Without children it renders this:
 
 ```tsx
-<UploadDropzone />
-
-// is the same as
 <UploadDropzone>
   <UploadDropzoneTrigger />
   <UploadStatus />
 </UploadDropzone>
 ```
 
-Pass `children` to change that. Leave out `UploadStatus` to render it
-somewhere else, or give it `layout="grid"`.
+Pass children to change the layout, for example to move `UploadStatus`
+outside the dropzone. Give `UploadDropzoneTrigger` children to replace its
+icon and title; the route's limits stay attached to it for screen readers. The
+trigger is a button, so put links and other buttons next to it, not inside.
 
-```tsx
-<UploadDropzone className="min-h-48">
-  <UploadDropzoneTrigger>
-    <p className="text-sm font-medium">Drop photos here</p>
-  </UploadDropzoneTrigger>
-</UploadDropzone>
-<UploadStatus />
-```
+Style the drag states with data attributes:
 
-`UploadDropzoneTrigger` is a button: a click, Enter, or Space opens the
-picker, and files pasted while it has focus upload. Its default content is
-an icon, a title, and the route's size and type limits. `children` replace
-them; the limits stay attached as its description. Do not put buttons or
-links inside the trigger. Put them next to it, in the dropzone.
+| Attribute          | Set when                                       |
+| ------------------ | ---------------------------------------------- |
+| `data-drag-active` | Files are dragged over the dropzone            |
+| `data-drag-reject` | The dragged files break `accept` or `maxFiles` |
+| `data-disabled`    | The hook is disabled, or the root is full      |
 
-While files are dragged over it, the dropzone sets `data-drag-active`, and
-`data-drag-reject` when they cannot be dropped. The default title says which,
-and a polite live region announces it. The dropzone sets `data-disabled`
-while the hook is disabled or the root is full.
-
-The trigger and the dropzone stay enabled while files upload. New files join
-the queue when the hook has `append: true`, and replace it otherwise. While
-the root is full, as in a full [`UploadField`](/docs/react/ui/components/upload-field),
-"Maximum files reached." leads the trigger's description.
+The dropzone stays enabled while files upload. New files join the queue when
+the hook has `append: true`, and replace it otherwise.
 
 ## Status
 
-`UploadStatus` renders nothing while the hook is idle. One file shows as its
-own card. Several files show as one card: a summary with the overall
-progress ring, the count, and the time left, then a row for each file. The
-summary has "Cancel all uploads" while they upload, and a dismiss action once
-they settle, with "Retry failed uploads" when some failed. Each failed file
-has its own retry action, which turns into its cancel action as the file goes
-back in flight, so focus stays on it. In a full root, the retry actions stay
-focusable but are `aria-disabled`. The rows scroll past 20rem.
-Pause appears while files upload when the hook has an `uploadStore`, so the
-uploads can [resume](/docs/react/upload-store). It sets `data-phase` to the
-hook's phase.
+`UploadStatus` renders nothing until files are picked.
 
-`layout="grid"` shows the files as tiles, with the summary above them, on
-both `UploadStatus` and `UploadFileList`.
+- **One file** shows as its own card, with cancel, retry, or dismiss.
+- **Several files** show a summary, with the overall progress, the count, and
+  the time left, then a row for each file. The summary cancels every upload,
+  retries the failed ones, and dismisses the list once it settles.
+- **Pause** appears while files upload when the hook has an `uploadStore`, so
+  the uploads can [resume](/docs/react/upload-store) later.
 
-When cancel, pause, dismiss, or remove takes away the card that has focus,
-focus moves to the next action in the same list, then the previous one, then
-the root's trigger or dropzone.
+Call `upload.reset()` to clear the status from your own code.
 
 ## Toasts
 
-Parts never toast. Mount `UploadToasts` once per hook, and one `<Toaster />`
-in your root layout ([UI Setup](/docs/react/ui)).
+Parts never toast. Mount `UploadToasts` once per hook, and one `<Toaster />` in
+your layout ([Installation](/docs/ui/installation#mount-the-toaster-step)). It shows:
 
-- While files upload, a progress toast with a cancel action.
-- Once the queue settles, the result. A failure has a Retry action.
-- For each call that rejects files, the reason, formatted from the error code.
+- A progress toast with a cancel action while files upload.
+- The result once the queue settles. A failure has a retry action.
+- The reason for each call that rejects files, such as a file that is too large.
 
 A second `UploadToasts` for the same hook renders nothing and warns in
-development. Inside an [`ObjectList`](/docs/react/ui/components/object-list)
-your `UploadToasts` replaces the list's built-in toasts.
+development.
 
-## Call options
+## Per-call options
 
-`call` on `UploadTrigger` and `UploadDropzone` applies to the files they take
+`call` on `UploadTrigger` or `UploadDropzone` applies to the files they take
 in. Its `uploadOptions` merge over the hook's, and `maxFiles` lowers the
 hook's limit for that call.
 
 ```tsx
 <UploadTrigger
-  call={{ uploadOptions: { clientMetadata: { album: albumId } } }}
+  call={{ uploadOptions: { clientMetadata: { albumId } } }}
   tooltip="Add photos"
 />
 ```
 
-Inside an `ObjectList` with the same hook, the source's `uploadOptions` for
-the open folder apply first, so files land in that folder. Your `call` merges
-over them.
+Inside an [`ObjectList`](/docs/ui/components/object-list) with the same hook,
+files go to the open folder, and your `call` merges over that.
 
-## Your own parts
+## Accessibility
 
-`useUploadContext()` returns the `upload` of the nearest `Upload` and its
-`isFull` flag. Pass `isFull` to `Upload` (as a full `UploadField` does) to
-render `UploadTrigger`, `UploadDropzoneTrigger`, and the retry actions of
-`UploadStatus` and `UploadFileList` focusable but `aria-disabled`. It changes
-only how they render. To make the hook take no more files, set a limit with
-[`useUploadLimit`](/docs/react/hooks/upload#limit-across-calls).
+- `UploadTrigger` is named "Upload file" or "Upload files". At an icon size the
+  label is visually hidden and stays its accessible name.
+- `UploadDropzoneTrigger` is a button: click, Enter, or Space opens the picker,
+  and a paste while it has focus uploads. The route's limits are its
+  description.
+- A polite live region announces when dragged files can or cannot be dropped.
+- When cancel or dismiss removes the focused card, focus moves to the next
+  action in the list, then to the trigger or dropzone.
 
----
-
-## Props
-
-```ts
-import type {
-  UploadProps,
-  UploadTriggerProps,
-  UploadDropzoneProps,
-  UploadDropzoneTriggerProps,
-  UploadStatusProps,
-  UploadFileListProps,
-  UploadFileItemProps,
-  UploadToastsProps,
-  UsePasteFilesOptions,
-} from "@dimah-s3/ui";
-```
+## API Reference
 
 ### Upload
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload.tsx"
-  name="UploadProps"
-/>
+| Prop           | Type              | Default  | Description                                                                         |
+| -------------- | ----------------- | -------- | ----------------------------------------------------------------------------------- |
+| `upload`       | `UseUploadReturn` | required | The `useUpload` return the parts read                                               |
+| `isFull`       | `boolean`         | `false`  | Renders the triggers and retry actions as `aria-disabled`. The hook's limit decides |
+| `hideUploaded` | `boolean`         | `false`  | Leaves finished files out of `UploadStatus` and `UploadFileList`                    |
+| `children`     | `ReactNode`       | required | The parts                                                                           |
 
 ### UploadTrigger
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-trigger.tsx"
-  name="UploadTriggerProps"
-/>
+Also accepts every `Button` prop.
+
+| Prop       | Type                | Default                   | Description                                               |
+| ---------- | ------------------- | ------------------------- | --------------------------------------------------------- |
+| `call`     | `UploadCallOptions` | —                         | Options for the files picked through it                   |
+| `tooltip`  | `ReactNode`         | —                         | Tooltip on hover and focus                                |
+| `disabled` | `boolean`           | `upload.disabled`         | Disables this trigger only. The hook can still disable it |
+| `children` | `ReactNode`         | Icon and "Upload file(s)" | Replaces the icon and label                               |
 
 ### UploadDropzone
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
-  name="UploadDropzoneProps"
-/>
+Also accepts every `div` prop.
+
+| Prop       | Type                | Default                    | Description                                                          |
+| ---------- | ------------------- | -------------------------- | -------------------------------------------------------------------- |
+| `call`     | `UploadCallOptions` | —                          | Options for dropped files, and files picked or pasted on its trigger |
+| `children` | `ReactNode`         | Trigger and `UploadStatus` | The dropzone content                                                 |
 
 ### UploadDropzoneTrigger
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-dropzone.tsx"
-  name="UploadDropzoneTriggerProps"
-/>
+Accepts every `div` prop. `children` replace the default icon, title, and
+limits.
 
 ### UploadStatus
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-status.tsx"
-  name="UploadStatusProps"
-/>
+Also accepts every `div` prop except `children`.
+
+| Prop     | Type               | Default  | Description                        |
+| -------- | ------------------ | -------- | ---------------------------------- |
+| `layout` | `"list" \| "grid"` | `"list"` | Rows, or tiles with image previews |
 
 ### UploadFileList
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-file-list.tsx"
-  name="UploadFileListProps"
-/>
+Also accepts every `ul` prop except `children`.
+
+| Prop       | Type                                   | Default          | Description                        |
+| ---------- | -------------------------------------- | ---------------- | ---------------------------------- |
+| `layout`   | `"list" \| "grid"`                     | `"list"`         | Rows, or tiles with image previews |
+| `children` | `(file: UploadFileState) => ReactNode` | `UploadFileItem` | Renders one file                   |
 
 ### UploadFileItem
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-file-list.tsx"
-  name="UploadFileItemProps"
-/>
+The default card of one file, with its progress, error, and cancel or retry.
+Also accepts the [`FileAttachment`](/docs/ui/components/attachment) props it
+does not set itself, such as `actions` and `description`.
+
+| Prop   | Type              | Default  | Description                 |
+| ------ | ----------------- | -------- | --------------------------- |
+| `file` | `UploadFileState` | required | One entry of `upload.files` |
 
 ### UploadToasts
 
-<AutoTypeTable
-  path="packages/ui/src/components/dimah-s3/upload/upload-toasts.tsx"
-  name="UploadToastsProps"
-/>
+| Prop     | Type              | Default  | Description               |
+| -------- | ----------------- | -------- | ------------------------- |
+| `upload` | `UseUploadReturn` | required | The hook return to report |
 
 ### usePasteFiles
 
-<AutoTypeTable
-  path="packages/ui/src/hooks/use-paste-files.ts"
-  name="UsePasteFilesOptions"
-/>
+`usePasteFiles(upload, options?)` uploads files pasted anywhere on the page,
+except into form fields, editable text, or a dropzone that already took the
+paste.
+
+| Option    | Type                | Default | Description                                        |
+| --------- | ------------------- | ------- | -------------------------------------------------- |
+| `call`    | `UploadCallOptions` | —       | Options for the pasted files                       |
+| `enabled` | `boolean`           | `true`  | Listens for pastes. Off while the hook is disabled |
+
+### useUploadHints
+
+`useUploadHints(upload.policy)` returns the route's limits as localized text,
+the same lines the default dropzone shows.
+
+| Property | Type             | Description                                       |
+| -------- | ---------------- | ------------------------------------------------- |
+| `limits` | `string \| null` | Count and size, such as "You can upload 3 files." |
+| `accept` | `string \| null` | Accepted types, such as "Accepted PNG, JPEG."     |
+
+### useUploadContext
+
+Returns the root's values inside `Upload`, for parts of your own. See
+[Custom UI](/docs/ui/custom-ui).
+
+| Property       | Type              | Description                               |
+| -------------- | ----------------- | ----------------------------------------- |
+| `upload`       | `UseUploadReturn` | The root's hook                           |
+| `isFull`       | `boolean`         | The root takes no more files              |
+| `hideUploaded` | `boolean`         | Status parts leave out the uploaded files |
 
 ## Frequently asked questions
 
@@ -396,28 +375,19 @@ Call `event.preventDefault()` in the trigger's `onClick`:
 
 </Accordion>
 
-<Accordion title="How do I disable only the button?">
+<Accordion title="How do I disable only one trigger?">
 
-Pass `disabled` to `UploadTrigger` to disable only that trigger while the
-hook stays enabled. While the hook is disabled, the picker stays closed
-whatever the prop says:
-
-```tsx
-<UploadTrigger disabled={!canEdit} />
-```
+Pass `disabled` to that `UploadTrigger`. The hook stays enabled for the other
+parts. While the hook itself is disabled, the picker stays closed whatever the
+prop says.
 
 </Accordion>
 
-<Accordion title="How do I clear the status after an upload?">
+<Accordion title="Where did UploadButton and the 1.x UploadDropzone go?">
 
-Use the dismiss action on a settled card, or call `upload.reset()`.
-
-</Accordion>
-
-<Accordion title="Where did UploadButton go?">
-
-`UploadTrigger` is the button, and `UploadStatus` is the status it used to
-render under it. Put them together, as in [Button](#button).
+`UploadTrigger` is the button, and `UploadStatus` is the status it rendered
+under it. `UploadDropzone` now goes inside `Upload` and reads its hook from
+there. See [Upgrade to 2.0](/docs/migration-2-0).
 
 </Accordion>
 

@@ -1,11 +1,11 @@
 ---
 title: useDelete
-description: Headless React hook that deletes one or many objects, with state for each key.
+description: Delete one or many objects through your server, with state for each key.
 ---
 
 `useDelete` deletes objects through your server. Each key has its own state,
-so a list can show which rows are being deleted. A second call for a key that
-is already being deleted joins that call.
+so a list can show which rows are being deleted, and a second call for a key
+already being deleted joins that call.
 
 ```tsx title="components/delete-file.tsx"
 "use client";
@@ -14,31 +14,30 @@ import { useDelete } from "@dimah-s3/react";
 
 export function DeleteFile({ objectKey }: { objectKey: string }) {
   const { remove, get } = useDelete({ route: "attachments" });
-  const operation = get(objectKey);
+  const deleting = get(objectKey)?.phase === "deleting";
 
   return (
     <button
       type="button"
       onClick={() => void remove(objectKey)}
-      disabled={operation?.phase === "deleting"}
+      disabled={deleting}
     >
-      {operation?.phase === "deleting" ? "Deleting…" : "Delete"}
+      {deleting ? "Deleting…" : "Delete"}
     </button>
   );
 }
 ```
 
-The hook has no confirm state. To ask first, use the ui
-[`Delete`](/docs/react/ui/components/delete) root, which owns one confirm
-dialog for every trigger inside it, or open your own dialog and call
-`remove` when the user confirms.
-
----
+The hook has no confirm step. To ask first, use the
+[`Delete`](/docs/ui/components/delete) component, which owns one confirm
+dialog for every trigger inside it, or open your own dialog and call `remove`
+when the user confirms.
 
 ## Delete one key
 
-`remove(key, { fileName })` resolves with an outcome and does not throw.
-`fileName` is stored on the operation for display, such as in a toast.
+`remove(key, { fileName })` resolves with an
+[outcome](/docs/react/guides/outcomes) and does not throw. `fileName` is
+stored on the operation for display, such as in a toast.
 
 ```ts
 const outcome = await remove(objectKey, { fileName: "invoice.pdf" });
@@ -48,14 +47,14 @@ if (outcome.status === "error") console.log(outcome.error.code);
 if (outcome.status === "blocked") console.log("beforeDelete said no");
 ```
 
-A delete has no cancel, so it never ends `aborted`.
+A delete has no cancel, so it never ends `aborted`. Delete is idempotent: a
+key that does not exist still succeeds.
 
 ## Delete many keys
 
-`removeMany(items)` takes any number of keys. The hook sends them in batches
-of up to 100 (`DELETE_MANY_MAX_KEYS`), one request after another, and every
-operation of the call shares one `batchId`. The server deletes each key on its
-own, so some can fail while others succeed:
+`removeMany(items)` takes any number of keys, as strings or as
+`{ key, fileName }`. The server deletes each key on its own, so some can fail
+while others succeed:
 
 ```ts
 const { deleted, failed, blocked } = await removeMany([
@@ -66,70 +65,93 @@ const { deleted, failed, blocked } = await removeMany([
 for (const { key, error } of failed) console.log(key, error.code);
 ```
 
-Keys that are already being deleted are joined rather than sent again, and
-their outcomes are folded into the result.
+- Keys go out in batches of up to 100 (`DELETE_MANY_MAX_KEYS`), one request after another. A failed request fails only the keys of its batch.
+- Every operation of the call shares one `batchId`.
+- Keys already being deleted are joined, not sent again, and their outcomes are folded into the result.
 
----
+## Track each key
 
-## State
+Read the newest operation for a key with `get(key)`, or render `operations`.
+Each has `key`, `fileName`, `batchId`, `phase` (`deleting`, `success`, or
+`error`), and `error`.
 
-- **`operations`** — every delete still kept, in the order it started. Each has `key`, `fileName`, `batchId`, `phase` (`deleting`, `success`, or `error`), and `error`.
-- **`get(key)`** — the newest operation for a key.
-- **`pendingKeys`** — keys with a running delete.
-- **`isPending`** — `true` while any key is being deleted.
-- **`reset(key?)`** — removes settled operations for one key, or every settled operation. It does not cancel a running delete.
+`pendingKeys` lists the keys being deleted, and `isPending` is `true` while
+there is one. `reset(key?)` removes settled operations for one key or for
+every key, such as to dismiss an error. It does not stop a running delete.
+
+```tsx
+const { get, reset } = useDelete({ route: "attachments" });
+const error = get(objectKey)?.error;
+
+if (error) {
+  return (
+    <button type="button" onClick={() => reset(objectKey)}>
+      {error.message} — dismiss
+    </button>
+  );
+}
+```
 
 ## Callbacks
 
-| Callback               | Runs                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `beforeDelete(keys)`   | Once per call. Return `false` to block the keys. A throw fails them (`HOOK_FAILED`). |
-| `onDeleteStart(keys)`  | Once per call, before the request.                                                   |
-| `onError(error, key)`  | Once per failed key.                                                                 |
-| `onSuccess(data, key)` | Once per deleted key, after every `onError` of the call.                             |
-| `onSettled(result)`    | Once per call, last.                                                                 |
+| Callback               | Runs                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `beforeDelete(keys)`   | Once per call. Return `false` to block the keys. A throw fails them (`HOOK_FAILED`) |
+| `onDeleteStart(keys)`  | Once per call, before the request. A throw fails them (`HOOK_FAILED`)               |
+| `onError(error, key)`  | Once per failed key                                                                 |
+| `onSuccess(data, key)` | Once per deleted key, after every `onError` of the call                             |
+| `onSettled(result)`    | Once per call, last, with its `DeleteResult`                                        |
 
-`data` is `{ key, bucket? }`. `bucket` is set by `remove` only, because batch
-responses do not carry it. A call that joins a running delete does not run the
-callbacks again.
+`data` is `{ key, bucket? }`. Only `remove` sets `bucket`, because batch
+responses do not carry it. `onError`, `onSuccess`, and `onSettled` may be
+async and are awaited. A `remove` that joins a running delete does not run
+the callbacks again.
 
----
+## API Reference
 
-## Type reference
+### Options
 
-```ts
-import type {
-  DeleteOperation,
-  DeleteResult,
-  UseDeleteOptions,
-  UseDeleteReturn,
-} from "@dimah-s3/react";
-```
+| Prop            | Type                                    | Default  | Description                                                |
+| --------------- | --------------------------------------- | -------- | ---------------------------------------------------------- |
+| `route`         | `S3RouteName`                           | required | Named server route                                         |
+| `api`           | `S3Api`                                 | —        | Replaces the `S3Provider` API. Required without a provider |
+| `beforeDelete`  | `(keys) => boolean \| Promise<boolean>` | —        | Runs once per call. Return `false` to block the keys       |
+| `onDeleteStart` | `(keys) => void`                        | —        | Runs once per call, before the request                     |
+| `onError`       | `(error, key) => void \| Promise<void>` | —        | Runs once per failed key                                   |
+| `onSuccess`     | `(data, key) => void \| Promise<void>`  | —        | Runs once per deleted key                                  |
+| `onSettled`     | `(result) => void \| Promise<void>`     | —        | Runs once per call, after every other callback             |
 
-### UseDeleteOptions
+### Return
 
-<AutoTypeTable
-  path="packages/react/src/types/delete.ts"
-  name="UseDeleteOptions"
-/>
-
-### UseDeleteReturn
-
-<AutoTypeTable
-  path="packages/react/src/types/delete.ts"
-  name="UseDeleteReturn"
-/>
+| Property      | Type                                              | Description                                                            |
+| ------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `remove`      | `(key, { fileName? }?) => Promise<DeleteOutcome>` | Deletes one key                                                        |
+| `removeMany`  | `(items) => Promise<DeleteResult>`                | Deletes any number of keys. Each item is a key or `{ key, fileName? }` |
+| `operations`  | `readonly DeleteOperation[]`                      | Every operation still kept, in the order it started                    |
+| `get`         | `(key) => DeleteOperation \| undefined`           | The newest operation for `key`                                         |
+| `pendingKeys` | `readonly string[]`                               | Keys with a running delete, in start order                             |
+| `isPending`   | `boolean`                                         | `true` while any key is being deleted                                  |
+| `reset`       | `(key?) => void`                                  | Removes settled operations for `key`, or all of them                   |
+| `instanceId`  | `string`                                          | Stable id of the hook instance. Toast owners use it                    |
 
 ### DeleteOperation
 
-<AutoTypeTable
-  path="packages/react/src/types/delete.ts"
-  name="DeleteOperation"
-/>
+| Property   | Type                                 | Description                                                       |
+| ---------- | ------------------------------------ | ----------------------------------------------------------------- |
+| `id`       | `string`                             | Unique in the hook. Ascends with creation order                   |
+| `key`      | `string`                             | The object key                                                    |
+| `batchId`  | `string \| null`                     | Shared by every key of one `removeMany` call. `null` for `remove` |
+| `fileName` | `string \| null`                     | The display name passed with the key                              |
+| `phase`    | `"deleting" \| "success" \| "error"` | Where the delete is                                               |
+| `error`    | `APIError \| null`                   | Set when `phase` is `"error"`                                     |
 
 ### DeleteResult
 
-<AutoTypeTable path="packages/react/src/types/delete.ts" name="DeleteResult" />
+| Property  | Type               | Description                               |
+| --------- | ------------------ | ----------------------------------------- |
+| `deleted` | `string[]`         | Keys that were deleted, in call order     |
+| `failed`  | `{ key, error }[]` | Keys that failed, each with an `APIError` |
+| `blocked` | `string[]`         | Keys `beforeDelete` blocked               |
 
 ## Frequently asked questions
 
@@ -154,25 +176,6 @@ export const attachments = route({
     },
   },
 });
-```
-
-</Accordion>
-
-<Accordion title="How do I clear an error after a failed delete?">
-
-Call `reset(key)`. Render the error from `get(key)?.error`:
-
-```tsx
-const { get, reset } = useDelete({ route: "attachments" });
-const error = get(objectKey)?.error;
-
-if (error) {
-  return (
-    <button type="button" onClick={() => reset(objectKey)}>
-      {error.message} — dismiss
-    </button>
-  );
-}
 ```
 
 </Accordion>

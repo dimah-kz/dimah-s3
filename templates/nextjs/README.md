@@ -24,7 +24,7 @@ The `avatar` route is open: anyone who can reach the app can upload until you ad
 | `src/app/layout.tsx`              | `S3Provider` + `Toaster`                              |
 | `src/app/page.tsx`                | Sample `Upload` + `UploadTrigger` + `UploadToasts`    |
 
-Same layout as [Quickstart](https://s3.dimah.dev/docs/quickstart), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/react/ui). Flatten `src/` with `create --no-src`.
+Same layout as [Quickstart](https://s3.dimah.dev/docs/quickstart), [Server Setup](https://s3.dimah.dev/docs/server/setup), [React Setup](https://s3.dimah.dev/docs/react/setup), and [UI Setup](https://s3.dimah.dev/docs/ui). Flatten `src/` with `create --no-src`.
 
 ## License
 

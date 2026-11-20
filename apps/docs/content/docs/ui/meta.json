@@ -1,6 +1,26 @@
 {
   "title": "UI",
-  "description": "Ready-made shadcn controls for upload, download, and delete",
+  "description": "shadcn components for upload, download, delete, and file browsing",
   "icon": "Component",
-  "pages": ["index", "components", "customization"]
+  "root": true,
+  "pages": [
+    "index",
+    "installation",
+    "---Upload---",
+    "components/upload",
+    "components/upload-field",
+    "components/avatar-upload",
+    "---Files---",
+    "components/object-list",
+    "components/object-card",
+    "components/object-image",
+    "---Actions---",
+    "components/download",
+    "components/delete",
+    "---Building blocks---",
+    "components/attachment",
+    "---Customization---",
+    "theming",
+    "custom-ui"
+  ]
 }

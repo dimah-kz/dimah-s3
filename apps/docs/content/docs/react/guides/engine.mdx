@@ -1,18 +1,11 @@
 ---
 title: Engine
-description: Plain functions from @dimah-s3/react/engine — upload a file without hooks, and use the stores, sources, and formatters in any module.
+description: Plain functions from @dimah-s3/react/engine to upload without hooks and to use stores, sources, and formatters in any module.
 ---
 
 `@dimah-s3/react/engine` holds the plain functions behind the hooks. It has no
 React import and no `"use client"` directive, so shared modules, server
 modules, workers, and scripts can import it.
-
-Importing is not the same as running: `uploadFile` sends the bytes with
-`XMLHttpRequest`, so it runs in a browser page. Where there is no
-`XMLHttpRequest`, such as Node or a service worker, an
-[`uploadTransport`](/docs/react/custom-backend#upload-transport) on the API
-replaces the transfer for single-shot uploads only; multipart parts always
-use `XMLHttpRequest`.
 
 | Area         | Exports                                                                                                                            |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -26,6 +19,14 @@ use `XMLHttpRequest`.
 The types `UploadFileOptions`, `UploadStore`, `StoredUpload`,
 `UploadTransport`, `S3ApiUploadTransport`, `RetryConfig`, `UploadAbortKind`,
 and `RouteUploadPolicy` ship from it too.
+
+<Callout title="Importing is not running">
+  `uploadFile` sends bytes with `XMLHttpRequest`, so it runs in a browser page.
+  Where there is none, such as Node or a service worker, an
+  [`uploadTransport`](/docs/react/custom-backend#upload-transport) on the API
+  replaces the transfer for single-shot uploads only. Multipart parts always use
+  `XMLHttpRequest`.
+</Callout>
 
 ## Upload a file without hooks
 
@@ -63,37 +64,26 @@ export async function uploadAttachment(file: File, signal?: AbortSignal) {
 }
 ```
 
-`policy` decides two things. Files of at least `DEFAULT_MULTIPART_THRESHOLD`
-(50 MiB) use multipart when `policy.multipart` is true. Single-shot uploads
-send a SHA-256 when `policy.checksum` is true; multipart follows what init
-returns. `mergeRouteUploadPolicy(policy, { accept, maxFileSize, multipart })`
-narrows the policy the way the hook options do.
+`policy` decides two things:
 
-`concurrentParts`, `retry`, and `uploadStore` work as they do on
-[`useUpload`](/docs/react/hooks/upload). `onPhaseChange` reports `preparing`,
-`presigning`, `uploading`, and `finalizing`.
+- **Multipart** — files of at least `DEFAULT_MULTIPART_THRESHOLD` (50 MiB) use multipart when `policy.multipart` is true.
+- **Checksum** — single-shot uploads send a SHA-256 when `policy.checksum` is true. Multipart follows what init returns.
+
+The route policy helpers work like the hook:
+
+- `loadRouteCatalog(api)` caches the catalog per `S3Api`. A failure is not cached, so the next call loads again.
+- `resolveRouteUploadPolicy(catalog, route)` returns no constraints, and neither multipart nor checksums, for a missing route or a route with uploads off.
+- `mergeRouteUploadPolicy(policy, { accept, maxFileSize, multipart })` narrows a policy the way the hook options do.
 
 `mergeUploadRequest(base, override)` combines two `request` objects the way
 the hook puts a call's `uploadOptions` over its own: `override` fields win,
 and `clientMetadata` merges key by key.
 
-## Object list keys
-
-Two helpers name the keys of a [`useObjectList`](/docs/react/hooks/object-list)
-entry without the hook, for code that builds or matches entries itself:
-
-- `objectListEntryKey(kind, id)` returns the list key of a row:
-  `objectListEntryKey("file", id)` is the `entry.key` of the file whose
-  `getId` is `id`, and `"folder"` the same for a folder. Selection uses these
-  keys.
-- `objectKeyOf(entry)` returns the stored S3 object key of a file entry:
-  `entry.file.objectKey`, or the row id when the source set none.
-
 ## Cancel and detach
 
 `uploadFile` rejects with an `APIError`, or with `signal.reason` once the
-signal aborts. Abort with an upload abort reason to say what should happen to
-a multipart session:
+signal aborts. Abort with an upload abort reason to say what happens to a
+multipart session:
 
 ```ts
 import { getUploadAbortKind, uploadAbortReason } from "@dimah-s3/react/engine";
@@ -111,14 +101,36 @@ try {
 }
 ```
 
-`uploadAbortReason("cancel")`, or any other reason, aborts the session on the
-server and deletes the stored record. Without an `uploadStore`, a detach
-aborts the session too, because nothing could resume it. Both reasons are
-`DOMException`s named `AbortError`.
+| Reason                                      | Multipart session and stored record                |
+| ------------------------------------------- | -------------------------------------------------- |
+| `uploadAbortReason("detach")`               | Kept, to resume. Without an `uploadStore`, aborted |
+| `uploadAbortReason("cancel")`, or any other | Session aborted and record deleted                 |
 
-## Type reference
+Both reasons are `DOMException`s named `AbortError`. `getUploadAbortKind`
+returns `"cancel"`, `"detach"`, or `null` for any other value.
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="UploadFileOptions"
-/>
+## Object list keys
+
+Two helpers name the keys of a [`useObjectList`](/docs/react/hooks/object-list)
+entry without the hook, for code that builds or matches entries itself:
+
+- `objectListEntryKey(kind, id)` returns the `entry.key` of a row, such as `objectListEntryKey("file", id)` for the file whose `getId` is `id`. Selection uses these keys.
+- `objectKeyOf(entry)` returns the stored S3 object key of a file entry: `entry.file.objectKey`, or the row id when the source set none.
+
+## API Reference
+
+### uploadFile options
+
+| Prop              | Type                                        | Default                                | Description                                                                 |
+| ----------------- | ------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
+| `route`           | `S3RouteName`                               | required                               | Named server route                                                          |
+| `policy`          | `{ multipart: boolean; checksum: boolean }` | required                               | What the route allows, such as from `resolveRouteUploadPolicy`              |
+| `request`         | `UploadRequestOptions`                      | —                                      | `clientMetadata`, `fileName`, and `contentType` for the presign             |
+| `concurrentParts` | `number`                                    | `4`                                    | Multipart parts uploaded at once                                            |
+| `retry`           | `RetryConfig`                               | `{ maxRetries: 3, baseDelayMs: 1000 }` | Retries per request and the first backoff delay in ms                       |
+| `uploadStore`     | `UploadStore`                               | —                                      | Persists multipart uploads so they can [resume](/docs/react/upload-store)   |
+| `signal`          | `AbortSignal`                               | —                                      | Aborts the upload. See [Cancel and detach](#cancel-and-detach)              |
+| `onProgress`      | `(progress) => void`                        | —                                      | Byte progress as a `TransferProgress`                                       |
+| `onPhaseChange`   | `(phase) => void`                           | —                                      | Runs with `"preparing"`, `"presigning"`, `"uploading"`, then `"finalizing"` |
+| `onMultipartInit` | `(session) => void`                         | —                                      | Runs when a multipart upload starts or resumes, with `{ uploadId, key }`    |
+| `onPartUpload`    | `(part) => void`                            | —                                      | Runs after each part, with `{ partNumber, partCount }`                      |

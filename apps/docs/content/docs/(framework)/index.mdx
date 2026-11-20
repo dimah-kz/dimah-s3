@@ -1,12 +1,13 @@
 ---
 title: Introduction
-description: Full-stack S3 toolkit for the React ecosystem — server handlers, client hooks, shadcn UI, and database tracking.
+description: dimah-s3 is a presign-first S3 toolkit for React and Node.js, with typed server routes, headless hooks, shadcn UI, and optional database tracking.
 icon: House
 ---
 
-dimah-s3 is a modular, full-stack S3 toolkit for React and Node.js runtimes.
-It provides typed server handlers, headless React hooks, optional shadcn UI components,
-and a database plugin for object tracking when your application needs it.
+dimah-s3 adds file upload, download, and delete to a React app, against an
+S3-compatible bucket you own. Use it when files go straight from the browser
+to the bucket and your server must stay in control of keys, permissions, and
+verification.
 
 <Callout title="2.0 beta">
   This site documents the 2.0 beta. Install with the `beta` dist-tag. A new beta
@@ -15,7 +16,44 @@ and a database plugin for object tracking when your application needs it.
   [Upgrade to 2.0 beta](/docs/migration-2-0).
 </Callout>
 
-## Architecture flow
+```ts title="lib/s3.ts"
+import { dimahS3, route } from "@dimah-s3/server";
+
+export const s3 = dimahS3({
+  client: awsS3, // an AWS SDK S3Client
+  bucket: process.env.S3_BUCKET!,
+  routes: {
+    avatar: route({
+      upload: { fileTypes: ["image/*"], maxFileSize: 2 * 1024 * 1024 },
+      download: true,
+    }),
+  },
+});
+```
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { Upload, UploadToasts, UploadTrigger } from "@dimah-s3/ui";
+
+export default function Page() {
+  const upload = useUpload({ route: "avatar" });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadTrigger />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+[Quickstart](/docs/quickstart) builds this end to end in a few minutes.
+
+## How it works
 
 <Flow
   label="Presign-first architecture"
@@ -26,25 +64,91 @@ and a database plugin for object tracking when your application needs it.
   ]}
 />
 
-The backend signs a short-lived URL, the browser talks to your bucket, and
-AWS credentials never leave the server. Downloads can also pass through
-your server as a proxy.
+1. The browser sends a route name and the file's name, size, and type. It
+   never sends an object key or a credential.
+2. Your server runs its guards, picks the key inside that route's namespace,
+   and returns a short-lived signed URL with a signed
+   [upload ticket](/docs/server/upload-tickets).
+3. The browser uploads the bytes straight to the bucket.
+4. The browser confirms with the ticket. The server checks the stored object
+   with `HeadObject` before your `onConfirmed` hook runs.
 
-**For coding agents** — [llms.txt](/llms.txt) · [llms-full.txt](/llms-full.txt).
+S3 credentials never leave the server. Downloads use a signed URL, or stream
+through your server with the [file proxy](/docs/server/file-proxy).
 
----
+## Packages
 
-## What you get
+| Package                             | Role                                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`@dimah-s3/server`](/docs/server)  | Routes, guards, lifecycle hooks, and framework adapters; signs URLs and verifies uploads |
+| [`@dimah-s3/react`](/docs/react)    | Headless hooks for upload, download, delete, and object lists                            |
+| [`@dimah-s3/ui`](/docs/ui)          | shadcn components on top of the hooks, as an npm package or registry items               |
+| [`@dimah-s3/db`](/docs/db)          | Optional server plugin: object records, ownership, folders, listings, quotas             |
+| [`@dimah-s3/core`](/docs/core)      | The protocol: fetch client, error catalog, limits, and shared helpers                    |
+| [`@dimah-s3/cli`](/docs/quickstart) | Scaffolds a Next.js, Vite, or Hono starter app                                           |
 
-- **Fast setup** — a working upload in minutes
-- **Full stack** — server, client, and optional shadcn UI
-- **Full lifecycle** — upload, download, and delete, including multipart
-- **Server hooks** — auth, quotas, confirm, and cleanup on the server ([Better Auth](https://www.better-auth.com)-like)
-- **Optional database** — ownership and listings when you need them
+Keep every `@dimah-s3/*` package on the same version.
 
-It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
-in your own code with the
-[AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+## What it is not
+
+- **Not an S3 SDK wrapper.** It covers presign upload, download, and delete,
+  plus server-side uploads (`s3.put`) and the download proxy. List, copy,
+  tagging, retention, and other S3 operations stay in your code with the
+  [AWS SDK](https://www.npmjs.com/package/@aws-sdk/client-s3).
+- **Not a storage service.** You bring the bucket: Amazon S3, Cloudflare R2,
+  MinIO, ArvanCloud, or another S3-compatible
+  [provider](/docs/providers).
+- **Not an auth library.** You check sessions and quotas in your own
+  [guards](/docs/server/hooks/global-guard).
+
+**For coding agents:** [llms.txt](/llms.txt) lists every page, and
+[llms-full.txt](/llms-full.txt) has the full docs in one file. Each page is
+also available as Markdown at its URL plus `.md`.
+
+## Next steps
+
+<Cards>
+  <Card
+    title="Quickstart"
+    href="/docs/quickstart"
+    description="Scaffold a starter, or add a working upload to your app."
+  />
+  <Card
+    title="Server"
+    href="/docs/server"
+    description="Routes, guards, lifecycle hooks, and runtime adapters."
+  />
+  <Card
+    title="React"
+    href="/docs/react"
+    description="Headless hooks for upload, download, and delete."
+  />
+  <Card
+    title="UI"
+    href="/docs/ui"
+    description="shadcn components for upload, download, delete, and file lists."
+  />
+  <Card
+    title="Providers"
+    href="/docs/providers"
+    description="CORS and setup for AWS S3, Cloudflare R2, MinIO, and ArvanCloud."
+  />
+  <Card
+    title="Database plugin"
+    href="/docs/db"
+    description="Track objects, ownership, folders, and listings."
+  />
+  <Card
+    title="Comparison"
+    href="/docs/comparison"
+    description="dimah-s3 next to Better Upload, UploadThing, and Uppy."
+  />
+  <Card
+    title="Upgrade to 2.0 beta"
+    href="/docs/migration-2-0"
+    description="Move a 1.7 app onto the 2.0 beta."
+  />
+</Cards>
 
 ## Frequently asked questions
 
@@ -52,95 +156,30 @@ in your own code with the
 
 <Accordion title="When should I choose dimah-s3?">
 
-When you own the S3-compatible bucket and need more than an upload picker:
-server-owned keys, verified confirmation, private downloads, guarded
-deletion, multipart resume, or optional database tracking.
-
-If you are choosing between managed storage, an upload-focused toolkit, or a
-client uploader, use the [comparison guide](/docs/comparison).
-
-</Accordion>
-
-<Accordion title="Does dimah-s3 replace the AWS SDK?">
-
-No. dimah-s3 covers presign upload, download, and delete. Use the AWS SDK
-for everything else — list, copy, retention, tagging, and similar work.
+When you own the bucket and need more than an upload picker: server-owned
+keys, verified confirmation, private downloads, guarded deletion, multipart
+resume, or database tracking. To weigh it against managed storage or a
+client-only uploader, see the [comparison](/docs/comparison).
 
 </Accordion>
 
 <Accordion title="Can I use dimah-s3 with Cloudflare R2, MinIO, or ArvanCloud?">
 
-Yes. Configure an AWS SDK `S3Client` for the provider. Uploads use presigned
-PUT by default, which R2 supports; MinIO commonly needs `forcePathStyle: true`;
-ArvanCloud needs `upload.method: "POST"`. See the
-[provider guides](/docs/providers) for endpoints and CORS.
-
-</Accordion>
-
-<Accordion title="How does dimah-s3 keep S3 credentials secure?">
-
-The browser sends a route name. The server runs guards, chooses a key
-inside that route's namespace, and returns a short-lived signed request with
-a signed [upload ticket](/docs/server/upload-tickets). Confirm accepts only
-uploads the server started, and credentials never leave the server.
+Yes. Pass an AWS SDK `S3Client` configured for the provider. Uploads use
+presigned PUT by default, which R2 and MinIO support. MinIO on a host and port
+needs `forcePathStyle: true`. ArvanCloud needs `upload.method: "POST"`. The
+[provider guides](/docs/providers) cover endpoints and CORS.
 
 </Accordion>
 
 <Accordion title="Does dimah-s3 support resumable multipart uploads?">
 
-Yes. The server picks the part layout, and the client uploads parts in
-parallel with retries, cancellation, and per-part SHA-256 checks when the
-route asks for them. Add a persistent `UploadStore`; after a reload, the user
-reselects the same local file and the client resumes. See
-[Upload Store](/docs/react/upload-store).
+Yes. Turn on `upload.multipart` on the route. The server picks the part
+layout, and the client uploads parts in parallel with retries, cancellation,
+and per-part SHA-256 checks when the route asks for them. With a persistent
+[`UploadStore`](/docs/react/upload-store), the user reselects the same file
+after a reload and the upload resumes.
 
 </Accordion>
 
 </Accordions>
-
----
-
-## Explore documentation
-
-<Cards>
-  <Card
-    title="Quickstart"
-    href="/docs/quickstart"
-    description="Get a working upload running in a few minutes."
-  />
-  <Card
-    title="Server Guide"
-    href="/docs/server"
-    description="Configure routes, lifecycle hooks, guards, and runtimes."
-  />
-  <Card
-    title="React Client"
-    href="/docs/react"
-    description="Headless hooks for upload, download, and delete."
-  />
-  <Card
-    title="UI Components"
-    href="/docs/react/ui"
-    description="Composable shadcn controls for upload, download, and delete."
-  />
-  <Card
-    title="Providers"
-    href="/docs/providers"
-    description="Setup guides for AWS S3, Cloudflare R2, MinIO, and ArvanCloud."
-  />
-  <Card
-    title="Database Plugin"
-    href="/docs/db"
-    description="Track files, ownership, and listings."
-  />
-  <Card
-    title="Comparison"
-    href="/docs/comparison"
-    description="Compare dimah-s3 with Better Upload, UploadThing, and Uppy."
-  />
-  <Card
-    title="Upgrade to 2.0 beta"
-    href="/docs/migration-2-0"
-    description="Move a 1.7 app onto the 2.0 beta. Betas can break until 2.0.0."
-  />
-</Cards>

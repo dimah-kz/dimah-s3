@@ -1,52 +1,15 @@
 ---
 title: Theming
-description: Customize color tokens and styling for @dimah-s3/ui components.
+description: Change the colors of the dimah-s3 components with --dimah-s3-* tokens, on the whole app or one container.
+icon: Palette
 ---
 
-`@dimah-s3/ui` components read their colors from `--dimah-s3-*` CSS
-variables. The tokens are unset by default, and each one falls back to the
-matching shadcn variable where it is used, so the components follow your
-theme, including a nested `.dark` or theme class. Override a token to change
-the components without changing your app.
+The components follow your shadcn theme out of the box, dark mode included.
+To change their colors without changing your app, set `--dimah-s3-*` tokens.
 
-## Tokens
+## Override a token
 
-| Token                         | When unset                      |
-| ----------------------------- | ------------------------------- |
-| `--dimah-s3-background`       | `var(--background)`             |
-| `--dimah-s3-foreground`       | `var(--foreground)`             |
-| `--dimah-s3-card`             | `var(--card)`                   |
-| `--dimah-s3-card-foreground`  | `var(--card-foreground)`        |
-| `--dimah-s3-primary`          | `var(--primary)`                |
-| `--dimah-s3-muted`            | `var(--muted)`                  |
-| `--dimah-s3-muted-foreground` | `var(--muted-foreground)`       |
-| `--dimah-s3-border`           | `var(--border)`                 |
-| `--dimah-s3-ring`             | `var(--ring)`                   |
-| `--dimah-s3-destructive`      | `var(--destructive)`            |
-| `--dimah-s3-success`          | `var(--success)`, else a green  |
-| `--dimah-s3-warning`          | `var(--warning)`, else an amber |
-
-The tokens color the dimah-s3 components. The shadcn primitives the package
-bundles (buttons, menus, dialogs, tooltips, toasts) keep reading your shadcn
-variables, such as `--primary-foreground`, `--accent` and `--popover`.
-
-shadcn has no `--success` or `--warning`. When your theme defines them, the
-components use them; otherwise they fall back to
-`--dimah-s3-success-default` and `--dimah-s3-warning-default`, a green and
-an amber with lighter shades under `.dark`.
-
-Each utility resolves the whole chain on the element that uses it:
-`var(--dimah-s3-primary, var(--primary))`, and for success
-`var(--dimah-s3-success, var(--success, var(--dimah-s3-success-default)))`.
-`@dimah-s3/ui/styles.css` sets only the two `*-default` colors, on `:root`
-and `.dark`, and the shadcn registry writes the same two into your CSS when
-you add an item.
-
----
-
-## Customizing colors
-
-Override tokens after the stylesheet import, on `:root`:
+Set tokens after the stylesheet import, on `:root`:
 
 ```css title="app/globals.css"
 @import "@dimah-s3/ui/styles.css";
@@ -55,24 +18,60 @@ Override tokens after the stylesheet import, on `:root`:
   --dimah-s3-primary: oklch(0.65 0.15 150); /* [!code ++] */
   --dimah-s3-destructive: oklch(0.55 0.2 25); /* [!code ++] */
 }
+
+.dark {
+  --dimah-s3-primary: oklch(0.75 0.14 150); /* [!code ++] */
+}
 ```
 
 Or on any container, to style one area differently:
 
 ```css
 .avatar-panel {
-  --dimah-s3-primary: oklch(0.6 0.14 250); /* [!code ++] */
-  --dimah-s3-card: var(--muted); /* [!code ++] */
+  --dimah-s3-primary: oklch(0.6 0.14 250);
+  --dimah-s3-card: var(--muted);
 }
 ```
 
-The components read the tokens through Tailwind utilities such as
-`bg-dimah-s3-card` and `text-dimah-s3-primary`. Those utilities read the
-variable where they are used, so an override on a container reaches every
-component inside it. You can use the same utilities in your own parts.
+Each token is read where it is used, so an override on a container reaches
+every component inside it, including under a nested `.dark` class.
 
-Stock shadcn primitives the components render, such as `Button` and
-`Attachment`, keep your app's `--primary` and `--card`.
+## Tokens
+
+Every token is unset by default and falls back to the matching shadcn
+variable.
+
+| Token                         | Falls back to              |
+| ----------------------------- | -------------------------- |
+| `--dimah-s3-background`       | `--background`             |
+| `--dimah-s3-foreground`       | `--foreground`             |
+| `--dimah-s3-card`             | `--card`                   |
+| `--dimah-s3-card-foreground`  | `--card-foreground`        |
+| `--dimah-s3-primary`          | `--primary`                |
+| `--dimah-s3-muted`            | `--muted`                  |
+| `--dimah-s3-muted-foreground` | `--muted-foreground`       |
+| `--dimah-s3-border`           | `--border`                 |
+| `--dimah-s3-ring`             | `--ring`                   |
+| `--dimah-s3-destructive`      | `--destructive`            |
+| `--dimah-s3-success`          | `--success`, else a green  |
+| `--dimah-s3-warning`          | `--warning`, else an amber |
+
+shadcn has no `--success` or `--warning`. When your theme defines them, the
+components use them; otherwise they use `--dimah-s3-success-default` and
+`--dimah-s3-warning-default`, which the stylesheet sets for light and dark.
+
+## What the tokens cover
+
+The tokens color the dimah-s3 parts: cards, rings, glyphs, meters, and status
+colors. The shadcn primitives inside them (buttons, menus, dialogs, tooltips,
+and toasts) keep reading your shadcn variables, such as `--primary`,
+`--accent`, and `--popover`, so they match the rest of your app.
+
+## Use the tokens in your own parts
+
+Each token has a Tailwind utility: `bg-dimah-s3-card`,
+`text-dimah-s3-primary`, `border-dimah-s3-border`, and so on. Use them in parts
+of your own so they follow the same overrides.
 
 ## Frequently asked questions
 
@@ -80,20 +79,15 @@ Stock shadcn primitives the components render, such as `Button` and
 
 <Accordion title="I set --color-dimah-s3-primary and nothing changed.">
 
-Override `--dimah-s3-primary` instead. The `--color-dimah-s3-*` variables are
-the Tailwind mappings, and they read the `--dimah-s3-*` tokens.
+Set `--dimah-s3-primary` instead. The `--color-dimah-s3-*` variables are the
+Tailwind mappings, and they read the `--dimah-s3-*` tokens.
 
 </Accordion>
 
-<Accordion title="How do I set different colors in dark mode?">
+<Accordion title="Do the tokens work with the shadcn registry?">
 
-Override the tokens under your dark selector:
-
-```css
-.dark {
-  --dimah-s3-primary: oklch(0.75 0.14 150);
-}
-```
+Yes. `shadcn add` writes the same color mappings and defaults into your CSS, so
+the copied components read the same `--dimah-s3-*` tokens.
 
 </Accordion>
 

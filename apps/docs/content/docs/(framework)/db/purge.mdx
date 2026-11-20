@@ -1,12 +1,11 @@
 ---
 title: Purge Stale Uploads
-description: Clean up uploads that were never confirmed, and prune old soft-deleted rows.
+description: Clean up uploads that never confirmed with s3.db.purgeStale, and remove old soft-deleted rows with s3.db.pruneDeleted.
 ---
 
 An upload that starts but never confirms (a closed tab, a network error)
-leaves a `pending` row, and sometimes an object or a multipart upload in
-S3. Each pending row expires with its upload ticket. After that it no
-longer counts toward the quota, and `s3.db.purgeStale` cleans it up.
+leaves a `pending` row, and sometimes an object or a multipart upload in S3.
+Run `s3.db.purgeStale` from a scheduled job to clean them up.
 
 ```ts title="scripts/purge.ts"
 import { s3 } from "@/lib/s3";
@@ -16,39 +15,48 @@ console.log(`Purged ${purged} stale uploads, ${failed} failed.`);
 if (more) console.log("More stale rows are waiting.");
 ```
 
+Each pending row expires with its upload ticket. From then on it no longer
+counts toward the quota, and the next purge run picks it up.
+
 ## What purge does
 
-`purgeStale({ limit })` handles at most `limit` rows per run (default
-`100`), oldest first. It returns `purged` (uploads cleaned up), `failed`
-(rows that will be retried), `skipped` (rows another run claimed, or that
-were confirmed meanwhile), and `more`, which is `true` when the run hit
-`limit`. For each row past its deadline:
+One run handles at most `limit` rows (default `100`), oldest first. For each
+row past its deadline, it:
 
-1. It claims the row with a compare-and-set. A pending row becomes
-   `purging`. A row that was confirmed, deleted, or taken by another run in
-   the meantime is skipped.
-2. It aborts the multipart upload, if there is one.
-3. It runs HeadObject, and deletes the object only while it still carries
-   this upload's marker. The delete sends `If-Match` with the ETag, so an
-   object written after HeadObject survives. A provider that does not
-   implement `If-Match` gets a plain delete.
-4. It removes the row.
+1. Claims the row with a compare-and-set. A pending row becomes `purging`.
+   A row that was confirmed, deleted, or claimed by another run meanwhile
+   is skipped.
+2. Aborts the multipart upload, if there is one.
+3. Runs HeadObject, and deletes the object only while it still carries this
+   upload's marker. The delete sends `If-Match` with the ETag, so an object
+   written after the HeadObject survives. A provider that does not implement
+   `If-Match` gets a plain delete.
+4. Removes the row.
 
-An expired [overwrite](/docs/db/lifecycle-hooks#overwrites) keeps its
-active row and the previous object, unless the overwrite's object had
-already replaced it. Then the row goes too.
+An expired [overwrite](/docs/db/lifecycle-hooks#overwrites) keeps its active
+row and the previous object, unless the overwrite's object already replaced
+it. Then the row goes too.
 
-A row that fails stays claimed, and a warning goes to the dimah-s3 `logger`.
-A row whose route has no S3 client (a route you removed from `dimahS3()`)
-fails the same way instead of leaving its object untracked: keep the route
-until its rows are purged.
-The claim lapses after 15 minutes, and a later run retries the row. An
-upload to a key that purge has claimed gets `CONFLICT` until then.
+### When a row fails
 
-The deadline is the upload ticket's expiry: by default one hour after the
-presigned URL expires, and 24 hours for multipart uploads. Change it
-with `upload.confirmWindow` and `upload.multipart.ticketExpiresIn` (see
-[upload tickets](/docs/server/upload-tickets)).
+- The row stays claimed, and a warning goes to the dimah-s3 `logger`.
+- The claim lapses after 15 minutes, and a later run retries the row. Until
+  then, an upload to that key gets `CONFLICT`.
+- A row whose route has no S3 client (a route you removed from `dimahS3()`)
+  fails the same way, instead of leaving its object untracked. Keep the
+  route until its rows are purged.
+
+## Deadlines
+
+The deadline is the upload ticket's expiry:
+
+| Upload             | Default deadline                         | Set with                           |
+| ------------------ | ---------------------------------------- | ---------------------------------- |
+| Presigned POST/PUT | One hour after the presigned URL expires | `upload.confirmWindow`             |
+| Multipart          | 24 hours after init                      | `upload.multipart.ticketExpiresIn` |
+| `s3.put`           | 15 minutes                               | —                                  |
+
+See [upload tickets](/docs/server/upload-tickets).
 
 ## Prune deleted rows
 
@@ -65,7 +73,31 @@ const { pruned } = await s3.db.pruneDeleted({
 
 `olderThan` is a `Date` or epoch milliseconds, not a duration.
 
-<AutoTypeTable path="packages/db/src/plugin/purge.ts" name="Purge" />
+## API Reference
+
+### purgeStale
+
+`s3.db.purgeStale(options?)` returns a `Promise<PurgeStaleResult>`.
+
+| Prop    | Type     | Default | Description               |
+| ------- | -------- | ------- | ------------------------- |
+| `limit` | `number` | `100`   | Most rows one run handles |
+
+| Property  | Type      | Description                                                                 |
+| --------- | --------- | --------------------------------------------------------------------------- |
+| `purged`  | `number`  | Uploads cleaned up                                                          |
+| `failed`  | `number`  | Rows that failed; they stay claimed and are retried after the claim lapses  |
+| `skipped` | `number`  | Rows another run claimed, or that were confirmed or written again meanwhile |
+| `more`    | `boolean` | `true` when the run hit `limit`, so more stale rows may be waiting          |
+
+### pruneDeleted
+
+`s3.db.pruneDeleted(options)` returns a `Promise<{ pruned: number }>`, the
+number of rows removed.
+
+| Prop        | Type             | Default  | Description                                                        |
+| ----------- | ---------------- | -------- | ------------------------------------------------------------------ |
+| `olderThan` | `Date \| number` | required | A `Date` or epoch milliseconds; rows deleted before it are removed |
 
 ## Frequently asked questions
 

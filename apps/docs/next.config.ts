@@ -14,15 +14,26 @@ const alternateHosts = [
 
 /** Docs pages removed in the 2.0 beta, mapped onto the page that replaced them. */
 const movedPages = {
-  "/docs/react/ui/components/upload-button": "/docs/react/ui/components/upload",
-  "/docs/react/ui/components/upload-dropzone":
-    "/docs/react/ui/components/upload",
-  "/docs/react/ui/components/download-button":
-    "/docs/react/ui/components/download",
+  "/docs/react/ui/components/upload-button": "/docs/ui/components/upload",
+  "/docs/react/ui/components/upload-dropzone": "/docs/ui/components/upload",
+  "/docs/react/ui/components/download-button": "/docs/ui/components/download",
   "/docs/react/ui/components/progress-download-button":
-    "/docs/react/ui/components/download",
-  "/docs/react/ui/components/delete-button": "/docs/react/ui/components/delete",
+    "/docs/ui/components/download",
+  "/docs/react/ui/components/delete-button": "/docs/ui/components/delete",
+  "/docs/react/ui/customization/theming": "/docs/ui/theming",
+  "/docs/react/ui/customization/custom-ui": "/docs/ui/custom-ui",
+  "/docs/react/ui/customization": "/docs/ui/theming",
+  "/docs/react/ui/components": "/docs/ui",
+  "/docs/react/ui": "/docs/ui",
   "/docs/migration-1-8": "/docs/migration-2-0",
+} as const;
+
+/**
+ * Sections that moved as a whole: each page keeps its slug under the new
+ * base. Runs after `movedPages`, which wins for the pages it lists.
+ */
+const movedSections = {
+  "/docs/react/ui/components": "/docs/ui/components",
 } as const;
 
 type PermanentRedirect = {
@@ -111,6 +122,11 @@ const nextConfig: NextConfig = {
       ...Object.entries(movedPages).map(([source, destination]) => ({
         source,
         destination,
+        permanent: true,
+      })),
+      ...Object.entries(movedSections).map(([source, destination]) => ({
+        source: `${source}/:path+`,
+        destination: `${destination}/:path+`,
         permanent: true,
       })),
     ];

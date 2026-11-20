@@ -1,15 +1,23 @@
 ---
 title: Cloudflare R2
-description: Endpoint configuration, CORS, and public URLs for Cloudflare R2.
+description: Connect dimah-s3 to Cloudflare R2 with presigned PUT uploads, bucket CORS from the dashboard, and public URLs.
 ---
 
-Cloudflare R2 supports the S3 API with two important differences: it has no
-presigned POST, and object ACLs are ignored.
+Cloudflare R2 speaks the S3 API with two differences that matter here: it has
+no presigned POST, and it ignores object ACLs. Keep the default PUT upload
+method.
 
-## 1. Server configuration
+## Settings
 
-Point the `S3Client` at your account's R2 endpoint. Uploads use presigned PUT
-by default, which is what R2 needs:
+| Setting                      | Value                                           |
+| ---------------------------- | ----------------------------------------------- |
+| `region`                     | `"auto"`                                        |
+| `endpoint`                   | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
+| `forcePathStyle`             | Leave unset                                     |
+| `requestChecksumCalculation` | `"WHEN_REQUIRED"`                               |
+| `upload.method`              | `"PUT"` (default). Never `"POST"`               |
+
+## Server configuration
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -39,12 +47,9 @@ export const s3 = dimahS3({
 });
 ```
 
-Do not set `upload.method: "POST"` on R2 routes. The presign succeeds, but R2
-rejects the form upload.
+## Bucket CORS
 
-## 2. Bucket CORS policy
-
-Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
+Add a CORS policy to the bucket in the Cloudflare R2 dashboard:
 
 ```json
 [
@@ -58,17 +63,31 @@ Add a CORS rule in the Cloudflare R2 dashboard for your frontend domain:
 ]
 ```
 
-## Frequently asked questions
+[Allow your origin in bucket CORS](/docs/providers#allow-your-origin-in-bucket-cors)
+explains each field.
+
+## Provider notes
+
+- **No presigned POST.** Do not set `upload.method: "POST"` on an R2 route.
+  The presign succeeds, but R2 rejects the form upload.
+- **ACLs are ignored.** `acl: "public-read"` does not make an object public.
+- **Public files.** Turn on public access for the bucket, or connect a custom
+  domain such as `cdn.example.com`. Build URLs from that base and the
+  server-issued key with [`buildPublicObjectUrl`](/docs/core#helpers), which
+  encodes the key.
+
+## Troubleshooting
 
 <Accordions>
 
-<Accordion title="How do I serve R2 files publicly?">
+<Accordion title="Presign succeeds, then the upload fails">
 
-Enable public access for the bucket or connect a custom domain such as
-`cdn.example.com`. Then build URLs from that public base URL and the
-server-issued object key; [`buildPublicObjectUrl`](/docs/core#helpers)
-handles URL encoding for you.
+- The route must use `PUT`. Remove `upload.method: "POST"`.
+- The bucket's CORS policy must allow your exact origin and `PUT`. A missing
+  rule shows up as a network error in the browser.
 
 </Accordion>
 
 </Accordions>
+
+More symptoms: [Troubleshooting](/docs/providers#troubleshooting).

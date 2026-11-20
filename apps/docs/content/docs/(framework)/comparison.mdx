@@ -1,24 +1,22 @@
 ---
 title: Comparison
-description: Choose between dimah-s3, Better Upload, UploadThing, Uppy, or a custom S3 implementation.
+description: Compare dimah-s3 with Better Upload, UploadThing, Uppy, and a hand-built S3 flow to pick the right file tool for your app.
 icon: Scale
 ---
 
-File tools solve different layers of the stack. Some provide upload UI, some
-manage storage, and some define the server policy around an object throughout
-its lifetime.
+File tools cover different layers: upload UI, managed storage, or the server
+policy around an object for its whole life. dimah-s3 is the last kind: it runs
+upload, verified confirm, download, and delete for an S3-compatible bucket you
+own.
 
-<Callout title="The short version">
-  Choose **dimah-s3** when you want upload, verified confirmation, download,
-  deletion, and optional database tracking around an S3-compatible bucket you
-  control. Choose **Better Upload** for a smaller upload-focused toolkit,
-  **UploadThing** for managed storage, or **Uppy** for a broad client-side
-  uploader ecosystem.
-</Callout>
+| Choose            | When you want                                                                                      |
+| ----------------- | -------------------------------------------------------------------------------------------------- |
+| **dimah-s3**      | Upload, verified confirm, download, delete, and optional database records, on a bucket you control |
+| **Better Upload** | A smaller, upload-focused toolkit on a bucket you control                                          |
+| **UploadThing**   | Managed storage and delivery, with no bucket to run                                                |
+| **Uppy**          | A broad client-side uploader ecosystem on top of your own backend                                  |
 
 ## Feature comparison
-
-<div className="hidden md:block">
 
 | Capability                | dimah-s3                         | [Better Upload](https://better-upload.com) | [UploadThing](https://uploadthing.com) | [Uppy](https://uppy.io)     |
 | ------------------------- | -------------------------------- | ------------------------------------------ | -------------------------------------- | --------------------------- |
@@ -33,118 +31,78 @@ its lifetime.
 | **React UI**              | Headless + optional shadcn       | Hooks + shadcn upload UI                   | Components + hooks                     | Headless core + Dashboard   |
 | **Cost and operations**   | Cloud + application operations   | Cloud + application operations             | Managed plan + usage                   | Backend + destination costs |
 
-The matrix describes first-party product scope. Every option can be extended
-with application code; the sections below explain the practical boundary.
-
-</div>
-
-<div className="md:hidden">
-
-On smaller screens, use the product-model cards and pairwise guidance below;
-they cover the same decision boundaries without a wide matrix.
-
-</div>
-
----
-
-## Choose by responsibility
-
-<Cards>
-  <Card
-    title="dimah-s3"
-    href="/docs/quickstart"
-    description="Own the bucket and use one typed policy surface for the complete object lifecycle."
-  />
-  <Card
-    title="Better Upload"
-    href="https://better-upload.com/docs"
-    description="Own the bucket and prioritize a compact, upload-focused React integration."
-  />
-  <Card
-    title="UploadThing"
-    href="https://docs.uploadthing.com"
-    description="Delegate storage infrastructure and delivery to a managed file service."
-  />
-  <Card
-    title="Uppy"
-    href="https://uppy.io/docs"
-    description="Bring an existing backend and choose from a mature uploader and remote-source ecosystem."
-  />
-</Cards>
-
----
+The table covers first-party scope. You can extend any option with your own
+code; the sections below show where the practical boundary is.
 
 ## dimah-s3 or Better Upload?
 
-Both upload directly to an S3-compatible bucket you own. Better Upload is a
-strong fit when the upload path is the product boundary: it provides concise
-routes, React hooks, shadcn components, automatic multipart, and a useful set
-of S3 helpers.
+Both upload straight to an S3-compatible bucket you own. Better Upload fits
+when the upload is the whole job: it has concise routes, React hooks, shadcn
+components, automatic multipart, and a set of S3 helpers.
 
-Choose dimah-s3 when the application also needs:
+Choose dimah-s3 when the app also needs:
 
-1. **Verified confirmation** — confirm takes a signed upload ticket, so it only
-   finishes uploads the server started. It reads `HeadObject`, rechecks size
-   and Content-Type, can check the first bytes against the type, and removes
-   the object when verification or `confirmGuard` rejects it.
-2. **One lifecycle policy** — the same named route and key namespace can govern
-   upload, private download, proxy delivery, and server-executed deletion.
-3. **Resume across reloads** — `UploadStore` can persist multipart metadata;
-   after the user reselects the same local file, the client reconciles uploaded
-   parts with S3.
-4. **Optional application records** — `@dimah-s3/db` adds scope-based
-   ownership, lifecycle state, listings with folders, and quotas without
-   moving ORM behavior into the server package.
-
----
+- **Verified confirmation.** Confirm takes a signed upload ticket, so it only
+  finishes uploads the server started. It reads `HeadObject`, rechecks size and
+  type, can check the first bytes against the type, and deletes the object
+  when a check or `confirmGuard` rejects it.
+- **One policy for the whole lifecycle.** One named route and key namespace
+  govern upload, private download, proxy delivery, and server-side delete.
+- **Resume after a reload.** An `UploadStore` keeps multipart state. When the
+  user picks the same file again, the client reconciles the parts already in
+  S3.
+- **Optional records.** `@dimah-s3/db` adds scoped ownership, lifecycle state,
+  folder listings, and quotas, without an ORM in the server package.
 
 ## dimah-s3 or UploadThing?
 
-UploadThing is the easier choice when you want a managed file backend and do
-not want to provision a bucket, IAM policy, CORS rules, or delivery layer. It
-includes hosted storage, file APIs, components, and managed public or private
-URLs.
+UploadThing fits when you want a managed file backend, with no bucket, IAM
+policy, CORS rules, or delivery layer to set up. It includes hosted storage,
+file APIs, components, and managed public or private URLs.
 
-Choose dimah-s3 when storage location and infrastructure control are
-requirements:
+Choose dimah-s3 when you need control of storage:
 
-1. **Bring your own storage** — objects remain in the AWS S3, Cloudflare R2,
-   MinIO, or other S3-compatible bucket configured by your application.
-2. **Own the policy surface** — authentication, key generation, quotas, and
-   lifecycle hooks execute in your server runtime.
-3. **Avoid a file-service dependency** — there is no separate upload SaaS
-   subscription, although you still pay your storage, transfer, compute, and
-   maintenance costs.
-4. **Use your framework directly** — adapters cover Next.js, Hono, Express,
-   Fastify, Elysia, SvelteKit, Node, and standard Fetch handlers.
+- **Your storage.** Objects stay in your AWS S3, Cloudflare R2, MinIO, or
+  other S3-compatible bucket.
+- **Your policy.** Authentication, key generation, quotas, and lifecycle hooks
+  run in your server.
+- **No file-service fee.** There is no upload SaaS subscription. You still pay
+  for storage, transfer, compute, and maintenance.
+- **Your framework.** Adapters cover Next.js, Hono, Express, Fastify, Elysia,
+  SvelteKit, Node, and standard Fetch handlers.
 
----
+## dimah-s3 or Uppy?
 
-## Where DIY S3 and React Dropzone fit
+Uppy is not a drop-in replacement for `@dimah-s3/react`. Its S3 plugin
+expects its own signing contract, while dimah-s3 uses route names and
+server-owned keys. To combine them, write a custom Uppy uploader that
+translates the operations without letting the browser choose object keys.
+
+If you only need drag-and-drop UI, use the headless
+[`useUpload`](/docs/react/hooks/upload) hook or the
+[UI components](/docs/ui) instead.
+
+## Build it yourself
 
 ### Raw presigned S3 URLs
 
-Building directly with the AWS SDK is a reasonable choice for one small upload
-flow. You own every decision, dependency, and endpoint. As requirements grow,
-you also own confirmation, key isolation, multipart coordination, retries,
-download authorization, deletion, client state, and error contracts.
+The AWS SDK alone is a reasonable choice for one small upload flow. You own
+every decision, dependency, and endpoint. As requirements grow, you also own
+confirmation, key isolation, multipart coordination, retries, download
+authorization, deletion, client state, and error contracts.
 
-dimah-s3 packages those boundaries while still exposing the AWS SDK client for
-application-specific operations. It intentionally does not replace general S3
-APIs such as list, copy, or arbitrary tagging.
+dimah-s3 packages those boundaries and still leaves the AWS SDK client in your
+hands. It does not replace general S3 APIs such as list, copy, or arbitrary
+tagging.
 
 ### React Dropzone
 
 React Dropzone handles file selection and drag-and-drop; it is not an upload
-backend. `@dimah-s3/react` already uses React Dropzone for its internal file
-intake, then adds route constraints, transfer state, progress, retries,
-confirmation, and multipart behavior.
+backend. `@dimah-s3/react` uses it for file intake, then adds route
+constraints, transfer state, progress, retries, confirmation, and multipart.
 
-Use React Dropzone directly when you only need intake primitives. Use
-dimah-s3's headless hooks or shadcn components when you also need the transfer
-and server lifecycle.
-
----
+Use React Dropzone directly when you only need intake. Use the dimah-s3 hooks
+or components when you also need the transfer and the server lifecycle.
 
 ## Frequently asked questions
 
@@ -153,78 +111,65 @@ and server lifecycle.
 <Accordion title="Is dimah-s3 a drop-in replacement for Better Upload?">
 
 No. The libraries use different route, hook, and response contracts, so a
-migration requires adapting both server and client code.
-
-They target the same bring-your-own-bucket model, but optimize for different
-scope. Better Upload is upload-focused; dimah-s3 provides an integrated
-upload-confirm-download-delete lifecycle.
+migration changes both server and client code. Both target the
+bring-your-own-bucket model: Better Upload focuses on upload, and dimah-s3
+covers upload, confirm, download, and delete.
 
 </Accordion>
 
 <Accordion title="Does Better Upload support multipart uploads?">
 
-Yes. Better Upload can automatically use multipart when it is enabled on a
-route. The relevant dimah-s3 distinction is reload-persistent metadata and
-same-file resume through `UploadStore`, not multipart support by itself.
+Yes. Better Upload can use multipart automatically when a route turns it on.
+The dimah-s3 difference is resume after a reload, through `UploadStore`, not
+multipart itself.
 
 </Accordion>
 
 <Accordion title="Is UploadThing more expensive than dimah-s3?">
 
-Not always. dimah-s3 has no separate file-service fee, but self-hosting still
-has storage, transfer, compute, and engineering costs. UploadThing bundles
-managed infrastructure and support into its pricing. Compare total cost at
-your file sizes, traffic, regions, and operational requirements.
-
-</Accordion>
-
-<Accordion title="Can I use Uppy with dimah-s3?">
-
-Not as a drop-in replacement for `@dimah-s3/react`. Uppy's S3 plugin expects
-its own signing contract, while dimah-s3 uses route names and server-owned
-keys. Combining them requires a custom Uppy uploader adapter that translates
-the operations without allowing the browser to choose trusted object keys.
-
-If you only need drag-and-drop UI, use dimah-s3's headless upload hook or
-optional shadcn components instead.
+Not always. dimah-s3 has no file-service fee, but self-hosting still has
+storage, transfer, compute, and engineering costs. UploadThing bundles managed
+infrastructure and support into its pricing. Compare total cost at your file
+sizes, traffic, regions, and operational needs.
 
 </Accordion>
 
 <Accordion title="Does dimah-s3 replace the AWS SDK?">
 
-No. dimah-s3 owns the presign upload, download, and delete lifecycle. Continue
-to use the AWS SDK for application-specific operations such as list, copy,
-retention, or arbitrary object tagging.
+No. dimah-s3 owns presigned upload, download, and delete. Keep using the AWS
+SDK for app-specific operations such as list, copy, retention, or arbitrary
+object tagging.
 
 </Accordion>
 
 </Accordions>
 
----
+## Sources
 
-## Verify against your requirements
-
-Competitor capabilities change. This comparison was last reviewed on
+Competitor capabilities change. This page was last reviewed on
 **September 6, 2026** against the official
 [Better Upload routes](https://better-upload.com/docs/routes-single),
 [Better Upload helpers](https://better-upload.com/docs/helpers-server),
 [UploadThing documentation](https://docs.uploadthing.com), and
-[Uppy S3 documentation](https://uppy.io/docs/aws-s3).
+[Uppy S3 documentation](https://uppy.io/docs/aws-s3). Check them against your
+own requirements.
+
+## Next steps
 
 <Cards>
   <Card
-    title="Security model"
-    href="/docs/server/security"
-    description="Review keys, guards, verified metadata, and ownership boundaries."
-  />
-  <Card
-    title="Provider guides"
-    href="/docs/providers"
-    description="Configure AWS S3, Cloudflare R2, MinIO, or another compatible service."
-  />
-  <Card
     title="Quickstart"
     href="/docs/quickstart"
-    description="Build the first upload flow after you choose a model."
+    description="Build the first upload flow."
+  />
+  <Card
+    title="Security model"
+    href="/docs/server/security"
+    description="Keys, guards, verified metadata, and ownership boundaries."
+  />
+  <Card
+    title="Providers"
+    href="/docs/providers"
+    description="Configure AWS S3, Cloudflare R2, MinIO, or another compatible service."
   />
 </Cards>

@@ -1,4 +1,4 @@
 {
   "title": "dimah-s3",
-  "pages": ["(framework)", "core", "server", "react"]
+  "pages": ["(framework)", "server", "react", "ui"]
 }

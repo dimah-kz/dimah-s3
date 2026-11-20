@@ -1,12 +1,12 @@
 ---
 title: useUpload
-description: Headless React hook that uploads a queue of files to a named route, with progress, cancel, retries, and multipart.
+description: Upload a queue of files to a named route, with validation, progress, cancel, retries, and multipart.
 ---
 
 `useUpload` takes files from a picker, a drop, a paste, or your own code. It
-checks them against the route's policy, then presigns, uploads, and confirms
-each one. The server builds the object key; the hook only sends the route
-name.
+checks each file against the route's policy, then presigns, uploads, and
+confirms it. The hook sends only the route name; the server builds the object
+key.
 
 ```tsx title="components/file-uploader.tsx"
 "use client";
@@ -16,9 +16,7 @@ import { useUpload } from "@dimah-s3/react";
 export function FileUploader() {
   const upload = useUpload({
     route: "avatar",
-    onSuccess: (result) => {
-      console.log("Uploaded:", result.key);
-    },
+    onSuccess: (result) => console.log("Uploaded:", result.key),
   });
 
   return (
@@ -37,17 +35,17 @@ export function FileUploader() {
 ```
 
 For ready-made controls, pass the return value to the
-[upload components](/docs/react/ui/components/upload).
+[upload components](/docs/ui/components/upload).
 
----
+## Take files in
 
-## Taking files in
-
-- **`getRootProps(props?, call?)`** — spread on a dropzone. It handles drag and drop, paste, click, and Enter or Space to open the picker.
-- **`getInputProps(props?)`** — spread on a hidden `<input type="file">`.
-- **`open(call?)`** — opens the file picker from your own button.
-- **`handleFiles(files, call?)`** — uploads a `File`, a `File[]`, or a `FileList` from your own code, such as a camera capture.
-- **`getDropTargetProps(props?, call?)`** — drag and drop handlers only. It adds no `tabIndex`, no click or keyboard handler, and no `role`, so the element keeps its own interactions. Use it for drop targets such as folder rows.
+| Function                            | Use it for                                                                                                       |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `getRootProps(props?, call?)`       | A dropzone: drag and drop, paste, click, and Enter or Space to open the picker                                   |
+| `getInputProps(props?)`             | The hidden `<input type="file">` that a dropzone or `open()` uses                                                |
+| `open(call?)`                       | Opening the picker from your own button                                                                          |
+| `handleFiles(files, call?)`         | A `File`, `File[]`, or `FileList` from your own code, such as a camera capture                                   |
+| `getDropTargetProps(props?, call?)` | A drop target that keeps its own click and keyboard handlers, such as a folder row. Adds no `tabIndex` or `role` |
 
 ```tsx
 const upload = useUpload({ route: "avatar", noClick: true });
@@ -62,13 +60,11 @@ return (
 );
 ```
 
-`isDragActive`, `isDragAccept`, and `isDragReject` describe the files dragged
-over a dropzone or drop target. `disabled`, `noDrag`, `noClick`, and
-`noKeyboard` turn intake off. With `disabled`, `open()` does nothing too, and
-the return's `disabled` field is `true` so your pickers can render disabled.
-`handleFiles` still uploads the files you pass it.
-
----
+`isDragActive`, `isDragAccept`, and `isDragReject` describe files dragged over
+a dropzone or drop target. `noDrag`, `noClick`, and `noKeyboard` turn off one
+kind of intake. `disabled` turns off all of it, including `open()`, and sets
+the return's `disabled` so you can render your pickers disabled.
+`handleFiles` still uploads what you pass it.
 
 ## The queue
 
@@ -82,61 +78,36 @@ const upload = useUpload({
   concurrentFiles: 3,
   append: true,
 });
+
+return (
+  <ul>
+    {upload.files.map((file) => (
+      <li key={file.id}>
+        {file.fileName} — {file.phase} ({file.progress.percent}%)
+        {file.phase !== "success" && file.phase !== "error" ? (
+          <button type="button" onClick={() => upload.cancel(file.id)}>
+            Cancel
+          </button>
+        ) : null}
+      </li>
+    ))}
+  </ul>
+);
 ```
 
-By default a new call cancels the files still in flight and replaces the
-queue once its own files start uploading. Earlier calls that are still
-preparing are cancelled at once. A call that is blocked, rejected, or fails
-before uploading leaves the queue alone. With `append: true`, new files are
-added to the end and the files in flight keep going. A call's own `append`
-wins over the hook's, as in `handleFiles(files, { append: true })`.
+- **Replace (default)** — a new call cancels the files in flight and replaces the queue once its own files start uploading. Earlier calls still preparing are cancelled at once. A call that is blocked, rejected, or fails before uploading leaves the queue alone.
+- **Append** — with `append: true`, new files join the end and files in flight keep going. A call's own `append` wins, as in `handleFiles(files, { append: true })`.
 
-Each entry in `upload.files` has:
+Each entry of `upload.files` is an [`UploadFileState`](#uploadfilestate). The
+hook also sums up the queue in `phase`, `progress`, `error`, and `isPending`.
 
-- **`id`** — unique on the page. Pass it to `cancel`, `retry`, or `reset`.
-- **`phase`** — `queued`, `preparing`, `presigning`, `uploading`, `finalizing`, `success`, or `error`.
-- **`progress`** — `{ loaded, total, percent, speed? }`.
-- **`error`** — an `APIError`, set when `phase` is `error`.
-- **`result`** — the verified object, set when `phase` is `success`.
-- **`fileName`**, **`fileSize`**, **`contentType`**, **`previewUrl`** — for display. `previewUrl` is an object URL for images; the hook revokes it.
+### Cancel, retry, and reset
 
-```tsx
-<ul>
-  {upload.files.map((file) => (
-    <li key={file.id}>
-      {file.fileName} — {file.phase} ({file.progress.percent}%)
-      {file.phase !== "success" && file.phase !== "error" ? (
-        <button type="button" onClick={() => upload.cancel(file.id)}>
-          Cancel
-        </button>
-      ) : null}
-    </li>
-  ))}
-</ul>
-```
+Each takes one id, an array of ids, or nothing for every file:
 
-The hook also sums up the queue:
-
-- **`phase`** — `idle`, `uploading`, `success`, or `error`.
-- **`progress`** — bytes across every file in the queue.
-- **`error`** — the failed file's error, or `PARTIAL_FAILURE` when several failed.
-- **`isPending`** — `true` while a call is preparing or a file is in flight.
-- **`file`** — the first file, or `null`. Handy when `maxFiles` is `1`.
-
-`cancel(id)` cancels one file, `cancel([id, id])` several, and `cancel()`
-every file. `reset()` removes settled files and rejections, and `reset(id)` or
-`reset([id, id])` only those settled files, such as one finished row a user
-dismisses. Files in flight keep going.
-
-`retry(id)` uploads a failed file again, `retry([id, id])` several, and
-`retry()` every failed file. A retried file keeps its place and `id`, and goes
-back to `queued`. It goes with the call options it was first sent with, so it
-lands in the same folder: it is validated again, and `beforeUpload` and
-`onUploadStart` run again. Files that came from one call go again as one
-call, so those callbacks run once for them, and files of separate calls go
-again as separate calls. A retry never replaces the queue, even without
-`append: true`. It resolves like `handleFiles`, and the callbacks run as for a
-new call.
+- **`cancel(ids?)`** — aborts the files and their multipart sessions, and removes them from the queue.
+- **`retry(ids?)`** — uploads failed files again. Each keeps its `id` and place and goes back to `queued`. Files from one call go again as one call, with that call's options, so they land in the same folder: they are validated again, and `beforeUpload` and `onUploadStart` run once for them. A retry never replaces the queue. It resolves like `handleFiles`.
+- **`reset(ids?)`** — removes settled files, such as a finished row the user dismisses. With no ids it also clears `fileRejections`. Files in flight keep going.
 
 ```tsx
 {
@@ -153,9 +124,9 @@ new call.
 ### Limit across calls
 
 `maxFiles` caps one call. To cap what the hook holds across calls, such as a
-form field with room for five files, set a limit with `useUploadLimit` in the
-component that owns that count. [`UploadField`](/docs/react/ui/components/upload-field)
-sets one for its `maxFiles`.
+form field with room for five files, call `useUploadLimit` in the component
+that owns that count. [`UploadField`](/docs/ui/components/upload-field) sets
+one for its `maxFiles`.
 
 ```tsx
 import { useUpload, useUploadLimit } from "@dimah-s3/react";
@@ -165,27 +136,18 @@ const upload = useUpload({ route: "attachments", maxFiles: 5, append: true });
 const remaining = useUploadLimit(upload, { available: 5 });
 ```
 
-- **`available`** — files the hook may still take in. Files queued or in
-  flight, uploaded files whose ids are not in `counted`, and calls still
-  preparing take from it. `reset()` gives the room of uploaded files back.
-- **`counted`** — ids of uploaded files that take nothing from `available`.
-  When you keep the uploaded keys yourself, as `UploadField` does, pass
-  `available: max - keys.length` and the ids of the files whose keys you
-  hold, so they do not count twice.
+- **`available`** — files the hook may still take in. Files queued or in flight, uploaded files not in `counted`, and calls still preparing take from it. `reset()` gives the room of uploaded files back.
+- **`counted`** — ids of uploaded files that take nothing from `available`. When you keep the uploaded keys yourself, as `UploadField` does, pass `available: max - keys.length` and the ids whose keys you hold, so they do not count twice.
 
-The hook enforces the limit on every call while the component is mounted:
-`handleFiles`, `open`, drops, pastes, and `retry`, wherever they come from. A
-call holds its slots from the moment it starts, so two quick calls never take
-the same ones, and the hook rejects the files past the limit with
-`TOO_MANY_FILES`. A retry takes only the failed files that fit, in queue
-order, and leaves the rest as they failed. With several limits on one hook,
-the strictest wins, and `null` sets none.
+While the component is mounted, the limit applies to every call: `handleFiles`,
+`open`, drops, pastes, and `retry`. A call holds its slots from the moment it
+starts, so two quick calls never take the same ones. Files past the limit are
+rejected with `TOO_MANY_FILES`. A retry takes only the failed files that fit,
+in queue order. With several limits on one hook, the strictest wins; `null`
+sets none.
 
-`useUploadLimit` returns the files that still fit, counting calls still
-preparing, or `null` without a limit. Render your pickers disabled when it
-reaches `0`.
-
----
+`useUploadLimit` returns how many files still fit, or `null` without a limit.
+Render your pickers disabled when it reaches `0`.
 
 ## Results
 
@@ -201,44 +163,38 @@ for (const { file, error } of failed) console.log(file.name, error.code);
 for (const { file, errors } of rejected) console.log(file.name, errors[0].code);
 ```
 
-`rejected` holds the files the policy refused before upload, each with its
-errors. `blocked` holds the files `beforeUpload` stopped, and `aborted` the
-files that were cancelled or detached. `upload.fileRejections` shows the
-rejections of the newest call only, so read `rejected` when calls overlap.
-
-`result` is the object the server verified with `HeadObject`: `key`,
-`bucket`, `size`, `name`, `type`, `metadata`, and the other fields of
-`UploadResult`.
-
----
+`result` is the object the server verified with `HeadObject`: its `key`,
+`bucket`, `size`, `type`, `metadata`, and the other fields of
+[`UploadResult`](/docs/react/custom-backend/upload#confirm).
+`upload.fileRejections` shows only the newest call's rejections, so read
+`rejected` when calls overlap.
 
 ## Callbacks
 
-Callbacks run per call or per file:
+Callbacks run in this order:
 
-| Callback                         | Runs                                                                         |
-| -------------------------------- | ---------------------------------------------------------------------------- |
-| `onFileReject(rejections)`       | Once per call with rejected files, before anything else.                     |
-| `beforeUpload(files)`            | Once per call. Return `false` to block it. A throw fails it (`HOOK_FAILED`). |
-| `onUploadStart(files)`           | Once per call, after `beforeUpload` allows it.                               |
-| `onProgress(progress, file)`     | As bytes are sent.                                                           |
-| `onMultipartInit(session, file)` | When a multipart upload starts or resumes.                                   |
-| `onPartUpload(part, file)`       | After each multipart part. `part` is `{ partNumber, partCount }`.            |
-| `onError(error, file)`           | Once per failed file, after every file of the call has ended.                |
-| `onSuccess(result, file)`        | Once per uploaded file, after every `onError` of the call.                   |
-| `onSettled(result)`              | Once per call, last. It also runs when every file was rejected.              |
+| Callback                         | Runs                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------- |
+| `onFileReject(rejections)`       | Once per call with rejected files, before anything else                         |
+| `beforeUpload(files)`            | Once per call. Return `false` to block it. A throw fails it (`HOOK_FAILED`)     |
+| `onUploadStart(files)`           | Once per call, after `beforeUpload` allows it. A throw fails it (`HOOK_FAILED`) |
+| `onProgress(progress, file)`     | As bytes are sent                                                               |
+| `onMultipartInit(session, file)` | When a multipart upload starts or resumes. `session` is `{ uploadId, key }`     |
+| `onPartUpload(part, file)`       | After each multipart part. `part` is `{ partNumber, partCount }`                |
+| `onError(error, file)`           | Once per failed file, after every file of the call has ended                    |
+| `onSuccess(result, file)`        | Once per uploaded file, after every `onError` of the call                       |
+| `onSettled(result)`              | Once per call, last. Also runs when every file was rejected                     |
 
 `onError`, `onSuccess`, and `onSettled` may be async and are awaited. If one
 throws, the error goes to the global `reportError` and the result does not
 change.
 
----
-
 ## Request options
 
 `uploadOptions` sets the request for each file: `clientMetadata` for the
 server hooks, and `fileName` or `contentType` to override what the browser
-reports. Pass an object, or a function that gets the file.
+reports. Pass an object, or a function of the file. A throw from the function
+fails that file with `HOOK_FAILED`.
 
 ```ts
 const upload = useUpload({
@@ -249,8 +205,8 @@ const upload = useUpload({
 });
 ```
 
-A single call can add its own options. Call fields win, and `clientMetadata`
-merges key by key:
+A call can add its own options. Call fields win, and `clientMetadata` merges
+key by key:
 
 ```ts
 await upload.handleFiles(files, {
@@ -260,8 +216,8 @@ await upload.handleFiles(files, {
 ```
 
 `open`, `getRootProps`, and `getDropTargetProps` take the same call options.
-The two prop getters also take a function, so the options are read when the
-files arrive:
+The prop getters also take a function, read when the files arrive. A drop on
+a target inside a dropzone uses the target's options:
 
 ```tsx
 <li
@@ -273,13 +229,11 @@ files arrive:
 </li>
 ```
 
-A drop on a target inside a dropzone uses the target's call options.
-
-`clientMetadata` reaches the server hooks under the same name. It is never
-written to S3 on its own: the route's `object` callback decides what becomes
-S3 `metadata`, and that is the `metadata` of the upload result.
-
----
+`clientMetadata` reaches the server hooks under the same name. It holds at
+most 32 entries: keys of letters, digits, and hyphens up to 128 characters,
+and values up to 2048 characters. It is never written to S3 on its own: the
+route's `object` callback decides what becomes S3 `metadata`, which is the
+`metadata` of the upload result.
 
 ## Route policy
 
@@ -290,14 +244,13 @@ catalog is cached per `S3Api`, so every hook shares one request.
 
 - **`accept`** and **`maxFileSize`** — the stricter of the route and the hook wins.
 - **`multipart`** — on when the route allows it and the hook does not pass `multipart: false`.
-- **`checksum`** — follows the route. When it is on, single-shot uploads send a SHA-256 of the file.
-- **`maxFiles`** — the hook's `maxFiles`.
-- **`status`** and **`error`** — where the catalog is in loading.
+- **`checksum`** — follows the route. When on, single-shot uploads send a SHA-256 of the file.
+- **`status`** and **`error`** — where the catalog is in loading. Until it loads, only the hook options apply.
 
 Files that break the policy are rejected without stopping the others. Each
-rejection in `upload.fileRejections` carries `APIError`s with catalog codes:
-`FILE_TYPE_NOT_ALLOWED`, `FILE_EMPTY`, `FILE_TOO_LARGE`, or `TOO_MANY_FILES`.
-Show them with [`useFormatError`](/docs/react/helpers#errors).
+rejection carries `APIError`s with the codes `FILE_TYPE_NOT_ALLOWED`,
+`FILE_EMPTY`, `FILE_TOO_LARGE`, or `TOO_MANY_FILES`. Show them with
+[`useFormatError`](/docs/react/helpers#errors):
 
 ```tsx
 import { useFormatError, type UseUploadReturn } from "@dimah-s3/react";
@@ -314,7 +267,7 @@ export function Rejections({ upload }: { upload: UseUploadReturn }) {
 ```
 
 To read a route's policy without uploading, for example to label a custom
-picker, use `useRouteUploadPolicy`:
+picker, call [`useRouteUploadPolicy`](#userouteuploadpolicy):
 
 ```ts
 import { useRouteUploadPolicy } from "@dimah-s3/react";
@@ -323,119 +276,180 @@ const policy = useRouteUploadPolicy({ route: "avatar" });
 // policy.accept, policy.maxFileSize, policy.status
 ```
 
----
-
-## Multipart, retries, and unmount
+## Multipart and retries
 
 Files of at least 50 MiB (`DEFAULT_MULTIPART_THRESHOLD`) use multipart when
 the policy allows it. The server picks the part size and count. Parts upload
 `concurrentParts` at a time (default `4`), and each part is hashed as it
 streams when the server asks for checksums.
 
-Failed requests retry with exponential backoff. Set `retry: { maxRetries,
-baseDelayMs }` (defaults `3` and `1000` ms). These are retried:
+Failed requests retry with exponential backoff. The `retry` option sets
+`maxRetries` (default `3`) and `baseDelayMs` (default `1000`), which doubles on
+each retry. These are retried:
 
 - `NETWORK_ERROR` and `S3_NETWORK_ERROR`.
 - `UPLOAD_FAILED` when S3 answered 408, 429, or 500 and above.
-- Any response from your API with status 408, 429, or 500 and above, such as
-  `INTERNAL_ERROR` from a gateway or from a server hook that failed. Confirm
-  and multipart complete are safe to send again, because the server keeps an
-  upload it could not confirm.
+- Any API response with status 408, 429, or 500 and above, such as `INTERNAL_ERROR`. Confirm and multipart complete are safe to send again: the server keeps an upload it could not confirm.
 - An expired presigned URL, which is signed again first.
 
-`HOOK_FAILED` and every other 4xx are not retried. A file that still fails can
-be sent again with `upload.retry(id)`. With an `uploadStore`, a multipart
-upload that failed on a retryable error keeps its stored record and resumes
-from the parts S3 already has; any other failure aborts it.
+`HOOK_FAILED`, `CHECKSUM_MISMATCH`, and every other 4xx are not retried. Send a
+file that still fails again with `upload.retry(id)`.
 
-- **`cancel(ids?)`** aborts the upload, aborts the multipart session on the server, and deletes its stored record.
-- **`detach()`** stops every file but keeps the multipart session and its stored record, so the upload can [resume](/docs/react/upload-store).
-- **Unmounting** detaches files whose call had an `uploadStore` and cancels the rest.
+## Cancel, detach, and unmount
 
----
+What happens to a multipart upload when it stops:
 
-## Type reference
+| Action          | With an `uploadStore`                                   | Without one               |
+| --------------- | ------------------------------------------------------- | ------------------------- |
+| `cancel(ids?)`  | Aborts the server session and deletes the stored record | Aborts the server session |
+| `detach()`      | Keeps the session and the record, to resume             | Aborts the server session |
+| Unmount         | Detaches                                                | Cancels                   |
+| Retryable error | Keeps the session and the record                        | Aborts the server session |
+| Other error     | Aborts the session and deletes the record               | Aborts the server session |
 
-```ts
-import type {
-  UploadBatchResult,
-  UploadCallInput,
-  UploadCallOptions,
-  UploadFileState,
-  UploadInputProps,
-  UploadLimit,
-  UploadPolicy,
-  UploadRequestOptions,
-  UploadRootProps,
-  UseUploadOptions,
-  UseUploadReturn,
-} from "@dimah-s3/react";
-```
+A kept upload [resumes](/docs/react/upload-store) from the parts S3 already
+has when the user selects the same file again.
 
-`UploadRootProps` and `UploadInputProps` are what `getRootProps` and
-`getInputProps` accept: any element props and `data-*` attributes.
-`UploadCallInput` is the `call` argument of the prop getters: call options, or
-a function that returns them.
+## API Reference
 
-### UseUploadOptions
+### Options
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="UseUploadOptions"
-/>
+| Prop              | Type                                                     | Default                                | Description                                                                          |
+| ----------------- | -------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `route`           | `S3RouteName`                                            | required                               | Named server route. The server builds the object key                                 |
+| `api`             | `S3Api`                                                  | —                                      | Replaces the `S3Provider` API. Required without a provider                           |
+| `accept`          | `readonly string[]`                                      | —                                      | MIME types (`image/*`) and extensions (`.pdf`) that narrow the route's `fileTypes`   |
+| `maxFileSize`     | `number`                                                 | —                                      | Max bytes. The smaller of this and the route's wins                                  |
+| `maxFiles`        | `number`                                                 | `1`                                    | Max files per call                                                                   |
+| `append`          | `boolean`                                                | `false`                                | Add new files to the queue instead of replacing it                                   |
+| `concurrentFiles` | `number`                                                 | `2`                                    | Files uploaded at once                                                               |
+| `concurrentParts` | `number`                                                 | `4`                                    | Multipart parts uploaded at once per file                                            |
+| `multipart`       | `boolean`                                                | —                                      | `false` turns multipart off even when the route allows it                            |
+| `retry`           | `RetryConfig`                                            | `{ maxRetries: 3, baseDelayMs: 1000 }` | Retries per request, and the first backoff delay in ms. Each retry doubles the delay |
+| `uploadStore`     | `UploadStore`                                            | —                                      | Persists multipart uploads so they can [resume](/docs/react/upload-store)            |
+| `uploadOptions`   | `UploadRequestOptions \| (file) => UploadRequestOptions` | —                                      | [Request options](#request-options) for every file                                   |
+| `disabled`        | `boolean`                                                | `false`                                | Turns off the root, drop targets, paste, and `open()`                                |
+| `noDrag`          | `boolean`                                                | `false`                                | Turns off drag and drop on the root and drop targets                                 |
+| `noClick`         | `boolean`                                                | `false`                                | Turns off click-to-open on the root                                                  |
+| `noKeyboard`      | `boolean`                                                | `false`                                | Turns off keyboard activation on the root                                            |
+| `onFileReject`    | `(rejections) => void`                                   | —                                      | Runs with the files rejected before upload                                           |
+| `beforeUpload`    | `(files) => boolean \| Promise<boolean>`                 | —                                      | Runs once per call. Return `false` to block it                                       |
+| `onUploadStart`   | `(files) => void`                                        | —                                      | Runs once per call, after `beforeUpload` allows it                                   |
+| `onProgress`      | `(progress, file) => void`                               | —                                      | Byte progress of one file                                                            |
+| `onMultipartInit` | `(session, file) => void`                                | —                                      | Runs when a multipart upload starts or resumes                                       |
+| `onPartUpload`    | `(part, file) => void`                                   | —                                      | Runs after each multipart part                                                       |
+| `onError`         | `(error, file) => void \| Promise<void>`                 | —                                      | Runs once per failed file                                                            |
+| `onSuccess`       | `(result, file) => void \| Promise<void>`                | —                                      | Runs once per uploaded file                                                          |
+| `onSettled`       | `(result) => void \| Promise<void>`                      | —                                      | Runs once per call, with its `UploadBatchResult`                                     |
 
-### UseUploadReturn
+### Return
 
-<AutoTypeTable
-  path="packages/react/src/hooks/use-upload.ts"
-  name="UseUploadReturn"
-/>
+| Property             | Type                                            | Description                                                             |
+| -------------------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `files`              | `readonly UploadFileState[]`                    | Every file in the queue, in the order it was added                      |
+| `file`               | `UploadFileState \| null`                       | The first file. Handy when `maxFiles` is `1`                            |
+| `phase`              | `"idle" \| "uploading" \| "success" \| "error"` | Phase of the whole queue                                                |
+| `progress`           | `TransferProgress`                              | Bytes across every file in the queue                                    |
+| `error`              | `APIError \| null`                              | The failed file's error, or `PARTIAL_FAILURE` when several failed       |
+| `isPending`          | `boolean`                                       | `true` while a call is preparing or a file is in flight                 |
+| `policy`             | `UploadPolicy`                                  | The route policy narrowed by the options, plus `maxFiles`               |
+| `fileRejections`     | `readonly FileRejection[]`                      | Files the newest call rejected, each as `{ file, errors }`              |
+| `resumable`          | `boolean`                                       | `true` when an `uploadStore` is set                                     |
+| `disabled`           | `boolean`                                       | The `disabled` option                                                   |
+| `instanceId`         | `string`                                        | Stable id of the hook instance. Toast owners use it                     |
+| `handleFiles`        | `(files, call?) => Promise<UploadBatchResult>`  | Validates and uploads a `File`, `File[]`, or `FileList`                 |
+| `open`               | `(call?) => void`                               | Opens the file picker                                                   |
+| `getRootProps`       | `(props?, call?) => props`                      | Props for a dropzone                                                    |
+| `getInputProps`      | `(props?) => props`                             | Props for the hidden file input                                         |
+| `getDropTargetProps` | `(props?, call?) => props`                      | Drag and drop handlers only. Sets `data-drag-active` while dragged over |
+| `isDragActive`       | `boolean`                                       | Files are dragged over a dropzone or drop target                        |
+| `isDragAccept`       | `boolean`                                       | The dragged files match `accept` and `maxFiles`                         |
+| `isDragReject`       | `boolean`                                       | The dragged files break `accept` or `maxFiles`                          |
+| `cancel`             | `(ids?) => void`                                | Cancels one file, several, or every file                                |
+| `retry`              | `(ids?) => Promise<UploadBatchResult>`          | Uploads failed files again                                              |
+| `reset`              | `(ids?) => void`                                | Removes settled files                                                   |
+| `detach`             | `() => void`                                    | Stops every file but keeps stored multipart uploads                     |
 
 ### UploadFileState
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="UploadFileState"
-/>
+| Property      | Type                   | Description                                                                                         |
+| ------------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `id`          | `string`               | Unique on the page. Pass it to `cancel`, `retry`, or `reset`                                        |
+| `file`        | `File`                 | The browser file                                                                                    |
+| `phase`       | `UploadFilePhase`      | `"queued"`, `"preparing"`, `"presigning"`, `"uploading"`, `"finalizing"`, `"success"`, or `"error"` |
+| `progress`    | `TransferProgress`     | `{ loaded, total, percent, speed? }`. `speed` is bytes per second                                   |
+| `error`       | `APIError \| null`     | Set when `phase` is `"error"`                                                                       |
+| `result`      | `UploadResult \| null` | The verified object, set when `phase` is `"success"`                                                |
+| `fileName`    | `string`               | Name from the browser `File`                                                                        |
+| `fileSize`    | `number`               | Size in bytes                                                                                       |
+| `contentType` | `string`               | MIME type from the browser `File`                                                                   |
+| `previewUrl`  | `string \| null`       | Object URL for an image thumbnail, `null` for other files. The hook revokes it                      |
 
 ### UploadBatchResult
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="UploadBatchResult"
-/>
+| Property   | Type                 | Description                                      |
+| ---------- | -------------------- | ------------------------------------------------ |
+| `uploaded` | `{ file, result }[]` | Files that uploaded, with the verified object    |
+| `failed`   | `{ file, error }[]`  | Files that failed, with an `APIError`            |
+| `rejected` | `{ file, errors }[]` | Files the policy refused before upload           |
+| `blocked`  | `File[]`             | Files `beforeUpload` blocked                     |
+| `aborted`  | `File[]`             | Files cancelled or detached before they finished |
 
-### UploadCallOptions
+### Call options
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="UploadCallOptions"
-/>
+`handleFiles`, `open`, `getRootProps`, and `getDropTargetProps` take these as
+`call`. The prop getters also take a function that returns them.
+
+| Prop            | Type                                                     | Default | Description                                 |
+| --------------- | -------------------------------------------------------- | ------- | ------------------------------------------- |
+| `uploadOptions` | `UploadRequestOptions \| (file) => UploadRequestOptions` | —       | Merged over the hook's `uploadOptions`      |
+| `maxFiles`      | `number`                                                 | —       | Lowers `maxFiles` for this call             |
+| `append`        | `boolean`                                                | —       | Overrides the hook's `append` for this call |
 
 ### UploadRequestOptions
 
-<AutoTypeTable
-  path="packages/react/src/types/upload.ts"
-  name="UploadRequestOptions"
-/>
-
-### UploadLimit
-
-<AutoTypeTable path="packages/react/src/types/upload.ts" name="UploadLimit" />
+| Prop             | Type                     | Default | Description                                                                 |
+| ---------------- | ------------------------ | ------- | --------------------------------------------------------------------------- |
+| `clientMetadata` | `Record<string, string>` | —       | Extras for the server hooks. Not written to S3 unless the route copies them |
+| `fileName`       | `string`                 | —       | Overrides the browser's file name                                           |
+| `contentType`    | `string`                 | —       | Overrides the browser's content type                                        |
 
 ### UploadPolicy
 
-<AutoTypeTable
-  path="packages/react/src/hooks/use-upload.ts"
-  name="UploadPolicy"
-/>
+| Property      | Type                              | Description                                        |
+| ------------- | --------------------------------- | -------------------------------------------------- |
+| `accept`      | `string[] \| undefined`           | Accepted types. Unset when any type is allowed     |
+| `maxFileSize` | `number \| undefined`             | Max bytes                                          |
+| `multipart`   | `boolean`                         | Large files go through multipart                   |
+| `checksum`    | `boolean`                         | Single-shot uploads send a SHA-256                 |
+| `maxFiles`    | `number`                          | The hook's `maxFiles`                              |
+| `status`      | `"loading" \| "ready" \| "error"` | Where the catalog is in loading                    |
+| `error`       | `APIError \| null`                | Why the catalog failed, when `status` is `"error"` |
 
-### UseRouteUploadPolicyOptions
+### useUploadLimit
 
-<AutoTypeTable
-  path="packages/react/src/hooks/use-route-upload-policy.ts"
-  name="UseRouteUploadPolicyOptions"
-/>
+`useUploadLimit(upload, limit)` returns the files that still fit, or `null`
+without a limit.
+
+| Prop              | Type                  | Default  | Description                                              |
+| ----------------- | --------------------- | -------- | -------------------------------------------------------- |
+| `upload`          | `UseUploadReturn`     | required | The hook to cap                                          |
+| `limit`           | `UploadLimit \| null` | required | The cap, or `null` for none                              |
+| `limit.available` | `number`              | required | Files the hook may still take in                         |
+| `limit.counted`   | `ReadonlySet<string>` | —        | Ids of uploaded files that take nothing from `available` |
+
+### useRouteUploadPolicy
+
+`useRouteUploadPolicy(options)` returns the [`UploadPolicy`](#uploadpolicy)
+fields without `maxFiles`.
+
+| Prop          | Type                | Default  | Description                    |
+| ------------- | ------------------- | -------- | ------------------------------ |
+| `route`       | `S3RouteName`       | required | Named server route             |
+| `api`         | `S3Api`             | —        | Replaces the `S3Provider` API  |
+| `accept`      | `readonly string[]` | —        | Narrows the route's types      |
+| `maxFileSize` | `number`            | —        | Narrows the route's size limit |
+| `multipart`   | `boolean`           | —        | `false` turns multipart off    |
 
 ## Frequently asked questions
 
@@ -443,37 +457,22 @@ a function that returns them.
 
 <Accordion title="What happens if the route catalog fails to load?">
 
-Every file of that call fails with the catalog's error, and `policy.status` is
-`"error"`. The next call loads the catalog again. A custom backend must
-implement `catalog()`; see [Bring Your Own Backend](/docs/react/custom-backend).
+Every file of that call fails with the catalog's error, and `policy.status`
+is `"error"`. The next call loads the catalog again. A custom backend must
+implement `catalog()`; see [Bring Your Own Backend](/docs/react/custom-backend#route-catalog).
 
 </Accordion>
 
 <Accordion title="How do I show a local image preview before uploading?">
 
-Read `previewUrl` from an entry in `upload.files`. `upload.file?.previewUrl`
-is the single-file shorthand:
+Read `previewUrl` from an entry of `upload.files`, or `upload.file?.previewUrl`
+for a single file. It is an object URL for images and `null` for other files.
+The hook revokes it, so do not revoke it yourself.
 
 ```tsx
-export function AvatarWithPreview() {
-  const upload = useUpload({ route: "avatar" });
-  const preview = upload.file?.previewUrl;
+const preview = upload.file?.previewUrl;
 
-  return (
-    <div {...upload.getRootProps()}>
-      <input {...upload.getInputProps()} />
-      {preview ? (
-        <img
-          src={preview}
-          alt="Selected avatar"
-          className="size-20 rounded-full object-cover"
-        />
-      ) : (
-        "Select avatar"
-      )}
-    </div>
-  );
-}
+return preview ? <img src={preview} alt="Selected avatar" /> : null;
 ```
 
 </Accordion>

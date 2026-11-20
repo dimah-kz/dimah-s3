@@ -1,22 +1,37 @@
 ---
 title: Database Lifecycle Hooks
-description: The guards and lifecycle hooks db() attaches to every tracked route.
+description: The guards and lifecycle hooks db() adds to every tracked route, what each one checks or writes, and the errors they return.
 ---
 
-The [`db()`](/docs/db/setup) plugin attaches guards and lifecycle hooks to
-every route that does not set `plugins: { db: false }`. They keep
-`storage_object` in step with S3 and check that each call acts on rows of
-its own scope.
+[`db()`](/docs/db/setup) adds guards and lifecycle hooks to every route that
+does not set `plugins: { db: false }`. They keep `storage_object` in step
+with S3, and check that each call acts only on rows of its own scope. You do
+not call them. Read this page to know what your own hooks see, and which
+errors reach the client.
+
+```ts title="lib/s3.ts"
+files: route({
+  upload: {
+    // db() ran first: the row is already active, with the verified size.
+    // Confirm can run more than once, so dedupe on uploadToken.
+    onConfirmed: async ({ key, uploadToken, object }) => {
+      await notifyUploaded({ key, uploadToken, size: object.size }); // your code
+    },
+  },
+  download: true,
+  delete: true,
+}),
+```
 
 ## Hook order
 
-Guards run instance, then route, then feature. Within each hook, the
-plugin runs first and your hook runs last. This holds for lifecycle `on*`
-hooks too, so your `upload.onStart` sees the pending row, and your
+Guards run instance, then route, then feature. Within each hook, the plugin
+runs first and your hook runs last. Lifecycle `on*` hooks follow the same
+order, so your `upload.onStart` sees the pending row, and your
 `upload.onConfirmed` sees the row already `active`. See the
 [plugin hook order](/docs/server/plugins#hook-execution-order).
 
-## Lifecycle by operation
+## What each hook does
 
 | Hook                       | What the plugin does                                                                                                                                 |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,34 +47,40 @@ hooks too, so your `upload.onStart` sees the pending row, and your
 | `delete.guard`             | Requires a row owned by the caller (a soft-deleted one deletes again), then runs `authorize` with it and the folder it is in.                        |
 | `delete.onDeleted`         | Aborts a multipart upload in flight, then soft- or hard-deletes the row (`deleteMode`).                                                              |
 
+The plugin does not compare the stored `route` column with the request
+route. It looks rows up by `(bucket, key)` and compares the **scope**. Route
+membership stays the server's `keyPrefix` check (`KEY_INVALID`): see
+[route namespace vs ownership](/docs/server/security#route-namespace-vs-ownership).
+
+## Upload deadline
+
 `onStart` runs for presigned POST and PUT uploads, multipart init, and
-`s3.put` (`kind: "server"`). The row's `expiresAt` is the `expiresAt` of the
-onStart context: the upload ticket's expiry, or 15 minutes for `s3.put`. A
-pending row past that deadline stops counting toward the quota, and
-[purge](/docs/db/purge) cleans it up. The deadline comes from the server's
-upload ticket settings, `upload.confirmWindow` and
-`upload.multipart.ticketExpiresIn`. There is no separate option.
+`s3.put` (`kind: "server"`). The row's `expiresAt` is the upload ticket's
+expiry, or 15 minutes for `s3.put`.
 
-## Confirm replays
+A pending row past that deadline stops counting toward the quota, and
+[purge](/docs/db/purge) cleans it up. There is no separate option: set the
+deadline with the server's ticket settings, `upload.confirmWindow` and
+`upload.multipart.ticketExpiresIn`.
 
-Confirm is stateless, and `onConfirmed` runs at least once. The plugin marks
-the row active with a compare-and-set on its status and upload token. A
-retried confirm or complete for an upload that is already confirmed returns
-the stored row, and the quota is not checked again. Your own `onConfirmed`
-can dedupe on `uploadToken`.
+## Confirm and refused uploads
 
-When the quota check at confirm fails, the server deletes the object and
-returns `QUOTA_EXCEEDED`, and the plugin's `onRejected` removes the row.
+Confirm is stateless, and `onConfirmed` runs at least once:
 
-## Refused uploads
+- The plugin marks the row active with a compare-and-set on its status and
+  upload token.
+- A retried confirm or complete for an upload already confirmed returns the
+  stored row, and the quota is not checked again. Your own `onConfirmed` can
+  dedupe on `uploadToken`.
 
-The same holds for every upload the server refuses at confirm, multipart
-complete, or `s3.put`: a size, type, or content mismatch, or a
-`confirmGuard` that says no. The server deletes the object and runs
-`upload.onRejected`, and the plugin removes the row of that upload, so no
-row lists an object that is gone. A failure that keeps the object, such as
-your own `onConfirmed` throwing, keeps the row too, and the confirm can be
-retried.
+When the server refuses an upload at confirm, multipart complete, or
+`s3.put`, it deletes the object and runs `upload.onRejected`, and the plugin
+removes that upload's row. This covers a size, type, or content mismatch, a
+`confirmGuard` that says no, and a quota check that fails at confirm
+(`QUOTA_EXCEEDED`). No row lists an object that is gone.
+
+A failure that keeps the object, such as your own `onConfirmed` throwing,
+keeps the row too, and the confirm can be retried.
 
 ## Overwrites
 
@@ -67,14 +88,17 @@ An upload to a key that already has an active object fails with
 `OBJECT_EXISTS` (`409`), unless the route sets
 `plugins: { db: { replace: "overwrite" } }`. With it:
 
-- The active row stays active, with the previous object's metadata, until
-  the new upload is confirmed. S3 replaces the bytes as soon as the new PUT
-  lands, and a rejected confirm deletes the key and its row: the previous
+- The row stays `active`, with the previous object's metadata, until the
+  new upload is confirmed. S3 replaces the bytes as soon as the new PUT
+  lands, so a rejected confirm deletes the key and its row: the previous
   bytes are already gone.
 - The row keeps its folder, attributes, and `createdAt`. The overwrite's
   `clientMetadata.folderId` is ignored.
-- An abort keeps the previous object. An expired overwrite is cleaned up
-  by [purge](/docs/db/purge).
+- Until the confirm, the quota counts the larger of the two sizes.
+- A retried confirm of the upload before it still succeeds, even after the
+  overwrite started.
+- An abort keeps the previous object. An expired overwrite is cleaned up by
+  [purge](/docs/db/purge).
 
 An upload to a key that purge is cleaning up gets `CONFLICT`. A retry after
 purge finishes goes through.
@@ -86,17 +110,12 @@ purge finishes goes through.
 | `resolveScope` returns `null`                                    | `401`  | `UNAUTHORIZED`          |
 | An upload key belongs to another scope, or `authorize` says no   | `403`  | `FORBIDDEN`             |
 | The upload ticket was issued to another scope                    | `403`  | `UPLOAD_TICKET_INVALID` |
+| The upload would exceed the quota                                | `403`  | `QUOTA_EXCEEDED`        |
 | The row is missing, another scope's, or not this upload's        | `404`  | `OBJECT_NOT_FOUND`      |
+| `clientMetadata.folderId` names a folder the scope does not have | `404`  | `FOLDER_NOT_FOUND`      |
 | An active object is at the key                                   | `409`  | `OBJECT_EXISTS`         |
 | Purge is cleaning the key, or a concurrent write won             | `409`  | `CONFLICT`              |
-| `clientMetadata.folderId` names a folder the scope does not have | `404`  | `FOLDER_NOT_FOUND`      |
-| The upload would exceed the quota                                | `403`  | `QUOTA_EXCEEDED`        |
 | `resolveScope` returns an empty, padded, or too long scope       | `500`  | `INTERNAL_ERROR`        |
-
-Route membership is still the server `keyPrefix` check (`KEY_INVALID`). The
-plugin looks rows up by `(bucket, key)` and compares the **scope**. It does
-not compare the stored `route` column to the request route. See
-[route namespace vs ownership](/docs/server/security#route-namespace-vs-ownership).
 
 ## Frequently asked questions
 

@@ -1,23 +1,27 @@
 ---
-title: React Setup
+title: Setup
 description: Install @dimah-s3/react, create the client, mount S3Provider, and call your first hook.
 icon: Settings
 ---
 
-## Install
+Set up the React client once per app: create an API client, mount
+`S3Provider` near the root, then call any hook with a route name from your
+server config.
+
+## Installation
 
 ```npm
 npm i @dimah-s3/react@beta @dimah-s3/core@beta @fuma-translate/react
 ```
 
-`@dimah-s3/react` needs React 19.2. `@dimah-s3/core` holds `APIError` and the
-protocol helpers, and `@fuma-translate/react` powers the translated strings.
-Both are peer dependencies. Keep `@dimah-s3/core` on the same version as
-`@dimah-s3/react`.
+`@dimah-s3/core` (`APIError` and the protocol helpers) and
+`@fuma-translate/react` (translated strings) are peer dependencies. Keep
+`@dimah-s3/core` on the same version as `@dimah-s3/react`.
 
 ### Requirements
 
-- **Node.js 22 or newer** for server rendering and builds.
+- **React 19.2** or newer.
+- **Node.js 22** or newer for server rendering and builds.
 - **Browsers from Baseline 2024**: Chrome 119, Firefox 124, Safari 17.4, and
   newer. The hooks use `Promise.withResolvers` and `AbortSignal.any`, so an
   older browser fails on the first upload, download, or delete.
@@ -28,7 +32,7 @@ Both are peer dependencies. Keep `@dimah-s3/core` on the same version as
 
 <Tab value="@dimah-s3/server">
 
-`createS3Client` returns the API object plus a bound `Provider` and a typed
+`createS3Client` returns the API object, plus a bound `Provider` and a typed
 `useApi`.
 
 ```ts title="lib/s3-client.ts"
@@ -40,9 +44,9 @@ export const s3Client = createS3Client();
 export const S3Provider = s3Client.Provider;
 ```
 
-To change the base path, send cookies, or add headers:
+To change the base path, send cookies, or add an auth header:
 
-```ts
+```ts title="lib/s3-client.ts"
 export const s3Client = createS3Client({
   basePath: "/api/s3", // [!code ++]
   credentials: "include", // [!code ++]
@@ -133,7 +137,7 @@ The provider also takes `translations` and `locale`. See
 
 ## 3. Call your first hook
 
-Use `useUpload` with a route name from your server config:
+Pass a route name from your server config:
 
 ```tsx title="app/file-uploader.tsx"
 "use client";
@@ -158,11 +162,14 @@ export function FileUploader() {
 }
 ```
 
-Every hook takes an optional `api` to use instead of the provider's.
+Every hook takes an optional `api` that replaces the provider's.
 
-To call the API yourself, read it from the provider. `s3Client.useApi()` is
-typed with the client's plugins. `useS3Api()` from `@dimah-s3/react` reads
-whatever `S3Provider` holds, for a custom backend or a shared component:
+## Call the API directly
+
+Read the API from the provider to call it yourself:
+
+- `s3Client.useApi()` is typed with the client's plugins.
+- `useS3Api()` from `@dimah-s3/react` returns whatever `S3Provider` holds, for a custom backend or a shared component. It throws when no provider is mounted.
 
 ```tsx
 import { useS3Api } from "@dimah-s3/react";
@@ -171,21 +178,18 @@ const api = useS3Api();
 const { url } = await api.download({ route: "avatar", key });
 ```
 
----
-
 ## Shared and server modules
 
 The root entry is a client module. Plain functions that do not need React,
-such as `defineApi`, `memoryObjectSource`, and `createLocalStorageUploadStore`,
-ship from `@dimah-s3/react/engine`, which has no `"use client"` directive:
+such as `defineApi`, `memoryObjectSource`, and
+`createLocalStorageUploadStore`, ship from `@dimah-s3/react/engine`, which has
+no `"use client"` directive:
 
 ```ts title="lib/s3-api.ts"
 import { defineApi } from "@dimah-s3/react/engine";
 ```
 
 See [Engine](/docs/react/guides/engine) for the full list.
-
----
 
 ## TypeScript route inference
 
@@ -201,26 +205,21 @@ declare module "@dimah-s3/core" {
 }
 ```
 
----
-
 ## Testing
 
-The pieces that talk to the network can each be swapped, so a test needs no
-S3 and no server:
+Each piece that talks to the network can be swapped, so a test needs no S3
+and no server:
 
-- **`fetch`** on `createS3Client({ fetch })` replaces the transport of every
-  API call. Answer with the JSON your server would send.
-- **`uploadTransport`** on a [custom API](/docs/react/custom-backend#upload-transport)
-  replaces the PUT or POST to the presigned URL for single-shot uploads.
-- **`createMemoryUploadStore()`** from `@dimah-s3/react/engine` is an
-  [upload store](/docs/react/upload-store) that keeps resumable uploads in
-  memory, so a test does not touch `localStorage`.
-- **`api`** on any hook takes an `S3Api` object directly. `defineApi` from the
-  engine entry type-checks a fake one.
+| Swap                                                             | Replaces                                                                |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `createS3Client({ fetch })`                                      | The transport of every API call. Answer with the JSON your server sends |
+| [`uploadTransport`](/docs/react/custom-backend#upload-transport) | The PUT or POST to the presigned URL for single-shot uploads            |
+| `createMemoryUploadStore()`                                      | `localStorage` for [resumable uploads](/docs/react/upload-store)        |
+| `api` on any hook                                                | The provider's API. `defineApi` type-checks a fake one                  |
 
-On the server, call the instance in process. `s3.api` runs the same
-guards and hooks as the HTTP handler, and `locals` seeds what your guards
-would have set:
+On the server, call the instance in process. `s3.api` runs the same guards
+and hooks as the HTTP handler, and `locals` seeds what your guards would have
+set:
 
 ```ts
 const presigned = await s3.api.upload(
@@ -229,20 +228,39 @@ const presigned = await s3.api.upload(
 );
 ```
 
----
+## API Reference
 
-## Type reference
+### createS3Client
 
-```ts
-import type { CreateS3ClientOptions } from "@dimah-s3/core";
-```
+`createS3Client(options?)` takes the same options as `createS3Client` from
+`@dimah-s3/core`.
 
-### CreateS3ClientOptions
+| Prop          | Type                                                       | Default        | Description                                                                              |
+| ------------- | ---------------------------------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| `basePath`    | `string`                                                   | `"/api/s3"`    | API path prefix. Must match the server `basePath`                                        |
+| `baseURL`     | `string`                                                   | —              | Absolute origin and path, such as `https://api.example.com/api/s3`. Wins over `basePath` |
+| `credentials` | `RequestCredentials`                                       | —              | Fetch credentials mode, such as `"include"` to send cookies cross-origin                 |
+| `headers`     | `HeadersInit \| () => HeadersInit \| Promise<HeadersInit>` | —              | Static headers, or a function called per request. Per-call headers win                   |
+| `fetch`       | `(input, init) => Promise<Response>`                       | global `fetch` | Replaces the transport, for SSR, tests, or logging                                       |
+| `plugins`     | `S3ClientPlugin[]`                                         | —              | Client plugins, such as `dbClient()` from `@dimah-s3/db/client`                          |
 
-<AutoTypeTable
-  path="packages/core/src/create-s3-client.ts"
-  name="CreateS3ClientOptions"
-/>
+It returns the API object itself:
+
+| Property                | Type            | Description                                                           |
+| ----------------------- | --------------- | --------------------------------------------------------------------- |
+| `upload`, `download`, … | `S3Api` methods | The API every hook calls. Each takes `(payload, { signal, headers })` |
+| `Provider`              | `ComponentType` | `S3Provider` bound to this client. Takes every prop but `api`         |
+| `useApi`                | `() => client`  | Reads the provider's API, typed with the client's plugins             |
+| `[plugin id]`           | plugin methods  | One object per plugin, such as `db` for `dbClient()`                  |
+
+### S3Provider
+
+| Prop           | Type                    | Default  | Description                                                               |
+| -------------- | ----------------------- | -------- | ------------------------------------------------------------------------- |
+| `api`          | `S3Api`                 | required | The API the hooks and components below use                                |
+| `translations` | `Partial<Translations>` | —        | Translated strings. Omit for English                                      |
+| `locale`       | `string`                | —        | BCP 47 locale for sizes and counts, such as `"fa"`. Omit for Latin digits |
+| `children`     | `ReactNode`             | required | Your app                                                                  |
 
 ## Frequently asked questions
 
@@ -250,26 +268,16 @@ import type { CreateS3ClientOptions } from "@dimah-s3/core";
 
 <Accordion title="Where do file constraints come from?">
 
-From the server. `useUpload` loads the route catalog (`GET /routes`) before it
-presigns and checks each file against the route's `fileTypes` and
+From the server. `useUpload` loads the route catalog (`GET /routes`) before
+it presigns, and checks each file against the route's `fileTypes` and
 `maxFileSize`. `accept` and `maxFileSize` on the hook can only narrow them.
 
 </Accordion>
 
-<Accordion title="How do I pass auth tokens or cookies to the API?">
+<Accordion title="How do I send auth tokens or cookies?">
 
 Pass `headers` (a value or an async function) or `credentials: "include"` to
-`createS3Client`:
-
-```ts
-export const s3Client = createS3Client({
-  credentials: "include", // [!code ++]
-  headers: async () => ({
-    // [!code ++]
-    Authorization: `Bearer ${getStoredToken()}`, // [!code ++]
-  }), // [!code ++]
-});
-```
+`createS3Client`, as in [step 1](#1-create-the-client).
 
 </Accordion>
 

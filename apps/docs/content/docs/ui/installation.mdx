@@ -1,0 +1,146 @@
+---
+title: Installation
+description: Install @dimah-s3/ui from npm or the shadcn registry, add the stylesheet, and mount the Toaster.
+icon: Download
+---
+
+<Callout title="Before you start">
+  The components render the React hooks, so set up the [React
+  client](/docs/react/setup) first: `S3Provider` must wrap them. Your app needs
+  React 19.2, Tailwind CSS v4, and the shadcn theme variables that `shadcn init`
+  writes (`--background`, `--primary`, `--muted`, …).
+</Callout>
+
+### Install the components [step]
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```npm
+npm i @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @base-ui/react class-variance-authority cn lucide-react shadcn tw-animate-css
+```
+
+Every package on that line is a peer dependency. Keep the three `@dimah-s3/*`
+packages on the same version. The package bundles its own shadcn primitives,
+so it works with any shadcn style.
+
+</Tab>
+
+<Tab value="shadcn">
+
+Add the dimah-s3 registry to `components.json`:
+
+<include>../../_includes/ui/index.mdx#registry-config</include>
+
+Then add the items you need:
+
+```npm
+npx shadcn@latest add @dimah-s3/upload
+```
+
+The CLI copies the source into `components/dimah-s3/`, adds the shadcn
+primitives it uses, and installs its npm dependencies. Import from those
+files instead of `@dimah-s3/ui`.
+
+<Callout type="warn" title="Needs a Base UI style">
+  The copied source uses your project's own primitives (`button`, `tooltip`,
+  `dropdown-menu`, …) with [Base UI](https://base-ui.com) props such as
+  `render`. Use a project created with a Base UI style. In a Radix style project
+  the primitives take other props and the code does not type-check; use the npm
+  package there.
+</Callout>
+
+| Item              | Adds                                                     |
+| ----------------- | -------------------------------------------------------- |
+| `upload`          | `Upload` and its parts, `UploadToasts`, `usePasteFiles`  |
+| `upload-field`    | `UploadField`, `UploadFieldValue`, and the upload family |
+| `avatar-upload`   | `AvatarUpload`                                           |
+| `object-list`     | `ObjectList` and its parts, with every family it uses    |
+| `object-card`     | `ObjectCard` with the download and delete families       |
+| `object-image`    | `ObjectImage`                                            |
+| `download`        | `Download` and its parts, `DownloadToasts`               |
+| `delete`          | `Delete` and its parts, `DeleteToasts`                   |
+| `file-attachment` | `FileAttachment`, `StatusAttachment`, glyphs, and rings  |
+
+</Tab>
+
+</Tabs>
+
+### Add the stylesheet [step]
+
+With the npm package, import its stylesheet in your global CSS, after
+Tailwind, `tw-animate-css`, and `shadcn/tailwind.css`:
+
+<include>../../_includes/ui/index.mdx#styles</include>
+
+It registers the package with Tailwind's source scan and maps the component
+colors onto your shadcn theme. With the registry, skip this step: `shadcn add`
+writes the same color tokens into your CSS.
+
+### Mount the Toaster [step]
+
+Components report progress and results through toasts. Mount one `<Toaster />`
+next to `S3Provider`:
+
+```tsx title="app/layout.tsx"
+import { Toaster } from "@dimah-s3/ui"; // [!code ++]
+import { S3Provider } from "@/lib/s3-client";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <S3Provider>{children}</S3Provider>
+        <Toaster /> {/* [!code ++] */}
+      </body>
+    </html>
+  );
+}
+```
+
+With the registry, import `Toaster` from your shadcn `toast` component
+(`@/components/ui/toast`) instead.
+
+### Render a component [step]
+
+```tsx title="components/attachments.tsx"
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
+
+export function Attachments() {
+  const upload = useUpload({ route: "attachments", maxFiles: 5, append: true });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadDropzone />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+`route` names a route on your server. See [Routes](/docs/server/routes).
+
+## Next steps
+
+<Cards>
+  <Card
+    title="Upload"
+    href="/docs/ui/components/upload"
+    description="Every way to take files in: buttons, dropzones, paste, and status."
+  />
+  <Card
+    title="Theming"
+    href="/docs/ui/theming"
+    description="Change the colors of the components without changing your app."
+  />
+</Cards>

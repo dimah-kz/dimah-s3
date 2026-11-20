@@ -1,12 +1,13 @@
 ---
 title: File Proxy
-description: Stream downloads through `GET /file` with hardening headers, byte ranges, and conditional requests.
+description: Stream downloads through GET /file on your API, with guards on every request, hardening headers, byte ranges, and caching.
 icon: ArrowDownToLine
 ---
 
 In proxy mode, a download returns a URL on your API instead of a signed bucket
-URL. The browser fetches `GET /file`, and your server streams the object from
-S3:
+URL, and your server streams the object from S3. Use it when objects must
+never be reachable by a bucket URL, when every read must pass your guards, or
+when the browser cannot reach the bucket.
 
 ```ts title="lib/s3.ts"
 invoices: route({
@@ -27,11 +28,6 @@ const { url, mode, expiresIn } = await api.download({ route: "invoices", key });
 // mode: "proxy", expiresIn: undefined
 ```
 
-Use it when objects must never be reachable by a bucket URL, when every read
-must pass your guards, or when the bucket is not reachable from the browser.
-
----
-
 ## How it works
 
 <Flow
@@ -46,24 +42,21 @@ must pass your guards, or when the bucket is not reachable from the browser.
 />
 
 - The `/file` URL is **not signed** and does not expire. Every request to it
-  runs the instance, route, and download guards again, so they must
-  authorize from what a plain browser `GET` carries, usually a session
-  cookie. An `<img>` or `<a href>` does not send an `Authorization` header.
-- The URL is relative to the API (`{basePath}/file?…`) unless `baseURL` is
-  set. `createS3Client` resolves a root-relative URL against an absolute
-  `baseURL`, so a cross-origin API still works.
-- `/file` serves only routes with `download.mode: "proxy"`. On any other
-  route it returns `404 FEATURE_DISABLED` with `params.feature` set to
-  `"proxy"`, so the server never streams objects a route did not opt in for.
-- There is no `s3.api` method for `/file`. On the server, read the object
-  with your `S3Client`.
-
----
+  runs the instance, route, and download guards again, so they must authorize
+  from what a plain browser `GET` carries, usually a session cookie. An
+  `<img>` or `<a href>` sends no `Authorization` header.
+- The URL is relative to the API (`{basePath}/file?…`) unless `baseURL` is set.
+  `createS3Client` resolves a root-relative URL against an absolute `baseURL`,
+  so a cross-origin API still works.
+- `/file` serves only routes with `download.mode: "proxy"`. Any other route
+  returns `404 FEATURE_DISABLED` with `params.feature` set to `"proxy"`.
+- There is no `s3.api` method for `/file`. On the server, read the object with
+  your `S3Client`.
 
 ## Response headers
 
-Every `/file` response, including `206`, `304`, `412`, `416`, and errors,
-carries:
+Every `/file` response carries these headers, including `206`, `304`, `412`,
+`416`, and errors:
 
 | Header                         | Value                                                                                            |
 | ------------------------------ | ------------------------------------------------------------------------------------------------ |
@@ -73,17 +66,17 @@ carries:
 | `Cache-Control`                | `private, no-cache`, unless `download.resolve` returns `cacheControl`                            |
 | `Accept-Ranges`                | `bytes`                                                                                          |
 
-A successful response also sends `Content-Type`, `Content-Disposition`,
-`Content-Length`, and `ETag`, `Last-Modified`, `Content-Encoding`, and
+A successful response also sends `Content-Type`, `Content-Disposition`, and
+`Content-Length`, plus `ETag`, `Last-Modified`, `Content-Encoding`, and
 `Content-Language` when S3 reports them.
 
-The object comes from your API origin, so it must never run as a page there.
-The CSP sandboxes it, and `nosniff` stops the browser from guessing another
-type.
+The object is served from your API origin, so it must never run as a page
+there. The CSP sandboxes it, and `nosniff` stops the browser from guessing
+another type.
 
 ### Inline display
 
-Proxy mode uses the same allow-list as presign mode, minus `application/pdf`:
+Proxy mode uses the presign-mode allow-list minus `application/pdf`, because
 the `sandbox` CSP stops the PDF viewer in Chromium. To show PDFs inline, use
 presign mode, or serve `/file` from a separate origin and list
 `application/pdf` in `download.inlineTypes`.
@@ -98,8 +91,8 @@ download: {
 ### Caching
 
 `private, no-cache` lets the browser keep a copy but revalidate it on each
-use. Return `cacheControl` from `download.resolve` to change it for
-successful responses:
+use. Return `cacheControl` from `download.resolve` to change it for successful
+responses:
 
 ```ts
 download: {
@@ -109,40 +102,46 @@ download: {
 ```
 
 Error responses always send `private, no-cache`, so a shared cache never
-keeps a refusal and serves it to someone else.
-
----
+serves one caller's refusal to another.
 
 ## Byte ranges
 
-`/file` forwards one byte range to S3, so video seeking and resumed
-downloads work:
+`/file` forwards one byte range to S3, so video seeking and resumed downloads
+work:
 
 | `Range` header                              | Response                                                         |
 | ------------------------------------------- | ---------------------------------------------------------------- |
 | `bytes=0-1023`, `bytes=1024-`, `bytes=-500` | `206` with `Content-Range`                                       |
-| Several ranges, or malformed                | Ignored. `200` with the whole object                             |
+| Several ranges, or malformed                | Ignored: `200` with the whole object                             |
 | Outside the object                          | `416 RANGE_NOT_SATISFIABLE` with `Content-Range: bytes */<size>` |
 
 ## Conditional requests
 
-| Header                               | Response when it matches                                                 |
-| ------------------------------------ | ------------------------------------------------------------------------ |
-| `If-None-Match`, `If-Modified-Since` | `304` with no body, the headers above, and `ETag`                        |
-| `If-Match`, `If-Unmodified-Since`    | `412 PRECONDITION_FAILED` when it fails                                  |
-| `If-Range`                           | The range when the object is unchanged, else `200` with the whole object |
+Conditional headers are forwarded to GetObject:
 
-Conditional headers are forwarded to GetObject. `If-Range` is checked against
-the returned `ETag` or `Last-Modified`.
-
----
+| Header                               | Response                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `If-None-Match`, `If-Modified-Since` | `304` with no body when it matches, with the headers above and `ETag`                    |
+| `If-Match`, `If-Unmodified-Since`    | `412 PRECONDITION_FAILED` when it fails                                                  |
+| `If-Range`                           | The range when `ETag` or `Last-Modified` still matches, else `200` with the whole object |
 
 ## Disconnects
 
-`/file` passes the request's abort signal to GetObject. When the client goes
-away, the S3 read stops. The Node, Express, and Fastify adapters abort that
-signal when the connection closes, and stream the body to the response
-without buffering it. See [Server Setup](/docs/server/setup#node-express-and-fastify).
+`/file` passes the request's abort signal to GetObject, so the S3 read stops
+when the client goes away. The Node, Express, and Fastify adapters abort that
+signal when the connection closes, and stream the body without buffering it.
+See [Server Setup](/docs/server/setup#node-express-and-fastify).
+
+## API Reference
+
+The route options that shape proxy downloads. The rest are in
+[Routes](/docs/server/routes#download).
+
+| Prop                                | Type                         | Default               | Description                                                                              |
+| ----------------------------------- | ---------------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| `download.mode`                     | `"presign" \| "proxy"`       | `"presign"`           | `"proxy"` returns a `/file` URL                                                          |
+| `download.inlineTypes`              | `readonly string[] \| false` | —                     | Types that may open inline. Defaults to `DEFAULT_INLINE_TYPES` without `application/pdf` |
+| `download.resolve` → `cacheControl` | `string`                     | `"private, no-cache"` | `Cache-Control` on successful `/file` responses                                          |
 
 ## Frequently asked questions
 
@@ -150,7 +149,7 @@ without buffering it. See [Server Setup](/docs/server/setup#node-express-and-fas
 
 <Accordion title="Why does the download response have no expiresIn?">
 
-A proxy URL does not expire: each request to it is authorized again. The
+A proxy URL does not expire: every request to it is authorized again. The
 `download` response omits `expiresIn`, and `download.guard` sees
 `expiresIn: undefined`. Hooks can branch on `mode`.
 

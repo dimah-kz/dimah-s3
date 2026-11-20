@@ -1,22 +1,12 @@
 ---
 title: Delete Hooks
-description: Authorize deletion and run cleanup after S3 removes the object.
+description: Authorize deletes, clean up your records after S3 removes an object, and delete up to 100 keys of one route in one call.
 ---
 
-Enable object deletion with `delete: true` or a `DeleteConfig` object on a [named route](/docs/server/routes).
-
-<Callout>
-  Unlike upload and download, deletes run on your server with `DeleteObject`
-  after the guards pass. The client never deletes from S3 directly.
-</Callout>
-
-<Callout type="warn">
-  `delete: true` turns the endpoint on. It does not check who owns the object.
-  The key must still sit under this route's `keyPrefix` (the route name by
-  default) — that check always runs, with or without [`db()`](/docs/db).
-  Ownership is `delete.guard` or the db plugin. See
-  [Security](/docs/server/security#route-namespace-vs-ownership).
-</Callout>
+Delete hooks run when a client deletes an object on a
+[route](/docs/server/routes) with `delete` turned on. Deletes run on your
+server with `DeleteObject` after the guards pass; the client never deletes
+from S3 directly.
 
 ```ts title="lib/s3.ts"
 import { dimahS3, route, s3Error } from "@dimah-s3/server";
@@ -28,34 +18,30 @@ export const s3 = dimahS3({
   routes: {
     avatar: route({
       delete: {
-        guard: async ({ key, request }) => {
-          const session = await getSession(request);
-          if (!session) throw s3Error("UNAUTHORIZED");
-
-          const isOwner = await checkAvatarOwnership(session.userId, key);
-          if (!isOwner) throw s3Error("FORBIDDEN");
+        guard: async ({ key, locals }) => {
+          if (!(await ownsAvatar(locals.userId, key)))
+            throw s3Error("FORBIDDEN");
         },
-        onDeleted: async ({ key, request }) => {
-          // [!code ++]
-          const session = await getSession(request); // [!code ++]
+        onDeleted: async ({ locals }) => {
           await db.user.update({
-            // [!code ++]
-            where: { id: session.userId }, // [!code ++]
-            data: { avatarKey: null }, // [!code ++]
-          }); // [!code ++]
-        }, // [!code ++]
+            where: { id: locals.userId },
+            data: { avatarKey: null },
+          });
+        },
       },
     }),
   },
 });
 ```
 
----
+<Callout type="warn" title="delete: true is not an ownership check">
+  `delete: true` turns the endpoint on. Anyone who can call it can delete any
+  key they know under the route's `keyPrefix`; keys outside it always return
+  `KEY_INVALID`. Check ownership in `delete.guard`, or use [`db()`](/docs/db).
+  See [Security](/docs/server/security#route-namespace-vs-ownership).
+</Callout>
 
-## Delete lifecycle flow
-
-Before `delete.guard`, the server resolves the named route and rejects keys
-outside its `keyPrefix` (`KEY_INVALID`).
+## Delete lifecycle
 
 <Flow
   label="Delete flow"
@@ -67,25 +53,19 @@ outside its `keyPrefix` (`KEY_INVALID`).
   ]}
 />
 
-Delete is idempotent. A key that never landed, or one that is already gone,
-succeeds and still runs `onDeleted`, so the bookkeeping for a pending or
-expired upload is cleaned up. The response is `{ key, bucket }`.
+- Before `delete.guard`, the server rejects keys outside the route's
+  `keyPrefix` with `KEY_INVALID`.
+- Delete is idempotent. A key that never landed, or one already gone,
+  succeeds and still runs `onDeleted`, so the records of a pending or expired
+  upload are cleaned up.
+- The S3 call does not stop when the client disconnects, so `onDeleted` runs
+  for every delete that happened.
+- The response is `{ key, bucket }`.
 
-The S3 call does not stop when the client disconnects, so `onDeleted` runs
-for every delete that happened.
-
----
-
-## Deleting many keys
+## Delete many keys
 
 `deleteMany` (`POST /delete/batch`) deletes up to 100 keys of one route
 (`DELETE_MANY_MAX_KEYS`) in one DeleteObjects request:
-
-- The route guard runs once for the call.
-- Each key is checked against the route namespace and `delete.guard`.
-- `onDeleted` runs for each deleted key.
-- A per-key failure (an invalid key, a guard, an S3 error, or an `onDeleted`
-  throw) goes into `failed` and does not fail the other keys.
 
 ```ts
 const { deleted, failed } = await s3.api.deleteMany(
@@ -95,68 +75,41 @@ const { deleted, failed } = await s3.api.deleteMany(
 // failed: [{ key, error: { code, message, params? } }]
 ```
 
-A route error, such as `ROUTE_NOT_FOUND` or a route guard rejection, fails the
-whole call. So does a DeleteObjects request that fails as a whole.
+- The route guard runs once for the call.
+- Each key is checked against the route namespace and `delete.guard`, with
+  its own copy of `locals`.
+- `onDeleted` runs for each deleted key.
+- A per-key failure (an invalid key, a guard, an S3 error, or an `onDeleted`
+  throw) goes into `failed` and does not fail the other keys.
+- A route error, such as `ROUTE_NOT_FOUND` or a route guard rejection, fails
+  the whole call. So does a DeleteObjects request that fails as a whole.
 
----
-
-## Type reference
+In React, `removeMany` from [`useDelete`](/docs/react/hooks/delete) calls
+`deleteMany`:
 
 ```ts
-import type {
-  DeleteGuardContext,
-  DeleteOnDeletedContext,
-} from "@dimah-s3/server";
-```
-
-### DeleteGuardContext
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="DeleteGuardContext"
-/>
-
----
-
-### DeleteOnDeletedContext
-
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="DeleteOnDeletedContext"
-/>
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="Can anyone delete any object if I enable delete without a guard?">
-
-Anyone who can call the endpoint can delete any **in-namespace** key they
-know — not the whole bucket, and not keys on other routes. A UUID in the path
-is not an access check. Ownership is `delete.guard` or [`db()`](/docs/db). See
-[Security](/docs/server/security#route-namespace-vs-ownership).
-
-</Accordion>
-
-<Accordion title="How do I delete multiple files at once?">
-
-Use `s3.api.deleteMany` on the server, or `removeMany` from `useDelete` in
-React:
-
-```ts title="Client usage"
 const { removeMany } = useDelete({ route: "avatar" });
 const { deleted, failed } = await removeMany([key1, key2]);
 ```
 
-</Accordion>
+## When S3 fails
 
-<Accordion title="What happens if S3 deletion fails?">
-
-`onDeleted` does not run for a failed S3 deletion. A single delete returns an
+`onDeleted` does not run for a delete S3 refused. A single delete returns an
 error such as `502 S3_NETWORK_ERROR` or `500 INTERNAL_ERROR`. In
-`deleteMany`, a key that S3 refused is reported in `failed` with
-`INTERNAL_ERROR`; the S3 error itself is logged and passed to `onError`.
+`deleteMany`, a key S3 refused is reported in `failed` with `INTERNAL_ERROR`;
+the S3 error itself is logged and passed to `onError`.
 
-</Accordion>
+## API Reference
 
-</Accordions>
+`delete.guard` and `delete.onDeleted` receive the same context
+(`DeleteGuardContext`, `DeleteOnDeletedContext`): `request`, `operation`,
+`locals`, and `route` from the
+[guard context](/docs/server/hooks/global-guard#api-reference), plus:
+
+| Property | Type     | Description              |
+| -------- | -------- | ------------------------ |
+| `key`    | `string` | The object key to delete |
+| `bucket` | `string` | The route's bucket       |
+
+`operation` is `"delete"` for a single delete and `"deleteMany"` in a batch.
+The route options are in [Routes](/docs/server/routes#delete).

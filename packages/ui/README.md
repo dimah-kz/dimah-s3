@@ -5,7 +5,7 @@
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).
 
-Full documentation: [s3.dimah.dev/docs/react/ui](https://s3.dimah.dev/docs/react/ui) ·
+Full documentation: [s3.dimah.dev/docs/ui](https://s3.dimah.dev/docs/ui) ·
 [llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
@@ -20,7 +20,7 @@ as `@dimah-s3/ui`, and the rest are what the bundled shadcn primitives
 import.
 
 Or copy items from the shadcn registry — see
-[UI Setup](https://s3.dimah.dev/docs/react/ui). Registry items need a shadcn
+[UI Setup](https://s3.dimah.dev/docs/ui). Registry items need a shadcn
 project on a [Base UI](https://base-ui.com) style: the copied source uses
 your project's own `button`, `tooltip`, `dropdown-menu` and other primitives
 through Base UI props such as `render`. The npm package bundles its
@@ -62,7 +62,7 @@ The tokens are `background`, `foreground`, `card`, `card-foreground`,
 `success` and `warning`. `success` and
 `warning` read your theme's `--success` / `--warning` when it defines them, and
 fall back to a green and an amber otherwise. See
-[Theming](https://s3.dimah.dev/docs/react/ui/customization/theming).
+[Theming](https://s3.dimah.dev/docs/ui/theming).
 
 ## Quick start
 

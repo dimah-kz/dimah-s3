@@ -1,10 +1,12 @@
 ---
 title: Errors
-description: The error catalog, building errors with s3Error, and handling APIError.
+description: The dimah-s3 error format and catalog, rejecting calls with s3Error, handling APIError on the client, and reporting failures.
 icon: CircleAlert
 ---
 
-Every failed request returns an HTTP status and a JSON body:
+Every failed request returns an HTTP status and a JSON body with a stable
+`code`. Throw catalog errors with `s3Error` on the server, and narrow them by
+`code` on the client.
 
 ```json
 {
@@ -14,19 +16,18 @@ Every failed request returns an HTTP status and a JSON body:
 }
 ```
 
-`code` is always set and stable. `message` is English, filled from `params`.
-Show users your own text: map `code` and `params` to it, as
-`useFormatError` does.
+`code` is always set. `message` is English, filled from `params`. Show users
+your own text by mapping `code` and `params`, as `useFormatError` does.
 
-The error helpers live in `@dimah-s3/core`. Server code imports them from
-`@dimah-s3/server`, which re-exports `APIError`, `s3Error`, `isAPIError`,
-`isS3ErrorCode`, and `S3_ERROR_CODES`. Browser code imports them from
+The helpers live in `@dimah-s3/core`. `@dimah-s3/server` re-exports
+`APIError`, `s3Error`, `isAPIError`, `isS3ErrorCode`, and `S3_ERROR_CODES`, so
+server code imports them from there. Browser code imports from
 `@dimah-s3/core`.
 
 ## Throwing errors
 
 Throw `s3Error` with a catalog code to reject a call from a guard or hook.
-Codes with `params` require them:
+Codes that have `params` require them:
 
 ```ts
 import { s3Error } from "@dimah-s3/server";
@@ -34,15 +35,15 @@ import { s3Error } from "@dimah-s3/server";
 throw new Error("Not allowed"); // [!code --]
 throw s3Error("UNAUTHORIZED"); // [!code ++]
 throw s3Error("FORBIDDEN");
-throw s3Error("OBJECT_NOT_FOUND");
 throw s3Error("QUOTA_EXCEEDED", { limit: "bytes" });
 throw s3Error("FILE_TOO_LARGE", { size: file.size, maxFileSize });
 ```
 
-A plain `Error`, thrown anywhere, is logged, passed to `onError`, and returns
+A plain `Error` thrown anywhere is logged, passed to `onError`, and returns
 `500 INTERNAL_ERROR`. Its message never reaches the client.
 
-For a code of your own, such as from a plugin, use `APIError.from`:
+For a code outside the catalog, such as one from a plugin, use
+`APIError.from`:
 
 ```ts
 import { APIError } from "@dimah-s3/server";
@@ -55,8 +56,8 @@ throw APIError.from(402, {
 
 ## Handling errors
 
-`createS3Client` and the React hooks reject with an `APIError`. Narrow it by
-code with `isS3ErrorCode`:
+`createS3Client` and the React hooks reject with an `APIError`. Narrow it with
+`isS3ErrorCode`, which also types its `params`:
 
 ```ts title="Browser"
 import { isAPIError, isS3ErrorCode } from "@dimah-s3/core";
@@ -74,18 +75,14 @@ try {
 
 The client turns every failure into an `APIError`:
 
-- A JSON error body keeps its `code`, `params`, and HTTP status. A `params`
-  entry that is not a string or number is dropped; the rest of the error is
-  kept.
-- Any other error response becomes `INTERNAL_ERROR` (status 500 or above) or
-  `UNKNOWN_ERROR`, with the real HTTP status.
-- A `2xx` response whose body is not a JSON object or array, such as an SPA
-  fallback `index.html`, becomes `UNKNOWN_ERROR` with its status.
-- The browser upload transport raises `CHECKSUM_MISMATCH` when S3 rejects a
-  checksummed PUT or part (`BadDigest` or `XAmzContentChecksumMismatch`).
-- A request that fails before a response becomes `NETWORK_ERROR`.
-- An aborted request rejects with the signal's abort reason, not an
-  `APIError`.
+| Failure                                                                           | Result                                                                                           |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| JSON error body                                                                   | Keeps its `code`, `params`, and HTTP status. Non-string, non-number `params` entries are dropped |
+| Any other error response                                                          | `INTERNAL_ERROR` (status 500 or above) or `UNKNOWN_ERROR`, with the real status                  |
+| `2xx` whose body is not a JSON object or array, such as an SPA `index.html`       | `UNKNOWN_ERROR` with that status                                                                 |
+| S3 rejects a checksummed PUT or part (`BadDigest`, `XAmzContentChecksumMismatch`) | `CHECKSUM_MISMATCH`, from the browser upload transport                                           |
+| No response at all                                                                | `NETWORK_ERROR`                                                                                  |
+| Aborted request                                                                   | The signal's abort reason, not an `APIError`                                                     |
 
 `deleteMany` reports per-key failures as wire bodies in `failed[].error`.
 Rebuild one with `APIError.fromShape(error)`; the status comes from the
@@ -94,12 +91,8 @@ catalog.
 ## Reporting errors
 
 `onError` receives every failure that is not an `APIError`: plain errors,
-config errors, and S3 network errors. They are logged too, then answered with
-`500 INTERNAL_ERROR` or `502 S3_NETWORK_ERROR`. Rejections you throw with
-`s3Error` do not reach it. The context has the `request` and, when known,
-the `operation`. It may be async: a rejection from it is logged, never
-unhandled. An error from another library that is merely named `APIError` is
-an unexpected failure too, so it is logged and reaches `onError`.
+config errors, and S3 network errors. They are logged too, and answered with
+`500 INTERNAL_ERROR` or `502 S3_NETWORK_ERROR`.
 
 ```ts title="lib/s3.ts"
 export const s3 = dimahS3({
@@ -110,17 +103,24 @@ export const s3 = dimahS3({
 });
 ```
 
-A throw from your `upload.onConfirmed`, even an `APIError`, returns
-`500 INTERNAL_ERROR` and keeps the object, so the client can retry the
-confirm. `onError` gets a wrapping `Error` with the original as `cause`.
-Reject content in `confirmGuard` instead; a rejection there deletes the
-object and runs [`upload.onRejected`](/docs/server/hooks/upload#when-an-upload-is-rejected).
+- Rejections you throw with `s3Error` never reach it. Neither does a failure
+  after the client disconnected.
+- The context has the `request` and, when known, the `operation`.
+- It may be async. A throw or rejection from it is logged, never unhandled.
+- An error from another library that is only named `APIError` counts as an
+  unexpected failure, so it reaches `onError` too.
 
-A throw from `upload.onRejected` never replaces the rejection the client
-gets. It is logged and reaches `onError` as an `Error` with the original as
-`cause`.
+Two hooks never change the response the way other throws do:
 
----
+- A throw from your `upload.onConfirmed`, even an `APIError`, returns
+  `500 INTERNAL_ERROR` and keeps the object, so the client can retry the
+  confirm. An `APIError` reaches `onError` wrapped in an `Error`, with the
+  original as `cause`. Reject content in `confirmGuard` instead: a rejection
+  there deletes the object and runs
+  [`upload.onRejected`](/docs/server/hooks/upload#when-an-upload-is-rejected).
+- A throw from `upload.onRejected` never replaces the rejection the client
+  gets. It is logged and reaches `onError` as an `Error` with the original as
+  `cause`.
 
 ## Server codes
 
@@ -130,16 +130,37 @@ Codes the server sends. The status is in `S3_ERROR_CODES[code].status`.
 
 ## Client codes
 
-Codes only the browser raises (`client: true` in the catalog). They never
-come from the server.
+Codes only the browser raises (`client: true` in the catalog). The server
+never sends them.
 
 <ErrorCodeTable raisedBy="client" />
+
+## API Reference
+
+| Export                                 | Description                                                                                             |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `s3Error(code, params?, options?)`     | Builds a catalog `APIError`. `options.status` overrides the status; `options.cause` stays on the server |
+| `APIError.from(status, body)`          | Builds an `APIError` with any `{ code, message, params? }`                                              |
+| `APIError.fromShape(shape, status?)`   | Rebuilds an `APIError` from a wire body. The status defaults to the catalog's, else `500`               |
+| `isAPIError(error)`                    | True for an `APIError`, also one from another copy of the package                                       |
+| `isS3ErrorCode(error, code)`           | True for an `APIError` with that `code`, and types its `params`                                         |
+| `S3_ERROR_CODES`                       | The catalog: each code's `status`, `message` template, and `client` flag                                |
+| `formatErrorMessage(template, params)` | Fills `{name}` placeholders in a template. `@dimah-s3/core` only                                        |
+
+### APIError
+
+| Property     | Type                                            | Description                        |
+| ------------ | ----------------------------------------------- | ---------------------------------- |
+| `code`       | `string`                                        | Stable machine-readable code       |
+| `message`    | `string`                                        | English message                    |
+| `params`     | `Record<string, string \| number> \| undefined` | Values the message was filled from |
+| `statusCode` | `number`                                        | HTTP status                        |
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do I display friendly error messages on the client?">
+<Accordion title="How do I show friendly error messages on the client?">
 
 Use `useFormatError` from `@dimah-s3/react`. It maps each code and its
 `params` to a translated string:
@@ -162,8 +183,7 @@ const { download } = useDownload({
 
 <Accordion title="Where do I find the message template for a code?">
 
-`S3_ERROR_CODES` holds each entry's `status`, `message` template, and
-`client` flag. `formatErrorMessage(template, params)` fills a template:
+`S3_ERROR_CODES[code].message`. `formatErrorMessage` fills it:
 
 ```ts
 import { formatErrorMessage, S3_ERROR_CODES } from "@dimah-s3/core";

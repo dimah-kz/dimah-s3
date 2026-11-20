@@ -1,18 +1,12 @@
 ---
 title: Forms
-description: Store confirmed S3 object keys in a form, with UploadField, React Hook Form, or TanStack Form.
+description: Store the object keys of confirmed uploads in a form, with UploadField, React Hook Form, or TanStack Form.
 icon: FileInput
 ---
 
-Keep upload state and form state apart:
-
-- **`useUpload`** — owns the browser `File`s, validation, progress, retries, and confirmation.
-- **The form** — owns a value it can submit, usually the confirmed object keys.
-
-A key belongs in the form once its file is confirmed. At that point the server
-has verified the object with `HeadObject`.
-
-## Upload flow
+Keep upload state and form state apart. `useUpload` owns the browser `File`s,
+validation, progress, retries, and confirmation. The form owns a value it can
+submit: the object keys of confirmed uploads.
 
 <Flow
   label="Upload field lifecycle"
@@ -30,21 +24,15 @@ has verified the object with `HeadObject`.
   ]}
 />
 
-`useUpload` stays the source of truth for progress and file UI. The form only
-holds the value your app submits.
-
-If some files of a call fail, the ones that uploaded stay confirmed and their
-keys stay in the form. Let the user retry the failed files, or delete the
-uploaded objects when the whole form is discarded.
-
----
+A key belongs in the form once its file is confirmed, which means the server
+has verified the object with `HeadObject`. If some files of a call fail, the
+ones that uploaded stay confirmed and keep their keys in the form.
 
 ## UploadField
 
-[`UploadField`](/docs/react/ui/components/upload-field) from `@dimah-s3/ui`
-is a form field whose value is the keys of the files uploaded through it.
-Each key renders as a hidden `<input name>`, so it submits with a plain
-`<form>`:
+[`UploadField`](/docs/ui/components/upload-field) from `@dimah-s3/ui` is a
+form field whose value is the keys of the files uploaded through it. Each key
+renders as a hidden `<input name>`, so it submits with a plain `<form>`:
 
 ```tsx title="components/attachment-form.tsx"
 "use client";
@@ -73,13 +61,9 @@ export function AttachmentForm({
 }
 ```
 
-`maxFiles` on the field caps the keys it holds across calls. `maxFiles` on
-the hook caps the files of one call. Read the keys on the server with
-`formData.getAll("attachments")`.
-
-Pass `value` and `onValueChange` to control the field from a form library.
-
----
+- `maxFiles` on the field caps the keys it holds across calls. `maxFiles` on the hook caps the files of one call.
+- Read the keys on the server with `formData.getAll("attachments")`.
+- Pass `value` and `onValueChange` to control the field from a form library, as below.
 
 ## React Hook Form
 
@@ -151,10 +135,8 @@ export function AttachmentForm() {
 }
 ```
 
-The dropzone shows progress and per-file errors from `upload` inside it, so
-none of it is copied into the form.
-
----
+The dropzone shows progress and per-file errors from `upload`, so none of it
+is copied into the form.
 
 ## TanStack Form
 
@@ -217,14 +199,13 @@ export function AttachmentForm() {
 }
 ```
 
----
-
 ## Without UploadField
 
 With your own controls, write each key from `onSuccess`. It runs once per
 uploaded file, so a partly failed call still keeps its uploaded keys:
 
 ```ts
+const formatError = useFormatError();
 const upload = useUpload({
   route: "attachments",
   maxFiles: 5,
@@ -249,9 +230,7 @@ For a single file, such as an avatar, store one nullable key:
 ```ts
 const upload = useUpload({
   route: "avatar",
-  onSuccess: (result) => {
-    form.setValue("avatarKey", result.key);
-  },
+  onSuccess: (result) => form.setValue("avatarKey", result.key),
 });
 ```
 
@@ -261,15 +240,11 @@ If the submission also needs the verified size, type, or name, store
 ```ts
 import type { UploadResult } from "@dimah-s3/react";
 
-type FormValues = {
-  attachments: UploadResult[];
-};
+type FormValues = { attachments: UploadResult[] };
 ```
 
-Do not put `File` objects in a value you send to your server. They are
+Never put `File` objects in a value you send to your server. They are
 browser-only and do not mean the upload finished.
-
----
 
 ## Rules
 
@@ -279,13 +254,11 @@ browser-only and do not mean the upload finished.
 4. Call both `form.reset()` and `upload.reset()` when the form resets.
 5. Render progress, previews, and status from `upload.files`, not from form state.
 
-<Callout>
+<Callout title="Check the count on the server">
   `maxFiles` is a client-side limit. Server routes enforce each file's type and
   size, but not how many keys a form submits. Check the count in the endpoint
   that receives the form.
 </Callout>
-
----
 
 ## Frequently asked questions
 

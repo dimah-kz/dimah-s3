@@ -1,11 +1,19 @@
 ---
 title: Outcomes and errors
-description: What hook actions return, how callbacks run, and how to read errors and aborts.
+description: What hook actions return instead of throwing, the order callbacks run in, and how to read errors and aborts.
 ---
 
-Hook actions do not throw for transfer errors. Each one resolves with an
-**outcome** for one key, or a **result** for a batch. Read the status, then
-the data or the error.
+Hook actions do not throw for transfer errors. An action on one key resolves
+with an **outcome**, and a batch action with a **result**. Read the status,
+then the data or the error.
+
+```ts
+const outcome = await download(objectKey);
+
+if (outcome.status === "error") {
+  console.log(outcome.key, outcome.error.code);
+}
+```
 
 ## Outcomes
 
@@ -19,18 +27,12 @@ type OperationOutcome<TData> =
   | { status: "aborted"; key: string };
 ```
 
-- **`success`** — `data` holds the response.
-- **`error`** — `error` is an `APIError`.
-- **`blocked`** — a `before*` callback returned `false`.
-- **`aborted`** — the call was cancelled. A delete has no cancel, so it never ends this way.
-
-```ts
-const outcome = await download(objectKey);
-
-if (outcome.status === "error") {
-  console.log(outcome.key, outcome.error.code);
-}
-```
+| Status    | Means                                                                     |
+| --------- | ------------------------------------------------------------------------- |
+| `success` | `data` holds the response                                                 |
+| `error`   | `error` is an `APIError`                                                  |
+| `blocked` | A `before*` callback returned `false`                                     |
+| `aborted` | The call was cancelled. A delete has no cancel, so it never ends this way |
 
 ## Results
 
@@ -41,53 +43,40 @@ Batch actions resolve with one result that sorts every unit:
 | `useUpload().handleFiles` | `{ uploaded, failed, rejected, blocked, aborted }` by file |
 | `useDelete().removeMany`  | `{ deleted, failed, blocked }` by key                      |
 
-`failed` entries pair the unit with its `APIError`, such as
+Each `failed` entry pairs the unit with its `APIError`, such as
 `{ key, error }`. An upload's `rejected` entries are the files the policy
 refused before upload, each as `{ file, errors }`.
 
 ## Joined calls
 
 The download and delete hooks track each key on its own. A second call for a
-key that is already running does not start a new request. It joins the
-running call and resolves with the same outcome, and the callbacks do not run
-a second time.
+running key starts no new request: it joins the running call, resolves with
+the same outcome, and does not run the callbacks again.
 
 ## Callback order
 
-Every hook runs its callbacks the same way:
+Every hook runs its callbacks in the same order:
 
 1. **`before*`** (`beforeUpload`, `beforeDownload`, `beforeDelete`) runs once per call. Returning `false` blocks the call. A throw fails it with `HOOK_FAILED`.
-2. **`on*Start`** (`onUploadStart`, `onDeleteStart`, `onDownloadStart`) runs once per call. A throw fails it with `HOOK_FAILED`.
+2. **`on*Start`** (`onUploadStart`, `onDownloadStart`, `onDeleteStart`) runs once per call. A throw fails it with `HOOK_FAILED`.
 3. **`onError`** runs once per failed unit, then **`onSuccess`** once per successful unit.
 4. **`onSettled`** runs once per call, last.
 
-`onError`, `onSuccess`, and `onSettled` may be async and are awaited. They are
-the ones of the newest render, so they see current state. If one throws, the
-error goes to the global `reportError` and the outcome does not change.
+`onError`, `onSuccess`, and `onSettled` may be async and are awaited. They
+are the callbacks of the newest render, so they see current state. If one
+throws, the error goes to the global `reportError` and the outcome does not
+change.
 
 ## Errors
 
 Every error is an `APIError` from `@dimah-s3/core`:
 
-- **`code`** — always set. Branch on it with `isS3ErrorCode(error, code)`.
-- **`params`** — values for the message, such as `{ size, maxFileSize }`.
-- **`statusCode`** — the HTTP status.
-- **`message`** — English. Show users `useFormatError()` instead; see [Helpers](/docs/react/helpers#errors).
-
-Server codes come from the route and your hooks. Some codes are raised in the
-browser only:
-
-| Code              | When                                                         |
-| ----------------- | ------------------------------------------------------------ |
-| `TOO_MANY_FILES`  | A call has more valid files than `maxFiles`.                 |
-| `HOOK_FAILED`     | A `before*`, `on*Start`, or `uploadOptions` function threw.  |
-| `NETWORK_ERROR`   | A request got no response.                                   |
-| `UPLOAD_FAILED`   | S3 rejected an upload. `params.status` is S3's status.       |
-| `DOWNLOAD_FAILED` | A fetch download got a non-2xx response.                     |
-| `PARTIAL_FAILURE` | `upload.error` when two or more files failed, or all did.    |
-| `UNKNOWN_ERROR`   | Anything that is not an `APIError`. The original is `cause`. |
-
-The full table is in [Errors](/docs/server/errors).
+| Property     | Description                                                                  |
+| ------------ | ---------------------------------------------------------------------------- |
+| `code`       | Always set and stable. Branch on it with `isS3ErrorCode(error, code)`        |
+| `params`     | Values for the message, such as `{ size, maxFileSize }`                      |
+| `statusCode` | The HTTP status                                                              |
+| `message`    | English. Show users [`useFormatError()`](/docs/react/helpers#errors) instead |
 
 ```ts
 import { isS3ErrorCode } from "@dimah-s3/core";
@@ -100,14 +89,30 @@ for (const { file, error } of failed) {
 }
 ```
 
+Server codes come from the route and your hooks. These codes are raised in
+the browser only:
+
+| Code                | When                                                            |
+| ------------------- | --------------------------------------------------------------- |
+| `TOO_MANY_FILES`    | A call has more valid files than `maxFiles` or the upload limit |
+| `HOOK_FAILED`       | A `before*`, `on*Start`, or `uploadOptions` function threw      |
+| `NETWORK_ERROR`     | A request got no response                                       |
+| `UPLOAD_FAILED`     | S3 rejected an upload. `params.status` is S3's status           |
+| `CHECKSUM_MISMATCH` | S3 rejected the uploaded bytes for their checksum               |
+| `DOWNLOAD_FAILED`   | A fetch download got a non-2xx response                         |
+| `PARTIAL_FAILURE`   | `upload.error` when two or more files failed                    |
+| `UNKNOWN_ERROR`     | Anything that is not an `APIError`. The original is `cause`     |
+
+The full list is in [Errors](/docs/server/errors#client-codes).
+
 ## Aborts
 
-A cancel is not an error. Hooks report it as an `aborted` outcome, or as the
+A cancel is not an error. Hooks report it as an `aborted` outcome, or in the
 `aborted` list of an upload result.
 
-Engine functions such as `uploadFile` reject with the signal's reason instead.
-The upload abort reasons are `DOMException`s named `AbortError`. Read which
-kind with `getUploadAbortKind`:
+Engine functions such as `uploadFile` reject with the signal's reason
+instead. Upload abort reasons are `DOMException`s named `AbortError`; read
+which kind with `getUploadAbortKind`:
 
 ```ts
 import { getUploadAbortKind } from "@dimah-s3/react/engine";
@@ -120,13 +125,26 @@ try {
 }
 ```
 
-See [Engine](/docs/react/guides/engine).
+See [Engine](/docs/react/guides/engine#cancel-and-detach).
 
-## Type reference
+## API Reference
 
-<AutoTypeTable path="packages/react/src/types/operation.ts" name="KeyError" />
+### TransferProgress
 
-<AutoTypeTable
-  path="packages/react/src/types/operation.ts"
-  name="TransferProgress"
-/>
+Uploads and fetch downloads report progress in this shape.
+
+| Property  | Type                  | Description                                    |
+| --------- | --------------------- | ---------------------------------------------- |
+| `loaded`  | `number`              | Bytes transferred so far                       |
+| `total`   | `number`              | Total bytes to transfer                        |
+| `percent` | `number`              | Progress from `0` to `100`                     |
+| `speed`   | `number \| undefined` | Bytes per second. `undefined` until measurable |
+
+### KeyError
+
+A failed key in a batch result.
+
+| Property | Type       | Description        |
+| -------- | ---------- | ------------------ |
+| `key`    | `string`   | The object key     |
+| `error`  | `APIError` | Why the key failed |

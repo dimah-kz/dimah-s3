@@ -30,6 +30,7 @@ export const LLM_PAGE_PRIORITY = [
   "/docs/server/hooks/global-guard",
   "/docs/server/hooks/upload",
   "/docs/react",
+  "/docs/ui",
   "/docs/db",
 ] as const;
 

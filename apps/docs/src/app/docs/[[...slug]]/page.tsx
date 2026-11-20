@@ -26,6 +26,7 @@ import {
   translationLinks,
 } from "@/lib/page-language";
 import { TranslationLink } from "@/components/translation-link";
+import { documentTitle } from "@/lib/source/navigation";
 
 export default async function Page(props: PageProps<"/docs/[[...slug]]">) {
   const params = await props.params;
@@ -92,9 +93,10 @@ export async function generateMetadata(
 
   const markdownUrl = getPageMarkdownUrl(page).url;
   const image = getPageImage(page).url;
+  const title = documentTitle(page.data.title, page.path);
 
   return {
-    title: page.data.title,
+    title,
     description: page.data.description,
     keywords: docsPageKeywords(page.data.title),
     alternates: {
@@ -109,7 +111,7 @@ export async function generateMetadata(
       },
     },
     openGraph: {
-      title: page.data.title,
+      title,
       description: page.data.description,
       url: page.url,
       siteName: appName,
@@ -121,7 +123,7 @@ export async function generateMetadata(
       card: "summary_large_image",
       site: "@dimahkzx",
       creator: "@dimahkzx",
-      title: page.data.title,
+      title,
       description: page.data.description,
       images: image,
     },

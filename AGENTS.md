@@ -35,6 +35,7 @@ Read the matching file **when changing published behavior**. Skip it for a local
 | [changelog.md](docs/agents/changelog.md)       | Writing or editing a `.tegami` changelog        |
 | [release.md](docs/agents/release.md)           | Tegami version bump / publish                   |
 | [brand.md](docs/agents/brand.md)               | Promo still or video                            |
+| [docs.md](docs/agents/docs.md)                 | Writing or restructuring a product docs page    |
 
 <!-- BEGIN:turborepo-agent-rules -->
 

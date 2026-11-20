@@ -1,18 +1,17 @@
 ---
 title: آروان‌کلود (ArvanCloud) با dimah-s3
-description: راه‌اندازی فضای ابری آروان‌کلود با dimah-s3؛ آپلود مستقیم از مرورگر با presigned POST، هاست API، تنظیم CORS و آدرس عمومی فایل‌ها.
+description: راه‌اندازی فضای ابری آروان‌کلود با dimah-s3؛ آپلود مستقیم از مرورگر با presigned POST، هاست API درست، تنظیم CORS و آدرس عمومی فایل‌ها.
 lang: fa
 translations:
   en: /docs/providers/arvancloud
 ogTitle: ArvanCloud
-ogDescription: Presigned POST uploads, the API host, CORS, and public URLs for ArvanCloud Object Storage.
+ogDescription: Connect dimah-s3 to ArvanCloud Object Storage with presigned POST uploads, the right API host, bucket CORS, and public URLs.
 ---
 
-فضای ابری آروان‌کلود (ArvanCloud Object Storage) با API استاندارد S3 کار
-می‌کند و dimah-s3 به‌طور کامل با آن سازگار است: آپلود، تأیید آپلود، دانلود و
-حذف. دو تفاوت با Amazon S3 دارد. آپلود باید با presigned POST انجام شود، و
-هاستی که SDK به آن وصل می‌شود با هاستی که فایل‌های عمومی را سرو می‌کند یکی
-نیست.
+فضای ابری آروان‌کلود (ArvanCloud Object Storage) از ابتدا تا انتها با dimah-s3
+کار می‌کند: آپلود، تأیید آپلود، دانلود و حذف. دو تفاوت با Amazon S3 دارد: آپلود
+باید با presigned POST انجام شود، و هاستی که SDK به آن وصل می‌شود با هاستی که
+فایل‌های عمومی را سرو می‌کند یکی نیست.
 
 <Callout title="تست‌شده">
   این تنظیمات روی یک باکت واقعی آروان‌کلود، در یک اپ واقعی با dimah-s3 نسخهٔ 2.0
@@ -20,10 +19,18 @@ ogDescription: Presigned POST uploads, the API host, CORS, and public URLs for A
   HeadObject، دانلود presigned و حذف.
 </Callout>
 
-## 1. تنظیمات سرور
+## تنظیمات
 
-`S3Client` را به هاست API ریجنِ باکت وصل کنید، آدرس‌دهی path-style را روشن
-کنید و روی همهٔ روت‌های آپلود `upload.method: "POST"` بگذارید:
+| تنظیم                        | مقدار                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `region`                     | `"auto"`                                                                                 |
+| `endpoint`                   | هاست API ریجن که خودش POST را قبول می‌کند، مثل `https://hot.ir-central1.arvanstorage.ir` |
+| `forcePathStyle`             | `true`                                                                                   |
+| `followRegionRedirects`      | `true`                                                                                   |
+| `requestChecksumCalculation` | `"WHEN_REQUIRED"`                                                                        |
+| `upload.method`              | `"POST"` روی همهٔ روت‌های آپلود                                                           |
+
+## پیکربندی سرور
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -56,19 +63,7 @@ export const s3 = dimahS3({
 });
 ```
 
-روش پیش‌فرض آپلود در dimah-s3 درخواست PUT است و آروان‌کلود آپلود presigned
-PUT را رد می‌کند. روتی که `method: "POST"` نداشته باشد presign را بی‌خطا
-می‌گیرد، ولی آپلود در مرورگر شکست می‌خورد. هوک‌های کلاینت و `@dimah-s3/ui`
-روش آپلود را از پاسخ presign می‌خوانند، پس سمت کلاینت تغییری لازم نیست.
-
-<Callout type="warn" title="از هاست APIای استفاده کنید که ریدایرکت نمی‌کند">
-  در ریجن `ir-central1`، هاست `s3.ir-central1.arvanstorage.ir` به درخواست POST
-  با `301` جواب می‌دهد و آن را به `hot.ir-central1.arvanstorage.ir` می‌فرستد.
-  آپلود فرم در مرورگر نمی‌تواند این ریدایرکت را دنبال کند و شکست می‌خورد.
-  `endpoint` را روی هاستی بگذارید که خودش POST را قبول می‌کند.
-</Callout>
-
-## 2. تنظیم CORS باکت
+## CORS باکت
 
 مرورگر فایل را مستقیم به آروان‌کلود POST می‌کند، پس باکت باید origin شما و
 متد `POST` را مجاز کند. این قانون را در تنظیمات CORS باکت در پنل آروان‌کلود
@@ -97,12 +92,32 @@ aws s3api put-bucket-cors \
 
 `http://localhost:3000` را فقط روی باکتِ توسعه اضافه کنید.
 
-## 3. آدرس عمومی فایل‌ها
+## نکته‌های آروان‌کلود
+
+### آپلود با POST
+
+آروان‌کلود آپلود presigned PUT را رد می‌کند، و مقدار پیش‌فرض `upload.method`
+برابر `"PUT"` است. روتی که `method: "POST"` نداشته باشد presign را بی‌خطا
+می‌گیرد، ولی آپلود در مرورگر شکست می‌خورد. هوک‌ها و `@dimah-s3/ui` روش آپلود
+را از پاسخ presign می‌خوانند، پس سمت کلاینت تغییری لازم نیست.
+
+### از هاست APIای استفاده کنید که ریدایرکت نمی‌کند
+
+در ریجن `ir-central1`، هاست `s3.ir-central1.arvanstorage.ir` به درخواست POST
+با `301` جواب می‌دهد و آن را به `hot.ir-central1.arvanstorage.ir` می‌فرستد.
+آپلود فرم در مرورگر نمی‌تواند این ریدایرکت را دنبال کند و شکست می‌خورد.
+`endpoint` را روی هاستی بگذارید که خودش POST را قبول می‌کند.
+
+### آدرس عمومی فایل‌ها
+
+`endpoint` در `S3Client` هاست API است و با آدرس‌دهی path-style به کار می‌رود.
+لینک‌های دانلود presigned را خود `S3Client` می‌سازد، پس آن‌ها خودبه‌خود از همین
+هاست استفاده می‌کنند. نمایش عمومی فایل‌ها از virtual host `.s3.` باکت، یا
+دامنهٔ اختصاصی یا CDN شما انجام می‌شود.
 
 برای فایل‌هایی که همه می‌توانند بخوانند، روی روت
 `upload: { method: "POST", acl: "public-read" }` بگذارید یا باکت را عمومی
-کنید. بعد آدرس فایل را از virtual host `.s3.` باکت و کلیدی که سرور ساخته
-بسازید:
+کنید. بعد آدرس فایل را از این آدرس پایه و کلیدی که سرور ساخته بسازید:
 
 ```bash title=".env"
 ARVAN_ENDPOINT=https://hot.ir-central1.arvanstorage.ir
@@ -110,44 +125,44 @@ ARVAN_PUBLIC_BASE_URL=https://your-bucket.s3.ir-central1.arvanstorage.ir
 ```
 
 [`buildPublicObjectUrl`](/docs/core#helpers) این آدرس پایه و کلید را به هم
-وصل می‌کند و URL encoding را هم انجام می‌دهد. اگر دامنهٔ اختصاصی یا CDN جلوی
-باکت دارید، همان را در این متغیر بگذارید.
+وصل می‌کند و کلید را encode می‌کند. اگر دامنهٔ اختصاصی یا CDN جلوی باکت
+دارید، همان را در این متغیر بگذارید.
 
 فایل‌ها را از `your-bucket.hot.ir-central1.arvanstorage.ir` سرو نکنید. این
 هاست در یک حلقهٔ ریدایرکت می‌افتد و image optimizer در Next.js خطای `508`
 می‌دهد.
 
-## سؤال‌های رایج
-
-<Accordions>
-
-<Accordion title="چرا presign موفق است ولی آپلود شکست می‌خورد؟">
-
-دو چیز را بررسی کنید. اول اینکه روت `upload.method: "POST"` داشته باشد؛
-آروان‌کلود PUT پیش‌فرض را رد می‌کند. دوم اینکه `endpoint` هاست APIای باشد که
-خودش POST را قبول می‌کند، نه هاستی که آن را ریدایرکت می‌کند: مرورگر نمی‌تواند
-`301` را در آپلود فرم دنبال کند و درخواست با خطای شبکه تمام می‌شود. اگر قانون
-CORS باکت origin شما یا `POST` را نداشته باشد هم مرورگر خطای شبکه نشان می‌دهد.
-
-</Accordion>
-
-<Accordion title="برای آپلود و نمایش فایل از یک هاست استفاده کنم؟">
-
-نه. `endpoint` در `S3Client` هاست API است (`hot.ir-central1…` با آدرس‌دهی
-path-style). نمایش عمومی فایل‌ها از virtual host باکت
-(`your-bucket.s3.ir-central1…`) یا دامنهٔ اختصاصی شما انجام می‌شود. لینک‌های
-دانلود presigned را خود `S3Client` می‌سازد، پس آن‌ها خودبه‌خود از هاست API
-استفاده می‌کنند.
-
-</Accordion>
-
-<Accordion title="آپلود multipart روی آروان‌کلود کار می‌کند؟">
+### آپلود multipart
 
 پارت‌های multipart درخواست‌های presigned PUT هستند و تنظیماتی که تست شده فقط
 آپلود تکی را پوشش می‌دهد. روی روت‌های آروان‌کلود `upload.multipart` را خاموش
 بگذارید، یا پیش از روشن کردنش یک آپلود multipart را روی باکت خودتان تست کنید.
 هر presigned POST تا ۵ گیگابایت را می‌پذیرد.
 
+## رفع اشکال
+
+<Accordions>
+
+<Accordion title="presign موفق است، ولی آپلود شکست می‌خورد">
+
+- روت باید `upload.method: "POST"` داشته باشد. آروان‌کلود PUT پیش‌فرض را رد
+  می‌کند.
+- `endpoint` باید هاست APIای باشد که خودش POST را قبول می‌کند، نه هاستی که آن
+  را ریدایرکت می‌کند. مرورگر نمی‌تواند `301` را در آپلود فرم دنبال کند و
+  درخواست با خطای شبکه تمام می‌شود.
+- قانون CORS باکت باید origin شما و `POST` را مجاز کند. نبودِ این قانون هم به
+  شکل خطای شبکه دیده می‌شود.
+
+</Accordion>
+
+<Accordion title="تصویرهای عمومی در Next.js خطای 508 می‌دهند">
+
+آدرس از هاست `hot.` استفاده می‌کند که در یک حلقهٔ ریدایرکت می‌افتد. آدرس‌های
+عمومی را از virtual host `.s3.` باکت یا دامنهٔ خودتان بسازید، همان‌طور که در
+بخش «آدرس عمومی فایل‌ها» آمده است.
+
 </Accordion>
 
 </Accordions>
+
+علائم دیگر: [Troubleshooting](/docs/providers#troubleshooting) (انگلیسی).

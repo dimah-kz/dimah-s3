@@ -1,16 +1,17 @@
 ---
 title: Database Setup
-description: Install @dimah-s3/db, create its tables, and register the db() plugin.
+description: Install @dimah-s3/db, create its tables with Drizzle, Prisma, or Kysely, register db(), and set how scopes and access checks work.
 ---
 
-This guide assumes you already have Drizzle, Prisma, or Kysely connected to
-a database. A working reference is
+Add the `db()` plugin to an existing [`dimahS3()`](/docs/server/setup)
+server. You need Drizzle, Prisma, or Kysely connected to a database.
 [`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/v2/examples/with-db)
-(Next.js + Drizzle + SQLite).
+is a working reference (Next.js, Drizzle, SQLite).
 
-A database of another schema version, 1.x included, is left as it is.
-Create these tables on a new database. See
-[Upgrade the schema](/docs/db/upgrade).
+<Callout title="Start from a new database">
+  The package reads schema `2.3.0` only. It leaves a 1.x or earlier 2.x database
+  as it is: see [Upgrade the schema](/docs/db/upgrade).
+</Callout>
 
 ### Install [step]
 
@@ -18,16 +19,14 @@ Create these tables on a new database. See
 npm i @dimah-s3/db@beta
 ```
 
-You do not install `fumadb`. The adapters ship from
-`@dimah-s3/db/adapters/*`, and `runCli` from `@dimah-s3/db/cli` generates
-the Drizzle tables or the Prisma models. With Kysely, `migrate(client)`
-from `@dimah-s3/db` creates the tables. `@aws-sdk/client-s3` is a required
-peer: it is the one `@dimah-s3/server` already uses.
+`@aws-sdk/client-s3` and `@dimah-s3/server` are peers: use the ones your
+server already has. Do not install `fumadb`. The adapters ship from
+`@dimah-s3/db/adapters/*`.
 
-### Tables [step]
+### Create the tables [step]
 
-The plugin uses two tables, `storage_object` and `storage_folder`, plus a
-small settings table that records the schema version (`2.3.0`).
+The plugin uses `storage_object` and `storage_folder`, plus
+`private_dimah_s3_settings`, which records the schema version (`2.3.0`).
 
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
@@ -42,10 +41,8 @@ small settings table that records the schema version (`2.3.0`).
 </Tab>
 <Tab value="Kysely">
 
-`migrate(client)` creates the tables and the indexes on SQLite,
-PostgreSQL, and MySQL. It does nothing on a database already at `2.3.0`
-and throws on a database at another version: it does not upgrade one. It
-needs the Kysely adapter (next step):
+`migrate(client)` creates the tables and their indexes on SQLite,
+PostgreSQL, and MySQL. It takes the client from the next step:
 
 ```ts title="scripts/migrate.ts"
 import { migrate } from "@dimah-s3/db";
@@ -54,21 +51,20 @@ import { dimahS3Db } from "@/lib/dimah-s3-db";
 await migrate(dimahS3Db);
 ```
 
-The [CLI](#cli) `migrate` command does the same. Its `generate` command
-writes the SQL instead, for a migration tool of your own.
+It does nothing on a database already at `2.3.0`, and throws on one at
+another version. To write the SQL for your own migration tool instead, run
+the [CLI](#cli) `generate` command.
 
 </Tab>
 </Tabs>
 
-### Database client [step]
+### Create the database client [step]
 
-Wrap your ORM connection with an adapter, then create the dimah-s3 DB
-client:
+Wrap your connection with an adapter, then create the client with
+`DimahS3Db.client()`:
 
 <Tabs items={["Drizzle", "Prisma", "Kysely"]}>
 <Tab value="Drizzle">
-
-drizzle-orm 1.x is required (`1.0.0-rc.5` or later).
 
 ```ts title="lib/dimah-s3-db.ts"
 import { DimahS3Db } from "@dimah-s3/db";
@@ -116,39 +112,20 @@ export const dimahS3Db = DimahS3Db.client(
 </Tab>
 </Tabs>
 
-`DimahS3Db` is the [FumaDB](https://fumadb.dev) library for this schema,
-and the client it returns is FumaDB's. `db()` and the functions on this
-page are the supported way to use it; what else the client exposes follows
-FumaDB's own versions.
-
-On PostgreSQL and MySQL, the timestamp columns have no time zone. Every
-adapter writes and reads them in UTC, whatever the time zone of the
-process, so instances in different zones agree on deadlines like
-`expiresAt`.
-
-#### PostgreSQL schema
-
-To keep the tables in a PostgreSQL schema, such as `storage`, create the
-client from `DimahS3Db.names.schema("storage")`, and generate with the same
-call:
-
-```ts title="lib/dimah-s3-db.ts"
-export const dimahS3Db = DimahS3Db.names
-  .schema("storage")
-  .client(drizzleAdapter({ db, provider: "postgresql" }));
-```
-
-`migrate` creates the schema. The generated Drizzle file exports it as
-`storageSchema`, so `drizzle-kit` creates it too. The generated Prisma
-models carry `@@schema("storage")`: list it in the datasource, as in
-`schemas = ["public", "storage"]`. FumaDB keeps its settings table,
-`private_dimah_s3_settings`, in the search path.
+- `DimahS3Db` is the [FumaDB](https://fumadb.dev) library for this schema.
+  Use its client only through `db()` and the functions in these docs: the
+  rest follows FumaDB's own versions.
+- On PostgreSQL and MySQL the timestamp columns have no time zone. Every
+  adapter reads and writes them in UTC, so instances in different zones
+  agree on deadlines like `expiresAt`.
+- To keep the tables in a PostgreSQL schema, see
+  [PostgreSQL schema](#postgresql-schema).
 
 ### Register the plugin [step]
 
-Pass `db()` in `plugins`. `getSession` loads the caller, and `resolveScope`
-returns a stable owner string for them, or `null` to reject the request
-with `UNAUTHORIZED` (`401`):
+Pass `db()` in `plugins`. `getSession` loads the caller, and
+[`resolveScope`](#scope) returns a stable owner string for them, or `null`
+to reject the call with `UNAUTHORIZED` (`401`):
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -180,62 +157,75 @@ export const s3 = dimahS3({
 });
 ```
 
-Set `DIMAH_S3_SECRET` in your environment: `dimahS3()` reads it to sign
-[upload tickets](/docs/server/upload-tickets), which `db()` binds to the
-scope.
+- Set `DIMAH_S3_SECRET` in your environment. `dimahS3()` signs
+  [upload tickets](/docs/server/upload-tickets) with it, and `db()` binds
+  each ticket to the caller's scope.
+- Every route is tracked unless it sets `plugins: { db: false }`
+  ([route options](#route-options)).
+- The plugin does not turn operations on. Enable download and delete on the
+  **same** route as upload when those callers share the objects
+  ([combining operations](/docs/server/routes#combining-operations)).
 
-The plugin's context is on `s3.db` (and `s3.context.db`). The first query
-checks the recorded schema version and reads one row of each table, so a
-database at another version, or one the generated schema was never applied
-to, throws there with what to run. Call `checkSchema` at startup to fail
-fast:
+<Callout type="warn" title="Route guards do not run on /db/*">
+  The `/db/*` endpoints run only the instance `guard`, with the operation
+  `"plugin"`: most of them name no route. Set what `resolveScope` needs, such as
+  `locals.userId`, in the instance guard, or read it from `request` and
+  `session`.
+</Callout>
+
+### Check the schema at startup [step]
+
+Call `checkSchema` on `s3.db` (also `s3.context.db`) to fail fast:
 
 ```ts
 await s3.db.checkSchema();
-const page = await s3.db.objects.list("user:123", { folderId: null });
 ```
 
-The `/db/*` endpoints run the instance `guard` and nothing else from your
-routes: a route `guard` does not run there, since most of these calls name
-no route. Set what `resolveScope` needs (such as `locals.userId`) in the
-instance guard, or read it from `request` and `session`.
+It throws, with what to run, unless the database is at `2.3.0` and both
+tables can be read. Without this call, the first query runs the same check.
 
-<Callout type="warn" title="Features stay opt-in">
-  Plugin hooks merge onto every route unless the route sets
-  `plugins: { db: false }`. You still enable each operation on the route
-  yourself: the plugin does not turn them on. Enable download or delete on
-  this **same** route when those callers share these objects
-  ([combining operations](/docs/server/routes#combining-operations)).
-</Callout>
+### Register the client plugin [step]
+
+For listings and folders in the browser, add `dbClient()` to the React
+client:
+
+```ts title="lib/s3-client.ts"
+"use client";
+
+import { createS3Client } from "@dimah-s3/react";
+import { dbClient } from "@dimah-s3/db/client"; // [!code ++]
+
+export const s3Client = createS3Client({
+  basePath: "/api/s3",
+  plugins: [dbClient()], // [!code ++]
+});
+```
+
+Under `s3Client.Provider` ([React setup](/docs/react/setup)),
+`s3Client.useApi().db` holds the [browser actions](/docs/db/api#browser).
 
 ## Scope
 
-Every row belongs to a scope, such as `user:123` or `org:acme`. Upload
-tickets are bound to it, so a ticket from one scope cannot confirm or
-complete an upload in another.
+Every row belongs to a scope, such as `user:123` or `org:acme`, that
+`resolveScope` returns for the caller:
 
-`resolveScope` says who is calling. It receives the `request`, the
-`session` (the `getSession` result), the `locals` your guards set, the
-`operation`, and the `route` when the call has one. It never sees the
-target object: the scope comes from the caller, so the same caller gets the
-same scope when an upload ticket is bound, used, and confirmed. Checks on
-the target belong in [`authorize`](#authorize).
+- It sees who is calling, never the target object, so one caller gets the
+  same scope when an upload ticket is bound, used, and confirmed. Checks on
+  the target belong in [`authorize`](#authorize).
+- A scope is 1 to 255 characters, with no whitespace at either end. Anything
+  else fails the call as a config error (`500` `INTERNAL_ERROR`, with the
+  reason in the server log) before any row is written.
+- Folders belong to the scope, not to a route. Every list of one scope shows
+  the same folder tree, and a folder can hold objects of several routes.
+  Give callers separate scopes for separate trees.
+- To share objects between users, resolve them to the same scope, such as
+  `org:acme`.
+- `getSession` runs at most once per `Request`. `resolveScope` runs once per
+  call, operation, and route, so two `s3.api` calls that share a `Request`
+  but pass different `locals` resolve separately.
 
-A scope is 1 to 255 characters, the length of the `scope` columns, with no
-whitespace at either end. Anything else fails the call as a config error
-(`500` `INTERNAL_ERROR`, with the reason in the server log), before any row
-is written.
-
-Folders belong to the scope, not to a route. Two lists that filter by
-different routes show the same folder tree, and a folder can hold objects
-of several routes. For separate trees, give the callers separate scopes.
-
-- `getSession` runs at most once per `Request`.
-- `resolveScope` runs once per call, operation, and route. Two `s3.api`
-  calls that share a `Request` but pass different `locals` resolve
-  separately.
-
-<AutoTypeTable path="packages/db/src/types/plugin.ts" name="ScopeContext" />
+`resolveScope` receives a [`ScopeContext`](#scopecontext). Its `operation`
+says what the call does:
 
 | `operation`     | Runs for                                            |
 | --------------- | --------------------------------------------------- |
@@ -254,54 +244,8 @@ of several routes. For separate trees, give the callers separate scopes.
 
 ## Authorize
 
-A row belongs to the scope that wrote it. A caller from another scope gets
-`OBJECT_NOT_FOUND` (`404`), the same as for a key with no row, so nobody
-learns which keys other scopes hold. (An upload to a key another scope holds
-gets `FORBIDDEN`: upload keys are the server's choice.) `authorize` runs
-after that check and can only narrow it: return `false` to reject the
-request with `FORBIDDEN` (`403`).
-
-It gets the scope context plus the resolved `scope`, and what the call
-targets: the `key`, and on upload the client's `clientMetadata`. `object` is
-the stored row when the request targets one: confirm, the multipart calls,
-download, delete, read, and update. It is the server view, with `scope`,
-`s3Metadata`, and the attributes as stored, not what `attributes.toClient`
-sends the browser.
-
-`folder` and `folderId` say where the target is now, and `destination`
-where the call puts it:
-
-| Call                           | `folder` / `folderId`       | `destination`                              |
-| ------------------------------ | --------------------------- | ------------------------------------------ |
-| Download, delete, read, rename | the folder the object is in | none                                       |
-| Object move (`PATCH`)          | the folder the object is in | the folder it moves into                   |
-| Upload, `s3.db.record`         | the folder it goes into     | none                                       |
-| `list`                         | the folder it opens         | none                                       |
-| `folder.create`                | the parent folder           | the new path, and the parent's id          |
-| `folder.update`                | the folder as it is         | its new path, and the id of its new parent |
-| `folder.delete`                | the folder                  | none                                       |
-
-`folder` is a path, `null` at the root, and `folderId` the id of that
-folder. For a stored object they come from its row, whatever the request
-names, so a rule on `folder` holds for downloads, deletes, and renames
-too. When an object's folder no longer exists, `folderId` is set and
-`folder` is left out.
-
-`recursive` is `true` for a `list` that also covers every folder below
-`folder`: a `dbObjectSource` search, and a flat listing (no `folderId`),
-which reads the whole scope and arrives as a recursive listing of the
-root. Such a listing returns rows from those folders too, so a rule that
-hides a folder from `list` must also cover a recursive listing of any
-folder above it. Return `false` for `recursive` to keep listings to one
-folder, and pass `dbObjectSource(api.db, { recursiveSearch: false })` so
-the list searches the open folder only instead of failing with
-`FORBIDDEN`.
-
-<AutoTypeTable path="packages/db/src/types/plugin.ts" name="AuthorizeContext" />
-
-An upload on a `replace: "overwrite"` route that replaces an active object
-runs `authorize` with `object` set to that object, and `folder` is that
-object's folder path, not the folder in `clientMetadata.folderId`.
+`authorize` narrows access after the ownership check. Return `false` to
+reject the call with `FORBIDDEN` (`403`):
 
 ```ts title="lib/s3.ts"
 const inArchive = (path?: string | null) =>
@@ -323,16 +267,55 @@ db({
 rename or delete of the archive folder itself. `destination` covers a move
 into it and a new folder inside it.
 
-## Plugin options
+Ownership runs first, and `authorize` cannot widen it:
 
-```ts
-import type { DbPluginOptions } from "@dimah-s3/db";
-```
+- A row belongs to the scope that wrote it. A caller from another scope gets
+  `OBJECT_NOT_FOUND` (`404`), the same as for a key with no row, so nobody
+  learns which keys other scopes hold.
+- An upload to a key another scope holds gets `FORBIDDEN`: upload keys are
+  the server's choice.
 
-<AutoTypeTable path="packages/db/src/types/plugin.ts" name="DbPluginOptions" />
+`authorize` receives an [`AuthorizeContext`](#authorizecontext). Its
+`object` is the stored row when the call targets one (confirm, the multipart
+calls, download, delete, read, and update): the server view, with `scope`,
+`s3Metadata`, and the stored attributes, not the `attributes.toClient`
+output.
 
-`quota` and `attributes` are covered in the [API](/docs/db/api#quota)
-page.
+### Folder and destination
+
+`folder` and `folderId` say where the target is now, and `destination` where
+the call puts it:
+
+| Call                           | `folder` / `folderId`       | `destination`                              |
+| ------------------------------ | --------------------------- | ------------------------------------------ |
+| Download, delete, read, rename | the folder the object is in | none                                       |
+| Object move (`PATCH`)          | the folder the object is in | the folder it moves into                   |
+| Upload, `s3.db.record`         | the folder it goes into     | none                                       |
+| `list`                         | the folder it opens         | none                                       |
+| `folder.create`                | the parent folder           | the new path, and the parent's id          |
+| `folder.update`                | the folder as it is         | its new path, and the id of its new parent |
+| `folder.delete`                | the folder                  | none                                       |
+
+- For a stored object, both come from its row, whatever the request names,
+  so a rule on `folder` holds for downloads, deletes, and renames too. When
+  the object's folder no longer exists, `folderId` is set and `folder` is
+  left out.
+- An upload on a `replace: "overwrite"` route that replaces an active object
+  gets that object as `object`, and its folder as `folder`, not the folder
+  in `clientMetadata.folderId`.
+
+### Recursive listings
+
+`recursive` is `true` for a `list` that also covers every folder below
+`folder`: a [`dbObjectSource`](/docs/db/api#browser) search, and a flat
+listing (no `folderId`), which reads the whole scope and arrives as a
+recursive listing of the root.
+
+A rule that hides a folder from `list` must also cover a recursive listing
+of any folder above it. To keep listings to one folder, return `false` when
+`recursive` is set, and pass
+`dbObjectSource(api.db, { recursiveSearch: false })` so search stays in the
+open folder instead of failing with `FORBIDDEN`.
 
 ## Route options
 
@@ -361,49 +344,29 @@ routes: {
 },
 ```
 
-<AutoTypeTable path="packages/db/src/types/plugin.ts" name="DbRouteOptions" />
-
-With `replace: "overwrite"`, the row stays `active` and keeps the previous
-object's metadata until the new upload is confirmed; S3 replaces the bytes as
-soon as the new PUT lands. The row keeps its folder, attributes, and
-`createdAt`. Until then, quota counts the larger of the two sizes. A retried
-confirm of the upload before it still succeeds, even after the overwrite
-started.
-
-`plugins: { db: false }` turns off tracking and every db hook for the route.
-Its upload tickets are not bound to a scope. When such a route enables
-download or delete with no route or feature guard, the plugin logs a warning
-at startup: nothing then checks who owns the object.
+- `replace: "overwrite"` lets an upload replace an active object at the same
+  key. Without it, that upload fails with `OBJECT_EXISTS` (`409`). The row
+  stays active until the new upload is confirmed: see
+  [Overwrites](/docs/db/lifecycle-hooks#overwrites).
+- `false` turns off tracking and every db hook for the route, and its upload
+  tickets are not bound to a scope. When such a route enables download or
+  delete with no route or feature guard, the plugin logs a warning at
+  startup: nothing then checks who owns the object.
 
 ## Delete behavior
 
-App deletes always go through the normal server delete path (`api.delete`,
-the `Delete` component, `useDelete`, or your own delete hooks).
-`s3.db.objects` has no delete method: it never touches S3.
+Deletes go through the normal server delete path: `delete` on `s3.api` or
+the browser client, [`useDelete`](/docs/react/hooks/delete), or the
+[`Delete`](/docs/ui/components/delete) component. `s3.db.objects` has no
+delete method: it never touches S3.
 
-When that path runs:
+The server removes the object with `DeleteObject`. The plugin then aborts a
+multipart upload in flight on the key, and updates the row by `deleteMode`:
 
-1. S3: `DeleteObject` removes the object.
-2. Database: `deleteMode` decides (default `"soft"`).
-
-A `pending` row whose object never landed (a closed tab, a network error)
-is cleaned up the same way, so it stops counting toward the
-[quota](/docs/db/api#quota) before [purge](/docs/db/purge) runs. A multipart
-upload in flight is aborted first. Deleting a soft-deleted object again
-succeeds, like a plain S3 delete. A key with no row is `OBJECT_NOT_FOUND`:
-its owner cannot be checked.
-
-| `deleteMode` | S3 object           | Database row                                     |
-| ------------ | ------------------- | ------------------------------------------------ |
-| `"soft"`     | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
-| `"hard"`     | permanently deleted | row removed entirely                             |
-
-Listings hide soft-deleted rows by default.
-
-<Callout type="warn" title="Not a recycle bin">
-  Soft delete is not a recycle bin. The file is gone from S3. The row is kept
-  for audit and history.
-</Callout>
+| `deleteMode`       | S3 object           | Database row                                     |
+| ------------------ | ------------------- | ------------------------------------------------ |
+| `"soft"` (default) | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
+| `"hard"`           | permanently deleted | removed                                          |
 
 ```ts
 db({
@@ -413,18 +376,135 @@ db({
 });
 ```
 
+- Listings hide soft-deleted rows by default. Soft delete is a history
+  record, not a recycle bin: the file is gone from S3.
+- Use `"hard"` when every delete must also erase the row (for example,
+  GDPR-style erasure). To keep deleted rows for a while, run
+  [`pruneDeleted`](/docs/db/purge#prune-deleted-rows) from a job.
+- A `pending` row whose object never landed (a closed tab, a network error)
+  is deleted the same way, so it stops counting toward the
+  [quota](/docs/db/api#quota) before [purge](/docs/db/purge) runs.
+- Deleting a soft-deleted object again succeeds, like a plain S3 delete. A
+  key with no row is `OBJECT_NOT_FOUND`: its owner cannot be checked.
+
+## PostgreSQL schema
+
+To keep the tables in a PostgreSQL schema, such as `storage`, create the
+client from `DimahS3Db.names.schema("storage")`, and generate with the same
+client:
+
+```ts title="lib/dimah-s3-db.ts"
+export const dimahS3Db = DimahS3Db.names
+  .schema("storage")
+  .client(drizzleAdapter({ db, provider: "postgresql" }));
+```
+
+- `migrate` creates the schema.
+- The generated Drizzle file exports it as `storageSchema`, so `drizzle-kit`
+  creates it too.
+- The generated Prisma models carry `@@schema("storage")`. List it in the
+  datasource, as in `schemas = ["public", "storage"]`.
+- FumaDB keeps its settings table, `private_dimah_s3_settings`, in the
+  search path.
+
+## CLI
+
+`runCli` runs the FumaDB CLI for the `@dimah-s3/db` schema:
+
+```ts title="scripts/dimah-s3.ts"
+import { runCli } from "@dimah-s3/db/cli";
+import { dimahS3Db } from "@/lib/dimah-s3-db";
+
+await runCli(dimahS3Db);
+```
+
+```bash
+npx tsx scripts/dimah-s3.ts generate latest -o db/dimah-s3.ts
+npx tsx scripts/dimah-s3.ts migrate latest
+```
+
+| Command                     | Does                                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `generate latest -o <file>` | Writes the Drizzle tables or Prisma models for the client's adapter, or with Kysely the SQL that creates the tables                     |
+| `migrate latest`            | Creates the tables with the Kysely adapter. From code, `migrate(client)` does it, and also refuses a database at another schema version |
+
+With Drizzle and Prisma, `generate` does not connect to the database, so
+the adapter can take `db: undefined` or `prisma: undefined`.
+
+The schema declares these indexes, so `migrate`, `drizzle-kit`, and Prisma
+Migrate create them:
+
+| Index                                 | Table            | Columns                                      |
+| ------------------------------------- | ---------------- | -------------------------------------------- |
+| `storage_object_bucket_key_uk`        | `storage_object` | `bucket`, `key` (unique)                     |
+| `storage_object_scope_folder_idx`     | `storage_object` | `scope`, `status`, `folder_id`, `created_at` |
+| `storage_object_scope_updated_idx`    | `storage_object` | `scope`, `status`, `updated_at`              |
+| `storage_object_scope_name_idx`       | `storage_object` | `scope`, `status`, `search_name`             |
+| `storage_object_scope_size_idx`       | `storage_object` | `scope`, `status`, `size`                    |
+| `storage_object_status_expires_idx`   | `storage_object` | `status`, `expires_at`                       |
+| `storage_folder_scope_path_idx`       | `storage_folder` | `scope`, `path`                              |
+| `storage_folder_scope_parent_name_uk` | `storage_folder` | `scope`, `parent_id`, `name` (unique)        |
+
+On MySQL, `key` and `path` are indexed on their first 512 characters, and
+`search_name` on its first 255. Two keys in one bucket that share their
+first 512 characters count as the same key.
+
+## API Reference
+
+### DbPluginOptions
+
+The options of `db()`.
+
+| Prop           | Type                                                      | Default  | Description                                                                                    |
+| -------------- | --------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `client`       | `DimahS3DbClient`                                         | required | `DimahS3Db.client(adapter)`                                                                    |
+| `resolveScope` | `(context: ScopeContext) => string \| null \| Promise<…>` | required | Owner scope of the caller, at most 255 characters; `null` rejects the call with `UNAUTHORIZED` |
+| `getSession`   | `(request: Request) => TSession \| Promise<TSession>`     | —        | Loads the session that `resolveScope`, `authorize`, and `quota` see; once per `Request`        |
+| `authorize`    | `(context: AuthorizeContext) => boolean \| Promise<…>`    | —        | Narrows access after the ownership check; `false` rejects the call with `FORBIDDEN`            |
+| `quota`        | `DbQuota \| (context) => DbQuota \| null \| Promise<…>`   | —        | Byte, file, and folder caps per scope ([Quota](/docs/db/api#quota))                            |
+| `deleteMode`   | `"soft" \| "hard"`                                        | `"soft"` | Keeps a `deleted` row, or removes it                                                           |
+| `attributes`   | `DbAttributesOptions`                                     | —        | Enables `attributes` on `PATCH /db/object` ([Attributes](/docs/db/api#attributes))             |
+
+### DbRouteOptions
+
+Set on a route as `plugins: { db: … }`. `false` turns tracking off for the
+route.
+
+| Prop      | Type          | Default | Description                                                                        |
+| --------- | ------------- | ------- | ---------------------------------------------------------------------------------- |
+| `replace` | `"overwrite"` | —       | Lets an upload replace an active object at the same key instead of `OBJECT_EXISTS` |
+
+### ScopeContext
+
+What `resolveScope` and a `quota` function receive. A `quota` function also
+gets the resolved `scope`.
+
+| Property    | Type             | Description                                                                                                                          |
+| ----------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`   | `Request`        | The incoming request, or a synthetic one for in-process calls                                                                        |
+| `locals`    | `DimahS3Locals`  | Locals the guards have set so far                                                                                                    |
+| `session`   | `TSession`       | The `getSession` result, resolved once per request; `undefined` without `getSession`                                                 |
+| `operation` | `ScopeOperation` | What the scope is resolved for ([Scope](#scope))                                                                                     |
+| `route`     | `string`         | Named route of the call. `list` has one only when the client filters by route; `read`, `update`, and the folder operations have none |
+
+### AuthorizeContext
+
+Every `ScopeContext` field, plus:
+
+| Property         | Type                                                   | Description                                                                                  |
+| ---------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `scope`          | `string`                                               | The resolved scope                                                                           |
+| `key`            | `string`                                               | Object key; absent on `list` and the folder operations                                       |
+| `folder`         | `string \| null`                                       | Where the target is now, as a folder path; `null` is the root                                |
+| `folderId`       | `string \| null`                                       | Id of the folder `folder` names; `null` is the root                                          |
+| `destination`    | `{ folder: string \| null; folderId: string \| null }` | Where a move or a new folder puts the target                                                 |
+| `recursive`      | `boolean`                                              | `true` when a `list` also covers every folder below `folder`                                 |
+| `clientMetadata` | `Record<string, string>`                               | Client extras of the upload; set on `upload` only                                            |
+| `object`         | `StorageObject`                                        | The stored row, when the call targets one, including the active object an overwrite replaces |
+
 ## Frequently asked questions
 
 <Accordions>
-
-<Accordion title="When should I use hard delete?">
-
-Use `deleteMode: "hard"` when every delete should also erase the row (for
-example GDPR-style erasure). To keep soft-deleted rows for a while and then
-remove them, run [`s3.db.pruneDeleted`](/docs/db/purge#prune-deleted-rows)
-from a job.
-
-</Accordion>
 
 <Accordion title="Does s3.put create a row?">
 
@@ -450,40 +530,3 @@ await s3.put(
 </Accordion>
 
 </Accordions>
-
-## CLI
-
-`runCli` runs the FumaDB CLI for the `@dimah-s3/db` schema. `generate`
-writes the Drizzle tables or Prisma models for the client's adapter (with
-Kysely, the SQL that creates the tables), and `migrate` creates the tables
-with Kysely. Generating does not query the database:
-
-```ts title="scripts/dimah-s3.ts"
-import { runCli } from "@dimah-s3/db/cli";
-import { dimahS3Db } from "@/lib/dimah-s3-db";
-
-await runCli(dimahS3Db);
-```
-
-```bash
-npx tsx scripts/dimah-s3.ts generate latest -o db/dimah-s3.ts
-npx tsx scripts/dimah-s3.ts migrate latest
-```
-
-The schema declares these indexes, so `migrate`, `drizzle-kit`, and Prisma
-Migrate create them:
-
-| Index                                 | Table            | Columns                                      |
-| ------------------------------------- | ---------------- | -------------------------------------------- |
-| `storage_object_bucket_key_uk`        | `storage_object` | `bucket`, `key` (unique)                     |
-| `storage_object_scope_folder_idx`     | `storage_object` | `scope`, `status`, `folder_id`, `created_at` |
-| `storage_object_scope_updated_idx`    | `storage_object` | `scope`, `status`, `updated_at`              |
-| `storage_object_scope_name_idx`       | `storage_object` | `scope`, `status`, `search_name`             |
-| `storage_object_scope_size_idx`       | `storage_object` | `scope`, `status`, `size`                    |
-| `storage_object_status_expires_idx`   | `storage_object` | `status`, `expires_at`                       |
-| `storage_folder_scope_path_idx`       | `storage_folder` | `scope`, `path`                              |
-| `storage_folder_scope_parent_name_uk` | `storage_folder` | `scope`, `parent_id`, `name` (unique)        |
-
-On MySQL, `key` and `path` are indexed on their first 512 characters, and
-`search_name` on its first 255. Two keys in one bucket that share their
-first 512 characters count as the same key.

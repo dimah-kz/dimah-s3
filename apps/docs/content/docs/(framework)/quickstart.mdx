@@ -1,62 +1,62 @@
 ---
 title: Quickstart
-description: A working S3 upload in minutes — new app or existing project.
+description: Get a working S3 upload by scaffolding a starter app with the CLI, or add dimah-s3 to an existing React app step by step.
 icon: Rocket
 ---
 
-## Create a new project
+Scaffold a new app with the CLI, or add dimah-s3 to an existing React app by
+hand. Either way you end with an avatar upload that goes straight from the
+browser to your bucket.
 
-Scaffold a full-stack project with preconfigured S3 routes and UI. `create`
-also writes a generated `DIMAH_S3_SECRET` to `.env`.
+## Create a new project
 
 ```npm
 npx @dimah-s3/cli@beta create
 ```
 
-It asks for the project name, the starter, and whether to install
-dependencies and initialize git. Flags answer those questions up front, and
-`--yes` takes the defaults for the rest:
+The CLI asks for the project name, the starter, and whether to install
+dependencies and initialize git. It writes a generated `DIMAH_S3_SECRET` to
+`.env`. Then fill the `S3_*` values in `.env` and allow your app's origin in
+the bucket CORS rules ([provider guides](/docs/providers)).
+
+Flags answer the questions up front, and `--yes` takes the defaults for the
+rest:
 
 ```bash
 npx @dimah-s3/cli@beta create my-app --template vite --no-git --yes
 ```
 
-| Flag                         | Does                                                                                                             |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `[dir]`                      | Project directory and package name. `.` uses the current directory. Required with `--yes` or without a terminal. |
-| `-t, --template <id>`        | `nextjs` (default), `vite` (React SPA with a Hono API), or `hono` (Hono API that serves a Vite React app).       |
-| `--package-manager <pm>`     | `pnpm`, `npm`, `yarn`, or `bun`. Defaults to the one that ran the command.                                       |
-| `--install` / `--no-install` | Install dependencies. Default yes.                                                                               |
-| `--git` / `--no-git`         | Initialize a repository with a first commit. Default yes.                                                        |
-| `--src` / `--no-src`         | Next.js only: keep app code under `src/`, or flatten it to the root.                                             |
-| `--overwrite`                | Replace the contents of a non-empty directory. `.git` and `.env` are kept.                                       |
-| `-y, --yes`                  | Skip the prompts and use the defaults.                                                                           |
+| Flag                         | Default                      | Description                                                                                                     |
+| ---------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `[dir]`                      | prompt                       | Project directory and package name. `.` uses the current directory. Required with `--yes` or without a terminal |
+| `-t, --template <id>`        | `nextjs`                     | `nextjs`, `vite` (React SPA with a Hono API), or `hono` (Hono API that serves a Vite React app)                 |
+| `--package-manager <pm>`     | The one that ran the command | `pnpm`, `npm`, `yarn`, or `bun`                                                                                 |
+| `--install` / `--no-install` | `--install`                  | Install dependencies                                                                                            |
+| `--git` / `--no-git`         | `--git`                      | Initialize a repository with a first commit                                                                     |
+| `--src` / `--no-src`         | `--src`                      | Next.js only: keep app code under `src/`, or flatten it to the root                                             |
+| `--overwrite`                | off                          | Replace the contents of a non-empty directory. `.git` and `.env` are kept                                       |
+| `-y, --yes`                  | off                          | Skip the prompts and use the defaults                                                                           |
 
 The CLI needs Node.js 22 or newer.
-
----
 
 ## Manual installation
 
 <Callout title="Before you start">
-  The steps below add dimah-s3 to an existing React 19.2 app on Node.js 22 or
-  newer. The server steps work in any framework. The client steps show Next.js
-  App Router file paths; in Vite or another SPA, the same code goes in your
-  entry file and your page component. The UI step also needs Tailwind CSS v4 and
-  a project initialized with `shadcn init`, because the components read the
-  shadcn theme variables.
+  These steps add dimah-s3 to an existing React 19.2 app on Node.js 22 or newer.
+  The server steps work in any framework. The client steps show Next.js App
+  Router paths. The UI step also needs Tailwind CSS v4 and a project initialized
+  with `shadcn init`, because the components read the shadcn theme variables.
 </Callout>
 
-### Install dependencies [step]
+### Install the packages [step]
 
 ```npm
 npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @aws-sdk/client-s3
 ```
 
-`@dimah-s3/react` needs React 19.2 or later. Keep every `@dimah-s3/*` package
-on the same version.
+Keep every `@dimah-s3/*` package on the same version.
 
-### Configure S3 and routes [step]
+### Configure S3 and a route [step]
 
 ```dotenv title=".env"
 S3_ENDPOINT="https://your-endpoint.example.com"
@@ -99,10 +99,6 @@ export const s3 = dimahS3({
 });
 ```
 
-Set bucket CORS for your origin — [Amazon S3](/docs/providers/aws-s3),
-[Cloudflare R2](/docs/providers/cloudflare-r2), [MinIO](/docs/providers/minio),
-or [ArvanCloud](/docs/providers/arvancloud).
-
 <Callout title="Upload secret">
   `dimahS3()` reads `DIMAH_S3_SECRET` to sign [upload
   tickets](/docs/server/upload-tickets). Use at least 32 characters and the same
@@ -110,6 +106,15 @@ or [ArvanCloud](/docs/providers/arvancloud).
   `development` and `test` fall back to a random secret with a warning; anywhere
   else, uploads return `500`.
 </Callout>
+
+### Allow your origin in bucket CORS [step]
+
+The browser uploads straight to the bucket, so the bucket must allow your
+app's origin and the upload method. Follow your provider's guide:
+[Amazon S3](/docs/providers/aws-s3),
+[Cloudflare R2](/docs/providers/cloudflare-r2),
+[MinIO](/docs/providers/minio), or
+[ArvanCloud](/docs/providers/arvancloud).
 
 ### Mount the route handler [step]
 
@@ -215,14 +220,13 @@ export const DELETE = handler;
 
 </Tabs>
 
-Other runtimes: [Server Setup](/docs/server/setup).
+Fastify, Elysia, Node, and Fetch runtimes: [Server Setup](/docs/server/setup).
 
-From here on, the file paths are Next.js App Router paths. In a Vite app or
-another SPA, mount the provider in `src/main.tsx` as
-[React Setup](/docs/react/setup#2-mount-s3provider) shows, and put the page
-code in a component.
+The remaining steps use Next.js App Router paths. In Vite or another SPA, mount
+the provider in `src/main.tsx` as [React Setup](/docs/react/setup) shows, and
+put the page code in a component.
 
-### Create the client and provider [step]
+### Create the client [step]
 
 ```ts title="lib/s3-client.ts"
 "use client";
@@ -233,14 +237,14 @@ export const s3Client = createS3Client();
 export const S3Provider = s3Client.Provider;
 ```
 
-### Wrap your application [step]
+### Add the UI and the provider [step]
 
 <Tabs items={["npm package", "shadcn registry"]}>
 
 <Tab value="npm package">
 
 ```npm
-npm i @dimah-s3/ui@beta shadcn
+npm i @dimah-s3/ui@beta @base-ui/react class-variance-authority cn lucide-react shadcn tw-animate-css
 ```
 
 <include>../../_includes/ui/index.mdx#styles</include>
@@ -303,6 +307,8 @@ export default function RootLayout({
 
 </Tabs>
 
+[UI Installation](/docs/ui/installation) covers both options in detail.
+
 ### Add an upload button [step]
 
 <Tabs items={["npm package", "shadcn registry"]}>
@@ -362,14 +368,15 @@ export default function Page() {
 
 </Tabs>
 
-Selecting a file presigns a secure URL and uploads directly to your bucket.
-`UploadToasts` reports progress, success, and errors for this hook. See
-[Upload](/docs/react/ui/components/upload) for the dropzone and status parts.
+Pick a file: the server presigns it, the browser uploads it to your bucket,
+and the server confirms it. `UploadToasts` reports progress, success, and
+errors for this hook. [Upload](/docs/ui/components/upload) adds a dropzone and
+status parts.
 
 ### Type your route names [step]
 
-Optional. Tell the client which routes the server has, and `route` is checked
-and completed in every hook and component:
+Optional. Declare the server's routes once, and every hook and component
+checks and completes `route`:
 
 ```ts title="lib/s3-routes.ts"
 import type { InferS3Routes } from "@dimah-s3/core";
@@ -380,13 +387,39 @@ declare module "@dimah-s3/core" {
 }
 ```
 
+## Next steps
+
+<Cards>
+  <Card
+    title="Routes"
+    href="/docs/server/routes"
+    description="Key layout, upload limits, downloads, and delete per route."
+  />
+  <Card
+    title="Upload hooks"
+    href="/docs/server/hooks/upload"
+    description="Guard uploads and save verified objects."
+  />
+  <Card
+    title="React hooks"
+    href="/docs/react"
+    description="Upload, download, and delete state in your own components."
+  />
+  <Card
+    title="UI components"
+    href="/docs/ui"
+    description="Dropzones, file lists, avatar upload, and download buttons."
+  />
+</Cards>
+
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="How do I restrict uploads to authenticated users?">
+<Accordion title="How do I restrict uploads to signed-in users?">
 
-Add a `guard` on the route or instance. Throw `s3Error("UNAUTHORIZED")` or `s3Error("FORBIDDEN")` when the session is missing or not allowed:
+Add a `guard` to the route, or to the instance for every route. Throw
+`s3Error("UNAUTHORIZED")` or `s3Error("FORBIDDEN")` to refuse the call:
 
 ```ts title="lib/s3.ts"
 import { dimahS3, route, s3Error } from "@dimah-s3/server";
@@ -396,10 +429,9 @@ export const s3 = dimahS3({
   routes: {
     avatar: route({
       guard: async ({ request }) => {
-        // [!code ++]
-        const session = await getSession(request); // [!code ++]
-        if (!session) throw s3Error("UNAUTHORIZED"); // [!code ++]
-      }, // [!code ++]
+        const session = await getSession(request);
+        if (!session) throw s3Error("UNAUTHORIZED");
+      },
       upload: {
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
@@ -409,75 +441,51 @@ export const s3 = dimahS3({
 });
 ```
 
+See [Global guard](/docs/server/hooks/global-guard).
+
 </Accordion>
 
-<Accordion title="How do I save the uploaded avatar key to my database?">
+<Accordion title="How do I save the uploaded key to my database?">
 
-Persist trusted object metadata in `onConfirmed`, after the server has verified
-the stored object with `HeadObject`. It can run more than once for one upload,
-so make the write idempotent:
+On the server, use `onConfirmed`. It runs after `HeadObject` verified the
+stored object. It can run more than once for one upload, so make the write
+idempotent:
 
-```ts title="Server-side (recommended)"
+```ts title="lib/s3.ts"
 avatar: route({
   upload: {
     fileTypes: ["image/*"],
     maxFileSize: 2 * 1024 * 1024,
     onConfirmed: async ({ key, request }) => {
-      // [!code ++]
-      const session = await getSession(request); // [!code ++]
-      if (!session) return; // [!code ++]
+      const session = await getSession(request);
+      if (!session) return;
       await db.user.update({
-        // [!code ++]
-        where: { id: session.userId }, // [!code ++]
-        data: { avatarKey: key }, // [!code ++]
-      }); // [!code ++]
-    }, // [!code ++]
+        where: { id: session.userId },
+        data: { avatarKey: key },
+      });
+    },
   },
-});
+}),
 ```
 
-For a form, `onSuccess` runs once per confirmed file and can place its key in
-local form state before your application submits it to its own API:
+In a form, `onSuccess` runs once per confirmed file. Put the key in form state
+and submit it to your own API:
 
-```tsx title="Client-side form state"
+```tsx
 const upload = useUpload({
   route: "avatar",
-  // [!code ++]
-  onSuccess: (result) => {
-    setValue("avatarKey", result.key); // [!code ++]
-  }, // [!code ++]
+  onSuccess: (result) => setValue("avatarKey", result.key),
 });
 ```
 
 </Accordion>
 
-<Accordion title="How do I use Cloudflare R2 instead of AWS S3?">
+<Accordion title="How do I show the uploaded image?">
 
-Pass an `S3Client` for your R2 account. Uploads use presigned PUT by default,
-which R2 supports. Do not set `method: "POST"`: R2 has no presigned POST.
-
-```ts title="lib/s3.ts"
-export const s3 = dimahS3({
-  client: r2Client,
-  bucket: process.env.R2_BUCKET!,
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
-      },
-    }),
-  },
-});
-```
-
-See the [Cloudflare R2 guide](/docs/providers/cloudflare-r2) for full details.
-
-</Accordion>
-
-<Accordion title="How do I display or preview the uploaded image?">
-
-Use `useObjectUrl` to generate a temporary display URL, or construct your CDN URL if the bucket is public:
+The route needs `download: true`. [`useObjectUrl`](/docs/react/hooks/object-url)
+signs a short-lived URL that opens inline. For a public bucket or a CDN, build
+the URL with `buildPublicObjectUrl` from [`@dimah-s3/core`](/docs/core#helpers)
+instead.
 
 ```tsx title="components/avatar-preview.tsx"
 "use client";
@@ -485,11 +493,7 @@ Use `useObjectUrl` to generate a temporary display URL, or construct your CDN UR
 import { useObjectUrl } from "@dimah-s3/react";
 
 export function AvatarPreview({ avatarKey }: { avatarKey: string }) {
-  const { url } = useObjectUrl({
-    route: "avatar",
-    objectKey: avatarKey,
-    disposition: "inline", // [!code ++]
-  });
+  const { url } = useObjectUrl({ route: "avatar", objectKey: avatarKey });
 
   if (!url) return null;
   return (

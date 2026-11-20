@@ -1,19 +1,73 @@
 ---
 title: Custom UI
-description: Build bespoke upload interfaces using headless hooks and custom components.
+description: Build your own upload, download, and delete controls on the headless hooks, or add parts to the component families.
+icon: PencilRuler
 ---
 
 import { CustomUploadDemo } from "@/components/demos/custom-upload-demo";
 
-Combine `@dimah-s3/react` hooks with your own components or custom shadcn primitives.
+When the components do not fit your design, build on the same hooks. Pick the
+level that matches how much you want to change.
 
-## Preview
+| You want to                              | Use                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| Restyle a part                           | `className`, `variant`, `children`, and [theme tokens](/docs/ui/theming)  |
+| Add a control next to the built-in parts | A part of your own with `useUploadContext()` and friends                  |
+| Change a component's markup              | The [shadcn registry](/docs/ui/installation), then edit the copied source |
+| Design everything yourself               | The [`@dimah-s3/react`](/docs/react) hooks, without `@dimah-s3/ui`        |
+
+## A part of your own
+
+Inside a root, a context hook returns the root's hook. Your part sits next to
+the built-in ones and reads the same state.
+
+```tsx
+"use client";
+
+import { useUploadContext } from "@dimah-s3/ui";
+
+export function UploadCount() {
+  const { upload } = useUploadContext();
+  const done = upload.files.filter((file) => file.phase === "success").length;
+
+  if (upload.files.length === 0) return null;
+  return (
+    <p className="text-muted-foreground text-sm">
+      {done} of {upload.files.length} uploaded
+    </p>
+  );
+}
+```
+
+```tsx
+<Upload upload={upload}>
+  <UploadTrigger />
+  <UploadCount />
+</Upload>
+```
+
+| Root          | Context hook              | Returns                                                   |
+| ------------- | ------------------------- | --------------------------------------------------------- |
+| `Upload`      | `useUploadContext()`      | `upload`, `isFull`, `hideUploaded`                        |
+| `UploadField` | `useUploadFieldContext()` | `value`, `items`, `remaining`, `remove`                   |
+| `Download`    | `useDownloadContext()`    | `download`                                                |
+| `Delete`      | `useDeleteContext()`      | `delete`, `confirmation`, `request`, `confirm`, `dismiss` |
+| `ObjectList`  | `useObjectListContext()`  | `list`, `selection`, the hooks, `view`, commands          |
+
+Use [`FileAttachment`](/docs/ui/components/attachment) and its building blocks
+to match the look of the built-in cards.
+
+## Fully headless
+
+The hooks hold every state the components show. This picker uses
+`useUpload` and shadcn [Attachment](https://ui.shadcn.com/docs/components/attachment)
+directly:
 
 <DemoPreview name="custom-upload-demo.tsx">
   <CustomUploadDemo />
 </DemoPreview>
 
-## Example: Headless File Uploader
+The core of it:
 
 ```tsx
 "use client";
@@ -37,49 +91,7 @@ export function CustomFilePicker() {
 }
 ```
 
-## Example: A part of your own
-
-Inside [`Upload`](/docs/react/ui/components/upload), `useUploadContext()`
-returns the root's hook. Build a part that sits next to `UploadTrigger` and
-`UploadStatus`:
-
-```tsx
-"use client";
-
-import { useUploadContext } from "@dimah-s3/ui";
-
-export function UploadCount() {
-  const { upload } = useUploadContext();
-  const done = upload.files.filter((file) => file.phase === "success").length;
-
-  if (upload.files.length === 0) return null;
-  return (
-    <p className="text-muted-foreground text-sm">
-      {done} of {upload.files.length} uploaded
-    </p>
-  );
-}
-```
-
-`useDownloadContext()` and `useDeleteContext()` do the same inside
-`Download` and `Delete`.
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How do I access low-level transfer metrics?">
-
-Read `upload.progress` for the bytes sent across the queue, and
-`file.progress` for one file:
-
-```tsx
-const { progress, files } = useUpload({ route: "avatar" });
-
-console.log(progress.loaded, progress.total, progress.percent);
-console.log(files[0]?.progress.percent);
-```
-
-</Accordion>
-
-</Accordions>
+`upload.progress` holds the bytes sent across the queue, and each entry of
+`upload.files` has its own `phase`, `progress`, and `error`. See
+[useUpload](/docs/react/hooks/upload), [useDownload](/docs/react/hooks/download),
+and [useDelete](/docs/react/hooks/delete) for everything the hooks return.

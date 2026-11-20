@@ -115,16 +115,41 @@ function InlineCode({ text }: { text: string }) {
     );
 }
 
+function catalogEntries(raisedBy: ErrorCodeTableProps["raisedBy"]) {
+  return Object.values(S3_ERROR_CODES).filter((entry) => {
+    if (raisedBy === undefined) return true;
+    const client = "client" in entry && entry.client;
+    return raisedBy === "client" ? client : !client;
+  });
+}
+
+/**
+ * The same table as Markdown, for the `.md` twin of a page and
+ * `llms-full.txt`, where the component does not render.
+ */
+export function errorCodeTableMarkdown(
+  raisedBy?: ErrorCodeTableProps["raisedBy"],
+): string {
+  const rows = catalogEntries(raisedBy).map((entry) => {
+    const params = paramNames(entry.code);
+    const paramCell =
+      params.length === 0 ? "—" : params.map((p) => `\`${p}\``).join(", ");
+    const when = WHEN[entry.code].replaceAll("|", "\\|");
+    return `| \`${entry.code}\` | ${entry.status} | ${paramCell} | ${when} |`;
+  });
+  return [
+    "| `code` | HTTP | `params` | When |",
+    "| --- | --- | --- | --- |",
+    ...rows,
+  ].join("\n");
+}
+
 /**
  * The error catalog as a table: each code from `S3_ERROR_CODES` with its
  * HTTP status, its `params`, and when it is raised.
  */
 export function ErrorCodeTable({ raisedBy }: ErrorCodeTableProps) {
-  const entries = Object.values(S3_ERROR_CODES).filter((entry) => {
-    if (raisedBy === undefined) return true;
-    const client = "client" in entry && entry.client;
-    return raisedBy === "client" ? client : !client;
-  });
+  const entries = catalogEntries(raisedBy);
 
   return (
     <table>
