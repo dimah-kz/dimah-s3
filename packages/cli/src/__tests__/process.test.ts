@@ -6,11 +6,21 @@ import { EXIT_CANCEL } from "@/utils/errors";
 import { runCommand } from "@/utils/process";
 
 const cwd = tmpdir();
-/** Runs a script with the test's own Node, so the command is always there. */
-const node = JSON.stringify(process.execPath);
+const windows = process.platform === "win32";
+
+/**
+ * Runs a script with the test's own Node, so the command is always there.
+ * Windows runs one shell string, so the path and the script are quoted.
+ * Other platforms receive the raw argv.
+ */
+function shellText(value: string): string {
+  return windows ? JSON.stringify(value) : value;
+}
+
+const node = shellText(process.execPath);
 
 function script(source: string): string[] {
-  return ["-e", JSON.stringify(source)];
+  return ["-e", shellText(source)];
 }
 
 describe("runCommand", () => {
