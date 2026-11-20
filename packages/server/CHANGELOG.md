@@ -1,3 +1,38 @@
+## @dimah-s3/server@2.0.0-beta.12 (beta)
+
+### One Node.js floor and bounded peer ranges
+
+Every `@dimah-s3/*` package declares `engines.node` `>=22`, exports its `package.json`, and names the peer majors it is built against. Keep every `@dimah-s3/*` package on the same version.
+
+- **`./package.json`.** Every package exports it, so a tool can read the installed version: `import pkg from "@dimah-s3/core/package.json" with { type: "json" }`.
+- **`funding`.** Every package links the sponsor page.
+
+### Breaking changes
+
+- **Use Node.js 22 or newer.** Every package declares `engines.node` `>=22`. Only `@dimah-s3/cli` declared a floor before (`>=20.19`).
+- **Check your peer versions.** Open-ended ranges such as `>=19.2` now end at the next major:
+  - `@dimah-s3/react` and `@dimah-s3/ui`: `react` `^19.2.0`.
+  - `@dimah-s3/ui`: `react-dom` `^19.2.0` (a new peer), `@base-ui/react` `^1.0.0`, `class-variance-authority` `^0.7.0`, `cn` `^0.5.2`, and `lucide-react` `>=0.400.0 <2`.
+  - `@dimah-s3/server` and `@dimah-s3/db`: `@aws-sdk/client-s3` `^3.0.0`.
+  - `@dimah-s3/db`: `kysely` `^0.29.8`.
+- **Install `@aws-sdk/client-s3` next to `@dimah-s3/db`.** It is a required peer. It was marked optional, but the plugin imports it.
+
+### A hook for rejected uploads, and one vocabulary in hook contexts
+
+A refused upload now reports back, and the upload hooks name things the way the rest of the API does.
+
+- **`upload.onRejected`.** Runs after confirm, multipart complete, or `s3.put` refuses an upload and deletes its object: a size, type, or content mismatch, a `confirmGuard` rejection, or a plugin that rejects it. The context has the key, `kind`, `uploadToken`, the declared `file`, and the `error` the client receives. Undo there what `onStart` recorded. A throw is logged and passed to `onError`, and the client still gets the rejection. A plugin adds it under `hooks.upload.onRejected`.
+- **`PUT` plugin endpoints.** `createS3Endpoint` accepts `method: "PUT"`, which reads a JSON body like `POST` and `PATCH`.
+- **An empty `secret` counts as not set.** `dimahS3({ secret: process.env.MY_SECRET })` falls back to `DIMAH_S3_SECRET` while the variable is missing or empty, so the option needs no `|| undefined`.
+
+### Breaking changes
+
+- **Upload kinds.** `kind` is `"presignedPost"`, `"presignedPut"`, `"multipart"`, or `"server"`: `"post"` is `"presignedPost"` and `"put"` is `"presignedPut"`. `operation: "put"` is still `s3.put`, whose kind is `"server"`.
+- **`upload.multipart.guard` narrows on `operation`.** The context has no `action`. Compare `operation` with `"multipart.signPart"`, `"multipart.listParts"`, `"multipart.complete"`, or `"multipart.abort"`. `partNumber` and `size` are on the `"multipart.signPart"` context.
+- **`clientMetadata` on `s3.api`.** `s3.api.upload` and `s3.api.multipart.init` take `clientMetadata`, as `s3.put` and the hooks do. `metadata` is rejected with `VALIDATION_ERROR`.
+- **`UNKNOWN_ROUTE` is `ROUTE_NOT_FOUND`.**
+- **`secret: []` falls back to `DIMAH_S3_SECRET`** instead of throwing when `dimahS3()` runs.
+
 ## @dimah-s3/server@2.0.0-beta.11 (beta)
 
 ### Confirm checks for plugins
