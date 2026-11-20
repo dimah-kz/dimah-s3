@@ -12,7 +12,7 @@
     "start": "tsx --env-file-if-exists=.env src/server.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1172.0",
+    "@aws-sdk/client-s3": "^3.1173.0",
     "@base-ui/react": "^1.9.0",
     "@dimah-s3/core": "2.0.0-beta.11",
     "@dimah-s3/react": "2.0.0-beta.11",
