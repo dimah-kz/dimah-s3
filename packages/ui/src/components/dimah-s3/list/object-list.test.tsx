@@ -644,7 +644,7 @@ describe("ObjectList", () => {
       ).toBeTruthy();
     });
 
-    it("follows the open folder", async () => {
+    it("keeps the catalog total inside a folder", async () => {
       const user = userEvent.setup();
       const { container } = renderList({
         limits: { maxBytes: 1000, maxFiles: 4 },
@@ -657,10 +657,10 @@ describe("ObjectList", () => {
       await settle();
 
       const usage = container.querySelector("[data-slot=object-list-usage]");
-      expect(usage?.textContent).toContain("300 B of 1000 B");
-      expect(usage?.textContent).toContain("1 of 4 files");
+      expect(usage?.textContent).toContain("600 B of 1000 B");
+      expect(usage?.textContent).toContain("3 of 4 files");
       expect(
-        within(usage as HTMLElement).getByRole("button", { name: "30%" }),
+        within(usage as HTMLElement).getByRole("button", { name: "60%" }),
       ).toBeTruthy();
     });
 

@@ -47,10 +47,9 @@ export type ObjectListUsageState = {
 export type ObjectListUsageProps = {
   className?: string;
   /**
-   * Totals to show. Defaults to `list.usage`: the open folder and the
-   * folders below it, for `dbObjectSource` and `memoryObjectSource`. At the
-   * root that is the whole scope. Pass another total to replace it. `null`
-   * hides the line.
+   * Totals to show. Defaults to `list.usage`, the whole catalog for
+   * `dbObjectSource` and `memoryObjectSource`, in every folder. Pass
+   * another total, such as one folder, to replace it. `null` hides the line.
    */
   usage?: ObjectListUsageData | null;
   /**
@@ -78,7 +77,7 @@ function useObjectListUsageState() {
 }
 
 /**
- * Bytes and file count for the open folder. With `maxBytes` or `maxFiles`,
+ * Bytes and file count for the whole catalog. With `maxBytes` or `maxFiles`,
  * a ring the size of the text sits beside the line. Hover, focus, or click
  * it to read the percent. Renders nothing until there is usage to show.
  *

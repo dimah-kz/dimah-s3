@@ -1,11 +1,9 @@
 import type { UploadRequestOptions } from "@/types/upload";
 
 /**
- * Bytes and file count for the open folder, with the caps the server enforces.
- * `dbObjectSource` and `memoryObjectSource` count that folder and every folder
- * below it. At the root, and for a flat list, that is the whole scope. The
- * caps stay the scope's. A custom query can use the same shape for its own
- * totals.
+ * Bytes and file count for the whole catalog, with the caps the server
+ * enforces. `dbObjectSource` and `memoryObjectSource` count every record,
+ * in every folder. A custom query can use the same shape for its own totals.
  */
 export type ObjectListUsageData = {
   totalBytes: number;

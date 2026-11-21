@@ -151,10 +151,8 @@ export type DbClientListObjectsResponse<TClientAttributes = never> = {
   /** Objects that match, across every page. First page of a search only. */
   total?: number;
   /**
-   * Bytes and files of the open folder and the folders below it. At the
-   * root, and for a flat list, the whole scope. First page only, and only
-   * when the plugin sets a `quota` or the query asks with `usage: true`.
-   * Caps in `limits` stay the scope's.
+   * Bytes and files of the scope, in every folder. First page only, and
+   * only when the plugin sets a `quota` or the query asks with `usage: true`.
    */
   usage?: DbUsage;
   /** Caps for the scope, `null` when there are none. First page only. */

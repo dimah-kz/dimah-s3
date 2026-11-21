@@ -356,45 +356,45 @@ The options are the source fields plus the navigation state.
 
 ### Return
 
-| Property         | Type                                                                 | Description                                                                        |
-| ---------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `entries`        | `readonly ObjectListEntry[]`                                         | Folders, then files                                                                |
-| `items`          | `readonly TItem[]`                                                   | The loaded files                                                                   |
-| `folders`        | `readonly ObjectListFolder[]`                                        | Child folders from the latest first page                                           |
-| `trail`          | `readonly ObjectListFolder[]`                                        | Path from the root, root excluded                                                  |
-| `parent`         | `string \| null`                                                     | Open folder id. `null` is the root                                                 |
-| `sort`           | `ObjectListSort \| null`                                             | Current order                                                                      |
-| `search`         | `string`                                                             | Search text as typed                                                               |
-| `isSearching`    | `boolean`                                                            | `true` while the query receives search text                                        |
-| `searchScope`    | `"folder" \| "all"`                                                  | Where a search looks                                                               |
-| `searchScopes`   | `readonly ("folder" \| "all")[]`                                     | What the source declared, or `[]`                                                  |
-| `total`          | `number \| null`                                                     | Files that match the search across every page                                      |
-| `usage`          | `ObjectListUsageData \| null`                                        | Totals from the latest page that sent them. Built-in sources count the open folder |
-| `status`         | `ObjectListStatus`                                                   | `"idle"`, `"loading"`, `"refreshing"`, `"loading-more"`, `"ready"`, or `"error"`   |
-| `error`          | `APIError \| null`                                                   | The last failure. Rows that loaded before stay                                     |
-| `isLoading`      | `boolean`                                                            | The first page is in flight and there is nothing to show                           |
-| `isRefreshing`   | `boolean`                                                            | A reload, sort, or search is in flight. Rows stay                                  |
-| `isLoadingMore`  | `boolean`                                                            | A later page is in flight                                                          |
-| `hasMore`        | `boolean`                                                            | There is a next page                                                               |
-| `nextCursor`     | `string \| null`                                                     | Cursor of the next page                                                            |
-| `loadMore`       | `() => Promise<void>`                                                | Loads the next page                                                                |
-| `refresh`        | `() => Promise<void>`                                                | Reloads every page loaded so far                                                   |
-| `retry`          | `() => Promise<void>`                                                | Repeats the request that failed                                                    |
-| `openFolder`     | `(folder) => void`                                                   | Opens a folder and loads its first page                                            |
-| `navigate`       | `(trail) => void`                                                    | Replaces the path                                                                  |
-| `goUp`           | `() => void`                                                         | Opens the parent folder                                                            |
-| `setSort`        | `(sort) => void`                                                     | Changes the order                                                                  |
-| `setSearch`      | `(search) => void`                                                   | Changes the search text                                                            |
-| `setSearchScope` | `(scope) => void`                                                    | Changes where a search looks                                                       |
-| `setItems`       | `(items \| updater) => void`                                         | Edits the loaded files without a request                                           |
-| `setFolders`     | `(folders \| updater) => void`                                       | Edits the loaded folders without a request                                         |
-| `removeItems`    | `(ids) => void`                                                      | Drops loaded files by `getId`                                                      |
-| `getId`          | `(item) => string`                                                   | The `getId` option                                                                 |
-| `getFile`        | `(item) => ObjectListFile`                                           | The `getFile` option, or its default                                               |
-| `uploadOptions`  | `((parent) => UploadRequestOptions) \| undefined`                    | Set when the source has `uploadOptions`                                            |
-| `createFolder`   | `((name) => Promise<ObjectListFolder>) \| undefined`                 | Set when the source has `createFolder`                                             |
-| `renameFile`     | `((item, name) => Promise<TItem \| void>) \| undefined`              | Set when the source has `renameFile`                                               |
-| `renameFolder`   | `((folder, name) => Promise<ObjectListFolder \| void>) \| undefined` | Set when the source has `renameFolder`                                             |
+| Property         | Type                                                                 | Description                                                                      |
+| ---------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `entries`        | `readonly ObjectListEntry[]`                                         | Folders, then files                                                              |
+| `items`          | `readonly TItem[]`                                                   | The loaded files                                                                 |
+| `folders`        | `readonly ObjectListFolder[]`                                        | Child folders from the latest first page                                         |
+| `trail`          | `readonly ObjectListFolder[]`                                        | Path from the root, root excluded                                                |
+| `parent`         | `string \| null`                                                     | Open folder id. `null` is the root                                               |
+| `sort`           | `ObjectListSort \| null`                                             | Current order                                                                    |
+| `search`         | `string`                                                             | Search text as typed                                                             |
+| `isSearching`    | `boolean`                                                            | `true` while the query receives search text                                      |
+| `searchScope`    | `"folder" \| "all"`                                                  | Where a search looks                                                             |
+| `searchScopes`   | `readonly ("folder" \| "all")[]`                                     | What the source declared, or `[]`                                                |
+| `total`          | `number \| null`                                                     | Files that match the search across every page                                    |
+| `usage`          | `ObjectListUsageData \| null`                                        | Totals from the latest page that sent them. Built-in sources count every record  |
+| `status`         | `ObjectListStatus`                                                   | `"idle"`, `"loading"`, `"refreshing"`, `"loading-more"`, `"ready"`, or `"error"` |
+| `error`          | `APIError \| null`                                                   | The last failure. Rows that loaded before stay                                   |
+| `isLoading`      | `boolean`                                                            | The first page is in flight and there is nothing to show                         |
+| `isRefreshing`   | `boolean`                                                            | A reload, sort, or search is in flight. Rows stay                                |
+| `isLoadingMore`  | `boolean`                                                            | A later page is in flight                                                        |
+| `hasMore`        | `boolean`                                                            | There is a next page                                                             |
+| `nextCursor`     | `string \| null`                                                     | Cursor of the next page                                                          |
+| `loadMore`       | `() => Promise<void>`                                                | Loads the next page                                                              |
+| `refresh`        | `() => Promise<void>`                                                | Reloads every page loaded so far                                                 |
+| `retry`          | `() => Promise<void>`                                                | Repeats the request that failed                                                  |
+| `openFolder`     | `(folder) => void`                                                   | Opens a folder and loads its first page                                          |
+| `navigate`       | `(trail) => void`                                                    | Replaces the path                                                                |
+| `goUp`           | `() => void`                                                         | Opens the parent folder                                                          |
+| `setSort`        | `(sort) => void`                                                     | Changes the order                                                                |
+| `setSearch`      | `(search) => void`                                                   | Changes the search text                                                          |
+| `setSearchScope` | `(scope) => void`                                                    | Changes where a search looks                                                     |
+| `setItems`       | `(items \| updater) => void`                                         | Edits the loaded files without a request                                         |
+| `setFolders`     | `(folders \| updater) => void`                                       | Edits the loaded folders without a request                                       |
+| `removeItems`    | `(ids) => void`                                                      | Drops loaded files by `getId`                                                    |
+| `getId`          | `(item) => string`                                                   | The `getId` option                                                               |
+| `getFile`        | `(item) => ObjectListFile`                                           | The `getFile` option, or its default                                             |
+| `uploadOptions`  | `((parent) => UploadRequestOptions) \| undefined`                    | Set when the source has `uploadOptions`                                          |
+| `createFolder`   | `((name) => Promise<ObjectListFolder>) \| undefined`                 | Set when the source has `createFolder`                                           |
+| `renameFile`     | `((item, name) => Promise<TItem \| void>) \| undefined`              | Set when the source has `renameFile`                                             |
+| `renameFolder`   | `((folder, name) => Promise<ObjectListFolder \| void>) \| undefined` | Set when the source has `renameFolder`                                           |
 
 ### ObjectListQueryInput
 

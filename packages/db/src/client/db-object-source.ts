@@ -95,10 +95,9 @@ function locationsOf(
  * every folder below it, `"all"` in the whole scope, and each result's
  * `location` says where it lives. `sort` takes `name`, `size`, and
  * `updatedAt`; other fields keep the server's order (newest first). The
- * usage line is the open folder and the folders below it, with the scope's
- * caps; at the root it is the whole scope. The server sends it when the
- * plugin sets a `quota`, or when `usage` is on. Each child folder carries
- * its own `size` and `objectCount`.
+ * usage line is the scope total with its caps, in every folder. The server
+ * sends it when the plugin sets a `quota`, or when `usage` is on. Each
+ * child folder carries its own `size` and `objectCount`.
  *
  * ```ts
  * const list = useObjectList({

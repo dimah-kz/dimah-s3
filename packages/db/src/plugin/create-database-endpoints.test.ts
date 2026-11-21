@@ -148,7 +148,7 @@ describe("GET /db/objects", () => {
     expect(body.objects).toHaveLength(1);
   });
 
-  it("sends the open folder's usage, including the folders below it", async () => {
+  it("keeps scope usage inside a folder and sends each folder's totals", async () => {
     const { instance, insert, request } = createSetup({
       plugin: { quota: { maxBytes: 100 } },
     });
@@ -169,7 +169,7 @@ describe("GET /db/objects", () => {
     const inside = await request<ListBody>("GET", "/objects", {
       query: { folderId: docs.id },
     });
-    expect(inside.body.usage).toEqual({ totalBytes: 10, objectCount: 2 });
+    expect(inside.body.usage).toEqual({ totalBytes: 20, objectCount: 3 });
     expect(inside.body.limits).toEqual({ maxBytes: 100 });
     expect(inside.body.folders).toEqual([
       expect.objectContaining({ name: "q4", size: 6, objectCount: 1 }),

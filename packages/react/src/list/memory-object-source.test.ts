@@ -209,11 +209,11 @@ describe("memoryObjectSource", () => {
     expect((await plain.query(input())).usage).toBeUndefined();
   });
 
-  it("counts the open folder and the folders below it", async () => {
+  it("keeps usage on every record inside a folder", async () => {
     const page = await source.query(input({ parent: "Docs" }));
-    expect(page.usage).toEqual({ totalBytes: 3, objectCount: 2 });
-
-    const nested = await source.query(input({ parent: "Docs/Images" }));
-    expect(nested.usage).toEqual({ totalBytes: 2, objectCount: 1 });
+    expect(page.usage).toEqual({ totalBytes: 31, objectCount: 6 });
+    expect(page.folders).toEqual([
+      { id: "Docs/Images", name: "Images", size: 2, objectCount: 1 },
+    ]);
   });
 });

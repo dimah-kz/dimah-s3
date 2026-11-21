@@ -29,9 +29,8 @@ export type MemoryObjectSourceOptions<TItem> = {
   pageSize?: number;
   /**
    * Send `usage` with each page: the byte total from `getFile().size` and
-   * the record count, for the open folder and every folder below it. At the
-   * root, and without `getFolder`, that is every record. `limits` stay the
-   * caps for the whole set.
+   * the record count, over every record, in every folder. `limits` are the
+   * caps for that whole set. A folder row's own size is separate.
    * @default true when `limits` is set, otherwise false
    */
   usage?: boolean;
@@ -145,13 +144,7 @@ export function memoryObjectSource<TItem>(
         items: items.slice(start, end),
         nextCursor: end < items.length ? String(end) : null,
         usage: sendUsage
-          ? {
-              ...totals(
-                getFolder ? recordsInFolder(all, parent, getFolder) : all,
-                options.getFile,
-              ),
-              ...limits,
-            }
+          ? { ...totals(all, options.getFile), ...limits }
           : undefined,
         ...(searching && start === 0 && { total: items.length }),
       });
@@ -270,21 +263,6 @@ function applyFolderTotals<TItem>(
       objectCount: row.count,
       ...(row.known ? { size: row.bytes } : {}),
     };
-  });
-}
-
-/** Records in `parent` and every folder below it. `null` is every record. */
-function recordsInFolder<TItem>(
-  records: readonly TItem[],
-  parent: string | null,
-  getFolder: (item: TItem) => string | null | undefined,
-): readonly TItem[] {
-  const open = normalizeFolder(parent);
-  if (open == null) return records;
-  const prefix = `${open}/`;
-  return records.filter((record) => {
-    const path = normalizeFolder(getFolder(record));
-    return path === open || (path?.startsWith(prefix) ?? false);
   });
 }
 
