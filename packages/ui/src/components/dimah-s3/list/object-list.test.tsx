@@ -601,6 +601,7 @@ describe("ObjectList", () => {
 
   describe("usage", () => {
     it("draws the limits that come with list.usage", async () => {
+      const user = userEvent.setup();
       const { container } = renderList({
         limits: { maxBytes: 1000, maxFiles: 4 },
       });
@@ -610,11 +611,14 @@ describe("ObjectList", () => {
       expect(usage?.textContent).toContain("3 of 4 files");
       expect(usage?.textContent).toContain(" of ");
       expect(usage?.hasAttribute("data-over")).toBe(false);
-      // 600 of 1000 bytes. The file cap is tighter (3 of 4) and stays text.
-      expect(
-        usage?.querySelector("[data-slot=object-list-usage-meter]")
-          ?.textContent,
-      ).toBe("60");
+      // 600 of 1000 bytes. The file cap stays in the line.
+      const meter = within(usage as HTMLElement).getByRole("button", {
+        name: "60%",
+      });
+      await user.hover(meter);
+      expect(meter.hasAttribute("data-popup-open")).toBe(true);
+      await user.click(meter);
+      expect(meter.hasAttribute("data-popup-open")).toBe(true);
     });
 
     it("shows plain totals without limits", async () => {
@@ -636,9 +640,26 @@ describe("ObjectList", () => {
       const usage = container.querySelector("[data-slot=object-list-usage]");
       expect(usage?.hasAttribute("data-over")).toBe(true);
       expect(
-        usage?.querySelector("[data-slot=object-list-usage-meter]")
-          ?.textContent,
-      ).toBe("100");
+        within(usage as HTMLElement).getByRole("button", { name: "100%" }),
+      ).toBeTruthy();
+    });
+
+    it("follows the open folder", async () => {
+      const user = userEvent.setup();
+      const { container } = renderList({
+        limits: { maxBytes: 1000, maxFiles: 4 },
+      });
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: startsWith("docs") }));
+      await settle();
+
+      const usage = container.querySelector("[data-slot=object-list-usage]");
+      expect(usage?.textContent).toContain("300 B of 1000 B");
+      expect(usage?.textContent).toContain("1 of 4 files");
+      expect(
+        within(usage as HTMLElement).getByRole("button", { name: "30%" }),
+      ).toBeTruthy();
     });
 
     it("shows totals passed to it", async () => {
@@ -692,9 +713,12 @@ describe("ObjectList", () => {
 
       expect(screen.getByText("Kept 600 B of 1000 B")).toBeTruthy();
       expect(
-        container.querySelector("[data-slot=object-list-usage-meter]")
-          ?.textContent,
-      ).toBe("60");
+        within(
+          container.querySelector(
+            "[data-slot=object-list-usage]",
+          ) as HTMLElement,
+        ).getByRole("button", { name: "60%" }),
+      ).toBeTruthy();
       expect(screen.queryByText(/3 of/)).toBeNull();
     });
   });

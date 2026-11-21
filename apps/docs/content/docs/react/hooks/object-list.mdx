@@ -369,7 +369,7 @@ The options are the source fields plus the navigation state.
 | `searchScope`    | `"folder" \| "all"`                                                  | Where a search looks                                                             |
 | `searchScopes`   | `readonly ("folder" \| "all")[]`                                     | What the source declared, or `[]`                                                |
 | `total`          | `number \| null`                                                     | Files that match the search across every page                                    |
-| `usage`          | `ObjectListUsageData \| null`                                        | Totals from the latest page that sent them                                       |
+| `usage`          | `ObjectListUsageData \| null`                                        | Totals from the latest page that sent them. Built-in sources count the open folder |
 | `status`         | `ObjectListStatus`                                                   | `"idle"`, `"loading"`, `"refreshing"`, `"loading-more"`, `"ready"`, or `"error"` |
 | `error`          | `APIError \| null`                                                   | The last failure. Rows that loaded before stay                                   |
 | `isLoading`      | `boolean`                                                            | The first page is in flight and there is nothing to show                         |

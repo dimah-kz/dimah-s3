@@ -178,12 +178,22 @@ export type StorageObjectStore<TAttributes = never> = {
    * Bytes and files of a scope: the size of each active row plus the
    * declared size of each pending row that has not expired. An active row
    * with an overwrite in flight counts the larger of the two. `excluding`
-   * leaves one row out, such as the row an upload replaces. It reads every
-   * live row of the scope.
+   * leaves one row out, such as the row an upload replaces. Omit `folderId`
+   * to sum the scope. Set it, with `recursive`, to sum one folder and the
+   * folders below it.
    */
   usage: (
     scope: string,
-    options?: { excluding?: ObjectRef },
+    options?: {
+      excluding?: ObjectRef;
+      /** Folder to sum. `null` is the root. Omit for the whole scope. */
+      folderId?: string | null;
+      /**
+       * With `folderId`, include every folder below it. At the root that
+       * is the whole scope.
+       */
+      recursive?: boolean;
+    },
   ) => Promise<DbUsage>;
   /**
    * The file count of {@link StorageObjectStore.usage}, as one `COUNT`.
@@ -373,6 +383,13 @@ function claimDeadline(): Date {
  */
 type FolderSet = readonly string[] | null | undefined;
 
+function folderCondition(b: ObjectConditions, folders: FolderSet): Condition {
+  if (folders === undefined) return true;
+  if (folders === null) return b.isNull("folderId");
+  if (folders.length === 1) return b("folderId", "=", folders[0] ?? "");
+  return b("folderId", "in", [...folders]);
+}
+
 function filterConditions(
   b: ObjectConditions,
   scope: string,
@@ -387,14 +404,7 @@ function filterConditions(
       ? b.and(b("status", "=", "pending"), b("expiresAt", ">=", now))
       : b("status", "=", status),
   ];
-  if (folders === null) parts.push(b.isNull("folderId"));
-  else if (folders !== undefined) {
-    parts.push(
-      folders.length === 1
-        ? b("folderId", "=", folders[0] ?? "")
-        : b("folderId", "in", [...folders]),
-    );
-  }
+  if (folders !== undefined) parts.push(folderCondition(b, folders));
   if (filter.route) parts.push(b("route", "=", filter.route));
   if (filter.contentType?.endsWith("/*")) {
     // `image/*` keeps every `image/…` type.
@@ -581,9 +591,20 @@ export function createObjectStore<TAttributes = never>(
     async usage(scope, options = {}) {
       const orm = await getOrm();
       const now = new Date();
+      const folders =
+        options.folderId === undefined
+          ? undefined
+          : await folderSet(scope, {
+              folderId: options.folderId,
+              recursive: options.recursive === true,
+            });
       const rows = await orm.findMany("storageObject", {
         select: ["status", "size", "declaredSize", "expiresAt"],
-        where: liveRows(scope, now, options.excluding),
+        where: (b) =>
+          b.and(
+            liveRows(scope, now, options.excluding)(b),
+            folderCondition(b, folders),
+          ),
       });
       let totalBytes = 0;
       let objectCount = 0;

@@ -29,7 +29,9 @@ export type MemoryObjectSourceOptions<TItem> = {
   pageSize?: number;
   /**
    * Send `usage` with each page: the byte total from `getFile().size` and
-   * the record count, over every record — not only the open folder.
+   * the record count, for the open folder and every folder below it. At the
+   * root, and without `getFolder`, that is every record. `limits` stay the
+   * caps for the whole set.
    * @default true when `limits` is set, otherwise false
    */
   usage?: boolean;
@@ -140,7 +142,13 @@ export function memoryObjectSource<TItem>(
         items: items.slice(start, end),
         nextCursor: end < items.length ? String(end) : null,
         usage: sendUsage
-          ? { ...totals(all, options.getFile), ...limits }
+          ? {
+              ...totals(
+                getFolder ? recordsInFolder(all, parent, getFolder) : all,
+                options.getFile,
+              ),
+              ...limits,
+            }
           : undefined,
         ...(searching && start === 0 && { total: items.length }),
       });
@@ -216,6 +224,21 @@ function searchTree<TItem>(
 function readOffset(cursor: string | null): number {
   const offset = cursor ? Number(cursor) : 0;
   return Number.isSafeInteger(offset) && offset > 0 ? offset : 0;
+}
+
+/** Records in `parent` and every folder below it. `null` is every record. */
+function recordsInFolder<TItem>(
+  records: readonly TItem[],
+  parent: string | null,
+  getFolder: (item: TItem) => string | null | undefined,
+): readonly TItem[] {
+  const open = normalizeFolder(parent);
+  if (open == null) return records;
+  const prefix = `${open}/`;
+  return records.filter((record) => {
+    const path = normalizeFolder(getFolder(record));
+    return path === open || (path?.startsWith(prefix) ?? false);
+  });
 }
 
 function totals<TItem>(

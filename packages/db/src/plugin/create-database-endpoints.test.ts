@@ -148,6 +148,28 @@ describe("GET /db/objects", () => {
     expect(body.objects).toHaveLength(1);
   });
 
+  it("sends the open folder's usage, including the folders below it", async () => {
+    const { instance, insert, request } = createSetup({
+      plugin: { quota: { maxBytes: 100 } },
+    });
+    const docs = await nest(instance.db.folders, "user:1", "docs");
+    const q4 = await nest(instance.db.folders, "user:1", "docs/q4");
+    await insert({ key: "root.txt", size: 10 });
+    await insert({ key: "in-docs.txt", size: 4, folderId: docs.id });
+    await insert({ key: "in-q4.txt", size: 6, folderId: q4.id });
+
+    const root = await request<ListBody>("GET", "/objects", {
+      query: { folderId: "" },
+    });
+    expect(root.body.usage).toEqual({ totalBytes: 20, objectCount: 3 });
+
+    const inside = await request<ListBody>("GET", "/objects", {
+      query: { folderId: docs.id },
+    });
+    expect(inside.body.usage).toEqual({ totalBytes: 10, objectCount: 2 });
+    expect(inside.body.limits).toEqual({ maxBytes: 100 });
+  });
+
   it("lists the child folders of a nested folder", async () => {
     const { instance, insert, request } = createSetup();
     const docs = await nest(instance.db.folders, "user:1", "docs");

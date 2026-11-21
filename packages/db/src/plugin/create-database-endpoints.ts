@@ -216,7 +216,14 @@ export function createDatabaseEndpoints<
           const limits = await quota.limits(scope);
           const usage =
             limits !== null || wantsUsage === true
-              ? await objects.usage(scope.scope)
+              ? await objects.usage(
+                  scope.scope,
+                  // A flat list has no open folder. A folder sums itself
+                  // and every folder below it; the root then sums the scope.
+                  opened === undefined
+                    ? undefined
+                    : { folderId: opened?.id ?? null, recursive: true },
+                )
               : undefined;
           return { usage, limits };
         };

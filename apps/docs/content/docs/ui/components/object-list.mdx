@@ -131,7 +131,7 @@ renders a header, the usage, the upload status, and the content.
 | `ObjectListSelectionBar`          | Count, your actions, bulk delete, and Clear                                             |
 | `ObjectListBulkDelete`            | Bulk delete, for a selection bar of your own                                            |
 | `ObjectListNewFolder`             | New folder, when the source can create folders                                          |
-| `ObjectListUsage`                 | Bytes and files used, with a ring for the caps                                          |
+| `ObjectListUsage`                 | The open folder's bytes and files, with a text-sized ring for the caps                 |
 | `ObjectListUsageMeter`            | The cap ring, for custom content inside `ObjectListUsage`                               |
 | `ObjectListUploadStatus`          | Upload progress and errors                                                              |
 | `ObjectListContent`               | Rows or tiles, the loading, error, and empty states, and the next page                  |
@@ -310,15 +310,17 @@ scrolls; `pagination="button"` shows **Load more** instead.
 ## Storage usage
 
 Return `usage` from the source's query. `ObjectListUsage` shows the bytes
-and the file count on one line. A cap adds a small ring behind the percent:
-the byte cap when `maxBytes` is set, and the file cap when it is not. The
-line uses the destructive color when either cap is reached.
+and the file count on one line. For `dbObjectSource` and
+`memoryObjectSource` that is the open folder and the folders below it, so
+the line changes as you open a folder. At the root it is the whole scope.
+A cap adds a ring the size of the text: the byte cap when `maxBytes` is
+set, and the file cap when it is not. Hover, focus, or click the ring for
+the percent. The line uses the destructive color when either cap is reached.
+The caps stay the scope's, including the [`db()` quota](/docs/db/api#quota).
 
-`dbObjectSource` sends the [`db()` quota](/docs/db/api#quota) for the whole
-scope, so the line is the same in every folder. Pass `usage` to show another
-total, such as the open folder. Pass `children` to replace the ring and the
-line. A function receives the state on screen, and `ObjectListUsageMeter`
-is the ring.
+Pass `usage` to show another total. Pass `children` to replace the ring and
+the line. A function receives the state on screen, and
+`ObjectListUsageMeter` is the ring.
 
 ```tsx
 <ObjectListUsage usage={folderUsage}>

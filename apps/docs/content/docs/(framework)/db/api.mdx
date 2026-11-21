@@ -334,12 +334,14 @@ db({
 - A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to
   `"bytes"`, `"files"`, or `"folders"`.
 - With a quota, the first page of `GET /db/objects` carries `usage` and
-  `limits`, and `ObjectListUsage` shows the ring against them. Without one,
+  `limits`. `usage` is the open folder and the folders below it (the whole
+  scope at the root, and for a flat list), and `ObjectListUsage` shows it
+  against the scope caps. Without a quota,
   `usage` is sent only when asked (`dbObjectSource(api.db, { usage: true })`).
-- A byte cap sums every live row of the scope on each upload and confirm,
-  and `usage` does the same on each first page. `maxFiles` alone is one
-  `COUNT`. For frequent uploads on large scopes, keep a counter of your own
-  and return caps from the `quota` function that account for it.
+- A byte cap sums every live row of the scope on each upload and confirm.
+  `maxFiles` alone is one `COUNT`. For frequent uploads on large scopes,
+  keep a counter of your own and return caps from the `quota` function that
+  account for it. The list's `usage` is a separate sum of the open folder.
 
 ## Browser
 
@@ -392,7 +394,7 @@ folders, upload, and usage: `<ObjectList list={list} />`.
   folder and every folder below it, or the whole scope. Each result gets
   its `location`.
 - The sort takes `name`, `size`, and `updatedAt`.
-- The usage line is the scope's total with its caps, not the open folder's.
+- The usage line is the open folder and the folders below it, with the scope's caps. At the root it is the whole scope.
 - `folders: false` gives a flat list that searches the whole scope, with
   file rename and no folder actions.
 
