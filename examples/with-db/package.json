@@ -14,7 +14,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1174.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
     "@base-ui/react": "^1.9.0",
     "@dimah-s3/core": "workspace:*",
     "@dimah-s3/db": "workspace:*",
