@@ -334,8 +334,9 @@ db({
 - A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to
   `"bytes"`, `"files"`, or `"folders"`.
 - With a quota, the first page of `GET /db/objects` carries `usage` and
-  `limits`, and `ObjectListUsage` shows the meter against them. Without one,
-  `usage` is sent only when asked (`dbObjectSource(api.db, { usage: true })`).
+  `limits`. `usage` is the whole scope, in every folder, and `ObjectListUsage`
+  shows it against the caps. Without a quota, `usage` is sent only when asked
+  (`dbObjectSource(api.db, { usage: true })`).
 - A byte cap sums every live row of the scope on each upload and confirm,
   and `usage` does the same on each first page. `maxFiles` alone is one
   `COUNT`. For frequent uploads on large scopes, keep a counter of your own
@@ -392,7 +393,8 @@ folders, upload, and usage: `<ObjectList list={list} />`.
   folder and every folder below it, or the whole scope. Each result gets
   its `location`.
 - The sort takes `name`, `size`, and `updatedAt`.
-- The usage line is the scope's total with its caps, not the open folder's.
+- The usage line is the scope's total with its caps, in every folder.
+- Each folder row carries `size` and `objectCount` for that folder and the folders below it. An empty folder is `0`.
 - `folders: false` gives a flat list that searches the whole scope, with
   file rename and no folder actions.
 

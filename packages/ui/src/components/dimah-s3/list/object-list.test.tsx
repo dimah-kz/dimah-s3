@@ -38,6 +38,10 @@ import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import {
+  ObjectListUsage,
+  ObjectListUsageMeter,
+} from "@/components/dimah-s3/list/object-list-usage";
+import {
   ObjectListEntryMenu,
   ObjectListEntryMenuItem,
 } from "@/components/dimah-s3/list/object-list-entry-menu";
@@ -597,6 +601,7 @@ describe("ObjectList", () => {
 
   describe("usage", () => {
     it("draws the limits that come with list.usage", async () => {
+      const user = userEvent.setup();
       const { container } = renderList({
         limits: { maxBytes: 1000, maxFiles: 4 },
       });
@@ -606,6 +611,14 @@ describe("ObjectList", () => {
       expect(usage?.textContent).toContain("3 of 4 files");
       expect(usage?.textContent).toContain(" of ");
       expect(usage?.hasAttribute("data-over")).toBe(false);
+      // 600 of 1000 bytes. The file cap stays in the line.
+      const meter = within(usage as HTMLElement).getByRole("button", {
+        name: "60%",
+      });
+      await user.hover(meter);
+      expect(meter.hasAttribute("data-popup-open")).toBe(true);
+      await user.click(meter);
+      expect(meter.hasAttribute("data-popup-open")).toBe(true);
     });
 
     it("shows plain totals without limits", async () => {
@@ -615,6 +628,9 @@ describe("ObjectList", () => {
       const usage = container.querySelector("[data-slot=object-list-usage]");
       expect(usage?.textContent).toContain("3 files");
       expect(usage?.textContent).not.toContain(" of ");
+      expect(
+        usage?.querySelector("[data-slot=object-list-usage-meter]"),
+      ).toBeNull();
     });
 
     it("marks a reached limit", async () => {
@@ -623,10 +639,102 @@ describe("ObjectList", () => {
 
       const usage = container.querySelector("[data-slot=object-list-usage]");
       expect(usage?.hasAttribute("data-over")).toBe(true);
+      expect(
+        within(usage as HTMLElement).getByRole("button", { name: "100%" }),
+      ).toBeTruthy();
+    });
+
+    it("keeps the catalog total inside a folder", async () => {
+      const user = userEvent.setup();
+      const { container } = renderList({
+        limits: { maxBytes: 1000, maxFiles: 4 },
+      });
+      await settle();
+
+      await user.click(
+        screen.getByRole("button", { name: startsWith("docs") }),
+      );
+      await settle();
+
+      const usage = container.querySelector("[data-slot=object-list-usage]");
+      expect(usage?.textContent).toContain("600 B of 1000 B");
+      expect(usage?.textContent).toContain("3 of 4 files");
+      expect(
+        within(usage as HTMLElement).getByRole("button", { name: "60%" }),
+      ).toBeTruthy();
+    });
+
+    it("shows totals passed to it", async () => {
+      renderList({
+        usage: true,
+        props: () => ({
+          children: (
+            <ObjectListUsage
+              usage={{ totalBytes: 5, objectCount: 1, maxFiles: 2 }}
+            />
+          ),
+        }),
+      });
+      await settle();
+
+      expect(screen.getByText(/1 of 2 files/)).toBeTruthy();
+      expect(screen.queryByText(/3 files/)).toBeNull();
+    });
+
+    it("hides when usage is null", async () => {
+      const { container } = renderList({
+        usage: true,
+        props: () => ({
+          children: <ObjectListUsage usage={null} />,
+        }),
+      });
+      await settle();
+
+      expect(
+        container.querySelector("[data-slot=object-list-usage]"),
+      ).toBeNull();
+    });
+
+    it("replaces the line and still draws the ring", async () => {
+      const { container } = renderList({
+        limits: { maxBytes: 1000 },
+        props: () => ({
+          children: (
+            <ObjectListUsage>
+              {(state) => (
+                <>
+                  <ObjectListUsageMeter />
+                  <span>Kept {state.bytesLabel}</span>
+                </>
+              )}
+            </ObjectListUsage>
+          ),
+        }),
+      });
+      await settle();
+
+      expect(screen.getByText("Kept 600 B of 1000 B")).toBeTruthy();
+      expect(
+        within(
+          container.querySelector(
+            "[data-slot=object-list-usage]",
+          ) as HTMLElement,
+        ).getByRole("button", { name: "60%" }),
+      ).toBeTruthy();
+      expect(screen.queryByText(/3 of/)).toBeNull();
     });
   });
 
   describe("folder rows", () => {
+    it("shows how many files a folder holds and how large it is", async () => {
+      renderList();
+      await settle();
+
+      const row = entry("docs");
+      expect(row.textContent).toContain("1 file");
+      expect(row.textContent).toContain("300 B");
+    });
+
     it("upload dropped files into that folder", async () => {
       const { api } = renderList({ source: { uploadOptions: folderOptions } });
       await settle();
@@ -668,7 +776,9 @@ describe("ObjectList", () => {
 
       const row = entry("docs");
       expect(row.hasAttribute("tabindex")).toBe(false);
-      const trigger = within(row).getByRole("button", { name: "docs" });
+      const trigger = within(row).getByRole("button", {
+        name: startsWith("docs"),
+      });
       await user.click(trigger);
       await settle();
       expect(
@@ -677,7 +787,9 @@ describe("ObjectList", () => {
 
       await user.click(screen.getByRole("button", { name: "Files" }));
       await settle();
-      within(entry("docs")).getByRole("button", { name: "docs" }).focus();
+      within(entry("docs"))
+        .getByRole("button", { name: startsWith("docs") })
+        .focus();
       await user.keyboard("{Enter}");
       await settle();
       expect(
@@ -1597,10 +1709,12 @@ describe("ObjectList", () => {
       await settle();
 
       expect(renameFolder).toHaveBeenCalledWith({
-        folder: { id: "docs", name: "docs" },
+        folder: { id: "docs", name: "docs", size: 300, objectCount: 1 },
         name: "notes",
       });
-      expect(screen.getByRole("button", { name: "notes" })).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: startsWith("notes") }),
+      ).toBeDefined();
     });
   });
 

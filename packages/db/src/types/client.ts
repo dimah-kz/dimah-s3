@@ -41,6 +41,16 @@ export type DbClientFolder = {
   createdAt: string;
   /** ISO 8601 timestamp. */
   updatedAt: string;
+  /**
+   * Bytes in this folder and every folder below it. Set on the folders of
+   * a listing. `0` is an empty folder.
+   */
+  size?: number;
+  /**
+   * Files in this folder and every folder below it. Set on the folders of
+   * a listing. `0` is an empty folder.
+   */
+  objectCount?: number;
 };
 
 /** Column a listing can be ordered by. */
@@ -141,8 +151,8 @@ export type DbClientListObjectsResponse<TClientAttributes = never> = {
   /** Objects that match, across every page. First page of a search only. */
   total?: number;
   /**
-   * Bytes and files of the scope. First page only, and only when the plugin
-   * sets a `quota` or the query asks with `usage: true`.
+   * Bytes and files of the scope, in every folder. First page only, and
+   * only when the plugin sets a `quota` or the query asks with `usage: true`.
    */
   usage?: DbUsage;
   /** Caps for the scope, `null` when there are none. First page only. */

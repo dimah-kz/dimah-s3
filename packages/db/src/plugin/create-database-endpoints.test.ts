@@ -148,6 +148,34 @@ describe("GET /db/objects", () => {
     expect(body.objects).toHaveLength(1);
   });
 
+  it("keeps scope usage inside a folder and sends each folder's totals", async () => {
+    const { instance, insert, request } = createSetup({
+      plugin: { quota: { maxBytes: 100 } },
+    });
+    const docs = await nest(instance.db.folders, "user:1", "docs");
+    const q4 = await nest(instance.db.folders, "user:1", "docs/q4");
+    await insert({ key: "root.txt", size: 10 });
+    await insert({ key: "in-docs.txt", size: 4, folderId: docs.id });
+    await insert({ key: "in-q4.txt", size: 6, folderId: q4.id });
+
+    const root = await request<ListBody>("GET", "/objects", {
+      query: { folderId: "" },
+    });
+    expect(root.body.usage).toEqual({ totalBytes: 20, objectCount: 3 });
+    expect(root.body.folders).toEqual([
+      expect.objectContaining({ name: "docs", size: 10, objectCount: 2 }),
+    ]);
+
+    const inside = await request<ListBody>("GET", "/objects", {
+      query: { folderId: docs.id },
+    });
+    expect(inside.body.usage).toEqual({ totalBytes: 20, objectCount: 3 });
+    expect(inside.body.limits).toEqual({ maxBytes: 100 });
+    expect(inside.body.folders).toEqual([
+      expect.objectContaining({ name: "q4", size: 6, objectCount: 1 }),
+    ]);
+  });
+
   it("lists the child folders of a nested folder", async () => {
     const { instance, insert, request } = createSetup();
     const docs = await nest(instance.db.folders, "user:1", "docs");
@@ -160,7 +188,7 @@ describe("GET /db/objects", () => {
 
     expect(body.objects).toMatchObject([{ key: "b.txt", folderId: docs.id }]);
     expect(body.folders).toMatchObject([
-      { path: "docs/q4", parentId: docs.id },
+      { path: "docs/q4", parentId: docs.id, size: 0, objectCount: 0 },
     ]);
     expect(body.trail).toMatchObject([{ id: docs.id, name: "docs" }]);
     expect(body.limits).toBeNull();

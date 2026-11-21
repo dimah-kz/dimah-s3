@@ -36,7 +36,10 @@ export type DbObjects<TAttributes = never> = Pick<
  * `s3.db.folders`: the `storage_folder` rows of a scope, which every method
  * takes first. The root is never stored.
  */
-export type DbFolders = Omit<StorageFolderStore, "subtreeIds" | "retain">;
+export type DbFolders = Omit<
+  StorageFolderStore,
+  "subtreeIds" | "retain" | "index"
+>;
 
 /** `""` is the root, the same as `null`. */
 function rootId(folderId: string | null): string | null {

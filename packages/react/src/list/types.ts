@@ -1,9 +1,9 @@
 import type { UploadRequestOptions } from "@/types/upload";
 
 /**
- * Bytes and file count for the catalog, with the caps the server enforces.
- * Scope-wide when the source is `dbObjectSource`. A custom query can use the
- * same shape for its own totals.
+ * Bytes and file count for the whole catalog, with the caps the server
+ * enforces. `dbObjectSource` and `memoryObjectSource` count every record,
+ * in every folder. A custom query can use the same shape for its own totals.
  */
 export type ObjectListUsageData = {
   totalBytes: number;
@@ -27,6 +27,16 @@ export type ObjectListFolder = {
    * path.
    */
   location?: readonly ObjectListFolder[];
+  /**
+   * Bytes in this folder and every folder below it. Omit when the source
+   * does not know. `0` is an empty folder.
+   */
+  size?: number;
+  /**
+   * Files in this folder and every folder below it. Omit when the source
+   * does not know. `0` is an empty folder.
+   */
+  objectCount?: number;
 };
 
 /**

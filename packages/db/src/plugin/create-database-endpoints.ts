@@ -23,6 +23,7 @@ import {
   dbUpdateFolderBodySchema,
   dbUpdateObjectBodySchema,
 } from "./schemas";
+import { folderListingStats } from "./folder-listing-stats";
 import { toDbClientFolder } from "./to-db-client-object";
 
 /** Largest JSON size of stored attributes when `maxBytes` is not set. */
@@ -115,7 +116,8 @@ function folderTarget(
  *   one folder or, with `recursive`, from it and every folder below. The
  *   first page also carries the quota, the usage (when there is a quota or
  *   the query asks), the folders (those whose name contains `search`, when
- *   it is set), the breadcrumb trail, and a search's `total`. A recursive
+ *   it is set, each with the bytes and file count of that folder and the
+ *   folders below it), the breadcrumb trail, and a search's `total`. A recursive
  *   page carries the `locations` of its rows. A flat listing covers every
  *   folder, so `authorize` sees it as a recursive listing of the root.
  * - `GET /db/object` (op `read`): one object.
@@ -262,19 +264,36 @@ export function createDatabaseEndpoints<
 
         const [{ usage, limits }, listed, trail, total] = await (early ??
           firstPage());
-        const locations = recursive
-          ? await folders.ancestors(scope.scope, [
-              ...located,
-              ...(listed ?? []).flatMap((folder) =>
-                folder.parentId === null ? [] : [folder.parentId],
-              ),
-            ])
-          : undefined;
+        const listedIds = (listed ?? []).map((folder) => folder.id);
+        const [locations, stats] = await Promise.all([
+          recursive
+            ? folders.ancestors(scope.scope, [
+                ...located,
+                ...(listed ?? []).flatMap((folder) =>
+                  folder.parentId === null ? [] : [folder.parentId],
+                ),
+              ])
+            : undefined,
+          listedIds.length === 0
+            ? undefined
+            : folderListingStats(folders, objects, scope.scope, listedIds),
+        ]);
         return {
           ...response,
           ...(usage && { usage }),
           limits,
-          ...(listed && { folders: listed.map(toDbClientFolder) }),
+          ...(listed && {
+            folders: listed.map((folder) => {
+              const totals = stats?.get(folder.id);
+              return {
+                ...toDbClientFolder(folder),
+                ...(totals && {
+                  size: totals.totalBytes,
+                  objectCount: totals.objectCount,
+                }),
+              };
+            }),
+          }),
           ...(trail && { trail: trail.map(toDbClientFolder) }),
           ...(locations && { locations: locations.map(toDbClientFolder) }),
           ...(total !== undefined && { total }),

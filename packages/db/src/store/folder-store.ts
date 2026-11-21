@@ -51,6 +51,12 @@ export type StorageFolderStore = {
    */
   subtreeIds: (scope: string, id: string) => Promise<string[]>;
   /**
+   * Every folder of the scope as `id` and `parentId`, up to
+   * {@link FOLDER_SUBTREE_LIMIT}. `parentId` `null` is the root.
+   * @internal Listings roll a folder's contents up from this.
+   */
+  index: (scope: string) => Promise<{ id: string; parentId: string | null }[]>;
+  /**
    * Direct child folders of `parentId` (`null` is the root), by name. Case
    * and accents do not count, as in the name sort of the objects.
    */
@@ -417,6 +423,19 @@ export function createFolderStore(getOrm: GetDbOrm): StorageFolderStore {
     async subtreeIds(scope, id) {
       const below = await sharedSubtree(scope, id);
       return below.map((folder) => folder.id);
+    },
+
+    async index(scope) {
+      const orm = await getOrm();
+      const rows = await orm.findMany("storageFolder", {
+        select: ["id", "parentId"],
+        where: (b) => b("scope", "=", scope),
+        limit: FOLDER_SUBTREE_LIMIT,
+      });
+      return rows.map((row) => ({
+        id: row.id,
+        parentId: readParent(row.parentId),
+      }));
     },
 
     async children(scope, parentId, options = {}) {

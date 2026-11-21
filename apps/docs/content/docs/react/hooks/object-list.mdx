@@ -369,7 +369,7 @@ The options are the source fields plus the navigation state.
 | `searchScope`    | `"folder" \| "all"`                                                  | Where a search looks                                                             |
 | `searchScopes`   | `readonly ("folder" \| "all")[]`                                     | What the source declared, or `[]`                                                |
 | `total`          | `number \| null`                                                     | Files that match the search across every page                                    |
-| `usage`          | `ObjectListUsageData \| null`                                        | Totals from the latest page that sent them                                       |
+| `usage`          | `ObjectListUsageData \| null`                                        | Totals from the latest page that sent them. Built-in sources count every record  |
 | `status`         | `ObjectListStatus`                                                   | `"idle"`, `"loading"`, `"refreshing"`, `"loading-more"`, `"ready"`, or `"error"` |
 | `error`          | `APIError \| null`                                                   | The last failure. Rows that loaded before stay                                   |
 | `isLoading`      | `boolean`                                                            | The first page is in flight and there is nothing to show                         |
@@ -433,7 +433,7 @@ actions.
 | `previewUrl?`  | `string \| null`                      | Image thumbnail                                             |
 | `location?`    | `readonly ObjectListFolder[] \| null` | Where a search result lives, root excluded                  |
 
-`ObjectListFolder` is `{ id, name, location? }`.
+`ObjectListFolder` is `{ id, name, location?, size?, objectCount? }`. `size` is the bytes in that folder and the folders below it, and `objectCount` is the file count. `memoryObjectSource` and `dbObjectSource` set both. Omit them when the source does not know.
 
 ### memoryObjectSource options
 

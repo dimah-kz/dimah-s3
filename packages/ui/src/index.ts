@@ -163,7 +163,10 @@ export {
 } from "@/components/dimah-s3/list/object-list-states";
 export {
   ObjectListUsage,
+  ObjectListUsageMeter,
+  type ObjectListUsageMeterProps,
   type ObjectListUsageProps,
+  type ObjectListUsageState,
 } from "@/components/dimah-s3/list/object-list-usage";
 export {
   ObjectListUploadStatus,

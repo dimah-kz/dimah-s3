@@ -95,8 +95,9 @@ function locationsOf(
  * every folder below it, `"all"` in the whole scope, and each result's
  * `location` says where it lives. `sort` takes `name`, `size`, and
  * `updatedAt`; other fields keep the server's order (newest first). The
- * usage line is the scope total with its caps, not the open folder's. The
- * server sends it when the plugin sets a `quota`, or when `usage` is on.
+ * usage line is the scope total with its caps, in every folder. The server
+ * sends it when the plugin sets a `quota`, or when `usage` is on. Each
+ * child folder carries its own `size` and `objectCount`.
  *
  * ```ts
  * const list = useObjectList({
@@ -169,6 +170,10 @@ export function dbObjectSource<TClientAttributes = never>(
           folders: page.folders.map((folder) => ({
             id: folder.id,
             name: folder.name,
+            ...(folder.size != null && { size: folder.size }),
+            ...(folder.objectCount != null && {
+              objectCount: folder.objectCount,
+            }),
             ...(locate && { location: locate(folder.parentId) }),
           })),
         }),
