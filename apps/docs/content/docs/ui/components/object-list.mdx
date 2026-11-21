@@ -131,7 +131,8 @@ renders a header, the usage, the upload status, and the content.
 | `ObjectListSelectionBar`          | Count, your actions, bulk delete, and Clear                                             |
 | `ObjectListBulkDelete`            | Bulk delete, for a selection bar of your own                                            |
 | `ObjectListNewFolder`             | New folder, when the source can create folders                                          |
-| `ObjectListUsage`                 | Bytes and files used, with a meter for the caps                                         |
+| `ObjectListUsage`                 | Bytes and files used, with a ring for the caps                                          |
+| `ObjectListUsageMeter`            | The cap ring, for custom content inside `ObjectListUsage`                               |
 | `ObjectListUploadStatus`          | Upload progress and errors                                                              |
 | `ObjectListContent`               | Rows or tiles, the loading, error, and empty states, and the next page                  |
 | `ObjectListEmpty`                 | The empty state, with your own text or actions                                          |
@@ -308,9 +309,29 @@ scrolls; `pagination="button"` shows **Load more** instead.
 
 ## Storage usage
 
-Return `usage` from the source's query, with `maxBytes` or `maxFiles` for a
-meter, and `ObjectListUsage` shows it. `dbObjectSource` sends the
-[`db()` quota](/docs/db/api#quota).
+Return `usage` from the source's query. `ObjectListUsage` shows the bytes
+and the file count on one line. A cap adds a small ring behind the percent:
+the byte cap when `maxBytes` is set, and the file cap when it is not. The
+line uses the destructive color when either cap is reached.
+
+`dbObjectSource` sends the [`db()` quota](/docs/db/api#quota) for the whole
+scope, so the line is the same in every folder. Pass `usage` to show another
+total, such as the open folder. Pass `children` to replace the ring and the
+line. A function receives the state on screen, and `ObjectListUsageMeter`
+is the ring.
+
+```tsx
+<ObjectListUsage usage={folderUsage}>
+  {(state) => (
+    <>
+      <ObjectListUsageMeter />
+      <span>
+        {state.bytesLabel} · {state.filesLabel}
+      </span>
+    </>
+  )}
+</ObjectListUsage>
+```
 
 ## Toasts
 
@@ -404,6 +425,32 @@ checkbox and menu have, so Tab stays on the entry.
 | `title`       | `ReactNode` | "This folder is empty", or "No results" | Heading                |
 | `description` | `ReactNode` | —                                       | Text under it          |
 | `children`    | `ReactNode` | Search actions while searching          | Actions below the text |
+
+### ObjectListUsage
+
+| Prop       | Type                                          | Default            | Description                                                    |
+| ---------- | --------------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| `usage`    | `ObjectListUsageData \| null`                 | `list.usage`       | Totals to show. `null` hides the line                         |
+| `children` | `ReactNode \| (state) => ReactNode`           | Ring and summary   | Replaces the ring and the summary. A function receives `state` |
+| `className` | `string`                                     | —                  | Classes for the row                                            |
+
+`state` is `ObjectListUsageState`:
+
+| Field        | Description                                                                 |
+| ------------ | --------------------------------------------------------------------------- |
+| `usage`      | The totals on screen                                                        |
+| `bytesLabel` | "1.2 MB", or "1.2 MB of 10 MB" when `maxBytes` is set                       |
+| `filesLabel` | "3 files", or "3 of 4 files" when `maxFiles` is set                         |
+| `byteRatio`  | `totalBytes / maxBytes`, or `null`                                          |
+| `fileRatio`  | `objectCount / maxFiles`, or `null`                                         |
+| `meterRatio` | What the ring draws. Bytes when `maxBytes` is set, otherwise files, or `null` |
+| `over`       | A byte cap or a file cap is reached                                         |
+
+### ObjectListUsageMeter
+
+| Prop        | Type     | Default | Description       |
+| ----------- | -------- | ------- | ----------------- |
+| `className` | `string` | —       | Classes for the ring |
 
 ### ObjectListEntryMenu
 

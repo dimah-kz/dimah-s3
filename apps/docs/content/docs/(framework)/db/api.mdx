@@ -334,7 +334,7 @@ db({
 - A refusal is `QUOTA_EXCEEDED` (`403`), with `params.limit` set to
   `"bytes"`, `"files"`, or `"folders"`.
 - With a quota, the first page of `GET /db/objects` carries `usage` and
-  `limits`, and `ObjectListUsage` shows the meter against them. Without one,
+  `limits`, and `ObjectListUsage` shows the ring against them. Without one,
   `usage` is sent only when asked (`dbObjectSource(api.db, { usage: true })`).
 - A byte cap sums every live row of the scope on each upload and confirm,
   and `usage` does the same on each first page. `maxFiles` alone is one

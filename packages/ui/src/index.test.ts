@@ -44,6 +44,7 @@ describe("@dimah-s3/ui", () => {
       "ObjectListTile",
       "ObjectListUploadStatus",
       "ObjectListUsage",
+      "ObjectListUsageMeter",
       "ObjectListViewToggle",
       "StatusAttachment",
       "Toaster",

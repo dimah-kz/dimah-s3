@@ -38,6 +38,10 @@ import { UploadTrigger } from "@/components/dimah-s3/upload/upload-trigger";
 import { UploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import {
+  ObjectListUsage,
+  ObjectListUsageMeter,
+} from "@/components/dimah-s3/list/object-list-usage";
+import {
   ObjectListEntryMenu,
   ObjectListEntryMenuItem,
 } from "@/components/dimah-s3/list/object-list-entry-menu";
@@ -606,6 +610,11 @@ describe("ObjectList", () => {
       expect(usage?.textContent).toContain("3 of 4 files");
       expect(usage?.textContent).toContain(" of ");
       expect(usage?.hasAttribute("data-over")).toBe(false);
+      // 600 of 1000 bytes. The file cap is tighter (3 of 4) and stays text.
+      expect(
+        usage?.querySelector("[data-slot=object-list-usage-meter]")
+          ?.textContent,
+      ).toBe("60");
     });
 
     it("shows plain totals without limits", async () => {
@@ -615,6 +624,9 @@ describe("ObjectList", () => {
       const usage = container.querySelector("[data-slot=object-list-usage]");
       expect(usage?.textContent).toContain("3 files");
       expect(usage?.textContent).not.toContain(" of ");
+      expect(
+        usage?.querySelector("[data-slot=object-list-usage-meter]"),
+      ).toBeNull();
     });
 
     it("marks a reached limit", async () => {
@@ -623,6 +635,67 @@ describe("ObjectList", () => {
 
       const usage = container.querySelector("[data-slot=object-list-usage]");
       expect(usage?.hasAttribute("data-over")).toBe(true);
+      expect(
+        usage?.querySelector("[data-slot=object-list-usage-meter]")
+          ?.textContent,
+      ).toBe("100");
+    });
+
+    it("shows totals passed to it", async () => {
+      renderList({
+        usage: true,
+        props: () => ({
+          children: (
+            <ObjectListUsage
+              usage={{ totalBytes: 5, objectCount: 1, maxFiles: 2 }}
+            />
+          ),
+        }),
+      });
+      await settle();
+
+      expect(screen.getByText(/1 of 2 files/)).toBeTruthy();
+      expect(screen.queryByText(/3 files/)).toBeNull();
+    });
+
+    it("hides when usage is null", async () => {
+      const { container } = renderList({
+        usage: true,
+        props: () => ({
+          children: <ObjectListUsage usage={null} />,
+        }),
+      });
+      await settle();
+
+      expect(
+        container.querySelector("[data-slot=object-list-usage]"),
+      ).toBeNull();
+    });
+
+    it("replaces the line and still draws the ring", async () => {
+      const { container } = renderList({
+        limits: { maxBytes: 1000 },
+        props: () => ({
+          children: (
+            <ObjectListUsage>
+              {(state) => (
+                <>
+                  <ObjectListUsageMeter />
+                  <span>Kept {state.bytesLabel}</span>
+                </>
+              )}
+            </ObjectListUsage>
+          ),
+        }),
+      });
+      await settle();
+
+      expect(screen.getByText("Kept 600 B of 1000 B")).toBeTruthy();
+      expect(
+        container.querySelector("[data-slot=object-list-usage-meter]")
+          ?.textContent,
+      ).toBe("60");
+      expect(screen.queryByText(/3 of/)).toBeNull();
     });
   });
 
