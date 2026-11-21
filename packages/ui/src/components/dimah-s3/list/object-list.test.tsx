@@ -651,7 +651,9 @@ describe("ObjectList", () => {
       });
       await settle();
 
-      await user.click(screen.getByRole("button", { name: startsWith("docs") }));
+      await user.click(
+        screen.getByRole("button", { name: startsWith("docs") }),
+      );
       await settle();
 
       const usage = container.querySelector("[data-slot=object-list-usage]");

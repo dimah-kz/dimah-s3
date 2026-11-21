@@ -482,12 +482,12 @@ describe.each(testDatabases)("object store ($name)", (factory) => {
 
     it("sums one folder, including the folders below it when asked", async () => {
       await seed();
-      await expect(store().usage("user:1", { folderId: "docs" })).resolves.toEqual(
-        { totalBytes: 100, objectCount: 1 },
-      );
-      await expect(store().usage("user:1", { folderId: null })).resolves.toEqual(
-        { totalBytes: 80, objectCount: 2 },
-      );
+      await expect(
+        store().usage("user:1", { folderId: "docs" }),
+      ).resolves.toEqual({ totalBytes: 100, objectCount: 1 });
+      await expect(
+        store().usage("user:1", { folderId: null }),
+      ).resolves.toEqual({ totalBytes: 80, objectCount: 2 });
       await expect(
         store().usage("user:1", { folderId: "docs", recursive: true }),
       ).resolves.toEqual({ totalBytes: 100, objectCount: 1 });

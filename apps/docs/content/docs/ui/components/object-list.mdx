@@ -131,7 +131,7 @@ renders a header, the usage, the upload status, and the content.
 | `ObjectListSelectionBar`          | Count, your actions, bulk delete, and Clear                                             |
 | `ObjectListBulkDelete`            | Bulk delete, for a selection bar of your own                                            |
 | `ObjectListNewFolder`             | New folder, when the source can create folders                                          |
-| `ObjectListUsage`                 | The open folder's bytes and files, with a text-sized ring for the caps                 |
+| `ObjectListUsage`                 | The open folder's bytes and files, with a text-sized ring for the caps                  |
 | `ObjectListUsageMeter`            | The cap ring, for custom content inside `ObjectListUsage`                               |
 | `ObjectListUploadStatus`          | Upload progress and errors                                                              |
 | `ObjectListContent`               | Rows or tiles, the loading, error, and empty states, and the next page                  |
@@ -430,28 +430,28 @@ checkbox and menu have, so Tab stays on the entry.
 
 ### ObjectListUsage
 
-| Prop       | Type                                          | Default            | Description                                                    |
-| ---------- | --------------------------------------------- | ------------------ | -------------------------------------------------------------- |
-| `usage`    | `ObjectListUsageData \| null`                 | `list.usage`       | Totals to show. `null` hides the line                         |
-| `children` | `ReactNode \| (state) => ReactNode`           | Ring and summary   | Replaces the ring and the summary. A function receives `state` |
-| `className` | `string`                                     | —                  | Classes for the row                                            |
+| Prop        | Type                                | Default          | Description                                                    |
+| ----------- | ----------------------------------- | ---------------- | -------------------------------------------------------------- |
+| `usage`     | `ObjectListUsageData \| null`       | `list.usage`     | Totals to show. `null` hides the line                          |
+| `children`  | `ReactNode \| (state) => ReactNode` | Ring and summary | Replaces the ring and the summary. A function receives `state` |
+| `className` | `string`                            | —                | Classes for the row                                            |
 
 `state` is `ObjectListUsageState`:
 
-| Field        | Description                                                                 |
-| ------------ | --------------------------------------------------------------------------- |
-| `usage`      | The totals on screen                                                        |
-| `bytesLabel` | "1.2 MB", or "1.2 MB of 10 MB" when `maxBytes` is set                       |
-| `filesLabel` | "3 files", or "3 of 4 files" when `maxFiles` is set                         |
-| `byteRatio`  | `totalBytes / maxBytes`, or `null`                                          |
-| `fileRatio`  | `objectCount / maxFiles`, or `null`                                         |
+| Field        | Description                                                                   |
+| ------------ | ----------------------------------------------------------------------------- |
+| `usage`      | The totals on screen                                                          |
+| `bytesLabel` | "1.2 MB", or "1.2 MB of 10 MB" when `maxBytes` is set                         |
+| `filesLabel` | "3 files", or "3 of 4 files" when `maxFiles` is set                           |
+| `byteRatio`  | `totalBytes / maxBytes`, or `null`                                            |
+| `fileRatio`  | `objectCount / maxFiles`, or `null`                                           |
 | `meterRatio` | What the ring draws. Bytes when `maxBytes` is set, otherwise files, or `null` |
-| `over`       | A byte cap or a file cap is reached                                         |
+| `over`       | A byte cap or a file cap is reached                                           |
 
 ### ObjectListUsageMeter
 
-| Prop        | Type     | Default | Description       |
-| ----------- | -------- | ------- | ----------------- |
+| Prop        | Type     | Default | Description          |
+| ----------- | -------- | ------- | -------------------- |
 | `className` | `string` | —       | Classes for the ring |
 
 ### ObjectListEntryMenu
