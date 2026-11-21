@@ -726,6 +726,15 @@ describe("ObjectList", () => {
   });
 
   describe("folder rows", () => {
+    it("shows how many files a folder holds and how large it is", async () => {
+      renderList();
+      await settle();
+
+      const row = entry("docs");
+      expect(row.textContent).toContain("1 file");
+      expect(row.textContent).toContain("300 B");
+    });
+
     it("upload dropped files into that folder", async () => {
       const { api } = renderList({ source: { uploadOptions: folderOptions } });
       await settle();
@@ -767,7 +776,9 @@ describe("ObjectList", () => {
 
       const row = entry("docs");
       expect(row.hasAttribute("tabindex")).toBe(false);
-      const trigger = within(row).getByRole("button", { name: "docs" });
+      const trigger = within(row).getByRole("button", {
+        name: startsWith("docs"),
+      });
       await user.click(trigger);
       await settle();
       expect(
@@ -776,7 +787,9 @@ describe("ObjectList", () => {
 
       await user.click(screen.getByRole("button", { name: "Files" }));
       await settle();
-      within(entry("docs")).getByRole("button", { name: "docs" }).focus();
+      within(entry("docs"))
+        .getByRole("button", { name: startsWith("docs") })
+        .focus();
       await user.keyboard("{Enter}");
       await settle();
       expect(
@@ -1696,10 +1709,12 @@ describe("ObjectList", () => {
       await settle();
 
       expect(renameFolder).toHaveBeenCalledWith({
-        folder: { id: "docs", name: "docs" },
+        folder: { id: "docs", name: "docs", size: 300, objectCount: 1 },
         name: "notes",
       });
-      expect(screen.getByRole("button", { name: "notes" })).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: startsWith("notes") }),
+      ).toBeDefined();
     });
   });
 

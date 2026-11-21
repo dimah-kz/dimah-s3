@@ -41,6 +41,16 @@ export type DbClientFolder = {
   createdAt: string;
   /** ISO 8601 timestamp. */
   updatedAt: string;
+  /**
+   * Bytes in this folder and every folder below it. Set on the folders of
+   * a listing. `0` is an empty folder.
+   */
+  size?: number;
+  /**
+   * Files in this folder and every folder below it. Set on the folders of
+   * a listing. `0` is an empty folder.
+   */
+  objectCount?: number;
 };
 
 /** Column a listing can be ordered by. */

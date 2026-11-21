@@ -156,6 +156,8 @@ describe("dbObjectSource query", () => {
           parentId: "work",
           createdAt: "2024-01-01T00:00:00.000Z",
           updatedAt: "2024-01-01T00:00:00.000Z",
+          size: 40,
+          objectCount: 2,
         },
       ],
       trail: [
@@ -177,7 +179,7 @@ describe("dbObjectSource query", () => {
     ).resolves.toEqual({
       items: page.objects,
       nextCursor: "cursor-2",
-      folders: [{ id: "folder-1", name: "drafts" }],
+      folders: [{ id: "folder-1", name: "drafts", size: 40, objectCount: 2 }],
       trail: [{ id: "work", name: "work" }],
       usage: { totalBytes: 12, objectCount: 1, maxBytes: 1024, maxFiles: 10 },
     });

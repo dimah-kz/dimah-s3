@@ -49,8 +49,8 @@ describe("memoryObjectSource", () => {
   it("lists one level, pages files, and sends folders on the first page", async () => {
     const first = await source.query(input());
     expect(first.folders).toEqual([
-      { id: "Archive", name: "Archive" },
-      { id: "Docs", name: "Docs" },
+      { id: "Archive", name: "Archive", size: 3, objectCount: 1 },
+      { id: "Docs", name: "Docs", size: 3, objectCount: 2 },
     ]);
     expect(first.items.map((record) => record.id)).toEqual(["1", "2"]);
     expect(first.nextCursor).toBe("2");
@@ -99,7 +99,7 @@ describe("memoryObjectSource", () => {
 
     const folders = await source.query(input({ search: "doc" }));
     expect(folders.folders).toEqual([
-      { id: "Docs", name: "Docs", location: [] },
+      { id: "Docs", name: "Docs", location: [], size: 3, objectCount: 2 },
     ]);
     expect(folders.items).toEqual([]);
   });
@@ -119,11 +119,12 @@ describe("memoryObjectSource", () => {
       "6",
     ]);
     expect(fromRoot.folders).toEqual([
-      { id: "Archive", name: "Archive", location: [] },
+      { id: "Archive", name: "Archive", location: [], objectCount: 1 },
       {
         id: "Docs/Images",
         name: "Images",
         location: [{ id: "Docs", name: "Docs" }],
+        objectCount: 1,
       },
     ]);
     expect(fromRoot.total).toBe(3);

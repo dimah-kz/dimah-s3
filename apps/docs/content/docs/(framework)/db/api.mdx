@@ -395,6 +395,7 @@ folders, upload, and usage: `<ObjectList list={list} />`.
   its `location`.
 - The sort takes `name`, `size`, and `updatedAt`.
 - The usage line is the open folder and the folders below it, with the scope's caps. At the root it is the whole scope.
+- Each folder row carries `size` and `objectCount` for that folder and the folders below it. An empty folder is `0`.
 - `folders: false` gives a flat list that searches the whole scope, with
   file rename and no folder actions.
 

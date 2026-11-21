@@ -29,6 +29,16 @@ export type ObjectListFolder = {
    * path.
    */
   location?: readonly ObjectListFolder[];
+  /**
+   * Bytes in this folder and every folder below it. Omit when the source
+   * does not know. `0` is an empty folder.
+   */
+  size?: number;
+  /**
+   * Files in this folder and every folder below it. Omit when the source
+   * does not know. `0` is an empty folder.
+   */
+  objectCount?: number;
 };
 
 /**

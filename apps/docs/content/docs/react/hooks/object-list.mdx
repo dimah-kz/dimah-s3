@@ -433,7 +433,7 @@ actions.
 | `previewUrl?`  | `string \| null`                      | Image thumbnail                                             |
 | `location?`    | `readonly ObjectListFolder[] \| null` | Where a search result lives, root excluded                  |
 
-`ObjectListFolder` is `{ id, name, location? }`.
+`ObjectListFolder` is `{ id, name, location?, size?, objectCount? }`. `size` is the bytes in that folder and the folders below it, and `objectCount` is the file count. `memoryObjectSource` and `dbObjectSource` set both. Omit them when the source does not know.
 
 ### memoryObjectSource options
 

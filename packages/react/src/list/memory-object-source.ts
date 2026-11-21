@@ -134,6 +134,9 @@ export function memoryObjectSource<TItem>(
           folders = [...folders].reverse();
         }
       }
+      if (getFolder && folders.length > 0) {
+        folders = applyFolderTotals(folders, all, getFolder, options.getFile);
+      }
 
       const start = readOffset(cursor);
       const end = start + pageSize;
@@ -224,6 +227,50 @@ function searchTree<TItem>(
 function readOffset(cursor: string | null): number {
   const offset = cursor ? Number(cursor) : 0;
   return Number.isSafeInteger(offset) && offset > 0 ? offset : 0;
+}
+
+/**
+ * Puts each folder's file count, and its byte total when a record has a
+ * size, onto the folder. A file counts for its folder and every folder
+ * above it.
+ */
+function applyFolderTotals<TItem>(
+  folders: readonly ObjectListFolder[],
+  records: readonly TItem[],
+  getFolder: (item: TItem) => string | null | undefined,
+  getFile: (item: TItem) => ObjectListFile,
+): ObjectListFolder[] {
+  const totals = new Map<
+    string,
+    { bytes: number; known: boolean; count: number }
+  >();
+  for (const record of records) {
+    const path = normalizeFolder(getFolder(record));
+    if (path == null) continue;
+    const size = getFile(record).size;
+    const known = size != null && Number.isFinite(size);
+    const names = path.split("/");
+    let id = "";
+    for (const name of names) {
+      id = id.length === 0 ? name : `${id}/${name}`;
+      const row = totals.get(id) ?? { bytes: 0, known: false, count: 0 };
+      row.count += 1;
+      if (known && size != null) {
+        row.bytes += size;
+        row.known = true;
+      }
+      totals.set(id, row);
+    }
+  }
+  return folders.map((folder) => {
+    const row = totals.get(folder.id);
+    if (!row) return folder;
+    return {
+      ...folder,
+      objectCount: row.count,
+      ...(row.known ? { size: row.bytes } : {}),
+    };
+  });
 }
 
 /** Records in `parent` and every folder below it. `null` is every record. */

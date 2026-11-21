@@ -4,6 +4,7 @@ import { memo, useRef, type MouseEvent, type ReactNode } from "react";
 import {
   useFormatDate,
   useFormatFileSize,
+  useFormatNumber,
   type DropTargetProps,
   type ObjectListEntry,
   type ObjectListFolder,
@@ -480,22 +481,36 @@ function EntryMedia<TItem>({
 }
 
 /**
- * Size and date of a file; folders have none. A search result starts with
- * where it lives.
+ * Size and date of a file. A folder shows its file count and size when
+ * the source measured them. A search result starts with where it lives.
  */
 function useDefaultDescription<TItem>(
   entry: ObjectListEntry<TItem>,
   location: readonly ObjectListFolder[] | undefined,
 ): ReactNode {
+  const t = useTranslations();
   const formatFileSize = useFormatFileSize();
   const formatDate = useFormatDate();
-  const parts =
-    entry.kind === "folder"
-      ? []
-      : [
-          entry.file.size != null ? formatFileSize(entry.file.size) : "",
-          formatDate(entry.file.updatedAt),
-        ].filter(Boolean);
+  const formatNumber = useFormatNumber();
+  const folder = entry.kind === "folder" ? entry.folder : null;
+  const parts = folder
+    ? [
+        folder.objectCount == null
+          ? ""
+          : folder.objectCount === 1
+            ? t("1 file", { note: "object list usage" })
+            : t("{count} files", {
+                note: "object list usage",
+                variables: { count: formatNumber(folder.objectCount) },
+              }),
+        folder.size != null ? formatFileSize(folder.size) : "",
+      ].filter(Boolean)
+    : [
+        entry.kind === "file" && entry.file.size != null
+          ? formatFileSize(entry.file.size)
+          : "",
+        entry.kind === "file" ? formatDate(entry.file.updatedAt) : "",
+      ].filter(Boolean);
   const details = parts.length > 0 ? parts.join(" · ") : null;
   if (!location) return details;
   return (

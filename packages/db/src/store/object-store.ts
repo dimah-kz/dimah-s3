@@ -35,6 +35,9 @@ type Condition = ReturnType<ObjectConditions> | boolean;
 /** Rows per page when `limit` is not given. */
 export const DEFAULT_LIST_LIMIT = 50;
 
+/** Folder ids per `usageByFolder` read. */
+const USAGE_ID_BATCH = 500;
+
 /** Rows `findStale` returns when `limit` is not given. */
 export const DEFAULT_STALE_LIMIT = 100;
 
@@ -203,6 +206,15 @@ export type StorageObjectStore<TAttributes = never> = {
     scope: string,
     options?: { excluding?: ObjectRef },
   ) => Promise<number>;
+  /**
+   * Live bytes and file counts of these folders, not the folders below
+   * them. A folder with no row is absent. Same byte rules as {@link usage}.
+   * @internal Listings roll the result up through the folder tree.
+   */
+  usageByFolder: (
+    scope: string,
+    folderIds: readonly string[],
+  ) => Promise<Map<string, DbUsage>>;
   /**
    * Starts an upload at `(bucket, key)`: writes a fresh pending row over a
    * missing, pending, or deleted one (a deleted row is replaced by a new row
@@ -382,6 +394,31 @@ function claimDeadline(): Date {
  * root, else these ids.
  */
 type FolderSet = readonly string[] | null | undefined;
+
+/**
+ * Bytes `usage` counts for one live row. An overwrite in flight reserves
+ * its declared size until it is confirmed or expires; the stored size
+ * counts until then too, and the larger of the two is kept.
+ */
+function countedBytes(
+  row: {
+    status: string;
+    size: number | bigint | null;
+    declaredSize: number | bigint | null;
+    expiresAt: Date | null;
+  },
+  now: Date,
+): number {
+  const size = Number(row.size ?? 0);
+  const declared = Number(row.declaredSize ?? 0);
+  const overwriting =
+    row.status === "active" && row.expiresAt !== null && row.expiresAt >= now;
+  return row.size === null
+    ? declared
+    : overwriting
+      ? Math.max(size, declared)
+      : size;
+}
 
 function folderCondition(b: ObjectConditions, folders: FolderSet): Condition {
   if (folders === undefined) return true;
@@ -609,23 +646,37 @@ export function createObjectStore<TAttributes = never>(
       let totalBytes = 0;
       let objectCount = 0;
       for (const row of rows) {
-        const size = Number(row.size ?? 0);
-        const declared = Number(row.declaredSize ?? 0);
-        // An overwrite in flight reserves its declared bytes until it is
-        // confirmed or expires; the old bytes count until then too.
-        const overwriting =
-          row.status === "active" &&
-          row.expiresAt !== null &&
-          row.expiresAt >= now;
-        totalBytes +=
-          row.size === null
-            ? declared
-            : overwriting
-              ? Math.max(size, declared)
-              : size;
+        totalBytes += countedBytes(row, now);
         objectCount += 1;
       }
       return { totalBytes, objectCount };
+    },
+
+    async usageByFolder(scope, folderIds) {
+      const unique = [...new Set(folderIds)];
+      const result = new Map<string, DbUsage>();
+      if (unique.length === 0) return result;
+      const orm = await getOrm();
+      const now = new Date();
+      for (let index = 0; index < unique.length; index += USAGE_ID_BATCH) {
+        const run = unique.slice(index, index + USAGE_ID_BATCH);
+        const rows = await orm.findMany("storageObject", {
+          select: ["folderId", "status", "size", "declaredSize", "expiresAt"],
+          where: (b) =>
+            b.and(liveRows(scope, now, undefined)(b), b("folderId", "in", run)),
+        });
+        for (const row of rows) {
+          if (row.folderId == null) continue;
+          const current = result.get(row.folderId) ?? {
+            totalBytes: 0,
+            objectCount: 0,
+          };
+          current.totalBytes += countedBytes(row, now);
+          current.objectCount += 1;
+          result.set(row.folderId, current);
+        }
+      }
+      return result;
     },
 
     async liveCount(scope, options = {}) {

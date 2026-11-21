@@ -171,7 +171,7 @@ Change part of every entry with a `render*` prop. Each receives the entry:
 | Prop                | Replaces                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------ |
 | `renderMeta`        | Nothing. Adds text beside the name, such as a badge                                              |
-| `renderDescription` | The second line: size and date, after a search result's location                                 |
+| `renderDescription` | The second line: a file's size and date, or a folder's file count and size                       |
 | `renderActions`     | The trailing controls. Return `null` to hide the menu                                            |
 | `renderEntry`       | The whole row or tile. Return `ObjectListRow` or `ObjectListTile` to keep selection and keyboard |
 
@@ -366,36 +366,36 @@ checkbox and menu have, so Tab stays on the entry.
 
 ### ObjectList
 
-| Prop                | Type                                     | Default    | Description                                               |
-| ------------------- | ---------------------------------------- | ---------- | --------------------------------------------------------- |
-| `list`              | `UseObjectListReturn`                    | required   | The `useObjectList` return to render                      |
-| `selection`         | `UseObjectListSelectionReturn`           | —          | Adds selection                                            |
-| `upload`            | `UseUploadReturn`                        | —          | Adds drop, paste, and folder uploads                      |
-| `download`          | `AnyDownloadReturn`                      | —          | Adds Download to the file menu                            |
-| `share`             | `UseDownloadReturn`                      | —          | Signs Copy link. Falls back to a `useDownload` `download` |
-| `delete`            | `UseDeleteReturn`                        | —          | Adds Delete to the file menu and the selection bar        |
-| `toasts`            | `boolean`                                | `true`     | Toasts for the hooks above                                |
-| `view`              | `"list" \| "grid"`                       | —          | Controlled view, with `onViewChange`                      |
-| `defaultView`       | `"list" \| "grid"`                       | `"list"`   | Starting view                                             |
-| `onViewChange`      | `(view) => void`                         | —          | Runs when the view changes                                |
-| `onOpenItem`        | `(item) => void`                         | —          | Runs when a file is clicked or opened with Enter          |
-| `onDeleted`         | `(result: DeleteResult) => void`         | —          | Runs after each confirmed delete                          |
-| `resolveFolderKeys` | `(folder) => Promise<readonly string[]>` | —          | Keys inside a folder. Lets selected folders be deleted    |
-| `rootLabel`         | `string`                                 | `"Files"`  | Root breadcrumb label and the list's accessible name      |
-| `breadcrumb`        | `boolean`                                | `true`     | Shows the path in the default header                      |
-| `toolbar`           | `ReactNode`                              | —          | Controls at the end of the default header                 |
-| `selectionActions`  | `ReactNode`                              | —          | Controls on the selection bar, beside Delete              |
-| `empty`             | `ReactNode`                              | —          | Replaces the empty state                                  |
-| `commands`          | `ObjectListCommands`                     | —          | Opens New folder and entry menus from outside             |
-| `pagination`        | `"auto" \| "button"`                     | `"auto"`   | How later pages load                                      |
-| `height`            | `number \| string`                       | —          | Fixed frame height. Entries scroll inside                 |
-| `maxHeight`         | `number \| string`                       | —          | Largest frame height                                      |
-| `renderEntry`       | `(entry) => ReactNode`                   | —          | Replaces the whole row or tile                            |
-| `renderActions`     | `(entry) => ReactNode`                   | Entry menu | Replaces the trailing controls                            |
-| `renderDescription` | `(entry) => ReactNode`                   | Size, date | Replaces the second line. Text only                       |
-| `renderMeta`        | `(entry) => ReactNode`                   | —          | Text beside the name                                      |
-| `className`         | `string`                                 | —          | Classes for the frame                                     |
-| `children`          | `ReactNode`                              | —          | Your own layout from the list parts                       |
+| Prop                | Type                                     | Default                                          | Description                                               |
+| ------------------- | ---------------------------------------- | ------------------------------------------------ | --------------------------------------------------------- |
+| `list`              | `UseObjectListReturn`                    | required                                         | The `useObjectList` return to render                      |
+| `selection`         | `UseObjectListSelectionReturn`           | —                                                | Adds selection                                            |
+| `upload`            | `UseUploadReturn`                        | —                                                | Adds drop, paste, and folder uploads                      |
+| `download`          | `AnyDownloadReturn`                      | —                                                | Adds Download to the file menu                            |
+| `share`             | `UseDownloadReturn`                      | —                                                | Signs Copy link. Falls back to a `useDownload` `download` |
+| `delete`            | `UseDeleteReturn`                        | —                                                | Adds Delete to the file menu and the selection bar        |
+| `toasts`            | `boolean`                                | `true`                                           | Toasts for the hooks above                                |
+| `view`              | `"list" \| "grid"`                       | —                                                | Controlled view, with `onViewChange`                      |
+| `defaultView`       | `"list" \| "grid"`                       | `"list"`                                         | Starting view                                             |
+| `onViewChange`      | `(view) => void`                         | —                                                | Runs when the view changes                                |
+| `onOpenItem`        | `(item) => void`                         | —                                                | Runs when a file is clicked or opened with Enter          |
+| `onDeleted`         | `(result: DeleteResult) => void`         | —                                                | Runs after each confirmed delete                          |
+| `resolveFolderKeys` | `(folder) => Promise<readonly string[]>` | —                                                | Keys inside a folder. Lets selected folders be deleted    |
+| `rootLabel`         | `string`                                 | `"Files"`                                        | Root breadcrumb label and the list's accessible name      |
+| `breadcrumb`        | `boolean`                                | `true`                                           | Shows the path in the default header                      |
+| `toolbar`           | `ReactNode`                              | —                                                | Controls at the end of the default header                 |
+| `selectionActions`  | `ReactNode`                              | —                                                | Controls on the selection bar, beside Delete              |
+| `empty`             | `ReactNode`                              | —                                                | Replaces the empty state                                  |
+| `commands`          | `ObjectListCommands`                     | —                                                | Opens New folder and entry menus from outside             |
+| `pagination`        | `"auto" \| "button"`                     | `"auto"`                                         | How later pages load                                      |
+| `height`            | `number \| string`                       | —                                                | Fixed frame height. Entries scroll inside                 |
+| `maxHeight`         | `number \| string`                       | —                                                | Largest frame height                                      |
+| `renderEntry`       | `(entry) => ReactNode`                   | —                                                | Replaces the whole row or tile                            |
+| `renderActions`     | `(entry) => ReactNode`                   | Entry menu                                       | Replaces the trailing controls                            |
+| `renderDescription` | `(entry) => ReactNode`                   | Size and date, or a folder's file count and size | Replaces the second line. Text only                       |
+| `renderMeta`        | `(entry) => ReactNode`                   | —                                                | Text beside the name                                      |
+| `className`         | `string`                                 | —                                                | Classes for the frame                                     |
+| `children`          | `ReactNode`                              | —                                                | Your own layout from the list parts                       |
 
 ### ObjectListHeader
 
