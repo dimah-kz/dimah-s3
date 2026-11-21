@@ -152,7 +152,7 @@ export function ObjectListUsageMeter({ className }: ObjectListUsageMeterProps) {
               data-slot="object-list-usage-meter"
               aria-label={percentLabel}
               className={cn(
-                "grid size-4 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50",
+                "grid size-5 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50",
                 className,
               )}
             />
@@ -160,7 +160,7 @@ export function ObjectListUsageMeter({ className }: ObjectListUsageMeterProps) {
         >
           <svg
             viewBox={`0 0 ${VIEW_BOX} ${VIEW_BOX}`}
-            className="size-3 -rotate-90"
+            className="size-4 -rotate-90"
             aria-hidden
           >
             <circle
