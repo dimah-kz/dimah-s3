@@ -1,8 +1,14 @@
 ---
 packages:
-  "@dimah-s3/db": minor
-  "@dimah-s3/react": minor
-  "@dimah-s3/ui": minor
+  "@dimah-s3/db":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/db)
+  "@dimah-s3/react":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/react)
+  "@dimah-s3/ui":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/ui)
 ---
 
 ### Folder rows show what they hold
