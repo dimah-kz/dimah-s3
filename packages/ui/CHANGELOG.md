@@ -1,3 +1,22 @@
+## @dimah-s3/ui@2.0.0-beta.13 (beta)
+
+### Folder rows show what they hold
+
+A folder row shows how many files it holds and how large it is, on the same line a file uses for its size and date.
+
+- **The whole folder.** The count and the bytes include that folder and every folder below it. An empty folder is `0`. `memoryObjectSource` measures the records it holds. `GET /db/objects` sends `size` and `objectCount` on each folder of the page. The list's `usage` stays the whole scope.
+- **`db.objects.usage(scope)`.** Still sums the scope. Pass `{ folderId, recursive: true }` to sum one folder yourself.
+- **`ObjectListFolder`.** `size` and `objectCount` are optional. Leave them out when a source does not know, and the line stays empty.
+- **Your own second line.** `renderDescription` still replaces it.
+
+### Compact usage ring
+
+`ObjectListUsage` shows the catalog total as a text-sized ring beside the bytes and the file count. Hover, focus, or click the ring to read the percent of the cap.
+
+- **The line stays the catalog.** `list.usage` from `dbObjectSource` and `memoryObjectSource` is every record, in every folder. `maxBytes` and `maxFiles` are the scope caps. Pass `usage` to show a different total, such as one folder. `null` hides the line.
+- **The ring follows bytes.** When `maxBytes` is set, the ring is the byte cap. It uses `maxFiles` only when there is no byte cap. The line uses the destructive color when either cap is reached.
+- **`children`.** Replaces the ring and the line. A function receives `ObjectListUsageState`. `ObjectListUsageMeter` is the ring.
+
 ## @dimah-s3/ui@2.0.0-beta.12 (beta)
 
 ### One Node.js floor and bounded peer ranges
