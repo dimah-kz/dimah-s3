@@ -38,9 +38,8 @@ export function canRenameEntry<TItem>(
  * The name field for the entry being renamed. Enter saves, Escape restores
  * the name, and leaving the field saves. Mounted by the default row and tile.
  *
- * `inline` puts Save and Cancel beside the field, as in a row. `stacked`
- * gives the field the whole width and puts them under it, as in a tile,
- * where there is no room beside it.
+ * Save and Cancel sit inside the field, at its end. `layout` is set as
+ * `data-layout` (`inline` in a row, `stacked` in a tile) for styling.
  */
 export function ObjectListRenameField<TItem>({
   entry,
@@ -130,15 +129,13 @@ export function ObjectListRenameField<TItem>({
     void save(false);
   }
 
-  const stacked = layout === "stacked";
-  // Touch screens get buttons a finger can hit.
-  const buttonClass = "shrink-0 pointer-coarse:size-9";
+  // Inside the field, a little larger on touch screens.
+  const buttonClass = "shrink-0 pointer-coarse:size-7";
   const confirm = (
     <Button
       type="submit"
-      // Under a tile's field, Save is the one filled button.
-      variant={stacked ? "default" : "ghost"}
-      size="icon-sm"
+      variant="default"
+      size="icon-xs"
       className={buttonClass}
       aria-label={t("Save name", { note: "object list rename" })}
       aria-busy={pending || undefined}
@@ -156,8 +153,8 @@ export function ObjectListRenameField<TItem>({
   const cancel = (
     <Button
       type="button"
-      variant="ghost"
-      size="icon-sm"
+      variant="destructive"
+      size="icon-xs"
       className={buttonClass}
       aria-label={t("Cancel", { note: "object list rename" })}
       disabled={pending}
@@ -178,14 +175,11 @@ export function ObjectListRenameField<TItem>({
       data-slot="object-list-rename"
       data-layout={layout}
       aria-busy={pending || undefined}
-      className={cn(
-        "flex min-w-0 flex-1 flex-col",
-        stacked ? "gap-1.5" : "gap-1",
-      )}
+      className="flex min-w-0 flex-1 flex-col gap-1"
       onSubmit={onSubmit}
       onBlur={onBlur}
     >
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="relative flex min-w-0 items-center">
         <label htmlFor={inputId} className="sr-only">
           {label}
         </label>
@@ -200,7 +194,7 @@ export function ObjectListRenameField<TItem>({
           aria-describedby={error != null ? errorId : undefined}
           className={cn(
             // 16px text on small screens, which iOS does not zoom into.
-            "h-8 min-w-0 flex-1 rounded-md border border-dimah-s3-border bg-transparent px-2 text-base text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm pointer-coarse:h-9",
+            "h-8 w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-2 pe-15 text-base text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm pointer-coarse:h-9 pointer-coarse:pe-17",
           )}
           onChange={(event) => {
             setName(event.target.value);
@@ -212,19 +206,11 @@ export function ObjectListRenameField<TItem>({
             finish(true);
           }}
         />
-        {stacked ? null : (
-          <>
-            {confirm}
-            {cancel}
-          </>
-        )}
-      </div>
-      {stacked ? (
-        <div className="flex items-center justify-end gap-1">
-          {cancel}
+        <div className="absolute inset-y-0 end-1 flex items-center gap-0.5">
           {confirm}
+          {cancel}
         </div>
-      ) : null}
+      </div>
       {error != null ? (
         <p
           id={errorId}

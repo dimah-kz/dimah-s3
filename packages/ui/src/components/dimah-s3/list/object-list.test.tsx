@@ -2114,10 +2114,10 @@ describe("ObjectList", () => {
       );
       const field = tile?.querySelector("[data-slot=object-list-rename]");
       expect(field?.getAttribute("data-layout")).toBe("stacked");
-      // The buttons sit under the field, and the tile's overlays step aside.
-      expect(field?.lastElementChild?.querySelectorAll("button")).toHaveLength(
-        2,
-      );
+      // The buttons sit inside the field, and the tile's overlays step aside.
+      expect(
+        screen.getByRole("textbox").parentElement?.querySelectorAll("button"),
+      ).toHaveLength(2);
       expect(
         tile?.querySelector("[data-slot=object-list-entry-menu]"),
       ).toBeNull();
