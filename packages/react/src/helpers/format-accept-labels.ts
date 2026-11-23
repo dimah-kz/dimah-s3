@@ -58,8 +58,13 @@ function formatAcceptLabel(
   }
   const known = MIME_LABELS[type];
   if (known) return known;
-  // `x-tar` → TAR, `vnd.rar` → RAR, `svg+xml` → SVG.
-  const name = sub.replace(/^(?:x-|vnd\.)/, "").replace(/\+.*$/, "");
+  // `x-tar` → TAR, `vnd.rar` → RAR, `svg+xml` → SVG. The suffix is cut with
+  // `indexOf`: a `\+.*$` pattern is quadratic on a long run of `+`.
+  const plus = sub.indexOf("+");
+  const name = (plus === -1 ? sub : sub.slice(0, plus)).replace(
+    /^(?:x-|vnd\.)/,
+    "",
+  );
   return name ? name.toUpperCase() : token.trim();
 }
 

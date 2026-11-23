@@ -95,6 +95,15 @@ describe("formatAcceptLabels", () => {
     ).toEqual(["DOCX", "SVG", "TAR", "RAR", "TXT"]);
   });
 
+  it("labels a long run of + in linear time", () => {
+    // `+` repeated, then a line break before the end: the worst case for a
+    // `\+.*$` pattern, which retries from every `+`.
+    const token = `application/${"+".repeat(50_000)}\nx`;
+    const started = performance.now();
+    expect(formatAcceptLabels([token])).toEqual([token]);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
   it("returns no label for any-type wildcards or an empty list", () => {
     expect(formatAcceptLabels(["*", "*/*", " "])).toEqual([]);
     expect(formatAcceptLabels()).toEqual([]);
