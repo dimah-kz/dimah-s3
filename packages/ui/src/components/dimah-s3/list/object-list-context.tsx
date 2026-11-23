@@ -4,8 +4,10 @@ import {
   createContext,
   useContext,
   useSyncExternalStore,
+  type DragEvent,
   type ReactNode,
 } from "react";
+import type { S3Api, S3RouteName } from "@dimah-s3/core";
 import type {
   AnyDownloadReturn,
   DropTargetProps,
@@ -30,9 +32,9 @@ export type ObjectListRenderers<TItem> = {
   renderEntry?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
    * Trailing controls. Defaults to `ObjectListEntryMenu` on files when the
-   * list has `download`, `share`, `delete`, or `renameFile`, and on folders
-   * when files can be uploaded into them or the source has `renameFolder`.
-   * Return `null` to hide them.
+   * list has `download`, `share`, or `delete`, or the source can rename or
+   * move them, and on folders when files can be uploaded into them, or the
+   * source can rename, move, or delete them. Return `null` to hide them.
    */
   renderActions?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /**
@@ -42,6 +44,17 @@ export type ObjectListRenderers<TItem> = {
   renderDescription?: (entry: ObjectListEntry<TItem>) => ReactNode;
   /** Beside the name, such as a status badge. Text only, like the description. */
   renderMeta?: (entry: ObjectListEntry<TItem>) => ReactNode;
+};
+
+/**
+ * Where image thumbnails come from: a route that signs a GET for each image
+ * file without a `previewUrl`.
+ */
+export type ObjectListThumbnails = {
+  /** Named server route that presigns the GET. */
+  route: S3RouteName;
+  /** Optional when an `<S3Provider>` is in the tree. */
+  api?: S3Api;
 };
 
 /** The one-shot result of a list control, such as Copy link. */
@@ -83,6 +96,15 @@ export type ObjectListContextValue<TItem> = {
    * `location`), then focus the entry there once it loads.
    */
   revealEntry: (entry: ObjectListEntry<TItem>) => void;
+  /**
+   * Opens the Move dialog for these entries. Entries the source cannot move
+   * stay out; with none left it does nothing. Focus returns to `trigger`
+   * when the dialog closes, else to the element that had it.
+   */
+  startMove: (
+    entries: readonly ObjectListEntry<TItem>[],
+    options?: { trigger?: HTMLElement | null },
+  ) => void;
 };
 
 /**
@@ -99,9 +121,11 @@ export type ObjectListInternalValue<TItem> = Pick<
   selectionActions: ReactNode;
   empty: ReactNode;
   pagination: ObjectListPaginationMode;
-  /** Object keys stored in a folder. Lets bulk delete include folders. */
-  resolveFolderKeys:
-    ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined;
+  /**
+   * Call with the entry keys a delete is about to remove, while they still
+   * render, so focus can move to the entry that takes their place.
+   */
+  prepareDeleteFocus: (entryKeys: readonly string[]) => void;
   /** The New folder name field is open. */
   newFolderOpen: boolean;
   /** Closes the New folder name field. */
@@ -138,8 +162,16 @@ export type ObjectListEntryScope<TItem> = Omit<
   share: boolean;
   /** The list has `delete`. */
   delete: boolean;
+  /** The list has `delete` and the source has `deleteFolder`. */
+  deleteFolder: boolean;
   renameFile: boolean;
   renameFolder: boolean;
+  /** The source has `moveFile`. */
+  moveFile: boolean;
+  /** The source has `moveFolder`. */
+  moveFolder: boolean;
+  /** Signs image thumbnails, or `null`. */
+  thumbnails: ObjectListThumbnails | null;
   /**
    * The search text while a search is on, else `""`. Entries mark it in
    * their names and show where they live.
@@ -151,9 +183,29 @@ export type ObjectListEntryScope<TItem> = Omit<
   toggle: (key: string, options?: { range?: boolean; value?: boolean }) => void;
   /** Drop handlers that upload into folder `id`, with the latest options. */
   folderDropTarget: (id: string) => DropTargetProps;
+  /**
+   * Drag handlers that move `entry`, and the selection with it when it is
+   * selected. `null` when it cannot move.
+   */
+  moveSource: (
+    entry: ObjectListEntry<TItem>,
+  ) => ObjectListMoveSourceProps | null;
+  /**
+   * Drop handlers that move the dragged entries into `folder` (`null` is
+   * the root). They leave other drags, such as files, alone.
+   */
+  moveTarget: (folder: ObjectListFolder | null) => DropTargetProps;
   startRename: (key: string) => void;
   endRename: (key: string, focus?: boolean) => void;
   revealEntry: (entry: ObjectListEntry<TItem>) => void;
+  startMove: ObjectListContextValue<TItem>["startMove"];
+};
+
+/** Props that make an entry draggable to move it. @internal */
+export type ObjectListMoveSourceProps = {
+  draggable: true;
+  onDragStart: (event: DragEvent<HTMLElement>) => void;
+  onDragEnd: (event: DragEvent<HTMLElement>) => void;
 };
 
 /** State each entry reads by its key. @internal */

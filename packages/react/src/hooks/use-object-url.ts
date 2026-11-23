@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type {
   APIError,
   ContentDispositionType,
@@ -313,12 +313,12 @@ export function useObjectUrl(options: UseObjectUrlOptions): UseObjectUrlReturn {
   // State loaded for another api or object is never shown.
   const current =
     state !== null && state.api === api && state.id === id ? state : null;
-  return {
-    objectKey,
-    url: current?.url ?? null,
-    expiresAt: current?.expiresAt ?? null,
-    error: current?.error ?? null,
-    isLoading: id !== null && (current?.isLoading ?? true),
-    refresh,
-  };
+  const url = current?.url ?? null;
+  const expiresAt = current?.expiresAt ?? null;
+  const error = current?.error ?? null;
+  const isLoading = id !== null && (current?.isLoading ?? true);
+  return useMemo(
+    () => ({ objectKey, url, expiresAt, error, isLoading, refresh }),
+    [objectKey, url, expiresAt, error, isLoading, refresh],
+  );
 }

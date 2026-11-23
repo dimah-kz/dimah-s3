@@ -50,3 +50,4 @@ Match existing items in `registry-items.ts`. Landmines:
 - Direction-safe CSS (LTR default, RTL-ready): logical utilities (`text-start` / `text-end`, `ms-*` / `me-*`, `ps-*` / `pe-*`, `start-*` / `end-*`) unless the physical side is required by behavior.
 - File names: Tailwind `truncate`; long errors: `[overflow-wrap:anywhere]`.
 - Toast: `.tsx` when `description` needs JSX. Registry items depend on shadcn `toast`; npm apps import `Toaster` from `@dimah-s3/ui`.
+- The npm entry (`src/index.ts`) never exports a stock primitive or a type read from one: a `sync:shadcn` would change the published API. Export a wrapper with props of its own (`components/dimah-s3/toast/toaster.tsx`, `components/dimah-s3/attachment/attachment-parts.tsx`), and spell out a union like `AttachmentState` with a type test against the stock one.

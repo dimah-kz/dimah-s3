@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useId } from "react";
+import { useCallback, useContext, useId, useMemo } from "react";
 import { fileNameFromKey, parseFileName, s3Error } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { createSpeedTracker } from "@/helpers/speed-tracker";
@@ -158,17 +158,20 @@ export function useFetchDownload(
   const cancel = useCallback((key?: string) => store.cancel(key), [store]);
   const reset = useCallback((key?: string) => store.reset(key), [store]);
 
-  return {
-    kind: "fetch",
-    instanceId,
-    operations,
-    get,
-    pendingKeys,
-    isPending: pendingKeys.length > 0,
-    download,
-    cancel,
-    reset,
-  };
+  return useMemo(
+    () => ({
+      kind: "fetch" as const,
+      instanceId,
+      operations,
+      get,
+      pendingKeys,
+      isPending: pendingKeys.length > 0,
+      download,
+      cancel,
+      reset,
+    }),
+    [instanceId, operations, get, pendingKeys, download, cancel, reset],
+  );
 }
 
 /**

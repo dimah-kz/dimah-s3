@@ -4,6 +4,7 @@ export * from "./limits";
 export {
   APIError,
   defineErrorCodes,
+  ERROR_CODE_PATTERN,
   formatErrorMessage,
   isAPIError,
   isS3ErrorCode,
@@ -12,8 +13,11 @@ export {
   type APIErrorBody,
   type APIErrorStatus,
   type S3ClientErrorCode,
+  type S3ErrorCatalog,
   type S3ErrorCode,
+  type S3ErrorCodeEntry,
   type S3ErrorEntry,
+  type S3ErrorEntryParams,
   type S3ErrorOptions,
   type S3ErrorParams,
   type S3ErrorParamsMap,
@@ -37,9 +41,13 @@ export {
   RESERVED_CLIENT_KEYS,
 } from "./plugin";
 export type {
+  ClientPluginErrorCodes,
   ClientPluginMethodsMap,
+  PluginPath,
   ReservedClientKey,
   S3ClientFetchOptions,
   S3ClientPlugin,
+  S3EndpointFetch,
   S3Fetch,
+  S3PluginFetch,
 } from "./plugin";

@@ -50,10 +50,13 @@ import {
   type ObjectListContextValue,
   type ObjectListEntryScope,
   type ObjectListInternalValue,
+  type ObjectListMoveSourceProps,
   type ObjectListPaginationMode,
   type ObjectListRenderers,
+  type ObjectListThumbnails,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
+import { useObjectListDeleteRequest } from "@/components/dimah-s3/list/object-list-delete";
 import {
   ObjectListHeader,
   useSelectionCount,
@@ -64,9 +67,16 @@ import {
   type ObjectListCommands,
 } from "@/components/dimah-s3/list/object-list-commands";
 import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
+import {
+  entryHolder,
+  moveTargetHandlers,
+  OBJECT_LIST_MOVE_TYPE,
+  ObjectListMoveDialog,
+  type ObjectListMoveFn,
+  type ObjectListMoveRequest,
+} from "@/components/dimah-s3/list/object-list-move";
 import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import {
-  folderUploadCall,
   ObjectListDropOverlay,
   ObjectListUploadStatus,
   useRefreshListAfterUpload,
@@ -75,6 +85,7 @@ import { ObjectListUsage } from "@/components/dimah-s3/list/object-list-usage";
 import { Upload } from "@/components/dimah-s3/upload/upload";
 import { BuiltInUploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
 import { useOwnDrag } from "@/hooks/use-own-drag";
+import { folderUploadCall } from "@/lib/folder-upload";
 import { isFieldTarget } from "@/lib/is-field-target";
 
 /** Props for {@link ObjectList}. */
@@ -109,7 +120,8 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
    * `useDelete`. Adds Delete to the file menu and to the selection bar,
    * with one confirmation for the whole list. `DeleteTrigger` inside the
    * list uses it too. Deleted files leave the rows at once; the list then
-   * reloads.
+   * reloads. When the source has `deleteFolder`, folders can be deleted
+   * too, with the files that `listFolderKeys` names.
    */
   delete?: UseDeleteReturn;
   /**
@@ -131,10 +143,11 @@ export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
    */
   onOpenItem?: (item: TItem) => void;
   /**
-   * Object keys stored in a folder. Selected folders join a bulk delete
-   * only when this is set. Pair it with `isSelectable` on the selection.
+   * Signs a thumbnail for each image file without a `previewUrl`, as its
+   * row or tile comes into view: `{ route }`, the route that presigns the
+   * GET, and `api` when there is no `S3Provider`.
    */
-  resolveFolderKeys?: (folder: ObjectListFolder) => Promise<readonly string[]>;
+  thumbnails?: ObjectListThumbnails;
   /** Called after each confirmed delete in the list, with every key's outcome. */
   onDeleted?: (result: DeleteResult) => void;
   /** Root breadcrumb label and the list's accessible name. @default "Files" */
@@ -200,7 +213,7 @@ export function ObjectList<TItem>({
   defaultView = "list",
   onViewChange,
   onOpenItem,
-  resolveFolderKeys,
+  thumbnails,
   onDeleted,
   rootLabel,
   breadcrumb = true,
@@ -230,6 +243,10 @@ export function ObjectList<TItem>({
   const revealRef = useRef<string | null>(null);
   const [renamingKey, setRenamingKey] = useState<string | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [moveRequest, setMoveRequest] =
+    useState<ObjectListMoveRequest<TItem> | null>(null);
+  // The entries a drag inside the list carries, while it lasts.
+  const draggedRef = useRef<readonly ObjectListEntry<TItem>[] | null>(null);
   const renameFocusKey = useRef<string | null>(null);
   const previousRenaming = useRef<string | null>(null);
   // The row left the page (another folder, a search). Drop the field.
@@ -357,6 +374,74 @@ export function ObjectList<TItem>({
     current.setSearch("");
     current.navigate(location);
   }, []);
+  const startMove = useCallback<ObjectListContextValue<TItem>["startMove"]>(
+    (entries, options = {}) => {
+      const current = latest.current.list;
+      if (!current.moveEntries) return;
+      const movable = entries.filter((entry) => current.canMove(entry));
+      if (movable.length === 0) return;
+      setMoveRequest({
+        entries: movable,
+        trigger: options.trigger ?? focusedElement(),
+      });
+    },
+    [],
+  );
+  const closeMove = useCallback(() => setMoveRequest(null), []);
+  // Set by the Move dialog: moves entries and reports how it went.
+  const moveRef = useRef<ObjectListMoveFn<TItem> | null>(null);
+  const moveTarget = useCallback(
+    (folder: ObjectListFolder | null): DropTargetProps => {
+      const id = folder?.id ?? null;
+      return moveTargetHandlers({
+        accepts() {
+          const dragged = draggedRef.current;
+          if (!dragged || dragged.length === 0) return false;
+          const current = latest.current.list;
+          // Not into a folder that moves, nor into one below it.
+          const depth = current.trail.findIndex((step) => step.id === id);
+          const path = current.trail.slice(0, depth + 1);
+          const into = (entry: ObjectListEntry<TItem>) =>
+            entry.kind === "folder" &&
+            (entry.id === id || path.some((step) => step.id === entry.id));
+          if (dragged.some(into)) return false;
+          return !dragged.every((entry) => entryHolder(entry, current) === id);
+        },
+        onMove() {
+          const dragged = draggedRef.current;
+          draggedRef.current = null;
+          if (dragged) void moveRef.current?.(dragged, folder);
+        },
+      });
+    },
+    [],
+  );
+  const moveSource = useCallback(
+    (entry: ObjectListEntry<TItem>): ObjectListMoveSourceProps | null => {
+      if (!latest.current.list.canMove(entry)) return null;
+      return {
+        draggable: true,
+        onDragStart(event) {
+          const { list: current, selection: selected } = latest.current;
+          // A selected entry takes the rest of the selection with it.
+          const entries =
+            selected?.isSelected(entry.key) === true
+              ? selected.selected.filter((item) => current.canMove(item))
+              : [entry];
+          draggedRef.current = entries;
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData(
+            OBJECT_LIST_MOVE_TYPE,
+            JSON.stringify(entries.map((item) => item.key)),
+          );
+        },
+        onDragEnd() {
+          draggedRef.current = null;
+        },
+      };
+    },
+    [],
+  );
   const open = useCallback((entry: ObjectListEntry<TItem>) => {
     const current = latest.current;
     if (entry.kind === "folder") current.list.openFolder(entry.folder);
@@ -405,6 +490,7 @@ export function ObjectList<TItem>({
       startNewFolder,
       startRename,
       revealEntry,
+      startMove,
     }),
     [
       announce,
@@ -416,6 +502,7 @@ export function ObjectList<TItem>({
       selection,
       setView,
       share,
+      startMove,
       startNewFolder,
       startRename,
       toasts,
@@ -430,7 +517,7 @@ export function ObjectList<TItem>({
       selectionActions,
       empty,
       pagination,
-      resolveFolderKeys,
+      prepareDeleteFocus: deleteFocus.prepare,
       newFolderOpen,
       closeNewFolder,
       endRename,
@@ -439,12 +526,12 @@ export function ObjectList<TItem>({
     [
       breadcrumb,
       closeNewFolder,
+      deleteFocus.prepare,
       empty,
       endRename,
       newFolderOpen,
       pagination,
       renderEntry,
-      resolveFolderKeys,
       selectionActions,
       sizing,
     ],
@@ -481,8 +568,21 @@ export function ObjectList<TItem>({
   const canDownload = download != null;
   const canShare = share != null || download?.kind === "navigate";
   const canDelete = del != null;
+  const canDeleteFolders = canDelete && list.deleteFolder != null;
   const renameFile = list.renameFile != null;
   const renameFolder = list.renameFolder != null;
+  const moveFile = list.canMove("file");
+  const moveFolder = list.canMove("folder");
+  const thumbnailRoute = thumbnails?.route;
+  const thumbnailApi = thumbnails?.api;
+  const thumbnailSource = useMemo<ObjectListThumbnails | null>(
+    () =>
+      thumbnailRoute == null
+        ? null
+        : { route: thumbnailRoute, api: thumbnailApi },
+    [thumbnailApi, thumbnailRoute],
+  );
+
   // The search the rows on screen answer. While a new search loads, the
   // previous rows stay and keep what they were: results, or a folder.
   const currentSearch = list.isSearching ? list.search.trim() : "";
@@ -499,26 +599,38 @@ export function ObjectList<TItem>({
       download: canDownload,
       share: canShare,
       delete: canDelete,
+      deleteFolder: canDeleteFolders,
       renameFile,
       renameFolder,
+      moveFile,
+      moveFolder,
+      thumbnails: thumbnailSource,
       search,
       open,
       toggle,
       folderDropTarget,
+      moveSource,
+      moveTarget,
       startRename,
       endRename,
       revealEntry,
+      startMove,
       renderActions,
       renderDescription,
       renderMeta,
     }),
     [
       canDelete,
+      canDeleteFolders,
       canDownload,
       canShare,
       endRename,
       folderDropTarget,
       folderUploads,
+      moveFile,
+      moveFolder,
+      moveSource,
+      moveTarget,
       open,
       opensFiles,
       renameFile,
@@ -529,8 +641,10 @@ export function ObjectList<TItem>({
       revealEntry,
       search,
       selectableKeys,
+      startMove,
       startRename,
       store,
+      thumbnailSource,
       toggle,
     ],
   );
@@ -618,6 +732,13 @@ export function ObjectList<TItem>({
       ) : del ? (
         <ObjectListDeleteToasts delete={del} report={announce} />
       ) : null}
+      {list.moveEntries ? (
+        <ObjectListMoveDialog
+          request={moveRequest}
+          onClose={closeMove}
+          moveRef={moveRef}
+        />
+      ) : null}
       {/* Mounted from the start, so the first change is read out. */}
       <ObjectListAnnouncer
         announcement={announcement}
@@ -663,27 +784,52 @@ function useFocusAfterDelete() {
   /** The element in the frame that last had focus: the delete's control. */
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const nextRef = useRef<HTMLElement | null>(null);
+  /** Entry keys the delete in progress removes. */
+  const removedRef = useRef(new Set<string>());
 
-  return {
-    frameRef,
-    onFrameFocus(event: FocusEvent<HTMLElement>) {
-      // Menus are portalled: their focus bubbles through React only.
-      if (event.currentTarget.contains(event.target)) {
-        lastFocusRef.current = event.target;
-      }
-    },
-    /** Call with the entry keys a delete removes, while they still render. */
-    prepare(removedKeys: readonly string[]) {
-      nextRef.current = entryAfter(frameRef.current, new Set(removedKeys));
-    },
-    restoreFocus(): HTMLElement | null {
-      const next = nextRef.current;
-      nextRef.current = null;
-      // A control that is still there, such as the selection bar's Delete,
-      // keeps focus.
-      return lastFocusRef.current?.isConnected ? null : next;
-    },
-  };
+  // Refs only, so one object serves every render.
+  return useMemo(
+    () => ({
+      frameRef,
+      onFrameFocus(event: FocusEvent<HTMLElement>) {
+        // Menus are portalled: their focus bubbles through React only.
+        if (event.currentTarget.contains(event.target)) {
+          lastFocusRef.current = event.target;
+        }
+      },
+      /**
+       * Call with the entry keys a delete removes, while they still render.
+       * Calls for one delete add up: a target found earlier stays while it
+       * is still there.
+       */
+      prepare(removedKeys: readonly string[]) {
+        const removed = removedRef.current;
+        for (const key of removedKeys) removed.add(key);
+        const kept = nextRef.current;
+        if (kept?.isConnected && !removed.has(kept.dataset.entryKey ?? "")) {
+          return;
+        }
+        nextRef.current = entryAfter(frameRef.current, removed);
+      },
+      restoreFocus(): HTMLElement | null {
+        const next = nextRef.current;
+        nextRef.current = null;
+        removedRef.current.clear();
+        // A control that is still there, such as the selection bar's Delete,
+        // keeps focus.
+        return lastFocusRef.current?.isConnected ? null : next;
+      },
+    }),
+    [],
+  );
+}
+
+/** The focused element, or `null` while nothing has focus. */
+function focusedElement(): HTMLElement | null {
+  const element = document.activeElement;
+  return element instanceof HTMLElement && element !== document.body
+    ? element
+    : null;
 }
 
 /** The first entry trigger after the first removed one, else the last before it. */
@@ -732,12 +878,14 @@ function ObjectListFrame({
     useObjectListContext();
   const { sizing } = useObjectListInternal();
   const { store } = useObjectListEntryScope();
+  const requestDelete = useObjectListDeleteRequest();
   const keyboard = useObjectListKeyboard({
     list,
     selection,
     view,
     store,
     startRename,
+    requestDelete,
   });
   const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
   const call = folderUploadCall(list, list.parent);

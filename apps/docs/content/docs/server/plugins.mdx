@@ -1,65 +1,78 @@
 ---
 title: Plugins
-description: Build reusable server extensions with definePlugin that add hooks, HTTP endpoints, ticket binding, and typed context to dimahS3.
+description: Build reusable extensions with definePlugin and defineClientPlugin — hooks, endpoints, typed client actions, error codes, and in-process calls.
 icon: Puzzle
 ---
 
-Use `definePlugin` to package hooks, HTTP endpoints under your `basePath`,
-and a typed context on the instance (`s3[id]`) for reuse across apps.
-[`db()`](/docs/db) is built this way.
+A plugin packages hooks, HTTP endpoints under your `basePath`, a typed
+context on the instance (`s3[id]`), and its own error codes. A matching
+client plugin calls those endpoints with types read from the server.
+[`db()`](/docs/db) is built this way, and
+[`examples/plugin-audit`](https://github.com/dimah-kz/dimah-s3/tree/v2/examples/plugin-audit)
+is a complete plugin to copy.
 
-```ts title="lib/s3-audit-plugin.ts"
-import { createS3Endpoint, definePlugin } from "@dimah-s3/server/plugins";
+```ts title="audit/index.ts"
+import { pluginPath, s3Error } from "@dimah-s3/core";
+import {
+  createS3Endpoint,
+  definePlugin,
+  type PluginInitEnv,
+} from "@dimah-s3/server/plugins";
 import * as z from "zod";
+import { AUDIT_ERROR_CODES } from "./error-codes";
 
-export const auditPlugin = definePlugin({
-  id: "audit",
-  hooks: {
-    upload: {
-      onConfirmed: async ({ key, uploadToken }) => {
-        await audit.record({ key, uploadToken });
+export function audit(store: AuditStore) {
+  let env: PluginInitEnv<"audit"> | undefined;
+
+  return definePlugin({
+    id: "audit",
+    $ERROR_CODES: AUDIT_ERROR_CODES,
+    init(initEnv) {
+      env = initEnv;
+    },
+    hooks: {
+      upload: {
+        onConfirmed: async ({ route, key, object }) => {
+          await store.add({ type: "upload", route, key, size: object.size });
+        },
       },
     },
-  },
-  endpoints: {
-    recent: createS3Endpoint(
-      "/audit/recent",
-      {
-        method: "GET",
-        query: z.object({ limit: z.coerce.number().int().max(100).optional() }),
-      },
-      async (ctx) => ({
-        events: await audit.recent(ctx.context.locals, ctx.query.limit),
-      }),
-    ),
-  },
-  context: {
-    log: (message: string) => console.log("[audit]", message),
-  },
-});
+    endpoints: {
+      listEvents: createS3Endpoint(
+        pluginPath("audit", "events"),
+        { method: "GET", query: z.object({ route: z.string().optional() }) },
+        async (ctx) => ({ events: await store.list(ctx.query.route) }),
+      ),
+    },
+    context: {
+      events: (route?: string) => store.list(route),
+    },
+  });
+}
 ```
 
 Register it on the instance:
 
 ```ts title="lib/s3.ts"
 import { dimahS3, route } from "@dimah-s3/server";
-import { auditPlugin } from "./s3-audit-plugin";
+import { audit } from "./audit";
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
-  plugins: [auditPlugin], // [!code ++]
+  plugins: [audit(store)], // [!code ++]
   routes: {
-    avatar: route({ upload: true }),
+    invoices: route({ upload: true }),
   },
 });
 
-s3.audit.log("Storage ready"); // [!code ++]
+await s3.audit.events("invoices"); // [!code ++]
 ```
 
 `definePlugin`, `createS3Endpoint`, `createS3Middleware`, and the
-[helpers](#helpers) come from `@dimah-s3/server/plugins`. `chainHooks` comes
-from `@dimah-s3/server`.
+[helpers](#helpers) come from `@dimah-s3/server/plugins`. `defineErrorCodes`,
+`defineClientPlugin`, `pluginPath`, and `s3Error` come from
+`@dimah-s3/core`. `chainHooks` comes from `@dimah-s3/server`.
 
 ## Hook execution order
 
@@ -83,21 +96,45 @@ A plugin can provide `hooks.ticketSubject` to bind
 the config sets none. The first plugin that has one is used. `db()` binds
 tickets to the scope this way.
 
+## Guards see plugin calls
+
+Every plugin call runs the instance guards with `operation: "plugin"`: an
+endpoint, and an in-process call made with
+[`runOperation`](#calls-from-the-server). The context's `plugin` names it,
+so an app can allow or refuse one plugin action:
+
+```ts title="lib/s3.ts"
+guard: ({ operation, plugin, locals }) => {
+  if (operation !== "plugin") return;
+  if (plugin?.id === "audit" && plugin.action === "listEvents" && !locals.isAdmin) {
+    throw s3Error("FORBIDDEN");
+  }
+},
+```
+
+`plugin.action` is the endpoint's key in `endpoints` (`"listEvents"`), or
+the action an in-process call names (`"record"` for `s3.db.record`). Name
+endpoints after the client actions that call them, so both read the same.
+
 ## Endpoints
 
-`createS3Endpoint(path, options, handler)` builds a plugin endpoint. The path
-starts with `/`, sits under `basePath`, and must not be a core path.
+`createS3Endpoint(path, options, handler)` builds a plugin endpoint.
 
+- The path sits under the plugin id: `/{id}` or `/{id}/…`, so plugins never
+  collide. Build it with `pluginPath(id, path)`, which the client plugin
+  uses too. Any other path throws at `dimahS3()`.
 - `GET` and `DELETE` read the `query`. `POST`, `PUT`, and `PATCH` read a JSON
   `body`; any other content type returns `415 UNSUPPORTED_MEDIA_TYPE`.
-- The instance guards run first, with `operation: "plugin"`. The handler reads
-  `ctx.context.request`, `ctx.context.locals` (what those guards returned),
-  and `ctx.context.config`.
+- The instance guards run first. The handler reads `ctx.context.request`,
+  `ctx.context.locals` (what those guards returned), and
+  `ctx.context.config`.
 - A schema failure returns `400 VALIDATION_ERROR`. An `APIError` passes
   through. Anything else is logged, passed to `onError`, and returns
   `500 INTERNAL_ERROR`.
+- Return JSON values: the client receives the JSON body, and its types are
+  the handler's return type. Send a `Date` as an ISO string.
 - Endpoints are HTTP only and are not added to `s3.api`. Expose server-side
-  functions through `context` instead.
+  functions through `context`.
 
 `createS3Middleware` builds a middleware with the same context, for checks
 that several endpoints share:
@@ -111,50 +148,169 @@ const requireUser = createS3Middleware(async (ctx) => {
 });
 
 createS3Endpoint(
-  "/audit/export",
+  pluginPath("audit", "export"),
   { method: "POST", use: [requireUser] },
-  async (ctx) => ({ url: await audit.export(ctx.context.locals) }),
+  async (ctx) => ({ url: await exportEvents(ctx.context.locals) }),
 );
 ```
 
 `locals.userId` is typed by a [`DimahS3Locals`](/docs/server/hooks/global-guard#locals)
 augmentation.
 
-## Startup and route options
+## Routes and route options
 
 `init` runs once at `dimahS3()`, in plugin order, after the routes are
-validated. Throw there to reject the config. It must be synchronous: a
-returned promise throws.
+validated. Keep its env: `env.routes` has every route as `dimahS3()`
+resolved it, with the client and bucket it inherits, its `keyPrefix`, which
+features are on, and this plugin's options. Throw in `init` to reject the
+config. It must be synchronous: a returned promise throws.
 
-To read per-route options, augment `DimahS3RoutePluginOptions` with your id
-and call `routeOptions(route)`:
+Declare your route options by augmenting `DimahS3RoutePluginOptions` with
+your id. Routes then set them under `plugins`, typed, and `false` opts a route
+out:
 
-```ts
+```ts title="audit/index.ts"
 declare module "@dimah-s3/server" {
   interface DimahS3RoutePluginOptions {
-    audit?: false | { label: string };
+    audit?: false | { downloads?: boolean };
   }
 }
 
-export const auditPlugin = definePlugin({
+definePlugin({
   id: "audit",
-  init: ({ config, routeOptions, logger }) => {
-    for (const name of Object.keys(config.routes)) {
-      const options = routeOptions<{ label: string }>(name);
-      if (options === false) logger.info?.(`audit is off for ${name}`);
+  init(env) {
+    for (const route of Object.values(env.routes)) {
+      // `{ downloads?: boolean } | false | undefined`, no type argument needed
+      if (route.options === false)
+        env.logger.info?.(`audit is off for ${route.name}`);
     }
   },
 });
 ```
 
-Routes set them under `plugins`, and `false` opts a route out:
-
-```ts
-avatar: route({
+```ts title="lib/s3.ts"
+invoices: route({
   upload: true,
-  plugins: { audit: { label: "Avatars" } }, // [!code ++]
+  plugins: { audit: { downloads: true } }, // [!code ++]
 }),
 ```
+
+`env.routeOptions(name)` reads the same options for one route. Check a key
+against a route with `assertStoredKey(key, env.routes[name].keyPrefix)`.
+
+## Calls from the server
+
+A context method that acts for a caller, such as `s3.db.record`, runs
+through `env.runOperation`. It treats the call like `s3.api` does: the
+instance guards run (every plugin's, then the user's) with
+`plugin: { id, action }`, then the route guard when you name a route. Any
+failure leaves as an `APIError`, and an unexpected one is logged and passed
+to `onError`.
+
+```ts title="audit/index.ts"
+context: {
+  note: (input: { route: string; key: string; message: string }, call?: S3ServerCallOptions) =>
+    env!.runOperation({ action: "note", route: input.route }, call, async (context) => {
+      // context.request, context.locals, context.route
+      return store.add({ type: "note", ...input });
+    }),
+},
+```
+
+The app passes `call` the way it calls `s3.api`: `{ headers }`, `{ request }`,
+or trusted `{ locals }`.
+
+```ts
+await s3.audit.note(
+  { route: "invoices", key, message: "Approved" },
+  { headers: await headers() },
+);
+```
+
+## Error codes
+
+Give each failure a stable code with `defineErrorCodes`, and throw it with
+`s3Error`. `params` are typed by the `{placeholders}` in the message:
+
+```ts title="audit/error-codes.ts"
+import { defineErrorCodes } from "@dimah-s3/core";
+
+export const AUDIT_ERROR_CODES = defineErrorCodes({
+  AUDIT_ROUTE_UNTRACKED: {
+    status: 400,
+    message: 'Route "{route}" is not audited',
+  },
+});
+```
+
+```ts
+throw s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED, { route });
+```
+
+Set them as `$ERROR_CODES` on the server plugin and the client plugin. They
+are merged into `s3.$ERROR_CODES` and the client's `$ERROR_CODES`. A code the
+core catalog or another plugin already has throws at startup, so prefix
+yours with your id. Match one with `isS3ErrorCode(error, entry)`. React
+apps word them with the provider's
+[`formatError`](/docs/react/setup#plugin-error-messages); without it, the
+English message is shown.
+
+## Client plugin
+
+`defineClientPlugin` adds methods on `api[id]`. Point `$InferServerPlugin` at
+the server plugin's type, and the `$fetch` your actions receive is typed by
+its endpoints: the path and method pick one, its schema types `query` and
+`body`, and the result is what its handler returns. A path, method, or body
+the server does not accept fails to compile.
+
+```ts title="audit/client.ts"
+import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
+import { AUDIT_ERROR_CODES } from "./error-codes";
+import type { audit } from "./index";
+
+export function auditClient() {
+  return defineClientPlugin({
+    id: "audit",
+    $InferServerPlugin: {} as ReturnType<typeof audit>,
+    $ERROR_CODES: AUDIT_ERROR_CODES,
+    getActions: ($fetch) => ({
+      listEvents: (route?: string) =>
+        $fetch(pluginPath("audit", "events"), {
+          method: "GET",
+          query: { route },
+        }),
+    }),
+  });
+}
+```
+
+```ts
+const s3Client = createS3Client({ plugins: [auditClient()] });
+const { events } = await s3Client.audit.listEvents("invoices");
+```
+
+Import the server plugin as a type only, so it never reaches the browser
+bundle. Core method names such as `upload` and `delete` are reserved
+(`RESERVED_CLIENT_KEYS`).
+
+## Testing
+
+`createTestInstance` from `@dimah-s3/server/testing` runs your plugin on an
+in-memory bucket, with a client wired to the handler. See
+[Testing](/docs/server/testing).
+
+## Publishing
+
+- **Name.** `dimah-s3-<name>` or `@scope/dimah-s3-<name>`, with the npm
+  keyword `dimah-s3-plugin`. Then list it on
+  [Community plugins](/docs/server/community-plugins).
+- **Entries.** `.` for the server plugin and `./client` for the client
+  plugin.
+- **Peers.** `@dimah-s3/server` and `@dimah-s3/core` as `peerDependencies`
+  (`"^2.0.0"`), never `dependencies`, so the app keeps one copy.
+- **Stability.** `@dimah-s3/server/plugins`, `@dimah-s3/server/testing`, and
+  the plugin exports of `@dimah-s3/core` follow semver with the packages.
+  Anything else under `@dimah-s3/server` is internal.
 
 ## Cleaning up uploads
 
@@ -190,38 +346,71 @@ async function removeUpload(client: S3Client, row: TrackedUpload) {
 
 ### definePlugin()
 
-`definePlugin(plugin)` returns the plugin with its literal `id` and `context`
-types kept (`DimahS3Plugin`).
+`definePlugin(plugin)` returns the plugin with its literal `id`, `context`,
+`endpoints`, and `$ERROR_CODES` types kept (`DimahS3Plugin`).
 
-| Prop        | Type                           | Default  | Description                                                                                          |
-| ----------- | ------------------------------ | -------- | ---------------------------------------------------------------------------------------------------- |
-| `id`        | `string`                       | required | Unique id. Keys `s3.context[id]` and `s3[id]`. A duplicate, or an instance key such as `api`, throws |
-| `hooks`     | `DimahS3PluginHooks`           | —        | Guards and lifecycle hooks, below                                                                    |
-| `endpoints` | `Record<string, Endpoint>`     | —        | HTTP endpoints under `basePath`, built with `createS3Endpoint`                                       |
-| `context`   | `Record<string, unknown>`      | —        | Exposed on `s3.context[id]` and `s3[id]`                                                             |
-| `init`      | `(env: PluginInitEnv) => void` | —        | Runs once at `dimahS3()`, after route validation. Must be synchronous                                |
-| `dependsOn` | `readonly string[]`            | —        | Plugin ids that must be registered too. A missing or circular dependency throws                      |
+| Prop           | Type                           | Default  | Description                                                                                                     |
+| -------------- | ------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------- |
+| `id`           | `string`                       | required | A letter, then up to 63 letters, digits, `_`, or `-`. Keys `s3[id]`, and every endpoint path sits under `/{id}` |
+| `hooks`        | `DimahS3PluginHooks`           | —        | Guards and lifecycle hooks, below                                                                               |
+| `endpoints`    | `Record<string, Endpoint>`     | —        | HTTP endpoints built with `createS3Endpoint`. A key is the `plugin.action` guards see                           |
+| `$ERROR_CODES` | `S3ErrorCatalog`               | —        | Codes built with `defineErrorCodes`, merged into `s3.$ERROR_CODES`                                              |
+| `context`      | `Record<string, unknown>`      | —        | Exposed on `s3.context[id]` and `s3[id]`                                                                        |
+| `init`         | `(env: PluginInitEnv) => void` | —        | Runs once at `dimahS3()`, after route validation. Must be synchronous                                           |
+| `dependsOn`    | `readonly string[]`            | —        | Plugin ids that must be registered too. A missing or circular dependency throws                                 |
+
+The instance keys (`handler`, `api`, `put`, `context`, `getPlugin`,
+`$ERROR_CODES`, `$Infer`) and the core path segments (`presign`, `file`,
+`routes`, `delete`) are reserved ids.
 
 ### hooks
 
 | Prop            | Type                      | Default | Description                                                                                          |
 | --------------- | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------- |
 | `guard`         | `Guard<GuardContext>`     | —       | Runs before every operation, before the user's instance guard                                        |
-| `ticketSubject` | `TicketSubject`           | —       | Binds upload tickets when the config sets no `ticketSubject`                                         |
+| `ticketSubject` | `TicketSubject`           | —       | Binds upload tickets when the config sets none                                                       |
 | `upload`        | `Pick<UploadConfig, …>`   | —       | `guard`, `onStart`, `confirmGuard`, `onConfirmed`, `onRejected`, and `multipart: { guard, onAbort }` |
 | `download`      | `Pick<DownloadConfig, …>` | —       | `guard` and `onPresigned`                                                                            |
 | `delete`        | `Pick<DeleteConfig, …>`   | —       | `guard` and `onDeleted`                                                                              |
 
 ### init environment
 
-`PluginInitEnv`, the argument of `init`.
+`PluginInitEnv<Id>`, the argument of `init`.
 
-| Property       | Type                                    | Description                                                                                                     |
-| -------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `config`       | `Readonly<DimahS3Config>`               | The user config, with routes already validated                                                                  |
-| `getPlugin`    | `(id) => DimahS3Plugin \| undefined`    | Looks up a registered plugin                                                                                    |
-| `routeOptions` | `<T>(route) => T \| false \| undefined` | This plugin's options for a route. `false`: the route turned it off. `undefined`: nothing set, or no such route |
-| `logger`       | `DimahS3Logger`                         | The instance logger                                                                                             |
+| Property       | Type                                 | Description                                                                                                  |
+| -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `routes`       | `Record<string, PluginRoute>`        | Every route as `dimahS3()` resolved it, keyed by name. Read-only                                             |
+| `routeOptions` | `(route) => T \| false \| undefined` | This plugin's options for a route, typed by your augmentation. `false`: turned off. `undefined`: nothing set |
+| `runOperation` | `(target, call, run) => Promise<T>`  | Runs an in-process call behind the guards. See [Calls from the server](#calls-from-the-server)               |
+| `config`       | `Readonly<DimahS3Config>`            | The user config, with routes already validated                                                               |
+| `getPlugin`    | `(id) => DimahS3Plugin \| undefined` | Looks up a registered plugin                                                                                 |
+| `logger`       | `DimahS3Logger`                      | The instance logger                                                                                          |
+
+### PluginRoute
+
+One entry of `env.routes`.
+
+| Property    | Type                                                                           | Description                                                |
+| ----------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `name`      | `string`                                                                       | The route name                                             |
+| `client`    | `S3Client`                                                                     | The route's client, or the instance one                    |
+| `bucket`    | `string`                                                                       | The route's bucket, or the instance one                    |
+| `keyPrefix` | `string \| false`                                                              | The key namespace. `false`: keys are not namespace-checked |
+| `options`   | `T \| false \| undefined`                                                      | This plugin's options for the route                        |
+| `upload`    | `{ enabled: false } \| { enabled: true; fileTypes?; maxFileSize?; multipart }` | Whether uploads are on, and their file limits              |
+| `download`  | `{ enabled: false } \| { enabled: true; mode }`                                | Whether downloads are on, and `"presign"` or `"proxy"`     |
+| `delete`    | `{ enabled: boolean }`                                                         | Whether deletes are on                                     |
+
+### runOperation()
+
+`env.runOperation(target, call, run)`.
+
+| Prop            | Type                               | Default  | Description                                                                         |
+| --------------- | ---------------------------------- | -------- | ----------------------------------------------------------------------------------- |
+| `target.action` | `string`                           | required | What the call does. Guards see it as `plugin.action`                                |
+| `target.route`  | `string`                           | —        | The route the call is about. Its guard runs, and a missing one is `ROUTE_NOT_FOUND` |
+| `call`          | `S3ServerCallOptions \| undefined` | —        | `headers`, `request`, `signal`, and trusted `locals`, as for `s3.api`               |
+| `run`           | `(context) => Promise<T>`          | required | Runs after the guards with their context: `request`, `locals`, `route`              |
 
 ### createS3Endpoint()
 
@@ -245,12 +434,26 @@ The handler reads `ctx.context` (`S3EndpointContext`):
 
 `S3Endpoint`, `S3EndpointMethod`, and `S3EndpointOptions` type what
 `createS3Endpoint` takes and returns. `PluginContextMap<Plugins>` maps a
-plugin list to the contexts on `s3.context`.
+plugin list to the contexts on `s3.context`, and `PluginErrorCodes<Plugins>`
+to their merged codes.
+
+### defineClientPlugin()
+
+`defineClientPlugin(plugin)` from `@dimah-s3/core`.
+
+| Prop                 | Type                  | Default  | Description                                                                  |
+| -------------------- | --------------------- | -------- | ---------------------------------------------------------------------------- |
+| `id`                 | `string`              | required | Equal to the server plugin's id. The methods land on `api[id]`               |
+| `getActions`         | `($fetch) => methods` | required | Builds the methods. `$fetch` is typed by the server plugin when it is named  |
+| `$InferServerPlugin` | type only             | —        | `{} as ReturnType<typeof yourPlugin>`. Never read at runtime                 |
+| `$ERROR_CODES`       | `S3ErrorCatalog`      | —        | Codes built with `defineErrorCodes`, merged into the client's `$ERROR_CODES` |
 
 ### Helpers
 
 | Export                                                                    | Description                                                                                                                                                             |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pluginPath(id, path)`                                                    | `"/{id}/{path}"`, typed as a literal so a typed `$fetch` matches it. From `@dimah-s3/core`                                                                              |
+| `assertStoredKey(key, keyPrefix)`                                         | The normalized key when it is inside the route namespace, else `KEY_INVALID`                                                                                            |
 | `readUploadMarker(metadata)`                                              | The `uploadToken` an object was written with, from HeadObject `Metadata`. The same token your hooks receive                                                             |
 | `readObjectMetadata(metadata)`                                            | Splits HeadObject `Metadata` into decoded user `metadata`, `uploadToken`, and `previousKey`                                                                             |
 | `deleteObjectIfMatch(client, { bucket, key, eTag })`                      | Deletes with `If-Match`. Returns `false` when a newer object is at the key. Falls back to a plain delete on providers without conditional deletes. Other failures throw |
@@ -262,36 +465,6 @@ plugin list to the contexts on `s3.context`.
 ## Frequently asked questions
 
 <Accordions>
-
-<Accordion title="How do I add client-side actions for a server plugin?">
-
-Create a client plugin with `defineClientPlugin` from `@dimah-s3/core`. Use
-`pluginPath` so the client and server paths match:
-
-```ts
-import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
-import type { auditPlugin } from "./s3-audit-plugin";
-
-export function auditClient() {
-  return defineClientPlugin({
-    id: "audit",
-    // Type only: fails to compile when the two ids differ.
-    $InferServerPlugin: {} as typeof auditPlugin,
-    getActions: ($fetch) => ({
-      recent: (limit?: number) =>
-        $fetch(pluginPath("audit", "recent"), {
-          method: "GET",
-          query: { limit },
-        }),
-    }),
-  });
-}
-```
-
-Pass it to `createS3Client({ plugins: [auditClient()] })`, and the actions are
-on `api.audit`.
-
-</Accordion>
 
 <Accordion title="How do I combine several guards in one slot?">
 
@@ -306,6 +479,21 @@ upload: {
   guard: chainHooks(requireUser, checkQuota), // [!code ++]
 },
 ```
+
+</Accordion>
+
+<Accordion title="Why is my endpoint's client result typed as a Date?">
+
+The client's types are the handler's return type, and JSON turns a `Date`
+into a string. Return `date.toISOString()` from the handler, and the client
+type and the value agree.
+
+</Accordion>
+
+<Accordion title="Can a plugin add database tables?">
+
+Not through `db()`. Keep your own storage behind an interface the app
+provides, as `examples/plugin-audit` does with its store.
 
 </Accordion>
 

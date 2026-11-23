@@ -195,6 +195,11 @@ export type DbClientUpdateFolderInput = {
 /** Query of `DELETE /db/folder`. */
 export type DbClientDeleteFolderInput = {
   id: string;
+  /**
+   * Remove the folders below it too. Still `FOLDER_NOT_EMPTY` while any
+   * of them holds an object.
+   */
+  recursive?: boolean;
 };
 
 /**
@@ -354,4 +359,33 @@ export type DbObjectSource<TClientAttributes = never> = {
     folder: DbObjectSourceFolder;
     name: string;
   }) => Promise<DbObjectSourceFolder>;
+  /**
+   * Moves a file into `parent`. The object `key` stays. Set when `api.db`
+   * has `updateObject` and `folders` is on.
+   */
+  moveFile?: (input: {
+    item: DbClientObject<TClientAttributes>;
+    parent: string | null;
+  }) => Promise<void>;
+  /**
+   * Moves a folder, with everything in it, into `parent`. Set when
+   * `api.db` has `updateFolder` and `folders` is on.
+   */
+  moveFolder?: (input: {
+    folder: DbObjectSourceFolder;
+    parent: string | null;
+  }) => Promise<void>;
+  /**
+   * Object keys in a folder and every folder below it, the ones the
+   * source's filters list. Set when `folders` is on.
+   */
+  listFolderKeys?: (input: {
+    folder: DbObjectSourceFolder;
+    signal: AbortSignal;
+  }) => Promise<string[]>;
+  /**
+   * Removes a folder and the folders below it once their objects are gone.
+   * Set when `api.db` has `deleteFolder` and `folders` is on.
+   */
+  deleteFolder?: (input: { folder: DbObjectSourceFolder }) => Promise<void>;
 };

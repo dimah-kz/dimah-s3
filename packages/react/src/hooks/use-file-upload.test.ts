@@ -3,13 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { s3Error, type APIError, type S3Api } from "@dimah-s3/core";
 import { fakeS3Api } from "@/test/api";
 import { renderHook } from "@/test/render-hook";
+import { createMemoryUploadStore } from "@/store/memory-store";
 import type {
   FileRejection,
   UploadFileOptions,
   UploadLimit,
+  UploadRequestOptions,
   UploadResult,
 } from "@/types/upload";
 import { getUploadAbortKind } from "@/upload/abort";
+import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFile } from "@/upload/upload-file";
 import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
 import { useUploadLimit } from "./use-upload-limit";
@@ -252,6 +255,84 @@ describe("useFileUpload", () => {
         clientMetadata: { folder: "docs", owner: "call" },
       },
     });
+    hook.unmount();
+  });
+
+  it("waits for request options that resolve later, preparing meanwhile", async () => {
+    let resolve!: (options: { clientMetadata: Record<string, string> }) => void;
+    const hook = mount();
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")], {
+        uploadOptions: () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      });
+    });
+    await flush();
+
+    expect(hook.current.files[0]?.phase).toBe("preparing");
+    expect(engineCalls).toHaveLength(0);
+
+    await act(async () => {
+      resolve({ clientMetadata: { folderId: "f1" } });
+    });
+    await flush();
+
+    expect(engineCall("a.txt").options).toMatchObject({
+      request: { clientMetadata: { folderId: "f1" } },
+    });
+    hook.unmount();
+  });
+
+  it("fails a file with the APIError its request options reject with", async () => {
+    const quota = s3Error("QUOTA_EXCEEDED", { limit: "folders" });
+    const hook = mount({ maxFiles: 2 });
+
+    let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      result = await hook.current.upload([txt("a.txt"), txt("b.txt")], {
+        uploadOptions: (file) =>
+          file.name === "a.txt"
+            ? Promise.reject(quota)
+            : Promise.reject(new Error("boom")),
+      });
+    });
+
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(result.failed).toEqual([
+      { file: expect.objectContaining({ name: "a.txt" }), error: quota },
+      {
+        file: expect.objectContaining({ name: "b.txt" }),
+        error: expect.objectContaining({ code: "HOOK_FAILED" }),
+      },
+    ]);
+    hook.unmount();
+  });
+
+  it("cancels a file while its request options are pending", async () => {
+    const hook = mount();
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt")], {
+        uploadOptions: () => new Promise(() => undefined),
+      });
+    });
+    await flush();
+    const [queued] = hook.current.files;
+    if (!queued) throw new Error("No queued file");
+    act(() => {
+      hook.current.cancel(queued.id);
+    });
+
+    let result!: Awaited<typeof pending>;
+    await act(async () => {
+      result = await pending;
+    });
+    expect(result.aborted).toHaveLength(1);
+    expect(uploadFile).not.toHaveBeenCalled();
     hook.unmount();
   });
 
@@ -1321,5 +1402,294 @@ describe("useFileUpload", () => {
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:preview");
     expect(hook.current.files).toEqual([]);
     hook.unmount();
+  });
+
+  describe("pause and resume", () => {
+    /** A record like the one the engine stores after `multipart.init`. */
+    function storedUpload(file: File, request?: UploadRequestOptions) {
+      return {
+        resumeKey: multipartResumeKey("uploads", file, request),
+        ticket: `ticket-${file.name}`,
+        key: `uploads/${file.name}`,
+        uploadId: `upload-id-${file.name}`,
+        fileSize: file.size,
+        partSize: 8,
+        partCount: 1,
+        checksum: false,
+      };
+    }
+
+    it("keeps a paused file in the queue and resumes it with the same request", async () => {
+      const uploadOptions = vi.fn((file: File) => ({
+        fileName: `renamed-${file.name}`,
+      }));
+      const onSettled = vi.fn();
+      const hook = mount({ uploadOptions, onSettled });
+
+      let pending!: ReturnType<typeof hook.current.upload>;
+      await act(async () => {
+        pending = hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      const [entry] = hook.current.files;
+
+      await act(async () => {
+        hook.current.pause(entry.id);
+      });
+      await flush();
+      expect(
+        getUploadAbortKind(engineCall("a.txt").options.signal?.reason),
+      ).toBe("detach");
+      expect(hook.current.file).toMatchObject({
+        id: entry.id,
+        phase: "paused",
+      });
+      expect(hook.current.phase).toBe("paused");
+      expect(hook.current.isPending).toBe(false);
+      expect(onSettled).not.toHaveBeenCalled();
+
+      await act(async () => {
+        hook.current.resume();
+      });
+      await flush();
+      expect(engineCalls).toHaveLength(2);
+      const resumed = lastEngineCall("a.txt");
+      expect(resumed.options.request).toEqual({ fileName: "renamed-a.txt" });
+      expect(uploadOptions).toHaveBeenCalledOnce();
+      expect(hook.current.isPending).toBe(true);
+
+      await act(async () => {
+        resumed.succeed();
+      });
+      const result = await pending;
+      expect(result.uploaded.map(({ file }) => file.name)).toEqual(["a.txt"]);
+      expect(result.aborted).toEqual([]);
+      expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+      expect(hook.current.file).toMatchObject({
+        id: entry.id,
+        phase: "success",
+      });
+      hook.unmount();
+    });
+
+    it("frees the slot of a paused file for the next one", async () => {
+      const hook = mount({ maxFiles: 2, concurrentFiles: 1 });
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+
+      await act(async () => {
+        hook.current.pause(hook.current.files[0].id);
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual([
+        "a.txt",
+        "b.txt",
+      ]);
+      expect(hook.current.phase).toBe("uploading");
+      hook.unmount();
+    });
+
+    it("pauses a queued file before it starts", async () => {
+      const hook = mount({ maxFiles: 2, concurrentFiles: 1 });
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+      });
+      await flush();
+      const b = hook.current.files[1];
+      await act(async () => {
+        hook.current.pause(b.id);
+      });
+      await act(async () => {
+        engineCall("a.txt").succeed();
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+      expect(hook.current.phase).toBe("paused");
+
+      await act(async () => {
+        hook.current.resume(b.id);
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual([
+        "a.txt",
+        "b.txt",
+      ]);
+      hook.unmount();
+    });
+
+    it("pauses the files of a call still preparing", async () => {
+      const { promise, resolve } = Promise.withResolvers<boolean>();
+      const hook = mount({ beforeUpload: () => promise });
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt")]);
+      });
+      await act(async () => {
+        hook.current.pause();
+        resolve(true);
+      });
+      await flush();
+      expect(uploadFile).not.toHaveBeenCalled();
+      expect(hook.current.file?.phase).toBe("paused");
+
+      await act(async () => {
+        hook.current.resume();
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+      hook.unmount();
+    });
+
+    it("resumes at once when resume comes before the paused attempt stops", async () => {
+      const hook = mount();
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      const [entry] = hook.current.files;
+      await act(async () => {
+        hook.current.pause(entry.id);
+        hook.current.resume(entry.id);
+      });
+      await flush();
+      expect(engineCalls).toHaveLength(2);
+      expect(hook.current.file?.phase).not.toBe("paused");
+      expect(hook.current.isPending).toBe(true);
+      hook.unmount();
+    });
+
+    it("lets a finalizing file finish instead of pausing", async () => {
+      const hook = mount();
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      await act(async () => {
+        engineCall("a.txt").options.onPhaseChange?.("finalizing");
+      });
+      await act(async () => {
+        hook.current.pause();
+      });
+      expect(engineCall("a.txt").options.signal?.aborted).toBe(false);
+      expect(hook.current.file?.phase).toBe("finalizing");
+      hook.unmount();
+    });
+
+    it("keeps paused files on reset and removes them on cancel", async () => {
+      const hook = mount();
+
+      let pending!: ReturnType<typeof hook.current.upload>;
+      await act(async () => {
+        pending = hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      await act(async () => {
+        hook.current.pause();
+      });
+      await flush();
+      await act(async () => {
+        hook.current.reset();
+      });
+      expect(hook.current.file?.phase).toBe("paused");
+
+      await act(async () => {
+        hook.current.cancel();
+      });
+      expect(hook.current.files).toEqual([]);
+      expect((await pending).aborted.map((file) => file.name)).toEqual([
+        "a.txt",
+      ]);
+      hook.unmount();
+    });
+
+    it("keeps a session without an uploadStore and discards it on cancel", async () => {
+      const api = fakeS3Api();
+      const hook = mount({}, api);
+      const file = txt("a.txt");
+
+      await act(async () => {
+        void hook.current.upload([file]);
+      });
+      await flush();
+      const store = engineCall("a.txt").options.uploadStore;
+      expect(store).toBeDefined();
+      // The engine stores the session after `multipart.init`.
+      const record = storedUpload(file);
+      await store?.set(record);
+
+      await act(async () => {
+        hook.current.pause();
+      });
+      await flush();
+      expect(await store?.get(record.resumeKey, file.size)).toEqual(record);
+      expect(api.multipart.abort).not.toHaveBeenCalled();
+
+      await act(async () => {
+        hook.current.cancel();
+      });
+      await flush();
+      expect(api.multipart.abort).toHaveBeenCalledExactlyOnceWith({
+        ticket: record.ticket,
+      });
+      expect(await store?.get(record.resumeKey, file.size)).toBeNull();
+      hook.unmount();
+    });
+
+    it("keeps a paused session in the uploadStore on unmount", async () => {
+      const api = fakeS3Api();
+      const uploadStore = createMemoryUploadStore();
+      const hook = mount({ uploadStore }, api);
+      const file = txt("a.txt");
+      const record = storedUpload(file);
+
+      await act(async () => {
+        void hook.current.upload([file]);
+      });
+      await flush();
+      expect(engineCall("a.txt").options.uploadStore).toBe(uploadStore);
+      await uploadStore.set(record);
+      await act(async () => {
+        hook.current.pause();
+      });
+      await flush();
+      hook.unmount();
+      await flush();
+
+      expect(api.multipart.abort).not.toHaveBeenCalled();
+      expect(await uploadStore.get(record.resumeKey, file.size)).toEqual(
+        record,
+      );
+    });
+
+    it("discards the session of a file that fails without an uploadStore", async () => {
+      const api = fakeS3Api();
+      const hook = mount({}, api);
+      const file = txt("a.txt");
+
+      await act(async () => {
+        void hook.current.upload([file]);
+      });
+      await flush();
+      const store = engineCall("a.txt").options.uploadStore;
+      const record = storedUpload(file);
+      await store?.set(record);
+      await act(async () => {
+        engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      });
+      await flush();
+
+      expect(api.multipart.abort).toHaveBeenCalledExactlyOnceWith({
+        ticket: record.ticket,
+      });
+      expect(await store?.get(record.resumeKey, file.size)).toBeNull();
+      hook.unmount();
+    });
   });
 });

@@ -13,7 +13,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import {
+  useObjectListContext,
+  useOptionalObjectListEntryScope,
+} from "@/components/dimah-s3/list/object-list-context";
+import { MOVE_TARGET } from "@/components/dimah-s3/list/object-list-move";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,8 +40,9 @@ import {
 const HIDE_ROOT = "@max-[13rem]/object-list-breadcrumb:hidden";
 const HIDE_PARENT = "@max-[22rem]/object-list-breadcrumb:hidden";
 
+/** A link in the path. Taller on a touch screen, so a finger can hit it. */
 const CRUMB =
-  "block max-w-32 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50";
+  "block max-w-32 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
 
 /** Classes that show the … menu while some folder above the open one is hidden. */
 function menuVisibility(depth: number) {
@@ -54,11 +59,15 @@ export type ObjectListBreadcrumbProps = {
 /**
  * Path from the root to the open folder. It shortens to fit its width,
  * down to the open folder alone, and a menu lists the folders above it.
+ * When the source can move entries, the root and the parent take entries
+ * dragged onto them.
  */
 export function ObjectListBreadcrumb({ className }: ObjectListBreadcrumbProps) {
   const { list, rootLabel } = useObjectListContext();
+  const scope = useOptionalObjectListEntryScope();
   const { trail, navigate } = list;
   const t = useTranslations();
+  const moves = scope != null && (scope.moveFile || scope.moveFolder);
   const depth = trail.length;
   const current = trail.at(-1);
   const parent = depth >= 2 ? trail[depth - 2] : undefined;
@@ -78,7 +87,8 @@ export function ObjectListBreadcrumb({ className }: ObjectListBreadcrumbProps) {
         >
           {current ? (
             <BreadcrumbLink
-              className={CRUMB}
+              {...(moves ? scope.moveTarget(null) : null)}
+              className={cn(CRUMB, moves && MOVE_TARGET)}
               render={<button type="button" />}
               onClick={() => navigate([])}
             >
@@ -116,7 +126,8 @@ export function ObjectListBreadcrumb({ className }: ObjectListBreadcrumbProps) {
             <BreadcrumbSeparator className={HIDE_PARENT} />
             <BreadcrumbItem className={cn("min-w-0", HIDE_PARENT)}>
               <BreadcrumbLink
-                className={CRUMB}
+                {...(moves ? scope.moveTarget(parent) : null)}
+                className={cn(CRUMB, moves && MOVE_TARGET)}
                 render={<button type="button" />}
                 onClick={() => navigate(trail.slice(0, -1))}
               >
@@ -157,7 +168,7 @@ function PathMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={label}
-        className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-dimah-s3-muted hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 data-popup-open:bg-dimah-s3-muted"
+        className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-dimah-s3-muted hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 data-popup-open:bg-dimah-s3-muted pointer-coarse:size-8"
       >
         <BreadcrumbEllipsis className="size-4" aria-hidden />
       </DropdownMenuTrigger>

@@ -59,7 +59,10 @@ export type MemoryObjectSourceOptions<TItem> = {
  * folders whose name matches too. `getFile` adds each record's `location`.
  *
  * Pass a function to read the latest records on each request, for example
- * from a ref you append to after an upload.
+ * from a ref you append to after an upload. With `getFolder`,
+ * `listFolderKeys` names the records in a folder and below it. Add
+ * `createFolder`, `deleteFolder`, `moveFile`, and the others that change
+ * your records yourself.
  *
  * ```ts
  * const list = useObjectList(
@@ -92,7 +95,22 @@ export function memoryObjectSource<TItem>(
   return {
     getId,
     getFile,
-    ...(getFolder && { searchScopes: SEARCH_SCOPES }),
+    ...(getFolder && {
+      searchScopes: SEARCH_SCOPES,
+      // Every record whose path is the folder or below it.
+      listFolderKeys({ folder }) {
+        const all = typeof records === "function" ? records() : records;
+        const path = normalizeFolder(folder.id);
+        const prefix = `${path}/`;
+        return Promise.resolve(
+          all.flatMap((item) => {
+            const at = normalizeFolder(getFolder(item));
+            if (at !== path && !(at?.startsWith(prefix) ?? false)) return [];
+            return [options.getFile(item).objectKey || getId(item)];
+          }),
+        );
+      },
+    }),
     query({ parent, cursor, sort, search, searchScope }) {
       const all = typeof records === "function" ? records() : records;
       // Folded once per query, not once per record.

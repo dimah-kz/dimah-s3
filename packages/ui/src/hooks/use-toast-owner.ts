@@ -66,10 +66,24 @@ function activeToken(instanceId: string) {
   return (current?.find((owner) => !owner.weak) ?? current?.[0])?.token;
 }
 
+/** Options for {@link useToastOwner}. */
+export type UseToastOwnerOptions = {
+  /**
+   * Steps aside while a strong owner is mounted for the same hook, as the
+   * `ObjectList` built-in toasts and the `AvatarUpload` live region do.
+   * @default false
+   */
+  weak?: boolean;
+};
+
 /**
  * Registers a toast owner for a hook instance (`instanceId` from the hook)
  * and returns whether this owner is the active one. Only the active owner
  * shows toasts and live messages, so they are never duplicated.
+ *
+ * Call it in your own toasts for a hook, such as ones built on another
+ * toast library, and show them only while it returns `true`: the built-in
+ * toasts of `ObjectList` then step aside.
  *
  * - Strong (default): the first mounted strong owner is active. Extra strong
  *   owners render nothing and warn in development.
@@ -77,10 +91,21 @@ function activeToken(instanceId: string) {
  *   no strong owner is mounted for the same hook.
  *
  * Returns `false` on the server and until the owner has mounted.
+ *
+ * @example
+ * ```tsx
+ * function MyUploadToasts({ upload }: { upload: UseUploadReturn }) {
+ *   const active = useToastOwner(upload.instanceId);
+ *   useEffect(() => {
+ *     if (active && upload.phase === "error") myToast.error("Upload failed");
+ *   }, [active, upload.phase]);
+ *   return null;
+ * }
+ * ```
  */
 export function useToastOwner(
   instanceId: string,
-  options: { weak?: boolean } = {},
+  options: UseToastOwnerOptions = {},
 ): boolean {
   const weak = options.weak ?? false;
   const [token] = useState<object>(() => ({}));

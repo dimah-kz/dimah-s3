@@ -26,10 +26,14 @@ export type UploadRequestOptions = {
 
 /**
  * Request options for every file, or a function that returns them per file.
- * A throw from the function fails that file with `HOOK_FAILED`.
+ * The function runs as the file starts, and may resolve later, such as once
+ * a folder for it exists: the file is `preparing` meanwhile. A throw or
+ * rejection fails that file: an `APIError` as it is, anything else with
+ * `HOOK_FAILED`.
  */
 export type UploadRequestInput =
-  UploadRequestOptions | ((file: File) => UploadRequestOptions);
+  | UploadRequestOptions
+  | ((file: File) => UploadRequestOptions | Promise<UploadRequestOptions>);
 
 /**
  * Options for one `handleFiles` call. Call `uploadOptions` shallow-merge over
@@ -47,13 +51,17 @@ export type UploadCallOptions = {
   append?: boolean;
 };
 
-/** Where one file is in its upload. */
+/**
+ * Where one file is in its upload. `paused` files wait in the queue for
+ * `resume`; they take no upload slot.
+ */
 export type UploadFilePhase =
   | "queued"
   | "preparing"
   | "presigning"
   | "uploading"
   | "finalizing"
+  | "paused"
   | "success"
   | "error";
 
@@ -63,8 +71,12 @@ export type UploadEnginePhase = Extract<
   "preparing" | "presigning" | "uploading" | "finalizing"
 >;
 
-/** The phase of the whole upload queue. */
-export type UploadPhase = "idle" | "uploading" | "success" | "error";
+/**
+ * The phase of the whole upload queue: `uploading` while a call prepares or
+ * a file is in flight, else `paused` while a file is paused, else how the
+ * settled files ended.
+ */
+export type UploadPhase = "idle" | "uploading" | "paused" | "success" | "error";
 
 /** Display metadata for a file in upload UI. */
 export type UploadFileInfo = {

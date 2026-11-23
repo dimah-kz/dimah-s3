@@ -317,6 +317,66 @@ describe("Delete", () => {
     ]);
   });
 
+  it("runs a request's own delete with its own copy, also without targets", async () => {
+    const user = userEvent.setup();
+    const del = fakeDelete();
+    const onDeleted = vi.fn<(result: DeleteResult) => void>();
+    const gone = deferred<void>();
+    const run = vi.fn<NonNullable<DeleteRequestOptions["run"]>>(
+      async (remove) => {
+        const result = await remove([{ objectKey: "docs/a.png" }]);
+        await gone.promise;
+        return result;
+      },
+    );
+
+    function DeleteFolder() {
+      const { request } = useDeleteContext();
+      return (
+        <button
+          type="button"
+          onClick={() => {
+            request([], {
+              title: "Delete folder?",
+              description: "Everything in it goes too.",
+              run,
+              onDeleted,
+            });
+          }}
+        >
+          Delete folder
+        </button>
+      );
+    }
+    render(
+      <Delete delete={del}>
+        <DeleteFolder />
+      </Delete>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Delete folder" }));
+    const dialog = await screen.findByRole("alertdialog", {
+      name: "Delete folder?",
+      description: "Everything in it goes too.",
+    });
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(del.removeMany).toHaveBeenCalledExactlyOnceWith([
+      { key: "docs/a.png", fileName: undefined },
+    ]);
+    // Busy until the run settles.
+    expect(dialog.isConnected).toBe(true);
+    expect(onDeleted).not.toHaveBeenCalled();
+    gone.resolve();
+    await waitFor(() => {
+      expect(onDeleted).toHaveBeenCalledExactlyOnceWith({
+        deleted: ["docs/a.png"],
+        failed: [],
+        blocked: [],
+      });
+    });
+  });
+
   it("renders the dialog passed as `dialog`", async () => {
     const user = userEvent.setup();
     render(

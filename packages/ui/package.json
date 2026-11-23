@@ -84,7 +84,7 @@
     "cn": "^0.5.2",
     "eslint": "catalog:",
     "jsdom": "^31.0.1",
-    "lucide-react": "^1.77.0",
+    "lucide-react": "^1.78.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "shadcn": "^4.23.0",

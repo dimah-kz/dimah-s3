@@ -11,8 +11,8 @@ export type UseObjectListSelectionOptions<TItem> = {
   /** `single` keeps at most one entry. @default "multiple" */
   mode?: ObjectListSelectionMode;
   /**
-   * Which entries can be selected. Defaults to files only: a folder needs
-   * its object keys before a bulk action can act on it.
+   * Which entries can be selected. Defaults to files, and to folders too
+   * when the list can delete or move them (`deleteFolder`, `canMove`).
    */
   isSelectable?: (entry: ObjectListEntry<TItem>) => boolean;
   /**
@@ -61,6 +61,10 @@ export type UseObjectListSelectionReturn<TItem> = {
 type SelectionSource<TItem> = {
   entries: readonly ObjectListEntry<TItem>[];
   parent: string | null;
+  /** Set when folders can be deleted. They are then selectable by default. */
+  deleteFolder?: unknown;
+  /** Folders it can move are selectable by default. */
+  canMove?: (kind: ObjectListEntry<TItem>["kind"]) => boolean;
 };
 
 type State<TItem> = {
@@ -70,10 +74,6 @@ type State<TItem> = {
   /** Last entry toggled on its own. Range selection starts here. */
   anchor: string | null;
 };
-
-function selectFiles(entry: ObjectListEntry<unknown>) {
-  return entry.kind === "file";
-}
 
 /**
  * Checkbox selection over the rows of a `useObjectList` return.
@@ -97,7 +97,15 @@ export function useObjectListSelection<TItem>(
 ): UseObjectListSelectionReturn<TItem> {
   const mode = options.mode ?? "multiple";
   const persist = options.persist === true;
-  const canSelect = options.isSelectable ?? selectFiles;
+  const deletesFolders = list.deleteFolder != null;
+  const { canMove } = list;
+  // Files, and folders that a bulk action can act on.
+  const selectDefault = useCallback(
+    (entry: ObjectListEntry<TItem>) =>
+      entry.kind === "file" || deletesFolders || canMove?.("folder") === true,
+    [canMove, deletesFolders],
+  );
+  const canSelect = options.isSelectable ?? selectDefault;
   const scope = persist ? "" : JSON.stringify(list.parent);
 
   const [stored, setStored] = useState<State<TItem>>(() => ({
@@ -274,27 +282,48 @@ export function useObjectListSelection<TItem>(
     [selectedKeys],
   );
 
-  return {
-    mode,
-    persist,
-    selected,
-    selectedKeys,
-    selectedItems,
-    selectedFolders,
-    count: selected.length,
-    isSelecting: selected.length > 0,
-    allSelected:
-      selectable.length > 0 &&
-      selectable.every((entry) => selectedKeys.has(entry.key)),
-    selectableCount: selectable.length,
-    isSelected,
-    canSelect,
-    toggle,
-    select,
-    deselect,
-    selectAll,
-    clear,
-  };
+  const allSelected =
+    selectable.length > 0 &&
+    selectable.every((entry) => selectedKeys.has(entry.key));
+  const selectableCount = selectable.length;
+  return useMemo(
+    () => ({
+      mode,
+      persist,
+      selected,
+      selectedKeys,
+      selectedItems,
+      selectedFolders,
+      count: selected.length,
+      isSelecting: selected.length > 0,
+      allSelected,
+      selectableCount,
+      isSelected,
+      canSelect,
+      toggle,
+      select,
+      deselect,
+      selectAll,
+      clear,
+    }),
+    [
+      mode,
+      persist,
+      selected,
+      selectedKeys,
+      selectedItems,
+      selectedFolders,
+      allSelected,
+      selectableCount,
+      isSelected,
+      canSelect,
+      toggle,
+      select,
+      deselect,
+      selectAll,
+      clear,
+    ],
+  );
 }
 
 function hasMissing(

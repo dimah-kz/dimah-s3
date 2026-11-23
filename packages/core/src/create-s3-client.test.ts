@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { createS3Client } from "./create-s3-client";
-import { APIError, S3_ERROR_CODES } from "./error";
+import { APIError, defineErrorCodes, S3_ERROR_CODES } from "./error";
 import { defineClientPlugin } from "./plugin/define-client-plugin";
 import { pluginPath } from "./plugin/plugin-path";
+import type { S3Fetch } from "./plugin/types";
 import { S3_API_BASE_PATH, S3_API_ROUTES } from "./routes";
 import { captureFetch, jsonResponse } from "./test/http";
 
@@ -371,5 +372,170 @@ describe("createS3Client plugins", () => {
         ],
       }),
     ).toThrow(/Duplicate/);
+  });
+});
+
+/** A Standard Schema with input `I`, the part the client types read. */
+type Schema<I> = { readonly "~standard": { readonly types?: { input: I } } };
+
+/** A server plugin, shaped like the endpoints `createS3Endpoint` builds. */
+type AuditServer = {
+  id: "audit";
+  endpoints: {
+    listEvents: ((context?: unknown) => Promise<{
+      events: { key: string; at: string }[];
+    }>) & {
+      path: "/audit/events";
+      options: { method: "GET"; query: Schema<{ limit?: number }> };
+    };
+    clearEvents: ((context?: unknown) => Promise<{ cleared: number }>) & {
+      path: "/audit/events";
+      options: { method: "DELETE" };
+    };
+    note: ((context?: unknown) => Promise<{ id: string }>) & {
+      path: "/audit/note";
+      options: { method: "POST"; body: Schema<{ message: string }> };
+    };
+  };
+};
+
+describe("createS3Client typed plugin $fetch", () => {
+  it("types path, method, input, and the result from the server plugin", async () => {
+    const { fetch, calls } = captureFetch(() =>
+      jsonResponse({ events: [{ key: "k", at: "2024-01-01T00:00:00.000Z" }] }),
+    );
+    const api = createS3Client({
+      fetch,
+      plugins: [
+        defineClientPlugin({
+          id: "audit",
+          $InferServerPlugin: {} as AuditServer,
+          getActions: ($fetch) => ({
+            listEvents: (limit?: number) =>
+              $fetch(pluginPath("audit", "events"), {
+                method: "GET",
+                query: { limit },
+              }),
+            clearEvents: () => $fetch("/audit/events", { method: "DELETE" }),
+            note: (message: string) =>
+              $fetch("/audit/note", { method: "POST", body: { message } }),
+          }),
+        }),
+      ],
+    });
+
+    const result = await api.audit.listEvents(5);
+    expect(calls[0]?.url).toBe("/api/s3/audit/events?limit=5");
+    expectTypeOf(result).toEqualTypeOf<{
+      events: { key: string; at: string }[];
+    }>();
+    expectTypeOf(api.audit.clearEvents).returns.resolves.toEqualTypeOf<{
+      cleared: number;
+    }>();
+    expectTypeOf(api.audit.note).returns.resolves.toEqualTypeOf<{
+      id: string;
+    }>();
+  });
+
+  it("refuses a path, method, or body the server plugin does not serve", () => {
+    const plugin = defineClientPlugin({
+      id: "audit",
+      $InferServerPlugin: {} as AuditServer,
+      getActions: ($fetch) => ({
+        // @ts-expect-error -- no endpoint at this path
+        missing: () => $fetch("/audit/missing", { method: "GET" }),
+        // @ts-expect-error -- `/audit/note` takes POST only
+        wrongMethod: () => $fetch("/audit/note", { method: "GET" }),
+        wrongBody: () =>
+          // @ts-expect-error -- `message` must be a string
+          $fetch("/audit/note", { method: "POST", body: { message: 1 } }),
+      }),
+    });
+    expectTypeOf(plugin.getActions).parameter(0).not.toEqualTypeOf<S3Fetch>();
+    expect(plugin.id).toBe("audit");
+  });
+
+  it("keeps the untyped $fetch without $InferServerPlugin", () => {
+    const plugin = defineClientPlugin({ id: "audit", getActions: () => ({}) });
+    expectTypeOf(plugin.getActions).parameter(0).toEqualTypeOf<S3Fetch>();
+    expect(plugin.id).toBe("audit");
+  });
+});
+
+describe("createS3Client plugin error codes", () => {
+  const AUDIT_ERROR_CODES = defineErrorCodes({
+    AUDIT_ROUTE_UNTRACKED: {
+      status: 400,
+      message: 'Route "{route}" is not audited',
+    },
+  });
+
+  it("merges a plugin's $ERROR_CODES into the client's", () => {
+    const api = createS3Client({
+      plugins: [
+        defineClientPlugin({
+          id: "audit",
+          $ERROR_CODES: AUDIT_ERROR_CODES,
+          getActions: () => ({}),
+        }),
+      ],
+    });
+    expect(api.$ERROR_CODES.AUDIT_ROUTE_UNTRACKED).toBe(
+      AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED,
+    );
+    expect(api.$ERROR_CODES.FORBIDDEN).toBe(S3_ERROR_CODES.FORBIDDEN);
+    expectTypeOf(
+      api.$ERROR_CODES.AUDIT_ROUTE_UNTRACKED.code,
+    ).toEqualTypeOf<"AUDIT_ROUTE_UNTRACKED">();
+  });
+
+  it("rejects a code the catalog or another plugin already has", () => {
+    const forbidden = defineErrorCodes({
+      FORBIDDEN: { status: 403, message: "No" },
+    });
+    expect(() =>
+      createS3Client({
+        plugins: [
+          defineClientPlugin({
+            id: "audit",
+            $ERROR_CODES: forbidden,
+            getActions: () => ({}),
+          }),
+        ],
+      }),
+    ).toThrow(/"FORBIDDEN" is already defined/);
+
+    expect(() =>
+      createS3Client({
+        plugins: [
+          defineClientPlugin({
+            id: "audit",
+            $ERROR_CODES: AUDIT_ERROR_CODES,
+            getActions: () => ({}),
+          }),
+          defineClientPlugin({
+            id: "other",
+            $ERROR_CODES: AUDIT_ERROR_CODES,
+            getActions: () => ({}),
+          }),
+        ],
+      }),
+    ).toThrow(/"AUDIT_ROUTE_UNTRACKED" is already defined/);
+  });
+
+  it("rejects an entry not built with defineErrorCodes", () => {
+    expect(() =>
+      createS3Client({
+        plugins: [
+          defineClientPlugin({
+            id: "audit",
+            $ERROR_CODES: {
+              AUDIT_OFF: { code: "OTHER", status: 400, message: "Off" },
+            },
+            getActions: () => ({}),
+          }),
+        ],
+      }),
+    ).toThrow(/must be built with defineErrorCodes/);
   });
 });

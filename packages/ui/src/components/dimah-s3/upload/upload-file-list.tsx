@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
+import { PlayIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import { useFormatEta, useFormatFileSize } from "@dimah-s3/react";
 import type { UploadFilePhase, UploadFileState } from "@dimah-s3/react";
@@ -9,6 +10,7 @@ import {
   FileAttachment,
   type FileAttachmentProps,
 } from "@/components/dimah-s3/attachment/file-attachment";
+import { AttachmentAction } from "@/components/ui/attachment";
 import {
   useUploadContext,
   useUploadFocus,
@@ -35,15 +37,17 @@ export type UploadFileItemProps = Omit<
 
 /**
  * Card for one file of the nearest `Upload`: its phase, progress and
- * error, with a cancel action while it is queued or in flight and a retry
- * action once it failed. A cancelled file leaves the queue, so focus moves
- * on to the next action; a retried one keeps focus on its cancel action.
- * In a full root, as in a full `UploadField`, the retry action stays
- * focusable but is `aria-disabled`.
+ * error, with a cancel action while it is queued, in flight or paused, a
+ * resume action while it is paused, and a retry action once it failed. A
+ * cancelled file leaves the queue, so focus moves on to the next action; a
+ * retried one keeps focus on its cancel action. In a full root, as in a
+ * full `UploadField`, the retry action stays focusable but is
+ * `aria-disabled`.
  */
 export function UploadFileItem({
   file,
   description,
+  actions,
   ...props
 }: UploadFileItemProps) {
   const t = useTranslations();
@@ -58,9 +62,30 @@ export function UploadFileItem({
       ? t("Preparing…", { note: "upload status" })
       : file.phase === "finalizing"
         ? t("Finishing…", { note: "upload status" })
-        : eta
-          ? `${formatFileSize(file.fileSize)} · ${eta}`
-          : undefined;
+        : file.phase === "paused"
+          ? t("Paused", { note: "upload status" })
+          : eta
+            ? `${formatFileSize(file.fileSize)} · ${eta}`
+            : undefined;
+
+  const resume =
+    file.phase === "paused" ? (
+      <AttachmentAction
+        type="button"
+        aria-label={t("Resume {name}", {
+          note: "attachment action",
+          variables: { name: file.fileName },
+        })}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          keepFocus();
+          upload.resume(file.id);
+        }}
+      >
+        <PlayIcon />
+      </AttachmentAction>
+    ) : null;
 
   return (
     <FileAttachment
@@ -72,6 +97,14 @@ export function UploadFileItem({
       percent={file.progress.percent}
       error={file.error}
       description={description ?? phaseDescription}
+      actions={
+        resume != null || actions != null ? (
+          <>
+            {actions}
+            {resume}
+          </>
+        ) : undefined
+      }
       onCancel={() => {
         keepFocus();
         upload.cancel(file.id);
@@ -139,6 +172,7 @@ export function UploadFileList({
 function attachmentState(phase: UploadFilePhase): AttachmentState {
   switch (phase) {
     case "queued":
+    case "paused":
       return "idle";
     case "preparing":
     case "presigning":

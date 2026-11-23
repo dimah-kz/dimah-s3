@@ -182,6 +182,26 @@ async function resumeSession(
   }
 }
 
+/**
+ * Aborts the server upload of the record stored under `resumeKey` and
+ * deletes the record, such as for a paused file that is cancelled. Does
+ * nothing while an upload of that key runs, since the record is its own.
+ */
+export async function discardStoredUpload(
+  api: S3Api,
+  store: UploadStore,
+  resumeKey: string,
+  fileSize: number,
+): Promise<void> {
+  if (activeResumeKeys.has(resumeKey)) return;
+  const record = await readRecord(store, resumeKey, fileSize);
+  if (record === null || activeResumeKeys.has(resumeKey)) return;
+  if (isStoredUpload(record) && record.resumeKey === resumeKey) {
+    abortQuietly(api, record.ticket);
+  }
+  await quietly(() => store.delete(resumeKey));
+}
+
 function isDetached(signal: AbortSignal): boolean {
   return getUploadAbortKind(signal.reason) === "detach";
 }

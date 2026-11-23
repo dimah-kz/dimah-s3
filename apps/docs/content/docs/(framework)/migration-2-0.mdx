@@ -312,7 +312,7 @@ If you wrote a server plugin:
 
 - `definePlugin`, `createS3Endpoint`, `createS3Middleware`, `isFeatureOn`, and
   the plugin types (`DimahS3Plugin`, `DimahS3PluginHooks`, `PluginContextMap`,
-  `PluginInitEnv`, `S3EndpointContext`) are exported from
+  `PluginInitEnv`, `PluginRoute`, `S3EndpointContext`) are exported from
   `@dimah-s3/server/plugins` only. Config and hook-context types, and
   `chainHooks`, come from `@dimah-s3/server` only. The `@dimah-s3/server/api`
   entry is gone.
@@ -320,16 +320,27 @@ If you wrote a server plugin:
 - `createS3Endpoint(path, options, handler)` always takes a path, and throws
   for a core path. `method` is `GET`, `POST`, `PUT`, `PATCH`, or `DELETE`;
   body endpoints accept JSON only.
-- Endpoints are HTTP only: expose server-side functions through `context`.
-  `DimahS3Plugin` has no endpoint type parameter, and `PluginEndpointMap` is
+- Every endpoint path sits under the plugin id: `/{id}` or `/{id}/…`. Build
+  it with `pluginPath(id, path)`. Any other path throws at `dimahS3()`.
+- Endpoints are HTTP only: expose server-side functions through `context`,
+  and run them as the caller with `env.runOperation`. `PluginEndpointMap` is
   removed.
+- Read routes from `env.routes` (the resolved client, bucket, `keyPrefix`,
+  and file limits) instead of `config.routes`.
 - Only a rejection (a `4xx` `APIError`) from a plugin `onConfirmed` deletes
   the object. Any other throw keeps it and returns `500`, so the client can
   retry. Add `upload.onRejected` to undo what your `onStart` wrote.
-- Reserved plugin ids are the instance keys: `handler`, `api`, `put`,
-  `context`, `getPlugin`, `$ERROR_CODES`, and `$Infer`.
-- A switch on `operation` needs cases for `"plugin"` (plugin endpoints) and
-  `"record"` (`s3.db.record`).
+- A plugin id is a letter followed by up to 63 letters, digits, `_`, or `-`.
+  The instance keys (`handler`, `api`, `put`, `context`, `getPlugin`,
+  `$ERROR_CODES`, `$Infer`) and the core path segments (`presign`, `file`,
+  `routes`, `delete`) are reserved.
+- Every plugin call has `operation: "plugin"`, an endpoint or an in-process
+  call such as `s3.db.record`. Tell them apart with `plugin.id` and
+  `plugin.action`. There is no `"record"` operation.
+- With `$InferServerPlugin`, a client plugin's `$fetch` is typed by the
+  server endpoints. Drop the type argument from `$fetch<T>(…)`.
+- Define your own error codes with `defineErrorCodes` under `$ERROR_CODES`
+  on both plugins, and throw them with `s3Error(entry, params)`.
 
 ### Check request handling and proxies
 

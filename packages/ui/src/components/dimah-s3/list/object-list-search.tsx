@@ -196,7 +196,7 @@ export function ObjectListSearch({
               data-slot="object-list-search"
               aria-label={label}
               aria-keyshortcuts="/"
-              className={className}
+              className={cn("pointer-coarse:size-8", className)}
               onClick={() => {
                 focusRef.current = "input";
                 setOpen(true);
@@ -252,8 +252,11 @@ export function ObjectListSearch({
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          "w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-8 text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 [&::-webkit-search-cancel-button]:appearance-none",
-          collapses ? "h-8 pe-14" : "h-7 pe-12",
+          // 16px text on small screens, which iOS does not zoom into.
+          "w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-8 text-base text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 md:text-sm [&::-webkit-search-cancel-button]:appearance-none",
+          collapses
+            ? "h-8 pe-14 pointer-coarse:h-9"
+            : "h-7 pe-12 pointer-coarse:h-9 pointer-coarse:pe-14",
         )}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={onKeyDown}
@@ -265,6 +268,7 @@ export function ObjectListSearch({
             type="button"
             variant="ghost"
             size="icon-xs"
+            className="pointer-coarse:size-7"
             aria-label={t("Close search", { note: "object list" })}
             onClick={close}
           >
@@ -278,7 +282,7 @@ export function ObjectListSearch({
             <button
               type="button"
               aria-label={t("Clear search", { note: "object list" })}
-              className="flex size-5 items-center justify-center rounded-sm text-dimah-s3-muted-foreground outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50"
+              className="flex size-5 items-center justify-center rounded-sm text-dimah-s3-muted-foreground outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:size-7"
               onClick={() => commit("")}
             >
               <XIcon className="size-3.5" />
@@ -451,7 +455,7 @@ function ScopeChoice({
       aria-checked={checked}
       // One tab stop for the group; arrow keys switch.
       tabIndex={checked ? 0 : -1}
-      className="min-w-0 aria-checked:bg-dimah-s3-muted aria-checked:text-dimah-s3-foreground"
+      className="min-w-0 aria-checked:bg-dimah-s3-muted aria-checked:text-dimah-s3-foreground pointer-coarse:h-7"
       onClick={() => onSelect(scope)}
       onKeyDown={(event) => {
         if (

@@ -15,21 +15,23 @@ import { isS3ErrorCode } from "@dimah-s3/core";
 import {
   useFormatError,
   useFormatNumber,
-  type ObjectListEntry,
   type ObjectListFolder,
   type UseObjectListReturn,
   type UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
-import { CheckIcon, FolderPlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  FolderInputIcon,
+  FolderPlusIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  useDeleteContext,
-  type DeleteTarget,
-} from "@/components/dimah-s3/delete/delete";
+import { useDeleteContext } from "@/components/dimah-s3/delete/delete";
 import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
 import {
   ObjectListHeaderContext,
@@ -38,8 +40,8 @@ import {
   useOptionalObjectListHeader,
   type ObjectListHeaderContextValue,
 } from "@/components/dimah-s3/list/object-list-context";
+import { useObjectListDeleteRequest } from "@/components/dimah-s3/list/object-list-delete";
 import { ObjectListCheckbox } from "@/components/dimah-s3/list/object-list-entry";
-import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
 import { ObjectListSearchBar } from "@/components/dimah-s3/list/object-list-search";
 
 /** Props for {@link ObjectListHeader}. */
@@ -65,19 +67,23 @@ export type ObjectListHeaderProps = {
 export const OBJECT_LIST_HEADER_COMPACT_LABEL =
   "@max-[36rem]/object-list-header:sr-only";
 
-/** Makes a labelled `sm` button square while its label hides. */
+/**
+ * Makes a labelled `sm` button square while its label hides, and 32px tall
+ * on a touch screen.
+ */
 export const OBJECT_LIST_HEADER_COMPACT_BUTTON =
-  "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
+  "pointer-coarse:h-8 @max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
 
 /**
  * Top bar: select-all, the path, a reload spinner, New folder (when the
  * source can create folders), and `children`. While entries are selected it
  * becomes the selection bar.
  *
- * It lays out by its own width (a container query). The path keeps room
- * for itself and shortens to fit; when the controls do not fit beside it,
- * they move to a second row, aligned to the end. Labels of the built-in
- * controls and `UploadTrigger` hide under 36rem, leaving their icons. An
+ * It lays out by its own width (a container query). The path keeps 6rem
+ * for itself and shortens to fit; only when the controls do not fit beside
+ * that do they move to a second row, aligned to the end. Labels of the
+ * built-in controls and `UploadTrigger` hide under 36rem, leaving their
+ * icons, and `ObjectListViewToggle` becomes one button under 28rem. An
  * `ObjectListSearch` among `children` shows as a search button, and opens
  * into a field across the whole bar. New folder does the same with its
  * name field: the path and the other controls hide until it closes.
@@ -131,7 +137,7 @@ export function ObjectListHeader({
           <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 py-1.5">
             <div
               data-slot="object-list-header-path"
-              className="flex min-w-0 flex-[1_1_11rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"
+              className="flex min-w-0 flex-[1_1_6rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"
             >
               {selecting ? null : <ObjectListSelectAll />}
               {showBreadcrumb ? (
@@ -219,8 +225,9 @@ export type ObjectListSelectionBarProps = {
 };
 
 /**
- * Count, `actions`, bulk Delete (when the list has `delete`), and Clear.
- * Renders nothing while the selection is empty.
+ * Count, `actions`, Move (when the source can move what is selected), bulk
+ * Delete (when the list has `delete`), and Clear. Renders nothing while the
+ * selection is empty.
  */
 export function ObjectListSelectionBar({
   actions,
@@ -261,10 +268,12 @@ export function ObjectListSelectionBar({
             {actions}
           </div>
         ) : null}
+        <ObjectListBulkMove />
         {del ? <BulkDeleteControl /> : null}
         <Button
           variant="ghost"
           size="sm"
+          className="pointer-coarse:h-8"
           disabled={busy}
           onClick={selection.clear}
         >
@@ -305,8 +314,9 @@ export type ObjectListBulkDeleteProps = {
 
 /**
  * Delete button for the selected entries. The list's delete root asks for
- * confirmation. `ObjectListSelectionBar` already has one; use this in a bar
- * of your own.
+ * confirmation. Selected folders go with everything in them when the
+ * source can delete folders, and stay otherwise. `ObjectListSelectionBar`
+ * already has one; use this in a bar of your own.
  */
 export function ObjectListBulkDelete({ className }: ObjectListBulkDeleteProps) {
   const { delete: del, selection } = useObjectListContext();
@@ -314,88 +324,34 @@ export function ObjectListBulkDelete({ className }: ObjectListBulkDeleteProps) {
   return <BulkDeleteControl className={className} />;
 }
 
-/** What a bulk delete removes. */
-type BulkDeletePlan = {
-  targets: readonly DeleteTarget[];
-  /** Each selected folder's entry key, with the object keys it holds. */
-  folders: readonly { entryKey: string; objectKeys: readonly string[] }[];
-  /** Selected folders left out: `resolveFolderKeys` is not set. */
-  skippedFolders: number;
-};
-
 /**
- * Collects the selected object keys (files, then folders through
- * `resolveFolderKeys`) and hands them to the delete root in one request.
- * Busy while the keys resolve and while they delete.
+ * Hands the selected entries to the delete root in one request. Busy while
+ * their files delete.
  */
 function BulkDeleteControl({ className }: { className?: string }) {
   const t = useTranslations();
-  const formatError = useFormatError();
   const { selection } = useObjectListContext();
-  const { resolveFolderKeys } = useObjectListInternal();
-  const { delete: del, request } = useDeleteContext();
-  const report = useObjectListFeedback();
-  const [preparing, setPreparing] = useState(false);
-  const [requested, setRequested] = useState<readonly string[]>([]);
+  const { delete: del, isDeleting } = useDeleteContext();
+  const requestDelete = useObjectListDeleteRequest();
+  const [requested, setRequested] = useState<readonly string[] | null>(null);
   const busy =
-    preparing || requested.some((key) => del.pendingKeys.includes(key));
+    requested != null &&
+    (isDeleting || requested.some((key) => del.pendingKeys.includes(key)));
   const label = t("Delete", { note: "button" });
 
-  async function onClick(event: MouseEvent<HTMLButtonElement>) {
-    if (!selection || busy) return;
-    const trigger = event.currentTarget;
-    setPreparing(true);
-    let plan: BulkDeletePlan;
-    try {
-      plan = await planBulkDelete(selection.selected, resolveFolderKeys);
-    } catch (error) {
-      report({
-        type: "error",
-        title: t("Could not delete the selection", {
-          note: "object list selection",
-        }),
-        description: formatError(error),
-      });
-      return;
-    } finally {
-      setPreparing(false);
-    }
-    const note =
-      plan.skippedFolders > 0
-        ? t("Selected folders stay in the list.", {
-            note: "object list selection",
-          })
-        : undefined;
-    if (plan.targets.length === 0) {
-      report({
-        type: "info",
-        title:
-          note ?? t("Nothing to delete", { note: "object list selection" }),
-      });
-      return;
-    }
-    setRequested(plan.targets.map((target) => target.objectKey));
-    request(plan.targets, {
-      note,
-      trigger,
+  function onClick(event: MouseEvent<HTMLButtonElement>) {
+    if (!selection || !requestDelete || busy) return;
+    const keys = selection.selected.flatMap((entry) =>
+      entry.kind === "file" ? [objectKeyOf(entry)] : [],
+    );
+    const asked = requestDelete(selection.selected, {
+      trigger: event.currentTarget,
       // A dismissed dialog deletes nothing, so a later delete of one of
       // these keys from a row menu must not show this button busy.
-      onDismissed: () => setRequested([]),
-      onDeleted: (result) => {
-        setRequested([]);
-        // A folder whose every object went leaves the selection; the list
-        // drops the deleted files itself.
-        const deleted = new Set(result.deleted);
-        const emptied = plan.folders.filter(
-          ({ objectKeys }) =>
-            objectKeys.length > 0 &&
-            objectKeys.every((key) => deleted.has(key)),
-        );
-        if (emptied.length > 0) {
-          selection.deselect(emptied.map(({ entryKey }) => entryKey));
-        }
-      },
+      onDismissed: () => setRequested(null),
+      onDeleted: () => setRequested(null),
     });
+    if (asked) setRequested(keys);
   }
 
   return (
@@ -407,7 +363,7 @@ function BulkDeleteControl({ className }: { className?: string }) {
       aria-busy={busy || undefined}
       disabled={busy}
       focusableWhenDisabled
-      onClick={(event) => void onClick(event)}
+      onClick={onClick}
     >
       {busy ? (
         <Spinner
@@ -424,41 +380,37 @@ function BulkDeleteControl({ className }: { className?: string }) {
   );
 }
 
-async function planBulkDelete<TItem>(
-  selected: readonly ObjectListEntry<TItem>[],
-  resolveFolderKeys:
-    ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined,
-): Promise<BulkDeletePlan> {
-  const targets = new Map<string, DeleteTarget>();
-  for (const entry of selected) {
-    if (entry.kind !== "file") continue;
-    const objectKey = objectKeyOf(entry);
-    targets.set(objectKey, {
-      objectKey,
-      fileName: entry.file.name,
-      fileSize: entry.file.size,
-    });
-  }
-  const selectedFolders = selected.filter((entry) => entry.kind === "folder");
-  if (!resolveFolderKeys) {
-    return {
-      targets: [...targets.values()],
-      folders: [],
-      skippedFolders: selectedFolders.length,
-    };
-  }
-  const folders = await Promise.all(
-    selectedFolders.map(async (entry) => ({
-      entryKey: entry.key,
-      objectKeys: await resolveFolderKeys(entry.folder),
-    })),
+/** Props for {@link ObjectListBulkMove}. */
+export type ObjectListBulkMoveProps = {
+  className?: string;
+};
+
+/**
+ * Move button for the selected entries: opens the Move dialog for the ones
+ * the source can move. Renders nothing when none of them can.
+ * `ObjectListSelectionBar` already has one; use this in a bar of your own.
+ */
+export function ObjectListBulkMove({ className }: ObjectListBulkMoveProps) {
+  const t = useTranslations();
+  const { list, selection, startMove } = useObjectListContext();
+  if (!list.moveEntries || !selection?.isSelecting) return null;
+  if (!selection.selected.some((entry) => list.canMove(entry))) return null;
+  const label = t("Move", { note: "object list selection" });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
+      aria-label={label}
+      onClick={(event) =>
+        startMove(selection.selected, { trigger: event.currentTarget })
+      }
+    >
+      <FolderInputIcon data-icon="inline-start" />
+      <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>{label}</span>
+    </Button>
   );
-  for (const { objectKeys } of folders) {
-    for (const objectKey of objectKeys) {
-      if (!targets.has(objectKey)) targets.set(objectKey, { objectKey });
-    }
-  }
-  return { targets: [...targets.values()], folders, skippedFolders: 0 };
 }
 
 /** Props for {@link ObjectListNewFolder}. */
@@ -559,12 +511,16 @@ function NewFolderForm({
     inputRef.current?.focus();
   }, []);
 
+  // Touch screens get larger buttons, still inside the wide field.
+  const buttonSize = wide
+    ? "shrink-0 pointer-coarse:size-7"
+    : "shrink-0 pointer-coarse:size-9";
   const confirm = (
     <Button
       type="submit"
       variant="ghost"
       size={wide ? "icon-xs" : "icon-sm"}
-      className="shrink-0"
+      className={buttonSize}
       aria-label={t("Create folder", { note: "object list new folder" })}
       aria-busy={pending || undefined}
       disabled={pending}
@@ -582,7 +538,7 @@ function NewFolderForm({
       type="button"
       variant="ghost"
       size={wide ? "icon-xs" : "icon-sm"}
-      className="shrink-0"
+      className={buttonSize}
       aria-label={t("Cancel", { note: "object list new folder" })}
       disabled={pending}
       onClick={onClose}
@@ -656,9 +612,12 @@ function NewFolderForm({
           aria-invalid={error != null || undefined}
           aria-describedby={error != null ? errorId : undefined}
           className={cn(
-            "min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20",
+            // 16px text on small screens, which iOS does not zoom into.
+            "min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-base text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm",
             // Room at the end for the confirm and cancel buttons, as search does.
-            wide ? "h-8 w-full ps-8 pe-16" : "h-7 w-36 px-2 sm:w-44",
+            wide
+              ? "h-8 w-full ps-8 pe-16 pointer-coarse:h-9"
+              : "h-7 w-36 px-2 sm:w-44 pointer-coarse:h-9",
           )}
           onChange={(event) => {
             setName(event.target.value);

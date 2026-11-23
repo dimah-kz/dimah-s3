@@ -57,6 +57,35 @@ export function UploadCount() {
 Use [`FileAttachment`](/docs/ui/components/attachment) and its building blocks
 to match the look of the built-in cards.
 
+## Your own toasts
+
+To report a hook through another toast library, replace `UploadToasts`,
+`DownloadToasts`, or `DeleteToasts` with a component that calls
+`useToastOwner`. It returns `true` for one owner per hook, and the
+`ObjectList` built-in toasts step aside while it is mounted.
+
+```tsx
+"use client";
+
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { useFormatError, type UseUploadReturn } from "@dimah-s3/react";
+import { useToastOwner } from "@dimah-s3/ui";
+
+export function SonnerUploadToasts({ upload }: { upload: UseUploadReturn }) {
+  const active = useToastOwner(upload.instanceId);
+  const formatError = useFormatError();
+
+  useEffect(() => {
+    if (active && upload.error) toast.error(formatError(upload.error));
+  }, [active, upload.error, formatError]);
+
+  return null;
+}
+```
+
+Pass `{ weak: true }` for an owner that should step aside for another one.
+
 ## Fully headless
 
 The hooks hold every state the components show. This picker uses

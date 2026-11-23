@@ -27,6 +27,7 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "lint": {
+      "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "../../tooling/eslint-config/**"]
     },
     "check-types": {

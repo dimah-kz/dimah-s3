@@ -158,7 +158,7 @@ function acceptUploads(api: Api) {
   }));
 }
 
-type Hooks = { upload: UseUploadReturn; remove: UseDeleteReturn };
+type Hooks = { upload: UseUploadReturn; remove: UseDeleteReturn; api: Api };
 
 type RenderOptions = {
   /** Records in place of {@link initialItems}. */
@@ -166,7 +166,13 @@ type RenderOptions = {
   /** Source additions over the memory source. */
   source?: Pick<
     ObjectListSource<Item>,
-    "uploadOptions" | "createFolder" | "renameFile" | "renameFolder"
+    | "uploadOptions"
+    | "createFolder"
+    | "renameFile"
+    | "renameFolder"
+    | "moveFile"
+    | "moveFolder"
+    | "deleteFolder"
   >;
   limits?: { maxBytes?: number; maxFiles?: number };
   /** Usage line without limits. */
@@ -215,7 +221,7 @@ function renderList(options: RenderOptions = {}) {
     });
     const remove = useDelete({ api, route: ROUTE });
     const share = useDownload({ api, route: ROUTE });
-    const hooks = { upload, remove };
+    const hooks = { upload, remove, api };
     return (
       <>
         <ObjectList
@@ -296,6 +302,16 @@ function speakingRegions() {
   return [...document.querySelectorAll("[aria-live=polite]")].filter(
     (region) => region.textContent !== "",
   );
+}
+
+/** `text` without the bidi isolates around names. */
+function plain(text: string) {
+  return text.replaceAll(/[⁨⁩]/g, "");
+}
+
+/** Matches an accessible name that reads `name` once its isolates go. */
+function named(name: string) {
+  return (accessibleName: string) => plain(accessibleName) === name;
 }
 
 /** Matches an accessible name that starts with `name`, as entry buttons do. */
@@ -1323,6 +1339,350 @@ describe("ObjectList", () => {
     });
   });
 
+  describe("folder delete", () => {
+    const deleteFolder = () => vi.fn(async () => undefined);
+
+    it("deletes a folder with its files from the row menu", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      const remove = deleteFolder();
+      const { api } = renderList({ source: { deleteFolder: remove } });
+      await settle();
+
+      const menu = await openMenu("docs");
+      await user.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog", {
+        name: "Delete folder?",
+      });
+      expect(dialog.textContent).toContain("and everything in it");
+      expect(api.deleteMany).not.toHaveBeenCalled();
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await settle();
+
+      expect(api.deleteMany.mock.calls[0]?.[0].keys).toEqual(["docs/c.txt"]);
+      expect(remove).toHaveBeenCalledWith({
+        folder: expect.objectContaining({ id: "docs", name: "docs" }),
+      });
+      expect(
+        screen.queryByRole("button", { name: startsWith("docs") }),
+      ).toBeNull();
+      expect(toastTitles()).toEqual(["File deleted"]);
+    });
+
+    it("keeps a folder whose files did not all go", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      const remove = deleteFolder();
+      const { api } = renderList({ source: { deleteFolder: remove } });
+      api.deleteMany.mockResolvedValueOnce({
+        deleted: [],
+        failed: [
+          { key: "docs/c.txt", error: { code: "FORBIDDEN", message: "No" } },
+        ],
+      });
+      await settle();
+
+      const menu = await openMenu("docs");
+      await user.click(within(menu).getByRole("menuitem", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog");
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await settle();
+
+      expect(remove).not.toHaveBeenCalled();
+      expect(entry("docs")).toBeTruthy();
+    });
+
+    it("deletes selected folders and files in one request", async () => {
+      const user = userEvent.setup();
+      const remove = deleteFolder();
+      const { api } = renderList({ source: { deleteFolder: remove } });
+      await settle();
+
+      // Folders are selectable once the source can delete them.
+      await user.click(screen.getByRole("checkbox", { name: "Select docs" }));
+      await user.click(screen.getByRole("checkbox", { name: "Select a.txt" }));
+      await user.click(screen.getByRole("button", { name: "Delete" }));
+      const dialog = await screen.findByRole("alertdialog", {
+        name: "Delete 2 items?",
+      });
+      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await settle();
+
+      expect(api.deleteMany).toHaveBeenCalledOnce();
+      expect(api.deleteMany.mock.calls[0]?.[0].keys).toEqual([
+        "a.txt",
+        "docs/c.txt",
+      ]);
+      expect(remove).toHaveBeenCalledOnce();
+      expect(
+        document.querySelector("[data-slot=object-list-selection-bar]"),
+      ).toBeNull();
+    });
+
+    it("asks to delete the focused entry, or the selection, on Delete", async () => {
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+
+      trigger("a.txt").focus();
+      await user.keyboard("{Delete}");
+      const one = await screen.findByRole("alertdialog", {
+        name: "Delete file?",
+      });
+      await user.click(within(one).getByRole("button", { name: "Cancel" }));
+      await settle();
+
+      await user.click(screen.getByRole("checkbox", { name: "Select a.txt" }));
+      await user.click(screen.getByRole("checkbox", { name: "Select b.txt" }));
+      trigger("b.txt").focus();
+      await user.keyboard("{Meta>}{Backspace}{/Meta}");
+      const both = await screen.findByRole("alertdialog", {
+        name: "Delete 2 files?",
+      });
+      expect(both.isConnected).toBe(true);
+    });
+
+    it("leaves a focused folder alone on Delete when the source cannot delete it", async () => {
+      const user = userEvent.setup();
+      renderList();
+      await settle();
+
+      trigger("docs").focus();
+      await user.keyboard("{Delete}");
+      await settle();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+  });
+
+  describe("move", () => {
+    /** A source move that rewrites the record's folder. */
+    function moveFileIn(items: Item[]) {
+      return vi.fn(
+        async ({ item, parent }: { item: Item; parent: string | null }) => {
+          const record = items.find((entry) => entry.key === item.key);
+          if (record) record.folder = parent;
+        },
+      );
+    }
+
+    it("moves a file with Move to and the folder dialog", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      const items = initialItems();
+      const moveFile = moveFileIn(items);
+      renderList({ items, source: { moveFile } });
+      await settle();
+
+      const menu = await openMenu("a.txt");
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Move to…" }),
+      );
+      const dialog = await screen.findByRole("dialog", {
+        name: named('Move "a.txt"'),
+      });
+      await settle();
+      // It opens where the file already is.
+      expect(
+        within(dialog)
+          .getByRole("button", { name: "Move here" })
+          .getAttribute("aria-disabled"),
+      ).toBe("true");
+
+      await user.click(within(dialog).getByRole("button", { name: "docs" }));
+      await settle();
+      await user.click(
+        within(dialog).getByRole("button", { name: "Move here" }),
+      );
+      await settle();
+
+      expect(moveFile).toHaveBeenCalledWith({
+        item: expect.objectContaining({ key: "a.txt" }),
+        parent: "docs",
+      });
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: startsWith("a.txt") }),
+      ).toBeNull();
+      expect(
+        toastTitles().map((title) =>
+          typeof title === "string" ? plain(title) : title,
+        ),
+      ).toEqual(['Moved "a.txt" to "docs"']);
+    });
+
+    it("moves the selection from the selection bar", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const user = userEvent.setup();
+      const items = initialItems();
+      const moveFile = moveFileIn(items);
+      renderList({ items, source: { moveFile } });
+      await settle();
+
+      await user.click(screen.getByRole("checkbox", { name: "Select a.txt" }));
+      await user.click(screen.getByRole("checkbox", { name: "Select b.txt" }));
+      await user.click(screen.getByRole("button", { name: "Move" }));
+      const dialog = await screen.findByRole("dialog", {
+        name: "Move 2 items",
+      });
+      await settle();
+      await user.click(within(dialog).getByRole("button", { name: "docs" }));
+      await settle();
+      await user.click(
+        within(dialog).getByRole("button", { name: "Move here" }),
+      );
+      await settle();
+
+      expect(moveFile).toHaveBeenCalledTimes(2);
+      expect(
+        toastTitles().map((title) =>
+          typeof title === "string" ? plain(title) : title,
+        ),
+      ).toEqual(['Moved 2 items to "docs"']);
+      expect(
+        document.querySelector("[data-slot=object-list-selection-bar]"),
+      ).toBeNull();
+    });
+
+    it("keeps a folder from opening in the dialog while it moves", async () => {
+      const user = userEvent.setup();
+      const moveFolder = vi.fn(async () => undefined);
+      renderList({ source: { moveFolder } });
+      await settle();
+
+      const menu = await openMenu("docs");
+      await user.click(
+        within(menu).getByRole("menuitem", { name: "Move to…" }),
+      );
+      const dialog = await screen.findByRole("dialog", {
+        name: named('Move "docs"'),
+      });
+      await settle();
+
+      const folder = within(dialog).getByRole<HTMLButtonElement>("button", {
+        name: /^docs/,
+      });
+      expect(folder.disabled).toBe(true);
+    });
+
+    it("moves a dragged entry onto a folder row", async () => {
+      vi.spyOn(toast, "add").mockReturnValue("toast");
+      const items = initialItems();
+      const moveFile = moveFileIn(items);
+      renderList({ items, source: { moveFile } });
+      await settle();
+
+      const data = new Map<string, string>();
+      const transfer = {
+        get types() {
+          return [...data.keys()];
+        },
+        setData: (type: string, value: string) => data.set(type, value),
+        getData: (type: string) => data.get(type) ?? "",
+        effectAllowed: "all",
+        dropEffect: "none",
+        files: [],
+        items: [],
+      };
+      const drag = (type: string) => {
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.defineProperty(event, "dataTransfer", { value: transfer });
+        return event;
+      };
+
+      const source = entry("a.txt");
+      expect(source.getAttribute("draggable")).toBe("true");
+      await fire(source, drag("dragstart"));
+      const target = entry("docs");
+      await fire(target, drag("dragenter"));
+      expect(target.hasAttribute("data-move-over")).toBe(true);
+      await fire(target, drag("drop"));
+
+      expect(moveFile).toHaveBeenCalledWith({
+        item: expect.objectContaining({ key: "a.txt" }),
+        parent: "docs",
+      });
+      expect(target.hasAttribute("data-move-over")).toBe(false);
+    });
+
+    it("has no Move without move functions on the source", async () => {
+      renderList();
+      await settle();
+
+      expect(entry("a.txt").hasAttribute("draggable")).toBe(false);
+      const menu = await openMenu("a.txt");
+      expect(
+        within(menu).queryByRole("menuitem", { name: "Move to…" }),
+      ).toBeNull();
+    });
+  });
+
+  describe("thumbnails", () => {
+    it("signs an image thumbnail through the route", async () => {
+      const { api } = renderList({
+        items: [
+          { key: "p.png", name: "p.png", size: 10, folder: null },
+          { key: "a.txt", name: "a.txt", size: 10, folder: null },
+        ],
+        props: ({ api: listApi }) => ({
+          thumbnails: { route: ROUTE, api: listApi },
+        }),
+      });
+      await settle();
+      await settle();
+
+      const image = entry("p.png").querySelector("img");
+      expect(image?.getAttribute("src")).toBe("https://s3.test/p.png");
+      expect(entry("a.txt").querySelector("img")).toBeNull();
+      expect(api.download).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("folder drops", () => {
+    it("recreates a dropped folder's folders and uploads into them", async () => {
+      const createFolder = vi.fn(
+        async ({ parent, name }: { parent: string | null; name: string }) => ({
+          id: parent ? `${parent}/${name}` : name,
+          name,
+        }),
+      );
+      const { api, container } = renderList({
+        source: { uploadOptions: folderOptions, createFolder },
+      });
+      await settle();
+
+      const file = textFile("a.txt");
+      const event = new Event("drop", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", {
+        value: {
+          files: [file],
+          types: ["Files"],
+          items: [
+            {
+              kind: "file",
+              type: file.type,
+              getAsFile: () => file,
+              webkitGetAsEntry: () => ({
+                isFile: true,
+                isDirectory: false,
+                fullPath: "/Photos/2026/a.txt",
+              }),
+            },
+          ],
+        },
+      });
+      const frame = container.querySelector("[data-slot=object-list]");
+      if (!frame) throw new Error("No frame");
+      await fire(frame, event);
+      await settle();
+
+      expect(createFolder.mock.calls.map(([input]) => input)).toEqual([
+        { parent: null, name: "Photos" },
+        { parent: "Photos", name: "2026" },
+      ]);
+      expect(sentMetadata(api)).toEqual([{ folder: "Photos/2026" }]);
+    });
+  });
+
   describe("custom parts", () => {
     it("takes its own rows in the entry menu", async () => {
       const user = userEvent.setup();
@@ -1715,6 +2075,51 @@ describe("ObjectList", () => {
       expect(
         screen.getByRole("button", { name: startsWith("notes") }),
       ).toBeDefined();
+    });
+
+    it("gives the field the row's menu room, and a tile's whole width", async () => {
+      const user = userEvent.setup();
+      const renameFolder = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFolder"]>
+      >(async ({ folder, name }) => ({ ...folder, name }));
+      const rows = renderList({ source: { renameFolder } });
+      await settle();
+
+      trigger("docs").focus();
+      await user.keyboard("{F2}");
+      const row = (await screen.findByRole("textbox")).closest<HTMLElement>(
+        "[data-slot=object-list-entry]",
+      );
+      expect(
+        row?.querySelector("[data-slot=object-list-entry-menu]"),
+      ).toBeNull();
+      expect(
+        row
+          ?.querySelector("[data-slot=object-list-rename]")
+          ?.getAttribute("data-layout"),
+      ).toBe("inline");
+      rows.unmount();
+
+      renderList({
+        source: { renameFolder },
+        props: () => ({ defaultView: "grid" }),
+      });
+      await settle();
+      trigger("docs").focus();
+      await user.keyboard("{F2}");
+      const tile = (await screen.findByRole("textbox")).closest<HTMLElement>(
+        "[data-slot=object-list-entry]",
+      );
+      const field = tile?.querySelector("[data-slot=object-list-rename]");
+      expect(field?.getAttribute("data-layout")).toBe("stacked");
+      // The buttons sit under the field, and the tile's overlays step aside.
+      expect(field?.lastElementChild?.querySelectorAll("button")).toHaveLength(
+        2,
+      );
+      expect(
+        tile?.querySelector("[data-slot=object-list-entry-menu]"),
+      ).toBeNull();
+      expect(tile?.querySelector("[role=checkbox]")).toBeNull();
     });
   });
 

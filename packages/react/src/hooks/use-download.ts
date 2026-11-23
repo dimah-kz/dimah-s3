@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useId } from "react";
+import { useCallback, useContext, useId, useMemo } from "react";
 import type { S3Api } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { abortable } from "@/internal/abortable";
@@ -139,16 +139,28 @@ export function useDownload(options: UseDownloadOptions): UseDownloadReturn {
   const cancel = useCallback((key?: string) => store.cancel(key), [store]);
   const reset = useCallback((key?: string) => store.reset(key), [store]);
 
-  return {
-    kind: "navigate",
-    instanceId,
-    operations,
-    get,
-    pendingKeys,
-    isPending: pendingKeys.length > 0,
-    download,
-    presign,
-    cancel,
-    reset,
-  };
+  return useMemo(
+    () => ({
+      kind: "navigate" as const,
+      instanceId,
+      operations,
+      get,
+      pendingKeys,
+      isPending: pendingKeys.length > 0,
+      download,
+      presign,
+      cancel,
+      reset,
+    }),
+    [
+      instanceId,
+      operations,
+      get,
+      pendingKeys,
+      download,
+      presign,
+      cancel,
+      reset,
+    ],
+  );
 }

@@ -64,8 +64,20 @@ At each level, plugin guards run first, in plugin order, and yours runs last.
 
 `operation` in the context names the call, so one guard can branch on it:
 `"upload"`, `"confirm"`, `"download"`, `"file"`, `"delete"`, `"deleteMany"`,
-`"catalog"`, `"put"` for `s3.put`, the five `"multipart.*"` calls, `"plugin"`
-for a plugin endpoint, and `"record"` for [`s3.db.record`](/docs/db/api).
+`"catalog"`, `"put"` for `s3.put`, the five `"multipart.*"` calls, and
+`"plugin"` for every plugin call. A plugin call also carries `plugin`: the
+plugin id and the endpoint or action, such as
+`{ id: "db", action: "listObjects" }` or `{ id: "db", action: "record" }`
+for [`s3.db.record`](/docs/db/api):
+
+```ts
+guard: ({ operation, plugin, locals }) => {
+  if (operation !== "plugin") return;
+  if (plugin?.id === "db" && plugin.action === "deleteFolder" && !locals.isAdmin) {
+    throw s3Error("FORBIDDEN");
+  }
+},
+```
 
 ### Route guards
 
@@ -132,11 +144,12 @@ export const s3 = dimahS3({
 The instance guard receives a `GuardContext`. Every other hook context
 extends it.
 
-| Property    | Type            | Description                                                   |
-| ----------- | --------------- | ------------------------------------------------------------- |
-| `request`   | `Request`       | The incoming request, or a synthetic one for in-process calls |
-| `operation` | `S3Operation`   | The call this guard runs in                                   |
-| `locals`    | `DimahS3Locals` | Values from earlier guards in this call                       |
+| Property    | Type            | Description                                                       |
+| ----------- | --------------- | ----------------------------------------------------------------- |
+| `request`   | `Request`       | The incoming request, or a synthetic one for in-process calls     |
+| `operation` | `S3Operation`   | The call this guard runs in                                       |
+| `locals`    | `DimahS3Locals` | Values from earlier guards in this call                           |
+| `plugin?`   | `PluginCall`    | `{ id, action }` of a plugin call, when `operation` is `"plugin"` |
 
 `route.guard` receives a `RouteGuardContext`, which adds:
 

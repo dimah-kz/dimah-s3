@@ -286,3 +286,56 @@ describe("isS3ErrorCode", () => {
     ).toBe(false);
   });
 });
+
+describe("plugin error entries", () => {
+  const AUDIT_ERROR_CODES = defineErrorCodes({
+    AUDIT_ROUTE_UNTRACKED: {
+      status: 400,
+      message: 'Route "{route}" is not audited',
+    },
+    AUDIT_FULL: { status: 507, message: "Audit log is full" },
+  });
+
+  it("builds an APIError from an entry, with params typed by its message", () => {
+    const error = s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED, {
+      route: "avatars",
+    });
+    expect(error).toBeInstanceOf(APIError);
+    expect(error.statusCode).toBe(400);
+    expect(error.code).toBe("AUDIT_ROUTE_UNTRACKED");
+    expect(error.message).toBe('Route "avatars" is not audited');
+    expect(error.params).toEqual({ route: "avatars" });
+
+    expect(s3Error(AUDIT_ERROR_CODES.AUDIT_FULL).params).toBeUndefined();
+    // @ts-expect-error -- the message has a {route} placeholder
+    s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED);
+    // @ts-expect-error -- the message has no placeholders
+    s3Error(AUDIT_ERROR_CODES.AUDIT_FULL, { route: "x" });
+  });
+
+  it("matches an entry with isS3ErrorCode and narrows its params", () => {
+    const error: unknown = s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED, {
+      route: "avatars",
+    });
+    expect(isS3ErrorCode(error, AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED)).toBe(
+      true,
+    );
+    expect(isS3ErrorCode(error, AUDIT_ERROR_CODES.AUDIT_FULL)).toBe(false);
+    if (isS3ErrorCode(error, AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED)) {
+      expectTypeOf(error.code).toEqualTypeOf<"AUDIT_ROUTE_UNTRACKED">();
+      expectTypeOf(error.params.route).toEqualTypeOf<string | number>();
+    }
+  });
+
+  it("rejects a malformed code, status, or message", () => {
+    expect(() =>
+      defineErrorCodes({ auditOff: { status: 400, message: "Off" } }),
+    ).toThrow(/uppercase snake case/);
+    expect(() =>
+      defineErrorCodes({ AUDIT_OFF: { status: 4000, message: "Off" } }),
+    ).toThrow(/HTTP status/);
+    expect(() =>
+      defineErrorCodes({ AUDIT_OFF: { status: 400, message: "" } }),
+    ).toThrow(/needs a message/);
+  });
+});

@@ -55,6 +55,7 @@ const toastContentFiles: RegistryFile[] = [
 const uploadRootFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/upload/upload.tsx"),
   sourceFile("components/dimah-s3/list/object-list-context.tsx"),
+  sourceFile("lib/folder-upload.ts", "registry:lib"),
 ];
 
 const uploadPartFiles: RegistryFile[] = [
@@ -112,6 +113,8 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/list/object-list-upload.tsx"),
   sourceFile("components/dimah-s3/list/object-list-entry-menu.tsx"),
   sourceFile("components/dimah-s3/list/object-list-rename.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-delete.tsx"),
+  sourceFile("components/dimah-s3/list/object-list-move.tsx"),
   sourceFile("components/dimah-s3/list/object-list-feedback.tsx"),
   sourceFile(
     "components/dimah-s3/list/object-list-commands.ts",
@@ -122,6 +125,7 @@ const objectListFiles: RegistryFile[] = [
     "registry:hook",
   ),
   sourceFile("hooks/use-share-expiry-label.ts", "registry:hook"),
+  sourceFile("hooks/use-in-view.ts", "registry:hook"),
 ];
 
 /**
@@ -345,8 +349,10 @@ export const components: Registry["items"] = [
     type: "registry:component",
     title: "Object List",
     description:
-      "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk delete, drop upload, and a file menu.",
+      "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk move and delete, drop upload with folders, image thumbnails, and a file menu.",
     ...glyphInstallMeta,
+    // The Move dialog is a Base UI dialog of its own.
+    dependencies: [...glyphInstallMeta.dependencies, "@base-ui/react"],
     registryDependencies: [
       "alert-dialog",
       "attachment",
@@ -362,6 +368,7 @@ export const components: Registry["items"] = [
     ],
     files: files(
       objectListFiles,
+      [objectImageFile],
       uploadFamilyFiles,
       downloadFiles,
       deleteFiles,

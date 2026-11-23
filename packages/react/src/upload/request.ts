@@ -19,10 +19,13 @@ export function mergeUploadRequest(
   return merged;
 }
 
-/** The request options `input` gives for `file`. */
+/**
+ * The request options `input` gives for `file`. A promise when the
+ * function returns one.
+ */
 export function resolveUploadRequest(
   input: UploadRequestInput | undefined,
   file: File,
-): UploadRequestOptions | undefined {
+): UploadRequestOptions | Promise<UploadRequestOptions> | undefined {
   return typeof input === "function" ? input(file) : input;
 }

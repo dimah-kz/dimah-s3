@@ -4,19 +4,75 @@
  */
 export type S3ErrorEntry = { status: number; message: string; client?: true };
 
+/** A catalog entry tagged with its own key, as {@link defineErrorCodes} returns it. */
+export type S3ErrorCodeEntry = S3ErrorEntry & { readonly code: string };
+
+/**
+ * Error codes keyed by code, each entry tagged with its key. The core
+ * catalog and every plugin's `$ERROR_CODES` have this shape.
+ */
+export type S3ErrorCatalog = Readonly<Record<string, S3ErrorCodeEntry>>;
+
+/** A code name: an uppercase letter, then uppercase letters, digits, and `_`. */
+export const ERROR_CODE_PATTERN: RegExp = /^[A-Z][A-Z0-9_]*$/;
+
 /**
  * Tag each catalog entry with its own key as `code`.
- * Same idea as Better Auth `defineErrorCodes`.
+ * Same idea as Better Auth `defineErrorCodes`. A plugin builds its
+ * `$ERROR_CODES` with it.
+ *
+ * ```ts
+ * export const AUDIT_ERROR_CODES = defineErrorCodes({
+ *   AUDIT_ROUTE_UNTRACKED: { status: 400, message: 'Route "{route}" is not audited' },
+ * });
+ * ```
+ *
+ * @throws when a code is not uppercase snake case, a status is not an HTTP
+ * status, or a message is empty.
  */
 export function defineErrorCodes<const T extends Record<string, S3ErrorEntry>>(
   codes: T,
 ): { readonly [K in keyof T]: { readonly code: K } & T[K] } {
   const entries = {} as { [K in keyof T]: { readonly code: K } & T[K] };
-  for (const code of Object.keys(codes) as (keyof T)[]) {
-    entries[code] = { code, ...codes[code] };
+  for (const code of Object.keys(codes) as (keyof T & string)[]) {
+    const entry = codes[code];
+    if (!ERROR_CODE_PATTERN.test(code)) {
+      throw new Error(
+        `defineErrorCodes: "${code}" must be uppercase snake case, such as "QUOTA_EXCEEDED".`,
+      );
+    }
+    if (
+      !Number.isInteger(entry.status) ||
+      entry.status < 100 ||
+      entry.status > 599
+    ) {
+      throw new Error(`defineErrorCodes: "${code}" needs an HTTP status.`);
+    }
+    if (typeof entry.message !== "string" || entry.message === "") {
+      throw new Error(`defineErrorCodes: "${code}" needs a message.`);
+    }
+    entries[code] = { code, ...entry };
   }
   return entries;
 }
+
+/** Placeholder names in a message template: `"{a} of {b}"` → `"a" | "b"`. */
+type TemplateKeys<M extends string> =
+  M extends `${string}{${infer Key}}${infer Rest}`
+    ? Key | TemplateKeys<Rest>
+    : never;
+
+/**
+ * `params` for an entry, read from the `{name}` placeholders of its message:
+ * `undefined` when it has none. An entry whose message is a plain `string`
+ * takes any params.
+ */
+export type S3ErrorEntryParams<E extends S3ErrorEntry> =
+  string extends E["message"]
+    ? Record<string, string | number> | undefined
+    : [TemplateKeys<E["message"]>] extends [never]
+      ? undefined
+      : { [K in TemplateKeys<E["message"]>]: string | number };
 
 /**
  * Every error code the protocol knows, with its status and message template.

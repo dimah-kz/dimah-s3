@@ -156,9 +156,13 @@ Give the trigger and each icon action an accessible name.
 | `FileTypeGlyph`           | A colored glyph for the file type, from the content type or the extension |
 | `FolderGlyph`             | The folder glyph of the object list                                       |
 | `DismissAttachmentAction` | The dismiss icon button                                                   |
-| `AttachmentGroup`         | A horizontal, scrolling group of cards, from shadcn Attachment            |
-| `AttachmentAction`        | An icon button in the card's actions, from shadcn Attachment              |
-| `AttachmentTrigger`       | A button over the whole card, from shadcn Attachment                      |
+| `AttachmentGroup`         | A horizontal, scrolling group of cards                                    |
+| `AttachmentAction`        | An icon button in the card's actions                                      |
+| `AttachmentTrigger`       | A button over the whole card, or the element its `render` prop returns    |
+
+The last three render shadcn Attachment parts. From npm their props are
+`AttachmentGroupProps`, `AttachmentActionProps`, and `AttachmentTriggerProps`;
+with the registry, import them from `@/components/ui/attachment`.
 
 For chrome these do not cover, compose shadcn Attachment with the hooks. See
 [Custom UI](/docs/ui/custom-ui).

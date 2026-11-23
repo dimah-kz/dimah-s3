@@ -3,16 +3,22 @@ import {
   formatErrorMessage,
   S3_ERROR_CODES,
   type S3ErrorCode,
+  type S3ErrorCodeEntry,
+  type S3ErrorEntryParams,
   type S3ErrorParams,
 } from "./error-codes";
 
 export {
   defineErrorCodes,
+  ERROR_CODE_PATTERN,
   formatErrorMessage,
   S3_ERROR_CODES,
   type S3ClientErrorCode,
+  type S3ErrorCatalog,
   type S3ErrorCode,
+  type S3ErrorCodeEntry,
   type S3ErrorEntry,
+  type S3ErrorEntryParams,
   type S3ErrorParams,
   type S3ErrorParamsMap,
   type S3ErrorShape,
@@ -119,23 +125,48 @@ function catalogStatus(code: string): number | undefined {
     : undefined;
 }
 
+/** `params`, then `options`. `params` is optional when the message has no placeholders. */
+type S3ErrorArgs<P> = undefined extends P
+  ? [params?: P, options?: S3ErrorOptions]
+  : [params: P, options?: S3ErrorOptions];
+
+/** A core code, or an entry of a plugin's `$ERROR_CODES`. */
+type CodeOrEntry = S3ErrorCode | S3ErrorCodeEntry;
+
+/** The code a {@link CodeOrEntry} names. */
+type CodeOf<C extends CodeOrEntry> = C extends S3ErrorCodeEntry ? C["code"] : C;
+
+/** The `params` a {@link CodeOrEntry} takes. */
+type ParamsOf<C extends CodeOrEntry> = C extends S3ErrorCode
+  ? S3ErrorParams<C>
+  : C extends S3ErrorCodeEntry
+    ? S3ErrorEntryParams<C>
+    : never;
+
 /**
- * Build a catalog error: status from the entry, message filled from `params`.
- * `options.status` overrides the status; `options.cause` stays server-side.
+ * Build an error from a catalog entry: status from the entry, message filled
+ * from `params`. `options.status` overrides the status; `options.cause`
+ * stays server-side.
+ *
+ * Pass a core code, or an entry of a plugin's `$ERROR_CODES`:
+ *
+ * ```ts
+ * throw s3Error("FILE_TOO_LARGE", { size, maxFileSize });
+ * throw s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED, { route });
+ * ```
  */
-export function s3Error<C extends S3ErrorCode>(
+export function s3Error<C extends CodeOrEntry>(
   code: C,
-  ...args: S3ErrorParams<C> extends undefined
-    ? [params?: undefined, options?: S3ErrorOptions]
-    : [params: S3ErrorParams<C>, options?: S3ErrorOptions]
+  ...args: S3ErrorArgs<ParamsOf<C>>
 ): APIError {
   const [params, options] = args as [
     Record<string, string | number> | undefined,
     S3ErrorOptions | undefined,
   ];
-  const entry = S3_ERROR_CODES[code];
+  const entry: S3ErrorCodeEntry =
+    typeof code === "string" ? S3_ERROR_CODES[code as S3ErrorCode] : code;
   return new APIError(options?.status ?? entry.status, {
-    code,
+    code: entry.code,
     message: formatErrorMessage(entry.message, params),
     ...(params !== undefined ? { params } : {}),
     ...(options?.cause !== undefined ? { cause: options.cause } : {}),
@@ -163,12 +194,14 @@ export function isAPIError(error: unknown): error is APIError {
 }
 
 /**
- * True when `error` is an {@link APIError} with this catalog `code`, so its
- * `params` have that code's type.
+ * True when `error` is an {@link APIError} with this code, so its `params`
+ * have that code's type. Pass a core code, or an entry of a plugin's
+ * `$ERROR_CODES`.
  */
-export function isS3ErrorCode<C extends S3ErrorCode>(
+export function isS3ErrorCode<C extends CodeOrEntry>(
   error: unknown,
   code: C,
-): error is APIError & { code: C; params: S3ErrorParams<C> } {
-  return isAPIError(error) && error.code === code;
+): error is APIError & { code: CodeOf<C>; params: ParamsOf<C> } {
+  const name = typeof code === "string" ? code : code.code;
+  return isAPIError(error) && error.code === name;
 }

@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import { TranslationProvider } from "@fuma-translate/react";
 import {
   APIError,
+  defineErrorCodes,
   S3_ERROR_CODES,
   s3Error,
   validateFile,
   type S3ErrorCode,
 } from "@dimah-s3/core";
-import { S3LocaleContext } from "@/s3-provider";
+import {
+  S3FormatErrorContext,
+  S3LocaleContext,
+  type S3ErrorFormatter,
+} from "@/s3-provider";
 import { renderHook, renderHookWithI18n } from "@/test/render-hook";
 import { useFormatError } from "./format-error";
 
@@ -130,5 +135,53 @@ describe("useFormatError", () => {
       "حداکثر ۱۲ فایل",
     );
     hook.unmount();
+  });
+
+  it("asks the provider formatError first, for plugin and catalog codes", () => {
+    const AUDIT_ERROR_CODES = defineErrorCodes({
+      AUDIT_ROUTE_UNTRACKED: {
+        status: 400,
+        message: 'Route "{route}" is not audited',
+      },
+    });
+    const formatError: S3ErrorFormatter = (error) => {
+      if (error.code === "AUDIT_ROUTE_UNTRACKED") {
+        return `Audit is off for ${String(error.params?.route)}`;
+      }
+      if (error.code === "FORBIDDEN") return "Nope";
+      return undefined;
+    };
+    const hook = renderHook(useFormatError, {
+      wrapper: ({ children }) => (
+        <S3FormatErrorContext.Provider value={formatError}>
+          {children}
+        </S3FormatErrorContext.Provider>
+      ),
+    });
+
+    expect(
+      hook.current(
+        s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED, { route: "avatars" }),
+      ),
+    ).toBe("Audit is off for avatars");
+    expect(hook.current(s3Error("FORBIDDEN"))).toBe("Nope");
+    // `undefined` keeps the built-in message.
+    expect(hook.current(s3Error("OBJECT_NOT_FOUND"))).toBe("File not found");
+    hook.unmount();
+  });
+
+  it("returns a plugin code's server message without a formatError", () => {
+    const format = renderHookWithI18n(useFormatError);
+    const AUDIT_ERROR_CODES = defineErrorCodes({
+      AUDIT_ROUTE_UNTRACKED: {
+        status: 400,
+        message: 'Route "{route}" is not audited',
+      },
+    });
+    expect(
+      format(
+        s3Error(AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED, { route: "avatars" }),
+      ),
+    ).toBe('Route "avatars" is not audited');
   });
 });

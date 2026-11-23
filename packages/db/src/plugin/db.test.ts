@@ -11,7 +11,9 @@ import {
   s3Error,
   type DimahS3Config,
   type DimahS3RouteConfig,
+  type GuardContext,
 } from "@dimah-s3/server";
+import { definePlugin, type DimahS3Plugin } from "@dimah-s3/server/plugins";
 import { describe, expect, it, vi } from "vitest";
 import { DB_SCHEMA_VERSION } from "@/fuma-db";
 import { insertObject } from "@/test/databases";
@@ -128,6 +130,8 @@ function createSetup(
     routes?: Record<string, DimahS3RouteConfig>;
     plugin?: Partial<DbPluginOptions>;
     config?: Partial<DimahS3Config>;
+    /** Plugins registered before `db()`. */
+    plugins?: readonly DimahS3Plugin[];
   } = {},
 ) {
   const s3 = memoryS3();
@@ -140,8 +144,9 @@ function createSetup(
     logger,
     ...options.config,
     plugins: [
+      ...(options.plugins ?? []),
       db({ client: database, resolveScope: userScope, ...options.plugin }),
-    ],
+    ] as const,
     routes: options.routes ?? {
       uploads: route({ upload: true, download: true, delete: true }),
     },
@@ -843,5 +848,82 @@ describe("s3.db.record", () => {
         asUser("1"),
       ),
     ).rejects.toMatchObject({ code: "KEY_INVALID" });
+  });
+});
+
+describe("s3.db.record guards", () => {
+  const copy = { route: "uploads", key: "uploads/plan.pdf" };
+
+  async function putCopy(setup: ReturnType<typeof createSetup>) {
+    await setup.s3.client.send(
+      new PutObjectCommand({
+        Bucket: "bucket",
+        Key: copy.key,
+        Body: new TextEncoder().encode("plan-bytes"),
+        ContentType: "application/pdf",
+      }),
+    );
+  }
+
+  it("runs every plugin's instance guard, then the user and route guards", async () => {
+    const seen: string[] = [];
+    const record = (name: string) => (context: GuardContext) => {
+      seen.push(`${name}:${context.operation}:${context.plugin?.action}`);
+    };
+    const setup = createSetup({
+      plugins: [definePlugin({ id: "auth", hooks: { guard: record("auth") } })],
+      config: { guard: record("user") },
+      routes: { uploads: route({ upload: true, guard: record("route") }) },
+    });
+    await putCopy(setup);
+
+    await setup.instance.db.record(copy, asUser("1"));
+
+    expect(seen).toEqual([
+      "auth:plugin:record",
+      "user:plugin:record",
+      "route:plugin:record",
+    ]);
+  });
+
+  it("stops at another plugin's guard before reading the bucket", async () => {
+    const setup = createSetup({
+      plugins: [
+        definePlugin({
+          id: "auth",
+          hooks: {
+            guard: () => {
+              throw s3Error("UNAUTHORIZED");
+            },
+          },
+        }),
+      ],
+    });
+    await putCopy(setup);
+    vi.mocked(setup.s3.client.send).mockClear();
+
+    await expect(
+      setup.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(setup.s3.client.send).not.toHaveBeenCalled();
+    await expect(setup.instance.db.objects.usage("user:1")).resolves.toEqual({
+      totalBytes: 0,
+      objectCount: 0,
+    });
+  });
+
+  it("returns an unexpected failure as INTERNAL_ERROR and reports it", async () => {
+    const onError = vi.fn();
+    const failure = new Error("bucket offline");
+    const setup = createSetup({ config: { onError } });
+    vi.mocked(setup.s3.client.send).mockRejectedValueOnce(failure);
+
+    await expect(
+      setup.instance.db.record(copy, asUser("1")),
+    ).rejects.toMatchObject({ code: "INTERNAL_ERROR", statusCode: 500 });
+    expect(onError).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({ operation: "plugin" }),
+    );
   });
 });

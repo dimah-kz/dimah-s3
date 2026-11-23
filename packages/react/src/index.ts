@@ -3,7 +3,12 @@
 // protocol helpers and `APIError` from `@dimah-s3/core`.
 
 // ─── Provider and client ─────────────────────────────────────────────────────
-export { S3Provider, useS3Api, type S3ProviderProps } from "./s3-provider";
+export {
+  S3Provider,
+  useS3Api,
+  type S3ErrorFormatter,
+  type S3ProviderProps,
+} from "./s3-provider";
 export { createS3Client, type ReactS3Client } from "./create-s3-client";
 /** Generated key map. Use it with `satisfies Partial<Translations>`. */
 export type { Translations } from "./translations";

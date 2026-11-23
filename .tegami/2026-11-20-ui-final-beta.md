@@ -33,7 +33,7 @@ packages:
 - **Read less from `useObjectListContext()`.** It returns `list`, `selection`, `upload`, `download`, `share`, `delete`, `toasts`, `announce`, `view`, `setView`, `rootLabel`, `startNewFolder`, `startRename`, and `revealEntry`.
   - `label` → `rootLabel`.
   - `setNewFolderOpen(true)` → `startNewFolder()`. `newFolderOpen` is removed; the field closes itself.
-  - `sizing`, `showBreadcrumb`, `selectionActions`, `empty`, `pagination`, `onOpenItem`, `resolveFolderKeys`, `renamingKey`, `endRename`, and the four `render*` functions are removed from the context. Read them from the props you pass to `ObjectList`.
+  - `sizing`, `showBreadcrumb`, `selectionActions`, `empty`, `pagination`, `onOpenItem`, `renamingKey`, `endRename`, and the four `render*` functions are removed from the context. Read them from the props you pass to `ObjectList`.
 - **Rename the type `ObjectListPagination` to `ObjectListPaginationMode`.**
 - **Rename `AvatarUpload` `onChange` to `onUploaded`.** It still runs once per uploaded image with the `UploadResult`.
 - **Rename `ObjectListSearch` `delay` to `debounceMs`.**

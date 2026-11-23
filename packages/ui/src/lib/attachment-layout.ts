@@ -1,16 +1,13 @@
-import type { ComponentProps } from "react";
-import type { Attachment } from "@/components/ui/attachment";
-
 /**
- * Attachment state type, derived from the stock shadcn
- * {@link Attachment} (do not edit `components/ui/attachment.tsx`).
+ * The states of an attachment card. Spelled out rather than read from the
+ * stock shadcn Attachment, so a primitive sync cannot change the public
+ * type; `attachment-layout.test.tsx` checks the two still match.
  *
  * Named `attachment-layout` so the shadcn CLI does not collapse this module
  * onto the stock `attachment` primitive (same basename → `@/components/ui/attachment`).
  */
-export type AttachmentState = NonNullable<
-  ComponentProps<typeof Attachment>["state"]
->;
+export type AttachmentState =
+  "idle" | "uploading" | "processing" | "error" | "done";
 
 /** Error description: allow wrap past truncate (AttachmentDescription default). */
 export const ATTACHMENT_ERROR_DESCRIPTION_CLASS =

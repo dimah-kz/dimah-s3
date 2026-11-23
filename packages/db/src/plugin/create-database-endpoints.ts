@@ -1,5 +1,4 @@
 import { matchesSearchText, pluginPath, s3Error } from "@dimah-s3/core";
-import type { DimahS3Config } from "@dimah-s3/server";
 import { createS3Endpoint } from "@dimah-s3/server/plugins";
 import { childFolderPath } from "@/folder-path";
 import { formatStandardIssue, validateStandardSchema } from "@/standard-schema";
@@ -45,7 +44,14 @@ export type CreateDatabaseEndpointsOptions<
   toClientObject: (
     object: StorageObject<TAttributes>,
   ) => DbClientObject<TClientAttributes>;
+  /** The buckets the routes use, from the resolved routes. */
+  buckets: () => ReadonlySet<string>;
 };
+
+/** The endpoints `db()` mounts, keyed by their `dbClient()` method names. */
+export type DbEndpoints<TSession, TAttributes, TClientAttributes> = ReturnType<
+  typeof createDatabaseEndpoints<TSession, TAttributes, TClientAttributes>
+>;
 
 const utf8 = new TextEncoder();
 
@@ -56,15 +62,10 @@ const utf8 = new TextEncoder();
  * omitted and the routes use several.
  */
 function resolveBucket(
-  config: Readonly<DimahS3Config>,
+  buckets: ReadonlySet<string>,
   bucket: string | undefined,
   field: string,
 ): string {
-  const buckets = new Set<string>();
-  for (const route of Object.values(config.routes)) {
-    const routeBucket = route.bucket ?? config.bucket;
-    if (routeBucket) buckets.add(routeBucket);
-  }
   if (bucket === undefined) {
     const [only] = buckets;
     if (only !== undefined && buckets.size === 1) return only;
@@ -185,7 +186,7 @@ export function createDatabaseEndpoints<
 
   return {
     /** One page of the caller's objects. `folderId` omitted lists every folder. */
-    objects: createS3Endpoint(
+    listObjects: createS3Endpoint(
       pluginPath("db", "objects"),
       { method: "GET", query: dbListQuerySchema },
       async (ctx): Promise<DbClientListObjectsResponse<TClientAttributes>> => {
@@ -302,13 +303,13 @@ export function createDatabaseEndpoints<
     ),
 
     /** One object of the caller's scope. */
-    object: createS3Endpoint(
+    getObject: createS3Endpoint(
       pluginPath("db", "object"),
       { method: "GET", query: dbObjectQuerySchema },
       async (ctx): Promise<{ object: DbClientObject<TClientAttributes> }> => {
         const { key } = ctx.query;
         const bucket = resolveBucket(
-          ctx.context.config,
+          options.buckets(),
           ctx.query.bucket,
           "query.bucket",
         );
@@ -333,7 +334,7 @@ export function createDatabaseEndpoints<
       async (ctx): Promise<{ object: DbClientObject<TClientAttributes> }> => {
         const { key, name } = ctx.body;
         const bucket = resolveBucket(
-          ctx.context.config,
+          options.buckets(),
           ctx.body.bucket,
           "body.bucket",
         );
@@ -450,7 +451,11 @@ export function createDatabaseEndpoints<
       },
     ),
 
-    /** Removes an empty folder. A missing folder is not an error. */
+    /**
+     * Removes an empty folder. With `recursive`, the folders below it go
+     * too, as long as none of them holds an object. `authorize` sees the
+     * folder the call names. A missing folder is not an error.
+     */
     deleteFolder: createS3Endpoint(
       pluginPath("db", "folder"),
       { method: "DELETE", query: dbDeleteFolderQuerySchema },
@@ -464,7 +469,9 @@ export function createDatabaseEndpoints<
           operation: "folder.delete",
           ...folderTarget(current),
         });
-        await folders.delete(peeked.scope, current.id);
+        await folders.delete(peeked.scope, current.id, {
+          recursive: ctx.query.recursive === true,
+        });
         return { id: current.id };
       },
     ),

@@ -1,14 +1,15 @@
-import type { S3Client } from "@aws-sdk/client-s3";
 import {
   definePlugin,
-  isFeatureOn,
   type DimahS3Plugin,
   type PluginInitEnv,
 } from "@dimah-s3/server/plugins";
 import { createDbStore } from "@/store/create-db-store";
-import type { DbPluginOptions, DbRouteOptions } from "@/types/plugin";
+import type { DbPluginOptions } from "@/types/plugin";
 import type { StorageObject } from "@/types/storage-object";
-import { createDatabaseEndpoints } from "./create-database-endpoints";
+import {
+  createDatabaseEndpoints,
+  type DbEndpoints,
+} from "./create-database-endpoints";
 import {
   createDatabaseLifecycleHooks,
   type DbRoutes,
@@ -56,7 +57,9 @@ export type DbPluginContext<TAttributes = never> = {
  * from start to delete, binds upload tickets to the caller's scope, and
  * rejects calls on objects of another scope. It mounts `GET /db/objects`,
  * `GET /db/object`, `PATCH /db/object`, and the folder endpoints for
- * `dbClient()`.
+ * `dbClient()`. Guards see a call to one as `operation: "plugin"` with
+ * `plugin: { id: "db", action }`, where `action` is the `dbClient()`
+ * method name, such as `"listObjects"`.
  *
  * Every route is tracked unless it sets `plugins: { db: false }`.
  *
@@ -84,15 +87,19 @@ export function db<
   TClientAttributes = TAttributes,
 >(
   options: DbPluginOptions<TSession, TAttributes, TClientAttributes>,
-): DimahS3Plugin<"db", DbPluginContext<TAttributes>> {
-  let env: PluginInitEnv | undefined;
+): DimahS3Plugin<
+  "db",
+  DbPluginContext<TAttributes>,
+  DbEndpoints<TSession, TAttributes, TClientAttributes>
+> {
+  let env: PluginInitEnv<"db"> | undefined;
   const routes: DbRoutes = {
     tracked: (route) => env?.routeOptions(route) !== false,
     replace: (route) => {
-      const routeOptions = env?.routeOptions<DbRouteOptions>(route);
+      const routeOptions = env?.routeOptions(route);
       return routeOptions ? routeOptions.replace : undefined;
     },
-    client: (route) => routeClient(env, route),
+    client: (route) => env?.routes[route]?.client,
   };
 
   const store = createDbStore<TAttributes>(options.client);
@@ -142,6 +149,8 @@ export function db<
       quota,
       attributes: options.attributes,
       toClientObject,
+      buckets: () =>
+        new Set(Object.values(env?.routes ?? {}).map((route) => route.bucket)),
     }),
     context: {
       objects: stores.objects,
@@ -154,31 +163,23 @@ export function db<
   });
 }
 
-function routeClient(
-  env: PluginInitEnv | undefined,
-  route: string,
-): S3Client | undefined {
-  if (!env) return undefined;
-  const { routes, client } = env.config;
-  const config = Object.hasOwn(routes, route) ? routes[route] : undefined;
-  return config?.client ?? client;
-}
-
 /**
  * Warns once per route that turns db off while its download or delete has
  * no route or feature guard: nothing then checks who owns the object.
  */
-function warnUnguardedRoutes(env: PluginInitEnv): void {
-  for (const [name, route] of Object.entries(env.config.routes)) {
-    if (env.routeOptions(name) !== false || route.guard) continue;
+function warnUnguardedRoutes(env: PluginInitEnv<"db">): void {
+  for (const route of Object.values(env.routes)) {
+    // The route's own guards are user config; `routes` holds the rest.
+    const config = env.config.routes[route.name];
+    if (route.options !== false || config.guard) continue;
     const unguarded = (["download", "delete"] as const).filter((feature) => {
-      const toggle = route[feature];
-      if (!isFeatureOn(toggle)) return false;
+      if (!route[feature].enabled) return false;
+      const toggle = config[feature];
       return typeof toggle !== "object" || !toggle.guard;
     });
     if (unguarded.length === 0) continue;
     env.logger.warn?.(
-      `[dimah-s3/db] Route "${name}" sets plugins: { db: false } and has no guard on ${unguarded.join(" or ")}, so any caller can reach every object on it. Add a route or feature guard.`,
+      `[dimah-s3/db] Route "${route.name}" sets plugins: { db: false } and has no guard on ${unguarded.join(" or ")}, so any caller can reach every object on it. Add a route or feature guard.`,
     );
   }
 }

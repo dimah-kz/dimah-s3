@@ -134,6 +134,11 @@
           "target": "@components/dimah-s3/list/object-list-context.tsx"
         },
         {
+          "path": "src/lib/folder-upload.ts",
+          "type": "registry:lib",
+          "target": "@lib/folder-upload.ts"
+        },
+        {
           "path": "src/components/dimah-s3/upload/upload-trigger.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-trigger.tsx"
@@ -296,6 +301,11 @@
           "target": "@components/dimah-s3/list/object-list-context.tsx"
         },
         {
+          "path": "src/lib/folder-upload.ts",
+          "type": "registry:lib",
+          "target": "@lib/folder-upload.ts"
+        },
+        {
           "path": "src/components/dimah-s3/upload/upload-trigger.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload-trigger.tsx"
@@ -443,6 +453,11 @@
           "path": "src/components/dimah-s3/list/object-list-context.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-context.tsx"
+        },
+        {
+          "path": "src/lib/folder-upload.ts",
+          "type": "registry:lib",
+          "target": "@lib/folder-upload.ts"
         },
         {
           "path": "src/components/dimah-s3/preview/object-image.tsx",
@@ -809,14 +824,15 @@
       "name": "object-list",
       "type": "registry:component",
       "title": "Object List",
-      "description": "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk delete, drop upload, and a file menu.",
+      "description": "Composable file and folder browser: list and grid views, search, sort, folders, selection with bulk move and delete, drop upload with folders, image thumbnails, and a file menu.",
       "dependencies": [
         "@dimah-s3/core@^2.0.0-beta.0",
         "@dimah-s3/react@^2.0.0-beta.0",
         "@fuma-translate/react",
         "cn",
         "lucide-react",
-        "react-file-icon"
+        "react-file-icon",
+        "@base-ui/react"
       ],
       "cssVars": {
         "light": {
@@ -918,6 +934,16 @@
           "target": "@components/dimah-s3/list/object-list-rename.tsx"
         },
         {
+          "path": "src/components/dimah-s3/list/object-list-delete.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-delete.tsx"
+        },
+        {
+          "path": "src/components/dimah-s3/list/object-list-move.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/list/object-list-move.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/list/object-list-feedback.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-feedback.tsx"
@@ -938,6 +964,16 @@
           "target": "@hooks/use-share-expiry-label.ts"
         },
         {
+          "path": "src/hooks/use-in-view.ts",
+          "type": "registry:hook",
+          "target": "@hooks/use-in-view.ts"
+        },
+        {
+          "path": "src/components/dimah-s3/preview/object-image.tsx",
+          "type": "registry:component",
+          "target": "@components/dimah-s3/preview/object-image.tsx"
+        },
+        {
           "path": "src/components/dimah-s3/upload/upload.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/upload/upload.tsx"
@@ -946,6 +982,11 @@
           "path": "src/components/dimah-s3/list/object-list-context.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/list/object-list-context.tsx"
+        },
+        {
+          "path": "src/lib/folder-upload.ts",
+          "type": "registry:lib",
+          "target": "@lib/folder-upload.ts"
         },
         {
           "path": "src/components/dimah-s3/upload/upload-trigger.tsx",

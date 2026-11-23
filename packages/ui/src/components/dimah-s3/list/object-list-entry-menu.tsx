@@ -15,9 +15,11 @@ import {
   type UseDownloadReturn,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
+import { cn } from "cn";
 import {
   CloudUpload,
   DownloadIcon,
+  FolderInputIcon,
   FolderOpenIcon,
   LinkIcon,
   LoaderIcon,
@@ -40,9 +42,10 @@ import {
   useOptionalObjectListContext,
   useOptionalObjectListEntryScope,
 } from "@/components/dimah-s3/list/object-list-context";
+import { useObjectListDeleteRequest } from "@/components/dimah-s3/list/object-list-delete";
 import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
-import { folderUploadCall } from "@/components/dimah-s3/list/object-list-upload";
 import { useShareExpiryLabel } from "@/hooks/use-share-expiry-label";
+import { folderUploadCall } from "@/lib/folder-upload";
 
 /** One extra row in {@link ObjectListEntryMenu}. */
 export type ObjectListEntryMenuAction = {
@@ -95,10 +98,12 @@ export type ObjectListEntryMenuProps = {
  * Overflow menu for one entry.
  *
  * - Files: Download, Copy link, Rename when the source has `renameFile`,
- *   your actions, Delete.
+ *   Move to when it has `moveFile`, your actions, Delete.
  * - Folders: Upload to this folder (the keyboard path to a folder drop),
- *   Rename when the source has `renameFolder`, then your actions. Upload
- *   is disabled while the list's `upload` is.
+ *   Rename when the source has `renameFolder`, Move to when it has
+ *   `moveFolder`, your actions, then Delete when the list has `delete` and
+ *   the source has `deleteFolder`. Upload is disabled while the list's
+ *   `upload` is.
  * - Search results that know where they live start with Show in folder,
  *   which leaves the search, opens that folder, and focuses the entry.
  *
@@ -148,8 +153,13 @@ export function ObjectListEntryMenu({
       entry != null &&
       (entry.kind === "file" ? scope?.renameFile : scope?.renameFolder) ===
         true,
+    move:
+      entry != null &&
+      (entry.kind === "file" ? scope?.moveFile : scope?.moveFolder) === true,
     extra: (actions?.length ?? 0) > 0 || children != null,
-    delete: isFile && scope?.delete === true,
+    delete: folder
+      ? scope?.deleteFolder === true
+      : isFile && scope?.delete === true,
   };
   if (!isFile && !folder) return null;
   if (!Object.values(rows).some(Boolean)) return null;
@@ -185,7 +195,11 @@ export function ObjectListEntryMenu({
             data-slot="object-list-entry-menu"
             // In an entry, Tab and the arrow keys from the entry reach it.
             tabIndex={entry ? -1 : undefined}
-            className={className}
+            // A touch target in a row; a smaller one over a tile's preview.
+            className={cn(
+              "pointer-coarse:size-9 pointer-coarse:in-data-[view=grid]:size-8",
+              className,
+            )}
           />
         }
       >
@@ -268,6 +282,7 @@ type MenuRows = {
   download: boolean;
   link: boolean;
   rename: boolean;
+  move: boolean;
   extra: boolean;
   delete: boolean;
 };
@@ -324,7 +339,9 @@ function ItemMenuItems({
     rows.reveal && context != null && entry != null
       ? () => context.revealEntry(entry)
       : null;
-  const showMain = uploadToFolder != null || showTransfer || canRename;
+  const canMove = rows.move && context != null && entry != null;
+  const showMain =
+    uploadToFolder != null || showTransfer || canRename || canMove;
 
   return (
     <>
@@ -339,7 +356,7 @@ function ItemMenuItems({
       {reveal && (showMain || showExtra || rows.delete) ? (
         <DropdownMenuSeparator />
       ) : null}
-      {uploadToFolder || showTransfer || canRename ? (
+      {showMain ? (
         <DropdownMenuGroup>
           {uploadToFolder ? (
             <DropdownMenuItem
@@ -376,11 +393,21 @@ function ItemMenuItems({
               {t("Rename", { note: "object list menu" })}
             </DropdownMenuItem>
           ) : null}
+          {canMove ? (
+            <DropdownMenuItem
+              onClick={() => {
+                if (entry) {
+                  context?.startMove([entry], { trigger: triggerRef.current });
+                }
+              }}
+            >
+              <FolderInputIcon />
+              {t("Move to…", { note: "object list menu" })}
+            </DropdownMenuItem>
+          ) : null}
         </DropdownMenuGroup>
       ) : null}
-      {showExtra && (showTransfer || uploadToFolder || canRename) ? (
-        <DropdownMenuSeparator />
-      ) : null}
+      {showExtra && showMain ? <DropdownMenuSeparator /> : null}
       {showExtra ? (
         <DropdownMenuGroup>
           {extra.map((action, index) => (
@@ -397,17 +424,19 @@ function ItemMenuItems({
           {children}
         </DropdownMenuGroup>
       ) : null}
-      {remove && (showTransfer || uploadToFolder || canRename || showExtra) ? (
-        <DropdownMenuSeparator />
-      ) : null}
+      {remove && (showMain || showExtra) ? <DropdownMenuSeparator /> : null}
       {remove ? (
         <DropdownMenuGroup>
-          <DeleteItem
-            objectKey={objectKey}
-            fileName={fileName}
-            fileSize={fileSize}
-            triggerRef={triggerRef}
-          />
+          {entry?.kind === "folder" ? (
+            <FolderDeleteItem triggerRef={triggerRef} />
+          ) : (
+            <DeleteItem
+              objectKey={objectKey}
+              fileName={fileName}
+              fileSize={fileSize}
+              triggerRef={triggerRef}
+            />
+          )}
         </DropdownMenuGroup>
       ) : null}
     </>
@@ -590,6 +619,33 @@ function DeleteItem({
       }
     >
       {deleting ? <LoaderIcon className="animate-spin" /> : <Trash2Icon />}
+      {t("Delete", { note: "button" })}
+    </DropdownMenuItem>
+  );
+}
+
+/**
+ * Asks the list to delete the folder of this row, with everything in it.
+ * Focus returns to the menu trigger, or to the list once the row is gone.
+ */
+function FolderDeleteItem({
+  triggerRef,
+}: {
+  triggerRef: RefObject<HTMLButtonElement | null>;
+}) {
+  const t = useTranslations();
+  const entry = useObjectListEntry();
+  const requestDelete = useObjectListDeleteRequest();
+  const { isDeleting } = useDeleteContext();
+  if (!entry || !requestDelete) return null;
+
+  return (
+    <DropdownMenuItem
+      variant="destructive"
+      disabled={isDeleting}
+      onClick={() => requestDelete([entry], { trigger: triggerRef.current })}
+    >
+      <Trash2Icon />
       {t("Delete", { note: "button" })}
     </DropdownMenuItem>
   );

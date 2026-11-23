@@ -95,8 +95,10 @@ export function AttachmentUploader() {
 }
 ```
 
-Codes it does not know, and plain `Error`s, return their `message`. To branch
-on a code, see [Outcomes and errors](/docs/react/guides/outcomes#errors).
+Codes it does not know, such as a plugin's, and plain `Error`s, return their
+`message`. Word those with the provider's
+[`formatError`](/docs/react/setup#plugin-error-messages). To branch on a
+code, see [Outcomes and errors](/docs/react/guides/outcomes#errors).
 
 ## Plain formatters
 

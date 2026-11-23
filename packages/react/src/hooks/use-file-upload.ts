@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  isAPIError,
   s3Error,
   validateFile,
   type APIError,
@@ -38,6 +39,7 @@ import {
 import { requireApi, toClientError } from "@/internal/client-error";
 import { concurrencyLimit } from "@/internal/pool";
 import { freeUploadSlots, reserveUploadSlots } from "@/internal/upload-limits";
+import { createMemoryUploadStore } from "@/store/memory-store";
 import type { TransferProgress } from "@/types/operation";
 import type {
   FileRejection,
@@ -50,13 +52,16 @@ import type {
   UploadResult,
   UseUploadOptions,
 } from "@/types/upload";
-import { uploadAbortReason } from "@/upload/abort";
+import type { UploadStore } from "@/types/upload-store";
+import { getUploadAbortKind, uploadAbortReason } from "@/upload/abort";
 import {
   DEFAULT_CONCURRENT_FILES,
   DEFAULT_MAX_FILES,
 } from "@/upload/constants";
+import { discardStoredUpload } from "@/upload/multipart";
 import { transferProgress } from "@/upload/progress";
 import { mergeUploadRequest, resolveUploadRequest } from "@/upload/request";
+import { multipartResumeKey } from "@/upload/resume-key";
 import { uploadFile } from "@/upload/upload-file";
 
 /** @internal The queue part of `UseUploadOptions`, without the intake flags. */
@@ -92,6 +97,10 @@ export type UseFileUploadReturn = {
   ) => Promise<UploadBatchResult>;
   /** Uploads the failed files `ids` again, or every failed file. */
   retry: (ids?: string | readonly string[]) => Promise<UploadBatchResult>;
+  /** Pauses the files `ids`, or every file and preparing call. */
+  pause: (ids?: string | readonly string[]) => void;
+  /** Resumes the paused files `ids`, or every paused file. */
+  resume: (ids?: string | readonly string[]) => void;
   /** Cancels the files `ids`, or every file and preparing call. */
   cancel: (ids?: string | readonly string[]) => void;
   /** Stops every file but keeps stored multipart uploads for resuming. */
@@ -110,7 +119,10 @@ export type UseFileUploadReturn = {
  * `beforeUpload` and `onUploadStart` once. Valid files share one pool of
  * `concurrentFiles` uploads across calls. Each file can be cancelled on its
  * own. A cancelled or detached file leaves the queue and counts as `aborted`.
- * A failed file can be retried in place. Unmounting detaches the files whose
+ * A failed file can be retried in place. A paused file stays in the queue,
+ * and its call waits for it. Multipart uploads resume from the parts S3
+ * already has: through the call's `uploadStore`, else through a store the
+ * queue keeps for the page session. Unmounting detaches the files whose
  * call had an `uploadStore`, so they can resume, and cancels the rest.
  *
  * The limits `useUploadLimit` sets for `instanceId` cap every call: a call
@@ -150,6 +162,8 @@ export function useFileUpload(
     fileRejections,
     upload: queue.upload,
     retry: queue.retry,
+    pause: queue.pause,
+    resume: queue.resume,
     cancel: queue.cancel,
     detach: queue.detach,
     reset: queue.reset,
@@ -194,13 +208,25 @@ type CallConfig = {
   policy: EnginePolicy;
 };
 
-/** A queued or running file. */
+/** A queued, running or paused file. */
 type Task = {
   id: string;
   file: File;
   config: CallConfig;
+  /** The current attempt's controller. A resume starts a new one. */
   controller: AbortController;
-  running: boolean;
+  state: "waiting" | "running" | "paused";
+  /** A running attempt is stopping for a pause. */
+  pausing: boolean;
+  /** Resume once the attempt that is stopping for a pause has stopped. */
+  resumeAfterPause: boolean;
+  /** Cancelled while its attempt stopped for a pause, which kept the session. */
+  cancelledWhilePausing: boolean;
+  /**
+   * The request options the first attempt resolved. A resume sends them
+   * again, so it finds the same stored session.
+   */
+  request: UploadRequestOptions | null;
   resolve: (outcome: FileOutcome) => void;
 };
 
@@ -210,6 +236,14 @@ const ACTIVE_PHASES: ReadonlySet<UploadFilePhase> = new Set([
   "presigning",
   "uploading",
   "finalizing",
+]);
+
+/** A file this close to its end finishes instead of pausing. */
+const PAUSABLE_PHASES: ReadonlySet<UploadFilePhase> = new Set([
+  "queued",
+  "preparing",
+  "presigning",
+  "uploading",
 ]);
 
 function createUploadQueue(
@@ -226,6 +260,16 @@ function createUploadQueue(
   let callCount = 0;
   /** Entries a retry put back in the queue, by id, while its call prepares. */
   const retrying = new Map<string, AbortController>();
+  /** Preparing calls `pause()` reached: their files enter the queue paused. */
+  const pausedCalls = new Set<AbortController>();
+  /** Retried entries `pause(id)` reached while their call prepares. */
+  const pausedEntries = new Set<string>();
+  /**
+   * Keeps the multipart sessions of calls without an `uploadStore` while
+   * their files are paused, so a resume continues within the page session.
+   * Every other end discards what it holds.
+   */
+  const sessionStore = createMemoryUploadStore();
   let running = 0;
   // The newest render's options and provider API. Each call snapshots its own
   // config; callbacks always read the newest.
@@ -273,6 +317,7 @@ function createUploadQueue(
       if (shouldRemove(entry)) {
         revokePreviewUrl(entry.previewUrl);
         entryCalls.delete(entry.id);
+        pausedEntries.delete(entry.id);
       } else {
         kept.push(entry);
       }
@@ -280,14 +325,43 @@ function createUploadQueue(
     if (kept.length !== snapshot.files.length) commit({ files: kept });
   }
 
+  /** The store a task's multipart session lives in. */
+  function storeOf(task: Task): UploadStore {
+    return task.config.options.uploadStore ?? sessionStore;
+  }
+
+  /**
+   * Aborts the multipart session a task's earlier attempt kept, and deletes
+   * its record. A task that never resolved its request has none.
+   */
+  function discardSession(task: Task) {
+    if (task.request === null) return;
+    const { api, options } = task.config;
+    void discardStoredUpload(
+      api,
+      storeOf(task),
+      multipartResumeKey(options.route, task.file, task.request),
+      task.file.size,
+    );
+  }
+
   function abortTask(task: Task, reason: DOMException) {
-    if (task.running) {
-      task.controller.abort(reason);
+    const kind = getUploadAbortKind(reason) ?? "cancel";
+    if (task.state === "running") {
+      // A pause already aborted the attempt as a detach; the end decides.
+      if (task.pausing && kind === "cancel") task.cancelledWhilePausing = true;
+      task.pausing = false;
+      task.resumeAfterPause = false;
+      if (!task.controller.signal.aborted) task.controller.abort(reason);
       return;
     }
-    waiting.splice(waiting.indexOf(task), 1);
+    if (task.state === "waiting") waiting.splice(waiting.indexOf(task), 1);
     tasks.delete(task.id);
     removeFiles((entry) => entry.id === task.id);
+    // A detach keeps a session only in the call's own `uploadStore`.
+    if (kind === "cancel" || task.config.options.uploadStore == null) {
+      discardSession(task);
+    }
     task.resolve({ status: "aborted", file: task.file });
   }
 
@@ -296,18 +370,27 @@ function createUploadQueue(
     for (const task of tasks.values()) abortTask(task, reason);
   }
 
-  function schedule(entry: UploadFileState, config: CallConfig) {
+  function schedule(
+    entry: UploadFileState,
+    config: CallConfig,
+    paused: boolean,
+  ) {
     const { promise, resolve } = Promise.withResolvers<FileOutcome>();
     const task: Task = {
       id: entry.id,
       file: entry.file,
       config,
       controller: new AbortController(),
-      running: false,
+      state: paused ? "paused" : "waiting",
+      pausing: false,
+      resumeAfterPause: false,
+      cancelledWhilePausing: false,
+      request: null,
       resolve,
     };
     tasks.set(task.id, task);
-    waiting.push(task);
+    if (paused) patchFile(task.id, { phase: "paused" });
+    else waiting.push(task);
     pump();
     return promise;
   }
@@ -325,10 +408,33 @@ function createUploadQueue(
 
   async function run(task: Task) {
     running += 1;
-    task.running = true;
+    task.state = "running";
     const outcome = await execute(task);
     running -= 1;
+    if (outcome.status === "aborted" && task.pausing) {
+      // The attempt stopped for a pause: the file waits in the queue.
+      task.pausing = false;
+      task.controller = new AbortController();
+      if (task.resumeAfterPause) {
+        task.resumeAfterPause = false;
+        task.state = "waiting";
+        waiting.push(task);
+        patchFile(task.id, { phase: "queued" });
+      } else {
+        task.state = "paused";
+      }
+      pump();
+      return;
+    }
     tasks.delete(task.id);
+    // A detach or a failure keeps a session only in the call's own
+    // `uploadStore`; a cancel during a pause keeps none.
+    if (
+      outcome.status !== "success" &&
+      (task.cancelledWhilePausing || task.config.options.uploadStore == null)
+    ) {
+      discardSession(task);
+    }
     if (outcome.status === "success") {
       patchFile(task.id, {
         phase: "success",
@@ -350,18 +456,31 @@ function createUploadQueue(
     const { signal } = task.controller;
     const speed = createThrottledSpeedUpdater(createSpeedTracker());
 
-    let request: UploadRequestOptions;
-    try {
-      request = mergeUploadRequest(
-        resolveUploadRequest(options.uploadOptions, file),
-        resolveUploadRequest(call.uploadOptions, file),
-      );
-    } catch (error) {
-      return {
-        status: "error",
-        file,
-        error: hookFailed("uploadOptions", error),
-      };
+    let request = task.request;
+    if (request === null) {
+      try {
+        const base = resolveUploadRequest(options.uploadOptions, file);
+        const own = resolveUploadRequest(call.uploadOptions, file);
+        // Options that take a moment, such as a folder to create first.
+        if (isPromise(base) || isPromise(own)) {
+          patchFile(id, { phase: "preparing" });
+          const [resolvedBase, resolvedOwn] = await abortable(
+            Promise.all([base, own]),
+            signal,
+          );
+          request = mergeUploadRequest(resolvedBase, resolvedOwn);
+        } else {
+          request = mergeUploadRequest(base, own);
+        }
+      } catch (error) {
+        if (signal.aborted) return { status: "aborted", file };
+        return {
+          status: "error",
+          file,
+          error: isAPIError(error) ? error : hookFailed("uploadOptions", error),
+        };
+      }
+      task.request = request;
     }
 
     // Engine callbacks stop once the file is cancelled or detached.
@@ -371,7 +490,7 @@ function createUploadQueue(
         policy,
         concurrentParts: options.concurrentParts,
         retry: options.retry,
-        uploadStore: options.uploadStore,
+        uploadStore: storeOf(task),
         request,
         signal,
         onPhaseChange: (phase) => {
@@ -591,6 +710,7 @@ function createUploadQueue(
       retried.length === 0 ? Math.min(files.length, maxFiles) : 0,
     );
     let prepared: Prepared;
+    let startPaused = false;
     try {
       prepared = await prepare(
         api,
@@ -604,6 +724,7 @@ function createUploadQueue(
       // and take these slots over.
       release();
       preparingCalls.delete(controller);
+      startPaused = pausedCalls.delete(controller);
       for (const id of previous.keys()) retrying.delete(id);
       commit({ preparing: snapshot.preparing - 1 });
     }
@@ -702,7 +823,9 @@ function createUploadQueue(
         if (retried.length === 0) {
           const entries = prepared.files.map(createEntry);
           enqueue(entries, entryCall, options, true);
-          scheduled = entries.map((entry) => schedule(entry, config));
+          scheduled = entries.map((entry) =>
+            schedule(entry, config, startPaused),
+          );
         } else {
           const kept = new Set<string>();
           scheduled = prepared.files.map((file) => {
@@ -711,7 +834,8 @@ function createUploadQueue(
               return Promise.resolve<FileOutcome>({ status: "aborted", file });
             }
             kept.add(entry.id);
-            return schedule(entry, config);
+            const paused = pausedEntries.delete(entry.id) || startPaused;
+            return schedule(entry, config, paused);
           });
           // Files the policy now rejects show in `fileRejections` instead.
           dropRetried(kept);
@@ -788,6 +912,64 @@ function createUploadQueue(
     if (![...retrying.values()].includes(controller)) controller.abort(reason);
   }
 
+  function pause(ids?: string | readonly string[]) {
+    if (ids === undefined) {
+      for (const controller of preparingCalls) pausedCalls.add(controller);
+      for (const task of tasks.values()) pauseTask(task);
+      return;
+    }
+    for (const id of toIds(ids)) {
+      const task = tasks.get(id);
+      if (task) pauseTask(task);
+      else if (retrying.has(id)) pausedEntries.add(id);
+    }
+  }
+
+  function pauseTask(task: Task) {
+    if (task.state === "paused" || task.pausing) return;
+    const entry = snapshot.files.find(({ id }) => id === task.id);
+    if (!entry || !PAUSABLE_PHASES.has(entry.phase)) return;
+    if (task.state === "running") {
+      // A detach keeps the multipart session; `run` sees the pause.
+      task.pausing = true;
+      task.controller.abort(uploadAbortReason("detach"));
+    } else {
+      waiting.splice(waiting.indexOf(task), 1);
+      task.state = "paused";
+    }
+    const { loaded, total } = entry.progress;
+    patchFile(task.id, {
+      phase: "paused",
+      progress: transferProgress(loaded, total),
+    });
+  }
+
+  function resume(ids?: string | readonly string[]) {
+    if (ids === undefined) {
+      pausedCalls.clear();
+      pausedEntries.clear();
+      for (const task of tasks.values()) resumeTask(task);
+    } else {
+      for (const id of toIds(ids)) {
+        const task = tasks.get(id);
+        if (task) resumeTask(task);
+        else pausedEntries.delete(id);
+      }
+    }
+    pump();
+  }
+
+  function resumeTask(task: Task) {
+    if (task.pausing) {
+      task.resumeAfterPause = true;
+      return;
+    }
+    if (task.state !== "paused") return;
+    task.state = "waiting";
+    waiting.push(task);
+    patchFile(task.id, { phase: "queued" });
+  }
+
   function detach() {
     abortAll(uploadAbortReason("detach"));
   }
@@ -796,7 +978,8 @@ function createUploadQueue(
     const wanted = ids === undefined ? null : new Set(toIds(ids));
     removeFiles(
       (entry) =>
-        !ACTIVE_PHASES.has(entry.phase) && (wanted?.has(entry.id) ?? true),
+        (entry.phase === "success" || entry.phase === "error") &&
+        (wanted?.has(entry.id) ?? true),
     );
     if (wanted === null && snapshot.fileRejections.length > 0) {
       commit({ fileRejections: [] });
@@ -824,6 +1007,8 @@ function createUploadQueue(
     configure,
     upload,
     retry,
+    pause,
+    resume,
     cancel,
     detach,
     reset,
@@ -913,10 +1098,12 @@ function summarize(files: readonly UploadFileState[]) {
   let total = 0;
   let speed: number | undefined;
   let active = false;
+  let paused = false;
   const failed: APIError[] = [];
   for (const entry of files) {
     loaded += entry.progress.loaded;
     total += entry.progress.total;
+    if (entry.phase === "paused") paused = true;
     if (ACTIVE_PHASES.has(entry.phase)) {
       active = true;
       if (entry.progress.speed !== undefined) {
@@ -928,7 +1115,13 @@ function summarize(files: readonly UploadFileState[]) {
 
   const progress = transferProgress(loaded, total);
   const phase: UploadPhase =
-    files.length === 0 ? "idle" : failed.length > 0 ? "error" : "success";
+    files.length === 0
+      ? "idle"
+      : paused
+        ? "paused"
+        : failed.length > 0
+          ? "error"
+          : "success";
   const error =
     failed.length === 0
       ? null
@@ -944,4 +1137,10 @@ function summarize(files: readonly UploadFileState[]) {
     progress: speed === undefined ? progress : { ...progress, speed },
     error,
   };
+}
+
+function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
+  return (
+    typeof (value as { then?: unknown } | null | undefined)?.then === "function"
+  );
 }

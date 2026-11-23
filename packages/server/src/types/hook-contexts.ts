@@ -6,8 +6,9 @@ import type {
 import type { DimahS3Locals } from "./locals";
 
 /**
- * The call a hook runs in. Plugin endpoints use `"plugin"`. `"record"` is
- * `s3.db.record`, which is not an HTTP route.
+ * The call a hook runs in. Every plugin call, an HTTP endpoint or an
+ * in-process call such as `s3.db.record`, is `"plugin"`; the context's
+ * `plugin` names it.
  */
 export type S3Operation =
   | "upload"
@@ -23,8 +24,21 @@ export type S3Operation =
   | "multipart.listParts"
   | "multipart.complete"
   | "multipart.abort"
-  | "plugin"
-  | "record";
+  | "plugin";
+
+/**
+ * Which plugin call a hook runs in, on every context whose `operation` is
+ * `"plugin"`.
+ */
+export type PluginCall = {
+  /** Plugin id, such as `"db"`. */
+  id: string;
+  /**
+   * The endpoint's name in the plugin's `endpoints` (`"listObjects"`), or
+   * the action an in-process call passed to `runOperation` (`"record"`).
+   */
+  action: string;
+};
 
 /**
  * How the bytes reach S3: a presigned POST or PUT from the browser, a
@@ -40,6 +54,8 @@ export type GuardContext = {
   operation: S3Operation;
   /** Values from earlier guards in this call. See {@link DimahS3Locals}. */
   locals: DimahS3Locals;
+  /** The plugin call, when `operation` is `"plugin"`. */
+  plugin?: PluginCall;
 };
 
 /** Context for a route `guard`. It runs before every operation on the route. */

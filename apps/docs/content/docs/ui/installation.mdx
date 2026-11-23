@@ -83,6 +83,20 @@ export default function RootLayout({
 
 With the registry, import it from `@/components/ui/toast`.
 
+`limit` (default `3`) caps the toasts shown at once, and `timeout` (default
+`5000` ms, `0` to keep them open) sets how long a result stays. Show your own
+toasts in the same stack with `toast`:
+
+```tsx
+import { toast } from "@dimah-s3/ui";
+
+toast.add({
+  type: "error",
+  title: "Could not save",
+  action: { label: "Retry", onClick: save },
+});
+```
+
 ### Render a component [step]
 
 ```tsx title="components/attachments.tsx"

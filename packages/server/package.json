@@ -76,6 +76,10 @@
       "types": "./dist/plugins.d.ts",
       "default": "./dist/plugins.js"
     },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

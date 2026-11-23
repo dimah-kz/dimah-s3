@@ -490,6 +490,36 @@ describe.each(testDatabases)("folder store ($name)", (factory) => {
       await expect(paths()).resolves.toEqual([]);
     });
 
+    it("removes the folders below with recursive, deepest first", async () => {
+      const top = await nest("a/b/c");
+      await nest("a/d");
+      await nest("e");
+      const a = (await folders().children("user:1", null)).find(
+        (folder) => folder.name === "a",
+      );
+      expect(top.path).toBe("a/b/c");
+
+      await folders().delete("user:1", a?.id ?? "", { recursive: true });
+      await expect(paths()).resolves.toEqual(["e"]);
+    });
+
+    it("keeps a recursive delete from removing a folder that holds an object", async () => {
+      const deep = await nest("a/b/c");
+      await nest("a/d");
+      await insertObject(client(), { key: "k", folderId: deep.id });
+      const a = (await folders().children("user:1", null)).find(
+        (folder) => folder.name === "a",
+      );
+
+      await expect(
+        folders().delete("user:1", a?.id ?? "", { recursive: true }),
+      ).rejects.toMatchObject({ code: "FOLDER_NOT_EMPTY" });
+      // The path to the object stays.
+      await expect(paths()).resolves.toEqual(
+        expect.arrayContaining(["a", "a/b", "a/b/c"]),
+      );
+    });
+
     it("restores the same id when an object lands during the delete", async () => {
       const folder = await nest("a");
       const store = folders();

@@ -20,7 +20,8 @@ export type UploadToastsProps = {
 
 /**
  * Toasts for a `useUpload` hook: progress with a cancel action while files
- * upload, the result once they settle, and the files it rejected. Mount it
+ * upload (a resume action while the queue is paused), the result once they
+ * settle, and the files it rejected. Mount it
  * once per hook, next to one `<Toaster />`. It renders nothing.
  *
  * Only one owner reports per hook: a second `UploadToasts` for the same
@@ -52,11 +53,17 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
   const { files, isPending, progress, fileRejections } = upload;
-  const showProgress = isPending && files.length > 0;
+  // A paused queue has not ended: its toast stays, offering resume.
+  const paused = upload.phase === "paused";
+  const showProgress = (isPending || paused) && files.length > 0;
 
   const progressToastRef = useRef<string | null>(null);
   // Toast actions run after the toast was shown, with the newest functions.
-  const actionsRef = useRef({ cancel: upload.cancel, retry: upload.retry });
+  const actionsRef = useRef({
+    cancel: upload.cancel,
+    retry: upload.retry,
+    resume: upload.resume,
+  });
   // Results and rejections from before this owner mounted are not reported.
   const [reported] = useState(
     () => new Set(files.filter(isSettled).map((file) => file.id)),
@@ -64,7 +71,11 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
   const rejectionsRef = useRef(fileRejections);
 
   useEffect(() => {
-    actionsRef.current = { cancel: upload.cancel, retry: upload.retry };
+    actionsRef.current = {
+      cancel: upload.cancel,
+      retry: upload.retry,
+      resume: upload.resume,
+    };
   });
 
   useEffect(
@@ -83,10 +94,11 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
     }
     const done = files.filter((file) => file.phase === "success").length;
     const payload = {
-      type: "loading",
+      type: paused ? "info" : "loading",
       timeout: 0,
-      title:
-        files.length > 1
+      title: paused
+        ? t("Upload paused", { note: "toast" })
+        : files.length > 1
           ? t("Uploading {done}/{total}", {
               note: "toast",
               variables: {
@@ -106,24 +118,29 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
           })}
         </ToastNumbers>
       ),
-      actionProps: {
-        children: t("Cancel", { note: "toast action" }),
-        onClick: () => actionsRef.current.cancel(),
-      },
+      actionProps: paused
+        ? {
+            children: t("Resume", { note: "toast action" }),
+            onClick: () => actionsRef.current.resume(),
+          }
+        : {
+            children: t("Cancel", { note: "toast action" }),
+            onClick: () => actionsRef.current.cancel(),
+          },
     };
     if (progressToastRef.current) {
       toast.update(progressToastRef.current, payload);
     } else {
       progressToastRef.current = toast.add(payload);
     }
-  }, [showProgress, files, progress, t, formatFileSize, formatNumber]);
+  }, [showProgress, paused, files, progress, t, formatFileSize, formatNumber]);
 
   useEffect(() => {
     // A file back in flight, as after a retry, reports again once it settles.
     for (const file of files) {
       if (!isSettled(file)) reported.delete(file.id);
     }
-    if (isPending) return;
+    if (isPending || paused) return;
     const fresh = files.filter(
       (file) => isSettled(file) && !reported.has(file.id),
     );
@@ -198,6 +215,7 @@ function ActiveUploadToasts({ upload }: UploadToastsProps) {
     );
   }, [
     isPending,
+    paused,
     files,
     reported,
     t,

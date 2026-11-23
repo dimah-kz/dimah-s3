@@ -1,3 +1,4 @@
+import type { APIError } from "@dimah-s3/core";
 import type { UploadRequestOptions } from "@/types/upload";
 
 /**
@@ -195,6 +196,42 @@ export type ObjectListSource<TItem> = {
     folder: ObjectListFolder;
     name: string;
   }) => Promise<ObjectListFolder | void>;
+  /**
+   * Moves a file into folder `parent` (`null` is the root). Enables Move on
+   * file rows. The object key stays whatever you store.
+   */
+  moveFile?: (input: { item: TItem; parent: string | null }) => Promise<void>;
+  /**
+   * Moves a folder, with everything in it, into folder `parent` (`null` is
+   * the root). Enables Move on folder rows. Reject when `parent` is the
+   * folder or a folder below it.
+   */
+  moveFolder?: (input: {
+    folder: ObjectListFolder;
+    parent: string | null;
+  }) => Promise<void>;
+  /**
+   * Object keys stored in `folder` and every folder below it. A folder
+   * delete removes them first, then calls `deleteFolder`.
+   */
+  listFolderKeys?: (input: {
+    folder: ObjectListFolder;
+    signal: AbortSignal;
+  }) => Promise<readonly string[]>;
+  /**
+   * Removes a folder and the folders below it once their files are gone.
+   * Enables Delete on folder rows, and lets selected folders join a bulk
+   * delete. Reject when a file is still inside.
+   */
+  deleteFolder?: (input: { folder: ObjectListFolder }) => Promise<void>;
+};
+
+/** How `moveEntries` of `useObjectList` ended for each entry. */
+export type ObjectListMoveResult<TItem> = {
+  /** Entries the source moved. */
+  moved: readonly ObjectListEntry<TItem>[];
+  /** Entries the source could not move, each with its error. */
+  failed: readonly { entry: ObjectListEntry<TItem>; error: APIError }[];
 };
 
 /** A folder row in {@link ObjectListEntry} order. */

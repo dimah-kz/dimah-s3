@@ -84,6 +84,7 @@ export {
   type DeleteConfirmation,
   type DeleteContextValue,
   type DeleteTarget,
+  type DeleteTargetsFn,
   type DeleteRequestOptions,
 } from "@/components/dimah-s3/delete/delete";
 export {
@@ -113,6 +114,7 @@ export {
   type ObjectListFeedback,
   type ObjectListPaginationMode,
   type ObjectListRenderers,
+  type ObjectListThumbnails,
   type ObjectListView,
 } from "@/components/dimah-s3/list/object-list-context";
 export {
@@ -120,8 +122,10 @@ export {
   ObjectListSelectAll,
   ObjectListSelectionBar,
   ObjectListBulkDelete,
+  ObjectListBulkMove,
   ObjectListNewFolder,
   type ObjectListBulkDeleteProps,
+  type ObjectListBulkMoveProps,
   type ObjectListHeaderProps,
   type ObjectListSelectAllProps,
   type ObjectListSelectionBarProps,
@@ -211,7 +215,19 @@ export {
   AttachmentGroup,
   AttachmentAction,
   AttachmentTrigger,
-} from "@/components/ui/attachment";
+  type AttachmentGroupProps,
+  type AttachmentActionProps,
+  type AttachmentTriggerProps,
+} from "@/components/dimah-s3/attachment/attachment-parts";
 export type { AttachmentState } from "@/lib/attachment-layout";
-export { Toaster, toast } from "@/components/ui/toast";
-export { useToastOwner } from "@/hooks/use-toast-owner";
+export {
+  Toaster,
+  toast,
+  type ToasterProps,
+  type ToastOptions,
+  type ToastType,
+} from "@/components/dimah-s3/toast/toaster";
+export {
+  useToastOwner,
+  type UseToastOwnerOptions,
+} from "@/hooks/use-toast-owner";

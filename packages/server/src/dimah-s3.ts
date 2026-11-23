@@ -1,4 +1,4 @@
-import { S3_ERROR_CODES, type ConfirmedObjectResponse } from "@dimah-s3/core";
+import type { ConfirmedObjectResponse, S3_ERROR_CODES } from "@dimah-s3/core";
 import { createS3Router } from "@/api/router";
 import { coreEndpoints } from "@/api/core-endpoints";
 import { resolveConfig } from "@/config/resolve-config";
@@ -8,6 +8,7 @@ import {
   applyPlugins,
   type DimahS3Plugin,
   type PluginContextMap,
+  type PluginErrorCodes,
 } from "@/plugin";
 import type {
   DimahS3Api,
@@ -51,7 +52,8 @@ export type DimahS3<
     ): Extract<P[number], { id: Id }> | undefined;
     (id: string): DimahS3Plugin | undefined;
   };
-  $ERROR_CODES: typeof S3_ERROR_CODES;
+  /** The core catalog and every plugin's `$ERROR_CODES`. */
+  $ERROR_CODES: typeof S3_ERROR_CODES & PluginErrorCodes<P>;
   /** Type-only helpers: `typeof s3.$Infer.routes`. */
   $Infer: {
     api: DimahS3Api;
@@ -96,9 +98,9 @@ export function dimahS3<
   config: DimahS3Config & { plugins?: P; routes: R },
 ): DimahS3<P, PluginContextMap<P>, R> {
   const resolved = resolveConfig(config);
-  const { context, getPlugin, endpoints } = applyPlugins(
+  const { context, getPlugin, endpoints, errorCodes } = applyPlugins(
     config,
-    resolved.logger,
+    resolved,
   );
   const router = createS3Router(
     { ...coreEndpoints, ...endpoints },
@@ -111,7 +113,8 @@ export function dimahS3<
     put: (input, options) => putObject(resolved, input, options),
     context,
     getPlugin,
-    $ERROR_CODES: S3_ERROR_CODES,
+    // The merged catalog: its keys are the plugins' codes, checked at runtime.
+    $ERROR_CODES: errorCodes as unknown as DimahS3<P>["$ERROR_CODES"],
     $Infer: {} as DimahS3<P, PluginContextMap<P>, R>["$Infer"],
     ...context,
   } as DimahS3<P, PluginContextMap<P>, R>;

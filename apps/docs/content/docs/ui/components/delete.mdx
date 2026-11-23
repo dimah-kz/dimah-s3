@@ -238,20 +238,23 @@ Each prop replaces the default copy.
 
 Returns the root's state inside `Delete`.
 
-| Property       | Type                          | Description                                                       |
-| -------------- | ----------------------------- | ----------------------------------------------------------------- |
-| `delete`       | `UseDeleteReturn`             | The root's hook                                                   |
-| `confirmation` | `{ targets, note } \| null`   | The request the dialog asks about, or `null` while it is closed   |
-| `isDeleting`   | `boolean`                     | The confirmed request is deleting                                 |
-| `request`      | `(targets, options?) => void` | Asks to delete one target or a list. Replaces a waiting request   |
-| `confirm`      | `() => Promise<DeleteResult>` | Deletes the targets of `confirmation`, then closes. Never rejects |
-| `dismiss`      | `() => void`                  | Closes the dialog without deleting                                |
+| Property       | Type                                               | Description                                                       |
+| -------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| `delete`       | `UseDeleteReturn`                                  | The root's hook                                                   |
+| `confirmation` | `{ targets, title?, description?, note? } \| null` | The request the dialog asks about, or `null` while it is closed   |
+| `isDeleting`   | `boolean`                                          | The confirmed request is deleting                                 |
+| `request`      | `(targets, options?) => void`                      | Asks to delete one target or a list. Replaces a waiting request   |
+| `confirm`      | `() => Promise<DeleteResult>`                      | Deletes the targets of `confirmation`, then closes. Never rejects |
+| `dismiss`      | `() => void`                                       | Closes the dialog without deleting                                |
 
 A target is `{ objectKey, fileName?, fileSize? }`. `request` options:
 
-| Option        | Type                             | Description                                                  |
-| ------------- | -------------------------------- | ------------------------------------------------------------ |
-| `note`        | `ReactNode`                      | Extra line in the dialog                                     |
-| `trigger`     | `HTMLElement \| null`            | Where focus returns. Defaults to the focused element         |
-| `onDeleted`   | `(result: DeleteResult) => void` | Runs after the root's `onDeleted`, once this request settles |
-| `onDismissed` | `() => void`                     | Runs when the request ends without deleting                  |
+| Option        | Type                                | Description                                                                                                                                  |
+| ------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`       | `ReactNode`                         | The dialog's title for this request                                                                                                          |
+| `description` | `ReactNode`                         | The dialog's description for this request                                                                                                    |
+| `note`        | `ReactNode`                         | Extra line in the dialog                                                                                                                     |
+| `run`         | `(remove) => Promise<DeleteResult>` | Deletes in place of the targets, such as a folder and its files. `remove(targets)` deletes with the root's hook. `targets` may then be empty |
+| `trigger`     | `HTMLElement \| null`               | Where focus returns. Defaults to the focused element                                                                                         |
+| `onDeleted`   | `(result: DeleteResult) => void`    | Runs after the root's `onDeleted`, once this request settles                                                                                 |
+| `onDismissed` | `() => void`                        | Runs when the request ends without deleting                                                                                                  |

@@ -26,10 +26,26 @@ export type DeleteTarget = {
   fileSize?: number | null;
 };
 
+/** Deletes these targets with the root's hook, for {@link DeleteRequestOptions.run}. */
+export type DeleteTargetsFn = (
+  targets: readonly DeleteTarget[],
+) => Promise<DeleteResult>;
+
 /** Options for {@link DeleteContextValue.request}. */
 export type DeleteRequestOptions = {
+  /** The confirm dialog's title for this request, over its default. */
+  title?: ReactNode;
+  /** The confirm dialog's description for this request, over its default. */
+  description?: ReactNode;
   /** Extra content in the confirm dialog, below the description. */
   note?: ReactNode;
+  /**
+   * Deletes in place of `delete.removeMany(targets)`, such as the files of
+   * a folder and then the folder. `remove` deletes targets with the root's
+   * hook. The dialog stays busy until it settles, and its result goes to
+   * `onDeleted`. With `run`, `targets` may be empty.
+   */
+  run?: (remove: DeleteTargetsFn) => Promise<DeleteResult>;
   /**
    * The element that asked for the delete. Focus returns to it when the
    * dialog closes. Defaults to the focused element.
@@ -97,6 +113,10 @@ export type DeleteContextValue = {
 /** A request waiting for confirmation. */
 export type DeleteConfirmation = {
   targets: readonly DeleteTarget[];
+  /** From {@link DeleteRequestOptions.title}. */
+  title?: ReactNode;
+  /** From {@link DeleteRequestOptions.description}. */
+  description?: ReactNode;
   /** Extra content for the dialog, from {@link DeleteRequestOptions.note}. */
   note?: ReactNode;
 };
@@ -104,7 +124,10 @@ export type DeleteConfirmation = {
 /** A request with the elements focus can return to. */
 type ActiveRequest = {
   targets: readonly DeleteTarget[];
+  title?: ReactNode;
+  description?: ReactNode;
   note?: ReactNode;
+  run?: (remove: DeleteTargetsFn) => Promise<DeleteResult>;
   onDeleted?: (result: DeleteResult) => void;
   onDismissed?: () => void;
   trigger: HTMLElement | null;
@@ -161,14 +184,20 @@ export function Delete({
   /** Deletes `request`'s targets. Never rejects: a throw is reported. */
   const removeTargets = useCallback(
     async (request: ActiveRequest): Promise<DeleteResult> => {
+      const remove: DeleteTargetsFn = (targets) =>
+        targets.length === 0
+          ? Promise.resolve(EMPTY_RESULT)
+          : latest.current.del.removeMany(
+              targets.map(({ objectKey, fileName }) => ({
+                key: objectKey,
+                fileName,
+              })),
+            );
       let result: DeleteResult;
       try {
-        result = await latest.current.del.removeMany(
-          request.targets.map(({ objectKey, fileName }) => ({
-            key: objectKey,
-            fileName,
-          })),
-        );
+        result = request.run
+          ? await request.run(remove)
+          : await remove(request.targets);
       } catch (error) {
         // A setup error, such as a hook without an `S3Api`.
         reportError(error);
@@ -198,11 +227,14 @@ export function Delete({
       const targets: readonly DeleteTarget[] = isTargetList(input)
         ? input
         : [input];
-      if (targets.length === 0) return;
+      if (targets.length === 0 && !options.run) return;
       const trigger = options.trigger ?? focusedElement();
       const next: ActiveRequest = {
         targets,
+        title: options.title,
+        description: options.description,
         note: options.note,
+        run: options.run,
         onDeleted: options.onDeleted,
         onDismissed: options.onDismissed,
         trigger,
@@ -257,7 +289,15 @@ export function Delete({
   }, [focusReturn]);
 
   const confirmation = useMemo<DeleteConfirmation | null>(
-    () => (active ? { targets: active.targets, note: active.note } : null),
+    () =>
+      active
+        ? {
+            targets: active.targets,
+            title: active.title,
+            description: active.description,
+            note: active.note,
+          }
+        : null,
     [active],
   );
   const value = useMemo<DeleteContextValue>(
@@ -289,6 +329,11 @@ export function useDeleteContext(): DeleteContextValue {
     );
   }
   return value;
+}
+
+/** Like {@link useDeleteContext}, but `null` outside a `Delete` root. */
+export function useOptionalDeleteContext(): DeleteContextValue | null {
+  return useContext(DeleteContext);
 }
 
 /** Runs a request's `onDismissed`. A throw is reported. */

@@ -41,17 +41,23 @@ throw s3Error("FILE_TOO_LARGE", { size: file.size, maxFileSize });
 A plain `Error` thrown anywhere is logged, passed to `onError`, and returns
 `500 INTERNAL_ERROR`. Its message never reaches the client.
 
-For a code outside the catalog, such as one from a plugin, use
-`APIError.from`:
+For your own codes, define them once with `defineErrorCodes` and pass the
+entry to `s3Error`. Its `params` are typed by the message's placeholders:
 
 ```ts
-import { APIError } from "@dimah-s3/server";
+import { defineErrorCodes } from "@dimah-s3/core";
+import { s3Error } from "@dimah-s3/server";
 
-throw APIError.from(402, {
-  code: "PLAN_REQUIRED",
-  message: "Upgrade your plan to upload videos",
+const BILLING_ERROR_CODES = defineErrorCodes({
+  PLAN_REQUIRED: { status: 402, message: "Upgrade to {plan} to upload videos" },
 });
+
+throw s3Error(BILLING_ERROR_CODES.PLAN_REQUIRED, { plan: "Pro" });
 ```
+
+A plugin sets them as `$ERROR_CODES`, and they join `s3.$ERROR_CODES`: see
+[Plugins](/docs/server/plugins#error-codes). `APIError.from(status, body)`
+still builds a one-off error with any `{ code, message, params? }`.
 
 A throw from `upload.onConfirmed` or `upload.onRejected` has its own rules:
 see [Failure rules](/docs/server/hooks/upload#failure-rules).

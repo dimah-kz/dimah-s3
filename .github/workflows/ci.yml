@@ -152,6 +152,11 @@ jobs:
       - name: Check package output
         run: pnpm check:dist
 
+      # `packages/{react,ui}/api-report.md` lists the public declarations. A
+      # change to a public type must update it in the same pull request.
+      - name: Check public API report
+        run: pnpm api:report --check
+
       - name: Check the build left no changes
         run: git diff --exit-code
 

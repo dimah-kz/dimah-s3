@@ -106,6 +106,30 @@ declare module "@dimah-s3/core" {
 }
 ```
 
+## Plugin error messages
+
+Every catalog code has a translated message. A plugin's own codes show the
+English message the server sent. Word them with `formatError` on the
+provider: [`useFormatError`](/docs/react/helpers) and every UI toast ask it
+first, and `undefined` keeps the built-in message.
+
+```tsx title="app/providers.tsx"
+import { isS3ErrorCode } from "@dimah-s3/core";
+import type { S3ErrorFormatter } from "@dimah-s3/react";
+import { AUDIT_ERROR_CODES } from "@acme/dimah-s3-audit/client";
+
+const formatError: S3ErrorFormatter = (error) => {
+  if (isS3ErrorCode(error, AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED)) {
+    return `"${error.params.route}" has no audit log`;
+  }
+  return undefined;
+};
+
+<s3Client.Provider formatError={formatError}>{children}</s3Client.Provider>;
+```
+
+Define it outside the component, or memoize it, so it keeps its identity.
+
 ## Next steps
 
 <Cards>
@@ -153,12 +177,13 @@ It returns the API object itself:
 
 ### S3Provider
 
-| Prop           | Type                    | Default  | Description                                                               |
-| -------------- | ----------------------- | -------- | ------------------------------------------------------------------------- |
-| `api`          | `S3Api`                 | required | The API the hooks and components below use                                |
-| `translations` | `Partial<Translations>` | —        | Translated strings. Omit for English                                      |
-| `locale`       | `string`                | —        | BCP 47 locale for sizes and counts, such as `"fa"`. Omit for Latin digits |
-| `children`     | `ReactNode`             | required | Your app                                                                  |
+| Prop           | Type                             | Default  | Description                                                                                                 |
+| -------------- | -------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| `api`          | `S3Api`                          | required | The API the hooks and components below use                                                                  |
+| `translations` | `Partial<Translations>`          | —        | Translated strings. Omit for English                                                                        |
+| `locale`       | `string`                         | —        | BCP 47 locale for sizes and counts, such as `"fa"`. Omit for Latin digits                                   |
+| `formatError`  | `(error) => string \| undefined` | —        | Your message for an API error, before the built-in one. See [plugin error messages](#plugin-error-messages) |
+| `children`     | `ReactNode`                      | required | Your app                                                                                                    |
 
 ### useS3Api
 

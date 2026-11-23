@@ -8,10 +8,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { normalizeSearchText, type APIError } from "@dimah-s3/core";
+import { normalizeSearchText, s3Error, type APIError } from "@dimah-s3/core";
 import { toClientError } from "@/internal/client-error";
 import { useControllableState, useLiveRef } from "@/internal/hooks";
 import {
+  objectListEntryKey,
   reuseObjectListEntries,
   type ObjectListEntryCache,
 } from "@/list/entries";
@@ -19,6 +20,7 @@ import type {
   ObjectListEntry,
   ObjectListFile,
   ObjectListFolder,
+  ObjectListMoveResult,
   ObjectListSearchScope,
   ObjectListSort,
   ObjectListStatus,
@@ -33,6 +35,7 @@ export type {
   ObjectListFileEntry,
   ObjectListFolder,
   ObjectListFolderEntry,
+  ObjectListMoveResult,
   ObjectListPage,
   ObjectListQuery,
   ObjectListQueryInput,
@@ -138,11 +141,25 @@ export type UseObjectListReturn<TItem> = {
   /** The source's `uploadOptions`. Set when it supports drop-on-folder. */
   uploadOptions: ((parent: string | null) => UploadRequestOptions) | undefined;
   /**
-   * Creates an empty folder in the open folder and adds it to the loaded
-   * folders. Rejects with an `APIError`. Set when the source has
-   * `createFolder`.
+   * Child folders of `parent` (`null` is the root), from the first page the
+   * source returns there. The open folder's are `folders`. Rejects with an
+   * `APIError`.
    */
-  createFolder: ((name: string) => Promise<ObjectListFolder>) | undefined;
+  listFolders: (
+    parent: string | null,
+    options?: { signal?: AbortSignal },
+  ) => Promise<readonly ObjectListFolder[]>;
+  /**
+   * Creates an empty folder in the open folder, or in `parent`, and adds it
+   * to the loaded folders when that is the open folder. Rejects with an
+   * `APIError`. Set when the source has `createFolder`.
+   */
+  createFolder:
+    | ((
+        name: string,
+        options?: { parent?: string | null },
+      ) => Promise<ObjectListFolder>)
+    | undefined;
   /**
    * Renames a file through the source and replaces the loaded row.
    * Rejects with an `APIError`. The same name does nothing. A name sort
@@ -162,6 +179,44 @@ export type UseObjectListReturn<TItem> = {
         name: string,
       ) => Promise<ObjectListFolder | void>)
     | undefined;
+  /**
+   * Whether `moveEntries` can move `entry`, or entries of a kind: the
+   * source has `moveFile` for files, and `moveFolder` for folders.
+   */
+  canMove: (
+    entry: ObjectListEntry<TItem> | ObjectListEntry<TItem>["kind"],
+  ) => boolean;
+  /**
+   * Moves entries into folder `parent` (`null` is the root) through the
+   * source, one at a time. Moved entries leave the rows, then the list
+   * reloads once. Entries already in `parent`, and entries the source
+   * cannot move, are left alone. A folder moved into itself fails with
+   * `FOLDER_INVALID`. Never rejects. Set when the source has `moveFile` or
+   * `moveFolder`.
+   */
+  moveEntries:
+    | ((
+        entries: readonly ObjectListEntry<TItem>[],
+        parent: string | null,
+      ) => Promise<ObjectListMoveResult<TItem>>)
+    | undefined;
+  /**
+   * Object keys in `folder` and every folder below it. Rejects with an
+   * `APIError`. Set when the source has `listFolderKeys`.
+   */
+  listFolderKeys:
+    | ((
+        folder: ObjectListFolder,
+        options?: { signal?: AbortSignal },
+      ) => Promise<readonly string[]>)
+    | undefined;
+  /**
+   * Deletes a folder through the source and drops it from the loaded
+   * folders. When it is the open folder or one above it, its parent opens.
+   * Delete its files first: `listFolderKeys` names them. Rejects with an
+   * `APIError`. Set when the source has `deleteFolder`.
+   */
+  deleteFolder: ((folder: ObjectListFolder) => Promise<void>) | undefined;
 };
 
 /** Rows loaded for one request. */
@@ -542,19 +597,45 @@ export function useObjectList<TItem>(
     },
     [optionsRef, setItems],
   );
+  const listFolders = useCallback(
+    async (
+      folderId: string | null,
+      listOptions: { signal?: AbortSignal } = {},
+    ) => {
+      const { signal } = listOptions;
+      try {
+        const page = await optionsRef.current.query({
+          parent: folderId,
+          cursor: null,
+          sort: null,
+          search: "",
+          searchScope: "folder",
+          signal: signal ?? new AbortController().signal,
+        });
+        return page.folders ?? [];
+      } catch (err) {
+        throw signal?.aborted ? err : toClientError(err);
+      }
+    },
+    [optionsRef],
+  );
   const createFolder = useCallback(
-    async (name: string) => {
+    async (name: string, createOptions: { parent?: string | null } = {}) => {
       const create = optionsRef.current.createFolder;
       if (!create) {
         throw new Error("[dimah-s3] The source has no createFolder.");
       }
-      const { parent: target, scope } = requestRef.current;
+      const { parent: open, scope } = requestRef.current;
+      const target =
+        createOptions.parent === undefined ? open : createOptions.parent;
       let folder: ObjectListFolder;
       try {
         folder = await create({ parent: target, name });
       } catch (err) {
         throw toClientError(err);
       }
+      // Another folder: the loaded rows are not where it went.
+      if (target !== open) return folder;
       // Skip the insert when the list moved to another folder meanwhile.
       update((draft) =>
         draft.snapshot.scope === scope
@@ -675,6 +756,127 @@ export function useObjectList<TItem>(
     },
     [optionsRef, requestRef, settleRename, trailRef, update],
   );
+  const movesFiles = options.moveFile != null;
+  const movesFolders = options.moveFolder != null;
+  const canMove = useCallback(
+    (entry: ObjectListEntry<TItem> | ObjectListEntry<TItem>["kind"]) =>
+      (typeof entry === "string" ? entry : entry.kind) === "file"
+        ? movesFiles
+        : movesFolders,
+    [movesFiles, movesFolders],
+  );
+  const moveEntries = useCallback(
+    async (
+      entries: readonly ObjectListEntry<TItem>[],
+      destination: string | null,
+    ): Promise<ObjectListMoveResult<TItem>> => {
+      const { scope, parent: open, search: searched } = requestRef.current;
+      const moved: ObjectListEntry<TItem>[] = [];
+      const failed: { entry: ObjectListEntry<TItem>; error: APIError }[] = [];
+      // One at a time: a folder move rewrites the paths below it.
+      for (const entry of entries) {
+        if (currentFolderOf(entry, open, searched !== "") === destination) {
+          continue;
+        }
+        const { moveFile, moveFolder } = optionsRef.current;
+        try {
+          if (entry.kind === "file") {
+            if (!moveFile) continue;
+            await moveFile({ item: entry.item, parent: destination });
+          } else {
+            if (!moveFolder) continue;
+            if (entry.id === destination) throw s3Error("FOLDER_INVALID");
+            await moveFolder({ folder: entry.folder, parent: destination });
+          }
+          moved.push(entry);
+        } catch (err) {
+          failed.push({ entry, error: toClientError(err) });
+        }
+      }
+      if (moved.length === 0 || requestRef.current.scope !== scope) {
+        return { moved, failed };
+      }
+      // A listing loses them at once. Search results stay until the reload
+      // says where they live now.
+      if (!searched) {
+        const gone = new Set(moved.map((entry) => entry.key));
+        update((draft) => {
+          if (draft.snapshot.scope !== scope) return draft;
+          const idOf = optionsRef.current.getId;
+          return {
+            ...draft,
+            snapshot: {
+              ...draft.snapshot,
+              items: draft.snapshot.items.filter(
+                (item) => !gone.has(objectListEntryKey("file", idOf(item))),
+              ),
+              folders: draft.snapshot.folders.filter(
+                (folder) => !gone.has(objectListEntryKey("folder", folder.id)),
+              ),
+            },
+          };
+        });
+      }
+      // Folder totals and the usage line count the moved files elsewhere.
+      await run("refresh");
+      return { moved, failed };
+    },
+    [optionsRef, requestRef, run, update],
+  );
+  const listFolderKeys = useCallback(
+    async (
+      folder: ObjectListFolder,
+      keyOptions: { signal?: AbortSignal } = {},
+    ) => {
+      const list = optionsRef.current.listFolderKeys;
+      if (!list) {
+        throw new Error("[dimah-s3] The source has no listFolderKeys.");
+      }
+      const { signal } = keyOptions;
+      try {
+        return await list({
+          folder,
+          signal: signal ?? new AbortController().signal,
+        });
+      } catch (err) {
+        throw signal?.aborted ? err : toClientError(err);
+      }
+    },
+    [optionsRef],
+  );
+  const deleteFolder = useCallback(
+    async (folder: ObjectListFolder) => {
+      const remove = optionsRef.current.deleteFolder;
+      if (!remove) {
+        throw new Error("[dimah-s3] The source has no deleteFolder.");
+      }
+      const { scope } = requestRef.current;
+      try {
+        await remove({ folder });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      update((draft) =>
+        draft.snapshot.scope === scope
+          ? {
+              ...draft,
+              snapshot: {
+                ...draft.snapshot,
+                folders: draft.snapshot.folders.filter(
+                  (entry) => entry.id !== folder.id,
+                ),
+              },
+            }
+          : draft,
+      );
+      // The open folder, or one above it, is gone: open what holds it.
+      const index = trailRef.current.findIndex(
+        (entry) => entry.id === folder.id,
+      );
+      if (index >= 0) navigate(trailRef.current.slice(0, index));
+    },
+    [navigate, optionsRef, requestRef, trailRef, update],
+  );
   // ── View ──────────────────────────────────────────────────────────────
   const { getId, getFile: readFile } = options;
   const getFile = useMemo(
@@ -700,46 +902,109 @@ export function useObjectList<TItem>(
   });
   const entries = useReusedEntries(folders, items, getId, getFile);
   const nextCursor = fresh ? snapshot.nextCursor : null;
+  const searchScopes = options.searchScopes ?? NO_SCOPES;
+  const total = fresh && trimmedSearch ? snapshot.total : null;
+  const usage = visible ? snapshot.usage : null;
+  const error = fresh ? (failure?.error ?? null) : null;
+  const { uploadOptions } = options;
+  // The source methods the list offers: the hook's own wrappers, present
+  // while the source has the method.
+  const createFolderAction = options.createFolder ? createFolder : undefined;
+  const renameFileAction = options.renameFile ? renameFile : undefined;
+  const renameFolderAction = options.renameFolder ? renameFolder : undefined;
+  const moveEntriesAction =
+    movesFiles || movesFolders ? moveEntries : undefined;
+  const listFolderKeysAction = options.listFolderKeys
+    ? listFolderKeys
+    : undefined;
+  const deleteFolderAction = options.deleteFolder ? deleteFolder : undefined;
 
-  return {
-    entries,
-    items,
-    folders,
-    trail,
-    parent,
-    sort,
-    search,
-    isSearching: trimmedSearch !== "",
-    searchScope,
-    searchScopes: options.searchScopes ?? NO_SCOPES,
-    total: fresh && trimmedSearch ? snapshot.total : null,
-    usage: visible ? snapshot.usage : null,
-    error: fresh ? (failure?.error ?? null) : null,
-    status,
-    isLoading: status === "loading",
-    isRefreshing: status === "refreshing",
-    isLoadingMore: status === "loading-more",
-    hasMore: nextCursor != null,
-    nextCursor,
-    loadMore,
-    refresh,
-    retry,
-    openFolder,
-    navigate,
-    goUp,
-    setSort: setSortValue,
-    setSearch: setSearchValue,
-    setSearchScope,
-    setItems,
-    setFolders,
-    removeItems,
-    getId,
-    getFile,
-    uploadOptions: options.uploadOptions,
-    createFolder: options.createFolder ? createFolder : undefined,
-    renameFile: options.renameFile ? renameFile : undefined,
-    renameFolder: options.renameFolder ? renameFolder : undefined,
-  };
+  return useMemo(
+    () => ({
+      entries,
+      items,
+      folders,
+      trail,
+      parent,
+      sort,
+      search,
+      isSearching: trimmedSearch !== "",
+      searchScope,
+      searchScopes,
+      total,
+      usage,
+      error,
+      status,
+      isLoading: status === "loading",
+      isRefreshing: status === "refreshing",
+      isLoadingMore: status === "loading-more",
+      hasMore: nextCursor != null,
+      nextCursor,
+      loadMore,
+      refresh,
+      retry,
+      openFolder,
+      navigate,
+      goUp,
+      setSort: setSortValue,
+      setSearch: setSearchValue,
+      setSearchScope,
+      setItems,
+      setFolders,
+      removeItems,
+      getId,
+      getFile,
+      uploadOptions,
+      createFolder: createFolderAction,
+      renameFile: renameFileAction,
+      renameFolder: renameFolderAction,
+      listFolders,
+      canMove,
+      moveEntries: moveEntriesAction,
+      listFolderKeys: listFolderKeysAction,
+      deleteFolder: deleteFolderAction,
+    }),
+    [
+      entries,
+      items,
+      folders,
+      trail,
+      parent,
+      sort,
+      search,
+      trimmedSearch,
+      searchScope,
+      searchScopes,
+      total,
+      usage,
+      error,
+      status,
+      nextCursor,
+      loadMore,
+      refresh,
+      retry,
+      openFolder,
+      navigate,
+      goUp,
+      setSortValue,
+      setSearchValue,
+      setSearchScope,
+      setItems,
+      setFolders,
+      removeItems,
+      getId,
+      getFile,
+      uploadOptions,
+      createFolderAction,
+      renameFileAction,
+      renameFolderAction,
+      listFolders,
+      canMove,
+      moveEntriesAction,
+      listFolderKeysAction,
+      deleteFolderAction,
+    ],
+  );
 }
 
 /**
@@ -790,6 +1055,19 @@ function readStatus({
 /** A name sort or a search can drop or reorder the row that was renamed. */
 function namesNeedReload(request: Request): boolean {
   return request.sort?.field === "name" || request.search !== "";
+}
+
+/**
+ * The folder that holds `entry`: where a search result lives, else the open
+ * folder. `undefined` for a search result that does not say.
+ */
+function currentFolderOf<TItem>(
+  entry: ObjectListEntry<TItem>,
+  open: string | null,
+  searching: boolean,
+): string | null | undefined {
+  if (entry.location) return entry.location.at(-1)?.id ?? null;
+  return searching ? undefined : open;
 }
 
 /** A trail entry: the id and name, without a search result's location. */

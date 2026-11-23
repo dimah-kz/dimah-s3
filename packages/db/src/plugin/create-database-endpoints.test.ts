@@ -1002,6 +1002,40 @@ describe("DELETE /db/folder", () => {
     }
   });
 
+  it("removes the folders below with recursive=true once they hold nothing", async () => {
+    const { instance, insert, request } = createSetup();
+    const quarter = await nest(instance.db.folders, "user:1", "docs/q4/notes");
+    const docs = (await instance.db.folders.trail("user:1", quarter.id))[0];
+    if (!docs) throw new Error("missing docs");
+
+    await expect(
+      request("DELETE", "/folder", { query: { id: docs.id } }),
+    ).resolves.toMatchObject({ status: 409 });
+    await expect(
+      request("DELETE", "/folder", {
+        query: { id: docs.id, recursive: "true" },
+      }),
+    ).resolves.toMatchObject({ status: 200, body: { id: docs.id } });
+    await expect(
+      instance.db.folders.find("user:1", docs.id),
+    ).resolves.toBeNull();
+    await expect(
+      instance.db.folders.find("user:1", quarter.id),
+    ).resolves.toBeNull();
+
+    const photos = await nest(instance.db.folders, "user:1", "photos/2026");
+    await insert({ key: "a.png", folderId: photos.id });
+    const top = (await instance.db.folders.trail("user:1", photos.id))[0];
+    await expect(
+      request("DELETE", "/folder", {
+        query: { id: top?.id ?? "", recursive: "true" },
+      }),
+    ).resolves.toMatchObject({
+      status: 409,
+      body: { code: "FOLDER_NOT_EMPTY" },
+    });
+  });
+
   it("only touches the caller's scope", async () => {
     const { instance, request } = createSetup();
     const docs = await nest(instance.db.folders, "user:2", "docs");

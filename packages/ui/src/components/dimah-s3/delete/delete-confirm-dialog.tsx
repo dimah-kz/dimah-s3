@@ -34,7 +34,8 @@ export type DeleteConfirmDialogProps = {
 
 /**
  * The `Delete` root's confirm dialog. The root renders one by default; pass
- * your own as `<Delete dialog={<DeleteConfirmDialog title="…" />}>`.
+ * your own as `<Delete dialog={<DeleteConfirmDialog title="…" />}>`. A
+ * request's own `title` and `description` win over these props.
  *
  * It is an alert dialog with initial focus on Cancel. It names the file (and
  * its size) for one target, or the count for several, and shows the
@@ -78,7 +79,8 @@ export function DeleteConfirmDialog({
             <Trash2Icon />
           </AlertDialogMedia>
           <AlertDialogTitle>
-            {title ??
+            {current?.title ??
+              title ??
               (single
                 ? t("Delete file?", { note: "dialog title" })
                 : t("Delete {count} files?", {
@@ -91,7 +93,8 @@ export function DeleteConfirmDialog({
             className="flex flex-col gap-2 [overflow-wrap:anywhere]"
           >
             <div>
-              {description ??
+              {current?.description ??
+                description ??
                 (single
                   ? t(
                       'Are you sure you want to delete "{name}"? This action cannot be undone.',

@@ -130,7 +130,10 @@ export type ObjectListViewToggleProps = {
   className?: string;
 };
 
-/** List and grid buttons for the list's `view`. */
+/**
+ * List and grid buttons for the list's `view`. In an `ObjectListHeader`
+ * narrower than 28rem it shows one button: the view to switch to.
+ */
 export function ObjectListViewToggle({ className }: ObjectListViewToggleProps) {
   const t = useTranslations();
   const { view, setView } = useObjectListContext();
@@ -154,6 +157,7 @@ export function ObjectListViewToggle({ className }: ObjectListViewToggleProps) {
       data-slot="object-list-view-toggle"
       className={cn(
         "flex items-center gap-0.5 rounded-lg border border-dimah-s3-border p-0.5",
+        "@max-[28rem]/object-list-header:border-transparent @max-[28rem]/object-list-header:p-0",
         className,
       )}
     >
@@ -164,8 +168,29 @@ export function ObjectListViewToggle({ className }: ObjectListViewToggleProps) {
           size="icon-xs"
           aria-label={label}
           aria-pressed={view === value}
-          className="aria-pressed:bg-dimah-s3-muted aria-pressed:text-dimah-s3-foreground"
-          onClick={() => setView(value)}
+          className={cn(
+            "aria-pressed:bg-dimah-s3-muted aria-pressed:text-dimah-s3-foreground pointer-coarse:size-7",
+            // Collapsed: the button of the view on screen hides, and the
+            // other one is as large as the header's icon buttons.
+            "@max-[28rem]/object-list-header:size-7 @max-[28rem]/object-list-header:aria-pressed:hidden pointer-coarse:@max-[28rem]/object-list-header:size-8",
+          )}
+          onClick={(event) => {
+            const button = event.currentTarget;
+            const hadFocus = document.activeElement === button;
+            setView(value);
+            if (!hadFocus) return;
+            // Collapsed, the pressed button hides: focus moves to the one
+            // that shows in its place.
+            requestAnimationFrame(() => {
+              if (button.offsetParent !== null) return;
+              const shown = [...(button.parentElement?.children ?? [])].find(
+                (sibling): sibling is HTMLElement =>
+                  sibling instanceof HTMLElement &&
+                  sibling.offsetParent !== null,
+              );
+              shown?.focus();
+            });
+          }}
         >
           <Icon />
         </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useId } from "react";
+import { useCallback, useContext, useId, useMemo } from "react";
 import type { APIError } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { useLiveRef } from "@/internal/hooks";
@@ -54,7 +54,10 @@ export type UseUploadReturn = {
   files: readonly UploadFileState[];
   /** The first file, or `null`. Handy when `maxFiles` is 1. */
   file: UploadFileState | null;
-  /** `uploading` while a call is preparing or a file is in flight. */
+  /**
+   * `uploading` while a call is preparing or a file is in flight, then
+   * `paused` while a file is paused, then how the settled files ended.
+   */
   phase: UploadPhase;
   /** Bytes sent across every file in the queue. */
   progress: TransferProgress;
@@ -74,7 +77,8 @@ export type UseUploadReturn = {
   /**
    * Validates and uploads files from a picker, a drop, a paste or your own
    * code. Invalid files are rejected without stopping the others. Resolves
-   * once every file has ended.
+   * once every file has ended; a paused file has not ended until it is
+   * resumed and finishes, or is cancelled.
    */
   handleFiles: (
     files: FileList | readonly File[] | File | null,
@@ -92,13 +96,32 @@ export type UseUploadReturn = {
    * with nothing to retry, at once and without callbacks.
    */
   retry: (ids?: string | readonly string[]) => Promise<UploadBatchResult>;
+  /**
+   * Pauses the files `ids` (one id or several), or every file, including
+   * the files of a call still preparing. A paused file stays in the queue
+   * with its progress and frees its upload slot. A file that is finalizing
+   * finishes instead.
+   */
+  pause: (ids?: string | readonly string[]) => void;
+  /**
+   * Resumes the paused files `ids` (one id or several), or every paused
+   * file. A multipart upload continues from the parts S3 already has, also
+   * without an `uploadStore` while the page stays open; a single-shot upload
+   * starts over. The request options resolved before the pause are sent
+   * again.
+   */
+  resume: (ids?: string | readonly string[]) => void;
   /** Cancels the files `ids` (one id or several), or every file. */
   cancel: (ids?: string | readonly string[]) => void;
-  /** Stops every file but keeps stored multipart uploads for resuming. */
+  /**
+   * Stops every file, paused ones too, and removes them from the queue. An
+   * `uploadStore` keeps their multipart uploads, so picking the same files
+   * again resumes them, also after a reload.
+   */
   detach: () => void;
   /**
    * Removes the settled files `ids` (one id or several), or every settled
-   * file and the rejections. Running files keep going. Stable identity.
+   * file and the rejections. Running and paused files stay. Stable identity.
    */
   reset: (ids?: string | readonly string[]) => void;
   /**
@@ -137,9 +160,12 @@ export type UseUploadReturn = {
  * Every call validates its files against the route policy from the catalog
  * and rejects the invalid ones with catalog error codes, so
  * `useFormatError` can show them. Valid files upload `concurrentFiles`
- * at a time, and each one can be cancelled with `cancel(id)`. A call's
- * `uploadOptions` merge over the hook's: call fields win, and `clientMetadata`
- * merges key by key.
+ * at a time, and each one can be paused with `pause(id)` or cancelled with
+ * `cancel(id)`. A call's `uploadOptions` merge over the hook's: call fields
+ * win, and `clientMetadata` merges key by key.
+ *
+ * The return value keeps its identity until the queue, the policy or a drag
+ * changes, so it can go in effect dependencies and context values.
  */
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
   const instanceId = useId();
@@ -189,31 +215,81 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     },
   });
 
-  return {
-    instanceId,
-    files: engine.files,
-    file: engine.file,
-    phase: engine.phase,
-    progress: engine.progress,
-    error: engine.error,
-    isPending: engine.isPending,
-    policy: { ...routePolicy, maxFiles },
-    resumable: options.uploadStore != null,
-    disabled: options.disabled ?? false,
-    handleFiles,
-    open: intake.open,
-    retry,
-    cancel: engine.cancel,
-    detach: engine.detach,
-    reset: engine.reset,
-    getRootProps: intake.getRootProps,
-    getDropTargetProps: intake.getDropTargetProps,
-    getInputProps: intake.getInputProps,
-    isDragActive: intake.isDragActive,
-    isDragAccept: intake.isDragAccept,
-    isDragReject: intake.isDragReject,
-    fileRejections: engine.fileRejections,
-  };
+  const policy = useMemo(
+    () => ({ ...routePolicy, maxFiles }),
+    [routePolicy, maxFiles],
+  );
+  const resumable = options.uploadStore != null;
+  const disabled = options.disabled ?? false;
+  const { files, file, phase, progress, error, isPending, fileRejections } =
+    engine;
+  const { pause, resume, cancel, detach, reset } = engine;
+  const {
+    open,
+    getRootProps,
+    getDropTargetProps,
+    getInputProps,
+    isDragActive,
+    isDragAccept,
+    isDragReject,
+  } = intake;
+
+  return useMemo(
+    () => ({
+      instanceId,
+      files,
+      file,
+      phase,
+      progress,
+      error,
+      isPending,
+      policy,
+      resumable,
+      disabled,
+      handleFiles,
+      open,
+      retry,
+      pause,
+      resume,
+      cancel,
+      detach,
+      reset,
+      getRootProps,
+      getDropTargetProps,
+      getInputProps,
+      isDragActive,
+      isDragAccept,
+      isDragReject,
+      fileRejections,
+    }),
+    [
+      instanceId,
+      files,
+      file,
+      phase,
+      progress,
+      error,
+      isPending,
+      policy,
+      resumable,
+      disabled,
+      handleFiles,
+      open,
+      retry,
+      pause,
+      resume,
+      cancel,
+      detach,
+      reset,
+      getRootProps,
+      getDropTargetProps,
+      getInputProps,
+      isDragActive,
+      isDragAccept,
+      isDragReject,
+      fileRejections,
+    ],
+  );
 }
 
 function toFileArray(files: FileList | readonly File[] | File | null): File[] {

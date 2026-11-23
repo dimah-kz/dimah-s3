@@ -368,7 +368,7 @@ secret is checked later, on the first upload.
 | `put`          | `(input, options?) => Promise<ConfirmedObjectResponse>` | Uploads from the server through a route's policy                          |
 | `context`      | `PluginContextMap`                                      | Plugin contexts by plugin id. Each one is on the instance too, as `s3.db` |
 | `getPlugin`    | `(id) => DimahS3Plugin \| undefined`                    | Returns a registered plugin                                               |
-| `$ERROR_CODES` | `typeof S3_ERROR_CODES`                                 | The [error catalog](/docs/server/errors)                                  |
+| `$ERROR_CODES` | `typeof S3_ERROR_CODES`                                 | The [error catalog](/docs/server/errors), with every plugin's codes       |
 | `$Infer`       | type only                                               | `typeof s3.$Infer.routes` is the union of your route names                |
 
 `InferS3Routes<typeof s3>` from `@dimah-s3/core` reads `$Infer.routes` to

@@ -1,9 +1,14 @@
-import { S3_API_ROUTES } from "@dimah-s3/core";
+import {
+  defineErrorCodes,
+  S3_API_ROUTES,
+  S3_ERROR_CODES,
+} from "@dimah-s3/core";
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { createS3Endpoint } from "@/api/create-s3-endpoint";
+import { resolveConfig } from "@/config/resolve-config";
 import { route } from "@/route";
 import { mockS3, TEST_BUCKET } from "@/test/harness";
-import type { DimahS3Config, DimahS3Logger, TicketSubject } from "@/types";
+import type { DimahS3Config, TicketSubject } from "@/types";
 import { applyPlugins } from "./apply-plugins";
 import { definePlugin } from "./define-plugin";
 import type {
@@ -13,20 +18,25 @@ import type {
   PluginInitEnv,
 } from "./types";
 
-const logger: DimahS3Logger = {};
-
 function config(
   plugins: readonly DimahS3Plugin[],
   routes: DimahS3Config["routes"] = { uploads: route({ upload: true }) },
 ): DimahS3Config {
-  return { client: mockS3(), bucket: TEST_BUCKET, routes, plugins };
+  return {
+    client: mockS3(),
+    bucket: TEST_BUCKET,
+    routes,
+    plugins,
+    logger: {},
+  };
 }
 
 function apply(
   plugins: readonly DimahS3Plugin[],
   routes?: DimahS3Config["routes"],
 ) {
-  return applyPlugins(config(plugins, routes), logger);
+  const input = config(plugins, routes);
+  return applyPlugins(input, resolveConfig(input));
 }
 
 const getEndpoint = (path: string) =>
@@ -53,6 +63,22 @@ describe("applyPlugins: ids and dependencies", () => {
       ]),
     ).not.toThrow();
   });
+
+  it.each(["", "1db", "has space", "a/b", "x".repeat(65)])(
+    "rejects the invalid id %j",
+    (id) => {
+      expect(() => apply([definePlugin({ id })])).toThrow(/is invalid/);
+    },
+  );
+
+  it.each(["presign", "file", "routes", "delete"])(
+    "rejects the core path segment %s as an id",
+    (id) => {
+      expect(() => apply([definePlugin({ id })])).toThrow(
+        /is a core endpoint path/,
+      );
+    },
+  );
 
   it("rejects duplicate ids", () => {
     expect(() =>
@@ -133,10 +159,13 @@ describe("applyPlugins: init", () => {
   it("passes the user config, the logger, and every plugin", () => {
     const init = vi.fn<(env: PluginInitEnv) => void>();
     const later = definePlugin({ id: "later" });
-    const input = config([definePlugin({ id: "first", init }), later]);
     const warn = vi.fn();
+    const input: DimahS3Config = {
+      ...config([definePlugin({ id: "first", init }), later]),
+      logger: { warn },
+    };
 
-    applyPlugins(input, { warn });
+    applyPlugins(input, resolveConfig(input));
 
     const env = init.mock.calls[0][0];
     expect(env.config).toBe(input);
@@ -213,18 +242,35 @@ describe("applyPlugins: endpoints", () => {
       definePlugin({ id: "db", endpoints: { objects } }),
     ]);
 
-    expect(applied.endpoints).toEqual({ recent, objects });
+    expect(Object.keys(applied.endpoints)).toEqual(["recent", "objects"]);
+    expect(applied.endpoints.recent.path).toBe("/audit/recent");
+    expect(applied.endpoints.recent.options).toBe(recent.options);
+    expect(applied.endpoints.objects.path).toBe("/db/objects");
   });
 
-  it("rejects a path without a leading slash", () => {
+  it.each(["audit/recent", "/recent", "/auditlog/recent", "/db/recent"])(
+    "rejects the path %s outside the plugin namespace",
+    (path) => {
+      expect(() =>
+        apply([
+          definePlugin({
+            id: "audit",
+            endpoints: { recent: getEndpoint(path) },
+          }),
+        ]),
+      ).toThrow(/needs a path under "\/audit\/"/);
+    },
+  );
+
+  it("accepts the namespace path itself", () => {
     expect(() =>
       apply([
         definePlugin({
           id: "audit",
-          endpoints: { recent: getEndpoint("audit/recent") },
+          endpoints: { root: getEndpoint("/audit") },
         }),
       ]),
-    ).toThrow(/needs a path that starts with "\/"/);
+    ).not.toThrow();
   });
 
   it.each(Object.values(S3_API_ROUTES))("rejects the core path %s", (path) => {
@@ -235,7 +281,7 @@ describe("applyPlugins: endpoints", () => {
     }) as ReturnType<typeof getEndpoint>;
     expect(() =>
       apply([definePlugin({ id: "audit", endpoints: { stolen: raw } })]),
-    ).toThrow(/uses the core path/);
+    ).toThrow(/needs a path under/);
   });
 
   it.each(Object.keys(S3_API_ROUTES))("rejects the core name %s", (name) => {
@@ -261,10 +307,12 @@ describe("applyPlugins: endpoints", () => {
   it("rejects a method and path pair that is already mounted", () => {
     expect(() =>
       apply([
-        definePlugin({ id: "a", endpoints: { one: getEndpoint("/x") } }),
-        definePlugin({ id: "b", endpoints: { two: getEndpoint("/x") } }),
+        definePlugin({
+          id: "a",
+          endpoints: { one: getEndpoint("/a/x"), two: getEndpoint("/a/x") },
+        }),
       ]),
-    ).toThrow(/duplicates GET \/x/);
+    ).toThrow(/duplicates GET \/a\/x/);
   });
 
   it("allows one path with different methods", () => {
@@ -357,5 +405,65 @@ describe("plugin types", () => {
       object | false | undefined
     >();
     expect(seen).toHaveBeenCalledWith({});
+  });
+});
+
+describe("applyPlugins: error codes", () => {
+  const AUDIT_ERROR_CODES = defineErrorCodes({
+    AUDIT_ROUTE_UNTRACKED: {
+      status: 400,
+      message: 'Route "{route}" is not audited',
+    },
+  });
+
+  it("is the core catalog itself without plugin codes", () => {
+    expect(apply([definePlugin({ id: "a" })]).errorCodes).toBe(S3_ERROR_CODES);
+  });
+
+  it("adds each plugin's codes to the core catalog", () => {
+    const { errorCodes } = apply([
+      definePlugin({ id: "audit", $ERROR_CODES: AUDIT_ERROR_CODES }),
+    ]);
+    expect(errorCodes.AUDIT_ROUTE_UNTRACKED).toBe(
+      AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED,
+    );
+    expect(errorCodes.FORBIDDEN).toBe(S3_ERROR_CODES.FORBIDDEN);
+  });
+
+  it("rejects a code the core catalog has", () => {
+    expect(() =>
+      apply([
+        definePlugin({
+          id: "audit",
+          $ERROR_CODES: defineErrorCodes({
+            FORBIDDEN: { status: 403, message: "No" },
+          }),
+        }),
+      ]),
+    ).toThrow(/"FORBIDDEN" is already defined by the core catalog/);
+  });
+
+  it("rejects a code another plugin has", () => {
+    expect(() =>
+      apply([
+        definePlugin({ id: "audit", $ERROR_CODES: AUDIT_ERROR_CODES }),
+        definePlugin({ id: "other", $ERROR_CODES: AUDIT_ERROR_CODES }),
+      ]),
+    ).toThrow(
+      /plugin "other" error code "AUDIT_ROUTE_UNTRACKED" is already defined by plugin "audit"/,
+    );
+  });
+
+  it("rejects an entry not built with defineErrorCodes", () => {
+    expect(() =>
+      apply([
+        definePlugin({
+          id: "audit",
+          $ERROR_CODES: {
+            AUDIT_OFF: { code: "OFF", status: 400, message: "Off" },
+          },
+        }),
+      ]),
+    ).toThrow(/must be built with defineErrorCodes/);
   });
 });

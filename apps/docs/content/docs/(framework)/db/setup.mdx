@@ -159,8 +159,9 @@ export const s3 = dimahS3({
 
 <Callout type="warn" title="Route guards do not run on /db/*">
   The `/db/*` endpoints run only the instance `guard`, with operation
-  `"plugin"`. Set what `resolveScope` needs, such as `locals.userId`, in the
-  instance guard, or read it from `request` and `session`.
+  `"plugin"` and `plugin: { id: "db", action }`. Set what `resolveScope`
+  needs, such as `locals.userId`, in the instance guard, or read it from
+  `request` and `session`.
 </Callout>
 
 ### Check the schema at startup [step]
