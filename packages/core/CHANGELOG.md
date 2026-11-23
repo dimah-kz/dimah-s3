@@ -1,3 +1,214 @@
+## @dimah-s3/core@2.0.0
+
+### Search and sort `db()` object listings
+
+`GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
+
+- `search` keeps rows whose `name` contains the text. Case, accents, and look-alike letters do not count, the same on SQLite, PostgreSQL, and MySQL, and `%` and `_` are plain text.
+- `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `name`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
+- `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
+
+`dbObjectSource(api.db, …)` from `@dimah-s3/db/client` forwards the list's search text and its `name`, `size`, and `updatedAt` sort, so `ObjectListSearch` and `ObjectListSortMenu` work with `db()`. Sorting by date orders by the row's `updatedAt`, the same value `getFile().updatedAt` returns. New types: `DbListSort`, `DbListSortField`.
+
+### Object list: sources, selection, and composable UI
+
+The file list is rebuilt around three layers you can use apart.
+
+**`useObjectList` (`@dimah-s3/react`)** takes a source: `query` plus `getId` (required) and `getFile` (name, `objectKey`, `size`, `contentType`, `updatedAt`, `previewUrl`). New on the return: `entries` (folders then files, each with a unique `key`), `sort` / `setSort`, `search` / `setSearch` (sent to the query as `sort` and `search`), `status`, `retry`, `goUp`, `setItems` / `setFolders` / `removeItems` for local edits, and the source's `uploadOptions` and `createFolder`. `refresh()` reloads every page on screen instead of only the first. A new sort or search keeps the rows on screen while it loads; opening a folder clears the search. `sort`, `search`, and `parent` can each be controlled.
+
+**`useObjectListSelection`** is new and headless: `toggle` with Shift ranges, `select`, `selectAll`, `clear`, `single` / `multiple` modes, `isSelectable`, and `persist` to keep files from other folders.
+
+**`memoryObjectSource`** from `@dimah-s3/react/engine` serves records you hold, with folders from a path, search, sort, pages, usage, and `limits`. **`useFormatDate`** formats dates for the `S3Provider` locale.
+
+**`dbObjectSource(api.db, { route, folders })`** from `@dimah-s3/db/client` lists one `db()` folder at a time, forwards the list's search and sort, and gives the list `uploadOptions` and `createFolder`.
+
+**`ObjectList` (`@dimah-s3/ui`)** takes the hook returns — `list`, `selection`, `upload`, `download`, `share`, `delete` — and gains a grid view, search, sort, keyboard navigation (arrows, Space, Backspace), paste-to-upload, a Load more mode, and default file menus. Pass `children` to compose the parts: `ObjectListHeader`, `ObjectListBreadcrumb`, `ObjectListSearch`, `ObjectListSortMenu`, `ObjectListViewToggle`, `ObjectListSelectionBar`, `ObjectListBulkDelete`, `ObjectListUsage`, `ObjectListUploadStatus`, `ObjectListContent`, `ObjectListRow`, `ObjectListTile`, `ObjectListEmpty`, and `useObjectListContext`. Deleting a file drops it from the rows at once, then reloads.
+
+### Breaking changes
+
+- `useObjectList` requires `getId`. The query input adds `sort` and `search`.
+- `ObjectList` no longer takes `getKey`, `getLabel`, `getDescription`, `getFileName`, `getFileType`, `getPreviewUrl`, or `getObjectKey` — return those from `getFile` on the source. `selectable` and `onSelectionChange` are replaced by `selection={useObjectListSelection(list)}`. `header` is now `toolbar`. `renderItem` / `renderFolder` become `renderEntry`; `renderActions`, `renderMeta`, and `renderFolderActions` become entry-based `renderActions`, `renderMeta`, and `renderDescription`. `emptyTitle` / `emptyDescription` become `empty={<ObjectListEmpty title=… />}`. `list` must be a `useObjectList` return.
+- `ObjectListMenu` is renamed `ObjectListItemMenu`. Inside a list every prop is optional: the list is the `Delete` root, so it owns the confirm dialog.
+- `@dimah-s3/db/client`: `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`. Read a row's file fields with `source.getFile(row)`.
+- `ObjectListView` (the old list-state type) is removed; the name now means the `"list" | "grid"` view.
+
+### One error catalog, upload tickets, and per-call options
+
+`S3_ERROR_CODES` is now the only error catalog. Each entry has a `status`, a message template filled from typed `params`, and `client: true` on codes that only the browser raises. `APIError.code` is always set, so you can switch on it without a fallback.
+
+- `s3Error(code, params?, options?)` builds a catalog error with the entry's status and message.
+- `APIError.from(status, { code, message, params? })` builds an error with a code of your own, for plugins.
+- `APIError.fromShape(body, status?)` rebuilds an error from a wire body, such as a `deleteMany` `failed[].error`.
+
+Presign and multipart init return a signed upload `ticket`. Confirm and every later multipart call send only `{ ticket }`, so the browser never repeats the key or upload id. The server picks the multipart part layout and returns it from init.
+
+Every `S3Api` method takes `(payload, options?)`, where `options` is `{ signal, headers }`. Per-call headers override the client's headers.
+
+New helpers and constants: `sha256Blob(blob, { signal })` hashes a file or part in 1 MiB chunks, `base64UrlEncode` / `base64UrlDecode`, `DEFAULT_INLINE_TYPES`, `isSniffableType`, `effectiveContentType(type?, name?)` (the stored base type, or for an untyped object the type its name gives, as downloads and `verifyContent` use it), `describeFileType(name, type)` (the `FILE_TYPE_NOT_ALLOWED` `type` label), `SNIFF_BYTE_LENGTH`, `S3_MIN_PART_SIZE`, `S3_MAX_PART_SIZE`, `S3_DEFAULT_PART_SIZE`, `S3_MAX_OBJECT_SIZE`, `S3_MAX_FILE_FIELD_BYTES` (255), and `objectKeyByteLength(key)`. `fitFileName(name)` removes control characters, trims, and fits a name to 255 UTF-8 bytes on a character boundary, keeping an extension of up to 32 bytes and falling back to `"file"`. New schemas: `uploadTicketSchema`, `fileNameSchema`, `contentTypeSchema`, `optionalFileNameSchema`, `optionalContentTypeSchema`, and `multipartTicketBodySchema`.
+
+- **A Zod-free browser entry.** The root of `@dimah-s3/core` no longer imports Zod, which takes about 98 KB (minified) out of every browser bundle. The schemas moved to `@dimah-s3/core/schema`, for servers and plugins that validate requests. The protocol and S3 limits (`S3_MAX_POST_OBJECT_BYTES`, `DELETE_MANY_MAX_KEYS`, `ROUTE_NAME_PATTERN`, and the rest) stay in the root.
+- **New codes.** `OBJECT_EXISTS` (409) when a key already holds an object, and `FOLDER_EXISTS` (409) when a folder already exists. `CONFLICT` now means a concurrent change won, so a retry may succeed. `FEATURE_DISABLED` takes `feature: "proxy"` for `/file` on a route that is not in proxy mode.
+- **Safer names.** File names with lone surrogates or bidi controls (U+202A to U+202E, U+2066 to U+2069) fail the wire schema, and `fitFileName` replaces or removes them, so a name with a right-to-left override can no longer display as another extension. The client fits download names with `fitFileName` too, so any name that uploads also downloads.
+- **Standard `Content-Disposition`.** `buildContentDisposition` percent-encodes `'`, `(`, `)` and `*` in `filename*` (RFC 5987) and keeps `%` out of the ASCII fallback. `parseFileName` also reads a language tag (`UTF-8'en'…`), escaped quotes, and an unquoted `filename=token`, so objects written by other tools keep their names.
+- **More magic bytes.** `verifyContent` and `sniffContentType` know BMP, TIFF, ICO, gzip, and Matroska.
+- `createS3Client` rejects a client plugin whose id is not a valid path segment.
+
+### Breaking changes
+
+- **Error codes.** Read details from `error.params`, not from the message.
+  - `PAYLOAD_TOO_LARGE` is now `FILE_TOO_LARGE` (413) with `{ size, maxFileSize }`.
+  - `INVALID_KEY` is now `KEY_INVALID`.
+  - `QUOTA_EXCEEDED` is now 403 with `{ limit: "bytes" | "files" }`.
+  - `FILE_TYPE_NOT_ALLOWED` carries `{ type, allowed }`, and `VALIDATION_ERROR` carries `{ issue }`.
+  - New server codes: `REQUEST_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `S3_NETWORK_ERROR`, `RANGE_NOT_SATISFIABLE`, `PRECONDITION_FAILED`, `FILE_EMPTY`, `FILE_CONTENT_MISMATCH`, `CHECKSUM_REQUIRED`, `UPLOAD_TICKET_INVALID`, `UPLOAD_TICKET_EXPIRED`, `UPLOAD_SIZE_MISMATCH`, `MULTIPART_PART_INVALID`, `FOLDER_INVALID`, and `FOLDER_NOT_EMPTY`.
+  - New client codes: `TOO_MANY_FILES`, `HOOK_FAILED`, `NETWORK_ERROR`, `UPLOAD_FAILED`, `DOWNLOAD_FAILED`, `CHECKSUM_MISMATCH`, `PARTIAL_FAILURE`, and `UNKNOWN_ERROR`.
+  - A response that is not JSON becomes `INTERNAL_ERROR` (status 500 and up) or `UNKNOWN_ERROR`, and keeps its HTTP status. A failed request becomes `NETWORK_ERROR`.
+- **Building errors.** `APIError.fromStatus` is removed; use `s3Error` or `APIError.from`. The `APIError` constructor now requires a `code`. `isS3ErrorCode(error, code)` is unchanged.
+- **Wire names.** File fields are `name`, `size`, and `type` everywhere. The upload body is `{ route, name, size, type, clientMetadata, checksum }`. The download and `/file` query parameter `fileName` is now `name`. `name` and `type` are capped at 255 UTF-8 bytes and reject control characters.
+- **Upload tickets.** `confirm`, `multipart.signPart`, `multipart.listParts`, `multipart.complete`, and `multipart.abort` take `{ ticket }`. `complete` no longer takes `parts`. `listParts` is a POST.
+- **Multipart layout.** Init no longer accepts `partSize`. It returns `partSize`, `partCount`, and `checksum`. `signPart({ ticket, partNumber, checksum? })` returns the part `size` and the `headers` to send with it.
+- **Responses.** Confirm returns `{ key, bucket, name, size, type, eTag, versionId, lastModified, metadata, acl }`. `delete` returns `{ key, bucket }` with no `existed`. `deleteMany` returns `{ deleted, failed: { key, error }[] }`. Download leaves out `expiresIn` in proxy mode.
+- **Renames.** `S3_API_ROUTES.uploadConfirm` is now `confirm`, `deleteBatch` is `deleteMany`, and `multipartPart` is `multipartSignPart`. `DELETE_BATCH_MAX_KEYS` is now `DELETE_MANY_MAX_KEYS`, and `deleteBatchBodySchema` is `deleteManyBodySchema`. `DeleteBatchPayload` and `DeleteBatchResponse` are now `DeleteManyPayload` and `DeleteManyResponse`, and `DeleteBatchItemResult` is removed.
+- **Multipart ticket payloads.** `MultipartListPartsPayload`, `MultipartCompletePayload`, `MultipartAbortPayload`, and `MultipartCompletedPartRef` are replaced by `MultipartTicketPayload`. `multipartListPartsQuerySchema`, `multipartCompleteBodySchema`, `multipartAbortBodySchema`, and `multipartCompletedPartSchema` are replaced by `multipartTicketBodySchema`.
+- **Route catalog.** `upload.replace` is removed. `download.expiresIn` is now `maxExpiresIn`. `checksum`, `disposition`, `inlineTypes`, and `mode` are always present.
+- **Call options.** Every `S3Api` method takes a second `{ signal, headers }` argument. `S3ApiHeaders` is removed.
+- **`validateFile`** returns `APIError | null`, with byte counts as numeric params. The `ValidateFileError` and `ValidateFileErrorCode` types are removed.
+- **Checksums.** `sha256File` is replaced by the streaming `sha256Blob`.
+- **Inline display** uses an allow-list, `DEFAULT_INLINE_TYPES`. `resolveInlineDisposition({ allow: false })` never inlines. A wildcard never matches HTML, XML (including SVG and `text/xsl`), or JavaScript.
+- **Object keys.** `S3_MAX_OBJECT_KEY_LENGTH` is renamed `S3_MAX_OBJECT_KEY_BYTES`. `normalizeObjectKey` and `objectKeySchema` limit keys to 1024 UTF-8 bytes, not 1024 UTF-16 characters, so a long non-ASCII key fails as `KEY_INVALID` up front instead of at S3.
+- **Responses.** A `2xx` response whose body is not a JSON object or array, such as an SPA fallback `index.html`, throws `UNKNOWN_ERROR` with its HTTP status. An error body keeps its `code` and `message` when a `params` value is not a string or number; only those entries are dropped.
+- **Upload size.** The upload body `size` may be `0`, so the server answers `FILE_EMPTY`, the same as `validateFile`, instead of `VALIDATION_ERROR`.
+- **Encoding and sniffing.** `base64UrlDecode` rejects padded and non-canonical input. MP4-family sniffing lets a known major brand decide the type. Sniffing looks past a leading ID3v2 tag, so ID3-tagged FLAC is `audio/flac`; a tag that runs past `SNIFF_BYTE_LENGTH` accepts `audio/mpeg`, `audio/mp3`, `audio/flac`, or `audio/x-flac`.
+- **Schemas moved.** Import every `*Schema` from `@dimah-s3/core/schema`. `s3FetchErrorSchema`, `s3ErrorParamsSchema`, and `S3FetchError` are removed.
+- **One ticket body.** `confirmBodySchema` and `multipartTicketBodySchema` are now `ticketBodySchema`, and `ConfirmPayload` and `MultipartTicketPayload` are now `TicketPayload`.
+- **Error guards tell the truth.** `isAPIError` is true only for an `APIError`, or a copy from another bundle of core with a string `code`, so `error.code` and `error.params` are really there. A raw better-call error no longer matches `isAPIError` or `isS3ErrorCode`. `isS3ErrorCode(error, code)` also narrows `params` to that code's type.
+- **Responses.** `DownloadPresignResponse` is a union on `mode`: `expiresIn` is a `number` in presign mode and absent in proxy mode. `MultipartAbortResponse` gains `bucket`.
+- **Checksums.** `sha256ChecksumSchema` and `optionalChecksumSchema` output padded base64, the form every provider accepts. Unpadded input still parses.
+- **Object keys are never trimmed.** `objectKeySchema` and `normalizeObjectKey` refuse a key with whitespace around it, control characters, or lone surrogates (`KEY_INVALID`), since S3 would treat `a.pdf ` as another object.
+- **Base paths.** `normalizeS3ApiBasePath` returns one leading slash and none trailing: `"api/s3"` and `"///api/s3"` are `"/api/s3"`, and `"/"` is `""`.
+- **File types.** `matchesFileTypes` and `validateFile` ignore case and type parameters (`image/PNG; x=1` matches `image/png`), and `*` or the any-type wildcard accepts any file.
+- **Display helpers moved.** `formatFileSize`, `truncateFileName`, and the `FileSizeUnit` and `FormatFileSizeOptions` types are no longer in `@dimah-s3/core`. Import them from `@dimah-s3/react/engine`; it has no React import, so server code can use it too. There, `truncateFileName` returns at most `maxChars` characters, cuts by code point, and no longer puts a space before the extension (`name….pdf`), and `formatFileSize` picks the unit after rounding, so 1,048,575 bytes is `1.0 MB`.
+- `sanitizeFileName` is removed: use `fitFileName`. The `fetch` option accepts any `(input, init) => Promise<Response>`. An aborted request rejects with the signal's `reason`.
+
+### Upgrade to 2.0
+
+`2.0.0` reworks the protocol, the hooks, and the components of every `@dimah-s3/*` package, and moves `db()` to database schema `2.3.0`. Keep every `@dimah-s3/*` package on the same version. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0) walks through each step, and each package's changelog lists its changes in full.
+
+- **Upload tickets.** Presign and multipart init return a signed ticket, and confirm and every later multipart call send only `{ ticket }`.
+- **One error catalog.** Every error is an `APIError` with a catalog `code`, a `status`, and typed `params`.
+- **Per-key React state.** Hooks keep state per key, a repeated key joins the running call, and every action returns an outcome.
+- **Composable UI.** `Upload*`, `Download*`, and `Delete*` families replace the preset buttons, and toasts come from `UploadToasts`, `DownloadToasts`, and `DeleteToasts`.
+- **Folders in `db()`.** A folder is its id, an object stores `folderId`, typed `attributes` are separate from S3 metadata, and the Drizzle tables and adapters are prebuilt.
+
+### Breaking changes
+
+- **Set `DIMAH_S3_SECRET`.** Generate it with `openssl rand -base64 32` and use the same value on every instance, or pass `dimahS3({ secret })`. Without it, uploads return `500` outside `development` and `test`.
+- **Set `requestChecksumCalculation: "WHEN_REQUIRED"`** on the `S3Client` you pass to `dimahS3()`.
+- **Install `@dimah-s3/core`** next to `@dimah-s3/react` and import `APIError`, `S3_ERROR_CODES`, and the protocol helpers from it. Import plain functions such as `uploadFile`, `memoryObjectSource`, and the display formatters `formatFileSize` and `truncateFileName` from `@dimah-s3/react/engine`.
+- **React 19.2** is required by `@dimah-s3/react` and `@dimah-s3/ui`, and `@fuma-translate/react` is a peer to install.
+- **Replace the preset components** (`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, `DeleteButton`) with the families, and mount one toast component per hook plus one `<Toaster />`.
+- **Import schemas from `@dimah-s3/core/schema`.** The root of `@dimah-s3/core` no longer ships Zod, so `uploadBodySchema` and the other schemas moved there.
+- **Proxy downloads need `download.mode: "proxy"`.** `/file` refuses routes in presign mode with `404 FEATURE_DISABLED`.
+- **Create the `db()` schema `2.3.0` on a new database.** There is no upgrade from `1.x` or from a `2.0.0` beta database. Generate the Drizzle or Prisma schema with `runCli`, or call `migrate(client)` on an empty database, and remove `fumadb` from your app. With Drizzle, upgrade `drizzle-orm` to 1.0.0-rc.5 or later first. A folder is its id (`folderId`). Uploads send `clientMetadata.folderId` for a folder that already exists.
+
+### Encode large base64url values directly
+
+Base64 encoding writes each group of bytes itself, so a large value finishes instead of stalling.
+
+### Large base64url values finish
+
+Encoding and decoding a large base64url value finishes instead of stalling.
+
+### Folder ids in db()
+
+`@dimah-s3/db` schema `2.3.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Create the schema on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded. Details are in each package changelog and in [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade).
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `folder` on a `db()` object is `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.
+
+### Folder not found
+
+`FOLDER_NOT_FOUND` (`404`) is the error when a folder id is not in the caller's scope.
+
+### Docs at s3.dimah.dev
+
+Package homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.3.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+### One way to match search text
+
+`@dimah-s3/core` exports the folding that list search uses everywhere, so your own source or renderer matches names the way `db()` and `memoryObjectSource` do.
+
+- **`normalizeSearchText(value)`** lowercases, drops accents and other combining marks, joins look-alike letters (`ي`/`ی`, `ك`/`ک`, final `ς`, `ß` as `ss`), reads Persian and Arabic-Indic digits as `0`–`9`, removes zero-width joiners and the tatweel, and collapses whitespace.
+- **`matchesSearchText(text, search)`** is true when the folded `text` contains the folded `search`. Blank search text matches everything.
+- **`findSearchMatches(text, search)`** returns the `[start, end)` ranges of each match in `text`, for a highlight. A combining accent stays with its letter.
+
+### Types resolve under NodeNext
+
+The declaration files of `@dimah-s3/core`, `@dimah-s3/server`, `@dimah-s3/react`, and `@dimah-s3/db` import each other by their `.js` paths. A project with `moduleResolution` set to `NodeNext` or `Node16` gets the same types as one on `Bundler`.
+
+- **`export *` names resolve.** Importing `buildObjectKey` or another re-exported helper from `@dimah-s3/core` no longer fails with `TS2305`.
+- **Values keep their types.** `dimahS3`, `route`, `useUpload`, `db`, and the other re-exported values are no longer `any`. Code that passed `tsc` only because they were `any` now reports its type errors.
+- **`skipLibCheck: false` passes.** `tsc` no longer reports `TS2834` or `TS2835` inside these packages.
+
+### One name for client metadata
+
+The upload body, the client option, and the server hooks all call the client's extras `clientMetadata`, so `metadata` always means the object's S3 user metadata.
+
+- **`QUOTA_EXCEEDED` names a third cap.** Its `limit` param can be `"folders"`, next to `"bytes"` and `"files"`, for the folder cap of `db()`.
+
+### Breaking changes
+
+- **Send `clientMetadata`, not `metadata`.** The upload and multipart init bodies (`UploadPayload`, `MultipartInitPayload`, `uploadBodySchema`, `multipartInitBodySchema`) take `clientMetadata`. A body that still sends `metadata` fails with `VALIDATION_ERROR`. A custom `S3Api` reads `payload.clientMetadata`.
+- **`metadataSchema` is `clientMetadataSchema`**, and `S3_MAX_METADATA_ENTRIES` is `CLIENT_METADATA_MAX_ENTRIES`.
+- **`UNKNOWN_ROUTE` is `ROUTE_NOT_FOUND`**, like `OBJECT_NOT_FOUND` and `FOLDER_NOT_FOUND`. The status stays `404` and the message is unchanged.
+- **`buildPublicObjectUrl({ baseUrl })` is `buildPublicObjectUrl({ baseURL })`**, spelled like `createS3Client({ baseURL })`.
+
+### One Node.js floor and bounded peer ranges
+
+Every `@dimah-s3/*` package declares `engines.node` `>=22`, exports its `package.json`, and names the peer majors it is built against. Keep every `@dimah-s3/*` package on the same version.
+
+- **`./package.json`.** Every package exports it, so a tool can read the installed version: `import pkg from "@dimah-s3/core/package.json" with { type: "json" }`.
+- **`funding`.** Every package links the sponsor page.
+
+### Breaking changes
+
+- **Use Node.js 22 or newer.** Every package declares `engines.node` `>=22`. Only `@dimah-s3/cli` declared a floor before (`>=20.19`).
+- **Check your peer versions.** Open-ended ranges such as `>=19.2` now end at the next major:
+  - `@dimah-s3/react` and `@dimah-s3/ui`: `react` `^19.2.0`.
+  - `@dimah-s3/ui`: `react-dom` `^19.2.0` (a new peer), `@base-ui/react` `^1.0.0`, `class-variance-authority` `^0.7.0`, `cn` `^0.5.2`, and `lucide-react` `>=0.400.0 <2`.
+  - `@dimah-s3/server` and `@dimah-s3/db`: `@aws-sdk/client-s3` `^3.0.0`.
+  - `@dimah-s3/db`: `kysely` `^0.29.8`.
+- **Install `@aws-sdk/client-s3` next to `@dimah-s3/db`.** It is a required peer. It was marked optional, but the plugin imports it.
+
+### Typed client plugins and plugin error codes
+
+A client plugin reads its types from the server plugin, and plugins define error codes the same way the core catalog does.
+
+- **Typed `$fetch`.** With `$InferServerPlugin`, the `$fetch` that `getActions` receives is typed by the server plugin's endpoints: the path and method pick one, its schema types `query` and `body`, and the result is its handler's return type (`S3PluginFetch`, `S3EndpointFetch`). A path, method, or body the server does not accept fails to compile.
+- **`$ERROR_CODES` on client plugins.** Merged into the client's `$ERROR_CODES`, with their types. A code that is already there throws at `createS3Client()`.
+- **`s3Error(entry, params)` and `isS3ErrorCode(error, entry)`.** Both take an entry of any `defineErrorCodes` catalog, besides a core code. `params` are typed by the message's `{placeholders}` (`S3ErrorEntryParams`).
+- **`pluginPath` keeps the literal path** (`PluginPath`), so a typed `$fetch` matches it.
+- **`S3ErrorCatalog` and `S3ErrorCodeEntry`** type a catalog and one of its entries.
+
+### Breaking changes
+
+- **Drop the type argument from a typed `$fetch`.** With `$InferServerPlugin` set, `$fetch<T>(path, options)` does not compile. Call `$fetch(path, options)`: the result has the endpoint's type.
+- **Build valid codes with `defineErrorCodes`.** It throws for a code that is not uppercase snake case, a status outside 100–599, or an empty message.
+
+### A plugin SDK for third-party plugins
+
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
 ## @dimah-s3/core@2.0.0-beta.14 (beta)
 
 ### Typed client plugins and plugin error codes

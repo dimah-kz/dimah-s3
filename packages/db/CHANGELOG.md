@@ -1,3 +1,329 @@
+## @dimah-s3/db@2.0.0
+
+### Search and sort `db()` object listings
+
+`GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
+
+- `search` keeps rows whose `name` contains the text. Case, accents, and look-alike letters do not count, the same on SQLite, PostgreSQL, and MySQL, and `%` and `_` are plain text.
+- `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `name`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
+- `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
+
+`dbObjectSource(api.db, …)` from `@dimah-s3/db/client` forwards the list's search text and its `name`, `size`, and `updatedAt` sort, so `ObjectListSearch` and `ObjectListSortMenu` work with `db()`. Sorting by date orders by the row's `updatedAt`, the same value `getFile().updatedAt` returns. New types: `DbListSort`, `DbListSortField`.
+
+### Object list: sources, selection, and composable UI
+
+The file list is rebuilt around three layers you can use apart.
+
+**`useObjectList` (`@dimah-s3/react`)** takes a source: `query` plus `getId` (required) and `getFile` (name, `objectKey`, `size`, `contentType`, `updatedAt`, `previewUrl`). New on the return: `entries` (folders then files, each with a unique `key`), `sort` / `setSort`, `search` / `setSearch` (sent to the query as `sort` and `search`), `status`, `retry`, `goUp`, `setItems` / `setFolders` / `removeItems` for local edits, and the source's `uploadOptions` and `createFolder`. `refresh()` reloads every page on screen instead of only the first. A new sort or search keeps the rows on screen while it loads; opening a folder clears the search. `sort`, `search`, and `parent` can each be controlled.
+
+**`useObjectListSelection`** is new and headless: `toggle` with Shift ranges, `select`, `selectAll`, `clear`, `single` / `multiple` modes, `isSelectable`, and `persist` to keep files from other folders.
+
+**`memoryObjectSource`** from `@dimah-s3/react/engine` serves records you hold, with folders from a path, search, sort, pages, usage, and `limits`. **`useFormatDate`** formats dates for the `S3Provider` locale.
+
+**`dbObjectSource(api.db, { route, folders })`** from `@dimah-s3/db/client` lists one `db()` folder at a time, forwards the list's search and sort, and gives the list `uploadOptions` and `createFolder`.
+
+**`ObjectList` (`@dimah-s3/ui`)** takes the hook returns — `list`, `selection`, `upload`, `download`, `share`, `delete` — and gains a grid view, search, sort, keyboard navigation (arrows, Space, Backspace), paste-to-upload, a Load more mode, and default file menus. Pass `children` to compose the parts: `ObjectListHeader`, `ObjectListBreadcrumb`, `ObjectListSearch`, `ObjectListSortMenu`, `ObjectListViewToggle`, `ObjectListSelectionBar`, `ObjectListBulkDelete`, `ObjectListUsage`, `ObjectListUploadStatus`, `ObjectListContent`, `ObjectListRow`, `ObjectListTile`, `ObjectListEmpty`, and `useObjectListContext`. Deleting a file drops it from the rows at once, then reloads.
+
+### Breaking changes
+
+- `useObjectList` requires `getId`. The query input adds `sort` and `search`.
+- `ObjectList` no longer takes `getKey`, `getLabel`, `getDescription`, `getFileName`, `getFileType`, `getPreviewUrl`, or `getObjectKey` — return those from `getFile` on the source. `selectable` and `onSelectionChange` are replaced by `selection={useObjectListSelection(list)}`. `header` is now `toolbar`. `renderItem` / `renderFolder` become `renderEntry`; `renderActions`, `renderMeta`, and `renderFolderActions` become entry-based `renderActions`, `renderMeta`, and `renderDescription`. `emptyTitle` / `emptyDescription` become `empty={<ObjectListEmpty title=… />}`. `list` must be a `useObjectList` return.
+- `ObjectListMenu` is renamed `ObjectListItemMenu`. Inside a list every prop is optional: the list is the `Delete` root, so it owns the confirm dialog.
+- `@dimah-s3/db/client`: `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`. Read a row's file fields with `source.getFile(row)`.
+- `ObjectListView` (the old list-state type) is removed; the name now means the `"list" | "grid"` view.
+
+### Schema 2.3.0: folder ids, attributes, and generated tables
+
+The `db()` plugin uses database schema `2.3.0`. A folder is a row with an id, an object stores `folderId`, and S3 metadata (`s3Metadata`) is split from your own typed `attributes`. `storage_folder` stores `parent_id` (`""` is the root), `name`, and a cached `path`. Create the schema on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded.
+
+- **Setup without FumaDB imports.** Import adapters from `@dimah-s3/db/adapters/drizzle`, `/adapters/kysely`, or `/adapters/prisma`, and generate the Drizzle tables or Prisma models with `runCli` from `@dimah-s3/db/cli`.
+- **New options:** `getSession(request)` (called at most once per request), `authorize(context)` after the ownership check, `quota` as an object or a function of the session, and `attributes: { schema, toClient?, maxBytes? }` with any Standard Schema validator.
+- **New endpoints and actions:** `GET /db/object` (`getObject`), `PATCH /db/object` (`updateObject`, for `name`, `folderId`, and `attributes`), `POST /db/folder` (`createFolder` with `{ parentId, name }`), `PATCH /db/folder` (rename with `name`, move with `parentId`), and `DELETE /db/folder` (`deleteFolder` by `id`). An upload's `clientMetadata.folderId` must name a folder that already exists.
+- **`dbObjectSource(api.db, { route, folders })`** lists one folder at a time. `parent` is a folder id (`null` is the root). It provides `uploadOptions(parent)` and `createFolder({ parent, name })` so `ObjectList` uploads into the open folder and creates folders.
+- **Safer lifecycle.** Upload tickets are bound to the scope. A pending row expires with its ticket. Confirm is a compare-and-set, so a replayed confirm returns the stored row. Quota is checked again against the verified size at confirm. An overwrite keeps the old object listed and downloadable until the new one is confirmed, with its folder, attributes, and `createdAt`.
+- **Purge.** `s3.db.purgeStale({ limit })` claims each stale row for a 15-minute lease, aborts its multipart upload, and deletes an object only when its upload marker still matches. A failed row is retried after the lease. `s3.db.pruneDeleted({ olderThan })` removes soft-deleted rows.
+- **`s3.db.checkSchema()`** fails fast at startup when the database is not at `2.3.0`.
+- **MySQL collations.** Text columns compare byte for byte (`utf8mb4_bin`). The name sort reads the folded `search_name`, so it ignores case and accents on every database.
+
+- **Safer overwrites and confirms.** A retried confirm after a later overwrite started is a replay, not a rejection that deleted the live object. `upsertPending` is a real compare-and-set on the row it read, and a re-upload over a deleted row gets a new row id. When the server deletes `upload.object().previousKey`, its row is retired too, so it stops counting toward the quota.
+- **Quota** counts the declared bytes of an overwrite in flight.
+- **Folders.** Creating and deleting a folder are race-safe: a delete that loses to an upload restores the folder. Every ancestor is checked in one query.
+- **Listings.** `contentType` accepts `type/*` (`image/*`). With `search`, the first page lists only the child folders whose name contains it.
+- **Tenant isolation.** A key another scope holds is `OBJECT_NOT_FOUND` on download, delete, read, update, confirm, and the multipart calls, the same as a missing key, so a caller cannot learn which keys exist. `objects.update` is pinned to the row that was checked.
+- **Purge** returns `{ purged, failed, skipped, more }`. A row whose route has no S3 client fails and is kept, instead of dropping the row and orphaning its object. A database at a newer schema says to upgrade `@dimah-s3/db`.
+- **Deleting a soft-deleted object again succeeds,** like a plain S3 delete.
+- `PATCH /db/object` checks access before it runs your attributes schema, and `attributes: null` clears them.
+
+### Breaking changes
+
+- **Schema `2.3.0` is created, not upgraded.** `sql/upgrade/` is gone. Create the tables on a new database with your ORM from the generated schema, or with `migrate(client)` from `@dimah-s3/db` on an empty database. A database at any other version throws.
+  - `metadata` is split into `s3Metadata` and `attributes`.
+  - An object stores `folder_id` and `upload_token`. `storage_folder` stores `parent_id`, `name`, a cached `path`, and `updated_at`. Rows have a `purging` status, new indexes, and a required `name`.
+- **Setup.** Remove `fumadb` and the `fumadb/cuid` path alias from your app. `fumadb` is now a pinned dependency of `@dimah-s3/db`, and its adapters are re-exported. Drizzle users must keep every table key of the generated schema, including `private_dimah_s3_settings`. The `drizzle-orm` peer is now `>=1.0.0-rc.5 <2.0.0`: the Drizzle adapter and tables need `drizzle-orm` 1.0.0-rc.5 or later, and 0.44 and 0.45 are no longer supported. Upgrade `drizzle-orm` first.
+  - The copy-paste schemas in `src/schema/examples/` are no longer published. Generate the schema with `runCli` → `generate`.
+- **Options.**
+  - `resolveScope` receives `{ request, locals, session, operation, route? }`. `operation` gains `"read"` for `GET /db/object`. It runs once per call and target, not once per `Request`, so two `s3.api` calls with the same `Request` but different `locals` resolve separately. `getSession` is still cached per `Request`.
+  - An upload on a `replace: "overwrite"` route that replaces an active object runs `authorize` with `object` set to that object. `folderId` is that object's folder id, not `clientMetadata.folderId`.
+  - `authorize` replaces `createObjectAccessGuard`. `quota` accepts a function and replaces `createQuotaGuard`. Both helpers are removed.
+  - `pendingTtlMs` is removed: pending rows expire with the upload ticket.
+  - Overwrites are set per route with `plugins: { db: { replace: "overwrite" } }`.
+  - `plugins: { db: false }` still turns tracking off for a route. Such a route issues unbound tickets and logs a warning at startup when its download or delete has no guard.
+  - `TClientAttributes` defaults to the schema output.
+- **Behavior.**
+  - `s3.put` now tracks rows.
+  - Usage ignores expired pending rows. `QUOTA_EXCEEDED` is now 403.
+  - An upload to a key that purge is cleaning up returns `CONFLICT`.
+- **Store (`s3.db.objects`).** `listByScope` is now `list(scope, filter)`, `countByScope` is `count(scope, filter)`, and `getScopeUsage` is `usage(scope)`. `findByScopeKey`, `findActive`, `deleteByIds`, the `offset` option, and `s3.db.client` are removed. `deletePending` is replaced by `cancelUpload` and `discardUpload`.
+- **Purge.** `purgeStalePendingObjects` is replaced by `s3.db.purgeStale({ limit })` and `s3.db.pruneDeleted({ olderThan })`. A number for `olderThan` is a timestamp in milliseconds, not a duration.
+- **HTTP.**
+  - `GET /db/objects` drops `offset` and `prefix` (they now return `400`) and takes `folderId`, where `""` is the root. `usage`, `limits`, and `folders` come on the first page only, and `nextCursor` is always present. A cursor made under other filters restarts at the first page.
+  - `GET /db/objects` returns `400` for `status=purging`. The `status` of `DbClientListObjectsInput` and `DbObjectSourceOptions` no longer allows `purging`.
+  - Body endpoints accept JSON only.
+  - When routes use more than one bucket, `GET` and `PATCH /db/object` require `bucket`.
+- **Client (`@dimah-s3/db/client`).**
+  - `DbClientObject` gains `folderId` (`null` is the root), `updatedAt`, and `attributes`. `updatedAt` is a sort field of its own.
+  - `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`, whose `parent` is a folder id (`null` is the root). `getFile().updatedAt` is the row's `updatedAt`, and sorting by date uses the same field.
+  - `DbObjectListSource`, `DbObjectQueryInput`, `DbObjectQueryOptions`, `DbObjectQueryPage`, `DbObjectListAccessors`, and `DbObjectListAccessorsOptions` are removed. Read a row's file fields with `source.getFile(row)`, and use the `DbObjectSource*` types.
+- **Removed exports.** `v1`, `conflict`, `forbidden`, `notFound`, `unauthorized`, `createStorageObjectStore`, `toPendingMultipartResume`, `PendingMultipartResume`, `FindPendingMultipartInput`, `ListByScopeInput`, `ScopeUsage`, `ScopeResolver`, `createObjectAccessGuard`, `createQuotaGuard`, `purgeStalePendingObjects`, and their option types. React's resume record now stores the upload ticket, so the multipart resume helpers are gone. `DbClientGetObjectInput`, `DbClientListObjectsInput`, and `DbClientListObjectsResponse` are exported from `@dimah-s3/db/client` only.
+- **New root exports:** `DB_SCHEMA_VERSION`, `migrate`, `DbAttributesOptions`, `DbQuotaOption`, `DbRouteOptions`, `StorageFolder`, `DbClientFolder`, `DbQuota`, `DbUsage`, `StandardSchemaV1`, `PurgeStaleOptions`, `PruneDeletedOptions`, and the store input and page types. `runCli` from `@dimah-s3/db/cli` takes a `DimahS3DbClient`.
+- **`resolveScope` sees only the caller.** `ScopeContext` is `{ request, locals, session, operation, route? }`. `key`, `folder` (the cached path), `folderId`, and `clientMetadata` are on `AuthorizeContext`. The scope is resolved once per call, operation, and route.
+- **`authorize`** receives the stored row (`StorageObject`, with `scope`, `s3Metadata`, and the stored attributes), not the browser view.
+- **New codes.** An upload to a key that holds an active object, without `replace: "overwrite"`, fails with `OBJECT_EXISTS` instead of `CONFLICT`. Creating an existing folder fails with `FOLDER_EXISTS`. `CONFLICT` stays for purge in progress and lost races.
+- **Ownership errors.** A row of another scope is `OBJECT_NOT_FOUND` (`404`), not `FORBIDDEN`. An upload to a key another scope holds is still `FORBIDDEN`.
+- **`s3.db.objects`** is `DbObjects`: `find`, `list`, `count`, `usage`, and `update`, which takes `folderId` (`FOLDER_INVALID` or `FOLDER_NOT_FOUND`). Uploads do not create folders. The lifecycle methods (`upsertPending`, `markActive`, `cancelUpload`, `discardUpload`, `softDelete`, `hardDelete`, `findStale`, `claimStale`, `deletePurged`, `pruneDeleted`) are internal: use `s3.db.pruneDeleted` and the server delete path. `s3.db.folders` (`DbFolders`) validates every cached path. The `StorageObjectStore`, `StorageFolderStore`, `MarkActiveInput`, and `UpsertPendingInput` exports are replaced by `DbObjects` and `DbFolders`.
+- **Folder depth.** A cached folder path deeper than 32 levels, or longer than 1024 UTF-8 bytes, is `FOLDER_INVALID`.
+- **HTTP.** `GET /db/objects` no longer returns `scope`: the tenant id stays on the server.
+- **Client.** `DbClientRequestInit` is removed: every `api.db` action takes core's `S3RequestOptions`, and per-call `headers` are sent. `DbClientListObjectsInput.folderId` accepts `null` for the root. `route` is `S3RouteName`, and `DbClientObject.status` is `DbClientObjectStatus` (no `purging`).
+- **Purge.** `purgeStale` resolves `PurgeStaleResult` instead of `{ purged }`.
+
+### Upgrade to 2.0
+
+`2.0.0` reworks the protocol, the hooks, and the components of every `@dimah-s3/*` package, and moves `db()` to database schema `2.3.0`. Keep every `@dimah-s3/*` package on the same version. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0) walks through each step, and each package's changelog lists its changes in full.
+
+- **Upload tickets.** Presign and multipart init return a signed ticket, and confirm and every later multipart call send only `{ ticket }`.
+- **One error catalog.** Every error is an `APIError` with a catalog `code`, a `status`, and typed `params`.
+- **Per-key React state.** Hooks keep state per key, a repeated key joins the running call, and every action returns an outcome.
+- **Composable UI.** `Upload*`, `Download*`, and `Delete*` families replace the preset buttons, and toasts come from `UploadToasts`, `DownloadToasts`, and `DeleteToasts`.
+- **Folders in `db()`.** A folder is its id, an object stores `folderId`, typed `attributes` are separate from S3 metadata, and the Drizzle tables and adapters are prebuilt.
+
+### Breaking changes
+
+- **Set `DIMAH_S3_SECRET`.** Generate it with `openssl rand -base64 32` and use the same value on every instance, or pass `dimahS3({ secret })`. Without it, uploads return `500` outside `development` and `test`.
+- **Set `requestChecksumCalculation: "WHEN_REQUIRED"`** on the `S3Client` you pass to `dimahS3()`.
+- **Install `@dimah-s3/core`** next to `@dimah-s3/react` and import `APIError`, `S3_ERROR_CODES`, and the protocol helpers from it. Import plain functions such as `uploadFile`, `memoryObjectSource`, and the display formatters `formatFileSize` and `truncateFileName` from `@dimah-s3/react/engine`.
+- **React 19.2** is required by `@dimah-s3/react` and `@dimah-s3/ui`, and `@fuma-translate/react` is a peer to install.
+- **Replace the preset components** (`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, `DeleteButton`) with the families, and mount one toast component per hook plus one `<Toaster />`.
+- **Import schemas from `@dimah-s3/core/schema`.** The root of `@dimah-s3/core` no longer ships Zod, so `uploadBodySchema` and the other schemas moved there.
+- **Proxy downloads need `download.mode: "proxy"`.** `/file` refuses routes in presign mode with `404 FEATURE_DISABLED`.
+- **Create the `db()` schema `2.3.0` on a new database.** There is no upgrade from `1.x` or from a `2.0.0` beta database. Generate the Drizzle or Prisma schema with `runCli`, or call `migrate(client)` on an empty database, and remove `fumadb` from your app. With Drizzle, upgrade `drizzle-orm` to 1.0.0-rc.5 or later first. A folder is its id (`folderId`). Uploads send `clientMetadata.folderId` for a folder that already exists.
+
+### One database schema
+
+`@dimah-s3/db` reads schema `2.3.0` only. A database already at `2.3.0` is unchanged.
+
+### Breaking changes
+
+- **No upgrade from another schema.** `sql/upgrade/` is gone, and `migrate(client)` only creates schema `2.3.0`. Create the tables on a new database with your ORM from the generated schema, or `migrate(client)` on an empty database. A database at any other version, including `1.x` and `2.0.0`, throws. See [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade).
+- **`v2` is no longer exported.** The schema is internal. `DB_SCHEMA_VERSION` is `2.3.0`.
+
+### Folders are rows with ids
+
+A folder is its id. An object stores `folderId` instead of a path. Renaming or moving a folder rewrites the cached paths under it and leaves every object id as it is. `PATCH /db/folder` renames (`name`) and moves (`parentId`). `createFolder` creates one folder inside a parent that already exists. An upload's `clientMetadata.folderId` must name that folder. The list's first page includes `trail`, from the root down to the open folder.
+
+The database schema is `2.3.0`. Create it on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded.
+
+### Breaking changes
+
+- **Schema `2.3.0` replaces every earlier schema.** `storage_object.folder` is now `folder_id`. `storage_folder` stores `parent_id` (`""` is the root), `name`, and a cached `path`, plus `updated_at`. Create the tables from the generated Drizzle or Prisma schema, or with `migrate(client)` on an empty database. A database at any other version throws.
+- **Folder addresses are ids.** `GET /db/objects` takes `folderId` (`""` is the root). `PATCH /db/object` takes `folderId`. `POST /db/folder` takes `{ parentId, name }`. `PATCH /db/folder` takes `{ id, name?, parentId? }`. `DELETE /db/folder` takes `id`. `DbClientObject.folder` is `folderId`. `DbClientFolder` is `{ id, name, parentId, path, createdAt, updatedAt }`.
+- **Uploads no longer create folders.** Set `clientMetadata.folderId` to an existing folder. A missing id is `FOLDER_NOT_FOUND` (`404`). `s3.db.folders.ensure` is removed. `create` takes `{ parentId, name }`, and `update` renames or moves.
+- **`dbObjectSource` parents are folder ids.** Uploads send `clientMetadata.folderId`. The first page's `trail` fills the breadcrumb.
+
+### Add columns to the Drizzle tables
+
+`runCli` → `generate` writes the Drizzle tables into your app, so you can add columns to them. Keep the table and column names. A column you add must be nullable or have a default, because the plugin does not read or write it. Generating again overwrites the file.
+
+### Folder ids in db()
+
+`@dimah-s3/db` schema `2.3.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Create the schema on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded. Details are in each package changelog and in [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade).
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `folder` on a `db()` object is `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.
+
+### Docs at s3.dimah.dev
+
+Package homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.
+
+### Rename from the database list
+
+`dbObjectSource` renames a file with `api.db.updateObject` (`name`, same `key` and `bucket`) and a folder with `api.db.updateFolder` (`name`). The stored object key stays. `folders: false` still renames files. A folder name that cannot be one path segment fails with `FOLDER_INVALID` before the request. The methods are set when `api.db` has those actions.
+
+### Generate the db() schema with the CLI
+
+`@dimah-s3/db` runs on FumaDB 0.7. Its schema declares the indexes, the MySQL index prefix lengths, and the collations, so `runCli` from `@dimah-s3/db/cli` writes complete Drizzle tables and Prisma models, and `migrate` creates complete tables with Kysely, on SQLite, PostgreSQL, and MySQL.
+
+- **`generate` needs no connection.** `runCli(DimahS3Db.client(drizzleAdapter({ db: undefined, provider })))` writes the Drizzle tables, and `prismaAdapter({ prisma: undefined, provider })` the Prisma models. Run it again after you upgrade `@dimah-s3/db`. See [Database Setup](https://s3.dimah.dev/docs/db/setup).
+- **`migrate` works on MySQL.** `migrate(client)` and the CLI's `migrate` command create the same tables and indexes.
+- **Drizzle tables.** The generated file exports `storageObject`, `storageFolder`, `private_dimah_s3_settings`, and `relations`. Pass `relations` to `drizzle()`, or the three tables to your own `defineRelations()`. The tables need no `@paralleldrive/cuid2`.
+- **Column types.** Text columns are `varchar` on every database: `key`, `path`, and `search_name` hold 1024 characters, `status` and `acl` 16, `route` and `upload_token` 64, and the others 255. `upload_id` stays `text`, and so does the settings `value`. Sizes are `bigint`, stored as `integer` on SQLite.
+- **Code that queries the generated tables.** The Drizzle tables read `size` and `declaredSize` as JavaScript `bigint` (`mode: "bigint"`), so convert them before `JSON.stringify` or arithmetic with a `number`. `id` has no default: the plugin generates ids, so a row you insert yourself needs one. `s3.db.objects` returns sizes as numbers.
+- **MySQL.** Text columns compare byte for byte (`utf8mb4_bin`). `key` and `path` are indexed on their first 512 characters, and timestamps are `datetime(3)`. Prisma has no collation attribute: add the collations to the generated migration.
+- **Folder conflicts with Drizzle.** Renaming or moving a folder onto a taken name returns `FOLDER_EXISTS` through the Drizzle adapter too, instead of `500` `INTERNAL_ERROR`.
+
+### Scopes and folder paths fit the database
+
+`db()` checks the scope and the folder path against the limits of the columns and indexes that hold them, so a value the database would reject fails with a clear error first, the same way on SQLite, PostgreSQL, and MySQL.
+
+- **Scopes.** `resolveScope` returns at most 255 characters, the length of the `scope` columns. A longer scope fails the call as a config error (`500` `INTERNAL_ERROR`, with the length in the server log) before any row is written.
+- **Folder paths.** A cached folder path is at most 1024 UTF-8 bytes, like an S3 key, so the `(scope, path)` unique key stays under PostgreSQL's 2704-byte limit for an index entry. A create, rename, or move past it is `FOLDER_INVALID`.
+- **Unique conflicts.** Folder and upload conflicts are read from FumaDB's `UniqueConstraintError`, on every adapter.
+
+### UTC timestamps and PostgreSQL schemas
+
+`@dimah-s3/db` runs on FumaDB 0.7.2.
+
+- **Timestamps are UTC on every adapter.** On PostgreSQL and MySQL, the Kysely adapter writes and reads the timestamp columns in UTC, as Drizzle and Prisma do, whatever the time zone of the process. Instances in different zones agree on deadlines like `expiresAt`.
+- **Tables in a PostgreSQL schema.** Create the client from `DimahS3Db.names.schema("storage")` to keep the tables in the `storage` schema. `migrate` creates it, the generated Drizzle tables declare it with `pgSchema("storage")`, and the generated Prisma models with `@@schema("storage")`. The settings table, `private_dimah_s3_settings`, stays in the search path. See [Database Setup](https://s3.dimah.dev/docs/db/setup).
+
+### Search across folders in db()
+
+`GET /db/objects` searches a folder and every folder below it, and search ignores case, accents, and look-alike letters the same way on SQLite, PostgreSQL, and MySQL.
+
+- **`recursive`.** With `folderId`, `api.db.listObjects({ folderId, recursive: true })` lists the objects of that folder and every folder below it, up to 10,000 folders. At the root that is the whole scope. `folders` then holds every folder below that matches `search`, by name. `s3.db.objects.list` and `count` take `recursive` too.
+- **`locations`.** Each page of a recursive listing carries the folders on the way to its rows. Walk `parentId` from a row's `folderId` to draw where it lives.
+- **`total`.** The first page of a search carries the number of objects that match across every page.
+- **Search text.** `search` matches a folded copy of the name, built with `normalizeSearchText` from `@dimah-s3/core`, so `invoice` finds `Invoice.PDF` on PostgreSQL too, and `%`, `_`, and `\` match as themselves. Folder names match the same way.
+- **`s3.db.folders.descendants(scope, parentId, { search, limit })`** lists the folders below a folder at any depth, and **`s3.db.folders.ancestors(scope, ids)`** every folder on the way to some folders.
+- **`dbObjectSource`** searches below the open folder (`searchScope: "folder"`) or the whole scope (`"all"`), sets `searchScopes`, and gives each result a `location`. Pass `recursiveSearch: false` to search the open folder only, for an `authorize` that refuses `recursive`.
+- **Folder names with `_`, `%`, or `\`.** Renaming or moving a folder finds the folders below it through their parent ids, so such a name no longer misses its own subfolders or rewrites another folder's.
+
+### Breaking changes
+
+- **Create schema `2.3.0` on a new database.** `storage_object` and `storage_folder` gain a required `search_name` column. A database at an earlier version is not upgraded: regenerate the Drizzle or Prisma schema with `runCli`, or call `migrate(client)` on an empty database.
+- **Search results change.** `search` is no longer a `LIKE` on the file name: case and accents do not count on any database, and `%` and `_` are no longer wildcards.
+- **Check `recursive` in `authorize`.** A `list` call with `recursive: true` returns the objects of every folder below `folder`. An `authorize` that allows a folder and denies a folder inside it must now deny a recursive listing of the outer one, or that listing shows the inner folder's objects. Return `false` for `recursive` to keep listings to one folder, and pass `dbObjectSource(api.db, { recursiveSearch: false })` so the list searches the open folder only.
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.3.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+### Types resolve under NodeNext
+
+The declaration files of `@dimah-s3/core`, `@dimah-s3/server`, `@dimah-s3/react`, and `@dimah-s3/db` import each other by their `.js` paths. A project with `moduleResolution` set to `NodeNext` or `Node16` gets the same types as one on `Bundler`.
+
+- **`export *` names resolve.** Importing `buildObjectKey` or another re-exported helper from `@dimah-s3/core` no longer fails with `TS2305`.
+- **Values keep their types.** `dimahS3`, `route`, `useUpload`, `db`, and the other re-exported values are no longer `any`. Code that passed `tsc` only because they were `any` now reports its type errors.
+- **`skipLibCheck: false` passes.** `tsc` no longer reports `TS2834` or `TS2835` inside these packages.
+
+### Record an object already in the bucket
+
+`s3.db.record` writes an active row for an object the app already put in the bucket: a copy, an import, or a file another system wrote. It does not copy or delete the bytes.
+
+- **Checks.** Every instance guard, then the route guard, runs first, with `operation: "plugin"` and `plugin: { id: "db", action: "record" }`. `resolveScope` and `authorize` then run with `operation: "record"`. The key must sit inside the route namespace (`KEY_INVALID`). The size, type, and eTag come from HeadObject. The route's `fileTypes` and `maxFileSize` apply. An empty object is `FILE_EMPTY`.
+- **Quota.** An object that does not fit is refused, and no row is written. The object stays in the bucket.
+- **Rows.** A second call for the same bytes returns the row. A different object at the key is `OBJECT_EXISTS`. A row an upload or purge holds is `CONFLICT`. A deleted row is replaced. A `folderId` must exist (`FOLDER_NOT_FOUND`). `null` and `""` are the root. `name` defaults to the last segment of the key.
+- **Call.** Pass `{ headers }`, `{ request }`, or `{ locals }` the way you call `s3.api`. `locals` seeds the guards. Every failure is an `APIError`, as from `s3.api`.
+
+### Breaking changes
+
+- **Handle `operation: "record"` in `resolveScope` and `authorize`.** They receive it from `s3.db.record`. A switch that lists every scope operation needs a `record` case.
+
+### Schema 2.3.0 and a folder-aware authorize
+
+`db()` reads schema `2.3.0`, `authorize` sees the folder a stored object is in, and the stores take the scope as their first argument.
+
+- **`authorize` sees where the target is.** `folder` and `folderId` are set for download, delete, read, confirm, and the multipart calls too, read from the object's row. A rule on `folder` now covers every way to reach an object. The folder is read only when `authorize` is configured.
+- **`destination`.** A move of an object, a rename or move of a folder, and `POST /db/folder` pass `destination: { folder, folderId }`: where the call puts the target.
+- **A refused upload leaves no row.** When confirm, multipart complete, or `s3.put` refuses an upload and the server deletes its object, the plugin removes that upload's row through `upload.onRejected`, including an active row the upload was overwriting.
+- **Name sort.** `sort: { field: "name" }` orders by the folded name that search matches, so case and accents do not count on SQLite, PostgreSQL, and MySQL alike. `s3.db.folders.children` and `descendants` list folders in that order.
+- **`maxFolders`.** A `quota` can cap the folders of a scope. `POST /db/folder` past the cap is `QUOTA_EXCEEDED` with `limit: "folders"`. `s3.db.folders.count(scope)` returns the number.
+- **A file-only quota counts rows.** With `maxFiles` and no `maxBytes`, the quota check is one `COUNT`.
+- **Folder moves hold under concurrency.** A subfolder created while its parent is renamed gets its new path, a parent deleted during a create or a move is put back, and two moves that would put each folder inside the other end with one undone and `CONFLICT`.
+- **The schema check reads the tables.** `checkSchema` and the first query also read one row of each table, so a database the generated schema was never applied to fails there, with what to run.
+- **`DB_FOLDER_ID_KEY`.** `@dimah-s3/db` and `@dimah-s3/db/client` export the `clientMetadata` key an upload names its folder with (`"folderId"`).
+- **`dbObjectSource`.** `usage: true` asks for the usage line without a quota, and `limit` is clamped to 1 to 100.
+- **`s3.db.record` names.** A name follows the rule of an uploaded file name, and the default name from the key is fitted to it.
+
+### Breaking changes
+
+- **Create schema `2.3.0` on a new database.** `storage_object.filename` is `name`, and `e_tag` is `etag`. `route` is `varchar(64)` and `acl` is `varchar(16)`. `storage_object_scope_filename_idx` is `storage_object_scope_name_idx` on `(scope, status, search_name)`, and the unique `storage_folder_scope_path_uk` is the plain index `storage_folder_scope_path_idx`. On MySQL, `name` uses `utf8mb4_bin` like every other text column. Generate the Drizzle or Prisma schema again with `runCli`, or call `migrate(client)` on an empty database. A database at another version throws.
+- **`filename` is `name`.** Read `StorageObject.name` and `DbClientObject.name`. Send `name` in `PATCH /db/object`, `api.db.updateObject({ name })`, and `s3.db.objects.update(ref, { name })`. The sort field is `"name"`.
+- **`authorize`: `folder` and `folderId` are where the target is now.** A move of an object and a rename or move of a folder report the new place in `destination`, not in `folder`. `POST /db/folder` reports the parent in `folder` and the new path in `destination.folder`. Read `destination?.folder` where a rule read `folder` for those calls.
+- **A flat listing asks `authorize` for the whole scope.** `GET /db/objects` without `folderId` passes `folder: null`, `folderId: null`, and `recursive: true`. A rule that returns `false` for `recursive` now refuses it: list with a `folderId`, or allow `recursive` at the root.
+- **Folder operations have their own names.** `resolveScope`, `authorize`, and a `quota` function receive `"folder.create"` for `POST /db/folder`, `"folder.update"` for `PATCH /db/folder`, and `"folder.delete"` for `DELETE /db/folder`. `"update"` is `PATCH /db/object` only.
+- **The stores take the scope first.**
+  - `s3.db.objects.list({ scope, ...filter })` → `s3.db.objects.list(scope, filter)`.
+  - `s3.db.objects.count({ scope, ...filter })` → `s3.db.objects.count(scope, filter)`.
+  - `s3.db.objects.getUsage(scope)` → `s3.db.objects.usage(scope)`.
+  - `ObjectFilter` and `ListObjectsInput` have no `scope`.
+- **`s3.db.folders.retain` is removed.** The plugin puts a folder back itself after it writes into one.
+- **Ask for `usage` when there is no quota.** `GET /db/objects` sends `usage` on the first page when the plugin sets a `quota`, or when the query has `usage=true`. Pass `dbObjectSource(api.db, { usage: true })` or `api.db.listObjects({ usage: true })` to keep the usage line without a quota.
+- **`DimahS3DB` is `DimahS3Db`.**
+- **Import `migrate` from `@dimah-s3/db`.** `@dimah-s3/db/cli` exports `runCli` only.
+- **Client types name the object.** `DbClientGetInput` → `DbClientGetObjectInput`, `DbClientUpdateInput` → `DbClientUpdateObjectInput`, `DbClientListInput` → `DbClientListObjectsInput`, and `DbClientListResponse` → `DbClientListObjectsResponse`.
+- **`@dimah-s3/db/client` does not export `StorageObjectStatus`.** Use `DbClientObjectStatus`, which `@dimah-s3/db` exports too. `StorageObjectStatus` stays on `@dimah-s3/db`.
+- **A scope cannot be empty or have whitespace at either end.** `resolveScope` returning one fails the call with `500 INTERNAL_ERROR` and logs the reason.
+- **A folder name cannot start or end with whitespace.** It is `FOLDER_INVALID`.
+- **`s3.db.record` checks `name` like an upload.** It is 1 to 255 UTF-8 bytes with no control or bidi characters, and may contain `/`. A name of up to 255 characters that is longer than 255 bytes is now a `VALIDATION_ERROR`.
+
+### One Node.js floor and bounded peer ranges
+
+Every `@dimah-s3/*` package declares `engines.node` `>=22`, exports its `package.json`, and names the peer majors it is built against. Keep every `@dimah-s3/*` package on the same version.
+
+- **`./package.json`.** Every package exports it, so a tool can read the installed version: `import pkg from "@dimah-s3/core/package.json" with { type: "json" }`.
+- **`funding`.** Every package links the sponsor page.
+
+### Breaking changes
+
+- **Use Node.js 22 or newer.** Every package declares `engines.node` `>=22`. Only `@dimah-s3/cli` declared a floor before (`>=20.19`).
+- **Check your peer versions.** Open-ended ranges such as `>=19.2` now end at the next major:
+  - `@dimah-s3/react` and `@dimah-s3/ui`: `react` `^19.2.0`.
+  - `@dimah-s3/ui`: `react-dom` `^19.2.0` (a new peer), `@base-ui/react` `^1.0.0`, `class-variance-authority` `^0.7.0`, `cn` `^0.5.2`, and `lucide-react` `>=0.400.0 <2`.
+  - `@dimah-s3/server` and `@dimah-s3/db`: `@aws-sdk/client-s3` `^3.0.0`.
+  - `@dimah-s3/db`: `kysely` `^0.29.8`.
+- **Install `@aws-sdk/client-s3` next to `@dimah-s3/db`.** It is a required peer. It was marked optional, but the plugin imports it.
+
+### Folder rows show what they hold
+
+A folder row shows how many files it holds and how large it is, on the same line a file uses for its size and date.
+
+- **The whole folder.** The count and the bytes include that folder and every folder below it. An empty folder is `0`. `memoryObjectSource` measures the records it holds. `GET /db/objects` sends `size` and `objectCount` on each folder of the page. The list's `usage` stays the whole scope.
+- **`db.objects.usage(scope)`.** Still sums the scope. Pass `{ folderId, recursive: true }` to sum one folder yourself.
+- **`ObjectListFolder`.** `size` and `objectCount` are optional. Leave them out when a source does not know, and the line stays empty.
+- **Your own second line.** `renderDescription` still replaces it.
+
+### db() on the plugin SDK
+
+`db()` reads the resolved routes and runs `s3.db.record` through the plugin SDK, so every guard applies to it.
+
+- **`s3.db.record` runs every guard.** Every plugin's instance guard runs, then the user's instance guard and the route guard. A guard another plugin adds, such as auth or a rate limit, now applies to it.
+- **`s3.db.record` fails with an `APIError`.** An unexpected failure is logged, passed to `onError`, and becomes `500 INTERNAL_ERROR`, as from `s3.api`.
+- **Guards name the db action.** A `/db/*` call carries `plugin: { id: "db", action }`, where `action` is the `dbClient()` method: `listObjects`, `getObject`, `updateObject`, `createFolder`, `updateFolder`, or `deleteFolder`.
+- **`dbClient()` is typed by `db()`.** Its responses come from the endpoint types, so the client and the server stay in step.
+
+### Breaking changes
+
+- **Compare `plugin.action` in guards.** The instance and route guards no longer receive `operation: "record"` from `s3.db.record`: they receive `operation: "plugin"` with `plugin.action === "record"`.
+
+### Move and delete folders from dbObjectSource
+
+`dbObjectSource` moves files and folders and deletes folders with everything in them, through the endpoints `db()` already has.
+
+- **Move.** `moveFile` sends the new `folderId` to `api.db.updateObject`, and `moveFolder` the new `parentId` to `api.db.updateFolder`. The object key stays. Set when `folders` is on.
+- **Folder delete.** `listFolderKeys` pages through `GET /db/objects` with `recursive` and the source's filters, so the list can delete those objects with `useDelete`. `deleteFolder` then calls `api.db.deleteFolder({ id, recursive: true })`. Set when `folders` is on, and `deleteFolder` when `api.db` has it.
+- **`DELETE /db/folder?recursive=true`.** Removes the folder and the folders below it, deepest first, as long as none of them holds an active or pending object. A folder with one is `FOLDER_NOT_EMPTY`; the empty folders removed before it stay removed. `authorize` sees the folder the call names. `api.db.deleteFolder` takes `recursive`.
+- **`s3.db.folders.delete(scope, id, { recursive })`.** The same on the server.
+
+### A plugin SDK for third-party plugins
+
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
 ## @dimah-s3/db@2.0.0-beta.14 (beta)
 
 ### db() on the plugin SDK
