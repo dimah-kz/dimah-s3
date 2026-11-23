@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useContext, useId, useRef } from "react";
+import { useCallback, useContext, useId, useMemo, useRef } from "react";
 import {
   APIError,
   DELETE_MANY_MAX_KEYS,
@@ -134,16 +134,20 @@ export function useDelete(options: UseDeleteOptions): UseDeleteReturn {
     [apiRef, optionsRef, store],
   );
 
-  return {
-    instanceId,
-    operations,
-    get,
-    pendingKeys,
-    isPending: pendingKeys.length > 0,
-    remove,
-    removeMany,
-    reset: store.reset,
-  };
+  const { reset } = store;
+  return useMemo(
+    () => ({
+      instanceId,
+      operations,
+      get,
+      pendingKeys,
+      isPending: pendingKeys.length > 0,
+      remove,
+      removeMany,
+      reset,
+    }),
+    [instanceId, operations, get, pendingKeys, remove, removeMany, reset],
+  );
 }
 
 /**

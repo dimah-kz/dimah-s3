@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useMemo,
   useRef,
   type ClipboardEvent,
   type DragEvent,
@@ -148,7 +149,8 @@ export function useFileIntake(
     [onFilesRef],
   );
 
-  const mimeAccept = toMimeAccept(accept);
+  // A new map would rebuild every dropzone prop getter on each render.
+  const mimeAccept = useMemo(() => toMimeAccept(accept), [accept]);
 
   const dropzone = useDropzone({
     // During a drag the browser exposes MIME types but no file names, so

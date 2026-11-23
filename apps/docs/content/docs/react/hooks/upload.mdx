@@ -96,13 +96,18 @@ return (
 - **Replace (default)** — a new call cancels the files in flight and replaces the queue once its own files start uploading. Earlier calls still preparing are cancelled at once. A call that is blocked, rejected, or fails before uploading leaves the queue alone.
 - **Append** — with `append: true`, new files join the end and files in flight keep going. A call's own `append` wins, as in `handleFiles(files, { append: true })`.
 
-### Cancel, retry, and reset
+### Pause, cancel, retry, and reset
 
 Each takes one id, an array of ids, or nothing for every file:
 
+- **`pause(ids?)`** — stops the files and keeps them in the queue with their progress, as `"paused"`. A paused file frees its upload slot, and its call waits for it. With no ids it also pauses the files of a call still preparing. A file that is `"finalizing"` finishes instead.
+- **`resume(ids?)`** — queues paused files again. A multipart upload continues from the parts S3 already has; a single-shot upload (under 50 MiB, or with multipart off) starts over. The request options resolved before the pause are sent again.
 - **`cancel(ids?)`** — aborts the files and their multipart sessions, and removes them from the queue.
 - **`retry(ids?)`** — uploads failed files again, each in its place and with its `id`. Files from one call go again as one call with that call's options, so they land in the same folder. They are validated again, and `beforeUpload` and `onUploadStart` run once for them. A retry never replaces the queue, and resolves like `handleFiles`.
-- **`reset(ids?)`** — removes settled files, such as a finished row the user dismisses. With no ids it also clears `fileRejections`. Files in flight keep going.
+- **`reset(ids?)`** — removes settled files, such as a finished row the user dismisses. With no ids it also clears `fileRejections`. Files in flight and paused files stay.
+
+While files are paused and none is in flight, `phase` is `"paused"` and
+`isPending` is `false`.
 
 ### Limit across calls
 
@@ -260,20 +265,22 @@ retried:
 `HOOK_FAILED`, `CHECKSUM_MISMATCH`, and every other 4xx are not retried. Send a
 file that still fails again with `upload.retry(id)`.
 
-## Cancel, detach, and unmount
+## Pause, cancel, detach, and unmount
 
 What happens to a multipart upload when it stops:
 
-| Action          | With an `uploadStore`                                   | Without one               |
-| --------------- | ------------------------------------------------------- | ------------------------- |
-| `cancel(ids?)`  | Aborts the server session and deletes the stored record | Aborts the server session |
-| `detach()`      | Keeps the session and the record, to resume             | Aborts the server session |
-| Unmount         | Detaches                                                | Cancels                   |
-| Retryable error | Keeps the session and the record                        | Aborts the server session |
-| Other error     | Aborts the session and deletes the record               | Aborts the server session |
+| Action          | With an `uploadStore`                                   | Without one                              |
+| --------------- | ------------------------------------------------------- | ---------------------------------------- |
+| `pause(ids?)`   | Keeps the session and the record; `resume` continues    | Keeps the session while the page is open |
+| `cancel(ids?)`  | Aborts the server session and deletes the stored record | Aborts the server session                |
+| `detach()`      | Keeps the session and the record, to resume             | Aborts the server session                |
+| Unmount         | Detaches                                                | Cancels                                  |
+| Retryable error | Keeps the session and the record                        | Aborts the server session                |
+| Other error     | Aborts the session and deletes the record               | Aborts the server session                |
 
-A kept upload [resumes](/docs/react/upload-store) from the parts S3 already
-has when the user selects the same file again.
+`detach()` and an unmount also remove paused files from the queue. A kept
+upload [resumes](/docs/react/upload-store) from the parts S3 already has when
+the user selects the same file again, also after a reload.
 
 ## API Reference
 
@@ -309,46 +316,48 @@ has when the user selects the same file again.
 
 ### Return
 
-| Property             | Type                                            | Description                                                             |
-| -------------------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
-| `files`              | `readonly UploadFileState[]`                    | Every file in the queue, in the order it was added                      |
-| `file`               | `UploadFileState \| null`                       | The first file. Handy when `maxFiles` is `1`                            |
-| `phase`              | `"idle" \| "uploading" \| "success" \| "error"` | Phase of the whole queue                                                |
-| `progress`           | `TransferProgress`                              | Bytes across every file in the queue                                    |
-| `error`              | `APIError \| null`                              | The failed file's error, or `PARTIAL_FAILURE` when several failed       |
-| `isPending`          | `boolean`                                       | `true` while a call is preparing or a file is in flight                 |
-| `policy`             | `UploadPolicy`                                  | The route policy narrowed by the options, plus `maxFiles`               |
-| `fileRejections`     | `readonly FileRejection[]`                      | Files the newest call rejected, each as `{ file, errors }`              |
-| `resumable`          | `boolean`                                       | `true` when an `uploadStore` is set                                     |
-| `disabled`           | `boolean`                                       | The `disabled` option                                                   |
-| `instanceId`         | `string`                                        | Stable id of the hook instance. Toast owners use it                     |
-| `handleFiles`        | `(files, call?) => Promise<UploadBatchResult>`  | Validates and uploads a `File`, `File[]`, or `FileList`                 |
-| `open`               | `(call?) => void`                               | Opens the file picker                                                   |
-| `getRootProps`       | `(props?, call?) => props`                      | Props for a dropzone                                                    |
-| `getInputProps`      | `(props?) => props`                             | Props for the hidden file input                                         |
-| `getDropTargetProps` | `(props?, call?) => props`                      | Drag and drop handlers only. Sets `data-drag-active` while dragged over |
-| `isDragActive`       | `boolean`                                       | Files are dragged over a dropzone or drop target                        |
-| `isDragAccept`       | `boolean`                                       | The dragged files match `accept` and `maxFiles`                         |
-| `isDragReject`       | `boolean`                                       | The dragged files break `accept` or `maxFiles`                          |
-| `cancel`             | `(ids?) => void`                                | Cancels one file, several, or every file                                |
-| `retry`              | `(ids?) => Promise<UploadBatchResult>`          | Uploads failed files again                                              |
-| `reset`              | `(ids?) => void`                                | Removes settled files                                                   |
-| `detach`             | `() => void`                                    | Stops every file but keeps stored multipart uploads                     |
+| Property             | Type                                           | Description                                                             |
+| -------------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| `files`              | `readonly UploadFileState[]`                   | Every file in the queue, in the order it was added                      |
+| `file`               | `UploadFileState \| null`                      | The first file. Handy when `maxFiles` is `1`                            |
+| `phase`              | `UploadPhase`                                  | `"idle"`, `"uploading"`, `"paused"`, `"success"`, or `"error"`          |
+| `progress`           | `TransferProgress`                             | Bytes across every file in the queue                                    |
+| `error`              | `APIError \| null`                             | The failed file's error, or `PARTIAL_FAILURE` when several failed       |
+| `isPending`          | `boolean`                                      | `true` while a call is preparing or a file is in flight                 |
+| `policy`             | `UploadPolicy`                                 | The route policy narrowed by the options, plus `maxFiles`               |
+| `fileRejections`     | `readonly FileRejection[]`                     | Files the newest call rejected, each as `{ file, errors }`              |
+| `resumable`          | `boolean`                                      | `true` when an `uploadStore` is set                                     |
+| `disabled`           | `boolean`                                      | The `disabled` option                                                   |
+| `instanceId`         | `string`                                       | Stable id of the hook instance. Toast owners use it                     |
+| `handleFiles`        | `(files, call?) => Promise<UploadBatchResult>` | Validates and uploads a `File`, `File[]`, or `FileList`                 |
+| `open`               | `(call?) => void`                              | Opens the file picker                                                   |
+| `getRootProps`       | `(props?, call?) => props`                     | Props for a dropzone                                                    |
+| `getInputProps`      | `(props?) => props`                            | Props for the hidden file input                                         |
+| `getDropTargetProps` | `(props?, call?) => props`                     | Drag and drop handlers only. Sets `data-drag-active` while dragged over |
+| `isDragActive`       | `boolean`                                      | Files are dragged over a dropzone or drop target                        |
+| `isDragAccept`       | `boolean`                                      | The dragged files match `accept` and `maxFiles`                         |
+| `isDragReject`       | `boolean`                                      | The dragged files break `accept` or `maxFiles`                          |
+| `pause`              | `(ids?) => void`                               | Pauses one file, several, or every file                                 |
+| `resume`             | `(ids?) => void`                               | Resumes paused files                                                    |
+| `cancel`             | `(ids?) => void`                               | Cancels one file, several, or every file                                |
+| `retry`              | `(ids?) => Promise<UploadBatchResult>`         | Uploads failed files again                                              |
+| `reset`              | `(ids?) => void`                               | Removes settled files                                                   |
+| `detach`             | `() => void`                                   | Stops every file, paused ones too, but keeps stored multipart uploads   |
 
 ### UploadFileState
 
-| Property      | Type                   | Description                                                                                         |
-| ------------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
-| `id`          | `string`               | Unique on the page. Pass it to `cancel`, `retry`, or `reset`                                        |
-| `file`        | `File`                 | The browser file                                                                                    |
-| `phase`       | `UploadFilePhase`      | `"queued"`, `"preparing"`, `"presigning"`, `"uploading"`, `"finalizing"`, `"success"`, or `"error"` |
-| `progress`    | `TransferProgress`     | `{ loaded, total, percent, speed? }`. `speed` is bytes per second                                   |
-| `error`       | `APIError \| null`     | Set when `phase` is `"error"`                                                                       |
-| `result`      | `UploadResult \| null` | The verified object, set when `phase` is `"success"`                                                |
-| `fileName`    | `string`               | Name from the browser `File`                                                                        |
-| `fileSize`    | `number`               | Size in bytes                                                                                       |
-| `contentType` | `string`               | MIME type from the browser `File`                                                                   |
-| `previewUrl`  | `string \| null`       | Object URL for an image thumbnail, `null` for other files. The hook revokes it                      |
+| Property      | Type                   | Description                                                                                                     |
+| ------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `id`          | `string`               | Unique on the page. Pass it to `pause`, `resume`, `cancel`, `retry`, or `reset`                                 |
+| `file`        | `File`                 | The browser file                                                                                                |
+| `phase`       | `UploadFilePhase`      | `"queued"`, `"preparing"`, `"presigning"`, `"uploading"`, `"finalizing"`, `"paused"`, `"success"`, or `"error"` |
+| `progress`    | `TransferProgress`     | `{ loaded, total, percent, speed? }`. `speed` is bytes per second                                               |
+| `error`       | `APIError \| null`     | Set when `phase` is `"error"`                                                                                   |
+| `result`      | `UploadResult \| null` | The verified object, set when `phase` is `"success"`                                                            |
+| `fileName`    | `string`               | Name from the browser `File`                                                                                    |
+| `fileSize`    | `number`               | Size in bytes                                                                                                   |
+| `contentType` | `string`               | MIME type from the browser `File`                                                                               |
+| `previewUrl`  | `string \| null`       | Object URL for an image thumbnail, `null` for other files. The hook revokes it                                  |
 
 ### UploadBatchResult
 
@@ -451,9 +460,10 @@ cancels the files in flight.
 
 <Accordion title="Can I pause and resume an upload?">
 
-Call `detach()` to stop without aborting, then select the same file again to
-resume. Resuming needs an `uploadStore` and a multipart upload; see
-[Upload Store](/docs/react/upload-store).
+Yes: `upload.pause(id)` and `upload.resume(id)`, or no id for every file. A
+multipart upload continues from its uploaded parts while the page is open. To
+resume after a reload, add an [`uploadStore`](/docs/react/upload-store) and
+have the user select the same file again.
 
 </Accordion>
 

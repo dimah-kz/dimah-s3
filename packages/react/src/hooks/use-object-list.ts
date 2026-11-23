@@ -902,51 +902,109 @@ export function useObjectList<TItem>(
   });
   const entries = useReusedEntries(folders, items, getId, getFile);
   const nextCursor = fresh ? snapshot.nextCursor : null;
+  const searchScopes = options.searchScopes ?? NO_SCOPES;
+  const total = fresh && trimmedSearch ? snapshot.total : null;
+  const usage = visible ? snapshot.usage : null;
+  const error = fresh ? (failure?.error ?? null) : null;
+  const { uploadOptions } = options;
+  // The source methods the list offers: the hook's own wrappers, present
+  // while the source has the method.
+  const createFolderAction = options.createFolder ? createFolder : undefined;
+  const renameFileAction = options.renameFile ? renameFile : undefined;
+  const renameFolderAction = options.renameFolder ? renameFolder : undefined;
+  const moveEntriesAction =
+    movesFiles || movesFolders ? moveEntries : undefined;
+  const listFolderKeysAction = options.listFolderKeys
+    ? listFolderKeys
+    : undefined;
+  const deleteFolderAction = options.deleteFolder ? deleteFolder : undefined;
 
-  return {
-    entries,
-    items,
-    folders,
-    trail,
-    parent,
-    sort,
-    search,
-    isSearching: trimmedSearch !== "",
-    searchScope,
-    searchScopes: options.searchScopes ?? NO_SCOPES,
-    total: fresh && trimmedSearch ? snapshot.total : null,
-    usage: visible ? snapshot.usage : null,
-    error: fresh ? (failure?.error ?? null) : null,
-    status,
-    isLoading: status === "loading",
-    isRefreshing: status === "refreshing",
-    isLoadingMore: status === "loading-more",
-    hasMore: nextCursor != null,
-    nextCursor,
-    loadMore,
-    refresh,
-    retry,
-    openFolder,
-    navigate,
-    goUp,
-    setSort: setSortValue,
-    setSearch: setSearchValue,
-    setSearchScope,
-    setItems,
-    setFolders,
-    removeItems,
-    getId,
-    getFile,
-    uploadOptions: options.uploadOptions,
-    createFolder: options.createFolder ? createFolder : undefined,
-    renameFile: options.renameFile ? renameFile : undefined,
-    renameFolder: options.renameFolder ? renameFolder : undefined,
-    listFolders,
-    canMove,
-    moveEntries: movesFiles || movesFolders ? moveEntries : undefined,
-    listFolderKeys: options.listFolderKeys ? listFolderKeys : undefined,
-    deleteFolder: options.deleteFolder ? deleteFolder : undefined,
-  };
+  return useMemo(
+    () => ({
+      entries,
+      items,
+      folders,
+      trail,
+      parent,
+      sort,
+      search,
+      isSearching: trimmedSearch !== "",
+      searchScope,
+      searchScopes,
+      total,
+      usage,
+      error,
+      status,
+      isLoading: status === "loading",
+      isRefreshing: status === "refreshing",
+      isLoadingMore: status === "loading-more",
+      hasMore: nextCursor != null,
+      nextCursor,
+      loadMore,
+      refresh,
+      retry,
+      openFolder,
+      navigate,
+      goUp,
+      setSort: setSortValue,
+      setSearch: setSearchValue,
+      setSearchScope,
+      setItems,
+      setFolders,
+      removeItems,
+      getId,
+      getFile,
+      uploadOptions,
+      createFolder: createFolderAction,
+      renameFile: renameFileAction,
+      renameFolder: renameFolderAction,
+      listFolders,
+      canMove,
+      moveEntries: moveEntriesAction,
+      listFolderKeys: listFolderKeysAction,
+      deleteFolder: deleteFolderAction,
+    }),
+    [
+      entries,
+      items,
+      folders,
+      trail,
+      parent,
+      sort,
+      search,
+      trimmedSearch,
+      searchScope,
+      searchScopes,
+      total,
+      usage,
+      error,
+      status,
+      nextCursor,
+      loadMore,
+      refresh,
+      retry,
+      openFolder,
+      navigate,
+      goUp,
+      setSortValue,
+      setSearchValue,
+      setSearchScope,
+      setItems,
+      setFolders,
+      removeItems,
+      getId,
+      getFile,
+      uploadOptions,
+      createFolderAction,
+      renameFileAction,
+      renameFolderAction,
+      listFolders,
+      canMove,
+      moveEntriesAction,
+      listFolderKeysAction,
+      deleteFolderAction,
+    ],
+  );
 }
 
 /**

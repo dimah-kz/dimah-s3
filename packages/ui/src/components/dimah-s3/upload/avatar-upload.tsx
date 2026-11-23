@@ -88,6 +88,8 @@ export function AvatarUpload({
 }: AvatarUploadProps) {
   const { file } = upload;
   const inFlight = file != null && IN_FLIGHT.has(file.phase);
+  // A paused image keeps its preview and its progress ring.
+  const paused = file?.phase === "paused";
   // After an upload, the local preview shows until `objectKey` moves to
   // another image, such as when the photo is removed.
   const [uploaded, setUploaded] = useState<{
@@ -103,7 +105,7 @@ export function AvatarUpload({
       objectKey === uploaded.objectKey ||
       objectKey === file.result?.key);
   const previewUrl =
-    inFlight || previewCurrent ? (file?.previewUrl ?? null) : null;
+    inFlight || paused || previewCurrent ? (file?.previewUrl ?? null) : null;
   const announcement = useAnnouncement(upload);
   // A weak owner: an `UploadToasts` for the same hook announces instead.
   const announces = useToastOwner(upload.instanceId, { weak: true });
@@ -163,7 +165,7 @@ export function AvatarUpload({
             />
           )}
         </button>
-        {inFlight ? (
+        {inFlight || paused ? (
           <div
             className={cn(
               rounded,
@@ -213,6 +215,8 @@ function useAnnouncement(upload: UseUploadReturn): string {
       return file.error
         ? formatError(file.error)
         : t("Upload failed", { note: "upload status" });
+    case "paused":
+      return t("Paused", { note: "upload status" });
     default:
       return t("Uploading…", { note: "upload status" });
   }

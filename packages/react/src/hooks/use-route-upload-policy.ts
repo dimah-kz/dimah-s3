@@ -9,6 +9,7 @@ import type {
 } from "@dimah-s3/core";
 import { S3Context } from "@/s3-provider";
 import { requireApi, toClientError } from "@/internal/client-error";
+import { useStableValue } from "@/internal/hooks";
 import {
   loadRouteCatalog,
   mergeRouteUploadPolicy,
@@ -110,5 +111,25 @@ export function useRouteUploadPolicyState(
   );
   const status: CatalogLoadStatus =
     settled === null ? "loading" : settled.error ? "error" : "ready";
-  return [{ ...policy, status, error: settled?.error ?? null }, reload];
+  // Options like `accept={["image/*"]}` are new arrays on every render.
+  const stable = useStableValue(
+    { ...policy, status, error: settled?.error ?? null },
+    isSamePolicy,
+  );
+  return [stable, reload];
+}
+
+function isSamePolicy(
+  a: UseRouteUploadPolicyReturn,
+  b: UseRouteUploadPolicyReturn,
+): boolean {
+  return (
+    a.status === b.status &&
+    a.error === b.error &&
+    a.maxFileSize === b.maxFileSize &&
+    a.multipart === b.multipart &&
+    a.checksum === b.checksum &&
+    a.accept?.length === b.accept?.length &&
+    (a.accept ?? []).every((token, index) => token === b.accept?.[index])
+  );
 }

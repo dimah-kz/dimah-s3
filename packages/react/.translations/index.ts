@@ -150,6 +150,7 @@ export type Translations = {
   "Open a folder, then move here.(object list move)": string;
   "PB(file size unit)": string;
   "Pause(upload control)": string;
+  "Paused(upload status)": string;
   "Preparing…(upload status)": string;
   "Progress for {name}(progress)": string;
   "Remove {name}(attachment action)": string;
@@ -157,6 +158,9 @@ export type Translations = {
   "Request format is not supported(API error)": string;
   "Request is too large(API error)": string;
   "Requested range is not available(API error)": string;
+  "Resume {name}(attachment action)": string;
+  "Resume(toast action)": string;
+  "Resume(upload control)": string;
   "Retry failed uploads(upload control)": string;
   "Retry {name}(attachment action)": string;
   "Retry(object list)": string;
@@ -205,6 +209,7 @@ export type Translations = {
   "Upload files(button)": string;
   "Upload finished with errors(toast)": string;
   "Upload part is out of range(API error)": string;
+  "Upload paused(toast)": string;
   "Upload progress(upload progress)": string;
   "Upload session has expired(API error)": string;
   "Upload session is invalid(API error)": string;

@@ -282,27 +282,48 @@ export function useObjectListSelection<TItem>(
     [selectedKeys],
   );
 
-  return {
-    mode,
-    persist,
-    selected,
-    selectedKeys,
-    selectedItems,
-    selectedFolders,
-    count: selected.length,
-    isSelecting: selected.length > 0,
-    allSelected:
-      selectable.length > 0 &&
-      selectable.every((entry) => selectedKeys.has(entry.key)),
-    selectableCount: selectable.length,
-    isSelected,
-    canSelect,
-    toggle,
-    select,
-    deselect,
-    selectAll,
-    clear,
-  };
+  const allSelected =
+    selectable.length > 0 &&
+    selectable.every((entry) => selectedKeys.has(entry.key));
+  const selectableCount = selectable.length;
+  return useMemo(
+    () => ({
+      mode,
+      persist,
+      selected,
+      selectedKeys,
+      selectedItems,
+      selectedFolders,
+      count: selected.length,
+      isSelecting: selected.length > 0,
+      allSelected,
+      selectableCount,
+      isSelected,
+      canSelect,
+      toggle,
+      select,
+      deselect,
+      selectAll,
+      clear,
+    }),
+    [
+      mode,
+      persist,
+      selected,
+      selectedKeys,
+      selectedItems,
+      selectedFolders,
+      allSelected,
+      selectableCount,
+      isSelected,
+      canSelect,
+      toggle,
+      select,
+      deselect,
+      selectAll,
+      clear,
+    ],
+  );
 }
 
 function hasMissing(

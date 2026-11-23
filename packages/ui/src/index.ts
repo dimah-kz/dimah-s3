@@ -215,7 +215,19 @@ export {
   AttachmentGroup,
   AttachmentAction,
   AttachmentTrigger,
-} from "@/components/ui/attachment";
+  type AttachmentGroupProps,
+  type AttachmentActionProps,
+  type AttachmentTriggerProps,
+} from "@/components/dimah-s3/attachment/attachment-parts";
 export type { AttachmentState } from "@/lib/attachment-layout";
-export { Toaster, toast } from "@/components/ui/toast";
-export { useToastOwner } from "@/hooks/use-toast-owner";
+export {
+  Toaster,
+  toast,
+  type ToasterProps,
+  type ToastOptions,
+  type ToastType,
+} from "@/components/dimah-s3/toast/toaster";
+export {
+  useToastOwner,
+  type UseToastOwnerOptions,
+} from "@/hooks/use-toast-owner";

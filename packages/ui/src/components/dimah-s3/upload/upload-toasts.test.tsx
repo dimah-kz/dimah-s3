@@ -31,6 +31,7 @@ function fileState(id: string, phase: UploadFilePhase): UploadFileState {
 
 const cancel = vi.fn<UseUploadReturn["cancel"]>();
 const retry = vi.fn<UseUploadReturn["retry"]>();
+const resume = vi.fn<UseUploadReturn["resume"]>();
 
 /** A `useUpload` return in a fixed state. Only the fields toasts read matter. */
 function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
@@ -56,6 +57,8 @@ function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
     open: vi.fn(),
     retry,
     cancel,
+    pause: vi.fn(),
+    resume,
     detach: vi.fn(),
     reset: vi.fn(),
     getRootProps: (props) => props ?? ({} as never),
@@ -118,6 +121,26 @@ describe("UploadToasts", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(cancel).toHaveBeenCalledWith();
+  });
+
+  it("keeps the progress toast while paused, with a resume action and no result", async () => {
+    const { update } = renderToasts(
+      uploading([fileState("a", "success"), fileState("b", "uploading")], 3072),
+    );
+    await screen.findByText("Uploading 1/2");
+
+    update(
+      stubUpload({
+        files: [fileState("a", "success"), fileState("b", "paused")],
+        phase: "paused",
+        progress: { loaded: 3072, total: 4096, percent: 75 },
+      }),
+    );
+    expect(await screen.findByText("Upload paused")).toBeDefined();
+    expect(screen.queryByText("1 files uploaded")).toBeNull();
+    expect(screen.queryByText("Upload complete")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Resume" }));
+    expect(resume).toHaveBeenCalledWith();
   });
 
   it("replaces progress with the result once files settle", async () => {

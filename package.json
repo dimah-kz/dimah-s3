@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api:report": "node ./scripts/api-report.mjs",
     "build": "turbo run build --filter=!./examples/* --filter=!brand",
     "build:all": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",

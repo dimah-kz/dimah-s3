@@ -7,6 +7,7 @@ import type {
   UploadFileState,
   UseUploadReturn,
 } from "@dimah-s3/react";
+import { DEFAULT_MULTIPART_THRESHOLD } from "@dimah-s3/react/engine";
 import { render, screen, within } from "@/test/render";
 import { Upload } from "@/components/dimah-s3/upload/upload";
 import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
@@ -63,6 +64,8 @@ function stubUpload(overrides: Partial<UseUploadReturn> = {}): UseUploadReturn {
     open: vi.fn(),
     retry: vi.fn(),
     cancel: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
     detach: vi.fn(),
     reset: vi.fn(),
     getRootProps: (props) => props ?? ({} as never),
@@ -97,15 +100,22 @@ describe("UploadStatus", () => {
     expect(screen.getByText("Preparing…")).toBeDefined();
   });
 
-  it("shows one file as its own card with cancel, and pause when resumable", async () => {
+  it("shows one file as its own card with cancel, and pause for a multipart upload", async () => {
     const file = fileState("a", "uploading", {
+      fileSize: DEFAULT_MULTIPART_THRESHOLD,
       progress: { loaded: 1024, total: 2048, percent: 50 },
     });
     const upload = stubUpload({
       files: [file],
       phase: "uploading",
       isPending: true,
-      resumable: true,
+      policy: {
+        status: "ready",
+        error: null,
+        multipart: true,
+        checksum: false,
+        maxFiles: 5,
+      },
     });
     renderStatus(upload);
 
@@ -117,8 +127,55 @@ describe("UploadStatus", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cancel a.txt" }));
     expect(upload.cancel).toHaveBeenCalledWith("a");
     await userEvent.click(screen.getByRole("button", { name: "Pause" }));
-    expect(upload.detach).toHaveBeenCalledOnce();
+    expect(upload.pause).toHaveBeenCalledWith();
     expect(screen.queryByRole("button", { name: /Dismiss/ })).toBeNull();
+  });
+
+  it("offers no pause for a single-shot upload, which would start over", () => {
+    renderStatus(
+      stubUpload({
+        files: [fileState("a", "uploading")],
+        phase: "uploading",
+        isPending: true,
+        resumable: true,
+      }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Pause" })).toBeNull();
+  });
+
+  it("resumes a paused file from its card", async () => {
+    const upload = stubUpload({
+      files: [
+        fileState("a", "paused", {
+          progress: { loaded: 1024, total: 2048, percent: 50 },
+        }),
+      ],
+      phase: "paused",
+    });
+    renderStatus(upload);
+
+    expect(screen.getByText("Paused")).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Dismiss/ })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Resume a.txt" }));
+    expect(upload.resume).toHaveBeenCalledWith("a");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel a.txt" }));
+    expect(upload.cancel).toHaveBeenCalledWith("a");
+  });
+
+  it("resumes every paused file from the summary", async () => {
+    const upload = stubUpload({
+      files: [fileState("a", "success"), fileState("b", "paused")],
+      phase: "paused",
+      progress: { loaded: 3072, total: 4096, percent: 75 },
+    });
+    renderStatus(upload);
+
+    expect(screen.getByText("1 of 2 files uploaded")).toBeDefined();
+    expect(screen.getByText("75% · Paused")).toBeDefined();
+    await userEvent.click(screen.getByRole("button", { name: "Resume" }));
+    expect(upload.resume).toHaveBeenCalledWith();
+    expect(screen.queryByRole("button", { name: "Dismiss" })).toBeNull();
   });
 
   it("lays out files as a grid under the summary, also for one file", async () => {

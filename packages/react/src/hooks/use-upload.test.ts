@@ -378,4 +378,33 @@ describe("useUpload", () => {
       },
     ]);
   });
+
+  it("keeps its identity across renders until something changes", async () => {
+    const api = catalogApi({
+      enabled: true,
+      fileTypes: ["image/*", "text/plain"],
+      multipart: false,
+      checksum: false,
+    });
+    // A new `accept` array on every render, as inline props make.
+    const hook = renderHook(() =>
+      useUpload({ api, route: "uploads", accept: ["text/plain"] }),
+    );
+    await flush();
+    const first = hook.current;
+    expect(first.policy.status).toBe("ready");
+
+    hook.rerender();
+    expect(hook.current).toBe(first);
+    expect(hook.current.policy).toBe(first.policy);
+    expect(hook.current.getRootProps).toBe(first.getRootProps);
+
+    await act(async () => {
+      void hook.current.handleFiles(txt("a.txt"));
+    });
+    await flush();
+    expect(hook.current).not.toBe(first);
+    expect(hook.current.policy).toBe(first.policy);
+    hook.unmount();
+  });
 });

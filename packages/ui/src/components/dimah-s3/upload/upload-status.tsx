@@ -1,14 +1,17 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { PauseIcon, RotateCwIcon, XIcon } from "lucide-react";
+import { PauseIcon, PlayIcon, RotateCwIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
   useFormatError,
   useFormatEta,
   useFormatFileSize,
   useFormatNumber,
+  type UploadFileState,
+  type UseUploadReturn,
 } from "@dimah-s3/react";
+import { DEFAULT_MULTIPART_THRESHOLD } from "@dimah-s3/react/engine";
 import { cn } from "cn";
 import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
@@ -32,6 +35,28 @@ export type UploadStatusProps = Omit<ComponentProps<"div">, "children"> & {
 /** A summary header and its files share one card; the rows inside drop their own. */
 const ROW_CLASS = "rounded-none border-0 bg-transparent";
 
+const PAUSABLE = new Set<UploadFileState["phase"]>([
+  "queued",
+  "preparing",
+  "presigning",
+  "uploading",
+]);
+
+/**
+ * Whether a file in flight keeps its progress across a pause: a multipart
+ * upload. A single-shot upload would start over, so it offers no pause.
+ */
+function canPause(upload: UseUploadReturn): boolean {
+  return (
+    upload.policy.multipart &&
+    upload.files.some(
+      (file) =>
+        PAUSABLE.has(file.phase) &&
+        file.fileSize >= DEFAULT_MULTIPART_THRESHOLD,
+    )
+  );
+}
+
 /**
  * Status of the nearest `Upload` queue. Renders nothing while it is idle.
  *
@@ -39,18 +64,19 @@ const ROW_CLASS = "rounded-none border-0 bg-transparent";
  * header with the overall progress ring, the count and the time left (or
  * the result once they settle), above a row for each file. The rows scroll
  * past 20rem. While files upload the summary offers "Cancel all uploads",
- * and pause when the hook has an `uploadStore` so the uploads can resume;
- * settled, it offers dismiss, and "Retry failed uploads" when files failed.
- * A failed file has its own retry action. In a full root, as in a full
- * `UploadField`, the retry actions stay focusable but are `aria-disabled`.
- * With `layout="grid"` the files show as tiles under the summary, also for
- * one file.
+ * and pause while a multipart upload is in flight, since it resumes from
+ * its uploaded parts. While files are paused and none is in flight it
+ * offers resume; a paused file also has its own resume action. Settled, it offers dismiss, and "Retry failed uploads" when files
+ * failed. A failed file has its own retry action. In a full root, as in a
+ * full `UploadField`, the retry actions stay focusable but are
+ * `aria-disabled`. With `layout="grid"` the files show as tiles under the
+ * summary, also for one file.
  *
  * Inside an `UploadField` (a root with `hideUploaded`), files that uploaded
- * leave the status, since the field's value lists them. When cancel, pause
- * or dismiss removes the card that has focus, focus moves to the next
- * action, else to the root's trigger or dropzone. It sets `data-phase` to
- * the hook's phase.
+ * leave the status, since the field's value lists them. When cancel, pause,
+ * resume or dismiss removes the action that has focus, focus moves to the
+ * next action, else to the root's trigger or dropzone. It sets `data-phase`
+ * to the hook's phase.
  */
 export function UploadStatus({
   layout = "list",
@@ -68,25 +94,37 @@ export function UploadStatus({
     return null;
   }
 
-  const pause =
-    upload.resumable && upload.isPending ? (
-      <AttachmentAction
-        type="button"
-        aria-label={t("Pause", { note: "upload control" })}
-        onClick={() => {
-          keepFocus();
-          upload.detach();
-        }}
-      >
-        <PauseIcon />
-      </AttachmentAction>
-    ) : null;
-  const onDismiss = upload.isPending
-    ? undefined
-    : () => {
+  // One slot, so focus stays on it as pause turns into resume.
+  const control = canPause(upload) ? (
+    <AttachmentAction
+      type="button"
+      aria-label={t("Pause", { note: "upload control" })}
+      onClick={() => {
         keepFocus();
-        upload.reset();
-      };
+        upload.pause();
+      }}
+    >
+      <PauseIcon />
+    </AttachmentAction>
+  ) : phase === "paused" && shown.length > 1 ? (
+    <AttachmentAction
+      type="button"
+      aria-label={t("Resume", { note: "upload control" })}
+      onClick={() => {
+        keepFocus();
+        upload.resume();
+      }}
+    >
+      <PlayIcon />
+    </AttachmentAction>
+  ) : null;
+  const onDismiss =
+    upload.isPending || phase === "paused"
+      ? undefined
+      : () => {
+          keepFocus();
+          upload.reset();
+        };
 
   return (
     <div
@@ -101,13 +139,17 @@ export function UploadStatus({
           title={t("Preparing…", { note: "upload status" })}
         />
       ) : shown.length === 1 && layout === "list" ? (
-        <UploadFileItem file={shown[0]} actions={pause} onDismiss={onDismiss} />
+        <UploadFileItem
+          file={shown[0]}
+          actions={control}
+          onDismiss={onDismiss}
+        />
       ) : (
         <div
           data-slot="upload-status-panel"
           className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground"
         >
-          <UploadSummary pause={pause} onDismiss={onDismiss} />
+          <UploadSummary control={control} onDismiss={onDismiss} />
           <UploadFileList
             layout={layout}
             className={cn(
@@ -129,10 +171,11 @@ export function UploadStatus({
 
 /** The header of a queue with several files: its progress, or its result. */
 function UploadSummary({
-  pause,
+  control,
   onDismiss,
 }: {
-  pause: ReactNode;
+  /** Pause or resume for the whole queue, or `null`. */
+  control: ReactNode;
   onDismiss: (() => void) | undefined;
 }) {
   const t = useTranslations();
@@ -151,7 +194,7 @@ function UploadSummary({
     disabled = false,
   ) => (
     <>
-      {pause}
+      {control}
       <AttachmentAction
         type="button"
         aria-label={label}
@@ -205,10 +248,11 @@ function UploadSummary({
   }
 
   const percent = Math.round(Math.min(100, Math.max(0, progress.percent)));
-  const eta = formatEta(progress);
+  const paused = upload.phase === "paused";
+  const eta = paused ? null : formatEta(progress);
   return (
     <StatusAttachment
-      state="uploading"
+      state={paused ? "idle" : "uploading"}
       className={ROW_CLASS}
       media={
         <CircleProgress
@@ -233,6 +277,7 @@ function UploadSummary({
             note: "progress",
             variables: { percent: formatNumber(percent) },
           })}
+          {paused ? ` · ${t("Paused", { note: "upload status" })}` : null}
           {eta ? ` · ${eta}` : null}
         </span>
       }

@@ -93,9 +93,12 @@ Each package: `tsup` → `dist/`. New public path → `package.json` `exports`. 
 
 After `pnpm build`, `pnpm check:dist` checks that every `exports` path exists and declares its runtime exports, that `"use client"` starts only the react and ui `dist/index.js`, that `@dimah-s3/react/engine` imports no React, that the `@dimah-s3/core` root imports no Zod, that exact `@dimah-s3/*` peers match the current version, and that every relative import in a `.d.ts` names its `.js` path (consumers on `moduleResolution: NodeNext` read the declarations as ES modules). Library builds add those extensions with `tooling/tsup-config/dts-extensions.mjs` after `tsc-alias`.
 
+`packages/react/api-report.md` and `packages/ui/api-report.md` list the public declarations of those packages, without comments. After a change to a public type, prop, signature or translation key, run `pnpm build && pnpm api:report` and commit the report with the change; CI runs `pnpm api:report --check`. Read the report diff as the API change a consumer sees.
+
 ## Done
 
 - [ ] Behavior sits in the owning package ([architecture.md](./architecture.md))
 - [ ] Protocol change updated core, server, and react together
 - [ ] Types exported; a breaking change is listed under `#### Breaking changes` in a Tegami changelog
 - [ ] `pnpm build && pnpm check-types && pnpm lint && pnpm test && pnpm check:dist` pass
+- [ ] `pnpm api:report` is committed when the react or ui public API changed

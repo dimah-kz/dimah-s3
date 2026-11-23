@@ -27,6 +27,22 @@ export function useLiveRef<T>(value: T) {
 }
 
 /**
+ * `value`, or the value of an earlier render while `isEqual` finds them
+ * equal, so a value rebuilt on every render keeps its identity.
+ */
+export function useStableValue<T>(
+  value: T,
+  isEqual: (a: T, b: T) => boolean,
+): T {
+  const [stable, setStable] = useState(value);
+  if (stable !== value && !isEqual(stable, value)) {
+    setStable(value);
+    return value;
+  }
+  return stable;
+}
+
+/**
  * Controlled when `value` is not `undefined`, otherwise local state.
  * The setter calls `onChange` only when the value changes (`isEqual`).
  */

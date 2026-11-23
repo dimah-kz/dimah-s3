@@ -200,8 +200,10 @@ Style the drag states with data attributes:
 - **Several files** show a summary, with the overall progress, the count, and
   the time left, then a row for each file. The summary cancels every upload,
   retries the failed ones, and dismisses the list once it settles.
-- **Pause** appears while files upload when the hook has an `uploadStore`, so
-  the uploads can [resume](/docs/react/upload-store) later.
+- **Pause** appears while a multipart upload is in flight (a file of at least
+  50 MiB on a route with multipart), since it resumes from its uploaded parts.
+  A paused file shows "Paused" and its own resume action. Once every file in
+  flight is paused, the summary offers resume for all of them.
 
 Call `upload.reset()` to clear the status from your own code.
 
@@ -209,7 +211,7 @@ Call `upload.reset()` to clear the status from your own code.
 
 Parts never toast. Mount `UploadToasts` once per hook. It shows:
 
-- A progress toast with a cancel action while files upload.
+- A progress toast with a cancel action while files upload, and a resume action while they are paused.
 - The result once the queue settles. A failure has a retry action.
 - The reason for each call that rejects files, such as a file that is too large.
 
