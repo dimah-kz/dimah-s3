@@ -8,8 +8,9 @@ import {
   BlogTitle,
 } from "@/components/blog";
 import { getPosts, getTagPosts, getTags } from "@/lib/blog";
+import { getBlogTagImage, tagDescription } from "@/lib/blog-content";
 import { blogAuthors, blogSource } from "@/lib/source";
-import { appName } from "@/lib/shared";
+import { appName, shareImage } from "@/lib/shared";
 
 export default async function Page(props: PageProps<"/blog/tags/[tag]">) {
   const { tag } = await props.params;
@@ -36,7 +37,8 @@ export async function generateMetadata(
   if (!result) notFound();
 
   const title = result.tag.name;
-  const description = `Posts tagged ${result.tag.name}.`;
+  const description = tagDescription(result.tag.name, result.posts.length);
+  const image = shareImage(getBlogTagImage(result.tag.slug).url, title);
 
   return {
     alternates: {
@@ -45,15 +47,17 @@ export async function generateMetadata(
     description,
     openGraph: {
       description,
+      images: image,
       siteName: appName,
       title,
       url: result.tag.url,
     },
     title,
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       creator: "@dimahkzx",
       description,
+      images: image,
       site: "@dimahkzx",
       title,
     },

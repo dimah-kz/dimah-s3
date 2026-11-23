@@ -1,19 +1,17 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { DocsCard } from "../src/components/og/docs-card";
-import { ogFonts } from "../src/lib/og-fonts";
-import { appName } from "../src/lib/shared";
-import { ImageResponse } from "next/og";
+import { join } from "node:path";
+import { OgCard } from "../src/components/og/og-card";
+import { renderImage } from "../src/components/og/render-image";
 
-/** Open Graph card width. Type and spacing scale from this. */
-const ogWidth = 1200;
+/**
+ * X Article cover, 5:2 at 2000×800. The card lays out at the share card's
+ * 1200px width (1200×480) and renders at 5/3 the pixel density.
+ */
+const size = { width: 2000, height: 800 };
+const devicePixelRatio = size.width / 1200;
 
-/** X Article cover. Width:height stays 5:2. */
-const width = 2000;
-const height = 800;
-
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+// Run from `apps/docs`: the card's fonts load from `src/assets/og`.
+const root = process.cwd();
 const slug = process.argv[2] ?? "direct-uploads";
 
 const source = await readFile(
@@ -26,24 +24,18 @@ if (!title) {
   throw new Error(`Missing title in content/blog/${slug}.mdx`);
 }
 
-if (width * 2 !== height * 5) {
+if (size.width * 2 !== size.height * 5) {
   throw new Error("X article covers use a 5:2 frame");
 }
 
-const fonts = await ogFonts();
-const image = new ImageResponse(
-  <DocsCard
-    brand={appName}
-    contentBottom={112}
-    label="Blog"
-    scale={width / ogWidth}
-    title={title}
-  />,
-  { fonts, height, width },
+// Takumi sizes the canvas in device pixels and lays out in CSS pixels.
+const image = await renderImage(
+  <OgCard eyebrow="Blog" path={`/blog/${slug}`} title={title} />,
+  { ...size, devicePixelRatio },
 );
 
 const output = join(root, "content", "x", slug, "cover.png");
-await writeFile(output, new Uint8Array(await image.arrayBuffer()));
+await writeFile(output, image);
 
 function frontmatter(markdown: string, key: string) {
   const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(markdown);

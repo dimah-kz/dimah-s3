@@ -10,9 +10,10 @@ import {
 import { getPosts } from "@/lib/blog";
 import { blogDescription } from "@/lib/blog-content";
 import { blogAuthors, blogSource } from "@/lib/source";
-import { appName, blogRoute } from "@/lib/shared";
+import { appName, blogImageRoute, blogRoute, shareImage } from "@/lib/shared";
 
 const blogTitle = "Blog";
+const image = shareImage(`${blogImageRoute}/image.png`, blogTitle);
 
 export const metadata: Metadata = {
   alternates: {
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
   description: blogDescription,
   openGraph: {
     description: blogDescription,
-    images: "/og/blog/image.png",
+    images: image,
     siteName: appName,
     title: blogTitle,
     type: "website",
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     creator: "@dimahkzx",
     description: blogDescription,
-    images: "/og/blog/image.png",
+    images: image,
     site: "@dimahkzx",
     title: blogTitle,
   },

@@ -23,14 +23,6 @@ export const pageLanguageFields = {
   translations: z
     .object({ en: z.string().optional(), fa: z.string().optional() })
     .optional(),
-  /**
-   * English title for the social card. The OG renderer has no
-   * right-to-left layout or Arabic-script shaping, so a Persian title
-   * would render broken.
-   */
-  ogTitle: z.string().optional(),
-  /** English description for the social card. */
-  ogDescription: z.string().optional(),
 };
 
 /** `lang` and `dir` for a page's content. Empty for English, which the root sets. */

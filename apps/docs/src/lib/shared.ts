@@ -2,6 +2,14 @@ import corePackage from "../../../../packages/core/package.json";
 
 export const appName = "dimah-s3";
 export const packageVersion = corePackage.version;
+/**
+ * `openGraph.images` and `twitter.images` for a generated card, with the size
+ * and type crawlers read before they fetch it. Cards are 1200×630 PNGs.
+ */
+export function shareImage(url: string, alt: string) {
+  return { url, alt, width: 1200, height: 630, type: "image/png" };
+}
+
 export const docsRoute = "/docs";
 export const docsImageRoute = "/og/docs";
 export const docsContentRoute = "/llms.mdx/docs";
