@@ -3,6 +3,6 @@ packages:
   "@dimah-s3/ui": patch
 ---
 
-### ObjectList rename buttons sit inside the field
+### ObjectList rename field buttons
 
-Save and Cancel in the `ObjectList` rename field sit inside the field, at its end, in a row and in a tile. Save is a filled primary button, and Cancel is a destructive button.
+The `ObjectList` rename field drops its separate Save button in a row. Enter or leaving the field saves, and a destructive Cancel sits inside the field, at its end. In a tile, where the field is narrow, Cancel and a primary Save sit under the field and share its width. The field's text is the same size as the entry name at every width.

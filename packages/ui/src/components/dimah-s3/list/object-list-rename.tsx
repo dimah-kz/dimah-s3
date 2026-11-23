@@ -38,8 +38,9 @@ export function canRenameEntry<TItem>(
  * The name field for the entry being renamed. Enter saves, Escape restores
  * the name, and leaving the field saves. Mounted by the default row and tile.
  *
- * Save and Cancel sit inside the field, at its end. `layout` is set as
- * `data-layout` (`inline` in a row, `stacked` in a tile) for styling.
+ * `inline` (a row) puts only Cancel inside the field: Enter or leaving the
+ * field saves. `stacked` (a tile, where the field is narrow) puts Cancel and
+ * Save under the field, sharing its width.
  */
 export function ObjectListRenameField<TItem>({
   entry,
@@ -129,39 +130,41 @@ export function ObjectListRenameField<TItem>({
     void save(false);
   }
 
-  // Inside the field, a little larger on touch screens.
-  const buttonClass = "shrink-0 pointer-coarse:size-7";
+  const stacked = layout === "stacked";
+  const spinner = (
+    <Spinner aria-hidden aria-label={undefined} role={undefined} />
+  );
   const confirm = (
     <Button
       type="submit"
       variant="default"
-      size="icon-xs"
-      className={buttonClass}
+      size="sm"
+      className="w-full pointer-coarse:h-9"
       aria-label={t("Save name", { note: "object list rename" })}
       aria-busy={pending || undefined}
       disabled={pending}
       focusableWhenDisabled
       onMouseDown={(event) => event.preventDefault()}
     >
-      {pending ? (
-        <Spinner aria-hidden aria-label={undefined} role={undefined} />
-      ) : (
-        <CheckIcon />
-      )}
+      {pending ? spinner : <CheckIcon />}
     </Button>
   );
   const cancel = (
     <Button
       type="button"
       variant="destructive"
-      size="icon-xs"
-      className={buttonClass}
+      size={stacked ? "sm" : "icon-xs"}
+      className={
+        stacked ? "w-full pointer-coarse:h-9" : "shrink-0 pointer-coarse:size-7"
+      }
       aria-label={t("Cancel", { note: "object list rename" })}
+      // In a row, Cancel is the only button, so it shows the save in flight.
+      aria-busy={(!stacked && pending) || undefined}
       disabled={pending}
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => finish(true)}
     >
-      <XIcon />
+      {!stacked && pending ? spinner : <XIcon />}
     </Button>
   );
 
@@ -175,7 +178,10 @@ export function ObjectListRenameField<TItem>({
       data-slot="object-list-rename"
       data-layout={layout}
       aria-busy={pending || undefined}
-      className="flex min-w-0 flex-1 flex-col gap-1"
+      className={cn(
+        "flex min-w-0 flex-1 flex-col",
+        stacked ? "gap-1.5" : "gap-1",
+      )}
       onSubmit={onSubmit}
       onBlur={onBlur}
     >
@@ -193,8 +199,10 @@ export function ObjectListRenameField<TItem>({
           aria-invalid={error != null || undefined}
           aria-describedby={error != null ? errorId : undefined}
           className={cn(
-            // 16px text on small screens, which iOS does not zoom into.
-            "h-8 w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent ps-2 pe-15 text-base text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm pointer-coarse:h-9 pointer-coarse:pe-17",
+            // The same text size as the entry name it replaces.
+            "h-8 w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-sm text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 pointer-coarse:h-9",
+            // Room at the end for Cancel inside the field.
+            stacked ? "px-2" : "ps-2 pe-8 pointer-coarse:pe-9",
           )}
           onChange={(event) => {
             setName(event.target.value);
@@ -206,11 +214,18 @@ export function ObjectListRenameField<TItem>({
             finish(true);
           }}
         />
-        <div className="absolute inset-y-0 end-1 flex items-center gap-0.5">
-          {confirm}
-          {cancel}
-        </div>
+        {stacked ? null : (
+          <div className="absolute inset-y-0 end-1 flex items-center">
+            {cancel}
+          </div>
+        )}
       </div>
+      {stacked ? (
+        <div className="grid grid-cols-2 gap-1.5">
+          {cancel}
+          {confirm}
+        </div>
+      ) : null}
       {error != null ? (
         <p
           id={errorId}
