@@ -1,25 +1,25 @@
 ---
-title: Upgrade to 2.0 beta
-description: Upgrade a 1.7 app to the 2.0 beta package by package, with before-and-after code for each breaking change and a final checklist.
+title: Upgrade to 2.0
+description: Upgrade a 1.7 app to 2.0 package by package, with before-and-after code for each breaking change and a final checklist.
 icon: CircleArrowUp
 ---
 
-Move a 1.7 app to the 2.0 beta. The wire protocol, the hooks, and the
+Move a 1.7 app to 2.0. The wire protocol, the hooks, and the
 components all changed, and a 1.7 client does not work against a 2.0 server,
 so upgrade every `@dimah-s3/*` package together.
 
-<Callout title="Beta releases">
-  A new `2.0.0-beta` ships every few days and can include breaking changes until
-  `2.0.0`. Install with the `beta` dist-tag: `@latest` is still 1.x. Each
-  package's changelog lists every change.
+<Callout title="1.x is no longer maintained">
+  1.x gets no more releases, including security fixes. Its docs stay at
+  [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs). Each package's changelog
+  lists every change in 2.0.
 </Callout>
 
 ## At a glance
 
 **Every package**
 
-- [Install every package at `@beta`](#install-the-beta), on React 19.2 and Node.js 22
-  or newer.
+- [Install every package at 2.0](#install-the-packages), on React 19.2 and
+  Node.js 22 or newer.
 
 **Server**
 
@@ -65,10 +65,10 @@ so upgrade every `@dimah-s3/*` package together.
   the new wire fields and responses.
 - [Create the database at schema 2.3.0](#database) when you use `db()`.
 
-## Install the beta
+## Install the packages
 
 ```npm
-npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @dimah-s3/ui@beta @fuma-translate/react
+npm i @dimah-s3/server @dimah-s3/core @dimah-s3/react @dimah-s3/ui @fuma-translate/react
 ```
 
 - Node.js 22 or newer is required. In the browser, the hooks need Chrome 119,
@@ -79,7 +79,7 @@ npm i @dimah-s3/server@beta @dimah-s3/core@beta @dimah-s3/react@beta @dimah-s3/u
   React no longer re-exports core.
 - `@dimah-s3/ui` and `@dimah-s3/db` pin their `@dimah-s3/*` peers to the same
   version.
-- With `db()`, add `@dimah-s3/db@beta` and follow [Database](#database).
+- With `db()`, add `@dimah-s3/db` and follow [Database](#database).
 
 ## Server
 
@@ -217,7 +217,7 @@ upload: {
 },
 ```
 
-| 1.7                                                                            | 2.0 beta                                                          |
+| 1.7                                                                            | 2.0                                                               |
 | ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | `upload.onPresigned`                                                           | `upload.onStart` (`kind` is `presignedPost` or `presignedPut`)    |
 | `upload.multipart.onInit`                                                      | `upload.onStart` (`kind` is `multipart`)                          |
@@ -390,7 +390,7 @@ await upload.handleFiles(files); // [!code --]
 const { uploaded, failed } = await upload.handleFiles(files); // [!code ++]
 ```
 
-| 1.7                                            | 2.0 beta                                                              |
+| 1.7                                            | 2.0                                                                   |
 | ---------------------------------------------- | --------------------------------------------------------------------- |
 | `onSuccess(results)`                           | `onSuccess(result, file)`, once per file                              |
 | `onFileSuccess(file, result)`                  | `onSuccess(result, file)`                                             |
@@ -476,7 +476,7 @@ already running joins that call.
 
 ### Rename error helpers
 
-| 1.7                          | 2.0 beta                                |
+| 1.7                          | 2.0                                     |
 | ---------------------------- | --------------------------------------- |
 | `S3UploadError`              | `APIError` with a catalog `code`        |
 | `useFormatValidateFileError` | `useFormatError`                        |
@@ -501,7 +501,7 @@ Each control is now a root that takes the hook return, with parts inside it.
 Components no longer toast: mount one toast component per hook and one
 `<Toaster />` in your layout.
 
-| 1.7                                   | 2.0 beta                                                         |
+| 1.7                                   | 2.0                                                              |
 | ------------------------------------- | ---------------------------------------------------------------- |
 | `UploadButton`                        | `<Upload upload><UploadTrigger /><UploadStatus /></Upload>`      |
 | `UploadDropzone upload={...}`         | `<Upload upload><UploadDropzone /></Upload>`                     |
@@ -624,7 +624,7 @@ utilities such as `bg-dimah-s3-card` are unchanged. See
 
 ### Update `ObjectList`
 
-| 1.7                            | 2.0 beta                                                                        |
+| 1.7                            | 2.0                                                                             |
 | ------------------------------ | ------------------------------------------------------------------------------- |
 | `usageLimits` prop             | Removed. Limits come from the source's `usage`                                  |
 | `ObjectListUsage` type (react) | `ObjectListUsageData`. `ObjectListUsage` is the ui component that shows it      |
@@ -659,7 +659,7 @@ utilities such as `bg-dimah-s3-card` are unchanged. See
 `statusCode`, and typed `params`. Read details from `error.params`, not from
 the message. The `APIError` constructor requires a `code`.
 
-| 1.7                                  | 2.0 beta                                            |
+| 1.7                                  | 2.0                                                 |
 | ------------------------------------ | --------------------------------------------------- |
 | `PAYLOAD_TOO_LARGE`                  | `FILE_TOO_LARGE` with `{ size, maxFileSize }`       |
 | `INVALID_KEY`                        | `KEY_INVALID`                                       |
@@ -713,7 +713,7 @@ If you call the HTTP API yourself or wrote an `UploadTransport`:
 
 Responses changed shape:
 
-| Call                            | 2.0 beta response                                                                                                                    |
+| Call                            | 2.0 response                                                                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `confirm`, `multipart.complete` | `{ key, bucket, name, size, type, eTag, versionId, lastModified, metadata, acl }`                                                    |
 | `delete`                        | `{ key, bucket }`, with no `existed`                                                                                                 |
@@ -756,7 +756,7 @@ covers an existing database.
 
 ### Update db code
 
-| 1.7                                           | 2.0 beta                                        |
+| 1.7                                           | 2.0                                             |
 | --------------------------------------------- | ----------------------------------------------- |
 | `createObjectAccessGuard`, `createQuotaGuard` | The `authorize` and `quota` options             |
 | `purgeStalePendingObjects`                    | `s3.db.purgeStale()` and `s3.db.pruneDeleted()` |
@@ -785,7 +785,7 @@ covers an existing database.
 
 ## Checklist
 
-- [ ] Every `@dimah-s3/*` package is on the same `@beta` version, with
+- [ ] Every `@dimah-s3/*` package is on the same 2.0 version, with
       `@dimah-s3/core` and `@fuma-translate/react` installed.
 - [ ] `DIMAH_S3_SECRET` (32 characters or more) is set, the same on every
       instance.

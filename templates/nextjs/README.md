@@ -5,7 +5,7 @@ Minimal [Next.js](https://nextjs.org) App Router starter with [dimah-s3](https:/
 ## Create
 
 ```bash
-npx @dimah-s3/cli@beta create my-app
+npx @dimah-s3/cli create my-app
 ```
 
 `cd my-app`, fill `S3_*` in `.env`. `create` writes a generated `DIMAH_S3_SECRET` there too (otherwise use `openssl rand -base64 32`). For browser uploads, configure bucket CORS — see [Providers](https://s3.dimah.dev/docs/providers).

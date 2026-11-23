@@ -1,6 +1,5 @@
 <!--
-Target branch: `v2` for 2.0 beta work, `main` for 1.x fixes.
-See CONTRIBUTING.md and docs/agents/ for the checklists.
+Open against `main`. See CONTRIBUTING.md and docs/agents/ for the checklists.
 -->
 
 ## Summary

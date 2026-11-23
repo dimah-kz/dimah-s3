@@ -2,13 +2,15 @@
 
 ## Supported versions
 
-Fixes ship in the newest release of each line. Upgrade to it before reporting.
+Fixes ship in the newest 2.x release. Upgrade to it before reporting.
 
-| Line      | npm dist-tag | Supported           |
-| --------- | ------------ | ------------------- |
-| 2.0 beta  | `beta`       | Newest `2.0.0-beta` |
-| 1.x       | `latest`     | Newest `1.x`        |
-| Older 0.x | —            | No                  |
+| Version | Supported |
+| ------- | --------- |
+| 2.x     | Yes       |
+| 1.x     | No        |
+| 0.x     | No        |
+
+1.x reached end of life with 2.0.0 and gets no more releases, including security fixes. Move to 2.x with the [upgrade guide](https://s3.dimah.dev/docs/migration-2-0).
 
 ## Reporting a vulnerability
 

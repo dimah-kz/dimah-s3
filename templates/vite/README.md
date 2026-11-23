@@ -5,7 +5,7 @@ Minimal [Vite](https://vitejs.dev) + React starter with [dimah-s3](https://s3.di
 ## Create
 
 ```bash
-npx @dimah-s3/cli@beta create my-app --template vite
+npx @dimah-s3/cli create my-app --template vite
 ```
 
 `cd my-app`, fill `S3_*` in `.env`. `create` writes a generated `DIMAH_S3_SECRET` there too (otherwise use `openssl rand -base64 32`). For browser uploads, configure bucket CORS — see [Providers](https://s3.dimah.dev/docs/providers).

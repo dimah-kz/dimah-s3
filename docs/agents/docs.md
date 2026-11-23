@@ -147,7 +147,7 @@ Available everywhere (see `apps/docs/src/components/mdx.tsx`): `Callout`, `Cards
 - `ErrorCodeTable` is generated from `S3_ERROR_CODES` and becomes a Markdown table in the twin.
 - `Flow` is drawn only in HTML; the Markdown twin drops it. Describe the same steps in prose or a table next to it.
 - Code fences: `tsx`/`ts`, a `title="path"` when it is a file, `"use client"` at the top of client components. Import from `@dimah-s3/ui` in UI examples. `npm` fences render package-manager tabs.
-- Install commands use the `@beta` dist-tag until 2.0.0 ships.
+- Install commands name the package with no dist-tag or version (`npm i @dimah-s3/react`).
 - `// [!code ++]` marks added lines in setup steps only.
 
 ## Before you finish

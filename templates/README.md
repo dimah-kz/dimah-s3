@@ -3,7 +3,7 @@
 Standalone app starters for **end users**, snapshotted into `@dimah-s3/cli` at build time.
 
 ```bash
-npx @dimah-s3/cli@beta create my-app
+npx @dimah-s3/cli create my-app
 ```
 
 | Role                    | Path              | Consumes                                                         |
@@ -39,7 +39,7 @@ Day-to-day library work still belongs in `examples/*` (`workspace:*`). Use these
 | `hono`   | Hono      | Hono API + Vite React; `start` serves API + static |
 
 ```bash
-npx @dimah-s3/cli@beta create my-app --template vite
+npx @dimah-s3/cli create my-app --template vite
 ```
 
 ## Adding a template

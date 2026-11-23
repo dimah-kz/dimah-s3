@@ -5,7 +5,7 @@ Minimal [Hono](https://hono.dev) starter with a Vite + React UI and [dimah-s3](h
 ## Create
 
 ```bash
-npx @dimah-s3/cli@beta create my-app --template hono
+npx @dimah-s3/cli create my-app --template hono
 ```
 
 `cd my-app`, fill `S3_*` in `.env`. `create` writes a generated `DIMAH_S3_SECRET` there too (otherwise use `openssl rand -base64 32`). For browser uploads, configure bucket CORS — see [Providers](https://s3.dimah.dev/docs/providers).

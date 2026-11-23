@@ -1,7 +1,5 @@
 # `@dimah-s3/cli`
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
-
 Scaffold an official [dimah-s3](https://s3.dimah.dev/docs) starter.
 
 [Docs](https://s3.dimah.dev/docs/quickstart) · [llms.txt](https://s3.dimah.dev/llms.txt)
@@ -11,19 +9,19 @@ Requires Node.js 22 or newer.
 ## Usage
 
 ```bash
-npx @dimah-s3/cli@beta create my-app
+npx @dimah-s3/cli create my-app
 ```
 
 Into the current directory (package name = folder name):
 
 ```bash
-npx @dimah-s3/cli@beta create .
+npx @dimah-s3/cli create .
 ```
 
 Skip prompts:
 
 ```bash
-npx @dimah-s3/cli@beta create my-app --yes
+npx @dimah-s3/cli create my-app --yes
 ```
 
 ### Options

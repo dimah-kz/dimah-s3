@@ -1,4 +1,4 @@
-# Versions or publishes the release line after CI passes on a push to it.
+# Versions or publishes `main` after CI passes on a push to it.
 #
 # `workflow_run` always runs this file from the default branch, then checks
 # out the commit that CI built. Keep the branch lists here and in `ci.yml` in
@@ -9,10 +9,10 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main, v2]
+    branches: [main]
   workflow_dispatch:
 
-# Queue releases per release line. Never cancel one halfway through a
+# Queue releases per release line (see `lines` in scripts/tegami.mts). Never cancel one halfway through a
 # publish. `github.ref` is the default branch for every `workflow_run`, so
 # the group is keyed on the branch that CI built.
 concurrency:
@@ -30,7 +30,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
-      (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'v2') &&
+      github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository)
     timeout-minutes: 20
     permissions:
@@ -55,7 +55,7 @@ jobs:
       # npm trusted publishing uses OIDC (`id-token: write`) — no NPM_TOKEN.
       # Do not set registry-url / NODE_AUTH_TOKEN here; they block OIDC.
       # workflow_run keeps GITHUB_REF on the default branch. Pass the branch CI
-      # built so tegami selects `latest` (main) or `beta` (v2).
+      # built so tegami picks its release line and dist-tag.
       - name: Version & publish packages
         run: pnpm tegami ci
         env:

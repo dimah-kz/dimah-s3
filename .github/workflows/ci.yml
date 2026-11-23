@@ -8,13 +8,13 @@ name: CI
 
 on:
   push:
-    branches: [main, v2]
+    branches: [main]
   pull_request:
-    branches: [main, v2]
+    branches: [main]
   workflow_dispatch:
 
-# A new push to a pull request cancels its older run. Release branches keep
-# every run, since Publish starts from each one.
+# A new push to a pull request cancels its older run. `main` keeps every run,
+# since Publish starts from each one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

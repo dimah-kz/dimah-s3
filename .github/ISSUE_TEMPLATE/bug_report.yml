@@ -13,23 +13,14 @@ body:
         - Usage questions belong in [Discussions](https://github.com/dimah-kz/dimah-s3/discussions).
         - Report vulnerabilities [privately](https://github.com/dimah-kz/dimah-s3/security/advisories/new), never in a public issue.
         - Never paste S3 credentials, `DIMAH_S3_SECRET`, or presigned URLs.
-
-  - type: dropdown
-    id: release-line
-    attributes:
-      label: Release line
-      options:
-        - 2.0 beta (`@beta`)
-        - 1.x (`@latest`)
-    validations:
-      required: true
+        - Only the newest 2.x release gets fixes. 1.x is no longer maintained: reproduce the bug on 2.x first ([upgrade guide](https://s3.dimah.dev/docs/migration-2-0)).
 
   - type: input
     id: version
     attributes:
       label: Package version
       description: Exact version from `npm ls @dimah-s3/server` (or the package you use).
-      placeholder: 2.0.0-beta.7
+      placeholder: 2.0.0
     validations:
       required: true
 
@@ -98,9 +89,9 @@ body:
     id: reproduce
     attributes:
       label: Steps to reproduce
-      description: The smallest setup that shows the bug. Start from `npx @dimah-s3/cli@beta create` if you can.
+      description: The smallest setup that shows the bug. Start from `npx @dimah-s3/cli create` if you can.
       placeholder: |
-        1. Scaffold with `npx @dimah-s3/cli@beta create my-app`
+        1. Scaffold with `npx @dimah-s3/cli create my-app`
         2. Add this route option: ...
         3. Upload a file and see ...
     validations:

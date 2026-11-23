@@ -43,7 +43,7 @@ pnpm --filter @dimah-s3/core check-types
 
 ## Contribution workflow
 
-1. Fork the repository and create a branch from `v2` for 2.0 beta work (docs at [s3.dimah.dev](https://s3.dimah.dev/docs)). Fixes for stable 1.x branch from `main` (docs at [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)).
+1. Fork the repository and create a branch from `main`. 1.x is no longer maintained, and its `v1` branch takes no pull requests.
 2. Make your changes with focused commits.
 3. Add or update tests/docs where needed.
 4. Add a Tegami changelog for user-facing package changes.
@@ -73,7 +73,7 @@ A changelog file is created in `.tegami/` and must be committed with your PR. CI
 
 ## Continuous integration
 
-Every pull request into `main` or `v2` runs [CI](.github/workflows/ci.yml). The branch rulesets require one check, **CI passed**, which fails when any other job fails or is cancelled. Pushes to `main` and `v2` run every job. Pull requests skip the smoke builds their changes cannot affect.
+Every pull request into `main` runs [CI](.github/workflows/ci.yml). The `main` ruleset requires one check, **CI passed**, which fails when any other job fails or is cancelled. Pushes to `main` run every job. Pull requests skip the smoke builds their changes cannot affect.
 
 | Job                | Runs when                                                   | Reproduce locally                                                      |
 | ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------- |

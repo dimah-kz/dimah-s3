@@ -1,7 +1,5 @@
 # @dimah-s3/core
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
-
 The protocol, typed fetch client, error catalog, and pure helpers shared by
 `@dimah-s3/server` and `@dimah-s3/react`.
 
@@ -11,7 +9,7 @@ Full documentation: [s3.dimah.dev/docs/core](https://s3.dimah.dev/docs/core) ·
 ## Install
 
 ```bash
-pnpm add @dimah-s3/core@beta
+pnpm add @dimah-s3/core
 ```
 
 Requires Node.js 22 or newer on the server. In the browser it needs Chrome
@@ -53,7 +51,7 @@ Narrow it with `isS3ErrorCode(error, "OBJECT_NOT_FOUND")`. See
 
 ## Upgrading from 1.7
 
-See [Upgrade to 2.0 beta](https://s3.dimah.dev/docs/migration-2-0).
+See [Upgrade to 2.0](https://s3.dimah.dev/docs/migration-2-0).
 
 ## License
 

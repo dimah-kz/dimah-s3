@@ -6,9 +6,9 @@ contact_links:
   - name: Security report
     url: https://github.com/dimah-kz/dimah-s3/security/advisories/new
     about: Report a vulnerability privately. Do not open a public issue
-  - name: Documentation (2.0 beta)
+  - name: Documentation
     url: https://s3.dimah.dev/docs
-    about: Guides and API reference for the `@beta` line
-  - name: Documentation (1.x)
-    url: https://v1.s3.dimah.dev/docs
-    about: Guides and API reference for the `@latest` line
+    about: Guides and API reference
+  - name: Upgrade from 1.x
+    url: https://s3.dimah.dev/docs/migration-2-0
+    about: 1.x is no longer maintained. Move to 2.x before reporting

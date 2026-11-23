@@ -12,7 +12,7 @@ const alternateHosts = [
   "dimah-s3-docs-v2.vercel.app",
 ] as const;
 
-/** Docs pages removed in the 2.0 beta, mapped onto the page that replaced them. */
+/** Docs pages removed in 2.0, mapped onto the page that replaced them. */
 const movedPages = {
   "/docs/react/ui/components/upload-button": "/docs/ui/components/upload",
   "/docs/react/ui/components/upload-dropzone": "/docs/ui/components/upload",
@@ -77,7 +77,7 @@ const nextConfig: NextConfig = {
     };
     const previewRobots =
       process.env.VERCEL_ENV === "preview" &&
-      process.env.VERCEL_GIT_COMMIT_REF !== "v2"
+      process.env.VERCEL_GIT_COMMIT_REF !== "main"
         ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
         : [];
     const corpusRobots = { key: "X-Robots-Tag", value: "noindex" };

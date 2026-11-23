@@ -7,7 +7,7 @@ import {
 } from "fumadocs-ui/components/codeblock";
 import { CachedCode } from "@/components/home/cached-code";
 
-const target = "@dimah-s3/cli@beta create";
+const target = "@dimah-s3/cli create";
 
 /** The same commands the docs generate from an `npm` code block. */
 const managers = [

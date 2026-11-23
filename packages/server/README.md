@@ -1,7 +1,5 @@
 # @dimah-s3/server
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
-
 Presigned S3 upload, download, and delete handlers with route policies,
 guards, and lifecycle hooks. One instance gives you an HTTP `handler`, an
 in-process `api`, and `put` for server-side uploads.
@@ -12,7 +10,7 @@ Full documentation: [s3.dimah.dev/docs/server](https://s3.dimah.dev/docs/server)
 ## Install
 
 ```bash
-pnpm add @dimah-s3/server@beta @aws-sdk/client-s3
+pnpm add @dimah-s3/server @aws-sdk/client-s3
 ```
 
 Requires Node.js 22 or newer, or another runtime with the Fetch API and Web
@@ -113,7 +111,7 @@ Optional persistence: add `db()` from [`@dimah-s3/db`](../db) to `plugins`.
 
 ## Upgrading from 1.7
 
-See [Upgrade to 2.0 beta](https://s3.dimah.dev/docs/migration-2-0).
+See [Upgrade to 2.0](https://s3.dimah.dev/docs/migration-2-0).
 
 ## License
 

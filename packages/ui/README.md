@@ -1,7 +1,5 @@
 # @dimah-s3/ui
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
-
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).
 
@@ -11,7 +9,7 @@ Full documentation: [s3.dimah.dev/docs/ui](https://s3.dimah.dev/docs/ui) ·
 ## Install
 
 ```bash
-pnpm add @dimah-s3/ui@beta @dimah-s3/core@beta @dimah-s3/react@beta @fuma-translate/react @base-ui/react class-variance-authority cn lucide-react
+pnpm add @dimah-s3/ui @dimah-s3/core @dimah-s3/react @fuma-translate/react @base-ui/react class-variance-authority cn lucide-react
 ```
 
 Requires React 19.2 and Tailwind CSS v4. Every package on that line is a

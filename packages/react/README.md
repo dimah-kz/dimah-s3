@@ -1,7 +1,5 @@
 # @dimah-s3/react
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
-
 Headless React hooks for S3 upload, download, and delete flows.
 
 Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) Â·
@@ -10,7 +8,7 @@ Full documentation: [s3.dimah.dev/docs/react](https://s3.dimah.dev/docs/react) Â
 ## Install
 
 ```bash
-pnpm add @dimah-s3/react@beta @dimah-s3/core@beta @fuma-translate/react
+pnpm add @dimah-s3/react @dimah-s3/core @fuma-translate/react
 ```
 
 Requires React 19.2 and Node.js 22 or newer. `@dimah-s3/core` and

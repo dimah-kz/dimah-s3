@@ -6,12 +6,12 @@ export function isProductionDeploy(): boolean {
 }
 
 /**
- * Public docs for this line.
- * Production uses PRODUCTION_SITE_ORIGIN. A build of the `v2` branch does too,
- * including when Vercel still marks that deployment as Preview.
+ * Public docs.
+ * Production uses PRODUCTION_SITE_ORIGIN. A build of the `main` branch does too,
+ * including when Vercel marks that deployment as Preview.
  */
 export function isPublicDocsDeploy(): boolean {
-  return isProductionDeploy() || process.env.VERCEL_GIT_COMMIT_REF === "v2";
+  return isProductionDeploy() || process.env.VERCEL_GIT_COMMIT_REF === "main";
 }
 
 /**

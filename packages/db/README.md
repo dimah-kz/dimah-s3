@@ -1,7 +1,5 @@
 # @dimah-s3/db
 
-**2.0 beta.** Install with `@beta`. `@latest` stays on 1.x ([v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)), and betas can include breaking changes until 2.0.0.
-
 Optional database plugin for [dimah-s3](https://github.com/dimah-kz/dimah-s3). It tracks each upload in a `storage_object` table, binds uploads to the caller's scope, and adds logical folders, listings, and quotas. A folder belongs to a scope, not to a route.
 
 **Docs:** [Database Setup](https://s3.dimah.dev/docs/db/setup) · [Lifecycle Hooks](https://s3.dimah.dev/docs/db/lifecycle-hooks) · [API](https://s3.dimah.dev/docs/db/api) · [Purge](https://s3.dimah.dev/docs/db/purge) · [llms.txt](https://s3.dimah.dev/llms.txt) · **Example:** [`examples/with-db`](../../examples/with-db)
@@ -9,7 +7,7 @@ Optional database plugin for [dimah-s3](https://github.com/dimah-kz/dimah-s3). I
 ## Install
 
 ```bash
-pnpm add @dimah-s3/db@beta @dimah-s3/server@beta
+pnpm add @dimah-s3/db @dimah-s3/server
 ```
 
 You do not install `fumadb`: the adapters ship from `@dimah-s3/db/adapters/*`, and the FumaDB CLI from `@dimah-s3/db/cli`. `@aws-sdk/client-s3` is the one your server already has. With Drizzle, the package needs `drizzle-orm` 1.0.0-rc.5 or later.

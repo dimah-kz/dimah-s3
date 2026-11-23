@@ -62,12 +62,12 @@ The plugin SDK is public and follows semver: `@dimah-s3/server/plugins`, `@dimah
 
 The `@dimah-s3/db` schema lives in one place: `dbSchema` in `src/schema/schema.ts`, version `2.3.0`. Indexes, MySQL prefix lengths (`length`), and collations (`collate`) are declared there, not in custom `up` SQL. The package ships no Drizzle, Prisma, or SQL copies: users generate them with `runCli` → `generate`, and Kysely users create the tables with `migrate`. Every write of an object or folder `name` sets `search_name` with `toSearchName`, which caps it at `SEARCH_NAME_MAX_BYTES`; the name sort and its list cursor read that value. The package does not migrate a database at another version.
 
-While 2.0 is in beta, a table change replaces `dbSchema` in place and bumps its version. Do not add an upgrade chain. A database at another version is recreated.
+Since 2.0.0, databases created at `2.3.0` hold users' data. A table change breaks every one of them, so it ships only in a major release, with the steps that move a database from the previous version.
 
 1. Replace `dbSchema` in `src/schema/schema.ts` (`DB_SCHEMA_VERSION` follows it).
 2. Run `pnpm db:generate` in `examples/with-db` (`src/generate.test.ts` fails until `db/dimah-s3.ts` matches).
 3. `src/schema/schema.test.ts` and the store tests must pass. The store tests run on Kysely and on Drizzle with the generated schema, on SQLite and PostgreSQL.
-4. List the schema change under `#### Breaking changes` in the db changelog, and update the docs upgrade page (`apps/docs/content/docs/(framework)/db/upgrade.mdx`).
+4. List the schema change under `#### Breaking changes` in a `major` db changelog, and write the upgrade from the previous version on the docs upgrade page (`apps/docs/content/docs/(framework)/db/upgrade.mdx`).
 
 ## React hook
 

@@ -3,6 +3,7 @@ import { Body } from "@/app/layout.client";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Geist, Vazirmatn } from "next/font/google";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cn } from "cn";
 import {
   appName,
@@ -93,12 +94,12 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
-        <Banner id="dimah-s3-beta" variant="rainbow">
+        <Banner id="dimah-s3-2-0" variant="rainbow">
           <span>
-            You are viewing the 2.0 beta.{" "}
-            <a href="https://v1.s3.dimah.dev/docs" className="underline">
-              1.x docs
-            </a>
+            dimah-s3 2.0 is out.{" "}
+            <Link href="/docs/migration-2-0" className="underline">
+              Upgrade from 1.x
+            </Link>
           </span>
         </Banner>
         <RootProvider

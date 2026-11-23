@@ -1,10 +1,10 @@
 /**
  * `pnpm update --latest` in each standalone `templates/<id>/`.
  *
- * `latest` is the 1.x line, so an exact `2.0.0-beta.N` pin never moves.
- * When this checkout's CLI is a prerelease, `@dimah-s3/*` is then set to the
- * exact version of the npm `beta` dist-tag (the same version on every
- * package). The CLI snapshot still rewrites those pins to the CLI version
+ * On a stable CLI, `@dimah-s3/*` follows `latest` like every other
+ * dependency. On a prerelease CLI, `latest` is the previous major, so
+ * `@dimah-s3/*` is then set to the exact version of the npm `beta` dist-tag
+ * (the same version on every package). The CLI snapshot still rewrites those pins to the CLI version
  * at build time. The Next.js starter's `typescript` is put back to
  * `^6.0.2`: `pnpm update --latest` moves it to TypeScript 7, and
  * typescript-eslint (via `eslint-config-next`) cannot lint that yet.
