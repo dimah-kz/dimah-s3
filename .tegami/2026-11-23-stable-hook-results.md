@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/react": minor
+  "@dimah-s3/react":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/react)
 ---
 
 ### Hook results keep their identity

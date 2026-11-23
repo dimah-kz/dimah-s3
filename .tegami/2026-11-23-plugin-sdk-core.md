@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/core": major
+  "@dimah-s3/core":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/core)
 ---
 
 ### Typed client plugins and plugin error codes

@@ -1,3 +1,63 @@
+## @dimah-s3/ui@2.0.0-beta.14 (beta)
+
+### Move, folder delete, thumbnails, and folder drops in ObjectList
+
+`ObjectList` moves entries, deletes folders with what they hold, shows image thumbnails, and keeps the folders of a dropped folder. Each turns on from the source or a prop.
+
+- **Move.** When the source has `moveFile` or `moveFolder`, entries have **Move to…** in their menu and the selection bar has **Move**. The Move dialog opens in the open folder; browse to a folder and choose **Move here**. A folder cannot be opened in the dialog while it moves. A row dragged onto a folder row, or onto the root or the parent in the path, moves there, and a selected row takes the selection with it. `ObjectListBulkMove` is the Move button for a selection bar of your own, and `startMove(entries, { trigger })` on `useObjectListContext()` opens the dialog.
+- **Folder delete.** With `delete` and a source that has `deleteFolder`, folders have Delete in their menu and join a bulk delete. After the one confirmation, `listFolderKeys` names each folder's files, `delete` removes them with the selected files in one request, and `deleteFolder` removes each folder whose files all went. A folder with a file that failed stays.
+- **The Delete key.** Delete, or Cmd+Backspace on a Mac, asks to delete the selection, else the focused entry.
+- **`thumbnails`.** `thumbnails={{ route }}` signs a picture for each PNG, JPEG, GIF, WebP, AVIF, SVG, BMP, or ICO file without a `previewUrl`, once its row or tile comes into view, and signs it again before it expires. Pass `api` without an `S3Provider`. `ObjectListThumbnails` is its type.
+- **Dropped folders keep their folders.** With `uploadOptions` and `createFolder` on the source, the folders inside a dropped folder are found by name below the folder it lands in, or created as their first file starts, and their files upload there. An `UploadDropzone` inside the list does the same.
+- **Delete requests carry their own copy and work.** `request(targets, options)` from `useDeleteContext()` takes `title` and `description` for the dialog, and `run(remove)` to delete in place of the targets, such as a folder and its files; `targets` may then be empty. The dialog stays busy until `run` settles. `DeleteTargetsFn` is the type of `remove`.
+
+### Breaking changes
+
+- **Move `resolveFolderKeys` to the source as `listFolderKeys`, and add `deleteFolder`.** `ObjectList` no longer takes `resolveFolderKeys`. `dbObjectSource` sets both, and `memoryObjectSource` sets `listFolderKeys`. Without `deleteFolder`, folders have no Delete and stay out of a bulk delete.
+
+### ObjectList fits phones and touch screens
+
+`ObjectList` keeps its header on one row on a phone, gives the rename field room, and sizes its controls for a finger on a touch screen.
+
+- **One header row.** The path keeps 6rem instead of 11rem, so the controls stay beside it down to a narrow phone. `ObjectListViewToggle` shows one button under a 28rem header: the view to switch to.
+- **Rename field.** In a tile the field takes the whole width, with Cancel and a filled Save under it. In a row the menu steps aside while the name is a field.
+- **Touch sizes.** On a coarse pointer, the header's controls are 32px, the row menu and the rename buttons 36px, and the rows of the Move dialog 44px. The path and the dialog's buttons grow too.
+- **No zoom on focus.** The rename, New folder, and search fields use 16px text on small screens, so iOS does not zoom the page when one takes focus.
+
+### A plugin SDK for third-party plugins
+
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
+### Toaster, toast, and Attachment parts with props of their own
+
+The npm exports that render shadcn primitives take props `@dimah-s3/ui` defines, so a primitive update cannot change them.
+
+- **`Toaster`.** Takes `limit` (default `3`), `timeout` (default `5000` ms, `0` keeps toasts open), and optional `children`. `ToasterProps` is its type.
+- **`toast`.** `toast.add(options)` returns an id, `toast.update(id, options)` changes an open toast, and `toast.close(id?)` closes one or every toast. `ToastOptions` holds `title`, `description`, `type` (`ToastType`), `timeout`, `priority`, `action`, and `onClose`.
+- **`AttachmentGroup`, `AttachmentAction`, and `AttachmentTrigger`.** Their props are `AttachmentGroupProps` (a `<div>`), `AttachmentActionProps` (a `<button>` plus `focusableWhenDisabled`), and `AttachmentTriggerProps` (a `<button>`, or the element `render` returns).
+- **`AttachmentState`.** The union `"idle" | "uploading" | "processing" | "error" | "done"`, no longer read from the shadcn Attachment.
+- **`useToastOwner` for your own toasts.** Call it in a toast component built on another library, and show toasts only while it returns `true`: the `ObjectList` built-in toasts step aside. `UseToastOwnerOptions` is the type of its `{ weak }` options.
+
+### Breaking changes
+
+- **Pass `action: { label, onClick }` to `toast.add`.** `actionProps` is replaced. `toast.promise`, `toast.subscribe`, and `data` are removed; show a loading toast with `type: "loading"` and `timeout: 0`, then `toast.update` it.
+- **Drop `toastManager` from `<Toaster>`.** It takes only `limit`, `timeout`, and `children`.
+- **Style `AttachmentAction` with `className`.** It no longer takes the Button `variant` and `size` props.
+
+### Pause and resume in the upload family
+
+`UploadStatus`, `UploadFileList`, `UploadToasts`, and `AvatarUpload` show paused files and resume them through `upload.resume`.
+
+- **Pause in `UploadStatus`.** It appears while a multipart upload is in flight, since that upload resumes from its uploaded parts, and calls `upload.pause()`.
+- **Paused files.** A paused file reads "Paused", keeps its progress ring, and has a resume action next to cancel. Once every file in flight is paused, the multi-file summary reads "{percent}% · Paused" and offers resume for all of them; dismiss waits until the queue settles.
+- **`UploadToasts`.** While the queue is paused, the progress toast reads "Upload paused" with a Resume action, and the result toast waits until the queue settles.
+- **`AvatarUpload`.** A paused image keeps its preview and its progress ring, and the live region says "Paused".
+- **Translations.** New keys: "Paused" (note `upload status`), "Resume" (`upload control`), "Resume {name}" (`attachment action`), "Upload paused" (`toast`), and "Resume" (`toast action`).
+
+### Breaking changes
+
+- **Expect Pause in `UploadStatus` to keep files in the queue.** It calls `upload.pause()` in place of `upload.detach()`, so the files stay, paused, until resumed or cancelled. It shows for a multipart upload with or without an `uploadStore`, and no longer for a smaller file that would start over. Call `upload.detach()` from your own control to stop and clear the queue.
+
 ## @dimah-s3/ui@2.0.0-beta.13 (beta)
 
 ### Folder rows show what they hold
