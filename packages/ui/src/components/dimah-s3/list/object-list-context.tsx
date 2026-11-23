@@ -187,7 +187,9 @@ export type ObjectListEntryScope<TItem> = Omit<
    * Drag handlers that move `entry`, and the selection with it when it is
    * selected. `null` when it cannot move.
    */
-  moveSource: (entry: ObjectListEntry<TItem>) => ObjectListMoveSourceProps | null;
+  moveSource: (
+    entry: ObjectListEntry<TItem>,
+  ) => ObjectListMoveSourceProps | null;
   /**
    * Drop handlers that move the dragged entries into `folder` (`null` is
    * the root). They leave other drags, such as files, alone.
