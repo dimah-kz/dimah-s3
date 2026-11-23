@@ -1928,6 +1928,8 @@ describe("ObjectList", () => {
       const input = await screen.findByRole("textbox", { name: "File name" });
       expect(input).toHaveProperty("selectionStart", 0);
       expect(input).toHaveProperty("selectionEnd", 1);
+      // Inherits the list's direction instead of following the name (#144).
+      expect(input.hasAttribute("dir")).toBe(false);
 
       await user.keyboard("z{Enter}");
       await settle();
