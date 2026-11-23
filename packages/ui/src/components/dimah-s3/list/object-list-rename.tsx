@@ -38,9 +38,9 @@ export function canRenameEntry<TItem>(
  * The name field for the entry being renamed. Enter saves, Escape restores
  * the name, and leaving the field saves. Mounted by the default row and tile.
  *
- * `inline` puts Save and Cancel beside the field, as in a row. `stacked`
- * gives the field the whole width and puts them under it, as in a tile,
- * where there is no room beside it.
+ * `inline` (a row) puts only Cancel inside the field: Enter or leaving the
+ * field saves. `stacked` (a tile, where the field is narrow) puts Cancel and
+ * Save under the field, sharing its width.
  */
 export function ObjectListRenameField<TItem>({
   entry,
@@ -131,40 +131,40 @@ export function ObjectListRenameField<TItem>({
   }
 
   const stacked = layout === "stacked";
-  // Touch screens get buttons a finger can hit.
-  const buttonClass = "shrink-0 pointer-coarse:size-9";
+  const spinner = (
+    <Spinner aria-hidden aria-label={undefined} role={undefined} />
+  );
   const confirm = (
     <Button
       type="submit"
-      // Under a tile's field, Save is the one filled button.
-      variant={stacked ? "default" : "ghost"}
-      size="icon-sm"
-      className={buttonClass}
+      variant="default"
+      size="sm"
+      className="w-full pointer-coarse:h-9"
       aria-label={t("Save name", { note: "object list rename" })}
       aria-busy={pending || undefined}
       disabled={pending}
       focusableWhenDisabled
       onMouseDown={(event) => event.preventDefault()}
     >
-      {pending ? (
-        <Spinner aria-hidden aria-label={undefined} role={undefined} />
-      ) : (
-        <CheckIcon />
-      )}
+      {pending ? spinner : <CheckIcon />}
     </Button>
   );
   const cancel = (
     <Button
       type="button"
-      variant="ghost"
-      size="icon-sm"
-      className={buttonClass}
+      variant="destructive"
+      size={stacked ? "sm" : "icon-xs"}
+      className={
+        stacked ? "w-full pointer-coarse:h-9" : "shrink-0 pointer-coarse:size-7"
+      }
       aria-label={t("Cancel", { note: "object list rename" })}
+      // In a row, Cancel is the only button, so it shows the save in flight.
+      aria-busy={(!stacked && pending) || undefined}
       disabled={pending}
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => finish(true)}
     >
-      <XIcon />
+      {!stacked && pending ? spinner : <XIcon />}
     </Button>
   );
 
@@ -185,7 +185,7 @@ export function ObjectListRenameField<TItem>({
       onSubmit={onSubmit}
       onBlur={onBlur}
     >
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="relative flex min-w-0 items-center">
         <label htmlFor={inputId} className="sr-only">
           {label}
         </label>
@@ -199,8 +199,10 @@ export function ObjectListRenameField<TItem>({
           aria-invalid={error != null || undefined}
           aria-describedby={error != null ? errorId : undefined}
           className={cn(
-            // 16px text on small screens, which iOS does not zoom into.
-            "h-8 min-w-0 flex-1 rounded-md border border-dimah-s3-border bg-transparent px-2 text-base text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm pointer-coarse:h-9",
+            // The same text size as the entry name it replaces.
+            "h-8 w-full min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-sm text-dimah-s3-foreground outline-none focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 pointer-coarse:h-9",
+            // Room at the end for Cancel inside the field.
+            stacked ? "px-2" : "ps-2 pe-8 pointer-coarse:pe-9",
           )}
           onChange={(event) => {
             setName(event.target.value);
@@ -213,14 +215,13 @@ export function ObjectListRenameField<TItem>({
           }}
         />
         {stacked ? null : (
-          <>
-            {confirm}
+          <div className="absolute inset-y-0 end-1 flex items-center">
             {cancel}
-          </>
+          </div>
         )}
       </div>
       {stacked ? (
-        <div className="flex items-center justify-end gap-1">
+        <div className="grid grid-cols-2 gap-1.5">
           {cancel}
           {confirm}
         </div>
