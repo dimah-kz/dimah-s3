@@ -193,7 +193,6 @@ export function ObjectListRenameField<TItem>({
           ref={inputRef}
           id={inputId}
           value={name}
-          dir="auto"
           maxLength={255}
           autoComplete="off"
           readOnly={pending}
