@@ -1,6 +1,6 @@
 # @dimah-s3/db
 
-**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/db) (`npm i @dimah-s3/db@beta`).
+**1.x is no longer maintained.** Use [dimah-s3 2.0](https://s3.dimah.dev/docs) and the [upgrade guide](https://s3.dimah.dev/docs/migration-2-0).
 
 Optional FumaDB persistence for [dimah-s3](https://github.com/dimah-kz/dimah-s3) — `storage_object` table via the `db()` plugin.
 

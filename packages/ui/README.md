@@ -1,6 +1,6 @@
 # @dimah-s3/ui
 
-**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/react/ui) (`npm i @dimah-s3/ui@beta`).
+**1.x is no longer maintained.** Use [dimah-s3 2.0](https://s3.dimah.dev/docs) and the [upgrade guide](https://s3.dimah.dev/docs/migration-2-0).
 
 Optional prebuilt UI for `dimah-s3`, on top of `@dimah-s3/react` and
 [shadcn/ui](https://ui.shadcn.com).

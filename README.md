@@ -4,7 +4,10 @@
 [![GitHub stars](https://img.shields.io/github/stars/dimah-kz/dimah-s3?style=flat-square&logo=github&logoColor=white&label=stars&color=F5C518)](https://github.com/dimah-kz/dimah-s3)
 [![documentation](https://img.shields.io/badge/docs-v1.s3.dimah.dev-0F766E?style=flat-square&logo=readthedocs&logoColor=white&label=documentation)](https://v1.s3.dimah.dev/docs)
 
-**Full-stack S3 toolkit for the React ecosystem.** This is the 1.x line. New projects should use the [2.0 beta](https://s3.dimah.dev/docs) (`npm i @dimah-s3/react@beta`).
+> [!WARNING]
+> **1.x is no longer maintained.** This branch is a read-only archive of the 1.x line. It gets no fixes, including security fixes. Use [dimah-s3 2.0](https://github.com/dimah-kz/dimah-s3) ([docs](https://s3.dimah.dev/docs)), and move a 1.7 app with the [upgrade guide](https://s3.dimah.dev/docs/migration-2-0).
+
+**Full-stack S3 toolkit for the React ecosystem.** This is the 1.x line.
 
 Server handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com)
 UI, and an optional database plugin. You pass in your own AWS SDK `S3Client`.

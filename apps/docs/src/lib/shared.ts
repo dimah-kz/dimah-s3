@@ -74,7 +74,7 @@ export function docsPageKeywords(title: string): string[] {
 export const gitConfig = {
   user: "dimah-kz",
   repo: "dimah-s3",
-  branch: "main",
+  branch: "v1",
   contentPath: "apps/docs/content/docs",
 };
 

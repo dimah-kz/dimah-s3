@@ -1,6 +1,6 @@
 # `@dimah-s3/cli`
 
-**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/quickstart) (`npx @dimah-s3/cli@beta create`).
+**1.x is no longer maintained.** Use [dimah-s3 2.0](https://s3.dimah.dev/docs) and the [upgrade guide](https://s3.dimah.dev/docs/migration-2-0).
 
 Scaffold an official [dimah-s3](https://v1.s3.dimah.dev/docs) starter.
 

@@ -81,12 +81,20 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
-        <Banner id="dimah-s3-beta" variant="rainbow">
+        <Banner id="dimah-s3-1x-eol" variant="rainbow">
           <span>
+            1.x is no longer maintained.{" "}
             <a href="https://s3.dimah.dev/docs" className="underline">
-              2.0 beta
+              Read the 2.0 docs
             </a>
-            {" is ready. Install with @beta."}
+            {" or "}
+            <a
+              href="https://s3.dimah.dev/docs/migration-2-0"
+              className="underline"
+            >
+              upgrade from 1.7
+            </a>
+            .
           </span>
         </Banner>
         <RootProvider
