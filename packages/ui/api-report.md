@@ -759,7 +759,7 @@ export type ObjectListHeaderProps = {
 export declare const OBJECT_LIST_HEADER_COMPACT_LABEL =
   "@max-[36rem]/object-list-header:sr-only";
 export declare const OBJECT_LIST_HEADER_COMPACT_BUTTON =
-  "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
+  "pointer-coarse:h-8 @max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
 export declare function ObjectListHeader({
   children,
   breadcrumb,
