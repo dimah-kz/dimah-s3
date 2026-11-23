@@ -1,12 +1,16 @@
-import { S3_API_ROUTES } from "@dimah-s3/core";
+import {
+  ROUTE_NAME_PATTERN,
+  S3_API_ROUTES,
+  S3_ERROR_CODES,
+  type S3ErrorCatalog,
+  type S3ErrorCodeEntry,
+} from "@dimah-s3/core";
 import type { Endpoint } from "better-call";
-import type { DimahS3Config, DimahS3Logger } from "@/types/config";
-import type {
-  AppliedPlugins,
-  DimahS3Plugin,
-  PluginContextMap,
-  PluginInitEnv,
-} from "./types";
+import { bindPluginCall } from "@/api/plugin-call";
+import type { DimahS3Config } from "@/types/config";
+import type { ResolvedConfig } from "@/types/resolved";
+import { createPluginEnv } from "./plugin-env";
+import type { AppliedPlugins, DimahS3Plugin, PluginContextMap } from "./types";
 
 /** Keys of the `dimahS3()` instance. Plugin contexts are spread beside them. */
 const RESERVED_PLUGIN_IDS: ReadonlySet<string> = new Set([
@@ -24,14 +28,18 @@ const CORE_ENDPOINT_NAMES: ReadonlySet<string> = new Set(
   Object.keys(S3_API_ROUTES),
 );
 
-const CORE_ENDPOINT_PATHS: ReadonlySet<string> = new Set(
-  Object.values(S3_API_ROUTES),
+/**
+ * First path segments of the core endpoints (`presign`, `file`, …). A
+ * plugin's endpoints sit under `/{id}`, so these ids are taken.
+ */
+const CORE_PATH_SEGMENTS: ReadonlySet<string> = new Set(
+  Object.values(S3_API_ROUTES).map((path) => path.split("/")[1]),
 );
 
 /**
- * Checks the plugins, builds the context map, collects the endpoints, and
- * runs each `init` in plugin order. Throws on a config error, so
- * `dimahS3()` fails at startup.
+ * Checks the plugins, builds the context map, collects the endpoints and
+ * error codes, and runs each `init` in plugin order. Throws on a config
+ * error, so `dimahS3()` fails at startup.
  *
  * Plugin hooks are not merged here: route resolution builds each hook list
  * with plugin hooks first, then the user hook.
@@ -41,12 +49,13 @@ export function applyPlugins<
   C = PluginContextMap<P>,
 >(
   config: DimahS3Config & { plugins?: P },
-  logger: DimahS3Logger,
+  resolved: ResolvedConfig,
 ): AppliedPlugins<C> {
   const plugins: readonly DimahS3Plugin[] = config.plugins ?? [];
   const byId = registerPlugins(plugins);
   assertDependencies(plugins, byId);
   const endpoints = collectEndpoints(plugins);
+  const errorCodes = collectErrorCodes(plugins);
 
   const context: Record<string, unknown> = {};
   for (const plugin of plugins) {
@@ -56,7 +65,7 @@ export function applyPlugins<
   const getPlugin = (id: string) => byId.get(id);
   for (const plugin of plugins) {
     const result: unknown = plugin.init?.(
-      initEnv(plugin.id, config, getPlugin, logger),
+      createPluginEnv(plugin.id, config, resolved, getPlugin),
     );
     if (isPromiseLike(result)) {
       // Never leave its rejection unhandled; the throw below reports it.
@@ -67,7 +76,7 @@ export function applyPlugins<
     }
   }
 
-  return { context: context as C, getPlugin, endpoints };
+  return { context: context as C, getPlugin, endpoints, errorCodes };
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
@@ -86,6 +95,16 @@ function registerPlugins(
     if (RESERVED_PLUGIN_IDS.has(plugin.id)) {
       throw new Error(
         `dimahS3: plugin id "${plugin.id}" is reserved on the instance. Choose a different id.`,
+      );
+    }
+    if (typeof plugin.id !== "string" || !ROUTE_NAME_PATTERN.test(plugin.id)) {
+      throw new Error(
+        `dimahS3: plugin id "${String(plugin.id)}" is invalid. Use a letter followed by up to 63 letters, digits, underscores, or hyphens.`,
+      );
+    }
+    if (CORE_PATH_SEGMENTS.has(plugin.id)) {
+      throw new Error(
+        `dimahS3: plugin id "${plugin.id}" is a core endpoint path. Choose a different id.`,
       );
     }
     if (byId.has(plugin.id)) {
@@ -130,8 +149,10 @@ function assertDependencies(
 }
 
 /**
- * Plugin endpoints keyed by name. A name or path may not collide with a
- * core endpoint, and each name and each method and path pair is unique.
+ * Plugin endpoints keyed by name, each bound to its plugin call so guards
+ * see `plugin: { id, action }`. A path sits under `/{id}`, so plugins never
+ * collide with each other or with a core endpoint. A name may not reuse a
+ * core or another plugin's name, and each method and path pair is unique.
  */
 function collectEndpoints(
   plugins: readonly DimahS3Plugin[],
@@ -146,11 +167,14 @@ function collectEndpoints(
         throw new Error(`${label} reuses an existing endpoint name.`);
       }
       const { path } = endpoint;
-      if (typeof path !== "string" || !path.startsWith("/")) {
-        throw new Error(`${label} needs a path that starts with "/".`);
-      }
-      if (CORE_ENDPOINT_PATHS.has(path)) {
-        throw new Error(`${label} uses the core path ${path}.`);
+      const namespace = `/${plugin.id}`;
+      if (
+        typeof path !== "string" ||
+        (path !== namespace && !path.startsWith(`${namespace}/`))
+      ) {
+        throw new Error(
+          `${label} needs a path under "${namespace}/", such as pluginPath("${plugin.id}", "${name}").`,
+        );
       }
       const { method } = endpoint.options;
       for (const verb of Array.isArray(method) ? method : [method]) {
@@ -160,27 +184,42 @@ function collectEndpoints(
         }
         routes.add(route);
       }
-      endpoints[name] = endpoint;
+      endpoints[name] = bindPluginCall(endpoint, {
+        id: plugin.id,
+        action: name,
+      });
     }
   }
   return endpoints;
 }
 
-function initEnv(
-  pluginId: string,
-  config: DimahS3Config,
-  getPlugin: PluginInitEnv["getPlugin"],
-  logger: DimahS3Logger,
-): PluginInitEnv {
-  return {
-    config,
-    getPlugin,
-    routeOptions: <T extends object>(route: string) => {
-      if (!Object.hasOwn(config.routes, route)) return undefined;
-      const options = config.routes[route].plugins;
-      if (!options || !Object.hasOwn(options, pluginId)) return undefined;
-      return options[pluginId] as T | false | undefined;
-    },
-    logger,
-  };
+/**
+ * The core catalog with each plugin's `$ERROR_CODES` added. A code that is
+ * already there, or an entry not built with `defineErrorCodes`, throws.
+ * Without plugin codes it is the core catalog itself.
+ */
+function collectErrorCodes(plugins: readonly DimahS3Plugin[]): S3ErrorCatalog {
+  if (!plugins.some((plugin) => plugin.$ERROR_CODES !== undefined)) {
+    return S3_ERROR_CODES;
+  }
+  const codes: Record<string, S3ErrorCodeEntry> = { ...S3_ERROR_CODES };
+  const owners = new Map<string, string>();
+  for (const plugin of plugins) {
+    const catalog: S3ErrorCatalog = plugin.$ERROR_CODES ?? {};
+    for (const [code, entry] of Object.entries(catalog)) {
+      const label = `dimahS3: plugin "${plugin.id}" error code "${code}"`;
+      if (entry.code !== code) {
+        throw new Error(`${label} must be built with defineErrorCodes.`);
+      }
+      if (Object.hasOwn(codes, code)) {
+        const owner = owners.get(code);
+        throw new Error(
+          `${label} is already defined by ${owner ? `plugin "${owner}"` : "the core catalog"}.`,
+        );
+      }
+      codes[code] = entry;
+      owners.set(code, plugin.id);
+    }
+  }
+  return codes;
 }

@@ -105,11 +105,13 @@ const copy = await s3.db.record(
 );
 ```
 
-The second argument works as for `s3.api`. The checks run with
-`operation: "record"`: the instance and route guards, `resolveScope` and
-`authorize`, the route's `fileTypes` and `maxFileSize` (an empty object is
-`FILE_EMPTY`), then the quota. A refused object stays in the bucket: delete
-it yourself if you do not want the bytes.
+The second argument works as for `s3.api`. Every instance guard, then the
+route guard, runs first with `operation: "plugin"` and
+`plugin: { id: "db", action: "record" }`. Then `resolveScope` and `authorize`
+run with `operation: "record"`, then the route's `fileTypes` and
+`maxFileSize` (an empty object is `FILE_EMPTY`), then the quota. Every
+failure is an `APIError`, as from `s3.api`. A refused object stays in the
+bucket: delete it yourself if you do not want the bytes.
 
 | Situation at the key                  | Result                     |
 | ------------------------------------- | -------------------------- |
@@ -139,10 +141,10 @@ the caller's scope from the request and runs `authorize` with the
 | `PATCH /db/folder`      | `updateFolder` | `folder.update` |
 | `DELETE /db/folder?id=` | `deleteFolder` | `folder.delete` |
 
-- Only the instance `guard` runs here, not a route `guard`
-  ([Setup](/docs/db/setup#register-the-plugin-step)).
 `DELETE /db/folder` also takes `recursive=true`.
 
+- Only the instance `guard` runs here, not a route `guard`
+  ([Setup](/docs/db/setup#register-the-plugin-step)).
 - `GET` and `PATCH /db/object` take an optional `bucket`, which defaults to
   the only bucket your routes use. With several buckets it is required, and
   a bucket no route uses is a `VALIDATION_ERROR`.
@@ -209,12 +211,12 @@ await api.db.deleteFolder({ id: reports.folder.id });
 - `updateFolder` renames (`name`), moves (`parentId`, `null` is the root),
   or both.
 - `deleteFolder` removes an empty folder. A missing folder is not an error.
-- In JSON and in types the root is `null`. On the wire (`?folderId=`,
-  `clientMetadata.folderId`) it is `""`.
   With `recursive: true`, the folders below it go too, deepest first, as long
   as none of them holds an object; a folder with one is `FOLDER_NOT_EMPTY`,
   and the empty ones before it stay removed. `authorize` sees the folder the
   call names.
+- In JSON and in types the root is `null`. On the wire (`?folderId=`,
+  `clientMetadata.folderId`) it is `""`.
 
 | Rule                                                                                                                | Error                      |
 | ------------------------------------------------------------------------------------------------------------------- | -------------------------- |

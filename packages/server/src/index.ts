@@ -36,6 +36,7 @@ export type {
   MultipartUploadContext,
   ObjectContext,
   ObjectS3Headers,
+  PluginCall,
   PutInput,
   RouteGuardContext,
   S3Operation,

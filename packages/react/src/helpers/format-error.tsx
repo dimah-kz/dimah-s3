@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useContext } from "react";
 import { S3_ERROR_CODES, isAPIError, type S3ErrorCode } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { isRawAPIError, toClientError } from "@/internal/client-error";
+import { S3FormatErrorContext } from "@/s3-provider";
 import { useFormatFileSize, useFormatNumber } from "./format-number";
 
 type ErrorParams = Readonly<Record<string, string | number>>;
@@ -11,9 +12,10 @@ type ErrorParams = Readonly<Record<string, string | number>>;
 /**
  * Localized message for any error a dimah-s3 hook reports.
  *
- * Every catalog code in `S3_ERROR_CODES` has its own message, with sizes and
- * counts in the `S3Provider` `locale`. Other `APIError` codes and plain
- * `Error`s return their `message`.
+ * The `S3Provider` `formatError` runs first, for any `APIError`. Then every
+ * catalog code in `S3_ERROR_CODES` has its own message, with sizes and
+ * counts in the `S3Provider` `locale`. Other `APIError` codes, such as a
+ * plugin's, and plain `Error`s return their `message`.
  *
  * `t("…")` call sites are nested under `useTranslations()` so fuma-translate
  * can extract keys (it cannot see `t` passed into a plain helper).
@@ -28,6 +30,7 @@ export function useFormatError(): (error: unknown) => string {
   const t = useTranslations();
   const formatFileSize = useFormatFileSize();
   const formatNumber = useFormatNumber();
+  const formatOverride = useContext(S3FormatErrorContext);
 
   return useCallback(
     (thrown: unknown): string => {
@@ -40,6 +43,8 @@ export function useFormatError(): (error: unknown) => string {
           : unknownError;
       }
 
+      const custom = formatOverride?.(error);
+      if (custom) return custom;
       const { code, params = {} } = error;
       if (!isCatalogCode(code)) return error.message || unknownError;
       const text = (key: string) => readString(params, key);
@@ -202,7 +207,7 @@ export function useFormatError(): (error: unknown) => string {
         }
       }
     },
-    [t, formatFileSize, formatNumber],
+    [t, formatFileSize, formatNumber, formatOverride],
   );
 }
 

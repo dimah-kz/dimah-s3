@@ -16,20 +16,20 @@ Thin presign protocol, headless React hooks, optional shadcn UI. Consumers own t
 
 `@dimah-s3/ui` peer-depends on both `@dimah-s3/core` and `@dimah-s3/react`, and `@dimah-s3/db` on `@dimah-s3/server`, each pinned to the exact release version. React does not re-export core. `@dimah-s3/db` has a type-only dev dependency on react to check that `dbObjectSource` fits `ObjectListSource`; it never imports react at runtime.
 
-`apps/docs`, `apps/brand`, and `examples/*` consume workspace packages (not published). `templates/*` are standalone starters with published `@dimah-s3/*` ranges, snapshotted into the CLI at build time.
+`apps/docs`, `apps/brand`, and `examples/*` consume workspace packages (not published). `examples/plugin-audit` is a plugin package built only on the public plugin SDK; `pnpm test` runs its tests. `templates/*` are standalone starters with published `@dimah-s3/*` ranges, snapshotted into the CLI at build time.
 
 ## Placement
 
 Edit the **smallest package that owns the behavior**. Search that package before adding files.
 
-| Package  | Owns                                                         |
-| -------- | ------------------------------------------------------------ |
-| `core`   | Protocol, `createS3Client`, error catalog, client plugins    |
-| `server` | Presign HTTP, `dimahS3`, `route()`, server plugins, adapters |
-| `react`  | Headless hooks (root) and plain functions (`/engine`)        |
-| `ui`     | Optional components + registry source                        |
-| `db`     | Optional persistence plugin                                  |
-| `cli`    | `dimah-s3 create` only                                       |
+| Package  | Owns                                                                    |
+| -------- | ----------------------------------------------------------------------- |
+| `core`   | Protocol, `createS3Client`, error catalog, client plugins               |
+| `server` | Presign HTTP, `dimahS3`, `route()`, server plugins, adapters, `testing` |
+| `react`  | Headless hooks (root) and plain functions (`/engine`)                   |
+| `ui`     | Optional components + registry source                                   |
+| `db`     | Optional persistence plugin                                             |
+| `cli`    | `dimah-s3 create` only                                                  |
 
 Shared protocol changes start in `core`, then wire `server` and `react`. Do not copy a parallel schema or URL string into another package.
 

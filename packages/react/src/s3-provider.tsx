@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { S3Api } from "@dimah-s3/core";
+import type { APIError, S3Api } from "@dimah-s3/core";
 import { TranslationProvider } from "@fuma-translate/react";
 import type { Translations } from "./translations/types";
 
@@ -12,6 +12,14 @@ export const S3Context = createContext<S3Api | null>(null);
 
 /** Internal context for the `S3Provider` `locale`. */
 export const S3LocaleContext = createContext<string | undefined>(undefined);
+
+/** Your message for an API error, or `undefined` for the built-in one. */
+export type S3ErrorFormatter = (error: APIError) => string | undefined;
+
+/** Internal context for the `S3Provider` `formatError`. */
+export const S3FormatErrorContext = createContext<S3ErrorFormatter | undefined>(
+  undefined,
+);
 
 export type S3ProviderProps<TApi extends S3Api = S3Api> = {
   api: TApi;
@@ -27,6 +35,14 @@ export type S3ProviderProps<TApi extends S3Api = S3Api> = {
    * Omit for Latin digits.
    */
   locale?: string;
+  /**
+   * Your message for an API error, used by `useFormatError` and every UI
+   * toast before the built-in one. Word a plugin's error codes here, or
+   * replace a catalog message. Return `undefined` to keep the built-in
+   * message. Define it outside the component, or memoize it, so it keeps
+   * its identity across renders.
+   */
+  formatError?: S3ErrorFormatter;
   children: ReactNode;
 };
 
@@ -59,14 +75,17 @@ export function S3Provider<TApi extends S3Api>({
   api,
   translations,
   locale,
+  formatError,
   children,
 }: S3ProviderProps<TApi>) {
   return (
     <S3Context.Provider value={api}>
       <S3LocaleContext.Provider value={locale}>
-        <TranslationProvider translations={translations ?? NO_TRANSLATIONS}>
-          {children}
-        </TranslationProvider>
+        <S3FormatErrorContext.Provider value={formatError}>
+          <TranslationProvider translations={translations ?? NO_TRANSLATIONS}>
+            {children}
+          </TranslationProvider>
+        </S3FormatErrorContext.Provider>
       </S3LocaleContext.Provider>
     </S3Context.Provider>
   );

@@ -15,11 +15,16 @@ import type {
 } from "./types";
 import { fitFileName } from "./helpers/fit-file-name";
 import { stripTrailingSlashes } from "./helpers/strip-slashes";
-import { S3_ERROR_CODES } from "./error";
+import {
+  S3_ERROR_CODES,
+  type S3ErrorCatalog,
+  type S3ErrorCodeEntry,
+} from "./error";
 import { ROUTE_NAME_PATTERN } from "./limits";
 import {
   createS3Fetch,
   RESERVED_CLIENT_KEYS,
+  type ClientPluginErrorCodes,
   type ClientPluginMethodsMap,
   type S3ClientFetchOptions,
   type S3ClientPlugin,
@@ -175,10 +180,41 @@ function createCoreApi($fetch: S3Fetch, base: string): S3Api {
 export type CreateS3ClientResult<P extends readonly S3ClientPlugin[] = []> =
   S3Api &
     ClientPluginMethodsMap<P> & {
-      $ERROR_CODES: typeof S3_ERROR_CODES;
+      /** The core catalog and every client plugin's `$ERROR_CODES`. */
+      $ERROR_CODES: typeof S3_ERROR_CODES & ClientPluginErrorCodes<P>;
       $fetch: S3Fetch;
       $Infer: { plugins: P };
     };
+
+/**
+ * The core catalog with each plugin's `$ERROR_CODES` added. A code that is
+ * already there, or an entry not built with `defineErrorCodes`, throws.
+ * Without plugin codes it is the core catalog itself.
+ */
+function mergeErrorCodes(
+  plugins: readonly { id: string; $ERROR_CODES?: S3ErrorCatalog }[],
+): S3ErrorCatalog {
+  if (!plugins.some((plugin) => plugin.$ERROR_CODES !== undefined)) {
+    return S3_ERROR_CODES;
+  }
+  const codes: Record<string, S3ErrorCodeEntry> = { ...S3_ERROR_CODES };
+  for (const plugin of plugins) {
+    for (const [code, entry] of Object.entries(plugin.$ERROR_CODES ?? {})) {
+      if (entry.code !== code) {
+        throw new Error(
+          `Client plugin "${plugin.id}" error code "${code}" must be built with defineErrorCodes.`,
+        );
+      }
+      if (Object.hasOwn(codes, code)) {
+        throw new Error(
+          `Client plugin "${plugin.id}" error code "${code}" is already defined.`,
+        );
+      }
+      codes[code] = entry;
+    }
+  }
+  return codes;
+}
 
 /**
  * Browser (or isomorphic) client for the dimah-s3 HTTP API.
@@ -234,7 +270,9 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
   return {
     ...api,
     ...pluginMethods,
-    $ERROR_CODES: S3_ERROR_CODES,
+    $ERROR_CODES: mergeErrorCodes(
+      plugins ?? [],
+    ) as unknown as CreateS3ClientResult<P>["$ERROR_CODES"],
     $fetch,
     $Infer: {} as CreateS3ClientResult<P>["$Infer"],
   } as CreateS3ClientResult<P>;

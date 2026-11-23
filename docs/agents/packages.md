@@ -42,13 +42,21 @@ New HTTP adapter: add it next to existing files in `packages/server/src/adapters
 
 Contract and merge live in `packages/server/src/plugin/`. Feature plugins (like `db()`) live in their own package and peer-depend on server.
 
-- HTTP: `createS3Endpoint` from `@dimah-s3/server/plugins` + shared `pluginPath` from core. Do not export raw better-call `createEndpoint`. Plugin endpoints are HTTP only; they do not appear on `s3.api`.
-- Client: `defineClientPlugin` in core. React apps use `createS3Client` from `@dimah-s3/react`. Keep ORM off the client entry.
+The plugin SDK is public and follows semver: `@dimah-s3/server/plugins`, `@dimah-s3/server/testing`, and the plugin exports of core (`defineClientPlugin`, `pluginPath`, `defineErrorCodes`, `s3Error`). [`examples/plugin-audit`](../../examples/plugin-audit) builds against those exports only, and CI builds and tests it. Keep it passing: a change that breaks it breaks third-party plugins.
+
+- HTTP: `createS3Endpoint` from `@dimah-s3/server/plugins` + shared `pluginPath` from core. Do not export raw better-call `createEndpoint`. Plugin endpoints are HTTP only; they do not appear on `s3.api`. Every path sits under `/{id}`; `applyPlugins` rejects any other.
+- Name an endpoint after the client action that calls it. The key is `plugin.action` in the guard context.
+- Client: `defineClientPlugin` in core, with `$InferServerPlugin` so `$fetch` is typed by the server endpoints (structural types only; core never imports server). React apps use `createS3Client` from `@dimah-s3/react`. Keep ORM off the client entry.
 - Merge once in `dimahS3()` — never inside an endpoint.
 - Expose data on `plugin.context` (`s3.context[id]` / flattened `s3[id]`). Do not hardcode per-plugin fields on `DimahS3`.
+- Read routes from `env.routes` (resolved client, bucket, `keyPrefix`, limits), not `env.config.routes`. Do not re-derive defaults in a plugin.
+- A context method that acts for a caller runs through `env.runOperation`, so every guard runs (instance, then route) and failures pass the error boundary. Never call user guards directly from a plugin.
+- Every plugin call is `operation: "plugin"` with `plugin: { id, action }`. Do not add a plugin's name to `S3Operation`.
+- Plugin error codes: `defineErrorCodes` under `$ERROR_CODES`, thrown with `s3Error(entry, params)`, merged into `s3.$ERROR_CODES` and the client's. First-party codes that react words (`FOLDER_*`, `OBJECT_EXISTS`) stay in the core catalog.
 - Hook order is load-bearing: guards run instance → route → feature, and within each, **plugins first, then the user**. Lifecycle **`on*`** hooks also run plugins first, so user hooks see consistent db state.
 - A plugin may bind tickets to a caller with `hooks.ticketSubject`.
 - A plugin that records an upload in `upload.onStart` undoes it in `upload.onRejected`, which runs once the server refused the upload and deleted its object. A throw there is reported, never returned.
+- Test plugins with `@dimah-s3/server/testing` (`createTestInstance`). The in-memory S3 lives in `packages/server/src/testing/`; the internal harness wraps it.
 
 ## db schema
 

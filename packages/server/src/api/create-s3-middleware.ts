@@ -3,13 +3,15 @@ import { toAPIError } from "@/helpers/error-boundary";
 import { createLocals, runGuards } from "@/helpers/hooks";
 import { syntheticRequest } from "@/helpers/request";
 import type { S3EndpointContext } from "./context";
+import { readPluginCall } from "./plugin-call";
 import { resolvedConfig, type RouterContext } from "./router-context";
 
 /**
  * Adds `config`, `request` and `locals` to the endpoint context. With
- * `runGuards`, it also runs the instance guards (operation `"plugin"`) and
- * keeps the `locals` they return. It runs them once per call: when an
- * earlier middleware already did, it reuses that `locals`.
+ * `runGuards`, it also runs the instance guards (operation `"plugin"`, with
+ * the endpoint's `plugin` call) and keeps the `locals` they return. It runs
+ * them once per call: when an earlier middleware already did, it reuses
+ * that `locals`.
  */
 function contextMiddleware(options: { runGuards: boolean }) {
   return createMiddleware(async (ctx): Promise<S3EndpointContext> => {
@@ -22,11 +24,13 @@ function contextMiddleware(options: { runGuards: boolean }) {
 
     const locals = createLocals();
     if (options.runGuards) {
+      const plugin = readPluginCall(ctx.context);
       try {
         await runGuards(resolved.guard, {
           request,
           operation: "plugin",
           locals,
+          ...(plugin !== undefined && { plugin }),
         });
       } catch (error) {
         throw toAPIError(error, resolved, request, "plugin");

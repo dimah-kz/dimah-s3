@@ -17,7 +17,7 @@ import { createS3Endpoint } from "./create-s3-endpoint";
 import { coreEndpoints } from "./core-endpoints";
 
 const echo = createS3Endpoint(
-  "/echo",
+  "/test/echo",
   { method: "POST", body: z.object({ text: z.string() }) },
   async (ctx) => ({ text: ctx.body.text }),
 );
@@ -115,7 +115,7 @@ describe("request body cap", () => {
     const { stream, state } = countingStream("x");
 
     const res = await s3.handler(
-      streamRequest("/echo", stream, { "content-length": "65" }),
+      streamRequest("/test/echo", stream, { "content-length": "65" }),
     );
 
     expect(res.status).toBe(413);
@@ -131,7 +131,7 @@ describe("request body cap", () => {
     const s3 = createInstance({ maxRequestBodySize: 64 });
     const { stream, state } = countingStream("x".repeat(16));
 
-    const res = await s3.handler(streamRequest("/echo", stream));
+    const res = await s3.handler(streamRequest("/test/echo", stream));
 
     await expectErrorCode(res, 413, S3_ERROR_CODES.REQUEST_TOO_LARGE);
     expect(state.pulled).toBe(5);
@@ -143,7 +143,7 @@ describe("request body cap", () => {
     const { stream } = countingStream("x".repeat(16));
 
     const res = await s3.handler(
-      streamRequest("/echo", stream, { "content-length": "10" }),
+      streamRequest("/test/echo", stream, { "content-length": "10" }),
     );
 
     await expectErrorCode(res, 413, S3_ERROR_CODES.REQUEST_TOO_LARGE);
@@ -154,7 +154,7 @@ describe("request body cap", () => {
     const s3 = createInstance({ maxRequestBodySize: body.length });
     const { stream } = countingStream(body, 1);
 
-    const res = await s3.handler(streamRequest("/echo", stream));
+    const res = await s3.handler(streamRequest("/test/echo", stream));
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ text: "ok" });
@@ -163,7 +163,9 @@ describe("request body cap", () => {
   it("applies the 1 MiB default cap", async () => {
     const s3 = createInstance();
     const res = await s3.handler(
-      jsonRequest(apiUrl("/echo"), { body: { text: "x".repeat(1_048_576) } }),
+      jsonRequest(apiUrl("/test/echo"), {
+        body: { text: "x".repeat(1_048_576) },
+      }),
     );
     await expectErrorCode(res, 413, S3_ERROR_CODES.REQUEST_TOO_LARGE);
   });
@@ -203,7 +205,7 @@ describe("request body cap", () => {
       },
     });
     const controller = new AbortController();
-    const target = new Request(apiUrl("/echo"), {
+    const target = new Request(apiUrl("/test/echo"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text: "ok" }),
@@ -241,11 +243,11 @@ describe("media types", () => {
 
   it("returns 415 for a non-JSON body to a plain better-call endpoint", async () => {
     const handler = vi.fn(async () => ({ ok: true }));
-    const raw = createEndpoint("/raw", { method: "POST" }, handler);
+    const raw = createEndpoint("/test/raw", { method: "POST" }, handler);
     const s3 = createInstance({}, { raw });
 
     const res = await s3.handler(
-      new Request(apiUrl("/raw"), {
+      new Request(apiUrl("/test/raw"), {
         method: "POST",
         headers: { "content-type": "text/plain" },
         body: "hello",
@@ -259,7 +261,7 @@ describe("media types", () => {
   it("returns VALIDATION_ERROR for malformed JSON", async () => {
     const s3 = createInstance();
     const res = await s3.handler(
-      new Request(apiUrl("/echo"), {
+      new Request(apiUrl("/test/echo"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: "{",
@@ -290,13 +292,13 @@ describe("error boundary", () => {
 
   it("logs a plain Error from a plain better-call endpoint and returns 500", async () => {
     const failure = new Error("boom");
-    const raw = createEndpoint("/raw", { method: "GET" }, async () => {
+    const raw = createEndpoint("/test/raw", { method: "GET" }, async () => {
       throw failure;
     });
     const error = vi.fn();
     const onError = vi.fn();
     const s3 = createInstance({ logger: { error }, onError }, { raw });
-    const request = new Request(apiUrl("/raw"));
+    const request = new Request(apiUrl("/test/raw"));
 
     const res = await s3.handler(request);
 
@@ -318,7 +320,7 @@ describe("error boundary", () => {
         throw new Error("socket closed");
       },
     });
-    const request = new Request(apiUrl("/echo"), {
+    const request = new Request(apiUrl("/test/echo"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body,

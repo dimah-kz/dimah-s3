@@ -188,7 +188,8 @@ Zod:
 ## Client plugins
 
 A client plugin adds methods that call a server plugin's endpoints through
-the shared `$fetch`. `pluginPath` builds the same path the server mounts:
+the shared `$fetch`. With `$InferServerPlugin`, that `$fetch` is typed by the
+server endpoints, and `pluginPath` builds the same path the server mounts:
 
 ```ts
 import { createS3Client, defineClientPlugin, pluginPath } from "@dimah-s3/core";
@@ -196,27 +197,27 @@ import { createS3Client, defineClientPlugin, pluginPath } from "@dimah-s3/core";
 export function auditClient() {
   return defineClientPlugin({
     id: "audit",
-    // Type only: the id must equal the server plugin's id.
-    $InferServerPlugin: {} as typeof auditPlugin,
+    // Type only: types `$fetch` and checks that the ids match.
+    $InferServerPlugin: {} as ReturnType<typeof audit>,
+    $ERROR_CODES: AUDIT_ERROR_CODES,
     getActions: ($fetch) => ({
-      recent: (limit?: number) =>
-        $fetch<{ events: unknown[] }>(pluginPath("audit", "recent"), {
+      listEvents: (route?: string) =>
+        $fetch(pluginPath("audit", "events"), {
           method: "GET",
-          query: { limit },
+          query: { route },
         }),
     }),
   });
 }
 
 const api = createS3Client({ plugins: [auditClient()] });
-await api.audit.recent(20);
+const { events } = await api.audit.listEvents("invoices");
 ```
 
 - The id becomes `api[id]`. Core method names such as `upload` and `delete`
   are reserved (`RESERVED_CLIENT_KEYS`).
-- `$InferServerPlugin` is optional and never read at runtime: a mismatched
-  `id` fails to compile. Import the server plugin as a type only.
-- The server side is on [Plugins](/docs/server/plugins).
+- `$ERROR_CODES` merges the plugin's codes into `api.$ERROR_CODES`.
+- Building both sides is on [Plugins](/docs/server/plugins#client-plugin).
 
 ## Helpers
 

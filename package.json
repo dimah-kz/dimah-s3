@@ -23,7 +23,7 @@
     "tegami": "node ./scripts/tegami.mts",
     "templates:build": "node ./scripts/templates-build.mjs",
     "templates:update": "node ./scripts/templates-update.mjs",
-    "test": "turbo run test --filter=\"./packages/*\"",
+    "test": "turbo run test --filter=\"./packages/*\" --filter=\"./examples/*\"",
     "ui:sync:shadcn": "pnpm --filter @dimah-s3/ui sync:shadcn"
   },
   "devDependencies": {

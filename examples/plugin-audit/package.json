@@ -1,0 +1,45 @@
+{
+  "name": "@dimah-s3/example-plugin-audit",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Reference dimah-s3 plugin: an audit log of uploads, downloads, and deletes",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint --cache --cache-strategy content --max-warnings 0",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@dimah-s3/core": "workspace:*",
+    "@dimah-s3/server": "workspace:*",
+    "@types/node": "catalog:",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/tsup-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

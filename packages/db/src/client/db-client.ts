@@ -4,13 +4,7 @@ import {
   type S3RequestOptions,
 } from "@dimah-s3/core";
 import type { db } from "@/plugin/db";
-import type {
-  DbClientActions,
-  DbClientFolder,
-  DbClientListObjectsInput,
-  DbClientListObjectsResponse,
-  DbClientObject,
-} from "@/types/client";
+import type { DbClientActions, DbClientListObjectsInput } from "@/types/client";
 
 /** The per-call options better-fetch reads: the abort signal and headers. */
 function call(options: S3RequestOptions | undefined) {
@@ -19,8 +13,10 @@ function call(options: S3RequestOptions | undefined) {
 
 /** The list query on the wire, where the root folder is `""`. */
 function listQuery(input: DbClientListObjectsInput | undefined) {
-  if (input?.folderId !== null) return input;
-  return { ...input, folderId: "" };
+  if (input === undefined) return undefined;
+  const { folderId, ...rest } = input;
+  if (folderId === undefined) return rest;
+  return { ...rest, folderId: folderId ?? "" };
 }
 
 /**
@@ -45,37 +41,44 @@ function listQuery(input: DbClientListObjectsInput | undefined) {
 export function dbClient<TClientAttributes = never>() {
   return defineClientPlugin({
     id: "db",
-    $InferServerPlugin: {} as ReturnType<typeof db>,
+    // Types `$fetch` by the endpoints `db()` mounts, so a response that
+    // drifts from `DbClientActions` fails to compile here.
+    $InferServerPlugin: {} as ReturnType<
+      typeof db<never, never, TClientAttributes>
+    >,
     getActions: ($fetch): DbClientActions<TClientAttributes> => ({
       listObjects: (input, options) =>
-        $fetch<DbClientListObjectsResponse<TClientAttributes>>(
-          pluginPath("db", "objects"),
-          { method: "GET", query: listQuery(input), ...call(options) },
-        ),
+        $fetch(pluginPath("db", "objects"), {
+          method: "GET",
+          query: listQuery(input),
+          ...call(options),
+        }),
       getObject: (input, options) =>
-        $fetch<{ object: DbClientObject<TClientAttributes> }>(
-          pluginPath("db", "object"),
-          { method: "GET", query: input, ...call(options) },
-        ),
+        $fetch(pluginPath("db", "object"), {
+          method: "GET",
+          query: input,
+          ...call(options),
+        }),
       updateObject: (input, options) =>
-        $fetch<{ object: DbClientObject<TClientAttributes> }>(
-          pluginPath("db", "object"),
-          { method: "PATCH", body: input, ...call(options) },
-        ),
+        $fetch(pluginPath("db", "object"), {
+          method: "PATCH",
+          body: input,
+          ...call(options),
+        }),
       createFolder: (input, options) =>
-        $fetch<{ folder: DbClientFolder }>(pluginPath("db", "folder"), {
+        $fetch(pluginPath("db", "folder"), {
           method: "POST",
           body: input,
           ...call(options),
         }),
       updateFolder: (input, options) =>
-        $fetch<{ folder: DbClientFolder }>(pluginPath("db", "folder"), {
+        $fetch(pluginPath("db", "folder"), {
           method: "PATCH",
           body: input,
           ...call(options),
         }),
       deleteFolder: (input, options) =>
-        $fetch<{ id: string }>(pluginPath("db", "folder"), {
+        $fetch(pluginPath("db", "folder"), {
           method: "DELETE",
           query: input,
           ...call(options),

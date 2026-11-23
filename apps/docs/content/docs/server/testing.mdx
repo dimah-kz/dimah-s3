@@ -1,0 +1,136 @@
+---
+title: Testing
+description: Test hooks and plugins end to end on an in-memory S3, with a client wired to the handler, using @dimah-s3/server/testing.
+---
+
+`@dimah-s3/server/testing` runs a real `dimahS3()` instance on an S3 that
+lives in memory, with the browser client calling its handler in process. Use
+it to test your hooks, guards, and plugins end to end, with no bucket and no
+server. It runs on Node.js, in any test runner.
+
+```ts title="audit.test.ts"
+import { route } from "@dimah-s3/server";
+import { createTestInstance } from "@dimah-s3/server/testing";
+import { expect, it } from "vitest";
+import { audit } from "./audit";
+import { auditClient } from "./audit/client";
+
+it("records confirmed uploads", async () => {
+  const { s3, client, upload } = createTestInstance({
+    plugins: [audit()],
+    clientPlugins: [auditClient()],
+    routes: { invoices: route({ upload: true, delete: true }) },
+  });
+
+  const { key } = await upload({
+    route: "invoices",
+    name: "march.pdf",
+    body: "pdf",
+  });
+  await client.delete({ route: "invoices", key });
+
+  const { events } = await client.audit.listEvents();
+  expect(events.map((event) => event.type)).toEqual(["delete", "upload"]);
+  await expect(s3.audit.events()).resolves.toHaveLength(2);
+});
+```
+
+## Test instance
+
+`createTestInstance(config)` takes the `dimahS3()` options without `client`,
+and `clientPlugins` for the client. `bucket` defaults to `"test-bucket"`,
+and `secret` to a test value.
+
+| Property  | Description                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------- |
+| `s3`      | The instance: `s3.api`, `s3.put`, and each plugin context, typed by your plugins and routes |
+| `client`  | The `@dimah-s3/core` browser client with your client plugins, calling `s3.handler`          |
+| `storage` | The in-memory S3. Read `storage.get(key)`, or `storage.seed(key, body)` an object           |
+| `upload`  | Uploads one file the way the browser does                                                   |
+
+Every request goes through the router, the guards, and the plugin
+endpoints, the same as in production. Pass headers per call to act as a
+user:
+
+```ts
+await client.catalog({ headers: { authorization: "Bearer test" } });
+await upload(
+  { route: "invoices", name: "a.pdf", body: "a" },
+  { headers: { "x-user": "1" } },
+);
+```
+
+## Uploads
+
+`upload(input, options?)` presigns, stores the bytes in `storage` with the
+presigned headers or form fields, and confirms. Your upload hooks run as
+they do in production, and it resolves with the confirmed object or rejects
+with the step's `APIError`. It sends the file's SHA-256, so it works on a
+route that requires checksums.
+
+| Prop             | Type                                  | Default    | Description                                                   |
+| ---------------- | ------------------------------------- | ---------- | ------------------------------------------------------------- |
+| `route`          | `string`                              | required   | The route to upload to                                        |
+| `name`           | `string`                              | required   | File name                                                     |
+| `body`           | `string \| Uint8Array \| ArrayBuffer` | required   | The bytes                                                     |
+| `type`           | `string`                              | —          | MIME type the client declares                                 |
+| `size`           | `number`                              | the body's | Size the client declares. Another value tests a size mismatch |
+| `clientMetadata` | `Record<string, string>`              | —          | Client extras for the hooks                                   |
+
+```ts
+await expect(
+  upload({ route: "invoices", name: "a.pdf", body: "hello", size: 4 }),
+).rejects.toMatchObject({ code: "UPLOAD_SIZE_MISMATCH" });
+```
+
+## Parts
+
+Build the instance yourself when you need another setup:
+
+```ts
+import { dimahS3 } from "@dimah-s3/server";
+import {
+  createMemoryS3,
+  createTestClient,
+  uploadTestFile,
+} from "@dimah-s3/server/testing";
+
+const storage = createMemoryS3({ bucket: "files" });
+const s3 = dimahS3({ client: storage.client, bucket: "files", secret, routes });
+const client = createTestClient(s3, { plugins: [auditClient()] });
+
+await uploadTestFile(
+  { client, storage },
+  { route: "uploads", name: "a.txt", body: "hi" },
+);
+```
+
+| Export                                       | Description                                                                                                                 |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `createMemoryS3({ bucket? })`                | An `S3Client` that keeps objects and multipart uploads in memory, with S3's checksum, metadata, `If-Match`, and range rules |
+| `createTestClient(s3, options?)`             | `createS3Client` with `fetch` routed to `s3.handler`. Takes `plugins`, `basePath`, and `headers`                            |
+| `uploadTestFile({ client, storage }, input)` | The `upload` helper above, for an instance you built                                                                        |
+
+The memory client signs presigned URLs but never fetches them. Spy on
+`storage.client.send` to inject an S3 failure.
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can I test multipart uploads?">
+
+Yes. Call `client.multipart.init`, `signPart`, and `complete` yourself, and
+store each part with an `UploadPartCommand` sent to `storage.client`, which
+records it under the upload id. `storage.uploads` holds the uploads in
+progress.
+
+</Accordion>
+
+<Accordion title="Does it work in the browser or an edge runtime?">
+
+No. It needs Node.js. Run your tests there; the code under test is the same.
+
+</Accordion>
+
+</Accordions>
