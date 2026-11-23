@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/server",
-  "version": "1.7.2",
+  "version": "2.0.0-beta.14",
   "description": "Presigned S3 server — dimahS3() with HTTP handler and direct api for upload, download, delete, and multipart",
   "keywords": [
     "s3",
@@ -25,7 +25,7 @@
     "sveltekit",
     "typescript"
   ],
-  "homepage": "https://v1.s3.dimah.dev/docs/server",
+  "homepage": "https://s3.dimah.dev/docs/server",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -34,6 +34,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/server"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -75,29 +76,30 @@
       "types": "./dist/plugins.d.ts",
       "default": "./dist/plugins.js"
     },
-    "./api": {
-      "types": "./dist/api/index.d.ts",
-      "default": "./dist/api/index.js"
-    }
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "tsc --noEmit",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
-    "@aws-sdk/s3-presigned-post": "^3.1159.0",
-    "@aws-sdk/s3-request-presigner": "^3.1159.0",
+    "@aws-sdk/s3-presigned-post": "^3.1175.0",
+    "@aws-sdk/s3-request-presigner": "^3.1175.0",
     "@dimah-s3/core": "workspace:*",
     "better-call": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1159.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
     "@types/node": "catalog:",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/tsup-config": "workspace:*",
@@ -110,7 +112,10 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@aws-sdk/client-s3": ">=3"
+    "@aws-sdk/client-s3": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

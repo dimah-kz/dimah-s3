@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { AlertCircleIcon } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, type ReactNode } from "react";
+import { AlertCircleIcon, SearchIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -14,22 +15,107 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { FolderGlyph } from "@/lib/file-type-icon";
+import {
+  useObjectListContext,
+  type ObjectListPaginationMode,
+  type ObjectListView,
+} from "@/components/dimah-s3/list/object-list-context";
+import { FolderGlyph } from "@/components/dimah-s3/attachment/folder-glyph";
+import { canChooseSearchScope } from "@/components/dimah-s3/list/object-list-search";
 
+/** Props for {@link ObjectListEmpty}. */
+export type ObjectListEmptyProps = {
+  /** Defaults to "This folder is empty", or "No results" while searching. */
+  title?: ReactNode;
+  description?: ReactNode;
+  /**
+   * Below the text, such as an upload button. While searching it defaults
+   * to Search everywhere (when the search can reach past the open folder)
+   * and Clear search.
+   */
+  children?: ReactNode;
+  className?: string;
+};
+
+/**
+ * Empty state for the open folder. Pass it as `empty` with your own text
+ * or a call to action. It reads the search text and where the search
+ * looked from the list.
+ */
 export function ObjectListEmpty({
   title,
   description,
-}: {
-  title: string;
-  description: string;
-}) {
+  children,
+  className,
+}: ObjectListEmptyProps) {
+  const t = useTranslations();
+  const { list, upload } = useObjectListContext();
+  const search = list.search.trim();
+  const folder = list.trail.at(-1);
+  // A source with scopes searches the folders below the open one too.
+  const recursive = list.searchScopes.length > 0;
+  const everywhere =
+    canChooseSearchScope(list) && list.searchScope === "folder";
+
+  const defaultTitle = search
+    ? t("No results", { note: "object list" })
+    : t("This folder is empty", { note: "object list" });
+  const defaultDescription = search
+    ? !recursive && folder
+      ? t("Nothing in this folder matches “{search}”.", {
+          note: "object list",
+          variables: { search },
+        })
+      : folder && list.searchScope === "folder"
+        ? t("Nothing in “{folder}” or its folders matches “{search}”.", {
+            note: "object list search",
+            variables: { folder: folder.name, search },
+          })
+        : t("Nothing matches “{search}”.", {
+            note: "object list search",
+            variables: { search },
+          })
+    : upload
+      ? t("Drop files here to add them to this folder.", {
+          note: "object list",
+        })
+      : t("Files and folders you add here will show up in this list.", {
+          note: "object list",
+        });
+
   return (
-    <Empty className="border-0">
+    <Empty data-slot="object-list-empty" className={cn("border-0", className)}>
       <EmptyHeader>
-        <FolderGlyph className="mb-1 size-12" />
-        <EmptyTitle>{title}</EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
+        {search ? (
+          <EmptyMedia variant="icon">
+            <SearchIcon />
+          </EmptyMedia>
+        ) : (
+          <FolderGlyph className="mb-1 size-12" />
+        )}
+        <EmptyTitle>{title ?? defaultTitle}</EmptyTitle>
+        <EmptyDescription className="[overflow-wrap:anywhere]">
+          {description ?? defaultDescription}
+        </EmptyDescription>
       </EmptyHeader>
+      {children ? (
+        <EmptyContent>{children}</EmptyContent>
+      ) : search ? (
+        <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+          {everywhere ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => list.setSearchScope("all")}
+            >
+              {t("Search everywhere", { note: "object list search" })}
+            </Button>
+          ) : null}
+          <Button variant="ghost" size="sm" onClick={() => list.setSearch("")}>
+            {t("Clear search", { note: "object list" })}
+          </Button>
+        </EmptyContent>
+      ) : null}
     </Empty>
   );
 }
@@ -44,7 +130,7 @@ export function ObjectListError({
   const t = useTranslations();
 
   return (
-    <Empty className="border-0">
+    <Empty className="border-0" role="alert">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <AlertCircleIcon />
@@ -60,7 +146,7 @@ export function ObjectListError({
       </EmptyHeader>
       {onRetry ? (
         <EmptyContent>
-          <ObjectListRetry onRetry={onRetry} />
+          <RetryButton onRetry={onRetry} />
         </EmptyContent>
       ) : null}
     </Empty>
@@ -82,16 +168,12 @@ export function ObjectListErrorBanner({
       <p className="min-w-0 text-sm [overflow-wrap:anywhere] text-dimah-s3-destructive">
         {message}
       </p>
-      <ObjectListRetry onRetry={onRetry} />
+      <RetryButton onRetry={onRetry} />
     </div>
   );
 }
 
-function ObjectListRetry({
-  onRetry,
-}: {
-  onRetry?: () => void | Promise<void>;
-}) {
+function RetryButton({ onRetry }: { onRetry?: () => void | Promise<void> }) {
   const t = useTranslations();
   if (!onRetry) return null;
   return (
@@ -101,10 +183,30 @@ function ObjectListRetry({
   );
 }
 
-export function ObjectListSkeleton() {
+const SKELETON_KEYS = ["a", "b", "c", "d", "e", "f"];
+
+export function ObjectListSkeleton({ view }: { view: ObjectListView }) {
+  if (view === "grid") {
+    return (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2 p-2">
+        {SKELETON_KEYS.map((key) => (
+          <div
+            key={key}
+            className="flex flex-col overflow-hidden rounded-lg border border-dimah-s3-border"
+          >
+            <Skeleton className="aspect-[4/3] w-full rounded-none" />
+            <div className="flex flex-col gap-1 px-2 py-1.5">
+              <Skeleton className="h-3.5 w-3/4" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col">
-      {["a", "b", "c", "d"].map((key) => (
+      {SKELETON_KEYS.slice(0, 4).map((key) => (
         <div
           key={key}
           className="flex min-h-11 items-center gap-2 py-1 ps-1.5 pe-1"
@@ -120,46 +222,72 @@ export function ObjectListSkeleton() {
   );
 }
 
-/** Loads the next page when the end of the rows is on screen. */
-export function ObjectListContinue({
-  active,
-  pending,
-  blocked,
-  loadMore,
+/**
+ * The next page. `auto` loads it when the end of the rows is on screen;
+ * `button` waits for Load more.
+ */
+export function ObjectListNextPage({
+  mode,
   root,
   ready,
 }: {
-  active: boolean;
-  pending: boolean;
-  blocked: boolean;
-  loadMore?: () => void | Promise<void>;
+  mode: ObjectListPaginationMode;
   /** Scroll parent. `null` uses the viewport. */
   root: HTMLElement | null;
   ready: boolean;
 }) {
   const t = useTranslations();
+  const { list } = useObjectListContext();
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const loadMoreRef = useRef(loadMore);
-
-  useEffect(() => {
-    loadMoreRef.current = loadMore;
-  }, [loadMore]);
+  const loadMore = useEffectEvent(() => {
+    void list.loadMore();
+  });
+  const active = list.hasMore;
+  const pending = list.isLoadingMore;
+  const blocked = list.error != null;
 
   useEffect(() => {
     const node = sentinelRef.current;
-    if (!node || !ready || !active || pending || blocked) return;
+    if (mode !== "auto" || !node || !ready || !active || pending || blocked) {
+      return;
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
-        void loadMoreRef.current?.();
+        loadMore();
       },
       { root, rootMargin: "48px" },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [active, blocked, pending, ready, root]);
+  }, [active, blocked, mode, pending, ready, root]);
 
   if (!active && !pending) return null;
+
+  if (mode === "button") {
+    if (blocked) return null;
+    return (
+      <div className="flex shrink-0 justify-center p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-busy={pending || undefined}
+          disabled={pending}
+          onClick={() => void list.loadMore()}
+        >
+          {pending ? (
+            <Spinner
+              data-icon="inline-start"
+              aria-hidden
+              aria-label={undefined}
+              role={undefined}
+            />
+          ) : null}
+          {t("Load more", { note: "object list" })}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex shrink-0 flex-col">

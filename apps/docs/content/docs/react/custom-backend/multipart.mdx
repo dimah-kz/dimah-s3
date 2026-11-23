@@ -1,126 +1,120 @@
 ---
 title: Multipart
-description: Implement multipart initialization, part signing, resume, completion, and abort.
+description: Implement multipart init, part signing, resume, completion, and abort for a custom backend.
 ---
 
-Split a large file into parts. Each part is a presigned PUT; your backend
-orchestrates init, signing, complete, and abort.
+Large files upload in parts. Each part is a presigned PUT, and your backend
+runs the session. The browser uses multipart for files of at least 50 MiB
+when the route's catalog entry has `multipart: true`.
 
-**Flow:** `init` → `signPart` (per part) → `complete` or `abort` · `listParts`
-to resume.
+**Flow:** `init` → `signPart` for each part → `complete`, or `abort` on
+cancel. `listParts` resumes a stored upload.
+
+```ts title="lib/s3-api/multipart.ts"
+import type {
+  MultipartAbortResponse,
+  MultipartCompleteResponse,
+  MultipartInitPayload,
+  MultipartInitResponse,
+  MultipartListPartsResponse,
+  MultipartPartResponse,
+  MultipartSignPartPayload,
+  TicketPayload,
+  S3RequestOptions,
+} from "@dimah-s3/core";
+import { $fetch, call } from "./fetch";
+
+const post = <T>(path: string, body: object, options?: S3RequestOptions) =>
+  $fetch<T>(`/multipart${path}`, { method: "POST", body, ...call(options) });
+
+export const init = (
+  payload: MultipartInitPayload,
+  options?: S3RequestOptions,
+) => post<MultipartInitResponse>("/init", payload, options);
+
+export const signPart = (
+  payload: MultipartSignPartPayload,
+  options?: S3RequestOptions,
+) => post<MultipartPartResponse>("/part", payload, options);
+
+export const listParts = (payload: TicketPayload, options?: S3RequestOptions) =>
+  post<MultipartListPartsResponse>("/parts", payload, options);
+
+export const complete = (payload: TicketPayload, options?: S3RequestOptions) =>
+  post<MultipartCompleteResponse>("/complete", payload, options);
+
+export const abort = (payload: TicketPayload, options?: S3RequestOptions) =>
+  post<MultipartAbortResponse>("/abort", payload, options);
+```
+
+[`@dimah-s3/server`](/docs/server) mounts these under
+`/api/s3/presign/multipart/*`. `$fetch` and `call` come from the
+[skeleton](/docs/react/custom-backend#skeleton).
 
 ## Init
 
-Same payload shape as [simple upload](/docs/react/custom-backend/upload).
+The payload has the same file fields as a
+[simple upload](/docs/react/custom-backend/upload#presign) without
+`checksum`: `route`, `name`, `size`, `type?`, and `clientMetadata?`.
 
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartInitPayload"
-/>
+Your backend picks the part layout, and the browser slices the file exactly
+that way. The `ticket` goes with every later call, so it must identify the
+route, key, and upload id.
 
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartInitResponse"
-/>
+| Property    | Type      | Description                                  |
+| ----------- | --------- | -------------------------------------------- |
+| `key`       | `string`  | The object key your backend picked           |
+| `bucket`    | `string`  | Target bucket                                |
+| `uploadId`  | `string`  | S3 multipart upload id                       |
+| `ticket`    | `string`  | Upload ticket for every later multipart call |
+| `partSize`  | `number`  | Size of every part but the last, in bytes    |
+| `partCount` | `number`  | Number of parts                              |
+| `checksum`  | `boolean` | `true` makes every part send a SHA-256       |
 
 ## Sign part
 
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartSignPartPayload"
-/>
+The payload is `{ ticket, partNumber, checksum? }`. `partNumber` is 1-based,
+up to 10000. `checksum` is the part's base64 SHA-256, sent when init returned
+`checksum: true`.
 
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartPartResponse"
-/>
+Sign the part's exact byte `size` into the URL, and the checksum when there
+is one. The browser sends exactly `headers` on the PUT. When a part URL
+expires mid-upload, the browser calls `signPart` again rather than reusing
+it.
 
-## List parts
+| Property     | Type                     | Description                         |
+| ------------ | ------------------------ | ----------------------------------- |
+| `url`        | `string`                 | Presigned PUT URL for this part     |
+| `partNumber` | `number`                 | 1-based part number                 |
+| `size`       | `number`                 | Exact byte size signed into the URL |
+| `expiresIn`  | `number`                 | URL lifetime in seconds             |
+| `headers`    | `Record<string, string>` | Headers the browser sends exactly   |
 
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartListPartsPayload"
-/>
+## List parts, complete, and abort
 
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartListPartsResponse"
-/>
+These three take only `{ ticket }`.
 
-## Complete
+**`listParts`** returns `{ parts }`: the parts S3 already has, so a resumed
+upload sends only the rest. Read every page of S3's `ListParts`.
 
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartCompletePayload"
-/>
+| Property     | Type     | Description                                    |
+| ------------ | -------- | ---------------------------------------------- |
+| `partNumber` | `number` | 1-based part number                            |
+| `size`       | `number` | Part size in bytes                             |
+| `eTag`       | `string` | Part ETag from S3                              |
+| `checksum?`  | `string` | Base64 SHA-256 of the part, when S3 stored one |
 
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartCompleteResponse"
-/>
+**`complete`** lists the parts on the server, completes the upload, and
+returns the object `HeadObject` reports, plus `uploadId`. The fields are the
+[confirm response](/docs/react/custom-backend/upload#confirm) and
+`uploadId: string`.
 
-## Abort
+**`abort`** ends the session and returns `{ key, bucket, uploadId }`. The
+browser calls it when the user cancels, or when the upload fails in a way a
+retry cannot fix.
 
-Same payload shape as list-parts.
+## Expired sessions
 
-<AutoTypeTable
-  path="packages/core/src/types/requests.ts"
-  name="MultipartAbortPayload"
-/>
-
-<AutoTypeTable
-  path="packages/core/src/types/responses.ts"
-  name="MultipartAbortResponse"
-/>
-
-```ts
-import type {
-  MultipartInitPayload,
-  MultipartInitResponse,
-  MultipartSignPartPayload,
-  MultipartPartResponse,
-  MultipartListPartsPayload,
-  MultipartListPartsResponse,
-  MultipartCompletePayload,
-  MultipartCompleteResponse,
-  MultipartAbortPayload,
-  MultipartAbortResponse,
-} from "@dimah-s3/core";
-```
-
-## Example
-
-Add this to the [`defineApi`](/docs/react/custom-backend) skeleton.
-[`@dimah-s3/server`](/docs/server) mounts these under
-`/api/s3/presign/multipart/*`.
-
-```ts
-const base = "/api/files/presign/multipart";
-
-async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-
-multipart: {
-  init: (payload) => post(`${base}/init`, payload),
-  signPart: (payload) => post(`${base}/part`, payload),
-  async listParts(payload) {
-    const params = new URLSearchParams({
-      route: payload.route,
-      key: payload.key,
-      uploadId: payload.uploadId,
-    });
-    const res = await fetch(`${base}/parts?${params}`);
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  },
-  complete: (payload) => post(`${base}/complete`, payload),
-  abort: (payload) => post(`${base}/abort`, payload),
-}
-```
+When a resumed upload's ticket has expired, or the upload is gone, throw
+`UPLOAD_TICKET_EXPIRED`, `UPLOAD_TICKET_INVALID`, or `OBJECT_NOT_FOUND`. The
+browser then aborts, forgets the stored upload, and starts over.

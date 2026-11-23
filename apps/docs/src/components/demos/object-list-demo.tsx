@@ -1,24 +1,41 @@
 "use client";
 
-import { useRef } from "react";
-import { formatFileSize } from "@dimah-s3/core";
+import { useState } from "react";
+import { s3Error } from "@dimah-s3/core";
 import {
-  readObjectListLevel,
   useDelete,
   useDownload,
   useObjectList,
+  useObjectListSelection,
   useUpload,
-  type ObjectListQueryInput,
+  type ObjectListFolder,
+  type ObjectListSource,
 } from "@dimah-s3/react";
-import { ObjectList, ObjectListMenu, UploadButton } from "@dimah-s3/ui";
-import { rememberDemoFile } from "@/lib/demo/client-object-store";
+import { memoryObjectSource } from "@dimah-s3/react/engine";
+import {
+  ObjectList,
+  ObjectListContent,
+  ObjectListHeader,
+  ObjectListSearch,
+  ObjectListSortMenu,
+  ObjectListUploadStatus,
+  ObjectListUsage,
+  ObjectListViewToggle,
+  UploadTrigger,
+} from "@dimah-s3/ui";
+import {
+  getDemoFileUrl,
+  rememberDemoFile,
+} from "@/lib/demo/client-object-store";
 
 type LibraryFile = {
   id: string;
   name: string;
+  /** `/`-separated folder path, or `null` for the root. */
   folder: string | null;
   size: number;
   type: string;
+  updatedAt: string;
   key?: string;
 };
 
@@ -29,6 +46,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 2_481_152,
     type: "application/pdf",
+    updatedAt: "2026-06-08",
   },
   {
     id: "cover",
@@ -36,6 +54,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 1_843_200,
     type: "image/png",
+    updatedAt: "2026-02-15",
   },
   {
     id: "notes",
@@ -43,6 +62,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 4_096,
     type: "text/markdown",
+    updatedAt: "2026-07-22",
   },
   {
     id: "roadmap",
@@ -50,6 +70,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 860_160,
     type: "application/pdf",
+    updatedAt: "2026-03-01",
   },
   {
     id: "pricing",
@@ -57,6 +78,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 48_128,
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    updatedAt: "2026-08-08",
   },
   {
     id: "kickoff",
@@ -64,6 +86,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 4_194_304,
     type: "video/mp4",
+    updatedAt: "2026-04-15",
   },
   {
     id: "contract",
@@ -71,6 +94,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 92_160,
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    updatedAt: "2026-09-22",
   },
   {
     id: "spec",
@@ -78,6 +102,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 18_432,
     type: "text/markdown",
+    updatedAt: "2026-05-01",
   },
   {
     id: "budget",
@@ -85,6 +110,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 61_440,
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    updatedAt: "2026-01-08",
   },
   {
     id: "team",
@@ -92,6 +118,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 1_572_864,
     type: "image/jpeg",
+    updatedAt: "2026-06-15",
   },
   {
     id: "release",
@@ -99,6 +126,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 6_144,
     type: "text/plain",
+    updatedAt: "2026-02-22",
   },
   {
     id: "proposal",
@@ -106,6 +134,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 737_280,
     type: "application/pdf",
+    updatedAt: "2026-07-01",
   },
   {
     id: "film",
@@ -113,6 +142,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 6_291_456,
     type: "video/mp4",
+    updatedAt: "2026-03-08",
   },
   {
     id: "a11y",
@@ -120,6 +150,7 @@ const FILES: LibraryFile[] = [
     folder: null,
     size: 9_216,
     type: "text/markdown",
+    updatedAt: "2026-08-15",
   },
   {
     id: "q1",
@@ -127,6 +158,7 @@ const FILES: LibraryFile[] = [
     folder: "Invoices",
     size: 524_288,
     type: "application/pdf",
+    updatedAt: "2026-04-22",
   },
   {
     id: "q2",
@@ -134,6 +166,7 @@ const FILES: LibraryFile[] = [
     folder: "Invoices",
     size: 610_304,
     type: "application/pdf",
+    updatedAt: "2026-09-01",
   },
   {
     id: "q3",
@@ -141,6 +174,7 @@ const FILES: LibraryFile[] = [
     folder: "Invoices",
     size: 487_424,
     type: "application/pdf",
+    updatedAt: "2026-05-08",
   },
   {
     id: "q4",
@@ -148,6 +182,7 @@ const FILES: LibraryFile[] = [
     folder: "Invoices",
     size: 552_960,
     type: "application/pdf",
+    updatedAt: "2026-01-15",
   },
   {
     id: "receipt",
@@ -155,6 +190,7 @@ const FILES: LibraryFile[] = [
     folder: "Invoices/2026",
     size: 184_320,
     type: "image/png",
+    updatedAt: "2026-06-22",
   },
   {
     id: "january",
@@ -162,6 +198,7 @@ const FILES: LibraryFile[] = [
     folder: "Invoices/2026/January",
     size: 90_112,
     type: "application/pdf",
+    updatedAt: "2026-02-01",
   },
   {
     id: "hero",
@@ -169,6 +206,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 3_200_000,
     type: "image/png",
+    updatedAt: "2026-07-08",
   },
   {
     id: "logo",
@@ -176,6 +214,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 12_288,
     type: "image/svg+xml",
+    updatedAt: "2026-03-15",
   },
   {
     id: "icon",
@@ -183,6 +222,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 24_576,
     type: "image/png",
+    updatedAt: "2026-08-22",
   },
   {
     id: "social",
@@ -190,6 +230,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 409_600,
     type: "image/png",
+    updatedAt: "2026-04-01",
   },
   {
     id: "texture",
@@ -197,6 +238,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 890_880,
     type: "image/jpeg",
+    updatedAt: "2026-09-08",
   },
   {
     id: "wordmark",
@@ -204,6 +246,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 8_192,
     type: "image/svg+xml",
+    updatedAt: "2026-05-15",
   },
   {
     id: "portrait",
@@ -211,6 +254,7 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 1_245_184,
     type: "image/jpeg",
+    updatedAt: "2026-01-22",
   },
   {
     id: "pattern",
@@ -218,25 +262,194 @@ const FILES: LibraryFile[] = [
     folder: "Images",
     size: 327_680,
     type: "image/png",
+    updatedAt: "2026-06-01",
   },
 ];
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 6;
 const PAGE_DELAY_MS = 400;
-const USAGE_LIMITS = {
+const LIMITS = {
   maxBytes: 32 * 1024 * 1024,
   maxFiles: 40,
 };
 
-function catalogUsage(files: readonly LibraryFile[]) {
-  return {
-    totalBytes: files.reduce((sum, file) => sum + file.size, 0),
-    objectCount: files.length,
-  };
-}
-
 function fileObjectKey(file: LibraryFile) {
   return file.key ?? `uploads/${file.id}/${file.name}`;
+}
+
+function isInFolder(path: string | null, folder: string) {
+  return path === folder || (path?.startsWith(`${folder}/`) ?? false);
+}
+
+/** Folder ids are paths. A rename rewrites that path and everything inside it. */
+function rewriteFolderPath(path: string, from: string, to: string) {
+  if (path === from) return to;
+  const prefix = `${from}/`;
+  if (!path.startsWith(prefix)) return path;
+  return to + path.slice(from.length);
+}
+
+/** A folder name as the demo takes it, else `FOLDER_INVALID`. */
+function folderName(input: string) {
+  const name = input.trim();
+  if (!name || name === "." || name === ".." || name.includes("/")) {
+    throw s3Error("FOLDER_INVALID");
+  }
+  return name;
+}
+
+/** The demo's records. Uploads, deletes, renames, moves, and New folder edit them. */
+function createCatalog() {
+  let files = FILES;
+  /** Folders made with New folder. They stay listed while empty. */
+  let folders = new Set<string>();
+  return {
+    files: () => files,
+    add(file: LibraryFile) {
+      files = [...files, file];
+    },
+    remove(objectKey: string) {
+      files = files.filter((file) => fileObjectKey(file) !== objectKey);
+    },
+    /** Created folders that sit directly in `parent`. */
+    emptyFolders(parent: string | null): ObjectListFolder[] {
+      const prefix = parent ? `${parent}/` : "";
+      return [...folders]
+        .filter((id) => id.startsWith(prefix))
+        .map((id) => ({ id, name: id.slice(prefix.length) }))
+        .filter((folder) => !folder.name.includes("/"));
+    },
+    renameFile(id: string, name: string): LibraryFile {
+      const current = files.find((file) => file.id === id);
+      if (!current) throw s3Error("OBJECT_NOT_FOUND");
+      // Pin the key before the name changes, so download still finds the blob.
+      const next: LibraryFile = {
+        ...current,
+        name,
+        key: current.key ?? fileObjectKey(current),
+      };
+      files = files.map((file) => (file.id === id ? next : file));
+      return next;
+    },
+    renameFolder(id: string, input: string): ObjectListFolder {
+      const name = folderName(input);
+      const parent = id.includes("/") ? id.slice(0, id.lastIndexOf("/")) : null;
+      return placeFolder(id, parent, name);
+    },
+    moveFolder(id: string, parent: string | null) {
+      if (parent === id || (parent?.startsWith(`${id}/`) ?? false)) {
+        throw s3Error("FOLDER_INVALID");
+      }
+      placeFolder(id, parent, id.slice(id.lastIndexOf("/") + 1));
+    },
+    moveFile(id: string, parent: string | null) {
+      files = files.map((file) =>
+        file.id === id ? { ...file, folder: parent } : file,
+      );
+    },
+    createFolder(parent: string | null, input: string): ObjectListFolder {
+      const name = folderName(input);
+      const id = parent ? `${parent}/${name}` : name;
+      if (exists(id)) throw s3Error("FOLDER_EXISTS");
+      folders = new Set(folders).add(id);
+      return { id, name };
+    },
+    /** Drops a folder and the empty ones below it once their files are gone. */
+    deleteFolder(id: string) {
+      if (files.some((file) => isInFolder(file.folder, id))) {
+        throw s3Error("FOLDER_NOT_EMPTY");
+      }
+      folders = new Set([...folders].filter((path) => !isInFolder(path, id)));
+    },
+  };
+
+  function exists(id: string) {
+    return folders.has(id) || files.some((file) => isInFolder(file.folder, id));
+  }
+
+  /** Renames or moves folder `id` to `name` inside `parent`, with what it holds. */
+  function placeFolder(
+    id: string,
+    parent: string | null,
+    name: string,
+  ): ObjectListFolder {
+    const nextId = parent ? `${parent}/${name}` : name;
+    if (nextId === id) return { id, name };
+    if (!exists(id)) throw s3Error("FOLDER_NOT_FOUND");
+    if (exists(nextId)) throw s3Error("FOLDER_EXISTS");
+    files = files.map((file) =>
+      file.folder == null
+        ? file
+        : { ...file, folder: rewriteFolderPath(file.folder, id, nextId) },
+    );
+    folders = new Set(
+      [...folders].map((folderId) => rewriteFolderPath(folderId, id, nextId)),
+    );
+    return { id: nextId, name };
+  }
+}
+
+type Catalog = ReturnType<typeof createCatalog>;
+
+/**
+ * The list source. `memoryObjectSource` reads folders from the records, so
+ * this adds the created folders that hold no file yet, renames, moves, and
+ * deletes files and folders, uploads into the open folder or the folder a
+ * file is dropped on, and makes later pages wait a moment so the next-page
+ * spinner shows.
+ */
+function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
+  const source = memoryObjectSource(catalog.files, {
+    getId: (file) => file.id,
+    getFile: (file) => ({
+      name: file.name,
+      objectKey: fileObjectKey(file),
+      size: file.size,
+      contentType: file.type,
+      updatedAt: file.updatedAt,
+      previewUrl: file.type.startsWith("image/")
+        ? getDemoFileUrl(fileObjectKey(file))
+        : null,
+    }),
+    getFolder: (file) => file.folder,
+    pageSize: PAGE_SIZE,
+    limits: LIMITS,
+  });
+
+  return {
+    ...source,
+    async query(input) {
+      if (input.cursor) await delay(input.signal);
+      const page = await source.query(input);
+      if (!page.folders) return page;
+      const search = input.search.toLowerCase();
+      const listed = new Set(page.folders.map((folder) => folder.id));
+      const extra = catalog
+        .emptyFolders(input.parent)
+        .filter((folder) => !listed.has(folder.id))
+        .filter((folder) => folder.name.toLowerCase().includes(search));
+      if (extra.length === 0) return page;
+      const folders = [...page.folders, ...extra].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true }),
+      );
+      if (input.sort?.field === "name" && input.sort.direction === "desc") {
+        folders.reverse();
+      }
+      return { ...page, folders };
+    },
+    // Sent as `clientMetadata`. A real route reads it in `object()`.
+    uploadOptions: (parent) => ({ clientMetadata: { folder: parent ?? "" } }),
+    createFolder: async ({ parent, name }) =>
+      catalog.createFolder(parent, name),
+    renameFile: async ({ item, name }) => catalog.renameFile(item.id, name),
+    renameFolder: async ({ folder, name }) =>
+      catalog.renameFolder(folder.id, name),
+    moveFile: async ({ item, parent }) => catalog.moveFile(item.id, parent),
+    moveFolder: async ({ folder, parent }) =>
+      catalog.moveFolder(folder.id, parent),
+    // `listFolderKeys` comes from `memoryObjectSource`.
+    deleteFolder: async ({ folder }) => catalog.deleteFolder(folder.id),
+  };
 }
 
 function delay(signal: AbortSignal) {
@@ -263,93 +476,64 @@ function abortError() {
 }
 
 export function ObjectListDemo() {
-  const catalogRef = useRef(FILES);
-  const list = useObjectList({
-    query({ parent, cursor, signal }: ObjectListQueryInput) {
-      const level = readObjectListLevel(catalogRef.current, {
-        parent,
-        getFolder: (file) => file.folder,
-      });
-      const start = cursor ? Number(cursor) : 0;
-      const next = start + PAGE_SIZE;
-      const page = {
-        folders: level.folders,
-        items: level.items.slice(start, next),
-        nextCursor: next < level.items.length ? String(next) : null,
-        usage: catalogUsage(catalogRef.current),
-      };
-      if (!cursor) return Promise.resolve(page);
-      return delay(signal).then(() => page);
-    },
-  });
+  const [catalog] = useState(createCatalog);
+  const [source] = useState(() => createSource(catalog));
+  const list = useObjectList(source);
+  const selection = useObjectListSelection(list);
   const upload = useUpload({
     route: "uploads",
     maxFiles: 8,
-    noClick: true,
-    noKeyboard: true,
-    getUploadOptions: () => ({
-      metadata: { folderId: list.parent ?? "" },
-    }),
-    onFileSuccess: (file, result) => {
+    append: true,
+    onSuccess: (result, file) => {
       rememberDemoFile(result.key, file);
-      catalogRef.current = [
-        ...catalogRef.current,
-        {
-          id: result.key,
-          key: result.key,
-          name: file.name,
-          folder: list.parent,
-          size: file.size,
-          type: file.type || "application/octet-stream",
-        },
-      ];
+      // The demo API echoes the request metadata, so the folder comes back.
+      const folder = result.metadata.folder || null;
+      catalog.add({
+        id: result.key,
+        key: result.key,
+        name: result.name ?? file.name,
+        folder,
+        size: result.size,
+        type: result.type || "application/octet-stream",
+        updatedAt: result.lastModified ?? new Date().toISOString(),
+      });
     },
   });
   const download = useDownload({ route: "uploads" });
   const share = useDownload({ route: "uploads", disposition: "inline" });
-  const remove = useDelete({ route: "uploads" });
+  const remove = useDelete({
+    route: "uploads",
+    onSuccess: (_data, key) => catalog.remove(key),
+  });
 
   return (
     <ObjectList
       list={list}
-      getKey={(file) => file.id}
-      getObjectKey={fileObjectKey}
-      getLabel={(file) => file.name}
-      getDescription={(file) => formatFileSize(file.size)}
-      getFileType={(file) => file.type}
+      selection={selection}
       upload={upload}
-      usageLimits={USAGE_LIMITS}
-      header={
-        <UploadButton upload={upload} size="sm" status={false} toast={false} />
-      }
+      download={download}
+      share={share}
       delete={remove}
-      resolveFolderKeys={async (folder) =>
-        catalogRef.current
-          .filter(
-            (file) =>
-              file.folder === folder.id ||
-              file.folder?.startsWith(`${folder.id}/`),
-          )
-          .map(fileObjectKey)
-      }
       onOpenItem={(file) => {
-        void share.presign(fileObjectKey(file), file.name).then((signed) => {
-          if (signed) window.open(signed.url, "_blank", "noopener,noreferrer");
-        });
+        void share
+          .presign(fileObjectKey(file), { fileName: file.name })
+          .then((outcome) => {
+            if (outcome.status !== "success") return;
+            window.open(outcome.data.url, "_blank", "noopener,noreferrer");
+          });
       }}
-      renderActions={(file) => (
-        <ObjectListMenu
-          objectKey={fileObjectKey(file)}
-          fileName={file.name}
-          fileSize={file.size}
-          download={download}
-          share={share}
-          delete={remove}
-          onDeleted={() => void list.refresh()}
-        />
-      )}
-      className="mx-auto max-w-lg"
-      height="27rem"
-    />
+      className="mx-auto max-w-2xl"
+      height="28rem"
+    >
+      <ObjectListHeader>
+        <ObjectListSearch />
+        <ObjectListSortMenu />
+        <ObjectListViewToggle />
+        <UploadTrigger size="sm" />
+      </ObjectListHeader>
+      <ObjectListUsage />
+      <ObjectListUploadStatus />
+      <ObjectListContent />
+    </ObjectList>
   );
 }

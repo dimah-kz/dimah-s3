@@ -1,0 +1,389 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
+import { useTranslations } from "@fuma-translate/react";
+import { fileNameFromKey } from "@dimah-s3/core";
+import { useUploadLimit } from "@dimah-s3/react";
+import type {
+  DropTargetProps,
+  UploadCallInput,
+  UploadCallOptions,
+  UploadFileState,
+  UploadResult,
+  UploadRootProps,
+  UseUploadReturn,
+} from "@dimah-s3/react";
+import { cn } from "cn";
+import { DismissAttachmentAction } from "@/components/dimah-s3/attachment/dismiss-attachment-action";
+import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
+import { Upload, useUploadFocus } from "@/components/dimah-s3/upload/upload";
+import { useFilePreview } from "@/hooks/use-file-preview";
+
+/** Props for {@link UploadField}. */
+export type UploadFieldProps = {
+  /** The `useUpload` return whose uploads fill the field. */
+  upload: UseUploadReturn;
+  /** Form field name. Each key submits as its own hidden input. */
+  name: string;
+  /** Object keys, when you control the value. */
+  value?: readonly string[];
+  /** Object keys to start with, when the field keeps its own value. */
+  defaultValue?: readonly string[];
+  /** Runs with the new keys after an upload adds one or `remove` drops one. */
+  onValueChange?: (keys: string[]) => void;
+  /**
+   * Most keys the field holds. The hook takes only the files that still
+   * fit, counting files in flight and calls still preparing, on every call:
+   * also calls made outside the field. A full field takes no files.
+   */
+  maxFiles?: number;
+  children: ReactNode;
+};
+
+/** One key of the field value, with what is known about its file. */
+export type UploadFieldItem = {
+  key: string;
+  /** The uploaded file's name, or the last segment of the key. */
+  fileName: string;
+  /** Verified size in bytes, or `null` for keys the field did not upload. */
+  fileSize: number | null;
+  contentType: string | null;
+  /** The uploaded `File`, for a thumbnail, or `null` for keys the field did not upload. */
+  file: File | null;
+};
+
+/** What {@link UploadField} shares with its parts. */
+export type UploadFieldContextValue = {
+  name: string;
+  value: readonly string[];
+  /** `value` with file details, in the same order. */
+  items: readonly UploadFieldItem[];
+  /**
+   * Files that still fit, counting files in flight and calls still
+   * preparing, or `null` without `maxFiles`.
+   */
+  remaining: number | null;
+  /** Drops `key` from the value. The stored object is kept. */
+  remove: (key: string) => void;
+};
+
+const UploadFieldContext = createContext<UploadFieldContextValue | null>(null);
+
+/** A queue entry that uploaded and has its verified result. */
+type UploadedFile = UploadFileState & { result: UploadResult };
+
+function isUploaded(file: UploadFileState): file is UploadedFile {
+  return file.phase === "success" && file.result != null;
+}
+
+/**
+ * Form field whose value is the keys of the files uploaded through it.
+ *
+ * Each file that uploads successfully adds its key, so the value grows
+ * across calls. The field's calls queue, so a new pick never cancels the
+ * files still uploading into it. Files that fail, are cancelled or are
+ * still in flight add nothing, and files that uploaded before the field
+ * mounted are left out. Every key renders as a hidden
+ * `<input name={name}>`, so the field submits with its form.
+ *
+ * Without `value`, a reset of its form (including React 19's automatic
+ * reset after a `<form action>`) restores `defaultValue` and reports it
+ * through `onValueChange`. Files that already uploaded are not added back;
+ * call `upload.reset()` to clear the status list too. With `value`, reset
+ * the value yourself.
+ *
+ * It wraps its children in `Upload`, so `UploadTrigger`, `UploadDropzone`
+ * and `UploadStatus` work inside it. A file moves from the status to the
+ * value once it uploads, so it never shows twice: the status keeps only
+ * files in flight or failed.
+ *
+ * With `maxFiles`, the field sets a `useUploadLimit` on the hook, so every
+ * call takes at most the files that still fit (files in flight and calls
+ * still preparing count), wherever it comes from: the field's parts,
+ * `UploadToasts`, `usePasteFiles` or your own code. The hook rejects the
+ * rest with `TOO_MANY_FILES`, and a retry takes only the failed files that
+ * fit. Once the field is full, its trigger, dropzone and retry actions stay
+ * focusable but are `aria-disabled`, and its picker, drops and pastes do
+ * nothing.
+ *
+ * @example
+ * ```tsx
+ * const upload = useUpload({ route: "attachments", maxFiles: 5 });
+ *
+ * <form action={save}>
+ *   <UploadField upload={upload} name="attachments" maxFiles={5}>
+ *     <UploadDropzone />
+ *     <UploadStatus />
+ *     <UploadFieldValue />
+ *   </UploadField>
+ * </form>
+ * ```
+ */
+export function UploadField({
+  upload,
+  name,
+  value: controlledValue,
+  defaultValue,
+  onValueChange,
+  maxFiles,
+  children,
+}: UploadFieldProps) {
+  const [ownValue, setOwnValue] = useState<readonly string[]>(
+    () => defaultValue ?? [],
+  );
+  const controlled = controlledValue !== undefined;
+  const value = controlled ? controlledValue : ownValue;
+  // Files that uploaded before the field mounted are left out.
+  const [seen, setSeen] = useState<ReadonlySet<string>>(
+    () => new Set(upload.files.filter(isUploaded).map((file) => file.id)),
+  );
+  const [details, setDetails] = useState<ReadonlyMap<string, UploadFieldItem>>(
+    () => new Map(),
+  );
+  // The newest value for `onValueChange`, reported after it commits.
+  const [change, setChange] = useState<{ keys: string[] } | null>(null);
+
+  const setValue = useCallback(
+    (next: string[]) => {
+      if (!controlled) setOwnValue(next);
+      setChange({ keys: next });
+    },
+    [controlled],
+  );
+
+  const uploaded = upload.files.filter(
+    (file): file is UploadedFile => isUploaded(file) && !seen.has(file.id),
+  );
+  if (uploaded.length > 0) {
+    // Adjusted while rendering, so new keys show without an extra pass.
+    setSeen(new Set([...seen, ...uploaded.map((file) => file.id)]));
+    setDetails(withDetails(details, uploaded));
+    const fresh = [...new Set(uploaded.map((file) => file.result.key))].filter(
+      (key) => !value.includes(key),
+    );
+    if (fresh.length > 0) setValue([...value, ...fresh]);
+  }
+
+  const reportChange = useEffectEvent((keys: string[]) => {
+    onValueChange?.(keys);
+  });
+  useEffect(() => {
+    if (change) reportChange(change.keys);
+  }, [change]);
+
+  // Restores `defaultValue` when the owning form resets, like a native
+  // uncontrolled input. The anchor finds the form even while the value is
+  // empty.
+  const anchorRef = useRef<HTMLInputElement>(null);
+  const restoreDefault = useEffectEvent(() => {
+    setValue([...(defaultValue ?? [])]);
+  });
+  useEffect(() => {
+    if (controlled) return;
+    const form = anchorRef.current?.form;
+    if (!form) return;
+    const onReset = (event: Event) => {
+      if (!event.defaultPrevented) restoreDefault();
+    };
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, [controlled]);
+
+  const remove = useCallback(
+    (key: string) => setValue(value.filter((item) => item !== key)),
+    [setValue, value],
+  );
+
+  // The hook enforces `maxFiles` on every call. Files in flight, uploaded
+  // files the field has not counted yet, and calls still preparing take
+  // from it.
+  const remaining = useUploadLimit(
+    upload,
+    maxFiles == null
+      ? null
+      : { available: Math.max(0, maxFiles - value.length), counted: seen },
+  );
+  const isFull = remaining === 0;
+  const fieldUpload = useMemo(
+    () => fieldUploadOf(upload, isFull),
+    [isFull, upload],
+  );
+
+  const contextValue = useMemo<UploadFieldContextValue>(
+    () => ({
+      name,
+      value,
+      items: value.map(
+        (key) =>
+          details.get(key) ?? {
+            key,
+            fileName: fileNameFromKey(key) ?? key,
+            fileSize: null,
+            contentType: null,
+            file: null,
+          },
+      ),
+      remaining,
+      remove,
+    }),
+    [details, name, remaining, remove, value],
+  );
+
+  return (
+    <UploadFieldContext.Provider value={contextValue}>
+      {/* No `name`, so it never submits. */}
+      <input ref={anchorRef} type="hidden" />
+      {value.map((key) => (
+        <input key={key} type="hidden" name={name} value={key} />
+      ))}
+      <Upload upload={fieldUpload} isFull={isFull} hideUploaded>
+        {children}
+      </Upload>
+    </UploadFieldContext.Provider>
+  );
+}
+
+/** The nearest {@link UploadField}. Use it to build your own parts. */
+export function useUploadFieldContext(): UploadFieldContextValue {
+  const value = useContext(UploadFieldContext);
+  if (!value) {
+    throw new Error(
+      "[dimah-s3] UploadField parts must be rendered inside <UploadField>.",
+    );
+  }
+  return value;
+}
+
+/** Props for {@link UploadFieldValue}. Other props go to the `<ul>`. */
+export type UploadFieldValueProps = Omit<ComponentProps<"ul">, "children"> & {
+  /** Renders one key. Defaults to a file card with a remove action. */
+  children?: (item: UploadFieldItem) => ReactNode;
+};
+
+/**
+ * The keys of the nearest `UploadField`, in order, each with a remove
+ * action and a thumbnail for images the field uploaded. Renders nothing
+ * while the value is empty.
+ */
+export function UploadFieldValue({
+  children,
+  className,
+  ...props
+}: UploadFieldValueProps) {
+  const { items } = useUploadFieldContext();
+  if (items.length === 0) return null;
+
+  return (
+    <ul
+      data-slot="upload-field-value"
+      className={cn("flex w-full flex-col gap-2", className)}
+      {...props}
+    >
+      {items.map((item) => (
+        <li key={item.key} className="min-w-0">
+          {children ? children(item) : <UploadFieldValueItem item={item} />}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function UploadFieldValueItem({ item }: { item: UploadFieldItem }) {
+  const t = useTranslations();
+  const { remove } = useUploadFieldContext();
+  const { keepFocus } = useUploadFocus();
+  const previewUrl = useFilePreview(item.file);
+
+  return (
+    <FileAttachment
+      state="done"
+      fileName={item.fileName}
+      fileSize={item.fileSize}
+      contentType={item.contentType}
+      previewUrl={previewUrl}
+      actions={
+        <DismissAttachmentAction
+          onDismiss={() => {
+            // Focus moves to the next item, else to the field's trigger.
+            keepFocus();
+            remove(item.key);
+          }}
+          label={t("Remove {name}", {
+            note: "attachment action",
+            variables: { name: item.fileName },
+          })}
+        />
+      }
+    />
+  );
+}
+
+/** `details` plus the verified details of `uploaded`, by key. */
+function withDetails(
+  details: ReadonlyMap<string, UploadFieldItem>,
+  uploaded: readonly UploadedFile[],
+): ReadonlyMap<string, UploadFieldItem> {
+  const next = new Map(details);
+  for (const { result, fileName, contentType, file } of uploaded) {
+    next.set(result.key, {
+      key: result.key,
+      fileName: result.name ?? fileName,
+      fileSize: result.size,
+      contentType: result.type ?? contentType,
+      file,
+    });
+  }
+  return next;
+}
+
+/**
+ * `upload` as the field's parts use it. Every call queues, so files still
+ * uploading into the value are never cancelled by a new pick. The hook
+ * enforces `maxFiles` itself. Once the field is full, the picker stays
+ * closed and the dropzone takes no clicks, drops or pastes: it is
+ * `aria-disabled` but keeps `tabIndex` 0, so it stays reachable and focus
+ * on it is kept when the field fills.
+ */
+function fieldUploadOf(
+  upload: UseUploadReturn,
+  isFull: boolean,
+): UseUploadReturn {
+  const queued = (call?: UploadCallOptions): UploadCallOptions => ({
+    ...call,
+    append: true,
+  });
+  const queuedInput = (call: UploadCallInput | undefined): UploadCallInput =>
+    typeof call === "function" ? () => queued(call()) : queued(call);
+
+  const fieldUpload: UseUploadReturn = {
+    ...upload,
+    handleFiles: (files, call) => upload.handleFiles(files, queued(call)),
+    open: (call) => upload.open(queued(call)),
+    getRootProps: (props, call) =>
+      upload.getRootProps(props, queuedInput(call)),
+    getDropTargetProps: (props, call) =>
+      upload.getDropTargetProps(props, queuedInput(call)),
+  };
+  if (!isFull) return fieldUpload;
+  return {
+    ...fieldUpload,
+    open: () => {},
+    // Not `upload.getRootProps`: its handlers would open the picker.
+    getRootProps: <T extends UploadRootProps>(props?: T) =>
+      ({ tabIndex: 0, ...props, "aria-disabled": true }) as T,
+    getDropTargetProps: <T extends object = DropTargetProps>(
+      props?: T & DropTargetProps,
+    ) => ({ ...props }) as T & DropTargetProps,
+  };
+}

@@ -1,0 +1,84 @@
+---
+title: Object Image
+description: An img for a private object, with a signed URL that refreshes before it expires.
+---
+
+import { ObjectImageDemo } from "@/components/demos/object-image-demo";
+
+Show an image from a private bucket. `ObjectImage` signs an inline URL with
+[`useObjectUrl`](/docs/react/hooks/object-url), refreshes it before it
+expires, and shares it with other images of the same object.
+
+<DemoPreview name="object-image-demo.tsx">
+  <ObjectImageDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import { ObjectImage } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/object-image
+```
+
+Adds `@/components/dimah-s3/preview/object-image`.
+
+</Tab>
+
+</Tabs>
+
+## Usage
+
+```tsx
+"use client";
+
+import { ObjectImage } from "@dimah-s3/ui";
+
+export function CoverImage({ coverKey }: { coverKey: string | null }) {
+  return (
+    <ObjectImage
+      route="covers"
+      objectKey={coverKey}
+      alt="Album cover"
+      className="size-40 rounded-md object-cover"
+      fallback={<div className="bg-muted size-40 rounded-md" />}
+    />
+  );
+}
+```
+
+`route` must allow downloads. Its server
+[download hooks](/docs/server/hooks/download) decide who may read the object,
+as for any download.
+
+## Fallback
+
+`fallback` shows while there is no key or URL yet, and when signing or loading
+the image fails.
+
+## Accessibility
+
+`alt` is required. Pass `alt=""` when the image is decorative, such as next to
+a name that already describes it.
+
+## API Reference
+
+Also accepts every `img` prop except `src`.
+
+| Prop        | Type             | Default  | Description                                           |
+| ----------- | ---------------- | -------- | ----------------------------------------------------- |
+| `route`     | `string`         | required | Route that signs the URL                              |
+| `objectKey` | `string \| null` | required | Key of the stored object. `null` shows `fallback`     |
+| `alt`       | `string`         | required | Alternative text. `""` for a decorative image         |
+| `fallback`  | `ReactNode`      | —        | Shown while there is no URL, and when the image fails |
+| `api`       | `S3Api`          | —        | Signs the URL. Optional inside `S3Provider`           |

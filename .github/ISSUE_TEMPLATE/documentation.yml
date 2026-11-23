@@ -1,0 +1,29 @@
+name: Documentation
+description: Something on s3.dimah.dev is wrong, unclear, or missing
+title: "[Docs]: "
+labels:
+  - documentation
+  - triage
+body:
+  - type: input
+    id: url
+    attributes:
+      label: Page
+      description: The page URL, or the section the docs are missing.
+      placeholder: https://s3.dimah.dev/docs/quickstart
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing?
+      description: Quote the sentence or code sample when one is wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      description: Optional. How the page should read instead.

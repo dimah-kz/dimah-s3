@@ -1,11 +1,11 @@
 ---
 title: Internationalization
-description: Localize React UI strings with a partial translation map.
+description: Translate the strings in the React hooks and UI components, and show sizes, counts, and dates in your users' locale.
 icon: Languages
 ---
 
-English needs no setup. To localize the React client, define a partial
-translation map and pass it to the provider.
+English needs no setup. To localize `@dimah-s3/react` and `@dimah-s3/ui`,
+pass a partial translation map and a `locale` to `S3Provider`.
 
 ```ts title="lib/translations-fa.ts"
 import type { Translations } from "@dimah-s3/react";
@@ -13,16 +13,8 @@ import type { Translations } from "@dimah-s3/react";
 export const fa = {
   "Upload failed(toast)": "آپلود ناموفق بود",
   "Cancel(dialog button)": "لغو",
+  "MB(file size unit)": "مگابایت",
 } satisfies Partial<Translations>; // [!code highlight]
-```
-
-```ts title="lib/s3-client.ts"
-"use client";
-
-import { createS3Client } from "@dimah-s3/react";
-
-export const s3Client = createS3Client();
-export const S3Provider = s3Client.Provider;
 ```
 
 ```tsx title="app/layout.tsx"
@@ -35,48 +27,65 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // [!code ++]
     <html lang="fa" dir="rtl">
       <body>
         {/* [!code ++] */}
-        <S3Provider translations={fa}>{children}</S3Provider>
+        <S3Provider translations={fa} locale="fa">
+          {children}
+        </S3Provider>
       </body>
     </html>
   );
 }
 ```
 
-Vite and other client-only apps can pass `translations` to
-`<s3Client.Provider>` instead.
+`S3Provider` is the provider from
+[React Setup](/docs/react/setup#1-create-the-client).
 
-Missing keys stay English.
+## Translate strings
 
-## Numbers and sizes
+- A key is the English text, then its context in parentheses:
+  `"Upload failed(toast)"`. `Translations` lists every key in
+  `@dimah-s3/react` and `@dimah-s3/ui`. Missing keys stay English.
+- `satisfies Partial<Translations>` flags a key that does not exist, so a
+  renamed key shows up as a type error when you upgrade.
+- Keep placeholders such as `{name}` and `{count}` in your text. They are
+  filled in when the string renders.
+- `S3Provider` extends any `TranslationProvider` from `@fuma-translate/react`
+  above it, and its own `translations` win.
 
-Pass `locale` to the provider for native digits in sizes, counts, and
-progress. Unit labels are translation keys, so the same map can rename them:
+## Format numbers, sizes, and dates
 
-```ts title="lib/translations-fa.ts"
-export const fa = {
-  "KB(file size unit)": "کیلوبایت", // [!code ++]
-  "MB(file size unit)": "مگابایت", // [!code ++]
-  "GB(file size unit)": "گیگابایت", // [!code ++]
-} satisfies Partial<Translations>;
-```
+With `locale`, sizes, counts, progress, and dates use that locale's digits.
+Without it, they use Latin digits and English dates, whatever the browser's
+language.
 
-```tsx title="app/layout.tsx"
-<S3Provider translations={fa} locale="fa">
-  {children}
-</S3Provider>
-```
-
-Sizes then read `۱۲٫۴ مگابایت`. Without `locale`, they read `12.4 MB`. Your
-own components can use the same formatters with `useFormatFileSize()` and
-`useFormatNumber()` from `@dimah-s3/react`.
+- Unit labels are keys in the same map, such as `"MB(file size unit)"`. With
+  the map above, sizes read `۱۲٫۴ مگابایت`.
+- Accepted-type groups under a dropzone are keys too, such as
+  `"Images(file type group)"` for `image/*`. Extensions and MIME types read as
+  they are, such as `PDF`.
+- Your own components get the same output from the `useFormat*` hooks, such as
+  `useFormatFileSize()`. See [Helpers](/docs/react/helpers#formatter-hooks).
 
 ## API errors
 
-The server always responds in English. `@dimah-s3/ui` localizes errors with the
-same `translations` map. Headless hooks expose the original `APIError`; pass it
-to [`useFormatDimahError`](/docs/react/helpers) before rendering a localized
-message.
+The server always responds in English. Every error carries a catalog `code`
+and its `params`, such as `{ size, maxFileSize }` for `FILE_TOO_LARGE`, so the
+client builds its own message in the provider `locale`.
+
+- `@dimah-s3/ui` localizes errors with the same `translations` map.
+- Headless hooks expose the original `APIError`. Pass it to
+  [`useFormatError`](/docs/react/helpers#errors) before you render it:
+
+```tsx title="components/upload-error.tsx"
+"use client";
+
+import { useFormatError, type UseUploadReturn } from "@dimah-s3/react";
+
+export function UploadError({ upload }: { upload: UseUploadReturn }) {
+  const formatError = useFormatError();
+  if (!upload.error) return null;
+  return <p role="alert">{formatError(upload.error)}</p>;
+}
+```

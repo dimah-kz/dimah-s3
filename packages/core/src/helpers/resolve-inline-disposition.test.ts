@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveInlineDisposition } from "./resolve-inline-disposition";
+import {
+  DEFAULT_INLINE_TYPES,
+  resolveInlineDisposition,
+} from "./resolve-inline-disposition";
 
 const allow = ["image/*", "application/pdf", "text/plain"];
 
@@ -47,6 +50,7 @@ describe("resolveInlineDisposition", () => {
       "text/html",
       "application/xhtml+xml",
       "text/xml",
+      "text/xsl",
       "text/javascript",
     ]) {
       expect(
@@ -61,6 +65,13 @@ describe("resolveInlineDisposition", () => {
       resolveInlineDisposition({
         contentType: "image/svg+xml",
         allow: ["image/svg+xml"],
+        requested: "inline",
+      }),
+    ).toEqual({ disposition: "inline" });
+    expect(
+      resolveInlineDisposition({
+        contentType: "text/xsl",
+        allow: ["text/xsl"],
         requested: "inline",
       }),
     ).toEqual({ disposition: "inline" });
@@ -104,5 +115,64 @@ describe("resolveInlineDisposition", () => {
         requested: "inline",
       }),
     ).toEqual({ disposition: "attachment" });
+  });
+
+  describe("without an allow list", () => {
+    it.each([
+      ["image/png", undefined],
+      ["application/pdf", undefined],
+      ["video/mp4", undefined],
+      ["text/plain; charset=utf-8", undefined],
+      [undefined, "photo.avif"],
+    ])("opens %s %s inline", (contentType, fileName) => {
+      expect(
+        resolveInlineDisposition({ contentType, fileName, requested: "inline" })
+          .disposition,
+      ).toBe("inline");
+    });
+
+    it.each([
+      ["text/html", undefined],
+      ["image/svg+xml", undefined],
+      ["application/xhtml+xml", undefined],
+      [undefined, "x.svg"],
+      ["application/octet-stream", "x.html"],
+      ["application/zip", undefined],
+    ])("signs %s %s as attachment", (contentType, fileName) => {
+      expect(
+        resolveInlineDisposition({
+          contentType,
+          fileName,
+          requested: "inline",
+        }),
+      ).toEqual({ disposition: "attachment" });
+    });
+
+    it("lists raster images, PDF, audio, video, and plain text", () => {
+      expect(DEFAULT_INLINE_TYPES).toEqual([
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/webp",
+        "image/avif",
+        "image/bmp",
+        "application/pdf",
+        "audio/*",
+        "video/*",
+        "text/plain",
+      ]);
+    });
+  });
+
+  it("never inlines with allow: false", () => {
+    for (const contentType of ["image/png", "application/pdf", "text/plain"]) {
+      expect(
+        resolveInlineDisposition({
+          contentType,
+          allow: false,
+          requested: "inline",
+        }),
+      ).toEqual({ disposition: "attachment" });
+    }
   });
 });

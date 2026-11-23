@@ -1,201 +1,294 @@
 "use client";
 
+import type { ComponentProps, ReactNode } from "react";
+import { PauseIcon, PlayIcon, RotateCwIcon, XIcon } from "lucide-react";
 import { useTranslations } from "@fuma-translate/react";
 import {
-  formatEta,
-  useFormatDimahError,
+  useFormatError,
+  useFormatEta,
   useFormatFileSize,
+  useFormatNumber,
+  type UploadFileState,
+  type UseUploadReturn,
 } from "@dimah-s3/react";
-import type {
-  APIError,
-  UploadFileState,
-  UploadPhase,
-  UseUploadReturn,
-} from "@dimah-s3/react";
-import { FileAttachment } from "@/components/dimah-s3/attachment/file-attachment";
+import { DEFAULT_MULTIPART_THRESHOLD } from "@dimah-s3/react/engine";
+import { cn } from "cn";
+import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
 import { StatusAttachment } from "@/components/dimah-s3/attachment/status-attachment";
-import { MultiUploadStatus } from "@/components/dimah-s3/upload/multi-upload-status";
-import type {
-  AttachmentLayoutAliases,
-  AttachmentLayoutProps,
-} from "@/lib/attachment-layout";
+import { AttachmentAction } from "@/components/ui/attachment";
+import {
+  useUploadContext,
+  useUploadFocus,
+} from "@/components/dimah-s3/upload/upload";
+import {
+  UploadFileItem,
+  UploadFileList,
+  type UploadFileListLayout,
+} from "@/components/dimah-s3/upload/upload-file-list";
 
-export type UploadFileStatusProps = AttachmentLayoutProps & {
-  phase: UploadPhase;
-  error: APIError | null;
-  file: UploadFileState | null;
-  onCancel?: () => void;
-  /** When set (typically with an `uploadStore`), shows a pause control. */
-  onPause?: () => void;
-  /** Clears a completed or failed row. Typically `upload.reset`. */
-  onDismiss?: () => void;
-  className?: string;
+/** Props for {@link UploadStatus}. Other props go to the wrapper `<div>`. */
+export type UploadStatusProps = Omit<ComponentProps<"div">, "children"> & {
+  /** Layout of the files, as on `UploadFileList`. @default "list" */
+  layout?: UploadFileListLayout;
 };
 
-/** Presentational row for a single file. Prefer {@link UploadStatus} with `upload`. */
-export function UploadFileStatus({
-  phase,
-  error,
-  file,
-  onCancel,
-  onPause,
-  onDismiss,
-  size,
-  orientation,
+/** A summary header and its files share one card; the rows inside drop their own. */
+const ROW_CLASS = "rounded-none border-0 bg-transparent";
+
+const PAUSABLE = new Set<UploadFileState["phase"]>([
+  "queued",
+  "preparing",
+  "presigning",
+  "uploading",
+]);
+
+/**
+ * Whether a file in flight keeps its progress across a pause: a multipart
+ * upload. A single-shot upload would start over, so it offers no pause.
+ */
+function canPause(upload: UseUploadReturn): boolean {
+  return (
+    upload.policy.multipart &&
+    upload.files.some(
+      (file) =>
+        PAUSABLE.has(file.phase) &&
+        file.fileSize >= DEFAULT_MULTIPART_THRESHOLD,
+    )
+  );
+}
+
+/**
+ * Status of the nearest `Upload` queue. Renders nothing while it is idle.
+ *
+ * One file shows as its own card. Several files show as one card: a summary
+ * header with the overall progress ring, the count and the time left (or
+ * the result once they settle), above a row for each file. The rows scroll
+ * past 20rem. While files upload the summary offers "Cancel all uploads",
+ * and pause while a multipart upload is in flight, since it resumes from
+ * its uploaded parts. While files are paused and none is in flight it
+ * offers resume; a paused file also has its own resume action. Settled, it offers dismiss, and "Retry failed uploads" when files
+ * failed. A failed file has its own retry action. In a full root, as in a
+ * full `UploadField`, the retry actions stay focusable but are
+ * `aria-disabled`. With `layout="grid"` the files show as tiles under the
+ * summary, also for one file.
+ *
+ * Inside an `UploadField` (a root with `hideUploaded`), files that uploaded
+ * leave the status, since the field's value lists them. When cancel, pause,
+ * resume or dismiss removes the action that has focus, focus moves to the
+ * next action, else to the root's trigger or dropzone. It sets `data-phase`
+ * to the hook's phase.
+ */
+export function UploadStatus({
+  layout = "list",
   className,
-}: UploadFileStatusProps) {
+  ...props
+}: UploadStatusProps) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
-  const formatFileSize = useFormatFileSize();
-  const errorText = error ? formatError(error) : null;
-  const layout = { size, orientation, className };
-  const progress = file?.progress;
-
-  if (phase === "idle") return null;
-
-  if (phase === "uploading" && file) {
-    const eta =
-      progress?.speed && progress.total
-        ? formatEta(progress.total - progress.loaded, progress.speed)
-        : null;
-
-    return (
-      <FileAttachment
-        state="uploading"
-        fileName={file.name}
-        fileSize={file.size}
-        fileType={file.type}
-        previewUrl={file.previewUrl}
-        percent={progress?.percent}
-        description={eta ? `${formatFileSize(file.size)} · ${eta}` : undefined}
-        onCancel={onCancel}
-        onPause={onPause}
-        {...layout}
-      />
-    );
+  const { upload, hideUploaded } = useUploadContext();
+  const { keepFocus } = useUploadFocus();
+  const { files, phase } = upload;
+  const shown = hideUploaded
+    ? files.filter((file) => file.phase !== "success")
+    : files;
+  if (phase === "idle" || (files.length > 0 && shown.length === 0)) {
+    return null;
   }
 
-  if (phase === "success" && file) {
-    return (
-      <FileAttachment
-        state="done"
-        fileName={file.name}
-        fileSize={file.size}
-        fileType={file.type}
-        previewUrl={file.previewUrl}
-        onDismiss={onDismiss}
-        {...layout}
-      />
-    );
-  }
+  // One slot, so focus stays on it as pause turns into resume.
+  const control = canPause(upload) ? (
+    <AttachmentAction
+      type="button"
+      aria-label={t("Pause", { note: "upload control" })}
+      onClick={() => {
+        keepFocus();
+        upload.pause();
+      }}
+    >
+      <PauseIcon />
+    </AttachmentAction>
+  ) : phase === "paused" && shown.length > 1 ? (
+    <AttachmentAction
+      type="button"
+      aria-label={t("Resume", { note: "upload control" })}
+      onClick={() => {
+        keepFocus();
+        upload.resume();
+      }}
+    >
+      <PlayIcon />
+    </AttachmentAction>
+  ) : null;
+  const onDismiss =
+    upload.isPending || phase === "paused"
+      ? undefined
+      : () => {
+          keepFocus();
+          upload.reset();
+        };
 
-  if (phase === "error") {
-    if (file) {
-      return (
-        <FileAttachment
-          state="error"
-          fileName={file.name}
-          fileSize={file.size}
-          fileType={file.type}
-          previewUrl={file.previewUrl}
-          error={errorText}
-          onDismiss={onDismiss}
-          {...layout}
+  return (
+    <div
+      data-slot="upload-status"
+      data-phase={phase}
+      className={cn("flex w-full min-w-0 flex-col", className)}
+      {...props}
+    >
+      {files.length === 0 ? (
+        <StatusAttachment
+          state="processing"
+          title={t("Preparing…", { note: "upload status" })}
         />
-      );
-    }
+      ) : shown.length === 1 && layout === "list" ? (
+        <UploadFileItem
+          file={shown[0]}
+          actions={control}
+          onDismiss={onDismiss}
+        />
+      ) : (
+        <div
+          data-slot="upload-status-panel"
+          className="flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground"
+        >
+          <UploadSummary control={control} onDismiss={onDismiss} />
+          <UploadFileList
+            layout={layout}
+            className={cn(
+              "max-h-80 overflow-y-auto border-t border-dimah-s3-border",
+              layout === "list"
+                ? "gap-0 divide-y divide-dimah-s3-border"
+                : "p-2",
+            )}
+          >
+            {layout === "list"
+              ? (file) => <UploadFileItem file={file} className={ROW_CLASS} />
+              : undefined}
+          </UploadFileList>
+        </div>
+      )}
+    </div>
+  );
+}
 
+/** The header of a queue with several files: its progress, or its result. */
+function UploadSummary({
+  control,
+  onDismiss,
+}: {
+  /** Pause or resume for the whole queue, or `null`. */
+  control: ReactNode;
+  onDismiss: (() => void) | undefined;
+}) {
+  const t = useTranslations();
+  const formatError = useFormatError();
+  const formatEta = useFormatEta();
+  const formatFileSize = useFormatFileSize();
+  const formatNumber = useFormatNumber();
+  const { upload, isFull } = useUploadContext();
+  const { keepFocus } = useUploadFocus();
+  const { files, progress } = upload;
+  // Retry and cancel share a slot, so focus stays on it as a retry starts.
+  const summaryActions = (
+    label: string,
+    icon: ReactNode,
+    onClick: () => void,
+    disabled = false,
+  ) => (
+    <>
+      {control}
+      <AttachmentAction
+        type="button"
+        aria-label={label}
+        disabled={disabled}
+        focusableWhenDisabled={disabled}
+        className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        onClick={onClick}
+      >
+        {icon}
+      </AttachmentAction>
+    </>
+  );
+
+  if (upload.phase === "success") {
+    return (
+      <StatusAttachment
+        state="done"
+        className={ROW_CLASS}
+        title={
+          files.length === 1
+            ? t("Upload complete", { note: "upload status" })
+            : t("All {count} files uploaded", {
+                note: "upload status",
+                variables: { count: formatNumber(files.length) },
+              })
+        }
+        description={formatFileSize(
+          files.reduce((total, file) => total + file.fileSize, 0),
+        )}
+        onDismiss={onDismiss}
+      />
+    );
+  }
+
+  if (upload.phase === "error") {
     return (
       <StatusAttachment
         state="error"
-        title={t("Upload failed", { note: "status" })}
-        description={errorText ?? undefined}
+        className={ROW_CLASS}
+        title={t("Upload failed", { note: "upload status" })}
+        description={upload.error ? formatError(upload.error) : undefined}
+        actions={summaryActions(
+          t("Retry failed uploads", { note: "upload control" }),
+          <RotateCwIcon />,
+          () => void upload.retry(),
+          isFull,
+        )}
         onDismiss={onDismiss}
-        {...layout}
       />
     );
   }
 
-  if (
-    phase === "validating" ||
-    phase === "presigning" ||
-    phase === "finalizing"
-  ) {
-    if (file) {
-      return (
-        <FileAttachment
-          state="processing"
-          fileName={file.name}
-          fileSize={file.size}
-          fileType={file.type}
-          previewUrl={file.previewUrl}
-          description={
-            phase === "finalizing"
-              ? t("Finishing…", { note: "upload status" })
-              : t("Preparing…", { note: "upload status" })
-          }
-          {...layout}
-        />
-      );
-    }
-
-    return (
-      <StatusAttachment
-        state="processing"
-        title={
-          phase === "finalizing"
-            ? t("Finishing…", { note: "upload status" })
-            : t("Preparing…", { note: "upload status" })
-        }
-        {...layout}
-      />
-    );
-  }
-
-  return null;
-}
-
-export type UploadStatusProps = AttachmentLayoutAliases & {
-  upload: UseUploadReturn;
-  className?: string;
-};
-
-/** Maps `upload` onto attachment rows (one file or a batch). */
-export function UploadStatus({
-  upload,
-  attachmentSize,
-  attachmentOrientation,
-  className,
-}: UploadStatusProps) {
-  const layout = {
-    size: attachmentSize,
-    orientation: attachmentOrientation,
-    className,
-  };
-  const onCancel = upload.cancel;
-  const onPause = upload.resumable ? upload.detach : undefined;
-  const onDismiss = upload.reset;
-
-  if (upload.files.length > 1) {
-    return (
-      <MultiUploadStatus
-        upload={upload}
-        attachmentSize={attachmentSize}
-        attachmentOrientation={attachmentOrientation}
-        className={className}
-      />
-    );
-  }
-
+  const percent = Math.round(Math.min(100, Math.max(0, progress.percent)));
+  const paused = upload.phase === "paused";
+  const eta = paused ? null : formatEta(progress);
   return (
-    <UploadFileStatus
-      phase={upload.phase}
-      error={upload.file?.error ?? upload.error}
-      file={upload.file}
-      onCancel={onCancel}
-      onPause={onPause}
-      onDismiss={onDismiss}
-      {...layout}
+    <StatusAttachment
+      state={paused ? "idle" : "uploading"}
+      className={ROW_CLASS}
+      media={
+        <CircleProgress
+          percent={percent}
+          label={t("Upload progress", { note: "upload progress" })}
+          strokeWidth={2}
+          className="size-5"
+        />
+      }
+      title={t("{done} of {total} files uploaded", {
+        note: "upload progress",
+        variables: {
+          done: formatNumber(
+            files.filter((file) => file.phase === "success").length,
+          ),
+          total: formatNumber(files.length),
+        },
+      })}
+      description={
+        <span className="tabular-nums">
+          {t("{percent}%", {
+            note: "progress",
+            variables: { percent: formatNumber(percent) },
+          })}
+          {paused ? ` · ${t("Paused", { note: "upload status" })}` : null}
+          {eta ? ` · ${eta}` : null}
+        </span>
+      }
+      actions={summaryActions(
+        t("Cancel all uploads", { note: "upload control" }),
+        <XIcon />,
+        () => {
+          keepFocus();
+          upload.cancel();
+        },
+      )}
     />
   );
 }

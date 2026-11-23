@@ -1,10 +1,77 @@
+// `@dimah-s3/react/engine`: plain functions with no React import and no
+// "use client" directive, so shared and server modules can use them.
+
+// ─── Upload engine ───────────────────────────────────────────────────────────
 export {
   uploadFile,
-  uploadFiles,
+  uploadAbortReason,
+  getUploadAbortKind,
   multipartResumeKey,
+  mergeUploadRequest,
   DEFAULT_MULTIPART_THRESHOLD,
-  type UploadEngineCallbacks,
-  type FileItem,
-  type FileItemStatus,
-  type MultiUploadCallbacks,
 } from "./upload";
+export type {
+  UploadFileOptions,
+  UploadRequestOptions,
+  UploadEnginePhase,
+  UploadResult,
+  UploadTransport,
+  S3ApiUploadTransport,
+  RetryConfig,
+  UploadAbortKind,
+} from "./types/upload";
+export type { TransferProgress } from "./types/operation";
+
+// ─── Stores ──────────────────────────────────────────────────────────────────
+export {
+  createLocalStorageUploadStore,
+  createMemoryUploadStore,
+} from "./store";
+export type { StoredUpload, UploadStore } from "./types/upload-store";
+
+// ─── Route policy ────────────────────────────────────────────────────────────
+export {
+  loadRouteCatalog,
+  resolveRouteUploadPolicy,
+  mergeRouteUploadPolicy,
+  type RouteUploadPolicy,
+  type RouteUploadPolicyOptions,
+} from "./helpers/load-route-catalog";
+
+// ─── Custom S3 API ───────────────────────────────────────────────────────────
+export { defineApi } from "./api";
+
+// ─── Object list ─────────────────────────────────────────────────────────────
+export {
+  memoryObjectSource,
+  type MemoryObjectSourceOptions,
+} from "./list/memory-object-source";
+export {
+  readObjectListLevel,
+  type ObjectListLevel,
+} from "./list/read-object-list-level";
+export { objectListEntryKey, objectKeyOf } from "./list/entries";
+export type {
+  ObjectListFile,
+  ObjectListFolder,
+  ObjectListPage,
+  ObjectListQuery,
+  ObjectListQueryInput,
+  ObjectListSearchScope,
+  ObjectListSort,
+  ObjectListSource,
+  ObjectListUsageData,
+} from "./list/types";
+
+// ─── Formatting ──────────────────────────────────────────────────────────────
+export {
+  formatAcceptLabels,
+  type FormatAcceptLabelsOptions,
+} from "./helpers/format-accept-labels";
+export {
+  formatFileSize,
+  type FileSizeUnit,
+  type FormatFileSizeOptions,
+} from "./helpers/format-file-size";
+export { truncateFileName } from "./helpers/truncate-file-name";
+export { toTimestamp, type DateInput } from "./helpers/to-timestamp";

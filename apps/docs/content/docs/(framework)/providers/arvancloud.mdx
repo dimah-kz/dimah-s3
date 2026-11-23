@@ -1,0 +1,120 @@
+---
+title: ArvanCloud
+description: Connect dimah-s3 to ArvanCloud Object Storage with presigned POST uploads, the right API host, bucket CORS, and public URLs.
+translations:
+  fa: /docs/providers/arvancloud-fa
+---
+
+ArvanCloud Object Storage works with dimah-s3 end to end. Two things differ
+from Amazon S3: uploads must use presigned POST, and the host the SDK talks to
+is not the host that serves public files.
+
+This setup was tested on a live bucket with dimah-s3 2.0: presigned
+POST uploads (private and `public-read`), HeadObject confirm, presigned
+downloads, and delete.
+
+## Server configuration
+
+```dotenv title=".env"
+S3_ENDPOINT="https://hot.ir-central1.arvanstorage.ir"
+S3_REGION="auto"
+S3_ACCESS_KEY_ID="your-access-key-id"
+S3_SECRET_ACCESS_KEY="your-secret-access-key"
+S3_BUCKET="your-bucket-name"
+```
+
+```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
+import { dimahS3, route } from "@dimah-s3/server";
+
+export const awsS3 = new S3Client({
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: true, // [!code highlight]
+  followRegionRedirects: true, // [!code highlight]
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+  },
+  // Required: the SDK default (WHEN_SUPPORTED) breaks presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  routes: {
+    avatar: route({
+      upload: {
+        method: "POST", // [!code highlight]
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+      },
+    }),
+  },
+});
+```
+
+### Uploads use POST
+
+Set `method: "POST"` on every upload route. ArvanCloud rejects presigned PUT,
+the default: the presign succeeds, then the upload fails in the browser. The
+client needs no change.
+
+### Use the API host that does not redirect
+
+In `ir-central1`, `s3.ir-central1.arvanstorage.ir` answers a POST with a `301`
+to `hot.ir-central1.arvanstorage.ir`. A browser cannot follow a redirect on a
+form upload, so the upload ends as a network error. Set `S3_ENDPOINT` to the
+host that accepts the POST directly.
+
+## Bucket CORS
+
+Allow your origin and `POST` in the bucket's CORS settings in the ArvanCloud
+panel, or send the rule with `PutBucketCors`:
+
+```json title="cors.json"
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://your-app.example"],
+      "AllowedMethods": ["GET", "POST", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["Content-Disposition", "Content-Encoding"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
+```
+
+```bash
+aws s3api put-bucket-cors \
+  --endpoint-url https://hot.ir-central1.arvanstorage.ir \
+  --bucket your-bucket \
+  --cors-configuration file://cors.json
+```
+
+## Public files
+
+Presigned downloads use `S3_ENDPOINT` and need no setup. Public files are
+served from the bucket's `.s3.` virtual host, or from your own domain or CDN.
+Set `acl: "public-read"` on the route, or make the bucket public, and use that
+host as the public base:
+
+```dotenv title=".env"
+S3_PUBLIC_BASE_URL="https://your-bucket-name.s3.ir-central1.arvanstorage.ir"
+```
+
+Then build URLs with
+[`buildPublicObjectUrl`](/docs/providers#make-files-public).
+
+Do not serve files from `your-bucket-name.hot.ir-central1.arvanstorage.ir`.
+That host redirects in a loop, and the Next.js image optimizer returns `508`.
+
+## Multipart uploads
+
+Multipart parts are presigned PUT requests, and the tested setup covers single
+uploads only. Leave `upload.multipart` off, or test a multipart upload against
+your bucket before you turn it on. One presigned POST takes up to 5 GiB.
+
+Upload failing? See [Troubleshooting](/docs/providers#troubleshooting).

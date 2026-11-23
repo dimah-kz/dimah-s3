@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/ui",
-  "version": "1.7.2",
+  "version": "2.0.0-beta.14",
   "description": "Pre-built React UI components for S3 file upload, download, and delete",
   "keywords": [
     "s3",
@@ -19,7 +19,7 @@
     "nextjs",
     "components"
   ],
-  "homepage": "https://v1.s3.dimah.dev/docs/react/ui",
+  "homepage": "https://s3.dimah.dev/docs/ui",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -28,6 +28,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/ui"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": [
@@ -40,7 +41,8 @@
       "default": "./dist/index.js"
     },
     "./styles.css": "./styles.css",
-    "./css/shadcn.css": "./css/shadcn.css"
+    "./css/shadcn.css": "./css/shadcn.css",
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -48,49 +50,64 @@
     "css"
   ],
   "scripts": {
-    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly && tsc-alias",
+    "build": "pnpm run normalize-imports && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.registry.json",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "normalize-imports": "node ./scripts/enforce-src-alias-imports.mjs",
-    "registry:build": "pnpm registry:validate && shadcn build --output apps/docs/public/r --cwd ../..",
+    "registry:build": "pnpm registry:validate && node -e \"require('node:fs').rmSync('../../apps/docs/public/r', { recursive: true, force: true })\" && shadcn build --output apps/docs/public/r --cwd ../..",
     "registry:check": "tsx scripts/check-registry-items.ts",
     "registry:items": "tsx scripts/build-registry-items.ts && pnpm -w exec prettier --write packages/ui/registry.json",
     "registry:validate": "pnpm registry:items && pnpm registry:check && shadcn registry validate --cwd ../..",
-    "sync:shadcn": "node scripts/sync-shadcn.mjs"
+    "sync:shadcn": "node scripts/sync-shadcn.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@dimah-s3/core": "workspace:*",
-    "@dimah-s3/react": "workspace:*",
     "react-file-icon": "^1.6.0"
   },
   "devDependencies": {
     "@base-ui/react": "^1.9.0",
+    "@dimah-s3/core": "workspace:*",
+    "@dimah-s3/react": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.13",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@types/react-file-icon": "^1.0.5",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "@workspace/vitest-config": "workspace:*",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.5.0",
+    "cn": "^0.5.2",
     "eslint": "catalog:",
-    "lucide-react": "^1.63.0",
+    "jsdom": "^31.0.1",
+    "lucide-react": "^1.78.0",
     "react": "catalog:",
+    "react-dom": "catalog:",
     "shadcn": "^4.23.0",
     "tailwindcss": "catalog:",
     "tsc-alias": "catalog:",
     "tsup": "catalog:",
     "tsx": "^4.23.15",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@base-ui/react": ">=1.0.0",
+    "@base-ui/react": "^1.0.0",
+    "@dimah-s3/core": "2.0.0-beta.14",
+    "@dimah-s3/react": "2.0.0-beta.14",
     "@fuma-translate/react": "^1.0.2",
-    "class-variance-authority": ">=0.7.0",
-    "cn": ">=0.1.0",
-    "lucide-react": ">=0.400.0",
-    "react": ">=18"
+    "class-variance-authority": "^0.7.0",
+    "cn": "^0.5.2",
+    "lucide-react": ">=0.400.0 <2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

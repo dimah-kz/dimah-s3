@@ -9,7 +9,7 @@ import {
 import type { ComponentType, ReactNode } from "react";
 import {
   S3Provider as BaseS3Provider,
-  useApi as useBaseApi,
+  useS3Api as useBaseApi,
   type S3ProviderProps,
 } from "./s3-provider";
 
@@ -62,5 +62,3 @@ export function createS3Client<const P extends readonly S3ClientPlugin[] = []>(
 
   return Object.assign(api, { Provider, useApi });
 }
-
-export type { CreateS3ClientOptions, CreateS3ClientResult };

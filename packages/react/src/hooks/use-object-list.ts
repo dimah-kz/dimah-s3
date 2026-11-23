@@ -1,60 +1,1082 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { APIError } from "@dimah-s3/core";
-import { useLiveRef } from "@/internal-helpers";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { normalizeSearchText, s3Error, type APIError } from "@dimah-s3/core";
+import { toClientError } from "@/internal/client-error";
+import { useControllableState, useLiveRef } from "@/internal/hooks";
+import {
+  objectListEntryKey,
+  reuseObjectListEntries,
+  type ObjectListEntryCache,
+} from "@/list/entries";
 import type {
+  ObjectListEntry,
+  ObjectListFile,
   ObjectListFolder,
-  ObjectListPage,
-  ObjectListUsage,
+  ObjectListMoveResult,
+  ObjectListSearchScope,
+  ObjectListSort,
+  ObjectListStatus,
+  ObjectListUsageData,
   UseObjectListOptions,
 } from "@/list/types";
-import { isAbortError, toHookError } from "@/types/error";
+import type { UploadRequestOptions } from "@/types/upload";
 
 export type {
+  ObjectListEntry,
+  ObjectListFile,
+  ObjectListFileEntry,
   ObjectListFolder,
+  ObjectListFolderEntry,
+  ObjectListMoveResult,
   ObjectListPage,
   ObjectListQuery,
   ObjectListQueryInput,
-  ObjectListUsage,
+  ObjectListSearchScope,
+  ObjectListSort,
+  ObjectListSortDirection,
+  ObjectListSource,
+  ObjectListStatus,
+  ObjectListUsageData,
   UseObjectListOptions,
 } from "@/list/types";
 
-type Status = "loading" | "loading-more" | "refreshing" | "ready" | "error";
 type FetchMode = "replace" | "append" | "refresh";
+
+/** A value, or an updater from the current value. */
+type Updater<T> = T | ((current: T) => T);
 
 /** State and commands returned by {@link useObjectList}. */
 export type UseObjectListReturn<TItem> = {
+  /** Folders, then files. Rows, tiles, and selection read this. */
+  entries: readonly ObjectListEntry<TItem>[];
   items: readonly TItem[];
   /** Child folders from the latest first page. */
   folders: readonly ObjectListFolder[];
   /** Path from the root, root excluded. */
   trail: readonly ObjectListFolder[];
+  /** Open folder id. `null` is the root. */
   parent: string | null;
-  nextCursor: string | null;
-  error: APIError | null;
-  /** True while the first page for this folder is in flight. */
-  isLoading: boolean;
-  /** True while a later page is in flight. */
-  isLoadingMore: boolean;
-  /** True while the current folder is reloading and previous rows stay visible. */
-  isRefreshing: boolean;
+  sort: ObjectListSort | null;
+  /**
+   * Search text as typed. The query receives it trimmed, or `""` when it
+   * has only whitespace, joiners, or accents.
+   */
+  search: string;
+  /** True while the query receives search text. */
+  isSearching: boolean;
+  /** Where a search looks. The query receives it with the search text. */
+  searchScope: ObjectListSearchScope;
+  /**
+   * The source's `searchScopes`: where it can search. Empty when it did
+   * not say.
+   */
+  searchScopes: readonly ObjectListSearchScope[];
+  /**
+   * Files that match the search across every page, from the first page.
+   * `null` when the source did not send it, or nothing is searched.
+   */
+  total: number | null;
   /**
    * Totals from the latest page that sent them. `null` when the source
    * did not.
    */
-  usage: ObjectListUsage | null;
+  usage: ObjectListUsageData | null;
+  error: APIError | null;
+  status: ObjectListStatus;
+  /** True while the first page is in flight and there is nothing to show. */
+  isLoading: boolean;
+  /** True while a reload, sort, or search is in flight; rows stay visible. */
+  isRefreshing: boolean;
+  /** True while a later page is in flight. */
+  isLoadingMore: boolean;
   hasMore: boolean;
+  nextCursor: string | null;
+  /** Load the next page. Ignored while another request is in flight. */
   loadMore: () => Promise<void>;
+  /**
+   * Reload every page loaded so far, keeping the rows on screen until the
+   * new ones arrive.
+   */
   refresh: () => Promise<void>;
-  /** Open a child folder and load its first page. */
+  /** Repeat the request that failed: the next page, or a reload. */
+  retry: () => Promise<void>;
+  /**
+   * Open a folder and load its first page: a child of the open folder, a
+   * folder of the trail, or a search result with a `location`, whose whole
+   * path opens.
+   */
   openFolder: (folder: ObjectListFolder) => void;
   /** Replace the path. Pass `[]` for the root. */
   navigate: (trail: readonly ObjectListFolder[]) => void;
+  /** Open the parent of the current folder. Does nothing at the root. */
+  goUp: () => void;
+  /** Change the order. Reloads the first page. */
+  setSort: (sort: ObjectListSort | null) => void;
+  /** Change the search text. Reloads the first page. Debounce it yourself. */
+  setSearch: (search: string) => void;
+  /** Change where a search looks. Reloads the first page while searching. */
+  setSearchScope: (scope: ObjectListSearchScope) => void;
+  /**
+   * Edit the loaded files without a request, for example after your own
+   * update. The next reload replaces them. Prefer `renameFile` when the
+   * source can rename.
+   */
+  setItems: (items: Updater<readonly TItem[]>) => void;
+  /** Edit the loaded folders without a request. */
+  setFolders: (folders: Updater<readonly ObjectListFolder[]>) => void;
+  /** Drop loaded files by `getId`. */
+  removeItems: (ids: readonly string[]) => void;
+  /** The `getId` option. */
+  getId: (item: TItem) => string;
+  /** The `getFile` option, or `{ name: getId(item) }`. */
+  getFile: (item: TItem) => ObjectListFile;
+  /** The source's `uploadOptions`. Set when it supports drop-on-folder. */
+  uploadOptions: ((parent: string | null) => UploadRequestOptions) | undefined;
+  /**
+   * Child folders of `parent` (`null` is the root), from the first page the
+   * source returns there. The open folder's are `folders`. Rejects with an
+   * `APIError`.
+   */
+  listFolders: (
+    parent: string | null,
+    options?: { signal?: AbortSignal },
+  ) => Promise<readonly ObjectListFolder[]>;
+  /**
+   * Creates an empty folder in the open folder, or in `parent`, and adds it
+   * to the loaded folders when that is the open folder. Rejects with an
+   * `APIError`. Set when the source has `createFolder`.
+   */
+  createFolder:
+    | ((
+        name: string,
+        options?: { parent?: string | null },
+      ) => Promise<ObjectListFolder>)
+    | undefined;
+  /**
+   * Renames a file through the source and replaces the loaded row.
+   * Rejects with an `APIError`. The same name does nothing. A name sort
+   * or a search reloads afterwards, and so does a source that returns
+   * nothing. Set when the source has `renameFile`.
+   */
+  renameFile:
+    ((item: TItem, name: string) => Promise<TItem | void>) | undefined;
+  /**
+   * Renames a folder through the source, replaces the loaded row, and
+   * updates that id in the breadcrumb. Rejects with an `APIError`. The
+   * same name does nothing. Set when the source has `renameFolder`.
+   */
+  renameFolder:
+    | ((
+        folder: ObjectListFolder,
+        name: string,
+      ) => Promise<ObjectListFolder | void>)
+    | undefined;
+  /**
+   * Whether `moveEntries` can move `entry`, or entries of a kind: the
+   * source has `moveFile` for files, and `moveFolder` for folders.
+   */
+  canMove: (
+    entry: ObjectListEntry<TItem> | ObjectListEntry<TItem>["kind"],
+  ) => boolean;
+  /**
+   * Moves entries into folder `parent` (`null` is the root) through the
+   * source, one at a time. Moved entries leave the rows, then the list
+   * reloads once. Entries already in `parent`, and entries the source
+   * cannot move, are left alone. A folder moved into itself fails with
+   * `FOLDER_INVALID`. Never rejects. Set when the source has `moveFile` or
+   * `moveFolder`.
+   */
+  moveEntries:
+    | ((
+        entries: readonly ObjectListEntry<TItem>[],
+        parent: string | null,
+      ) => Promise<ObjectListMoveResult<TItem>>)
+    | undefined;
+  /**
+   * Object keys in `folder` and every folder below it. Rejects with an
+   * `APIError`. Set when the source has `listFolderKeys`.
+   */
+  listFolderKeys:
+    | ((
+        folder: ObjectListFolder,
+        options?: { signal?: AbortSignal },
+      ) => Promise<readonly string[]>)
+    | undefined;
+  /**
+   * Deletes a folder through the source and drops it from the loaded
+   * folders. When it is the open folder or one above it, its parent opens.
+   * Delete its files first: `listFolderKeys` names them. Rejects with an
+   * `APIError`. Set when the source has `deleteFolder`.
+   */
+  deleteFolder: ((folder: ObjectListFolder) => Promise<void>) | undefined;
 };
 
-function serializeQueryKey(key: readonly unknown[] | undefined): string {
-  return JSON.stringify(key ?? []);
+/** Rows loaded for one request. */
+type Snapshot<TItem> = {
+  /** Folder, sort, search, and `queryKey` the rows belong to. */
+  key: string | null;
+  /** Folder and `queryKey` the rows belong to. */
+  scope: string | null;
+  items: readonly TItem[];
+  folders: readonly ObjectListFolder[];
+  nextCursor: string | null;
+  usage: ObjectListUsageData | null;
+  /** The first page's `total`. */
+  total: number | null;
+  /** Pages loaded for `key`. `refresh` reloads this many. */
+  pageCount: number;
+};
+
+type State<TItem> = {
+  snapshot: Snapshot<TItem>;
+  /** Request in flight for `snapshot.key`, if any. */
+  pending: FetchMode | null;
+  /** Last failure for `snapshot.key`, and what failed. */
+  failure: { mode: FetchMode; error: APIError } | null;
+};
+
+type Request = {
+  key: string;
+  scope: string;
+  parent: string | null;
+  sort: ObjectListSort | null;
+  search: string;
+  searchScope: ObjectListSearchScope;
+};
+
+const EMPTY_SNAPSHOT: Snapshot<never> = {
+  key: null,
+  scope: null,
+  items: [],
+  folders: [],
+  nextCursor: null,
+  usage: null,
+  total: null,
+  pageCount: 0,
+};
+
+const NO_SCOPES: readonly ObjectListSearchScope[] = [];
+
+const INITIAL_STATE: State<never> = {
+  snapshot: EMPTY_SNAPSHOT,
+  pending: null,
+  failure: null,
+};
+
+/**
+ * Page through a folder catalog without knowing the backend.
+ *
+ * Pass a source: `query` loads one page for a folder, cursor, sort, and
+ * search; `getId` and `getFile` read a row. `dbObjectSource` from
+ * `@dimah-s3/db/client` and `memoryObjectSource` are ready-made sources;
+ * a route handler is another. The hook never calls S3.
+ *
+ * ```ts
+ * const list = useObjectList({
+ *   query: ({ parent, cursor, sort, search, signal }) =>
+ *     fetchFiles({ folderId: parent, cursor, sort, search, signal }),
+ *   getId: (file) => file.id,
+ *   getFile: (file) => ({ name: file.name, objectKey: file.key, size: file.size }),
+ * });
+ * ```
+ *
+ * Changing the folder or `queryKey` clears the rows and shows the loading
+ * state. Changing the sort, search, or search scope keeps the rows on
+ * screen until the new first page arrives.
+ *
+ * A source with `searchScopes` searches below the open folder, or
+ * everywhere, and says where each result lives (`entry.location`).
+ */
+export function useObjectList<TItem>(
+  options: UseObjectListOptions<TItem>,
+): UseObjectListReturn<TItem> {
+  const optionsRef = useLiveRef(options);
+  const enabled = options.enabled !== false;
+
+  // ── Navigation ────────────────────────────────────────────────────────
+  const [parent, setParent] = useControllableState<string | null>(
+    options.parent,
+    () =>
+      options.defaultParent !== undefined
+        ? options.defaultParent
+        : (options.defaultTrail?.at(-1)?.id ?? null),
+    options.onParentChange,
+  );
+  const [trailState, setTrailState] = useState<readonly ObjectListFolder[]>(
+    () => options.defaultTrail ?? [],
+  );
+  const trail = useMemo(
+    () => syncTrail(trailState, parent),
+    [trailState, parent],
+  );
+  const [sort, setSortValue] = useControllableState<ObjectListSort | null>(
+    options.sort,
+    () => options.defaultSort ?? null,
+    options.onSortChange,
+    sortsEqual,
+  );
+  const [search, setSearchValue] = useControllableState<string>(
+    options.search,
+    () => options.defaultSearch ?? "",
+    options.onSearchChange,
+  );
+  const [searchScope, setSearchScope] =
+    useControllableState<ObjectListSearchScope>(
+      options.searchScope,
+      () => options.defaultSearchScope ?? "folder",
+      options.onSearchScopeChange,
+    );
+  // Another folder starts without a search, also when a controlled `parent`
+  // changes from outside. A layout effect, so the old search never loads
+  // in the new folder.
+  const searchParentRef = useRef(parent);
+  useLayoutEffect(() => {
+    if (searchParentRef.current === parent) return;
+    searchParentRef.current = parent;
+    setSearchValue("");
+  }, [parent, setSearchValue]);
+
+  const queryKey = JSON.stringify(options.queryKey ?? []);
+  // Text that folds to nothing (a lone joiner or accent) searches nothing.
+  const trimmedSearch = normalizeSearchText(search) === "" ? "" : search.trim();
+  const request = useMemo<Request>(() => {
+    const scope = JSON.stringify([queryKey, parent]);
+    return {
+      key: JSON.stringify([
+        scope,
+        sort ? `${sort.field}:${sort.direction}` : "",
+        trimmedSearch,
+        // The scope matters only while something is searched.
+        trimmedSearch ? searchScope : "",
+      ]),
+      scope,
+      parent,
+      sort,
+      search: trimmedSearch,
+      searchScope,
+    };
+  }, [parent, queryKey, searchScope, sort, trimmedSearch]);
+  const requestRef = useLiveRef(request);
+  const trailRef = useLiveRef(trail);
+
+  // ── Data ──────────────────────────────────────────────────────────────
+  const [state, setState] = useState<State<TItem>>(INITIAL_STATE);
+  // Mirrors `state` synchronously so commands that run back to back (an
+  // observer and a click) read what the previous one committed.
+  const stateRef = useRef<State<TItem>>(INITIAL_STATE);
+  const update = useCallback(
+    (next: (current: State<TItem>) => State<TItem>) => {
+      stateRef.current = next(stateRef.current);
+      setState(stateRef.current);
+    },
+    [],
+  );
+  const abortRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
+
+  const run = useCallback(
+    async (requested: FetchMode) => {
+      const opts = optionsRef.current;
+      if (opts.enabled === false) return;
+      const target = requestRef.current;
+      const current = stateRef.current;
+      const sameKey = current.snapshot.key === target.key;
+      const mode: FetchMode =
+        requested === "refresh" && !sameKey ? "replace" : requested;
+
+      if (mode === "append") {
+        if (!sameKey || !current.snapshot.nextCursor || current.pending) return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const generation = ++generationRef.current;
+      const isCurrent = () =>
+        generation === generationRef.current && !controller.signal.aborted;
+
+      update((draft) => ({ ...draft, pending: mode, failure: null }));
+      const input = {
+        parent: target.parent,
+        sort: target.sort,
+        search: target.search,
+        searchScope: target.searchScope,
+        signal: controller.signal,
+      };
+
+      try {
+        if (mode === "append") {
+          const page = await opts.query({
+            ...input,
+            cursor: current.snapshot.nextCursor,
+          });
+          if (!isCurrent()) return;
+          update((draft) => ({
+            pending: null,
+            failure: null,
+            snapshot: {
+              ...draft.snapshot,
+              items: [...draft.snapshot.items, ...page.items],
+              nextCursor: page.nextCursor || null,
+              usage: page.usage ?? draft.snapshot.usage,
+              pageCount: draft.snapshot.pageCount + 1,
+            },
+          }));
+          return;
+        }
+
+        // A reload fetches as many pages as were on screen, then swaps
+        // them in at once.
+        const pageTarget =
+          mode === "refresh" ? Math.max(1, current.snapshot.pageCount) : 1;
+        const items: TItem[] = [];
+        let folders: readonly ObjectListFolder[] = [];
+        let serverTrail: readonly ObjectListFolder[] | undefined;
+        let usage: ObjectListUsageData | null = null;
+        let total: number | null = null;
+        let cursor: string | null = null;
+        let pageCount = 0;
+        do {
+          const page = await opts.query({ ...input, cursor });
+          if (!isCurrent()) return;
+          if (pageCount === 0) {
+            folders = page.folders ?? [];
+            if (page.trail) serverTrail = page.trail;
+            if (target.search && page.total != null) total = page.total;
+          }
+          for (const item of page.items) items.push(item);
+          usage = page.usage ?? usage;
+          cursor = page.nextCursor || null;
+          pageCount += 1;
+        } while (cursor && pageCount < pageTarget);
+
+        update(() => ({
+          pending: null,
+          failure: null,
+          snapshot: {
+            key: target.key,
+            scope: target.scope,
+            items,
+            folders,
+            nextCursor: cursor,
+            usage,
+            total,
+            pageCount,
+          },
+        }));
+        if (
+          serverTrail &&
+          (target.parent === null
+            ? serverTrail.length === 0
+            : serverTrail.at(-1)?.id === target.parent)
+        ) {
+          trailRef.current = serverTrail;
+          setTrailState(serverTrail);
+        }
+      } catch (err) {
+        if (!isCurrent()) return;
+        const error = toClientError(err);
+        update((draft) => ({
+          pending: null,
+          failure: { mode, error },
+          // A failed first page shows the error, not the previous rows.
+          snapshot:
+            mode === "replace"
+              ? { ...EMPTY_SNAPSHOT, key: target.key, scope: target.scope }
+              : draft.snapshot,
+        }));
+      }
+    },
+    [optionsRef, requestRef, trailRef, update],
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    // One microtask: a Strict Mode remount cancels before the request starts.
+    void Promise.resolve().then(() => {
+      if (active) void run("replace");
+    });
+    return () => {
+      active = false;
+      abortRef.current?.abort();
+      generationRef.current += 1;
+      if (stateRef.current.pending) {
+        update((draft) => ({ ...draft, pending: null }));
+      }
+    };
+  }, [enabled, request.key, run, update]);
+
+  // ── Commands ──────────────────────────────────────────────────────────
+  const navigate = useCallback(
+    (nextTrail: readonly ObjectListFolder[]) => {
+      const nextParent = nextTrail.at(-1)?.id ?? null;
+      if (
+        nextParent === requestRef.current.parent &&
+        trailsEqual(nextTrail, trailRef.current)
+      ) {
+        return;
+      }
+      trailRef.current = nextTrail;
+      setTrailState(nextTrail);
+      if (nextParent !== requestRef.current.parent) {
+        setSearchValue("");
+        setParent(nextParent);
+      }
+    },
+    [requestRef, setParent, setSearchValue, trailRef],
+  );
+
+  const openFolder = useCallback(
+    (folder: ObjectListFolder) => {
+      // A search result knows its own path; the trail keeps plain folders.
+      const { location, ...opened } = folder;
+      if (location) {
+        navigate([...location.map(plainFolder), opened]);
+        return;
+      }
+      const current = trailRef.current;
+      const index = current.findIndex((entry) => entry.id === folder.id);
+      navigate(index >= 0 ? current.slice(0, index + 1) : [...current, opened]);
+    },
+    [navigate, trailRef],
+  );
+
+  const goUp = useCallback(() => {
+    if (trailRef.current.length > 0) navigate(trailRef.current.slice(0, -1));
+  }, [navigate, trailRef]);
+
+  const loadMore = useCallback(() => run("append"), [run]);
+  const refresh = useCallback(() => run("refresh"), [run]);
+  const retry = useCallback(
+    () =>
+      run(stateRef.current.failure?.mode === "append" ? "append" : "refresh"),
+    [run],
+  );
+
+  const editSnapshot = useCallback(
+    (edit: (snapshot: Snapshot<TItem>) => Snapshot<TItem>) => {
+      update((draft) =>
+        draft.snapshot.key == null
+          ? draft
+          : { ...draft, snapshot: edit(draft.snapshot) },
+      );
+    },
+    [update],
+  );
+  const setItems = useCallback(
+    (next: Updater<readonly TItem[]>) =>
+      editSnapshot((snapshot) => ({
+        ...snapshot,
+        items: typeof next === "function" ? next(snapshot.items) : next,
+      })),
+    [editSnapshot],
+  );
+  const setFolders = useCallback(
+    (next: Updater<readonly ObjectListFolder[]>) =>
+      editSnapshot((snapshot) => ({
+        ...snapshot,
+        folders: typeof next === "function" ? next(snapshot.folders) : next,
+      })),
+    [editSnapshot],
+  );
+  const removeItems = useCallback(
+    (keys: readonly string[]) => {
+      if (keys.length === 0) return;
+      const drop = new Set(keys);
+      const { getId: keyOf } = optionsRef.current;
+      setItems((items) => items.filter((item) => !drop.has(keyOf(item))));
+    },
+    [optionsRef, setItems],
+  );
+  const listFolders = useCallback(
+    async (
+      folderId: string | null,
+      listOptions: { signal?: AbortSignal } = {},
+    ) => {
+      const { signal } = listOptions;
+      try {
+        const page = await optionsRef.current.query({
+          parent: folderId,
+          cursor: null,
+          sort: null,
+          search: "",
+          searchScope: "folder",
+          signal: signal ?? new AbortController().signal,
+        });
+        return page.folders ?? [];
+      } catch (err) {
+        throw signal?.aborted ? err : toClientError(err);
+      }
+    },
+    [optionsRef],
+  );
+  const createFolder = useCallback(
+    async (name: string, createOptions: { parent?: string | null } = {}) => {
+      const create = optionsRef.current.createFolder;
+      if (!create) {
+        throw new Error("[dimah-s3] The source has no createFolder.");
+      }
+      const { parent: open, scope } = requestRef.current;
+      const target =
+        createOptions.parent === undefined ? open : createOptions.parent;
+      let folder: ObjectListFolder;
+      try {
+        folder = await create({ parent: target, name });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      // Another folder: the loaded rows are not where it went.
+      if (target !== open) return folder;
+      // Skip the insert when the list moved to another folder meanwhile.
+      update((draft) =>
+        draft.snapshot.scope === scope
+          ? {
+              ...draft,
+              snapshot: {
+                ...draft.snapshot,
+                folders: [
+                  ...draft.snapshot.folders.filter(
+                    (entry) => entry.id !== folder.id,
+                  ),
+                  folder,
+                ],
+              },
+            }
+          : draft,
+      );
+      // A name sort or a search decides where, and whether, it shows.
+      const now = requestRef.current;
+      if (now.scope === scope && namesNeedReload(now)) await run("refresh");
+      return folder;
+    },
+    [optionsRef, requestRef, run, update],
+  );
+  const settleRename = useCallback(
+    async (scope: string, replaced: boolean) => {
+      // Another folder is on screen now. Leave it alone.
+      if (requestRef.current.scope !== scope) return;
+      if (!replaced || namesNeedReload(requestRef.current)) {
+        await run("refresh");
+      }
+    },
+    [requestRef, run],
+  );
+  const renameFile = useCallback(
+    async (item: TItem, name: string) => {
+      const rename = optionsRef.current.renameFile;
+      if (!rename) {
+        throw new Error("[dimah-s3] The source has no renameFile.");
+      }
+      const { getFile: read, getId: keyOf } = optionsRef.current;
+      if ((read ? read(item).name : keyOf(item)) === name) return item;
+      const key = keyOf(item);
+      const { scope } = requestRef.current;
+      let next: TItem | void;
+      try {
+        next = await rename({ item, name });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      if (next) {
+        const replacement = next;
+        update((draft) => {
+          if (draft.snapshot.scope !== scope) return draft;
+          const idOf = optionsRef.current.getId;
+          return {
+            ...draft,
+            snapshot: {
+              ...draft.snapshot,
+              items: draft.snapshot.items.map((current) =>
+                idOf(current) === key ? replacement : current,
+              ),
+            },
+          };
+        });
+      }
+      await settleRename(scope, next != null);
+      return next;
+    },
+    [optionsRef, requestRef, settleRename, update],
+  );
+  const renameFolder = useCallback(
+    async (folder: ObjectListFolder, name: string) => {
+      const rename = optionsRef.current.renameFolder;
+      if (!rename) {
+        throw new Error("[dimah-s3] The source has no renameFolder.");
+      }
+      if (folder.name === name) return folder;
+      const { scope } = requestRef.current;
+      let next: ObjectListFolder | void;
+      try {
+        next = await rename({ folder, name });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      if (next) {
+        const replacement = next;
+        update((draft) => {
+          if (draft.snapshot.scope !== scope) return draft;
+          return {
+            ...draft,
+            snapshot: {
+              ...draft.snapshot,
+              folders: draft.snapshot.folders.map((current) =>
+                current.id === folder.id ? replacement : current,
+              ),
+            },
+          };
+        });
+        const currentTrail = trailRef.current;
+        if (
+          currentTrail.some(
+            (entry) =>
+              entry.id === folder.id && entry.name !== replacement.name,
+          )
+        ) {
+          const renamedTrail = currentTrail.map((entry) =>
+            entry.id === folder.id
+              ? { ...entry, name: replacement.name }
+              : entry,
+          );
+          trailRef.current = renamedTrail;
+          setTrailState(renamedTrail);
+        }
+      }
+      await settleRename(scope, next != null);
+      return next;
+    },
+    [optionsRef, requestRef, settleRename, trailRef, update],
+  );
+  const movesFiles = options.moveFile != null;
+  const movesFolders = options.moveFolder != null;
+  const canMove = useCallback(
+    (entry: ObjectListEntry<TItem> | ObjectListEntry<TItem>["kind"]) =>
+      (typeof entry === "string" ? entry : entry.kind) === "file"
+        ? movesFiles
+        : movesFolders,
+    [movesFiles, movesFolders],
+  );
+  const moveEntries = useCallback(
+    async (
+      entries: readonly ObjectListEntry<TItem>[],
+      destination: string | null,
+    ): Promise<ObjectListMoveResult<TItem>> => {
+      const { scope, parent: open, search: searched } = requestRef.current;
+      const moved: ObjectListEntry<TItem>[] = [];
+      const failed: { entry: ObjectListEntry<TItem>; error: APIError }[] = [];
+      // One at a time: a folder move rewrites the paths below it.
+      for (const entry of entries) {
+        if (currentFolderOf(entry, open, searched !== "") === destination) {
+          continue;
+        }
+        const { moveFile, moveFolder } = optionsRef.current;
+        try {
+          if (entry.kind === "file") {
+            if (!moveFile) continue;
+            await moveFile({ item: entry.item, parent: destination });
+          } else {
+            if (!moveFolder) continue;
+            if (entry.id === destination) throw s3Error("FOLDER_INVALID");
+            await moveFolder({ folder: entry.folder, parent: destination });
+          }
+          moved.push(entry);
+        } catch (err) {
+          failed.push({ entry, error: toClientError(err) });
+        }
+      }
+      if (moved.length === 0 || requestRef.current.scope !== scope) {
+        return { moved, failed };
+      }
+      // A listing loses them at once. Search results stay until the reload
+      // says where they live now.
+      if (!searched) {
+        const gone = new Set(moved.map((entry) => entry.key));
+        update((draft) => {
+          if (draft.snapshot.scope !== scope) return draft;
+          const idOf = optionsRef.current.getId;
+          return {
+            ...draft,
+            snapshot: {
+              ...draft.snapshot,
+              items: draft.snapshot.items.filter(
+                (item) => !gone.has(objectListEntryKey("file", idOf(item))),
+              ),
+              folders: draft.snapshot.folders.filter(
+                (folder) => !gone.has(objectListEntryKey("folder", folder.id)),
+              ),
+            },
+          };
+        });
+      }
+      // Folder totals and the usage line count the moved files elsewhere.
+      await run("refresh");
+      return { moved, failed };
+    },
+    [optionsRef, requestRef, run, update],
+  );
+  const listFolderKeys = useCallback(
+    async (
+      folder: ObjectListFolder,
+      keyOptions: { signal?: AbortSignal } = {},
+    ) => {
+      const list = optionsRef.current.listFolderKeys;
+      if (!list) {
+        throw new Error("[dimah-s3] The source has no listFolderKeys.");
+      }
+      const { signal } = keyOptions;
+      try {
+        return await list({
+          folder,
+          signal: signal ?? new AbortController().signal,
+        });
+      } catch (err) {
+        throw signal?.aborted ? err : toClientError(err);
+      }
+    },
+    [optionsRef],
+  );
+  const deleteFolder = useCallback(
+    async (folder: ObjectListFolder) => {
+      const remove = optionsRef.current.deleteFolder;
+      if (!remove) {
+        throw new Error("[dimah-s3] The source has no deleteFolder.");
+      }
+      const { scope } = requestRef.current;
+      try {
+        await remove({ folder });
+      } catch (err) {
+        throw toClientError(err);
+      }
+      update((draft) =>
+        draft.snapshot.scope === scope
+          ? {
+              ...draft,
+              snapshot: {
+                ...draft.snapshot,
+                folders: draft.snapshot.folders.filter(
+                  (entry) => entry.id !== folder.id,
+                ),
+              },
+            }
+          : draft,
+      );
+      // The open folder, or one above it, is gone: open what holds it.
+      const index = trailRef.current.findIndex(
+        (entry) => entry.id === folder.id,
+      );
+      if (index >= 0) navigate(trailRef.current.slice(0, index));
+    },
+    [navigate, optionsRef, requestRef, trailRef, update],
+  );
+  // ── View ──────────────────────────────────────────────────────────────
+  const { getId, getFile: readFile } = options;
+  const getFile = useMemo(
+    () =>
+      readFile ?? ((item: TItem): ObjectListFile => ({ name: getId(item) })),
+    [getId, readFile],
+  );
+  const { snapshot, pending, failure } = state;
+  const fresh = snapshot.key === request.key;
+  // A new sort or search keeps the previous rows of the same folder.
+  const visible =
+    fresh || (snapshot.key != null && snapshot.scope === request.scope);
+  const items = visible ? snapshot.items : EMPTY_SNAPSHOT.items;
+  const folders = visible ? snapshot.folders : EMPTY_SNAPSHOT.folders;
+  const hasRows = items.length > 0 || folders.length > 0;
+  const status = readStatus({
+    enabled,
+    fresh,
+    visible,
+    hasRows,
+    pending,
+    failure,
+  });
+  const entries = useReusedEntries(folders, items, getId, getFile);
+  const nextCursor = fresh ? snapshot.nextCursor : null;
+  const searchScopes = options.searchScopes ?? NO_SCOPES;
+  const total = fresh && trimmedSearch ? snapshot.total : null;
+  const usage = visible ? snapshot.usage : null;
+  const error = fresh ? (failure?.error ?? null) : null;
+  const { uploadOptions } = options;
+  // The source methods the list offers: the hook's own wrappers, present
+  // while the source has the method.
+  const createFolderAction = options.createFolder ? createFolder : undefined;
+  const renameFileAction = options.renameFile ? renameFile : undefined;
+  const renameFolderAction = options.renameFolder ? renameFolder : undefined;
+  const moveEntriesAction =
+    movesFiles || movesFolders ? moveEntries : undefined;
+  const listFolderKeysAction = options.listFolderKeys
+    ? listFolderKeys
+    : undefined;
+  const deleteFolderAction = options.deleteFolder ? deleteFolder : undefined;
+
+  return useMemo(
+    () => ({
+      entries,
+      items,
+      folders,
+      trail,
+      parent,
+      sort,
+      search,
+      isSearching: trimmedSearch !== "",
+      searchScope,
+      searchScopes,
+      total,
+      usage,
+      error,
+      status,
+      isLoading: status === "loading",
+      isRefreshing: status === "refreshing",
+      isLoadingMore: status === "loading-more",
+      hasMore: nextCursor != null,
+      nextCursor,
+      loadMore,
+      refresh,
+      retry,
+      openFolder,
+      navigate,
+      goUp,
+      setSort: setSortValue,
+      setSearch: setSearchValue,
+      setSearchScope,
+      setItems,
+      setFolders,
+      removeItems,
+      getId,
+      getFile,
+      uploadOptions,
+      createFolder: createFolderAction,
+      renameFile: renameFileAction,
+      renameFolder: renameFolderAction,
+      listFolders,
+      canMove,
+      moveEntries: moveEntriesAction,
+      listFolderKeys: listFolderKeysAction,
+      deleteFolder: deleteFolderAction,
+    }),
+    [
+      entries,
+      items,
+      folders,
+      trail,
+      parent,
+      sort,
+      search,
+      trimmedSearch,
+      searchScope,
+      searchScopes,
+      total,
+      usage,
+      error,
+      status,
+      nextCursor,
+      loadMore,
+      refresh,
+      retry,
+      openFolder,
+      navigate,
+      goUp,
+      setSortValue,
+      setSearchValue,
+      setSearchScope,
+      setItems,
+      setFolders,
+      removeItems,
+      getId,
+      getFile,
+      uploadOptions,
+      createFolderAction,
+      renameFileAction,
+      renameFolderAction,
+      listFolders,
+      canMove,
+      moveEntriesAction,
+      listFolderKeysAction,
+      deleteFolderAction,
+    ],
+  );
+}
+
+/**
+ * Entries for `folders` and `items`. A folder or item that is the same
+ * object as last time keeps its entry, so rows and the selection see one
+ * object until that row changes. `getId` and `getFile` are pure: new
+ * functions alone, such as inline ones, rebuild nothing.
+ */
+function useReusedEntries<TItem>(
+  folders: readonly ObjectListFolder[],
+  items: readonly TItem[],
+  getId: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): readonly ObjectListEntry<TItem>[] {
+  const [cache, setCache] = useState<ObjectListEntryCache<TItem>>(() =>
+    reuseObjectListEntries(null, folders, items, getId, getFile),
+  );
+  if (cache.folders === folders && cache.items === items) return cache.entries;
+  // Adjusted during render, so the rows never draw the old entries.
+  const next = reuseObjectListEntries(cache, folders, items, getId, getFile);
+  setCache(next);
+  return next.entries;
+}
+
+function readStatus({
+  enabled,
+  fresh,
+  visible,
+  hasRows,
+  pending,
+  failure,
+}: {
+  enabled: boolean;
+  fresh: boolean;
+  visible: boolean;
+  hasRows: boolean;
+  pending: FetchMode | null;
+  failure: State<unknown>["failure"];
+}): ObjectListStatus {
+  if (!enabled) return "idle";
+  if (!fresh) return visible && hasRows ? "refreshing" : "loading";
+  if (pending === "append") return "loading-more";
+  if (pending === "replace") return "loading";
+  if (pending === "refresh") return hasRows ? "refreshing" : "loading";
+  return failure ? "error" : "ready";
+}
+
+/** A name sort or a search can drop or reorder the row that was renamed. */
+function namesNeedReload(request: Request): boolean {
+  return request.sort?.field === "name" || request.search !== "";
+}
+
+/**
+ * The folder that holds `entry`: where a search result lives, else the open
+ * folder. `undefined` for a search result that does not say.
+ */
+function currentFolderOf<TItem>(
+  entry: ObjectListEntry<TItem>,
+  open: string | null,
+  searching: boolean,
+): string | null | undefined {
+  if (entry.location) return entry.location.at(-1)?.id ?? null;
+  return searching ? undefined : open;
+}
+
+/** A trail entry: the id and name, without a search result's location. */
+function plainFolder(folder: ObjectListFolder): ObjectListFolder {
+  return { id: folder.id, name: folder.name };
+}
+
+function sortsEqual(a: ObjectListSort | null, b: ObjectListSort | null) {
+  return a === b || (a?.field === b?.field && a?.direction === b?.direction);
 }
 
 function trailsEqual(
@@ -72,251 +1094,14 @@ function trailsEqual(
   );
 }
 
+/** The trail up to `parent`. An unknown `parent` gets a one-folder trail. */
 function syncTrail(
   trail: readonly ObjectListFolder[],
   parent: string | null,
 ): readonly ObjectListFolder[] {
   if (parent == null) return [];
+  if (trail.at(-1)?.id === parent) return trail;
   const index = trail.findIndex((folder) => folder.id === parent);
   if (index >= 0) return trail.slice(0, index + 1);
   return [{ id: parent, name: parent }];
-}
-
-/**
- * Page through a folder catalog without knowing the backend.
- *
- * Pass `query`. It receives the current folder id, a cursor, and an abort
- * signal. `dbObjectQuery` from `@dimah-s3/db/client` is one adapter; a
- * route handler or in-memory list is another. The hook never calls S3.
- *
- * ```ts
- * const list = useObjectList({
- *   query: ({ parent, cursor, signal }) =>
- *     fetchFiles({ folderId: parent, cursor, signal }),
- *   queryKey: [route],
- * });
- * ```
- */
-export function useObjectList<TItem>(
-  options: UseObjectListOptions<TItem>,
-): UseObjectListReturn<TItem> {
-  const optionsRef = useLiveRef(options);
-  const controlled = options.parent !== undefined;
-  const enabled = options.enabled !== false;
-  const queryKey = serializeQueryKey(options.queryKey);
-
-  const [parentState, setParentState] = useState<string | null>(() => {
-    if (options.defaultParent !== undefined) return options.defaultParent;
-    return options.defaultTrail?.at(-1)?.id ?? null;
-  });
-  const parent = controlled ? (options.parent ?? null) : parentState;
-
-  const [trailState, setTrailState] = useState<readonly ObjectListFolder[]>(
-    () => {
-      const initial = options.defaultTrail ?? [];
-      if (options.parent !== undefined)
-        return syncTrail(initial, options.parent);
-      if (options.defaultParent !== undefined) {
-        return syncTrail(initial, options.defaultParent);
-      }
-      return initial;
-    },
-  );
-  const trail = useMemo(
-    () => (controlled ? syncTrail(trailState, parent) : trailState),
-    [controlled, trailState, parent],
-  );
-  const [items, setItems] = useState<readonly TItem[]>([]);
-  const [folders, setFolders] = useState<readonly ObjectListFolder[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [usage, setUsage] = useState<ObjectListUsage | null>(null);
-  const [error, setError] = useState<APIError | null>(null);
-  const [status, setStatus] = useState<Status>(enabled ? "loading" : "ready");
-
-  const parentRef = useLiveRef(parent);
-  const trailRef = useLiveRef(trail);
-  const cursorRef = useLiveRef(nextCursor);
-  const statusRef = useLiveRef(status);
-  const itemsRef = useLiveRef(items);
-  const foldersRef = useLiveRef(folders);
-  const abortRef = useRef<AbortController | null>(null);
-  const generationRef = useRef(0);
-
-  const applyPage = useCallback(
-    (page: ObjectListPage<TItem>, mode: FetchMode) => {
-      if (mode === "append") {
-        setItems((current) => [...current, ...page.items]);
-        if (page.usage) setUsage(page.usage);
-      } else {
-        setItems(page.items);
-        setFolders(page.folders ?? []);
-        setUsage(page.usage ?? null);
-      }
-      const cursor = page.nextCursor ? page.nextCursor : null;
-      cursorRef.current = cursor;
-      statusRef.current = "ready";
-      setNextCursor(cursor);
-      setError(null);
-      setStatus("ready");
-    },
-    [cursorRef, statusRef],
-  );
-
-  const run = useCallback(
-    async (mode: FetchMode) => {
-      if (optionsRef.current.enabled === false) return;
-
-      const cursor = mode === "append" ? cursorRef.current : null;
-      if (mode === "append") {
-        if (!cursor) return;
-        const current = statusRef.current;
-        if (
-          current === "loading" ||
-          current === "loading-more" ||
-          current === "refreshing"
-        ) {
-          return;
-        }
-      }
-
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      const generation = ++generationRef.current;
-      const requestParent = parentRef.current;
-      const hasRows =
-        itemsRef.current.length > 0 || foldersRef.current.length > 0;
-
-      if (mode === "replace") {
-        setItems([]);
-        setFolders([]);
-        setNextCursor(null);
-        setError(null);
-        statusRef.current = "loading";
-        setStatus("loading");
-      } else if (mode === "refresh") {
-        setError(null);
-        const nextStatus = hasRows ? "refreshing" : "loading";
-        statusRef.current = nextStatus;
-        setStatus(nextStatus);
-      } else {
-        statusRef.current = "loading-more";
-        setStatus("loading-more");
-      }
-
-      try {
-        const page = await optionsRef.current.query({
-          parent: requestParent,
-          cursor,
-          signal: controller.signal,
-        });
-        if (generation !== generationRef.current || controller.signal.aborted) {
-          return;
-        }
-        applyPage(page, mode);
-      } catch (err) {
-        if (
-          generation !== generationRef.current ||
-          controller.signal.aborted ||
-          isAbortError(err)
-        ) {
-          return;
-        }
-        setError(toHookError(err, "Could not load files"));
-        statusRef.current = "error";
-        setStatus("error");
-      }
-    },
-    [
-      abortRef,
-      applyPage,
-      cursorRef,
-      foldersRef,
-      generationRef,
-      itemsRef,
-      optionsRef,
-      parentRef,
-      statusRef,
-    ],
-  );
-
-  useEffect(() => {
-    if (!enabled) {
-      abortRef.current?.abort();
-      return;
-    }
-
-    let active = true;
-    void (async () => {
-      await Promise.resolve();
-      if (!active) return;
-      await run("replace");
-    })();
-    return () => {
-      active = false;
-      abortRef.current?.abort();
-    };
-  }, [abortRef, enabled, parent, queryKey, run]);
-
-  const navigate = useCallback(
-    (nextTrail: readonly ObjectListFolder[]) => {
-      const nextParent = nextTrail.at(-1)?.id ?? null;
-      if (
-        nextParent === parentRef.current &&
-        trailsEqual(nextTrail, trailRef.current)
-      ) {
-        return;
-      }
-      const previousParent = parentRef.current;
-      trailRef.current = nextTrail;
-      setTrailState(nextTrail);
-      if (optionsRef.current.parent === undefined) {
-        parentRef.current = nextParent;
-        setParentState(nextParent);
-      }
-      if (nextParent !== previousParent) {
-        cursorRef.current = null;
-        setItems([]);
-        setFolders([]);
-        setNextCursor(null);
-        setError(null);
-        statusRef.current = "loading";
-        setStatus("loading");
-      }
-      optionsRef.current.onParentChange?.(nextParent);
-    },
-    [cursorRef, optionsRef, parentRef, statusRef, trailRef],
-  );
-
-  const openFolder = useCallback(
-    (folder: ObjectListFolder) => {
-      const current = trailRef.current;
-      const index = current.findIndex((entry) => entry.id === folder.id);
-      const next =
-        index >= 0 ? current.slice(0, index + 1) : [...current, folder];
-      navigate(next);
-    },
-    [navigate, trailRef],
-  );
-
-  const loadMore = useCallback(() => run("append"), [run]);
-  const refresh = useCallback(() => run("refresh"), [run]);
-
-  return {
-    items,
-    folders,
-    trail,
-    parent,
-    nextCursor,
-    error,
-    isLoading: enabled && status === "loading",
-    isLoadingMore: enabled && status === "loading-more",
-    isRefreshing: enabled && status === "refreshing",
-    usage,
-    hasMore: nextCursor != null,
-    loadMore,
-    refresh,
-    openFolder,
-    navigate,
-  };
 }

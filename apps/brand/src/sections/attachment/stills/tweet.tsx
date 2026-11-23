@@ -27,30 +27,27 @@ export function AttachmentTweetStill() {
         }
       >
         <FileAttachment
-          size="default"
-          orientation="vertical"
+          className="w-30"
           state="done"
           fileName="quarterly-report.pdf"
-          fileType="application/pdf"
+          contentType="application/pdf"
           fileSize={2_400_000}
           onDismiss={() => undefined}
         />
         <FileAttachment
-          size="default"
-          orientation="vertical"
+          className="w-30"
           state="done"
           fileName="avatar.png"
-          fileType="image/png"
+          contentType="image/png"
           fileSize={180_000}
           previewUrl={PREVIEW}
           onDismiss={() => undefined}
         />
         <FileAttachment
-          size="default"
-          orientation="vertical"
+          className="w-30"
           state="done"
           fileName="budget.xlsx"
-          fileType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          contentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           fileSize={84_000}
           onDismiss={() => undefined}
         />

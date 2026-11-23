@@ -1,125 +1,536 @@
 ---
 title: useObjectList
-description: Headless hook that pages a folder catalog from any query you pass in.
+description: Page, search, sort, and select a folder catalog from any source, with folder uploads, renames, moves, deletes, and usage limits.
 ---
 
-`useObjectList` keeps the current folder, the breadcrumb, and cursor
-pagination. It does not know where the rows live and it does not call S3.
-You pass a `query` function.
+`useObjectList` keeps the open folder, the breadcrumb, cursor pages, search,
+and sort for a file browser. It never calls S3 and does not know where your
+rows live. You pass a **source**: a `query` that loads one page, `getId` for a
+stable row id, and `getFile` to read a row's name, object key, size, and type.
 
 ```tsx title="components/file-browser.tsx"
 "use client";
 
 import { useObjectList } from "@dimah-s3/react";
 
+type FileRow = { id: string; key: string; name: string; size: number };
+
 export function FileBrowser() {
-  const list = useObjectList({
-    query: ({ parent, cursor, signal }) =>
-      fetch(`/api/files?folder=${parent ?? ""}&cursor=${cursor ?? ""}`, {
-        signal,
-      }).then((response) => response.json()),
-    queryKey: ["files"],
+  const list = useObjectList<FileRow>({
+    query: ({ parent, cursor, sort, search, signal }) =>
+      fetchFiles({ folderId: parent, cursor, sort, search, signal }),
+    getId: (file) => file.id,
+    getFile: (file) => ({
+      name: file.name,
+      objectKey: file.key,
+      size: file.size,
+    }),
   });
 
   return (
     <ul>
-      {list.folders.map((folder) => (
-        <li key={folder.id}>
-          <button type="button" onClick={() => list.openFolder(folder)}>
-            {folder.name}
-          </button>
+      {list.entries.map((entry) => (
+        <li key={entry.key}>
+          {entry.kind === "folder" ? (
+            <button type="button" onClick={() => list.openFolder(entry.folder)}>
+              {entry.name}/
+            </button>
+          ) : (
+            entry.name
+          )}
         </li>
-      ))}
-      {list.items.map((file) => (
-        <li key={file.id}>{file.name}</li>
       ))}
     </ul>
   );
 }
 ```
 
-The query receives:
+For a ready-made file browser, pass the return value to
+[`ObjectList`](/docs/ui/components/object-list).
 
-- `parent` — folder id, or `null` at the root. The id is opaque. A database id, a path, or a key prefix are all valid.
-- `cursor` — `null` on the first page. Return `nextCursor: null` on the last page.
-- `signal` — aborted when the folder changes, `refresh()` runs, or the hook unmounts.
+## Entries and ids
 
-Return `folders` only from the first page. Later pages append `items`. Changing `queryKey` clears the list and loads the first page again. Use it for filters such as the route name.
+`entries` lists folders, then files. Each entry has a `kind`, a `key`, a
+`name`, and either `folder`, or `item` and `file`. `items` and `folders` hold
+the same rows apart.
 
-Omit `parent` and the hook owns navigation. Pass `parent` and `onParentChange` together when the URL owns it. `parent={null}` is the controlled root. `defaultTrail` labels the starting path. The last id should match `defaultParent`.
+Three ids are in play, each with one job:
+
+| Id               | Comes from                             | Used by                                                   |
+| ---------------- | -------------------------------------- | --------------------------------------------------------- |
+| `entry.id`       | `getId(item)`, your row id             | `removeItems(ids)`                                        |
+| `entry.key`      | The list: `file:<id>` or `folder:<id>` | React keys and selection                                  |
+| `file.objectKey` | `getFile(item)`                        | Download, Copy link, and Delete. Falls back to the row id |
+
+`getId` and `getFile` run once per item, so keep them pure. To change what a
+row shows, replace the item with `setItems`, or reload.
+
+## Query
+
+The query receives an [`ObjectListQueryInput`](#objectlistqueryinput) and
+resolves with one [`ObjectListPage`](#objectlistpage):
+
+- `parent` is the open folder id, or `null` at the root. The id is opaque: a database id, a path, or a key prefix.
+- `cursor` is `null` on the first page. Return `nextCursor: null` on the last page.
+- Return `folders` on the first page only. Later pages append `items`.
+- `signal` aborts when the folder, sort, search, or `queryKey` changes, when the list reloads, or when the hook unmounts.
+
+A first page can also return `trail`, the folders from the root down to
+`parent`. The breadcrumb then shows those names, which is how a deep link to a
+folder gets its labels. Leave it out and the hook keeps the trail it built
+while navigating.
+
+What a change does to the rows on screen:
+
+| Change                        | Rows on screen                                      |
+| ----------------------------- | --------------------------------------------------- |
+| Folder or `queryKey`          | Cleared. `status` is `loading` until the first page |
+| Sort, search, or search scope | Kept, with `isRefreshing`, until the new first page |
+
+Opening another folder also clears the search. Use `queryKey` for filters of
+your own, such as the route.
+
+A query that rejects sets `status` to `error`. Reject with an `APIError`; any
+other rejection becomes `UNKNOWN_ERROR` with the original as its `cause`.
+
+## Search
+
+`setSearch(text)` reloads the first page; debounce it yourself. The query
+receives the text trimmed, and what matches is up to the source.
+
+A source that can search past the open folder lists the scopes it
+understands in `searchScopes`:
+
+- `"folder"` (default) — the open folder and every folder below it.
+- `"all"` — every folder.
+
+At the root both cover everything. `setSearchScope` reloads the first page
+while a search is on.
+
+```ts
+const source: ObjectListSource<FileRow> = {
+  searchScopes: ["folder", "all"],
+  query: async ({ parent, cursor, search, searchScope, signal }) => {
+    const page = await fetchFiles({
+      folderId: search && searchScope === "all" ? null : parent,
+      recursive: search !== "",
+      cursor,
+      search,
+      signal,
+    });
+    return {
+      items: page.files,
+      folders: page.folders, // each with `location` while searching
+      nextCursor: page.nextCursor,
+      total: page.total, // files that match, across every page
+    };
+  },
+  getId: (file) => file.id,
+  getFile: (file) => ({
+    name: file.name,
+    objectKey: file.key,
+    location: file.location,
+  }),
+};
+```
+
+- **`location`** — the folders from the root down to the one that holds a result, root excluded. Set it on a folder, or on what `getFile` returns; the entry has it as `entry.location`. `openFolder` on a result with a `location` opens its whole path.
+- **`total`** — the first page's count of matching files across every page. `list.total` is `null` when the source sent none.
+
+## Usage and limits
+
+Return `usage` from a page when you know how full the catalog is:
+
+```ts
+return {
+  items,
+  nextCursor,
+  usage: {
+    totalBytes: 734_003_200,
+    objectCount: 120,
+    maxBytes: 1_073_741_824, // optional cap
+    maxFiles: 500, // optional cap
+  },
+};
+```
+
+`list.usage` keeps the totals from the latest page that sent them. A later
+page may leave `usage` out; a first page that leaves it out clears it. The
+caps are for display. The server still enforces its own quota.
+
+## Navigation
+
+Omit `parent` and the hook owns the folder. To let the URL own it, pass
+`parent` and `onParentChange` together. `parent={null}` is the controlled
+root, not the same as omitting it.
 
 ```tsx
 const list = useObjectList({
-  query,
+  ...source,
   parent: folderId,
   onParentChange: setFolderId,
 });
 ```
 
-`readObjectListLevel` splits a flat list into the folders and files at one level. `getFolder` returns a `/`-separated path, or `null` for the root. Pass the full set for that listing. A single page of a database query cannot be grouped after the fact. A paged tree returns `folders` from your own query. See [Folders](/docs/react/ui/components/object-list#folders).
+`sort`/`onSortChange`, `search`/`onSearchChange`, and
+`searchScope`/`onSearchScopeChange` work the same way. For uncontrolled
+starts, use `defaultParent`, `defaultTrail`, `defaultSort`, `defaultSearch`,
+and `defaultSearchScope`. The last id of `defaultTrail` should match the
+starting folder.
+
+- `openFolder(folder)` opens a child of the open folder, a folder of the trail, or a search result with a `location`.
+- `navigate(trail)` replaces the path. Pass `[]` for the root.
+- `goUp()` opens the parent folder. It does nothing at the root.
+
+## Loading and edits
+
+- `loadMore()` loads the next page. It is ignored while another request is in flight.
+- `refresh()` reloads every page on screen and swaps them in at once.
+- `retry()` repeats what failed: the next page, or the reload.
+- `setItems(updater)`, `setFolders(updater)`, and `removeItems(ids)` edit the loaded rows without a request. The next reload replaces them. `removeItems` takes `getId` values, not `entry.key`.
+
+## Folders, uploads, and renames
+
+A source can add these optional functions. The hook returns each one you set,
+and the UI turns on the matching action:
+
+| Source function                      | Turns on          | What to do                                                                                                                   |
+| ------------------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `uploadOptions(parent)`              | Drop on a folder  | Return the [request options](/docs/react/hooks/upload#request-options) for files uploaded into `parent` (`null` is the root) |
+| `createFolder({ parent, name })`     | New folder        | Create an empty folder and return `{ id, name }`                                                                             |
+| `renameFile({ item, name })`         | Rename on files   | Change the display name and return the updated item. The object key stays as you store it                                    |
+| `renameFolder({ folder, name })`     | Rename on folders | Return `{ id, name }`. Keep `id` when the folder's identity is its id                                                        |
+| `moveFile({ item, parent })`         | Move on files     | Put the file in folder `parent`. The object key stays as you store it                                                        |
+| `moveFolder({ folder, parent })`     | Move on folders   | Put the folder, with everything in it, in `parent`. Reject when `parent` is the folder or below it                           |
+| `listFolderKeys({ folder, signal })` | Files of a folder | Return the object keys in the folder and every folder below it                                                               |
+| `deleteFolder({ folder })`           | Delete on folders | Remove the folder and the folders below it once their files are gone. Reject while a file is inside                          |
 
 ```ts
-import { readObjectListLevel } from "@dimah-s3/react";
-
-const level = readObjectListLevel(records, {
-  parent,
-  getFolder: (record) => record.folder,
-});
+const source: ObjectListSource<FileRow> = {
+  query,
+  getId: (file) => file.id,
+  uploadOptions: (parent) => ({ clientMetadata: { folderId: parent ?? "" } }),
+  createFolder: async ({ parent, name }) => {
+    const folder = await api.createFolder({ parent, name });
+    return { id: folder.id, name: folder.name };
+  },
+};
 ```
 
-## With `db()`
+- `list.createFolder(name)` creates the folder in the open folder and adds it to the loaded folders. If the list moved to another folder meanwhile, it is not added. `list.createFolder(name, { parent })` creates it in another folder.
+- `list.renameFile(item, name)` and `list.renameFolder(folder, name)` replace the loaded row, and a folder rename updates the breadcrumb. The same name does nothing.
+- A name sort or a search reloads afterwards, and so does a rename the source returns nothing for, so the order stays right.
+- All three reject with an `APIError`.
 
-`dbObjectQuery` adapts `api.db.listObjects` for a flat catalog. `parent` is sent as the key `prefix`. The adapter does not invent folder rows: generated keys contain a uuid segment, so splitting the key is not a folder tree. `dbObjectListAccessors` maps each row onto `ObjectList`: row id, object key, filename, content type, and verified size.
+### Move and delete folders
 
-```tsx title="components/db-files.tsx"
-"use client";
+`list.moveEntries(entries, parent)` moves files and folders into `parent`
+(`null` is the root), one at a time. Moved entries leave the rows, then the
+list reloads once. It never rejects; it resolves with what moved and what
+failed:
 
-import {
-  dbClient,
-  dbObjectListAccessors,
-  dbObjectQuery,
-} from "@dimah-s3/db/client";
-import { createS3Client, useObjectList } from "@dimah-s3/react";
-import { ObjectList } from "@dimah-s3/ui";
-
-const s3Client = createS3Client({
-  basePath: "/api/s3",
-  plugins: [dbClient()],
-});
-
-export function DbFiles() {
-  const api = s3Client.useApi();
-  const list = useObjectList({
-    query: dbObjectQuery(api.db.listObjects, { route: "docs" }),
-    queryKey: ["docs"],
-  });
-  const files = dbObjectListAccessors();
-
-  return <ObjectList list={list} {...files} />;
+```ts
+const result = await list.moveEntries?.(selection.selected, folderId);
+for (const { entry, error } of result?.failed ?? []) {
+  console.warn(entry.name, error.code);
 }
 ```
 
-Scope still comes from the server `resolveScope`. The query does not accept a scope.
+- `list.canMove(entry)` says whether the source can move it. `canMove("folder")` asks about a kind.
+- Entries already in `parent` are left alone. A folder moved into itself fails with `FOLDER_INVALID`.
+- `list.listFolders(parent)` returns the folders inside any folder, for a folder picker.
 
-## UI
-
-[`ObjectList`](/docs/react/ui/components/object-list) renders this state. Pass `upload` on that component to drop or paste files into the open folder. Pass `usage` from the query and `usageLimits` on the component to show how full the catalog is. It does not call the hook. Skip it and render `list.items` yourself when you want different markup.
-
-## Props
+A folder delete takes two steps, because the files go through your
+[`useDelete`](/docs/react/hooks/delete) and its route's hooks:
 
 ```ts
-import type {
-  UseObjectListOptions,
-  UseObjectListReturn,
-} from "@dimah-s3/react";
+const remove = useDelete({ route: "files" });
+
+const keys = (await list.listFolderKeys?.(folder)) ?? [];
+const { deleted } = await remove.removeMany(keys);
+if (deleted.length === keys.length) await list.deleteFolder?.(folder);
 ```
 
-<AutoTypeTable
-  path="packages/react/src/list/types.ts"
-  name="UseObjectListOptions"
-/>
+`list.deleteFolder(folder)` drops the folder from the rows. When it is the
+open folder, or one above it, the folder that held it opens.
+[`ObjectList`](/docs/ui/components/object-list#delete) runs both steps after
+one confirmation.
 
-<AutoTypeTable
-  path="packages/react/src/hooks/use-object-list.ts"
-  name="UseObjectListReturn"
-/>
+With your own controls, pass `list.uploadOptions` to `useUpload` as
+[call options](/docs/react/hooks/upload#request-options): the open folder's on
+the dropzone, and each folder's on its row.
+
+```tsx
+const upload = useUpload({ route: "files", maxFiles: 20, append: true });
+
+<div
+  {...upload.getRootProps(undefined, () => ({
+    uploadOptions: list.uploadOptions?.(list.parent),
+  }))}
+>
+  <input {...upload.getInputProps()} />
+  {list.folders.map((folder) => (
+    <button
+      key={folder.id}
+      type="button"
+      onClick={() => list.openFolder(folder)}
+      {...upload.getDropTargetProps(undefined, () => ({
+        uploadOptions: list.uploadOptions?.(folder.id),
+      }))}
+    >
+      {folder.name}
+    </button>
+  ))}
+</div>;
+```
+
+`ObjectList` does this wiring for you when you pass it `upload`.
+
+## Sources
+
+### memoryObjectSource
+
+`memoryObjectSource(records, options)` from `@dimah-s3/react/engine` serves
+records you already hold. It builds folders from a `/`-separated path, then
+searches, sorts, and pages on the client. Pass a function as `records` to read
+the latest records on each request.
+
+```ts
+import { useObjectList } from "@dimah-s3/react";
+import { memoryObjectSource } from "@dimah-s3/react/engine";
+
+const source = memoryObjectSource(files, {
+  getId: (file) => file.id,
+  getFile: (file) => ({
+    name: file.name,
+    objectKey: file.key,
+    size: file.size,
+    updatedAt: file.updatedAt,
+  }),
+  getFolder: (file) => file.folder, // "Invoices/2026", or null for the root
+  pageSize: 50,
+  limits: { maxBytes: 1_073_741_824, maxFiles: 500 },
+});
+
+const list = useObjectList(source);
+```
+
+- **Search** ignores case, accents, and look-alike letters. `matches` replaces it for records. With `getFolder`, both search scopes work, matching folders come with the files, each result has its `location`, and the first page sends `total`.
+- **Sort** understands `name`, `size`, and `updatedAt`. Pass `sortValue` for other fields. Records without a value sort last.
+- **Usage** totals every record, not only the open folder. It is sent when `limits` is set, or with `usage: true`.
+- **Folder keys.** With `getFolder`, `listFolderKeys` names the records in a folder and below it. Add `deleteFolder`, `moveFile`, and the others that change your records yourself.
+
+`readObjectListLevel(records, { parent, getFolder })` is the folder step on
+its own: it splits a flat list into the folders and files at one level. Pass
+the full set for that listing; one page of a database query cannot be grouped
+after the fact.
+
+### dbObjectSource
+
+`dbObjectSource(api.db, options)` from `@dimah-s3/db/client` lists the rows of
+the [`db()`](/docs/db) plugin. Folders, rename, search, sort, and usage run on
+the server, and so do move and folder delete. See
+[Browser](/docs/db/api#browser) for its options.
+
+```tsx
+const api = s3Client.useApi();
+const list = useObjectList({
+  ...dbObjectSource(api.db, { route: "files" }),
+  queryKey: ["files"],
+});
+```
+
+## Selection
+
+`useObjectListSelection(list, options?)` adds checkbox state over the loaded
+entries. Draw your own checkboxes, or pass it to `ObjectList` as `selection`.
+
+```tsx
+const selection = useObjectListSelection(list, {
+  mode: "multiple",
+  isSelectable: (entry) => entry.kind === "file",
+  onSelectionChange: (selected) => console.log(selected.length),
+});
+
+selection.toggle(entry.key, { range: event.shiftKey });
+selection.selectAll();
+selection.selectedItems; // your records
+```
+
+By default files can be selected, and folders too when the list can delete or
+move them. The selection clears when the folder changes, unless you pass
+`persist: true`, as in a picker that collects files from several folders. Entries a reload or search no longer returns are
+dropped.
+
+## API Reference
+
+### Options
+
+The options are the source fields plus the navigation state.
+
+| Prop                  | Type                                                      | Default                 | Description                                                           |
+| --------------------- | --------------------------------------------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `query`               | `(input) => Promise<ObjectListPage>`                      | required                | Loads one page                                                        |
+| `getId`               | `(item) => string`                                        | required                | Stable row id, unique among the files of one listing                  |
+| `getFile`             | `(item) => ObjectListFile`                                | `{ name: getId(item) }` | Name, object key, and the other fields the UI shows. Keep it pure     |
+| `searchScopes`        | `readonly ("folder" \| "all")[]`                          | —                       | The search scopes the query understands                               |
+| `uploadOptions`       | `(parent) => UploadRequestOptions`                        | —                       | Request options for files uploaded into a folder                      |
+| `createFolder`        | `({ parent, name }) => Promise<ObjectListFolder>`         | —                       | Creates an empty folder                                               |
+| `renameFile`          | `({ item, name }) => Promise<TItem \| void>`              | —                       | Renames a file's display name                                         |
+| `renameFolder`        | `({ folder, name }) => Promise<ObjectListFolder \| void>` | —                       | Renames a folder                                                      |
+| `moveFile`            | `({ item, parent }) => Promise<void>`                     | —                       | Moves a file into a folder                                            |
+| `moveFolder`          | `({ folder, parent }) => Promise<void>`                   | —                       | Moves a folder into another                                           |
+| `listFolderKeys`      | `({ folder, signal }) => Promise<readonly string[]>`      | —                       | Object keys in a folder and below it                                  |
+| `deleteFolder`        | `({ folder }) => Promise<void>`                           | —                       | Removes a folder once its files are gone                              |
+| `parent`              | `string \| null`                                          | —                       | Controlled folder id. `null` is the controlled root                   |
+| `onParentChange`      | `(parent) => void`                                        | —                       | Runs when the folder changes                                          |
+| `defaultParent`       | `string \| null`                                          | —                       | Uncontrolled starting folder                                          |
+| `defaultTrail`        | `readonly ObjectListFolder[]`                             | —                       | Starting path, root excluded. Labels the breadcrumb                   |
+| `sort`                | `ObjectListSort \| null`                                  | —                       | Controlled order, `{ field, direction }`. `null` is source order      |
+| `onSortChange`        | `(sort) => void`                                          | —                       | Runs when the order changes                                           |
+| `defaultSort`         | `ObjectListSort \| null`                                  | `null`                  | Uncontrolled starting order                                           |
+| `search`              | `string`                                                  | —                       | Controlled search text                                                |
+| `onSearchChange`      | `(search) => void`                                        | —                       | Runs when the search text changes                                     |
+| `defaultSearch`       | `string`                                                  | `""`                    | Uncontrolled starting search text                                     |
+| `searchScope`         | `"folder" \| "all"`                                       | —                       | Controlled search scope                                               |
+| `onSearchScopeChange` | `(scope) => void`                                         | —                       | Runs when the search scope changes                                    |
+| `defaultSearchScope`  | `"folder" \| "all"`                                       | `"folder"`              | Uncontrolled starting search scope                                    |
+| `queryKey`            | `readonly unknown[]`                                      | —                       | Extra identity for the first page, such as a route. JSON-serializable |
+| `enabled`             | `boolean`                                                 | `true`                  | `false` stops fetching                                                |
+
+### Return
+
+| Property         | Type                                                                  | Description                                                                      |
+| ---------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `entries`        | `readonly ObjectListEntry[]`                                          | Folders, then files                                                              |
+| `items`          | `readonly TItem[]`                                                    | The loaded files                                                                 |
+| `folders`        | `readonly ObjectListFolder[]`                                         | Child folders from the latest first page                                         |
+| `trail`          | `readonly ObjectListFolder[]`                                         | Path from the root, root excluded                                                |
+| `parent`         | `string \| null`                                                      | Open folder id. `null` is the root                                               |
+| `sort`           | `ObjectListSort \| null`                                              | Current order                                                                    |
+| `search`         | `string`                                                              | Search text as typed                                                             |
+| `isSearching`    | `boolean`                                                             | `true` while the query receives search text                                      |
+| `searchScope`    | `"folder" \| "all"`                                                   | Where a search looks                                                             |
+| `searchScopes`   | `readonly ("folder" \| "all")[]`                                      | What the source declared, or `[]`                                                |
+| `total`          | `number \| null`                                                      | Files that match the search across every page                                    |
+| `usage`          | `ObjectListUsageData \| null`                                         | Totals from the latest page that sent them. Built-in sources count every record  |
+| `status`         | `ObjectListStatus`                                                    | `"idle"`, `"loading"`, `"refreshing"`, `"loading-more"`, `"ready"`, or `"error"` |
+| `error`          | `APIError \| null`                                                    | The last failure. Rows that loaded before stay                                   |
+| `isLoading`      | `boolean`                                                             | The first page is in flight and there is nothing to show                         |
+| `isRefreshing`   | `boolean`                                                             | A reload, sort, or search is in flight. Rows stay                                |
+| `isLoadingMore`  | `boolean`                                                             | A later page is in flight                                                        |
+| `hasMore`        | `boolean`                                                             | There is a next page                                                             |
+| `nextCursor`     | `string \| null`                                                      | Cursor of the next page                                                          |
+| `loadMore`       | `() => Promise<void>`                                                 | Loads the next page                                                              |
+| `refresh`        | `() => Promise<void>`                                                 | Reloads every page loaded so far                                                 |
+| `retry`          | `() => Promise<void>`                                                 | Repeats the request that failed                                                  |
+| `openFolder`     | `(folder) => void`                                                    | Opens a folder and loads its first page                                          |
+| `navigate`       | `(trail) => void`                                                     | Replaces the path                                                                |
+| `goUp`           | `() => void`                                                          | Opens the parent folder                                                          |
+| `setSort`        | `(sort) => void`                                                      | Changes the order                                                                |
+| `setSearch`      | `(search) => void`                                                    | Changes the search text                                                          |
+| `setSearchScope` | `(scope) => void`                                                     | Changes where a search looks                                                     |
+| `setItems`       | `(items \| updater) => void`                                          | Edits the loaded files without a request                                         |
+| `setFolders`     | `(folders \| updater) => void`                                        | Edits the loaded folders without a request                                       |
+| `removeItems`    | `(ids) => void`                                                       | Drops loaded files by `getId`                                                    |
+| `getId`          | `(item) => string`                                                    | The `getId` option                                                               |
+| `getFile`        | `(item) => ObjectListFile`                                            | The `getFile` option, or its default                                             |
+| `uploadOptions`  | `((parent) => UploadRequestOptions) \| undefined`                     | Set when the source has `uploadOptions`                                          |
+| `createFolder`   | `((name, { parent? }?) => Promise<ObjectListFolder>) \| undefined`    | Set when the source has `createFolder`                                           |
+| `renameFile`     | `((item, name) => Promise<TItem \| void>) \| undefined`               | Set when the source has `renameFile`                                             |
+| `renameFolder`   | `((folder, name) => Promise<ObjectListFolder \| void>) \| undefined`  | Set when the source has `renameFolder`                                           |
+| `listFolders`    | `(parent, { signal? }?) => Promise<readonly ObjectListFolder[]>`      | The folders inside `parent`, from the source's first page there                  |
+| `canMove`        | `(entry \| kind) => boolean`                                          | Whether `moveEntries` can move it                                                |
+| `moveEntries`    | `((entries, parent) => Promise<ObjectListMoveResult>) \| undefined`   | Set when the source has `moveFile` or `moveFolder`                               |
+| `listFolderKeys` | `((folder, { signal? }?) => Promise<readonly string[]>) \| undefined` | Set when the source has `listFolderKeys`                                         |
+| `deleteFolder`   | `((folder) => Promise<void>) \| undefined`                            | Set when the source has `deleteFolder`                                           |
+
+### ObjectListMoveResult
+
+| Property | Type                                    | Description               |
+| -------- | --------------------------------------- | ------------------------- |
+| `moved`  | `readonly ObjectListEntry[]`            | Entries the source moved  |
+| `failed` | `readonly { entry, error: APIError }[]` | Entries it could not move |
+
+### ObjectListQueryInput
+
+| Property      | Type                     | Description                                                      |
+| ------------- | ------------------------ | ---------------------------------------------------------------- |
+| `parent`      | `string \| null`         | Open folder id. `null` is the root                               |
+| `cursor`      | `string \| null`         | Cursor from the previous page. `null` on the first page          |
+| `sort`        | `ObjectListSort \| null` | Requested order. `null` leaves it to the source                  |
+| `search`      | `string`                 | Trimmed search text. `""` when nothing is searched               |
+| `searchScope` | `"folder" \| "all"`      | Where `search` looks. Only means something while `search` is set |
+| `signal`      | `AbortSignal`            | Aborts when the request is no longer needed                      |
+
+### ObjectListPage
+
+| Property      | Type                          | Description                                                             |
+| ------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `items`       | `readonly TItem[]`            | The files of this page                                                  |
+| `folders?`    | `readonly ObjectListFolder[]` | Child folders. Read from the first page only                            |
+| `trail?`      | `readonly ObjectListFolder[]` | Folders from the root down to `parent`, for the breadcrumb              |
+| `nextCursor?` | `string \| null`              | `null` or omitted on the last page                                      |
+| `usage?`      | `ObjectListUsageData`         | `{ totalBytes, objectCount, maxBytes?, maxFiles? }`                     |
+| `total?`      | `number`                      | Files that match the search across every page. Read from the first page |
+
+### ObjectListFile
+
+Only `name` is required. The rest fills the default row, tile, menu, and bulk
+actions.
+
+| Property       | Type                                  | Description                                                 |
+| -------------- | ------------------------------------- | ----------------------------------------------------------- |
+| `name`         | `string`                              | Label and accessible name                                   |
+| `objectKey?`   | `string \| null`                      | Stored S3 object key. Falls back to the row id              |
+| `size?`        | `number \| null`                      | Size in bytes                                               |
+| `contentType?` | `string \| null`                      | MIME type. Picks the icon when the name has no extension    |
+| `updatedAt?`   | `Date \| string \| number \| null`    | Last change: a `Date`, an ISO string, or epoch milliseconds |
+| `previewUrl?`  | `string \| null`                      | Image thumbnail                                             |
+| `location?`    | `readonly ObjectListFolder[] \| null` | Where a search result lives, root excluded                  |
+
+`ObjectListFolder` is `{ id, name, location?, size?, objectCount? }`. `size` is the bytes in that folder and the folders below it, and `objectCount` is the file count. `memoryObjectSource` and `dbObjectSource` set both. Omit them when the source does not know.
+
+### memoryObjectSource options
+
+| Prop        | Type                                                     | Default                            | Description                                                                                  |
+| ----------- | -------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| `getId`     | `(item) => string`                                       | required                           | Stable id for a record                                                                       |
+| `getFile`   | `(item) => ObjectListFile`                               | required                           | Name, object key, size, type, and date for a record                                          |
+| `getFolder` | `(item) => string \| null \| undefined`                  | —                                  | `/`-separated folder path, or `null` for the root. Omit it and every record sits at the root |
+| `pageSize`  | `number`                                                 | `50`                               | Files per page                                                                               |
+| `usage`     | `boolean`                                                | `true` with `limits`, else `false` | Send `usage` with each page                                                                  |
+| `limits`    | `{ maxBytes?, maxFiles? }`                               | —                                  | Caps sent as `usage.maxBytes` and `usage.maxFiles`                                           |
+| `matches`   | `(item, search) => boolean`                              | —                                  | Whether a record matches the search text                                                     |
+| `sortValue` | `(item, field) => string \| number \| null \| undefined` | —                                  | Value to sort by for a field other than `name`, `size`, and `updatedAt`                      |
+
+### useObjectListSelection options
+
+| Prop                | Type                     | Default      | Description                                                                   |
+| ------------------- | ------------------------ | ------------ | ----------------------------------------------------------------------------- |
+| `mode`              | `"single" \| "multiple"` | `"multiple"` | `"single"` keeps at most one entry                                            |
+| `isSelectable`      | `(entry) => boolean`     | See below    | Which entries can be selected. Files, and folders the list can delete or move |
+| `persist`           | `boolean`                | `false`      | Keep the selection when the folder changes                                    |
+| `onSelectionChange` | `(selected) => void`     | —            | Runs when the selected entries change, including when they clear              |
+
+### useObjectListSelection return
+
+| Property          | Type                                 | Description                                                                              |
+| ----------------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `selected`        | `readonly ObjectListEntry[]`         | Selected entries, in the order they were selected                                        |
+| `selectedKeys`    | `ReadonlySet<string>`                | `entry.key` of each selected entry                                                       |
+| `selectedItems`   | `readonly TItem[]`                   | Your records                                                                             |
+| `selectedFolders` | `readonly ObjectListFolder[]`        | Selected folders                                                                         |
+| `count`           | `number`                             | How many entries are selected                                                            |
+| `isSelecting`     | `boolean`                            | At least one entry is selected                                                           |
+| `allSelected`     | `boolean`                            | Every selectable loaded entry is selected                                                |
+| `selectableCount` | `number`                             | Loaded entries that can be selected                                                      |
+| `mode`            | `"single" \| "multiple"`             | The `mode` option                                                                        |
+| `persist`         | `boolean`                            | The `persist` option                                                                     |
+| `isSelected`      | `(key) => boolean`                   | Whether an entry is selected                                                             |
+| `canSelect`       | `(entry) => boolean`                 | Whether an entry can be selected                                                         |
+| `toggle`          | `(key, { range?, value? }?) => void` | Flips one entry, or sets it with `value`. `range` applies it from the last toggled entry |
+| `select`          | `(keys) => void`                     | Adds loaded entries. In `single` mode the last key wins                                  |
+| `deselect`        | `(keys) => void`                     | Removes entries                                                                          |
+| `selectAll`       | `() => void`                         | Selects every selectable loaded entry. Ignored in `single` mode                          |
+| `clear`           | `() => void`                         | Clears the selection                                                                     |

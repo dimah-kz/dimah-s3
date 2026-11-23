@@ -11,15 +11,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1159.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
     "@base-ui/react": "^1.9.0",
+    "@dimah-s3/core": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
     "@dimah-s3/ui": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
     "class-variance-authority": "^0.7.1",
-    "cn": "^0.5.0",
-    "lucide-react": "^1.63.0",
+    "cn": "^0.5.2",
+    "lucide-react": "^1.78.0",
     "next": "catalog:",
     "next-themes": "^0.4.6",
     "react": "catalog:",
@@ -34,7 +35,6 @@
     "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "babel-plugin-react-compiler": "1.0.0",
     "eslint": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"

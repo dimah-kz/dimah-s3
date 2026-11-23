@@ -1,161 +1,195 @@
 import { AbortMultipartUploadCommand, type S3Client } from "@aws-sdk/client-s3";
-import type { DimahS3PluginHooks } from "@dimah-s3/server";
-import { forbidden, unauthorized } from "@/errors";
+import { s3Error } from "@dimah-s3/core";
 import type {
-  DimahS3DbClient,
-  StorageObjectStore,
-} from "@/store/storage-object-store";
-import type { ScopeContext, ScopeResolver } from "@/types/storage-object";
-import {
-  createObjectAccessGuard,
-  resolveStore,
-} from "@/hooks/create-object-access-guard";
-import { memoizeScopeResolver } from "./memoize-scope-resolver";
+  ObjectContext,
+  RouteGuardContext,
+  S3Operation,
+  UploadGuardContext,
+} from "@dimah-s3/server";
+import type { DimahS3PluginHooks } from "@dimah-s3/server/plugins";
+import { DB_FOLDER_ID_KEY } from "@/constants";
+import type { DbStore } from "@/store/create-db-store";
+import { isUploading, type ObjectRef } from "@/store/object-store";
+import type { ScopeOperation } from "@/types/plugin";
+import type { StorageFolder, StorageObject } from "@/types/storage-object";
+import type { AccessTarget, ObjectAccess } from "./object-access";
+import type { Quota } from "./quota";
+import type { ScopeResolver } from "./scope";
 
-const DEFAULT_PENDING_TTL_MS = 24 * 60 * 60 * 1000;
-
-export type CreateDatabaseLifecycleHooksOptions = {
-  client: DimahS3DbClient | StorageObjectStore;
-  resolveScope: ScopeResolver;
-  pendingTtlMs?: number;
-  deleteMode?: "soft" | "hard";
-  /**
-   * S3 client for a route. Deleting a pending multipart row aborts its
-   * upload through this client.
-   */
-  s3Client?: (route: string) => S3Client | undefined;
+/** What the hooks read from the dimah-s3 config, once `init` has run. */
+export type DbRoutes = {
+  /** False when the route sets `plugins: { db: false }`. */
+  tracked: (route: string) => boolean;
+  /** The route's `plugins.db.replace`. */
+  replace: (route: string) => "overwrite" | undefined;
+  /** S3 client of the route. */
+  client: (route: string) => S3Client | undefined;
 };
 
+export type CreateDatabaseLifecycleHooksOptions<TSession, TAttributes> = {
+  store: Pick<DbStore<TAttributes>, "objects" | "folders">;
+  resolveScope: ScopeResolver<TSession>;
+  access: ObjectAccess<TSession, TAttributes>;
+  quota: Quota<TSession>;
+  /** @default "soft" */
+  deleteMode?: "soft" | "hard";
+  routes: DbRoutes;
+};
+
+/** Scope operation of each server operation that can carry an upload ticket. */
+const TICKET_OPERATIONS: Partial<Record<S3Operation, ScopeOperation>> = {
+  upload: "upload",
+  "multipart.init": "upload",
+  confirm: "confirm",
+  "multipart.signPart": "multipart",
+  "multipart.listParts": "multipart",
+  "multipart.complete": "multipart",
+  "multipart.abort": "multipart",
+};
+
+/** The `(bucket, key)` of a hook context. */
+function refOf(context: ObjectContext): ObjectRef {
+  return { bucket: context.bucket, key: context.key };
+}
+
+/** What a hook on one object checks access for. */
+function objectTarget(
+  context: ObjectContext,
+  operation: ScopeOperation,
+): AccessTarget {
+  return { operation, route: context.route, key: context.key };
+}
+
+/** The folder id an upload asks for. `""` and a missing value are the root. */
+function requestedFolderId(
+  metadata: Record<string, string> | undefined,
+): string | null {
+  const value = metadata?.[DB_FOLDER_ID_KEY] ?? "";
+  return value === "" ? null : value;
+}
+
+/** True while the row is the one `uploadToken`'s upload wrote. */
+function writtenBy<T>(
+  object: StorageObject<T> | null,
+  uploadToken: string,
+): object is StorageObject<T> {
+  return object !== null && object.uploadToken === uploadToken;
+}
+
 /**
- * Internal lifecycle hooks for the `db` plugin.
- * Keep the `storage_object` table in sync with S3 and enforce scope ownership.
+ * True once the row describes the bytes of `uploadToken`'s upload: that
+ * upload confirmed it, or the row is active with the same ETag. The second
+ * case is a retried confirm after a later overwrite started: the overwrite
+ * replaced the row's token, but the object at the key still carries this
+ * upload's marker (the server checked it), so the row still describes it.
  */
-export function createDatabaseLifecycleHooks(
-  options: CreateDatabaseLifecycleHooksOptions,
-): {
-  objects: StorageObjectStore;
-  hooks: DimahS3PluginHooks;
-  resolveScope: ScopeResolver;
-} {
-  const objects = resolveStore(options.client);
-  const pendingTtlMs = options.pendingTtlMs ?? DEFAULT_PENDING_TTL_MS;
+function confirmedBy<T>(
+  object: StorageObject<T> | null,
+  uploadToken: string,
+  eTag?: string,
+): boolean {
+  if (object?.status !== "active") return false;
+  if (object.uploadToken === uploadToken && !isUploading(object)) return true;
+  return (
+    eTag !== undefined && object.confirmedAt !== null && object.eTag === eTag
+  );
+}
+
+/**
+ * The `db` plugin's server hooks. They keep `storage_object` in step with
+ * S3 and check that every call acts on rows of its own scope:
+ *
+ * - `ticketSubject` binds upload tickets to the scope.
+ * - `upload.guard` checks the folder, ownership of the key, `authorize`
+ *   (with the object an overwrite replaces), and the quota; `onStart` writes
+ *   the pending row, then retains its folder. An overwrite leaves the active row in
+ *   place until it is confirmed.
+ * - `confirmGuard` and `multipart.guard` accept only the row of the ticket's
+ *   upload, or a confirm it already finished; `onConfirmed` checks the quota
+ *   against the verified size, marks the row active, and retires the row of
+ *   the `previousKey` the server deletes next.
+ * - `onRejected` removes the row of an upload the server refused, whose
+ *   object it deleted.
+ * - `download.guard` and `delete.guard` check ownership; `onDeleted` aborts a
+ *   multipart upload in flight and deletes the row. Deleting a deleted row
+ *   again succeeds, like a plain delete.
+ */
+export function createDatabaseLifecycleHooks<TSession, TAttributes>(
+  options: CreateDatabaseLifecycleHooksOptions<TSession, TAttributes>,
+): DimahS3PluginHooks {
+  const { objects, folders } = options.store;
+  const { access, quota, resolveScope, routes } = options;
   const deleteMode = options.deleteMode ?? "soft";
-  const resolveScope = memoizeScopeResolver(options.resolveScope);
 
-  async function requireScope(
-    request: Request,
-    context: ScopeContext,
-  ): Promise<string> {
-    const scope = await resolveScope(request, context);
-    if (scope === null) throw unauthorized();
-    return scope;
-  }
+  const removeRow = (ref: ObjectRef) =>
+    deleteMode === "hard" ? objects.hardDelete(ref) : objects.softDelete(ref);
 
-  function uploadScope(context: {
-    request: Request;
-    route: string;
-    key: string;
-    clientMetadata?: Record<string, string>;
-  }): Promise<string> {
-    return requireScope(context.request, {
-      operation: "upload",
-      route: context.route,
-      key: context.key,
+  /**
+   * The row of the ticket's upload, checked for ownership. A row that is
+   * missing, deleted, purging, or taken by another upload is
+   * `OBJECT_NOT_FOUND`. With an `eTag`, a row the upload already confirmed
+   * passes too, so a retried confirm or complete gets through.
+   */
+  const assertUploadRow = async (
+    context: ObjectContext & { uploadToken: string },
+    operation: ScopeOperation,
+    replay?: { eTag?: string },
+  ) => {
+    const { object } = await access.object(
+      context,
+      objectTarget(context, operation),
+      refOf(context),
+    );
+    const { uploadToken } = context;
+    const live =
+      (writtenBy(object, uploadToken) && isUploading(object)) ||
+      (replay !== undefined && confirmedBy(object, uploadToken, replay.eTag));
+    if (!live) throw s3Error("OBJECT_NOT_FOUND");
+  };
+
+  /**
+   * What an upload writes to: the row at its key, and the access target. An
+   * overwrite keeps the active row's folder, so that folder is the target.
+   * A new upload's folder must already exist.
+   */
+  const uploadWrite = async (context: UploadGuardContext) => {
+    const existing = await objects.find(refOf(context));
+    const replaced =
+      existing?.status === "active" &&
+      routes.replace(context.route) === "overwrite"
+        ? existing
+        : null;
+    const folderId = replaced
+      ? replaced.folderId
+      : requestedFolderId(context.clientMetadata);
+    const scope = await resolveScope(context, objectTarget(context, "upload"));
+    let folder: StorageFolder | null = null;
+    if (folderId !== null) {
+      folder = await folders.find(scope.scope, folderId);
+      if (!folder && !replaced) throw s3Error("FOLDER_NOT_FOUND");
+    }
+    const target: AccessTarget = {
+      ...objectTarget(context, "upload"),
+      folderId,
       clientMetadata: context.clientMetadata,
-    });
-  }
+      ...(folder
+        ? { folder: folder.path }
+        : folderId === null
+          ? { folder: null }
+          : {}),
+    };
+    return { target, existing, replaced, folder };
+  };
 
-  async function guardKeyOwnership(context: {
-    request: Request;
-    route: string;
-    bucket: string;
-    key: string;
-    clientMetadata?: Record<string, string>;
-  }): Promise<void> {
-    const scope = await uploadScope(context);
-    const existing = await objects.find({
-      bucket: context.bucket,
-      key: context.key,
-    });
-    if (existing && existing.status !== "deleted" && existing.scope !== scope) {
-      throw forbidden("Key belongs to another scope");
-    }
-  }
-
-  async function trackPending(context: {
-    request: Request;
-    route: string;
-    bucket: string;
-    key: string;
-    file: { name: string; size?: number; type?: string };
-    metadata?: Record<string, string>;
-    clientMetadata?: Record<string, string>;
-    acl?: string;
-    uploadId?: string;
-    replace?: "overwrite";
-  }): Promise<void> {
-    const scope = await uploadScope(context);
-    if (context.replace === "overwrite") {
-      const existing = await objects.find({
-        bucket: context.bucket,
-        key: context.key,
-      });
-      if (existing?.status === "active" && existing.scope === scope) {
-        return;
-      }
-    }
-    await objects.upsertPending({
-      scope,
-      bucket: context.bucket,
-      key: context.key,
-      route: context.route,
-      contentType: context.file.type ?? null,
-      declaredSize: context.file.size ?? null,
-      metadata: context.metadata ?? null,
-      acl: context.acl ?? null,
-      filename: context.file.name,
-      uploadId: context.uploadId ?? null,
-      expiresAt: new Date(Date.now() + pendingTtlMs),
-    });
-  }
-
-  async function trackConfirmed(context: {
-    bucket: string;
-    key: string;
-    contentLength: number;
-    eTag?: string;
-    contentType?: string;
-    acl?: string;
-    fileName?: string;
-    metadata?: Record<string, string>;
-  }): Promise<void> {
-    await objects.markActive({
-      bucket: context.bucket,
-      key: context.key,
-      size: context.contentLength,
-      eTag: context.eTag ?? null,
-      contentType: context.contentType,
-      acl: context.acl,
-      filename: context.fileName,
-      metadata: context.metadata,
-    });
-  }
-
-  /** Delete is idempotent, so the row may be a pending multipart upload. */
-  async function abortPendingMultipart(context: {
-    route: string;
-    bucket: string;
-    key: string;
-  }): Promise<void> {
-    const row = await objects.find({
-      bucket: context.bucket,
-      key: context.key,
-    });
-    if (row?.status !== "pending" || !row.uploadId) return;
-    const s3 = options.s3Client?.(context.route);
-    if (!s3) return;
+  /** Aborts the multipart upload in flight on the row. Best-effort. */
+  const abortPendingMultipart = async (
+    context: ObjectContext,
+    row: StorageObject<TAttributes> | null,
+  ) => {
+    const client = routes.client(context.route);
+    if (!row || !isUploading(row) || !row.uploadId || !client) return;
     try {
-      await s3.send(
+      await client.send(
         new AbortMultipartUploadCommand({
           Bucket: context.bucket,
           Key: context.key,
@@ -163,76 +197,178 @@ export function createDatabaseLifecycleHooks(
         }),
       );
     } catch {
-      // Best-effort, like the purge job. A lifecycle rule catches the rest.
+      // The upload may be gone already; purge and S3 lifecycle rules catch the rest.
     }
-  }
-
-  const guardOptions = { client: objects, resolveScope };
-  const pendingObjectGuard = createObjectAccessGuard({
-    ...guardOptions,
-    operation: "confirm",
-    requireStatus: "pending",
-  });
-  const ownedObjectConfirmGuard = createObjectAccessGuard({
-    ...guardOptions,
-    operation: "confirm",
-    requireStatus: "any",
-  });
-  const multipartSessionGuard = createObjectAccessGuard({
-    ...guardOptions,
-    operation: "multipart",
-    requireStatus: "pending",
-    requireUploadId: true,
-  });
-  const activeObjectGuard = createObjectAccessGuard({
-    ...guardOptions,
-    operation: "download",
-    requireStatus: "active",
-  });
-  const ownedObjectDeleteGuard = createObjectAccessGuard({
-    ...guardOptions,
-    operation: "delete",
-    requireStatus: "any",
-  });
+  };
 
   return {
-    objects,
-    resolveScope,
-    hooks: {
-      upload: {
-        guard: guardKeyOwnership,
-        onPresigned: trackPending,
-        confirmGuard: async (context) => {
-          if (context.replace === "overwrite") {
-            await ownedObjectConfirmGuard(context);
+    async ticketSubject(context: RouteGuardContext) {
+      const operation = TICKET_OPERATIONS[context.operation];
+      if (!operation || !routes.tracked(context.route)) return undefined;
+      const { scope } = await resolveScope(context, {
+        operation,
+        route: context.route,
+      });
+      return scope;
+    },
+
+    upload: {
+      async guard(context) {
+        const { target, existing, replaced } = await uploadWrite(context);
+        let scope;
+        if (replaced) {
+          // `authorize` sees the object the upload replaces. The key is the
+          // server's choice, so naming its owner reveals nothing.
+          scope = await resolveScope(context, target);
+          if (replaced.scope !== scope.scope) throw s3Error("FORBIDDEN");
+          await access.assertOwner(scope, replaced, target);
+        } else {
+          scope = await access.scope(context, target);
+          if (existing && existing.status !== "deleted") {
+            if (existing.scope !== scope.scope) throw s3Error("FORBIDDEN");
+            // Purge is cleaning the key up; a retry after it finishes succeeds.
+            if (existing.status === "purging") throw s3Error("CONFLICT");
+            if (existing.status === "active") throw s3Error("OBJECT_EXISTS");
+          }
+        }
+        await quota.assert(scope, {
+          size: context.file.size,
+          excluding: refOf(context),
+        });
+      },
+
+      async onStart(context) {
+        const written = await uploadWrite(context);
+        const { scope } = await resolveScope(context, written.target);
+        await objects.upsertPending({
+          ...refOf(context),
+          scope,
+          route: context.route,
+          folderId: written.target.folderId ?? null,
+          name: context.file.name,
+          contentType: context.file.type ?? null,
+          declaredSize: context.file.size,
+          acl: context.acl,
+          uploadId: context.uploadId ?? null,
+          uploadToken: context.uploadToken,
+          expiresAt: context.expiresAt,
+          overwrite: routes.replace(context.route) === "overwrite",
+        });
+        // After the row, so a folder delete in between sees it or is undone.
+        if (written.folder) await folders.retain(written.folder);
+      },
+
+      async confirmGuard(context) {
+        await assertUploadRow(context, "confirm", {
+          eTag: context.object.eTag,
+        });
+      },
+
+      async onConfirmed(context) {
+        const ref = refOf(context);
+        const row = await objects.find(ref);
+        // A replay: the row already describes this object.
+        if (confirmedBy(row, context.uploadToken, context.object.eTag)) return;
+
+        const scope = await resolveScope(
+          context,
+          objectTarget(context, "confirm"),
+        );
+        // Over the quota, the server deletes the object, and `onRejected`
+        // removes the row.
+        await quota.assert(scope, {
+          size: context.object.size,
+          excluding: ref,
+        });
+        await objects.markActive({
+          ...ref,
+          uploadToken: context.uploadToken,
+          size: context.object.size,
+          eTag: context.object.eTag ?? null,
+          contentType: context.object.type,
+          name: context.object.name,
+          s3Metadata: context.object.metadata,
+          acl: context.acl,
+        });
+
+        // The server deletes the previous key next; its row goes first.
+        if (context.previousKey !== undefined) {
+          const previous = { bucket: context.bucket, key: context.previousKey };
+          const old = await objects.find(previous);
+          if (old?.status === "active" && old.scope === scope.scope) {
+            await removeRow(previous);
+          }
+        }
+      },
+
+      async onRejected(context) {
+        // The server deleted the object: a size, type, or content mismatch,
+        // a `confirmGuard` that refused it, or the quota. The row of this
+        // upload goes with it, also an active row it was overwriting, whose
+        // previous bytes the upload already replaced.
+        await objects.discardUpload({
+          ...refOf(context),
+          uploadToken: context.uploadToken,
+        });
+      },
+
+      multipart: {
+        async guard(context) {
+          if (context.operation !== "multipart.abort") {
+            await assertUploadRow(
+              context,
+              "multipart",
+              // Complete is retried after it finished; the confirm step then
+              // checks the ETag of what it finished.
+              context.operation === "multipart.complete" ? {} : undefined,
+            );
             return;
           }
-          await pendingObjectGuard(context);
+          // Abort accepts an expired ticket, so the row may be purged or
+          // replaced. The abort touches only this upload, and onAbort
+          // changes only this upload's row, so only that row is checked.
+          const row = await objects.find(refOf(context));
+          if (!writtenBy(row, context.uploadToken)) return;
+          const target = objectTarget(context, "multipart");
+          const scope = await resolveScope(context, target);
+          await access.assertOwner(scope, row, target);
         },
-        onConfirmed: trackConfirmed,
-        multipart: {
-          onInit: trackPending,
-          guard: multipartSessionGuard,
-          onAbort: async (context) => {
-            await objects.deletePending({
-              bucket: context.bucket,
-              key: context.key,
-              uploadId: context.uploadId,
-            });
-          },
+
+        async onAbort(context) {
+          await objects.cancelUpload({
+            ...refOf(context),
+            uploadToken: context.uploadToken,
+          });
         },
       },
-      download: {
-        guard: activeObjectGuard,
+    },
+
+    download: {
+      async guard(context) {
+        const { object } = await access.object(
+          context,
+          objectTarget(context, "download"),
+          refOf(context),
+        );
+        if (object.status !== "active") throw s3Error("OBJECT_NOT_FOUND");
       },
-      delete: {
-        guard: ownedObjectDeleteGuard,
-        onDeleted: async (context) => {
-          if (!context.existed) await abortPendingMultipart(context);
-          const ref = { bucket: context.bucket, key: context.key };
-          if (deleteMode === "hard") await objects.hardDelete(ref);
-          else await objects.softDelete(ref);
-        },
+    },
+
+    delete: {
+      async guard(context) {
+        // A deleted row of the caller's scope deletes again, as a no-op.
+        await access.object(
+          context,
+          objectTarget(context, "delete"),
+          refOf(context),
+          { allowDeleted: true },
+        );
+      },
+
+      async onDeleted(context) {
+        const ref = refOf(context);
+        await abortPendingMultipart(context, await objects.find(ref));
+        await removeRow(ref);
       },
     },
   };

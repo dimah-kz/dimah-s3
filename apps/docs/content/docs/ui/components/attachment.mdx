@@ -1,0 +1,241 @@
+---
+title: Attachment
+description: File cards, status rows, progress rings, and file type glyphs for building your own upload, download, and delete UI.
+---
+
+import { AttachmentPlaygroundPreview } from "@/components/demos/attachment-playground-preview";
+import { AttachmentStatesDemo } from "@/components/demos/attachment-states-demo";
+import { AttachmentGlyphsDemo } from "@/components/demos/attachment-glyphs-demo";
+
+The building blocks the other components render. `FileAttachment` is the card
+of one file; `StatusAttachment` is a row for a result with no single file.
+Both build on [shadcn Attachment](https://ui.shadcn.com/docs/components/attachment).
+Use them when you render files yourself.
+
+<AttachmentPlaygroundPreview />
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import { FileAttachment, StatusAttachment } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/file-attachment
+```
+
+The files land in `components/dimah-s3/attachment/`, such as
+`@/components/dimah-s3/attachment/file-attachment`.
+
+</Tab>
+
+</Tabs>
+
+<include>../../../_includes/ui/component-prereq.mdx</include>
+
+## Usage
+
+`UploadStatus`, `UploadFileList`, `UploadFieldValue`, and `ObjectCard` already
+render these cards. Reach for them when you render a file yourself, such as in
+a compact upload list:
+
+```tsx
+"use client";
+
+import { FileAttachment, UploadFileList } from "@dimah-s3/ui";
+
+export function CompactFiles() {
+  return (
+    <UploadFileList className="flex-row flex-wrap">
+      {(file) => (
+        <FileAttachment
+          className="w-32"
+          state={
+            file.phase === "success"
+              ? "done"
+              : file.phase === "error"
+                ? "error"
+                : "uploading"
+          }
+          fileName={file.fileName}
+          fileSize={file.fileSize}
+          contentType={file.contentType}
+          previewUrl={file.previewUrl}
+          percent={file.progress.percent}
+          error={file.error}
+        />
+      )}
+    </UploadFileList>
+  );
+}
+```
+
+`UploadFileList` goes inside [`Upload`](/docs/ui/components/upload).
+`UploadFileItem` maps every phase and adds cancel for you.
+
+## Examples
+
+### Every state
+
+`FileAttachment` in each state, and `StatusAttachment` for a result that has
+no single file.
+
+<DemoPreview name="attachment-states-demo.tsx">
+  <AttachmentStatesDemo />
+</DemoPreview>
+
+### Glyphs and progress
+
+`FileTypeGlyph` picks a colored glyph from the content type, else the
+extension. `FolderGlyph` is the folder of the object list, and
+`CircleProgress` the ring a card shows while its file uploads.
+
+<DemoPreview name="attachment-glyphs-demo.tsx">
+  <AttachmentGlyphsDemo />
+</DemoPreview>
+
+## States
+
+| `state`      | Shows                              | Actions available      |
+| ------------ | ---------------------------------- | ---------------------- |
+| `idle`       | Queued, with the ring at `percent` | `onCancel`             |
+| `uploading`  | The ring at `percent`              | `onCancel`             |
+| `processing` | A spinner                          | `onCancel`             |
+| `done`       | The size, or `description`         | `onDismiss`            |
+| `error`      | The error text                     | `onRetry`, `onDismiss` |
+
+Each callback adds its action only in the states above. Retry takes the place
+of cancel, so focus stays on the same button when a file goes back in flight.
+
+## Layout
+
+Set the width with `className`. The card is a size container: below a 9rem
+content width, such as `w-32`, the media stacks above the text; wider, it is a
+row. `StatusAttachment` is always a row and fills its parent.
+
+Wrap several cards in `AttachmentGroup` for a horizontal, scrolling row.
+
+## Actions and triggers
+
+`actions` takes your own `AttachmentAction`s, placed before the built-in ones.
+`trigger` takes an `AttachmentTrigger` that makes the whole card one control,
+such as opening the file.
+
+```tsx
+<FileAttachment
+  state="done"
+  fileName={file.name}
+  fileSize={file.size}
+  trigger={
+    <AttachmentTrigger aria-label={`Open ${file.name}`} onClick={open} />
+  }
+  actions={
+    <AttachmentAction aria-label={`Share ${file.name}`} onClick={share}>
+      <Share2Icon />
+    </AttachmentAction>
+  }
+/>
+```
+
+Give the trigger and each icon action an accessible name.
+
+## Building blocks
+
+| Export                    | Renders                                                                   |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `CircleProgress`          | A progress ring with `role="progressbar"`, named `Progress for {name}`    |
+| `FileName`                | A name that shortens to fit and keeps the extension: `report-for-q….pdf`  |
+| `FileTypeGlyph`           | A colored glyph for the file type, from the content type or the extension |
+| `FolderGlyph`             | The folder glyph of the object list                                       |
+| `DismissAttachmentAction` | The dismiss icon button                                                   |
+| `AttachmentGroup`         | A horizontal, scrolling group of cards                                    |
+| `AttachmentAction`        | An icon button in the card's actions                                      |
+| `AttachmentTrigger`       | A button over the whole card, or the element its `render` prop returns    |
+
+The last three render shadcn Attachment parts. From npm their props are
+`AttachmentGroupProps`, `AttachmentActionProps`, and `AttachmentTriggerProps`;
+with the registry, import them from `@/components/ui/attachment`.
+
+For chrome these do not cover, compose shadcn Attachment with the hooks. See
+[Custom UI](/docs/ui/custom-ui).
+
+## API Reference
+
+### FileAttachment
+
+Also accepts every `div` prop except `children`.
+
+| Prop            | Type                         | Default       | Description                                           |
+| --------------- | ---------------------------- | ------------- | ----------------------------------------------------- |
+| `state`         | `AttachmentState`            | required      | `idle`, `uploading`, `processing`, `done`, or `error` |
+| `fileName`      | `string`                     | required      | The title                                             |
+| `fileSize`      | `number \| null`             | —             | Size in bytes                                         |
+| `contentType`   | `string \| null`             | —             | MIME type. Picks the glyph without a preview          |
+| `previewUrl`    | `string \| null`             | —             | Image thumbnail in place of the glyph                 |
+| `percent`       | `number`                     | `0`           | Ring progress from 0 to 100                           |
+| `description`   | `ReactNode`                  | Size or error | Replaces the second line                              |
+| `error`         | `string \| APIError \| null` | —             | Error shown in the `error` state                      |
+| `onCancel`      | `() => void`                 | —             | Adds cancel while queued or in flight                 |
+| `onRetry`       | `() => void`                 | —             | Adds retry in the `error` state                       |
+| `retryDisabled` | `boolean`                    | `false`       | Keeps retry focusable but `aria-disabled`             |
+| `onDismiss`     | `() => void`                 | —             | Adds dismiss once `done` or `error`                   |
+| `actions`       | `ReactNode`                  | —             | Your own controls, before cancel and dismiss          |
+| `trigger`       | `ReactNode`                  | —             | An `AttachmentTrigger` over the whole card            |
+
+### StatusAttachment
+
+Also accepts every `div` prop except `children` and `title`.
+
+| Prop          | Type              | Default    | Description                       |
+| ------------- | ----------------- | ---------- | --------------------------------- |
+| `state`       | `AttachmentState` | required   | Picks the state icon              |
+| `title`       | `ReactNode`       | —          | The title                         |
+| `description` | `ReactNode`       | —          | The second line                   |
+| `media`       | `ReactNode`       | State icon | Replaces the icon                 |
+| `actions`     | `ReactNode`       | —          | Your own controls, before dismiss |
+| `onDismiss`   | `() => void`      | —          | Adds a dismiss action             |
+
+### CircleProgress
+
+| Prop          | Type     | Default    | Description                                  |
+| ------------- | -------- | ---------- | -------------------------------------------- |
+| `percent`     | `number` | required   | Progress from 0 to 100                       |
+| `fileName`    | `string` | —          | Names the ring `Progress for {fileName}`     |
+| `label`       | `string` | —          | Accessible name. Required without `fileName` |
+| `strokeWidth` | `number` | `2.5`      | Ring thickness in a 20 by 20 box             |
+| `className`   | `string` | `"size-5"` | Sets the size                                |
+
+### FileName
+
+Also accepts every `span` prop except `children`.
+
+| Prop        | Type      | Default  | Description                                      |
+| ----------- | --------- | -------- | ------------------------------------------------ |
+| `name`      | `string`  | required | The file name                                    |
+| `extension` | `boolean` | `true`   | Keeps a short extension visible. Off for folders |
+| `highlight` | `string`  | —        | Search text to mark in the name                  |
+
+### FileTypeGlyph
+
+| Prop          | Type               | Default  | Description                                   |
+| ------------- | ------------------ | -------- | --------------------------------------------- |
+| `fileName`    | `string`           | required | Picks the glyph by extension                  |
+| `contentType` | `string \| null`   | —        | MIME type. Wins over the extension when known |
+| `layout`      | `"fill" \| "icon"` | `"fill"` | Fills a media box, or a fixed icon for lists  |
+| `className`   | `string`           | —        | Classes for the glyph                         |
+
+### DismissAttachmentAction
+
+| Prop        | Type         | Default     | Description     |
+| ----------- | ------------ | ----------- | --------------- |
+| `onDismiss` | `() => void` | required    | Runs on click   |
+| `label`     | `string`     | `"Dismiss"` | Accessible name |
+| `className` | `string`     | —           | Classes         |

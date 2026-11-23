@@ -3,7 +3,7 @@
 Standalone app starters for **end users**, snapshotted into `@dimah-s3/cli` at build time.
 
 ```bash
-npx @dimah-s3/cli@latest create my-app
+npx @dimah-s3/cli create my-app
 ```
 
 | Role                    | Path              | Consumes                                                         |
@@ -15,16 +15,16 @@ Framework twin: `nextjs` ↔ `with-nextjs`. Keep shared app source in sync (`pnp
 
 Do **not** treat these as library packages. They are outside the pnpm workspace. Starters must install cleanly with concrete npm ranges only (no `catalog:`, `workspace:*`, or `@workspace/*`).
 
-Each starter ships a local `pnpm-workspace.yaml` for pnpm 11 `allowBuilds` and `minimumReleaseAgeExclude` on `@dimah-s3/*`. Lockfiles stay gitignored and are excluded from the CLI snapshot — users get a fresh lock on `create` install.
+Each starter ships a `pnpm-workspace.yaml` with pnpm settings only: `allowBuilds`, and `minimumReleaseAgeExclude` on `@dimah-s3/*` and `react-dropzone` (a same-day dependency of `@dimah-s3/react`). `create` removes the file when the app uses another package manager. Starter lockfiles are ignored by the root `.gitignore` and excluded from the CLI snapshot, so `create` writes a fresh lockfile, which the app commits: a starter's own `.gitignore` never lists one. Each starter's `AGENTS.md` ships with the app.
 
 ## Maintenance (repo root)
 
-| Script                  | What it does                                                                                          |
-| ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/` (rewrites ranges; lockfiles stay local / gitignored) |
-| `pnpm templates:build`  | `pnpm install` + `build` + `check-types` smoke test per template                                      |
-| `pnpm examples:drift`   | Assert shared app source matches between `templates/<id>` and `examples/with-<id>`                    |
-| `pnpm deps:update`      | Workspace `pnpm -r update --latest`, then `templates:update`                                          |
+| Script                  | What it does                                                                                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm templates:update` | `pnpm update --latest` in each `templates/<id>/`. On a prerelease CLI, then pins `@dimah-s3/*` to the exact npm `beta` version. Lockfiles stay local |
+| `pnpm templates:build`  | `pnpm install` + `build` + `check-types` smoke test per template                                                                                     |
+| `pnpm examples:drift`   | Assert shared app source matches between `templates/<id>` and `examples/with-<id>`                                                                   |
+| `pnpm deps:update`      | Workspace `pnpm -r update --latest`, then `templates:update`                                                                                         |
 
 Filter by id: `pnpm templates:build -- nextjs` / `pnpm templates:update -- vite hono`.
 
@@ -39,13 +39,13 @@ Day-to-day library work still belongs in `examples/*` (`workspace:*`). Use these
 | `hono`   | Hono      | Hono API + Vite React; `start` serves API + static |
 
 ```bash
-npx @dimah-s3/cli@latest create my-app --template vite
+npx @dimah-s3/cli create my-app --template vite
 ```
 
 ## Adding a template
 
 1. Create `templates/<id>/` as a self-contained app (concrete npm ranges only).
-2. Pin `@dimah-s3/*` to published semver ranges (e.g. `^0.4.1`) — the CLI snapshot rewrites them to `^<cliVersion>` on build.
+2. Pin `@dimah-s3/*` to a concrete npm range — the CLI snapshot rewrites them to `^<cliVersion>` on build, or to the exact version when the CLI is a prerelease.
 3. Add the id to [`catalog.json`](./catalog.json).
 4. If the starter needs a monorepo demo, add `examples/with-<id>/` (`workspace:*`) and run `pnpm examples:drift`. Next.js is the only twin today; Vite and Hono stay template-only.
 5. Document the create one-liner in the template `README.md` and docs Quickstart.

@@ -9,40 +9,40 @@ packages:
 
 catalog:
   typescript: 7.0.2
-  eslint: ^10.13.0
+  eslint: ^10.15.0
   "@eslint/js": ^10.0.1
-  "@next/eslint-plugin-next": ^16.4.3
+  "@next/eslint-plugin-next": ^16.4.6
   "@vitest/eslint-plugin": ^1.6.28
   eslint-config-prettier: ^10.1.8
-  eslint-plugin-import-x: ^4.17.1
+  eslint-plugin-import-x: ^4.18.1
   eslint-plugin-jsx-a11y: ^6.10.2
   eslint-plugin-react: ^7.37.5
   eslint-plugin-react-hooks: ^7.1.1
-  eslint-plugin-regexp: ^3.3.1
-  eslint-plugin-turbo: ^2.11.10
-  eslint-plugin-unicorn: ^79.0.0
-  globals: ^17.13.0
-  typescript-eslint: ^8.72.1
-  prettier: ^3.9.10
-  prettier-plugin-packagejson: ^3.0.3
+  eslint-plugin-regexp: ^3.3.3
+  eslint-plugin-turbo: ^2.11.13
+  eslint-plugin-unicorn: ^80.0.0
+  globals: ^17.14.0
+  typescript-eslint: ^8.73.0
+  prettier: ^3.10.1
+  prettier-plugin-packagejson: ^3.1.0
   prettier-plugin-tailwindcss: ^0.8.1
   sherif: ^1.13.0
   tegami: ^1.5.0
-  turbo: ^2.11.10
-  tsc-alias: ^1.9.9
+  turbo: ^2.11.13
+  tsc-alias: ^1.9.10
   tsup: ^9.0.0
-  vitest: ^5.0.5
+  vitest: ^5.1.1
   react: ^19.3.1
   react-dom: ^19.3.1
   "@types/node": ^26.6.6
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
-  next: 16.4.3
+  next: 16.4.6
   zod: ^4.6.7
-  better-call: 1.4.4
+  better-call: 1.4.6
   "@better-fetch/fetch": 1.3.3
-  tailwindcss: ^4.3.3
-  "@tailwindcss/postcss": ^4.3.3
+  tailwindcss: ^4.3.5
+  "@tailwindcss/postcss": ^4.3.5
 
 allowBuilds:
   better-sqlite3: true
@@ -52,7 +52,7 @@ allowBuilds:
   unrs-resolver: true
 
 # pnpm 12 default is 1440; keep it explicit so minimumReleaseAgeExclude is meaningful.
-minimumReleaseAge: 1440
+minimumReleaseAge: 0
 minimumReleaseAgeExclude:
   - "@rolldown/binding-openharmony-arm64@1.2.8"
   - zod@4.6.1

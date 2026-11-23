@@ -1,14 +1,23 @@
-/** Canonical origin for the 1.x docs. Preview deploys still use VERCEL_URL. */
-export const PRODUCTION_SITE_ORIGIN = "https://v1.s3.dimah.dev";
+/** Canonical origin for these docs. 1.x docs are at https://v1.s3.dimah.dev. */
+export const PRODUCTION_SITE_ORIGIN = "https://s3.dimah.dev";
 
 export function isProductionDeploy(): boolean {
   return process.env.VERCEL_ENV === "production";
 }
 
 /**
+ * Public docs.
+ * Production uses PRODUCTION_SITE_ORIGIN. A build of the `main` branch does too,
+ * including when Vercel marks that deployment as Preview.
+ */
+export function isPublicDocsDeploy(): boolean {
+  return isProductionDeploy() || process.env.VERCEL_GIT_COMMIT_REF === "main";
+}
+
+/**
  * Canonical site origin for metadata, OG images, and absolute URLs.
  *
- * Production always uses PRODUCTION_SITE_ORIGIN so a stale
+ * The public docs always use PRODUCTION_SITE_ORIGIN so a stale
  * NEXT_PUBLIC_SITE_URL or Vercel primary domain cannot rewrite canonicals.
  *
  * Otherwise:
@@ -17,7 +26,7 @@ export function isProductionDeploy(): boolean {
  * 3. http://localhost:3000 — local dev
  */
 export function getSiteUrl(): URL {
-  if (isProductionDeploy()) {
+  if (isPublicDocsDeploy()) {
     return new URL(PRODUCTION_SITE_ORIGIN);
   }
 

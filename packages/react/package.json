@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/react",
-  "version": "1.7.2",
+  "version": "2.0.0-beta.14",
   "description": "Headless React hooks for presigned S3 file uploads, downloads, and deletes",
   "keywords": [
     "s3",
@@ -23,7 +23,7 @@
     "headless",
     "typescript"
   ],
-  "homepage": "https://v1.s3.dimah.dev/docs/react",
+  "homepage": "https://s3.dimah.dev/docs/react",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -32,6 +32,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/react"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -44,25 +45,25 @@
     "./engine": {
       "types": "./dist/engine.d.ts",
       "default": "./dist/engine.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
+    "build": "pnpm compile:translations && tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "pnpm compile:translations && tsc --noEmit",
     "compile:translations": "node ./scripts/compile-translations.mjs",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
-    "@dimah-s3/core": "workspace:*",
-    "@fuma-translate/react": "^1.0.2",
-    "immer": "^11.2.9",
-    "react-dropzone": "^20.1.4"
+    "react-dropzone": "^20.2.1"
   },
   "devDependencies": {
+    "@dimah-s3/core": "workspace:*",
+    "@fuma-translate/react": "^1.0.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@workspace/eslint-config": "workspace:*",
@@ -71,7 +72,7 @@
     "@workspace/vitest-config": "workspace:*",
     "eslint": "catalog:",
     "fuma-translate": "^1.0.2",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.1",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tsc-alias": "catalog:",
@@ -80,8 +81,12 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
+    "@dimah-s3/core": "2.0.0-beta.14",
     "@fuma-translate/react": "^1.0.2",
-    "react": ">=18"
+    "react": "^19.2.0"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

@@ -4,9 +4,10 @@
 
      @import "@dimah-s3/ui/styles.css";
 
-   To theme dimah-s3 independently, override `--color-dimah-s3-*` after this
-   import (see css/shadcn.css). Stock shadcn primitives (`Button`,
-   `Attachment`, …) keep using your app `--primary` / `--card` tokens.
+   To theme dimah-s3 on its own, override the `--dimah-s3-*` tokens after
+   this import, on `:root` or on any container (see css/shadcn.css). Stock
+   shadcn primitives (`Button`, `Attachment`, …) keep using your app
+   `--primary` / `--card` tokens.
 */
 @import "./css/shadcn.css";
 

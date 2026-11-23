@@ -8,17 +8,20 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
     bucket: "b",
     key: "k",
     route: "uploads",
+    folderId: "docs",
+    name: "a.txt",
     contentType: "text/plain",
     size: 10n,
+    declaredSize: null,
     eTag: "abc",
-    filename: "a.txt",
     status: "active",
-    metadata: { x: 1 },
+    s3Metadata: { label: "x" },
+    attributes: { starred: true },
     acl: "private",
     uploadId: null,
-    declaredSize: 20n,
-    confirmedAt: new Date("2024-01-01T00:00:00.000Z"),
+    uploadToken: "token",
     expiresAt: null,
+    confirmedAt: new Date("2024-01-01T00:00:00.000Z"),
     createdAt: new Date("2024-01-01T00:00:00.000Z"),
     updatedAt: new Date("2024-01-01T00:00:00.000Z"),
     deletedAt: null,
@@ -27,16 +30,27 @@ function row(overrides: Partial<StorageObjectRow> = {}): StorageObjectRow {
 }
 
 describe("mapStorageObjectRow", () => {
-  it("converts bigint sizes to numbers", () => {
-    const mapped = mapStorageObjectRow(row());
-    expect(mapped.size).toBe(10);
-    expect(mapped.declaredSize).toBe(20);
-    expect(mapped.status).toBe("active");
+  it("reads the bigint sizes as numbers", () => {
+    const mapped = mapStorageObjectRow(
+      row({ size: 5497558138880n, declaredSize: 5497558138880n }),
+    );
+    expect(mapped.size).toBe(5497558138880);
+    expect(mapped.declaredSize).toBe(5497558138880);
   });
 
-  it("normalizes null metadata", () => {
-    expect(
-      mapStorageObjectRow(row({ metadata: null, size: null })).metadata,
-    ).toBeNull();
+  it("keeps the JSON columns and normalizes missing ones to null", () => {
+    expect(mapStorageObjectRow<{ starred: boolean }>(row())).toMatchObject({
+      folderId: "docs",
+      s3Metadata: { label: "x" },
+      attributes: { starred: true },
+    });
+    const empty = mapStorageObjectRow(
+      row({ s3Metadata: undefined, attributes: undefined, size: null }),
+    );
+    expect(empty).toMatchObject({
+      s3Metadata: null,
+      attributes: null,
+      size: null,
+    });
   });
 });

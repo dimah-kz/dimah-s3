@@ -6,8 +6,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "paths": {
-      "@/*": ["./src/*"],
-      "fumadb/cuid": ["./node_modules/@paralleldrive/cuid2"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

@@ -1,0 +1,137 @@
+---
+title: Installation
+description: Install @dimah-s3/ui from npm or the shadcn registry, add the stylesheet, and mount the Toaster.
+icon: Download
+---
+
+You need React 19.2, Tailwind CSS v4, a project set up with
+[shadcn](https://ui.shadcn.com/docs/installation), and the
+[React client](/docs/react/setup): the components render inside `S3Provider`.
+
+### Install the components [step]
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```npm
+npm i @dimah-s3/ui @dimah-s3/core @dimah-s3/react @fuma-translate/react @base-ui/react class-variance-authority cn lucide-react shadcn tw-animate-css
+```
+
+Keep the `@dimah-s3/*` packages on the same version. The package bundles its
+own primitives, so it works with any shadcn style.
+
+</Tab>
+
+<Tab value="shadcn">
+
+Add the dimah-s3 registry to `components.json`:
+
+<include>../../_includes/ui/index.mdx#registry-config</include>
+
+Then add an item. Each component page names its item.
+
+```npm
+npx shadcn@latest add @dimah-s3/upload
+```
+
+The source lands in `components/dimah-s3/`; import from there instead of
+`@dimah-s3/ui`.
+
+<Callout type="warn" title="Needs a Base UI style">
+  The copied code uses your own shadcn primitives with [Base
+  UI](https://base-ui.com) props such as `render`. In a Radix style project it
+  does not type-check: use the npm package there.
+</Callout>
+
+</Tab>
+
+</Tabs>
+
+### Add the stylesheet [step]
+
+npm only. Import it after Tailwind, `tw-animate-css`, and `shadcn/tailwind.css`:
+
+<include>../../_includes/ui/index.mdx#styles</include>
+
+The registry writes the same styles into your CSS when you add an item.
+
+### Mount the Toaster [step]
+
+Components report progress and results as toasts. Mount one `<Toaster />`
+next to `S3Provider`:
+
+```tsx title="app/layout.tsx"
+import { Toaster } from "@dimah-s3/ui"; // [!code ++]
+import { S3Provider } from "@/lib/s3-client";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <S3Provider>{children}</S3Provider>
+        <Toaster /> {/* [!code ++] */}
+      </body>
+    </html>
+  );
+}
+```
+
+With the registry, import it from `@/components/ui/toast`.
+
+`limit` (default `3`) caps the toasts shown at once, and `timeout` (default
+`5000` ms, `0` to keep them open) sets how long a result stays. Show your own
+toasts in the same stack with `toast`:
+
+```tsx
+import { toast } from "@dimah-s3/ui";
+
+toast.add({
+  type: "error",
+  title: "Could not save",
+  action: { label: "Retry", onClick: save },
+});
+```
+
+### Render a component [step]
+
+```tsx title="components/attachments.tsx"
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { Upload, UploadDropzone, UploadToasts } from "@dimah-s3/ui";
+
+export function Attachments() {
+  const upload = useUpload({ route: "attachments", maxFiles: 5, append: true });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadDropzone />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+`route` is the name of a [route on your server](/docs/server/routes).
+
+## Next steps
+
+<Cards>
+  <Card
+    title="Upload"
+    href="/docs/ui/components/upload"
+    description="Buttons, dropzones, paste, and progress."
+  />
+  <Card
+    title="Theming"
+    href="/docs/ui/theming"
+    description="Change the component colors without changing your app."
+  />
+</Cards>

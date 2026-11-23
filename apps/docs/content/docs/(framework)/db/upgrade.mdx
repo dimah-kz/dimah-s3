@@ -1,0 +1,117 @@
+---
+title: Upgrade the Schema
+description: Move a 1.x or earlier 2.x database to schema 2.3.0, the only one @dimah-s3/db reads, by creating new tables and recording your objects.
+---
+
+`@dimah-s3/db` reads schema `2.3.0` only, and does not upgrade a 1.x or
+earlier 2.x database. Create the tables on a new database, then record the
+objects already in your bucket.
+
+### Create the tables on a new database [step]
+
+Follow [Setup](/docs/db/setup#create-the-tables-step) with a new, empty
+database.
+
+<Callout type="warn" title="Do not diff the old database">
+  An ORM diff from a database at another version can drop columns, and it cannot
+  fill the columns the new schema requires for the rows already there.
+</Callout>
+
+### Create the folders [step]
+
+Create each folder with `s3.db.folders.create`, parents before children,
+and keep the ids it returns. Objects store a `folderId`, not a path:
+
+```ts title="scripts/import.ts"
+// `oldFolders` is your own query on the old database, parents first.
+const folderIds = new Map<string, string>(); // old path → new id
+
+for (const folder of oldFolders) {
+  const created = await s3.db.folders.create(`user:${folder.userId}`, {
+    parentId: folderIds.get(folder.parentPath) ?? null,
+    name: folder.name,
+  });
+  folderIds.set(folder.path, created.id);
+}
+```
+
+The scope is the string your `resolveScope` returns for the folder's owner.
+
+### Record the objects [step]
+
+The objects stay where they are in the bucket: only the rows are new. Write
+each one into the new database with
+[`s3.db.record`](/docs/db/api#recording-an-object), which reads its size,
+type, and ETag with HeadObject:
+
+```ts title="scripts/import.ts"
+// `oldRows` is your own query on the old database.
+for (const row of oldRows) {
+  const locals = { userId: row.userId }; // what your guards and resolveScope read
+  await s3.db.record(
+    {
+      route: row.route,
+      key: row.key, // must sit inside the route's keyPrefix
+      name: row.fileName,
+      folderId: folderIds.get(row.folderPath) ?? null,
+    },
+    { locals },
+  );
+}
+```
+
+- `record` runs your guards, `resolveScope`, `authorize`, the route's
+  `fileTypes` and `maxFileSize`, and the quota. Pass the `locals` (or a
+  `request`) that resolve to each object's owner.
+- A key outside the route's `keyPrefix` is `KEY_INVALID`. Record it through
+  a route whose namespace holds it.
+- Recording the same bytes again returns the same row, so this loop can run
+  again after a failure.
+- Leave out rows that were pending or deleted in the old database.
+- With an `attributes.schema`, set app data with
+  `s3.db.objects.update(ref, { attributes })`.
+
+### Check the schema [step]
+
+```ts
+await s3.db.checkSchema();
+```
+
+Call it at startup. It throws unless the database is at `2.3.0` and both
+tables can be read.
+
+## Code that reads the tables
+
+`s3.db.objects` and `s3.db.folders` return plain rows, with numbers for
+sizes. Code that queries the tables itself sees the generated types:
+
+- The display name of an object is `name`, and the ETag column is `etag`.
+- `size` and `declaredSize` are `bigint` in JavaScript, not `number`.
+  `JSON.stringify` throws on a `bigint`, and so does arithmetic with a
+  `number`. Convert with `Number(row.size)`.
+- `status` is a `string`, and `s3Metadata` is `unknown`.
+- `id` has no default. The plugin generates ids, so a row you insert
+  yourself needs one.
+- On PostgreSQL and MySQL the timestamp columns have no time zone. Every
+  adapter reads and writes them in UTC.
+- `searchName` is the name folded for search and the name sort. A rename
+  you write through the ORM leaves it on the old name: rename through
+  `s3.db.objects.update` or `s3.db.folders.update`.
+- `storage_folder.path` caches the names from the root down, and the plugin
+  rewrites it on a rename or move. Do not write it yourself.
+- The Prisma models are `storageObject` and `storageFolder`.
+
+## Next steps
+
+<Cards>
+  <Card
+    title="Upgrade to 2.0"
+    href="/docs/migration-2-0"
+    description="The code changes in every package, with a final checklist."
+  />
+  <Card
+    title="Purge Stale Uploads"
+    href="/docs/db/purge"
+    description="Schedule the cleanup of uploads that never confirmed."
+  />
+</Cards>

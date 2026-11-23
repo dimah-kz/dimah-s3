@@ -1,64 +1,39 @@
-export {
-  applyPlugins,
-  chainHooks,
-  definePlugin,
-  FEATURE_HOOK_KEYS,
-  MULTIPART_HOOK_KEYS,
-  LIFECYCLE_FEATURE_HOOK_KEYS,
-  LIFECYCLE_MULTIPART_HOOK_KEYS,
-  RESERVED_PLUGIN_IDS,
-} from "./plugin";
+/**
+ * The plugin SDK: what a server plugin is built from. Everything here
+ * follows semver with `@dimah-s3/server`.
+ */
+export { createS3Endpoint } from "./api/create-s3-endpoint";
 export type {
-  AppliedPlugins,
+  S3Endpoint,
+  S3EndpointMethod,
+  S3EndpointOptions,
+} from "./api/create-s3-endpoint";
+export { createS3Middleware } from "./api/create-s3-middleware";
+export type { S3EndpointContext } from "./api/context";
+export { isFeatureOn } from "./config/feature-toggle";
+export { definePlugin } from "./plugin";
+export type {
   DimahS3Plugin,
   DimahS3PluginHooks,
   PluginContextMap,
-  PluginEndpointMap,
+  PluginErrorCodes,
   PluginInitEnv,
-  ReservedPluginId,
+  PluginOperationTarget,
+  PluginRoute,
+  PluginRouteOptions,
+  PluginRunOperation,
 } from "./plugin";
+export type { PluginCall } from "./types/hook-contexts";
 
-export { createS3Endpoint, createS3Middleware } from "./api";
-export type { CoreEndpoints, S3EndpointContext } from "./api";
-export { CORE_ENDPOINT_NAMES } from "./api";
-
-export { ROUTE_FEATURES, ROUTE_OPERATIONS } from "./types";
-export { isFeatureOn } from "./helpers";
-export type {
-  DeleteConfig,
-  DeleteGuardContext,
-  DeleteOnDeletedContext,
-  DimahS3Config,
-  DimahS3RouteConfig,
-  DisabledFeature,
-  DownloadConfig,
-  DownloadGuardContext,
-  DownloadOnPresignedContext,
-  EnabledFeature,
-  EnabledUploadConfig,
-  FeatureToggle,
-  GuardContext,
-  MultipartConfig,
-  MultipartOnAbortContext,
-  MultipartOnInitContext,
-  MultipartOnListContext,
-  MultipartGuardContext,
-  MultipartUploadContext,
-  ObjectFile,
-  OpenedRoute,
-  ResolvedDimahS3Config,
-  ResolvedFeature,
-  ResolvedRoute,
-  ResolvedUploadConfig,
-  RouteFeature,
-  RouteGuardContext,
-  RouteOperation,
-  StoredObjectContext,
-  UploadConfig,
-  UploadConfirmGuardContext,
-  UploadGuardContext,
-  UploadObjectContext,
-  UploadObjectInfo,
-  UploadOnConfirmedContext,
-  UploadOnPresignedContext,
-} from "./types";
+// S3 helpers for plugins that track uploads, such as `db()`.
+export { isAwsNotFound } from "./helpers/aws-errors";
+export {
+  assertFileConstraints,
+  type FileConstraints,
+} from "./helpers/constraints";
+export {
+  deleteObjectIfMatch,
+  type ConditionalDeleteInput,
+} from "./helpers/best-effort";
+export { readObjectMetadata, readUploadMarker } from "./helpers/object-meta";
+export { assertStoredKey } from "./helpers/resolve-target";

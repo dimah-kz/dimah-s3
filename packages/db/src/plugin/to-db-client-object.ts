@@ -1,20 +1,53 @@
-import type { DbClientObject, StorageObject } from "@/types/storage-object";
+import type {
+  DbClientFolder,
+  DbClientObject,
+  DbClientObjectStatus,
+} from "@/types/client";
+import type { StorageFolder, StorageObject } from "@/types/storage-object";
 
 /**
- * Map a full store row to the browser wire contract for `GET /db/objects`.
- * Drops server-only fields (`scope`, `eTag`, `metadata`, `acl`, …).
+ * Maps a store row to the browser wire shape. Drops server-only fields
+ * (`scope`, `eTag`, `s3Metadata`, `acl`, upload state). `toClient` maps the
+ * stored attributes; without it the browser sees them as stored.
  */
-export function toDbClientObject(object: StorageObject): DbClientObject {
+export function toDbClientObject<TAttributes, TClientAttributes = TAttributes>(
+  object: StorageObject<TAttributes>,
+  toClient?: (attributes: TAttributes) => TClientAttributes,
+): DbClientObject<TClientAttributes> {
+  const { attributes } = object;
   return {
     id: object.id,
     bucket: object.bucket,
     key: object.key,
     route: object.route,
-    filename: object.filename,
+    folderId: object.folderId,
+    name: object.name,
     contentType: object.contentType,
     size: object.size,
     declaredSize: object.declaredSize,
-    status: object.status,
+    // Purging rows never reach the browser: listings and GET /db/object
+    // leave them out.
+    status: object.status as DbClientObjectStatus,
+    attributes:
+      attributes === null
+        ? null
+        : toClient
+          ? toClient(attributes)
+          : // Without `toClient`, the client attributes are the stored ones.
+            (attributes as unknown as TClientAttributes),
     createdAt: object.createdAt.toISOString(),
+    updatedAt: object.updatedAt.toISOString(),
+  };
+}
+
+/** Maps a `storage_folder` row to the browser wire shape. */
+export function toDbClientFolder(folder: StorageFolder): DbClientFolder {
+  return {
+    id: folder.id,
+    name: folder.name,
+    parentId: folder.parentId,
+    path: folder.path,
+    createdAt: folder.createdAt.toISOString(),
+    updatedAt: folder.updatedAt.toISOString(),
   };
 }

@@ -1,7 +1,7 @@
 {
   "name": "@dimah-s3/db",
-  "version": "1.7.2",
-  "description": "Optional database plugin for dimah-s3 — track S3 object ownership, listings, and resumable uploads",
+  "version": "2.0.0-beta.14",
+  "description": "Optional database plugin for dimah-s3 — track S3 objects, folders, ownership, and quotas",
   "keywords": [
     "s3",
     "s3-compatible",
@@ -11,14 +11,15 @@
     "object-storage",
     "database",
     "file-upload",
-    "resumable-upload",
     "file-tracking",
     "object-tracking",
     "prisma",
     "fumadb",
-    "typescript"
+    "typescript",
+    "folders",
+    "quota"
   ],
-  "homepage": "https://v1.s3.dimah.dev/docs/db",
+  "homepage": "https://s3.dimah.dev/docs/db",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -27,6 +28,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/db"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -43,51 +45,76 @@
     "./cli": {
       "types": "./dist/cli.d.ts",
       "default": "./dist/cli.js"
-    }
+    },
+    "./adapters/drizzle": {
+      "types": "./dist/adapters/drizzle.d.ts",
+      "default": "./dist/adapters/drizzle.js"
+    },
+    "./adapters/kysely": {
+      "types": "./dist/adapters/kysely.d.ts",
+      "default": "./dist/adapters/kysely.js"
+    },
+    "./adapters/prisma": {
+      "types": "./dist/adapters/prisma.d.ts",
+      "default": "./dist/adapters/prisma.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "src/schema/examples"
+    "dist"
   ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "tsc --noEmit",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
     "@dimah-s3/core": "workspace:*",
-    "@paralleldrive/cuid2": "^3.3.0",
-    "fumadb": "^0.6.0",
+    "fumadb": "~0.7.3",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1159.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
+    "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
+    "@electric-sql/pglite": "^0.5.17",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "@workspace/vitest-config": "workspace:*",
+    "better-sqlite3": "^13.2.0",
     "drizzle-orm": "1.0.0-rc.5",
     "eslint": "catalog:",
+    "kysely": "^0.29.9",
     "tsc-alias": "catalog:",
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@aws-sdk/client-s3": ">=3",
-    "@dimah-s3/server": "1.7.2",
-    "drizzle-orm": "^0.44.0 || ^0.45.0 || >=1.0.0-rc.1 <2.0.0"
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@dimah-s3/server": "2.0.0-beta.14",
+    "@prisma/client": "^6.0.0 || ^7.0.0",
+    "drizzle-orm": ">=1.0.0-rc.5 <2.0.0",
+    "kysely": "^0.29.8"
   },
   "peerDependenciesMeta": {
-    "@aws-sdk/client-s3": {
+    "@prisma/client": {
       "optional": true
     },
     "drizzle-orm": {
       "optional": true
+    },
+    "kysely": {
+      "optional": true
     }
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

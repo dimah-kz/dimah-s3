@@ -1,16 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { createS3Client } from "./create-s3-client";
-import { APIError, S3_ERROR_CODES } from "./error";
+import { APIError, defineErrorCodes, S3_ERROR_CODES } from "./error";
 import { defineClientPlugin } from "./plugin/define-client-plugin";
 import { pluginPath } from "./plugin/plugin-path";
-import { S3_API_ROUTES } from "./routes";
+import type { S3Fetch } from "./plugin/types";
+import { S3_API_BASE_PATH, S3_API_ROUTES } from "./routes";
 import { captureFetch, jsonResponse } from "./test/http";
 
-const uploadBody = {
-  route: "uploads",
-  fileName: "a.png",
-  fileSize: 10,
-};
+type Client = ReturnType<typeof createS3Client>;
+
+const uploadBody = { route: "uploads", name: "a.png", size: 10 };
+const ticket = "v1.payload.signature";
+
+function jsonBody(init: RequestInit | undefined): unknown {
+  const body = init?.body;
+  if (typeof body !== "string") {
+    throw new TypeError("expected JSON string body");
+  }
+  return JSON.parse(body);
+}
+
+function htmlResponse(status: number, statusText: string) {
+  return new Response("<html>oops</html>", {
+    status,
+    statusText,
+    headers: { "content-type": "text/html" },
+  });
+}
 
 describe("createS3Client protocol", () => {
   it.each([
@@ -18,133 +34,111 @@ describe("createS3Client protocol", () => {
       name: "upload",
       method: "POST",
       path: S3_API_ROUTES.upload,
-      run: (api: ReturnType<typeof createS3Client>) => api.upload(uploadBody),
+      run: (api: Client) => api.upload(uploadBody),
     },
     {
       name: "confirm",
       method: "POST",
-      path: S3_API_ROUTES.uploadConfirm,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.confirm({ route: "uploads", key: "a.png" }),
+      path: S3_API_ROUTES.confirm,
+      run: (api: Client) => api.confirm({ ticket }),
     },
     {
       name: "download",
       method: "GET",
       path: S3_API_ROUTES.download,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.download({ route: "uploads", key: "a.png" }),
+      run: (api: Client) => api.download({ route: "uploads", key: "a.png" }),
     },
     {
       name: "catalog",
       method: "GET",
       path: S3_API_ROUTES.catalog,
-      run: (api: ReturnType<typeof createS3Client>) => api.catalog(),
+      run: (api: Client) => api.catalog(),
     },
     {
       name: "delete",
       method: "DELETE",
       path: S3_API_ROUTES.delete,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.delete({ route: "uploads", key: "a.png" }),
+      run: (api: Client) => api.delete({ route: "uploads", key: "a.png" }),
     },
     {
       name: "deleteMany",
       method: "POST",
-      path: S3_API_ROUTES.deleteBatch,
-      run: (api: ReturnType<typeof createS3Client>) =>
+      path: S3_API_ROUTES.deleteMany,
+      run: (api: Client) =>
         api.deleteMany({ route: "uploads", keys: ["uploads/a.png"] }),
     },
     {
       name: "multipart.init",
       method: "POST",
       path: S3_API_ROUTES.multipartInit,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.init({
-          route: "uploads",
-          fileName: "a.bin",
-          fileSize: 10,
-        }),
+      run: (api: Client) =>
+        api.multipart.init({ route: "uploads", name: "a.bin", size: 10 }),
     },
     {
       name: "multipart.signPart",
       method: "POST",
-      path: S3_API_ROUTES.multipartPart,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.signPart({
-          route: "uploads",
-          key: "a.bin",
-          uploadId: "up-1",
-          partNumber: 1,
-          partSize: 8,
-        }),
+      path: S3_API_ROUTES.multipartSignPart,
+      run: (api: Client) => api.multipart.signPart({ ticket, partNumber: 1 }),
     },
     {
       name: "multipart.listParts",
-      method: "GET",
+      method: "POST",
       path: S3_API_ROUTES.multipartListParts,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.listParts({
-          route: "uploads",
-          key: "a.bin",
-          uploadId: "up-1",
-        }),
+      run: (api: Client) => api.multipart.listParts({ ticket }),
     },
     {
       name: "multipart.complete",
       method: "POST",
       path: S3_API_ROUTES.multipartComplete,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.complete({
-          route: "uploads",
-          key: "a.bin",
-          uploadId: "up-1",
-          parts: [{ partNumber: 1 }],
-        }),
+      run: (api: Client) => api.multipart.complete({ ticket }),
     },
     {
       name: "multipart.abort",
       method: "POST",
       path: S3_API_ROUTES.multipartAbort,
-      run: (api: ReturnType<typeof createS3Client>) =>
-        api.multipart.abort({
-          route: "uploads",
-          key: "a.bin",
-          uploadId: "up-1",
-        }),
+      run: (api: Client) => api.multipart.abort({ ticket }),
     },
   ])("$name → $method $path", async ({ method, path, run }) => {
-    const { fetch, calls } = captureFetch();
+    const { fetch, calls } = captureFetch(() =>
+      jsonResponse({ url: "https://bucket.example.com/a" }),
+    );
     await run(createS3Client({ fetch }));
     expect(calls[0]?.init.method).toBe(method);
-    expect(calls[0]?.url).toContain(path);
+    expect(new URL(calls[0]?.url ?? "", "http://localhost").pathname).toBe(
+      `${S3_API_BASE_PATH}${path}`,
+    );
   });
 
-  it("strips server-only headers from the upload body", async () => {
+  it("sends the upload payload as the JSON body", async () => {
     const { fetch, calls } = captureFetch();
-    await createS3Client({ fetch }).upload({
-      ...uploadBody,
-      headers: { Authorization: "secret" },
-    });
-    const body = calls[0]?.init.body;
-    if (typeof body !== "string") {
-      throw new TypeError("expected JSON string body");
-    }
-    expect(JSON.parse(body)).toEqual(uploadBody);
+    await createS3Client({ fetch }).upload(uploadBody);
+    expect(jsonBody(calls[0]?.init)).toEqual(uploadBody);
   });
 
-  it("sanitizes download fileName and forwards the route", async () => {
+  it("sends listParts as a POST with the ticket in the body", async () => {
     const { fetch, calls } = captureFetch();
+    await createS3Client({ fetch }).multipart.listParts({ ticket });
+    expect(calls[0]?.init.method).toBe("POST");
+    expect(calls[0]?.url).not.toContain("ticket");
+    expect(jsonBody(calls[0]?.init)).toEqual({ ticket });
+  });
+
+  it("fits the download name to the wire rule and forwards the route", async () => {
+    const { fetch, calls } = captureFetch(() => jsonResponse({ url: "x" }));
     await createS3Client({ fetch }).download({
       route: "uploads",
       key: "a.png",
-      fileName: 'quote"name.png',
+      name: ' quote"na	me.png ',
     });
-    expect(calls[0]?.url).toContain("fileName=quote_name.png");
+    // The same rule as an upload name: control characters go, quotes stay.
+    expect(
+      new URL(calls[0]?.url ?? "", "http://x").searchParams.get("name"),
+    ).toBe('quote"name.png');
     expect(calls[0]?.url).toContain("route=uploads");
   });
 
   it("forwards download expiresIn", async () => {
-    const { fetch, calls } = captureFetch();
+    const { fetch, calls } = captureFetch(() => jsonResponse({ url: "x" }));
     await createS3Client({ fetch }).download({
       route: "uploads",
       key: "a.png",
@@ -174,48 +168,110 @@ describe("createS3Client protocol", () => {
   });
 });
 
+describe("createS3Client download URLs", () => {
+  const proxyUrl = "/api/s3/file?route=uploads&key=a.png";
+
+  function downloadWith(url: string, base: { baseURL?: string }) {
+    const { fetch } = captureFetch(() =>
+      jsonResponse({ key: "a.png", url, mode: "proxy" }),
+    );
+    return createS3Client({ fetch, ...base }).download({
+      route: "uploads",
+      key: "a.png",
+    });
+  }
+
+  it("resolves a proxy URL against the origin of an absolute baseURL", async () => {
+    const result = await downloadWith(proxyUrl, {
+      baseURL: "https://api.example.com/api/s3",
+    });
+    expect(result.url).toBe(`https://api.example.com${proxyUrl}`);
+    expect(result).toMatchObject({ key: "a.png", mode: "proxy" });
+  });
+
+  it("keeps a proxy URL as is under a relative base", async () => {
+    const result = await downloadWith(proxyUrl, {});
+    expect(result.url).toBe(proxyUrl);
+  });
+
+  it.each([
+    "https://bucket.s3.amazonaws.com/a.png?X-Amz-Signature=x",
+    "//cdn.example.com/a.png",
+  ])("keeps %s as is", async (url) => {
+    const result = await downloadWith(url, {
+      baseURL: "https://api.example.com/api/s3",
+    });
+    expect(result.url).toBe(url);
+  });
+});
+
 describe("createS3Client errors", () => {
-  it("maps non-OK JSON onto APIError", async () => {
+  it("rebuilds a JSON error body and keeps the HTTP status", async () => {
     const fetch = async () =>
       jsonResponse(
         {
-          message: "blocked",
-          code: S3_ERROR_CODES.FORBIDDEN.code,
-          params: { name: "key" },
+          code: S3_ERROR_CODES.FILE_TOO_LARGE.code,
+          message: "File is 20 bytes; the limit is 10 bytes",
+          params: { size: 20, maxFileSize: 10 },
         },
-        403,
+        413,
       );
     const api = createS3Client({ fetch });
 
-    await expect(
-      api.delete({ route: "uploads", key: "a.png" }),
-    ).rejects.toMatchObject({
+    await expect(api.upload(uploadBody)).rejects.toMatchObject({
       name: "APIError",
-      status: 403,
-      code: S3_ERROR_CODES.FORBIDDEN.code,
-      message: "blocked",
-      params: { name: "key" },
+      statusCode: 413,
+      code: "FILE_TOO_LARGE",
+      message: "File is 20 bytes; the limit is 10 bytes",
+      params: { size: 20, maxFileSize: 10 },
     });
     await expect(
       api.download({ route: "uploads", key: "missing" }),
     ).rejects.toBeInstanceOf(APIError);
   });
 
-  it("maps non-JSON failures onto APIError without a code", async () => {
+  it("keeps plugin-defined codes", async () => {
     const fetch = async () =>
-      new Response("<html>oops</html>", {
-        status: 502,
-        statusText: "Bad Gateway",
-        headers: { "content-type": "text/html" },
-      });
-    const api = createS3Client({ fetch });
+      jsonResponse({ code: "PLUGIN_LIMIT", message: "Slow down" }, 429);
+
+    await expect(createS3Client({ fetch }).catalog()).rejects.toMatchObject({
+      statusCode: 429,
+      code: "PLUGIN_LIMIT",
+      message: "Slow down",
+    });
+  });
+
+  it("maps a non-JSON 502 onto INTERNAL_ERROR with status 502", async () => {
+    const fetch = async () => htmlResponse(502, "Bad Gateway");
 
     await expect(
-      api.download({ route: "uploads", key: "a.png" }),
+      createS3Client({ fetch }).download({ route: "uploads", key: "a.png" }),
     ).rejects.toMatchObject({
       name: "APIError",
-      status: 502,
-      message: "Bad Gateway",
+      statusCode: 502,
+      code: "INTERNAL_ERROR",
+      message: S3_ERROR_CODES.INTERNAL_ERROR.message,
+    });
+  });
+
+  it("maps a non-JSON 404 onto UNKNOWN_ERROR with status 404", async () => {
+    const fetch = async () => htmlResponse(404, "Not Found");
+
+    await expect(
+      createS3Client({ fetch }).delete({ route: "uploads", key: "a.png" }),
+    ).rejects.toMatchObject({
+      name: "APIError",
+      statusCode: 404,
+      code: "UNKNOWN_ERROR",
+    });
+  });
+
+  it("maps JSON without a code onto UNKNOWN_ERROR", async () => {
+    const fetch = async () => jsonResponse({ error: "nope" }, 400);
+
+    await expect(createS3Client({ fetch }).catalog()).rejects.toMatchObject({
+      statusCode: 400,
+      code: "UNKNOWN_ERROR",
     });
   });
 
@@ -228,15 +284,56 @@ describe("createS3Client options", () => {
   it.each([
     { Authorization: "Bearer t" },
     async () => ({ Authorization: "Bearer t" }),
-  ])("attaches headers to every request", async (headers) => {
+  ])("attaches client headers to every request", async (headers) => {
     const { fetch, calls } = captureFetch();
-    await createS3Client({ fetch, headers }).confirm({
-      route: "uploads",
-      key: "a.png",
-    });
+    await createS3Client({ fetch, headers }).confirm({ ticket });
     expect(new Headers(calls[0]?.init.headers).get("authorization")).toBe(
       "Bearer t",
     );
+  });
+
+  it.each<HeadersInit>([
+    { Authorization: "Bearer call", "X-Trace": "1" },
+    new Headers({ Authorization: "Bearer call", "X-Trace": "1" }),
+    [
+      ["Authorization", "Bearer call"],
+      ["X-Trace", "1"],
+    ],
+  ])("lets per-call headers override client headers", async (callHeaders) => {
+    const { fetch, calls } = captureFetch();
+    await createS3Client({
+      fetch,
+      headers: { Authorization: "Bearer client", "X-Client": "web" },
+    }).confirm({ ticket }, { headers: callHeaders });
+
+    const sent = new Headers(calls[0]?.init.headers);
+    expect(sent.get("authorization")).toBe("Bearer call");
+    expect(sent.get("x-trace")).toBe("1");
+    expect(sent.get("x-client")).toBe("web");
+  });
+
+  it("forwards the per-call signal", async () => {
+    const { fetch, calls } = captureFetch();
+    const controller = new AbortController();
+    await createS3Client({ fetch }).multipart.signPart(
+      { ticket, partNumber: 1 },
+      { signal: controller.signal },
+    );
+    expect(calls[0]?.init.signal).toBe(controller.signal);
+  });
+
+  it("rejects with the abort reason when the signal aborts", async () => {
+    const fetch = async (_input: RequestInfo | URL, init?: RequestInit) => {
+      init?.signal?.throwIfAborted();
+      return jsonResponse({});
+    };
+    const controller = new AbortController();
+    const reason = new DOMException("Stopped", "AbortError");
+    controller.abort(reason);
+
+    await expect(
+      createS3Client({ fetch }).catalog({ signal: controller.signal }),
+    ).rejects.toBe(reason);
   });
 });
 
@@ -275,5 +372,170 @@ describe("createS3Client plugins", () => {
         ],
       }),
     ).toThrow(/Duplicate/);
+  });
+});
+
+/** A Standard Schema with input `I`, the part the client types read. */
+type Schema<I> = { readonly "~standard": { readonly types?: { input: I } } };
+
+/** A server plugin, shaped like the endpoints `createS3Endpoint` builds. */
+type AuditServer = {
+  id: "audit";
+  endpoints: {
+    listEvents: ((context?: unknown) => Promise<{
+      events: { key: string; at: string }[];
+    }>) & {
+      path: "/audit/events";
+      options: { method: "GET"; query: Schema<{ limit?: number }> };
+    };
+    clearEvents: ((context?: unknown) => Promise<{ cleared: number }>) & {
+      path: "/audit/events";
+      options: { method: "DELETE" };
+    };
+    note: ((context?: unknown) => Promise<{ id: string }>) & {
+      path: "/audit/note";
+      options: { method: "POST"; body: Schema<{ message: string }> };
+    };
+  };
+};
+
+describe("createS3Client typed plugin $fetch", () => {
+  it("types path, method, input, and the result from the server plugin", async () => {
+    const { fetch, calls } = captureFetch(() =>
+      jsonResponse({ events: [{ key: "k", at: "2024-01-01T00:00:00.000Z" }] }),
+    );
+    const api = createS3Client({
+      fetch,
+      plugins: [
+        defineClientPlugin({
+          id: "audit",
+          $InferServerPlugin: {} as AuditServer,
+          getActions: ($fetch) => ({
+            listEvents: (limit?: number) =>
+              $fetch(pluginPath("audit", "events"), {
+                method: "GET",
+                query: { limit },
+              }),
+            clearEvents: () => $fetch("/audit/events", { method: "DELETE" }),
+            note: (message: string) =>
+              $fetch("/audit/note", { method: "POST", body: { message } }),
+          }),
+        }),
+      ],
+    });
+
+    const result = await api.audit.listEvents(5);
+    expect(calls[0]?.url).toBe("/api/s3/audit/events?limit=5");
+    expectTypeOf(result).toEqualTypeOf<{
+      events: { key: string; at: string }[];
+    }>();
+    expectTypeOf(api.audit.clearEvents).returns.resolves.toEqualTypeOf<{
+      cleared: number;
+    }>();
+    expectTypeOf(api.audit.note).returns.resolves.toEqualTypeOf<{
+      id: string;
+    }>();
+  });
+
+  it("refuses a path, method, or body the server plugin does not serve", () => {
+    const plugin = defineClientPlugin({
+      id: "audit",
+      $InferServerPlugin: {} as AuditServer,
+      getActions: ($fetch) => ({
+        // @ts-expect-error -- no endpoint at this path
+        missing: () => $fetch("/audit/missing", { method: "GET" }),
+        // @ts-expect-error -- `/audit/note` takes POST only
+        wrongMethod: () => $fetch("/audit/note", { method: "GET" }),
+        wrongBody: () =>
+          // @ts-expect-error -- `message` must be a string
+          $fetch("/audit/note", { method: "POST", body: { message: 1 } }),
+      }),
+    });
+    expectTypeOf(plugin.getActions).parameter(0).not.toEqualTypeOf<S3Fetch>();
+    expect(plugin.id).toBe("audit");
+  });
+
+  it("keeps the untyped $fetch without $InferServerPlugin", () => {
+    const plugin = defineClientPlugin({ id: "audit", getActions: () => ({}) });
+    expectTypeOf(plugin.getActions).parameter(0).toEqualTypeOf<S3Fetch>();
+    expect(plugin.id).toBe("audit");
+  });
+});
+
+describe("createS3Client plugin error codes", () => {
+  const AUDIT_ERROR_CODES = defineErrorCodes({
+    AUDIT_ROUTE_UNTRACKED: {
+      status: 400,
+      message: 'Route "{route}" is not audited',
+    },
+  });
+
+  it("merges a plugin's $ERROR_CODES into the client's", () => {
+    const api = createS3Client({
+      plugins: [
+        defineClientPlugin({
+          id: "audit",
+          $ERROR_CODES: AUDIT_ERROR_CODES,
+          getActions: () => ({}),
+        }),
+      ],
+    });
+    expect(api.$ERROR_CODES.AUDIT_ROUTE_UNTRACKED).toBe(
+      AUDIT_ERROR_CODES.AUDIT_ROUTE_UNTRACKED,
+    );
+    expect(api.$ERROR_CODES.FORBIDDEN).toBe(S3_ERROR_CODES.FORBIDDEN);
+    expectTypeOf(
+      api.$ERROR_CODES.AUDIT_ROUTE_UNTRACKED.code,
+    ).toEqualTypeOf<"AUDIT_ROUTE_UNTRACKED">();
+  });
+
+  it("rejects a code the catalog or another plugin already has", () => {
+    const forbidden = defineErrorCodes({
+      FORBIDDEN: { status: 403, message: "No" },
+    });
+    expect(() =>
+      createS3Client({
+        plugins: [
+          defineClientPlugin({
+            id: "audit",
+            $ERROR_CODES: forbidden,
+            getActions: () => ({}),
+          }),
+        ],
+      }),
+    ).toThrow(/"FORBIDDEN" is already defined/);
+
+    expect(() =>
+      createS3Client({
+        plugins: [
+          defineClientPlugin({
+            id: "audit",
+            $ERROR_CODES: AUDIT_ERROR_CODES,
+            getActions: () => ({}),
+          }),
+          defineClientPlugin({
+            id: "other",
+            $ERROR_CODES: AUDIT_ERROR_CODES,
+            getActions: () => ({}),
+          }),
+        ],
+      }),
+    ).toThrow(/"AUDIT_ROUTE_UNTRACKED" is already defined/);
+  });
+
+  it("rejects an entry not built with defineErrorCodes", () => {
+    expect(() =>
+      createS3Client({
+        plugins: [
+          defineClientPlugin({
+            id: "audit",
+            $ERROR_CODES: {
+              AUDIT_OFF: { code: "OTHER", status: 400, message: "Off" },
+            },
+            getActions: () => ({}),
+          }),
+        ],
+      }),
+    ).toThrow(/must be built with defineErrorCodes/);
   });
 });

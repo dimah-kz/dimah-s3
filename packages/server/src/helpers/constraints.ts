@@ -1,43 +1,56 @@
-import { matchesFileTypes } from "@dimah-s3/core";
-import { errors } from "@/errors";
-import type { UploadConfig } from "@/types";
+import {
+  describeFileType,
+  matchesFileTypes,
+  s3Error,
+  S3_MAX_POST_OBJECT_BYTES,
+} from "@dimah-s3/core";
+import type { UploadFile } from "@/types/hook-contexts";
+import type { ResolvedUpload } from "@/types/resolved";
 
 /** File limits from `upload` (`fileTypes` / `maxFileSize`). */
-export type FileConstraints = Pick<UploadConfig, "fileTypes" | "maxFileSize">;
+export type FileConstraints = Pick<ResolvedUpload, "fileTypes" | "maxFileSize">;
 
-/** Reject when `size` is over the route cap. No-op when `maxFileSize` is unset. */
+/** Fails with `FILE_TOO_LARGE` when `size` is over `maxFileSize`, if one is set. */
 export function assertWithinMaxFileSize(
   maxFileSize: number | undefined,
   size: number,
 ): void {
-  if (typeof maxFileSize === "number" && size > maxFileSize) {
-    throw errors.payloadTooLarge();
+  if (maxFileSize !== undefined && size > maxFileSize) {
+    throw s3Error("FILE_TOO_LARGE", { size, maxFileSize });
   }
 }
 
-export function assertDeclaredConstraints(
-  constraints: FileConstraints | undefined,
-  input: { fileName: string; fileSize: number; contentType?: string },
+/**
+ * Checks a file against the route limits: `FILE_TYPE_NOT_ALLOWED` when it
+ * matches none of `fileTypes`, `FILE_EMPTY` when it has no bytes, and
+ * `FILE_TOO_LARGE` when it is over `maxFileSize`. Runs on the declared file
+ * at presign, and again on the HeadObject values at confirm.
+ */
+export function assertFileConstraints(
+  constraints: FileConstraints,
+  file: Pick<UploadFile, "size" | "type"> & { name?: string },
 ): void {
-  if (
-    constraints?.fileTypes?.length &&
-    !matchesFileTypes(input.fileName, input.contentType, constraints.fileTypes)
-  ) {
-    throw errors.fileTypeNotAllowed(input.fileName, input.contentType);
+  const { fileTypes, maxFileSize } = constraints;
+  const name = file.name ?? "";
+  if (fileTypes?.length && !matchesFileTypes(name, file.type, fileTypes)) {
+    throw s3Error("FILE_TYPE_NOT_ALLOWED", {
+      type: describeFileType(name, file.type),
+      allowed: fileTypes.join(", "),
+    });
   }
-  assertWithinMaxFileSize(constraints?.maxFileSize, input.fileSize);
+  if (file.size === 0) throw s3Error("FILE_EMPTY");
+  assertWithinMaxFileSize(maxFileSize, file.size);
 }
 
-export function assertVerifiedConstraints(
-  constraints: FileConstraints | undefined,
-  input: { fileName?: string; contentType?: string; contentLength: number },
-): void {
-  assertWithinMaxFileSize(constraints?.maxFileSize, input.contentLength);
-  const name = input.fileName ?? "";
-  if (
-    constraints?.fileTypes?.length &&
-    !matchesFileTypes(name, input.contentType, constraints.fileTypes)
-  ) {
-    throw errors.fileTypeNotAllowed(name || "unknown", input.contentType);
+/**
+ * Fails with `FILE_TOO_LARGE` above 5 GiB, the most S3 takes in one POST or
+ * PutObject. Larger files need multipart.
+ */
+export function assertSingleUploadSize(size: number): void {
+  if (size > S3_MAX_POST_OBJECT_BYTES) {
+    throw s3Error("FILE_TOO_LARGE", {
+      size,
+      maxFileSize: S3_MAX_POST_OBJECT_BYTES,
+    });
   }
 }

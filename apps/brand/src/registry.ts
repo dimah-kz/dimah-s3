@@ -3,6 +3,7 @@ import { itemId, type BrandItem } from "@/catalog";
 const brandFrameIds = new Set([
   "attachment/stills/tweet",
   "attachment/videos/tweet",
+  "release/stills/v2-beta",
 ]);
 
 export function getBrandFrame(

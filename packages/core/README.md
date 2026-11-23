@@ -1,11 +1,10 @@
 # @dimah-s3/core
 
-**1.x.** New projects should use the [2.0 beta](https://s3.dimah.dev/docs/core) (`npm i @dimah-s3/core@beta`).
+The protocol, typed fetch client, error catalog, and pure helpers shared by
+`@dimah-s3/server` and `@dimah-s3/react`.
 
-Shared protocol, typed API client, and pure helpers used by `@dimah-s3/server` and `@dimah-s3/react`.
-
-Full documentation: [v1.s3.dimah.dev/docs/core](https://v1.s3.dimah.dev/docs/core) ·
-[llms.txt](https://v1.s3.dimah.dev/llms.txt)
+Full documentation: [s3.dimah.dev/docs/core](https://s3.dimah.dev/docs/core) ·
+[llms.txt](https://s3.dimah.dev/llms.txt)
 
 ## Install
 
@@ -13,27 +12,46 @@ Full documentation: [v1.s3.dimah.dev/docs/core](https://v1.s3.dimah.dev/docs/cor
 pnpm add @dimah-s3/core
 ```
 
+Requires Node.js 22 or newer on the server. In the browser it needs Chrome
+119, Firefox 124, Safari 17.4, or newer.
+
 ## Minimal setup
 
 ```ts
-import { createS3Client, APIError } from "@dimah-s3/core";
+import { createS3Client, isAPIError } from "@dimah-s3/core";
 
 export const api = createS3Client({
-  // optional: auth for core routes + client plugins
+  // Must match the server basePath.
+  basePath: "/api/s3",
   credentials: "include",
-  headers: () => ({ Authorization: `Bearer ${token}` }),
+  headers: async () => ({ Authorization: `Bearer ${await getToken()}` }),
 });
 
 try {
-  await api.download({ route: "uploads", key });
-} catch (err) {
-  if (err instanceof APIError)
-    console.error(err.statusCode, err.code, err.message);
+  const { url } = await api.download({ route: "uploads", key });
+} catch (error) {
+  if (isAPIError(error)) {
+    console.error(error.statusCode, error.code, error.message);
+  }
 }
 ```
 
-For React apps, prefer `createS3Client` from `@dimah-s3/react` (returns the API
-object plus a bound `Provider` / `useApi`).
+Every method takes a payload, then optional `{ signal, headers }`. Uploads
+return an upload `ticket`; confirm and the later multipart calls send only
+that ticket.
+
+For React apps, use `createS3Client` from `@dimah-s3/react`. It takes the same
+options and adds a bound `Provider` and `useApi` to the client object.
+
+## Errors
+
+Every failure is an `APIError` with a stable `code` from `S3_ERROR_CODES`.
+Narrow it with `isS3ErrorCode(error, "OBJECT_NOT_FOUND")`. See
+[Errors](https://s3.dimah.dev/docs/server/errors).
+
+## Upgrading from 1.7
+
+See [Upgrade to 2.0](https://s3.dimah.dev/docs/migration-2-0).
 
 ## License
 

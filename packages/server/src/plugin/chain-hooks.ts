@@ -1,25 +1,54 @@
-type Hook<Context> = (context: Context) => Promise<void> | void;
+import { isGuardResult } from "@/helpers/hooks";
+import type {
+  DimahS3Locals,
+  Guard,
+  GuardResult,
+  LifecycleHook,
+} from "@/types/locals";
 
 /**
- * Compose hooks into one that awaits each in order.
- *
- * Used by {@link dimahS3} when merging plugin + user hooks, and by consumers
- * to stack extras (quota, audit) beside plugin hooks:
+ * Composes hooks into one that awaits each in order and stops at the first
+ * throw. `undefined` entries are skipped, so optional hooks compose:
  *
  * ```ts
  * upload: {
- *   guard: chainHooks(myQuotaGuard, myAuditGuard),
+ *   guard: chainHooks(requireUser, checkQuota),
  * }
  * ```
  *
- * `undefined` entries are skipped, so optional hooks compose cleanly.
+ * Chained guards behave like separate ones: each `{ locals }` result is
+ * copied into `context.locals` before the next hook runs. Any other return
+ * value is passed on after the chain, so the server still rejects it as a
+ * config error.
  */
-export function chainHooks<Context>(
-  ...hooks: (Hook<Context> | undefined)[]
-): (context: Context) => Promise<void> {
+export function chainHooks<C>(
+  ...hooks: (LifecycleHook<C> | undefined)[]
+): LifecycleHook<C>;
+export function chainHooks<C extends { locals: DimahS3Locals }>(
+  ...hooks: (Guard<C> | undefined)[]
+): Guard<C>;
+export function chainHooks<C>(...hooks: (Guard<C> | undefined)[]): Guard<C> {
   return async (context) => {
+    let unexpected: GuardResult;
     for (const hook of hooks) {
-      if (hook) await hook(context);
+      if (!hook) continue;
+      const result = await hook(context);
+      if (result === undefined) continue;
+      const locals = contextLocals(context);
+      if (locals && isGuardResult(result)) {
+        Object.assign(locals, result.locals);
+      } else {
+        unexpected ??= result;
+      }
     }
+    return unexpected;
   };
+}
+
+/** The `locals` of a hook context. Every dimah-s3 hook context has one. */
+function contextLocals(context: unknown): object | undefined {
+  if (typeof context !== "object" || context === null) return undefined;
+  if (!("locals" in context)) return undefined;
+  const { locals } = context;
+  return typeof locals === "object" && locals !== null ? locals : undefined;
 }

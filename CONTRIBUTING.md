@@ -4,8 +4,10 @@ Thanks for your interest in contributing to this project.
 
 ## Prerequisites
 
-- Node.js 24+ (see `.nvmrc`; CI uses Node 24)
+- Node.js 24+ to work in this repository (see `.node-version`; CI tests on Node 24 and 26)
 - pnpm 12+
+
+The published `@dimah-s3/*` packages declare `engines.node >=22`, a lower floor than the one for contributors. `pnpm check:dist` fails when the six manifests disagree. CI does not run on Node 22 yet, so keep package code to what Node 22 has.
 
 ## Development setup
 
@@ -41,20 +43,11 @@ pnpm --filter @dimah-s3/core check-types
 
 ## Contribution workflow
 
-1. Branch from the line you are changing. `main` is stable 1.x. `v2` is the 2.0 beta.
+1. Fork the repository and create a branch from `main`. 1.x is no longer maintained, and its `v1` branch takes no pull requests.
 2. Make your changes with focused commits.
 3. Add or update tests/docs where needed.
 4. Add a Tegami changelog for user-facing package changes.
-5. Push that feature branch and open a pull request. Set the base to the line you branched from.
-
-| Change   | Branch from | Pull request base | What ships                                                                           |
-| -------- | ----------- | ----------------- | ------------------------------------------------------------------------------------ |
-| 1.x fix  | `main`      | `main`            | next 1.x on npm `latest`, docs at [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs)    |
-| 2.0 beta | `v2`        | `v2`              | next `2.0.0-beta.N` on npm `beta`, docs at [s3.dimah.dev](https://s3.dimah.dev/docs) |
-
-`main` and `v2` only accept a squash merge through a pull request, after CI is green. Push the feature branch. The base dropdown on the pull request chooses `main` or `v2`. Do not merge `v2` into `main` locally. That merge is the stable 2.0.0 release, later.
-
-A squash merge into `v2` publishes the beta when a changelog is pending. Until 2.0.0, every bump on `v2` stays `2.0.0-beta.N`, including breaking changes. A squash merge into `main` publishes the next 1.x on `latest`.
+5. Open a Pull Request.
 
 ## Changelogs (required for package changes)
 
@@ -64,7 +57,7 @@ When your PR changes behavior, API, or package output, add a changelog:
 pnpm tegami
 ```
 
-Then choose the package(s) / `group:dimah-s3` and bump type:
+Then choose the package(s) / `group:dimah-s3` and bump type. Write the note with [docs/agents/changelog.md](docs/agents/changelog.md).
 
 - `patch`: bug fixes, small improvements, non-breaking behavior updates.
 - `minor`: new backward-compatible features.
@@ -78,12 +71,26 @@ A changelog file is created in `.tegami/` and must be committed with your PR. CI
 - Choose `minor` for additive features (new exports, new options with defaults, improved behavior).
 - Choose `major` when existing consumer code may break or output contracts change.
 
+## Continuous integration
+
+Every pull request into `main` runs [CI](.github/workflows/ci.yml). The `main` ruleset requires one check, **CI passed**, which fails when any other job fails or is cancelled. Pushes to `main` run every job. Pull requests skip the smoke builds their changes cannot affect.
+
+| Job                | Runs when                                                   | Reproduce locally                                                      |
+| ------------------ | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Lint & format      | Always                                                      | `pnpm lint`, `pnpm format:check`, `pnpm sherif`, `pnpm examples:drift` |
+| Typecheck          | Always                                                      | `pnpm check-types`                                                     |
+| Build              | Always                                                      | `pnpm build:packages && pnpm check:dist`                               |
+| Test (Node 24, 26) | Always                                                      | `pnpm test`                                                            |
+| Registry           | `packages/ui` or `registry.json` changed                    | `pnpm registry:validate`                                               |
+| Example            | An example or a package it uses changed                     | `pnpm turbo run build --filter=./examples/with-nextjs`                 |
+| Template           | A template, a package it uses, or a template script changed | `pnpm build:packages && pnpm templates:build -- --local nextjs`        |
+
+Example builds need the placeholder S3 variables from the example's `.env.example` and a `DIMAH_S3_SECRET` of at least 32 characters. Template builds pack the workspace packages and install them into a temporary copy of the starter, so they test the code in your branch rather than the version on npm.
+
 ## Pull Request checklist
 
-- [ ] Build passes (`pnpm build`)
-- [ ] Type checks pass (`pnpm check-types`)
-- [ ] Lint passes (`pnpm lint`)
-- [ ] Tests pass (`pnpm test`)
+- [ ] Lint, type checks, and tests pass (`pnpm lint`, `pnpm check-types`, `pnpm test`)
+- [ ] Tests cover the change
 - [ ] Docs updated (if needed)
 - [ ] Changelog added (if package behavior changed)
 

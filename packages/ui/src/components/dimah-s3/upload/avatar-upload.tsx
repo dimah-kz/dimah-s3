@@ -1,0 +1,223 @@
+"use client";
+
+import { useEffect, useEffectEvent, useState } from "react";
+import { CameraIcon, UserIcon } from "lucide-react";
+import { useTranslations } from "@fuma-translate/react";
+import type { S3Api, S3RouteName } from "@dimah-s3/core";
+import {
+  useFormatError,
+  type UploadFileState,
+  type UploadResult,
+  type UseUploadReturn,
+} from "@dimah-s3/react";
+import { cn } from "cn";
+import { CircleProgress } from "@/components/dimah-s3/attachment/circle-progress";
+import { ObjectImage } from "@/components/dimah-s3/preview/object-image";
+import { Upload } from "@/components/dimah-s3/upload/upload";
+import { useToastOwner } from "@/hooks/use-toast-owner";
+
+/** Props for {@link AvatarUpload}. */
+export type AvatarUploadProps = {
+  /** The `useUpload` return that uploads the picked image. */
+  upload: UseUploadReturn;
+  /** Named server route that presigns the GET for `objectKey`. */
+  route: S3RouteName;
+  /** Key of the current image. `null` or absent shows a placeholder. */
+  objectKey?: string | null;
+  /** Accessible name of the button, such as "Change profile photo". */
+  label: string;
+  /** Runs once per uploaded image. Store `result.key` and pass it back as `objectKey`. */
+  onUploaded?: (result: UploadResult) => void;
+  /** Width and height in pixels. @default 96 */
+  size?: number;
+  /** `circle` for people, `square` (rounded corners) for logos and covers. @default "circle" */
+  shape?: "circle" | "square";
+  className?: string;
+  /** Signs the image URL. Optional when an `<S3Provider>` is in the tree. */
+  api?: S3Api;
+};
+
+const IN_FLIGHT = new Set<UploadFileState["phase"]>([
+  "queued",
+  "preparing",
+  "presigning",
+  "uploading",
+  "finalizing",
+]);
+
+function isUploaded(
+  file: UploadFileState,
+): file is UploadFileState & { result: UploadResult } {
+  return file.phase === "success" && file.result != null;
+}
+
+/**
+ * Image button that uploads a new picture, round by default. A click opens the file
+ * picker, and an image dropped on it uploads too. It is disabled while the
+ * hook is (`upload.disabled`).
+ *
+ * It shows the picked file's preview while it uploads and after, with a
+ * progress ring while it is in flight. Otherwise it shows `objectKey`, or a
+ * placeholder. A polite live region announces the upload phase, errors
+ * and rejected files; it stays silent while an `UploadToasts` is mounted for
+ * the same hook, which announces them instead.
+ *
+ * @example
+ * ```tsx
+ * const upload = useUpload({ route: "avatars", accept: ["image/*"] });
+ *
+ * <AvatarUpload
+ *   upload={upload}
+ *   route="avatars"
+ *   objectKey={user.avatarKey}
+ *   label="Change profile photo"
+ *   onUploaded={(result) => saveAvatar(result.key)}
+ * />
+ * ```
+ */
+export function AvatarUpload({
+  upload,
+  route,
+  objectKey = null,
+  label,
+  onUploaded,
+  size = 96,
+  shape = "circle",
+  api,
+  className,
+}: AvatarUploadProps) {
+  const { file } = upload;
+  const inFlight = file != null && IN_FLIGHT.has(file.phase);
+  // A paused image keeps its preview and its progress ring.
+  const paused = file?.phase === "paused";
+  // After an upload, the local preview shows until `objectKey` moves to
+  // another image, such as when the photo is removed.
+  const [uploaded, setUploaded] = useState<{
+    id: string;
+    objectKey: string | null;
+  } | null>(null);
+  if (file?.phase === "success" && uploaded?.id !== file.id) {
+    setUploaded({ id: file.id, objectKey });
+  }
+  const previewCurrent =
+    file?.phase === "success" &&
+    (uploaded?.id !== file.id ||
+      objectKey === uploaded.objectKey ||
+      objectKey === file.result?.key);
+  const previewUrl =
+    inFlight || paused || previewCurrent ? (file?.previewUrl ?? null) : null;
+  const announcement = useAnnouncement(upload);
+  // A weak owner: an `UploadToasts` for the same hook announces instead.
+  const announces = useToastOwner(upload.instanceId, { weak: true });
+
+  const reportUploaded = useEffectEvent((result: UploadResult) => {
+    onUploaded?.(result);
+  });
+  // Images that uploaded before the avatar mounted are not reported.
+  const [reported] = useState(
+    () => new Set(upload.files.filter(isUploaded).map((item) => item.id)),
+  );
+  useEffect(() => {
+    for (const item of upload.files) {
+      if (!isUploaded(item) || reported.has(item.id)) continue;
+      reported.add(item.id);
+      reportUploaded(item.result);
+    }
+  }, [reported, upload.files]);
+
+  const image = "size-full object-cover";
+  const rounded = shape === "circle" ? "rounded-full" : "rounded-xl";
+  const placeholder = (
+    <UserIcon className="size-1/2" strokeWidth={1.5} aria-hidden />
+  );
+
+  return (
+    <Upload upload={upload}>
+      <div
+        data-slot="avatar-upload"
+        data-shape={shape}
+        className={cn("relative inline-flex shrink-0", className)}
+        style={{ width: size, height: size }}
+      >
+        <button
+          {...upload.getDropTargetProps({
+            type: "button",
+            disabled: upload.disabled,
+            "aria-label": label,
+            "aria-busy": inFlight || undefined,
+            onClick: () => upload.open(),
+            className: cn(
+              rounded,
+              "flex size-full cursor-pointer items-center justify-center overflow-hidden border border-dimah-s3-border bg-dimah-s3-muted text-dimah-s3-muted-foreground transition-colors outline-none hover:border-dimah-s3-primary/50 focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-dimah-s3-border data-drag-active:border-dimah-s3-primary data-drag-active:ring-3 data-drag-active:ring-dimah-s3-primary/30",
+            ),
+          })}
+        >
+          {previewUrl ? (
+            <img src={previewUrl} alt="" className={image} />
+          ) : (
+            <ObjectImage
+              api={api}
+              route={route}
+              objectKey={objectKey}
+              alt=""
+              className={image}
+              fallback={placeholder}
+            />
+          )}
+        </button>
+        {inFlight || paused ? (
+          <div
+            className={cn(
+              rounded,
+              "pointer-events-none absolute inset-0 flex items-center justify-center bg-dimah-s3-background/60",
+            )}
+          >
+            <CircleProgress
+              percent={file.progress.percent}
+              fileName={file.fileName}
+              className="size-1/3"
+            />
+          </div>
+        ) : (
+          <span
+            className={cn(
+              "pointer-events-none absolute flex size-7 items-center justify-center rounded-full border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground shadow-sm",
+              shape === "circle" ? "end-0 bottom-0" : "-end-1.5 -bottom-1.5",
+            )}
+            aria-hidden
+          >
+            <CameraIcon className="size-3.5" />
+          </span>
+        )}
+        <span className="sr-only" aria-live="polite">
+          {announces ? announcement : ""}
+        </span>
+      </div>
+    </Upload>
+  );
+}
+
+/** What the live region says about the newest call. */
+function useAnnouncement(upload: UseUploadReturn): string {
+  const t = useTranslations();
+  const formatError = useFormatError();
+  const rejection = upload.fileRejections[0]?.errors[0];
+  if (rejection) return formatError(rejection);
+
+  const { file } = upload;
+  if (!file) {
+    return upload.isPending ? t("Preparing…", { note: "upload status" }) : "";
+  }
+  switch (file.phase) {
+    case "success":
+      return t("Upload complete", { note: "upload status" });
+    case "error":
+      return file.error
+        ? formatError(file.error)
+        : t("Upload failed", { note: "upload status" });
+    case "paused":
+      return t("Paused", { note: "upload status" });
+    default:
+      return t("Uploading…", { note: "upload status" });
+  }
+}

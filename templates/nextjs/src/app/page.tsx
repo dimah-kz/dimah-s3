@@ -1,7 +1,8 @@
 "use client";
 
+import { CloudUpload } from "lucide-react";
 import { useUpload } from "@dimah-s3/react";
-import { UploadButton } from "@dimah-s3/ui";
+import { Upload, UploadToasts, UploadTrigger } from "@dimah-s3/ui";
 
 export default function Home() {
   const upload = useUpload({ route: "avatar" });
@@ -15,7 +16,13 @@ export default function Home() {
         </p>
       </div>
 
-      <UploadButton upload={upload} label="Upload avatar" />
+      <Upload upload={upload}>
+        <UploadTrigger>
+          <CloudUpload data-icon="inline-start" aria-hidden />
+          Upload avatar
+        </UploadTrigger>
+      </Upload>
+      <UploadToasts upload={upload} />
 
       <p className="max-w-sm text-center text-xs text-muted-foreground">
         Fill the <code className="rounded bg-muted px-1 py-0.5">S3_*</code>{" "}

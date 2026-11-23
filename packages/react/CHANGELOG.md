@@ -1,8 +1,334 @@
-## @dimah-s3/react@1.7.2
+## @dimah-s3/react@2.0.0-beta.14 (beta)
 
-### Docs at v1.s3.dimah.dev
+### Move entries and delete folders with useObjectList
 
-Package homepages, the CLI link, and scaffolded registry entries use https://v1.s3.dimah.dev. New projects should use the 2.0 beta at https://s3.dimah.dev.
+A source can move files and folders and delete folders, and `useObjectList` runs those actions on the loaded rows. `uploadOptions` can wait for work such as creating a folder.
+
+- **`moveFile` and `moveFolder` on the source.** Each takes the entry and the destination `parent` (`null` is the root). The object key stays as you store it.
+- **`list.moveEntries(entries, parent)`.** Moves through the source one entry at a time, drops the moved rows, and reloads once. It never rejects and resolves with `ObjectListMoveResult`: `moved`, and `failed` with each `APIError`. Entries already in `parent` are left alone, and a folder moved into itself fails with `FOLDER_INVALID`. Set when the source has `moveFile` or `moveFolder`.
+- **`list.canMove(entry)`.** Whether the source can move that entry. Pass `"file"` or `"folder"` to ask about a kind.
+- **`listFolderKeys` and `deleteFolder` on the source.** `listFolderKeys({ folder, signal })` returns the object keys in a folder and every folder below it. `deleteFolder({ folder })` removes the folder and the folders below it once their files are gone. The list returns both: `list.deleteFolder(folder)` drops the folder row, and opens the folder that held it when it was open.
+- **`list.listFolders(parent)`.** The folders inside any folder, from the source's first page there, for a folder picker.
+- **`list.createFolder(name, { parent })`.** Creates the folder in another folder. Only a folder created in the open one joins the loaded rows.
+- **`memoryObjectSource` names folder keys.** With `getFolder`, it returns `listFolderKeys`.
+- **Folders join the selection.** `useObjectListSelection` selects files, and folders too when the list can delete or move them. Pass `isSelectable` to choose yourself.
+- **`uploadOptions` may return a promise.** A function in `uploadOptions` runs as each file starts. The file stays `preparing` until the promise settles, and cancelling it stops the wait.
+
+### Breaking changes
+
+- **Match the code of an `APIError` that `uploadOptions` throws.** The file fails with that error. Any other throw or rejection still fails it with `HOOK_FAILED`.
+
+### Word plugin error codes
+
+- **`formatError` on `S3Provider`.** Your message for an API error (`S3ErrorFormatter`). `useFormatError` and every UI toast ask it first, for plugin codes and catalog codes alike, and `undefined` keeps the built-in message. Without it, a plugin's code shows the English message the server sent.
+
+### A plugin SDK for third-party plugins
+
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
+### Hook results keep their identity
+
+The objects that `useUpload`, `useDownload`, `useFetchDownload`, `useDelete`, `useObjectUrl`, `useObjectList`, `useObjectListSelection`, and `useRouteUploadPolicy` return stay the same object until a value in them changes, so they can go in effect dependencies and context values.
+
+- **`upload.policy`** stays the same object while the route policy is the same, also when `accept` is a new array on every render.
+- **`upload.getRootProps`, `getInputProps`, and `getDropTargetProps`** keep their identity while the policy and the hook options do.
+- **`useObjectList`** keeps its result while the source functions you pass keep theirs.
+
+### Pause and resume uploads
+
+`useUpload` pauses files and resumes them where they stopped. A multipart upload continues from the parts S3 already has, with or without an `uploadStore`, while the page stays open.
+
+- **`upload.pause(ids?)`.** Stops one file, several, or every file, including the files of a call still preparing. A paused file stays in the queue with its progress, as phase `"paused"`, and frees its upload slot. A file that is `"finalizing"` finishes instead.
+- **`upload.resume(ids?)`.** Queues paused files again. A multipart upload continues from its uploaded parts; a single-shot upload starts over. The request options resolved before the pause are sent again, so an `uploadOptions` function does not run twice.
+- **A paused file has not ended.** The `handleFiles` promise, `onSuccess`, `onError`, and `onSettled` wait until it is resumed and finishes, or is cancelled.
+- **Without an `uploadStore`.** The hook keeps the multipart session of a paused file for the page session. A cancel, a failure, `detach()`, or an unmount aborts it, as before.
+- **`reset()` keeps paused files.** It removes only files that uploaded or failed. `cancel()` removes a paused file and aborts its multipart upload; `detach()` and an unmount remove it and keep its record in an `uploadStore`.
+
+### Breaking changes
+
+- **Handle `"paused"` in `UploadFilePhase` and `UploadPhase`.** A file is `"paused"` between `pause` and `resume`. The queue is `"paused"` while a file is paused and none is in flight; `isPending` is then `false`. A `switch` that lists every phase needs the new case.
+
+## @dimah-s3/react@2.0.0-beta.13 (beta)
+
+### Folder rows show what they hold
+
+A folder row shows how many files it holds and how large it is, on the same line a file uses for its size and date.
+
+- **The whole folder.** The count and the bytes include that folder and every folder below it. An empty folder is `0`. `memoryObjectSource` measures the records it holds. `GET /db/objects` sends `size` and `objectCount` on each folder of the page. The list's `usage` stays the whole scope.
+- **`db.objects.usage(scope)`.** Still sums the scope. Pass `{ folderId, recursive: true }` to sum one folder yourself.
+- **`ObjectListFolder`.** `size` and `objectCount` are optional. Leave them out when a source does not know, and the line stays empty.
+- **Your own second line.** `renderDescription` still replaces it.
+
+## @dimah-s3/react@2.0.0-beta.12 (beta)
+
+### One Node.js floor and bounded peer ranges
+
+Every `@dimah-s3/*` package declares `engines.node` `>=22`, exports its `package.json`, and names the peer majors it is built against. Keep every `@dimah-s3/*` package on the same version.
+
+- **`./package.json`.** Every package exports it, so a tool can read the installed version: `import pkg from "@dimah-s3/core/package.json" with { type: "json" }`.
+- **`funding`.** Every package links the sponsor page.
+
+### Breaking changes
+
+- **Use Node.js 22 or newer.** Every package declares `engines.node` `>=22`. Only `@dimah-s3/cli` declared a floor before (`>=20.19`).
+- **Check your peer versions.** Open-ended ranges such as `>=19.2` now end at the next major:
+  - `@dimah-s3/react` and `@dimah-s3/ui`: `react` `^19.2.0`.
+  - `@dimah-s3/ui`: `react-dom` `^19.2.0` (a new peer), `@base-ui/react` `^1.0.0`, `class-variance-authority` `^0.7.0`, `cn` `^0.5.2`, and `lucide-react` `>=0.400.0 <2`.
+  - `@dimah-s3/server` and `@dimah-s3/db`: `@aws-sdk/client-s3` `^3.0.0`.
+  - `@dimah-s3/db`: `kysely` `^0.29.8`.
+- **Install `@aws-sdk/client-s3` next to `@dimah-s3/db`.** It is a required peer. It was marked optional, but the plugin imports it.
+
+### Retries that keep the upload, and names that match the server
+
+Uploads recover from a failing gateway or server hook instead of starting over, and the hooks use the same words as the server and the engine.
+
+- **Retries follow the server.** A request is sent again after a network error, an S3 `5xx`, `408`, or `429`, and any API response with `5xx`, `408`, or `429`, which includes `INTERNAL_ERROR` from a gateway or from a server hook that failed. Confirm and multipart complete are retried, and with an `uploadStore` a multipart upload that fails this way stays stored and resumes. `HOOK_FAILED` is never retried. `useObjectUrl` follows the same rule.
+- **Uploads work on plain-HTTP origins.** File ids no longer come from `crypto.randomUUID`, which a phone on `http://192.168.…` does not have.
+- **`handleFiles` reports rejected files.** `UploadBatchResult` gains `rejected`: the files a call refused for their type, size, or count, with their errors.
+- **`cancel(ids)` and `reset(ids)`** take one id or several. `reset(ids)` removes only those settled files and keeps the rejections.
+- **`retry()` keeps calls apart.** Failed files of separate calls go again as separate calls, also when the calls shared one options object.
+- **`useDelete` callbacks are current.** `onSuccess`, `onError`, and `onSettled` run from the newest render, as in the other hooks.
+- **Types.** `UploadCallInput`, `UploadRootProps`, and `UploadInputProps` are exported, and `onError` may return a promise in every hook.
+
+### Breaking changes
+
+- **`@dimah-s3/core` is a peer dependency.** Install it at the same version as `@dimah-s3/react`.
+- **`uploadOptions.metadata` is `uploadOptions.clientMetadata`**, the name the server hooks use. `UploadResult.metadata` is still the object's S3 user metadata.
+- **`queue` is `append`** on `useUpload` and on a `handleFiles` call.
+- **`useApi` is `useS3Api`.** The bound `s3Client.useApi()` keeps its name.
+- **Download hooks: `mode` is `kind`.** `useDownload().kind` is `"navigate"` and `useFetchDownload().kind` is `"fetch"`. A download result still has `mode`, which is `"presign"` or `"proxy"`.
+- **`useFetchDownload`.** The `disposition` option is removed, since the bytes are always saved, and `FetchDownloadResult.size` is `fileSize`.
+- **Object lists.** The source's `getKey` is `getId`, and `removeItems` takes those ids.
+- **Upload stores.** `createMemoryStore` is `createMemoryUploadStore`, and `createLocalStorageStore` is `createLocalStorageUploadStore`.
+- **`retry.baseDelay` is `retry.baseDelayMs`.**
+- **`onPartUpload`** receives `{ partNumber, partCount }`: `totalParts` is `partCount`.
+- **`DropzoneRootProps` and `DropzoneInputProps`** are `UploadRootProps` and `UploadInputProps`.
+- **File ids are not UUIDs.** `UploadFileState.id` is an opaque string. Do not parse it.
+- **`UNKNOWN_ROUTE` is `ROUTE_NOT_FOUND`.**
+- **Browsers from Baseline 2024.** The hooks use `Promise.withResolvers` and `AbortSignal.any`: Chrome 119, Firefox 124, Safari 17.4, or newer.
+
+## @dimah-s3/react@2.0.0-beta.10 (beta)
+
+### Types resolve under NodeNext
+
+The declaration files of `@dimah-s3/core`, `@dimah-s3/server`, `@dimah-s3/react`, and `@dimah-s3/db` import each other by their `.js` paths. A project with `moduleResolution` set to `NodeNext` or `Node16` gets the same types as one on `Bundler`.
+
+- **`export *` names resolve.** Importing `buildObjectKey` or another re-exported helper from `@dimah-s3/core` no longer fails with `TS2305`.
+- **Values keep their types.** `dimahS3`, `route`, `useUpload`, `db`, and the other re-exported values are no longer `any`. Code that passed `tsc` only because they were `any` now reports its type errors.
+- **`skipLibCheck: false` passes.** `tsc` no longer reports `TS2834` or `TS2835` inside these packages.
+
+## @dimah-s3/react@2.0.0-beta.9 (beta)
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.2.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+### Search scope and result locations in useObjectList
+
+`useObjectList` can search the open folder and the folders below it, or everywhere, and keeps where each result lives.
+
+- **`searchScope`.** `"folder"` (the default) looks in the open folder and every folder below it, `"all"` everywhere. Control it with `searchScope` / `onSearchScopeChange`, or start with `defaultSearchScope`. The query receives it, and changing it reloads only while something is searched. A source lists the scopes it understands in `searchScopes`.
+- **`location`.** A folder or file of a search can carry `location`, the folders from the root down to the one that holds it. Entries copy it, and `openFolder` on a folder with a `location` opens its whole path.
+- **`total`.** A first page can send `total`, the files that match across every page. The hook returns it while searching.
+- **New on the return:** `isSearching`, `searchScope`, `setSearchScope`, `searchScopes`, and `total`.
+- **`memoryObjectSource`** with `getFolder` searches below the open folder or every record, returns the matching folders with their `location`, sends `total`, and adds each record's `location` to `getFile`. It matches with `matchesSearchText` from `@dimah-s3/core`, so look-alike letters and Persian digits match too.
+
+### Breaking changes
+
+- **`ObjectListQueryInput` has `searchScope`.** Pass it when you call a source's `query` yourself.
+- **`memoryObjectSource` searches below the open folder.** A search used to match the open folder only. To keep that, write your own `query` over `readObjectListLevel`.
+
+## @dimah-s3/react@2.0.0-beta.5 (beta)
+
+### List entries stay put between renders
+
+`useObjectList` keeps each entry object while its item or folder is the same object, so `entries`, and the selection maps built from them, keep their identity when a component renders again. An inline source no longer rebuilds them on every render.
+
+### Breaking changes
+
+- **Keep `getKey` and `getFile` pure.** They run once per item object. A `getFile` that reads other state shows the old value until the item changes: replace the item with `setItems`, or reload.
+
+### Per-call queueing, and list state that follows the rows
+
+An upload call can pick its own queue mode, the object-list hooks keep their state in step with the rows on screen, and the formatter and type names line up with the rest of the API.
+
+- **`handleFiles(files, { queue })`** overrides the hook's `queue` for one call: `true` appends and leaves the files in flight alone, `false` replaces the queue. `UploadCallOptions` gains `queue`.
+- **Selection follows the rows.** Without `persist`, `useObjectListSelection` drops an entry that a reload or search no longer returns, so it does not come back selected when it shows again.
+- **Search resets with the folder.** A controlled `parent` that changes from outside, such as on browser back, clears the search the way `openFolder` does, and the old search never loads in the new folder.
+- **`createFolder` reloads under a name sort or a search**, as a rename does, so the new folder shows where the source puts it.
+- **Engine types.** `@dimah-s3/react/engine` exports the types its functions take and return: `UploadRequestOptions`, `UploadEnginePhase`, `UploadResult`, `TransferProgress`, `ObjectListSource`, `ObjectListFile`, `ObjectListFolder`, `ObjectListPage`, `ObjectListQuery`, `ObjectListQueryInput`, `ObjectListSort`, and `ObjectListUsageData`.
+- **Named option types.** `FetchDownloadOptions` types `useFetchDownload().download(key, options)`, and `DeleteOptions` types `useDelete().remove(key, options)`.
+
+### Breaking changes
+
+- **Rename `useFormatDimahError` to `useFormatError`.** It works the same, and its name now matches the other `useFormat*` hooks.
+- **Rename the `ObjectListUsage` type to `ObjectListUsageData`.** The old name clashed with the `ObjectListUsage` component from `@dimah-s3/ui`.
+- **`useDownload` drops `presignMany`** and the `PresignManyResult` type. Call `presign(key)` for each key, or use `useObjectUrl` for previews, which caches and refreshes each URL.
+- **`@dimah-s3/react/engine` drops `formatSpeed` and `formatUploadProgress`.** Use `useFormatSpeed()` and `useFormatFileSize()`, which follow the `S3Provider` locale and translations.
+
+### Upload limits across calls
+
+`useUploadLimit` caps the files one `useUpload` takes in across its calls, and `retry` takes several ids at once.
+
+- **`useUploadLimit(upload, { available, counted })`** caps every call of the hook while the calling component is mounted: `handleFiles`, `open`, drops, pastes, and `retry`, wherever they come from. A call holds its slots from the moment it starts, so two quick calls never take the same ones. The hook rejects the files past the limit with `TOO_MANY_FILES`, and a retry sends only the failed files that fit. It returns the files that still fit, counting calls still preparing. The `UploadLimit` type names its argument.
+- **`retry(ids)`** takes one id or several. Failed files that came from one call go again as one call, so `beforeUpload`, `onUploadStart`, and `onSettled` run once for them.
+
+### Breaking changes
+
+- **Accept an array in a `retry` stub.** `UseUploadReturn["retry"]` now takes `string | readonly string[]`, so a test stub that implements `retry(id?: string)` must take `ids?: string | readonly string[]`.
+
+## @dimah-s3/react@2.0.0-beta.4 (beta)
+
+### Docs at s3.dimah.dev
+
+Package homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.
+
+## @dimah-s3/react@2.0.0-beta.3 (beta)
+
+### Rename a listed file or folder
+
+`useObjectList` renames through the source. `renameFile({ item, name })` and `renameFolder({ folder, name })` turn on `list.renameFile(item, name)` and `list.renameFolder(folder, name)`. Return the updated row and the list shows it. Leave the return out and the list reloads. A sort on `name`, or a search, reloads either way. An unchanged name does not call the source.
+
+## @dimah-s3/react@2.0.0-beta.2 (beta)
+
+### Folder ids in db()
+
+`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Recreate the database; a `2.0.0` beta database is not upgraded. Details are in each package changelog and in [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on this beta.** `folder` on a `db()` object is now `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.
+
+### Breadcrumb from the list page
+
+When the first page of `useObjectList` includes `trail`, the hook shows those folder names. A source that omits `trail` keeps the trail built while navigating. `dbObjectSource` sends the trail, so a deep link opens with the real names.
+
+## @dimah-s3/react@2.0.0-beta.0 (beta)
+
+### Search and sort `db()` object listings
+
+`GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
+
+- `search` keeps rows whose `filename` contains the text. It runs in the database (`LIKE` on SQL), so case follows its collation.
+- `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `filename`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
+- `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
+
+`dbObjectSource(api.db, …)` from `@dimah-s3/db/client` forwards the list's search text and sort, mapping `name` to `filename` and keeping `size` and `updatedAt`, so `ObjectListSearch` and `ObjectListSortMenu` work with `db()`. Sorting by date orders by the row's `updatedAt`, the same value `getFile().updatedAt` returns. New types: `DbListSort`, `DbListSortField`.
+
+### Object list: sources, selection, and composable UI
+
+The file list is rebuilt around three layers you can use apart.
+
+**`useObjectList` (`@dimah-s3/react`)** takes a source: `query` plus `getKey` (required) and `getFile` (name, `objectKey`, `size`, `contentType`, `updatedAt`, `previewUrl`). New on the return: `entries` (folders then files, each with a unique `key`), `sort` / `setSort`, `search` / `setSearch` (sent to the query as `sort` and `search`), `status`, `retry`, `goUp`, `setItems` / `setFolders` / `removeItems` for local edits, and the source's `uploadOptions` and `createFolder`. `refresh()` reloads every page on screen instead of only the first. A new sort or search keeps the rows on screen while it loads; opening a folder clears the search. `sort`, `search`, and `parent` can each be controlled.
+
+**`useObjectListSelection`** is new and headless: `toggle` with Shift ranges, `select`, `selectAll`, `clear`, `single` / `multiple` modes, `isSelectable`, and `persist` to keep files from other folders.
+
+**`memoryObjectSource`** from `@dimah-s3/react/engine` serves records you hold, with folders from a path, search, sort, pages, usage, and `limits`. **`useFormatDate`** formats dates for the `S3Provider` locale.
+
+**`dbObjectSource(api.db, { route, folders })`** from `@dimah-s3/db/client` lists one `db()` folder at a time, forwards the list's search and sort, and gives the list `uploadOptions` and `createFolder`.
+
+**`ObjectList` (`@dimah-s3/ui`)** takes the hook returns — `list`, `selection`, `upload`, `download`, `share`, `delete` — and gains a grid view, search, sort, keyboard navigation (arrows, Space, Backspace), paste-to-upload, a Load more mode, and default file menus. Pass `children` to compose the parts: `ObjectListHeader`, `ObjectListBreadcrumb`, `ObjectListSearch`, `ObjectListSortMenu`, `ObjectListViewToggle`, `ObjectListSelectionBar`, `ObjectListBulkDelete`, `ObjectListUsage`, `ObjectListUploadStatus`, `ObjectListContent`, `ObjectListRow`, `ObjectListTile`, `ObjectListEmpty`, and `useObjectListContext`. Deleting a file drops it from the rows at once, then reloads.
+
+### Breaking changes
+
+- `useObjectList` requires `getKey`. The query input adds `sort` and `search`.
+- `ObjectList` no longer takes `getKey`, `getLabel`, `getDescription`, `getFileName`, `getFileType`, `getPreviewUrl`, or `getObjectKey` — return those from `getFile` on the source. `selectable` and `onSelectionChange` are replaced by `selection={useObjectListSelection(list)}`. `header` is now `toolbar`. `renderItem` / `renderFolder` become `renderEntry`; `renderActions`, `renderMeta`, and `renderFolderActions` become entry-based `renderActions`, `renderMeta`, and `renderDescription`. `emptyTitle` / `emptyDescription` become `empty={<ObjectListEmpty title=… />}`. `list` must be a `useObjectList` return.
+- `ObjectListMenu` is renamed `ObjectListItemMenu`. Inside a list every prop is optional: the list is the `Delete` root, so it owns the confirm dialog.
+- `@dimah-s3/db/client`: `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`. Read a row's file fields with `source.getFile(row)`.
+- `ObjectListView` (the old list-state type) is removed; the name now means the `"list" | "grid"` view.
+
+### Per-key hook state, a per-file upload queue, and a React-free engine
+
+Every hook keeps its state per key. `useDelete`, `useDownload`, and `useFetchDownload` expose `operations`, `get(key)`, and `pendingKeys`, and a second call for a key that is already running joins that call instead of sending another request. Every action returns an outcome or a result object, so you can `await` it instead of reading state.
+
+- **Upload queue.** `useUpload` uploads each file on its own. `cancel(id)` cancels one file, `queue: true` appends new files instead of replacing the queue, and an invalid file no longer stops the rest of the batch. Multipart parts go through a worker pool that follows the server's layout, and each part is hashed as a stream.
+- **`useFetchDownload`** is the fetch-to-blob download, split out of `useDownload`. `useDownload` hands the URL to the browser.
+- **`getDropTargetProps`** turns any element into a drop target without making it a click-to-open dropzone, for folder rows and list frames.
+- **`@dimah-s3/react/engine`** holds the plain functions: `uploadFile`, `uploadAbortReason`, `getUploadAbortKind`, `multipartResumeKey`, `mergeUploadRequest`, `DEFAULT_MULTIPART_THRESHOLD`, `createLocalStorageStore`, `createMemoryStore`, `defineApi`, `memoryObjectSource`, `readObjectListLevel`, `objectListEntryKey`, `objectKeyOf`, `loadRouteCatalog`, `resolveRouteUploadPolicy`, `mergeRouteUploadPolicy`, `formatFileSize`, `formatSpeed`, `formatUploadProgress`, `formatAcceptLabels`, `truncateFileName`, and `toTimestamp`. It has no `"use client"` directive and no React import, so it works in shared and server modules. `formatFileSize` and `truncateFileName` moved here from `@dimah-s3/core`.
+- **Retry a failed upload.** `useUpload` gains `retry(id?)`: it sends the failed file `id` again, or every failed file. A retried file keeps its place and `id` and goes back to `queued`, with the call options it was first sent with, so it lands in the same folder. It is validated again, `beforeUpload` and `onUploadStart` run again, and a retry never replaces the queue. It resolves like `handleFiles`. With an `uploadStore`, a multipart upload that failed on a retryable error resumes from the parts S3 already has.
+- **Accept labels.** `useFormatAcceptLabels()` returns the labels for `accept` tokens with translated group labels (`"Images(file type group)"`, `"Videos(file type group)"`, …), and `formatAcceptLabels(accept, { groups })` takes your own. Long and prefixed MIME types read as their file type (`DOCX`, `SVG`, `TAR`), and the result keeps the order of `accept`.
+- **`mergeUploadRequest(base, override)`** combines two request objects the way a call's `uploadOptions` go over the hook's: `override` fields win, and `metadata` merges key by key.
+- `UseUploadOptions.accept` takes a readonly array, so an `as const` list type-checks.
+- **Object lists.** `ObjectListUsage` gains `maxBytes` and `maxFiles`. A source may provide `uploadOptions(parent)` and `createFolder(name)`, and `useObjectList` returns both. `memoryObjectSource({ limits })` reports limits with usage.
+- **`useObjectUrl`** returns `expiresAt` and `objectKey`, refreshes the URL before it expires, and shares one cache per `S3Api`. When a background refresh fails, the URL stays while it still works and `error` is set; a transient failure (408, 429, or 5xx) is retried with backoff until the URL expires.
+- **`useUpload({ disabled })`** makes `open()` a no-op, and the return gains a `disabled` field. `handleFiles` still uploads what it is given.
+- **`queue: false`.** A call that is blocked, rejected, or fails before uploading no longer cancels running uploads, and a new call cancels older calls that are still preparing.
+- **Upload names.** The engine fits `name` (from `fileName` or `file.name`) to the 255-byte wire rule with `fitFileName` before presign and multipart init, so a long or odd name uploads under a shortened name instead of failing with `VALIDATION_ERROR`.
+- **Uploads and resume.** The browser transport raises `CHECKSUM_MISMATCH` when S3 rejects a checksummed PUT or part (`BadDigest` or `XAmzContentChecksumMismatch`); a custom `UploadTransport` should do the same. With an `uploadStore`, a multipart failure that retrying cannot fix aborts the server upload and deletes the record; only retryable errors and `detach()` keep it.
+- **`useFetchDownload`** reports progress at most every 100 ms, ignores `content-length` and `fileSize` for an encoded body, and never reports more than 100 percent. A failure while reading the body becomes `NETWORK_ERROR`.
+- **`removeMany`** reports results under the keys you passed, even when the server normalizes them, and never leaves an operation stuck in `deleting`. A key is never trimmed to match an answer, so a key with whitespace around it fails as `KEY_INVALID` under the key you passed.
+- The unused runtime dependency `immer` is dropped.
+
+- **New error copy.** `useFormatDimahError` words `OBJECT_EXISTS`, `FOLDER_EXISTS`, and `FEATURE_DISABLED` with `feature: "proxy"`, and still reads a raw better-call error by rebuilding it first. `CONFLICT`, which now means a concurrent change won, reads "Another change happened at the same time. Try again." in place of "Conflict"; rename that key in your translations.
+
+### Breaking changes
+
+- **Entries and peers.**
+  - Nothing from `@dimah-s3/core` is re-exported. Install `@dimah-s3/core` and import `APIError`, `S3_ERROR_CODES`, `isS3ErrorCode`, `validateFile`, `S3Api`, and the other protocol names from it.
+  - Plain functions moved to `@dimah-s3/react/engine` (list above). `uploadFiles`, `FileItem`, `FileItemStatus`, `MultiUploadCallbacks`, and `UploadEngineCallbacks` are removed.
+  - The root entry holds hooks, `S3Provider`, `useApi`, `createS3Client`, the `useFormat*` hooks, and types. Its `dist/index.js` starts with `"use client"`.
+  - The React peer is now `react >=19.2`, the version `@fuma-translate/react` needs. `@fuma-translate/react` is a peer dependency only; install it next to `@dimah-s3/react`.
+  - `formatFileSize`, `truncateFileName`, `FileSizeUnit`, and `FormatFileSizeOptions` come from `@dimah-s3/react/engine`, not `@dimah-s3/core`.
+- **`useDelete`.**
+  - State is per key: `operations`, `get(key)`, `pendingKeys`, and `isPending`.
+  - The confirm slot moved to the ui `Delete` component. `requestDelete`, `confirmDelete`, `cancelDelete`, and `isConfirming` are removed.
+  - `remove(key)` returns an outcome. `removeMany(items)` takes any number of keys, sends them in chunks of `DELETE_MANY_MAX_KEYS`, and returns `{ deleted, failed: { key, error }[], blocked }`.
+  - Callbacks are `onSuccess(data, key)`, `onError(error, key)`, and `onSettled(result)`. `data` is `DeleteData`, `{ key, bucket? }`; `bucket` is set by `remove` only. A delete outcome never has status `aborted`.
+  - `reset()` no longer cancels a delete that is in flight.
+- **Downloads.**
+  - `useDownload({ mode: "fetch" })` is now `useFetchDownload()`. `isFetchDownload` is removed; narrow on `.mode`.
+  - `onInitiated` is now `onSuccess`, and `onCancel` is removed: a cancelled call settles with an `aborted` outcome.
+  - `download(key, { fileName })` returns an outcome. `presign(key, { fileName, expiresIn })` returns one too and runs `beforeDownload`.
+  - Keys run in parallel, and a repeated key joins the running call.
+- **Uploads.**
+  - `files[].status` is now `phase`. `isUploading` is removed; use `isPending`.
+  - `UseUploadReturn` gains the required fields `disabled` and `retry`. Stubs that build a full return must add `disabled: false` and a `retry` function.
+  - `handleFiles(files, { uploadOptions, maxFiles })` resolves `{ uploaded, failed, blocked, aborted }`. Call `uploadOptions` merge over the hook's, and `metadata` merges key by key.
+  - Callbacks run per file: `onSuccess(result, file)`, `onError(error, file)`, and `onProgress(progress, file)`, plus `onSettled(result)` once per call, even when every file was rejected. `onFileSuccess`, `onFileError`, `onFileProgress`, and `onCancel` are removed.
+  - `getUploadOptions` is merged into `uploadOptions`, which can be a function of the file.
+  - The `checksum` options and `multipartPartSize` are removed: the server's route catalog decides. `uploadStore: false` is removed.
+  - Unmount detaches resumable uploads and cancels the rest. 1.x resume records are ignored.
+  - `UploadResult` uses `name`, `size`, and `type`. `StoredUpload` uses `fileSize` and stores the upload ticket.
+- **Errors.**
+  - `S3UploadError` is removed. Every error is an `APIError` with a catalog code.
+  - An aborted upload rejects with an `AbortError` `DOMException`. Use `getUploadAbortKind` from `@dimah-s3/react/engine` to tell cancel from detach.
+  - `FileRejection.errors` is `APIError[]`. `useFormatValidateFileError` is removed; use `useFormatDimahError`.
+  - `formatEta` is now the hook `useFormatEta`. `UploadProgress` and `FetchDownloadProgress` are now `TransferProgress`.
+- **`useObjectUrl`.** `expiresIn` on the return is replaced by `expiresAt`, an absolute timestamp in milliseconds, or `null` for proxy URLs. A URL with a short lifetime refreshes at half of it.
+- **Engine.** `uploadFile(api, file, { route, policy, ... })` takes one options object. `UploadTransport` receives `TransferProgress`.
+- **Removed types.**
+  - `UseNavigateDownloadOptions` and `UseNavigateDownloadReturn` are now `UseDownloadOptions` and `UseDownloadReturn`.
+  - `UseDeleteState`, `UseFetchDownloadState`, `DeleteHooks`, `DownloadHooks`, `FetchDownloadHooks`, `UploadHooks`, `DeletePhase`, `DownloadPhase`, and `FetchDownloadPhase` are removed. Per-key state is `DeleteOperation`, `DownloadOperation`, and `FetchDownloadOperation`, and actions return `DeleteOutcome`, `DownloadOutcome`, and `FetchDownloadOutcome`.
+  - `FileUploadConfig` is removed. Use `UseUploadOptions` for the hook and `UploadFileOptions` for `uploadFile`.
+- **Translations.** Many UI string keys changed. `satisfies Partial<Translations>` flags the keys that no longer exist.
+- **Translations.** New keys: "A file with this name already exists", "A folder with this name already exists", and "Streaming downloads are disabled" (note `API error`); "Images", "Videos", "Audio", "Text files", and "Fonts" (note `file type group`); and for the ui retry actions "Retry {name}" (`attachment action`), "Retry failed uploads" (`upload control`), and "Retry" (`toast action`).
+- **`formatAcceptLabels`.** `audio/*` is now `Audio` (was `Audios`), `text/*` is `Text files` (was `Texts`), another group reads like `Model files` for `model/*`, and `*` or `*/*` has no label. A MIME type's label drops `x-`, `vnd.`, and a `+suffix`, and known office and archive types read as their extension (`DOCX`, `ZIP`).
+
+### 2.0.0 beta
+
+`2.0.0-beta` reworks the protocol, the hooks, and the components of every `@dimah-s3/*` package, and moves `db()` to database schema `2.0.0`. This is a beta: later betas can include breaking changes until `2.0.0`. Install the line with the `beta` dist-tag and keep every package on the same beta. The [upgrade guide](https://v2.s3.dimah.dev/docs/migration-2-0) walks through each step, and each package's changelog lists its changes in full.
+
+- **Upload tickets.** Presign and multipart init return a signed ticket, and confirm and every later multipart call send only `{ ticket }`.
+- **One error catalog.** Every error is an `APIError` with a catalog `code`, a `status`, and typed `params`.
+- **Per-key React state.** Hooks keep state per key, a repeated key joins the running call, and every action returns an outcome.
+- **Composable UI.** `Upload*`, `Download*`, and `Delete*` families replace the preset buttons, and toasts come from `UploadToasts`, `DownloadToasts`, and `DeleteToasts`.
+- **Folders in `db()`.** Logical folders, typed `attributes`, prebuilt Drizzle tables, and re-exported adapters.
+
+### Breaking changes
+
+- **Set `DIMAH_S3_SECRET`.** Generate it with `openssl rand -base64 32` and use the same value on every instance, or pass `dimahS3({ secret })`. Without it, uploads return `500` outside `development` and `test`.
+- **Set `requestChecksumCalculation: "WHEN_REQUIRED"`** on the `S3Client` you pass to `dimahS3()`.
+- **Install `@dimah-s3/core`** next to `@dimah-s3/react` and import `APIError`, `S3_ERROR_CODES`, and the protocol helpers from it. Import plain functions such as `uploadFile`, `memoryObjectSource`, and the display formatters `formatFileSize` and `truncateFileName` from `@dimah-s3/react/engine`.
+- **React 19.2** is required by `@dimah-s3/react` and `@dimah-s3/ui`, and `@fuma-translate/react` is a peer to install.
+- **Replace the preset components** (`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, `DeleteButton`) with the families, and mount one toast component per hook plus one `<Toaster />`.
+- **Import schemas from `@dimah-s3/core/schema`.** The root of `@dimah-s3/core` no longer ships Zod, so `uploadBodySchema` and the other schemas moved there.
+- **Proxy downloads need `download.mode: "proxy"`.** `/file` refuses routes in presign mode with `404 FEATURE_DISABLED`.
+- **Upgrade the `db()` schema** with `sql/upgrade/1.0.0-2.0.0/<dialect>.sql` or `migrate(client)` before you deploy, and remove `fumadb` from your app. With Drizzle, upgrade `drizzle-orm` to 1.0.0-rc.5 or later first.
 
 ## @dimah-s3/react@1.7.1
 

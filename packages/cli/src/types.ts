@@ -1,3 +1,5 @@
+import type { GeneratedEnvKey } from "@/create/env";
+
 export type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
 
 export type TemplateId = string;
@@ -49,4 +51,6 @@ export type CreateContext = {
   createdTargetDir: boolean;
   /** Drives the final instructions: skipped or failed installs are surfaced. */
   installed: boolean;
+  /** Env keys that `create` wrote a fresh value for in `.env`. */
+  generatedEnv: GeneratedEnvKey[];
 };

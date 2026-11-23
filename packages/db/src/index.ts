@@ -1,58 +1,49 @@
-// Schema + client
-export { DimahS3DB, v1 } from "./fuma-db";
+// FumaDB client
+export { DB_SCHEMA_VERSION, DimahS3Db, type DimahS3DbClient } from "./fuma-db";
+export { migrate } from "./migrate";
+export { DB_FOLDER_ID_KEY } from "./constants";
 
-// Types
+// Plugin
+export { db, type DbPluginContext } from "./plugin/db";
 export type {
-  DbClientGetInput,
-  DbClientListInput,
-  DbClientListResponse,
-  DbClientObject,
+  PruneDeletedOptions,
+  PurgeStaleOptions,
+  PurgeStaleResult,
+} from "./plugin/purge";
+export type { RecordObjectCall, RecordObjectInput } from "./plugin/record";
+export type { DbFolders, DbObjects } from "./plugin/public-stores";
+export type {
+  AuthorizeContext,
+  DbAttributesOptions,
+  DbPluginOptions,
+  DbQuotaOption,
+  DbRouteOptions,
   ScopeContext,
   ScopeOperation,
-  ScopeResolver,
+} from "./types/plugin";
+
+// Rows
+export type {
+  StorageFolder,
   StorageObject,
   StorageObjectStatus,
 } from "./types/storage-object";
-
-// Errors
-export { conflict, forbidden, notFound, unauthorized } from "./errors";
-
-// Store (data-access layer)
-export {
-  createStorageObjectStore,
-  toPendingMultipartResume,
-} from "./store/storage-object-store";
 export type {
-  DimahS3DbClient,
-  FindPendingMultipartInput,
-  ListByScopeInput,
-  MarkActiveInput,
+  DbClientFolder,
+  DbClientObject,
+  DbClientObjectStatus,
+  DbListSort,
+  DbListSortField,
+  DbQuota,
+  DbUsage,
+} from "./types/client";
+export type { StandardSchemaV1 } from "./standard-schema";
+
+// Store inputs and pages (`s3.db.objects`, `s3.db.folders`)
+export type {
+  ListObjectsInput,
+  ListObjectsPage,
+  ObjectFilter,
   ObjectRef,
-  PendingMultipartResume,
-  ScopeUsage,
-  StorageObjectStore,
-  UpsertPendingInput,
-} from "./store/storage-object-store";
-
-// Plugin
-export { db } from "./plugin/db";
-export type { DbPluginContext, DbPluginOptions } from "./plugin/db";
-
-// Guards (escape hatch for custom composition)
-export { createObjectAccessGuard } from "./hooks/create-object-access-guard";
-export type {
-  CreateObjectAccessGuardOptions,
-  ObjectAccessGuardContext,
-} from "./hooks/create-object-access-guard";
-export { createQuotaGuard } from "./hooks/create-quota-guard";
-export type {
-  CreateQuotaGuardOptions,
-  QuotaGuardContext,
-} from "./hooks/create-quota-guard";
-
-// Jobs
-export { purgeStalePendingObjects } from "./jobs/purge-stale-pending";
-export type {
-  PurgeStalePendingOptions,
-  PurgeStalePendingResult,
-} from "./jobs/purge-stale-pending";
+  UpdateObjectInput,
+} from "./store/object-store";

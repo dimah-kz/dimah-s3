@@ -1,0 +1,19 @@
+---
+packages:
+  group:dimah-s3:
+    replay:
+      - exit-prerelease(npm:@dimah-s3/core)
+      - exit-prerelease(npm:@dimah-s3/cli)
+      - exit-prerelease(npm:@dimah-s3/db)
+      - exit-prerelease(npm:@dimah-s3/react)
+      - exit-prerelease(npm:@dimah-s3/server)
+      - exit-prerelease(npm:@dimah-s3/ui)
+---
+
+### Folder ids in db()
+
+`@dimah-s3/db` schema `2.3.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Create the schema on a new database. A `1.x` database and a `2.0.0` beta database are not upgraded. Details are in each package changelog and in [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade).
+
+#### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `folder` on a `db()` object is `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.

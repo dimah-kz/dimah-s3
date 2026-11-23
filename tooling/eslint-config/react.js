@@ -63,6 +63,8 @@ export const reactConfig = defineConfig(
     rules: {
       // shadcn primitives: association happens at the call site.
       "jsx-a11y/label-has-associated-control": "off",
+      // Synced from shadcn as is (`sync:shadcn`), so keep its import style.
+      "@typescript-eslint/consistent-type-imports": "off",
     },
   },
 );

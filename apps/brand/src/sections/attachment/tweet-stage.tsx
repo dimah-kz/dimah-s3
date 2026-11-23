@@ -3,7 +3,7 @@ import { BrandWindow } from "@/lib/frame";
 
 /**
  * Unscaled card-row box. Visual size is this × `CARD_SCALE`.
- * 3× `w-30` vertical attachments + 2× `gap-6`.
+ * 3× `w-30` stacked attachments + 2× `gap-6`.
  */
 const CARD_ROW = { width: 408, height: 168 } as const;
 const CARD_SCALE = 1.5;

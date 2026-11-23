@@ -1,0 +1,147 @@
+import {
+  fileNameSchema,
+  objectKeySchema,
+  optionalContentTypeSchema,
+  optionalTrimmedString,
+  routeNameSchema,
+  trimmedString,
+} from "@dimah-s3/core/schema";
+import * as z from "zod";
+import { DB_LIST_MAX_LIMIT } from "@/constants";
+import { DEFAULT_LIST_LIMIT } from "@/store/object-store";
+
+export { DB_LIST_MAX_LIMIT };
+
+/** Longest `search` text, in characters. */
+const MAX_SEARCH_LENGTH = 255;
+
+/** Longest `cursor`, in characters. Real cursors are far shorter. */
+const MAX_CURSOR_LENGTH = 2048;
+
+/**
+ * Query-string integers arrive as strings; `s3.api` may pass numbers.
+ * A codec stays compilable (`z.coerce` is not).
+ */
+function queryInt(schema: z.ZodInt) {
+  return z.codec(
+    z.union([z.string().trim().regex(z.regexes.integer), schema]),
+    schema,
+    {
+      decode: (value) =>
+        typeof value === "number" ? value : Number.parseInt(value, 10),
+      encode: (value) => value,
+    },
+  );
+}
+
+/** A query-string boolean: `true` or `false`. `s3.api` may pass a boolean. */
+const queryBoolean = z.codec(
+  z.union([z.enum(["true", "false"]), z.boolean()]),
+  z.boolean(),
+  {
+    decode: (value) => value === true || value === "true",
+    encode: (value) => value,
+  },
+);
+
+const dbListSortSchema = z.object({
+  field: z.enum(["createdAt", "updatedAt", "size", "name"]),
+  direction: z.enum(["asc", "desc"]),
+});
+
+/**
+ * A query string carries `sort` as JSON (better-fetch serializes objects
+ * that way); `s3.api` may pass the object.
+ */
+const dbListSortQuerySchema = z.codec(
+  z.union([z.string(), dbListSortSchema]),
+  dbListSortSchema,
+  {
+    decode: (value, ctx) => {
+      if (typeof value !== "string") return value;
+      try {
+        return JSON.parse(value) as z.input<typeof dbListSortSchema>;
+      } catch {
+        ctx.issues.push({
+          code: "invalid_format",
+          format: "json",
+          input: value,
+          message: "Invalid sort",
+        });
+        return z.NEVER;
+      }
+    },
+    encode: (value) => value,
+  },
+);
+
+/**
+ * Query of `GET /db/objects`. `folderId` of `""` is the root. Omit it for a
+ * flat list. `recursive` also lists the folders below `folderId`. `usage`
+ * asks for the scope's usage when the plugin has no quota. Blank `search`,
+ * `contentType`, and `cursor` values are omitted.
+ */
+export const dbListQuerySchema = z.strictObject({
+  folderId: z.string().optional(),
+  recursive: queryBoolean.optional(),
+  route: routeNameSchema.optional(),
+  // Rows that purge has claimed stay internal, as on `GET /db/object`.
+  status: z.enum(["pending", "active", "deleted"]).optional(),
+  contentType: optionalContentTypeSchema,
+  /** Text the name contains, ignoring case and accents. */
+  search: optionalTrimmedString.pipe(
+    z.string().max(MAX_SEARCH_LENGTH).optional(),
+  ),
+  sort: dbListSortQuerySchema.optional(),
+  limit: queryInt(z.int().min(1).max(DB_LIST_MAX_LIMIT)).default(
+    DEFAULT_LIST_LIMIT,
+  ),
+  cursor: optionalTrimmedString.pipe(
+    z.string().max(MAX_CURSOR_LENGTH).optional(),
+  ),
+  usage: queryBoolean.optional(),
+});
+
+/** Query of `GET /db/object`. */
+export const dbObjectQuerySchema = z.strictObject({
+  key: objectKeySchema,
+  bucket: trimmedString.optional(),
+});
+
+/**
+ * Body of `PATCH /db/object`. `folderId` of `null` or `""` is the root.
+ * `attributes` are checked by the plugin's `attributes.schema`.
+ */
+export const dbUpdateObjectBodySchema = z.strictObject({
+  key: objectKeySchema,
+  bucket: trimmedString.optional(),
+  name: fileNameSchema.optional(),
+  folderId: z.string().nullable().optional(),
+  /** `null` clears the attributes. */
+  attributes: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+
+/** Body of `POST /db/folder`. `parentId` omitted, `null`, or `""` is the root. */
+export const dbCreateFolderBodySchema = z.strictObject({
+  parentId: z.string().nullable().optional(),
+  name: z.string(),
+});
+
+/**
+ * Body of `PATCH /db/folder`. `parentId` of `null` or `""` is the root.
+ * The endpoint checks the name and that the folder is not moved into itself.
+ */
+export const dbUpdateFolderBodySchema = z.strictObject({
+  id: trimmedString,
+  name: z.string().optional(),
+  parentId: z.string().nullable().optional(),
+});
+
+/**
+ * Query of `DELETE /db/folder`. `recursive` removes the folders below it
+ * too, once none of them holds an object.
+ */
+export const dbDeleteFolderQuerySchema = z.strictObject({
+  id: trimmedString,
+  recursive: queryBoolean.optional(),
+});

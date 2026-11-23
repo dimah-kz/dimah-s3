@@ -1,6 +1,6 @@
 {
   "title": "Server",
-  "description": "Server handlers, routes and lifecycle hooks",
+  "description": "Route handlers, lifecycle hooks, security, and plugins",
   "icon": "Server",
   "root": true,
   "pages": [
@@ -8,10 +8,14 @@
     "setup",
     "routes",
     "security",
+    "upload-tickets",
+    "file-proxy",
     "errors",
     "---Hooks---",
     "...hooks",
     "---Extend---",
-    "plugins"
+    "plugins",
+    "community-plugins",
+    "testing"
   ]
 }

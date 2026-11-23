@@ -1,20 +1,41 @@
 ---
-title: Server Setup
-description: Install `@dimah-s3/server`, configure S3, and mount your route handler.
+title: Setup
+description: Install @dimah-s3/server, set the ticket secret, create the dimahS3 instance, and mount its handler in your framework.
 icon: Settings
 ---
 
-## Install
+Set up the server once per app: install the package, set a ticket secret,
+create one `dimahS3()` instance, and mount its handler under `/api/s3`.
+
+## Installation
 
 ```npm
 npm i @dimah-s3/server @aws-sdk/client-s3
 ```
 
+The server runs on Node.js 22 or newer, and on any runtime with the Fetch API
+and Web Crypto.
+
+## Set the ticket secret
+
+Presign returns an [upload ticket](/docs/server/upload-tickets) signed with
+`DIMAH_S3_SECRET`. Set it to a random value of at least 32 characters, the
+same on every instance:
+
+```bash title=".env"
+# openssl rand -base64 32
+DIMAH_S3_SECRET="…"
+```
+
+Without it, uploads return `500 INTERNAL_ERROR`. Development and test fall
+back to a random secret, so a missing one first fails in production. See
+[Secret](/docs/server/upload-tickets#secret).
+
 ## Configure S3 and routes
 
-Initialize `dimahS3` by passing your `@aws-sdk/client-s3` instance and defining named routes.
-
-Operations (`upload`, `download`, `delete`, `multipart`) are disabled by default. Enable only what each route needs.
+Pass your `S3Client` and define named [routes](/docs/server/routes). Every
+operation (`upload`, `download`, `delete`, `upload.multipart`) is off until
+you turn it on.
 
 ```ts title="lib/s3.ts"
 import { S3Client } from "@aws-sdk/client-s3";
@@ -27,6 +48,7 @@ export const awsS3 = new S3Client({
     accessKeyId: process.env.S3_ACCESS_KEY_ID!,
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
   },
+  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
 });
 
 export const s3 = dimahS3({
@@ -36,7 +58,7 @@ export const s3 = dimahS3({
     avatar: route({
       upload: {
         fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024, // 2MB
+        maxFileSize: 2 * 1024 * 1024, // 2 MB
       },
       download: true,
       delete: true,
@@ -45,20 +67,22 @@ export const s3 = dimahS3({
 });
 ```
 
-<Callout title="Uploading more than 5 GiB">
-  A single presigned POST cannot exceed **5 GiB**. For larger files, enable
-  `upload.multipart` or set `upload.method` to `"PUT"` when your storage
-  provider supports a single PUT of that size. The route's `maxFileSize` still
-  applies.
+<Callout type="warn" title="requestChecksumCalculation">
+  The SDK default, `"WHEN_SUPPORTED"`, signs checksum parameters that a
+  presigned browser upload cannot match. With any value other than
+  `"WHEN_REQUIRED"`, presign logs a config error and returns `500
+  INTERNAL_ERROR`.
 </Callout>
 
----
+The browser uploads straight to the bucket, so the bucket must also allow
+your app's origin in its CORS rules. See
+[Providers](/docs/providers#allow-your-origin-in-bucket-cors).
 
-## Mount route handler
+## Mount the handler
 
-Adapters are available for all major JavaScript runtimes:
+Mount the handler at the `basePath` the client uses, `/api/s3` by default.
 
-<Tabs items={["Next.js", "Express", "Hono", "SvelteKit", "Fastify", "Elysia", "Node", "Web"]}>
+<Tabs items={["Next.js", "Express", "Hono / Vite", "SvelteKit", "Fastify", "Elysia", "Node", "Web"]}>
 
 <Tab value="Next.js">
 
@@ -68,13 +92,6 @@ import { s3 } from "@/lib/s3";
 
 export const { GET, POST, PUT, PATCH, DELETE } = toNextJsHandler(s3);
 ```
-
-<Callout title="Cache Components">
-  Next.js 16.4 enables Cache Components on new apps. This handler reads the
-  request, so presign, download, and delete run on each request. Leave the
-  handler uncached. A `use cache` wrapper would reuse one presign across
-  requests.
-</Callout>
 
 </Tab>
 
@@ -87,13 +104,15 @@ import { s3 } from "./s3";
 
 const app = express();
 // The adapter reads the raw stream, so mount it before JSON middleware.
-app.all("/api/s3/*", toExpressHandler(s3));
+app.use("/api/s3", toExpressHandler(s3));
 app.use(express.json());
 ```
 
+A route works too: `app.all("/api/s3/*splat", …)` on Express 5.
+
 </Tab>
 
-<Tab value="Hono">
+<Tab value="Hono / Vite">
 
 ```ts title="src/index.ts"
 import { Hono } from "hono";
@@ -106,6 +125,19 @@ app.on(
   "/api/s3/*",
   toHonoHandler(s3),
 );
+```
+
+With a Vite React app, run this API server next to Vite and proxy `/api` to
+it in development, so the client keeps calling its own origin:
+
+```ts title="vite.config.ts"
+export default defineConfig({
+  server: {
+    proxy: {
+      "/api": { target: "http://127.0.0.1:8787", changeOrigin: true }, // [!code ++]
+    },
+  },
+});
 ```
 
 </Tab>
@@ -134,7 +166,13 @@ import { toFastifyHandler } from "@dimah-s3/server/fastify";
 import { s3 } from "./s3";
 
 const app = Fastify();
-app.all("/api/s3/*", toFastifyHandler(s3));
+
+app.register(async (scope) => {
+  // Leave the body unread: the adapter streams it from the raw request.
+  scope.removeAllContentTypeParsers();
+  scope.addContentTypeParser("*", (_request, _payload, done) => done(null));
+  scope.all("/api/s3/*", toFastifyHandler(s3));
+});
 ```
 
 </Tab>
@@ -187,11 +225,46 @@ export default {
 
 </Tabs>
 
----
+### Behind a reverse proxy
+
+Behind a proxy that sets `X-Forwarded-Proto` and `X-Forwarded-Host`, pass
+`trustProxy` to the Node, Express, or Fastify adapter, so `request.url` in
+your hooks is the public URL. Turn it on only behind such a proxy, since
+clients can send those headers too.
+
+```ts
+toNodeHandler(s3, { trustProxy: true });
+toExpressHandler(s3, { trustProxy: true });
+toFastifyHandler(s3, { trustProxy: true });
+```
+
+### Custom base path or API origin
+
+Set `basePath` to serve the API somewhere else, or `baseURL` when it has its
+own origin, and configure the client to match:
+
+```ts title="lib/s3.ts"
+export const s3 = dimahS3({
+  basePath: "/api/storage", // [!code ++]
+  // ...
+});
+```
+
+```ts title="lib/s3-client.ts"
+export const s3Client = createS3Client({
+  baseURL: "https://api.example.com/api/storage", // [!code ++]
+});
+```
+
+The handler sends no CORS headers. An API on another origin needs CORS from
+your framework: allow the app's origin, the `Content-Type` header, and
+credentials when the client sends cookies (`credentials: "include"`).
 
 ## Server-side API (`s3.api`)
 
-You can invoke S3 actions directly on the server without going through HTTP endpoints. Pass request `headers` so that route guards and auth hooks execute properly:
+`s3.api` has the browser client's methods and payloads, and runs them in
+process with the same guards and hooks. Pass the caller's headers so guards
+can read cookies and auth headers:
 
 ```ts title="app/actions.ts"
 "use server";
@@ -200,98 +273,136 @@ import { headers } from "next/headers";
 import { s3 } from "@/lib/s3";
 
 export async function getAvatarDownloadUrl(key: string) {
-  return s3.api.download({
-    query: { route: "avatar", key },
-    headers: await headers(), // [!code ++]
-  });
+  return s3.api.download(
+    { route: "avatar", key },
+    { headers: await headers() }, // [!code ++]
+  );
 }
 ```
 
-Guards and `resolveScope` see that call as a `Request`: `headers` are copied, `query` is on the URL, and a JSON `body` stays readable with `request.clone().json()`. Pass `request` only when you already have the incoming one — that object is used as-is.
+In Node or Express, pass `{ headers: fromNodeHeaders(req.headers) }`, with
+`fromNodeHeaders` from `@dimah-s3/server/node`.
 
-To upload files directly from the server (e.g. background jobs, image processing) while still executing route validation and `onConfirmed` hooks:
+For jobs with no request, seed trusted
+[`locals`](/docs/server/hooks/global-guard#locals) instead:
+
+```ts title="jobs/cleanup.ts"
+await s3.api.deleteMany(
+  { route: "files", keys },
+  { locals: { userId: job.ownerId } }, // [!code ++]
+);
+```
+
+Plugin endpoints are HTTP only. A plugin exposes its server-side functions on
+the instance instead, such as `s3.db`.
+
+## Server-side uploads (`s3.put`)
+
+`s3.put` uploads from your server through the route's upload policy:
 
 ```ts
-await s3.put({
-  route: "avatar",
-  fileName: "profile.png",
-  contentType: "image/png",
-  body: imageBuffer,
-  headers: await headers(), // [!code ++]
-});
+const object = await s3.put(
+  {
+    route: "avatar",
+    name: "profile.png",
+    type: "image/png",
+    body: imageBuffer,
+  },
+  { headers: await headers() },
+);
+// object: { key, bucket, name, size, type, eTag, metadata, acl, … }
 ```
 
----
+It runs the route's upload hooks with `kind: "server"`, except
+`confirmGuard`. See [Upload Hooks](/docs/server/hooks/upload#upload-lifecycle).
 
-## Type reference
+## Logging
 
-```ts
-import type { DimahS3Config } from "@dimah-s3/server";
-```
-
-### DimahS3Config
-
-<AutoTypeTable
-  path="packages/server/src/types/config.ts"
-  name="DimahS3Config"
-/>
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How do error handling and status codes work?">
-
-All handlers throw typed `APIError` objects with stable string codes and numeric HTTP status codes:
-
-- A plain `Error` thrown in `guard`, `*Guard`, or `object` maps to **403 Forbidden**.
-- A plain `Error` thrown in `onPresigned`, `onConfirmed`, or other `on*` hooks maps to **500 Internal Error**.
-- Use the `errors` helper (e.g. `throw errors.unauthorized()`) to specify exact codes.
-
-See [Errors](/docs/server/errors) for the full list of error codes.
-
-</Accordion>
-
-<Accordion title="How does key generation and prefix isolation work?">
-
-By default, dimah-s3 isolates object keys by route prefix (the route name):
-
-```
-avatar/{uuid}/{fileName}
-```
-
-Upload generates that key. Confirm, download, and delete accept a client-sent
-key only if it stays under the same prefix; otherwise they return
-`INVALID_KEY`. That check is always in `@dimah-s3/server` — [`db()`](/docs/db)
-adds per-user scope, not the prefix bound.
-
-Setting `keyPrefix: false` disables that namespace boundary and requires strict
-application guards. See
-[Security](/docs/server/security#route-namespace-vs-ownership).
-
-To customize the folder or key structure, use `upload.object` in your route definition.
-
-</Accordion>
-
-<Accordion title="How do I change the base path or support cross-origin APIs?">
-
-Set `basePath` when initializing `dimahS3`:
+The server logs config errors, unexpected failures, and warnings to
+`console`, prefixed with `[dimah-s3]`. Rejections you throw with `s3Error`
+are not logged. Pass `logger` to send logs elsewhere, or `false` to silence
+them:
 
 ```ts
 export const s3 = dimahS3({
-  basePath: "/api/storage", // [!code ++]
+  logger: {
+    warn: (message, ...args) => log.warn({ args }, message), // [!code ++]
+    error: (message, ...args) => log.error({ args }, message), // [!code ++]
+  },
   // ...
 });
 ```
 
-Make sure the client specifies the same `basePath` (or full `baseURL` if hosted on a separate domain):
+To send failures to an error tracker, use
+[`onError`](/docs/server/errors#reporting-errors).
 
-```ts
-export const s3Client = createS3Client({
-  baseURL: "https://api.example.com/api/storage", // [!code ++]
-});
-```
+## API Reference
 
-</Accordion>
+### dimahS3()
 
-</Accordions>
+`dimahS3(config)` throws at startup on an invalid config. Only the ticket
+secret is checked later, on the first upload.
+
+| Prop                 | Type                                        | Default     | Description                                                                                                                                                    |
+| -------------------- | ------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `routes`             | `Record<string, DimahS3RouteConfig>`        | required    | Named file [routes](/docs/server/routes#api-reference). At least one                                                                                           |
+| `client`             | `S3Client`                                  | —           | Default AWS SDK v3 client. Required unless every route sets one. Must set `requestChecksumCalculation: "WHEN_REQUIRED"`                                        |
+| `bucket`             | `string`                                    | —           | Default bucket. Required unless every route sets one                                                                                                           |
+| `basePath`           | `string`                                    | `"/api/s3"` | API path prefix. Must match `createS3Client({ basePath })`                                                                                                     |
+| `baseURL`            | `string`                                    | —           | Absolute `http(s)` API URL with no query or hash. Its path must equal `basePath` when both are set. Proxy download URLs use it                                 |
+| `secret`             | `string \| readonly string[]`               | —           | Ticket secret, at least 32 characters. Defaults to the `DIMAH_S3_SECRET` environment variable. An array rotates secrets: the first signs, every one verifies   |
+| `ticketSubject`      | `TicketSubject`                             | —           | Binds [upload tickets](/docs/server/upload-tickets#binding-a-ticket-to-a-user) to a subject, such as a user id. Defaults to the first plugin that provides one |
+| `guard`              | `Guard<GuardContext>`                       | —           | Runs before every operation, before route lookup. See [Guards](/docs/server/hooks/global-guard)                                                                |
+| `maxExpiresIn`       | `number`                                    | `604800`    | Largest presign TTL in seconds for any route. 7 days is also the maximum                                                                                       |
+| `maxRequestBodySize` | `number`                                    | `1048576`   | Largest JSON request body in bytes, counted on the stream. Over it: `413 REQUEST_TOO_LARGE`                                                                    |
+| `logger`             | `DimahS3Logger \| false`                    | `console`   | Object with optional `debug`, `info`, `warn`, and `error` methods. `false` silences it                                                                         |
+| `onError`            | `(error, context) => void \| Promise<void>` | —           | Receives every unexpected failure with `{ request, operation? }`. See [Reporting errors](/docs/server/errors#reporting-errors)                                 |
+| `plugins`            | `readonly DimahS3Plugin[]`                  | —           | Server [plugins](/docs/server/plugins), such as `db()`                                                                                                         |
+
+### Instance
+
+| Property       | Type                                                    | Description                                                               |
+| -------------- | ------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `handler`      | `(request: Request) => Promise<Response>`               | The HTTP handler every adapter wraps                                      |
+| `api`          | `DimahS3Api`                                            | The browser client's methods, run in process                              |
+| `put`          | `(input, options?) => Promise<ConfirmedObjectResponse>` | Uploads from the server through a route's policy                          |
+| `context`      | `PluginContextMap`                                      | Plugin contexts by plugin id. Each one is on the instance too, as `s3.db` |
+| `getPlugin`    | `(id) => DimahS3Plugin \| undefined`                    | Returns a registered plugin                                               |
+| `$ERROR_CODES` | `typeof S3_ERROR_CODES`                                 | The [error catalog](/docs/server/errors), with every plugin's codes       |
+| `$Infer`       | type only                                               | `typeof s3.$Infer.routes` is the union of your route names                |
+
+`InferS3Routes<typeof s3>` from `@dimah-s3/core` reads `$Infer.routes` to
+[type route names](/docs/react/setup#typescript-route-inference) on the client.
+
+### Call options
+
+The last argument of every `s3.api` method and of `s3.put`
+(`S3ServerCallOptions`).
+
+| Prop      | Type                     | Default | Description                                                                                                                                    |
+| --------- | ------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `headers` | `HeadersInit`            | —       | Headers of the synthetic `GET` request to `baseURL`, or to `http://localhost` plus `basePath`. It has no query or body. Ignored with `request` |
+| `signal`  | `AbortSignal`            | —       | Aborts the call and its S3 requests. Ignored with `request`, whose own signal is used                                                          |
+| `request` | `Request`                | —       | The request hooks see. Pass the incoming one when you have it                                                                                  |
+| `locals`  | `Partial<DimahS3Locals>` | —       | Trusted values that seed `locals` before any guard runs. Never read from HTTP                                                                  |
+
+### s3.put input
+
+| Prop             | Type                                                                        | Default  | Description                                                               |
+| ---------------- | --------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------- |
+| `route`          | `string`                                                                    | required | Route name                                                                |
+| `name`           | `string`                                                                    | required | File name. Also written as the object's `Content-Disposition`             |
+| `body`           | `Blob \| ReadableStream<Uint8Array> \| Uint8Array \| ArrayBuffer \| string` | required | File content                                                              |
+| `type`           | `string`                                                                    | —        | MIME type                                                                 |
+| `size`           | `number`                                                                    | —        | Byte size. Required for a `ReadableStream`, and must match any other body |
+| `metadata`       | `Record<string, string>`                                                    | —        | S3 user metadata, written on top of the `metadata` from `upload.object`   |
+| `clientMetadata` | `Record<string, string>`                                                    | —        | Visible to hooks. Never written to S3                                     |
+
+### Adapter options
+
+`toNodeHandler`, `toExpressHandler`, and `toFastifyHandler` take
+`NodeHandlerOptions` as a second argument.
+
+| Prop         | Type      | Default | Description                                                            |
+| ------------ | --------- | ------- | ---------------------------------------------------------------------- |
+| `trustProxy` | `boolean` | `false` | Builds the request URL from `X-Forwarded-Proto` and `X-Forwarded-Host` |

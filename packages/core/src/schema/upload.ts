@@ -1,24 +1,37 @@
 import * as z from "zod";
+import { S3_MAX_OBJECT_SIZE } from "@/limits";
 import {
-  metadataSchema,
-  objectKeySchema,
+  fileNameSchema,
+  clientMetadataSchema,
   optionalChecksumSchema,
-  optionalTrimmedString,
+  optionalContentTypeSchema,
   routeNameSchema,
-  trimmedString,
+  uploadTicketSchema,
 } from "./shared";
 
 export const uploadBodySchema = z.strictObject({
   route: routeNameSchema,
-  fileName: trimmedString,
-  fileSize: z.int().positive(),
-  contentType: optionalTrimmedString,
-  metadata: metadataSchema.optional(),
-  /** Unpadded base64 SHA-256. Required when the route sets `upload.checksum`. */
+  name: fileNameSchema,
+  /**
+   * Declared size in bytes. Confirm checks it against HeadObject. `0` parses
+   * so the server can reject it as `FILE_EMPTY`, as `validateFile` does.
+   */
+  size: z.int().nonnegative().max(S3_MAX_OBJECT_SIZE),
+  /** MIME type. A blank value is omitted. */
+  type: optionalContentTypeSchema,
+  /** Client extras for the hooks. Never written to S3 on their own. */
+  clientMetadata: clientMetadataSchema.optional(),
+  /**
+   * Base64 SHA-256 (padding optional), as `sha256Blob` / `sha256Base64`
+   * return it. Required when the route sets `upload.checksum`.
+   */
   checksum: optionalChecksumSchema,
 });
 
-export const confirmBodySchema = z.strictObject({
-  route: routeNameSchema,
-  key: objectKeySchema,
+/**
+ * Body of every call that carries only an upload ticket: confirm, and the
+ * multipart `listParts`, `complete` and `abort`.
+ */
+export const ticketBodySchema = z.strictObject({
+  ticket: uploadTicketSchema,
 });

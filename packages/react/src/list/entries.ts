@@ -1,0 +1,114 @@
+import type {
+  ObjectListEntry,
+  ObjectListFile,
+  ObjectListFileEntry,
+  ObjectListFolder,
+  ObjectListFolderEntry,
+} from "./types";
+
+/**
+ * Entry key for a file or folder id. Matches `entry.key`, so a selection can
+ * be built from ids you already have.
+ */
+export function objectListEntryKey(
+  kind: ObjectListEntry<unknown>["kind"],
+  id: string,
+): string {
+  return `${kind}:${id}`;
+}
+
+function folderEntry(folder: ObjectListFolder): ObjectListFolderEntry {
+  return {
+    kind: "folder",
+    key: objectListEntryKey("folder", folder.id),
+    id: folder.id,
+    name: folder.name,
+    folder,
+    ...(folder.location && { location: folder.location }),
+  };
+}
+
+function fileEntry<TItem>(
+  item: TItem,
+  getId: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): ObjectListFileEntry<TItem> {
+  const id = getId(item);
+  const file = getFile(item);
+  return {
+    kind: "file",
+    key: objectListEntryKey("file", id),
+    id,
+    name: file.name,
+    item,
+    file,
+    ...(file.location && { location: file.location }),
+  };
+}
+
+/** Folders first, then files. */
+export function createObjectListEntries<TItem>(
+  folders: readonly ObjectListFolder[],
+  items: readonly TItem[],
+  getId: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): ObjectListEntry<TItem>[] {
+  return [
+    ...folders.map(folderEntry),
+    ...items.map((item) => fileEntry(item, getId, getFile)),
+  ];
+}
+
+/** Entries built for one set of folders and items. @internal */
+export type ObjectListEntryCache<TItem> = {
+  folders: readonly ObjectListFolder[];
+  items: readonly TItem[];
+  entries: readonly ObjectListEntry<TItem>[];
+};
+
+/**
+ * Like {@link createObjectListEntries}, but a folder or item that is the
+ * same object as in `previous` keeps its entry, and the same entries keep
+ * the same array. `getId` and `getFile` are pure, so they run only for
+ * new items. @internal
+ */
+export function reuseObjectListEntries<TItem>(
+  previous: ObjectListEntryCache<TItem> | null,
+  folders: readonly ObjectListFolder[],
+  items: readonly TItem[],
+  getId: (item: TItem) => string,
+  getFile: (item: TItem) => ObjectListFile,
+): ObjectListEntryCache<TItem> {
+  if (!previous) {
+    return {
+      folders,
+      items,
+      entries: createObjectListEntries(folders, items, getId, getFile),
+    };
+  }
+  const folderEntries = new Map<ObjectListFolder, ObjectListEntry<TItem>>();
+  const fileEntries = new Map<TItem, ObjectListEntry<TItem>>();
+  for (const entry of previous.entries) {
+    if (entry.kind === "folder") folderEntries.set(entry.folder, entry);
+    else fileEntries.set(entry.item, entry);
+  }
+  const entries: ObjectListEntry<TItem>[] = [];
+  for (const folder of folders) {
+    entries.push(folderEntries.get(folder) ?? folderEntry(folder));
+  }
+  for (const item of items) {
+    entries.push(fileEntries.get(item) ?? fileEntry(item, getId, getFile));
+  }
+  const same =
+    entries.length === previous.entries.length &&
+    entries.every((entry, index) => entry === previous.entries[index]);
+  return { folders, items, entries: same ? previous.entries : entries };
+}
+
+/** Stored key for a file entry: `file.objectKey`, else the item key. */
+export function objectKeyOf(entry: {
+  id: string;
+  file: Pick<ObjectListFile, "objectKey">;
+}): string {
+  return entry.file.objectKey || entry.id;
+}

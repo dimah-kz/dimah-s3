@@ -1,60 +1,87 @@
-import { defineClientPlugin, pluginPath } from "@dimah-s3/core";
+import {
+  defineClientPlugin,
+  pluginPath,
+  type S3RequestOptions,
+} from "@dimah-s3/core";
 import type { db } from "@/plugin/db";
-import type {
-  DbClientGetInput,
-  DbClientListInput,
-  DbClientListResponse,
-  DbClientObject,
-} from "@/types/storage-object";
+import type { DbClientActions, DbClientListObjectsInput } from "@/types/client";
 
-export type {
-  DbClientGetInput,
-  DbClientListInput,
-  DbClientListResponse,
-  DbClientObject,
-} from "@/types/storage-object";
+/** The per-call options better-fetch reads: the abort signal and headers. */
+function call(options: S3RequestOptions | undefined) {
+  return { signal: options?.signal, headers: options?.headers };
+}
+
+/** The list query on the wire, where the root folder is `""`. */
+function listQuery(input: DbClientListObjectsInput | undefined) {
+  if (input === undefined) return undefined;
+  const { folderId, ...rest } = input;
+  if (folderId === undefined) return rest;
+  return { ...rest, folderId: folderId ?? "" };
+}
 
 /**
- * Client plugin for the server `db()` endpoints.
+ * Client plugin for the server `db()` endpoints. Its actions are
+ * {@link DbClientActions} on `api.db`. Pass `TClientAttributes` to type the
+ * `attributes` the plugin's `attributes.toClient` returns.
  *
  * ```ts
  * import { createS3Client } from "@dimah-s3/react";
  * import { dbClient } from "@dimah-s3/db/client";
  *
- * export const { api, useApi } = createS3Client({
+ * export const s3Client = createS3Client({
  *   plugins: [dbClient()],
  * });
  *
- * await api.db.listObjects({ limit: 50 });
+ * const page = await s3Client.db.listObjects({ folderId: "" });
  * ```
  *
- * Server code does not use `listObjects` — it calls `s3.db.objects.listByScope`
- * and `getScopeUsage` directly (no HTTP round-trip). `listObjects` is the browser
- * wrapper for `GET /db/objects`.
+ * The server resolves the scope from the request, so no action takes one.
+ * Server code skips HTTP and uses `s3.db.objects` and `s3.db.folders`.
  */
-export function dbClient() {
+export function dbClient<TClientAttributes = never>() {
   return defineClientPlugin({
     id: "db",
-    $InferServerPlugin: {} as ReturnType<typeof db>,
-    getActions: ($fetch) => ({
-      /**
-       * List the caller's objects and usage. Scope comes from server `resolveScope`
-       * — not a parameter here. For another scope, use `listByScope` on the server.
-       * Pass `init.signal` to cancel the request.
-       */
-      listObjects: (
-        input?: DbClientListInput,
-        init?: { signal?: AbortSignal },
-      ) =>
-        $fetch<DbClientListResponse>(pluginPath("db", "objects"), {
+    // Types `$fetch` by the endpoints `db()` mounts, so a response that
+    // drifts from `DbClientActions` fails to compile here.
+    $InferServerPlugin: {} as ReturnType<
+      typeof db<never, never, TClientAttributes>
+    >,
+    getActions: ($fetch): DbClientActions<TClientAttributes> => ({
+      listObjects: (input, options) =>
+        $fetch(pluginPath("db", "objects"), {
           method: "GET",
-          query: input,
-          signal: init?.signal,
+          query: listQuery(input),
+          ...call(options),
         }),
-      getObject: (input: DbClientGetInput) =>
-        $fetch<{ object: DbClientObject }>(pluginPath("db", "object"), {
+      getObject: (input, options) =>
+        $fetch(pluginPath("db", "object"), {
           method: "GET",
           query: input,
+          ...call(options),
+        }),
+      updateObject: (input, options) =>
+        $fetch(pluginPath("db", "object"), {
+          method: "PATCH",
+          body: input,
+          ...call(options),
+        }),
+      createFolder: (input, options) =>
+        $fetch(pluginPath("db", "folder"), {
+          method: "POST",
+          body: input,
+          ...call(options),
+        }),
+      updateFolder: (input, options) =>
+        $fetch(pluginPath("db", "folder"), {
+          method: "PATCH",
+          body: input,
+          ...call(options),
+        }),
+      deleteFolder: (input, options) =>
+        $fetch(pluginPath("db", "folder"), {
+          method: "DELETE",
+          query: input,
+          ...call(options),
         }),
     }),
   });

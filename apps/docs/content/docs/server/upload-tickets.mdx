@@ -1,0 +1,165 @@
+---
+title: Upload Tickets
+description: The signed, stateless ticket that carries an upload from presign to confirm, plus its secret, lifetime, and user binding.
+icon: Ticket
+---
+
+Presign and multipart init return a `ticket`: a signed record of the upload's
+route, server-chosen key, declared file, and, for multipart, part layout.
+Every later call for that upload sends only the ticket.
+
+| Call                  | Body                                |
+| --------------------- | ----------------------------------- |
+| `confirm`             | `{ ticket }`                        |
+| `multipart.signPart`  | `{ ticket, partNumber, checksum? }` |
+| `multipart.listParts` | `{ ticket }`                        |
+| `multipart.complete`  | `{ ticket }`                        |
+| `multipart.abort`     | `{ ticket }`                        |
+
+<Flow
+  label="Upload ticket"
+  steps={[
+    { name: "Presign", kind: "server", note: "Issues the ticket" },
+    { name: "Upload to S3", kind: "s3" },
+    { name: "Confirm", kind: "server", note: "Verifies the ticket" },
+  ]}
+/>
+
+- The server keeps no session state. Because the ticket is signed, a client
+  cannot change the key, route, or declared size between presign and confirm.
+- A ticket that fails verification returns `403 UPLOAD_TICKET_INVALID`.
+- Treat it as opaque. The React hooks and `createS3Client` pass it along for
+  you.
+
+## Secret
+
+Tickets are signed with HMAC-SHA256, using a key derived from your secret. Set
+it in the environment:
+
+```bash title=".env"
+# openssl rand -base64 32
+DIMAH_S3_SECRET="…"
+```
+
+Or pass it in code:
+
+```ts title="lib/s3.ts"
+export const s3 = dimahS3({
+  secret: process.env.MY_TICKET_SECRET, // [!code ++]
+  // ...
+});
+```
+
+- Every secret needs at least **32 characters**. A short `secret` option
+  throws at `dimahS3()`. A short `DIMAH_S3_SECRET` returns
+  `500 INTERNAL_ERROR` on the first upload.
+- Use the **same value on every instance**, so a ticket issued by one server
+  verifies on another.
+- `DIMAH_S3_SECRET` is read on the first upload, not at `dimahS3()`, so
+  `next build` works without it. An empty value counts as not set.
+- With no secret, uploads return `500 INTERNAL_ERROR` and the cause is logged.
+  When `NODE_ENV` is `development` or `test`, a random secret is used instead,
+  so tickets stop verifying after a restart.
+
+### Rotate the secret
+
+Pass an array. The first value signs new tickets, and every value verifies:
+
+```ts
+export const s3 = dimahS3({
+  secret: [process.env.DIMAH_S3_SECRET!, process.env.DIMAH_S3_SECRET_OLD!], // [!code ++]
+  // ...
+});
+```
+
+Keep the old value until every ticket it signed has expired: one day by
+default, plus the 7-day abort window if abandoned multipart uploads should
+stay abortable.
+
+## Lifetime
+
+| Upload      | Ticket expires                            | Default          |
+| ----------- | ----------------------------------------- | ---------------- |
+| Single-shot | URL expiry + `upload.confirmWindow`       | 600 s + 3600 s   |
+| Multipart   | Init + `upload.multipart.ticketExpiresIn` | 86 400 s (1 day) |
+
+After expiry, every call returns `410 UPLOAD_TICKET_EXPIRED`. The exception is
+`multipart.abort`, which accepts the ticket for 7 more days so an abandoned
+upload can still be cleaned up.
+
+```ts
+upload: {
+  confirmWindow: 15 * 60, // [!code ++]
+  multipart: {
+    ticketExpiresIn: 6 * 60 * 60, // [!code ++]
+  },
+},
+```
+
+`upload.onStart` receives the ticket expiry as `expiresAt`: after it, the
+upload can never be confirmed.
+
+## Binding a ticket to a user
+
+On its own, a ticket lets its holder confirm or continue one upload until it
+expires. Return a subject, such as a user or tenant id, from `ticketSubject`
+to make it work only for that subject:
+
+```ts title="lib/s3.ts"
+declare module "@dimah-s3/server" {
+  interface DimahS3Locals {
+    userId?: string;
+  }
+}
+
+export const s3 = dimahS3({
+  guard: async ({ request }) => {
+    const session = await getSession(request);
+    if (!session) throw s3Error("UNAUTHORIZED");
+    return { locals: { userId: session.userId } };
+  },
+  ticketSubject: ({ locals }) => locals.userId, // [!code ++]
+  // ...
+});
+```
+
+- `ticketSubject` runs when the ticket is issued and on every call that
+  carries it, after the instance and route guards. `locals` holds what those
+  guards returned; feature guards such as `upload.guard` have not run yet.
+- A bound ticket used with a different subject, or none, returns
+  `UPLOAD_TICKET_INVALID`.
+- Return `undefined` to issue an unbound ticket.
+- Without a `ticketSubject` option, the first plugin that provides one is
+  used. [`db()`](/docs/db) binds tickets to the resolved scope.
+
+## Upload token
+
+Each upload has an `uploadToken`, a random id carried in the ticket. Hooks
+receive it, and the server writes it to the object as signed S3 metadata.
+
+- Confirm and multipart complete require the stored object to carry the same
+  token. Otherwise another upload has replaced the object at that key: the
+  call returns `OBJECT_NOT_FOUND` and nothing is deleted.
+- Confirm is stateless, so a retried confirm with the same ticket runs every
+  check and `upload.onConfirmed` again. Dedupe on `uploadToken`, as in
+  [Track an upload](/docs/server/hooks/upload#track-an-upload).
+
+## Handling tickets
+
+- Tickets never go into URLs. They travel in JSON bodies only.
+- Keep them out of logs and analytics.
+- A leaked ticket allows writes to one key until it expires, and only for the
+  bound subject when one is set.
+- The React [upload store](/docs/react/upload-store) keeps the ticket so an
+  interrupted multipart upload can resume. When several users share a browser,
+  bind tickets to a subject so a stored ticket is useless to the next user.
+
+## API Reference
+
+| Prop                               | Type                               | Default | Description                                                                                     |
+| ---------------------------------- | ---------------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| `secret`                           | `string \| readonly string[]`      | —       | Signing secret, at least 32 characters. Defaults to `DIMAH_S3_SECRET`. An array rotates secrets |
+| `ticketSubject`                    | `(context) => string \| undefined` | —       | Subject to bind tickets to. Receives a `RouteGuardContext`. May be async                        |
+| `upload.expiresIn`                 | `number`                           | `600`   | Presigned URL TTL in seconds                                                                    |
+| `upload.confirmWindow`             | `number`                           | `3600`  | Seconds after the URL expires during which confirm is still accepted                            |
+| `upload.multipart.ticketExpiresIn` | `number`                           | `86400` | Seconds a multipart ticket stays valid                                                          |

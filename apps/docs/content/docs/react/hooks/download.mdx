@@ -1,225 +1,240 @@
 ---
 title: useDownload
-description: Headless React hook for presigned S3 downloads with browser navigation, fetch streams, and inline preview.
+description: Download objects from a named route, by handing a signed URL to the browser or by fetching the bytes with progress.
 ---
 
-`useDownload` requests signed GET URLs from your server and handles browser-native downloads or client-side fetch streaming with live progress tracking.
+Two hooks download objects from a named route. Both track each key on its
+own, so several keys can download at once, and a second call for a running
+key joins that call.
 
-```tsx title="components/download-avatar.tsx"
+| Hook               | How it downloads                                                                | Use it when                                              |
+| ------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `useDownload`      | Presigns a GET URL and hands it to the browser. No bytes pass through your page | By default. The browser streams the file to disk         |
+| `useFetchDownload` | Presigns, fetches the bytes in the page, then saves them                        | You need progress or cancel, and the file fits in memory |
+
+```tsx title="components/download-report.tsx"
 "use client";
 
 import { useDownload } from "@dimah-s3/react";
 
-export function DownloadAvatar({ avatarKey }: { avatarKey: string }) {
-  const { download, isPending } = useDownload({
-    route: "avatar",
-  });
+export function DownloadReport({ objectKey }: { objectKey: string }) {
+  const { download, get } = useDownload({ route: "reports" });
+  const isPending = get(objectKey)?.phase === "presigning";
 
   return (
     <button
       type="button"
-      onClick={() => void download(avatarKey)}
+      onClick={() => void download(objectKey, { fileName: "report.pdf" })}
       disabled={isPending}
-      className="btn"
     >
-      {isPending ? "Generating link…" : "Download Avatar"}
+      {isPending ? "Preparing…" : "Download"}
     </button>
   );
 }
 ```
 
----
+For ready-made buttons, pass either return value to the
+[download components](/docs/ui/components/download).
 
-## Download modes
+## useDownload
 
-### 1. Browser navigation (`mode: "navigate"`, default)
-
-Requests a presigned GET URL and navigates the browser directly to S3. S3 immediately responds with the binary file stream and triggers the browser's native file save dialog.
+`download(key, { fileName })` presigns the key and hands the URL to the
+browser. The response's `Content-Disposition` decides whether the browser
+saves the file or opens it. `disposition` on the hook asks for `"inline"` or
+`"attachment"`; the server can override it.
 
 ```tsx
-const { download, presign, presignMany, phase, isPending } = useDownload({
-  route: "avatar",
-  onInitiated: (key) => {
-    console.log("Browser handed download URL for:", key);
-  },
+const { download } = useDownload({
+  route: "reports",
+  disposition: "attachment",
+  onSuccess: (data, key) => console.log("Browser has the URL for", key),
 });
 
-// Trigger download
-await download(avatarKey);
-
-// Or get the presigned URL directly without triggering browser navigation
-const { url, expiresIn } = await presign(avatarKey);
-
-// Ask for a shorter link. The server clamps this to the route cap.
-const hour = await presign(avatarKey, "avatar.png", 3600);
+const outcome = await download(objectKey);
+if (outcome.status === "error") console.log(outcome.error.code);
 ```
 
-`presignMany` signs several files without changing `phase` or `objectKey`, so a row can copy a link without looking like a download in progress. Each entry may set `expiresIn`. The result includes the TTL the server signed.
+- `onSuccess` runs once the browser has the URL, not when the file finishes saving.
+- With `disposition: "inline"`, the browser opens the file in the current tab, in place of your page. To open it elsewhere, sign the URL with [`presign`](#presign-without-downloading) and put it on your own `<a target="_blank" rel="noopener">`.
 
-```tsx
-const { signed, failed } = await presignMany([
-  { key: avatarKey, fileName: "avatar.png", expiresIn: 900 },
-]);
-```
+### Presign without downloading
 
-### 2. Fetch streaming (`mode: "fetch"`)
-
-Fetches the object bytes through a client-side `fetch` stream. Provides fine-grained byte progress, speed calculation, and abortable cancellation.
-
-```tsx
-const { download, cancel, progress, isDownloading, isPending } = useDownload({
-  route: "document",
-  mode: "fetch", // [!code ++]
-  onProgress: (key, progress) => {
-    console.log(
-      `Downloaded ${progress.percent}% (${progress.loaded}/${progress.total})`,
-    );
-  },
-  onSuccess: (key, fileName) => {
-    console.log(`Saved ${fileName} to disk`);
-  },
-});
-
-return (
-  <div>
-    <button onClick={() => void download(documentKey)} disabled={isPending}>
-      {isDownloading ? `Downloading: ${progress.percent}%` : "Download File"}
-    </button>
-    {isDownloading && (
-      <button type="button" onClick={cancel}>
-        Cancel
-      </button>
-    )}
-  </div>
-);
-```
-
----
-
-## Inline preview with `useObjectUrl`
-
-For displaying private S3 files inline (e.g. `<img>`, `<video>`, `<audio>`, or `<iframe>`), use `useObjectUrl`. It requests a signed URL with `disposition: "inline"` and automatically caches the signed URL in memory until shortly before its expiration window.
-
-```tsx title="components/avatar-image.tsx"
-"use client";
-
-import { useObjectUrl } from "@dimah-s3/react";
-
-export function AvatarImage({ avatarKey }: { avatarKey: string }) {
-  const { url, isLoading } = useObjectUrl({
-    route: "avatar",
-    objectKey: avatarKey,
-    disposition: "inline", // [!code ++]
-  });
-
-  if (isLoading)
-    return <div className="bg-muted size-16 animate-pulse rounded-full" />;
-  if (!url) return null;
-
-  return (
-    <img
-      src={url}
-      alt="User Avatar"
-      className="size-16 rounded-full object-cover"
-    />
-  );
-}
-```
-
----
-
-## Type reference
+`presign(key, options?)` returns the signed URL without handing it to the
+browser, such as to copy a link. It runs `beforeDownload` only, and records
+no operation.
 
 ```ts
-import type {
-  UseNavigateDownloadOptions,
-  UseNavigateDownloadReturn,
-  UseFetchDownloadOptions,
-  UseFetchDownloadReturn,
-  UseObjectUrlOptions,
-  UseObjectUrlReturn,
-} from "@dimah-s3/react";
+const outcome = await presign(objectKey, {
+  fileName: "report.pdf",
+  expiresIn: 900, // seconds; the server caps it at the route's limit
+});
+if (outcome.status === "success") {
+  await navigator.clipboard.writeText(outcome.data.url);
+}
 ```
 
-### UseNavigateDownloadOptions
+For images and other previews, use [`useObjectUrl`](/docs/react/hooks/object-url),
+which caches each URL and refreshes it before it expires.
 
-<AutoTypeTable
-  path="packages/react/src/hooks/use-download.ts"
-  name="UseNavigateDownloadOptions"
-/>
+## useFetchDownload
 
----
+`useFetchDownload` always saves the file, so it has no `disposition` option.
 
-### UseFetchDownloadOptions
+```tsx title="components/fetch-download.tsx"
+"use client";
 
-<AutoTypeTable
-  path="packages/react/src/hooks/use-download.ts"
-  name="UseFetchDownloadOptions"
-/>
+import { useFetchDownload } from "@dimah-s3/react";
 
----
+export function FetchDownload({ objectKey }: { objectKey: string }) {
+  const { download, cancel, get } = useFetchDownload({ route: "documents" });
+  const operation = get(objectKey);
+  const running =
+    operation?.phase === "presigning" || operation?.phase === "downloading";
 
-### UseNavigateDownloadReturn
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-download.ts"
-  name="UseNavigateDownloadReturn"
-/>
-
----
-
-### UseFetchDownloadReturn
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-download.ts"
-  name="UseFetchDownloadReturn"
-/>
-
----
-
-### UseObjectUrlOptions
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-object-url.ts"
-  name="UseObjectUrlOptions"
-/>
-
----
-
-### UseObjectUrlReturn
-
-<AutoTypeTable
-  path="packages/react/src/hooks/use-object-url.ts"
-  name="UseObjectUrlReturn"
-/>
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How do I set a custom download filename?">
-
-Pass the filename as the second argument to `download` or `presign`:
-
-```tsx
-await download(avatarKey, "custom-avatar-name.png");
+  return running ? (
+    <button type="button" onClick={() => cancel(objectKey)}>
+      Cancel ({operation.progress.percent}%)
+    </button>
+  ) : (
+    <button type="button" onClick={() => void download(objectKey)}>
+      Download
+    </button>
+  );
+}
 ```
 
-</Accordion>
+- **File name** — the `fileName` you pass, else the response's `Content-Disposition` name, else the last segment of the key.
+- **Progress total** — the response's `Content-Length`, else `fileSize`. Pass `download(key, { fileSize })` when you know it, so progress has a total before the response arrives.
+- **Cancel** — `cancel(key)` ends the call with an `aborted` outcome, not an error.
+- **Errors** — a non-2xx response fails with `DOWNLOAD_FAILED` and its status, and a failed request with `NETWORK_ERROR`.
 
-<Accordion title="Can multiple buttons share one useDownload instance?">
+<Callout type="warn" title="Proxy routes do not get client headers">
+  `useFetchDownload` fetches the signed URL with plain `fetch`. On a route with
+  `download.mode: "proxy"`, that `/file` request sends same-origin cookies but
+  not the `headers` or `credentials` set on `createS3Client`. With header auth
+  or an API on another origin, use presign mode, or `useDownload`.
+</Callout>
 
-Yes. `useDownload` tracks `objectKey` internally so loading states, errors, and progress indicators stay scoped to the button matching the active key.
+## Track each key
 
-</Accordion>
+Each `download` call records an operation. Read the newest one for a key
+with `get(key)`, or render `operations`:
 
-<Accordion title="How does useObjectUrl cache presigned URLs?">
+| Field   | `useDownload`                                  | `useFetchDownload`                                            |
+| ------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| `phase` | `presigning`, `success`, `error`, or `aborted` | `presigning`, `downloading`, `success`, `error`, or `aborted` |
+| `error` | `APIError \| null`                             | `APIError \| null`                                            |
+| Extra   | `result`: the signed URL response              | `progress`, `fileSize`, and the saved `fileName`              |
 
-It caches URLs in memory by route, key, disposition, and filename. Presigned
-URLs are reused until 15 seconds before their `expiresIn` window; proxy URLs
-with `expiresIn: 0` are cached for up to 24 hours. Calling `refresh()`
-invalidates the entry and requests a fresh URL.
+Many buttons can share one hook: render each from `get(key)`. `cancel(key?)`
+and `reset(key?)` act on one key, or on every key without one.
 
-</Accordion>
+## Callbacks
 
-</Accordions>
+`download` resolves with an [outcome](/docs/react/guides/outcomes) and does
+not throw. Callbacks run in this order:
+
+| Callback                    | Runs                                                                                           |
+| --------------------------- | ---------------------------------------------------------------------------------------------- |
+| `beforeDownload(key)`       | Once per call, before presigning. Return `false` to block it. A throw fails it (`HOOK_FAILED`) |
+| `onDownloadStart(key)`      | `useFetchDownload` only. When the byte transfer begins. A throw fails it (`HOOK_FAILED`)       |
+| `onProgress(progress, key)` | `useFetchDownload` only. As bytes arrive                                                       |
+| `onError(error, key)`       | When a call fails                                                                              |
+| `onSuccess(data, key)`      | When the browser has the URL, or once the fetched file is saved                                |
+| `onSettled(outcome)`        | Once per call, however it ended                                                                |
+
+`onError`, `onSuccess`, and `onSettled` may be async and are awaited. A call
+that joins a running call does not run them again.
+
+## Accept either hook
+
+Each return has a `kind`: `"navigate"` for `useDownload` and `"fetch"` for
+`useFetchDownload`. Type a prop as `AnyDownloadReturn` and narrow on `kind`:
+
+```ts
+import type { AnyDownloadReturn } from "@dimah-s3/react";
+
+function progressOf(download: AnyDownloadReturn, key: string) {
+  if (download.kind === "fetch") return download.get(key)?.progress.percent;
+  return undefined;
+}
+```
+
+## API Reference
+
+### useDownload options
+
+| Prop             | Type                                    | Default  | Description                                                                |
+| ---------------- | --------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `route`          | `S3RouteName`                           | required | Named server route                                                         |
+| `api`            | `S3Api`                                 | —        | Replaces the `S3Provider` API. Required without a provider                 |
+| `disposition`    | `"inline" \| "attachment"`              | —        | `Content-Disposition` to ask for. The server can override it               |
+| `beforeDownload` | `(key) => boolean \| Promise<boolean>`  | —        | Runs once per call. Return `false` to block it                             |
+| `onError`        | `(error, key) => void \| Promise<void>` | —        | Runs when a call fails                                                     |
+| `onSuccess`      | `(data, key) => void \| Promise<void>`  | —        | Runs once the browser has the URL. `data` is the `DownloadPresignResponse` |
+| `onSettled`      | `(outcome) => void \| Promise<void>`    | —        | Runs once per call, however it ended                                       |
+
+### useDownload return
+
+| Property      | Type                                                            | Description                                              |
+| ------------- | --------------------------------------------------------------- | -------------------------------------------------------- |
+| `kind`        | `"navigate"`                                                    | Tells this hook apart from `useFetchDownload`            |
+| `download`    | `(key, { fileName? }?) => Promise<DownloadOutcome>`             | Presigns `key` and hands the URL to the browser          |
+| `presign`     | `(key, { fileName?, expiresIn? }?) => Promise<DownloadOutcome>` | Returns the signed URL only. `expiresIn` is in seconds   |
+| `operations`  | `readonly DownloadOperation[]`                                  | Every call, in the order it started                      |
+| `get`         | `(key) => DownloadOperation \| undefined`                       | The newest operation for `key`                           |
+| `pendingKeys` | `readonly string[]`                                             | Keys with a running call                                 |
+| `isPending`   | `boolean`                                                       | `true` while any key has a running call                  |
+| `cancel`      | `(key?) => void`                                                | Aborts the running call for `key`, or every running call |
+| `reset`       | `(key?) => void`                                                | Removes settled operations for `key`, or all of them     |
+| `instanceId`  | `string`                                                        | Stable id of the hook instance. Toast owners use it      |
+
+### DownloadOperation
+
+| Property   | Type                                                | Description                                                 |
+| ---------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| `id`       | `string`                                            | Unique in the hook. Ascends with creation order             |
+| `key`      | `string`                                            | The object key                                              |
+| `fileName` | `string \| null`                                    | The requested file name, or `null` when the server picks it |
+| `phase`    | `"presigning" \| "success" \| "error" \| "aborted"` | Where the call is                                           |
+| `error`    | `APIError \| null`                                  | Set when `phase` is `"error"`                               |
+| `result`   | `DownloadPresignResponse \| null`                   | The signed URL the browser was handed                       |
+
+### useFetchDownload options
+
+| Prop              | Type                                    | Default  | Description                                                     |
+| ----------------- | --------------------------------------- | -------- | --------------------------------------------------------------- |
+| `route`           | `S3RouteName`                           | required | Named server route                                              |
+| `api`             | `S3Api`                                 | —        | Replaces the `S3Provider` API. Required without a provider      |
+| `beforeDownload`  | `(key) => boolean \| Promise<boolean>`  | —        | Runs once per call. Return `false` to block it                  |
+| `onDownloadStart` | `(key) => void`                         | —        | Runs when the byte transfer begins                              |
+| `onProgress`      | `(progress, key) => void`               | —        | Runs as bytes arrive                                            |
+| `onError`         | `(error, key) => void \| Promise<void>` | —        | Runs when a call fails                                          |
+| `onSuccess`       | `(data, key) => void \| Promise<void>`  | —        | Runs once the file is saved. `data` is `{ fileName, fileSize }` |
+| `onSettled`       | `(outcome) => void \| Promise<void>`    | —        | Runs once per call, however it ended                            |
+
+### useFetchDownload return
+
+| Property      | Type                                                                | Description                                              |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
+| `kind`        | `"fetch"`                                                           | Tells this hook apart from `useDownload`                 |
+| `download`    | `(key, { fileName?, fileSize? }?) => Promise<FetchDownloadOutcome>` | Presigns `key`, fetches its bytes, and saves them        |
+| `operations`  | `readonly FetchDownloadOperation[]`                                 | Every call, in the order it started                      |
+| `get`         | `(key) => FetchDownloadOperation \| undefined`                      | The newest operation for `key`                           |
+| `pendingKeys` | `readonly string[]`                                                 | Keys with a running call                                 |
+| `isPending`   | `boolean`                                                           | `true` while any key has a running call                  |
+| `cancel`      | `(key?) => void`                                                    | Aborts the running call for `key`, or every running call |
+| `reset`       | `(key?) => void`                                                    | Removes settled operations for `key`, or all of them     |
+| `instanceId`  | `string`                                                            | Stable id of the hook instance. Toast owners use it      |
+
+### FetchDownloadOperation
+
+| Property   | Type                                                                 | Description                                            |
+| ---------- | -------------------------------------------------------------------- | ------------------------------------------------------ |
+| `id`       | `string`                                                             | Unique in the hook. Ascends with creation order        |
+| `key`      | `string`                                                             | The object key                                         |
+| `fileName` | `string \| null`                                                     | The requested name, then the name the file is saved as |
+| `fileSize` | `number \| null`                                                     | Size in bytes, once known                              |
+| `phase`    | `"presigning" \| "downloading" \| "success" \| "error" \| "aborted"` | Where the call is                                      |
+| `error`    | `APIError \| null`                                                   | Set when `phase` is `"error"`                          |
+| `progress` | `TransferProgress`                                                   | `{ loaded, total, percent, speed? }`                   |

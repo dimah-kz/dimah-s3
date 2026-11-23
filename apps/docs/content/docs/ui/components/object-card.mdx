@@ -1,0 +1,122 @@
+---
+title: Object Card
+description: Card for one stored file, with download and delete actions and their progress.
+---
+
+import { ObjectCardDemo } from "@/components/demos/object-card-demo";
+import { ObjectCardActionsDemo } from "@/components/demos/object-card-actions-demo";
+
+Show a file you already stored, such as an attachment on a record.
+`ObjectCard` renders its name, size, and type, with a download action and a
+delete action. It shows the progress of each.
+
+For a whole folder of files, use [Object List](/docs/ui/components/object-list).
+
+<DemoPreview name="object-card-demo.tsx">
+  <ObjectCardDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import { ObjectCard } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/object-card
+```
+
+Adds `@/components/dimah-s3/preview/object-card` with the download and delete
+families.
+
+</Tab>
+
+</Tabs>
+
+<include>../../../_includes/ui/component-prereq.mdx</include>
+
+## Usage
+
+```tsx
+"use client";
+
+import { useDelete, useFetchDownload } from "@dimah-s3/react";
+import { DeleteToasts, DownloadToasts, ObjectCard } from "@dimah-s3/ui";
+
+type Attachment = { key: string; size: number; type: string };
+
+export function Attachments({
+  files,
+  onRemoved,
+}: {
+  files: Attachment[];
+  onRemoved: (key: string) => void;
+}) {
+  const download = useFetchDownload({ route: "attachments" });
+  const remove = useDelete({ route: "attachments" });
+
+  return (
+    <>
+      {files.map((file) => (
+        <ObjectCard
+          key={file.key}
+          objectKey={file.key}
+          fileSize={file.size}
+          contentType={file.type}
+          download={download}
+          delete={remove}
+          onDeleted={(result) => {
+            if (result.deleted.includes(file.key)) onRemoved(file.key);
+          }}
+        />
+      ))}
+      <DownloadToasts download={download} />
+      <DeleteToasts delete={remove} />
+    </>
+  );
+}
+```
+
+- Pass only the hooks for the actions you want. Many cards share one hook.
+- The card stays after a delete. Remove it in `onDeleted`.
+- Mount `DownloadToasts` and `DeleteToasts` once for the hooks.
+- With `useFetchDownload`, the card shows the download progress and the action
+  cancels.
+
+## Examples
+
+### Your own actions
+
+`actions` render before the built-in ones. This Copy link action signs a URL
+with the same download hook.
+
+<DemoPreview name="object-card-actions-demo.tsx">
+  <ObjectCardActionsDemo />
+</DemoPreview>
+
+## API Reference
+
+Also accepts the [`FileAttachment`](/docs/ui/components/attachment) props it
+does not set itself, such as `description`, `previewUrl`, `actions`, and
+`trigger`.
+
+| Prop          | Type                             | Default             | Description                                                            |
+| ------------- | -------------------------------- | ------------------- | ---------------------------------------------------------------------- |
+| `objectKey`   | `string`                         | required            | Key of the stored object                                               |
+| `fileName`    | `string`                         | Last segment of key | Name shown, and the name the browser saves                             |
+| `fileSize`    | `number \| null`                 | —                   | Size in bytes, shown on the second line                                |
+| `contentType` | `string \| null`                 | —                   | MIME type. Picks the type glyph without a preview                      |
+| `previewUrl`  | `string \| null`                 | —                   | Image thumbnail in place of the glyph                                  |
+| `download`    | `AnyDownloadReturn`              | —                   | A `useDownload` or `useFetchDownload` return. Adds the download action |
+| `delete`      | `UseDeleteReturn`                | —                   | Adds the delete action and its confirm dialog                          |
+| `onDeleted`   | `(result: DeleteResult) => void` | —                   | Runs once a confirmed delete settles                                   |
+| `description` | `ReactNode`                      | The size            | Replaces the second line                                               |
+| `actions`     | `ReactNode`                      | —                   | Your own `AttachmentAction`s, before the built-in ones                 |

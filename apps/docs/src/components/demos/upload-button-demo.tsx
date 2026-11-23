@@ -1,14 +1,26 @@
 "use client";
 
 import { useUpload } from "@dimah-s3/react";
-import { UploadButton } from "@dimah-s3/ui";
+import {
+  Upload,
+  UploadStatus,
+  UploadToasts,
+  UploadTrigger,
+} from "@dimah-s3/ui";
 
 export function UploadButtonDemo() {
   const upload = useUpload({
-    route: "avatar",
-    maxFiles: 1,
+    route: "uploads",
     maxFileSize: 75 * 1024 * 1024,
   });
 
-  return <UploadButton upload={upload} toast={true} />;
+  return (
+    <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-3">
+      <Upload upload={upload}>
+        <UploadTrigger />
+        <UploadStatus />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </div>
+  );
 }

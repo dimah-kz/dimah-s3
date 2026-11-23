@@ -1,96 +1,254 @@
-import type { ConfirmedObjectResponse, S3ObjectAcl } from "@dimah-s3/core";
-import { resolveStoredFileName } from "@dimah-s3/core";
-import type { HeadObjectCommandOutput, S3Client } from "@aws-sdk/client-s3";
-import { assertVerifiedConstraints } from "@/helpers/constraints";
-import { deleteObjectBestEffort } from "@/helpers/best-effort";
-import { requireContentLength } from "@/helpers/head-object";
-import { runLifecycleHook } from "@/helpers/hooks";
-import { assertStoredKey } from "@/helpers/resolve-target";
+import type { HeadObjectCommandOutput } from "@aws-sdk/client-s3";
 import {
-  previousKeyFromMetadata,
-  stripPreviousKeyMeta,
-} from "@/helpers/previous-key";
+  isAPIError,
+  resolveStoredFileName,
+  s3Error,
+  type APIError,
+  type ConfirmedObjectResponse,
+  type S3ObjectAcl,
+} from "@dimah-s3/core";
+import { deleteObjectBestEffort } from "@/helpers/best-effort";
+import { assertFileConstraints } from "@/helpers/constraints";
+import { reportFailure, type ErrorBoundaryEnv } from "@/helpers/error-boundary";
+import { runGuards, runLifecycle } from "@/helpers/hooks";
+import { readObjectMetadata } from "@/helpers/object-meta";
+import { assertStoredKey } from "@/helpers/resolve-target";
+import { assertObjectContent } from "@/helpers/sniff-object";
 import type {
-  OpenedRoute,
-  ResolvedDimahS3Config,
-  StoredObjectContext,
+  ObjectContext,
+  UploadFile,
+  UploadKind,
   UploadOnConfirmedContext,
-} from "@/types";
+  VerifiedObject,
+} from "@/types/hook-contexts";
+import type { OpenedRoute } from "@/types/resolved";
 
 export type FinalizeConfirmedInput = {
-  config: ResolvedDimahS3Config;
-  route: OpenedRoute<"upload" | "multipart">;
-  stored: StoredObjectContext;
-  head: HeadObjectCommandOutput;
+  /** Logger and `onError`, for a failing `upload.onRejected`. */
+  config: ErrorBoundaryEnv;
+  route: OpenedRoute<"upload">;
+  /** Context of the call, with the uploaded key and bucket. */
+  context: ObjectContext;
+  kind: UploadKind;
+  /** Upload token of this upload. The object must carry it as its marker. */
+  uploadToken: string;
+  /** Multipart only. */
   uploadId?: string;
-  /** ACL from the upload policy, not GetObjectAcl. */
-  acl?: S3ObjectAcl;
+  /** File declared at presign, multipart init or `s3.put`. */
+  file: UploadFile;
+  /** Effective ACL written at presign, multipart init or `s3.put`. */
+  acl: S3ObjectAcl;
+  /** HeadObject of the uploaded key. */
+  head: HeadObjectCommandOutput;
 };
 
 /**
- * HeadObject constraints, `onConfirmed`, then compensating `DeleteObject`
- * (and `previousKey` cleanup) so a thrown check or lifecycle hook cannot
- * leave an orphan object.
+ * Finishes an upload once its object is in S3: confirm, multipart complete
+ * and `s3.put`.
+ *
+ * 1. The object must carry this upload's marker. Otherwise the key holds
+ *    another upload's object, so the call fails with `OBJECT_NOT_FOUND` and
+ *    nothing is deleted.
+ * 2. The HeadObject size must equal the declared size
+ *    (`UPLOAD_SIZE_MISMATCH`), and the stored name, type and size must pass
+ *    the route limits.
+ * 3. With `verifyContent`, the first bytes must match the type (for an
+ *    untyped object, the type its name gives on download).
+ * 4. `upload.confirmGuard` runs with the verified `object`, except for
+ *    `s3.put`.
+ * 5. `upload.onConfirmed` runs: plugins first, then the user hook.
+ *
+ * A rejection (a `4xx` `APIError`) in steps 2 to 4, or from a plugin
+ * `onConfirmed`, deletes the object, runs `upload.onRejected` and returns
+ * the error. That delete is conditional on the HeadObject ETag where the
+ * provider supports `If-Match`, so a newer upload at the same key is kept.
+ * A throw from `onRejected` is reported and never replaces the rejection.
+ * Any other failure, such as an S3 network error or a hook whose database is
+ * down, keeps the object, so the confirm can be retried. A throw from the
+ * user `onConfirmed` keeps the object and returns `500 INTERNAL_ERROR`, even
+ * for an `APIError`, so a retried confirm replays the hooks with the same
+ * `uploadToken`. After every hook succeeds, `upload.object().previousKey` is
+ * deleted.
  */
-export async function finalizeConfirmedObject(
-  client: S3Client,
-  bucket: string,
-  key: string,
+export async function finalizeConfirmed(
   input: FinalizeConfirmedInput,
 ): Promise<ConfirmedObjectResponse> {
-  const { config, route, stored, head, uploadId, acl } = input;
-  const rawMetadata = head.Metadata ?? {};
-  const fileName = resolveStoredFileName(head.ContentDisposition, key);
-  let context: UploadOnConfirmedContext;
-
-  try {
-    const contentLength = requireContentLength(head);
-    assertVerifiedConstraints(route.upload, {
-      fileName,
-      contentType: head.ContentType,
-      contentLength,
-    });
-
-    const metadata = stripPreviousKeyMeta(rawMetadata);
-    context = {
-      ...stored,
-      contentType: head.ContentType,
-      contentLength,
-      eTag: head.ETag?.replaceAll('"', ""),
-      metadata,
-      acl,
-      fileName,
-      versionId: head.VersionId,
-      lastModified: head.LastModified?.toISOString(),
-      uploadId,
-    };
-
-    await runLifecycleHook(route.upload.onConfirmed, context, config);
-  } catch (err) {
-    await deleteObjectBestEffort(client, bucket, key);
-    throw err;
+  const { route, context, head } = input;
+  const { bucket, key } = context;
+  const stored = readObjectMetadata(head.Metadata);
+  if (stored.uploadToken !== input.uploadToken) {
+    throw s3Error("OBJECT_NOT_FOUND");
   }
 
-  const previousKey = previousKeyFromMetadata(rawMetadata);
-  if (previousKey && previousKey !== key) {
+  // The delete is conditional on this HEAD, so a newer upload at the same
+  // key is kept.
+  const reject = async (error: APIError) => {
+    await deleteObjectBestEffort(route.client, bucket, key, head.ETag);
+    await runRejected(input, error);
+  };
+  let object: VerifiedObject;
+  try {
+    object = verifiedObject(head, key, stored.metadata);
+    await verifyUpload(input, object);
+  } catch (error) {
+    if (isRejection(error)) await reject(error);
+    throw error;
+  }
+
+  const previousKey = previousKeyToDelete(
+    stored.previousKey,
+    key,
+    route.keyPrefix,
+  );
+  const confirmed: UploadOnConfirmedContext = {
+    ...context,
+    kind: input.kind,
+    uploadToken: input.uploadToken,
+    uploadId: input.uploadId,
+    file: input.file,
+    acl: input.acl,
+    object,
+    ...(previousKey !== undefined ? { previousKey } : {}),
+  };
+  const hooks = route.upload.onConfirmed;
+  await runLifecycle(
+    hooks.filter((entry) => entry.plugin !== undefined),
+    confirmed,
+    {
+      // A transient plugin failure keeps the object for the retry.
+      onPluginError: async (error) => {
+        if (isRejection(error)) await reject(error);
+      },
+    },
+  );
+  try {
+    await runLifecycle(
+      hooks.filter((entry) => entry.plugin === undefined),
+      confirmed,
+    );
+  } catch (error) {
+    throw userHookFailure(error);
+  }
+
+  if (previousKey !== undefined) {
+    await deleteObjectBestEffort(route.client, bucket, previousKey);
+  }
+
+  return { key, bucket, ...object, acl: input.acl };
+}
+
+/** The object as HeadObject reports it, with decoded user metadata. */
+function verifiedObject(
+  head: HeadObjectCommandOutput,
+  key: string,
+  metadata: Record<string, string>,
+): VerifiedObject {
+  if (typeof head.ContentLength !== "number") {
+    throw new TypeError(`HeadObject returned no ContentLength for "${key}".`);
+  }
+  return {
+    name: resolveStoredFileName(head.ContentDisposition, key),
+    size: head.ContentLength,
+    type: head.ContentType,
+    eTag: head.ETag?.replaceAll('"', ""),
+    versionId: head.VersionId,
+    lastModified: head.LastModified?.toISOString(),
+    metadata,
+  };
+}
+
+async function verifyUpload(
+  input: FinalizeConfirmedInput,
+  object: VerifiedObject,
+): Promise<void> {
+  const { route, context, kind, file, acl } = input;
+  if (object.size !== file.size) {
+    throw s3Error("UPLOAD_SIZE_MISMATCH", {
+      expected: file.size,
+      actual: object.size,
+    });
+  }
+  assertFileConstraints(route.upload, object);
+  if (route.upload.verifyContent) {
+    await assertObjectContent(route.client, {
+      bucket: context.bucket,
+      key: context.key,
+      type: object.type,
+      name: object.name,
+    });
+  }
+  if (kind !== "server") {
+    await runGuards(route.upload.confirmGuard, {
+      ...context,
+      kind,
+      uploadToken: input.uploadToken,
+      uploadId: input.uploadId,
+      file,
+      acl,
+      object,
+    });
+  }
+}
+
+/** A `4xx` `APIError`: the upload was checked and refused. */
+function isRejection(error: unknown): error is APIError {
+  return isAPIError(error) && error.statusCode < 500;
+}
+
+/**
+ * Runs every `upload.onRejected` hook, plugins first. Each one runs even
+ * when an earlier one throws, and a throw is reported, not rethrown: the
+ * caller is already returning the rejection.
+ */
+async function runRejected(
+  input: FinalizeConfirmedInput,
+  error: APIError,
+): Promise<void> {
+  const { route, context } = input;
+  for (const { hook } of route.upload.onRejected) {
     try {
-      const safe = assertStoredKey(previousKey, route.keyPrefix);
-      await deleteObjectBestEffort(client, bucket, safe);
-    } catch {
-      // Invalid previousKey — skip.
+      await hook({
+        ...context,
+        kind: input.kind,
+        uploadToken: input.uploadToken,
+        uploadId: input.uploadId,
+        file: input.file,
+        acl: input.acl,
+        error,
+      });
+    } catch (hookError) {
+      reportFailure(
+        new Error("upload.onRejected failed", { cause: hookError }),
+        input.config,
+        { request: context.request, operation: context.operation },
+      );
     }
   }
+}
 
-  return {
-    key,
-    bucket,
-    contentType: context.contentType,
-    contentLength: context.contentLength,
-    eTag: context.eTag,
-    metadata: context.metadata ?? {},
-    acl,
-    fileName,
-    versionId: context.versionId,
-    lastModified: context.lastModified,
-  };
+/**
+ * What a user `onConfirmed` throw becomes. The object is kept, so the client
+ * gets `500 INTERNAL_ERROR` and can retry, even when the hook threw an
+ * `APIError`. The error boundary logs it and passes it to `onError`.
+ */
+function userHookFailure(error: unknown): unknown {
+  if (!isAPIError(error)) return error;
+  return new Error(`upload.onConfirmed failed: ${error.message}`, {
+    cause: error,
+  });
+}
+
+/** The stored `previousKey`, when it is another key inside the route namespace. */
+function previousKeyToDelete(
+  previousKey: string | undefined,
+  key: string,
+  keyPrefix: string | false,
+): string | undefined {
+  if (previousKey === undefined) return undefined;
+  try {
+    const safe = assertStoredKey(previousKey, keyPrefix);
+    return safe === key ? undefined : safe;
+  } catch {
+    return undefined;
+  }
 }

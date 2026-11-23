@@ -1,7 +1,7 @@
-import { cp } from "node:fs/promises";
 import { join } from "pathe";
 
 import type { CreateContext } from "@/types";
+import { throwIfCancelled } from "@/utils/cancel";
 import { CliError } from "@/utils/errors";
 import {
   copyDir,
@@ -9,9 +9,11 @@ import {
   ensureDir,
   pathExists,
   readJson,
+  removeFile,
   renameIfExists,
   writeJson,
 } from "@/utils/fs";
+import { writeProjectEnv } from "@/create/env";
 import { flattenSrcDirectory } from "@/create/layout-src";
 import type { CreateStep } from "@/create/step";
 import { PRESERVED_ENTRIES } from "@/create/target";
@@ -54,12 +56,24 @@ export async function applyProjectName(ctx: CreateContext): Promise<void> {
   );
 }
 
+/** pnpm settings file of the starter. Other package managers ignore it. */
+const PNPM_WORKSPACE_FILE = "pnpm-workspace.yaml";
+
+/**
+ * Drops the starter's `pnpm-workspace.yaml` unless the project uses pnpm:
+ * it only holds pnpm settings.
+ */
+export async function applyPackageManager(ctx: CreateContext): Promise<void> {
+  if (ctx.config.packageManager === "pnpm") return;
+  await removeFile(join(ctx.config.targetDir, PNPM_WORKSPACE_FILE));
+}
+
+/**
+ * Writes `.env` with generated values such as `DIMAH_S3_SECRET`. An existing
+ * `.env` is only appended to, and a key that already has a value is kept.
+ */
 export async function writeEnv(ctx: CreateContext): Promise<void> {
-  const example = join(ctx.config.targetDir, ".env.example");
-  const envPath = join(ctx.config.targetDir, ".env");
-  if (!(await pathExists(example))) return;
-  if (await pathExists(envPath)) return;
-  await cp(example, envPath);
+  ctx.generatedEnv = await writeProjectEnv(ctx.config.targetDir);
 }
 
 /** Templates ship with `src/`; flatten when the user opted out. */
@@ -71,16 +85,21 @@ export async function applySrcLayout(ctx: CreateContext): Promise<void> {
 export const scaffoldStep: CreateStep = {
   id: "scaffold",
   title: (ctx) => `Scaffolding ${ctx.template.title} template`,
-  async run(ctx, report) {
+  async run(ctx, report, signal) {
     await prepareTarget(ctx);
+    throwIfCancelled(signal);
     report("Copying template files");
     await copyTemplate(ctx);
+    throwIfCancelled(signal);
     report("Applying project name");
     await applyProjectName(ctx);
+    await applyPackageManager(ctx);
     if (!ctx.config.src) {
       report("Flattening src/ directory");
       await applySrcLayout(ctx);
     }
+    throwIfCancelled(signal);
+    report("Writing .env");
     await writeEnv(ctx);
     return `Scaffolded ${ctx.template.title} template`;
   },

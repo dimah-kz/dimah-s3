@@ -1,0 +1,149 @@
+---
+title: File Proxy
+description: Stream downloads through GET /file on your API, with guards on every request, hardening headers, byte ranges, and caching.
+icon: ArrowDownToLine
+---
+
+In proxy mode, a download returns a URL on your API instead of a signed bucket
+URL, and your server streams the object from S3. Use it when objects must
+never be reachable by a bucket URL, when every read must pass your guards, or
+when the browser cannot reach the bucket.
+
+```ts title="lib/s3.ts"
+invoices: route({
+  download: {
+    mode: "proxy", // [!code ++]
+    guard: async ({ key, locals }) => {
+      if (!(await canReadInvoice(locals.userId, key))) {
+        throw s3Error("FORBIDDEN");
+      }
+    },
+  },
+}),
+```
+
+```ts
+const { url, mode, expiresIn } = await api.download({ route: "invoices", key });
+// url: "/api/s3/file?route=invoices&key=…&disposition=attachment"
+// mode: "proxy", expiresIn: undefined
+```
+
+## How it works
+
+<Flow
+  label="File proxy"
+  steps={[
+    { name: "route.guard", kind: "hook" },
+    { name: "download.resolve", kind: "hook", note: 'mode: "proxy"' },
+    { name: "download.guard", kind: "hook" },
+    { name: "GetObject", kind: "s3", note: "Range and conditionals" },
+    { name: "Stream response", kind: "server" },
+  ]}
+/>
+
+Each request to `/file` runs the instance and route guards, `download.resolve`,
+and `download.guard`, then streams one GetObject to the client.
+
+- The `/file` URL is **not signed** and does not expire. Every request runs
+  the guards again, so they must authorize from what a plain browser `GET`
+  carries, usually a session cookie. An `<img>` or `<a href>` sends no
+  `Authorization` header.
+- The URL is relative to the API (`{basePath}/file?…`) unless `baseURL` is set.
+- `Cross-Origin-Resource-Policy: same-origin` stops a page on another origin
+  from embedding `/file` in `<img>` or `<video>`. Links still work. To embed
+  objects from an API on another origin, use presign mode.
+- `/file` serves only routes with `download.mode: "proxy"`. Any other route
+  returns `404 FEATURE_DISABLED` with `params.feature` set to `"proxy"`.
+- There is no `s3.api` method for `/file`. On the server, read the object with
+  your `S3Client`.
+
+## Response headers
+
+Every `/file` response carries these headers, errors included. They keep the
+object from running as a page on your API origin:
+
+| Header                         | Value                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `Content-Security-Policy`      | `default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; sandbox` |
+| `X-Content-Type-Options`       | `nosniff`                                                                                        |
+| `Cross-Origin-Resource-Policy` | `same-origin`                                                                                    |
+| `Cache-Control`                | `private, no-cache`, unless `download.resolve` returns `cacheControl`                            |
+| `Accept-Ranges`                | `bytes`                                                                                          |
+
+A successful response also sends `Content-Type`, `Content-Disposition`, and
+`Content-Length`, plus `ETag`, `Last-Modified`, `Content-Encoding`, and
+`Content-Language` when S3 reports them.
+
+### Inline display
+
+Proxy mode uses the presign-mode allow-list minus `application/pdf`, because
+the `sandbox` CSP stops the PDF viewer in Chromium. To show PDFs inline, use
+presign mode, or serve `/file` from a separate origin and list
+`application/pdf` in `download.inlineTypes`.
+
+```ts
+download: {
+  mode: "proxy",
+  inlineTypes: ["image/*", "video/mp4"], // [!code ++]
+},
+```
+
+### Caching
+
+`private, no-cache` lets the browser keep a copy but revalidate it on each
+use. Return `cacheControl` from `download.resolve` to change it for successful
+responses. Error responses keep the default.
+
+```ts
+download: {
+  mode: "proxy",
+  resolve: () => ({ cacheControl: "private, max-age=3600" }), // [!code ++]
+},
+```
+
+## Byte ranges
+
+`/file` forwards one byte range to S3, so video seeking and resumed downloads
+work:
+
+| `Range` header                              | Response                                                         |
+| ------------------------------------------- | ---------------------------------------------------------------- |
+| `bytes=0-1023`, `bytes=1024-`, `bytes=-500` | `206` with `Content-Range`                                       |
+| Several ranges, or malformed                | Ignored: `200` with the whole object                             |
+| Outside the object                          | `416 RANGE_NOT_SATISFIABLE` with `Content-Range: bytes */<size>` |
+
+## Conditional requests
+
+Conditional headers are forwarded to GetObject:
+
+| Header                               | Response                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `If-None-Match`, `If-Modified-Since` | `304` with no body when it matches, with the headers above and `ETag`                    |
+| `If-Match`, `If-Unmodified-Since`    | `412 PRECONDITION_FAILED` when it fails                                                  |
+| `If-Range`                           | The range when `ETag` or `Last-Modified` still matches, else `200` with the whole object |
+
+## API Reference
+
+The route options that shape proxy downloads. The rest are in
+[Routes](/docs/server/routes#download).
+
+| Prop                                | Type                         | Default               | Description                                                                              |
+| ----------------------------------- | ---------------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| `download.mode`                     | `"presign" \| "proxy"`       | `"presign"`           | `"proxy"` returns a `/file` URL                                                          |
+| `download.inlineTypes`              | `readonly string[] \| false` | —                     | Types that may open inline. Defaults to `DEFAULT_INLINE_TYPES` without `application/pdf` |
+| `download.resolve` → `cacheControl` | `string`                     | `"private, no-cache"` | `Cache-Control` on successful `/file` responses                                          |
+
+## Frequently asked questions
+
+<Accordions>
+
+<Accordion title="Can I put a CDN in front of /file?">
+
+Only with care. Responses are `private` by default, so shared caches do not
+store them. If you return a public `cacheControl`, every caller of that URL
+gets the cached bytes without your guards running. Keep that for objects that
+are public anyway.
+
+</Accordion>
+
+</Accordions>

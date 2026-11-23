@@ -1,0 +1,440 @@
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useSyncExternalStore,
+  type DragEvent,
+  type ReactNode,
+} from "react";
+import type { S3Api, S3RouteName } from "@dimah-s3/core";
+import type {
+  AnyDownloadReturn,
+  DropTargetProps,
+  ObjectListEntry,
+  ObjectListFolder,
+  UseDeleteReturn,
+  UseDownloadReturn,
+  UseObjectListReturn,
+  UseObjectListSelectionReturn,
+  UseUploadReturn,
+} from "@dimah-s3/react";
+
+/** `list` draws one row per entry. `grid` draws tiles with larger previews. */
+export type ObjectListView = "list" | "grid";
+
+/** `auto` loads the next page on scroll; `button` waits for Load more. */
+export type ObjectListPaginationMode = "auto" | "button";
+
+/** Per-entry render hooks. Each returns the default when left out. */
+export type ObjectListRenderers<TItem> = {
+  /** Replaces the whole row or tile. Compose `ObjectListRow` or `ObjectListTile` to keep selection. */
+  renderEntry?: (entry: ObjectListEntry<TItem>) => ReactNode;
+  /**
+   * Trailing controls. Defaults to `ObjectListEntryMenu` on files when the
+   * list has `download`, `share`, or `delete`, or the source can rename or
+   * move them, and on folders when files can be uploaded into them, or the
+   * source can rename, move, or delete them. Return `null` to hide them.
+   */
+  renderActions?: (entry: ObjectListEntry<TItem>) => ReactNode;
+  /**
+   * Second line. Defaults to the size and date of a file. Text only: it
+   * sits inside the entry's button. Controls go in `renderActions`.
+   */
+  renderDescription?: (entry: ObjectListEntry<TItem>) => ReactNode;
+  /** Beside the name, such as a status badge. Text only, like the description. */
+  renderMeta?: (entry: ObjectListEntry<TItem>) => ReactNode;
+};
+
+/**
+ * Where image thumbnails come from: a route that signs a GET for each image
+ * file without a `previewUrl`.
+ */
+export type ObjectListThumbnails = {
+  /** Named server route that presigns the GET. */
+  route: S3RouteName;
+  /** Optional when an `<S3Provider>` is in the tree. */
+  api?: S3Api;
+};
+
+/** The one-shot result of a list control, such as Copy link. */
+export type ObjectListFeedback = {
+  type: "success" | "error" | "info";
+  title: string;
+  description?: ReactNode;
+};
+
+/** What `ObjectList` shares with its parts. Read it with {@link useObjectListContext}. */
+export type ObjectListContextValue<TItem> = {
+  list: UseObjectListReturn<TItem>;
+  selection: UseObjectListSelectionReturn<TItem> | null;
+  upload: UseUploadReturn | null;
+  download: AnyDownloadReturn | null;
+  /** Signs Copy link. Falls back to a navigate `download`. */
+  share: UseDownloadReturn | null;
+  delete: UseDeleteReturn | null;
+  /**
+   * The list shows toasts. Off, its controls report through `announce`
+   * instead.
+   */
+  toasts: boolean;
+  /** Reads `feedback` out in the list's polite live region. */
+  announce: (feedback: ObjectListFeedback) => void;
+  view: ObjectListView;
+  setView: (view: ObjectListView) => void;
+  /** The `rootLabel` prop: the root breadcrumb label and the list's accessible name. */
+  rootLabel: string;
+  /**
+   * Opens the New folder name field. Does nothing when the source has no
+   * `createFolder`.
+   */
+  startNewFolder: () => void;
+  /** Turn that entry's name into the rename field. */
+  startRename: (key: string) => void;
+  /**
+   * Leave the search and open the folder that holds a search result (its
+   * `location`), then focus the entry there once it loads.
+   */
+  revealEntry: (entry: ObjectListEntry<TItem>) => void;
+  /**
+   * Opens the Move dialog for these entries. Entries the source cannot move
+   * stay out; with none left it does nothing. Focus returns to `trigger`
+   * when the dialog closes, else to the element that had it.
+   */
+  startMove: (
+    entries: readonly ObjectListEntry<TItem>[],
+    options?: { trigger?: HTMLElement | null },
+  ) => void;
+};
+
+/**
+ * What only the list's own parts read: layout props of `ObjectList` and the
+ * state behind its fields. Not part of the public context. @internal
+ */
+export type ObjectListInternalValue<TItem> = Pick<
+  ObjectListRenderers<TItem>,
+  "renderEntry"
+> & {
+  /** `fixed` with `height`, `max` with `maxHeight`. Rows scroll inside. */
+  sizing: "fixed" | "max" | null;
+  showBreadcrumb: boolean;
+  selectionActions: ReactNode;
+  empty: ReactNode;
+  pagination: ObjectListPaginationMode;
+  /**
+   * Call with the entry keys a delete is about to remove, while they still
+   * render, so focus can move to the entry that takes their place.
+   */
+  prepareDeleteFocus: (entryKeys: readonly string[]) => void;
+  /** The New folder name field is open. */
+  newFolderOpen: boolean;
+  /** Closes the New folder name field. */
+  closeNewFolder: () => void;
+  /**
+   * Close the rename field of entry `key`, if it is still the one open.
+   * With `focus`, the row takes focus once its button is back.
+   */
+  endRename: (key: string, focus?: boolean) => void;
+};
+
+/**
+ * What rows, tiles, and their menus read. It changes only when a feature,
+ * a renderer, or a command changes, not on every upload tick, so memoized
+ * rows skip those renders. Per-entry state comes from `store`. @internal
+ */
+export type ObjectListEntryScope<TItem> = Omit<
+  ObjectListRenderers<TItem>,
+  "renderEntry"
+> & {
+  store: ObjectListEntryStore;
+  /**
+   * Keys of the entries the selection can select. It changes with the
+   * entries, so a new entry draws with its checkbox at once.
+   */
+  selectable: ReadonlySet<string>;
+  /** File rows open: `onOpenItem` is set. */
+  opensFiles: boolean;
+  /** Files can be uploaded into folder rows. */
+  folderUploads: boolean;
+  /** The list has `download`. */
+  download: boolean;
+  /** Copy link can sign: `share`, or a navigate-mode `download`. */
+  share: boolean;
+  /** The list has `delete`. */
+  delete: boolean;
+  /** The list has `delete` and the source has `deleteFolder`. */
+  deleteFolder: boolean;
+  renameFile: boolean;
+  renameFolder: boolean;
+  /** The source has `moveFile`. */
+  moveFile: boolean;
+  /** The source has `moveFolder`. */
+  moveFolder: boolean;
+  /** Signs image thumbnails, or `null`. */
+  thumbnails: ObjectListThumbnails | null;
+  /**
+   * The search text while a search is on, else `""`. Entries mark it in
+   * their names and show where they live.
+   */
+  search: string;
+  /** Opens a folder in place, or calls `onOpenItem` for a file. */
+  open: (entry: ObjectListEntry<TItem>) => void;
+  /** `selection.toggle`. */
+  toggle: (key: string, options?: { range?: boolean; value?: boolean }) => void;
+  /** Drop handlers that upload into folder `id`, with the latest options. */
+  folderDropTarget: (id: string) => DropTargetProps;
+  /**
+   * Drag handlers that move `entry`, and the selection with it when it is
+   * selected. `null` when it cannot move.
+   */
+  moveSource: (
+    entry: ObjectListEntry<TItem>,
+  ) => ObjectListMoveSourceProps | null;
+  /**
+   * Drop handlers that move the dragged entries into `folder` (`null` is
+   * the root). They leave other drags, such as files, alone.
+   */
+  moveTarget: (folder: ObjectListFolder | null) => DropTargetProps;
+  startRename: (key: string) => void;
+  endRename: (key: string, focus?: boolean) => void;
+  revealEntry: (entry: ObjectListEntry<TItem>) => void;
+  startMove: ObjectListContextValue<TItem>["startMove"];
+};
+
+/** Props that make an entry draggable to move it. @internal */
+export type ObjectListMoveSourceProps = {
+  draggable: true;
+  onDragStart: (event: DragEvent<HTMLElement>) => void;
+  onDragEnd: (event: DragEvent<HTMLElement>) => void;
+};
+
+/** State each entry reads by its key. @internal */
+export type ObjectListEntryState = {
+  selected: ReadonlySet<string>;
+  /** Any entry is selected. */
+  selecting: boolean;
+  /** The entry whose name is a field. */
+  renaming: string | null;
+  /** The entry whose actions menu is open. */
+  menu: string | null;
+  /** The entry whose trigger takes Tab: the last one focused, else the first. */
+  tabStop: string | null;
+};
+
+/**
+ * Holds {@link ObjectListEntryState}. An entry subscribes to its own key,
+ * so a selection, a rename, or an arrow key draws only the entries whose
+ * state changed. @internal
+ */
+export type ObjectListEntryStore = {
+  get: () => ObjectListEntryState;
+  set: (next: Partial<ObjectListEntryState>) => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
+/** @internal */
+export function createObjectListEntryStore(
+  initial: ObjectListEntryState,
+): ObjectListEntryStore {
+  let state = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => state,
+    set(next) {
+      const merged = { ...state, ...next };
+      const keys = Object.keys(merged) as (keyof ObjectListEntryState)[];
+      if (keys.every((key) => Object.is(merged[key], state[key]))) return;
+      state = merged;
+      for (const listener of listeners) listener();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+/** What `ObjectListHeader` shares with the controls inside it. @internal */
+export type ObjectListHeaderContextValue = {
+  /** A search field inside the header is open and takes the whole bar. */
+  setSearchExpanded: (expanded: boolean) => void;
+  /** The new-folder field is open and takes the whole bar. */
+  setFolderExpanded: (expanded: boolean) => void;
+};
+
+/** @internal */
+export const ObjectListHeaderContext =
+  createContext<ObjectListHeaderContextValue | null>(null);
+
+/** The nearest `ObjectListHeader`, or `null` outside one. @internal */
+export function useOptionalObjectListHeader() {
+  return useContext(ObjectListHeaderContext);
+}
+
+const ObjectListContext = createContext<ObjectListContextValue<unknown> | null>(
+  null,
+);
+const ObjectListInternalContext =
+  createContext<ObjectListInternalValue<unknown> | null>(null);
+const ObjectListEntryScopeContext =
+  createContext<ObjectListEntryScope<unknown> | null>(null);
+const ObjectListEntryContext = createContext<ObjectListEntry<unknown> | null>(
+  null,
+);
+
+/** @internal */
+export function ObjectListProvider<TItem>({
+  value,
+  internal,
+  scope,
+  children,
+}: {
+  value: ObjectListContextValue<TItem>;
+  /** What the list's own parts read. `ObjectList` always sets it. */
+  internal?: ObjectListInternalValue<TItem>;
+  /** What entries read. Parts that draw no entries can do without it. */
+  scope?: ObjectListEntryScope<TItem>;
+  children: ReactNode;
+}) {
+  return (
+    <ObjectListContext.Provider
+      value={value as unknown as ObjectListContextValue<unknown>}
+    >
+      <ObjectListInternalContext.Provider
+        value={(internal ?? null) as ObjectListInternalValue<unknown> | null}
+      >
+        <ObjectListEntryScopeContext.Provider
+          value={(scope ?? null) as ObjectListEntryScope<unknown> | null}
+        >
+          {children}
+        </ObjectListEntryScopeContext.Provider>
+      </ObjectListInternalContext.Provider>
+    </ObjectListContext.Provider>
+  );
+}
+
+/** @internal */
+export function ObjectListEntryProvider<TItem>({
+  entry,
+  children,
+}: {
+  entry: ObjectListEntry<TItem>;
+  children: ReactNode;
+}) {
+  return (
+    <ObjectListEntryContext.Provider value={entry as ObjectListEntry<unknown>}>
+      {children}
+    </ObjectListEntryContext.Provider>
+  );
+}
+
+/**
+ * The list, selection, hooks, view, and commands of the nearest
+ * `ObjectList`. Use it to build your own parts.
+ */
+export function useObjectListContext<
+  TItem = unknown,
+>(): ObjectListContextValue<TItem> {
+  const value = useContext(ObjectListContext);
+  if (!value) {
+    throw new Error(
+      "[dimah-s3] Object list parts must be rendered inside <ObjectList>.",
+    );
+  }
+  return value as unknown as ObjectListContextValue<TItem>;
+}
+
+/** Like {@link useObjectListContext}, but `null` outside an `ObjectList`. */
+export function useOptionalObjectListContext<
+  TItem = unknown,
+>(): ObjectListContextValue<TItem> | null {
+  return useContext(ObjectListContext) as ObjectListContextValue<TItem> | null;
+}
+
+/** What the list's own parts read. Throws outside an `ObjectList`. @internal */
+export function useObjectListInternal<
+  TItem = unknown,
+>(): ObjectListInternalValue<TItem> {
+  const value = useContext(ObjectListInternalContext);
+  if (!value) {
+    throw new Error(
+      "[dimah-s3] Object list parts must be rendered inside <ObjectList>.",
+    );
+  }
+  return value as unknown as ObjectListInternalValue<TItem>;
+}
+
+/** The entry a row or tile renders. `null` outside one. */
+export function useObjectListEntry<
+  TItem = unknown,
+>(): ObjectListEntry<TItem> | null {
+  return useContext(ObjectListEntryContext) as ObjectListEntry<TItem> | null;
+}
+
+/** The nearest list's {@link ObjectListEntryScope}, or `null`. @internal */
+export function useOptionalObjectListEntryScope<
+  TItem = unknown,
+>(): ObjectListEntryScope<TItem> | null {
+  return useContext(
+    ObjectListEntryScopeContext,
+  ) as ObjectListEntryScope<TItem> | null;
+}
+
+/** Like {@link useOptionalObjectListEntryScope}, inside a list only. @internal */
+export function useObjectListEntryScope<
+  TItem = unknown,
+>(): ObjectListEntryScope<TItem> {
+  const scope = useOptionalObjectListEntryScope<TItem>();
+  if (!scope) {
+    throw new Error(
+      "[dimah-s3] Object list parts must be rendered inside <ObjectList>.",
+    );
+  }
+  return scope;
+}
+
+const SELECTED = 1;
+const SELECTING = 2;
+const RENAMING = 4;
+const TAB_STOP = 8;
+
+/** What one entry shows. @internal */
+export type ObjectListEntryStatus = {
+  selectable: boolean;
+  selected: boolean;
+  /** Any entry in the list is selected. */
+  selecting: boolean;
+  renaming: boolean;
+  /** This entry's trigger takes Tab. */
+  tabStop: boolean;
+};
+
+/**
+ * The state of entry `key`. Renders again only when that entry's state
+ * changes. @internal
+ */
+export function useObjectListEntryStatus(key: string): ObjectListEntryStatus {
+  const { store, selectable } = useObjectListEntryScope();
+  const read = () => entryFlags(store.get(), key);
+  const flags = useSyncExternalStore(store.subscribe, read, read);
+  const canSelect = selectable.has(key);
+  return {
+    selectable: canSelect,
+    selected: canSelect && (flags & SELECTED) !== 0,
+    selecting: (flags & SELECTING) !== 0,
+    renaming: (flags & RENAMING) !== 0,
+    tabStop: (flags & TAB_STOP) !== 0,
+  };
+}
+
+/** One number per entry, so an unchanged entry reads an equal snapshot. */
+function entryFlags(state: ObjectListEntryState, key: string): number {
+  return (
+    (state.selected.has(key) ? SELECTED : 0) |
+    (state.selecting ? SELECTING : 0) |
+    (state.renaming === key ? RENAMING : 0) |
+    (state.tabStop === key ? TAB_STOP : 0)
+  );
+}

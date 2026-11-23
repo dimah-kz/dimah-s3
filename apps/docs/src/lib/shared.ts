@@ -23,6 +23,7 @@ export const siteKeywords = [
   "aws sdk v3",
   "cloudflare r2",
   "minio",
+  "arvancloud",
   "dimah s3",
   "dimah-s3",
   "object storage",
@@ -102,6 +103,8 @@ export function docsArticleJsonLd(input: {
   url: string;
   title: string;
   description: string;
+  /** @default "en" */
+  language?: string;
 }) {
   const pageUrl = `${input.origin}${input.url}`;
 
@@ -111,7 +114,7 @@ export function docsArticleJsonLd(input: {
     headline: input.title,
     description: input.description,
     url: pageUrl,
-    inLanguage: "en",
+    inLanguage: input.language ?? "en",
     isPartOf: {
       "@type": "WebSite",
       name: appName,
@@ -171,7 +174,7 @@ export function siteJsonLd(origin: string) {
         },
         featureList: [
           "Presigned S3-compatible direct uploads",
-          "S3-compatible storage, with guides for Amazon S3, Cloudflare R2, and MinIO",
+          "S3-compatible storage, with guides for Amazon S3, Cloudflare R2, MinIO, and ArvanCloud",
           "Presigned downloads & proxy preview",
           "Server-side deletion with lifecycle guards",
           "Resumable multipart uploads for large files",

@@ -1,60 +1,110 @@
 ---
 title: Providers
-description: Configure Amazon S3, Cloudflare R2, MinIO, and other S3-compatible storage.
+description: Compare Amazon S3, Cloudflare R2, MinIO, and ArvanCloud, and set the CORS rules and S3Client options every S3-compatible provider needs.
 ---
 
-dimah-s3 talks to storage through the AWS SDK `S3Client`. Any service that
-speaks enough of the S3 API can work — Amazon S3, Cloudflare R2, MinIO, and
-similar backends.
+dimah-s3 talks to storage through the AWS SDK `S3Client`, so it works with any
+service that speaks enough of the S3 API. The browser sends files straight to
+the bucket, so the bucket's CORS rules and the upload method must match what
+the provider supports.
 
-S3-compatible is not the same as Amazon S3. Providers skip or ignore parts of
-the API. With a presign-first stack, those gaps show up quickly: the browser
-hits storage directly, so CORS, addressing, and the upload method have to
-match what the provider actually supports.
-
-| Topic                 | Why it matters                                                                                     |
-| --------------------- | -------------------------------------------------------------------------------------------------- |
-| Presigned POST vs PUT | Default upload is POST. Some providers only accept PUT.                                            |
-| Object ACL            | `acl: "public-read"` needs real ACL support. Others use bucket policies or a public-access toggle. |
-| Endpoint & addressing | Custom endpoints often need `endpoint`, and sometimes `forcePathStyle: true`.                      |
-| CORS                  | Browser uploads hit storage directly. The bucket must allow your origin, methods, and headers.     |
-| Public URLs           | Public reads may use a CDN, a custom domain, or `*.r2.dev` — not object ACL.                       |
-
-Wire the shared client once in [Quickstart](/docs/quickstart). Use the guides
-below only for the extras that defaults do not cover.
-
-## Comparison
-
-|                   | [AWS S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) |
-| ----------------- | :------------------------------: | :--------------------------------------------: | :----------------------------: |
-| Presigned POST    |               Yes                |                       No                       |              Yes               |
-| Presigned PUT     |               Yes                |                 Yes (required)                 |              Yes               |
-| Object ACL        |               Yes                |                    Ignored                     |          Use policies          |
-| Custom `endpoint` |             Optional             |                    Required                    |            Required            |
-| `forcePathStyle`  |           Usually off            |                      Off                       |          Typically on          |
-
-## Configuration
-
-```ts
+```ts title="lib/s3.ts"
+import { S3Client } from "@aws-sdk/client-s3";
 import { dimahS3, route } from "@dimah-s3/server";
+
+export const awsS3 = new S3Client({
+  // region, endpoint, credentials: see your provider's guide
+  requestChecksumCalculation: "WHEN_REQUIRED", // [!code ++]
+});
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   routes: {
     avatar: route({
-      upload: { method: "PUT" }, // [!code ++]
+      // Only for a provider without presigned PUT, such as ArvanCloud
+      upload: { method: "POST" },
     }),
   },
 });
 ```
 
-The default upload method is POST. Switch to PUT when the provider has no
-Presigned POST (R2 is the usual case). ACL on confirm comes from
-`upload.acl` / `object` — there is no `GetObjectAcl` lookup.
+## Compare providers
 
-Client hooks and `@dimah-s3/ui` read `method` from the presign response.
-Change it on the server only.
+|                   | [Amazon S3](/docs/providers/aws-s3) | [Cloudflare R2](/docs/providers/cloudflare-r2) | [MinIO](/docs/providers/minio) | [ArvanCloud](/docs/providers/arvancloud) |
+| ----------------- | ----------------------------------- | ---------------------------------------------- | ------------------------------ | ---------------------------------------- |
+| Presigned PUT     | Yes (default)                       | Yes (default)                                  | Yes (default)                  | No                                       |
+| Presigned POST    | Yes                                 | No                                             | Yes                            | Yes (required)                           |
+| Object ACL        | Yes, off on new buckets             | Ignored                                        | Use bucket policies            | Yes                                      |
+| `endpoint`        | Optional                            | Required                                       | Required                       | Required                                 |
+| `forcePathStyle`  | Usually off                         | Off                                            | On for a host-and-port URL     | On                                       |
+| Where to set CORS | Bucket CORS configuration           | R2 dashboard                                   | `MINIO_API_CORS_ALLOW_ORIGIN`  | Bucket CORS settings or `PutBucketCors`  |
+
+For another S3-compatible service, start from the closest guide and check each
+row against the provider's docs.
+
+## Set the checksum mode
+
+Every `S3Client` you pass to dimah-s3 must set
+`requestChecksumCalculation: "WHEN_REQUIRED"`. From AWS SDK 3.729 the default
+is `"WHEN_SUPPORTED"`, which signs a checksum of an empty body into the
+presigned URL, so every upload fails at the bucket.
+
+The server checks each client before its first presign. Any other value is
+logged as a config error, and the request returns `500 INTERNAL_ERROR`.
+
+## Allow your origin in bucket CORS
+
+Every provider's CORS rule needs the same four parts:
+
+| Field           | Value                                     | Why                                                                                                                  |
+| --------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Allowed origins | Your app's exact origin                   | Scheme, host, and port must match. Allow `http://localhost:3000` on a development bucket only                        |
+| Allowed methods | `PUT` or `POST`, plus `GET` and `HEAD`    | Uploads use the route's `upload.method`. Multipart parts are always `PUT`. `GET` lets `useFetchDownload` read a file |
+| Allowed headers | `*`                                       | A presigned PUT signs type, disposition, metadata, ACL, tag, storage class, and checksum headers                     |
+| Exposed headers | `Content-Disposition`, `Content-Encoding` | `useFetchDownload` reads the saved file name and whether the body is encoded                                         |
+
+The bucket never needs `DELETE`, since delete runs on your server. Uploads read
+no response header, so `ETag` need not be exposed.
+
+## Choose the upload method
+
+`upload.method` sets the presign verb per route, `"PUT"` by default. Set
+`method: "POST"` for a provider that rejects presigned PUT, such as
+[ArvanCloud](/docs/providers/arvancloud). Never set it on Cloudflare R2.
+
+Change it on the server only. Hooks and `@dimah-s3/ui` read the method from
+the presign response.
+
+## Make files public
+
+Uploads are private unless the route's `acl` or `upload.object` sets
+`"public-read"`, which works only on a provider with object ACLs. Otherwise,
+make reads public with a bucket policy, a public bucket, or a CDN. Then build
+each URL from that public base and the server-issued key:
+
+```ts
+import { buildPublicObjectUrl } from "@dimah-s3/core";
+
+const url = buildPublicObjectUrl({
+  baseURL: process.env.S3_PUBLIC_BASE_URL!, // your provider's guide has it
+  key: result.key, // from the upload result or onConfirmed
+});
+```
+
+[`buildPublicObjectUrl`](/docs/core#helpers) encodes the key. The `acl` in the
+confirm result comes from the route, not from the bucket: on a provider that
+ignores ACLs, it can read `public-read` for a private object.
+
+## Troubleshooting
+
+| Symptom                                                    | Fix                                                                                                              |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| The first presign returns `500` and logs the checksum mode | Set `requestChecksumCalculation: "WHEN_REQUIRED"` on the `S3Client`                                              |
+| The upload fails with a CORS or network error              | Allow the exact origin and the upload method in bucket CORS                                                      |
+| Presign succeeds, then the bucket rejects the upload       | Use a method the provider supports: `PUT` on R2, `POST` on ArvanCloud                                            |
+| `403` with `SignatureDoesNotMatch`                         | A custom client changed or dropped a header. Send the presign `headers` exactly. `ExposeHeaders` does not fix it |
+| A fetched download is named after its key                  | Expose `Content-Disposition` in bucket CORS                                                                      |
 
 ## Guides
 
@@ -67,11 +117,16 @@ Change it on the server only.
   <Card
     title="Cloudflare R2"
     href="/docs/providers/cloudflare-r2"
-    description="PUT uploads, the R2 endpoint, and bucket CORS."
+    description="The R2 endpoint, PUT-only uploads, and public URLs."
   />
   <Card
     title="MinIO"
     href="/docs/providers/minio"
     description="Path-style addressing and server CORS for self-hosted S3."
+  />
+  <Card
+    title="ArvanCloud"
+    href="/docs/providers/arvancloud"
+    description="Presigned POST uploads, the API host, and public URLs."
   />
 </Cards>

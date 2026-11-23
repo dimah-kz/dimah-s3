@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
-import { getSiteUrl, isProductionDeploy } from "@/lib/site-url";
+import { getSiteUrl, isPublicDocsDeploy } from "@/lib/site-url";
 
-/** `/robots.txt` — allow crawlers on production; keep preview deploys out. */
+/** `/robots.txt` — allow crawlers on the public docs; keep other previews out. */
 export default function robots(): MetadataRoute.Robots {
-  if (!isProductionDeploy()) {
+  if (!isPublicDocsDeploy()) {
     return {
       rules: {
         userAgent: "*",

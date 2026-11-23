@@ -1,0 +1,134 @@
+---
+title: Engine
+description: Plain functions from @dimah-s3/react/engine to upload without hooks and to use stores, sources, and formatters in any module.
+---
+
+`@dimah-s3/react/engine` holds the plain functions behind the hooks. It has no
+React import and no `"use client"` directive, so shared modules, server
+modules, workers, and scripts can import it.
+
+| Area         | Exports                                                                                                                            |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Upload       | `uploadFile`, `uploadAbortReason`, `getUploadAbortKind`, `multipartResumeKey`, `mergeUploadRequest`, `DEFAULT_MULTIPART_THRESHOLD` |
+| Stores       | `createLocalStorageUploadStore`, `createMemoryUploadStore`                                                                         |
+| Route policy | `loadRouteCatalog`, `resolveRouteUploadPolicy`, `mergeRouteUploadPolicy`                                                           |
+| Custom API   | `defineApi`                                                                                                                        |
+| Object list  | `memoryObjectSource`, `readObjectListLevel`, `objectListEntryKey`, `objectKeyOf`                                                   |
+| Formatting   | `formatFileSize`, `formatAcceptLabels`, `truncateFileName`, `toTimestamp`                                                          |
+
+The types `UploadFileOptions`, `UploadStore`, `StoredUpload`,
+`UploadTransport`, `S3ApiUploadTransport`, `RetryConfig`, `UploadAbortKind`,
+and `RouteUploadPolicy` ship from it too.
+
+## Upload a file without hooks
+
+`uploadFile(api, file, options)` presigns, uploads, and confirms one file,
+and resolves with the verified object. It does not load the catalog or check
+the file, so do both first:
+
+```ts title="lib/upload-attachment.ts"
+import { createS3Client, validateFile } from "@dimah-s3/core";
+import {
+  createLocalStorageUploadStore,
+  loadRouteCatalog,
+  resolveRouteUploadPolicy,
+  uploadFile,
+} from "@dimah-s3/react/engine";
+
+const api = createS3Client();
+const uploadStore = createLocalStorageUploadStore();
+
+export async function uploadAttachment(file: File, signal?: AbortSignal) {
+  const catalog = await loadRouteCatalog(api);
+  const policy = resolveRouteUploadPolicy(catalog, "attachments");
+
+  const invalid = validateFile(file, policy);
+  if (invalid) throw invalid;
+
+  return uploadFile(api, file, {
+    route: "attachments",
+    policy,
+    request: { clientMetadata: { source: "import" } },
+    uploadStore,
+    signal,
+    onProgress: (progress) => console.log(`${progress.percent}%`),
+  });
+}
+```
+
+`uploadFile` sends bytes with `XMLHttpRequest`, so it needs a browser page.
+In Node or a service worker, an
+[`uploadTransport`](/docs/react/custom-backend#upload-transport) on the API
+replaces single-shot transfers only; multipart parts always use
+`XMLHttpRequest`.
+
+`policy` decides two things:
+
+- **Multipart** — files of at least `DEFAULT_MULTIPART_THRESHOLD` (50 MiB) use multipart when `policy.multipart` is true.
+- **Checksum** — single-shot uploads send a SHA-256 when `policy.checksum` is true. Multipart follows what init returns.
+
+The route policy helpers work like the hook:
+
+- `loadRouteCatalog(api)` loads the catalog once per `S3Api`. A failure is not cached, so the next call loads again.
+- `resolveRouteUploadPolicy(catalog, route)` returns no constraints, and neither multipart nor checksums, for a missing route or a route with uploads off.
+- `mergeRouteUploadPolicy(policy, { accept, maxFileSize, multipart })` narrows a policy the way the hook options do.
+
+`mergeUploadRequest(base, override)` combines two `request` objects the way
+the hook puts a call's `uploadOptions` over its own: `override` fields win,
+and `clientMetadata` merges key by key.
+
+## Cancel and detach
+
+`uploadFile` rejects with an `APIError`, or with `signal.reason` once the
+signal aborts. Abort with an upload abort reason to say what happens to a
+multipart session:
+
+```ts
+import { getUploadAbortKind, uploadAbortReason } from "@dimah-s3/react/engine";
+
+const controller = new AbortController();
+const pending = uploadAttachment(file, controller.signal);
+
+// Keep the multipart session and its stored record, to resume later.
+controller.abort(uploadAbortReason("detach"));
+
+try {
+  await pending;
+} catch (error) {
+  if (getUploadAbortKind(error) !== "detach") throw error;
+}
+```
+
+| Reason                                      | Multipart session and stored record                |
+| ------------------------------------------- | -------------------------------------------------- |
+| `uploadAbortReason("detach")`               | Kept, to resume. Without an `uploadStore`, aborted |
+| `uploadAbortReason("cancel")`, or any other | Session aborted and record deleted                 |
+
+Both reasons are `DOMException`s named `AbortError`. `getUploadAbortKind`
+returns `"cancel"`, `"detach"`, or `null` for any other value.
+
+## Object list keys
+
+Two helpers name the keys of a [`useObjectList`](/docs/react/hooks/object-list)
+entry without the hook, for code that builds or matches entries itself:
+
+- `objectListEntryKey(kind, id)` returns the `entry.key` of a row, such as `objectListEntryKey("file", id)` for the file whose `getId` is `id`. Selection uses these keys.
+- `objectKeyOf(entry)` returns the stored S3 object key of a file entry: `entry.file.objectKey`, or the row id when the source set none.
+
+## API Reference
+
+### uploadFile options
+
+| Prop              | Type                                        | Default                                | Description                                                                 |
+| ----------------- | ------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
+| `route`           | `S3RouteName`                               | required                               | Named server route                                                          |
+| `policy`          | `{ multipart: boolean; checksum: boolean }` | required                               | What the route allows, such as from `resolveRouteUploadPolicy`              |
+| `request`         | `UploadRequestOptions`                      | —                                      | `clientMetadata`, `fileName`, and `contentType` for the presign             |
+| `concurrentParts` | `number`                                    | `4`                                    | Multipart parts uploaded at once                                            |
+| `retry`           | `RetryConfig`                               | `{ maxRetries: 3, baseDelayMs: 1000 }` | Retries per request and the first backoff delay in ms                       |
+| `uploadStore`     | `UploadStore`                               | —                                      | Persists multipart uploads so they can [resume](/docs/react/upload-store)   |
+| `signal`          | `AbortSignal`                               | —                                      | Aborts the upload. See [Cancel and detach](#cancel-and-detach)              |
+| `onProgress`      | `(progress) => void`                        | —                                      | Byte progress as a `TransferProgress`                                       |
+| `onPhaseChange`   | `(phase) => void`                           | —                                      | Runs with `"preparing"`, `"presigning"`, `"uploading"`, then `"finalizing"` |
+| `onMultipartInit` | `(session) => void`                         | —                                      | Runs when a multipart upload starts or resumes, with `{ uploadId, key }`    |
+| `onPartUpload`    | `(part) => void`                            | —                                      | Runs after each part, with `{ partNumber, partCount }`                      |

@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useContext, useMemo } from "react";
-import { formatFileSize, type FileSizeUnit } from "@dimah-s3/core";
 import { useTranslations } from "@fuma-translate/react";
 import { S3LocaleContext } from "@/s3-provider";
+import { formatFileSize, type FileSizeUnit } from "./format-file-size";
 
 /**
  * Byte formatter for the `S3Provider` `locale`: native digits and

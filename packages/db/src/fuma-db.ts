@@ -1,9 +1,17 @@
-import { fumadb } from "fumadb";
-import { v1 } from "./schema/v1";
+import { fumadb, type InferFumaDB } from "fumadb";
+import { dbSchema } from "./schema/schema";
 
-export const DimahS3DB = fumadb({
+/**
+ * The @dimah-s3/db FumaDB library. Call `DimahS3Db.client(adapter)` with an
+ * adapter from `@dimah-s3/db/adapters/*` to get a {@link DimahS3DbClient}.
+ */
+export const DimahS3Db = fumadb({
   namespace: "dimah_s3",
-  schemas: [v1],
+  schemas: [dbSchema],
 });
 
-export { v1 };
+/** FumaDB client for the @dimah-s3/db schema. */
+export type DimahS3DbClient = InferFumaDB<typeof DimahS3Db>;
+
+/** The schema version the stores read and write. */
+export const DB_SCHEMA_VERSION = dbSchema.version;

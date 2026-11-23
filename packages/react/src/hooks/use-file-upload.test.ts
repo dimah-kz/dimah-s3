@@ -1,0 +1,1695 @@
+import { act } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { s3Error, type APIError, type S3Api } from "@dimah-s3/core";
+import { fakeS3Api } from "@/test/api";
+import { renderHook } from "@/test/render-hook";
+import { createMemoryUploadStore } from "@/store/memory-store";
+import type {
+  FileRejection,
+  UploadFileOptions,
+  UploadLimit,
+  UploadRequestOptions,
+  UploadResult,
+} from "@/types/upload";
+import { getUploadAbortKind } from "@/upload/abort";
+import { multipartResumeKey } from "@/upload/resume-key";
+import { uploadFile } from "@/upload/upload-file";
+import { useFileUpload, type UseFileUploadOptions } from "./use-file-upload";
+import { useUploadLimit } from "./use-upload-limit";
+
+vi.mock("@/upload/upload-file", () => ({ uploadFile: vi.fn() }));
+
+/** One `uploadFile` call the test settles by hand. */
+type EngineCall = {
+  file: File;
+  options: UploadFileOptions;
+  succeed: () => void;
+  fail: (error: APIError) => void;
+};
+
+let engineCalls: EngineCall[] = [];
+
+function resultFor(file: File): UploadResult {
+  return {
+    key: `uploads/${file.name}`,
+    bucket: "bucket",
+    name: file.name,
+    size: file.size,
+    metadata: {},
+  };
+}
+
+function engineCall(name: string): EngineCall {
+  const call = engineCalls.find(({ file }) => file.name === name);
+  if (!call) throw new Error(`uploadFile was not called for ${name}`);
+  return call;
+}
+
+/** The newest `uploadFile` call for `name`, such as a retry's. */
+function lastEngineCall(name: string): EngineCall {
+  const call = engineCalls.findLast(({ file }) => file.name === name);
+  if (!call) throw new Error(`uploadFile was not called for ${name}`);
+  return call;
+}
+
+function txt(name: string, size = 4) {
+  return new File(["x".repeat(size)], name, { type: "text/plain" });
+}
+
+let instances = 0;
+
+function mount(
+  options: Partial<UseFileUploadOptions> = {},
+  api: S3Api = fakeS3Api(),
+) {
+  const instanceId = `upload-${++instances}`;
+  return renderHook(() =>
+    useFileUpload({ api, route: "uploads", ...options }, instanceId),
+  );
+}
+
+/**
+ * Mounts a queue with the newest `limit()` set through `useUploadLimit`,
+ * and returns what it leaves as `remaining`.
+ */
+function mountLimited(
+  limit: () => UploadLimit | null,
+  options: Partial<UseFileUploadOptions> = {},
+) {
+  const api = fakeS3Api();
+  const instanceId = `upload-${++instances}`;
+  return renderHook(() => {
+    const upload = useFileUpload(
+      { api, route: "uploads", append: true, maxFiles: 5, ...options },
+      instanceId,
+    );
+    const remaining = useUploadLimit(
+      { instanceId, files: upload.files },
+      limit(),
+    );
+    return { ...upload, remaining };
+  });
+}
+
+/** Each rejected file name with its first error code and params, across calls. */
+function rejected(onFileReject: ReturnType<typeof vi.fn>) {
+  return onFileReject.mock.calls.flatMap(([rejections]) =>
+    (rejections as FileRejection[]).map(({ file, errors }) => [
+      file.name,
+      errors[0]?.code,
+      errors[0]?.params,
+    ]),
+  );
+}
+
+/** Lets pending promises and React updates run. */
+async function flush() {
+  await act(async () => {
+    for (let i = 0; i < 5; i += 1) await Promise.resolve();
+  });
+}
+
+beforeEach(() => {
+  engineCalls = [];
+  vi.mocked(uploadFile).mockImplementation(
+    (_api, file, options) =>
+      new Promise((resolve, reject) => {
+        const { signal } = options;
+        signal?.addEventListener(
+          "abort",
+          () => reject(signal.reason as DOMException),
+          {
+            once: true,
+          },
+        );
+        engineCalls.push({
+          file,
+          options,
+          succeed: () => {
+            options.onPhaseChange?.("uploading");
+            options.onProgress?.({
+              loaded: file.size,
+              total: file.size,
+              percent: 100,
+            });
+            resolve(resultFor(file));
+          },
+          fail: reject,
+        });
+      }),
+  );
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("useFileUpload", () => {
+  it("uploads every file and settles the call with per-file outcomes", async () => {
+    const onUploadStart = vi.fn();
+    const onProgress = vi.fn();
+    const onSuccess = vi.fn();
+    const onSettled = vi.fn();
+    const hook = mount({
+      maxFiles: 2,
+      onUploadStart,
+      onProgress,
+      onSuccess,
+      onSettled,
+    });
+    const a = txt("a.txt");
+    const b = txt("b.txt", 6);
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    act(() => {
+      pending = hook.current.upload([a, b]);
+    });
+    expect(hook.current.phase).toBe("uploading");
+    await flush();
+
+    expect(onUploadStart).toHaveBeenCalledExactlyOnceWith([a, b]);
+    expect(hook.current.files.map((entry) => entry.phase)).toEqual([
+      "queued",
+      "queued",
+    ]);
+    expect(hook.current.file?.fileName).toBe("a.txt");
+
+    await act(async () => {
+      engineCall("a.txt").succeed();
+      engineCall("b.txt").succeed();
+    });
+    const result = await pending;
+
+    expect(result).toEqual({
+      uploaded: [
+        { file: a, result: resultFor(a) },
+        { file: b, result: resultFor(b) },
+      ],
+      failed: [],
+      rejected: [],
+      blocked: [],
+      aborted: [],
+    });
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({ loaded: 4, percent: 100 }),
+      a,
+    );
+    expect(onSuccess).toHaveBeenCalledWith(resultFor(a), a);
+    expect(onSuccess).toHaveBeenCalledWith(resultFor(b), b);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    expect(hook.current.phase).toBe("success");
+    expect(hook.current.isPending).toBe(false);
+    expect(hook.current.progress).toMatchObject({
+      loaded: 10,
+      total: 10,
+      percent: 100,
+    });
+    expect(hook.current.files.map((entry) => entry.result)).toEqual([
+      resultFor(a),
+      resultFor(b),
+    ]);
+    hook.unmount();
+  });
+
+  it("passes the catalog policy and merged request options to the engine", async () => {
+    const { routes } = await fakeS3Api().catalog();
+    const api = fakeS3Api({
+      catalog: vi.fn(async () => ({
+        routes: {
+          uploads: {
+            ...routes.uploads,
+            upload: { enabled: true as const, multipart: true, checksum: true },
+          },
+        },
+      })),
+    });
+    const hook = mount(
+      {
+        multipart: false,
+        concurrentParts: 3,
+        uploadOptions: (file) => ({
+          fileName: `hook-${file.name}`,
+          clientMetadata: { folder: "docs", owner: "hook" },
+        }),
+      },
+      api,
+    );
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")], {
+        uploadOptions: {
+          contentType: "text/csv",
+          clientMetadata: { owner: "call" },
+        },
+      });
+    });
+    await flush();
+
+    expect(engineCall("a.txt").options).toMatchObject({
+      route: "uploads",
+      policy: { multipart: false, checksum: true },
+      concurrentParts: 3,
+      request: {
+        fileName: "hook-a.txt",
+        contentType: "text/csv",
+        clientMetadata: { folder: "docs", owner: "call" },
+      },
+    });
+    hook.unmount();
+  });
+
+  it("waits for request options that resolve later, preparing meanwhile", async () => {
+    let resolve!: (options: { clientMetadata: Record<string, string> }) => void;
+    const hook = mount();
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")], {
+        uploadOptions: () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      });
+    });
+    await flush();
+
+    expect(hook.current.files[0]?.phase).toBe("preparing");
+    expect(engineCalls).toHaveLength(0);
+
+    await act(async () => {
+      resolve({ clientMetadata: { folderId: "f1" } });
+    });
+    await flush();
+
+    expect(engineCall("a.txt").options).toMatchObject({
+      request: { clientMetadata: { folderId: "f1" } },
+    });
+    hook.unmount();
+  });
+
+  it("fails a file with the APIError its request options reject with", async () => {
+    const quota = s3Error("QUOTA_EXCEEDED", { limit: "folders" });
+    const hook = mount({ maxFiles: 2 });
+
+    let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      result = await hook.current.upload([txt("a.txt"), txt("b.txt")], {
+        uploadOptions: (file) =>
+          file.name === "a.txt"
+            ? Promise.reject(quota)
+            : Promise.reject(new Error("boom")),
+      });
+    });
+
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(result.failed).toEqual([
+      { file: expect.objectContaining({ name: "a.txt" }), error: quota },
+      {
+        file: expect.objectContaining({ name: "b.txt" }),
+        error: expect.objectContaining({ code: "HOOK_FAILED" }),
+      },
+    ]);
+    hook.unmount();
+  });
+
+  it("cancels a file while its request options are pending", async () => {
+    const hook = mount();
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt")], {
+        uploadOptions: () => new Promise(() => undefined),
+      });
+    });
+    await flush();
+    const [queued] = hook.current.files;
+    if (!queued) throw new Error("No queued file");
+    act(() => {
+      hook.current.cancel(queued.id);
+    });
+
+    let result!: Awaited<typeof pending>;
+    await act(async () => {
+      result = await pending;
+    });
+    expect(result.aborted).toHaveLength(1);
+    expect(uploadFile).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("rejects invalid files without stopping the rest of the call", async () => {
+    const onFileReject = vi.fn();
+    const onSettled = vi.fn();
+    const hook = mount({
+      accept: [".txt"],
+      maxFiles: 3,
+      onFileReject,
+      onSettled,
+    });
+    const exe = new File(["x"], "a.exe", { type: "application/x-msdownload" });
+    const files = [exe, txt("b.txt"), txt("c.txt"), txt("d.txt")];
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload(files, { maxFiles: 2 });
+    });
+    await flush();
+
+    const rejections = hook.current.fileRejections;
+    expect(rejections.map(({ file }) => file.name)).toEqual(["a.exe", "d.txt"]);
+    expect(rejections.map(({ errors }) => errors[0].code)).toEqual([
+      "FILE_TYPE_NOT_ALLOWED",
+      "TOO_MANY_FILES",
+    ]);
+    expect(rejections[1].errors[0].params).toEqual({ maxFiles: 2 });
+    expect(onFileReject).toHaveBeenCalledExactlyOnceWith(rejections);
+    expect(hook.current.files.map((entry) => entry.fileName)).toEqual([
+      "b.txt",
+      "c.txt",
+    ]);
+
+    await act(async () => {
+      engineCall("b.txt").succeed();
+      engineCall("c.txt").succeed();
+    });
+    const result = await pending;
+    expect(result.uploaded.map(({ file }) => file.name)).toEqual([
+      "b.txt",
+      "c.txt",
+    ]);
+    expect(onSettled).toHaveBeenCalledOnce();
+    hook.unmount();
+  });
+
+  it("ends a call with only rejected files and runs only onSettled", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const onSettled = vi.fn();
+    const hook = mount({ maxFileSize: 2, beforeUpload, onSettled });
+
+    let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      result = await hook.current.upload([txt("big.txt", 10)]);
+    });
+
+    expect(result).toEqual({
+      uploaded: [],
+      failed: [],
+      rejected: hook.current.fileRejections,
+      blocked: [],
+      aborted: [],
+    });
+    expect(hook.current.fileRejections[0].errors[0].code).toBe(
+      "FILE_TOO_LARGE",
+    );
+    expect(beforeUpload).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(hook.current.phase).toBe("idle");
+    hook.unmount();
+  });
+
+  it("fails every file with the catalog error", async () => {
+    const catalogError = s3Error("NETWORK_ERROR");
+    const api = fakeS3Api({
+      catalog: vi.fn(async () => {
+        throw catalogError;
+      }),
+    });
+    const onError = vi.fn();
+    const onSettled = vi.fn();
+    const hook = mount({ maxFiles: 2, onError, onSettled }, api);
+    const files = [txt("a.txt"), txt("b.txt")];
+
+    let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      result = await hook.current.upload(files);
+    });
+
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(result.failed).toEqual(
+      files.map((file) => ({ file, error: catalogError })),
+    );
+    expect(onError).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenCalledWith(catalogError, files[0]);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    expect(hook.current.phase).toBe("error");
+    expect(hook.current.files.map((entry) => entry.phase)).toEqual([
+      "error",
+      "error",
+    ]);
+    expect(hook.current.error).toMatchObject({
+      code: "PARTIAL_FAILURE",
+      params: { failed: 2, total: 2 },
+    });
+    hook.unmount();
+  });
+
+  it("reports a failed file's error on the queue", async () => {
+    const onError = vi.fn();
+    const hook = mount({ onError });
+    const failure = s3Error("UPLOAD_FAILED", { status: 500 });
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(failure);
+    });
+
+    await expect(pending).resolves.toMatchObject({
+      failed: [{ error: failure }],
+    });
+    expect(onError).toHaveBeenCalledExactlyOnceWith(failure, expect.any(File));
+    expect(hook.current.error).toBe(failure);
+    expect(hook.current.file?.phase).toBe("error");
+    hook.unmount();
+  });
+
+  it("blocks the call when beforeUpload returns false", async () => {
+    const onUploadStart = vi.fn();
+    const onSettled = vi.fn();
+    const hook = mount({
+      beforeUpload: () => false,
+      onUploadStart,
+      onSettled,
+    });
+    const file = txt("a.txt");
+
+    let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      result = await hook.current.upload([file]);
+    });
+
+    expect(result.blocked).toEqual([file]);
+    expect(onUploadStart).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(hook.current.files).toEqual([]);
+    hook.unmount();
+  });
+
+  it.each([
+    [
+      "beforeUpload",
+      {
+        beforeUpload: () => {
+          throw new Error("nope");
+        },
+      },
+    ],
+    [
+      "onUploadStart",
+      {
+        onUploadStart: () => {
+          throw new Error("nope");
+        },
+      },
+    ],
+  ])(
+    "fails the call with HOOK_FAILED when %s throws",
+    async (hookName, options) => {
+      const hook = mount(options);
+
+      let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+      await act(async () => {
+        result = await hook.current.upload([txt("a.txt")]);
+      });
+
+      expect(uploadFile).not.toHaveBeenCalled();
+      expect(result.failed[0].error).toMatchObject({
+        code: "HOOK_FAILED",
+        params: { hook: hookName },
+      });
+      hook.unmount();
+    },
+  );
+
+  it("reports throwing after-callbacks without changing the outcome", async () => {
+    const reportError = vi.fn();
+    vi.stubGlobal("reportError", reportError);
+    const thrown = new Error("callback");
+    const hook = mount({
+      onProgress: () => {
+        throw thrown;
+      },
+      onSuccess: () => Promise.reject(thrown),
+      onSettled: () => {
+        throw thrown;
+      },
+    });
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+    });
+
+    await expect(pending).resolves.toMatchObject({
+      uploaded: [{ result: resultFor(txt("a.txt")) }],
+    });
+    expect(reportError).toHaveBeenCalledTimes(3);
+    expect(hook.current.file?.phase).toBe("success");
+    hook.unmount();
+  });
+
+  it("cancels one file by id while the others keep going", async () => {
+    const hook = mount({ maxFiles: 2 });
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+    const [a] = hook.current.files;
+
+    await act(async () => {
+      hook.current.cancel(a.id);
+    });
+    expect(getUploadAbortKind(engineCall("a.txt").options.signal?.reason)).toBe(
+      "cancel",
+    );
+    expect(engineCall("b.txt").options.signal?.aborted).toBe(false);
+    expect(hook.current.files.map((entry) => entry.fileName)).toEqual([
+      "b.txt",
+    ]);
+
+    await act(async () => {
+      engineCall("b.txt").succeed();
+    });
+    const result = await pending;
+    expect(result.aborted).toEqual([a.file]);
+    expect(result.uploaded.map(({ file }) => file.name)).toEqual(["b.txt"]);
+    expect(hook.current.phase).toBe("success");
+    hook.unmount();
+  });
+
+  it("runs at most concurrentFiles uploads and drops a cancelled queued file", async () => {
+    const hook = mount({ maxFiles: 3, concurrentFiles: 1 });
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt"), txt("b.txt"), txt("c.txt")]);
+    });
+    await flush();
+    expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+
+    const b = hook.current.files[1];
+    await act(async () => {
+      hook.current.cancel(b.id);
+    });
+    await act(async () => {
+      engineCall("a.txt").succeed();
+    });
+    await flush();
+    expect(engineCalls.map(({ file }) => file.name)).toEqual([
+      "a.txt",
+      "c.txt",
+    ]);
+
+    await act(async () => {
+      engineCall("c.txt").succeed();
+    });
+    const result = await pending;
+    expect(result.aborted).toEqual([b.file]);
+    expect(result.uploaded).toHaveLength(2);
+    hook.unmount();
+  });
+
+  it("aborts a call that is still waiting on beforeUpload", async () => {
+    const { promise, resolve } = Promise.withResolvers<boolean>();
+    const onSettled = vi.fn();
+    const hook = mount({ beforeUpload: () => promise, onSettled });
+    const file = txt("a.txt");
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([file]);
+    });
+    expect(hook.current.isPending).toBe(true);
+
+    await act(async () => {
+      hook.current.cancel();
+      resolve(true);
+    });
+    const result = await pending;
+
+    expect(result.aborted).toEqual([file]);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(hook.current.isPending).toBe(false);
+    hook.unmount();
+  });
+
+  it("detaches every file and leaves an empty queue", async () => {
+    const hook = mount({ maxFiles: 2 });
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      hook.current.detach();
+    });
+
+    for (const call of engineCalls) {
+      expect(getUploadAbortKind(call.options.signal?.reason)).toBe("detach");
+    }
+    expect((await pending).aborted).toHaveLength(2);
+    expect(hook.current.phase).toBe("idle");
+    hook.unmount();
+  });
+
+  it.each([
+    ["detaches", { uploadStore: { get: () => null, set() {}, delete() {} } }],
+    ["cancels", {}],
+  ])("%s running uploads on unmount", async (_label, options) => {
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+    const hook = mount({ ...options, onSuccess, onError });
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    hook.unmount();
+
+    const kind = getUploadAbortKind(engineCall("a.txt").options.signal?.reason);
+    expect(kind).toBe("uploadStore" in options ? "detach" : "cancel");
+    expect((await pending).aborted).toHaveLength(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("decides detach or cancel on unmount from each call's own options", async () => {
+    let uploadStore: UseFileUploadOptions["uploadStore"] = {
+      get: () => null,
+      set() {},
+      delete() {},
+    };
+    const api = fakeS3Api();
+    const hook = renderHook(() =>
+      useFileUpload(
+        { api, route: "uploads", append: true, uploadStore },
+        "upload-store",
+      ),
+    );
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    uploadStore = undefined;
+    hook.rerender();
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+    hook.unmount();
+
+    expect(getUploadAbortKind(engineCall("a.txt").options.signal?.reason)).toBe(
+      "detach",
+    );
+    expect(getUploadAbortKind(engineCall("b.txt").options.signal?.reason)).toBe(
+      "cancel",
+    );
+  });
+
+  it("stops engine callbacks once a file is cancelled", async () => {
+    const onProgress = vi.fn();
+    const onPartUpload = vi.fn();
+    const onMultipartInit = vi.fn();
+    const hook = mount({ onProgress, onPartUpload, onMultipartInit });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    const { options } = engineCall("a.txt");
+    await act(async () => {
+      hook.current.cancel();
+    });
+    act(() => {
+      options.onPhaseChange?.("uploading");
+      options.onProgress?.({ loaded: 2, total: 4, percent: 50 });
+      options.onPartUpload?.({ partNumber: 1, partCount: 2 });
+      options.onMultipartInit?.({ uploadId: "u", key: "k" });
+    });
+
+    expect(onProgress).not.toHaveBeenCalled();
+    expect(onPartUpload).not.toHaveBeenCalled();
+    expect(onMultipartInit).not.toHaveBeenCalled();
+    expect(hook.current.files).toEqual([]);
+    hook.unmount();
+  });
+
+  it("replaces the queue by default and cancels the files it replaces", async () => {
+    const hook = mount();
+
+    let first!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      first = hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+
+    expect(getUploadAbortKind(engineCall("a.txt").options.signal?.reason)).toBe(
+      "cancel",
+    );
+    expect((await first).aborted).toHaveLength(1);
+    expect(hook.current.files.map((entry) => entry.fileName)).toEqual([
+      "b.txt",
+    ]);
+    hook.unmount();
+  });
+
+  it("keeps running uploads when a new call fails before uploading", async () => {
+    const hook = mount({
+      beforeUpload: ([file]) => {
+        if (file.name === "b.txt") throw new Error("nope");
+        return true;
+      },
+    });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    let second!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      second = await hook.current.upload([txt("b.txt")]);
+    });
+
+    expect(second.failed[0].error.code).toBe("HOOK_FAILED");
+    expect(engineCall("a.txt").options.signal?.aborted).toBe(false);
+    expect(
+      hook.current.files.map(({ fileName, phase }) => [fileName, phase]),
+    ).toEqual([
+      ["a.txt", "queued"],
+      ["b.txt", "error"],
+    ]);
+    hook.unmount();
+  });
+
+  it("cancels an older call still preparing when a new call starts", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const hook = mount({
+      beforeUpload: ([file]) => (file.name === "a.txt" ? gate.promise : true),
+    });
+
+    let first!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      first = hook.current.upload([txt("a.txt")]);
+    });
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      gate.resolve(true);
+    });
+
+    expect((await first).aborted.map(({ name }) => name)).toEqual(["a.txt"]);
+    expect(engineCalls.map(({ file }) => file.name)).toEqual(["b.txt"]);
+    expect(engineCall("b.txt").options.signal?.aborted).toBe(false);
+    expect(hook.current.files.map(({ fileName }) => fileName)).toEqual([
+      "b.txt",
+    ]);
+    hook.unmount();
+  });
+
+  it("appends to the queue when queue is true", async () => {
+    const hook = mount({ append: true });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+    });
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+
+    expect(
+      hook.current.files.map(({ fileName, phase }) => [fileName, phase]),
+    ).toEqual([
+      ["a.txt", "success"],
+      ["b.txt", "queued"],
+    ]);
+    hook.unmount();
+  });
+
+  it("lets a call's queue override the hook's", async () => {
+    const hook = mount();
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")], { append: true });
+    });
+    await flush();
+
+    // The running file keeps going, and the new one joins it.
+    expect(engineCall("a.txt").options.signal?.aborted).toBe(false);
+    expect(hook.current.files.map(({ fileName }) => fileName)).toEqual([
+      "a.txt",
+      "b.txt",
+    ]);
+    hook.unmount();
+
+    const queued = mount({ append: true });
+    await act(async () => {
+      void queued.current.upload([txt("c.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      void queued.current.upload([txt("d.txt")], { append: false });
+    });
+    await flush();
+
+    expect(getUploadAbortKind(engineCall("c.txt").options.signal?.reason)).toBe(
+      "cancel",
+    );
+    expect(queued.current.files.map(({ fileName }) => fileName)).toEqual([
+      "d.txt",
+    ]);
+    queued.unmount();
+  });
+
+  it("reset removes settled files and keeps running ones, with a stable identity", async () => {
+    const hook = mount({ append: true, accept: [".txt"] });
+    const { reset } = hook.current;
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+    });
+    await act(async () => {
+      void hook.current.upload([
+        txt("b.txt"),
+        new File(["x"], "c.exe", { type: "application/x-msdownload" }),
+      ]);
+    });
+    await flush();
+    expect(hook.current.fileRejections).toHaveLength(1);
+
+    act(() => {
+      hook.current.reset();
+    });
+
+    expect(hook.current.reset).toBe(reset);
+    expect(hook.current.files.map((entry) => entry.fileName)).toEqual([
+      "b.txt",
+    ]);
+    expect(hook.current.fileRejections).toEqual([]);
+    expect(engineCall("b.txt").options.signal?.aborted).toBe(false);
+    hook.unmount();
+  });
+
+  it("retries a failed file in place with the options of its call", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const onSuccess = vi.fn();
+    const onSettled = vi.fn();
+    const hook = mount({ maxFiles: 2, beforeUpload, onSuccess, onSettled });
+    const a = txt("a.txt");
+    const b = txt("b.txt");
+
+    let first!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      first = hook.current.upload([a, b], {
+        uploadOptions: { clientMetadata: { folder: "docs" } },
+      });
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      engineCall("b.txt").succeed();
+    });
+    await first;
+    const [failed] = hook.current.files;
+    expect(failed.phase).toBe("error");
+
+    let retried!: ReturnType<typeof hook.current.retry>;
+    act(() => {
+      retried = hook.current.retry(failed.id);
+    });
+    expect(hook.current.files.map(({ id, phase }) => [id, phase])).toEqual([
+      [failed.id, "queued"],
+      [hook.current.files[1].id, "success"],
+    ]);
+    expect(hook.current.phase).toBe("uploading");
+    await flush();
+
+    expect(beforeUpload).toHaveBeenLastCalledWith([a]);
+    expect(lastEngineCall("a.txt").options.request).toEqual({
+      clientMetadata: { folder: "docs" },
+    });
+    await act(async () => {
+      lastEngineCall("a.txt").succeed();
+    });
+
+    const result = await retried;
+    expect(result).toEqual({
+      uploaded: [{ file: a, result: resultFor(a) }],
+      failed: [],
+      rejected: [],
+      blocked: [],
+      aborted: [],
+    });
+    expect(onSuccess).toHaveBeenLastCalledWith(resultFor(a), a);
+    expect(onSettled).toHaveBeenCalledTimes(2);
+    expect(
+      hook.current.files.map(({ fileName, phase }) => [fileName, phase]),
+    ).toEqual([
+      ["a.txt", "success"],
+      ["b.txt", "success"],
+    ]);
+    expect(hook.current.phase).toBe("success");
+    hook.unmount();
+  });
+
+  it("leaves files as they failed when beforeUpload blocks a retry", async () => {
+    let allow = true;
+    const hook = mount({ maxFiles: 2, beforeUpload: () => allow });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+    const failed = hook.current.files;
+
+    allow = false;
+    let blocked!: Awaited<ReturnType<typeof hook.current.retry>>;
+    await act(async () => {
+      blocked = await hook.current.retry();
+    });
+    expect(blocked.blocked.map(({ name }) => name)).toEqual(["a.txt", "b.txt"]);
+    expect(hook.current.files).toEqual(failed);
+    expect(hook.current.files[0]).toBe(failed[0]);
+
+    allow = true;
+    await act(async () => {
+      void hook.current.retry();
+    });
+    await flush();
+    expect(hook.current.files.map(({ phase }) => phase)).toEqual([
+      "queued",
+      "queued",
+    ]);
+    expect(engineCalls).toHaveLength(4);
+    hook.unmount();
+  });
+
+  it("cancels a retry that is still preparing", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    let attempts = 0;
+    const hook = mount({
+      beforeUpload: () => (++attempts === 1 ? true : gate.promise),
+    });
+    const file = txt("a.txt");
+
+    await act(async () => {
+      void hook.current.upload([file]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+
+    let retried!: ReturnType<typeof hook.current.retry>;
+    await act(async () => {
+      retried = hook.current.retry(hook.current.files[0].id);
+    });
+    expect(hook.current.file?.phase).toBe("queued");
+
+    await act(async () => {
+      hook.current.cancel(hook.current.files[0].id);
+    });
+    expect(hook.current.files).toEqual([]);
+    await act(async () => {
+      gate.resolve(true);
+    });
+
+    expect((await retried).aborted).toEqual([file]);
+    expect(engineCalls).toHaveLength(1);
+    expect(hook.current.isPending).toBe(false);
+    hook.unmount();
+  });
+
+  it("resolves a retry with nothing to retry at once and without callbacks", async () => {
+    const onSettled = vi.fn();
+    const hook = mount({ onSettled });
+
+    await expect(hook.current.retry()).resolves.toEqual({
+      uploaded: [],
+      failed: [],
+      rejected: [],
+      blocked: [],
+      aborted: [],
+    });
+    expect(onSettled).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("retries files of separate calls separately when they share one options object", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const onFileReject = vi.fn();
+    const hook = mount({ append: true, beforeUpload, onFileReject });
+    const [a, b] = [txt("a.txt"), txt("b.txt")];
+    // One object for every call, as a module constant would be.
+    const call = { uploadOptions: { clientMetadata: { folder: "docs" } } };
+
+    await act(async () => {
+      void hook.current.upload([a], call);
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([b], call);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+
+    await act(async () => {
+      void hook.current.retry();
+    });
+    await flush();
+
+    // `maxFiles` is 1 per call: as one call, the second file would be
+    // rejected with TOO_MANY_FILES and leave the queue.
+    expect(onFileReject).not.toHaveBeenCalled();
+    expect(beforeUpload.mock.calls.slice(2)).toEqual([[[a]], [[b]]]);
+    expect(hook.current.files.map(({ phase }) => phase)).toEqual([
+      "queued",
+      "queued",
+    ]);
+    hook.unmount();
+  });
+
+  it("reports the files a call rejected next to the ones it uploaded", async () => {
+    const onSettled = vi.fn();
+    const hook = mount({ maxFiles: 2, maxFileSize: 5, onSettled });
+    const [small, big] = [txt("small.txt"), txt("big.txt", 10)];
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([small, big]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("small.txt").succeed();
+    });
+
+    const result = await pending;
+    expect(result.uploaded.map(({ file }) => file)).toEqual([small]);
+    expect(
+      result.rejected.map(({ file, errors }) => [file, errors[0].code]),
+    ).toEqual([[big, "FILE_TOO_LARGE"]]);
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+    hook.unmount();
+  });
+
+  it("removes only the settled files reset names", async () => {
+    const hook = mount({ maxFiles: 3, concurrentFiles: 3 });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt"), txt("c.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+    const [done, failed, running] = hook.current.files;
+
+    // A running file is not settled, so naming it does nothing.
+    act(() => hook.current.reset([done.id, running.id]));
+    expect(hook.current.files.map(({ id }) => id)).toEqual([
+      failed.id,
+      running.id,
+    ]);
+
+    act(() => hook.current.reset(failed.id));
+    expect(hook.current.files.map(({ id }) => id)).toEqual([running.id]);
+    hook.unmount();
+  });
+
+  it("cancels several files by id", async () => {
+    const hook = mount({ maxFiles: 3, concurrentFiles: 3 });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt"), txt("c.txt")]);
+    });
+    await flush();
+    const [first, second, third] = hook.current.files;
+
+    await act(async () => {
+      hook.current.cancel([first.id, third.id]);
+    });
+    await flush();
+
+    expect(hook.current.files.map(({ id }) => id)).toEqual([second.id]);
+    hook.unmount();
+  });
+
+  it("gives every file an id without crypto.randomUUID", async () => {
+    // Plain-HTTP origins other than localhost have no randomUUID.
+    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+      throw new TypeError("crypto.randomUUID is not a function");
+    });
+    const hook = mount({ maxFiles: 2 });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+
+    const ids = hook.current.files.map(({ id }) => id);
+    expect(new Set(ids).size).toBe(2);
+    hook.unmount();
+  });
+
+  it("retries several failed files as one call", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const onSettled = vi.fn();
+    const hook = mount({
+      maxFiles: 3,
+      concurrentFiles: 3,
+      beforeUpload,
+      onSettled,
+    });
+    const [a, b, c] = [txt("a.txt"), txt("b.txt"), txt("c.txt")];
+
+    await act(async () => {
+      void hook.current.upload([a, b, c]);
+    });
+    await flush();
+    await act(async () => {
+      for (const name of ["a.txt", "b.txt", "c.txt"]) {
+        engineCall(name).fail(s3Error("NETWORK_ERROR"));
+      }
+    });
+    await flush();
+    const [first, second, third] = hook.current.files;
+
+    let retried!: ReturnType<typeof hook.current.retry>;
+    await act(async () => {
+      retried = hook.current.retry([first.id, third.id]);
+    });
+    await flush();
+
+    expect(beforeUpload).toHaveBeenCalledTimes(2);
+    expect(beforeUpload).toHaveBeenLastCalledWith([a, c]);
+    expect(hook.current.files.map(({ id, phase }) => [id, phase])).toEqual([
+      [first.id, "queued"],
+      [second.id, "error"],
+      [third.id, "queued"],
+    ]);
+    await act(async () => {
+      lastEngineCall("a.txt").succeed();
+      lastEngineCall("c.txt").succeed();
+    });
+
+    expect((await retried).uploaded.map(({ file }) => file)).toEqual([a, c]);
+    expect(onSettled).toHaveBeenCalledTimes(2);
+    hook.unmount();
+  });
+
+  it("holds a call's slots under a limit from the moment it starts", async () => {
+    const gate = Promise.withResolvers<boolean>();
+    const onFileReject = vi.fn();
+    const hook = mountLimited(() => ({ available: 3 }), {
+      // The first call waits, so the second starts while it prepares.
+      beforeUpload: (files) => (files.length === 2 ? gate.promise : true),
+      onFileReject,
+    });
+    expect(hook.current.remaining).toBe(3);
+
+    act(() => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    expect(hook.current.remaining).toBe(1);
+    await act(async () => {
+      void hook.current.upload([txt("c.txt"), txt("d.txt")]);
+    });
+    await flush();
+
+    expect(rejected(onFileReject)).toEqual([
+      ["d.txt", "TOO_MANY_FILES", { maxFiles: 1 }],
+    ]);
+    expect(hook.current.remaining).toBe(0);
+    await act(async () => {
+      gate.resolve(true);
+    });
+    await flush();
+
+    expect(hook.current.files.map(({ fileName }) => fileName)).toEqual([
+      "c.txt",
+      "a.txt",
+      "b.txt",
+    ]);
+    expect(hook.current.remaining).toBe(0);
+    hook.unmount();
+  });
+
+  it("rejects every file of a call once the limit is reached", async () => {
+    let limit: UploadLimit | null = { available: 0 };
+    const beforeUpload = vi.fn(() => true);
+    const onSettled = vi.fn();
+    const onFileReject = vi.fn();
+    const hook = mountLimited(() => limit, {
+      beforeUpload,
+      onSettled,
+      onFileReject,
+    });
+    expect(hook.current.remaining).toBe(0);
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+
+    expect(rejected(onFileReject)).toEqual([
+      ["a.txt", "TOO_MANY_FILES", { maxFiles: 0 }],
+    ]);
+    expect(beforeUpload).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledOnce();
+    expect(engineCalls).toHaveLength(0);
+
+    // Without a limit, the hook takes files again.
+    limit = null;
+    hook.rerender();
+    expect(hook.current.remaining).toBeNull();
+    await act(async () => {
+      void hook.current.upload([txt("b.txt")]);
+    });
+    await flush();
+    expect(engineCalls).toHaveLength(1);
+    hook.unmount();
+  });
+
+  it("counts uploaded files under a limit until they are counted", async () => {
+    let limit: UploadLimit = { available: 2 };
+    const hook = mountLimited(() => limit);
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").succeed();
+    });
+    expect(hook.current.remaining).toBe(1);
+
+    // A field holds the key now: one less available, and the file counted.
+    limit = { available: 1, counted: new Set([hook.current.files[0].id]) };
+    hook.rerender();
+    expect(hook.current.remaining).toBe(1);
+    hook.unmount();
+  });
+
+  it("retries only the failed files that fit under a limit", async () => {
+    const beforeUpload = vi.fn(() => true);
+    const hook = mountLimited(() => ({ available: 2 }), { beforeUpload });
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+    });
+    await flush();
+    await act(async () => {
+      engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      engineCall("b.txt").fail(s3Error("NETWORK_ERROR"));
+    });
+    await flush();
+    await act(async () => {
+      void hook.current.upload([txt("c.txt")]);
+    });
+    await flush();
+    expect(hook.current.remaining).toBe(1);
+
+    await act(async () => {
+      void hook.current.retry();
+    });
+    await flush();
+
+    expect(beforeUpload).toHaveBeenLastCalledWith([hook.current.files[0].file]);
+    expect(
+      hook.current.files.map(({ fileName, phase }) => [fileName, phase]),
+    ).toEqual([
+      ["a.txt", "queued"],
+      ["b.txt", "error"],
+      ["c.txt", "queued"],
+    ]);
+
+    // Nothing fits any more: a retry resolves at once and calls nothing.
+    const calls = beforeUpload.mock.calls.length;
+    await expect(hook.current.retry()).resolves.toEqual({
+      uploaded: [],
+      failed: [],
+      rejected: [],
+      blocked: [],
+      aborted: [],
+    });
+    expect(beforeUpload).toHaveBeenCalledTimes(calls);
+    hook.unmount();
+  });
+
+  it("creates image previews and revokes them when files leave the queue", async () => {
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:preview"),
+      revokeObjectURL,
+    });
+    const hook = mount();
+
+    await act(async () => {
+      void hook.current.upload([
+        new File(["x"], "a.png", { type: "image/png" }),
+      ]);
+    });
+    await flush();
+    expect(hook.current.file?.previewUrl).toBe("blob:preview");
+
+    await act(async () => {
+      hook.current.cancel();
+    });
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+    expect(hook.current.files).toEqual([]);
+    hook.unmount();
+  });
+
+  describe("pause and resume", () => {
+    /** A record like the one the engine stores after `multipart.init`. */
+    function storedUpload(file: File, request?: UploadRequestOptions) {
+      return {
+        resumeKey: multipartResumeKey("uploads", file, request),
+        ticket: `ticket-${file.name}`,
+        key: `uploads/${file.name}`,
+        uploadId: `upload-id-${file.name}`,
+        fileSize: file.size,
+        partSize: 8,
+        partCount: 1,
+        checksum: false,
+      };
+    }
+
+    it("keeps a paused file in the queue and resumes it with the same request", async () => {
+      const uploadOptions = vi.fn((file: File) => ({
+        fileName: `renamed-${file.name}`,
+      }));
+      const onSettled = vi.fn();
+      const hook = mount({ uploadOptions, onSettled });
+
+      let pending!: ReturnType<typeof hook.current.upload>;
+      await act(async () => {
+        pending = hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      const [entry] = hook.current.files;
+
+      await act(async () => {
+        hook.current.pause(entry.id);
+      });
+      await flush();
+      expect(
+        getUploadAbortKind(engineCall("a.txt").options.signal?.reason),
+      ).toBe("detach");
+      expect(hook.current.file).toMatchObject({
+        id: entry.id,
+        phase: "paused",
+      });
+      expect(hook.current.phase).toBe("paused");
+      expect(hook.current.isPending).toBe(false);
+      expect(onSettled).not.toHaveBeenCalled();
+
+      await act(async () => {
+        hook.current.resume();
+      });
+      await flush();
+      expect(engineCalls).toHaveLength(2);
+      const resumed = lastEngineCall("a.txt");
+      expect(resumed.options.request).toEqual({ fileName: "renamed-a.txt" });
+      expect(uploadOptions).toHaveBeenCalledOnce();
+      expect(hook.current.isPending).toBe(true);
+
+      await act(async () => {
+        resumed.succeed();
+      });
+      const result = await pending;
+      expect(result.uploaded.map(({ file }) => file.name)).toEqual(["a.txt"]);
+      expect(result.aborted).toEqual([]);
+      expect(onSettled).toHaveBeenCalledExactlyOnceWith(result);
+      expect(hook.current.file).toMatchObject({
+        id: entry.id,
+        phase: "success",
+      });
+      hook.unmount();
+    });
+
+    it("frees the slot of a paused file for the next one", async () => {
+      const hook = mount({ maxFiles: 2, concurrentFiles: 1 });
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+
+      await act(async () => {
+        hook.current.pause(hook.current.files[0].id);
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual([
+        "a.txt",
+        "b.txt",
+      ]);
+      expect(hook.current.phase).toBe("uploading");
+      hook.unmount();
+    });
+
+    it("pauses a queued file before it starts", async () => {
+      const hook = mount({ maxFiles: 2, concurrentFiles: 1 });
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt"), txt("b.txt")]);
+      });
+      await flush();
+      const b = hook.current.files[1];
+      await act(async () => {
+        hook.current.pause(b.id);
+      });
+      await act(async () => {
+        engineCall("a.txt").succeed();
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+      expect(hook.current.phase).toBe("paused");
+
+      await act(async () => {
+        hook.current.resume(b.id);
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual([
+        "a.txt",
+        "b.txt",
+      ]);
+      hook.unmount();
+    });
+
+    it("pauses the files of a call still preparing", async () => {
+      const { promise, resolve } = Promise.withResolvers<boolean>();
+      const hook = mount({ beforeUpload: () => promise });
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt")]);
+      });
+      await act(async () => {
+        hook.current.pause();
+        resolve(true);
+      });
+      await flush();
+      expect(uploadFile).not.toHaveBeenCalled();
+      expect(hook.current.file?.phase).toBe("paused");
+
+      await act(async () => {
+        hook.current.resume();
+      });
+      await flush();
+      expect(engineCalls.map(({ file }) => file.name)).toEqual(["a.txt"]);
+      hook.unmount();
+    });
+
+    it("resumes at once when resume comes before the paused attempt stops", async () => {
+      const hook = mount();
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      const [entry] = hook.current.files;
+      await act(async () => {
+        hook.current.pause(entry.id);
+        hook.current.resume(entry.id);
+      });
+      await flush();
+      expect(engineCalls).toHaveLength(2);
+      expect(hook.current.file?.phase).not.toBe("paused");
+      expect(hook.current.isPending).toBe(true);
+      hook.unmount();
+    });
+
+    it("lets a finalizing file finish instead of pausing", async () => {
+      const hook = mount();
+
+      await act(async () => {
+        void hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      await act(async () => {
+        engineCall("a.txt").options.onPhaseChange?.("finalizing");
+      });
+      await act(async () => {
+        hook.current.pause();
+      });
+      expect(engineCall("a.txt").options.signal?.aborted).toBe(false);
+      expect(hook.current.file?.phase).toBe("finalizing");
+      hook.unmount();
+    });
+
+    it("keeps paused files on reset and removes them on cancel", async () => {
+      const hook = mount();
+
+      let pending!: ReturnType<typeof hook.current.upload>;
+      await act(async () => {
+        pending = hook.current.upload([txt("a.txt")]);
+      });
+      await flush();
+      await act(async () => {
+        hook.current.pause();
+      });
+      await flush();
+      await act(async () => {
+        hook.current.reset();
+      });
+      expect(hook.current.file?.phase).toBe("paused");
+
+      await act(async () => {
+        hook.current.cancel();
+      });
+      expect(hook.current.files).toEqual([]);
+      expect((await pending).aborted.map((file) => file.name)).toEqual([
+        "a.txt",
+      ]);
+      hook.unmount();
+    });
+
+    it("keeps a session without an uploadStore and discards it on cancel", async () => {
+      const api = fakeS3Api();
+      const hook = mount({}, api);
+      const file = txt("a.txt");
+
+      await act(async () => {
+        void hook.current.upload([file]);
+      });
+      await flush();
+      const store = engineCall("a.txt").options.uploadStore;
+      expect(store).toBeDefined();
+      // The engine stores the session after `multipart.init`.
+      const record = storedUpload(file);
+      await store?.set(record);
+
+      await act(async () => {
+        hook.current.pause();
+      });
+      await flush();
+      expect(await store?.get(record.resumeKey, file.size)).toEqual(record);
+      expect(api.multipart.abort).not.toHaveBeenCalled();
+
+      await act(async () => {
+        hook.current.cancel();
+      });
+      await flush();
+      expect(api.multipart.abort).toHaveBeenCalledExactlyOnceWith({
+        ticket: record.ticket,
+      });
+      expect(await store?.get(record.resumeKey, file.size)).toBeNull();
+      hook.unmount();
+    });
+
+    it("keeps a paused session in the uploadStore on unmount", async () => {
+      const api = fakeS3Api();
+      const uploadStore = createMemoryUploadStore();
+      const hook = mount({ uploadStore }, api);
+      const file = txt("a.txt");
+      const record = storedUpload(file);
+
+      await act(async () => {
+        void hook.current.upload([file]);
+      });
+      await flush();
+      expect(engineCall("a.txt").options.uploadStore).toBe(uploadStore);
+      await uploadStore.set(record);
+      await act(async () => {
+        hook.current.pause();
+      });
+      await flush();
+      hook.unmount();
+      await flush();
+
+      expect(api.multipart.abort).not.toHaveBeenCalled();
+      expect(await uploadStore.get(record.resumeKey, file.size)).toEqual(
+        record,
+      );
+    });
+
+    it("discards the session of a file that fails without an uploadStore", async () => {
+      const api = fakeS3Api();
+      const hook = mount({}, api);
+      const file = txt("a.txt");
+
+      await act(async () => {
+        void hook.current.upload([file]);
+      });
+      await flush();
+      const store = engineCall("a.txt").options.uploadStore;
+      const record = storedUpload(file);
+      await store?.set(record);
+      await act(async () => {
+        engineCall("a.txt").fail(s3Error("NETWORK_ERROR"));
+      });
+      await flush();
+
+      expect(api.multipart.abort).toHaveBeenCalledExactlyOnceWith({
+        ticket: record.ticket,
+      });
+      expect(await store?.get(record.resumeKey, file.size)).toBeNull();
+      hook.unmount();
+    });
+  });
+});

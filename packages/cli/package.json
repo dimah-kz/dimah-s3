@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/cli",
-  "version": "1.7.2",
+  "version": "2.0.0-beta.14",
   "description": "Scaffold dimah-s3 apps from official templates",
   "keywords": [
     "s3",
@@ -17,7 +17,7 @@
     "hono",
     "file-upload"
   ],
-  "homepage": "https://v1.s3.dimah.dev/docs/quickstart",
+  "homepage": "https://s3.dimah.dev/docs/quickstart",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -26,11 +26,12 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/cli"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "type": "module",
   "exports": {
-    ".": "./dist/index.js"
+    "./package.json": "./package.json"
   },
   "bin": {
     "dimah-s3": "./dist/index.js"
@@ -45,16 +46,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@clack/prompts": "^1.8.1",
+    "@clack/prompts": "^1.9.0",
     "citty": "^0.2.2",
-    "nypm": "^0.6.12",
     "pathe": "^2.0.3",
-    "picocolors": "^1.1.1",
-    "validate-npm-package-name": "^8.0.0"
+    "picocolors": "^1.1.1"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/validate-npm-package-name": "^4.0.2",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/tsup-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
@@ -65,7 +63,7 @@
     "vitest": "catalog:"
   },
   "engines": {
-    "node": ">=20.19"
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

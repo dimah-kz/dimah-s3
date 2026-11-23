@@ -1,0 +1,48 @@
+---
+title: CLI
+description: Scaffold a dimah-s3 starter app with npx @dimah-s3/cli create, interactively or with flags.
+icon: Terminal
+---
+
+`@dimah-s3/cli` creates a new app from an official starter, with a working
+upload route, the client, and the UI already wired. It needs Node.js 22 or
+newer.
+
+```npm
+npx @dimah-s3/cli create
+```
+
+Without flags it asks for the project name, the starter, and whether to
+install dependencies and initialize git. Pass flags to skip the questions:
+
+```bash
+npx @dimah-s3/cli create my-app --template vite --yes
+```
+
+## Starters
+
+| Id       | Stack                                         |
+| -------- | --------------------------------------------- |
+| `nextjs` | Next.js App Router. The default               |
+| `vite`   | React SPA on Vite, with a Hono API next to it |
+| `hono`   | Hono API that also serves the Vite React app  |
+
+Each starter has an upload route, `S3Provider`, and an upload button. `create`
+writes a generated `DIMAH_S3_SECRET` to `.env`; fill in the `S3_*` values, then
+allow your app's origin in the [bucket CORS rules](/docs/providers).
+
+## Options
+
+| Flag                         | Default                      | Description                                                               |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------------------------- |
+| `[dir]`                      | asked                        | Project directory and package name. `.` uses the current directory        |
+| `-t, --template <id>`        | `nextjs`                     | `nextjs`, `vite`, or `hono`                                               |
+| `--package-manager <pm>`     | The one that ran the command | `pnpm`, `npm`, `yarn`, or `bun`                                           |
+| `--install` / `--no-install` | `--install`                  | Install dependencies                                                      |
+| `--git` / `--no-git`         | `--git`                      | Initialize a repository with a first commit                               |
+| `--src` / `--no-src`         | `--src`                      | Next.js only: keep app code under `src/`, or move it to the root          |
+| `--overwrite`                | off                          | Replace the contents of a non-empty directory. `.git` and `.env` are kept |
+| `-y, --yes`                  | off                          | Skip the prompts and use the defaults. Needs `[dir]`                      |
+
+`[dir]` is also required when there is no terminal to prompt in. An unknown
+flag fails instead of being ignored.

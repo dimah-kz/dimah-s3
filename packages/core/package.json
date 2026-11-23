@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/core",
-  "version": "1.7.2",
+  "version": "2.0.0-beta.14",
   "description": "Typed S3 presign protocol and fetch client shared by @dimah-s3/server and @dimah-s3/react",
   "keywords": [
     "s3",
@@ -11,7 +11,7 @@
     "protocol",
     "typescript"
   ],
-  "homepage": "https://v1.s3.dimah.dev/docs/core",
+  "homepage": "https://s3.dimah.dev/docs/core",
   "bugs": {
     "url": "https://github.com/dimah-kz/dimah-s3/issues"
   },
@@ -20,6 +20,7 @@
     "url": "https://github.com/dimah-kz/dimah-s3.git",
     "directory": "packages/core"
   },
+  "funding": "https://github.com/sponsors/dimah-kz",
   "license": "MIT",
   "author": "dimah",
   "sideEffects": false,
@@ -28,19 +29,25 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./schema": {
+      "types": "./dist/schema/index.d.ts",
+      "default": "./dist/schema/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias",
+    "build": "tsup --config tsup.config.ts && tsc --emitDeclarationOnly -p tsconfig.build.json && tsc-alias && node ../../tooling/tsup-config/dts-extensions.mjs",
     "check-types": "tsc --noEmit",
     "lint": "eslint --cache --cache-strategy content --max-warnings 0",
     "test": "vitest run"
   },
   "dependencies": {
     "@better-fetch/fetch": "catalog:",
+    "@noble/hashes": "^2.4.0",
     "better-call": "catalog:",
     "zod": "catalog:"
   },
@@ -54,6 +61,9 @@
     "tsup": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"

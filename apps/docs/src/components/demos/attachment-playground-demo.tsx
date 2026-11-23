@@ -2,8 +2,8 @@
 
 import { AttachmentPlayground } from "@/components/demos/attachment-playground";
 
-// UploadButton, UploadDropzone, DownloadButton, ProgressDownloadButton,
-// and DeleteButton already render these rows.
+// UploadStatus, UploadFileList, and UploadFieldValue already render these
+// cards.
 
 export function AttachmentPlaygroundDemo() {
   return <AttachmentPlayground />;

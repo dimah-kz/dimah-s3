@@ -10,6 +10,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { templateDependencyRange } from "@/snapshot/transform";
 import { CREATE_TIMEOUT_MS, cliPkg, createApp, runCli } from "./helpers.js";
 
 let workDir: string;
@@ -52,14 +53,25 @@ describe("create e2e", () => {
         "pnpm-workspace.yaml",
       ]),
     );
+    expect(files).toContain("AGENTS.md");
     expect(files).not.toContain("app");
     expect(files).not.toContain("_gitignore");
-    expect(files).not.toContain("AGENTS.md");
     expect(files).not.toContain("node_modules");
     expect(files).not.toContain("pnpm-lock.yaml");
 
     const src = await readdir(join(appDir, "src"));
     expect(src).toEqual(expect.arrayContaining(["app", "lib", "components"]));
+  });
+
+  it("generates DIMAH_S3_SECRET into .env", async () => {
+    const env = await readFile(join(appDir, ".env"), "utf8");
+    const example = await readFile(join(appDir, ".env.example"), "utf8");
+
+    expect(env).toMatch(/^DIMAH_S3_SECRET="[A-Za-z0-9+/]{43}="$/m);
+    expect(env.match(/DIMAH_S3_SECRET=/g)).toHaveLength(1);
+    expect(env).toContain("S3_BUCKET=");
+    expect(example).toMatch(/^DIMAH_S3_SECRET=/m);
+    expect(example).not.toMatch(/^DIMAH_S3_SECRET="[A-Za-z0-9+/]{43}="$/m);
   });
 
   it("sets package.json name and resolves ranges", async () => {
@@ -80,9 +92,10 @@ describe("create e2e", () => {
     expect(allRanges.some((r) => r.startsWith("catalog:"))).toBe(false);
     expect(allRanges.some((r) => r.startsWith("workspace:"))).toBe(false);
 
-    expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
-    expect(pkg.dependencies["@dimah-s3/react"]).toBe(`^${cliPkg.version}`);
-    expect(pkg.dependencies["@dimah-s3/ui"]).toBe(`^${cliPkg.version}`);
+    const pinned = templateDependencyRange(cliPkg.version);
+    expect(pkg.dependencies["@dimah-s3/server"]).toBe(pinned);
+    expect(pkg.dependencies["@dimah-s3/react"]).toBe(pinned);
+    expect(pkg.dependencies["@dimah-s3/ui"]).toBe(pinned);
     expect(pkg.dependencies.react).toMatch(/^\d|^[\^~]/);
   });
 });
@@ -137,7 +150,9 @@ describe("create --template vite|hono", () => {
       };
       expect(pkg.name).toBe(dir);
       expect(pkg.dependencies.hono).toBeDefined();
-      expect(pkg.dependencies["@dimah-s3/server"]).toBe(`^${cliPkg.version}`);
+      expect(pkg.dependencies["@dimah-s3/server"]).toBe(
+        templateDependencyRange(cliPkg.version),
+      );
     },
     CREATE_TIMEOUT_MS,
   );
@@ -195,6 +210,71 @@ describe("create --no-src", () => {
   );
 });
 
+describe("package manager files", () => {
+  it(
+    "drops pnpm-workspace.yaml for another package manager",
+    async () => {
+      const result = await createApp(workDir, "npm-app", [
+        "--package-manager",
+        "npm",
+      ]);
+      expect(result.exitCode).toBe(0);
+
+      const files = await readdir(join(workDir, "npm-app"));
+      expect(files).not.toContain("pnpm-workspace.yaml");
+      expect(files).toContain("package.json");
+    },
+    CREATE_TIMEOUT_MS,
+  );
+
+  it(
+    "leaves lockfiles out of the app's .gitignore",
+    async () => {
+      const gitignore = await readFile(
+        join(workDir, "demo-app", ".gitignore"),
+        "utf8",
+      );
+      expect(gitignore).not.toMatch(/lock/i);
+    },
+    CREATE_TIMEOUT_MS,
+  );
+});
+
+describe("argument checks", () => {
+  it.each([
+    [["create", "typo-app", "--templte", "vite"], /Unknown option "--templte"/],
+    [["create", "typo-app", "--no-instal"], /Unknown option "--no-instal"/],
+    [["create", "typo-app", "-x"], /Unknown option "-x"/],
+    [["create", "typo-app", "extra"], /Unexpected argument "extra"/],
+  ])(
+    "rejects %j before writing anything",
+    async (args, message) => {
+      const result = await runCli(
+        [...args, "--yes", "--no-install", "--no-git"],
+        workDir,
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(message);
+      expect(await readdir(workDir)).not.toContain("typo-app");
+      expect(await readdir(workDir)).not.toContain("vite");
+    },
+    CREATE_TIMEOUT_MS,
+  );
+
+  it(
+    "refuses a directory name that gives no package name",
+    async () => {
+      const result = await createApp(workDir, "___");
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toMatch(/cannot name the package/);
+      expect(await readdir(workDir)).not.toContain("___");
+    },
+    CREATE_TIMEOUT_MS,
+  );
+});
+
 describe("version flag", () => {
   it("prints the package version", async () => {
     const result = await runCli(["--version"], workDir);
@@ -236,7 +316,9 @@ describe("non-empty target directory", () => {
       const result = await createApp(workDir, "occupied");
 
       expect(result.exitCode).toBe(1);
-      expect(`${result.stdout}${result.stderr}`).toContain("--overwrite");
+      // Errors go to stderr, so a piped stdout stays clean.
+      expect(result.stderr).toContain("--overwrite");
+      expect(result.stdout).not.toContain("--overwrite");
       expect(await readdir(dir)).toEqual(["keep-me.txt"]);
     },
     CREATE_TIMEOUT_MS,
@@ -259,8 +341,8 @@ describe("non-empty target directory", () => {
       expect(entries).toContain("package.json");
       expect(entries).not.toContain("stale.txt");
 
-      expect(await readFile(join(dir, ".env"), "utf8")).toBe(
-        "S3_BUCKET=keep-me\n",
+      expect(await readFile(join(dir, ".env"), "utf8")).toMatch(
+        /^S3_BUCKET=keep-me\nDIMAH_S3_SECRET="[A-Za-z0-9+/]{43}="\n$/,
       );
     },
     CREATE_TIMEOUT_MS,

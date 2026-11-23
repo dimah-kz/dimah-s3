@@ -1,95 +1,175 @@
 ---
-title: Global Guard
-description: Request-level policy hook that runs before all operations and plugin endpoints.
+title: Guards and Locals
+description: Authorize every call with the instance and route guards, learn the guard order, and pass typed locals to later hooks.
 ---
 
-Define `guard` on `dimahS3()` to run it for every incoming request before
-route resolution or plugin execution.
-
-Use it for system-wide checks like user authentication, IP filtering, or tenant context.
-
-A signed-in session here does not prove the caller owns a particular object
-key — that belongs on `download.guard` / `delete.guard` or [`db()`](/docs/db). See
-[Security](/docs/server/security#route-namespace-vs-ownership).
+A guard authorizes a call: it returns to allow and throws to reject. Set
+`guard` on `dimahS3()` for checks every call needs, such as authentication,
+IP filtering, or tenant context. It runs before every operation, before the
+route is looked up.
 
 ```ts title="lib/s3.ts"
-import { S3Client } from "@aws-sdk/client-s3";
-import { dimahS3, errors, route } from "@dimah-s3/server";
-
-export const awsS3 = new S3Client({/* env */});
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
+import { awsS3 } from "./aws-s3";
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
   guard: async ({ request }) => {
-    // [!code ++]
-    const session = await getSession(request); // [!code ++]
-    if (!session) throw errors.unauthorized(); // [!code ++]
-  }, // [!code ++]
+    const session = await getSession(request);
+    if (!session) throw s3Error("UNAUTHORIZED");
+  },
   routes: {
     avatar: route({
-      upload: {
-        fileTypes: ["image/*"],
-        maxFileSize: 2 * 1024 * 1024,
+      upload: { fileTypes: ["image/*"], maxFileSize: 2 * 1024 * 1024 },
+    }),
+  },
+});
+```
+
+A signed-in session does not prove the caller owns a given key. Check that in
+`download.guard` and `delete.guard`, or use [`db()`](/docs/db). See
+[Security](/docs/server/security#route-namespace-vs-ownership).
+
+## What a guard returns
+
+| Guard does                                 | Result                                     |
+| ------------------------------------------ | ------------------------------------------ |
+| Returns nothing                            | Allowed                                    |
+| Returns `{ locals }`                       | Allowed; `locals` reaches later hooks      |
+| Throws `s3Error(code)`                     | Rejected with that status and code         |
+| Throws a plain `Error`                     | `500 INTERNAL_ERROR`, logged               |
+| Returns anything else (`true`, `false`, …) | Config error: `500`, logged, never allowed |
+
+## Guard order
+
+Every operation runs the instance guard, then `route.guard`, then the feature
+guard (`upload.guard`, `download.guard`, …), then the operation itself:
+
+<Flow
+  label="Guard order"
+  steps={[
+    { name: "Instance guard", kind: "hook" },
+    { name: "route.guard", kind: "hook" },
+    {
+      name: "Feature guard",
+      kind: "hook",
+      note: "upload.guard, download.guard, …",
+    },
+    { name: "Operation", kind: "server" },
+  ]}
+/>
+
+At each level, plugin guards run first, in plugin order, and yours runs last.
+
+`operation` in the context names the call, so one guard can branch on it:
+`"upload"`, `"confirm"`, `"download"`, `"file"`, `"delete"`, `"deleteMany"`,
+`"catalog"`, `"put"` for `s3.put`, the five `"multipart.*"` calls, and
+`"plugin"` for every plugin call. A plugin call also carries `plugin`: the
+plugin id and the endpoint or action, such as
+`{ id: "db", action: "listObjects" }` or `{ id: "db", action: "record" }`
+for [`s3.db.record`](/docs/db/api):
+
+```ts
+guard: ({ operation, plugin, locals }) => {
+  if (operation !== "plugin") return;
+  if (plugin?.id === "db" && plugin.action === "deleteFolder" && !locals.isAdmin) {
+    throw s3Error("FORBIDDEN");
+  }
+},
+```
+
+### Route guards
+
+Set `guard` on a route when only some routes need a policy. It runs before
+every operation on that route, confirm and multipart calls included:
+
+```ts
+routes: {
+  publicMedia: route({ upload: true }),
+  avatar: route({
+    guard: requireUserSession, // [!code ++]
+    upload: true,
+  }),
+},
+```
+
+## Locals
+
+Return `{ locals }` from a guard to hand values to every later guard and hook
+in the same call. Resolve the session once in the instance guard, and read it
+everywhere else:
+
+```ts title="lib/s3.ts"
+declare module "@dimah-s3/server" {
+  interface DimahS3Locals {
+    userId?: string;
+    role?: "member" | "admin";
+  }
+}
+
+export const s3 = dimahS3({
+  guard: async ({ request }) => {
+    const session = await getSession(request);
+    if (!session) throw s3Error("UNAUTHORIZED");
+    return { locals: { userId: session.userId, role: session.role } }; // [!code ++]
+  },
+  routes: {
+    reports: route({
+      download: {
+        guard: ({ locals }) => {
+          if (locals.role !== "admin") throw s3Error("FORBIDDEN"); // [!code ++]
+        },
       },
     }),
   },
 });
 ```
 
----
+- Each `{ locals }` result is merged into the call's `locals`.
+- `locals` lives for one call. Presign and confirm are separate calls, so set
+  values that hooks on both need in the instance or route guard, which run on
+  every call.
+- An HTTP request can never set `locals`. In-process calls through `s3.api`
+  and `s3.put` can seed them with
+  [`options.locals`](/docs/server/setup#server-side-api-s3api) before any
+  guard runs.
+- [`ticketSubject`](/docs/server/upload-tickets#binding-a-ticket-to-a-user)
+  sees the locals from the instance and route guards only.
 
-## Guard context
+## API Reference
 
-The global guard receives the raw `request` object. Route name and target key are resolved later in the lifecycle.
+### Guard context
 
-```ts
-import type { GuardContext } from "@dimah-s3/server";
-```
+The instance guard receives a `GuardContext`. Every other hook context
+extends it.
 
-<AutoTypeTable
-  path="packages/server/src/types/hook-contexts.ts"
-  name="GuardContext"
-/>
+| Property    | Type            | Description                                                       |
+| ----------- | --------------- | ----------------------------------------------------------------- |
+| `request`   | `Request`       | The incoming request, or a synthetic one for in-process calls     |
+| `operation` | `S3Operation`   | The call this guard runs in                                       |
+| `locals`    | `DimahS3Locals` | Values from earlier guards in this call                           |
+| `plugin?`   | `PluginCall`    | `{ id, action }` of a plugin call, when `operation` is `"plugin"` |
+
+`route.guard` receives a `RouteGuardContext`, which adds:
+
+| Property | Type     | Description    |
+| -------- | -------- | -------------- |
+| `route`  | `string` | The route name |
+
+### Return value
+
+`GuardResult` is `void | { locals: Partial<DimahS3Locals> }`. A guard may
+return it from an async function.
 
 ## Frequently asked questions
 
 <Accordions>
 
-<Accordion title="When should I use route.guard instead of global guard?">
+<Accordion title="How does the browser send an auth header or cookies?">
 
-Use `route.guard` when only some routes need the policy. For example, an app
-with public media uploads and private invoices can leave the global `guard`
-unset and protect specific routes:
-
-```ts
-export const s3 = dimahS3({
-  routes: {
-    publicMedia: route({
-      upload: true,
-    }),
-    avatar: route({
-      guard: requireUserSession, // [!code ++]
-      upload: true,
-    }),
-  },
-});
-```
-
-</Accordion>
-
-<Accordion title="How does the browser send custom request headers?">
-
-Configure `headers` in `createS3Client`:
-
-```ts
-export const s3Client = createS3Client({
-  headers: async () => ({
-    // [!code ++]
-    Authorization: `Bearer ${await getToken()}`, // [!code ++]
-  }), // [!code ++]
-});
-```
+Set `headers` or `credentials` on `createS3Client`. See
+[React Setup](/docs/react/setup).
 
 </Accordion>
 

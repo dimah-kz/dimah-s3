@@ -1,83 +1,143 @@
 ---
-title: React Client
-description: Headless React client for S3 upload, download, and delete flows.
+title: Overview
+description: Headless React hooks that upload, download, and delete S3 objects through the named routes on your server.
 icon: Atom
 ---
 
 [`@dimah-s3/react`](https://www.npmjs.com/package/@dimah-s3/react) is the
-headless React client for dimah-s3. It manages file intake, validation,
-progress, retries, cancellation, and multipart transfers while leaving the UI
-to you.
+headless React client for dimah-s3. Its hooks take files in, check them
+against the route's policy, and track progress, retries, cancel, and multipart
+transfers. You render the UI.
 
-Uploads and, by default, downloads run directly between the browser and the
-bucket; credentials remain on the server. Downloads can also use the server's
-same-origin proxy mode.
+Bytes move directly between the browser and the bucket. Credentials stay on
+the server: the client sends a route name, and the server picks the object
+key.
 
-## Key features
+## How a hook works
 
-- **Headless architecture** — Transfer state and accessible DOM props without imposed markup or styles.
-- **Presigned transfers** — Uploads and default-mode downloads bypass your application server.
-- **Multipart support** — Automatic chunking for large files with resumable state via `UploadStore`.
-- **Automatic constraint sync** — Loads file-size and MIME-type constraints from server route definitions.
-- **Ready-made UI** — Optional accessible [shadcn components](/docs/react/ui) for common file controls.
-- **Backend agnostic** — Use `@dimah-s3/server` or a complete custom `S3Api` implementation.
+```tsx title="components/avatar-uploader.tsx"
+"use client";
 
-## Documentation
+import { useUpload } from "@dimah-s3/react";
+
+export function AvatarUploader() {
+  const upload = useUpload({
+    route: "avatar",
+    onSuccess: (result) => console.log("Stored at", result.key),
+  });
+
+  return (
+    <div {...upload.getRootProps()}>
+      <input {...upload.getInputProps()} />
+      {upload.isPending ? `${upload.progress.percent}%` : "Drop an image"}
+    </div>
+  );
+}
+```
+
+Every hook works the same way:
+
+- **Server policy** — accepted types, size limits, multipart, and checksums come from the server's route catalog. Hook options can only narrow them.
+- **State per file or key** — a list can show many transfers at once, and each one can be cancelled on its own.
+- **Outcomes, not throws** — actions resolve with an outcome or a result. Errors are `APIError`s with a stable `code`. See [Outcomes and errors](/docs/react/guides/outcomes).
+- **Any backend** — use [`@dimah-s3/server`](/docs/server), or implement the `S3Api` contract yourself. See [Bring Your Own Backend](/docs/react/custom-backend).
+
+## Entries
+
+| Entry                                                 | Exports                                                                                                   | Use it in                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `@dimah-s3/react`                                     | Hooks, `S3Provider`, `useS3Api`, `createS3Client`, formatter hooks, and types                             | Client components. The build is `"use client"` |
+| [`@dimah-s3/react/engine`](/docs/react/guides/engine) | Plain functions with no React import: `uploadFile`, `defineApi`, `memoryObjectSource`, stores, formatters | Shared modules, server modules, and workers    |
+
+`APIError`, `S3_ERROR_CODES`, `validateFile`, and the other protocol helpers
+come from [`@dimah-s3/core`](/docs/core), a peer dependency. The React package
+does not re-export them. For the React, Node.js, and browser versions, see
+[Requirements](/docs/react/setup#requirements).
+
+Upgrading from 1.7? See [Upgrade to 2.0](/docs/migration-2-0).
+
+## Hooks
 
 <Cards>
   <Card
-    title="React Setup"
-    href="/docs/react/setup"
-    description="Initialize createS3Client, configure S3Provider, and call your first hook."
-  />
-  <Card
-    title="Upload"
+    title="useUpload"
     href="/docs/react/hooks/upload"
-    description="useUpload — single and multi-file uploads with progress tracking."
+    description="Upload a queue of files with progress, cancel, retry, and multipart."
   />
   <Card
-    title="Download"
+    title="useDownload"
     href="/docs/react/hooks/download"
-    description="useDownload — direct downloads and progress streams."
+    description="Hand a signed URL to the browser, or fetch the bytes with progress."
   />
   <Card
-    title="Delete"
+    title="useDelete"
     href="/docs/react/hooks/delete"
-    description="useDelete — confirm and remove objects through your API."
+    description="Delete one or many objects, with state for each key."
   />
   <Card
-    title="Object list"
+    title="useObjectUrl"
+    href="/docs/react/hooks/object-url"
+    description="Sign, cache, and refresh a URL for a private object."
+  />
+  <Card
+    title="useObjectList"
     href="/docs/react/hooks/object-list"
-    description="useObjectList — page a folder catalog from your own query."
+    description="Page, search, sort, and select a folder catalog from any source."
+  />
+</Cards>
+
+## Guides
+
+<Cards>
+  <Card
+    title="Setup"
+    href="/docs/react/setup"
+    description="Install the package, create the client, and mount S3Provider."
   />
   <Card
-    title="UI Setup"
-    href="/docs/react/ui"
-    description="Ready-made shadcn buttons and dropzones built on these hooks."
+    title="Outcomes and errors"
+    href="/docs/react/guides/outcomes"
+    description="What actions return, how callbacks run, and how to read errors."
   />
   <Card
     title="Upload Store"
     href="/docs/react/upload-store"
-    description="Persist multipart metadata and resume after the same local file is reselected."
-  />
-  <Card
-    title="Helpers"
-    href="/docs/react/helpers"
-    description="Pure utilities for progress formatting, file sizing, and validation."
+    description="Resume multipart uploads after a reload."
   />
   <Card
     title="Forms"
     href="/docs/react/forms"
-    description="Add file uploads to React Hook Form or TanStack Form."
+    description="Store confirmed object keys in React Hook Form or TanStack Form."
   />
   <Card
     title="TanStack Query"
     href="/docs/react/tanstack-query"
     description="Invalidate cached records after a confirmed upload."
   />
+</Cards>
+
+## Reference
+
+<Cards>
+  <Card
+    title="Engine"
+    href="/docs/react/guides/engine"
+    description="Upload without hooks, and use the plain functions in any module."
+  />
+  <Card
+    title="Helpers"
+    href="/docs/react/helpers"
+    description="Formatters for sizes, speed, time left, dates, and errors."
+  />
   <Card
     title="Bring Your Own Backend"
     href="/docs/react/custom-backend"
-    description="Implement the complete S3Api contract for an existing backend."
+    description="Implement the S3Api contract for an existing backend."
   />
 </Cards>
+
+## Ready-made components
+
+[`@dimah-s3/ui`](/docs/ui) renders these hooks as accessible shadcn
+components: dropzones, form fields, file lists, and download and delete
+buttons.

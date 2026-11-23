@@ -1,18 +1,19 @@
 ---
 title: Security
-description: Server-owned keys, route namespaces vs ownership, ACL, and verified file metadata.
+description: How dimah-s3 keeps credentials and keys on the server, isolates routes, verifies uploads, and where your ownership checks belong.
 icon: Shield
 ---
 
-dimah-s3 follows a **presign-first** security model: AWS credentials remain on the server, while clients upload directly to storage via short-lived signed URLs.
+dimah-s3 is presign-first: S3 credentials stay on the server, and the browser
+reaches storage only through short-lived signed URLs. The server enforces the
+rules below; ownership is yours to add.
 
 <Callout type="warn">
-  Never expose S3 credentials in the browser or client bundles. S3 clients must
-  always run server-side.
+  Never expose S3 credentials in the browser or a client bundle. Create the
+  `S3Client` on the server only.
 </Callout>
 
-Public `NEXT_PUBLIC_` keys in a browser bundle are a leak, not a configuration
-shortcut:
+`NEXT_PUBLIC_` keys in a browser bundle are a leak, not a shortcut:
 
 ```ts
 export const awsS3 = new S3Client({
@@ -25,18 +26,21 @@ export const awsS3 = new S3Client({
 
 ## Security model
 
-1. **Server owns keys** — The client requests an upload for a named `route`. The server decides the destination key path (`avatar/{uuid}/{fileName}` or customized via `object`).
-2. **Namespace isolation** — `keyPrefix` defaults to the route name. Upload **generates** keys under it; confirm, download, and delete **reject** keys outside it (`INVALID_KEY`). This check always runs in `@dimah-s3/server`.
-3. **Verified metadata via `HeadObject`** — Presign payloads (size/type) are untrusted. Stored byte length and `Content-Type` metadata are read server-side via `HeadObject` in `upload.onConfirmed`.
-4. **Guards and authorization** — Route `guard` and feature guards (`upload.guard`, `download.guard`, `delete.guard`) control per-user authorization. Namespace isolation is not ownership.
-
-<Callout type="warn" title="Disabling keyPrefix removes route isolation">
-  `keyPrefix: false` allows follow-up operations to target any safe key in the
-  bucket. Use it only when strict route or operation guards enforce the complete
-  ownership policy.
-</Callout>
-
----
+1. **The server owns keys.** The client asks to upload to a named `route`. The
+   server picks the key: `avatar/{uuid}/{name}`, or what `upload.object`
+   returns.
+2. **Uploads carry signed tickets.** Presign returns an HMAC-signed
+   [ticket](/docs/server/upload-tickets) naming the route, key, and declared
+   file. Confirm and later multipart calls send only the ticket, so a client
+   cannot point them at another key.
+3. **Routes are isolated.** Download and delete reject keys outside the
+   route's `keyPrefix` with `KEY_INVALID`. This check always runs.
+4. **Confirm trusts S3, not the browser.** Confirm reads the stored object
+   with HeadObject and checks it against the ticket and the route limits
+   before `onConfirmed` runs.
+5. **Guards decide who may act.** The instance `guard`, route `guard`, and
+   feature guards (`upload.guard`, `download.guard`, `delete.guard`) are where
+   you authorize each caller.
 
 ## Route namespace vs ownership
 
@@ -44,73 +48,61 @@ export const awsS3 = new S3Client({
 
 | Check                        | Runs                          | Answers                                 | Typical failure       |
 | ---------------------------- | ----------------------------- | --------------------------------------- | --------------------- |
-| `keyPrefix`                  | Always, in `@dimah-s3/server` | Is this key inside this route's folder? | `INVALID_KEY`         |
+| `keyPrefix`                  | Always, in `@dimah-s3/server` | Is this key inside this route's folder? | `KEY_INVALID`         |
 | Guards or [`db()`](/docs/db) | Only if you add them          | May this caller touch this object?      | `401` / `403` / `404` |
 
-The same prefix is used on the way in and the way out. With two routes:
+The prefix check is shown in [Object keys](/docs/server/routes#object-keys).
+[`db()`](/docs/db) adds the ownership check on top; it does not replace the
+prefix check.
 
-```ts
-avatar: route({ upload: { fileTypes: ["image/*"] }, delete: true }),
-document: route({ upload: { fileTypes: ["application/pdf"] }, delete: true }),
-```
-
-- Upload on `avatar` creates `avatar/{uuid}/photo.jpg` — the client does not send a key.
-- `DELETE ?route=avatar&key=avatar/{uuid}/photo.jpg` is in-namespace.
-- `DELETE ?route=avatar&key=document/{uuid}/cv.pdf` is `INVALID_KEY`.
-
-[`db()`](/docs/db) does **not** replace that prefix check. It stores a `route` column for listings; its guards look up `(bucket, key)` and compare **scope**. A key from another route is still rejected by the server before those guards run.
-
-<Callout type="warn" title="Enabled delete is not per-user authorization">
-  `delete: true` or `download: true` with no ownership guard means anyone who
-  can call the endpoint and knows a key in that namespace can delete or
-  download that object. A UUID in the path makes keys hard to guess; it is
-  not an access check. Returning `folder: users/{userId}` from `upload.object`
-  only changes the key shape.
-
-A guard that only checks "is the user signed in?" still lets any signed-in
-user target any namespaced key they know. Enforce ownership in
-`download.guard` / `delete.guard`, or attach [`db()`](/docs/db).
-
+<Callout type="warn" title="An enabled operation is not an ownership check">
+  `delete: true` or `download: true` with no ownership guard lets anyone who can
+  call the endpoint, and knows a key in that namespace, delete or download the
+  object. A UUID in the key makes it hard to guess; it is not an access check. A
+  guard that only checks for a session lets any signed-in user target any key
+  they know.
 </Callout>
 
----
+## Scope objects to a user
 
-## Scoping objects and user tenancy
-
-Use `upload.object` to isolate files by tenant or user ID:
+Resolve the user once in the instance guard, and pass it on as
+[`locals`](/docs/server/hooks/global-guard#locals) to shape keys and bind
+tickets:
 
 ```ts title="lib/s3.ts"
-import { dimahS3, errors, route } from "@dimah-s3/server";
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
+import { awsS3 } from "./aws-s3";
+
+declare module "@dimah-s3/server" {
+  interface DimahS3Locals {
+    userId?: string;
+  }
+}
 
 export const s3 = dimahS3({
   client: awsS3,
   bucket: process.env.S3_BUCKET!,
+  guard: async ({ request }) => {
+    const session = await getSession(request);
+    if (!session) throw s3Error("UNAUTHORIZED");
+    return { locals: { userId: session.userId } }; // [!code ++]
+  },
+  ticketSubject: ({ locals }) => locals.userId, // [!code ++]
   routes: {
     avatar: route({
-      guard: async ({ request }) => {
-        const session = await getSession(request);
-        if (!session) throw errors.unauthorized();
-      },
       upload: {
         fileTypes: ["image/*"],
         maxFileSize: 2 * 1024 * 1024,
-        object: async ({ request }) => {
-          const session = await getSession(request);
-          return {
-            folder: `users/${session.userId}`, // [!code ++]
-            // Generates: avatar/users/{userId}/{uuid}/{fileName}
-          };
-        },
-        onConfirmed: async ({ key, contentLength, request }) => {
-          // [!code ++]
-          // Trusted stored size and server-owned key from S3 HeadObject
-          const session = await getSession(request); // [!code ++]
+        object: ({ locals }) => ({
+          keyFolder: `users/${locals.userId}`, // avatar/users/{userId}/{uuid}/{name}
+        }),
+        onConfirmed: async ({ key, object, locals }) => {
+          // object.size comes from HeadObject, not from the browser.
           await db.user.update({
-            // [!code ++]
-            where: { id: session.userId }, // [!code ++]
-            data: { avatarKey: key, avatarSize: contentLength }, // [!code ++]
-          }); // [!code ++]
-        }, // [!code ++]
+            where: { id: locals.userId },
+            data: { avatarKey: key, avatarSize: object.size },
+          });
+        },
       },
       download: true,
       delete: true,
@@ -119,112 +111,68 @@ export const s3 = dimahS3({
 });
 ```
 
-Returning `folder: users/{userId}` only shapes the key. The route `guard` above
-requires a session; it does not stop one signed-in user from targeting another
-user's key. Add `download.guard` / `delete.guard` (or [`db()`](/docs/db)) for
-ownership.
+- `ticketSubject` binds each ticket to the user who started the upload, so a
+  leaked ticket is useless to anyone else.
+- `onConfirmed` runs at least once per upload, so keep it safe to replay, as
+  this update is.
+- `keyFolder` only shapes the key. It does not stop one signed-in user from
+  targeting another user's key. Add the ownership guards below.
 
----
+## Enforce ownership
+
+Check ownership in `download.guard` and `delete.guard`, or attach
+[`@dimah-s3/db`](/docs/db), which scopes every object for you:
+
+```ts
+avatar: route({
+  delete: true, // [!code --]
+  delete: { // [!code ++]
+    guard: async ({ key, locals }) => { // [!code ++]
+      if (!(await ownsAvatar(locals.userId, key))) throw s3Error("FORBIDDEN"); // [!code ++]
+    }, // [!code ++]
+  }, // [!code ++]
+}),
+```
+
+## Verify file content
+
+The declared type is untrusted. Set
+[`verifyContent: true`](/docs/server/routes#content-verification) to check the
+object's first bytes against it after confirm.
+
+For a stricter rule, inspect the object in `confirmGuard`: a rejection there
+deletes the object. `sniffContentType` from `@dimah-s3/core` returns the
+detected type of a byte prefix.
 
 ## Object ACL
 
-Uploads are `private` by default. Set `acl` on the route or return it dynamically from `upload.object`:
+Uploads are `private` by default. Set `acl` on the route, or return it from
+`upload.object` per object:
 
 ```ts
 avatar: route({
   upload: {
     acl: "public-read", // [!code ++]
     fileTypes: ["image/*"],
-    maxFileSize: 2 * 1024 * 1024,
   },
 }),
 ```
 
----
+## Request hardening
 
-## Hook error mapping
-
-| Hook Location                                      | Plain `Error` Thrown   | `errors.*` / `APIError` |
-| -------------------------------------------------- | ---------------------- | ----------------------- |
-| `guard` / `*Guard` / `object`                      | **403 Forbidden**      | Custom status & code    |
-| `on*` lifecycle hooks (`onConfirmed`, `onDeleted`) | **500 Internal Error** | Custom status & code    |
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How do I verify the true MIME type (magic bytes) of an uploaded file?">
-
-Read the object header with your configured, server-only S3 client and inspect it
-in `onConfirmed`. The hook context contains the bucket and key, but not an S3
-client:
-
-```ts title="lib/s3.ts"
-import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { sniffContentType } from "@dimah-s3/core";
-import { dimahS3, errors, route } from "@dimah-s3/server";
-import { awsS3 } from "./aws-s3";
-
-const bucket = process.env.S3_BUCKET!;
-const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
-
-export const s3 = dimahS3({
-  client: awsS3,
-  bucket,
-  routes: {
-    avatar: route({
-      upload: {
-        fileTypes: ["image/png", "image/jpeg", "image/webp"],
-        onConfirmed: async ({ key, fileName }) => {
-          const response = await awsS3.send(
-            new GetObjectCommand({
-              Bucket: bucket,
-              Key: key,
-              Range: "bytes=0-15",
-            }),
-          );
-          if (!response.Body) throw errors.objectNotFound();
-
-          const bytes = await response.Body.transformToByteArray();
-          const detectedType = sniffContentType(bytes);
-          if (!detectedType || !allowedTypes.has(detectedType)) {
-            throw errors.fileTypeNotAllowed(fileName ?? key, detectedType);
-          }
-        },
-      },
-    }),
-  },
-});
-```
-
-The normal presign and `HeadObject` checks still run. If this stricter check
-throws, dimah-s3 performs a compensating delete so the rejected object is not
-left in S3.
-
-</Accordion>
-
-<Accordion title="How do I prevent users from deleting or downloading other users' files?">
-
-`keyPrefix` only keeps `avatar` keys off the `document` route. It does not
-know which user owns a file. Use `download.guard` / `delete.guard`, or the
-[`@dimah-s3/db`](/docs/db) plugin for automatic scope isolation:
-
-```ts
-avatar: route({
-  delete: true, // [!code --]
-}),
-
-avatar: route({
-  delete: {
-    guard: async ({ key, request }) => { // [!code ++]
-      const session = await getSession(request); // [!code ++]
-      const isOwner = await checkAvatarOwnership(session.userId, key); // [!code ++]
-      if (!isOwner) throw errors.forbidden(); // [!code ++]
-    }, // [!code ++]
-  },
-}),
-```
-
-</Accordion>
-
-</Accordions>
+- **JSON only.** Every body endpoint, plugin endpoints included, accepts
+  `application/json` only. A cross-site HTML form cannot send it, so a form
+  post returns `415 UNSUPPORTED_MEDIA_TYPE`.
+- **Body cap.** `maxRequestBodySize` (1 MiB by default) is counted on the
+  stream before parsing. Over it: `413 REQUEST_TOO_LARGE`.
+- **Signed headers.** A presigned PUT signs every header the server returns in
+  `headers`: type, disposition, metadata, ACL, tags, storage class, and
+  checksum. A custom client must send exactly those headers.
+- **Inline allow-list.** Downloads open in the browser only for
+  [known safe types](/docs/server/hooks/download#open-in-the-browser-only-for-known-types).
+  HTML, SVG, and other types that run as a page download as attachments.
+- **Hardened proxy.** [`GET /file`](/docs/server/file-proxy) sends a sandbox
+  CSP, `nosniff`, and `Cross-Origin-Resource-Policy` on every response.
+- **Hook errors stay private.** A plain `Error` from your code returns
+  `500 INTERNAL_ERROR`; its message never reaches the client. See
+  [Errors](/docs/server/errors).

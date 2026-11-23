@@ -1,86 +1,141 @@
 ---
 title: Helpers
-description: Formatting utilities, validation functions, and error helpers.
+description: Formatter hooks and plain formatters for sizes, speed, time left, dates, and errors, plus the core helpers for validation and checksums.
 icon: Wrench
 ---
 
-`@dimah-s3/react` and `@dimah-s3/core` export utilities for formatting file
-sizes, progress labels, hashing, and error localization.
+Helpers come from three places:
 
-## Progress and speed formatting
+| Entry                    | Holds                                                                  |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `@dimah-s3/react`        | Formatter hooks that follow the `S3Provider` `locale` and translations |
+| `@dimah-s3/react/engine` | Plain formatters with no React import, such as `formatFileSize`        |
+| `@dimah-s3/core`         | Protocol helpers: validation, checksums, and errors                    |
 
-```ts
-import { formatUploadProgress, formatSpeed, formatEta } from "@dimah-s3/react";
+## Formatter hooks
 
-formatUploadProgress(1_200_000, 2_000_000, 60); // "1.1 MB / 1.9 MB (60%)"
-formatSpeed(1_200_000); // "1.1 MB/s"
-formatEta(800_000, 200_000); // "4s"
-```
-
----
-
-## File size and validation
-
-```ts
-import { formatFileSize, truncateFileName, validateFile } from "@dimah-s3/core";
-
-formatFileSize(1_500_000); // "1.4 MB"
-formatFileSize(1_500_000, { locale: "fa", units: { MB: "مگابایت" } }); // "۱٫۴ مگابایت"
-truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi… .png"
-
-const error = validateFile(file, {
-  accept: ["image/*"],
-  maxFileSize: 2 * 1024 * 1024,
-});
-// returns null if valid, or { code: "FILE_TYPE_NOT_ALLOWED", message }
-```
-
-In React, `useFormatFileSize()` and `useFormatNumber()` follow the `locale`
-on `S3Provider` and take unit labels from your translations. The built-in UI
-uses them for sizes, counts, and progress. See
-[Internationalization](/docs/i18n#numbers-and-sizes).
-
----
-
-## Checksums and public URLs
-
-```ts
-import { buildPublicObjectUrl, sha256File } from "@dimah-s3/core";
-
-// SHA-256 base64 digest
-const hash = await sha256File(file);
-
-// Public CDN URL helper
-const url = buildPublicObjectUrl({
-  baseUrl: "https://cdn.example.com",
-  key: "avatar/uuid/avatar.png",
-});
-```
-
-## Frequently asked questions
-
-<Accordions>
-
-<Accordion title="How do I format API errors in toast notifications?">
-
-Format the error with `useFormatDimahError` before passing it to your toast
-library:
+Each hook returns a formatter. Digits and unit labels follow the
+`S3Provider` `locale` and your translations; see
+[Internationalization](/docs/i18n).
 
 ```tsx
-import { useFormatDimahError, useUpload } from "@dimah-s3/react";
+"use client";
 
-export function AvatarUploader() {
-  const formatError = useFormatDimahError();
+import {
+  useFormatDate,
+  useFormatEta,
+  useFormatFileSize,
+  useFormatNumber,
+  useFormatSpeed,
+  type UploadFileState,
+} from "@dimah-s3/react";
 
-  const upload = useUpload({
-    route: "avatar",
-    onError: (err) => {
-      toast.error(formatError(err));
-    },
-  });
+export function FileLine({ file }: { file: UploadFileState }) {
+  const formatFileSize = useFormatFileSize();
+  const formatSpeed = useFormatSpeed();
+  const formatEta = useFormatEta();
+  const formatNumber = useFormatNumber();
+  const formatDate = useFormatDate();
+  const { speed } = file.progress;
+  const eta = formatEta(file.progress);
+
+  return (
+    <p>
+      {file.fileName} · {formatFileSize(file.fileSize)} ·{" "}
+      {formatNumber(file.progress.percent)}%
+      {speed ? ` · ${formatSpeed(speed)}` : null}
+      {eta ? ` · ${eta}` : null}
+      {file.result?.lastModified
+        ? ` · ${formatDate(file.result.lastModified)}`
+        : null}
+    </p>
+  );
 }
 ```
 
-</Accordion>
+| Hook                      | Formatter                      | Output                                                                                                                   |
+| ------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `useFormatFileSize()`     | `(bytes) => string`            | `12.4 MB`, with 1024-based units                                                                                         |
+| `useFormatNumber()`       | `(value) => string`            | Counts in the locale's digits                                                                                            |
+| `useFormatSpeed()`        | `(bytesPerSecond) => string`   | `1.2 MB/s`                                                                                                               |
+| `useFormatEta()`          | `(progress) => string \| null` | `9s left`, `4m left`, `1h 30m left`. `null` until the speed is known, or when nothing is left                            |
+| `useFormatDate()`         | `(value, options?) => string`  | A `Date`, ISO string, or epoch ms, with optional `Intl.DateTimeFormat` options. `""` for invalid input                   |
+| `useFormatAcceptLabels()` | `(accept?) => string[]`        | Short labels for `accept` tokens, such as `["Images", "PDF"]`. Group labels are translated (`"Images(file type group)"`) |
+| `useFormatError()`        | `(error) => string`            | A translated message for an error. See [Errors](#errors)                                                                 |
 
-</Accordions>
+## Errors
+
+Every error a hook reports is an `APIError` from `@dimah-s3/core` with a
+stable `code`. `useFormatError()` turns it into a translated message, with
+sizes and counts in the provider's locale:
+
+```tsx
+"use client";
+
+import { useFormatError, useUpload } from "@dimah-s3/react";
+import { toast } from "@dimah-s3/ui";
+
+export function AttachmentUploader() {
+  const formatError = useFormatError();
+  const upload = useUpload({
+    route: "attachments",
+    onError: (error) => {
+      toast.add({ type: "error", title: formatError(error) });
+    },
+  });
+
+  return (
+    <>
+      <input {...upload.getInputProps()} />
+      <button type="button" onClick={() => upload.open()}>
+        Attach files
+      </button>
+    </>
+  );
+}
+```
+
+Codes it does not know, such as a plugin's, and plain `Error`s, return their
+`message`. Word those with the provider's
+[`formatError`](/docs/react/setup#plugin-error-messages). To branch on a
+code, see [Outcomes and errors](/docs/react/guides/outcomes#errors).
+
+## Plain formatters
+
+These ship from the engine entry, so they work outside React and on the
+server. Pass a `locale` and unit or group labels yourself; the hooks above
+pass the provider's for you.
+
+```ts
+import {
+  formatAcceptLabels,
+  formatFileSize,
+  toTimestamp,
+  truncateFileName,
+} from "@dimah-s3/react/engine";
+
+formatFileSize(1_500_000); // "1.4 MB"
+formatFileSize(1_500_000, { locale: "fa", units: { MB: "مگابایت" } }); // "۱٫۴ مگابایت"
+formatAcceptLabels(["image/*", ".pdf", "application/zip"]); // ["Images", "PDF", "ZIP"]
+formatAcceptLabels(["image/*"], { groups: { image: "Bilder" } }); // ["Bilder"]
+truncateFileName("my-avatar-profile-picture-long-name.png", 20); // "my-avatar-profi….png"
+toTimestamp("2026-10-31T12:00:00Z"); // 1793448000000, or null when invalid
+```
+
+| Function                               | Options                                                          |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| `formatFileSize(bytes, options?)`      | `locale` (default `"en-US"`), `units` for unit labels            |
+| `formatAcceptLabels(accept, options?)` | `groups` for `type/*` labels, such as `{ image: "Bilder" }`      |
+| `truncateFileName(name, maxChars?)`    | `maxChars` defaults to `48`. Keeps the extension when it fits    |
+| `toTimestamp(value)`                   | Returns epoch ms, or `null` when the value is missing or invalid |
+
+`truncateFileName` is for plain text, such as a document title. In markup,
+[`FileName`](/docs/ui/components/attachment#filename) shortens a name to the
+width it has.
+
+## Core helpers
+
+`validateFile`, `sha256Blob`, `buildPublicObjectUrl`, and the other protocol
+helpers come from `@dimah-s3/core`; see [Core](/docs/core#helpers). You need
+them only in your own pickers or server code: `useUpload` already validates
+files and sends checksums.

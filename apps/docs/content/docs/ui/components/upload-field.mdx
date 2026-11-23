@@ -1,0 +1,210 @@
+---
+title: Upload Field
+description: Form field whose value is the object keys of the files uploaded through it.
+---
+
+import { UploadFieldDemo } from "@/components/demos/upload-field-demo";
+import { UploadFieldButtonDemo } from "@/components/demos/upload-field-button-demo";
+
+Add file uploads to a form. Each file that uploads through `UploadField` adds
+its object key to the field's value, and every key submits as a hidden
+`<input name>`. Put the [Upload](/docs/ui/components/upload) parts inside it.
+
+<DemoPreview name="upload-field-demo.tsx">
+  <UploadFieldDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import { UploadField, UploadFieldValue } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/upload-field
+```
+
+Adds `@/components/dimah-s3/upload/upload-field` and the upload family it
+uses.
+
+</Tab>
+
+</Tabs>
+
+<include>../../../_includes/ui/component-prereq.mdx</include>
+
+## Usage
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import {
+  UploadDropzone,
+  UploadField,
+  UploadFieldValue,
+  UploadToasts,
+} from "@dimah-s3/ui";
+
+export function TicketForm({
+  save,
+}: {
+  save: (formData: FormData) => void | Promise<void>;
+}) {
+  const upload = useUpload({ route: "attachments", maxFiles: 5 });
+
+  return (
+    <form action={save} className="space-y-4">
+      <UploadField upload={upload} name="attachments" maxFiles={5}>
+        <UploadDropzone />
+        <UploadFieldValue />
+      </UploadField>
+      <UploadToasts upload={upload} />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+```
+
+On the server, read the keys with `formData.getAll("attachments")`.
+
+<Callout type="warn">
+  `maxFiles` and the value are client-side. Check the keys, their count, and who
+  owns them in your own endpoint. See [Forms](/docs/react/forms).
+</Callout>
+
+## Anatomy
+
+```tsx
+<UploadField upload={upload} name="attachments">
+  <UploadTrigger /> {/* or UploadDropzone */}
+  <UploadStatus />
+  <UploadFieldValue />
+</UploadField>
+```
+
+`UploadField` is an [`Upload`](/docs/ui/components/upload) root, so every
+upload part works inside it. Uploaded files move from the status to
+`UploadFieldValue`.
+
+## Examples
+
+### Attach button
+
+A message form with an attach button, a saved key as `defaultValue`, and
+`UploadStatus` for the files in flight.
+
+<DemoPreview name="upload-field-button-demo.tsx">
+  <UploadFieldButtonDemo />
+</DemoPreview>
+
+### Controlled value
+
+Keep the keys in your own state with `value` and `onValueChange`.
+
+```tsx
+const [keys, setKeys] = useState<string[]>(post.attachmentKeys);
+
+<UploadField
+  upload={upload}
+  name="attachments"
+  value={keys}
+  onValueChange={setKeys}
+>
+  <UploadTrigger />
+  <UploadFieldValue />
+</UploadField>;
+```
+
+### Custom value rows
+
+Pass a function to `UploadFieldValue` to render each key.
+
+```tsx
+function AttachmentNames() {
+  const { remove } = useUploadFieldContext();
+
+  return (
+    <UploadFieldValue>
+      {(item) => (
+        <span>
+          {item.fileName}
+          <button type="button" onClick={() => remove(item.key)}>
+            Remove
+          </button>
+        </span>
+      )}
+    </UploadFieldValue>
+  );
+}
+```
+
+## Value
+
+- A file adds its key once it uploads. Failed and cancelled files add nothing.
+- New picks append; they never cancel files still uploading.
+- Removing a key does not delete the stored object.
+
+## Limit
+
+With `maxFiles`, the field takes only the files that still fit and rejects
+the rest with `TOO_MANY_FILES`. The limit holds for every upload through the
+hook, not only the field's own parts. When other code also uploads through it,
+pass `append: true` to `useUpload`.
+
+Read `useUploadContext().isFull` to show your own hint when it is full:
+
+```tsx
+function FullHint() {
+  const { isFull } = useUploadContext();
+  return isFull ? <p>Remove a file to add another.</p> : null;
+}
+```
+
+## Form reset
+
+An uncontrolled field goes back to `defaultValue` when its form resets,
+including React's reset after a `<form action>`. Call `upload.reset()` to
+clear the status too. A controlled field resets `value` itself.
+
+## API Reference
+
+### UploadField
+
+| Prop            | Type                       | Default  | Description                                                   |
+| --------------- | -------------------------- | -------- | ------------------------------------------------------------- |
+| `upload`        | `UseUploadReturn`          | required | The `useUpload` return whose uploads fill the field           |
+| `name`          | `string`                   | required | Form field name. Each key submits as its own hidden input     |
+| `value`         | `readonly string[]`        | —        | Object keys, when you control the value                       |
+| `defaultValue`  | `readonly string[]`        | —        | Object keys to start with, when the field keeps its own value |
+| `onValueChange` | `(keys: string[]) => void` | —        | Runs with the new keys after one is added or removed          |
+| `maxFiles`      | `number`                   | —        | Most keys the field holds, across every call on the hook      |
+| `children`      | `ReactNode`                | required | Upload parts and `UploadFieldValue`                           |
+
+### UploadFieldValue
+
+Also accepts every `ul` prop except `children`.
+
+| Prop       | Type                                   | Default                        | Description     |
+| ---------- | -------------------------------------- | ------------------------------ | --------------- |
+| `children` | `(item: UploadFieldItem) => ReactNode` | File card with a remove action | Renders one key |
+
+### useUploadFieldContext
+
+Returns the field's state inside `UploadField`.
+
+| Property    | Type                         | Description                                                     |
+| ----------- | ---------------------------- | --------------------------------------------------------------- |
+| `name`      | `string`                     | The field name                                                  |
+| `value`     | `readonly string[]`          | The keys                                                        |
+| `items`     | `readonly UploadFieldItem[]` | The keys with `fileName`, `fileSize`, `contentType`, and `file` |
+| `remaining` | `number \| null`             | Files that still fit, or `null` without `maxFiles`              |
+| `remove`    | `(key: string) => void`      | Drops a key from the value. The stored object is kept           |

@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "api:report": "node ./scripts/api-report.mjs",
     "build": "turbo run build --filter=!./examples/* --filter=!brand",
     "build:all": "turbo run build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
+    "check:dist": "node ./scripts/check-dist.mjs",
     "check-types": "turbo run check-types",
     "clean:build": "pnpm clean:next && pnpm clean:turbo",
     "clean:next": "node ./scripts/clean-next-artifacts.mjs",
@@ -22,7 +24,7 @@
     "tegami": "node ./scripts/tegami.mts",
     "templates:build": "node ./scripts/templates-build.mjs",
     "templates:update": "node ./scripts/templates-update.mjs",
-    "test": "turbo run test --filter=\"./packages/*\"",
+    "test": "turbo run test --filter=\"./packages/*\" --filter=\"./examples/*\"",
     "ui:sync:shadcn": "pnpm --filter @dimah-s3/ui sync:shadcn"
   },
   "devDependencies": {
@@ -40,7 +42,7 @@
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@12.16.1",
+  "packageManager": "pnpm@12.21.0",
   "engines": {
     "node": ">=24",
     "pnpm": ">=12"

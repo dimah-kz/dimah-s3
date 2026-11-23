@@ -1,0 +1,116 @@
+---
+title: "آروان‌کلود؛ بهترین فضای ابری ایرانی سازگار با S3"
+description: تجربهٔ من از وصل کردن آروان‌کلود به یک اپ واقعی با dimah-s3، و سه نکته‌ای که قبل از اولین آپلود باید بدانید.
+date: 2026-11-20
+tags: [Guide, ArvanCloud]
+authors: [dimah]
+lang: fa
+ogTitle: "ArvanCloud: the best S3-compatible object storage in Iran"
+ogDescription: Notes from running dimah-s3 on ArvanCloud, and three things to know before the first upload.
+---
+
+وقتی کاربرهای یک اپ در ایران هستند، بهتر است فایل‌هایشان هم در ایران باشد.
+برای یکی از اپ‌هایی که ساختم دنبال فضای ابری ایرانی‌ای بودم که با API
+استاندارد S3 کار کند؛ تا نه SDK اختصاصی یاد بگیرم و نه کد آپلود را برای یک
+سرویس خاص بنویسم. انتخابم آروان‌کلود بود، و به نظرم بهترین فضای ابری ایرانی
+سازگار با S3 است.
+
+## چرا آروان‌کلود
+
+- **API استاندارد S3.** همان `S3Client` از AWS SDK v3 با یک `endpoint` دیگر کار
+  می‌کند. ACL مثل `public-read`، HeadObject، لینک دانلود presigned و حذف همان
+  رفتاری را داشتند که از Amazon S3 انتظار دارید.
+- **داخل ایران.** فایل‌ها از دیتاسنتر داخلی سرو می‌شوند و برای کاربر ایرانی به
+  اینترنت بین‌الملل وابسته نیستند.
+- **پرداخت ریالی.** برای راه‌اندازی به کارت بین‌المللی نیازی ندارید.
+
+## چه چیزی تست شد
+
+با dimah-s3 نسخهٔ 2.0 بتا، روی یک باکت واقعی:
+
+- آپلود مستقیم از مرورگر با presigned POST، هم فایل خصوصی و هم `public-read`
+- تأیید آپلود با HeadObject، تا حجم و نوع فایل را خود باکت گزارش کند نه مرورگر
+- دانلود با لینک presigned
+- حذف از سمت سرور
+
+کلیدهای S3 هیچ‌وقت به مرورگر نمی‌رسند. سرور یک آدرس کوتاه‌عمر امضا می‌کند و
+مرورگر فایل را مستقیم به باکت می‌فرستد؛ فایل از سرور شما رد نمی‌شود.
+
+## سه نکته قبل از اولین آپلود
+
+این سه مورد را خودم با خطا یاد گرفتم. هیچ‌کدام باگ dimah-s3 نیست؛ رفتار
+آروان‌کلود است و با تنظیم درست حل می‌شود.
+
+### ۱. آپلود با POST، نه PUT
+
+روش پیش‌فرض آپلود در dimah-s3 درخواست presigned PUT است. آروان‌کلود این
+درخواست را رد می‌کند: presign بی‌خطا برمی‌گردد و آپلود در مرورگر شکست
+می‌خورد. راه‌حل یک خط روی هر روت آپلود است:
+
+```ts title="lib/s3.ts"
+avatar: route({
+  upload: {
+    method: "POST", // [!code ++]
+    fileTypes: ["image/*"],
+    maxFileSize: 2 * 1024 * 1024,
+  },
+}),
+```
+
+سمت کلاینت تغییری لازم نیست؛ هوک‌های React روش آپلود را از پاسخ presign
+می‌خوانند.
+
+### ۲. هاست API با `hot.` شروع می‌شود، نه `s3.`
+
+در ریجن `ir-central1`، هاست `s3.ir-central1.arvanstorage.ir` به درخواست POST با
+`301` جواب می‌دهد و آن را به `hot.ir-central1.arvanstorage.ir` می‌فرستد.
+مرورگر نمی‌تواند ریدایرکتِ یک آپلود فرم را دنبال کند، پس فقط یک خطای شبکهٔ
+بی‌توضیح می‌بینید. `endpoint` را مستقیم روی `hot.` بگذارید:
+
+```ts title="lib/s3.ts"
+export const awsS3 = new S3Client({
+  region: "auto",
+  endpoint: "https://hot.ir-central1.arvanstorage.ir", // [!code ++]
+  forcePathStyle: true, // [!code ++]
+  credentials: {
+    accessKeyId: process.env.ARVAN_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.ARVAN_SECRET_ACCESS_KEY!,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+```
+
+### ۳. آدرس عمومی با `.s3.` است، نه `.hot.`
+
+درست برعکسِ نکتهٔ قبل: فایل‌های عمومی را از
+`your-bucket.s3.ir-central1.arvanstorage.ir` سرو کنید. هاست
+`your-bucket.hot.…` در یک حلقهٔ ریدایرکت می‌افتد و image optimizer در Next.js
+خطای `508` برمی‌گرداند. پس دو آدرس جدا دارید؛ یکی برای SDK و آپلود، یکی برای
+نمایش فایل:
+
+```bash title=".env"
+ARVAN_ENDPOINT=https://hot.ir-central1.arvanstorage.ir
+ARVAN_PUBLIC_BASE_URL=https://your-bucket.s3.ir-central1.arvanstorage.ir
+```
+
+## جمع‌بندی
+
+با این سه تنظیم، به‌علاوهٔ یک قانون CORS که `POST` را برای origin اپ مجاز کند،
+آروان‌کلود برای من مثل هر S3 دیگری کار کرد. تنها چیزی که روی آن تست نکردم
+آپلود multipart است: پارت‌ها با PUT امضا می‌شوند، پس قبل از روشن کردنش آن را
+روی باکت خودتان امتحان کنید.
+
+تنظیمات کامل، از جمله CORS و سؤال‌های رایج، در راهنمای آروان‌کلود هست:
+
+<Cards>
+  <Card
+    title="راهنمای آروان‌کلود"
+    href="/docs/providers/arvancloud-fa"
+    description="تنظیمات سرور، CORS و آدرس عمومی فایل‌ها، به فارسی."
+  />
+  <Card
+    title="ArvanCloud guide"
+    href="/docs/providers/arvancloud"
+    description="The same setup, in English."
+  />
+</Cards>

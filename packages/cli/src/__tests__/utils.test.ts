@@ -7,6 +7,7 @@ import {
   runDevCommand,
 } from "@/utils/package-manager";
 import {
+  assertProjectName,
   assertValidPackageName,
   sanitizeProjectName,
 } from "@/utils/project-name";
@@ -17,8 +18,21 @@ describe("sanitizeProjectName", () => {
     expect(sanitizeProjectName("apps/My App")).toBe("my-app");
   });
 
-  it("falls back when empty", () => {
-    expect(sanitizeProjectName("   ")).toBe("my-app");
+  it("returns an empty name when no usable character is left", () => {
+    expect(sanitizeProjectName("   ")).toBe("");
+    expect(sanitizeProjectName("___")).toBe("");
+    expect(sanitizeProjectName("پروژه")).toBe("");
+  });
+});
+
+describe("assertProjectName", () => {
+  it("refuses a directory that gives no name instead of inventing one", () => {
+    expect(() => assertProjectName("", "پروژه")).toThrow(CliError);
+    expect(() => assertProjectName("", "پروژه")).toThrow(/"پروژه"/);
+  });
+
+  it("accepts a usable name", () => {
+    expect(() => assertProjectName("my-app", "My App")).not.toThrow();
   });
 });
 
@@ -29,6 +43,14 @@ describe("assertValidPackageName", () => {
 
   it("rejects invalid names", () => {
     expect(() => assertValidPackageName("UPPER")).toThrow(CliError);
+    expect(() => assertValidPackageName("")).toThrow(/empty/);
+    expect(() => assertValidPackageName("_private")).toThrow(CliError);
+    expect(() => assertValidPackageName("a".repeat(215))).toThrow(/214/);
+  });
+
+  it("rejects names npm reserves and Node.js core modules", () => {
+    expect(() => assertValidPackageName("node_modules")).toThrow(/reserved/);
+    expect(() => assertValidPackageName("http")).toThrow(/core module/);
   });
 });
 

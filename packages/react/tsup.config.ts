@@ -5,5 +5,6 @@ export default packageConfig({
     index: "src/index.ts",
     engine: "src/engine.ts",
   },
-  banner: { js: '"use client";' },
+  splitting: true,
+  clientEntries: ["index"],
 });

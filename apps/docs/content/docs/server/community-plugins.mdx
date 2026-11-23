@@ -1,0 +1,38 @@
+---
+title: Community plugins
+description: Plugins for dimah-s3 built by the team and the community, and how to list yours.
+---
+
+Plugins extend the server with hooks, endpoints, and a typed client. Build
+one with the [Plugins](/docs/server/plugins) guide.
+
+## First-party
+
+| Plugin             | Package        | What it does                                                        |
+| ------------------ | -------------- | ------------------------------------------------------------------- |
+| [`db()`](/docs/db) | `@dimah-s3/db` | Tracks objects and folders in your database, with scopes and quotas |
+
+## Reference
+
+| Plugin                                                                                 | What it shows                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`plugin-audit`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/plugin-audit) | A complete plugin to copy: hooks, an endpoint, a typed client, error codes, and tests |
+
+## Community
+
+No community plugins are listed yet. Add yours.
+
+## List your plugin
+
+Open a pull request that adds a row to the Community table on this page
+(`apps/docs/content/docs/server/community-plugins.mdx`). A listed plugin:
+
+- Is published to npm as `dimah-s3-<name>` or `@scope/dimah-s3-<name>`, with
+  the keyword `dimah-s3-plugin`.
+- Lists `@dimah-s3/server` and `@dimah-s3/core` as `peerDependencies`.
+- Puts every endpoint under its id, and prefixes its error codes with it.
+- Has a README with setup and the routes options it reads.
+
+Plugins in this table are maintained by their authors. Review a plugin's
+hooks before you add it: they run inside every upload, download, and
+delete.

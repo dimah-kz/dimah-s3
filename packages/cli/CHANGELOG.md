@@ -1,8 +1,177 @@
-## @dimah-s3/cli@1.7.2
+## @dimah-s3/cli@2.0.0-beta.14 (beta)
 
-### Docs at v1.s3.dimah.dev
+### A plugin SDK for third-party plugins
 
-Package homepages, the CLI link, and scaffolded registry entries use https://v1.s3.dimah.dev. New projects should use the 2.0 beta at https://s3.dimah.dev.
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
+## @dimah-s3/cli@2.0.0-beta.13 (beta)
+
+### Starters use current dependencies
+
+The Next.js, Vite, and Hono starters that `dimah-s3 create` scaffolds use the current releases of their dependencies.
+
+- **Every starter** depends on `lucide-react` `^1.77.0` and `@aws-sdk/client-s3` `^3.1173.0`.
+- **Next.js** uses `next` `^16.4.6`.
+- **Vite and Hono** use `vite` `^8.3.8`, `hono` `^4.13.19`, and `@hono/node-server` `^2.1.11`.
+
+## @dimah-s3/cli@2.0.0-beta.12 (beta)
+
+### `create` refuses typos, cancels cleanly, and starters commit their lockfile
+
+`dimah-s3 create` stops on an argument it does not know, cleans up after Ctrl+C, and installs the way you would. A new app commits its lockfile and comes with an `AGENTS.md`.
+
+- **Install.** `create` runs your package manager's own install in the new project (`pnpm install`, `npm install`, `yarn`, `bun install`). A pnpm install reads the starter's `pnpm-workspace.yaml`, and nothing goes through corepack.
+- **Ctrl+C.** Cancelling while a step runs stops the install, removes the directory `create` made, and exits with `130`. Files written into a directory that already existed are left in place.
+- **`AGENTS.md`.** Each starter ships its notes for the app's coding agent.
+- **`pnpm-workspace.yaml`.** It is kept for pnpm and removed for npm, yarn, and bun. It excludes `@dimah-s3/*` and `react-dropzone` from pnpm's release-age wait.
+- **Starter server setup.** All three starters read the required `S3_*` variables through one `env()` helper that names the missing variable, leave `DIMAH_S3_SECRET` to the server, and carry a commented `guard` stub on the `avatar` route, which is open until you add one.
+- **`start` without a `.env` file.** The Vite and Hono starters start with `--env-file-if-exists`, and `tsx` is a dependency, so a host that injects the environment can run them.
+- **`--no-src`.** The README of a flattened Next.js app names the flattened paths.
+- **Non-empty directory.** The question comes right after the project name, before the other prompts.
+- **Errors** are written to stderr.
+
+### Breaking changes
+
+- **Use Node.js 22 or newer.** `engines.node` is `>=22`. It was `>=20.19`.
+- **Fix unknown options and extra arguments.** `create --templte vite my-app` and `create my-app extra` fail with exit code `1` before anything is written. They used to be ignored, and the first one scaffolded the default starter into `./vite`.
+- **Give the project an ASCII name.** A directory name with no ASCII letter or digit fails. The package used to be named `my-app`.
+- **Expect exit code `1` after a "no" to replacing a non-empty directory.** It was `130`, which now only means Ctrl+C.
+- **Commit the lockfile.** The starter `.gitignore` no longer ignores `pnpm-lock.yaml`, `package-lock.json`, and `yarn.lock`.
+- **Set every required variable before `next build`.** The Next.js starter reads `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_BUCKET` when its route module loads, and a missing one throws by name. Only `S3_BUCKET` was needed at build time.
+- **Run the bin.** The package has no importable entry: `import "@dimah-s3/cli"` used to run the CLI. Use `npx @dimah-s3/cli create`.
+
+### One Node.js floor and bounded peer ranges
+
+Every `@dimah-s3/*` package declares `engines.node` `>=22`, exports its `package.json`, and names the peer majors it is built against. Keep every `@dimah-s3/*` package on the same version.
+
+- **`./package.json`.** Every package exports it, so a tool can read the installed version: `import pkg from "@dimah-s3/core/package.json" with { type: "json" }`.
+- **`funding`.** Every package links the sponsor page.
+
+### Breaking changes
+
+- **Use Node.js 22 or newer.** Every package declares `engines.node` `>=22`. Only `@dimah-s3/cli` declared a floor before (`>=20.19`).
+- **Check your peer versions.** Open-ended ranges such as `>=19.2` now end at the next major:
+  - `@dimah-s3/react` and `@dimah-s3/ui`: `react` `^19.2.0`.
+  - `@dimah-s3/ui`: `react-dom` `^19.2.0` (a new peer), `@base-ui/react` `^1.0.0`, `class-variance-authority` `^0.7.0`, `cn` `^0.5.2`, and `lucide-react` `>=0.400.0 <2`.
+  - `@dimah-s3/server` and `@dimah-s3/db`: `@aws-sdk/client-s3` `^3.0.0`.
+  - `@dimah-s3/db`: `kysely` `^0.29.8`.
+- **Install `@aws-sdk/client-s3` next to `@dimah-s3/db`.** It is a required peer. It was marked optional, but the plugin imports it.
+
+## @dimah-s3/cli@2.0.0-beta.9 (beta)
+
+### Current dependencies
+
+`@dimah-s3/server` and the starters that `@dimah-s3/cli` scaffolds move to the latest patch and minor releases of their dependencies.
+
+- **`@dimah-s3/server`** depends on `@aws-sdk/s3-presigned-post` and `@aws-sdk/s3-request-presigner` `^3.1169.0`.
+- **`@dimah-s3/cli`** uses `@clack/prompts` `^1.9.0`. The Next.js, Vite, and Hono starters scaffold with `next` `^16.4.6`, `vite` `^8.3.8`, `hono` `^4.13.18`, and `@aws-sdk/client-s3` `^3.1169.0`.
+
+### Search reaches every folder
+
+A search in the file list finds files in the open folder and every folder below it, or everywhere, and each result says where it lives. Search matches the same way in the database, in memory, and in the highlight: case, accents, and look-alike letters do not count. `@dimah-s3/db` moves to schema `2.2.0`, which you create on a new database. Each package changelog lists its own changes, and [Upgrade the database](https://s3.dimah.dev/docs/db/upgrade) covers the schema.
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on the same version.** `dbObjectSource` sends `recursive` to `GET /db/objects`, which an older `@dimah-s3/db` rejects.
+- **Review `authorize` rules that allow some folders and deny others.** A search now lists every folder below the open one with `recursive: true`. See the `@dimah-s3/db` changelog.
+
+## @dimah-s3/cli@2.0.0-beta.7 (beta)
+
+### Next.js starter lints on TypeScript 6
+
+The Next.js starter pins `typescript` to `^6.0.2`. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` exits before it checks the project.
+
+### Starters install a same-day react-dropzone
+
+Scaffolded projects exclude `react-dropzone` from pnpm's minimum release age. `@dimah-s3/react` depends on it, so a release published the same day still installs. Other packages keep the release-age check.
+
+## @dimah-s3/cli@2.0.0-beta.4 (beta)
+
+### Docs at s3.dimah.dev
+
+Package homepages, the CLI link, and scaffolded registry entries use https://s3.dimah.dev. 1.x docs are at https://v1.s3.dimah.dev.
+
+## @dimah-s3/cli@2.0.0-beta.3 (beta)
+
+### Next.js starter lints on TypeScript 6
+
+The Next.js starter pins `typescript` to `^6.0.2` again. `lint` runs. typescript-eslint does not support TypeScript 7, so `^7.0.2` made `eslint` exit before it checked the project.
+
+## @dimah-s3/cli@2.0.0-beta.2 (beta)
+
+### Folder ids in db()
+
+`@dimah-s3/db` schema `2.1.0` addresses a folder by id. An object stores `folderId`. Renaming or moving a folder updates that folder and the cached paths under it. Recreate the database; a `2.0.0` beta database is not upgraded. Details are in each package changelog and in [Upgrade the database](https://v2.s3.dimah.dev/docs/db/upgrade).
+
+### Breaking changes
+
+- **Keep every `@dimah-s3/*` package on this beta.** `folder` on a `db()` object is now `folderId`, and uploads send `clientMetadata.folderId` for a folder that already exists.
+
+## @dimah-s3/cli@2.0.0-beta.0 (beta)
+
+### Search and sort `db()` object listings
+
+`GET /db/objects` (`api.db.listObjects`) and `s3.db.objects.list` take `search` and `sort`.
+
+- `search` keeps rows whose `filename` contains the text. It runs in the database (`LIKE` on SQL), so case follows its collation.
+- `sort` is `{ field, direction }` with `field` set to `createdAt`, `updatedAt`, `size`, or `filename`. The default stays `createdAt` newest first. Ties break on row id, and rows without a value (a pending row's `size`) come last in both directions.
+- `nextCursor` carries the filters and sort it was made under. Send it back with the same ones; under others it is ignored and the listing starts from the first row.
+
+`dbObjectSource(api.db, …)` from `@dimah-s3/db/client` forwards the list's search text and sort, mapping `name` to `filename` and keeping `size` and `updatedAt`, so `ObjectListSearch` and `ObjectListSortMenu` work with `db()`. Sorting by date orders by the row's `updatedAt`, the same value `getFile().updatedAt` returns. New types: `DbListSort`, `DbListSortField`.
+
+### Object list: sources, selection, and composable UI
+
+The file list is rebuilt around three layers you can use apart.
+
+**`useObjectList` (`@dimah-s3/react`)** takes a source: `query` plus `getKey` (required) and `getFile` (name, `objectKey`, `size`, `contentType`, `updatedAt`, `previewUrl`). New on the return: `entries` (folders then files, each with a unique `key`), `sort` / `setSort`, `search` / `setSearch` (sent to the query as `sort` and `search`), `status`, `retry`, `goUp`, `setItems` / `setFolders` / `removeItems` for local edits, and the source's `uploadOptions` and `createFolder`. `refresh()` reloads every page on screen instead of only the first. A new sort or search keeps the rows on screen while it loads; opening a folder clears the search. `sort`, `search`, and `parent` can each be controlled.
+
+**`useObjectListSelection`** is new and headless: `toggle` with Shift ranges, `select`, `selectAll`, `clear`, `single` / `multiple` modes, `isSelectable`, and `persist` to keep files from other folders.
+
+**`memoryObjectSource`** from `@dimah-s3/react/engine` serves records you hold, with folders from a path, search, sort, pages, usage, and `limits`. **`useFormatDate`** formats dates for the `S3Provider` locale.
+
+**`dbObjectSource(api.db, { route, folders })`** from `@dimah-s3/db/client` lists one `db()` folder at a time, forwards the list's search and sort, and gives the list `uploadOptions` and `createFolder`.
+
+**`ObjectList` (`@dimah-s3/ui`)** takes the hook returns — `list`, `selection`, `upload`, `download`, `share`, `delete` — and gains a grid view, search, sort, keyboard navigation (arrows, Space, Backspace), paste-to-upload, a Load more mode, and default file menus. Pass `children` to compose the parts: `ObjectListHeader`, `ObjectListBreadcrumb`, `ObjectListSearch`, `ObjectListSortMenu`, `ObjectListViewToggle`, `ObjectListSelectionBar`, `ObjectListBulkDelete`, `ObjectListUsage`, `ObjectListUploadStatus`, `ObjectListContent`, `ObjectListRow`, `ObjectListTile`, `ObjectListEmpty`, and `useObjectListContext`. Deleting a file drops it from the rows at once, then reloads.
+
+### Breaking changes
+
+- `useObjectList` requires `getKey`. The query input adds `sort` and `search`.
+- `ObjectList` no longer takes `getKey`, `getLabel`, `getDescription`, `getFileName`, `getFileType`, `getPreviewUrl`, or `getObjectKey` — return those from `getFile` on the source. `selectable` and `onSelectionChange` are replaced by `selection={useObjectListSelection(list)}`. `header` is now `toolbar`. `renderItem` / `renderFolder` become `renderEntry`; `renderActions`, `renderMeta`, and `renderFolderActions` become entry-based `renderActions`, `renderMeta`, and `renderDescription`. `emptyTitle` / `emptyDescription` become `empty={<ObjectListEmpty title=… />}`. `list` must be a `useObjectList` return.
+- `ObjectListMenu` is renamed `ObjectListItemMenu`. Inside a list every prop is optional: the list is the `Delete` root, so it owns the confirm dialog.
+- `@dimah-s3/db/client`: `dbObjectQuery` and `dbObjectListAccessors` are replaced by `dbObjectSource(api.db, { route, folders })`. Read a row's file fields with `source.getFile(row)`.
+- `ObjectListView` (the old list-state type) is removed; the name now means the `"list" | "grid"` view.
+
+### `create` generates the upload ticket secret
+
+`dimah-s3 create` writes a fresh `DIMAH_S3_SECRET` (32 random bytes, base64) to the new project's `.env`, and lists it in the next steps. `.env.example` gains an empty `DIMAH_S3_SECRET` line when it does not have one.
+
+The Next.js, Vite + Hono, and Hono starters pin `@dimah-s3/*` to this CLI version. A prerelease CLI pins that exact version, so a later beta cannot change an app that was already scaffolded. They depend on `@dimah-s3/core`, pass `secret` from the environment, set `requestChecksumCalculation: "WHEN_REQUIRED"` on the `S3Client`, and render `<Upload>` with `UploadTrigger`, `UploadToasts`, and one `<Toaster />`. The template picker hints name the upload trigger instead of `UploadButton`. The next steps no longer suggest `upload: { method: "PUT" }` for Cloudflare R2, and the CORS hint names browser PUT as the default. The Next.js starter pins `typescript` to `^6.0.2`, so `lint` runs: typescript-eslint does not support TypeScript 7 yet.
+
+### Breaking changes
+
+- **`.env` is no longer skipped when it exists.** `create` now appends `DIMAH_S3_SECRET` to an existing `.env` when the key is missing or empty. It never overwrites a value that is set, and it leaves every other line as it was.
+- **Scaffolded projects need a secret in production.** Keep the generated `DIMAH_S3_SECRET` private, and set the same value on every server instance. Without it, uploads return `500` unless `NODE_ENV` is `development` or `test`.
+
+### 2.0.0 beta
+
+`2.0.0-beta` reworks the protocol, the hooks, and the components of every `@dimah-s3/*` package, and moves `db()` to database schema `2.0.0`. This is a beta: later betas can include breaking changes until `2.0.0`. Install the line with the `beta` dist-tag and keep every package on the same beta. The [upgrade guide](https://v2.s3.dimah.dev/docs/migration-2-0) walks through each step, and each package's changelog lists its changes in full.
+
+- **Upload tickets.** Presign and multipart init return a signed ticket, and confirm and every later multipart call send only `{ ticket }`.
+- **One error catalog.** Every error is an `APIError` with a catalog `code`, a `status`, and typed `params`.
+- **Per-key React state.** Hooks keep state per key, a repeated key joins the running call, and every action returns an outcome.
+- **Composable UI.** `Upload*`, `Download*`, and `Delete*` families replace the preset buttons, and toasts come from `UploadToasts`, `DownloadToasts`, and `DeleteToasts`.
+- **Folders in `db()`.** Logical folders, typed `attributes`, prebuilt Drizzle tables, and re-exported adapters.
+
+### Breaking changes
+
+- **Set `DIMAH_S3_SECRET`.** Generate it with `openssl rand -base64 32` and use the same value on every instance, or pass `dimahS3({ secret })`. Without it, uploads return `500` outside `development` and `test`.
+- **Set `requestChecksumCalculation: "WHEN_REQUIRED"`** on the `S3Client` you pass to `dimahS3()`.
+- **Install `@dimah-s3/core`** next to `@dimah-s3/react` and import `APIError`, `S3_ERROR_CODES`, and the protocol helpers from it. Import plain functions such as `uploadFile`, `memoryObjectSource`, and the display formatters `formatFileSize` and `truncateFileName` from `@dimah-s3/react/engine`.
+- **React 19.2** is required by `@dimah-s3/react` and `@dimah-s3/ui`, and `@fuma-translate/react` is a peer to install.
+- **Replace the preset components** (`UploadButton`, `DownloadButton`, `ProgressDownloadButton`, `DeleteButton`) with the families, and mount one toast component per hook plus one `<Toaster />`.
+- **Import schemas from `@dimah-s3/core/schema`.** The root of `@dimah-s3/core` no longer ships Zod, so `uploadBodySchema` and the other schemas moved there.
+- **Proxy downloads need `download.mode: "proxy"`.** `/file` refuses routes in presign mode with `404 FEATURE_DISABLED`.
+- **Upgrade the `db()` schema** with `sql/upgrade/1.0.0-2.0.0/<dialect>.sql` or `migrate(client)` before you deploy, and remove `fumadb` from your app. With Drizzle, upgrade `drizzle-orm` to 1.0.0-rc.5 or later first.
 
 ## @dimah-s3/cli@1.7.1
 

@@ -1,486 +1,1026 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
-import type { APIError } from "@dimah-s3/core";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type CSSProperties,
+  type DragEvent,
+  type FocusEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type {
+  AnyDownloadReturn,
+  DeleteResult,
+  DropTargetProps,
+  ObjectListEntry,
   ObjectListFolder,
-  ObjectListUsage,
   UseDeleteReturn,
+  UseDownloadReturn,
+  UseObjectListReturn,
+  UseObjectListSelectionReturn,
   UseUploadReturn,
 } from "@dimah-s3/react";
-import { useFormatDimahError } from "@dimah-s3/react";
+import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
-import { Spinner } from "@/components/ui/spinner";
-import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
+import { Delete } from "@/components/dimah-s3/delete/delete";
 import {
-  ObjectListRows,
-  SelectCheckbox,
-} from "@/components/dimah-s3/list/object-list-rows";
-import { useObjectListSelection } from "@/components/dimah-s3/list/object-list-selection-state";
-import { ObjectListSelection } from "@/components/dimah-s3/list/object-list-selection";
+  useDeleteToasts,
+  type DeleteToastMessage,
+} from "@/components/dimah-s3/delete/delete-toasts";
+import { Download } from "@/components/dimah-s3/download/download";
+import { BuiltInDownloadToasts } from "@/components/dimah-s3/download/download-toasts";
+import { ObjectListContent } from "@/components/dimah-s3/list/object-list-content";
 import {
-  ObjectListContinue,
-  ObjectListEmpty,
-  ObjectListError,
-  ObjectListErrorBanner,
-  ObjectListSkeleton,
-} from "@/components/dimah-s3/list/object-list-states";
+  ObjectListAnnouncer,
+  useObjectListAnnouncement,
+} from "@/components/dimah-s3/list/object-list-feedback";
+import {
+  createObjectListEntryStore,
+  ObjectListProvider,
+  useObjectListContext,
+  useObjectListEntryScope,
+  useObjectListInternal,
+  type ObjectListContextValue,
+  type ObjectListEntryScope,
+  type ObjectListInternalValue,
+  type ObjectListMoveSourceProps,
+  type ObjectListPaginationMode,
+  type ObjectListRenderers,
+  type ObjectListThumbnails,
+  type ObjectListView,
+} from "@/components/dimah-s3/list/object-list-context";
+import { useObjectListDeleteRequest } from "@/components/dimah-s3/list/object-list-delete";
+import {
+  ObjectListHeader,
+  useSelectionCount,
+} from "@/components/dimah-s3/list/object-list-header";
+import { useObjectListSearchStatus } from "@/components/dimah-s3/list/object-list-search";
+import {
+  bindObjectListCommands,
+  type ObjectListCommands,
+} from "@/components/dimah-s3/list/object-list-commands";
+import { useObjectListKeyboard } from "@/components/dimah-s3/list/object-list-keyboard";
+import {
+  entryHolder,
+  moveTargetHandlers,
+  OBJECT_LIST_MOVE_TYPE,
+  ObjectListMoveDialog,
+  type ObjectListMoveFn,
+  type ObjectListMoveRequest,
+} from "@/components/dimah-s3/list/object-list-move";
+import { canRenameEntry } from "@/components/dimah-s3/list/object-list-rename";
 import {
   ObjectListDropOverlay,
-  ObjectListUpload,
+  ObjectListUploadStatus,
   useRefreshListAfterUpload,
 } from "@/components/dimah-s3/list/object-list-upload";
-import { ObjectListUsageLine } from "@/components/dimah-s3/list/object-list-usage";
+import { ObjectListUsage } from "@/components/dimah-s3/list/object-list-usage";
+import { Upload } from "@/components/dimah-s3/upload/upload";
+import { BuiltInUploadToasts } from "@/components/dimah-s3/upload/upload-toasts";
+import { useOwnDrag } from "@/hooks/use-own-drag";
+import { folderUploadCall } from "@/lib/folder-upload";
+import { isFieldTarget } from "@/lib/is-field-target";
 
-/**
- * List state. `{@link useObjectList}` returns this shape. A server render or
- * your own store can pass the same fields without the hook.
- */
-export type ObjectListView<TItem> = {
-  items: readonly TItem[];
-  folders?: readonly ObjectListFolder[];
-  /** Path from the root, root excluded. */
-  trail?: readonly ObjectListFolder[];
-  error?: APIError | null;
-  isLoading?: boolean;
-  isLoadingMore?: boolean;
-  isRefreshing?: boolean;
-  hasMore?: boolean;
-  loadMore?: () => void | Promise<void>;
-  refresh?: () => void | Promise<void>;
-  openFolder?: (folder: ObjectListFolder) => void;
-  /** Pass `[]` for the root. */
-  navigate?: (trail: readonly ObjectListFolder[]) => void;
+/** Props for {@link ObjectList}. */
+export type ObjectListProps<TItem> = ObjectListRenderers<TItem> & {
+  /** `useObjectList` return. The component renders it and does not fetch. */
+  list: UseObjectListReturn<TItem>;
   /**
-   * Current folder id. Changing it clears the checkbox selection.
-   * `useObjectList` sets this.
+   * `useObjectListSelection` return. Adds checkboxes, the selection bar,
+   * Ctrl+A / Cmd+A, Escape, Space, and Shift ranges.
    */
-  parent?: string | null;
+  selection?: UseObjectListSelectionReturn<TItem>;
   /**
-   * Catalog totals. Omit it, or pass `null`, and the usage line stays hidden.
-   * `useObjectList` sets this from the query.
-   */
-  usage?: ObjectListUsage | null;
-};
-
-/** Checked rows on the loaded page. */
-export type ObjectListSelectionChange<TItem> = {
-  items: readonly TItem[];
-  folders: readonly ObjectListFolder[];
-};
-
-/** Caps for the usage line. The list does not read them from the server. */
-export type ObjectListUsageLimits = {
-  /**
-   * Byte cap. Pass the same number as `db({ quota: { maxBytes } })` when
-   * that plugin is what enforces the limit.
-   */
-  maxBytes?: number;
-  /**
-   * File-count cap. Pass the same number as `db({ quota: { maxFiles } })`
-   * when that plugin is what enforces the limit.
-   */
-  maxFiles?: number;
-};
-
-/** Props for {@link ObjectList}. Pass a list view as `list`. */
-export type ObjectListProps<TItem> = {
-  list: ObjectListView<TItem>;
-  getKey: (item: TItem) => string;
-  getLabel: (item: TItem) => string;
-  getDescription?: (item: TItem) => ReactNode;
-  /** Filename used for the type glyph. Defaults to `getLabel`. */
-  getFileName?: (item: TItem) => string;
-  getFileType?: (item: TItem) => string | null;
-  /** Image thumbnail. The label stays the accessible name. */
-  getPreviewUrl?: (item: TItem) => string | null;
-  /** Replaces the file row. */
-  renderItem?: (item: TItem) => ReactNode;
-  /** Replaces the folder row. */
-  renderFolder?: (folder: ObjectListFolder) => ReactNode;
-  /** Trailing controls for a file, such as download and delete. */
-  renderActions?: (item: TItem) => ReactNode;
-  /**
-   * Extra content beside the file name, such as a status.
-   * Ignored when {@link ObjectListProps.renderItem} replaces the row.
-   */
-  renderMeta?: (item: TItem) => ReactNode;
-  /**
-   * Called when the default file row is clicked.
-   * Ignored when {@link ObjectListProps.renderItem} replaces the row.
-   */
-  onOpenItem?: (item: TItem) => void;
-  /** Trailing controls for a folder. Kept outside the open button. */
-  renderFolderActions?: (folder: ObjectListFolder) => ReactNode;
-  /** Trailing header content, such as an upload button. */
-  header?: ReactNode;
-  /** Root breadcrumb label. */
-  rootLabel?: string;
-  /** Show the path. @default true */
-  breadcrumb?: boolean;
-  emptyTitle?: string;
-  emptyDescription?: string;
-  /**
-   * Replaces the empty state.
-   * When set, `emptyTitle` and `emptyDescription` are not used.
-   */
-  empty?: ReactNode;
-  className?: string;
-  /**
-   * Fixed frame height. The header stays put and the rows scroll inside.
-   * A number is pixels. A string is a CSS length, such as `"18rem"` or `"100%"`.
-   */
-  height?: number | string;
-  /**
-   * Largest frame height. The list grows with its content until this cap,
-   * then the rows scroll and the header stays put.
-   * A number is pixels. A string is a CSS length.
-   */
-  maxHeight?: number | string;
-  /**
-   * Checkboxes for the file rows loaded so far. The selection clears when
-   * `list.parent` changes. Rows on the next page are not selected.
-   * When `list.hasMore` is set, the header checkbox selects this page.
-   * A folder gets a checkbox only when {@link ObjectListProps.resolveFolderKeys}
-   * is set. Escape clears the selection. Ctrl+A or Cmd+A, with focus inside
-   * the list, selects the same rows as the header checkbox.
-   */
-  selectable?: boolean;
-  /**
-   * S3 object key for a file. Defaults to `getKey`.
-   * Bulk delete uses this, not the row id.
-   */
-  getObjectKey?: (item: TItem) => string;
-  /**
-   * Object keys stored in a folder. The folder gets a checkbox only when
-   * this is set, and bulk delete includes the keys it returns.
-   */
-  resolveFolderKeys?: (folder: ObjectListFolder) => Promise<readonly string[]>;
-  /** Selection bar delete. Implies {@link ObjectListProps.selectable}. */
-  delete?: UseDeleteReturn;
-  /**
-   * Called when the checked rows change, including when the folder changes
-   * and the selection clears. `items` and `folders` are from the loaded page.
-   */
-  onSelectionChange?: (selection: ObjectListSelectionChange<TItem>) => void;
-  /**
-   * Extra controls on the selection bar, beside Delete.
-   * Implies {@link ObjectListProps.selectable}.
-   */
-  selectionActions?: ReactNode;
-  /** Called after a bulk delete, including keys that failed. */
-  onDeleted?: (result: { deleted: string[]; failed: string[] }) => void;
-  /**
-   * Drop and paste files onto this list. Pass `useUpload` with `noClick`
-   * and `noKeyboard`. `getUploadOptions` chooses the folder from
-   * `list.parent`; this component does not write metadata. Clicking the
-   * list does not open the file picker. The list renders the hook's file
-   * input, so `upload.open()` from any trigger, such as a menu item or an
-   * empty-state button, opens the picker. A paste uploads while focus is
-   * inside the list. The destination is the open folder, including when
-   * the pointer is over a folder row. When the batch settles and at least
-   * one file succeeded, `list.refresh` runs once. A mixed batch still
-   * reloads. Share this hook with `UploadButton` in `header` and set that
-   * button's `toast` and `status` to false so progress stays here.
+   * `useUpload`. Drop or paste files onto the list to upload them into the
+   * open folder. When the source has `uploadOptions`, files go where it
+   * says, folder rows take drops, and their menu has Upload to this folder.
+   * `UploadTrigger` and `UploadDropzone` inside the list use the same hook
+   * and folder without their own `Upload`. The list reloads once each time
+   * the queue settles with new uploads.
    */
   upload?: UseUploadReturn;
   /**
-   * Caps drawn next to `list.usage`. Ignored when `list.usage` is omitted.
-   * Without this, the line shows the totals and no meter.
+   * `useDownload` or `useFetchDownload`. Adds Download to the file menu.
+   * `DownloadTrigger` inside the list uses it without its own `Download`.
    */
-  usageLimits?: ObjectListUsageLimits;
+  download?: AnyDownloadReturn;
+  /**
+   * `useDownload` return for Copy link, such as one with
+   * `disposition: "inline"`. Falls back to a `useDownload` `download`.
+   */
+  share?: UseDownloadReturn;
+  /**
+   * `useDelete`. Adds Delete to the file menu and to the selection bar,
+   * with one confirmation for the whole list. `DeleteTrigger` inside the
+   * list uses it too. Deleted files leave the rows at once; the list then
+   * reloads. When the source has `deleteFolder`, folders can be deleted
+   * too, with the files that `listFolderKeys` names.
+   */
+  delete?: UseDeleteReturn;
+  /**
+   * Show toasts for `upload`, `download`, and `delete`. They step aside for
+   * an `UploadToasts`, `DownloadToasts`, or `DeleteToasts` you mount for the
+   * same hook. Off, delete results and the list's own controls (Copy link,
+   * bulk Delete) report in a polite live region instead, unless you mount a
+   * `DeleteToasts` for the same hook. @default true
+   */
+  toasts?: boolean;
+  /** Controlled view. Pass it with `onViewChange`. */
+  view?: ObjectListView;
+  /** Uncontrolled starting view. @default "list" */
+  defaultView?: ObjectListView;
+  onViewChange?: (view: ObjectListView) => void;
+  /**
+   * Called when a file row is clicked or activated with Enter.
+   * Folders always open in place.
+   */
+  onOpenItem?: (item: TItem) => void;
+  /**
+   * Signs a thumbnail for each image file without a `previewUrl`, as its
+   * row or tile comes into view: `{ route }`, the route that presigns the
+   * GET, and `api` when there is no `S3Provider`.
+   */
+  thumbnails?: ObjectListThumbnails;
+  /** Called after each confirmed delete in the list, with every key's outcome. */
+  onDeleted?: (result: DeleteResult) => void;
+  /** Root breadcrumb label and the list's accessible name. @default "Files" */
+  rootLabel?: string;
+  /** Show the path in the default header. @default true */
+  breadcrumb?: boolean;
+  /** Trailing controls in the default header, such as an upload button. */
+  toolbar?: ReactNode;
+  /** Extra controls on the selection bar, beside Delete. */
+  selectionActions?: ReactNode;
+  /**
+   * Opens New folder and a row menu from outside the list. Create it with
+   * `useObjectListCommands`.
+   */
+  commands?: ObjectListCommands;
+  /** Replaces the empty state. `ObjectListEmpty` takes your own text. */
+  empty?: ReactNode;
+  /**
+   * How later pages load. `auto` loads the next page as the end of the
+   * rows comes into view; `button` waits for Load more. @default "auto"
+   */
+  pagination?: ObjectListPaginationMode;
+  /**
+   * Fixed frame height. The header stays put and the rows scroll inside.
+   * A number is pixels. A string is a CSS length, such as `"18rem"`.
+   */
+  height?: number | string;
+  /**
+   * Largest frame height. The list grows with its rows until this cap,
+   * then the rows scroll and the header stays put.
+   */
+  maxHeight?: number | string;
+  className?: string;
+  /**
+   * Your own layout from the list parts. Omit it for the default:
+   * header, usage, upload status, and content.
+   */
+  children?: ReactNode;
 };
 
 /**
- * Folder catalog. Renders `list` and does not fetch.
- * File rows stay generic: pass accessors, or replace a row with `renderItem`.
- * When `list.hasMore` is set, the next page loads as the end of the rows
- * comes into view.
+ * File and folder catalog for a `useObjectList` return.
+ *
+ * Works on its own: pass `list`, then the hooks you have — `selection`,
+ * `upload`, `download`, `share`, `delete` — to switch features on. Use the
+ * `render*` props to change parts of each entry, or pass `children` to
+ * arrange the parts (`ObjectListHeader`, `ObjectListSearch`,
+ * `ObjectListContent`, …) yourself.
+ *
+ * The list is the `Upload`, `Download`, and `Delete` root for its hooks,
+ * so the family parts work inside it, and one delete confirmation serves
+ * every row and the selection bar.
  */
-export function ObjectList<TItem>(props: ObjectListProps<TItem>) {
-  useRefreshListAfterUpload(props.upload, props.list.refresh);
-  return <ObjectListFrame key={props.list.parent ?? ""} {...props} />;
-}
-
-function ObjectListFrame<TItem>({
+export function ObjectList<TItem>({
   list,
-  getKey,
-  getLabel,
-  getDescription,
-  getFileName,
-  getFileType,
-  getPreviewUrl,
-  renderItem,
-  renderFolder,
-  renderActions,
-  renderMeta,
+  selection,
+  upload,
+  download,
+  share,
+  delete: del,
+  toasts = true,
+  view: viewProp,
+  defaultView = "list",
+  onViewChange,
   onOpenItem,
-  renderFolderActions,
-  header,
+  thumbnails,
+  onDeleted,
   rootLabel,
   breadcrumb = true,
-  emptyTitle,
-  emptyDescription,
+  toolbar,
+  selectionActions,
+  commands,
   empty,
-  className,
+  pagination = "auto",
   height,
   maxHeight,
-  selectable = false,
-  getObjectKey,
-  resolveFolderKeys,
-  delete: remove,
-  onSelectionChange,
-  selectionActions,
-  onDeleted,
-  upload,
-  usageLimits,
+  className,
+  children,
+  renderEntry,
+  renderActions,
+  renderDescription,
+  renderMeta,
 }: ObjectListProps<TItem>) {
   const t = useTranslations();
-  const formatError = useFormatDimahError();
-  const folders = useMemo(() => list.folders ?? [], [list.folders]);
-  const trail = list.trail ?? [];
-  const isLoading = list.isLoading === true;
-  const isRefreshing = list.isRefreshing === true;
-  const label = rootLabel ?? t("Files", { note: "object list" });
-  const errorMessage = list.error ? formatError(list.error) : null;
-  const showRows = folders.length > 0 || list.items.length > 0;
-  const showEmpty = !isLoading && !list.error && !showRows;
-  const showInitialError = !isLoading && list.error != null && !showRows;
-  const canSelect =
-    selectable ||
-    remove != null ||
-    selectionActions != null ||
-    onSelectionChange != null;
-  const filesSelectable = canSelect && renderItem == null;
-  const foldersSelectable =
-    canSelect && resolveFolderKeys != null && renderFolder == null;
-  const selection = useObjectListSelection({
-    items: list.items,
-    folders,
-    filesSelectable,
-    foldersSelectable,
-    getKey,
-    getLabel,
-    getFileName,
-    getObjectKey,
-    resolveFolderKeys,
-    onSelectionChange,
-  });
-  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
-  const showHeader =
-    breadcrumb ||
-    header != null ||
-    isRefreshing ||
-    (selection.rowsSelectable && showRows);
-  const pageLimited = list.hasMore === true;
-  const busy = isLoading || isRefreshing || list.isLoadingMore === true;
+  const [localView, setLocalView] = useState(defaultView);
+  const view = viewProp ?? localView;
+  useRefreshListAfterUpload(upload, list.refresh);
+  const deleteFocus = useFocusAfterDelete();
+  const { announcement, announce } = useObjectListAnnouncement();
+  const selectionCount = useSelectionCount(list, selection ?? null);
+  const searchStatus = useObjectListSearchStatus(list);
+  // The entry Show in folder opened, focused once its folder has loaded.
+  const revealRef = useRef<string | null>(null);
+  const [renamingKey, setRenamingKey] = useState<string | null>(null);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [moveRequest, setMoveRequest] =
+    useState<ObjectListMoveRequest<TItem> | null>(null);
+  // The entries a drag inside the list carries, while it lasts.
+  const draggedRef = useRef<readonly ObjectListEntry<TItem>[] | null>(null);
+  const renameFocusKey = useRef<string | null>(null);
+  const previousRenaming = useRef<string | null>(null);
+  // The row left the page (another folder, a search). Drop the field.
+  if (
+    renamingKey != null &&
+    !list.entries.some((entry) => entry.key === renamingKey)
+  ) {
+    setRenamingKey(null);
+  }
+
+  useEffect(() => {
+    const previous = previousRenaming.current;
+    previousRenaming.current = renamingKey;
+    if (previous == null || renamingKey != null) return;
+    const focusKey = renameFocusKey.current;
+    renameFocusKey.current = null;
+    if (focusKey !== previous) return;
+    deleteFocus.frameRef.current
+      ?.querySelector<HTMLElement>(
+        `[data-slot="object-list-entry-trigger"][data-entry-key="${CSS.escape(previous)}"]`,
+      )
+      ?.focus();
+  }, [deleteFocus.frameRef, renamingKey]);
+
   const frameHeight = cssLength(height);
   const frameMaxHeight = cssLength(maxHeight);
-  const sized = frameHeight != null || frameMaxHeight != null;
-  const frameStyle = sized
-    ? {
+  const sizing =
+    frameHeight != null ? "fixed" : frameMaxHeight != null ? "max" : null;
+  const resolvedRootLabel = rootLabel ?? t("Files", { note: "object list" });
+
+  // What the entries draw from. Per-entry state goes through the store, so
+  // a selection or an arrow key draws only the entries it changes. What can
+  // be selected changes with the entries, so it goes with the scope below.
+  const selectableKeys = useSelectableKeys(list.entries, selection ?? null);
+  const selectedKeys = selection?.selectedKeys ?? NO_KEYS;
+  const selecting = selection?.isSelecting === true;
+  const [store] = useState(() =>
+    createObjectListEntryStore({
+      selected: selectedKeys,
+      selecting,
+      renaming: null,
+      menu: null,
+      tabStop: list.entries[0]?.key ?? null,
+    }),
+  );
+  useLayoutEffect(() => {
+    const { tabStop, menu } = store.get();
+    const present = (key: string | null) =>
+      key != null && list.entries.some((entry) => entry.key === key);
+    store.set({
+      selected: selectedKeys,
+      selecting,
+      renaming: renamingKey,
+      menu: present(menu) ? menu : null,
+      // The entry that had the tab stop left: the first one takes it.
+      tabStop: present(tabStop) ? tabStop : (list.entries[0]?.key ?? null),
+    });
+  }, [list.entries, renamingKey, selectedKeys, selecting, store]);
+
+  // Commands read the newest props when they run, so they never change.
+  const latest = useRef({
+    list,
+    selection,
+    upload,
+    onOpenItem,
+    viewProp,
+    onViewChange,
+  });
+  useLayoutEffect(() => {
+    latest.current = {
+      list,
+      selection,
+      upload,
+      onOpenItem,
+      viewProp,
+      onViewChange,
+    };
+  });
+  const startNewFolder = useCallback(() => {
+    if (latest.current.list.createFolder) setNewFolderOpen(true);
+  }, []);
+  const closeNewFolder = useCallback(() => setNewFolderOpen(false), []);
+  useLayoutEffect(() => {
+    if (!commands) return;
+    bindObjectListCommands(commands, {
+      startNewFolder,
+      openMenu(entryKey) {
+        const entries = latest.current.list.entries;
+        if (!entries.some((entry) => entry.key === entryKey)) return;
+        store.set({ menu: entryKey });
+      },
+    });
+    return () => bindObjectListCommands(commands, null);
+  }, [commands, startNewFolder, store]);
+  const setView = useCallback((next: ObjectListView) => {
+    if (latest.current.viewProp === undefined) setLocalView(next);
+    latest.current.onViewChange?.(next);
+  }, []);
+  // The entry's field opens and closes in the same render as the list, so
+  // focus that follows a rename finds the row as it now is.
+  const startRename = useCallback(
+    (key: string) => {
+      const current = latest.current.list;
+      const target = current.entries.find((entry) => entry.key === key);
+      if (!target || !canRenameEntry(target, current)) return;
+      setRenamingKey(key);
+      store.set({ renaming: key });
+    },
+    [store],
+  );
+  const endRename = useCallback(
+    (key: string, focus = false) => {
+      if (focus) renameFocusKey.current = key;
+      // A save that lands after another rename started leaves that one open.
+      setRenamingKey((current) => (current === key ? null : current));
+      if (store.get().renaming === key) store.set({ renaming: null });
+    },
+    [store],
+  );
+  const revealEntry = useCallback((entry: ObjectListEntry<TItem>) => {
+    const { location } = entry;
+    if (!location) return;
+    const current = latest.current.list;
+    revealRef.current = entry.key;
+    current.setSearch("");
+    current.navigate(location);
+  }, []);
+  const startMove = useCallback<ObjectListContextValue<TItem>["startMove"]>(
+    (entries, options = {}) => {
+      const current = latest.current.list;
+      if (!current.moveEntries) return;
+      const movable = entries.filter((entry) => current.canMove(entry));
+      if (movable.length === 0) return;
+      setMoveRequest({
+        entries: movable,
+        trigger: options.trigger ?? focusedElement(),
+      });
+    },
+    [],
+  );
+  const closeMove = useCallback(() => setMoveRequest(null), []);
+  // Set by the Move dialog: moves entries and reports how it went.
+  const moveRef = useRef<ObjectListMoveFn<TItem> | null>(null);
+  const moveTarget = useCallback(
+    (folder: ObjectListFolder | null): DropTargetProps => {
+      const id = folder?.id ?? null;
+      return moveTargetHandlers({
+        accepts() {
+          const dragged = draggedRef.current;
+          if (!dragged || dragged.length === 0) return false;
+          const current = latest.current.list;
+          // Not into a folder that moves, nor into one below it.
+          const depth = current.trail.findIndex((step) => step.id === id);
+          const path = current.trail.slice(0, depth + 1);
+          const into = (entry: ObjectListEntry<TItem>) =>
+            entry.kind === "folder" &&
+            (entry.id === id || path.some((step) => step.id === entry.id));
+          if (dragged.some(into)) return false;
+          return !dragged.every((entry) => entryHolder(entry, current) === id);
+        },
+        onMove() {
+          const dragged = draggedRef.current;
+          draggedRef.current = null;
+          if (dragged) void moveRef.current?.(dragged, folder);
+        },
+      });
+    },
+    [],
+  );
+  const moveSource = useCallback(
+    (entry: ObjectListEntry<TItem>): ObjectListMoveSourceProps | null => {
+      if (!latest.current.list.canMove(entry)) return null;
+      return {
+        draggable: true,
+        onDragStart(event) {
+          const { list: current, selection: selected } = latest.current;
+          // A selected entry takes the rest of the selection with it.
+          const entries =
+            selected?.isSelected(entry.key) === true
+              ? selected.selected.filter((item) => current.canMove(item))
+              : [entry];
+          draggedRef.current = entries;
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData(
+            OBJECT_LIST_MOVE_TYPE,
+            JSON.stringify(entries.map((item) => item.key)),
+          );
+        },
+        onDragEnd() {
+          draggedRef.current = null;
+        },
+      };
+    },
+    [],
+  );
+  const open = useCallback((entry: ObjectListEntry<TItem>) => {
+    const current = latest.current;
+    if (entry.kind === "folder") current.list.openFolder(entry.folder);
+    else current.onOpenItem?.(entry.item);
+  }, []);
+  const toggle = useCallback(
+    (key: string, options?: { range?: boolean; value?: boolean }) => {
+      latest.current.selection?.toggle(key, options);
+    },
+    [],
+  );
+  const folderDropTarget = useCallback((id: string): DropTargetProps => {
+    // The upload hook's handlers follow its state, so each event asks for
+    // the current ones instead of keeping those of the row's last render.
+    const handler =
+      (name: DragHandlerName) => (event: DragEvent<HTMLElement>) => {
+        const current = latest.current;
+        current.upload
+          ?.getDropTargetProps(
+            {},
+            () => folderUploadCall(current.list, id) ?? {},
+          )
+          [name]?.(event);
+      };
+    return {
+      onDragEnter: handler("onDragEnter"),
+      onDragOver: handler("onDragOver"),
+      onDragLeave: handler("onDragLeave"),
+      onDrop: handler("onDrop"),
+    };
+  }, []);
+
+  const context = useMemo<ObjectListContextValue<TItem>>(
+    () => ({
+      list,
+      selection: selection ?? null,
+      upload: upload ?? null,
+      download: download ?? null,
+      share: share ?? null,
+      delete: del ?? null,
+      toasts,
+      announce,
+      view,
+      setView,
+      rootLabel: resolvedRootLabel,
+      startNewFolder,
+      startRename,
+      revealEntry,
+      startMove,
+    }),
+    [
+      announce,
+      del,
+      download,
+      list,
+      resolvedRootLabel,
+      revealEntry,
+      selection,
+      setView,
+      share,
+      startMove,
+      startNewFolder,
+      startRename,
+      toasts,
+      upload,
+      view,
+    ],
+  );
+  const internal = useMemo<ObjectListInternalValue<TItem>>(
+    () => ({
+      sizing,
+      showBreadcrumb: breadcrumb,
+      selectionActions,
+      empty,
+      pagination,
+      prepareDeleteFocus: deleteFocus.prepare,
+      newFolderOpen,
+      closeNewFolder,
+      endRename,
+      renderEntry,
+    }),
+    [
+      breadcrumb,
+      closeNewFolder,
+      deleteFocus.prepare,
+      empty,
+      endRename,
+      newFolderOpen,
+      pagination,
+      renderEntry,
+      selectionActions,
+      sizing,
+    ],
+  );
+
+  useEffect(() => {
+    const revealKey = revealRef.current;
+    if (revealKey == null) return;
+    if (list.isSearching || list.isLoading || list.isRefreshing) return;
+    revealRef.current = null;
+    const trigger = deleteFocus.frameRef.current?.querySelector<HTMLElement>(
+      `[data-slot="object-list-entry-trigger"][data-entry-key="${CSS.escape(revealKey)}"]`,
+    );
+    // Not on the first page of its folder: the folder is open, and that is all.
+    if (!trigger) return;
+    store.set({ tabStop: revealKey });
+    trigger.focus({ preventScroll: true });
+    trigger.scrollIntoView({ block: "nearest" });
+    const row = trigger.closest<HTMLElement>("[data-slot=object-list-entry]");
+    row?.setAttribute("data-revealed", "");
+    // Outlives the effect, so a render meanwhile does not keep the highlight.
+    window.setTimeout(() => row?.removeAttribute("data-revealed"), 2000);
+  }, [
+    deleteFocus.frameRef,
+    list.entries,
+    list.isLoading,
+    list.isRefreshing,
+    list.isSearching,
+    store,
+  ]);
+
+  const opensFiles = onOpenItem != null;
+  const folderUploads = upload != null && list.uploadOptions != null;
+  const canDownload = download != null;
+  const canShare = share != null || download?.kind === "navigate";
+  const canDelete = del != null;
+  const canDeleteFolders = canDelete && list.deleteFolder != null;
+  const renameFile = list.renameFile != null;
+  const renameFolder = list.renameFolder != null;
+  const moveFile = list.canMove("file");
+  const moveFolder = list.canMove("folder");
+  const thumbnailRoute = thumbnails?.route;
+  const thumbnailApi = thumbnails?.api;
+  const thumbnailSource = useMemo<ObjectListThumbnails | null>(
+    () =>
+      thumbnailRoute == null
+        ? null
+        : { route: thumbnailRoute, api: thumbnailApi },
+    [thumbnailApi, thumbnailRoute],
+  );
+
+  // The search the rows on screen answer. While a new search loads, the
+  // previous rows stay and keep what they were: results, or a folder.
+  const currentSearch = list.isSearching ? list.search.trim() : "";
+  const [search, setShownSearch] = useState(currentSearch);
+  if (!list.isLoading && !list.isRefreshing && search !== currentSearch) {
+    setShownSearch(currentSearch);
+  }
+  const scope = useMemo<ObjectListEntryScope<TItem>>(
+    () => ({
+      store,
+      selectable: selectableKeys,
+      opensFiles,
+      folderUploads,
+      download: canDownload,
+      share: canShare,
+      delete: canDelete,
+      deleteFolder: canDeleteFolders,
+      renameFile,
+      renameFolder,
+      moveFile,
+      moveFolder,
+      thumbnails: thumbnailSource,
+      search,
+      open,
+      toggle,
+      folderDropTarget,
+      moveSource,
+      moveTarget,
+      startRename,
+      endRename,
+      revealEntry,
+      startMove,
+      renderActions,
+      renderDescription,
+      renderMeta,
+    }),
+    [
+      canDelete,
+      canDeleteFolders,
+      canDownload,
+      canShare,
+      endRename,
+      folderDropTarget,
+      folderUploads,
+      moveFile,
+      moveFolder,
+      moveSource,
+      moveTarget,
+      open,
+      opensFiles,
+      renameFile,
+      renameFolder,
+      renderActions,
+      renderDescription,
+      renderMeta,
+      revealEntry,
+      search,
+      selectableKeys,
+      startMove,
+      startRename,
+      store,
+      thumbnailSource,
+      toggle,
+    ],
+  );
+
+  /** Drops deleted files from the rows and the selection, then reloads. */
+  function handleDeleted(result: DeleteResult) {
+    if (result.deleted.length > 0) {
+      const gone = new Set(result.deleted);
+      deleteFocus.prepare(
+        list.entries.flatMap((entry) =>
+          entry.kind === "file" && gone.has(objectKeyOf(entry))
+            ? [entry.key]
+            : [],
+        ),
+      );
+      list.setItems((items) =>
+        items.filter(
+          (item) =>
+            !gone.has(
+              objectKeyOf({ id: list.getId(item), file: list.getFile(item) }),
+            ),
+        ),
+      );
+      // A persisted selection keeps entries that are no longer loaded.
+      selection?.deselect(
+        selection.selected.flatMap((entry) =>
+          entry.kind === "file" && gone.has(objectKeyOf(entry))
+            ? [entry.key]
+            : [],
+        ),
+      );
+      void list.refresh();
+    }
+    onDeleted?.(result);
+  }
+
+  let content: ReactNode = (
+    <ObjectListFrame
+      frameRef={deleteFocus.frameRef}
+      onFocus={deleteFocus.onFrameFocus}
+      className={className}
+      style={{
         ...(frameHeight != null ? { height: frameHeight } : {}),
         ...(frameMaxHeight != null ? { maxHeight: frameMaxHeight } : {}),
-      }
-    : undefined;
-  const frameClassName = cn(
-    "relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors",
-    sized && "min-h-0",
-    upload?.isDragReject &&
-      "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
-    upload?.isDragAccept && "border-dimah-s3-primary bg-dimah-s3-primary/5",
-    upload?.isDragActive &&
-      !upload.isDragAccept &&
-      !upload.isDragReject &&
-      "border-dimah-s3-primary/50",
-    className,
+      }}
+    >
+      {children ?? (
+        <>
+          {breadcrumb ||
+          toolbar != null ||
+          selection != null ||
+          list.createFolder != null ? (
+            <ObjectListHeader>{toolbar}</ObjectListHeader>
+          ) : null}
+          <ObjectListUsage />
+          <ObjectListUploadStatus />
+          <ObjectListContent />
+        </>
+      )}
+    </ObjectListFrame>
   );
-  const frameProps = {
-    "data-slot": "object-list",
-    "aria-label": label,
-    "aria-busy": busy || undefined,
-    className: frameClassName,
-  };
-  const selectAll =
-    selection.rowsSelectable && showRows ? (
-      <SelectCheckbox
-        checked={selection.allSelected}
-        indeterminate={selection.selectedCount > 0 && !selection.allSelected}
-        label={
-          pageLimited
-            ? t("Select this page", { note: "object list selection" })
-            : t("Select all", { note: "object list selection" })
-        }
-        onCheckedChange={(checked) => selection.toggleAll(checked)}
-      />
-    ) : null;
-
-  const sectionProps = {
-    ...(upload
-      ? upload.getRootProps({
-          ...frameProps,
-          role: "region",
-          tabIndex: undefined,
-          "aria-disabled": undefined,
-          onClick: (event) => {
-            event.stopPropagation();
-          },
-        })
-      : frameProps),
-    ...(frameStyle ? { style: frameStyle } : {}),
-  };
-  const emptyDescriptionText =
-    emptyDescription ??
-    (upload
-      ? t("Drop files here to add them to this folder.", {
-          note: "object list",
-        })
-      : t("Files and folders you add here will show up in this list.", {
-          note: "object list",
-        }));
+  if (del) {
+    content = (
+      <Delete
+        delete={del}
+        onDeleted={handleDeleted}
+        restoreFocus={deleteFocus.restoreFocus}
+      >
+        {content}
+      </Delete>
+    );
+  }
+  if (download) content = <Download download={download}>{content}</Download>;
+  if (upload) content = <Upload upload={upload}>{content}</Upload>;
 
   return (
-    <section {...sectionProps}>
-      <div className="shrink-0">
-        {showHeader ? (
-          <div
-            className={cn(
-              "border-b border-dimah-s3-border",
-              selection.selecting && "bg-dimah-s3-primary/10",
-            )}
-          >
-            {selection.selecting ? (
-              <ObjectListSelection
-                leading={selectAll}
-                selectedCount={selection.selectedCount}
-                onClear={selection.clearSelection}
-                prepare={selection.prepareSelection}
-                removeMany={remove?.removeMany}
-                actions={selectionActions}
-                onThisPage={pageLimited}
-                onDeleted={(result) => {
-                  selection.clearSelection();
-                  onDeleted?.(result);
-                  if (result.deleted.length > 0) void list.refresh?.();
-                }}
-              />
-            ) : (
-              <div className="flex min-h-11 min-w-0 items-center gap-2 py-1.5 ps-1.5 pe-1">
-                {selectAll}
-                {breadcrumb ? (
-                  <ObjectListBreadcrumb
-                    rootLabel={label}
-                    trail={trail}
-                    navigate={list.navigate}
-                  />
-                ) : (
-                  <div className="min-w-0 flex-1" />
-                )}
-                <div className="flex shrink-0 items-center gap-2">
-                  {isRefreshing ? (
-                    <Spinner
-                      aria-label={t("Loading files", { note: "object list" })}
-                    />
-                  ) : null}
-                  {header}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : null}
-
-        {list.usage ? (
-          <ObjectListUsageLine usage={list.usage} limits={usageLimits} />
-        ) : null}
-
-        {upload ? <ObjectListUpload upload={upload} /> : null}
-      </div>
-
-      <div
-        ref={sized ? setScroller : undefined}
-        className={
-          sized
-            ? cn(
-                "flex min-h-0 flex-col overflow-y-auto overscroll-y-contain",
-                frameHeight != null ? "flex-1" : "flex-auto",
-              )
-            : undefined
-        }
-      >
-        {isLoading ? <ObjectListSkeleton /> : null}
-
-        {showInitialError ? (
-          <ObjectListError message={errorMessage} onRetry={list.refresh} />
-        ) : null}
-
-        {showEmpty
-          ? (empty ?? (
-              <ObjectListEmpty
-                title={
-                  emptyTitle ??
-                  t("This folder is empty", { note: "object list" })
-                }
-                description={emptyDescriptionText}
-              />
-            ))
-          : null}
-
-        {showRows ? (
-          <ObjectListRows
-            items={list.items}
-            folders={folders}
-            getKey={getKey}
-            getLabel={getLabel}
-            getDescription={getDescription}
-            getFileName={getFileName}
-            getFileType={getFileType}
-            getPreviewUrl={getPreviewUrl}
-            renderItem={renderItem}
-            renderFolder={renderFolder}
-            renderActions={renderActions}
-            renderMeta={renderMeta}
-            onOpenItem={onOpenItem}
-            renderFolderActions={renderFolderActions}
-            openFolder={list.openFolder}
-            filesSelectable={filesSelectable}
-            foldersSelectable={foldersSelectable}
-            fileKeys={selection.fileKeys}
-            folderIds={selection.folderIds}
-            selectRow={selection.selectRow}
-          />
-        ) : null}
-
-        {showRows && errorMessage ? (
-          <ObjectListErrorBanner
-            message={errorMessage}
-            onRetry={list.refresh}
-          />
-        ) : null}
-
-        <ObjectListContinue
-          active={list.hasMore === true && list.loadMore != null}
-          pending={list.isLoadingMore === true}
-          blocked={list.error != null}
-          loadMore={list.loadMore}
-          root={sized ? scroller : null}
-          ready={!sized || scroller != null}
-        />
-      </div>
-      {upload ? (
+    <ObjectListProvider value={context} internal={internal} scope={scope}>
+      {content}
+      {toasts ? (
         <>
-          <input {...upload.getInputProps()} />
-          <ObjectListDropOverlay upload={upload} />
+          {upload ? <BuiltInUploadToasts upload={upload} /> : null}
+          {download ? <BuiltInDownloadToasts download={download} /> : null}
+          {del ? <ObjectListDeleteToasts delete={del} /> : null}
         </>
+      ) : del ? (
+        <ObjectListDeleteToasts delete={del} report={announce} />
+      ) : null}
+      {list.moveEntries ? (
+        <ObjectListMoveDialog
+          request={moveRequest}
+          onClose={closeMove}
+          moveRef={moveRef}
+        />
+      ) : null}
+      {/* Mounted from the start, so the first change is read out. */}
+      <ObjectListAnnouncer
+        announcement={announcement}
+        status={selectionCount}
+        search={searchStatus?.settled ? searchStatus.label : null}
+      />
+    </ObjectListProvider>
+  );
+}
+
+const NO_KEYS: ReadonlySet<string> = new Set();
+
+/**
+ * Keys of the loaded entries `selection` can select. The same set while
+ * they stay the same, also with an inline `isSelectable`.
+ */
+function useSelectableKeys<TItem>(
+  entries: readonly ObjectListEntry<TItem>[],
+  selection: UseObjectListSelectionReturn<TItem> | null,
+): ReadonlySet<string> {
+  const keys = selection
+    ? entries.flatMap((entry) =>
+        selection.canSelect(entry) ? [entry.key] : [],
+      )
+    : [];
+  const [kept, setKept] = useState<ReadonlySet<string>>(() => new Set(keys));
+  if (kept.size === keys.length && keys.every((key) => kept.has(key))) {
+    return kept;
+  }
+  const next = new Set(keys);
+  setKept(next);
+  return next;
+}
+
+/**
+ * Where focus goes after a delete in the list. Once the control that asked
+ * is gone (its row, or the selection bar), focus moves to the entry that
+ * took the place of the first deleted one, else the one before it. The
+ * `Delete` root falls back to the frame.
+ */
+function useFocusAfterDelete() {
+  const frameRef = useRef<HTMLElement>(null);
+  /** The element in the frame that last had focus: the delete's control. */
+  const lastFocusRef = useRef<HTMLElement | null>(null);
+  const nextRef = useRef<HTMLElement | null>(null);
+  /** Entry keys the delete in progress removes. */
+  const removedRef = useRef(new Set<string>());
+
+  // Refs only, so one object serves every render.
+  return useMemo(
+    () => ({
+      frameRef,
+      onFrameFocus(event: FocusEvent<HTMLElement>) {
+        // Menus are portalled: their focus bubbles through React only.
+        if (event.currentTarget.contains(event.target)) {
+          lastFocusRef.current = event.target;
+        }
+      },
+      /**
+       * Call with the entry keys a delete removes, while they still render.
+       * Calls for one delete add up: a target found earlier stays while it
+       * is still there.
+       */
+      prepare(removedKeys: readonly string[]) {
+        const removed = removedRef.current;
+        for (const key of removedKeys) removed.add(key);
+        const kept = nextRef.current;
+        if (kept?.isConnected && !removed.has(kept.dataset.entryKey ?? "")) {
+          return;
+        }
+        nextRef.current = entryAfter(frameRef.current, removed);
+      },
+      restoreFocus(): HTMLElement | null {
+        const next = nextRef.current;
+        nextRef.current = null;
+        removedRef.current.clear();
+        // A control that is still there, such as the selection bar's Delete,
+        // keeps focus.
+        return lastFocusRef.current?.isConnected ? null : next;
+      },
+    }),
+    [],
+  );
+}
+
+/** The focused element, or `null` while nothing has focus. */
+function focusedElement(): HTMLElement | null {
+  const element = document.activeElement;
+  return element instanceof HTMLElement && element !== document.body
+    ? element
+    : null;
+}
+
+/** The first entry trigger after the first removed one, else the last before it. */
+function entryAfter(
+  frame: HTMLElement | null,
+  removed: ReadonlySet<string>,
+): HTMLElement | null {
+  if (!frame || removed.size === 0) return null;
+  const triggers = [
+    ...frame.querySelectorAll<HTMLElement>(
+      "[data-slot=object-list-entry-trigger]",
+    ),
+  ];
+  const isRemoved = (trigger: HTMLElement) =>
+    removed.has(trigger.dataset.entryKey ?? "");
+  const first = triggers.findIndex(isRemoved);
+  if (first < 0) return null;
+  return (
+    triggers.slice(first).find((trigger) => !isRemoved(trigger)) ??
+    triggers
+      .slice(0, first)
+      .reverse()
+      .find((trigger) => !isRemoved(trigger)) ??
+    null
+  );
+}
+
+/**
+ * The bordered frame: drop target, paste target, keyboard scope, and the
+ * place focus returns to when no entry can take it after a delete.
+ */
+function ObjectListFrame({
+  frameRef,
+  onFocus,
+  className,
+  style,
+  children,
+}: {
+  frameRef: RefObject<HTMLElement | null>;
+  onFocus: (event: FocusEvent<HTMLElement>) => void;
+  className?: string;
+  style: CSSProperties;
+  children: ReactNode;
+}) {
+  const { list, selection, upload, view, rootLabel, startRename } =
+    useObjectListContext();
+  const { sizing } = useObjectListInternal();
+  const { store } = useObjectListEntryScope();
+  const requestDelete = useObjectListDeleteRequest();
+  const keyboard = useObjectListKeyboard({
+    list,
+    selection,
+    view,
+    store,
+    startRename,
+    requestDelete,
+  });
+  const busy = list.isLoading || list.isRefreshing || list.isLoadingMore;
+  const call = folderUploadCall(list, list.parent);
+  // A disabled hook ignores drops; the frame then ignores drags and pastes.
+  const takesFiles = upload != null && !upload.disabled;
+  // The hook's drag state covers all of its drop targets, so the frame
+  // highlights and speaks only while the drag is over the frame itself.
+  const drag = useOwnDrag();
+  const dragActive = upload?.isDragActive === true && drag.over;
+  // A folder row or a dropzone inside the list takes the drag, so the
+  // frame's overlay steps aside. A dropzone announces itself; for a folder
+  // row the frame announces the folder by name.
+  const [innerTarget, setInnerTarget] = useState<InnerDropTarget | null>(null);
+  const [dropFolder, setDropFolder] = useState<string | null>(null);
+
+  function trackDragTarget(event: DragEvent<HTMLElement>) {
+    const inner =
+      event.target instanceof Element
+        ? event.target.closest(INNER_DROP_TARGET)
+        : null;
+    if (inner == null || !event.currentTarget.contains(inner)) {
+      setInnerTarget(null);
+      setDropFolder(null);
+      return;
+    }
+    const dropzone = inner.matches(DROPZONE);
+    setInnerTarget(dropzone ? "dropzone" : "folder");
+    setDropFolder(dropzone ? null : inner.getAttribute("data-drop-name"));
+  }
+
+  function onPaste(event: ClipboardEvent<HTMLElement>) {
+    // A dropzone inside the list takes its own pastes.
+    if (!takesFiles || event.defaultPrevented || isFieldTarget(event.target)) {
+      return;
+    }
+    const files = [...event.clipboardData.files];
+    if (files.length === 0) return;
+    event.preventDefault();
+    void upload.handleFiles(files, call);
+  }
+
+  const frameProps = {
+    "data-slot": "object-list",
+    "data-view": view,
+    "data-dimah-s3-focus-root": "",
+    "aria-label": rootLabel,
+    "aria-busy": busy || undefined,
+    tabIndex: -1,
+    ref: frameRef,
+    className: cn(
+      "group/object-list relative flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-dimah-s3-border bg-dimah-s3-card text-dimah-s3-card-foreground transition-colors outline-none focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50",
+      sizing && "min-h-0",
+      dragActive &&
+        upload.isDragReject &&
+        "border-dimah-s3-destructive bg-dimah-s3-destructive/5",
+      dragActive &&
+        upload.isDragAccept &&
+        "border-dimah-s3-primary bg-dimah-s3-primary/5",
+      dragActive &&
+        !upload.isDragAccept &&
+        !upload.isDragReject &&
+        "border-dimah-s3-primary/50",
+      className,
+    ),
+    style,
+    onFocus: (event: FocusEvent<HTMLElement>) => {
+      onFocus(event);
+      keyboard.onFocus(event);
+    },
+    onPaste,
+    onDragEnter: (event: DragEvent<HTMLElement>) => {
+      if (!takesFiles) return;
+      drag.enter(event);
+      trackDragTarget(event);
+    },
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (takesFiles) trackDragTarget(event);
+    },
+    onDragLeave: drag.leave,
+    onDrop: () => {
+      drag.end();
+      setInnerTarget(null);
+      setDropFolder(null);
+    },
+    // Keys come from the entries inside; the frame only routes them.
+    onKeyDown: keyboard.onKeyDown,
+    onKeyUp: keyboard.onKeyUp,
+  };
+
+  return (
+    <section
+      {...(upload ? upload.getDropTargetProps(frameProps, call) : frameProps)}
+    >
+      {children}
+      {upload ? (
+        <ObjectListDropOverlay
+          upload={upload}
+          active={dragActive}
+          target={innerTarget ?? "frame"}
+          folder={dropFolder}
+        />
       ) : null}
     </section>
   );
 }
 
+/** Drop targets inside the frame that take a drag for themselves. */
+type InnerDropTarget = "folder" | "dropzone";
+
+type DragHandlerName = "onDragEnter" | "onDragOver" | "onDragLeave" | "onDrop";
+
+const DROPZONE = "[data-slot=upload-dropzone]:not([data-disabled])";
+const INNER_DROP_TARGET = `[data-slot=object-list-entry][data-drag-active], ${DROPZONE}`;
+
+/**
+ * Delete toasts that step aside for an explicit `DeleteToasts`. With
+ * `report`, the same messages go there instead, such as the list's live
+ * region while its toasts are off.
+ */
+function ObjectListDeleteToasts({
+  delete: del,
+  report,
+}: {
+  delete: UseDeleteReturn;
+  report?: (message: DeleteToastMessage) => void;
+}) {
+  useDeleteToasts(del, { weak: true, report });
+  return null;
+}
+
 /** A number is pixels. A blank string is unset. */
 function cssLength(value: number | string | undefined) {
-  if (typeof value === "number")
+  if (typeof value === "number") {
     return Number.isFinite(value) ? value : undefined;
+  }
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;

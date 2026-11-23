@@ -1,0 +1,258 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "@fuma-translate/react";
+import {
+  useFormatError,
+  useFormatFileSize,
+  useFormatNumber,
+} from "@dimah-s3/react";
+import type { UploadFileState, UseUploadReturn } from "@dimah-s3/react";
+import { toast } from "@/components/ui/toast";
+import { useToastOwner } from "@/hooks/use-toast-owner";
+import { ToastFile, ToastNumbers, ToastText } from "@/lib/toast-content";
+
+/** Props for {@link UploadToasts}. */
+export type UploadToastsProps = {
+  /** The `useUpload` return to report on. */
+  upload: UseUploadReturn;
+};
+
+/**
+ * Toasts for a `useUpload` hook: progress with a cancel action while files
+ * upload (a resume action while the queue is paused), the result once they
+ * settle, and the files it rejected. Mount it
+ * once per hook, next to one `<Toaster />`. It renders nothing.
+ *
+ * Only one owner reports per hook: a second `UploadToasts` for the same
+ * hook stays silent and warns in development, and the `ObjectList`
+ * built-in toasts step aside for it. Its progress toast closes when it
+ * unmounts.
+ */
+export function UploadToasts({ upload }: UploadToastsProps) {
+  const active = useToastOwner(upload.instanceId);
+  return active ? <ActiveUploadToasts upload={upload} /> : null;
+}
+
+/**
+ * Weak owner for `ObjectList`: it shows the same toasts only while no
+ * {@link UploadToasts} is mounted for the hook. @internal
+ */
+export function BuiltInUploadToasts({ upload }: UploadToastsProps) {
+  const active = useToastOwner(upload.instanceId, { weak: true });
+  return active ? <ActiveUploadToasts upload={upload} /> : null;
+}
+
+function isSettled(file: UploadFileState) {
+  return file.phase === "success" || file.phase === "error";
+}
+
+function ActiveUploadToasts({ upload }: UploadToastsProps) {
+  const t = useTranslations();
+  const formatError = useFormatError();
+  const formatFileSize = useFormatFileSize();
+  const formatNumber = useFormatNumber();
+  const { files, isPending, progress, fileRejections } = upload;
+  // A paused queue has not ended: its toast stays, offering resume.
+  const paused = upload.phase === "paused";
+  const showProgress = (isPending || paused) && files.length > 0;
+
+  const progressToastRef = useRef<string | null>(null);
+  // Toast actions run after the toast was shown, with the newest functions.
+  const actionsRef = useRef({
+    cancel: upload.cancel,
+    retry: upload.retry,
+    resume: upload.resume,
+  });
+  // Results and rejections from before this owner mounted are not reported.
+  const [reported] = useState(
+    () => new Set(files.filter(isSettled).map((file) => file.id)),
+  );
+  const rejectionsRef = useRef(fileRejections);
+
+  useEffect(() => {
+    actionsRef.current = {
+      cancel: upload.cancel,
+      retry: upload.retry,
+      resume: upload.resume,
+    };
+  });
+
+  useEffect(
+    () => () => {
+      if (progressToastRef.current) toast.close(progressToastRef.current);
+      progressToastRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!showProgress) {
+      if (progressToastRef.current) toast.close(progressToastRef.current);
+      progressToastRef.current = null;
+      return;
+    }
+    const done = files.filter((file) => file.phase === "success").length;
+    const payload = {
+      type: paused ? "info" : "loading",
+      timeout: 0,
+      title: paused
+        ? t("Upload paused", { note: "toast" })
+        : files.length > 1
+          ? t("Uploading {done}/{total}", {
+              note: "toast",
+              variables: {
+                done: formatNumber(done),
+                total: formatNumber(files.length),
+              },
+            })
+          : t("Uploading", { note: "toast" }),
+      description: (
+        <ToastNumbers>
+          {t("{loaded} of {total}", {
+            note: "transfer progress",
+            variables: {
+              loaded: formatFileSize(progress.loaded),
+              total: formatFileSize(progress.total),
+            },
+          })}
+        </ToastNumbers>
+      ),
+      actionProps: paused
+        ? {
+            children: t("Resume", { note: "toast action" }),
+            onClick: () => actionsRef.current.resume(),
+          }
+        : {
+            children: t("Cancel", { note: "toast action" }),
+            onClick: () => actionsRef.current.cancel(),
+          },
+    };
+    if (progressToastRef.current) {
+      toast.update(progressToastRef.current, payload);
+    } else {
+      progressToastRef.current = toast.add(payload);
+    }
+  }, [showProgress, paused, files, progress, t, formatFileSize, formatNumber]);
+
+  useEffect(() => {
+    // A file back in flight, as after a retry, reports again once it settles.
+    for (const file of files) {
+      if (!isSettled(file)) reported.delete(file.id);
+    }
+    if (isPending || paused) return;
+    const fresh = files.filter(
+      (file) => isSettled(file) && !reported.has(file.id),
+    );
+    if (fresh.length === 0) return;
+    for (const file of fresh) reported.add(file.id);
+
+    const failed = fresh.filter((file) => file.phase === "error");
+    const retryAction = (id?: string) => ({
+      children: t("Retry", { note: "toast action" }),
+      onClick: () => void actionsRef.current.retry(id),
+    });
+    const [first] = fresh;
+    if (fresh.length === 1) {
+      toast.add(
+        failed.length === 0
+          ? {
+              type: "success",
+              title: t("Upload complete", { note: "toast" }),
+              description: (
+                <ToastFile
+                  name={first.fileName}
+                  detail={formatFileSize(first.fileSize)}
+                />
+              ),
+            }
+          : {
+              type: "error",
+              title: t("Upload failed", { note: "toast" }),
+              description: (
+                <ToastFile
+                  name={first.fileName}
+                  error={formatError(first.error)}
+                />
+              ),
+              actionProps: retryAction(first.id),
+            },
+      );
+      return;
+    }
+    toast.add(
+      failed.length === 0
+        ? {
+            type: "success",
+            title: t("{count} files uploaded", {
+              note: "toast",
+              variables: { count: formatNumber(fresh.length) },
+            }),
+            description: (
+              <ToastNumbers>
+                {formatFileSize(
+                  fresh.reduce((total, file) => total + file.fileSize, 0),
+                )}
+              </ToastNumbers>
+            ),
+          }
+        : {
+            type: "error",
+            title: t("Upload finished with errors", { note: "toast" }),
+            description: (
+              <span className="tabular-nums">
+                {t("{succeeded} succeeded, {failed} failed", {
+                  note: "toast",
+                  variables: {
+                    succeeded: formatNumber(fresh.length - failed.length),
+                    failed: formatNumber(failed.length),
+                  },
+                })}
+              </span>
+            ),
+            actionProps: retryAction(),
+          },
+    );
+  }, [
+    isPending,
+    paused,
+    files,
+    reported,
+    t,
+    formatError,
+    formatFileSize,
+    formatNumber,
+  ]);
+
+  useEffect(() => {
+    if (fileRejections === rejectionsRef.current) return;
+    rejectionsRef.current = fileRejections;
+    if (fileRejections.length === 0) return;
+
+    const reasons = new Set(
+      fileRejections.map(({ errors }) => formatError(errors[0])),
+    );
+    const [reason] = reasons;
+    const [first] = fileRejections;
+    toast.add(
+      fileRejections.length === 1
+        ? {
+            type: "error",
+            title: t("File not accepted", { note: "toast" }),
+            description: <ToastFile name={first.file.name} error={reason} />,
+          }
+        : {
+            type: "error",
+            title: t("{count} files were rejected", {
+              note: "toast",
+              variables: { count: formatNumber(fileRejections.length) },
+            }),
+            // One shared reason is worth showing; a mix of reasons is not.
+            description:
+              reasons.size === 1 ? <ToastText>{reason}</ToastText> : undefined,
+          },
+    );
+  }, [fileRejections, t, formatError, formatNumber]);
+
+  return null;
+}

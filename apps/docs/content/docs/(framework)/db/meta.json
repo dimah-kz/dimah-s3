@@ -1,7 +1,7 @@
 {
   "title": "Database",
-  "description": "Optional plugin for ownership, listings, and object lifecycle",
+  "description": "Optional plugin for ownership, folders, listings, and object lifecycle",
   "icon": "Database",
   "defaultOpen": false,
-  "pages": ["index", "setup", "lifecycle-hooks", "api", "purge"]
+  "pages": ["index", "setup", "lifecycle-hooks", "api", "purge", "upgrade"]
 }

@@ -1,0 +1,106 @@
+---
+title: Avatar Upload
+description: Image button that shows the current picture and uploads a new one, round or square.
+---
+
+import { AvatarUploadDemo } from "@/components/demos/avatar-upload-demo";
+import { AvatarUploadShapesDemo } from "@/components/demos/avatar-upload-shapes-demo";
+
+A profile picture or logo that the user can replace. `AvatarUpload` shows the
+stored image; a click or a drop uploads a new one, with a progress ring over
+the preview.
+
+<DemoPreview name="avatar-upload-demo.tsx">
+  <AvatarUploadDemo />
+</DemoPreview>
+
+## Installation
+
+<Tabs items={["npm", "shadcn"]}>
+
+<Tab value="npm">
+
+```tsx
+import { AvatarUpload } from "@dimah-s3/ui";
+```
+
+</Tab>
+
+<Tab value="shadcn">
+
+```npm
+npx shadcn@latest add @dimah-s3/avatar-upload
+```
+
+Adds `@/components/dimah-s3/upload/avatar-upload` and the files it uses.
+
+</Tab>
+
+</Tabs>
+
+<include>../../../_includes/ui/component-prereq.mdx</include>
+
+## Usage
+
+```tsx
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { AvatarUpload, UploadToasts } from "@dimah-s3/ui";
+
+export function ProfilePhoto({
+  avatarKey,
+  saveAvatar,
+}: {
+  avatarKey: string | null;
+  saveAvatar: (key: string) => void;
+}) {
+  const upload = useUpload({ route: "avatar", accept: ["image/*"] });
+
+  return (
+    <>
+      <AvatarUpload
+        upload={upload}
+        route="avatar"
+        objectKey={avatarKey}
+        label="Change profile photo"
+        onUploaded={(result) => saveAvatar(result.key)}
+      />
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+Save `result.key` in `onUploaded`, and pass it back as `objectKey`. `route`
+signs the image URL, so it needs `download` turned on.
+
+## Examples
+
+### Sizes and shapes
+
+`size` sets the width and height in pixels. `shape="square"` rounds the
+corners instead of the whole image, for logos and covers.
+
+<DemoPreview name="avatar-upload-shapes-demo.tsx">
+  <AvatarUploadShapesDemo />
+</DemoPreview>
+
+## Accessibility
+
+- `label` is required: it is the button's accessible name.
+- A polite live region announces the upload's progress and errors.
+
+## API Reference
+
+| Prop         | Type                             | Default    | Description                                                   |
+| ------------ | -------------------------------- | ---------- | ------------------------------------------------------------- |
+| `upload`     | `UseUploadReturn`                | required   | The `useUpload` return that uploads the picked image          |
+| `route`      | `string`                         | required   | Route that signs the image URL for `objectKey`                |
+| `label`      | `string`                         | required   | Accessible name of the button, such as "Change profile photo" |
+| `objectKey`  | `string \| null`                 | —          | Key of the current image. Without one, a placeholder shows    |
+| `onUploaded` | `(result: UploadResult) => void` | —          | Runs once for each image that uploads                         |
+| `size`       | `number`                         | `96`       | Width and height in pixels                                    |
+| `shape`      | `"circle" \| "square"`           | `"circle"` | Round image, or rounded corners for logos and covers          |
+| `api`        | `S3Api`                          | —          | Signs the image URL. Optional inside `S3Provider`             |
+| `className`  | `string`                         | —          | Classes for the button                                        |

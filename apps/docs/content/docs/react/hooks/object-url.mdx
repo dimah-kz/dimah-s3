@@ -1,0 +1,80 @@
+---
+title: useObjectUrl
+description: Sign a URL for a private object, cache it, and refresh it before it expires, for images, media, and links.
+---
+
+`useObjectUrl` signs a GET URL for one object so you can show it in an
+`<img>`, `<video>`, `<audio>`, `<iframe>`, or link. It asks for
+`disposition: "inline"` by default. To save a file instead, use
+[`useDownload`](/docs/react/hooks/download).
+
+```tsx title="components/avatar-image.tsx"
+"use client";
+
+import { useObjectUrl } from "@dimah-s3/react";
+
+export function AvatarImage({ objectKey }: { objectKey: string | null }) {
+  const { url, isLoading } = useObjectUrl({ route: "avatar", objectKey });
+
+  if (isLoading) {
+    return <div className="bg-muted size-16 animate-pulse rounded-full" />;
+  }
+  if (!url) return null;
+
+  return (
+    <img src={url} alt="Avatar" className="size-16 rounded-full object-cover" />
+  );
+}
+```
+
+For a ready-made image with loading and error states, use
+[`ObjectImage`](/docs/ui/components/object-image).
+
+## Keys
+
+- `url` is only ever the URL for the current `objectKey`. When the key changes, `url` is `null` and `isLoading` is `true` until the new URL is signed. A late response for the old key is ignored.
+- An `objectKey` of `null`, `undefined`, or `""` clears the URL, and needs no `S3Api`.
+
+## Cache and refresh
+
+Hooks that show the same object, with the same disposition and file name,
+share one cached URL and one request.
+
+- **Refresh** — the hook signs again `refreshBeforeMs` before `expiresAt` (default 60 seconds), or at half the URL's lifetime when it is shorter than twice that. The current URL stays until the new one arrives.
+- **Proxy URLs** — on a route with `download.mode: "proxy"`, the URL does not expire. `expiresAt` is `null`, and the URL stays until you call `refresh()`.
+- **`refresh()`** — drops the cached URL and signs again. A request already running for the same object is joined.
+
+## Errors
+
+| When                       | `url`                     | `error`    | Retried                                                                            |
+| -------------------------- | ------------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| The first request fails    | `null`                    | `APIError` | No                                                                                 |
+| A background refresh fails | Kept while it still works | `APIError` | On a network error, 408, 429, or 500 and above, with backoff until the URL expires |
+
+Once the URL expires, `url` is cleared. Show the error with
+[`useFormatError`](/docs/react/helpers#errors), and call `refresh()` to try
+again.
+
+## API Reference
+
+### Options
+
+| Prop              | Type                       | Default    | Description                                                                  |
+| ----------------- | -------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `route`           | `S3RouteName`              | required   | Named server route                                                           |
+| `objectKey`       | `string \| null`           | —          | Stored object key. `null`, `undefined`, or `""` clears the URL               |
+| `api`             | `S3Api`                    | —          | Replaces the `S3Provider` API. Required without a provider when a key is set |
+| `disposition`     | `"inline" \| "attachment"` | `"inline"` | `Content-Disposition` for the GET                                            |
+| `fileName`        | `string`                   | —          | File name for `Content-Disposition`                                          |
+| `refreshBeforeMs` | `number`                   | `60_000`   | How long before expiry to sign again                                         |
+
+### Return
+
+| Property    | Type               | Description                                                            |
+| ----------- | ------------------ | ---------------------------------------------------------------------- |
+| `url`       | `string \| null`   | Presigned or proxy URL for `objectKey`. `null` until it is signed      |
+| `objectKey` | `string \| null`   | The key this state belongs to, or `null` without a key                 |
+| `expiresAt` | `number \| null`   | When `url` stops working, in ms since the epoch. `null` for proxy URLs |
+| `isLoading` | `boolean`          | `true` while a request for `objectKey` is in flight                    |
+| `error`     | `APIError \| null` | The last error for `objectKey`                                         |
+| `refresh`   | `() => void`       | Drops the cached URL and signs again                                   |

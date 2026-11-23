@@ -1,0 +1,45 @@
+import { describe, expect, it, vi } from "vitest";
+
+// Any runtime import of a React package from the /engine graph fails the import.
+vi.mock("react", () => reactImported("react"));
+vi.mock("react/jsx-runtime", () => reactImported("react/jsx-runtime"));
+vi.mock("react-dom", () => reactImported("react-dom"));
+vi.mock("react-dropzone", () => reactImported("react-dropzone"));
+vi.mock("@fuma-translate/react", () => reactImported("@fuma-translate/react"));
+
+function reactImported(name: string): never {
+  throw new Error(`@dimah-s3/react/engine imports ${name}`);
+}
+
+describe("@dimah-s3/react/engine", () => {
+  // A cold import of the whole engine graph can pass 5s under a full turbo run.
+  it(
+    "loads without React and exports the plain functions",
+    { timeout: 30_000 },
+    async () => {
+      const engine = await import("./engine");
+      expect(Object.keys(engine).sort()).toEqual([
+        "DEFAULT_MULTIPART_THRESHOLD",
+        "createLocalStorageUploadStore",
+        "createMemoryUploadStore",
+        "defineApi",
+        "formatAcceptLabels",
+        "formatFileSize",
+        "getUploadAbortKind",
+        "loadRouteCatalog",
+        "memoryObjectSource",
+        "mergeRouteUploadPolicy",
+        "mergeUploadRequest",
+        "multipartResumeKey",
+        "objectKeyOf",
+        "objectListEntryKey",
+        "readObjectListLevel",
+        "resolveRouteUploadPolicy",
+        "toTimestamp",
+        "truncateFileName",
+        "uploadAbortReason",
+        "uploadFile",
+      ]);
+    },
+  );
+});

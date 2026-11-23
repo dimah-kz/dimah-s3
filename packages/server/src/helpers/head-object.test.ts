@@ -1,29 +1,29 @@
-import { describe, expect, it, vi } from "vitest";
-import { headObjectAfterMultipartComplete } from "./head-object";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import { describe, expect, it } from "vitest";
+import { memoryS3, TEST_BUCKET } from "@/test/harness";
+import { headObjectOrNotFound } from "./head-object";
 
-describe("headObjectAfterMultipartComplete", () => {
-  it("does not retry when ContentLength is 0", async () => {
-    const send = vi.fn(async () => ({ ContentLength: 0 }));
-    const client = { send } as never;
+describe("headObjectOrNotFound", () => {
+  it("returns the HeadObject output and forwards the abort signal", async () => {
+    const s3 = memoryS3();
+    s3.seed("uploads/a.png", "0123456789", { contentType: "image/png" });
+    const controller = new AbortController();
 
     await expect(
-      headObjectAfterMultipartComplete(client, "bucket", "key"),
-    ).resolves.toMatchObject({ ContentLength: 0 });
-    expect(send).toHaveBeenCalledOnce();
+      headObjectOrNotFound(s3.client, TEST_BUCKET, "uploads/a.png", {
+        abortSignal: controller.signal,
+      }),
+    ).resolves.toMatchObject({ ContentLength: 10, ContentType: "image/png" });
+    const [command, options] = s3.send.mock.calls[0];
+    expect(command).toBeInstanceOf(HeadObjectCommand);
+    expect(options).toEqual({ abortSignal: controller.signal });
   });
 
-  it("retries while ContentLength is missing", async () => {
-    vi.useFakeTimers();
-    const send = vi
-      .fn()
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ ContentLength: 12 });
-    const client = { send } as never;
+  it("maps a missing object to OBJECT_NOT_FOUND", async () => {
+    const s3 = memoryS3();
 
-    const pending = headObjectAfterMultipartComplete(client, "bucket", "key");
-    await vi.runAllTimersAsync();
-    await expect(pending).resolves.toMatchObject({ ContentLength: 12 });
-    expect(send).toHaveBeenCalledTimes(2);
-    vi.useRealTimers();
+    await expect(
+      headObjectOrNotFound(s3.client, TEST_BUCKET, "uploads/missing.png"),
+    ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND", statusCode: 404 });
   });
 });

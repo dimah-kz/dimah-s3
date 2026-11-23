@@ -1,24 +1,19 @@
+import type { MultipartPartResponse } from "@dimah-s3/core";
 import { sendXhrUpload } from "./xhr-upload";
 
+/** PUTs one multipart part to its presigned URL with exactly the signed headers. */
 export function uploadPart(
-  blob: Blob,
-  url: string,
-  partLoaded: { bytes: number },
-  reportProgress: () => void,
-  signal?: AbortSignal,
+  part: Blob,
+  signed: MultipartPartResponse,
+  options: { signal?: AbortSignal; onProgress?: (loaded: number) => void },
 ): Promise<void> {
+  const { signal, onProgress } = options;
   return sendXhrUpload({
     method: "PUT",
-    url,
-    body: blob,
+    url: signed.url,
+    body: part,
+    headers: signed.headers,
     signal,
-    errorLabel: "Part upload",
-    onProgress: (loaded) => {
-      partLoaded.bytes = loaded;
-      reportProgress();
-    },
-  }).then(() => {
-    partLoaded.bytes = blob.size;
-    reportProgress();
+    onProgress: (fraction) => onProgress?.(Math.round(fraction * part.size)),
   });
 }

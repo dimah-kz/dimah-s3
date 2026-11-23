@@ -60,7 +60,18 @@ describe("flattenSrcDirectory", () => {
       "utf8",
     );
 
+    await writeFile(
+      join(dir, "README.md"),
+      "Edit `src/lib/s3.ts` and `src/app/page.tsx`. Flatten `src/` with `--no-src`.\n",
+      "utf8",
+    );
+
     await flattenSrcDirectory(dir);
+
+    // Paths under src/ follow the move; the bare `src/` mention stays.
+    expect(await readFile(join(dir, "README.md"), "utf8")).toBe(
+      "Edit `lib/s3.ts` and `app/page.tsx`. Flatten `src/` with `--no-src`.\n",
+    );
 
     const entries = await readdir(dir);
     expect(entries).toContain("app");

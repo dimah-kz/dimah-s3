@@ -4,6 +4,7 @@ import { createElement, type ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { itemId, TWEET_LANDSCAPE_VIDEO, type BrandItem } from "@/catalog";
 import { AttachmentTweetStill } from "@/sections/attachment/stills/tweet";
+import { ReleaseV2BetaStill } from "@/sections/release/stills/v2-beta";
 
 const AttachmentTweetVideo = dynamic(
   () =>
@@ -26,6 +27,7 @@ const AttachmentTweetVideo = dynamic(
 const brandFrames = {
   "attachment/stills/tweet": AttachmentTweetStill,
   "attachment/videos/tweet": AttachmentTweetVideo,
+  "release/stills/v2-beta": ReleaseV2BetaStill,
 } as const satisfies Record<string, ComponentType>;
 
 export function BrandCanvas({

@@ -1,42 +1,34 @@
+/*
+ * `@dimah-s3/core/schema`: the Zod schemas of the protocol, for servers and
+ * plugins that validate requests. Browser code never needs them, so they
+ * live outside the root entry and keep Zod out of client bundles.
+ */
 export {
-  metadataSchema,
+  contentTypeSchema,
+  fileNameSchema,
+  clientMetadataSchema,
   objectKeySchema,
   optionalChecksumSchema,
+  optionalContentTypeSchema,
+  optionalFileNameSchema,
   optionalTrimmedString,
   partNumberSchema,
   routeNameSchema,
-  ROUTE_NAME_PATTERN,
   s3ObjectAclSchema,
-  S3_DEFAULT_EXPIRES_IN,
-  S3_MAX_EXPIRES_IN,
-  S3_MAX_METADATA_ENTRIES,
-  S3_MAX_PART_NUMBER,
-  S3_MAX_POST_OBJECT_BYTES,
   sha256ChecksumSchema,
   trimmedString,
+  uploadTicketSchema,
 } from "./shared";
-export { confirmBodySchema, uploadBodySchema } from "./upload";
-export { downloadQuerySchema } from "./download";
-export {
-  deleteBatchBodySchema,
-  deleteQuerySchema,
-  DELETE_BATCH_MAX_KEYS,
-} from "./delete";
-export { fileQuerySchema } from "./file";
+export { ticketBodySchema, uploadBodySchema } from "./upload";
+export { downloadQuerySchema, fileQuerySchema } from "./download";
+export { deleteManyBodySchema, deleteQuerySchema } from "./delete";
 export {
   downloadDispositionSchema,
   downloadModeSchema,
   routeCatalogEntrySchema,
   routeCatalogResponseSchema,
 } from "./catalog";
-export type { RouteCatalogEntry, RouteCatalogResponse } from "./catalog";
 export {
-  multipartAbortBodySchema,
-  multipartCompleteBodySchema,
-  multipartCompletedPartSchema,
   multipartInitBodySchema,
-  multipartListPartsQuerySchema,
   multipartSignPartBodySchema,
 } from "./multipart";
-export { s3ErrorParamsSchema, s3FetchErrorSchema } from "./error";
-export type { S3FetchError } from "./error";

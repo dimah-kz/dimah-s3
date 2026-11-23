@@ -17,6 +17,11 @@ import { findPost, getPosts } from "@/lib/blog";
 import { getBlogPageImage } from "@/lib/blog-content";
 import { blogAuthors, blogSource } from "@/lib/source";
 import { appName, docsPageKeywords } from "@/lib/shared";
+import {
+  languageAlternates,
+  languageAttributes,
+  ogLocale,
+} from "@/lib/page-language";
 
 export default async function Page(props: PageProps<"/blog/[slug]">) {
   const { slug } = await props.params;
@@ -29,7 +34,7 @@ export default async function Page(props: PageProps<"/blog/[slug]">) {
   const MDX = page.data.body;
 
   return (
-    <BlogPage toc={page.data.toc}>
+    <BlogPage toc={page.data.toc} {...languageAttributes(page.data.lang)}>
       <BlogHeader>
         <BlogBackLink href="/blog" />
         <BlogTitle>{post.title}</BlogTitle>
@@ -73,6 +78,11 @@ export async function generateMetadata(
   return {
     alternates: {
       canonical: page.url,
+      languages: languageAlternates(
+        page.url,
+        page.data.lang,
+        page.data.translations,
+      ),
       types: {
         "text/markdown": `${page.url}.md`,
       },
@@ -83,6 +93,7 @@ export async function generateMetadata(
       authors,
       description: page.data.description,
       images: image,
+      locale: ogLocale(page.data.lang),
       publishedTime:
         page.data.date instanceof Date
           ? page.data.date.toISOString()

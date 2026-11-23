@@ -1,6 +1,6 @@
 "use client";
 
-import { useUpload, type UploadPhase } from "@dimah-s3/react";
+import { useUpload, type UploadFileState } from "@dimah-s3/react";
 import { FileIcon, LoaderIcon } from "lucide-react";
 import {
   Attachment,
@@ -11,11 +11,18 @@ import {
 } from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
 
-function attachmentState(phase: UploadPhase) {
-  if (phase === "uploading") return "uploading" as const;
-  if (phase === "error") return "error" as const;
-  if (phase === "success") return "done" as const;
+function attachmentState(file: UploadFileState) {
+  if (file.phase === "uploading") return "uploading" as const;
+  if (file.phase === "error") return "error" as const;
+  if (file.phase === "success") return "done" as const;
   return "processing" as const;
+}
+
+function describe(file: UploadFileState) {
+  if (file.phase === "error") return file.error?.message ?? "Upload failed";
+  if (file.phase === "success") return "Uploaded";
+  if (file.phase === "uploading") return `${file.progress.percent}%`;
+  return "Preparing…";
 }
 
 /** Headless upload + stock shadcn Attachment from the docs app. */
@@ -23,10 +30,8 @@ export function CustomUploadDemo() {
   const upload = useUpload({
     route: "avatar",
     maxFileSize: 75 * 1024 * 1024,
-    noDrag: true,
-    noClick: true,
-    noKeyboard: true,
   });
+  const { file } = upload;
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-2">
@@ -35,8 +40,8 @@ export function CustomUploadDemo() {
         Choose file
       </Button>
 
-      {upload.phase !== "idle" ? (
-        <Attachment state={attachmentState(upload.phase)} size="sm">
+      {file ? (
+        <Attachment state={attachmentState(file)} size="sm">
           <AttachmentMedia>
             {upload.isPending ? (
               <LoaderIcon className="animate-spin" />
@@ -45,16 +50,8 @@ export function CustomUploadDemo() {
             )}
           </AttachmentMedia>
           <AttachmentContent>
-            <AttachmentTitle>
-              {upload.file?.name ?? "Uploading…"}
-            </AttachmentTitle>
-            <AttachmentDescription>
-              {upload.phase === "error"
-                ? (upload.error?.message ?? "Upload failed")
-                : upload.phase === "uploading"
-                  ? `${upload.progress.percent}%`
-                  : "Preparing…"}
-            </AttachmentDescription>
+            <AttachmentTitle>{file.fileName}</AttachmentTitle>
+            <AttachmentDescription>{describe(file)}</AttachmentDescription>
           </AttachmentContent>
         </Attachment>
       ) : null}

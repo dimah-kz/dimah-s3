@@ -1,46 +1,74 @@
 ---
 title: Database
-description: Optional plugin to track object ownership, lifecycle, and listings in your database.
+description: Optional db() plugin that keeps one database row per S3 object for ownership checks, folders, listings, quotas, and upload cleanup.
 ---
 
 [`@dimah-s3/db`](https://www.npmjs.com/package/@dimah-s3/db) is an optional
-plugin for [`dimahS3`](/docs/server/setup). It keeps object ownership, upload
-state, and deletion history aligned with S3 without custom SQL on every
-endpoint.
+plugin for [`dimahS3()`](/docs/server/setup). It keeps one database row per
+S3 object, so the server knows who owns each file, which folder holds it,
+and how much a user stores.
 
-dimah-s3 works without a database. Add this plugin when you need ownership
-checks, usage totals, file listings, or server-side multipart lifecycle
-tracking.
+```ts title="lib/s3.ts"
+import { db } from "@dimah-s3/db";
+import { dimahS3 } from "@dimah-s3/server";
 
-## What the plugin does
+export const s3 = dimahS3({
+  // client, bucket, routes…
+  plugins: [
+    db({
+      client: dimahS3Db, // DimahS3Db.client(adapter), see Setup
+      getSession,
+      resolveScope: ({ session }) =>
+        session ? `user:${session.userId}` : null,
+    }),
+  ],
+});
+```
 
-- **Tracks objects** — writes and updates a row on presign, confirm, and delete
-- **Enforces ownership** — each file belongs to a scope you define (for example
-  `user:123`); download requires a confirmed (`active`) object owned by
-  that scope; delete rejects access from another scope. This is per-caller
-  tenancy, not the route `keyPrefix` check — prefix isolation always runs in
-  [`@dimah-s3/server`](/docs/server/security#route-namespace-vs-ownership).
-- **Lists files** — query by scope on the server and in the browser
-- **Tracks multipart** — records in-progress uploads for ownership and stale
-  cleanup; pair it with a client `UploadStore` to resume after the same local
-  file is reselected
+## Do you need it?
 
-Authentication, quota values, and business rules stay application-owned. The
-plugin manages object metadata and scope isolation, and can compare usage with
-limits supplied by your application.
+dimah-s3 works without a database. Without `db()`, the server checks that a
+key sits in its route's namespace, and your own `download.guard` and
+`delete.guard` decide who may touch it. With `db()`, that check stays, and
+the plugin adds:
 
-## Lifecycle
+- **Ownership.** Each object belongs to a scope you define, such as
+  `user:123`. Upload tickets are bound to it, and download and delete reach
+  only the caller's own objects.
+- **Listings.** Pages of objects by folder, with search and sort, on the
+  server and in the browser ([`ObjectList`](/docs/ui/components/object-list)).
+- **Folders.** Logical folders you can rename and move. They never change
+  the S3 key.
+- **Quotas.** Caps on bytes, files, and folders per scope.
+- **Lifecycle.** A row from upload start to delete, and a
+  [purge job](/docs/db/purge) for uploads that never confirmed.
 
-Each object moves through three statuses:
+Authentication, quota values, and business rules stay in your app.
 
-| Status    | Meaning                                |
-| --------- | -------------------------------------- |
-| `pending` | Upload started, not confirmed          |
-| `active`  | Confirmed in S3 — verified size stored |
-| `deleted` | Removed from S3                        |
+## Object lifecycle
 
-Typical flow: pending → active → deleted. Aborted multipart uploads and
-[purge](/docs/db/purge) clean up rows that never reached `active`.
+Each row moves through these statuses:
+
+| Status    | Meaning                                               |
+| --------- | ----------------------------------------------------- |
+| `pending` | Upload started, not confirmed                         |
+| `active`  | Confirmed in S3, with the verified size stored        |
+| `deleted` | Removed from S3, row kept (soft delete)               |
+| `purging` | Expired before confirm, and being cleaned up by purge |
+
+The usual path is `pending` → `active` → `deleted`. A `pending` row expires
+with its upload ticket, and [purge](/docs/db/purge) removes it.
+
+## Supported databases
+
+The plugin runs on SQLite, PostgreSQL, and MySQL through one of three
+adapters:
+
+| Adapter | Peer dependency                        | Tables come from                                |
+| ------- | -------------------------------------- | ----------------------------------------------- |
+| Drizzle | `drizzle-orm` 1.x (`1.0.0-rc.5` or up) | `runCli` → `generate`, then `drizzle-kit`       |
+| Prisma  | `@prisma/client` 6 or 7                | `runCli` → `generate`, then Prisma Migrate      |
+| Kysely  | `kysely` 0.29 (`0.29.8` or up)         | `migrate(client)`, or the SQL `generate` writes |
 
 ## Next steps
 
@@ -48,26 +76,31 @@ Typical flow: pending → active → deleted. Aborted multipart uploads and
   <Card
     title="Database Setup"
     href="/docs/db/setup"
-    description="Install, add the schema, and register the plugin."
+    description="Install, create the tables, register the plugin, and set scopes."
   />
   <Card
     title="Database Lifecycle Hooks"
     href="/docs/db/lifecycle-hooks"
-    description="Lifecycle hooks the plugin attaches automatically."
+    description="What the plugin checks and writes on each upload, download, and delete."
   />
   <Card
-    title="API"
+    title="Database API"
     href="/docs/db/api"
-    description="List and query objects from server or browser."
+    description="List, move, and annotate objects, manage folders, and set quotas."
   />
   <Card
     title="Purge Stale Uploads"
     href="/docs/db/purge"
-    description="Remove stale pending uploads."
+    description="Clean up uploads that never confirmed, and old deleted rows."
+  />
+  <Card
+    title="Upgrade the Schema"
+    href="/docs/db/upgrade"
+    description="Move a 1.x or earlier 2.x database to schema 2.3.0."
   />
   <Card
     title="Full example"
     href="https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db"
-    description="Minimal Next.js + Drizzle setup with upload and listing."
+    description="Next.js and Drizzle file manager with folders and a quota."
   />
 </Cards>

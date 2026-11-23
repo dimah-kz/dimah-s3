@@ -1,19 +1,21 @@
 {
   "title": "React",
-  "description": "Headless React client for S3 upload, download, and delete flows.",
+  "description": "Headless hooks for upload, download, delete, and file lists",
   "icon": "Atom",
   "root": true,
   "pages": [
     "index",
     "setup",
-    "ui",
     "---Hooks---",
     "...hooks",
-    "---Extra---",
-    "helpers",
+    "---Guides---",
+    "guides/outcomes",
     "upload-store",
     "forms",
     "tanstack-query",
+    "---Reference---",
+    "guides/engine",
+    "helpers",
     "custom-backend"
   ]
 }

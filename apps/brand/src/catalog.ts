@@ -20,6 +20,7 @@ export const brandSectionIds = [
   "upload",
   "download",
   "delete",
+  "release",
 ] as const;
 
 export type BrandSectionId = (typeof brandSectionIds)[number];
@@ -32,6 +33,7 @@ export const brandSections: readonly {
   { id: "upload", title: "Upload" },
   { id: "download", title: "Download" },
   { id: "delete", title: "Delete" },
+  { id: "release", title: "Release" },
 ];
 
 export const brandKinds = ["stills", "videos"] as const;
@@ -67,6 +69,15 @@ export const brandItems = [
     size: TWEET_LANDSCAPE_VIDEO,
     ext: "mp4",
     fps: 30,
+  },
+  {
+    section: "release",
+    kind: "stills",
+    slug: "v2-beta",
+    title: "Tweet — v2 beta",
+    caption: "dimah-s3 v2 beta mark over an ObjectList, 16:9.",
+    size: TWEET_LANDSCAPE,
+    ext: "png",
   },
 ] as const satisfies readonly BrandItem[];
 

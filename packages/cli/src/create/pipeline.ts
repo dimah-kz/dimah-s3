@@ -2,9 +2,10 @@ import { relative } from "pathe";
 import pc from "picocolors";
 
 import type { CreateContext } from "@/types";
+import { isCancelledError, listenForCancel } from "@/utils/cancel";
 import { removeDir } from "@/utils/fs";
 import { installCommand, runDevCommand } from "@/utils/package-manager";
-import { logWarn, note, outro } from "@/utils/ui";
+import { cancel, logWarn, note, outro } from "@/utils/ui";
 import type { ResolvedCreate } from "./config.js";
 import type { CreateStep } from "./step.js";
 import { runSteps } from "./step.js";
@@ -12,7 +13,7 @@ import { installStep } from "./steps/install-deps.js";
 import { initGitStep } from "./steps/init-git.js";
 import { scaffoldStep } from "./steps/scaffold.js";
 
-const DOCS_URL = "https://v1.s3.dimah.dev";
+const DOCS_URL = "https://s3.dimah.dev";
 
 /**
  * Ordered create steps. New options (extra plugins, opt-in features) are added
@@ -40,53 +41,89 @@ export async function runCreatePipeline({
     cwd: process.cwd(),
     createdTargetDir: false,
     installed: false,
+    generatedEnv: [],
   };
 
+  // Ctrl+C from here on stops the running step, then rolls back.
+  const cancellation = listenForCancel();
   let failedSteps: string[];
   try {
-    ({ failedSteps } = await runSteps(createSteps, ctx));
+    ({ failedSteps } = await runSteps(createSteps, ctx, cancellation.signal));
   } catch (error) {
-    await rollback(ctx);
+    const removed = await rollback(ctx);
+    if (isCancelledError(error)) {
+      cancel(
+        removed
+          ? `Cancelled. Removed ${ctx.config.targetDir}.`
+          : `Cancelled. Files already written to ${ctx.config.targetDir} were left in place.`,
+      );
+    }
     throw error;
+  } finally {
+    cancellation.dispose();
   }
 
   printNextSteps(ctx);
   return { failedSteps };
 }
 
-/** Only removes a directory this run created, never pre-existing content. */
-async function rollback(ctx: CreateContext): Promise<void> {
-  if (!ctx.createdTargetDir) return;
+/**
+ * Only removes a directory this run created, never pre-existing content.
+ * Resolves to whether the directory is gone.
+ */
+async function rollback(ctx: CreateContext): Promise<boolean> {
+  if (!ctx.createdTargetDir) return false;
   try {
     await removeDir(ctx.config.targetDir);
+    return true;
   } catch {
     logWarn(`Could not clean up ${ctx.config.targetDir}. Remove it manually.`);
+    return false;
   }
 }
 
-function printNextSteps(ctx: CreateContext): void {
+export type NextSteps = {
+  /** Shell commands to run, in order. */
+  commands: string[];
+  /** Setup reminders shown under the commands. */
+  hints: string[];
+};
+
+export function nextSteps(ctx: CreateContext): NextSteps {
   const { config } = ctx;
-  const lines: string[] = [];
+  const commands: string[] = [];
 
   if (!config.inPlace) {
     const rel = relative(ctx.cwd, config.targetDir) || config.projectName;
-    lines.push(`cd ${rel}`);
+    commands.push(`cd ${rel}`);
   }
   if (!ctx.installed) {
-    lines.push(installCommand(config.packageManager));
+    commands.push(installCommand(config.packageManager));
   }
-  lines.push(runDevCommand(config.packageManager));
+  commands.push(runDevCommand(config.packageManager));
 
+  return {
+    commands,
+    hints: [
+      ...ctx.generatedEnv.map(
+        (key) => `${key} was generated in .env — keep it private`,
+      ),
+      "then fill the S3_* values in .env",
+      'allow browser PUT in bucket CORS (POST only if you set upload.method: "POST")',
+    ],
+  };
+}
+
+function printNextSteps(ctx: CreateContext): void {
+  const { commands, hints } = nextSteps(ctx);
   note(
     [
-      ...lines.map((line) => pc.cyan(line)),
-      pc.dim("then fill the S3_* values in .env"),
-      pc.dim("allow browser POST/PUT in bucket CORS"),
-      pc.dim('Cloudflare R2: upload: { method: "PUT" }'),
+      ...commands.map((line) => pc.cyan(line)),
+      ...hints.map((line) => pc.dim(line)),
     ].join("\n"),
     "Next steps",
   );
   outro(
-    `${pc.bold(config.projectName || "Your app")} is ready — docs: ${DOCS_URL}`,
+    `${pc.bold(ctx.config.projectName || "Your app")} is ready — docs: ${DOCS_URL}`,
   );
 }

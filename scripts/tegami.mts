@@ -1,13 +1,20 @@
-import { execFileSync } from "node:child_process";
-import { tegami, type TegamiPlugin } from "tegami";
+import { execFileSync, execSync } from "node:child_process";
+import { relative } from "node:path";
+import {
+  tegami,
+  type ChangelogEntry,
+  type TegamiPlugin,
+  type WorkspacePackage,
+} from "tegami";
 import { runCli } from "tegami/cli";
 import { github } from "tegami/plugins/github";
 
 /**
- * One file on every release branch. `main` is stable 1.x (`latest`).
- * `v2` is the 2.0 beta (`2.0.0-beta.N` on the `beta` dist-tag).
- * When 2.0.0 ships, drop `v2` after merging it into `main`, and add a
- * `v1` maintenance line with `distTag: "v1"` cut from the last 1.x commit.
+ * Release lines by branch. `main` is the only one: it publishes every
+ * `@dimah-s3/*` package on the `latest` dist-tag. A prerelease line for a
+ * future major would add its branch here with a `prerelease` identifier and a
+ * dist-tag other than `latest`, and the same branch to `ci.yml`,
+ * `publish.yml`, and `tegami-pr.yml`. Steps: docs/agents/release.md.
  */
 interface ReleaseLine {
   /** npm dist-tag. Only `main` may claim `latest`. */
@@ -18,8 +25,18 @@ interface ReleaseLine {
 
 const lines: Record<string, ReleaseLine> = {
   main: { distTag: "latest" },
-  v2: { distTag: "beta", prerelease: "beta" },
 };
+
+const repo = "dimah-kz/dimah-s3";
+
+/**
+ * GitHub refuses a pull request body over 65,536 characters and a release
+ * body over 125,000. Above these estimates the version pull request and the
+ * GitHub release list each changelog by title and link the package
+ * `CHANGELOG.md` files, which keep every note.
+ */
+const VERSION_PR_BUDGET = 60_000;
+const RELEASE_BUDGET = 120_000;
 
 function releaseBranch(): string {
   // Publish runs via workflow_run, whose GITHUB_REF stays on the default
@@ -57,17 +74,57 @@ function buildOnPublish(): TegamiPlugin {
   return {
     name: "build-on-publish",
     async willPublish({ pkg }) {
-      execFileSync(
-        "pnpm",
-        ["exec", "turbo", "run", "build", "--filter", pkg.name],
-        {
-          cwd: this.cwd,
-          stdio: "inherit",
-          shell: true,
-        },
-      );
+      // One command string: `pnpm` is a `.cmd` shim on Windows and needs
+      // the shell, and an argument array with a shell is deprecated in Node.
+      // `pkg.name` is a workspace package name.
+      execSync(`pnpm exec turbo run build --filter ${pkg.name}`, {
+        cwd: this.cwd,
+        stdio: "inherit",
+      });
     },
   };
+}
+
+/** Each changelog once, in the order the packages list them. */
+function uniqueEntries(
+  lists: Iterable<readonly ChangelogEntry[] | undefined>,
+): ChangelogEntry[] {
+  const entries = new Map<string, ChangelogEntry>();
+  for (const list of lists) {
+    for (const entry of list ?? []) entries.set(entry.id, entry);
+  }
+  return [...entries.values()];
+}
+
+/** Rough size of the notes Tegami renders, with room for its tables. */
+function estimateNotes(entries: readonly ChangelogEntry[]): number {
+  let size = 0;
+  for (const entry of entries) {
+    size += 500;
+    for (const section of entry.sections) {
+      size += section.title.length + section.content.length + 8;
+    }
+  }
+  return size;
+}
+
+/** `- Title` for each changelog, without its body. */
+function listTitles(entries: readonly ChangelogEntry[]): string {
+  return entries
+    .map((entry) => {
+      const title =
+        entry.sections.find((section) => section.depth <= 3)?.title ??
+        entry.subject ??
+        entry.filename;
+      return `- ${title}`;
+    })
+    .join("\n");
+}
+
+/** Link to a package's `CHANGELOG.md` at `ref`. */
+function changelogLink(cwd: string, pkg: WorkspacePackage, ref: string) {
+  const dir = relative(cwd, pkg.path).replaceAll("\\", "/");
+  return `[\`${pkg.name}\`](https://github.com/${repo}/blob/${ref}/${dir}/CHANGELOG.md)`;
 }
 
 const paper = tegami({
@@ -104,17 +161,73 @@ const paper = tegami({
   plugins: [
     buildOnPublish(),
     github({
-      repo: "dimah-kz/dimah-s3",
+      repo,
+      release: {
+        createGrouped({ tag, packages, plan }) {
+          const entries = uniqueEntries(
+            packages.map((pkg) => plan.packages.get(pkg.id)?.changelogs),
+          );
+          if (estimateNotes(entries) <= RELEASE_BUDGET) return {};
+
+          return {
+            notes: [
+              packages.map((pkg) => `- ${pkg.name}@${pkg.version}`).join("\n"),
+              "",
+              "## Changes",
+              "",
+              listTitles(entries),
+              "",
+              "## Changelogs",
+              "",
+              "Every change, with its breaking changes and upgrade steps:",
+              "",
+              packages
+                .map((pkg) => `- ${changelogLink(this.cwd, pkg, tag)}`)
+                .join("\n"),
+            ].join("\n"),
+          };
+        },
+      },
       versionPr: {
         base: branch,
         // A slash would collide with publish-group refs (`tegami/version-packages`).
         branch: `tegami-version-packages-${branch}`,
-        create() {
+        create({ draft, getPreviousVersion }) {
           const version = this.graph.get("npm:@dimah-s3/core")?.version;
+          const title = version
+            ? `chore: version packages (${version})`
+            : "chore: version packages";
+
+          const drafts = draft.getPackageDrafts();
+          const entries = uniqueEntries(
+            [...drafts.values()].map((pkg) => pkg.changelogs),
+          );
+          if (estimateNotes(entries) <= VERSION_PR_BUDGET) return { title };
+
+          const rows: string[] = [];
+          for (const id of drafts.keys()) {
+            const pkg = this.graph.get(id);
+            const from = getPreviousVersion(id);
+            if (!pkg?.version || !from || from === pkg.version) continue;
+            rows.push(`| \`${pkg.name}\` | \`${from}\` | \`${pkg.version}\` |`);
+          }
+
           return {
-            title: version
-              ? `chore: version packages (${version})`
-              : "chore: version packages",
+            title,
+            body: [
+              "## Summary",
+              "",
+              "| Package | From | To |",
+              "| --- | --- | --- |",
+              ...rows.sort(),
+              "",
+              "## Changelogs",
+              "",
+              "The notes are too long for a pull request body. Each package's `CHANGELOG.md` in this pull request has all of them.",
+              "",
+              listTitles(entries),
+              "",
+            ].join("\n"),
           };
         },
       },

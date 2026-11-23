@@ -1,9 +1,9 @@
 import "./global.css";
 import { Body } from "@/app/layout.client";
-import { Banner } from "fumadocs-ui/components/banner";
 import { RootProvider } from "fumadocs-ui/provider/next";
-import { Geist } from "next/font/google";
+import { Geist, Vazirmatn } from "next/font/google";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cn } from "cn";
 import {
   appName,
@@ -13,7 +13,8 @@ import {
   siteKeywords,
   siteTitle,
 } from "@/lib/shared";
-import { getSiteUrl, isProductionDeploy } from "@/lib/site-url";
+import { Banner } from "fumadocs-ui/components/banner";
+import { getSiteUrl, isPublicDocsDeploy } from "@/lib/site-url";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -22,8 +23,15 @@ const fontSans = Geist({
   variable: "--font-sans",
 });
 
+/** Persian pages (`lang="fa"`). Not preloaded: only those pages download it. */
+const fontPersian = Vazirmatn({
+  subsets: ["arabic"],
+  variable: "--font-persian",
+  preload: false,
+});
+
 const siteUrl = getSiteUrl();
-const isProduction = isProductionDeploy();
+const indexable = isPublicDocsDeploy();
 
 /** Home and docs are prerendered. Request-time rendering fails the build. */
 export const ensureStatic = "navigation";
@@ -58,7 +66,7 @@ export const metadata: Metadata = {
     description: siteDescription,
     images: "/og/docs/image.png",
   },
-  robots: isProduction
+  robots: indexable
     ? { index: true, follow: true }
     : { index: false, follow: false },
 };
@@ -69,7 +77,12 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn(fontSans.className, "font-sans", fontSans.variable)}
+      className={cn(
+        fontSans.className,
+        "font-sans",
+        fontSans.variable,
+        fontPersian.variable,
+      )}
       suppressHydrationWarning
     >
       <head>
@@ -81,12 +94,12 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
-        <Banner id="dimah-s3-beta" variant="rainbow">
+        <Banner id="dimah-s3-2-0" variant="rainbow">
           <span>
-            <a href="https://s3.dimah.dev/docs" className="underline">
-              2.0 beta
-            </a>
-            {" is ready. Install with @beta."}
+            dimah-s3 2.0 is out.{" "}
+            <Link href="/docs/migration-2-0" className="underline">
+              Upgrade from 1.x
+            </Link>
           </span>
         </Banner>
         <RootProvider

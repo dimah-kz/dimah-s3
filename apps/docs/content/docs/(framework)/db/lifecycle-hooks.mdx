@@ -1,50 +1,128 @@
 ---
 title: Database Lifecycle Hooks
-description: Automatic lifecycle synchronization and ownership checks from @dimah-s3/db.
+description: The guards and lifecycle hooks db() adds to every tracked route, what each one checks or writes, and the errors they return.
 ---
 
-The [`db()`](/docs/db/setup) plugin automatically attaches guards and
-synchronization actions across upload, download, and delete flows.
+[`db()`](/docs/db/setup) adds guards and lifecycle hooks to every route that
+does not set `plugins: { db: false }`. They keep `storage_object` in step
+with S3, and check that each call acts only on rows of its own scope. You do
+not call them, but your own hooks run after them:
 
-## Access and scope validation
+```ts title="lib/s3.ts"
+files: route({
+  upload: {
+    // db() ran first: the row is already active, with the verified size.
+    // Confirm can run more than once, so dedupe on uploadToken.
+    onConfirmed: async ({ key, uploadToken, object }) => {
+      await notifyUploaded({ key, uploadToken, size: object.size }); // your code
+    },
+  },
+  download: true,
+  delete: true,
+}),
+```
 
-Route membership is still the server `keyPrefix` check (`INVALID_KEY`). These
-plugin guards do not compare the stored `route` column to the request route.
-They look up the row by `(bucket, key)` and compare **scope**.
+## Hook order
 
-Before an operation runs, `@dimah-s3/db` resolves the active session scope
-through `resolveScope(request, context)`. `context` carries the `operation`,
-the `route`, and the object `key` the endpoint already validated (see
-[scope context](/docs/db/setup#scope-context)):
+Guards run instance, then route, then feature. Within each hook, the plugin
+runs first and your hook runs last. Lifecycle `on*` hooks follow the same
+order, so your `upload.onStart` sees the pending row, and your
+`upload.onConfirmed` sees the row already `active`. See the
+[plugin hook order](/docs/server/plugins#hook-execution-order).
 
-| Situation                                   | Response Status      | Error Code         |
-| ------------------------------------------- | -------------------- | ------------------ |
-| `resolveScope` returns `null`               | **401 Unauthorized** | `UNAUTHORIZED`     |
-| Target key belongs to another scope         | **403 Forbidden**    | `FORBIDDEN`        |
-| Target object row not found or soft-deleted | **404 Not Found**    | `OBJECT_NOT_FOUND` |
+## What each hook does
 
----
+| Hook                       | What the plugin does                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upload ticket              | Binds the ticket to the caller's scope. A ticket from another scope is `UPLOAD_TICKET_INVALID`.                                                      |
+| `upload.guard`             | Checks `clientMetadata.folderId`, runs `authorize` with that folder, checks who owns the key, then checks the [quota](/docs/db/api#quota).           |
+| `upload.onStart`           | Writes the `pending` row with the upload's token, its [deadline](/docs/db/purge#deadlines), and its folder. The folder must already exist.           |
+| `upload.confirmGuard`      | Accepts only the row of this ticket's upload, owned by the caller, or a confirm it already finished (a retry).                                       |
+| `upload.onConfirmed`       | Checks the quota against the verified size, marks the row `active` with the size, type, and ETag from HeadObject, and retires the `previousKey` row. |
+| `upload.onRejected`        | Removes the row of an upload the server refused and deleted, including an active row that upload was overwriting.                                    |
+| `upload.multipart.guard`   | Part, list, and complete accept only the row of this ticket's upload. Abort checks the row only while it is still this upload's.                     |
+| `upload.multipart.onAbort` | Removes the pending row, or ends the overwrite and keeps the previous object.                                                                        |
+| `download.guard`           | Requires an `active` row owned by the caller, then runs `authorize` with it and the folder it is in.                                                 |
+| `delete.guard`             | Requires a row owned by the caller (a soft-deleted one deletes again), then runs `authorize` with it and the folder it is in.                        |
+| `delete.onDeleted`         | Aborts a multipart upload in flight, then soft- or hard-deletes the row ([Deletes](#deletes)).                                                       |
 
-## Lifecycle behavior by operation
+The plugin looks rows up by `(bucket, key)` and compares the **scope**, not
+the stored `route`. Route membership stays the server's `keyPrefix` check
+(`KEY_INVALID`): see
+[route namespace vs ownership](/docs/server/security#route-namespace-vs-ownership).
 
-- **Upload** — Upserts a `pending` row on presign / multipart init.
-- **Upload confirmation** — Verifies `pending` state (or refreshes an
-  already-active overwrite), records verified `contentLength` from
-  `HeadObject`, and returns the `active` row.
-- **Download** — Enforces that the object has `status: "active"` and matches the caller's scope.
-- **Delete** — Runs S3 `DeleteObjectCommand`, then updates row status to `"deleted"` (soft delete) or removes it (hard delete). A `pending` row whose object never landed is cleaned up too, so it stops counting toward quota. A pending multipart upload is aborted by its `uploadId` first.
+## Confirm and refused uploads
 
-## Frequently asked questions
+`onConfirmed` runs at least once. A retried confirm or complete for an
+upload already confirmed returns the stored row, and the quota is not
+checked again. Dedupe your own `onConfirmed` on `uploadToken`.
 
-<Accordions>
+When the server refuses an upload at confirm, multipart complete, or
+`s3.put`, it deletes the object and runs `upload.onRejected`, and the plugin
+removes that upload's row. This covers a size, type, or content mismatch, a
+`confirmGuard` that says no, and a quota check that fails at confirm
+(`QUOTA_EXCEEDED`). No row lists an object that is gone.
 
-<Accordion title="How do my route guards interact with the database plugin?">
+A failure that keeps the object, such as your own `onConfirmed` throwing,
+keeps the row too, and the confirm can be retried.
 
-Your route-level `guard` runs first during route resolution. After that, the
-database plugin's operation guard verifies scope and ownership before your
-operation-specific `upload.guard`, `download.guard`, or `delete.guard`. See the
-standard [plugin hook order](/docs/server/plugins#hook-execution-order).
+## Overwrites
 
-</Accordion>
+An upload to a key that already has an active object fails with
+`OBJECT_EXISTS` (`409`), unless the route sets
+`plugins: { db: { replace: "overwrite" } }`. With it:
 
-</Accordions>
+- The row stays `active`, with the previous object's metadata, until the
+  new upload is confirmed. S3 replaces the bytes as soon as the new PUT
+  lands, so a rejected confirm deletes the key and its row: the previous
+  bytes are already gone.
+- The row keeps its folder, attributes, and `createdAt`. The overwrite's
+  `clientMetadata.folderId` is ignored.
+- Until the confirm, the quota counts the larger of the two sizes.
+- A retried confirm of the previous upload still succeeds after the
+  overwrite starts.
+- An abort keeps the previous object. An expired overwrite is cleaned up by
+  [purge](/docs/db/purge).
+
+## Deletes
+
+Deletes go through the server's delete path: `delete` on `s3.api` or the
+browser client, [`useDelete`](/docs/react/hooks/delete), or the
+[`Delete`](/docs/ui/components/delete) component. `s3.db.objects` has no
+delete: it never touches S3.
+
+After `DeleteObject`, the plugin aborts a multipart upload in flight on the
+key, then updates the row by the `deleteMode` option of `db()`:
+
+| `deleteMode`       | S3 object           | Database row                                     |
+| ------------------ | ------------------- | ------------------------------------------------ |
+| `"soft"` (default) | permanently deleted | kept as `status: "deleted"` with `deletedAt` set |
+| `"hard"`           | permanently deleted | removed                                          |
+
+```ts
+db({ client: dimahS3Db, resolveScope, deleteMode: "hard" });
+```
+
+- Soft delete is a history record, not a recycle bin. Listings hide
+  deleted rows by default.
+- Use `"hard"` when a delete must also erase the row, as for GDPR-style
+  erasure. To keep deleted rows for a while, run
+  [`pruneDeleted`](/docs/db/purge#prune-deleted-rows) from a job.
+- A `pending` row whose upload never landed deletes the same way, so it
+  stops counting toward the quota before purge runs.
+- Deleting a soft-deleted object again succeeds, like a plain S3 delete. A
+  key with no row is `OBJECT_NOT_FOUND`: its owner cannot be checked.
+
+## Errors
+
+| Situation                                                                 | Status | Code                    |
+| ------------------------------------------------------------------------- | ------ | ----------------------- |
+| `resolveScope` returns `null`                                             | `401`  | `UNAUTHORIZED`          |
+| An upload key belongs to another scope, or `authorize` says no            | `403`  | `FORBIDDEN`             |
+| The upload ticket was issued to another scope                             | `403`  | `UPLOAD_TICKET_INVALID` |
+| The upload would exceed the quota                                         | `403`  | `QUOTA_EXCEEDED`        |
+| The row is missing, another scope's, or not this upload's                 | `404`  | `OBJECT_NOT_FOUND`      |
+| `clientMetadata.folderId` names a folder the scope does not have          | `404`  | `FOLDER_NOT_FOUND`      |
+| An active object is at the key                                            | `409`  | `OBJECT_EXISTS`         |
+| Purge is cleaning the key (retry once it ends), or a concurrent write won | `409`  | `CONFLICT`              |
+| `resolveScope` returns an empty, padded, or too long scope                | `500`  | `INTERNAL_ERROR`        |
