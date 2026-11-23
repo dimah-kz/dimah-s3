@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     siteName: appName,
     title: siteTitle,
     description: siteDescription,
-    images: "/og/docs/image.png",
+    // `app/opengraph-image.tsx` adds the image; pages with their own set it.
   },
   twitter: {
     card: "summary_large_image",
@@ -62,7 +62,6 @@ export const metadata: Metadata = {
     creator: "@dimahkzx",
     title: siteTitle,
     description: siteDescription,
-    images: "/og/docs/image.png",
   },
   robots: indexable
     ? { index: true, follow: true }

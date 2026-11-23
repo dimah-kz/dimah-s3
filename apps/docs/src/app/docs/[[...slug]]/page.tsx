@@ -17,6 +17,7 @@ import {
   docsPageKeywords,
   gitConfig,
   serializeJsonLd,
+  shareImage,
 } from "@/lib/shared";
 import { getSiteUrl } from "@/lib/site-url";
 import {
@@ -98,8 +99,8 @@ export async function generateMetadata(
   if (!page) notFound();
 
   const markdownUrl = getPageMarkdownUrl(page).url;
-  const image = getPageImage(page).url;
   const title = documentTitle(page.data.title, page.path);
+  const image = shareImage(getPageImage(page).url, title);
 
   return {
     title,

@@ -59,9 +59,23 @@ export async function getBlogLLMText(page: BlogPage) {
 ${absolute}`;
 }
 
-export function getBlogPageImage(page: { slugs: string[] }) {
-  const segments = [...page.slugs, "image.png"];
+export const blogTagsDescription = "Notes on direct uploads, by topic.";
 
+/** Description of a tag page, like "2 posts tagged Guide." */
+export function tagDescription(name: string, count: number) {
+  return `${count} ${count === 1 ? "post" : "posts"} tagged ${name}.`;
+}
+
+export function getBlogPageImage(page: { slugs: string[] }) {
+  return blogImage([...page.slugs, "image.png"]);
+}
+
+/** Card of `/blog/tags`, or of one tag's page when given its slug. */
+export function getBlogTagImage(slug?: string) {
+  return blogImage(slug ? ["tags", slug, "image.png"] : ["tags", "image.png"]);
+}
+
+function blogImage(segments: string[]) {
   return {
     segments,
     url: `${blogImageRoute}/${segments.join("/")}`,

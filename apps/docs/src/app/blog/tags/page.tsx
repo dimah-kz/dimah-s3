@@ -7,11 +7,13 @@ import {
   BlogTitle,
 } from "@/components/blog";
 import { getPosts, getTags } from "@/lib/blog";
+import { blogTagsDescription, getBlogTagImage } from "@/lib/blog-content";
 import { blogSource } from "@/lib/source";
-import { appName } from "@/lib/shared";
+import { appName, shareImage } from "@/lib/shared";
 
 const title = "Blog Tags";
-const description = "All tags.";
+const description = blogTagsDescription;
+const image = shareImage(getBlogTagImage().url, title);
 
 export const metadata: Metadata = {
   alternates: {
@@ -20,15 +22,17 @@ export const metadata: Metadata = {
   description,
   openGraph: {
     description,
+    images: image,
     siteName: appName,
     title,
     url: "/blog/tags",
   },
   title,
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     creator: "@dimahkzx",
     description,
+    images: image,
     site: "@dimahkzx",
     title,
   },

@@ -1,0 +1,262 @@
+---
+title: "dimah-s3 2.0"
+description: Signed upload tickets, one error catalog, React hooks that keep state per file, a file browser you compose, folders in db(), and a plugin SDK. 2.0 is stable on npm.
+date: 2026-11-23
+tags: [Announcement, Release]
+authors: [dimah]
+---
+
+import { ObjectListDemo } from "@/components/demos/object-list-demo";
+
+dimah-s3 2.0 is out. Every `@dimah-s3/*` package is `2.0.0` on the npm
+`latest` tag.
+
+The idea is the same as in 1.x. The server signs a short-lived URL, the
+browser talks to your bucket, and credentials never leave the backend. Almost
+everything around that idea was rebuilt: the protocol, the React hooks, the
+components, and the database plugin. It took 15 betas over three weeks, and
+the apps that ran them shaped most of what follows.
+
+```npm
+npx @dimah-s3/cli create my-app
+```
+
+2.0 needs Node.js 22 and React 19.2 or newer. It works with Amazon S3,
+Cloudflare R2, MinIO, ArvanCloud, and other S3-compatible stores.
+
+## A server you can trust with the details
+
+Presign returns a **signed upload ticket**. Confirm and every later multipart
+call send only that ticket, so the browser cannot swap the key, the route, or
+the size halfway through. `onConfirmed` reads the size and type from
+HeadObject, not from what the browser claimed.
+
+Every failure is an `APIError` from **one catalog**, with a stable `code`, an
+HTTP status, and typed `params`. Guards throw `s3Error()` and return nothing,
+or `{ locals }` for the hooks that follow.
+
+```ts title="lib/s3.ts"
+import { dimahS3, route, s3Error } from "@dimah-s3/server";
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  guard: async ({ request }) => {
+    const session = await getSession(request);
+    if (!session) throw s3Error("UNAUTHORIZED");
+    return { locals: { userId: session.userId } };
+  },
+  routes: {
+    avatar: route({
+      upload: {
+        fileTypes: ["image/*"],
+        maxFileSize: 2 * 1024 * 1024,
+        onConfirmed: async ({ key, object, locals }) => {
+          // object.size comes from HeadObject, not from the browser.
+          await saveAvatar(locals.userId, key, object.size);
+        },
+      },
+    }),
+  },
+});
+```
+
+The client narrows the same codes, with their params typed:
+
+```ts
+if (isS3ErrorCode(error, "OBJECT_NOT_FOUND")) {
+  // The object is gone
+}
+```
+
+## React hooks that keep state per file
+
+`useUpload`, `useDownload`, and `useDelete` keep their state per object key.
+A repeated key joins the call already running, and every action returns an
+outcome you can check. The objects the hooks return keep their
+identity until something in them changes, so they are safe in effect
+dependencies and context values.
+
+Uploads can now **pause and resume**. A multipart upload continues from the
+parts S3 already has. With an [`uploadStore`](/docs/react/upload-store), it
+also resumes after a reload once the user picks the same file again.
+
+```tsx
+const upload = useUpload({ route: "videos" });
+
+upload.pause(); // every file, or pass the ids of a few
+upload.resume(); // multipart uploads continue where they stopped
+```
+
+## A UI you compose
+
+The preset buttons are gone. `Upload`, `Download`, and `Delete` are families
+of roots and parts that you arrange, with a toast component for each hook.
+Install them from npm, or copy the source into your app with the
+[shadcn registry](/docs/ui/installation).
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useUpload } from "@dimah-s3/react";
+import { Upload, UploadToasts, UploadTrigger } from "@dimah-s3/ui";
+
+export default function Page() {
+  const upload = useUpload({ route: "avatar" });
+
+  return (
+    <>
+      <Upload upload={upload}>
+        <UploadTrigger />
+      </Upload>
+      <UploadToasts upload={upload} />
+    </>
+  );
+}
+```
+
+## ObjectList, a file browser for your bucket
+
+`ObjectList` is the biggest addition in 2.0. Pass it a list and the hooks you
+want, and it turns into a file browser: folders, list and grid views, search
+across folders, sort, selection, drag-and-drop uploads and moves, image
+thumbnails, keyboard navigation, and layouts that fit a phone. Try it below.
+It keeps its files in memory.
+
+<DemoPreview name="object-list-demo.tsx">
+  <ObjectListDemo />
+</DemoPreview>
+
+The list reads from a source. `memoryObjectSource` serves records you
+already hold, `dbObjectSource` reads the `db()` plugin, and your own source
+can read anything else.
+
+## Folders, quotas, and listings in db()
+
+The optional `db()` plugin records every upload under the caller's scope.
+A folder is an id, so files keep their object keys when you rename or move
+it. Quotas cap files and
+bytes per scope, and listings search and sort the same way on SQLite,
+PostgreSQL, and MySQL.
+
+```ts title="lib/s3.ts"
+import { db } from "@dimah-s3/db";
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  plugins: [
+    db({
+      client: dimahS3Db,
+      getSession: (request) => getSession(request),
+      resolveScope: ({ session }) =>
+        session ? `user:${session.userId}` : null,
+    }),
+  ],
+  routes: {
+    files: route({ upload: true, download: true, delete: true }),
+  },
+});
+```
+
+`runCli` generates the Drizzle or Prisma schema, and `migrate` creates the
+tables with Kysely. In the browser, `dbObjectSource(api.db, { route: "files" })`
+hands the same rows to `useObjectList` and `ObjectList`.
+
+## Plugins of your own
+
+`db()` is built on a plugin SDK that is now public. A plugin gets every route
+as `dimahS3()` resolved it, adds endpoints under its own id, defines its own
+error codes, and runs in-process calls behind the same guards as HTTP. Its
+client plugin reads the endpoint types from the server, so a wrong path or
+body fails to compile. `@dimah-s3/server/testing` runs it all on an in-memory
+S3:
+
+```ts title="audit.test.ts"
+const { client, upload } = createTestInstance({
+  plugins: [audit()],
+  clientPlugins: [auditClient()],
+  routes: { invoices: route({ upload: true, delete: true }) },
+});
+
+await upload({ route: "invoices", name: "march.pdf", body: "pdf" });
+const { events } = await client.audit.listEvents();
+```
+
+[`examples/plugin-audit`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/plugin-audit)
+is a complete plugin to copy.
+
+## Upgrading from 1.x
+
+The wire protocol changed, so a 1.x client does not work against a 2.0
+server: upgrade every package together. The
+[upgrade guide](/docs/migration-2-0) shows each change with before-and-after
+code. Every app does these four:
+
+<Steps>
+
+<Step>
+
+Set `DIMAH_S3_SECRET` (`openssl rand -base64 32`), the same value on every
+instance.
+
+</Step>
+
+<Step>
+
+Set `requestChecksumCalculation: "WHEN_REQUIRED"` on the `S3Client` you pass
+to `dimahS3()`.
+
+</Step>
+
+<Step>
+
+Install `@dimah-s3/core` and `@fuma-translate/react` next to
+`@dimah-s3/react`.
+
+</Step>
+
+<Step>
+
+With `db()`, create schema `2.3.0` on a new database and record the objects
+already in your bucket ([Upgrade the Schema](/docs/db/upgrade)).
+
+</Step>
+
+</Steps>
+
+<Callout title="1.x is no longer maintained">
+  1.x gets no more releases, including security fixes. Its docs stay at
+  [v1.s3.dimah.dev](https://v1.s3.dimah.dev/docs).
+</Callout>
+
+## Thank you
+
+To everyone who ran the betas, filed issues, and sent fixes: 2.0 is better
+for it. Questions and ideas are welcome in
+[Discussions](https://github.com/dimah-kz/dimah-s3/discussions), and the
+[release notes](https://github.com/dimah-kz/dimah-s3/releases/tag/dimah-s3%402.0.0)
+link the full changelog of every package.
+
+<Cards>
+  <Card
+    title="Quickstart"
+    href="/docs/quickstart"
+    description="Scaffold an app, or add dimah-s3 to the one you have."
+  />
+  <Card
+    title="Upgrade to 2.0"
+    href="/docs/migration-2-0"
+    description="Move a 1.7 app to 2.0, package by package."
+  />
+  <Card
+    title="Object List"
+    href="/docs/ui/components/object-list"
+    description="Folders, search, selection, move, and thumbnails."
+  />
+  <Card
+    title="Plugins"
+    href="/docs/server/plugins"
+    description="Build a plugin with hooks, endpoints, and a typed client."
+  />
+</Cards>

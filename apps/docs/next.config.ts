@@ -65,6 +65,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: false,
   reactCompiler: true,
+  // Takumi (share images, icons) loads a native `.node` addon, which can't be bundled.
+  serverExternalPackages: ["@takumi-rs/core"],
   experimental: {
     // Native Rust React Compiler inside Turbopack (default bundler in Next 16).
     turbopackRustReactCompiler: true,

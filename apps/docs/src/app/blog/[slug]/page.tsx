@@ -16,7 +16,7 @@ import { getMDXComponents } from "@/components/mdx";
 import { findPost, getPosts } from "@/lib/blog";
 import { getBlogPageImage } from "@/lib/blog-content";
 import { blogAuthors, blogSource } from "@/lib/source";
-import { appName, docsPageKeywords } from "@/lib/shared";
+import { appName, docsPageKeywords, shareImage } from "@/lib/shared";
 import {
   languageAlternates,
   languageAttributes,
@@ -72,7 +72,7 @@ export async function generateMetadata(
   const page = blogSource.getPage([slug]);
   if (!page) notFound();
 
-  const image = getBlogPageImage(page).url;
+  const image = shareImage(getBlogPageImage(page).url, page.data.title);
   const authors = page.data.authors ?? [];
 
   return {
