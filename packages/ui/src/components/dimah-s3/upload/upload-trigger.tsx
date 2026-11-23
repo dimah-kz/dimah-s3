@@ -71,6 +71,8 @@ export function UploadTrigger({
         children == null &&
           !iconOnly &&
           "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!",
+        // As tall as the header's other controls on a touch screen.
+        !iconOnly && "pointer-coarse:in-data-[slot=object-list-header]:h-8",
         className,
       )}
       onClick={(event) => {

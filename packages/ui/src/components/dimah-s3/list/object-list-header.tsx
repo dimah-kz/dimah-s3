@@ -67,19 +67,23 @@ export type ObjectListHeaderProps = {
 export const OBJECT_LIST_HEADER_COMPACT_LABEL =
   "@max-[36rem]/object-list-header:sr-only";
 
-/** Makes a labelled `sm` button square while its label hides. */
+/**
+ * Makes a labelled `sm` button square while its label hides, and 32px tall
+ * on a touch screen.
+ */
 export const OBJECT_LIST_HEADER_COMPACT_BUTTON =
-  "@max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
+  "pointer-coarse:h-8 @max-[36rem]/object-list-header:aspect-square @max-[36rem]/object-list-header:px-0!";
 
 /**
  * Top bar: select-all, the path, a reload spinner, New folder (when the
  * source can create folders), and `children`. While entries are selected it
  * becomes the selection bar.
  *
- * It lays out by its own width (a container query). The path keeps room
- * for itself and shortens to fit; when the controls do not fit beside it,
- * they move to a second row, aligned to the end. Labels of the built-in
- * controls and `UploadTrigger` hide under 36rem, leaving their icons. An
+ * It lays out by its own width (a container query). The path keeps 6rem
+ * for itself and shortens to fit; only when the controls do not fit beside
+ * that do they move to a second row, aligned to the end. Labels of the
+ * built-in controls and `UploadTrigger` hide under 36rem, leaving their
+ * icons, and `ObjectListViewToggle` becomes one button under 28rem. An
  * `ObjectListSearch` among `children` shows as a search button, and opens
  * into a field across the whole bar. New folder does the same with its
  * name field: the path and the other controls hide until it closes.
@@ -133,7 +137,7 @@ export function ObjectListHeader({
           <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 py-1.5">
             <div
               data-slot="object-list-header-path"
-              className="flex min-w-0 flex-[1_1_11rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"
+              className="flex min-w-0 flex-[1_1_6rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"
             >
               {selecting ? null : <ObjectListSelectAll />}
               {showBreadcrumb ? (
@@ -269,6 +273,7 @@ export function ObjectListSelectionBar({
         <Button
           variant="ghost"
           size="sm"
+          className="pointer-coarse:h-8"
           disabled={busy}
           onClick={selection.clear}
         >
@@ -506,12 +511,16 @@ function NewFolderForm({
     inputRef.current?.focus();
   }, []);
 
+  // Touch screens get larger buttons, still inside the wide field.
+  const buttonSize = wide
+    ? "shrink-0 pointer-coarse:size-7"
+    : "shrink-0 pointer-coarse:size-9";
   const confirm = (
     <Button
       type="submit"
       variant="ghost"
       size={wide ? "icon-xs" : "icon-sm"}
-      className="shrink-0"
+      className={buttonSize}
       aria-label={t("Create folder", { note: "object list new folder" })}
       aria-busy={pending || undefined}
       disabled={pending}
@@ -529,7 +538,7 @@ function NewFolderForm({
       type="button"
       variant="ghost"
       size={wide ? "icon-xs" : "icon-sm"}
-      className="shrink-0"
+      className={buttonSize}
       aria-label={t("Cancel", { note: "object list new folder" })}
       disabled={pending}
       onClick={onClose}
@@ -603,9 +612,12 @@ function NewFolderForm({
           aria-invalid={error != null || undefined}
           aria-describedby={error != null ? errorId : undefined}
           className={cn(
-            "min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-sm text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20",
+            // 16px text on small screens, which iOS does not zoom into.
+            "min-w-0 rounded-md border border-dimah-s3-border bg-transparent text-base text-dimah-s3-foreground outline-none placeholder:text-dimah-s3-muted-foreground focus-visible:border-dimah-s3-ring focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 aria-invalid:border-dimah-s3-destructive aria-invalid:ring-dimah-s3-destructive/20 md:text-sm",
             // Room at the end for the confirm and cancel buttons, as search does.
-            wide ? "h-8 w-full ps-8 pe-16" : "h-7 w-36 px-2 sm:w-44",
+            wide
+              ? "h-8 w-full ps-8 pe-16 pointer-coarse:h-9"
+              : "h-7 w-36 px-2 sm:w-44 pointer-coarse:h-9",
           )}
           onChange={(event) => {
             setName(event.target.value);

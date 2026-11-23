@@ -2076,6 +2076,51 @@ describe("ObjectList", () => {
         screen.getByRole("button", { name: startsWith("notes") }),
       ).toBeDefined();
     });
+
+    it("gives the field the row's menu room, and a tile's whole width", async () => {
+      const user = userEvent.setup();
+      const renameFolder = vi.fn<
+        NonNullable<ObjectListSource<Item>["renameFolder"]>
+      >(async ({ folder, name }) => ({ ...folder, name }));
+      const rows = renderList({ source: { renameFolder } });
+      await settle();
+
+      trigger("docs").focus();
+      await user.keyboard("{F2}");
+      const row = (await screen.findByRole("textbox")).closest<HTMLElement>(
+        "[data-slot=object-list-entry]",
+      );
+      expect(
+        row?.querySelector("[data-slot=object-list-entry-menu]"),
+      ).toBeNull();
+      expect(
+        row
+          ?.querySelector("[data-slot=object-list-rename]")
+          ?.getAttribute("data-layout"),
+      ).toBe("inline");
+      rows.unmount();
+
+      renderList({
+        source: { renameFolder },
+        props: () => ({ defaultView: "grid" }),
+      });
+      await settle();
+      trigger("docs").focus();
+      await user.keyboard("{F2}");
+      const tile = (await screen.findByRole("textbox")).closest<HTMLElement>(
+        "[data-slot=object-list-entry]",
+      );
+      const field = tile?.querySelector("[data-slot=object-list-rename]");
+      expect(field?.getAttribute("data-layout")).toBe("stacked");
+      // The buttons sit under the field, and the tile's overlays step aside.
+      expect(field?.lastElementChild?.querySelectorAll("button")).toHaveLength(
+        2,
+      );
+      expect(
+        tile?.querySelector("[data-slot=object-list-entry-menu]"),
+      ).toBeNull();
+      expect(tile?.querySelector("[role=checkbox]")).toBeNull();
+    });
   });
 
   describe("commands", () => {

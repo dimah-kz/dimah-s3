@@ -305,7 +305,9 @@ export function ObjectListMoveDialog<TItem>({
             ) : null}
             <Dialog.Close
               disabled={moving}
-              render={<Button variant="outline" />}
+              render={
+                <Button variant="outline" className="pointer-coarse:h-10" />
+              }
             >
               {t("Cancel", { note: "dialog button" })}
             </Dialog.Close>
@@ -314,7 +316,7 @@ export function ObjectListMoveDialog<TItem>({
               disabled={!canMove}
               focusableWhenDisabled
               // Focusable while disabled, so it dims by its data attribute.
-              className="data-disabled:opacity-50"
+              className="pointer-coarse:h-10 data-disabled:opacity-50"
               aria-busy={moving || undefined}
               onClick={() => void onMove()}
             >
@@ -360,7 +362,7 @@ function MovePath({
   const t = useTranslations();
   const { rootLabel } = useObjectListContext();
   const crumb =
-    "flex min-w-0 max-w-40 items-center gap-1 rounded-sm px-1 outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50";
+    "flex min-w-0 max-w-40 items-center gap-1 rounded-sm px-1 outline-none hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
   return (
     <nav aria-label={t("Folder path", { note: "object list" })}>
       <ol className="flex min-w-0 flex-wrap items-center gap-1 text-sm text-dimah-s3-muted-foreground">
@@ -520,7 +522,7 @@ function MoveFolders({
               <button
                 type="button"
                 disabled={disabled || moving}
-                className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 text-start text-sm text-dimah-s3-foreground outline-none hover:bg-dimah-s3-muted focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 disabled:pointer-events-none disabled:opacity-50"
+                className="flex w-full min-w-0 items-center gap-2.5 rounded-md px-2 py-1.5 text-start text-sm text-dimah-s3-foreground outline-none hover:bg-dimah-s3-muted focus-visible:ring-3 focus-visible:ring-dimah-s3-ring/50 disabled:pointer-events-none disabled:opacity-50 pointer-coarse:min-h-11"
                 onClick={() => onOpen(folder)}
               >
                 <FolderGlyph className="size-5 shrink-0" />

@@ -15,6 +15,7 @@ import {
   type UseDownloadReturn,
 } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
+import { cn } from "cn";
 import {
   CloudUpload,
   DownloadIcon,
@@ -194,7 +195,11 @@ export function ObjectListEntryMenu({
             data-slot="object-list-entry-menu"
             // In an entry, Tab and the arrow keys from the entry reach it.
             tabIndex={entry ? -1 : undefined}
-            className={className}
+            // A touch target in a row; a smaller one over a tile's preview.
+            className={cn(
+              "pointer-coarse:size-9 pointer-coarse:in-data-[view=grid]:size-8",
+              className,
+            )}
           />
         }
       >

@@ -40,8 +40,9 @@ import {
 const HIDE_ROOT = "@max-[13rem]/object-list-breadcrumb:hidden";
 const HIDE_PARENT = "@max-[22rem]/object-list-breadcrumb:hidden";
 
+/** A link in the path. Taller on a touch screen, so a finger can hit it. */
 const CRUMB =
-  "block max-w-32 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50";
+  "block max-w-32 truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 pointer-coarse:py-1.5";
 
 /** Classes that show the … menu while some folder above the open one is hidden. */
 function menuVisibility(depth: number) {
@@ -167,7 +168,7 @@ function PathMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={label}
-        className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-dimah-s3-muted hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 data-popup-open:bg-dimah-s3-muted"
+        className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-dimah-s3-muted hover:text-dimah-s3-foreground focus-visible:ring-2 focus-visible:ring-dimah-s3-ring/50 data-popup-open:bg-dimah-s3-muted pointer-coarse:size-8"
       >
         <BreadcrumbEllipsis className="size-4" aria-hidden />
       </DropdownMenuTrigger>

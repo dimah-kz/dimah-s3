@@ -117,6 +117,8 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
 ) {
   const { entry, className } = props;
   const parts = useEntryParts(props);
+  // The name field takes the menu's room while it is open.
+  const actions = parts.renaming ? null : parts.actions;
 
   return (
     <ObjectListEntryProvider entry={entry}>
@@ -133,10 +135,10 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
         className={cn(
           "grid min-h-11 min-w-0 items-center gap-2 overflow-hidden py-1 ps-1.5 pe-1 transition-colors duration-150",
           parts.checkbox
-            ? parts.actions
+            ? actions
               ? "grid-cols-[auto_minmax(0,1fr)_auto]"
               : "grid-cols-[auto_minmax(0,1fr)]"
-            : parts.actions
+            : actions
               ? "grid-cols-[minmax(0,1fr)_auto]"
               : "grid-cols-[minmax(0,1fr)]",
           parts.selected
@@ -177,10 +179,7 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
               )}
             </span>
             <span
-              className={cn(
-                "flex min-w-0 flex-1 flex-col",
-                parts.actions && "pe-2",
-              )}
+              className={cn("flex min-w-0 flex-1 flex-col", actions && "pe-2")}
             >
               <span className="flex min-w-0 items-center gap-2">
                 <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
@@ -202,7 +201,7 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
             </span>
           </EntryTrigger>
         )}
-        {parts.actions ? <div className="shrink-0">{parts.actions}</div> : null}
+        {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
     </ObjectListEntryProvider>
   );
@@ -245,9 +244,9 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
                 <EntryMedia entry={entry} thumbnails={parts.thumbnails} tile />
               )}
             </span>
-            <span className="min-w-0 px-2 py-1.5">
-              <ObjectListRenameField entry={entry} />
-            </span>
+            <div className="min-w-0 p-2">
+              <ObjectListRenameField entry={entry} layout="stacked" />
+            </div>
           </div>
         ) : (
           <EntryTrigger
@@ -280,7 +279,8 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
             </span>
           </EntryTrigger>
         )}
-        {parts.checkbox ? (
+        {/* While the name is a field, the tile shows the field alone. */}
+        {parts.checkbox && !parts.renaming ? (
           <span
             className={cn(
               "absolute start-2 top-2 flex rounded-[4px] bg-dimah-s3-card/90 transition-opacity",
@@ -292,7 +292,7 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
             {parts.checkbox}
           </span>
         ) : null}
-        {parts.actions ? (
+        {parts.actions && !parts.renaming ? (
           <span className="absolute end-1 top-1 flex rounded-md bg-dimah-s3-card/90">
             {parts.actions}
           </span>
