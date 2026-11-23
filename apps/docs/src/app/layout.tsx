@@ -3,7 +3,6 @@ import { Body } from "@/app/layout.client";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Geist, Vazirmatn } from "next/font/google";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cn } from "cn";
 import {
   appName,
@@ -13,7 +12,6 @@ import {
   siteKeywords,
   siteTitle,
 } from "@/lib/shared";
-import { Banner } from "fumadocs-ui/components/banner";
 import { getSiteUrl, isPublicDocsDeploy } from "@/lib/site-url";
 import { Toaster } from "@dimah-s3/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -94,14 +92,6 @@ export default function Layout({ children }: LayoutProps<"/">) {
         />
       </head>
       <Body>
-        <Banner id="dimah-s3-2-0" variant="rainbow">
-          <span>
-            dimah-s3 2.0 is out.{" "}
-            <Link href="/docs/migration-2-0" className="underline">
-              Upgrade from 1.x
-            </Link>
-          </span>
-        </Banner>
         <RootProvider
           theme={{
             enabled: true,
