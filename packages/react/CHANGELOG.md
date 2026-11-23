@@ -1,3 +1,53 @@
+## @dimah-s3/react@2.0.0-beta.14 (beta)
+
+### Move entries and delete folders with useObjectList
+
+A source can move files and folders and delete folders, and `useObjectList` runs those actions on the loaded rows. `uploadOptions` can wait for work such as creating a folder.
+
+- **`moveFile` and `moveFolder` on the source.** Each takes the entry and the destination `parent` (`null` is the root). The object key stays as you store it.
+- **`list.moveEntries(entries, parent)`.** Moves through the source one entry at a time, drops the moved rows, and reloads once. It never rejects and resolves with `ObjectListMoveResult`: `moved`, and `failed` with each `APIError`. Entries already in `parent` are left alone, and a folder moved into itself fails with `FOLDER_INVALID`. Set when the source has `moveFile` or `moveFolder`.
+- **`list.canMove(entry)`.** Whether the source can move that entry. Pass `"file"` or `"folder"` to ask about a kind.
+- **`listFolderKeys` and `deleteFolder` on the source.** `listFolderKeys({ folder, signal })` returns the object keys in a folder and every folder below it. `deleteFolder({ folder })` removes the folder and the folders below it once their files are gone. The list returns both: `list.deleteFolder(folder)` drops the folder row, and opens the folder that held it when it was open.
+- **`list.listFolders(parent)`.** The folders inside any folder, from the source's first page there, for a folder picker.
+- **`list.createFolder(name, { parent })`.** Creates the folder in another folder. Only a folder created in the open one joins the loaded rows.
+- **`memoryObjectSource` names folder keys.** With `getFolder`, it returns `listFolderKeys`.
+- **Folders join the selection.** `useObjectListSelection` selects files, and folders too when the list can delete or move them. Pass `isSelectable` to choose yourself.
+- **`uploadOptions` may return a promise.** A function in `uploadOptions` runs as each file starts. The file stays `preparing` until the promise settles, and cancelling it stops the wait.
+
+### Breaking changes
+
+- **Match the code of an `APIError` that `uploadOptions` throws.** The file fails with that error. Any other throw or rejection still fails it with `HOOK_FAILED`.
+
+### Word plugin error codes
+
+- **`formatError` on `S3Provider`.** Your message for an API error (`S3ErrorFormatter`). `useFormatError` and every UI toast ask it first, for plugin codes and catalog codes alike, and `undefined` keeps the built-in message. Without it, a plugin's code shows the English message the server sent.
+
+### A plugin SDK for third-party plugins
+
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
+### Hook results keep their identity
+
+The objects that `useUpload`, `useDownload`, `useFetchDownload`, `useDelete`, `useObjectUrl`, `useObjectList`, `useObjectListSelection`, and `useRouteUploadPolicy` return stay the same object until a value in them changes, so they can go in effect dependencies and context values.
+
+- **`upload.policy`** stays the same object while the route policy is the same, also when `accept` is a new array on every render.
+- **`upload.getRootProps`, `getInputProps`, and `getDropTargetProps`** keep their identity while the policy and the hook options do.
+- **`useObjectList`** keeps its result while the source functions you pass keep theirs.
+
+### Pause and resume uploads
+
+`useUpload` pauses files and resumes them where they stopped. A multipart upload continues from the parts S3 already has, with or without an `uploadStore`, while the page stays open.
+
+- **`upload.pause(ids?)`.** Stops one file, several, or every file, including the files of a call still preparing. A paused file stays in the queue with its progress, as phase `"paused"`, and frees its upload slot. A file that is `"finalizing"` finishes instead.
+- **`upload.resume(ids?)`.** Queues paused files again. A multipart upload continues from its uploaded parts; a single-shot upload starts over. The request options resolved before the pause are sent again, so an `uploadOptions` function does not run twice.
+- **A paused file has not ended.** The `handleFiles` promise, `onSuccess`, `onError`, and `onSettled` wait until it is resumed and finishes, or is cancelled.
+- **Without an `uploadStore`.** The hook keeps the multipart session of a paused file for the page session. A cancel, a failure, `detach()`, or an unmount aborts it, as before.
+- **`reset()` keeps paused files.** It removes only files that uploaded or failed. `cancel()` removes a paused file and aborts its multipart upload; `detach()` and an unmount remove it and keep its record in an `uploadStore`.
+
+### Breaking changes
+
+- **Handle `"paused"` in `UploadFilePhase` and `UploadPhase`.** A file is `"paused"` between `pause` and `resume`. The queue is `"paused"` while a file is paused and none is in flight; `isPending` is then `false`. A `switch` that lists every phase needs the new case.
+
 ## @dimah-s3/react@2.0.0-beta.13 (beta)
 
 ### Folder rows show what they hold

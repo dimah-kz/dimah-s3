@@ -1,3 +1,31 @@
+## @dimah-s3/db@2.0.0-beta.14 (beta)
+
+### db() on the plugin SDK
+
+`db()` reads the resolved routes and runs `s3.db.record` through the plugin SDK, so every guard applies to it.
+
+- **`s3.db.record` runs every guard.** Every plugin's instance guard runs, then the user's instance guard and the route guard. A guard another plugin adds, such as auth or a rate limit, now applies to it.
+- **`s3.db.record` fails with an `APIError`.** An unexpected failure is logged, passed to `onError`, and becomes `500 INTERNAL_ERROR`, as from `s3.api`.
+- **Guards name the db action.** A `/db/*` call carries `plugin: { id: "db", action }`, where `action` is the `dbClient()` method: `listObjects`, `getObject`, `updateObject`, `createFolder`, `updateFolder`, or `deleteFolder`.
+- **`dbClient()` is typed by `db()`.** Its responses come from the endpoint types, so the client and the server stay in step.
+
+### Breaking changes
+
+- **Compare `plugin.action` in guards.** The instance and route guards no longer receive `operation: "record"` from `s3.db.record`: they receive `operation: "plugin"` with `plugin.action === "record"`.
+
+### Move and delete folders from dbObjectSource
+
+`dbObjectSource` moves files and folders and deletes folders with everything in them, through the endpoints `db()` already has.
+
+- **Move.** `moveFile` sends the new `folderId` to `api.db.updateObject`, and `moveFolder` the new `parentId` to `api.db.updateFolder`. The object key stays. Set when `folders` is on.
+- **Folder delete.** `listFolderKeys` pages through `GET /db/objects` with `recursive` and the source's filters, so the list can delete those objects with `useDelete`. `deleteFolder` then calls `api.db.deleteFolder({ id, recursive: true })`. Set when `folders` is on, and `deleteFolder` when `api.db` has it.
+- **`DELETE /db/folder?recursive=true`.** Removes the folder and the folders below it, deepest first, as long as none of them holds an active or pending object. A folder with one is `FOLDER_NOT_EMPTY`; the empty folders removed before it stay removed. `authorize` sees the folder the call names. `api.db.deleteFolder` takes `recursive`.
+- **`s3.db.folders.delete(scope, id, { recursive })`.** The same on the server.
+
+### A plugin SDK for third-party plugins
+
+Plugins get resolved routes, in-process calls behind the guards, their own error codes, a client typed by the server, and a test kit. Each package changelog lists its own changes. The [Plugins](https://s3.dimah.dev/docs/server/plugins) guide builds one end to end, and [Testing](https://s3.dimah.dev/docs/server/testing) covers `@dimah-s3/server/testing`. The [upgrade guide](https://s3.dimah.dev/docs/migration-2-0#update-plugins) lists what a plugin written for an earlier beta changes.
+
 ## @dimah-s3/db@2.0.0-beta.13 (beta)
 
 ### Folder rows show what they hold

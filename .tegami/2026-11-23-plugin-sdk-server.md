@@ -1,6 +1,8 @@
 ---
 packages:
-  "@dimah-s3/server": major
+  "@dimah-s3/server":
+    replay:
+      - exit-prerelease(npm:@dimah-s3/server)
 ---
 
 ### A plugin SDK with resolved routes, in-process calls, error codes, and a test kit
