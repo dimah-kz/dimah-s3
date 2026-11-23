@@ -23,7 +23,7 @@ export type DbObjectSourceActions<TClientAttributes = never> = Pick<
   Partial<
     Pick<
       DbClientActions<TClientAttributes>,
-      "createFolder" | "updateObject" | "updateFolder"
+      "createFolder" | "updateObject" | "updateFolder" | "deleteFolder"
     >
   >;
 
@@ -87,8 +87,11 @@ function locationsOf(
  * trail, uploads go to the open folder, and "New folder" calls
  * `api.db.createFolder`. Rename calls `api.db.updateObject` or
  * `api.db.updateFolder` with the new `name` and leaves the object key as it
- * is. With `folders: false`, the list is flat: file rename stays, and
- * folder actions do not.
+ * is. Move sends the new `folderId` or `parentId` through the same calls.
+ * A folder delete lists the keys below it (`listFolderKeys`) for the list to
+ * delete, then removes the emptied folders with `api.db.deleteFolder`. With
+ * `folders: false`, the list is flat: file rename stays, and folder actions
+ * do not.
  *
  * `search` runs on the server and ignores case and accents. With `folders`
  * on it is recursive: `searchScope: "folder"` looks in the open folder and
@@ -228,6 +231,43 @@ export function dbObjectSource<TClientAttributes = never>(
         name,
       });
       return { id: updated.id, name: updated.name };
+    };
+    source.moveFolder = async ({ folder, parent }) => {
+      await updateFolder({ id: folder.id, parentId: parent ?? "" });
+    };
+  }
+  if (updateObject) {
+    source.moveFile = async ({ item, parent }) => {
+      await updateObject({
+        key: item.key,
+        bucket: item.bucket,
+        folderId: parent ?? "",
+      });
+    };
+  }
+  source.listFolderKeys = async ({ folder, signal }) => {
+    const keys: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const input: DbClientListObjectsInput = {
+        folderId: folder.id,
+        recursive: true,
+        limit: DB_LIST_MAX_LIMIT,
+      };
+      if (cursor) input.cursor = cursor;
+      if (options.route) input.route = options.route;
+      if (options.status) input.status = options.status;
+      if (options.contentType) input.contentType = options.contentType;
+      const page = await db.listObjects(input, { signal });
+      for (const object of page.objects) keys.push(object.key);
+      cursor = page.nextCursor;
+    } while (cursor);
+    return keys;
+  };
+  const deleteFolder = db.deleteFolder?.bind(db);
+  if (deleteFolder) {
+    source.deleteFolder = async ({ folder }) => {
+      await deleteFolder({ id: folder.id, recursive: true });
     };
   }
   return source;

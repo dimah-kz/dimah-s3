@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  isAPIError,
   s3Error,
   validateFile,
   type APIError,
@@ -352,15 +353,25 @@ function createUploadQueue(
 
     let request: UploadRequestOptions;
     try {
-      request = mergeUploadRequest(
-        resolveUploadRequest(options.uploadOptions, file),
-        resolveUploadRequest(call.uploadOptions, file),
-      );
+      const base = resolveUploadRequest(options.uploadOptions, file);
+      const own = resolveUploadRequest(call.uploadOptions, file);
+      // Options that take a moment, such as a folder to create first.
+      if (isPromise(base) || isPromise(own)) {
+        patchFile(id, { phase: "preparing" });
+        const [resolvedBase, resolvedOwn] = await abortable(
+          Promise.all([base, own]),
+          signal,
+        );
+        request = mergeUploadRequest(resolvedBase, resolvedOwn);
+      } else {
+        request = mergeUploadRequest(base, own);
+      }
     } catch (error) {
+      if (signal.aborted) return { status: "aborted", file };
       return {
         status: "error",
         file,
-        error: hookFailed("uploadOptions", error),
+        error: isAPIError(error) ? error : hookFailed("uploadOptions", error),
       };
     }
 
@@ -944,4 +955,10 @@ function summarize(files: readonly UploadFileState[]) {
     progress: speed === undefined ? progress : { ...progress, speed },
     error,
   };
+}
+
+function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
+  return (
+    typeof (value as { then?: unknown } | null | undefined)?.then === "function"
+  );
 }

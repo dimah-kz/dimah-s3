@@ -12,11 +12,12 @@ import {
 } from "react";
 import type {
   UploadCallOptions,
-  UploadRequestOptions,
+  UploadRequestInput,
   UseUploadReturn,
 } from "@dimah-s3/react";
 import { mergeUploadRequest } from "@dimah-s3/react/engine";
 import { useOptionalObjectListContext } from "@/components/dimah-s3/list/object-list-context";
+import { folderUploadCall } from "@/lib/folder-upload";
 
 /** Props for {@link Upload}. */
 export type UploadProps = {
@@ -235,7 +236,8 @@ function focusFirst(elements: readonly HTMLElement[]) {
  * Inside an `ObjectList` whose `upload` is this same hook (by
  * `instanceId`, so the copy `UploadField` passes its parts counts), the source's
  * `uploadOptions` for the open folder apply first, so files land in that
- * folder. `call` merges over them: its fields win, and `clientMetadata` merges
+ * folder, and a dropped folder keeps its folders when the source can create
+ * them. `call` merges over them: its fields win, and `clientMetadata` merges
  * key by key.
  */
 export function useUploadCall(
@@ -243,23 +245,32 @@ export function useUploadCall(
   call: UploadCallOptions | undefined,
 ): UploadCallOptions | undefined {
   const objectList = useOptionalObjectListContext();
-  const folderOptions =
+  const folderCall =
     objectList?.upload?.instanceId === upload.instanceId
-      ? objectList.list.uploadOptions?.(objectList.list.parent)
+      ? folderUploadCall(objectList.list, objectList.list.parent)
       : undefined;
-  return folderOptions ? mergeCall(folderOptions, call) : call;
+  return folderCall ? mergeCall(folderCall.uploadOptions, call) : call;
 }
 
 function mergeCall(
-  base: UploadRequestOptions,
+  base: UploadRequestInput | undefined,
   call: UploadCallOptions | undefined,
 ): UploadCallOptions {
   const own = call?.uploadOptions;
+  if (typeof base !== "function" && typeof own !== "function") {
+    return { ...call, uploadOptions: mergeUploadRequest(base, own) };
+  }
   return {
     ...call,
-    uploadOptions:
-      typeof own === "function"
-        ? (file) => mergeUploadRequest(base, own(file))
-        : mergeUploadRequest(base, own),
+    uploadOptions: (file) => {
+      const resolvedBase = typeof base === "function" ? base(file) : base;
+      const resolvedOwn = typeof own === "function" ? own(file) : own;
+      if (resolvedBase instanceof Promise || resolvedOwn instanceof Promise) {
+        return Promise.all([resolvedBase, resolvedOwn]).then(
+          ([folder, extra]) => mergeUploadRequest(folder, extra),
+        );
+      }
+      return mergeUploadRequest(resolvedBase, resolvedOwn);
+    },
   };
 }

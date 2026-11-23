@@ -960,5 +960,210 @@ describe("useObjectList", () => {
       expect(query).toHaveBeenCalledTimes(1);
       hook.unmount();
     });
+
+    it("lists the child folders of another folder through the query", async () => {
+      const query = mockQuery().mockImplementation(async ({ parent }) =>
+        parent === "docs"
+          ? page(["x"], { folders: [{ id: "docs/a", name: "a" }] })
+          : page([], { folders: [{ id: "docs", name: "docs" }] }),
+      );
+      const hook = renderHook(() => useList({ query }));
+      await flush();
+
+      let folders: unknown;
+      await act(async () => {
+        folders = await hook.current.listFolders("docs");
+      });
+
+      expect(folders).toEqual([{ id: "docs/a", name: "a" }]);
+      expect(query).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          parent: "docs",
+          cursor: null,
+          sort: null,
+          search: "",
+        }),
+      );
+      // The open folder stays as it was.
+      expect(hook.current.parent).toBeNull();
+      expect(hook.current.folders).toEqual([{ id: "docs", name: "docs" }]);
+      hook.unmount();
+    });
+
+    it("creates a folder in another parent without inserting it", async () => {
+      const query = mockQuery().mockResolvedValue(page([]));
+      const createFolder = vi.fn(
+        async (input: { parent: string | null; name: string }) => ({
+          id: `${input.parent}/${input.name}`,
+          name: input.name,
+        }),
+      );
+      const hook = renderHook(() => useList({ query, createFolder }));
+      await flush();
+
+      await act(async () => {
+        await hook.current.createFolder?.("2026", { parent: "photos" });
+      });
+
+      expect(createFolder).toHaveBeenCalledWith({
+        parent: "photos",
+        name: "2026",
+      });
+      expect(hook.current.folders).toEqual([]);
+      hook.unmount();
+    });
+
+    it("moves entries one at a time, drops them from the rows, and reloads once", async () => {
+      const query = mockQuery()
+        .mockResolvedValueOnce(
+          page(["a", "b"], { folders: [{ id: "old", name: "old" }] }),
+        )
+        .mockResolvedValue(page(["b"], { folders: [] }));
+      const moveFile = vi.fn(async () => undefined);
+      const moveFolder = vi.fn(async () => undefined);
+      const hook = renderHook(() => useList({ query, moveFile, moveFolder }));
+      await flush();
+      const [folder, a] = hook.current.entries;
+      if (!folder || !a) throw new Error("Missing entries");
+      expect(hook.current.canMove("file")).toBe(true);
+      expect(hook.current.canMove(folder)).toBe(true);
+
+      let result: unknown;
+      await act(async () => {
+        result = await hook.current.moveEntries?.([folder, a], "archive");
+      });
+
+      expect(moveFolder).toHaveBeenCalledWith({
+        folder: { id: "old", name: "old" },
+        parent: "archive",
+      });
+      expect(moveFile).toHaveBeenCalledWith({
+        item: { id: "a" },
+        parent: "archive",
+      });
+      expect(result).toEqual({ moved: [folder, a], failed: [] });
+      expect(query).toHaveBeenCalledTimes(2);
+      expect(hook.current.items).toEqual([{ id: "b" }]);
+      expect(hook.current.folders).toEqual([]);
+      hook.unmount();
+    });
+
+    it("reports entries that fail to move and leaves entries already there", async () => {
+      const query = mockQuery().mockResolvedValue(
+        page(["a"], { folders: [{ id: "self", name: "self" }] }),
+      );
+      const denied = s3Error("FORBIDDEN");
+      const moveFile = vi.fn().mockRejectedValue(denied);
+      const moveFolder = vi.fn(async () => undefined);
+      const hook = renderHook(() =>
+        useList({ query, moveFile, moveFolder, defaultParent: "here" }),
+      );
+      await flush();
+      const [folder, file] = hook.current.entries;
+      if (!folder || !file) throw new Error("Missing entries");
+
+      let result: unknown;
+      await act(async () => {
+        result = await hook.current.moveEntries?.([folder, file], "self");
+      });
+      expect(result).toEqual({
+        moved: [],
+        failed: [
+          {
+            entry: folder,
+            error: expect.objectContaining({ code: "FOLDER_INVALID" }),
+          },
+          { entry: file, error: denied },
+        ],
+      });
+      expect(moveFolder).not.toHaveBeenCalled();
+
+      await act(async () => {
+        result = await hook.current.moveEntries?.([file], "here");
+      });
+      // Already in the open folder: nothing to do.
+      expect(result).toEqual({ moved: [], failed: [] });
+      expect(moveFile).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenCalledTimes(1);
+      hook.unmount();
+    });
+
+    it("leaves move and folder delete unset when the source has none", async () => {
+      const query = mockQuery().mockResolvedValue(page(["a"]));
+      const hook = renderHook(() => useList({ query }));
+      await flush();
+
+      expect(hook.current.moveEntries).toBeUndefined();
+      expect(hook.current.canMove("file")).toBe(false);
+      expect(hook.current.canMove("folder")).toBe(false);
+      expect(hook.current.listFolderKeys).toBeUndefined();
+      expect(hook.current.deleteFolder).toBeUndefined();
+      hook.unmount();
+    });
+
+    it("lists a folder's keys through the source", async () => {
+      const query = mockQuery().mockResolvedValue(page([]));
+      const listFolderKeys = vi.fn(async () => ["docs/a.txt", "docs/b/c.txt"]);
+      const hook = renderHook(() => useList({ query, listFolderKeys }));
+      await flush();
+
+      const folder = { id: "docs", name: "docs" };
+      await expect(hook.current.listFolderKeys?.(folder)).resolves.toEqual([
+        "docs/a.txt",
+        "docs/b/c.txt",
+      ]);
+      expect(listFolderKeys).toHaveBeenCalledWith({
+        folder,
+        signal: expect.any(AbortSignal),
+      });
+      hook.unmount();
+    });
+
+    it("deletes a folder row, and opens the parent when it was open", async () => {
+      const query = mockQuery().mockResolvedValue(
+        page([], { folders: [{ id: "b", name: "b" }] }),
+      );
+      const deleteFolder = vi.fn(async () => undefined);
+      const hook = renderHook(() =>
+        useList({
+          query,
+          deleteFolder,
+          defaultTrail: [{ id: "a", name: "a" }],
+        }),
+      );
+      await flush();
+
+      await act(async () => {
+        await hook.current.deleteFolder?.({ id: "b", name: "b" });
+      });
+      expect(deleteFolder).toHaveBeenCalledWith({
+        folder: { id: "b", name: "b" },
+      });
+      expect(hook.current.folders).toEqual([]);
+      expect(hook.current.parent).toBe("a");
+
+      await act(async () => {
+        await hook.current.deleteFolder?.({ id: "a", name: "a" });
+      });
+      expect(hook.current.parent).toBeNull();
+      expect(hook.current.trail).toEqual([]);
+      hook.unmount();
+    });
+
+    it("rejects a failed folder delete with an APIError and keeps the row", async () => {
+      const query = mockQuery().mockResolvedValue(
+        page([], { folders: [{ id: "b", name: "b" }] }),
+      );
+      const notEmpty = s3Error("FOLDER_NOT_EMPTY");
+      const deleteFolder = vi.fn().mockRejectedValue(notEmpty);
+      const hook = renderHook(() => useList({ query, deleteFolder }));
+      await flush();
+
+      await expect(
+        hook.current.deleteFolder?.({ id: "b", name: "b" }),
+      ).rejects.toBe(notEmpty);
+      expect(hook.current.folders).toEqual([{ id: "b", name: "b" }]);
+      hook.unmount();
+    });
   });
 });

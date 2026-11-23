@@ -24,7 +24,7 @@ The families fix their focus, state, and labelling edge cases, and a few names n
   - A rename whose save lands after another rename started leaves the newer field open, and a save that fails on blur no longer pulls focus back.
   - A file row that neither opens nor selects still takes the arrow keys, F2, and focus after a rename or delete.
   - With a `persist` selection, the selection bar sits under the path instead of replacing it, so you can change folders while you pick.
-  - A bulk delete resolves the selected folders at once, and a folder it empties leaves the selection.
+  - A folder that a bulk delete removes leaves the selection.
   - Ctrl+A or Cmd+A follows the keyboard layout.
 - **Toasts** name the file when an upload, download, or delete fails, and the upload progress toast reads "{loaded} of {total}" in your language.
 

@@ -169,8 +169,10 @@ from one never changes the result; see
 
 `uploadOptions` sets the request for each file: `clientMetadata` for the
 server hooks, and `fileName` or `contentType` to override what the browser
-reports. Pass an object, or a function of the file. A throw from the function
-fails that file with `HOOK_FAILED`.
+reports. Pass an object, or a function of the file. The function runs as the
+file starts and may return a promise, such as one that creates the file's
+folder first; the file is `preparing` until it settles. A throw or rejection
+fails that file: an `APIError` as it is, anything else with `HOOK_FAILED`.
 
 A call can add its own options. Call fields win, and `clientMetadata` merges
 key by key:
@@ -277,33 +279,33 @@ has when the user selects the same file again.
 
 ### Options
 
-| Prop              | Type                                                     | Default                                | Description                                                                          |
-| ----------------- | -------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
-| `route`           | `S3RouteName`                                            | required                               | Named server route. The server builds the object key                                 |
-| `api`             | `S3Api`                                                  | —                                      | Replaces the `S3Provider` API. Required without a provider                           |
-| `accept`          | `readonly string[]`                                      | —                                      | MIME types (`image/*`) and extensions (`.pdf`) that narrow the route's `fileTypes`   |
-| `maxFileSize`     | `number`                                                 | —                                      | Max bytes. The smaller of this and the route's wins                                  |
-| `maxFiles`        | `number`                                                 | `1`                                    | Max files per call                                                                   |
-| `append`          | `boolean`                                                | `false`                                | Add new files to the queue instead of replacing it                                   |
-| `concurrentFiles` | `number`                                                 | `2`                                    | Files uploaded at once                                                               |
-| `concurrentParts` | `number`                                                 | `4`                                    | Multipart parts uploaded at once per file                                            |
-| `multipart`       | `boolean`                                                | —                                      | `false` turns multipart off even when the route allows it                            |
-| `retry`           | `RetryConfig`                                            | `{ maxRetries: 3, baseDelayMs: 1000 }` | Retries per request, and the first backoff delay in ms. Each retry doubles the delay |
-| `uploadStore`     | `UploadStore`                                            | —                                      | Persists multipart uploads so they can [resume](/docs/react/upload-store)            |
-| `uploadOptions`   | `UploadRequestOptions \| (file) => UploadRequestOptions` | —                                      | [Request options](#request-options) for every file                                   |
-| `disabled`        | `boolean`                                                | `false`                                | Turns off the root, drop targets, paste, and `open()`                                |
-| `noDrag`          | `boolean`                                                | `false`                                | Turns off drag and drop on the root and drop targets                                 |
-| `noClick`         | `boolean`                                                | `false`                                | Turns off click-to-open on the root                                                  |
-| `noKeyboard`      | `boolean`                                                | `false`                                | Turns off keyboard activation on the root                                            |
-| `onFileReject`    | `(rejections) => void`                                   | —                                      | Runs with the files rejected before upload                                           |
-| `beforeUpload`    | `(files) => boolean \| Promise<boolean>`                 | —                                      | Runs once per call. Return `false` to block it                                       |
-| `onUploadStart`   | `(files) => void`                                        | —                                      | Runs once per call, after `beforeUpload` allows it                                   |
-| `onProgress`      | `(progress, file) => void`                               | —                                      | Byte progress of one file                                                            |
-| `onMultipartInit` | `(session, file) => void`                                | —                                      | Runs when a multipart upload starts or resumes                                       |
-| `onPartUpload`    | `(part, file) => void`                                   | —                                      | Runs after each multipart part                                                       |
-| `onError`         | `(error, file) => void \| Promise<void>`                 | —                                      | Runs once per failed file                                                            |
-| `onSuccess`       | `(result, file) => void \| Promise<void>`                | —                                      | Runs once per uploaded file                                                          |
-| `onSettled`       | `(result) => void \| Promise<void>`                      | —                                      | Runs once per call, with its `UploadBatchResult`                                     |
+| Prop              | Type                                                                | Default                                | Description                                                                          |
+| ----------------- | ------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `route`           | `S3RouteName`                                                       | required                               | Named server route. The server builds the object key                                 |
+| `api`             | `S3Api`                                                             | —                                      | Replaces the `S3Provider` API. Required without a provider                           |
+| `accept`          | `readonly string[]`                                                 | —                                      | MIME types (`image/*`) and extensions (`.pdf`) that narrow the route's `fileTypes`   |
+| `maxFileSize`     | `number`                                                            | —                                      | Max bytes. The smaller of this and the route's wins                                  |
+| `maxFiles`        | `number`                                                            | `1`                                    | Max files per call                                                                   |
+| `append`          | `boolean`                                                           | `false`                                | Add new files to the queue instead of replacing it                                   |
+| `concurrentFiles` | `number`                                                            | `2`                                    | Files uploaded at once                                                               |
+| `concurrentParts` | `number`                                                            | `4`                                    | Multipart parts uploaded at once per file                                            |
+| `multipart`       | `boolean`                                                           | —                                      | `false` turns multipart off even when the route allows it                            |
+| `retry`           | `RetryConfig`                                                       | `{ maxRetries: 3, baseDelayMs: 1000 }` | Retries per request, and the first backoff delay in ms. Each retry doubles the delay |
+| `uploadStore`     | `UploadStore`                                                       | —                                      | Persists multipart uploads so they can [resume](/docs/react/upload-store)            |
+| `uploadOptions`   | `UploadRequestOptions \| (file) => UploadRequestOptions \| Promise` | —                                      | [Request options](#request-options) for every file                                   |
+| `disabled`        | `boolean`                                                           | `false`                                | Turns off the root, drop targets, paste, and `open()`                                |
+| `noDrag`          | `boolean`                                                           | `false`                                | Turns off drag and drop on the root and drop targets                                 |
+| `noClick`         | `boolean`                                                           | `false`                                | Turns off click-to-open on the root                                                  |
+| `noKeyboard`      | `boolean`                                                           | `false`                                | Turns off keyboard activation on the root                                            |
+| `onFileReject`    | `(rejections) => void`                                              | —                                      | Runs with the files rejected before upload                                           |
+| `beforeUpload`    | `(files) => boolean \| Promise<boolean>`                            | —                                      | Runs once per call. Return `false` to block it                                       |
+| `onUploadStart`   | `(files) => void`                                                   | —                                      | Runs once per call, after `beforeUpload` allows it                                   |
+| `onProgress`      | `(progress, file) => void`                                          | —                                      | Byte progress of one file                                                            |
+| `onMultipartInit` | `(session, file) => void`                                           | —                                      | Runs when a multipart upload starts or resumes                                       |
+| `onPartUpload`    | `(part, file) => void`                                              | —                                      | Runs after each multipart part                                                       |
+| `onError`         | `(error, file) => void \| Promise<void>`                            | —                                      | Runs once per failed file                                                            |
+| `onSuccess`       | `(result, file) => void \| Promise<void>`                           | —                                      | Runs once per uploaded file                                                          |
+| `onSettled`       | `(result) => void \| Promise<void>`                                 | —                                      | Runs once per call, with its `UploadBatchResult`                                     |
 
 ### Return
 

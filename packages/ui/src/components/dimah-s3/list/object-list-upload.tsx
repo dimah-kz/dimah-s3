@@ -1,29 +1,11 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef } from "react";
-import type {
-  UploadCallOptions,
-  UseObjectListReturn,
-  UseUploadReturn,
-} from "@dimah-s3/react";
+import type { UseUploadReturn } from "@dimah-s3/react";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import { useObjectListContext } from "@/components/dimah-s3/list/object-list-context";
 import { UploadStatus } from "@/components/dimah-s3/upload/upload-status";
-
-/**
- * Call options for files uploaded into `parent` (`null` is the root): the
- * source's `uploadOptions` for that folder. `undefined` when the source has
- * none, so the hook's own options apply.
- */
-export function folderUploadCall<TItem>(
-  list: UseObjectListReturn<TItem>,
-  parent: string | null,
-): UploadCallOptions | undefined {
-  return list.uploadOptions
-    ? { uploadOptions: list.uploadOptions(parent) }
-    : undefined;
-}
 
 /**
  * Reloads the list once each time the upload queue settles with new

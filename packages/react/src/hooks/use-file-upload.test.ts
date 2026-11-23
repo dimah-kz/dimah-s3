@@ -255,6 +255,84 @@ describe("useFileUpload", () => {
     hook.unmount();
   });
 
+  it("waits for request options that resolve later, preparing meanwhile", async () => {
+    let resolve!: (options: { clientMetadata: Record<string, string> }) => void;
+    const hook = mount();
+
+    await act(async () => {
+      void hook.current.upload([txt("a.txt")], {
+        uploadOptions: () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      });
+    });
+    await flush();
+
+    expect(hook.current.files[0]?.phase).toBe("preparing");
+    expect(engineCalls).toHaveLength(0);
+
+    await act(async () => {
+      resolve({ clientMetadata: { folderId: "f1" } });
+    });
+    await flush();
+
+    expect(engineCall("a.txt").options).toMatchObject({
+      request: { clientMetadata: { folderId: "f1" } },
+    });
+    hook.unmount();
+  });
+
+  it("fails a file with the APIError its request options reject with", async () => {
+    const quota = s3Error("QUOTA_EXCEEDED", { limit: "folders" });
+    const hook = mount({ maxFiles: 2 });
+
+    let result!: Awaited<ReturnType<typeof hook.current.upload>>;
+    await act(async () => {
+      result = await hook.current.upload([txt("a.txt"), txt("b.txt")], {
+        uploadOptions: (file) =>
+          file.name === "a.txt"
+            ? Promise.reject(quota)
+            : Promise.reject(new Error("boom")),
+      });
+    });
+
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(result.failed).toEqual([
+      { file: expect.objectContaining({ name: "a.txt" }), error: quota },
+      {
+        file: expect.objectContaining({ name: "b.txt" }),
+        error: expect.objectContaining({ code: "HOOK_FAILED" }),
+      },
+    ]);
+    hook.unmount();
+  });
+
+  it("cancels a file while its request options are pending", async () => {
+    const hook = mount();
+
+    let pending!: ReturnType<typeof hook.current.upload>;
+    await act(async () => {
+      pending = hook.current.upload([txt("a.txt")], {
+        uploadOptions: () => new Promise(() => undefined),
+      });
+    });
+    await flush();
+    const [queued] = hook.current.files;
+    if (!queued) throw new Error("No queued file");
+    act(() => {
+      hook.current.cancel(queued.id);
+    });
+
+    let result!: Awaited<typeof pending>;
+    await act(async () => {
+      result = await pending;
+    });
+    expect(result.aborted).toHaveLength(1);
+    expect(uploadFile).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
   it("rejects invalid files without stopping the rest of the call", async () => {
     const onFileReject = vi.fn();
     const onSettled = vi.fn();

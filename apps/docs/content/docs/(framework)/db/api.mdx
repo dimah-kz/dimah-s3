@@ -141,6 +141,8 @@ the caller's scope from the request and runs `authorize` with the
 
 - Only the instance `guard` runs here, not a route `guard`
   ([Setup](/docs/db/setup#register-the-plugin-step)).
+`DELETE /db/folder` also takes `recursive=true`.
+
 - `GET` and `PATCH /db/object` take an optional `bucket`, which defaults to
   the only bucket your routes use. With several buckets it is required, and
   a bucket no route uses is a `VALIDATION_ERROR`.
@@ -209,6 +211,10 @@ await api.db.deleteFolder({ id: reports.folder.id });
 - `deleteFolder` removes an empty folder. A missing folder is not an error.
 - In JSON and in types the root is `null`. On the wire (`?folderId=`,
   `clientMetadata.folderId`) it is `""`.
+  With `recursive: true`, the folders below it go too, deepest first, as long
+  as none of them holds an object; a folder with one is `FOLDER_NOT_EMPTY`,
+  and the empty ones before it stay removed. `authorize` sees the folder the
+  call names.
 
 | Rule                                                                                                                | Error                      |
 | ------------------------------------------------------------------------------------------------------------------- | -------------------------- |
@@ -387,8 +393,11 @@ folders, upload, and usage: `<ObjectList list={list} />`.
 
 - Each page lists one folder, and `parent` is a folder id. Uploads go to
   the open folder, and "New folder" calls `api.db.createFolder`.
-- Rename calls `api.db.updateObject` or `api.db.updateFolder`. The object
-  key stays.
+- Rename and move call `api.db.updateObject` or `api.db.updateFolder`. The
+  object key stays.
+- A folder delete lists the object keys below it (`listFolderKeys`, with the
+  source's filters) for the list to delete, then calls
+  `api.db.deleteFolder({ id, recursive: true })`.
 - Search is recursive. `searchScopes` is `["folder", "all"]`: the open
   folder and every folder below it, or the whole scope. Each result gets
   its `location`.
@@ -447,17 +456,17 @@ The options of `s3.db.objects.list`. `count` takes the same filter, without
 `s3.db.folders`. Every method takes the scope first. The root is never
 stored, and `null` stands for it.
 
-| Property      | Type                                                                           | Description                                                                                          |
-| ------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `find`        | `(scope, id) => Promise<StorageFolder \| null>`                                | Loads one folder                                                                                     |
-| `count`       | `(scope) => Promise<number>`                                                   | How many folders the scope has                                                                       |
-| `children`    | `(scope, parentId, options?: { limit? }) => Promise<StorageFolder[]>`          | Direct child folders of `parentId`, by name; up to 1000 by default                                   |
-| `trail`       | `(scope, id) => Promise<StorageFolder[]>`                                      | The folders from the root down to `id`, `id` included; `FOLDER_NOT_FOUND` when it is missing         |
-| `descendants` | `(scope, parentId, options?: { search?; limit? }) => Promise<StorageFolder[]>` | Folders below `parentId` at any depth, by name then path, `parentId` excluded; up to 1000 by default |
-| `ancestors`   | `(scope, ids) => Promise<StorageFolder[]>`                                     | Every folder from the top level down to each id, once each, in path order; unknown ids are skipped   |
-| `create`      | `(scope, { parentId, name }) => Promise<StorageFolder>`                        | Creates a folder inside a parent that already exists                                                 |
-| `update`      | `(scope, id, { name?; parentId? }) => Promise<StorageFolder>`                  | Renames or moves a folder; ids stay, and the paths below it are rewritten                            |
-| `delete`      | `(scope, id) => Promise<void>`                                                 | Removes an empty folder; a missing folder does nothing                                               |
+| Property      | Type                                                                           | Description                                                                                             |
+| ------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `find`        | `(scope, id) => Promise<StorageFolder \| null>`                                | Loads one folder                                                                                        |
+| `count`       | `(scope) => Promise<number>`                                                   | How many folders the scope has                                                                          |
+| `children`    | `(scope, parentId, options?: { limit? }) => Promise<StorageFolder[]>`          | Direct child folders of `parentId`, by name; up to 1000 by default                                      |
+| `trail`       | `(scope, id) => Promise<StorageFolder[]>`                                      | The folders from the root down to `id`, `id` included; `FOLDER_NOT_FOUND` when it is missing            |
+| `descendants` | `(scope, parentId, options?: { search?; limit? }) => Promise<StorageFolder[]>` | Folders below `parentId` at any depth, by name then path, `parentId` excluded; up to 1000 by default    |
+| `ancestors`   | `(scope, ids) => Promise<StorageFolder[]>`                                     | Every folder from the top level down to each id, once each, in path order; unknown ids are skipped      |
+| `create`      | `(scope, { parentId, name }) => Promise<StorageFolder>`                        | Creates a folder inside a parent that already exists                                                    |
+| `update`      | `(scope, id, { name?; parentId? }) => Promise<StorageFolder>`                  | Renames or moves a folder; ids stay, and the paths below it are rewritten                               |
+| `delete`      | `(scope, id, options?: { recursive? }) => Promise<void>`                       | Removes an empty folder, and with `recursive` the empty folders below it; a missing folder does nothing |
 
 ### RecordObjectInput
 
@@ -504,7 +513,7 @@ a second argument.
 | `updateObject` | `({ key, bucket?, name?, folderId?, attributes? }) => Promise<{ object: DbClientObject }>` | `PATCH /db/object`  |
 | `createFolder` | `({ parentId?, name }) => Promise<{ folder: DbClientFolder }>`                             | `POST /db/folder`   |
 | `updateFolder` | `({ id, name?, parentId? }) => Promise<{ folder: DbClientFolder }>`                        | `PATCH /db/folder`  |
-| `deleteFolder` | `({ id }) => Promise<{ id: string }>`                                                      | `DELETE /db/folder` |
+| `deleteFolder` | `({ id, recursive? }) => Promise<{ id: string }>`                                          | `DELETE /db/folder` |
 
 ### DbClientListObjectsInput
 

@@ -15,21 +15,23 @@ import { isS3ErrorCode } from "@dimah-s3/core";
 import {
   useFormatError,
   useFormatNumber,
-  type ObjectListEntry,
   type ObjectListFolder,
   type UseObjectListReturn,
   type UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
 import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
-import { CheckIcon, FolderPlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  FolderInputIcon,
+  FolderPlusIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  useDeleteContext,
-  type DeleteTarget,
-} from "@/components/dimah-s3/delete/delete";
+import { useDeleteContext } from "@/components/dimah-s3/delete/delete";
 import { ObjectListBreadcrumb } from "@/components/dimah-s3/list/object-list-breadcrumb";
 import {
   ObjectListHeaderContext,
@@ -38,8 +40,8 @@ import {
   useOptionalObjectListHeader,
   type ObjectListHeaderContextValue,
 } from "@/components/dimah-s3/list/object-list-context";
+import { useObjectListDeleteRequest } from "@/components/dimah-s3/list/object-list-delete";
 import { ObjectListCheckbox } from "@/components/dimah-s3/list/object-list-entry";
-import { useObjectListFeedback } from "@/components/dimah-s3/list/object-list-feedback";
 import { ObjectListSearchBar } from "@/components/dimah-s3/list/object-list-search";
 
 /** Props for {@link ObjectListHeader}. */
@@ -219,8 +221,9 @@ export type ObjectListSelectionBarProps = {
 };
 
 /**
- * Count, `actions`, bulk Delete (when the list has `delete`), and Clear.
- * Renders nothing while the selection is empty.
+ * Count, `actions`, Move (when the source can move what is selected), bulk
+ * Delete (when the list has `delete`), and Clear. Renders nothing while the
+ * selection is empty.
  */
 export function ObjectListSelectionBar({
   actions,
@@ -261,6 +264,7 @@ export function ObjectListSelectionBar({
             {actions}
           </div>
         ) : null}
+        <ObjectListBulkMove />
         {del ? <BulkDeleteControl /> : null}
         <Button
           variant="ghost"
@@ -305,8 +309,9 @@ export type ObjectListBulkDeleteProps = {
 
 /**
  * Delete button for the selected entries. The list's delete root asks for
- * confirmation. `ObjectListSelectionBar` already has one; use this in a bar
- * of your own.
+ * confirmation. Selected folders go with everything in them when the
+ * source can delete folders, and stay otherwise. `ObjectListSelectionBar`
+ * already has one; use this in a bar of your own.
  */
 export function ObjectListBulkDelete({ className }: ObjectListBulkDeleteProps) {
   const { delete: del, selection } = useObjectListContext();
@@ -314,88 +319,34 @@ export function ObjectListBulkDelete({ className }: ObjectListBulkDeleteProps) {
   return <BulkDeleteControl className={className} />;
 }
 
-/** What a bulk delete removes. */
-type BulkDeletePlan = {
-  targets: readonly DeleteTarget[];
-  /** Each selected folder's entry key, with the object keys it holds. */
-  folders: readonly { entryKey: string; objectKeys: readonly string[] }[];
-  /** Selected folders left out: `resolveFolderKeys` is not set. */
-  skippedFolders: number;
-};
-
 /**
- * Collects the selected object keys (files, then folders through
- * `resolveFolderKeys`) and hands them to the delete root in one request.
- * Busy while the keys resolve and while they delete.
+ * Hands the selected entries to the delete root in one request. Busy while
+ * their files delete.
  */
 function BulkDeleteControl({ className }: { className?: string }) {
   const t = useTranslations();
-  const formatError = useFormatError();
   const { selection } = useObjectListContext();
-  const { resolveFolderKeys } = useObjectListInternal();
-  const { delete: del, request } = useDeleteContext();
-  const report = useObjectListFeedback();
-  const [preparing, setPreparing] = useState(false);
-  const [requested, setRequested] = useState<readonly string[]>([]);
+  const { delete: del, isDeleting } = useDeleteContext();
+  const requestDelete = useObjectListDeleteRequest();
+  const [requested, setRequested] = useState<readonly string[] | null>(null);
   const busy =
-    preparing || requested.some((key) => del.pendingKeys.includes(key));
+    requested != null &&
+    (isDeleting || requested.some((key) => del.pendingKeys.includes(key)));
   const label = t("Delete", { note: "button" });
 
-  async function onClick(event: MouseEvent<HTMLButtonElement>) {
-    if (!selection || busy) return;
-    const trigger = event.currentTarget;
-    setPreparing(true);
-    let plan: BulkDeletePlan;
-    try {
-      plan = await planBulkDelete(selection.selected, resolveFolderKeys);
-    } catch (error) {
-      report({
-        type: "error",
-        title: t("Could not delete the selection", {
-          note: "object list selection",
-        }),
-        description: formatError(error),
-      });
-      return;
-    } finally {
-      setPreparing(false);
-    }
-    const note =
-      plan.skippedFolders > 0
-        ? t("Selected folders stay in the list.", {
-            note: "object list selection",
-          })
-        : undefined;
-    if (plan.targets.length === 0) {
-      report({
-        type: "info",
-        title:
-          note ?? t("Nothing to delete", { note: "object list selection" }),
-      });
-      return;
-    }
-    setRequested(plan.targets.map((target) => target.objectKey));
-    request(plan.targets, {
-      note,
-      trigger,
+  function onClick(event: MouseEvent<HTMLButtonElement>) {
+    if (!selection || !requestDelete || busy) return;
+    const keys = selection.selected.flatMap((entry) =>
+      entry.kind === "file" ? [objectKeyOf(entry)] : [],
+    );
+    const asked = requestDelete(selection.selected, {
+      trigger: event.currentTarget,
       // A dismissed dialog deletes nothing, so a later delete of one of
       // these keys from a row menu must not show this button busy.
-      onDismissed: () => setRequested([]),
-      onDeleted: (result) => {
-        setRequested([]);
-        // A folder whose every object went leaves the selection; the list
-        // drops the deleted files itself.
-        const deleted = new Set(result.deleted);
-        const emptied = plan.folders.filter(
-          ({ objectKeys }) =>
-            objectKeys.length > 0 &&
-            objectKeys.every((key) => deleted.has(key)),
-        );
-        if (emptied.length > 0) {
-          selection.deselect(emptied.map(({ entryKey }) => entryKey));
-        }
-      },
+      onDismissed: () => setRequested(null),
+      onDeleted: () => setRequested(null),
     });
+    if (asked) setRequested(keys);
   }
 
   return (
@@ -407,7 +358,7 @@ function BulkDeleteControl({ className }: { className?: string }) {
       aria-busy={busy || undefined}
       disabled={busy}
       focusableWhenDisabled
-      onClick={(event) => void onClick(event)}
+      onClick={onClick}
     >
       {busy ? (
         <Spinner
@@ -424,41 +375,37 @@ function BulkDeleteControl({ className }: { className?: string }) {
   );
 }
 
-async function planBulkDelete<TItem>(
-  selected: readonly ObjectListEntry<TItem>[],
-  resolveFolderKeys:
-    ((folder: ObjectListFolder) => Promise<readonly string[]>) | undefined,
-): Promise<BulkDeletePlan> {
-  const targets = new Map<string, DeleteTarget>();
-  for (const entry of selected) {
-    if (entry.kind !== "file") continue;
-    const objectKey = objectKeyOf(entry);
-    targets.set(objectKey, {
-      objectKey,
-      fileName: entry.file.name,
-      fileSize: entry.file.size,
-    });
-  }
-  const selectedFolders = selected.filter((entry) => entry.kind === "folder");
-  if (!resolveFolderKeys) {
-    return {
-      targets: [...targets.values()],
-      folders: [],
-      skippedFolders: selectedFolders.length,
-    };
-  }
-  const folders = await Promise.all(
-    selectedFolders.map(async (entry) => ({
-      entryKey: entry.key,
-      objectKeys: await resolveFolderKeys(entry.folder),
-    })),
+/** Props for {@link ObjectListBulkMove}. */
+export type ObjectListBulkMoveProps = {
+  className?: string;
+};
+
+/**
+ * Move button for the selected entries: opens the Move dialog for the ones
+ * the source can move. Renders nothing when none of them can.
+ * `ObjectListSelectionBar` already has one; use this in a bar of your own.
+ */
+export function ObjectListBulkMove({ className }: ObjectListBulkMoveProps) {
+  const t = useTranslations();
+  const { list, selection, startMove } = useObjectListContext();
+  if (!list.moveEntries || !selection?.isSelecting) return null;
+  if (!selection.selected.some((entry) => list.canMove(entry))) return null;
+  const label = t("Move", { note: "object list selection" });
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className={cn(OBJECT_LIST_HEADER_COMPACT_BUTTON, className)}
+      aria-label={label}
+      onClick={(event) =>
+        startMove(selection.selected, { trigger: event.currentTarget })
+      }
+    >
+      <FolderInputIcon data-icon="inline-start" />
+      <span className={OBJECT_LIST_HEADER_COMPACT_LABEL}>{label}</span>
+    </Button>
   );
-  for (const { objectKeys } of folders) {
-    for (const objectKey of objectKeys) {
-      if (!targets.has(objectKey)) targets.set(objectKey, { objectKey });
-    }
-  }
-  return { targets: [...targets.values()], folders, skippedFolders: 0 };
 }
 
 /** Props for {@link ObjectListNewFolder}. */

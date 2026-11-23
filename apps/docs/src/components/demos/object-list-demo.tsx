@@ -289,7 +289,16 @@ function rewriteFolderPath(path: string, from: string, to: string) {
   return to + path.slice(from.length);
 }
 
-/** The demo's records. Uploads, deletes, renames, and New folder edit them. */
+/** A folder name as the demo takes it, else `FOLDER_INVALID`. */
+function folderName(input: string) {
+  const name = input.trim();
+  if (!name || name === "." || name === ".." || name.includes("/")) {
+    throw s3Error("FOLDER_INVALID");
+  }
+  return name;
+}
+
+/** The demo's records. Uploads, deletes, renames, moves, and New folder edit them. */
 function createCatalog() {
   let files = FILES;
   /** Folders made with New folder. They stay listed while empty. */
@@ -323,52 +332,71 @@ function createCatalog() {
       return next;
     },
     renameFolder(id: string, input: string): ObjectListFolder {
-      const name = input.trim();
-      if (!name || name === "." || name === ".." || name.includes("/")) {
+      const name = folderName(input);
+      const parent = id.includes("/") ? id.slice(0, id.lastIndexOf("/")) : null;
+      return placeFolder(id, parent, name);
+    },
+    moveFolder(id: string, parent: string | null) {
+      if (parent === id || (parent?.startsWith(`${id}/`) ?? false)) {
         throw s3Error("FOLDER_INVALID");
       }
-      const parent = id.includes("/") ? id.slice(0, id.lastIndexOf("/")) : null;
-      const nextId = parent ? `${parent}/${name}` : name;
-      if (nextId === id) return { id, name };
-      const known =
-        folders.has(id) || files.some((file) => isInFolder(file.folder, id));
-      if (!known) throw s3Error("FOLDER_NOT_FOUND");
-      const taken =
-        folders.has(nextId) ||
-        files.some((file) => isInFolder(file.folder, nextId));
-      if (taken) throw s3Error("FOLDER_EXISTS");
+      placeFolder(id, parent, id.slice(id.lastIndexOf("/") + 1));
+    },
+    moveFile(id: string, parent: string | null) {
       files = files.map((file) =>
-        file.folder == null
-          ? file
-          : { ...file, folder: rewriteFolderPath(file.folder, id, nextId) },
+        file.id === id ? { ...file, folder: parent } : file,
       );
-      folders = new Set(
-        [...folders].map((folderId) => rewriteFolderPath(folderId, id, nextId)),
-      );
-      return { id: nextId, name };
     },
     createFolder(parent: string | null, input: string): ObjectListFolder {
-      const name = input.trim();
-      if (!name || name === "." || name === ".." || name.includes("/")) {
-        throw s3Error("FOLDER_INVALID");
-      }
+      const name = folderName(input);
       const id = parent ? `${parent}/${name}` : name;
-      const exists =
-        folders.has(id) || files.some((file) => isInFolder(file.folder, id));
-      if (exists) throw s3Error("CONFLICT");
+      if (exists(id)) throw s3Error("FOLDER_EXISTS");
       folders = new Set(folders).add(id);
       return { id, name };
     },
+    /** Drops a folder and the empty ones below it once their files are gone. */
+    deleteFolder(id: string) {
+      if (files.some((file) => isInFolder(file.folder, id))) {
+        throw s3Error("FOLDER_NOT_EMPTY");
+      }
+      folders = new Set([...folders].filter((path) => !isInFolder(path, id)));
+    },
   };
+
+  function exists(id: string) {
+    return folders.has(id) || files.some((file) => isInFolder(file.folder, id));
+  }
+
+  /** Renames or moves folder `id` to `name` inside `parent`, with what it holds. */
+  function placeFolder(
+    id: string,
+    parent: string | null,
+    name: string,
+  ): ObjectListFolder {
+    const nextId = parent ? `${parent}/${name}` : name;
+    if (nextId === id) return { id, name };
+    if (!exists(id)) throw s3Error("FOLDER_NOT_FOUND");
+    if (exists(nextId)) throw s3Error("FOLDER_EXISTS");
+    files = files.map((file) =>
+      file.folder == null
+        ? file
+        : { ...file, folder: rewriteFolderPath(file.folder, id, nextId) },
+    );
+    folders = new Set(
+      [...folders].map((folderId) => rewriteFolderPath(folderId, id, nextId)),
+    );
+    return { id: nextId, name };
+  }
 }
 
 type Catalog = ReturnType<typeof createCatalog>;
 
 /**
  * The list source. `memoryObjectSource` reads folders from the records, so
- * this adds the created folders that hold no file yet, renames files and
- * folders, uploads into the open folder or the folder a file is dropped
- * on, and makes later pages wait a moment so the next-page spinner shows.
+ * this adds the created folders that hold no file yet, renames, moves, and
+ * deletes files and folders, uploads into the open folder or the folder a
+ * file is dropped on, and makes later pages wait a moment so the next-page
+ * spinner shows.
  */
 function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
   const source = memoryObjectSource(catalog.files, {
@@ -416,6 +444,11 @@ function createSource(catalog: Catalog): ObjectListSource<LibraryFile> {
     renameFile: async ({ item, name }) => catalog.renameFile(item.id, name),
     renameFolder: async ({ folder, name }) =>
       catalog.renameFolder(folder.id, name),
+    moveFile: async ({ item, parent }) => catalog.moveFile(item.id, parent),
+    moveFolder: async ({ folder, parent }) =>
+      catalog.moveFolder(folder.id, parent),
+    // `listFolderKeys` comes from `memoryObjectSource`.
+    deleteFolder: async ({ folder }) => catalog.deleteFolder(folder.id),
   };
 }
 
@@ -446,9 +479,7 @@ export function ObjectListDemo() {
   const [catalog] = useState(createCatalog);
   const [source] = useState(() => createSource(catalog));
   const list = useObjectList(source);
-  const selection = useObjectListSelection(list, {
-    isSelectable: () => true,
-  });
+  const selection = useObjectListSelection(list);
   const upload = useUpload({
     route: "uploads",
     maxFiles: 8,
@@ -483,12 +514,6 @@ export function ObjectListDemo() {
       download={download}
       share={share}
       delete={remove}
-      resolveFolderKeys={async (folder) =>
-        catalog
-          .files()
-          .filter((file) => isInFolder(file.folder, folder.id))
-          .map(fileObjectKey)
-      }
       onOpenItem={(file) => {
         void share
           .presign(fileObjectKey(file), { fileName: file.name })

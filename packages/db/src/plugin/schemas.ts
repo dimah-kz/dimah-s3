@@ -137,7 +137,11 @@ export const dbUpdateFolderBodySchema = z.strictObject({
   parentId: z.string().nullable().optional(),
 });
 
-/** Query of `DELETE /db/folder`. */
+/**
+ * Query of `DELETE /db/folder`. `recursive` removes the folders below it
+ * too, once none of them holds an object.
+ */
 export const dbDeleteFolderQuerySchema = z.strictObject({
   id: trimmedString,
+  recursive: queryBoolean.optional(),
 });

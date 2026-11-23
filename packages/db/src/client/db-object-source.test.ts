@@ -423,6 +423,106 @@ describe("dbObjectSource folders", () => {
     expect(updateFolder).not.toHaveBeenCalled();
   });
 
+  it("moves a file through updateObject, with the root as an empty string", async () => {
+    const updateObject = vi.fn<DbClientActions["updateObject"]>(async () => ({
+      object: row(),
+    }));
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      updateObject,
+    });
+
+    await source.moveFile?.({ item: row(), parent: "folder-2" });
+    await source.moveFile?.({ item: row(), parent: null });
+
+    expect(updateObject.mock.calls.map(([input]) => input)).toEqual([
+      { key: row().key, bucket: "b", folderId: "folder-2" },
+      { key: row().key, bucket: "b", folderId: "" },
+    ]);
+  });
+
+  it("moves a folder through updateFolder", async () => {
+    const updateFolder = vi.fn<DbClientActions["updateFolder"]>(async () => ({
+      folder: {
+        id: "folder-1",
+        path: "archive/drafts",
+        name: "drafts",
+        parentId: "archive",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      },
+    }));
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      updateFolder,
+    });
+
+    await source.moveFolder?.({
+      folder: { id: "folder-1", name: "drafts" },
+      parent: "archive",
+    });
+
+    expect(updateFolder).toHaveBeenCalledWith({
+      id: "folder-1",
+      parentId: "archive",
+    });
+  });
+
+  it("lists every key below a folder, page by page, with the filters", async () => {
+    const listObjects = vi
+      .fn<DbClientActions["listObjects"]>()
+      .mockResolvedValueOnce({
+        objects: [row({ key: "a" }), row({ key: "b" })],
+        nextCursor: "next",
+      })
+      .mockResolvedValueOnce({
+        objects: [row({ key: "c" })],
+        nextCursor: null,
+      });
+    const source = dbObjectSource({ listObjects }, { route: "docs" });
+    const signal = new AbortController().signal;
+
+    await expect(
+      source.listFolderKeys?.({
+        folder: { id: "folder-1", name: "docs" },
+        signal,
+      }),
+    ).resolves.toEqual(["a", "b", "c"]);
+    expect(listObjects.mock.calls).toEqual([
+      [
+        { folderId: "folder-1", recursive: true, limit: 100, route: "docs" },
+        { signal },
+      ],
+      [
+        {
+          folderId: "folder-1",
+          recursive: true,
+          limit: 100,
+          cursor: "next",
+          route: "docs",
+        },
+        { signal },
+      ],
+    ]);
+  });
+
+  it("deletes a folder with the folders below it", async () => {
+    const deleteFolder = vi.fn<DbClientActions["deleteFolder"]>(async () => ({
+      id: "folder-1",
+    }));
+    const source = dbObjectSource({
+      listObjects: listObjectsReturning(),
+      deleteFolder,
+    });
+
+    await source.deleteFolder?.({ folder: { id: "folder-1", name: "docs" } });
+
+    expect(deleteFolder).toHaveBeenCalledWith({
+      id: "folder-1",
+      recursive: true,
+    });
+  });
+
   it("has no folder actions with folders: false", () => {
     const source = dbObjectSource(
       {
@@ -437,6 +537,10 @@ describe("dbObjectSource folders", () => {
     expect(source.uploadOptions).toBeUndefined();
     expect(source.createFolder).toBeUndefined();
     expect(source.renameFolder).toBeUndefined();
+    expect(source.moveFile).toBeUndefined();
+    expect(source.moveFolder).toBeUndefined();
+    expect(source.listFolderKeys).toBeUndefined();
+    expect(source.deleteFolder).toBeUndefined();
     expect(source.renameFile).toBeTypeOf("function");
   });
 });

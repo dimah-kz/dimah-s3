@@ -450,7 +450,11 @@ export function createDatabaseEndpoints<
       },
     ),
 
-    /** Removes an empty folder. A missing folder is not an error. */
+    /**
+     * Removes an empty folder. With `recursive`, the folders below it go
+     * too, as long as none of them holds an object. `authorize` sees the
+     * folder the call names. A missing folder is not an error.
+     */
     deleteFolder: createS3Endpoint(
       pluginPath("db", "folder"),
       { method: "DELETE", query: dbDeleteFolderQuerySchema },
@@ -464,7 +468,9 @@ export function createDatabaseEndpoints<
           operation: "folder.delete",
           ...folderTarget(current),
         });
-        await folders.delete(peeked.scope, current.id);
+        await folders.delete(peeked.scope, current.id, {
+          recursive: ctx.query.recursive === true,
+        });
         return { id: current.id };
       },
     ),

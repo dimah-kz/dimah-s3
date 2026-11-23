@@ -2,9 +2,11 @@
 
 import { useRef, type FocusEvent, type KeyboardEvent } from "react";
 import type {
+  ObjectListEntry,
   UseObjectListReturn,
   UseObjectListSelectionReturn,
 } from "@dimah-s3/react";
+import type { ObjectListDeleteRequestOptions } from "@/components/dimah-s3/list/object-list-delete";
 import type {
   ObjectListEntryStore,
   ObjectListView,
@@ -32,6 +34,8 @@ const CONTROL =
  * - Space on an entry: toggle its checkbox. Shift extends the range.
  * - Ctrl+A / Cmd+A: select every loaded entry. Escape: clear.
  * - Backspace or Alt+ArrowUp: open the parent folder.
+ * - Delete, or Cmd+Backspace on a Mac: delete the selection, else the
+ *   focused entry, when the list can. The list asks first.
  * - F2: rename the focused row, when the source can.
  * - `/`: open and focus the list's search field. Shift+/ stays with the page.
  *
@@ -43,12 +47,20 @@ export function useObjectListKeyboard<TItem>({
   view,
   store,
   startRename,
+  requestDelete,
 }: {
   list: UseObjectListReturn<TItem>;
   selection: UseObjectListSelectionReturn<TItem> | null;
   view: ObjectListView;
   store: ObjectListEntryStore;
   startRename: (key: string) => void;
+  /** Asks to delete entries. `null` when the list cannot delete. */
+  requestDelete:
+    | ((
+        entries: readonly ObjectListEntry<TItem>[],
+        options?: ObjectListDeleteRequestOptions,
+      ) => boolean)
+    | null;
 }) {
   // Space toggles on keydown; swallow the keyup so the button does not open.
   const spaceRef = useRef(false);
@@ -87,6 +99,24 @@ export function useObjectListKeyboard<TItem>({
       if (selection.selectableCount === 0) return;
       event.preventDefault();
       selection.selectAll();
+      return;
+    }
+    if (isDeleteKey(event)) {
+      if (!requestDelete) return;
+      const key = entry?.dataset.entryKey;
+      const focused = key
+        ? list.entries.find((item) => item.key === key)
+        : undefined;
+      // The selection, which says when some of it stays, else the entry
+      // that has focus, when it can go.
+      const targets = selection?.isSelecting
+        ? selection.selected
+        : focused && (focused.kind === "file" || list.deleteFolder != null)
+          ? [focused]
+          : [];
+      if (targets.length === 0) return;
+      event.preventDefault();
+      requestDelete(targets, { trigger: target });
       return;
     }
     if (
@@ -289,6 +319,13 @@ function isSearchKey(event: KeyboardEvent<HTMLElement>): boolean {
     !event.shiftKey &&
     !/^[\x20-\x7e]$/.test(event.key)
   );
+}
+
+/** Delete, or Cmd+Backspace: the delete shortcut of a Mac keyboard. */
+function isDeleteKey(event: KeyboardEvent<HTMLElement>): boolean {
+  if (event.altKey || event.shiftKey) return false;
+  if (event.key === "Delete") return !event.ctrlKey && !event.metaKey;
+  return event.key === "Backspace" && event.metaKey && !event.ctrlKey;
 }
 
 /**

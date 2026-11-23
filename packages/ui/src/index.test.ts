@@ -27,6 +27,7 @@ describe("@dimah-s3/ui", () => {
       "ObjectList",
       "ObjectListBreadcrumb",
       "ObjectListBulkDelete",
+      "ObjectListBulkMove",
       "ObjectListCheckbox",
       "ObjectListContent",
       "ObjectListEmpty",

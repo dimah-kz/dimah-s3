@@ -216,4 +216,34 @@ describe("memoryObjectSource", () => {
       { id: "Docs/Images", name: "Images", size: 2, objectCount: 1 },
     ]);
   });
+
+  it("names the object keys in a folder and below it", async () => {
+    const keyed = memoryObjectSource(RECORDS, {
+      getId: (record) => record.id,
+      getFile: (record) => ({
+        name: record.name,
+        objectKey: record.id === "5" ? "img/deep.png" : null,
+      }),
+      getFolder: (record) => record.folder,
+    });
+    const signal = new AbortController().signal;
+
+    await expect(
+      keyed.listFolderKeys?.({ folder: { id: "Docs", name: "Docs" }, signal }),
+    ).resolves.toEqual(["4", "img/deep.png"]);
+    await expect(
+      keyed.listFolderKeys?.({
+        folder: { id: "Docs/Images", name: "Images" },
+        signal,
+      }),
+    ).resolves.toEqual(["img/deep.png"]);
+  });
+
+  it("has no listFolderKeys without getFolder", () => {
+    const flat = memoryObjectSource(RECORDS, {
+      getId: (record) => record.id,
+      getFile: (record) => ({ name: record.name }),
+    });
+    expect(flat.listFolderKeys).toBeUndefined();
+  });
 });

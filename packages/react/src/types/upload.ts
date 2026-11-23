@@ -26,10 +26,14 @@ export type UploadRequestOptions = {
 
 /**
  * Request options for every file, or a function that returns them per file.
- * A throw from the function fails that file with `HOOK_FAILED`.
+ * The function runs as the file starts, and may resolve later, such as once
+ * a folder for it exists: the file is `preparing` meanwhile. A throw or
+ * rejection fails that file: an `APIError` as it is, anything else with
+ * `HOOK_FAILED`.
  */
 export type UploadRequestInput =
-  UploadRequestOptions | ((file: File) => UploadRequestOptions);
+  | UploadRequestOptions
+  | ((file: File) => UploadRequestOptions | Promise<UploadRequestOptions>);
 
 /**
  * Options for one `handleFiles` call. Call `uploadOptions` shallow-merge over

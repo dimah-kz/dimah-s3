@@ -1,14 +1,22 @@
 "use client";
 
-import { memo, useRef, type MouseEvent, type ReactNode } from "react";
+import {
+  memo,
+  useRef,
+  type DragEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import {
   useFormatDate,
   useFormatFileSize,
   useFormatNumber,
   type DropTargetProps,
   type ObjectListEntry,
+  type ObjectListFile,
   type ObjectListFolder,
 } from "@dimah-s3/react";
+import { objectKeyOf } from "@dimah-s3/react/engine";
 import { useTranslations } from "@fuma-translate/react";
 import { cn } from "cn";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,9 +28,17 @@ import {
   ObjectListEntryProvider,
   useObjectListEntryScope,
   useObjectListEntryStatus,
+  type ObjectListMoveSourceProps,
+  type ObjectListThumbnails,
 } from "@/components/dimah-s3/list/object-list-context";
+import {
+  isMoveDrag,
+  MOVE_TARGET,
+} from "@/components/dimah-s3/list/object-list-move";
 import { ObjectListRenameField } from "@/components/dimah-s3/list/object-list-rename";
 import { ObjectListLocation } from "@/components/dimah-s3/list/object-list-search";
+import { ObjectImage } from "@/components/dimah-s3/preview/object-image";
+import { useInView } from "@/hooks/use-in-view";
 
 /** Props shared by {@link ObjectListRow} and {@link ObjectListTile}. */
 export type ObjectListEntryProps<TItem> = {
@@ -106,7 +122,8 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
     <ObjectListEntryProvider entry={entry}>
       <div
         {...parts.dropTarget}
-        data-drop-name={parts.dropTarget ? entry.name : undefined}
+        {...parts.moveSource}
+        data-drop-name={parts.takesUploads ? entry.name : undefined}
         data-slot="object-list-entry"
         data-entry-key={entry.key}
         data-kind={entry.kind}
@@ -126,6 +143,7 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
             ? "bg-dimah-s3-primary/10 hover:bg-dimah-s3-primary/15"
             : "hover:bg-dimah-s3-muted",
           DROP_TARGET,
+          MOVE_TARGET,
           REVEALED,
           className,
         )}
@@ -135,7 +153,11 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
           <div className="flex min-w-0 items-center gap-2.5 self-stretch">
             <span className="flex size-8 shrink-0 items-center justify-center">
               {parts.media ?? (
-                <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
+                <EntryMedia
+                  entry={entry}
+                  thumbnails={parts.thumbnails}
+                  className="size-8 rounded-[4px]"
+                />
               )}
             </span>
             <ObjectListRenameField entry={entry} />
@@ -147,7 +169,11 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
           >
             <span className="flex size-8 shrink-0 items-center justify-center">
               {parts.media ?? (
-                <EntryMedia entry={entry} className="size-8 rounded-[4px]" />
+                <EntryMedia
+                  entry={entry}
+                  thumbnails={parts.thumbnails}
+                  className="size-8 rounded-[4px]"
+                />
               )}
             </span>
             <span
@@ -193,7 +219,8 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
     <ObjectListEntryProvider entry={entry}>
       <div
         {...parts.dropTarget}
-        data-drop-name={parts.dropTarget ? entry.name : undefined}
+        {...parts.moveSource}
+        data-drop-name={parts.takesUploads ? entry.name : undefined}
         data-slot="object-list-entry"
         data-entry-key={entry.key}
         data-kind={entry.kind}
@@ -206,6 +233,7 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
             ? "border-dimah-s3-primary bg-dimah-s3-primary/10"
             : "border-dimah-s3-border hover:bg-dimah-s3-muted",
           DROP_TARGET,
+          MOVE_TARGET,
           REVEALED,
           className,
         )}
@@ -213,7 +241,9 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
         {parts.renaming ? (
           <div className="flex h-full min-w-0 flex-col">
             <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
-              {parts.media ?? <EntryMedia entry={entry} tile />}
+              {parts.media ?? (
+                <EntryMedia entry={entry} thumbnails={parts.thumbnails} tile />
+              )}
             </span>
             <span className="min-w-0 px-2 py-1.5">
               <ObjectListRenameField entry={entry} />
@@ -225,7 +255,9 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
             className="flex h-full min-w-0 flex-col text-start"
           >
             <span className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-dimah-s3-muted/60">
-              {parts.media ?? <EntryMedia entry={entry} tile />}
+              {parts.media ?? (
+                <EntryMedia entry={entry} thumbnails={parts.thumbnails} tile />
+              )}
             </span>
             <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
               <span className="flex min-w-0 items-center gap-1.5">
@@ -283,8 +315,17 @@ type EntryParts = {
   description: ReactNode;
   meta: ReactNode;
   media: ReactNode;
-  /** Drag and drop handlers on a folder that takes uploads, or `null`. */
+  /**
+   * Drag and drop handlers on a folder that takes uploads or moved
+   * entries, or `null`.
+   */
   dropTarget: DropTargetProps | null;
+  /** Dropped files upload into this folder. */
+  takesUploads: boolean;
+  /** Makes the entry draggable to move it, or `null`. */
+  moveSource: ObjectListMoveSourceProps | null;
+  /** Signs the thumbnail of an image file, or `null`. */
+  thumbnails: ObjectListThumbnails | null;
   /** Search text to mark in the name. */
   highlight: string | undefined;
   entryKey: string;
@@ -313,14 +354,19 @@ function useEntryParts<TItem>({
   const defaultDescription = useDefaultDescription(entry, location);
   const folder = entry.kind === "folder";
   const canRename = folder ? scope.renameFolder : scope.renameFile;
+  const canMove = folder ? scope.moveFolder : scope.moveFile;
   const opens = folder || scope.opensFiles;
   // Folders take dropped files only when the source can place them there.
-  const takesDrops = folder && scope.folderUploads;
+  const takesUploads = folder && scope.folderUploads;
+  // Any folder takes moved entries when the source can move something.
+  const takesMoves = folder && (scope.moveFile || scope.moveFolder);
   const hasMenu =
     location != null ||
+    canRename ||
+    canMove ||
     (folder
-      ? takesDrops || canRename
-      : scope.download || scope.share || scope.delete || canRename);
+      ? takesUploads || scope.deleteFolder
+      : scope.download || scope.share || scope.delete);
 
   const resolvedActions =
     actions !== undefined ? (
@@ -361,7 +407,16 @@ function useEntryParts<TItem>({
     ),
     meta: present(meta !== undefined ? meta : scope.renderMeta?.(entry)),
     media: present(media),
-    dropTarget: takesDrops ? scope.folderDropTarget(entry.id) : null,
+    dropTarget: dropTargetOf(
+      takesUploads ? scope.folderDropTarget(entry.id) : null,
+      takesMoves && entry.kind === "folder"
+        ? scope.moveTarget(entry.folder)
+        : null,
+    ),
+    takesUploads,
+    // A field inside keeps its text selection.
+    moveSource: canMove && !renaming ? scope.moveSource(entry) : null,
+    thumbnails: scope.thumbnails,
     highlight: scope.search || undefined,
     entryKey: entry.key,
     onClick:
@@ -444,10 +499,12 @@ function EntryTrigger({
 /** Thumbnail, file glyph, or folder glyph. */
 function EntryMedia<TItem>({
   entry,
+  thumbnails,
   tile = false,
   className,
 }: {
   entry: ObjectListEntry<TItem>;
+  thumbnails: ObjectListThumbnails | null;
   tile?: boolean;
   className?: string;
 }) {
@@ -455,6 +512,10 @@ function EntryMedia<TItem>({
     return <FolderGlyph className={tile ? "size-14" : undefined} />;
   }
   const { file } = entry;
+  const imageClass = cn(
+    "shrink-0 object-cover",
+    tile ? "size-full" : className,
+  );
   if (file.previewUrl) {
     return (
       <img
@@ -463,11 +524,11 @@ function EntryMedia<TItem>({
         draggable={false}
         decoding="async"
         loading="lazy"
-        className={cn("shrink-0 object-cover", tile ? "size-full" : className)}
+        className={imageClass}
       />
     );
   }
-  return tile ? (
+  const glyph = tile ? (
     <span className="flex size-16 items-center justify-center">
       <FileTypeGlyph fileName={file.name} contentType={file.contentType} />
     </span>
@@ -478,6 +539,113 @@ function EntryMedia<TItem>({
       contentType={file.contentType}
     />
   );
+  if (!thumbnails || !showsInBrowser(file)) return glyph;
+  return (
+    <EntryThumbnail
+      thumbnails={thumbnails}
+      objectKey={objectKeyOf(entry)}
+      className={imageClass}
+      fallback={glyph}
+    />
+  );
+}
+
+/**
+ * The image of a stored file, signed once its row or tile comes into view.
+ * The glyph shows until then, while it signs, and when it fails.
+ */
+function EntryThumbnail({
+  thumbnails,
+  objectKey,
+  className,
+  fallback,
+}: {
+  thumbnails: ObjectListThumbnails;
+  objectKey: string;
+  className: string;
+  fallback: ReactNode;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref);
+  return (
+    <span ref={ref} data-slot="object-list-thumbnail" className="contents">
+      {inView ? (
+        <ObjectImage
+          route={thumbnails.route}
+          api={thumbnails.api}
+          objectKey={objectKey}
+          alt=""
+          draggable={false}
+          decoding="async"
+          className={className}
+          fallback={fallback}
+        />
+      ) : (
+        fallback
+      )}
+    </span>
+  );
+}
+
+/** Image types every current browser draws in an `<img>`. */
+const BROWSER_IMAGE_TYPES: ReadonlySet<string> = new Set([
+  "image/apng",
+  "image/avif",
+  "image/bmp",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/svg+xml",
+  "image/vnd.microsoft.icon",
+  "image/webp",
+  "image/x-icon",
+]);
+
+const BROWSER_IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
+  "apng",
+  "avif",
+  "bmp",
+  "gif",
+  "ico",
+  "jfif",
+  "jpeg",
+  "jpg",
+  "png",
+  "svg",
+  "webp",
+]);
+
+/** An image the browser can draw: by its type, else by its extension. */
+function showsInBrowser(file: ObjectListFile): boolean {
+  const type = file.contentType?.split(";")[0]?.trim().toLowerCase();
+  if (type) return BROWSER_IMAGE_TYPES.has(type);
+  const dot = file.name.lastIndexOf(".");
+  if (dot <= 0) return false;
+  return BROWSER_IMAGE_EXTENSIONS.has(file.name.slice(dot + 1).toLowerCase());
+}
+
+type DragHandlerName = "onDragEnter" | "onDragOver" | "onDragLeave" | "onDrop";
+
+/**
+ * One set of drop handlers for a folder: dragged entries go to `move`,
+ * anything else (files) to `upload`. `null` when it takes neither.
+ */
+function dropTargetOf(
+  upload: DropTargetProps | null,
+  move: DropTargetProps | null,
+): DropTargetProps | null {
+  if (!move) return upload;
+  if (!upload) return move;
+  const route = (name: DragHandlerName) => (event: DragEvent<HTMLElement>) => {
+    if (isMoveDrag(event)) move[name]?.(event);
+    else upload[name]?.(event);
+  };
+  return {
+    onDragEnter: route("onDragEnter"),
+    onDragOver: route("onDragOver"),
+    onDragLeave: route("onDragLeave"),
+    onDrop: route("onDrop"),
+  };
 }
 
 /**

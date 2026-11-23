@@ -1,6 +1,6 @@
 ---
 title: Object List
-description: File browser for useObjectList, with folders, list and grid views, search, sort, selection, upload, and a file menu.
+description: File browser for useObjectList, with folders, list and grid views, search, sort, selection, move, upload, thumbnails, and a file menu.
 ---
 
 import { ObjectListDemo } from "@/components/demos/object-list-demo";
@@ -15,7 +15,8 @@ feature: selection, upload, download, share, and delete.
 </DemoPreview>
 
 The preview keeps its files in memory. Search, sort, switch to the grid,
-select with Shift-click or Ctrl+A, drop a file onto it, or open a row's menu.
+select with Shift-click or Ctrl+A, drop a file or a folder onto it, drag a row
+onto a folder, or open a row's menu.
 
 ## Installation
 
@@ -87,13 +88,17 @@ The component never fetches. `source` decides where the rows come from:
 [database plugin](/docs/db), or your own API. See
 [useObjectList](/docs/react/hooks/object-list).
 
-| Prop        | Turns on                                                            |
-| ----------- | ------------------------------------------------------------------- |
-| `selection` | Checkboxes, the selection bar, Shift ranges, Ctrl+A, Escape, Space  |
-| `upload`    | Drop and paste into the open folder, with progress under the header |
-| `download`  | Download in the file menu                                           |
-| `share`     | Copy link, signed by a second `useDownload` such as an inline one   |
-| `delete`    | Delete in the file menu, and bulk delete on the selection           |
+| Prop         | Turns on                                                                   |
+| ------------ | -------------------------------------------------------------------------- |
+| `selection`  | Checkboxes, the selection bar, Shift ranges, Ctrl+A, Escape, Space         |
+| `upload`     | Drop and paste into the open folder, with progress under the header        |
+| `download`   | Download in the file menu                                                  |
+| `share`      | Copy link, signed by a second `useDownload` such as an inline one          |
+| `delete`     | Delete in the entry menu, bulk delete on the selection, and the Delete key |
+| `thumbnails` | Image thumbnails, signed as rows come into view                            |
+
+What the source can do turns on the rest: **New folder**, **Rename**,
+**Move to…**, and Delete on folders. See [Folders](#folders).
 
 The list is the [`Upload`](/docs/ui/components/upload),
 [`Download`](/docs/ui/components/download), and
@@ -128,7 +133,8 @@ renders a header, the usage, the upload status, and the content.
 | `ObjectListSortMenu`              | Name, size, and date order, or your own fields                                          |
 | `ObjectListViewToggle`            | List and grid buttons                                                                   |
 | `ObjectListSelectAll`             | The select-all checkbox                                                                 |
-| `ObjectListSelectionBar`          | Count, your actions, bulk delete, and Clear                                             |
+| `ObjectListSelectionBar`          | Count, your actions, Move, bulk delete, and Clear                                       |
+| `ObjectListBulkMove`              | Move, for a selection bar of your own                                                   |
 | `ObjectListBulkDelete`            | Bulk delete, for a selection bar of your own                                            |
 | `ObjectListNewFolder`             | New folder, when the source can create folders                                          |
 | `ObjectListUsage`                 | Catalog bytes and files, with a text-sized ring for the caps                            |
@@ -136,7 +142,7 @@ renders a header, the usage, the upload status, and the content.
 | `ObjectListUploadStatus`          | Upload progress and errors                                                              |
 | `ObjectListContent`               | Rows or tiles, the loading, error, and empty states, and the next page                  |
 | `ObjectListEmpty`                 | The empty state, with your own text or actions                                          |
-| `ObjectListEntryMenu`             | The menu of one entry: download, copy link, rename, delete                              |
+| `ObjectListEntryMenu`             | The menu of one entry: download, copy link, rename, move, delete                        |
 | `ObjectListRow`, `ObjectListTile` | One entry, for `renderEntry`                                                            |
 
 Render the header's controls as its direct children, so the search and New
@@ -184,6 +190,21 @@ your renders do not redraw every entry.
 `defaultView="grid"` starts in the grid. Pass `view` and `onViewChange` to
 keep the view in your own state, such as the URL.
 
+## Thumbnails
+
+Pass `thumbnails` with the route that signs downloads, and image files show
+their picture in rows and tiles:
+
+```tsx
+<ObjectList list={list} thumbnails={{ route: "files" }} />
+```
+
+Each image is signed with [`useObjectUrl`](/docs/react/hooks/object-url) once
+its row or tile comes into view, and signed again before the URL expires. Its
+type, or its extension, decides: PNG, JPEG, GIF, WebP, AVIF, SVG, BMP, and
+ICO. A `previewUrl` from `getFile` wins. Pass `api` with the route when there
+is no `S3Provider`.
+
 ## Search and sort
 
 `ObjectListSearch` and `ObjectListSortMenu` set `list.search` and `list.sort`,
@@ -211,8 +232,9 @@ users can search the open folder or everything.
 
 ## Selection
 
-Pass `useObjectListSelection(list)` as `selection`. Only files can be selected
-by default. Put your own bulk actions in `selectionActions`:
+Pass `useObjectListSelection(list)` as `selection`. Files can be selected by
+default, and folders too when the source can delete or move them. Put your own
+bulk actions in `selectionActions`:
 
 ```tsx
 const selection = useObjectListSelection(list);
@@ -230,19 +252,46 @@ const selection = useObjectListSelection(list);
 
 ## Delete
 
-`onDeleted` receives the result of each confirmed delete. To delete folders, make them selectable and say which keys each one holds.
-Without `resolveFolderKeys`, selected folders stay out of a delete.
+`onDeleted` receives the result of each confirmed delete. Delete, or
+Cmd+Backspace on a Mac, deletes the selection, else the focused entry, after
+the same confirmation.
+
+Folders can be deleted when the source has `deleteFolder`. After the dialog is
+confirmed, `listFolderKeys` names the files in each folder, `delete` removes
+them with the selected files in one request, and `deleteFolder` removes each
+folder whose files all went. A folder with a file that failed stays.
+`dbObjectSource` sets both; with your own source:
 
 ```tsx
-const selection = useObjectListSelection(list, { isSelectable: () => true });
-
-<ObjectList
-  list={list}
-  selection={selection}
-  delete={remove}
-  resolveFolderKeys={(folder) => api.keysUnder(folder.id)}
-/>;
+const list = useObjectList({
+  ...source,
+  listFolderKeys: ({ folder, signal }) => api.keysUnder(folder.id, { signal }),
+  deleteFolder: ({ folder }) => api.deleteFolder(folder.id),
+});
 ```
+
+Without `deleteFolder`, folders have no Delete, and selected folders stay out
+of a bulk delete.
+
+## Move
+
+When the source has `moveFile` or `moveFolder`, entries have **Move to…** in
+their menu, the selection bar has **Move**, and a row dragged onto a folder,
+or onto the root or the parent in the path, moves there. The dialog opens in
+the open folder: browse to another and choose **Move here**.
+
+```tsx
+const list = useObjectList({
+  ...source,
+  moveFile: ({ item, parent }) => api.moveFile(item.id, parent),
+  moveFolder: ({ folder, parent }) => api.moveFolder(folder.id, parent),
+});
+```
+
+A dragged row that is selected takes the selection with it. Moved entries
+leave the open folder at once, and the list reloads. A folder cannot be
+opened in the dialog while it moves, so nothing moves into itself.
+`dbObjectSource` sets both.
 
 ## Upload into folders
 
@@ -262,7 +311,9 @@ file picker, add an `UploadTrigger` to the `toolbar` or the empty state:
 ```
 
 The source's `uploadOptions(parent)` decides where files land.
-`dbObjectSource` sets it for you. With your own source, send the folder as
+`dbObjectSource` sets it for you. A dropped folder keeps its folders when the
+source has `createFolder`: each one is found by name below the folder it lands
+in, or created as its first file starts, and its files upload there. With your own source, send the folder as
 `clientMetadata` and read it in the server's upload hook:
 
 ```tsx
@@ -280,13 +331,15 @@ const list = useObjectList({
   `getFolder`.
 - `dbObjectSource` lists, creates, and renames the folders `db()` stores.
 - Your own source returns folders from its query. Add `createFolder` to show
-  **New folder**, and `renameFile` or `renameFolder` to show **Rename**.
-  Renaming changes the display name; the object key stays.
+  **New folder**, `renameFile` or `renameFolder` to show **Rename**,
+  `moveFile` or `moveFolder` for [Move](#move), and `deleteFolder` for
+  [folder deletes](#delete). Renaming and moving keep the object key.
 
 ## Entry menu
 
 `ObjectListEntryMenu` is the default trailing control, with **Download**,
-**Copy link**, **Rename**, and **Delete** when the list can do them. Add your
+**Copy link**, **Rename**, **Move to…**, and **Delete** when the list can do
+them. Add your
 own rows with `actions`, or with children:
 
 ```tsx
@@ -356,6 +409,7 @@ The entries are one tab stop, so a long folder takes one Tab.
 | Ctrl+A / Cmd+A          | Select every loaded entry                                  |
 | Escape                  | Clear the selection                                        |
 | Backspace / Alt+ArrowUp | Open the parent folder                                     |
+| Delete / Cmd+Backspace  | Delete the selection, else the focused entry               |
 | F2                      | Rename the focused entry                                   |
 | /                       | Open the search field                                      |
 
@@ -366,36 +420,36 @@ checkbox and menu have, so Tab stays on the entry.
 
 ### ObjectList
 
-| Prop                | Type                                     | Default                                          | Description                                               |
-| ------------------- | ---------------------------------------- | ------------------------------------------------ | --------------------------------------------------------- |
-| `list`              | `UseObjectListReturn`                    | required                                         | The `useObjectList` return to render                      |
-| `selection`         | `UseObjectListSelectionReturn`           | —                                                | Adds selection                                            |
-| `upload`            | `UseUploadReturn`                        | —                                                | Adds drop, paste, and folder uploads                      |
-| `download`          | `AnyDownloadReturn`                      | —                                                | Adds Download to the file menu                            |
-| `share`             | `UseDownloadReturn`                      | —                                                | Signs Copy link. Falls back to a `useDownload` `download` |
-| `delete`            | `UseDeleteReturn`                        | —                                                | Adds Delete to the file menu and the selection bar        |
-| `toasts`            | `boolean`                                | `true`                                           | Toasts for the hooks above                                |
-| `view`              | `"list" \| "grid"`                       | —                                                | Controlled view, with `onViewChange`                      |
-| `defaultView`       | `"list" \| "grid"`                       | `"list"`                                         | Starting view                                             |
-| `onViewChange`      | `(view) => void`                         | —                                                | Runs when the view changes                                |
-| `onOpenItem`        | `(item) => void`                         | —                                                | Runs when a file is clicked or opened with Enter          |
-| `onDeleted`         | `(result: DeleteResult) => void`         | —                                                | Runs after each confirmed delete                          |
-| `resolveFolderKeys` | `(folder) => Promise<readonly string[]>` | —                                                | Keys inside a folder. Lets selected folders be deleted    |
-| `rootLabel`         | `string`                                 | `"Files"`                                        | Root breadcrumb label and the list's accessible name      |
-| `breadcrumb`        | `boolean`                                | `true`                                           | Shows the path in the default header                      |
-| `toolbar`           | `ReactNode`                              | —                                                | Controls at the end of the default header                 |
-| `selectionActions`  | `ReactNode`                              | —                                                | Controls on the selection bar, beside Delete              |
-| `empty`             | `ReactNode`                              | —                                                | Replaces the empty state                                  |
-| `commands`          | `ObjectListCommands`                     | —                                                | Opens New folder and entry menus from outside             |
-| `pagination`        | `"auto" \| "button"`                     | `"auto"`                                         | How later pages load                                      |
-| `height`            | `number \| string`                       | —                                                | Fixed frame height. Entries scroll inside                 |
-| `maxHeight`         | `number \| string`                       | —                                                | Largest frame height                                      |
-| `renderEntry`       | `(entry) => ReactNode`                   | —                                                | Replaces the whole row or tile                            |
-| `renderActions`     | `(entry) => ReactNode`                   | Entry menu                                       | Replaces the trailing controls                            |
-| `renderDescription` | `(entry) => ReactNode`                   | Size and date, or a folder's file count and size | Replaces the second line. Text only                       |
-| `renderMeta`        | `(entry) => ReactNode`                   | —                                                | Text beside the name                                      |
-| `className`         | `string`                                 | —                                                | Classes for the frame                                     |
-| `children`          | `ReactNode`                              | —                                                | Your own layout from the list parts                       |
+| Prop                | Type                             | Default                                          | Description                                               |
+| ------------------- | -------------------------------- | ------------------------------------------------ | --------------------------------------------------------- |
+| `list`              | `UseObjectListReturn`            | required                                         | The `useObjectList` return to render                      |
+| `selection`         | `UseObjectListSelectionReturn`   | —                                                | Adds selection                                            |
+| `upload`            | `UseUploadReturn`                | —                                                | Adds drop, paste, and folder uploads                      |
+| `download`          | `AnyDownloadReturn`              | —                                                | Adds Download to the file menu                            |
+| `share`             | `UseDownloadReturn`              | —                                                | Signs Copy link. Falls back to a `useDownload` `download` |
+| `delete`            | `UseDeleteReturn`                | —                                                | Adds Delete to the entry menu and the selection bar       |
+| `toasts`            | `boolean`                        | `true`                                           | Toasts for the hooks above                                |
+| `view`              | `"list" \| "grid"`               | —                                                | Controlled view, with `onViewChange`                      |
+| `defaultView`       | `"list" \| "grid"`               | `"list"`                                         | Starting view                                             |
+| `onViewChange`      | `(view) => void`                 | —                                                | Runs when the view changes                                |
+| `onOpenItem`        | `(item) => void`                 | —                                                | Runs when a file is clicked or opened with Enter          |
+| `thumbnails`        | `{ route, api? }`                | —                                                | Signs image thumbnails through this route                 |
+| `onDeleted`         | `(result: DeleteResult) => void` | —                                                | Runs after each confirmed delete                          |
+| `rootLabel`         | `string`                         | `"Files"`                                        | Root breadcrumb label and the list's accessible name      |
+| `breadcrumb`        | `boolean`                        | `true`                                           | Shows the path in the default header                      |
+| `toolbar`           | `ReactNode`                      | —                                                | Controls at the end of the default header                 |
+| `selectionActions`  | `ReactNode`                      | —                                                | Controls on the selection bar, beside Delete              |
+| `empty`             | `ReactNode`                      | —                                                | Replaces the empty state                                  |
+| `commands`          | `ObjectListCommands`             | —                                                | Opens New folder and entry menus from outside             |
+| `pagination`        | `"auto" \| "button"`             | `"auto"`                                         | How later pages load                                      |
+| `height`            | `number \| string`               | —                                                | Fixed frame height. Entries scroll inside                 |
+| `maxHeight`         | `number \| string`               | —                                                | Largest frame height                                      |
+| `renderEntry`       | `(entry) => ReactNode`           | —                                                | Replaces the whole row or tile                            |
+| `renderActions`     | `(entry) => ReactNode`           | Entry menu                                       | Replaces the trailing controls                            |
+| `renderDescription` | `(entry) => ReactNode`           | Size and date, or a folder's file count and size | Replaces the second line. Text only                       |
+| `renderMeta`        | `(entry) => ReactNode`           | —                                                | Text beside the name                                      |
+| `className`         | `string`                         | —                                                | Classes for the frame                                     |
+| `children`          | `ReactNode`                      | —                                                | Your own layout from the list parts                       |
 
 ### ObjectListHeader
 
@@ -427,6 +481,12 @@ checkbox and menu have, so Tab stays on the entry.
 | `title`       | `ReactNode` | "This folder is empty", or "No results" | Heading                |
 | `description` | `ReactNode` | —                                       | Text under it          |
 | `children`    | `ReactNode` | Search actions while searching          | Actions below the text |
+
+### ObjectListBulkMove and ObjectListBulkDelete
+
+| Prop        | Type     | Default | Description            |
+| ----------- | -------- | ------- | ---------------------- |
+| `className` | `string` | —       | Classes for the button |
 
 ### ObjectListUsage
 
@@ -481,8 +541,9 @@ checkbox and menu have, so Tab stays on the entry.
 Returns the list's state inside `ObjectList`, for parts of your own:
 `list`, `selection`, `upload`, `download`, `share`, `delete`, `toasts`,
 `view`, `setView`, `rootLabel`, and the commands `startNewFolder()`,
-`startRename(key)`, `revealEntry(entry)`, and `announce(feedback)`. Inside an
-entry, `useObjectListEntry()` returns that entry.
+`startRename(key)`, `revealEntry(entry)`, `startMove(entries, { trigger? })`,
+and `announce(feedback)`. Inside an entry, `useObjectListEntry()` returns that
+entry.
 
 ### useObjectListCommands
 

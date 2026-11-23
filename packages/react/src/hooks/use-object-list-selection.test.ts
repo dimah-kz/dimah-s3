@@ -23,7 +23,12 @@ function entries(
 }
 
 function setup(
-  initial: { entries: ObjectListEntry<Item>[]; parent: string | null },
+  initial: {
+    entries: ObjectListEntry<Item>[];
+    parent: string | null;
+    deleteFolder?: unknown;
+    canMove?: (kind: ObjectListEntry<Item>["kind"]) => boolean;
+  },
   options?: UseObjectListSelectionOptions<Item>,
 ) {
   const list = { ...initial };
@@ -194,5 +199,31 @@ describe("useObjectListSelection", () => {
     expect(hook.current.selectedItems).toEqual([{ id: "a" }, { id: "b" }]);
     expect(hook.current.allSelected).toBe(true);
     hook.unmount();
+  });
+
+  it("selects folders by default when the list can delete or move them", () => {
+    const rows = entries(["a"], [{ id: "docs", name: "docs" }]);
+    const [folder, file] = rows;
+    if (!folder || !file) throw new Error("Missing entries");
+    const files = setup({ entries: rows, parent: null });
+    expect(files.hook.current.canSelect(folder)).toBe(false);
+    expect(files.hook.current.canSelect(file)).toBe(true);
+    files.hook.unmount();
+
+    const deletes = setup({
+      entries: rows,
+      parent: null,
+      deleteFolder: async () => undefined,
+    });
+    expect(deletes.hook.current.canSelect(folder)).toBe(true);
+    deletes.hook.unmount();
+
+    const moves = setup({
+      entries: rows,
+      parent: null,
+      canMove: (kind) => kind === "folder",
+    });
+    expect(moves.hook.current.canSelect(folder)).toBe(true);
+    moves.hook.unmount();
   });
 });
