@@ -323,7 +323,7 @@ const keyCache = new Map<string, Promise<CryptoKey>>();
 
 /** HMAC keys for every secret. The first one signs. */
 function ticketKeys(env: TicketEnv): Promise<CryptoKey[]> {
-  return Promise.all(ticketSecrets(env).map(deriveKey));
+  return Promise.all(instanceSecrets(env).map(deriveKey));
 }
 
 function deriveKey(secret: string): Promise<CryptoKey> {
@@ -350,12 +350,17 @@ function deriveKey(secret: string): Promise<CryptoKey> {
   return key;
 }
 
+/** What {@link instanceSecrets} reads. */
+export type SecretEnv = Pick<ResolvedConfig, "secret" | "logger">;
+
 /**
  * The configured secrets, else `DIMAH_S3_SECRET`. With neither, a random
  * secret is used when `NODE_ENV` is exactly `development` or `test`, and
- * any other environment is a config error.
+ * any other environment is a config error. The first secret signs; the
+ * others still verify while a secret is rotated. Upload tickets and plugin
+ * tokens both derive their keys from these.
  */
-function ticketSecrets(env: TicketEnv): readonly string[] {
+export function instanceSecrets(env: SecretEnv): readonly string[] {
   if (env.secret) return env.secret;
 
   const fromEnv = readEnv(SECRET_ENV);
@@ -382,7 +387,7 @@ function ticketSecrets(env: TicketEnv): readonly string[] {
  * A random secret kept on `globalThis`, so it survives hot reloads. Tickets
  * stop verifying when the process restarts.
  */
-function developmentSecret(env: TicketEnv): string {
+function developmentSecret(env: SecretEnv): string {
   const store = globalThis as { [DEV_SECRET]?: string };
   let secret = store[DEV_SECRET];
   if (secret === undefined) {

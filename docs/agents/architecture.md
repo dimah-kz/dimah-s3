@@ -1,6 +1,6 @@
 # Architecture
 
-Thin presign protocol, headless React hooks, optional shadcn UI. Consumers own the `S3Client`, auth, and quota numbers. Optional persistence is a server plugin from `@dimah-s3/db`.
+Thin presign protocol, headless React hooks, optional shadcn UI. Consumers own the `S3Client`, auth, and quota numbers. Optional persistence is a server plugin from `@dimah-s3/db`; share links are a plugin on top of it, from `@dimah-s3/share`.
 
 ## Package chain
 
@@ -10,11 +10,13 @@ Thin presign protocol, headless React hooks, optional shadcn UI. Consumers own t
 @dimah-s3/server | @dimah-s3/react  ←  @dimah-s3/ui  (peers: core + react)
         ↑
 @dimah-s3/db  (peer: server — `db()` plugin)
+        ↑
+@dimah-s3/share  (peers: db + server — `share()` plugin)
 
 @dimah-s3/cli  (scaffold only — no deps on the library chain)
 ```
 
-`@dimah-s3/ui` peer-depends on both `@dimah-s3/core` and `@dimah-s3/react`, and `@dimah-s3/db` on `@dimah-s3/server`, each pinned to the exact release version. React does not re-export core. `@dimah-s3/db` has a type-only dev dependency on react to check that `dbObjectSource` fits `ObjectListSource`; it never imports react at runtime.
+`@dimah-s3/ui` peer-depends on both `@dimah-s3/core` and `@dimah-s3/react`, `@dimah-s3/db` on `@dimah-s3/server`, and `@dimah-s3/share` on `@dimah-s3/db` and `@dimah-s3/server`, each pinned to the exact release version. `share` reaches db only through `s3.db` (`access`, `objects`, `folders`) from `env.getPlugin("db")`, never through db internals, and has its own FumaDB library (`DimahS3Share`, namespace `dimah_s3_share`) with its own schema version. React does not re-export core. `@dimah-s3/db` has a type-only dev dependency on react to check that `dbObjectSource` fits `ObjectListSource`; it never imports react at runtime.
 
 `apps/docs`, `apps/brand`, and `examples/*` consume workspace packages (not published). `examples/plugin-audit` is a plugin package built only on the public plugin SDK; `pnpm test` runs its tests. `templates/*` are standalone starters with published `@dimah-s3/*` ranges, snapshotted into the CLI at build time.
 
@@ -29,6 +31,7 @@ Edit the **smallest package that owns the behavior**. Search that package before
 | `react`  | Headless hooks (root) and plain functions (`/engine`)                   |
 | `ui`     | Optional components + registry source                                   |
 | `db`     | Optional persistence plugin                                             |
+| `share`  | Share links on top of `db` (own table, endpoints, client plugin)        |
 | `cli`    | `dimah-s3 create` only                                                  |
 
 Shared protocol changes start in `core`, then wire `server` and `react`. Do not copy a parallel schema or URL string into another package.

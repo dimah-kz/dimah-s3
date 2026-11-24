@@ -56,7 +56,7 @@ The maintainer picks the bump. A breaking change is a `major`, and it is never s
 
 ## Exact peers
 
-`@dimah-s3/ui` pins `@dimah-s3/core` and `@dimah-s3/react`, and `@dimah-s3/db` pins `@dimah-s3/server`, to the exact current version (such as `"2.0.0"`, not a range). The Tegami version step rewrites them with the group bump. `pnpm check:dist` fails when an exact `@dimah-s3/*` peer differs from that package's version.
+`@dimah-s3/ui` pins `@dimah-s3/core` and `@dimah-s3/react`, `@dimah-s3/db` pins `@dimah-s3/server`, and `@dimah-s3/share` pins `@dimah-s3/db` and `@dimah-s3/server`, to the exact current version (such as `"2.0.0"`, not a range). The Tegami version step rewrites them with the group bump. `pnpm check:dist` fails when an exact `@dimah-s3/*` peer differs from that package's version.
 
 ## Before opening a PR
 

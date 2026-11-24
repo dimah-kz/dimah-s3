@@ -352,23 +352,25 @@ gets the resolved `scope`.
 | `session`   | `TSession`       | The `getSession` result, resolved once per request; `undefined` without `getSession`                                                 |
 | `operation` | `ScopeOperation` | What the scope is resolved for ([ScopeOperation](#scopeoperation))                                                                   |
 | `route`     | `string`         | Named route of the call. `list` has one only when the client filters by route; `read`, `update`, and the folder operations have none |
+| `plugin`    | `{ id; action }` | On `operation: "plugin"` only: the plugin and its action, such as `{ id: "share", action: "createLink" }`                            |
 
 ### ScopeOperation
 
-| `operation`     | Runs for                                            |
-| --------------- | --------------------------------------------------- |
-| `upload`        | presign, multipart init, and `s3.put`               |
-| `confirm`       | confirm, and the confirm step of multipart complete |
-| `multipart`     | part, list, abort, and complete                     |
-| `download`      | presigned download and `GET /file`                  |
-| `delete`        | delete, and each key of `deleteMany`                |
-| `list`          | `GET /db/objects`                                   |
-| `read`          | `GET /db/object`                                    |
-| `update`        | `PATCH /db/object`                                  |
-| `folder.create` | `POST /db/folder`                                   |
-| `folder.update` | `PATCH /db/folder`, a rename or a move              |
-| `folder.delete` | `DELETE /db/folder`                                 |
-| `record`        | `s3.db.record`                                      |
+| `operation`     | Runs for                                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `upload`        | presign, multipart init, and `s3.put`                                                                               |
+| `confirm`       | confirm, and the confirm step of multipart complete                                                                 |
+| `multipart`     | part, list, abort, and complete                                                                                     |
+| `download`      | presigned download and `GET /file`                                                                                  |
+| `delete`        | delete, and each key of `deleteMany`                                                                                |
+| `list`          | `GET /db/objects`                                                                                                   |
+| `read`          | `GET /db/object`                                                                                                    |
+| `update`        | `PATCH /db/object`                                                                                                  |
+| `folder.create` | `POST /db/folder`                                                                                                   |
+| `folder.update` | `PATCH /db/folder`, a rename or a move                                                                              |
+| `folder.delete` | `DELETE /db/folder`                                                                                                 |
+| `record`        | `s3.db.record`                                                                                                      |
+| `plugin`        | another plugin's call through [`s3.db.access`](/docs/db/api#s3dbaccess), such as a [share link](/docs/share) action |
 
 ### AuthorizeContext
 

@@ -9,7 +9,7 @@ export default function Home() {
           A file manager on the{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">db()</code>{" "}
           plugin. Drop files onto the list or a folder, create folders, search,
-          sort, download, and delete.
+          sort, download, delete, and copy a share link from a row&apos;s menu.
         </p>
       </div>
 

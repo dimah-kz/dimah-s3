@@ -55,6 +55,8 @@ The plugin SDK is public and follows semver: `@dimah-s3/server/plugins`, `@dimah
 - Plugin error codes: `defineErrorCodes` under `$ERROR_CODES`, thrown with `s3Error(entry, params)`, merged into `s3.$ERROR_CODES` and the client's. First-party codes that react words (`FOLDER_*`, `OBJECT_EXISTS`) stay in the core catalog.
 - Hook order is load-bearing: guards run instance → route → feature, and within each, **plugins first, then the user**. Lifecycle **`on*`** hooks also run plugins first, so user hooks see consistent db state.
 - A plugin may bind tickets to a caller with `hooks.ticketSubject`.
+- A plugin that grants access without a session (share links) sends bytes with `env.download.presign` / `env.download.serve`, picked by `route.download.mode`, and signs any grant it puts in a URL with `env.tokens(purpose)`. Never presign with `route.client` directly: it skips `inlineTypes` and the `/file` hardening headers.
+- A plugin built on db resolves callers and checks ownership through `s3.db.access` (from `env.getPlugin("db")`), so the user's `resolveScope` and `authorize` stay the only source of truth.
 - A plugin that records an upload in `upload.onStart` undoes it in `upload.onRejected`, which runs once the server refused the upload and deleted its object. A throw there is reported, never returned.
 - Test plugins with `@dimah-s3/server/testing` (`createTestInstance`). The in-memory S3 lives in `packages/server/src/testing/`; the internal harness wraps it.
 

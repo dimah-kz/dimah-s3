@@ -1,0 +1,7 @@
+{
+  "title": "Share Links",
+  "description": "Expiring, password-protected links to files and folders",
+  "icon": "Link",
+  "defaultOpen": false,
+  "pages": ["index", "visitor-page", "api"]
+}

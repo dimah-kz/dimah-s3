@@ -1,6 +1,10 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { S3_API_ROUTES, type DownloadPresignResponse } from "@dimah-s3/core";
+import {
+  S3_API_ROUTES,
+  type ContentDispositionType,
+  type DownloadPresignResponse,
+} from "@dimah-s3/core";
 import type { downloadQuerySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import { authorizeDownload } from "@/helpers/authorize-download";
@@ -10,7 +14,8 @@ import { resolveObjectDisposition } from "@/helpers/inline-types";
 import { openObject } from "@/helpers/open-target";
 import { runOperation } from "@/operations/run-operation";
 import type { S3ServerCallOptions } from "@/types/config";
-import type { ResolvedConfig } from "@/types/resolved";
+import type { ObjectContext } from "@/types/hook-contexts";
+import type { OpenedRoute, ResolvedConfig } from "@/types/resolved";
 
 /** Query of `GET /presign/download`, after validation. */
 export type DownloadQuery = z.output<typeof downloadQuerySchema>;
@@ -54,46 +59,96 @@ export function presignDownload(
     );
 
     const { bucket, key } = context;
-    const head = await headObjectOrNotFound(route.client, bucket, key, {
-      abortSignal: call.request.signal,
-    });
-    const sent = resolveObjectDisposition(download.inlineTypes, {
-      key,
-      name: guardContext.name,
-      requested: guardContext.disposition,
-      contentType: head.ContentType,
-      contentDisposition: head.ContentDisposition,
-    });
-
-    const url = presign
-      ? await getSignedUrl(
-          route.client,
-          new GetObjectCommand({
-            Bucket: bucket,
-            Key: key,
-            ResponseContentDisposition: sent.header,
-            ResponseContentType: sent.contentType,
-          }),
-          { expiresIn: guardContext.expiresIn },
-        )
-      : proxyUrl(config, {
-          route: route.name,
-          key,
+    let url: string;
+    let disposition: ContentDispositionType;
+    if (presign) {
+      ({ url, disposition } = await signObjectUrl(
+        route,
+        context,
+        {
           name: guardContext.name,
-          disposition: sent.disposition,
-        });
+          disposition: guardContext.disposition,
+          expiresIn: guardContext.expiresIn ?? download.maxExpiresIn,
+        },
+        call.request.signal,
+      ));
+    } else {
+      // The disposition `/file` will send depends on the stored type.
+      const head = await headObjectOrNotFound(route.client, bucket, key, {
+        abortSignal: call.request.signal,
+      });
+      ({ disposition } = resolveObjectDisposition(download.inlineTypes, {
+        key,
+        name: guardContext.name,
+        requested: guardContext.disposition,
+        contentType: head.ContentType,
+        contentDisposition: head.ContentDisposition,
+      }));
+      url = proxyUrl(config, {
+        route: route.name,
+        key,
+        name: guardContext.name,
+        disposition,
+      });
+    }
 
     await runLifecycle(download.onPresigned, {
       ...guardContext,
-      disposition: sent.disposition,
+      disposition,
       url,
     });
 
-    const base = { key, bucket, url, disposition: sent.disposition };
+    const base = { key, bucket, url, disposition };
     return guardContext.expiresIn === undefined
       ? { ...base, mode: "proxy" }
       : { ...base, mode: "presign", expiresIn: guardContext.expiresIn };
   });
+}
+
+/** How {@link signObjectUrl} signs the GET. */
+export type SignObjectUrlOptions = {
+  /** File name for `Content-Disposition`. Defaults to the stored one, else the key. */
+  name?: string;
+  /** Kept `inline` only for a type on the route's `inlineTypes`. */
+  disposition: ContentDispositionType;
+  /** URL lifetime in seconds. */
+  expiresIn: number;
+};
+
+/**
+ * A presigned GetObject for an object the caller may read, after every
+ * check. HeadObject reads the stored type first, so `inline` is kept only
+ * for a type on the route's `inlineTypes`, and a missing object fails with
+ * `OBJECT_NOT_FOUND`. Returns the URL and the disposition it carries.
+ */
+export async function signObjectUrl(
+  route: OpenedRoute<"download">,
+  target: Pick<ObjectContext, "bucket" | "key">,
+  options: SignObjectUrlOptions,
+  abortSignal?: AbortSignal,
+): Promise<{ url: string; disposition: ContentDispositionType }> {
+  const { bucket, key } = target;
+  const head = await headObjectOrNotFound(route.client, bucket, key, {
+    abortSignal,
+  });
+  const sent = resolveObjectDisposition(route.download.inlineTypes, {
+    key,
+    name: options.name,
+    requested: options.disposition,
+    contentType: head.ContentType,
+    contentDisposition: head.ContentDisposition,
+  });
+  const url = await getSignedUrl(
+    route.client,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ResponseContentDisposition: sent.header,
+      ResponseContentType: sent.contentType,
+    }),
+    { expiresIn: options.expiresIn },
+  );
+  return { url, disposition: sent.disposition };
 }
 
 /** The `/file` URL under `baseURL` when set, else under `basePath`. */

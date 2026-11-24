@@ -88,7 +88,12 @@ describe("PluginInitEnv.routes", () => {
       keyPrefix: false,
       options: false,
       upload: { enabled: true, multipart: true },
-      download: { enabled: true, mode: "proxy" },
+      download: {
+        enabled: true,
+        mode: "proxy",
+        disposition: "attachment",
+        maxExpiresIn: 600,
+      },
       delete: { enabled: true },
     });
   });

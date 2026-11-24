@@ -15,6 +15,7 @@ import {
   type DbRoutes,
 } from "./create-database-lifecycle-hooks";
 import { createObjectAccess } from "./object-access";
+import { createPublicAccess, type DbAccess } from "./public-access";
 import {
   createPublicStores,
   type DbFolders,
@@ -31,11 +32,16 @@ import { createScopeResolver } from "./scope";
 import { toDbClientObject } from "./to-db-client-object";
 
 /** What `db()` exposes on `s3.db` and `s3.context.db`. */
-export type DbPluginContext<TAttributes = never> = {
+export type DbPluginContext<TAttributes = never, TSession = undefined> = {
   /** The `storage_object` rows: listings, usage, and your own changes. */
   objects: DbObjects<TAttributes>;
   /** The `storage_folder` rows. */
   folders: DbFolders;
+  /**
+   * Scope and ownership checks for a plugin built on db, such as share
+   * links. They run your `resolveScope` and `authorize`.
+   */
+  access: DbAccess<TSession, TAttributes>;
   /**
    * Writes an active row for an object already in the bucket. It HEADs the
    * object, runs the instance and route guards, then the scope, authorize,
@@ -89,7 +95,7 @@ export function db<
   options: DbPluginOptions<TSession, TAttributes, TClientAttributes>,
 ): DimahS3Plugin<
   "db",
-  DbPluginContext<TAttributes>,
+  DbPluginContext<TAttributes, TSession>,
   DbEndpoints<TSession, TAttributes, TClientAttributes>
 > {
   let env: PluginInitEnv<"db"> | undefined;
@@ -155,6 +161,12 @@ export function db<
     context: {
       objects: stores.objects,
       folders: stores.folders,
+      access: createPublicAccess({
+        objects: store.objects,
+        folders: store.folders,
+        resolveScope,
+        access,
+      }),
       record,
       checkSchema: store.checkSchema,
       purgeStale: purge.purgeStale,

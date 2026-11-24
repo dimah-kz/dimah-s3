@@ -166,6 +166,11 @@ export type StorageObjectStore<TAttributes = never> = {
   /** Loads the row at `(bucket, key)`, whatever its status. */
   find: (ref: ObjectRef) => Promise<StorageObject<TAttributes> | null>;
   /**
+   * Loads the row with this `id`, whatever its status. An id is never
+   * reused: an upload over a deleted row writes a new one.
+   */
+  findById: (id: string) => Promise<StorageObject<TAttributes> | null>;
+  /**
    * One page of a scope's rows. Pages follow a cursor, ordered by `sort`
    * with ties broken on `id`. The `name` sort orders by the folded name
    * search matches (case and accents do not count). Rows with no `size`
@@ -525,6 +530,7 @@ export function createObjectStore<TAttributes = never>(
 
   return {
     find,
+    findById,
 
     async list(scope, input = {}) {
       const orm = await getOrm();

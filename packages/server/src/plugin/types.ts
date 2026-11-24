@@ -1,5 +1,6 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { S3ErrorCatalog } from "@dimah-s3/core";
+import type { ContentDispositionType, S3ErrorCatalog } from "@dimah-s3/core";
+import type { PluginTokens } from "@/helpers/plugin-tokens";
 import type { Endpoint } from "better-call";
 import type {
   DeleteConfig,
@@ -77,7 +78,18 @@ export type PluginRoute<Id extends string = string> = {
       }
   >;
   readonly download: Readonly<
-    { enabled: false } | { enabled: true; mode: "presign" | "proxy" }
+    | { enabled: false }
+    | {
+        enabled: true;
+        mode: "presign" | "proxy";
+        /** The route's default `Content-Disposition`. */
+        disposition: ContentDispositionType;
+        /**
+         * Longest download URL lifetime in seconds, already capped by the
+         * instance `maxExpiresIn`. Cap a grant your plugin signs by it.
+         */
+        maxExpiresIn: number;
+      }
   >;
   readonly delete: Readonly<{ enabled: boolean }>;
 };
@@ -109,6 +121,64 @@ export type PluginRunOperation = {
     options: S3ServerCallOptions | undefined,
     run: (context: GuardContext) => Promise<T>,
   ): Promise<T>;
+};
+
+/** The object a plugin download sends. See {@link PluginDownloads}. */
+export type PluginDownloadInput = {
+  /** Named route of the object. Its download must be on. */
+  route: string;
+  /** Object key, inside the route namespace (`KEY_INVALID` otherwise). */
+  key: string;
+  /** File name the browser saves. Defaults to the stored name, else the key. */
+  name?: string;
+  /**
+   * `inline` is kept only for a type on the route's `inlineTypes`.
+   * @default the route's `download.disposition`
+   */
+  disposition?: ContentDispositionType;
+};
+
+/** A presigned GET from {@link PluginDownloads.presign}. */
+export type PluginSignedDownload = {
+  url: string;
+  /** The disposition the URL carries, after the `inlineTypes` check. */
+  disposition: ContentDispositionType;
+  /** URL lifetime in seconds. */
+  expiresIn: number;
+};
+
+/**
+ * Sends a stored object the way the route's download sends it, for a plugin
+ * that checked access itself, such as a share link. No guard,
+ * `download.resolve`, or download hook runs: the plugin is the access
+ * check. Pick the method by the route's `download.mode`.
+ */
+export type PluginDownloads = {
+  /**
+   * A presigned GetObject, for a route in `presign` mode. HeadObject reads
+   * the stored type first. `expiresIn` (seconds) is capped by the route
+   * `download.maxExpiresIn`, which is also the default.
+   * @throws `ROUTE_NOT_FOUND`, `FEATURE_DISABLED` when the route's download
+   * is off, `KEY_INVALID`, or `OBJECT_NOT_FOUND`. A route in `proxy` mode
+   * is a plugin bug and throws a `TypeError`: use `serve` there.
+   */
+  presign: (
+    input: PluginDownloadInput & { expiresIn?: number; signal?: AbortSignal },
+  ) => Promise<PluginSignedDownload>;
+  /**
+   * The `GET /file` response for `request`, for a route in `proxy` mode:
+   * one GetObject with the request's Range and conditional headers and its
+   * abort signal, sent with the `/file` hardening headers.
+   * @throws the `APIError` `/file` returns, with the hardening headers. A
+   * route in `presign` mode throws a `TypeError`: use `presign` there.
+   */
+  serve: (
+    input: PluginDownloadInput & {
+      /** @default "private, no-cache" */
+      cacheControl?: string;
+    },
+    request: Request,
+  ) => Promise<Response>;
 };
 
 /** What {@link DimahS3Plugin.init} receives. */
@@ -155,6 +225,26 @@ export type PluginInitEnv<Id extends string = string> = {
    * ```
    */
   runOperation: PluginRunOperation;
+  /**
+   * The URL of an API path such as `pluginPath("share", "file")`: under
+   * `baseURL` when it is set, else under `basePath`, the way proxy download
+   * URLs are built.
+   */
+  url: (path: string) => string;
+  /** Presigns or streams an object the plugin authorized itself. */
+  download: PluginDownloads;
+  /**
+   * Signs and verifies short-lived tokens with the instance secret (the
+   * same one upload tickets use), under a key derived for this plugin and
+   * `purpose`. A token never verifies for another purpose or plugin.
+   *
+   * ```ts
+   * const grants = env.tokens("grant");
+   * const token = await grants.sign({ id: link.id }, { expiresIn: 300 });
+   * const payload = await grants.verify(token); // `null` when expired or forged
+   * ```
+   */
+  tokens: (purpose: string) => PluginTokens;
 };
 
 /**

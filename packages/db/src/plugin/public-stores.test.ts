@@ -56,6 +56,7 @@ describe("createPublicStores", () => {
     expect(Object.keys(objects).sort()).toEqual([
       "count",
       "find",
+      "findById",
       "list",
       "update",
       "usage",

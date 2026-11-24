@@ -5,6 +5,7 @@ export { DB_FOLDER_ID_KEY } from "./constants";
 
 // Plugin
 export { db, type DbPluginContext } from "./plugin/db";
+export type { DbEndpoints } from "./plugin/create-database-endpoints";
 export type {
   PruneDeletedOptions,
   PurgeStaleOptions,
@@ -12,6 +13,12 @@ export type {
 } from "./plugin/purge";
 export type { RecordObjectCall, RecordObjectInput } from "./plugin/record";
 export type { DbFolders, DbObjects } from "./plugin/public-stores";
+export type {
+  DbAccess,
+  DbAccessCall,
+  DbAccessTarget,
+  DbCaller,
+} from "./plugin/public-access";
 export type {
   AuthorizeContext,
   DbAttributesOptions,

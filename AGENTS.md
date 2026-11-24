@@ -15,7 +15,7 @@ pnpm + Turbo. From the root: `pnpm lint`, `pnpm check-types`, `pnpm test`.
 
 - Never put S3 credentials on the client. The client sends a **route name**; the server owns object keys. Trust HeadObject (`onConfirmed`) for size and type, not the presign body.
 - Scope: presign upload / download / delete. Do not wrap trivial S3 APIs (`s3.put` and proxy `GET /file` are the exceptions). Auth and quota live in consumer hooks, not library packages. Optional DB is `@dimah-s3/db` `db()` — no ORM inside `server`.
-- Deps: `core` ← `server` | `react` ← `ui`; `db` → `server` (peer); `cli` is scaffold-only. Protocol SSOT is `@dimah-s3/core`. API errors: stable `code` + English `message`.
+- Deps: `core` ← `server` | `react` ← `ui`; `db` → `server` (peer); `share` → `db` + `server` (peers); `cli` is scaffold-only. Protocol SSOT is `@dimah-s3/core`. API errors: stable `code` + English `message`.
 - Do not hand-edit `packages/ui/registry.json` or `packages/ui/src/components/ui/`.
 - Published `@dimah-s3/*` behavior, API, or build output change → changelog under `.tegami/` ([changelog.md](docs/agents/changelog.md), [release.md](docs/agents/release.md)). Do not edit `.tegami/publish-lock.yaml` or package `CHANGELOG.md` files.
 - Commit when asked. Never `git push` (or force-push) unless the human explicitly asks.

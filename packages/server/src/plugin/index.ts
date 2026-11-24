@@ -6,10 +6,13 @@ export type {
   DimahS3Plugin,
   DimahS3PluginHooks,
   PluginContextMap,
+  PluginDownloadInput,
+  PluginDownloads,
   PluginErrorCodes,
   PluginInitEnv,
   PluginOperationTarget,
   PluginRoute,
   PluginRouteOptions,
   PluginRunOperation,
+  PluginSignedDownload,
 } from "./types";

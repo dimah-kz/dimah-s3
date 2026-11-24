@@ -227,6 +227,58 @@ await s3.audit.note(
 );
 ```
 
+## Serving objects a plugin authorized
+
+A plugin that grants access by other means than a session, such as a share
+link, still sends the bytes the way the route does. `env.download` presigns
+or streams a stored object with the route's `inlineTypes` and lifetime
+cap. No guard, `download.resolve`, or download hook runs: your plugin is the
+access check, so make it before you call these.
+
+```ts
+const route = env.routes[object.route];
+if (!route?.download.enabled)
+  throw s3Error("FEATURE_DISABLED", { feature: "download" });
+
+if (route.download.mode === "presign") {
+  const { url, expiresIn } = await env.download.presign({
+    route: route.name,
+    key: object.key,
+    name: object.name,
+    expiresIn: 300,
+  });
+} else {
+  // Inside your own GET endpoint: Range, conditional headers, and the
+  // /file hardening headers are handled.
+  return env.download.serve(
+    { route: route.name, key: object.key },
+    ctx.context.request,
+  );
+}
+```
+
+Pick the method by `route.download.mode`: calling `presign` on a route in
+proxy mode, or `serve` on one in presign mode, throws a `TypeError`.
+`env.url(path)` builds the absolute URL of one of your endpoints under
+`baseURL` (or `basePath`), the way proxy download URLs are built.
+
+## Signed tokens
+
+`env.tokens(purpose)` signs short-lived tokens with the instance secret
+(`secret` or `DIMAH_S3_SECRET`), under a key derived for your plugin and
+that purpose. Use it for a URL that carries a grant, such as a proxied
+download. A token of one purpose never verifies for another.
+
+```ts
+const grants = env.tokens("grant");
+const token = await grants.sign({ link: link.id }, { expiresIn: 300 });
+const payload = await grants.verify(token); // `null` when forged or expired
+```
+
+The payload is readable by anyone who holds the token: sign ids and flags,
+never secrets. Every rotation secret verifies, so rotating keeps tokens
+valid until they expire.
+
 ## Error codes
 
 Give each failure a stable code with `defineErrorCodes`, and throw it with
@@ -377,29 +429,32 @@ The instance keys (`handler`, `api`, `put`, `context`, `getPlugin`,
 
 `PluginInitEnv<Id>`, the argument of `init`.
 
-| Property       | Type                                 | Description                                                                                                  |
-| -------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `routes`       | `Record<string, PluginRoute>`        | Every route as `dimahS3()` resolved it, keyed by name. Read-only                                             |
-| `routeOptions` | `(route) => T \| false \| undefined` | This plugin's options for a route, typed by your augmentation. `false`: turned off. `undefined`: nothing set |
-| `runOperation` | `(target, call, run) => Promise<T>`  | Runs an in-process call behind the guards. See [Calls from the server](#calls-from-the-server)               |
-| `config`       | `Readonly<DimahS3Config>`            | The user config, with routes already validated                                                               |
-| `getPlugin`    | `(id) => DimahS3Plugin \| undefined` | Looks up a registered plugin                                                                                 |
-| `logger`       | `DimahS3Logger`                      | The instance logger                                                                                          |
+| Property       | Type                                 | Description                                                                                                                            |
+| -------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `routes`       | `Record<string, PluginRoute>`        | Every route as `dimahS3()` resolved it, keyed by name. Read-only                                                                       |
+| `routeOptions` | `(route) => T \| false \| undefined` | This plugin's options for a route, typed by your augmentation. `false`: turned off. `undefined`: nothing set                           |
+| `runOperation` | `(target, call, run) => Promise<T>`  | Runs an in-process call behind the guards. See [Calls from the server](#calls-from-the-server)                                         |
+| `download`     | `PluginDownloads`                    | `presign(input)` and `serve(input, request)` for an object you authorized. See [Serving objects](#serving-objects-a-plugin-authorized) |
+| `tokens`       | `(purpose) => PluginTokens`          | `sign(payload, { expiresIn })` and `verify(token)`. See [Signed tokens](#signed-tokens)                                                |
+| `url`          | `(path) => string`                   | The URL of an API path, under `baseURL` when set, else `basePath`                                                                      |
+| `config`       | `Readonly<DimahS3Config>`            | The user config, with routes already validated                                                                                         |
+| `getPlugin`    | `(id) => DimahS3Plugin \| undefined` | Looks up a registered plugin                                                                                                           |
+| `logger`       | `DimahS3Logger`                      | The instance logger                                                                                                                    |
 
 ### PluginRoute
 
 One entry of `env.routes`.
 
-| Property    | Type                                                                           | Description                                                |
-| ----------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| `name`      | `string`                                                                       | The route name                                             |
-| `client`    | `S3Client`                                                                     | The route's client, or the instance one                    |
-| `bucket`    | `string`                                                                       | The route's bucket, or the instance one                    |
-| `keyPrefix` | `string \| false`                                                              | The key namespace. `false`: keys are not namespace-checked |
-| `options`   | `T \| false \| undefined`                                                      | This plugin's options for the route                        |
-| `upload`    | `{ enabled: false } \| { enabled: true; fileTypes?; maxFileSize?; multipart }` | Whether uploads are on, and their file limits              |
-| `download`  | `{ enabled: false } \| { enabled: true; mode }`                                | Whether downloads are on, and `"presign"` or `"proxy"`     |
-| `delete`    | `{ enabled: boolean }`                                                         | Whether deletes are on                                     |
+| Property    | Type                                                                           | Description                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `name`      | `string`                                                                       | The route name                                                                                                   |
+| `client`    | `S3Client`                                                                     | The route's client, or the instance one                                                                          |
+| `bucket`    | `string`                                                                       | The route's bucket, or the instance one                                                                          |
+| `keyPrefix` | `string \| false`                                                              | The key namespace. `false`: keys are not namespace-checked                                                       |
+| `options`   | `T \| false \| undefined`                                                      | This plugin's options for the route                                                                              |
+| `upload`    | `{ enabled: false } \| { enabled: true; fileTypes?; maxFileSize?; multipart }` | Whether uploads are on, and their file limits                                                                    |
+| `download`  | `{ enabled: false } \| { enabled: true; mode; disposition; maxExpiresIn }`     | Whether downloads are on, `"presign"` or `"proxy"`, the default disposition, and the URL lifetime cap in seconds |
+| `delete`    | `{ enabled: boolean }`                                                         | Whether deletes are on                                                                                           |
 
 ### runOperation()
 
@@ -411,6 +466,25 @@ One entry of `env.routes`.
 | `target.route`  | `string`                           | —        | The route the call is about. Its guard runs, and a missing one is `ROUTE_NOT_FOUND` |
 | `call`          | `S3ServerCallOptions \| undefined` | —        | `headers`, `request`, `signal`, and trusted `locals`, as for `s3.api`               |
 | `run`           | `(context) => Promise<T>`          | required | Runs after the guards with their context: `request`, `locals`, `route`              |
+
+### download
+
+`env.download.presign(input)` and `env.download.serve(input, request)`.
+Both throw `ROUTE_NOT_FOUND`, `FEATURE_DISABLED` when the route's download
+is off, `KEY_INVALID`, and `OBJECT_NOT_FOUND`.
+
+| Prop           | Type                       | Default                       | Description                                                   |
+| -------------- | -------------------------- | ----------------------------- | ------------------------------------------------------------- |
+| `route`        | `string`                   | required                      | The object's route                                            |
+| `key`          | `string`                   | required                      | The object key, inside the route namespace                    |
+| `name`         | `string`                   | the stored name, else the key | File name the browser saves                                   |
+| `disposition`  | `"inline" \| "attachment"` | the route's `disposition`     | `inline` is kept only for a type on the route's `inlineTypes` |
+| `expiresIn`    | `number`                   | the route's `maxExpiresIn`    | `presign` only. URL lifetime in seconds, capped by the route  |
+| `signal`       | `AbortSignal`              | —                             | `presign` only. Aborts the HeadObject                         |
+| `cacheControl` | `string`                   | `"private, no-cache"`         | `serve` only                                                  |
+
+`presign` resolves to `{ url, disposition, expiresIn }`. `serve` resolves
+to the `Response`, and throws the `/file` errors with its hardening headers.
 
 ### createS3Endpoint()
 

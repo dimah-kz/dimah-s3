@@ -18,6 +18,8 @@ import type { StorageObject } from "./storage-object";
  * - `folder.update`: `PATCH /db/folder`, a rename or a move
  * - `folder.delete`: `DELETE /db/folder`
  * - `record`: `s3.db.record`, an object the app already put in the bucket
+ * - `plugin`: a call of another plugin through `s3.db.access`, such as a
+ *   share link; `plugin` names it
  */
 export type ScopeOperation =
   | "upload"
@@ -31,7 +33,8 @@ export type ScopeOperation =
   | "folder.create"
   | "folder.update"
   | "folder.delete"
-  | "record";
+  | "record"
+  | "plugin";
 
 /**
  * Who is calling: what `resolveScope` and a `quota` function see. The
@@ -50,6 +53,11 @@ export type ScopeContext<TSession = undefined> = {
    * by route; `read`, `update`, and the folder operations have none.
    */
   route?: string;
+  /**
+   * The plugin and its action, on `operation: "plugin"` only, such as
+   * `{ id: "share", action: "createLink" }`.
+   */
+  plugin?: { id: string; action: string };
 };
 
 /**
