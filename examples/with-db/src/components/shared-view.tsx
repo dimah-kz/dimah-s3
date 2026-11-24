@@ -1,6 +1,6 @@
 "use client";
 
-import { useObjectList } from "@dimah-s3/react";
+import { useFormatError, useObjectList } from "@dimah-s3/react";
 import {
   downloadSharedFile,
   shareObjectSource,
@@ -17,23 +17,8 @@ import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { s3Client } from "@/lib/s3-client";
 
-/** What a visitor reads for each code a link can refuse with. */
-const REFUSALS: Record<string, string> = {
-  SHARE_LINK_NOT_FOUND: "This link does not exist.",
-  SHARE_LINK_EXPIRED: "This link has expired.",
-  SHARE_LINK_REVOKED: "This link was turned off.",
-  SHARE_LINK_EXHAUSTED: "This link reached its download limit.",
-  SHARE_TARGET_UNAVAILABLE: "The shared item was deleted.",
-};
-
 const buttonClass =
   "inline-flex h-9 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
-
-function codeOf(error: unknown): string {
-  return typeof error === "object" && error !== null && "code" in error
-    ? String(error.code)
-    : "";
-}
 
 /**
  * Opens a share link: asks for its password when it has one, then lists a
@@ -42,7 +27,9 @@ function codeOf(error: unknown): string {
 export function SharedView({ token }: { token: string }) {
   const [access, setAccess] = useState<string>();
   const [link, setLink] = useState<ShareVisitorLink>();
-  const [refusal, setRefusal] = useState<string>();
+  const [refusal, setRefusal] = useState<unknown>();
+  // Words every SHARE_* code, like the rest of the catalog.
+  const formatError = useFormatError();
 
   useEffect(() => {
     let current = true;
@@ -52,16 +39,16 @@ export function SharedView({ token }: { token: string }) {
         if (current) setLink(opened.link);
       })
       .catch((error: unknown) => {
-        if (current) {
-          setRefusal(REFUSALS[codeOf(error)] ?? "This link cannot be opened.");
-        }
+        if (current) setRefusal(error);
       });
     return () => {
       current = false;
     };
   }, [token, access]);
 
-  if (refusal) return <p className="text-muted-foreground">{refusal}</p>;
+  if (refusal) {
+    return <p className="text-muted-foreground">{formatError(refusal)}</p>;
+  }
   if (!link) return null;
   if (link.locked) return <PasswordForm token={token} onUnlock={setAccess} />;
 
@@ -90,7 +77,7 @@ export function SharedView({ token }: { token: string }) {
             void downloadSharedFile(s3Client.share, undefined, {
               token,
               access,
-            })
+            }).then(({ downloadsLeft }) => setLink({ ...link, downloadsLeft }))
           }
         >
           <Download className="size-4" />

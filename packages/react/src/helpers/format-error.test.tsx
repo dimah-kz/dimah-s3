@@ -40,6 +40,10 @@ describe("useFormatError", () => {
     expect(format(s3Error("HOOK_FAILED", { hook: "beforeUpload" }))).toBe(
       "Something went wrong",
     );
+    expect(format(s3Error("SHARE_LINK_EXPIRED"))).toBe("This link has expired");
+    expect(format(s3Error("TOO_MANY_REQUESTS"))).toBe(
+      "Too many requests. Try again later.",
+    );
   });
 
   it("fills params", () => {

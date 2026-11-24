@@ -60,6 +60,7 @@ export type Translations = {
   "Download complete(toast)": string;
   "Download failed(API error)": string;
   "Download failed(toast)": string;
+  "Download link is invalid or has expired(API error)": string;
   "Download started(toast)": string;
   "Download {name}(attachment action)": string;
   "Download(button)": string;
@@ -105,6 +106,7 @@ export type Translations = {
   "Folder deleted(toast)": string;
   "Folder is not empty(API error)": string;
   "Folder limit reached(API error)": string;
+  "Folder links are turned off(API error)": string;
   "Folder name is invalid(API error)": string;
   "Folder name(object list new folder)": string;
   "Folder name(object list rename)": string;
@@ -121,6 +123,7 @@ export type Translations = {
   "KB(file size unit)": string;
   "Large uploads are disabled(API error)": string;
   "Link copied(object list menu)": string;
+  "Link not found(API error)": string;
   "List view(object list)": string;
   "Load more(object list)": string;
   "Loading files(object list)": string;
@@ -188,14 +191,20 @@ export type Translations = {
   "TB(file size unit)": string;
   "Text files(file type group)": string;
   "The file has changed(API error)": string;
+  "The shared item is no longer available(API error)": string;
   "These files cannot be uploaded(dropzone)": string;
   "These files cannot be uploaded(object list)": string;
   "This action cannot be undone.(dialog description)": string;
   "This feature is disabled(API error)": string;
   "This folder is empty(object list)": string;
+  "This link has expired(API error)": string;
+  "This link needs a password(API error)": string;
+  "This link reached its download limit(API error)": string;
+  "This link was turned off(API error)": string;
   "This link works while you can access this file.(share link)": string;
   "Too many files (max {maxFiles})(API error)": string;
   "Too many files(API error)": string;
+  "Too many requests. Try again later.(API error)": string;
   "Try again(object list move)": string;
   "Unauthorized(API error)": string;
   "Unknown file route(API error)": string;
@@ -222,6 +231,7 @@ export type Translations = {
   "Uploads are disabled(API error)": string;
   "Videos(file type group)": string;
   "View(object list)": string;
+  "Wrong password(API error)": string;
   "You can upload {count} files.(dropzone hint)": string;
   "{count} files uploaded(toast)": string;
   "{count} files were rejected(toast)": string;

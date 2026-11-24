@@ -1,6 +1,6 @@
 import type { StorageFolder, StorageObject } from "@dimah-s3/db";
 import type { DimahS3Locals } from "@dimah-s3/server";
-import type { ShareOwnerAction } from "@/constants";
+import type { ShareOwnerAction, SharePublicAction } from "@/constants";
 import type { DimahS3ShareClient } from "@/fuma-db";
 import type { ShareLink } from "./link";
 
@@ -34,13 +34,42 @@ export type ShareAuthorizeContext = ShareOwnerCall & {
   action: ShareOwnerAction;
   /**
    * What the link points at. Set on `createLink`, and on the actions on one
-   * link while its target exists.
+   * link while its target exists. On `listLinks`, the object or folder the
+   * list is filtered by; without it, the call lists every link of the scope.
    */
   target?: ShareResolvedTarget;
   /** The link as it is. Set on `getLink`, `updateLink`, and `revokeLink`. */
   link?: ShareLink;
   /** The settings it will have. Set on `createLink` and `updateLink`. */
   settings?: ShareLinkSettings;
+};
+
+/**
+ * A visitor action that reaches a link's object or folder: every public
+ * action but `unlockLink`.
+ */
+export type ShareVisitAction = Exclude<SharePublicAction, "unlockLink">;
+
+/**
+ * What `authorizeVisit` checks: a visitor call on a link that opens, once
+ * the link is unlocked and its object or folder is loaded.
+ */
+export type ShareVisitContext = ShareCall & {
+  action: ShareVisitAction;
+  link: ShareLink;
+  /** What the link points at. */
+  target: ShareResolvedTarget;
+  /**
+   * The folder the call reaches: the folder `listShared` lists or searches
+   * in, or the folder that holds `object`. Absent for a file at the root of
+   * its scope.
+   */
+  folder?: StorageFolder;
+  /**
+   * The file the call reaches: the file `downloadShared` and `sharedFile`
+   * send, or the file of an object link on `openLink` and `listShared`.
+   */
+  object?: StorageObject<unknown>;
 };
 
 /** Context of `onCreated` and `onRevoked`. */
@@ -122,6 +151,16 @@ export type ShareOptions = {
    * `authorize` runs before it, as `operation: "plugin"`.
    */
   authorize?: (context: ShareAuthorizeContext) => boolean | Promise<boolean>;
+  /**
+   * Runs for every visitor call that reaches a link's object or folder:
+   * `openLink` once the link is unlocked, `listShared`, `downloadShared`,
+   * and `sharedFile`. It runs after the link is known to open and its
+   * target to exist, and before anything is counted, listed, or sent, so it
+   * can only narrow access. `false` fails the call with
+   * `SHARE_TARGET_UNAVAILABLE`, the same as a deleted target: use it for an
+   * item your app hides without deleting it, such as one in its trash.
+   */
+  authorizeVisit?: (context: ShareVisitContext) => boolean | Promise<boolean>;
   /** After a link is created. */
   onCreated?: ShareHook<ShareLinkEventContext>;
   /** After a link's settings change. */

@@ -2,6 +2,7 @@ import { s3Error } from "@dimah-s3/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isSharePublicAction } from "@/constants";
 import { createShareTest, type ShareTestOptions } from "@/test/instance";
+import type { ShareVisitContext } from "@/types/options";
 
 let test: Awaited<ReturnType<typeof createShareTest>> | undefined;
 
@@ -407,6 +408,153 @@ describe("folder links", () => {
     await expect(
       t.client.share.downloadShared({ token: link.token, id: file.id }),
     ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
+  });
+});
+
+describe("authorizeVisit", () => {
+  it("sees the link, its target, and the folder or file each call reaches", async () => {
+    const authorizeVisit = vi.fn((_context: ShareVisitContext) => true);
+    const t = await setup({ authorizeVisit });
+    const docs = await t.folder("1", "Docs");
+    const reports = await t.folder("1", "Reports", docs);
+    await t.put("1", "q1.txt", "q1", { folderId: reports });
+    const { link } = await t.client.share.createLink(
+      { target: { type: "folder", folderId: docs } },
+      t.as("1"),
+    );
+
+    await t.client.share.openLink({ token: link.token });
+    expect(authorizeVisit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "openLink",
+        link: expect.objectContaining({ id: link.id, scope: "user:1" }),
+        target: {
+          type: "folder",
+          folder: expect.objectContaining({ id: docs }),
+        },
+        folder: expect.objectContaining({ id: docs }),
+      }),
+    );
+    expect(authorizeVisit.mock.lastCall?.[0]).not.toHaveProperty("object");
+
+    const inside = await t.client.share.listShared({
+      token: link.token,
+      folderId: reports,
+    });
+    expect(authorizeVisit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "listShared",
+        folder: expect.objectContaining({ id: reports }),
+      }),
+    );
+
+    await t.client.share.downloadShared({
+      token: link.token,
+      id: inside.objects[0].id,
+    });
+    expect(authorizeVisit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "downloadShared",
+        object: expect.objectContaining({ name: "q1.txt" }),
+        folder: expect.objectContaining({ id: reports }),
+      }),
+    );
+
+    // An object link: the folder that holds the file, none at the root.
+    const atRoot = await objectLink(t);
+    await t.client.share.openLink({ token: atRoot.link.token });
+    expect(authorizeVisit.mock.lastCall?.[0]).toMatchObject({
+      object: { name: "report.txt" },
+    });
+    expect(authorizeVisit.mock.lastCall?.[0]).not.toHaveProperty("folder");
+    const nested = await t.put("1", "plan.txt", "plan", { folderId: reports });
+    const { link: nestedLink } = await t.client.share.createLink(
+      { target: { type: "object", key: nested } },
+      t.as("1"),
+    );
+    await t.client.share.listShared({ token: nestedLink.token });
+    expect(authorizeVisit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        action: "listShared",
+        object: expect.objectContaining({ name: "plan.txt" }),
+        folder: expect.objectContaining({ id: reports }),
+      }),
+    );
+  });
+
+  it("answers what it refuses as unavailable, before anything is counted", async () => {
+    const onOpened = vi.fn();
+    const t = await setup({
+      onOpened,
+      // Your app's trash: a folder named `Trash`, anywhere.
+      authorizeVisit: ({ folder }) =>
+        !folder?.path.split("/").includes("Trash"),
+    });
+    const docs = await t.folder("1", "Docs");
+    const trash = await t.folder("1", "Trash", docs);
+    const bin = await t.folder("1", "Trash");
+    await t.put("1", "old.txt", "old", { folderId: trash });
+    const { link } = await t.client.share.createLink(
+      { target: { type: "folder", folderId: docs } },
+      t.as("1"),
+    );
+    const top = await t.client.share.listShared({ token: link.token });
+    expect(top.folders?.map((folder) => folder.name)).toEqual(["Trash"]);
+    await expect(
+      t.client.share.listShared({ token: link.token, folderId: trash }),
+    ).rejects.toMatchObject({
+      code: "SHARE_TARGET_UNAVAILABLE",
+      statusCode: 410,
+    });
+    const [old] = (await t.s3.db.objects.list("user:1", { search: "old" }))
+      .objects;
+    await expect(
+      t.client.share.downloadShared({ token: link.token, id: old.id }),
+    ).rejects.toMatchObject({ code: "SHARE_TARGET_UNAVAILABLE" });
+    const { link: after } = await t.client.share.getLink(
+      { id: link.id },
+      t.as("1"),
+    );
+    expect(after.downloadCount).toBe(0);
+
+    // A whole folder moved to the trash keeps its id, and its links close.
+    await t.client.db.updateFolder({ id: docs, parentId: bin }, t.as("1"));
+    await expect(
+      t.client.share.openLink({ token: link.token }),
+    ).rejects.toMatchObject({ code: "SHARE_TARGET_UNAVAILABLE" });
+    expect(onOpened).toHaveBeenCalledTimes(0);
+  });
+
+  it("waits for the password, and stops a proxy URL handed out before", async () => {
+    let allowed = true;
+    const t = await setup({ authorizeVisit: () => allowed });
+    const { link } = await objectLink(t, {
+      password: "open sesame",
+      route: "proxied",
+    });
+    const { access } = await t.client.share.unlockLink({
+      token: link.token,
+      password: "open sesame",
+    });
+    const sent = await t.client.share.downloadShared({
+      token: link.token,
+      access,
+    });
+
+    allowed = false;
+    await expect(
+      t.client.share.openLink({ token: link.token }),
+    ).resolves.toMatchObject({ link: { locked: true } });
+    await expect(
+      t.client.share.openLink({ token: link.token, access }),
+    ).rejects.toMatchObject({ code: "SHARE_TARGET_UNAVAILABLE" });
+    const response = await t.s3.handler(
+      new Request(new URL(sent.url, "https://app.test")),
+    );
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "SHARE_TARGET_UNAVAILABLE",
+    });
   });
 });
 

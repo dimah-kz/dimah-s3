@@ -30,6 +30,8 @@ export type {
   ShareOwnerCall,
   SharePasswordOptions,
   ShareResolvedTarget,
+  ShareVisitAction,
+  ShareVisitContext,
 } from "./types/options";
 
 // Links

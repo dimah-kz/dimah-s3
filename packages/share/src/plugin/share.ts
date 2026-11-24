@@ -1,6 +1,5 @@
 import type { DbPluginContext } from "@dimah-s3/db";
 import { definePlugin } from "@dimah-s3/server/plugins";
-import { SHARE_ERROR_CODES } from "@/error-codes";
 import { createShareStore } from "@/store/create-share-store";
 import type { ShareOptions } from "@/types/options";
 import { createShareEndpoints } from "./endpoints";
@@ -106,7 +105,6 @@ export function share(options: ShareOptions) {
   return definePlugin({
     id: "share",
     dependsOn: ["db"],
-    $ERROR_CODES: SHARE_ERROR_CODES,
     init(env) {
       const db = env.getPlugin("db")?.context as
         DbPluginContext<unknown, unknown> | undefined;

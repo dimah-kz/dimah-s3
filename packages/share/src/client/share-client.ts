@@ -3,7 +3,6 @@ import {
   pluginPath,
   type S3RequestOptions,
 } from "@dimah-s3/core";
-import { SHARE_ERROR_CODES } from "@/error-codes";
 // Type only: the server plugin never reaches the browser bundle.
 import type { share } from "@/plugin/share";
 import type { ShareClientActions } from "@/types/client";
@@ -16,8 +15,8 @@ function call(options: S3RequestOptions | undefined) {
 
 /**
  * Client plugin for the server `share()` endpoints. Its actions are
- * {@link ShareClientActions} on `api.share`, and its error codes are on
- * `api.$ERROR_CODES`.
+ * {@link ShareClientActions} on `api.share`. Its error codes are in the core
+ * catalog, so they are on every `api.$ERROR_CODES`.
  *
  * ```ts
  * import { createS3Client } from "@dimah-s3/react";
@@ -44,7 +43,6 @@ export function shareClient() {
     // Types `$fetch` by the endpoints `share()` mounts, so a response that
     // drifts from `ShareClientActions` fails to compile here.
     $InferServerPlugin: {} as ReturnType<typeof share>,
-    $ERROR_CODES: SHARE_ERROR_CODES,
     getActions: ($fetch): ShareClientActions => ({
       createLink: (input, options) =>
         $fetch(pluginPath("share", "link"), {

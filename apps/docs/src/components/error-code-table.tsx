@@ -18,6 +18,8 @@ const WHEN = {
   FORBIDDEN: "A guard or `authorize` rejects the caller.",
   CONFLICT:
     "A concurrent change won, or `db()` purge is cleaning the key. A retry may succeed.",
+  TOO_MANY_REQUESTS:
+    "Your guard limits calls and refused this one. The library never sends it.",
   INTERNAL_ERROR:
     "Unhandled server error, or a non-JSON error response with status 500 or above.",
   S3_NETWORK_ERROR: "The server cannot reach the S3 endpoint.",
@@ -49,6 +51,19 @@ const WHEN = {
   FOLDER_NOT_FOUND: "That folder id is not in the caller's scope.",
   FOLDER_EXISTS: "That parent already has a folder with this name.",
   FOLDER_NOT_EMPTY: "A `db()` folder still holds folders or live objects.",
+  SHARE_LINK_NOT_FOUND:
+    "No share link has the token, or the owner asked for another scope's link.",
+  SHARE_LINK_EXPIRED: "The share link is past its `expiresAt`.",
+  SHARE_LINK_REVOKED: "The owner turned the share link off.",
+  SHARE_LINK_EXHAUSTED: "The share link reached its `maxDownloads`.",
+  SHARE_TARGET_UNAVAILABLE:
+    "The shared file or folder was deleted, its route was removed, or `authorizeVisit` refused the call.",
+  SHARE_PASSWORD_REQUIRED:
+    "A visitor call on a password-protected link without a valid `access`.",
+  SHARE_PASSWORD_INVALID: "`unlockLink` got the wrong password.",
+  SHARE_FOLDER_LINKS_DISABLED:
+    "A folder share link while `share({ folders: false })`.",
+  SHARE_DOWNLOAD_URL_INVALID: "A `/share/file` URL is forged or expired.",
   TOO_MANY_FILES: "More files were added than `maxFiles` allows.",
   HOOK_FAILED:
     "A `before*` or `on*Start` callback, or an `uploadOptions` function, threw. `hook` names it.",

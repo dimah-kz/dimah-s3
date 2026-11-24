@@ -1,4 +1,4 @@
-import { s3Error } from "@dimah-s3/core";
+import { isS3ErrorCode, s3Error } from "@dimah-s3/core";
 import type {
   DbAccessTarget,
   StorageFolder,
@@ -33,6 +33,13 @@ function accessTarget(action: ShareOwnerAction): DbAccessTarget {
 /** The request, the guards' locals, and the owner's scope. */
 function ownerCall(call: ShareCall, scope: string): ShareOwnerCall {
   return { request: call.request, locals: call.locals, scope };
+}
+
+/** Every bucket the routes use. */
+function routeBuckets(
+  routes: Readonly<Record<string, { bucket: string }>>,
+): Set<string> {
+  return new Set(Object.values(routes).map((route) => route.bucket));
 }
 
 /**
@@ -122,6 +129,52 @@ export function createOwnerOperations(
     return { scope: caller.scope, record };
   };
 
+  /**
+   * The caller's scope and, for a `listLinks` filtered by `key` or
+   * `folderId`, the object or folder it names, once db's checks saw it.
+   * `null` when the filter names no active object or folder of the caller's.
+   */
+  const listTarget = async (
+    call: ShareCall,
+    query: ListLinksQuery,
+  ): Promise<{ scope: string; target?: ShareResolvedTarget } | null> => {
+    const { db, env } = runtime.bound();
+    const target = accessTarget("listLinks");
+    try {
+      if (query.key !== undefined) {
+        const bucket = resolveBucket(
+          routeBuckets(env.routes),
+          query.bucket,
+          "query.bucket",
+        );
+        const { caller, object } = await db.access.object(call, target, {
+          bucket,
+          key: query.key,
+        });
+        return { scope: caller.scope, target: { type: "object", object } };
+      }
+      if (query.folderId !== undefined) {
+        const { caller, folder } = await db.access.folder(
+          call,
+          target,
+          query.folderId,
+        );
+        if (!folder) return null;
+        return { scope: caller.scope, target: { type: "folder", folder } };
+      }
+    } catch (error) {
+      if (
+        isS3ErrorCode(error, "OBJECT_NOT_FOUND") ||
+        isS3ErrorCode(error, "FOLDER_NOT_FOUND")
+      ) {
+        return null;
+      }
+      throw error;
+    }
+    const caller = await db.access.scope(call, target);
+    return { scope: caller.scope };
+  };
+
   return {
     async createLink(call, body) {
       const action = "createLink";
@@ -130,7 +183,7 @@ export function createOwnerOperations(
       let target: ShareResolvedTarget;
       if (body.target.type === "object") {
         const bucket = resolveBucket(
-          new Set(Object.values(env.routes).map((route) => route.bucket)),
+          routeBuckets(env.routes),
           body.target.bucket,
           "body.target.bucket",
         );
@@ -190,28 +243,20 @@ export function createOwnerOperations(
 
     async listLinks(call, query) {
       const action = "listLinks";
-      const { db, env } = runtime.bound();
-      const caller = await db.access.scope(call, accessTarget(action));
-      await authorize({ ...ownerCall(call, caller.scope), action });
+      const { db } = runtime.bound();
+      const filtered = await listTarget(call, query);
+      // No object or folder of the caller's there: no link of theirs points at it.
+      if (filtered === null) return { links: [], nextCursor: null };
+      const { scope, target } = filtered;
+      await authorize({
+        ...ownerCall(call, scope),
+        action,
+        ...(target !== undefined && { target }),
+      });
 
-      let objectId: string | undefined;
-      if (query.key !== undefined) {
-        const bucket = resolveBucket(
-          new Set(Object.values(env.routes).map((route) => route.bucket)),
-          query.bucket,
-          "query.bucket",
-        );
-        const object = await db.objects.find({ bucket, key: query.key });
-        // No object of the caller's at the key: none of their links point at it.
-        if (!object || object.scope !== caller.scope) {
-          return { links: [], nextCursor: null };
-        }
-        objectId = object.id;
-      }
-
-      const page = await links.list(caller.scope, {
-        objectId,
-        folderId: query.folderId,
+      const page = await links.list(scope, {
+        objectId: target?.type === "object" ? target.object.id : undefined,
+        folderId: target?.type === "folder" ? target.folder.id : undefined,
         includeRevoked: query.includeRevoked,
         limit: query.limit,
         cursor: query.cursor,

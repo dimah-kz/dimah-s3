@@ -22,6 +22,12 @@ export type {
 export type {
   AuthorizeContext,
   DbAttributesOptions,
+  DbChangeContext,
+  DbFolderCreatedContext,
+  DbFolderDeletedContext,
+  DbFolderUpdatedContext,
+  DbHook,
+  DbObjectUpdatedContext,
   DbPluginOptions,
   DbQuotaOption,
   DbRouteOptions,

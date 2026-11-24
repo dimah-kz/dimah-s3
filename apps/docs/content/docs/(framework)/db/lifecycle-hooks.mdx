@@ -113,6 +113,38 @@ db({ client: dimahS3Db, resolveScope, deleteMode: "hard" });
 - Deleting a soft-deleted object again succeeds, like a plain S3 delete. A
   key with no row is `OBJECT_NOT_FOUND`: its owner cannot be checked.
 
+## Change hooks
+
+The db endpoints that change a row run a hook of `db()` once the change is
+saved, so an activity log, a cache, or a search index can follow renames,
+moves, and folders:
+
+```ts title="lib/s3.ts"
+db({
+  client: dimahS3Db,
+  getSession,
+  resolveScope,
+  onObjectUpdated: ({ session, before, after }) =>
+    activity.log(session.userId, "object.updated", { before, after }),
+  onFolderUpdated: ({ before, after }) =>
+    searchIndex.movePrefix(before.path, after.path),
+});
+```
+
+| Hook              | Runs after                                           | Context, next to the scope context                        |
+| ----------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| `onObjectUpdated` | `PATCH /db/object` renamed, moved, or set attributes | `before`, `after`: the stored row                         |
+| `onFolderCreated` | `POST /db/folder`                                    | `folder`                                                  |
+| `onFolderUpdated` | `PATCH /db/folder` renamed or moved a folder         | `before`, `after`. The folders below keep their ids       |
+| `onFolderDeleted` | `DELETE /db/folder` removed a folder                 | `folder`, and `recursive` when the folders below went too |
+
+- Each context is the caller's [`ScopeContext`](/docs/db/setup#scopecontext)
+  with its `scope`: `request`, `locals`, `session`, and `operation`.
+- They run for calls from `dbClient()`. `s3.db.objects` and `s3.db.folders`
+  do not run them: those are your own writes.
+- A throw fails the call, and the change stays. Catch errors in a hook that
+  must not fail the call.
+
 ## Errors
 
 | Situation                                                                 | Status | Code                    |

@@ -9,7 +9,11 @@ import type {
   ShareUnlockLinkResponse,
 } from "@/types/client";
 import { shareLinkStatus } from "@/types/link";
-import type { ShareCall, ShareResolvedTarget } from "@/types/options";
+import type {
+  ShareCall,
+  ShareResolvedTarget,
+  ShareVisitAction,
+} from "@/types/options";
 import { passwordTag, verifyPassword } from "./password";
 import { loadTarget, resolvedTarget, type ShareRuntime } from "./runtime";
 import type {
@@ -117,6 +121,40 @@ export function createVisitorOperations(
   };
 
   /**
+   * Runs `authorizeVisit` for a call that reaches `reached`. Without a
+   * `folder`, it reads the folder that holds `reached.object`, and only
+   * when the option is set.
+   * @throws `SHARE_TARGET_UNAVAILABLE` when it returns `false`.
+   */
+  const assertVisit = async (
+    call: ShareCall,
+    action: ShareVisitAction,
+    record: ShareLinkRecord,
+    target: ShareResolvedTarget,
+    reached: { folder?: StorageFolder; object?: StorageObject<unknown> },
+  ): Promise<void> => {
+    const { authorizeVisit } = options;
+    if (!authorizeVisit) return;
+    const { object } = reached;
+    let { folder } = reached;
+    if (folder === undefined && object && object.folderId !== null) {
+      const { db } = runtime.bound();
+      folder =
+        (await db.folders.find(object.scope, object.folderId)) ?? undefined;
+    }
+    const allowed = await authorizeVisit({
+      request: call.request,
+      locals: call.locals,
+      action,
+      link: toShareLink(record),
+      target,
+      ...(folder !== undefined && { folder }),
+      ...(object !== undefined && { object }),
+    });
+    if (!allowed) throw s3Error(SHARE_ERROR_CODES.SHARE_TARGET_UNAVAILABLE);
+  };
+
+  /**
    * The folders from below `root` down to `folderId`, `folderId` included.
    * Empty for the root itself.
    * @throws `FOLDER_NOT_FOUND` when the folder is not inside the share.
@@ -141,19 +179,20 @@ export function createVisitorOperations(
 
   /**
    * A file of the share: the link's object, or an active object inside the
-   * shared folder.
+   * shared folder, with the folder that holds it when the share already
+   * read it.
    * @throws `OBJECT_NOT_FOUND` for any other id.
    */
   const sharedObject = async (
     record: ShareLinkRecord,
     target: ShareResolvedTarget,
     id: string | undefined,
-  ): Promise<StorageObject<unknown>> => {
+  ): Promise<{ object: StorageObject<unknown>; folder?: StorageFolder }> => {
     if (target.type === "object") {
       if (id !== undefined && id !== target.object.id) {
         throw s3Error("OBJECT_NOT_FOUND");
       }
-      return target.object;
+      return { object: target.object };
     }
     if (id === undefined) {
       throw s3Error("VALIDATION_ERROR", {
@@ -168,12 +207,13 @@ export function createVisitorOperations(
     ) {
       throw s3Error("OBJECT_NOT_FOUND");
     }
+    let trail: StorageFolder[];
     try {
-      await trailInside(record.scope, target.folder, object.folderId);
+      trail = await trailInside(record.scope, target.folder, object.folderId);
     } catch {
       throw s3Error("OBJECT_NOT_FOUND");
     }
-    return object;
+    return { object, folder: trail.at(-1) ?? target.folder };
   };
 
   /** The route of a shared object, with downloads on. */
@@ -201,6 +241,15 @@ export function createVisitorOperations(
         };
       }
       const target = await liveTarget(record);
+      await assertVisit(
+        call,
+        "openLink",
+        record,
+        target,
+        target.type === "object"
+          ? { object: target.object }
+          : { folder: target.folder },
+      );
       await links.countView(record);
       await options.onOpened?.({
         request: call.request,
@@ -246,10 +295,13 @@ export function createVisitorOperations(
       };
     },
 
-    async listShared(_call, query) {
+    async listShared(call, query) {
       const record = await enter(query.token, query.access);
       const target = await liveTarget(record);
       if (target.type === "object") {
+        await assertVisit(call, "listShared", record, target, {
+          object: target.object,
+        });
         return {
           objects: [toVisitorObject(target.object, target.object.folderId)],
           nextCursor: null,
@@ -262,6 +314,9 @@ export function createVisitorOperations(
       const requested = wireFolderId(query.folderId) ?? root.id;
       const trail = await trailInside(scope, root, requested);
       const current = trail.at(-1) ?? root;
+      await assertVisit(call, "listShared", record, target, {
+        folder: current,
+      });
       const sort = query.sort ?? { field: "name", direction: "asc" };
       const search = query.search;
       const visitorFolder = (folder: StorageFolder) =>
@@ -334,7 +389,9 @@ export function createVisitorOperations(
     async downloadShared(call, body) {
       const record = await enter(body.token, body.access);
       const target = await liveTarget(record);
-      const object = await sharedObject(record, target, body.id);
+      const reached = await sharedObject(record, target, body.id);
+      await assertVisit(call, "downloadShared", record, target, reached);
+      const { object } = reached;
       const route = downloadRoute(object);
       const { env, grants } = runtime.bound();
       const { downloadExpiresIn } = policy;
@@ -405,7 +462,9 @@ export function createVisitorOperations(
       const status = shareLinkStatus(record);
       if (status === "revoked" || status === "expired") assertOpen(record);
       const target = await liveTarget(record);
-      const object = await sharedObject(record, target, objectId);
+      const reached = await sharedObject(record, target, objectId);
+      await assertVisit(call, "sharedFile", record, target, reached);
+      const { object } = reached;
       const route = downloadRoute(object);
       return env.download.serve(
         {

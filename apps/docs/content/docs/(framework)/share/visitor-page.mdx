@@ -37,16 +37,16 @@ import { s3Client } from "@/lib/s3-client";
 export function SharedView({ token }: { token: string }) {
   const [access, setAccess] = useState<string>();
   const [link, setLink] = useState<ShareVisitorLink>();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
 
   useEffect(() => {
     s3Client.share
       .openLink({ token, access })
       .then(({ link }) => setLink(link))
-      .catch((caught: { code?: string }) => setError(caught.code));
+      .catch(setError);
   }, [token, access]);
 
-  if (error) return <LinkError code={error} />;
+  if (error) return <LinkError error={error} />;
   if (!link) return null;
   if (link.locked) return <PasswordForm token={token} onUnlock={setAccess} />;
   return link.type === "folder" ? (
@@ -134,8 +134,9 @@ function SharedFolder({ token, access }: { token: string; access?: string }) {
 ### Download a shared file [step]
 
 `downloadSharedFile` asks `downloadShared` for a short-lived URL and sends the
-browser to it. Each call counts one download. On an object link the file id
-is optional:
+browser to it. Each call counts one download, and it resolves with the
+response, whose `downloadsLeft` keeps a counter on the page current. On an
+object link the file id is optional:
 
 ```tsx
 function SharedFile({
@@ -166,19 +167,15 @@ inline only for a type on the route's `inlineTypes`.
 ### Explain why a link does not open [step]
 
 Every refusal has its own code, and the visitor already holds the token, so
-you can say which one applies:
+you can say which one applies. [`useFormatError`](/docs/react/helpers#errors)
+words every `SHARE_*` code, in your `translations`:
 
 ```tsx
-const MESSAGES: Record<string, string> = {
-  SHARE_LINK_NOT_FOUND: "This link does not exist.",
-  SHARE_LINK_EXPIRED: "This link has expired.",
-  SHARE_LINK_REVOKED: "This link was turned off.",
-  SHARE_LINK_EXHAUSTED: "This link reached its download limit.",
-  SHARE_TARGET_UNAVAILABLE: "The shared item was deleted.",
-};
+import { useFormatError } from "@dimah-s3/react";
 
-function LinkError({ code }: { code: string }) {
-  return <p>{MESSAGES[code] ?? "This link cannot be opened."}</p>;
+function LinkError({ error }: { error: unknown }) {
+  const formatError = useFormatError();
+  return <p>{formatError(error)}</p>;
 }
 ```
 
@@ -194,3 +191,9 @@ const { link } = await getS3().share.api.openLink({ token });
 ```
 
 It runs your instance guard as `openLink`, like the HTTP call.
+
+To say who sent the link, read its row with
+`s3.share.links.findByToken(token)` once `openLink` succeeds: its `scope` and
+`target` lead to your own records, such as the project a folder belongs to.
+It runs no guard and returns the link whatever its status, so show only what
+a visitor may see.

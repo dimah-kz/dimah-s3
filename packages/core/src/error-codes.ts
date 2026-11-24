@@ -95,6 +95,11 @@ export const S3_ERROR_CODES = defineErrorCodes({
   FORBIDDEN: { status: 403, message: "Forbidden" },
   /** A concurrent change won; retrying may succeed. */
   CONFLICT: { status: 409, message: "Conflict" },
+  /**
+   * A rate limit refused the call. The library never sends it: throw it
+   * from a guard that limits calls.
+   */
+  TOO_MANY_REQUESTS: { status: 429, message: "Too many requests" },
   INTERNAL_ERROR: { status: 500, message: "Internal server error" },
   S3_NETWORK_ERROR: {
     status: 502,
@@ -152,6 +157,32 @@ export const S3_ERROR_CODES = defineErrorCodes({
   FOLDER_NOT_FOUND: { status: 404, message: "Folder not found" },
   FOLDER_EXISTS: { status: 409, message: "Folder already exists" },
   FOLDER_NOT_EMPTY: { status: 409, message: "Folder is not empty" },
+  // share plugin. A visitor holds the token, so telling an expired link
+  // from a revoked one reveals nothing new.
+  SHARE_LINK_NOT_FOUND: { status: 404, message: "Share link not found" },
+  SHARE_LINK_EXPIRED: { status: 410, message: "Share link has expired" },
+  SHARE_LINK_REVOKED: { status: 410, message: "Share link was turned off" },
+  SHARE_LINK_EXHAUSTED: {
+    status: 410,
+    message: "Share link reached its download limit",
+  },
+  SHARE_TARGET_UNAVAILABLE: {
+    status: 410,
+    message: "The shared item is no longer available",
+  },
+  SHARE_PASSWORD_REQUIRED: {
+    status: 401,
+    message: "Share link needs a password",
+  },
+  SHARE_PASSWORD_INVALID: { status: 401, message: "Wrong password" },
+  SHARE_FOLDER_LINKS_DISABLED: {
+    status: 400,
+    message: "Folder share links are turned off",
+  },
+  SHARE_DOWNLOAD_URL_INVALID: {
+    status: 403,
+    message: "Download URL is invalid or has expired",
+  },
   // client-only (never sent by the server)
   TOO_MANY_FILES: {
     status: 400,
