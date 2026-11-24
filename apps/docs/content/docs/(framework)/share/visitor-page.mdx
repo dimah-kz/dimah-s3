@@ -1,0 +1,196 @@
+---
+title: The Shared Page
+description: Build the public page a share link opens, with a password form, a folder listing on ObjectList, and downloads.
+---
+
+A share link opens a page of your app, the one `share({ url })` points at.
+It reads the token from the URL and calls the visitor actions, which need no
+session. This guide builds it in the Next.js App Router.
+
+### Read the token [step]
+
+```tsx title="app/s/[token]/page.tsx"
+import { SharedView } from "./shared-view";
+
+export default async function SharedPage({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
+  return <SharedView token={token} />;
+}
+```
+
+### Open the link [step]
+
+`openLink` says what the link shares. A password-protected link answers
+`locked: true` and nothing more until the password is entered:
+
+```tsx title="app/s/[token]/shared-view.tsx"
+"use client";
+
+import type { ShareVisitorLink } from "@dimah-s3/share/client";
+import { useEffect, useState } from "react";
+import { s3Client } from "@/lib/s3-client";
+
+export function SharedView({ token }: { token: string }) {
+  const [access, setAccess] = useState<string>();
+  const [link, setLink] = useState<ShareVisitorLink>();
+  const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    s3Client.share
+      .openLink({ token, access })
+      .then(({ link }) => setLink(link))
+      .catch((caught: { code?: string }) => setError(caught.code));
+  }, [token, access]);
+
+  if (error) return <LinkError code={error} />;
+  if (!link) return null;
+  if (link.locked) return <PasswordForm token={token} onUnlock={setAccess} />;
+  return link.type === "folder" ? (
+    <SharedFolder token={token} access={access} />
+  ) : (
+    <SharedFile token={token} access={access} name={link.object.name} />
+  );
+}
+```
+
+### Ask for the password [step]
+
+`unlockLink` trades the password for an `access` proof. Keep it in state and
+send it with every later call; it expires after an hour by default.
+
+```tsx
+function PasswordForm({
+  token,
+  onUnlock,
+}: {
+  token: string;
+  onUnlock: (access: string) => void;
+}) {
+  const [wrong, setWrong] = useState(false);
+  return (
+    <form
+      action={async (data) => {
+        try {
+          const { access } = await s3Client.share.unlockLink({
+            token,
+            password: String(data.get("password")),
+          });
+          onUnlock(access);
+        } catch {
+          setWrong(true);
+        }
+      }}
+    >
+      <input name="password" type="password" required autoFocus />
+      {wrong && <p role="alert">Wrong password</p>}
+      <button type="submit">Open</button>
+    </form>
+  );
+}
+```
+
+### List a shared folder [step]
+
+`shareObjectSource` is a read-only [`useObjectList`](/docs/react/hooks/object-list)
+source over `listShared`, so [`ObjectList`](/docs/ui/components/object-list)
+renders the folder with its breadcrumb, search, and sort. The top of the
+share is its root; folders above it stay hidden.
+
+```tsx
+import { useObjectList } from "@dimah-s3/react";
+import { downloadSharedFile, shareObjectSource } from "@dimah-s3/share/client";
+import { ObjectList } from "@dimah-s3/ui";
+
+function SharedFolder({ token, access }: { token: string; access?: string }) {
+  const list = useObjectList({
+    ...shareObjectSource(s3Client.share, { token, access }),
+    queryKey: ["share", token, access],
+  });
+  return (
+    <ObjectList
+      list={list}
+      rootLabel="Shared folder"
+      renderActions={(entry) =>
+        entry.kind === "file" ? (
+          <button
+            type="button"
+            onClick={() =>
+              downloadSharedFile(s3Client.share, entry.id, { token, access })
+            }
+          >
+            Download
+          </button>
+        ) : null
+      }
+    />
+  );
+}
+```
+
+### Download a shared file [step]
+
+`downloadSharedFile` asks `downloadShared` for a short-lived URL and sends the
+browser to it. Each call counts one download. On an object link the file id
+is optional:
+
+```tsx
+function SharedFile({
+  token,
+  access,
+  name,
+}: {
+  token: string;
+  access?: string;
+  name: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        downloadSharedFile(s3Client.share, undefined, { token, access })
+      }
+    >
+      Download {name}
+    </button>
+  );
+}
+```
+
+Pass `disposition: "inline"` to open a file in the tab instead. It stays
+inline only for a type on the route's `inlineTypes`.
+
+### Explain why a link does not open [step]
+
+Every refusal has its own code, and the visitor already holds the token, so
+you can say which one applies:
+
+```tsx
+const MESSAGES: Record<string, string> = {
+  SHARE_LINK_NOT_FOUND: "This link does not exist.",
+  SHARE_LINK_EXPIRED: "This link has expired.",
+  SHARE_LINK_REVOKED: "This link was turned off.",
+  SHARE_LINK_EXHAUSTED: "This link reached its download limit.",
+  SHARE_TARGET_UNAVAILABLE: "The shared item was deleted.",
+};
+
+function LinkError({ code }: { code: string }) {
+  return <p>{MESSAGES[code] ?? "This link cannot be opened."}</p>;
+}
+```
+
+## Render on the server
+
+`s3.share.api` runs the visitor actions in process, so a Server Component
+can open the link before the page reaches the browser:
+
+```tsx title="app/s/[token]/page.tsx"
+import { getS3 } from "@/lib/s3";
+
+const { link } = await getS3().share.api.openLink({ token });
+```
+
+It runs your instance guard as `openLink`, like the HTTP call.

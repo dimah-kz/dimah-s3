@@ -11,13 +11,13 @@ import type { StorageFolder, StorageObject } from "@/types/storage-object";
 /**
  * `s3.db.objects`: the `storage_object` rows, for your routes, jobs, and
  * scripts. `list`, `count`, and `usage` take the scope first, so they read
- * any scope; `find` and `update` address a row by `(bucket, key)`. It never
- * calls S3, and the upload lifecycle stays with the plugin: delete files
- * through `s3.api.delete`.
+ * any scope; `find` and `update` address a row by `(bucket, key)`, and
+ * `findById` by its `id`. It never calls S3, and the upload lifecycle stays
+ * with the plugin: delete files through `s3.api.delete`.
  */
 export type DbObjects<TAttributes = never> = Pick<
   StorageObjectStore<TAttributes>,
-  "find" | "list" | "count" | "usage"
+  "find" | "findById" | "list" | "count" | "usage"
 > & {
   /**
    * Renames, moves, or sets the attributes of an active row, like
@@ -73,6 +73,7 @@ export function createPublicStores<TAttributes>(
   return {
     objects: {
       find: objects.find,
+      findById: objects.findById,
       list: objects.list,
       count: objects.count,
       usage: objects.usage,

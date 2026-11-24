@@ -415,26 +415,55 @@ folders, upload, and usage: `<ObjectList list={list} />`.
 
 The plugin's context, also on `s3.context.db` (`DbPluginContext`).
 
-| Property       | Type                                                                            | Description                                                                 |
-| -------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `objects`      | `DbObjects`                                                                     | The `storage_object` rows ([DbObjects](#dbobjects))                         |
-| `folders`      | `DbFolders`                                                                     | The `storage_folder` rows ([DbFolders](#dbfolders))                         |
-| `record`       | `(input: RecordObjectInput, call?: RecordObjectCall) => Promise<StorageObject>` | Writes an active row for an object already in the bucket                    |
-| `checkSchema`  | `() => Promise<void>`                                                           | Throws unless the database is at schema `2.3.0` and both tables can be read |
-| `purgeStale`   | `(options?: PurgeStaleOptions) => Promise<PurgeStaleResult>`                    | Cleans up uploads past their deadline ([Purge](/docs/db/purge))             |
-| `pruneDeleted` | `(options: PruneDeletedOptions) => Promise<{ pruned: number }>`                 | Removes soft-deleted rows older than `olderThan`                            |
+| Property       | Type                                                                            | Description                                                                       |
+| -------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `objects`      | `DbObjects`                                                                     | The `storage_object` rows ([DbObjects](#dbobjects))                               |
+| `folders`      | `DbFolders`                                                                     | The `storage_folder` rows ([DbFolders](#dbfolders))                               |
+| `record`       | `(input: RecordObjectInput, call?: RecordObjectCall) => Promise<StorageObject>` | Writes an active row for an object already in the bucket                          |
+| `access`       | `DbAccess`                                                                      | Scope and ownership checks for a plugin built on db ([s3.db.access](#s3dbaccess)) |
+| `checkSchema`  | `() => Promise<void>`                                                           | Throws unless the database is at schema `2.3.0` and both tables can be read       |
+| `purgeStale`   | `(options?: PurgeStaleOptions) => Promise<PurgeStaleResult>`                    | Cleans up uploads past their deadline ([Purge](/docs/db/purge))                   |
+| `pruneDeleted` | `(options: PruneDeletedOptions) => Promise<{ pruned: number }>`                 | Removes soft-deleted rows older than `olderThan`                                  |
 
 ### DbObjects
 
 `s3.db.objects`. It never calls S3.
 
-| Property | Type                                                                                             | Description                                                                                                        |
-| -------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `find`   | `(ref: ObjectRef) => Promise<StorageObject \| null>`                                             | Loads the row at `(bucket, key)`, whatever its status                                                              |
-| `list`   | `(scope, input?: ListObjectsInput) => Promise<ListObjectsPage>`                                  | One page of a scope's rows: `{ objects, nextCursor, firstPage }`                                                   |
-| `count`  | `(scope, filter?: ObjectFilter) => Promise<number>`                                              | Counts the rows of a scope that a filter covers                                                                    |
-| `usage`  | `(scope, options?: { excluding?: ObjectRef }) => Promise<DbUsage>`                               | Bytes and files of a scope; an active row with an overwrite in flight counts the larger size. Reads every live row |
-| `update` | `(ref: ObjectRef & { id?; scope? }, input: UpdateObjectInput) => Promise<StorageObject \| null>` | Sets `name`, `folderId`, or `attributes` of an active row. With `id` or `scope`, only that row changes             |
+| Property   | Type                                                                                             | Description                                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `find`     | `(ref: ObjectRef) => Promise<StorageObject \| null>`                                             | Loads the row at `(bucket, key)`, whatever its status                                                              |
+| `findById` | `(id) => Promise<StorageObject \| null>`                                                         | Loads the row with this `id`, whatever its status. An id is never reused                                           |
+| `list`     | `(scope, input?: ListObjectsInput) => Promise<ListObjectsPage>`                                  | One page of a scope's rows: `{ objects, nextCursor, firstPage }`                                                   |
+| `count`    | `(scope, filter?: ObjectFilter) => Promise<number>`                                              | Counts the rows of a scope that a filter covers                                                                    |
+| `usage`    | `(scope, options?: { excluding?: ObjectRef }) => Promise<DbUsage>`                               | Bytes and files of a scope; an active row with an overwrite in flight counts the larger size. Reads every live row |
+| `update`   | `(ref: ObjectRef & { id?; scope? }, input: UpdateObjectInput) => Promise<StorageObject \| null>` | Sets `name`, `folderId`, or `attributes` of an active row. With `id` or `scope`, only that row changes             |
+
+### s3.db.access
+
+`DbAccess`: the checks the db endpoints run, for a plugin built on db, such
+as [share links](/docs/share). Each method resolves the caller's scope with
+your `resolveScope`, checks that the target belongs to it, then runs your
+`authorize` with `operation: "plugin"` and the `plugin` it names. A row of
+another scope is not found, the same as no row. Pass the call as a plugin
+endpoint reads it from `ctx.context`.
+
+```ts
+const { caller, object } = await s3.db.access.object(
+  ctx.context,
+  { plugin: { id: "share", action: "createLink" } },
+  { bucket, key },
+);
+```
+
+| Property | Type                                                                      | Description                                                                                                           |
+| -------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `scope`  | `(call, target) => Promise<DbCaller>`                                     | The caller, after `authorize` ran with no target. `UNAUTHORIZED` or `FORBIDDEN`                                       |
+| `object` | `(call, target, ref: ObjectRef \| { id }) => Promise<{ caller; object }>` | The caller's active object, after `authorize` saw it. `OBJECT_NOT_FOUND` when missing, not active, or another scope's |
+| `folder` | `(call, target, folderId \| null) => Promise<{ caller; folder }>`         | The caller's folder (`null` is the root), after `authorize` saw it. `FOLDER_NOT_FOUND`                                |
+
+`call` is `{ request, locals }` (`DbAccessCall`). `target` is
+`{ plugin: { id, action }, route? }` (`DbAccessTarget`). `DbCaller` is the
+`ScopeContext` with the resolved `scope`.
 
 ### ListObjectsInput
 

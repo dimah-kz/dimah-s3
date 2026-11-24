@@ -565,6 +565,9 @@ importers:
       '@dimah-s3/server':
         specifier: workspace:*
         version: link:../../packages/server
+      '@dimah-s3/share':
+        specifier: workspace:*
+        version: link:../../packages/share
       '@dimah-s3/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -977,6 +980,79 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.15.0(jiti@2.7.0)
+      tsc-alias:
+        specifier: 'catalog:'
+        version: 1.9.10
+      tsup:
+        specifier: 'catalog:'
+        version: 9.0.0(jiti@2.7.0)(postcss@8.5.33)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.1(@types/node@26.6.6)(jsdom@31.0.1(@noble/hashes@2.4.0))(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/share:
+    dependencies:
+      '@dimah-s3/core':
+        specifier: workspace:*
+        version: link:../core
+      fumadb:
+        specifier: ~0.7.3
+        version: 0.7.3(drizzle-orm@1.0.0-rc.5(@electric-sql/pglite@0.5.17)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7))
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1175.0
+        version: 3.1175.0
+      '@dimah-s3/db':
+        specifier: workspace:*
+        version: link:../db
+      '@dimah-s3/react':
+        specifier: workspace:*
+        version: link:../react
+      '@dimah-s3/server':
+        specifier: workspace:*
+        version: link:../server
+      '@electric-sql/pglite':
+        specifier: ^0.5.17
+        version: 0.5.17
+      '@types/better-sqlite3':
+        specifier: ^9.6.0
+        version: 9.6.0
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.6
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.3.0
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint-config
+      '@workspace/tsup-config':
+        specifier: workspace:*
+        version: link:../../tooling/tsup-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../../tooling/typescript-config
+      '@workspace/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
+      better-sqlite3:
+        specifier: ^13.2.0
+        version: 13.2.0
+      drizzle-orm:
+        specifier: 1.0.0-rc.5
+        version: 1.0.0-rc.5(@electric-sql/pglite@0.5.17)(@types/better-sqlite3@9.6.0)(better-sqlite3@13.2.0)(zod@4.6.7)
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0(jiti@2.7.0)
+      kysely:
+        specifier: ^0.29.9
+        version: 0.29.9
       tsc-alias:
         specifier: 'catalog:'
         version: 1.9.10

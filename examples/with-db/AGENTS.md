@@ -10,4 +10,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # examples/with-db
 
-Next.js file manager with `@dimah-s3/db` (Drizzle / SQLite) and `ObjectList` — not a CLI template twin. The framework twin is `with-nextjs`. Matches the [Database Setup](https://s3.dimah.dev/docs/db/setup) guide.
+Next.js file manager with `@dimah-s3/db` and `@dimah-s3/share` (Drizzle / SQLite) and `ObjectList` — not a CLI template twin. The framework twin is `with-nextjs`. Matches the [Database Setup](https://s3.dimah.dev/docs/db/setup) and [Share Links](https://s3.dimah.dev/docs/share) guides.

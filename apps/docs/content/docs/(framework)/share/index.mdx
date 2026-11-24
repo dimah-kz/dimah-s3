@@ -1,0 +1,224 @@
+---
+title: Share Links
+description: The share() plugin gives db() objects and folders links anyone can open, with expiry, passwords, download limits, and revocation.
+---
+
+[`@dimah-s3/share`](https://www.npmjs.com/package/@dimah-s3/share) adds share
+links on top of [`db()`](/docs/db). An owner creates a link to one file or
+one folder of their scope. Anyone who holds the link can open it, browse the
+folder, and download files, without a session, until it expires, reaches its
+download limit, or the owner turns it off.
+
+```ts
+const { link } = await s3Client.share.createLink({
+  target: { type: "object", key },
+  expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  password: "correct horse",
+  maxDownloads: 10,
+});
+
+link.url; // "https://app.example.com/s/k3Jx…"
+```
+
+## How it works
+
+- **Ownership comes from `db()`.** Owner actions resolve the caller with
+  your `resolveScope`, and your db `authorize` sees them as
+  `operation: "plugin"`. You configure scopes once.
+- **The token is the credential.** A link URL carries 192 random bits.
+  Visitor calls send it instead of a session; the object key never leaves
+  the server.
+- **Every visit is checked again.** Each call reloads the link and its
+  target: a revoked or expired link, a deleted file, or a file moved out of
+  a shared folder stops opening at once.
+- **Downloads follow the route.** On a route in `presign` mode a visitor
+  gets a presigned URL that lives 5 minutes. In `proxy` mode they get a
+  signed `/share/file` URL that streams through your server.
+- **Passwords never travel twice.** `unlockLink` checks the password
+  (PBKDF2-SHA256) once and returns an `access` proof for later calls. A new
+  password ends every proof made under the old one.
+
+## Setup
+
+[`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
+runs this setup with a share dialog and a public page.
+
+### Install [step]
+
+```npm
+npm i @dimah-s3/share
+```
+
+It needs `@dimah-s3/db` and `@dimah-s3/server` at the same version. The
+adapters come from `@dimah-s3/db/adapters/*`.
+
+### Create the table [step]
+
+The plugin stores links in `share_link`, and its schema version in
+`private_dimah_s3_share_settings`, beside the db tables.
+
+<Tabs items={["Drizzle", "Prisma", "Kysely"]}>
+<Tab value="Drizzle">
+
+```ts title="scripts/dimah-s3-share.ts"
+import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
+import { DimahS3Share } from "@dimah-s3/share";
+import { runCli } from "@dimah-s3/share/cli";
+
+await runCli(
+  DimahS3Share.client(drizzleAdapter({ db: undefined, provider: "sqlite" })),
+);
+```
+
+```bash
+npx tsx scripts/dimah-s3-share.ts generate latest -o db/dimah-s3-share.ts
+npx drizzle-kit push
+```
+
+Add the new file to `schema` in `drizzle.config.ts`.
+
+</Tab>
+<Tab value="Prisma">
+
+Run the same script with `prismaAdapter({ prisma: undefined, provider })`
+and `generate latest -o prisma/dimah-s3-share.prisma`, then add the models to
+your schema and run Prisma Migrate.
+
+</Tab>
+<Tab value="Kysely">
+
+```ts title="scripts/migrate.ts"
+import { migrate } from "@dimah-s3/share";
+import { dimahS3Share } from "@/lib/dimah-s3-db";
+
+await migrate(dimahS3Share);
+```
+
+</Tab>
+</Tabs>
+
+### Create the client [step]
+
+Use the adapter you gave `db()`. With Drizzle, merge the relations of both
+generated files into one instance:
+
+```ts title="lib/dimah-s3-db.ts"
+import { DimahS3Db } from "@dimah-s3/db";
+import { drizzleAdapter } from "@dimah-s3/db/adapters/drizzle";
+import { DimahS3Share } from "@dimah-s3/share";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { relations as dbRelations } from "../db/dimah-s3";
+import { relations as shareRelations } from "../db/dimah-s3-share";
+
+export const db = drizzle({
+  client: sqlite,
+  relations: { ...dbRelations, ...shareRelations },
+});
+
+const adapter = drizzleAdapter({ db, provider: "sqlite" });
+export const dimahS3Db = DimahS3Db.client(adapter);
+export const dimahS3Share = DimahS3Share.client(adapter); // [!code ++]
+```
+
+### Register the plugin [step]
+
+Pass `share()` after `db()`. `url` turns a token into the page visitors
+open, which you build in [The shared page](/docs/share/visitor-page):
+
+```ts title="lib/s3.ts"
+import { db } from "@dimah-s3/db";
+import { share } from "@dimah-s3/share";
+
+export const s3 = dimahS3({
+  // client, bucket, routes…
+  plugins: [
+    db({ client: dimahS3Db, getSession, resolveScope }),
+    share({
+      client: dimahS3Share,
+      url: (token) => `${process.env.APP_URL}/s/${token}`,
+    }),
+  ],
+});
+```
+
+A route needs `download` for its files to be shared.
+
+### Let visitors through your guard [step]
+
+Visitors have no session. If your instance `guard` requires one, let the
+public share actions through with `isSharePublicAction`:
+
+```ts title="lib/s3.ts"
+import { isSharePublicAction } from "@dimah-s3/share";
+
+dimahS3({
+  guard: async (context) => {
+    if (isSharePublicAction(context)) return; // [!code ++]
+    await requireSession(context.request);
+  },
+});
+```
+
+<Callout type="warn" title="Rate-limit unlockLink">
+  The password hash slows each guess, but nothing stops a script from trying
+  many. Limit `unlockLink` per IP in your guard: `context.plugin?.action ===
+  "unlockLink"`.
+</Callout>
+
+### Add the client plugin [step]
+
+```ts title="lib/s3-client.ts"
+"use client";
+
+import { dbClient } from "@dimah-s3/db/client";
+import { createS3Client } from "@dimah-s3/react";
+import { shareClient } from "@dimah-s3/share/client";
+
+export const s3Client = createS3Client({
+  plugins: [dbClient(), shareClient()],
+});
+```
+
+## Manage links
+
+The owner actions run as the signed-in caller, on `s3Client.share`:
+
+```ts
+// Every link to one file, newest first.
+const { links } = await s3Client.share.listLinks({
+  target: { type: "object", key },
+});
+
+// New settings. `null` removes a password, an expiry, or a limit.
+await s3Client.share.updateLink({ id, maxDownloads: null, password: null });
+
+// Off for good. The row stays until pruneLinks removes it.
+await s3Client.share.revokeLink({ id });
+```
+
+Each link reports a `status`: `active`, `expired`, `revoked`, or
+`exhausted`, plus `downloadCount`, `viewCount`, and `lastAccessedAt`. A
+link whose file or folder was deleted has `target.available: false`.
+
+On the server, `s3.share.api` runs the same actions with
+`{ request }`, and `s3.share.links` reads and revokes rows without
+guards. Remove old rows from a job:
+
+```ts
+await s3.share.pruneLinks({ olderThan: Date.now() - 30 * 24 * 60 * 60 * 1000 });
+```
+
+## Next steps
+
+<Cards>
+  <Card
+    title="The shared page"
+    href="/docs/share/visitor-page"
+    description="Open a link, ask for its password, list the folder, and download."
+  />
+  <Card
+    title="Share API"
+    href="/docs/share/api"
+    description="Options, actions, server context, hooks, and errors."
+  />
+</Cards>

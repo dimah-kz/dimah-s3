@@ -3,7 +3,11 @@ import {
   type GetObjectCommandInput,
   type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
-import { isAPIError, s3Error } from "@dimah-s3/core";
+import {
+  isAPIError,
+  s3Error,
+  type ContentDispositionType,
+} from "@dimah-s3/core";
 import type { fileQuerySchema } from "@dimah-s3/core/schema";
 import type * as z from "zod";
 import { headObjectOrNotFound } from "@/helpers/head-object";
@@ -71,59 +75,89 @@ export async function serveFile(
   try {
     return await runOperation(config, "file", options, async (call) => {
       const { route, context } = await openObject(config, call, query, "proxy");
-      const { download } = route;
       const authorized = await authorizeDownload(config, route, context, {
         mode: "proxy",
         name: query.name,
         disposition: query.disposition,
       });
-      const { resolved } = authorized;
       const { name, disposition } = authorized.context;
-
-      const headers = fileHeaders(resolved?.cacheControl);
-      let output: GetObjectCommandOutput;
-      try {
-        output = await getObject(route, context, call.request);
-      } catch (error) {
-        if (awsStatus(error) === 304) return notModified(error, headers);
-        throw await getObjectError(error, route, context, call.request.signal);
-      }
-
-      const sent = resolveObjectDisposition(download.inlineTypes, {
-        key: context.key,
+      return streamObject(route, context, call.request, {
         name,
-        requested: disposition,
-        contentType: output.ContentType,
-        contentDisposition: output.ContentDisposition,
-      });
-      headers.set(
-        "Content-Type",
-        sent.contentType ?? output.ContentType ?? "application/octet-stream",
-      );
-      headers.set("Content-Disposition", sent.header);
-      if (output.ContentLength !== undefined) {
-        headers.set("Content-Length", String(output.ContentLength));
-      }
-      if (output.ContentRange) {
-        headers.set("Content-Range", output.ContentRange);
-      }
-      // A gzip object must say so, or the browser shows the raw bytes.
-      if (output.ContentEncoding) {
-        headers.set("Content-Encoding", output.ContentEncoding);
-      }
-      if (output.ContentLanguage) {
-        headers.set("Content-Language", output.ContentLanguage);
-      }
-      setValidators(headers, output.ETag, output.LastModified?.toUTCString());
-      return new Response(output.Body?.transformToWebStream() ?? null, {
-        status: output.ContentRange ? 206 : 200,
-        headers,
+        disposition,
+        cacheControl: authorized.resolved?.cacheControl,
       });
     });
   } catch (error) {
     throw withFileHeaders(error);
   }
 }
+
+/** How {@link streamObject} sends the object. */
+export type StreamObjectOptions = {
+  /** File name for `Content-Disposition`. Defaults to the stored one, else the key. */
+  name?: string;
+  /** Kept `inline` only for a type on the route's `inlineTypes`. */
+  disposition: ContentDispositionType;
+  /** @default "private, no-cache" */
+  cacheControl?: string;
+};
+
+/**
+ * The `/file` response for an object the caller may read, after every
+ * check: one GetObject with the request's Range and conditional headers and
+ * its abort signal, sent with the hardening headers, `ETag` and
+ * `Last-Modified`. A failure is thrown as the `APIError` `/file` returns;
+ * the caller adds the hardening headers with {@link withFileHeaders}.
+ */
+export async function streamObject(
+  route: OpenedRoute<"proxy">,
+  target: ObjectTarget,
+  request: Request,
+  options: StreamObjectOptions,
+): Promise<Response> {
+  const headers = fileHeaders(options.cacheControl);
+  let output: GetObjectCommandOutput;
+  try {
+    output = await getObject(route, target, request);
+  } catch (error) {
+    if (awsStatus(error) === 304) return notModified(error, headers);
+    throw await getObjectError(error, route, target, request.signal);
+  }
+
+  const sent = resolveObjectDisposition(route.download.inlineTypes, {
+    key: target.key,
+    name: options.name,
+    requested: options.disposition,
+    contentType: output.ContentType,
+    contentDisposition: output.ContentDisposition,
+  });
+  headers.set(
+    "Content-Type",
+    sent.contentType ?? output.ContentType ?? "application/octet-stream",
+  );
+  headers.set("Content-Disposition", sent.header);
+  if (output.ContentLength !== undefined) {
+    headers.set("Content-Length", String(output.ContentLength));
+  }
+  if (output.ContentRange) {
+    headers.set("Content-Range", output.ContentRange);
+  }
+  // A gzip object must say so, or the browser shows the raw bytes.
+  if (output.ContentEncoding) {
+    headers.set("Content-Encoding", output.ContentEncoding);
+  }
+  if (output.ContentLanguage) {
+    headers.set("Content-Language", output.ContentLanguage);
+  }
+  setValidators(headers, output.ETag, output.LastModified?.toUTCString());
+  return new Response(output.Body?.transformToWebStream() ?? null, {
+    status: output.ContentRange ? 206 : 200,
+    headers,
+  });
+}
+
+/** The object a GetObject reads. */
+type ObjectTarget = Pick<ObjectContext, "bucket" | "key">;
 
 /** The hardening headers and `Cache-Control`. */
 function fileHeaders(cacheControl = FILE_CACHE_CONTROL): Headers {
@@ -139,7 +173,7 @@ function fileHeaders(cacheControl = FILE_CACHE_CONTROL): Headers {
  */
 async function getObject(
   route: OpenedRoute<"download">,
-  context: ObjectContext,
+  context: ObjectTarget,
   request: Request,
 ): Promise<GetObjectCommandOutput> {
   const range = singleRange(request.headers.get("range"));
@@ -230,7 +264,7 @@ function notModified(error: unknown, headers: Headers): Response {
 async function getObjectError(
   error: unknown,
   route: OpenedRoute<"download">,
-  context: ObjectContext,
+  context: ObjectTarget,
   abortSignal: AbortSignal,
 ): Promise<unknown> {
   const status = awsStatus(error);
@@ -268,7 +302,7 @@ function actualObjectSize(error: unknown): number | undefined {
 /** The object size from HeadObject, for a 416 whose error has none. */
 async function storedSize(
   route: OpenedRoute<"download">,
-  context: ObjectContext,
+  context: ObjectTarget,
   abortSignal: AbortSignal,
 ): Promise<number | undefined> {
   const head = await headObjectOrNotFound(

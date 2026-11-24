@@ -10,8 +10,11 @@ export type ScopeCall = {
   locals: DimahS3Locals;
 };
 
-/** What a scope is resolved for: the operation and, when known, the route. */
-export type ScopeTarget = Pick<ScopeContext, "operation" | "route">;
+/**
+ * What a scope is resolved for: the operation and, when known, the route,
+ * and the plugin of a `plugin` call.
+ */
+export type ScopeTarget = Pick<ScopeContext, "operation" | "route" | "plugin">;
 
 /** A {@link ScopeContext} whose scope is resolved. */
 export type ResolvedScope<TSession = undefined> = ScopeContext<TSession> & {
@@ -82,9 +85,15 @@ export function createScopeResolver<TSession>(
       session,
       operation: target.operation,
       ...(target.route !== undefined && { route: target.route }),
+      ...(target.plugin !== undefined && {
+        plugin: { id: target.plugin.id, action: target.plugin.action },
+      }),
     };
-    // Route names never contain `:`.
-    const id = `${target.operation}:${target.route ?? ""}`;
+    // Route names and plugin ids never contain `:`.
+    const plugin = target.plugin
+      ? `${target.plugin.id}:${target.plugin.action}`
+      : "";
+    const id = `${target.operation}:${target.route ?? ""}:${plugin}`;
     const byTarget = perKey(scopes, call.locals, () => new Map());
     let scope = byTarget.get(id);
     if (scope === undefined) {

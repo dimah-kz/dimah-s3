@@ -16,13 +16,17 @@ export type {
   DimahS3Plugin,
   DimahS3PluginHooks,
   PluginContextMap,
+  PluginDownloadInput,
+  PluginDownloads,
   PluginErrorCodes,
   PluginInitEnv,
   PluginOperationTarget,
   PluginRoute,
   PluginRouteOptions,
   PluginRunOperation,
+  PluginSignedDownload,
 } from "./plugin";
+export type { PluginTokenPayload, PluginTokens } from "./helpers/plugin-tokens";
 export type { PluginCall } from "./types/hook-contexts";
 
 // S3 helpers for plugins that track uploads, such as `db()`.

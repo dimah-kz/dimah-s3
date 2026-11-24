@@ -1,7 +1,8 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { db } from "@dimah-s3/db";
 import { dimahS3, route } from "@dimah-s3/server";
-import { dimahS3Db } from "@/lib/db";
+import { share } from "@dimah-s3/share";
+import { dimahS3Db, dimahS3Share } from "@/lib/db";
 
 function requiredEnv(name: string) {
   const value = process.env[name];
@@ -25,9 +26,10 @@ function createS3() {
   });
 
   /**
-   * The Next.js starter setup plus the `db()` plugin. Every request belongs
-   * to the `user:demo` scope: return your session's user from
-   * `resolveScope` in a real app, or `null` to reject the request.
+   * The Next.js starter setup plus the `db()` and `share()` plugins. Every
+   * request belongs to the `user:demo` scope: return your session's user
+   * from `resolveScope` in a real app, or `null` to reject the request.
+   * Share links open `/s/<token>` (src/app/s/[token]/page.tsx).
    */
   return dimahS3({
     client: awsS3,
@@ -40,6 +42,11 @@ function createS3() {
         resolveScope: () => "user:demo",
         // Checked at upload and again at confirm. The list shows the meter.
         quota: { maxBytes: 100 * 1024 * 1024, maxFiles: 100 },
+      }),
+      share({
+        client: dimahS3Share,
+        // Relative: the browser resolves it on the origin it runs on.
+        url: (token) => `/s/${token}`,
       }),
     ],
     routes: {

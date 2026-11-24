@@ -12,6 +12,7 @@
     "providers",
     "---Features---",
     "db",
+    "share",
     "i18n",
     "---Reference---",
     "cli",

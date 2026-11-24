@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "check-types": "next typegen && tsc --noEmit",
-    "db:generate": "node --import tsx scripts/dimah-s3.mts generate latest -o db/dimah-s3.ts",
+    "db:generate": "node --import tsx scripts/dimah-s3.mts generate latest -o db/dimah-s3.ts && node --import tsx scripts/dimah-s3-share.mts generate latest -o db/dimah-s3-share.ts",
     "db:purge": "node --import tsx --env-file-if-exists=.env scripts/purge.mts",
     "db:push": "drizzle-kit push",
     "dev": "next dev",
@@ -20,6 +20,7 @@
     "@dimah-s3/db": "workspace:*",
     "@dimah-s3/react": "workspace:*",
     "@dimah-s3/server": "workspace:*",
+    "@dimah-s3/share": "workspace:*",
     "@dimah-s3/ui": "workspace:*",
     "@fuma-translate/react": "^1.0.2",
     "better-sqlite3": "^13.2.0",
