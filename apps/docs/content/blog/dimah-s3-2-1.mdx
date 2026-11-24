@@ -1,0 +1,209 @@
+---
+title: "dimah-s3 2.1: share links"
+description: A new share() plugin gives db() files and folders links anyone can open, with expiry, passwords, download limits, and revocation.
+date: 2026-11-24
+tags: [Announcement, Release]
+authors: [dimah]
+---
+
+dimah-s3 2.1 is out. Every `@dimah-s3/*` package is `2.1.0` on the npm
+`latest` tag, and there is a new one: `@dimah-s3/share`.
+
+2.1 adds sharing. A user picks a file or a folder, copies a link, and sends
+it to someone who has no account. The link works until it expires, runs out
+of downloads, or the owner turns it off. 2.1 has no breaking changes.
+
+```npm
+npm i @dimah-s3/share
+```
+
+Keep every `@dimah-s3/*` package on the same version: update them together
+to `2.1.0`.
+
+## Share links on top of db()
+
+`share()` is a plugin that sits next to [`db()`](/docs/db). It reuses your
+`resolveScope` and `authorize`, so it knows who owns a file without a second
+auth setup, and it keeps its links in one `share_link` table on the same
+database.
+
+```ts title="lib/s3.ts"
+import { db } from "@dimah-s3/db";
+import { dimahS3, route } from "@dimah-s3/server";
+import { share } from "@dimah-s3/share";
+
+export const s3 = dimahS3({
+  client: awsS3,
+  bucket: process.env.S3_BUCKET!,
+  plugins: [
+    db({ client: dimahS3Db, getSession, resolveScope }),
+    share({
+      client: dimahS3Share, // DimahS3Share.client(adapter), with db()'s adapter
+      url: (token) => `https://app.example.com/s/${token}`,
+      // Links last 7 days unless the owner picks otherwise, 30 at most.
+      expiration: { default: 7 * 86_400, max: 30 * 86_400 },
+    }),
+  ],
+  routes: {
+    files: route({ upload: true, download: true, delete: true }),
+  },
+});
+```
+
+The owner creates a link from the browser with `shareClient()`. A link points
+at one file, or at one folder with everything below it:
+
+```ts
+const { link } = await s3Client.share.createLink({
+  target: { type: "folder", folderId },
+  password: "correct horse",
+  maxDownloads: 20,
+  label: "Q3 report for the auditors",
+});
+
+link.url; // "https://app.example.com/s/k3Jx…"
+link.status; // "active"
+```
+
+Owners list their links with `listLinks`, change the expiry, password, or
+limit with `updateLink`, and turn one off for good with `revokeLink`. Each
+link reports its `status`, `downloadCount`, `viewCount`, and
+`lastAccessedAt`.
+
+## The page a visitor opens
+
+The visitor actions take the link token instead of a session. A
+password-protected link opens locked until `unlockLink` checks the password
+once and returns a short-lived `access` proof for the calls that follow.
+
+A shared folder renders in [`ObjectList`](/docs/ui/components/object-list),
+with its breadcrumb, search, and sort. `shareObjectSource` is a read-only
+source over the share, and the folders above it stay hidden:
+
+```tsx title="app/s/[token]/shared-folder.tsx"
+"use client";
+
+import { useObjectList } from "@dimah-s3/react";
+import { shareObjectSource } from "@dimah-s3/share/client";
+import { ObjectList } from "@dimah-s3/ui";
+
+export function SharedFolder(props: { token: string; access?: string }) {
+  const { token, access } = props;
+  const list = useObjectList({
+    ...shareObjectSource(s3Client.share, { token, access }),
+    queryKey: ["share", token, access],
+  });
+  return <ObjectList list={list} rootLabel="Shared folder" />;
+}
+```
+
+[The Shared Page](/docs/share/visitor-page) walks through the whole page:
+the password form, downloads, and a message for each reason a link does not
+open.
+
+## What every visit checks
+
+A link is a credential, so the plugin treats it like one:
+
+- **The token is 192 random bits.** The object key, route, and owner never
+  reach the visitor; files are addressed by an opaque id.
+- **Every call checks again.** A revoked or expired link, a deleted file, or
+  a file moved out of a shared folder stops opening at once.
+- **Downloads follow the route.** A visitor gets a presigned URL that lives
+  five minutes, or in proxy mode a signed URL that streams through your
+  server. Both respect the route's `inlineTypes`.
+- **The download limit holds under load.** Counting is a compare-and-set, so
+  concurrent downloads never pass it.
+- **Passwords stay on the server.** They are hashed with PBKDF2-SHA256
+  through Web Crypto, so the plugin runs on Node.js and edge runtimes alike.
+  A new password ends every `access` proof made under the old one.
+
+If your instance `guard` requires a session, `isSharePublicAction(context)`
+lets visitors through it. Run `s3.share.pruneLinks({ olderThan })` from a
+job: it removes links that expired or were revoked before that date, and
+older links whose file or folder was deleted.
+
+## Plugin SDK: send what you authorized
+
+Share links needed three things from the server that any plugin can use now.
+A plugin that grants access in its own way, without a session, can send an
+object the way its route does, and sign the URL that carries the grant:
+
+```ts
+const route = env.routes[object.route];
+if (!route?.download.enabled) {
+  throw s3Error("FEATURE_DISABLED", { feature: "download" });
+}
+
+if (route.download.mode === "presign") {
+  const { url } = await env.download.presign({
+    route: route.name,
+    key: object.key,
+    expiresIn: 300,
+  });
+} else {
+  // In your own GET endpoint: Range, conditional headers, hardening headers.
+  return env.download.serve({ route: route.name, key: object.key }, request);
+}
+
+const grants = env.tokens("grant"); // keyed to your plugin and this purpose
+const token = await grants.sign({ id: link.id }, { expiresIn: 300 });
+```
+
+`env.url(path)` builds the URL of one of your endpoints under `baseURL`.
+[Plugins](/docs/server/plugins#serving-objects-a-plugin-authorized) has the
+details.
+
+## Plugins built on db()
+
+`s3.db.access` runs the same scope and ownership checks as the db endpoints,
+for another plugin. Your `authorize` sees those calls as
+`operation: "plugin"`, with the plugin and action that made them:
+
+```ts
+const { caller, object } = await s3.db.access.object(
+  ctx.context,
+  { plugin: { id: "share", action: "createLink" } },
+  { bucket, key },
+);
+```
+
+Also new: `s3.db.objects.findById(id)`, and the `DbEndpoints` type is
+exported, so a module that exports a `dimahS3()` instance with `db()` can
+emit declarations.
+
+<Callout title="One case to add">
+  An `authorize` with an exhaustive `switch` on `operation` needs a case for
+  `"plugin"`. Nothing else in 2.1 changes behavior you rely on.
+</Callout>
+
+## Try it
+
+[`examples/with-db`](https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db)
+now has a Share link item in every row's menu and a public `/s/[token]`
+page. The [release notes](https://github.com/dimah-kz/dimah-s3/releases/tag/dimah-s3%402.1.0)
+link the changelog of every package, and questions are welcome in
+[Discussions](https://github.com/dimah-kz/dimah-s3/discussions).
+
+<Cards>
+  <Card
+    title="Share Links"
+    href="/docs/share"
+    description="Install, create the table, and register share()."
+  />
+  <Card
+    title="The Shared Page"
+    href="/docs/share/visitor-page"
+    description="Password form, folder listing, and downloads for visitors."
+  />
+  <Card
+    title="Share API"
+    href="/docs/share/api"
+    description="Options, actions, hooks, and error codes."
+  />
+  <Card
+    title="Plugins"
+    href="/docs/server/plugins"
+    description="Build a plugin with hooks, endpoints, and a typed client."
+  />
+</Cards>

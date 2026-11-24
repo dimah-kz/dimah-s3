@@ -6,12 +6,12 @@ Rules for `apps/docs/content/docs/`. Every page is read twice: as HTML at `/docs
 
 Four sidebar tabs, one root folder each. Each page lives in exactly one tab.
 
-| Tab         | Folder                     | URL              | Holds                                                        |
-| ----------- | -------------------------- | ---------------- | ------------------------------------------------------------ |
-| Get Started | `(framework)/` (URL group) | `/docs/*`        | Introduction, quickstart, upgrade, providers, database, i18n |
-| Server      | `server/`                  | `/docs/server/*` | `@dimah-s3/server`: setup, routes, hooks, security, plugins  |
-| React       | `react/`                   | `/docs/react/*`  | `@dimah-s3/react`: setup, hooks, guides, custom backend      |
-| UI          | `ui/`                      | `/docs/ui/*`     | `@dimah-s3/ui`: installation, components, theming            |
+| Tab         | Folder                     | URL              | Holds                                                                     |
+| ----------- | -------------------------- | ---------------- | ------------------------------------------------------------------------- |
+| Get Started | `(framework)/` (URL group) | `/docs/*`        | Introduction, quickstart, upgrade, providers, database, share links, i18n |
+| Server      | `server/`                  | `/docs/server/*` | `@dimah-s3/server`: setup, routes, hooks, security, plugins               |
+| React       | `react/`                   | `/docs/react/*`  | `@dimah-s3/react`: setup, hooks, guides, custom backend                   |
+| UI          | `ui/`                      | `/docs/ui/*`     | `@dimah-s3/ui`: installation, components, theming                         |
 
 - Order pages in `meta.json`. Group with `---Label---` separators, not with extra folders.
 - Moving or renaming a page changes its URL. Add a permanent redirect in `apps/docs/next.config.ts` (`movedPages`) and update every link to it in `content/`, `src/`, package READMEs, and `templates/*/README.md`.

@@ -1,12 +1,13 @@
 ---
 title: Introduction
-description: Full-stack S3 toolkit for the React ecosystem — server routes, headless hooks, shadcn UI, and optional database tracking.
+description: Full-stack S3 toolkit for the React ecosystem — server routes, headless hooks, shadcn UI, optional database tracking, and share links.
 icon: House
 ---
 
 dimah-s3 is a modular, full-stack S3 toolkit for React and Node.js. It
-provides typed server routes, headless React hooks, optional shadcn UI, and a
-database plugin for object tracking when your application needs it.
+provides typed server routes, headless React hooks, optional shadcn UI, and
+plugins for object tracking and share links when your application needs
+them.
 
 <Callout title="Upgrading from 1.x?">
   Follow [Upgrade to 2.0](/docs/migration-2-0). 1.x is no longer maintained, and
@@ -41,6 +42,8 @@ through your server as a [file proxy](/docs/server/file-proxy).
 - **Full lifecycle** — upload, download, and delete, including multipart
 - **Server hooks** — auth, quotas, confirm, and cleanup on the server
 - **Optional database** — ownership, folders, and listings when you need them
+- **Share links** — expiring, password-protected links to files and folders
+  for people without an account, with the [share plugin](/docs/share)
 
 It is not an S3 SDK wrapper. List, copy, tagging, and other operations stay
 in your own code with the
@@ -92,6 +95,15 @@ the stored object with `HeadObject` before your
 
 </Accordion>
 
+<Accordion title="Can users share files with people who have no account?">
+
+Yes, with [`share()`](/docs/share) on top of the database plugin. An owner
+creates a link to one file or one folder. Anyone with the link can open it,
+browse the folder, and download, until it expires, reaches its download
+limit, or the owner revokes it. A link can need a password.
+
+</Accordion>
+
 <Accordion title="Does dimah-s3 support resumable multipart uploads?">
 
 Yes. Turn on `upload.multipart` on the route. The server picks the part
@@ -138,6 +150,11 @@ the same local file and the client resumes.
     title="Database Plugin"
     href="/docs/db"
     description="Track files, ownership, folders, and listings."
+  />
+  <Card
+    title="Share Links"
+    href="/docs/share"
+    description="Expiring, password-protected links to files and folders."
   />
   <Card
     title="CLI"

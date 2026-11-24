@@ -96,6 +96,7 @@ export const npmPackageUrls = [
   "https://www.npmjs.com/package/@dimah-s3/core",
   "https://www.npmjs.com/package/@dimah-s3/db",
   "https://www.npmjs.com/package/@dimah-s3/cli",
+  "https://www.npmjs.com/package/@dimah-s3/share",
 ] as const;
 
 export function githubRepoUrl() {
