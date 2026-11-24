@@ -234,7 +234,7 @@ export function createOwnerOperations(
         maxDownloads: created.maxDownloads,
       });
       const link = toShareLink(record);
-      await options.onCreated?.({ ...ownerCall(call, scope), link });
+      await options.onCreated?.({ ...ownerCall(call, scope), link, target });
       return respond(
         link,
         target.type === "object" ? target.object : target.folder,
@@ -308,6 +308,7 @@ export function createOwnerOperations(
       }
       const previous = toShareLink(record);
       const loaded = await loadTarget(db, previous);
+      const target = resolvedTarget(previous, loaded);
       const { patch, settings } = await settingsForUpdate(
         policy,
         body,
@@ -318,7 +319,7 @@ export function createOwnerOperations(
         ...ownerCall(call, scope),
         action,
         link: previous,
-        target: resolvedTarget(previous, loaded),
+        target,
         settings,
       });
       if (Object.keys(patch).length === 0) return respond(previous, loaded);
@@ -327,7 +328,12 @@ export function createOwnerOperations(
       // Revoked meanwhile: a revoked link keeps its settings.
       if (!updated) throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_REVOKED);
       const link = toShareLink(updated);
-      await options.onUpdated?.({ ...ownerCall(call, scope), link, previous });
+      await options.onUpdated?.({
+        ...ownerCall(call, scope),
+        link,
+        previous,
+        ...(target !== undefined && { target }),
+      });
       return respond(link, loaded);
     },
 
@@ -337,11 +343,12 @@ export function createOwnerOperations(
       const { scope, record } = await owned(call, action, id);
       const current = toShareLink(record);
       const loaded = await loadTarget(db, current);
+      const target = resolvedTarget(current, loaded);
       await authorize({
         ...ownerCall(call, scope),
         action,
         link: current,
-        target: resolvedTarget(current, loaded),
+        target,
       });
       if (record.revokedAt !== null) return respond(current, loaded);
 
@@ -350,7 +357,11 @@ export function createOwnerOperations(
       const link = toShareLink(result.record);
       // A concurrent revoke that landed first ran the hook already.
       if (result.revoked) {
-        await options.onRevoked?.({ ...ownerCall(call, scope), link });
+        await options.onRevoked?.({
+          ...ownerCall(call, scope),
+          link,
+          ...(target !== undefined && { target }),
+        });
       }
       return respond(link, loaded);
     },

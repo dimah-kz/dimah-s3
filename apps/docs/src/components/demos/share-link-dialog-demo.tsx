@@ -62,10 +62,16 @@ function demoShare(): ShareLinksActions {
   let links: ShareClientLink[] | null = null;
   let next = 0;
   const wait = () => new Promise((resolve) => setTimeout(resolve, 250));
-  const expiresAt = (value: Date | string | null | undefined) =>
-    value === undefined || value === null
-      ? null
-      : new Date(value).toISOString();
+  /** The expiry an input asks for: a lifetime, a date, or none. */
+  const expiresAt = (input: {
+    expiresAt?: Date | string | null;
+    expiresIn?: number;
+  }) =>
+    input.expiresIn !== undefined
+      ? new Date(Date.now() + input.expiresIn * 1000).toISOString()
+      : input.expiresAt === undefined || input.expiresAt === null
+        ? null
+        : new Date(input.expiresAt).toISOString();
 
   return {
     async listLinks() {
@@ -79,7 +85,7 @@ function demoShare(): ShareLinksActions {
         label: input.label ?? null,
         passwordProtected: Boolean(input.password),
         maxDownloads: input.maxDownloads ?? null,
-        expiresAt: expiresAt(input.expiresAt),
+        expiresAt: expiresAt(input),
       });
       links = [link, ...(links ?? [])];
       return { link };
@@ -93,8 +99,9 @@ function demoShare(): ShareLinksActions {
         ...(input.maxDownloads !== undefined && {
           maxDownloads: input.maxDownloads,
         }),
-        ...(input.expiresAt !== undefined && {
-          expiresAt: expiresAt(input.expiresAt),
+        ...((input.expiresAt !== undefined ||
+          input.expiresIn !== undefined) && {
+          expiresAt: expiresAt(input),
         }),
         ...(input.password !== undefined && {
           passwordProtected: input.password !== null,

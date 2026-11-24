@@ -236,7 +236,32 @@ export type S3ServerErrorCode = Exclude<S3ErrorCode, S3ClientErrorCode>;
 
 /** Typed `params` for each code whose message has placeholders. */
 export interface S3ErrorParamsMap {
-  VALIDATION_ERROR: { issue: string };
+  /**
+   * `issue` names the field and the problem, in English. A share link
+   * setting that breaks a `share()` rule also names the rule, so a client
+   * can word it.
+   */
+  VALIDATION_ERROR: {
+    issue: string;
+    /**
+     * The `share()` rule a link setting broke:
+     * - `passwordRequired`: every link needs a password.
+     * - `passwordTooShort`: the password is shorter than `minLength`.
+     * - `expiryRequired`: every link must expire, under `expiration.max`.
+     * - `expiryInPast`: the expiry is not in the future.
+     * - `expiryTooLong`: the expiry is more than `maxExpiresIn` from now.
+     */
+    rule?:
+      | "passwordRequired"
+      | "passwordTooShort"
+      | "expiryRequired"
+      | "expiryInPast"
+      | "expiryTooLong";
+    /** With `passwordTooShort`: the shortest password, in characters. */
+    minLength?: number;
+    /** With `expiryTooLong`: the longest lifetime, in seconds. */
+    maxExpiresIn?: number;
+  };
   REQUEST_TOO_LARGE: { maxSize: number };
   S3_NETWORK_ERROR: { code: string };
   ROUTE_NOT_FOUND: { route: string };

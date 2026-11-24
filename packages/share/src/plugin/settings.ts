@@ -1,4 +1,4 @@
-import { s3Error } from "@dimah-s3/core";
+import { s3Error, type S3ErrorParams } from "@dimah-s3/core";
 import type { ShareLinkRecord, UpdateLinkInput } from "@/store/link-store";
 import type { ShareLinkSettings, ShareOptions } from "@/types/options";
 import { hashPassword } from "./password";
@@ -72,8 +72,34 @@ export function resolvePolicy(options: ShareOptions): SharePolicy {
   };
 }
 
-function invalid(field: string, issue: string): never {
-  throw s3Error("VALIDATION_ERROR", { issue: `[body.${field}] ${issue}` });
+/** What a broken rule adds to `VALIDATION_ERROR`, so a client can word it. */
+type RuleParams = Omit<S3ErrorParams<"VALIDATION_ERROR">, "issue">;
+
+function invalid(field: string, issue: string, rule: RuleParams): never {
+  throw s3Error("VALIDATION_ERROR", {
+    issue: `[body.${field}] ${issue}`,
+    ...rule,
+  });
+}
+
+/**
+ * The expiry a body asks for: `expiresIn` from the server's clock, or
+ * `expiresAt`. `undefined` when it names neither.
+ */
+function requestedExpiry(
+  body: Pick<CreateLinkBody, "expiresAt" | "expiresIn">,
+  now: Date,
+): { field: string; expiresAt: Date | null } | undefined {
+  if (body.expiresIn !== undefined) {
+    return {
+      field: "expiresIn",
+      expiresAt: new Date(now.getTime() + body.expiresIn * 1000),
+    };
+  }
+  if (body.expiresAt !== undefined) {
+    return { field: "expiresAt", expiresAt: body.expiresAt };
+  }
+  return undefined;
 }
 
 /** Checks an expiry against the policy. `null` never expires. */
@@ -81,19 +107,25 @@ function checkExpiry(
   policy: SharePolicy,
   expiresAt: Date | null,
   now: Date,
+  field = "expiresAt",
 ): Date | null {
   if (expiresAt === null) {
-    if (policy.maxExpiresIn !== undefined) invalid("expiresAt", "Required");
+    if (policy.maxExpiresIn !== undefined) {
+      invalid(field, "Required", { rule: "expiryRequired" });
+    }
     return null;
   }
   if (expiresAt.getTime() <= now.getTime()) {
-    invalid("expiresAt", "Must be in the future");
+    invalid(field, "Must be in the future", { rule: "expiryInPast" });
   }
   if (
     policy.maxExpiresIn !== undefined &&
     expiresAt.getTime() > now.getTime() + policy.maxExpiresIn * 1000
   ) {
-    invalid("expiresAt", `Must be within ${policy.maxExpiresIn} seconds`);
+    invalid(field, `Must be within ${policy.maxExpiresIn} seconds`, {
+      rule: "expiryTooLong",
+      maxExpiresIn: policy.maxExpiresIn,
+    });
   }
   return expiresAt;
 }
@@ -104,11 +136,16 @@ async function checkPassword(
   password: string | null,
 ): Promise<string | null> {
   if (password === null) {
-    if (policy.passwordRequired) invalid("password", "Required");
+    if (policy.passwordRequired) {
+      invalid("password", "Required", { rule: "passwordRequired" });
+    }
     return null;
   }
   if (password.length < policy.passwordMinLength) {
-    invalid("password", `At least ${policy.passwordMinLength} characters`);
+    invalid("password", `At least ${policy.passwordMinLength} characters`, {
+      rule: "passwordTooShort",
+      minLength: policy.passwordMinLength,
+    });
   }
   return hashPassword(password);
 }
@@ -131,14 +168,16 @@ export async function settingsForCreate(
   body: CreateLinkBody,
   now: Date,
 ): Promise<CreateSettings> {
+  const requested = requestedExpiry(body, now);
   const expiresAt = checkExpiry(
     policy,
-    body.expiresAt !== undefined
-      ? body.expiresAt
+    requested !== undefined
+      ? requested.expiresAt
       : policy.defaultExpiresIn === null
         ? null
         : new Date(now.getTime() + policy.defaultExpiresIn * 1000),
     now,
+    requested?.field,
   );
   const passwordHash = await checkPassword(policy, body.password ?? null);
   const maxDownloads = body.maxDownloads ?? null;
@@ -174,8 +213,14 @@ export async function settingsForUpdate(
   now: Date,
 ): Promise<UpdateSettings> {
   const patch: UpdateLinkInput = {};
-  if (body.expiresAt !== undefined) {
-    patch.expiresAt = checkExpiry(policy, body.expiresAt, now);
+  const requested = requestedExpiry(body, now);
+  if (requested !== undefined) {
+    patch.expiresAt = checkExpiry(
+      policy,
+      requested.expiresAt,
+      now,
+      requested.field,
+    );
   }
   if (body.password !== undefined) {
     patch.passwordHash = await checkPassword(policy, body.password);

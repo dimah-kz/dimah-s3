@@ -72,6 +72,12 @@ const expiresAtSchema = z
     message: "Invalid date",
   });
 
+/**
+ * Longest `expiresIn`, in seconds: 100 years, so the date the server
+ * computes stays in range for every database. Use `null` for no expiry.
+ */
+const MAX_EXPIRES_IN = 100 * 365 * 24 * 60 * 60;
+
 /** A label: trimmed, and `""` clears it. */
 const labelSchema = z
   .string()
@@ -83,6 +89,8 @@ const labelSchema = z
 /** Settings a create or an update may send. The plugin checks its own rules. */
 const settingsShape = {
   expiresAt: expiresAtSchema.optional(),
+  /** Seconds from now, by the server's clock. Instead of `expiresAt`. */
+  expiresIn: z.int().min(1).max(MAX_EXPIRES_IN).optional(),
   password: z
     .string()
     .min(1)
@@ -110,17 +118,25 @@ const targetSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+/** An expiry is a date or a lifetime, not both. */
+function oneExpiry(body: { expiresAt?: unknown; expiresIn?: unknown }) {
+  return body.expiresAt === undefined || body.expiresIn === undefined;
+}
+
+const oneExpiryIssue = {
+  message: "Send expiresAt or expiresIn, not both",
+  path: ["expiresIn"],
+};
+
 /** Body of `POST /share/link`. */
-export const createLinkBodySchema = z.strictObject({
-  target: targetSchema,
-  ...settingsShape,
-});
+export const createLinkBodySchema = z
+  .strictObject({ target: targetSchema, ...settingsShape })
+  .refine(oneExpiry, oneExpiryIssue);
 
 /** Body of `PATCH /share/link`. */
-export const updateLinkBodySchema = z.strictObject({
-  id: trimmedString,
-  ...settingsShape,
-});
+export const updateLinkBodySchema = z
+  .strictObject({ id: trimmedString, ...settingsShape })
+  .refine(oneExpiry, oneExpiryIssue);
 
 /**
  * Query of `GET /share/links`. A target filter is flat: `key` (with

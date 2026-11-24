@@ -19,6 +19,7 @@ import type { ShareVisitorOpenLink } from "@dimah-s3/share/client";
 import type { UseShareVisitReturn } from "@dimah-s3/share/react";
 import { useTranslations } from "@fuma-translate/react";
 import {
+  CheckIcon,
   CircleAlertIcon,
   DownloadIcon,
   LinkIcon,
@@ -51,7 +52,11 @@ import { ObjectListContent } from "@/components/dimah-s3/list/object-list-conten
 import { ObjectListHeader } from "@/components/dimah-s3/list/object-list-header";
 import { ObjectListSearch } from "@/components/dimah-s3/list/object-list-search";
 import { ObjectListSortMenu } from "@/components/dimah-s3/list/object-list-controls";
+import { useAnnouncer } from "@/hooks/use-announcer";
 import { isolateText } from "@/lib/isolate-text";
+
+/** How long a button shows that its download started, in milliseconds. */
+const STARTED_MS = 2000;
 
 /** Props of {@link SharedView}. */
 export type SharedViewProps = {
@@ -189,18 +194,31 @@ function SharedContent({
   rootLabel: string | undefined;
   height: string;
 }) {
+  const t = useTranslations();
   const formatError = useFormatError();
   const [downloadError, setDownloadError] = useState<unknown>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [started, setStarted] = useState<string | null>(null);
+  const startedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(startedTimer.current), []);
+  const [notice, announce] = useAnnouncer();
   const exhausted = link.downloadsLeft === 0;
 
-  /** Downloads one file; `key` names its button while it waits. */
+  /**
+   * Downloads one file; `key` names its button while it waits, and while
+   * it shows that the download started.
+   */
   async function download(key: string, id: string | undefined) {
     if (downloading !== null) return;
     setDownloading(key);
     setDownloadError(null);
+    clearTimeout(startedTimer.current);
+    setStarted(null);
     try {
       await visit.download(id);
+      setStarted(key);
+      startedTimer.current = setTimeout(() => setStarted(null), STARTED_MS);
+      announce(t("Download started", { note: "shared view" }));
     } catch (error) {
       setDownloadError(error);
     } finally {
@@ -211,6 +229,10 @@ function SharedContent({
   return (
     <>
       {header ? header(link) : <SharedViewHeader link={link} />}
+      {/* Says that a download started, for screen readers. */}
+      <div role="status" className="sr-only">
+        {notice}
+      </div>
       {downloadError != null ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
@@ -226,6 +248,7 @@ function SharedContent({
           height={height}
           exhausted={exhausted}
           downloading={downloading}
+          started={started}
           onDownload={(id) => void download(id, id)}
         />
       ) : (
@@ -233,6 +256,7 @@ function SharedContent({
           link={link}
           exhausted={exhausted}
           pending={downloading !== null}
+          started={started === "file"}
           onDownload={() => void download("file", undefined)}
         />
       )}
@@ -374,11 +398,14 @@ function SharedFile({
   link,
   exhausted,
   pending,
+  started,
   onDownload,
 }: {
   link: Extract<ShareVisitorOpenLink, { type: "object" }>;
   exhausted: boolean;
   pending: boolean;
+  /** The download just started. */
+  started: boolean;
   onDownload: () => void;
 }) {
   const t = useTranslations();
@@ -418,6 +445,8 @@ function SharedFile({
               aria-label={undefined}
               role={undefined}
             />
+          ) : started ? (
+            <CheckIcon data-icon="inline-start" />
           ) : (
             <DownloadIcon data-icon="inline-start" />
           )}
@@ -435,6 +464,7 @@ function SharedFolder({
   height,
   exhausted,
   downloading,
+  started,
   onDownload,
 }: {
   visit: UseShareVisitReturn;
@@ -443,6 +473,8 @@ function SharedFolder({
   exhausted: boolean;
   /** The file whose download is on its way. */
   downloading: string | null;
+  /** The file whose download just started. */
+  started: string | null;
   onDownload: (id: string) => void;
 }) {
   const t = useTranslations();
@@ -472,6 +504,8 @@ function SharedFolder({
           >
             {downloading === entry.id ? (
               <Spinner aria-hidden aria-label={undefined} role={undefined} />
+            ) : started === entry.id ? (
+              <CheckIcon className="text-dimah-s3-success" />
             ) : (
               <DownloadIcon />
             )}

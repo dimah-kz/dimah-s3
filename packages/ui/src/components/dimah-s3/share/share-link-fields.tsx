@@ -81,12 +81,10 @@ export function draftSettings(
   const settings: ShareLinkSettingsInput = {};
   if (draft.expiry !== "keep") {
     const seconds = expiryOptions[Number(draft.expiry)];
-    if (seconds !== undefined) {
-      settings.expiresAt =
-        seconds === null
-          ? null
-          : new Date(Date.now() + seconds * 1000).toISOString();
-    }
+    // A lifetime, so the server's clock sets the date: a browser clock
+    // that runs ahead cannot push the longest option past `expiration.max`.
+    if (seconds === null) settings.expiresAt = null;
+    else if (seconds !== undefined) settings.expiresIn = Math.round(seconds);
   }
   const limit = draft.maxDownloads.trim();
   const maxDownloads = limit === "" ? null : Number(limit);

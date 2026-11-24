@@ -389,11 +389,22 @@ export function createDatabaseEndpoints<
           { name, folderId, attributes },
         );
         if (!updated) throw s3Error("OBJECT_NOT_FOUND");
-        await hooks.onObjectUpdated?.({
-          ...scope,
-          before: object,
-          after: updated,
-        });
+        if (hooks.onObjectUpdated) {
+          // Where the object was, while that folder exists.
+          const source =
+            object.folderId === null
+              ? null
+              : await folders.find(scope.scope, object.folderId);
+          await hooks.onObjectUpdated({
+            ...scope,
+            before: object,
+            after: updated,
+            ...(object.folderId === null
+              ? { folder: null }
+              : source && { folder: source.path }),
+            ...(opened !== undefined && { destination: folderTarget(opened) }),
+          });
+        }
         return { object: toClientObject(updated) };
       },
     ),

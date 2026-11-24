@@ -55,7 +55,72 @@ export function useFormatError(): (error: unknown) => string {
 
       switch (code) {
         case "VALIDATION_ERROR":
-          return t("Invalid request", { note: "API error" });
+          // A share link setting that broke a `share()` rule names it.
+          switch (text("rule")) {
+            case "passwordRequired":
+              return t("Add a password: every link needs one", {
+                note: "API error",
+              });
+            case "passwordTooShort": {
+              const minLength = count("minLength");
+              if (minLength) {
+                return t(
+                  "Use at least {minLength} characters for the password",
+                  {
+                    note: "API error",
+                    variables: { minLength },
+                  },
+                );
+              }
+              return t("The password is too short", { note: "API error" });
+            }
+            case "expiryRequired":
+              return t("Choose an expiry: every link must expire", {
+                note: "API error",
+              });
+            case "expiryInPast":
+              return t("Choose an expiry in the future", { note: "API error" });
+            case "expiryTooLong": {
+              const max = readNumber(params, "maxExpiresIn");
+              // The longest lifetime, rounded down, so it never overstates.
+              if (max !== undefined && max >= 86_400) {
+                const days = Math.floor(max / 86_400);
+                return days === 1
+                  ? t("Choose an expiry of at most 1 day", {
+                      note: "API error",
+                    })
+                  : t("Choose an expiry of at most {count} days", {
+                      note: "API error",
+                      variables: { count: formatNumber(days) },
+                    });
+              }
+              if (max !== undefined && max >= 3600) {
+                const hours = Math.floor(max / 3600);
+                return hours === 1
+                  ? t("Choose an expiry of at most 1 hour", {
+                      note: "API error",
+                    })
+                  : t("Choose an expiry of at most {count} hours", {
+                      note: "API error",
+                      variables: { count: formatNumber(hours) },
+                    });
+              }
+              if (max !== undefined && max >= 60) {
+                const minutes = Math.floor(max / 60);
+                return minutes === 1
+                  ? t("Choose an expiry of at most 1 minute", {
+                      note: "API error",
+                    })
+                  : t("Choose an expiry of at most {count} minutes", {
+                      note: "API error",
+                      variables: { count: formatNumber(minutes) },
+                    });
+              }
+              return t("Choose a shorter expiry", { note: "API error" });
+            }
+            default:
+              return t("Invalid request", { note: "API error" });
+          }
         case "REQUEST_TOO_LARGE":
           return t("Request is too large", { note: "API error" });
         case "UNSUPPORTED_MEDIA_TYPE":

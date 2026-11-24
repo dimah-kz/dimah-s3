@@ -155,11 +155,13 @@ describe("ShareLinkDialog", () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalled());
     const [input] = share.createLink.mock.calls[0] ?? [];
-    expect(input).toMatchObject({ target, maxDownloads: 3, label: "Client" });
-    const lifetime =
-      Date.parse(String((input as { expiresAt?: string }).expiresAt)) -
-      Date.now();
-    expect(lifetime).toBeGreaterThan(6.9 * 86_400_000);
+    // A lifetime, so the server's clock sets the expiry.
+    expect(input).toEqual({
+      target,
+      expiresIn: 604_800,
+      maxDownloads: 3,
+      label: "Client",
+    });
     expect(writeText).toHaveBeenCalledWith(
       new URL("/s/token-new", location.href).href,
     );
@@ -181,6 +183,26 @@ describe("ShareLinkDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create link" }));
     expect((await screen.findByRole("alert")).textContent).toBe(
       "Folder links are turned off",
+    );
+  });
+
+  it("says which share() rule a setting broke", async () => {
+    const share = fakeShare([]);
+    share.createLink.mockRejectedValueOnce(
+      s3Error("VALIDATION_ERROR", {
+        issue: "[body.password] At least 8 characters",
+        rule: "passwordTooShort",
+        minLength: 8,
+      }),
+    );
+    renderDialog(share);
+    await screen.findByText("No links yet.");
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "abc" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Use at least 8 characters for the password",
     );
   });
 

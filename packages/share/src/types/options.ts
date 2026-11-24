@@ -72,8 +72,15 @@ export type ShareVisitContext = ShareCall & {
   object?: StorageObject<unknown>;
 };
 
-/** Context of `onCreated` and `onRevoked`. */
-export type ShareLinkEventContext = ShareOwnerCall & { link: ShareLink };
+/** Context of `onCreated`, `onUpdated`, and `onRevoked`. */
+export type ShareLinkEventContext = ShareOwnerCall & {
+  link: ShareLink;
+  /**
+   * What the link points at, as the action loaded it. Absent on an update
+   * or a revoke once the object or folder is gone.
+   */
+  target?: ShareResolvedTarget;
+};
 
 /** Context of `onUpdated`. */
 export type ShareLinkUpdatedContext = ShareLinkEventContext & {

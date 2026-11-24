@@ -108,19 +108,45 @@ describe("createLink", () => {
         { target, expiresAt: new Date(Date.now() - 1000) },
         as("1"),
       ),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: { rule: "expiryInPast" },
+    });
     await expect(
       client.share.createLink({ target, expiresAt: null }, as("1")),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: { rule: "expiryRequired" },
+    });
     await expect(
       client.share.createLink(
         { target, expiresAt: new Date(Date.now() + 2 * 3600_000) },
         as("1"),
       ),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: { rule: "expiryTooLong", maxExpiresIn: 3600 },
+    });
+    await expect(
+      client.share.createLink({ target, expiresIn: 3601 }, as("1")),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: {
+        issue: "[body.expiresIn] Must be within 3600 seconds",
+        rule: "expiryTooLong",
+        maxExpiresIn: 3600,
+      },
+    });
     await expect(
       client.share.createLink({ target, password: "short" }, as("1")),
-    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: {
+        issue: "[body.password] At least 10 characters",
+        rule: "passwordTooShort",
+        minLength: 10,
+      },
+    });
 
     // Without `expiresAt`, the default is capped by the max.
     const { link } = await client.share.createLink(
@@ -138,6 +164,46 @@ describe("createLink", () => {
     const key = await put("1", "a.txt");
     await expect(
       client.share.createLink({ target: { type: "object", key } }, as("1")),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      params: { rule: "passwordRequired" },
+    });
+  });
+
+  it("takes a lifetime and expires it by the server's clock", async () => {
+    const { client, put, as } = await setup({ expiration: { max: 3600 } });
+    const key = await put("1", "a.txt");
+    const target = { type: "object" as const, key };
+
+    // The longest lifetime fits the max exactly.
+    const before = Date.now();
+    const { link } = await client.share.createLink(
+      { target, expiresIn: 3600 },
+      as("1"),
+    );
+    const expiresAt = Date.parse(link.expiresAt ?? "");
+    expect(expiresAt).toBeGreaterThanOrEqual(before + 3600_000);
+    expect(expiresAt).toBeLessThanOrEqual(Date.now() + 3600_000);
+
+    const { link: updated } = await client.share.updateLink(
+      { id: link.id, expiresIn: 60 },
+      as("1"),
+    );
+    expect(Date.parse(updated.expiresAt ?? "")).toBeLessThanOrEqual(
+      Date.now() + 60_000,
+    );
+
+    await expect(
+      client.share.createLink(
+        { target, expiresIn: 60, expiresAt: new Date(Date.now() + 60_000) },
+        as("1"),
+      ),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(
+      client.share.createLink({ target, expiresIn: 0 }, as("1")),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(
+      client.share.createLink({ target, expiresIn: 1.5 }, as("1")),
     ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 
@@ -177,6 +243,11 @@ describe("createLink", () => {
       expect.objectContaining({
         scope: "user:1",
         link: expect.objectContaining({ id: link.id, maxDownloads: 3 }),
+        // The row the action loaded, so a log needs no lookup.
+        target: {
+          type: "object",
+          object: expect.objectContaining({ key, name: "a.txt" }),
+        },
       }),
     );
     expect(onCreated.mock.calls[0][0].link).not.toHaveProperty("passwordHash");
@@ -359,6 +430,10 @@ describe("getLink, updateLink, revokeLink", () => {
       expect.objectContaining({
         previous: expect.objectContaining({ passwordProtected: false }),
         link: expect.objectContaining({ passwordProtected: true }),
+        target: {
+          type: "object",
+          object: expect.objectContaining({ key, name: "a.txt" }),
+        },
       }),
     );
 
@@ -374,6 +449,11 @@ describe("getLink, updateLink, revokeLink", () => {
     const revoked = await client.share.revokeLink({ id: link.id }, as("1"));
     expect(revoked.link.status).toBe("revoked");
     expect(onRevoked).toHaveBeenCalledTimes(1);
+    expect(onRevoked).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: { type: "object", object: expect.objectContaining({ key }) },
+      }),
+    );
     // Revoking again returns it as it is, without the hook.
     await client.share.revokeLink({ id: link.id }, as("1"));
     expect(onRevoked).toHaveBeenCalledTimes(1);
@@ -404,13 +484,23 @@ describe("getLink, updateLink, revokeLink", () => {
   });
 
   it("reports a deleted target as unavailable", async () => {
-    const { client, put, as } = await setup();
+    const onRevoked = vi.fn();
+    const { client, put, as } = await setup({ onRevoked });
     const key = await put("1", "a.txt");
     const { link } = await client.share.createLink(
       { target: { type: "object", key } },
       as("1"),
     );
+    const { link: other } = await client.share.createLink(
+      { target: { type: "object", key } },
+      as("1"),
+    );
     await client.delete({ route: "files", key }, as("1"));
+
+    // A revoke after the file went has no target to pass.
+    await client.share.revokeLink({ id: other.id }, as("1"));
+    expect(onRevoked).toHaveBeenCalledTimes(1);
+    expect(onRevoked.mock.calls[0][0]).not.toHaveProperty("target");
 
     const { link: after } = await client.share.getLink(
       { id: link.id },

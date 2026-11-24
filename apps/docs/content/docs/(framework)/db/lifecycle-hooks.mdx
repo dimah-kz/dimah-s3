@@ -131,15 +131,19 @@ db({
 });
 ```
 
-| Hook              | Runs after                                           | Context, next to the scope context                        |
-| ----------------- | ---------------------------------------------------- | --------------------------------------------------------- |
-| `onObjectUpdated` | `PATCH /db/object` renamed, moved, or set attributes | `before`, `after`: the stored row                         |
-| `onFolderCreated` | `POST /db/folder`                                    | `folder`                                                  |
-| `onFolderUpdated` | `PATCH /db/folder` renamed or moved a folder         | `before`, `after`. The folders below keep their ids       |
-| `onFolderDeleted` | `DELETE /db/folder` removed a folder                 | `folder`, and `recursive` when the folders below went too |
+| Hook              | Runs after                                           | Context, next to the scope context                         |
+| ----------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
+| `onObjectUpdated` | `PATCH /db/object` renamed, moved, or set attributes | `before`, `after`: the stored row. `folder`, `destination` |
+| `onFolderCreated` | `POST /db/folder`                                    | `folder`                                                   |
+| `onFolderUpdated` | `PATCH /db/folder` renamed or moved a folder         | `before`, `after`. The folders below keep their ids        |
+| `onFolderDeleted` | `DELETE /db/folder` removed a folder                 | `folder`, and `recursive` when the folders below went too  |
 
 - Each context is the caller's [`ScopeContext`](/docs/db/setup#scopecontext)
   with its `scope`: `request`, `locals`, `session`, and `operation`.
+- `onObjectUpdated` also gets `folder`, the path of the folder the object
+  was in, and on a move `destination`, as
+  [`authorize`](/docs/db/setup#authorize) sees them. A log can then say
+  "moved from Plans to Archive" without loading the folders again.
 - They run for calls from `dbClient()`. `s3.db.objects` and `s3.db.folders`
   do not run them: those are your own writes.
 - A throw fails the call, and the change stays. Catch errors in a hook that

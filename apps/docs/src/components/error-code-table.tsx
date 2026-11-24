@@ -10,7 +10,8 @@ import {
  * a code in `@dimah-s3/core` fails `check-types` until this list follows.
  */
 const WHEN = {
-  VALIDATION_ERROR: "The body or query does not match the endpoint schema.",
+  VALIDATION_ERROR:
+    "The body or query does not match the endpoint schema, or a share link setting breaks a `share()` rule, which `rule` names.",
   REQUEST_TOO_LARGE: "The request body is larger than `maxRequestBodySize`.",
   UNSUPPORTED_MEDIA_TYPE: "A body endpoint got a body that is not JSON.",
   NOT_FOUND: "No endpoint serves the request path.",
@@ -90,7 +91,12 @@ export type ErrorCodeTableProps = {
  * extra name fails `check-types`.
  */
 const PARAMS = {
-  VALIDATION_ERROR: { issue: true },
+  VALIDATION_ERROR: {
+    issue: true,
+    rule: true,
+    minLength: true,
+    maxExpiresIn: true,
+  },
   REQUEST_TOO_LARGE: { maxSize: true },
   S3_NETWORK_ERROR: { code: true },
   ROUTE_NOT_FOUND: { route: true },

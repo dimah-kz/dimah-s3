@@ -143,7 +143,10 @@ export function ObjectListHeader({
             actions={selectionActions ?? internal.selectionActions}
           />
         ) : (
-          <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 py-1.5">
+          <div
+            data-slot="object-list-header-bar"
+            className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 py-1.5"
+          >
             <div
               data-slot="object-list-header-path"
               className="flex min-w-0 flex-[1_1_6rem] items-center gap-2 group-data-folder-open/object-list-header:hidden group-data-search-open/object-list-header:hidden"

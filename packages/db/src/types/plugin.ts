@@ -122,6 +122,16 @@ export type DbObjectUpdatedContext<
   before: StorageObject<TAttributes>;
   /** The row after it: a new `name`, `folderId`, or `attributes`. */
   after: StorageObject<TAttributes>;
+  /**
+   * Where the object was, as a folder path, as `authorize` sees it. `null`
+   * is the root. Absent when that folder no longer exists.
+   */
+  folder?: string | null;
+  /**
+   * The folder the call moved the object into, when it named a `folderId`,
+   * as `authorize` sees it. `null` is the root.
+   */
+  destination?: { folder: string | null; folderId: string | null };
 };
 
 /** Context of `onFolderCreated`: `POST /db/folder`. */

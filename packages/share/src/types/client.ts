@@ -26,6 +26,13 @@ export type ShareLinkSettingsInput = {
    * sets `expiration.max`.
    */
   expiresAt?: Date | string | null;
+  /**
+   * The link's lifetime in whole seconds, instead of `expiresAt`. The
+   * server adds it to its own clock, so a browser clock that runs ahead or
+   * behind cannot break `expiration.max`. Sending both fails with
+   * `VALIDATION_ERROR`.
+   */
+  expiresIn?: number;
   /** Visitors enter it first. `null` or omitted: no password. */
   password?: string | null;
   /** Downloads the link hands out. `null` or omitted: no limit. */

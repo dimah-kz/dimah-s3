@@ -132,9 +132,14 @@ they may do.
   the list.
 
 `expiryOptions` sets the lifetimes the form offers, in seconds. Add `null`
-for a link that never expires, unless `share()` sets `expiration.max`. An
-error from the server, such as a lifetime past that maximum, shows under the
-form through [`useFormatError`](/docs/react/helpers#errors).
+for a link that never expires, unless `share()` sets `expiration.max`. The
+dialog sends the lifetime as `expiresIn`, so the server's clock sets the
+date, and the longest option can equal `expiration.max`.
+
+A setting that breaks a `share()` rule, such as a short password or a
+lifetime past the maximum, shows under the form, worded by
+[`useFormatError`](/docs/react/helpers#errors): "Use at least 8 characters
+for the password".
 
 A failed first load shows the error with **Try again**. A failed **Show more**
 keeps the rows on screen and shows the error under them.
