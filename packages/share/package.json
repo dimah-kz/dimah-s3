@@ -1,6 +1,6 @@
 {
   "name": "@dimah-s3/share",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Share links for dimah-s3 — expiring, password-protected, revocable links to files and folders",
   "keywords": [
     "s3",
@@ -92,8 +92,8 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@dimah-s3/db": "2.1.0",
-    "@dimah-s3/server": "2.1.0",
+    "@dimah-s3/db": "2.2.0",
+    "@dimah-s3/server": "2.2.0",
     "react": "^19.2.0"
   },
   "peerDependenciesMeta": {

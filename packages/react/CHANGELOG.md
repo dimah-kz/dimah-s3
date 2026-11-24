@@ -1,3 +1,21 @@
+## @dimah-s3/react@2.2.0
+
+### useFormatError words the share codes
+
+The `SHARE_*` codes are in the core catalog, so `useFormatError` turns them into messages your `translations` can localize, like every other code. [Errors](https://s3.dimah.dev/docs/share/api#errors).
+
+- **`S3_ERROR_CODES`.** Adds `SHARE_LINK_NOT_FOUND`, `SHARE_LINK_EXPIRED`, `SHARE_LINK_REVOKED`, `SHARE_LINK_EXHAUSTED`, `SHARE_TARGET_UNAVAILABLE`, `SHARE_PASSWORD_REQUIRED`, `SHARE_PASSWORD_INVALID`, `SHARE_FOLDER_LINKS_DISABLED`, and `SHARE_DOWNLOAD_URL_INVALID`, with the statuses and messages they had.
+- **`useFormatError`.** A message for each, and a translation key for each, such as `"This link has expired(API error)"`.
+- **`SHARE_ERROR_CODES`.** Names the same core entries. `share()` and `shareClient()` no longer add their own `$ERROR_CODES`; the codes stay on `s3.$ERROR_CODES` and the client's through the core catalog. Keep every `@dimah-s3/*` package on the same version: an older `share()` next to this core fails at `dimahS3()` with a code the core catalog already defines.
+
+### A code for rate limits
+
+`TOO_MANY_REQUESTS` (`429`) is in the core catalog, for a guard that limits calls, such as `unlockLink` per IP: `throw s3Error("TOO_MANY_REQUESTS")`. The library never sends it itself.
+
+- **`useFormatError`.** Words it as "Too many requests. Try again later.", under the key `"Too many requests. Try again later.(API error)"`.
+- **Retries.** The React hooks that retry already treat any `429` as transient, whatever its code.
+- **Plugin codes.** A plugin that defines its own `TOO_MANY_REQUESTS` with `defineErrorCodes` now fails at `dimahS3()`, since the core catalog defines it. Throw the core entry instead.
+
 ## @dimah-s3/react@2.0.0
 
 ### Accept labels in linear time
