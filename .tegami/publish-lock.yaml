@@ -1,21 +1,33 @@
 core:changelogs:
-  - content: "---\npackages:\n  \"@dimah-s3/ui\":\n    type: patch\n---\n\n### ObjectList rename field buttons\n\nThe `ObjectList` rename field drops its separate Save button in a row. Enter or leaving the field saves, and a destructive Cancel sits inside the field, at its end. In a tile, where the field is narrow, Cancel and a primary Save sit under the field and share its width. The field's text is the same size as the entry name at every width.\n"
-    filename: 2026-11-24-object-list-rename-buttons.md
+  - content: "---\npackages:\n  \"@dimah-s3/db\":\n    type: minor\n---\n\n### Plugins built on db() reuse its checks\n\n`s3.db.access` runs the scope and ownership checks of the db endpoints for another plugin, so it needs no `resolveScope` of its own. [s3.db.access](https://s3.dimah.dev/docs/db/api#s3dbaccess).\n\n- **`s3.db.access`.** `scope(call, target)`, `object(call, target, ref)`, and `folder(call, target, folderId)` resolve the caller with your `resolveScope`, check that the target is theirs, and run your `authorize`.\n- **`operation: \"plugin\"`.** `ScopeOperation` has `plugin`, and `ScopeContext` a `plugin: { id, action }`, for those calls. An `authorize` with an exhaustive `switch` on `operation` needs a case for it.\n- **`s3.db.objects.findById(id)`.** Loads a row by its id.\n- **`DbEndpoints`.** Exported, so a module that exports a `dimahS3()` instance with `db()` can emit declarations.\n"
+    filename: 2026-11-24-db-access.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/server\":\n    type: minor\n---\n\n### Plugins send objects they authorized\n\nA plugin that grants access without a session, such as a share link, can send an object the way its route does, and sign the URL that carries the grant. [Plugins](https://s3.dimah.dev/docs/server/plugins#serving-objects-a-plugin-authorized).\n\n- **`env.download.presign(input)`.** A presigned GetObject for a route in presign mode, with the route's `inlineTypes` and `maxExpiresIn`. No guard or download hook runs.\n- **`env.download.serve(input, request)`.** The `GET /file` response for a route in proxy mode: Range, conditional headers, and the hardening headers.\n- **`env.tokens(purpose)`.** `sign(payload, { expiresIn })` and `verify(token)` with the instance secret, under a key derived for the plugin and the purpose.\n- **`env.url(path)`.** The URL of an API path, under `baseURL` when it is set.\n- **`PluginRoute.download`.** Adds `disposition`, the route's default, and `maxExpiresIn`, its URL lifetime cap. Cap a grant you sign by it.\n"
+    filename: 2026-11-24-plugin-downloads.md
+    v: 0.0.0
+  - content: "---\npackages:\n  \"@dimah-s3/share\":\n    type: minor\n---\n\n### Share links\n\n`@dimah-s3/share` is a new plugin on top of `db()`. `share()` gives an owner links to one object or one folder of their scope, and anyone who holds a link can open it, list the folder, and download files without a session. Setup and the public page: [Share Links](https://s3.dimah.dev/docs/share).\n\n- **Links.** `createLink`, `listLinks`, `getLink`, `updateLink`, and `revokeLink` on `api.share` (`shareClient()`) and `s3.share.api`. A link has an expiry, an optional password, an optional download limit, and a label, and reports its `status`, `downloadCount`, `viewCount`, and `lastAccessedAt`.\n- **Visitors.** `openLink`, `unlockLink`, `listShared`, and `downloadShared` take the link `token`. A password is checked once and traded for an `access` proof. Downloads follow the route: a presigned URL, or a signed `/share/file` URL in proxy mode.\n- **Policy.** `expiration: { default, max }`, `password: { required, minLength }`, `folders`, `downloadExpiresIn`, `unlockExpiresIn`, and `authorize`. db's `authorize` sees owner actions as `operation: \"plugin\"`.\n- **Hooks.** `onCreated`, `onUpdated`, `onRevoked`, `onOpened`, and `onDownloaded`.\n- **Guards.** `isSharePublicAction(context)` lets visitors through an instance guard that requires a session.\n- **ObjectList.** `shareObjectSource()` lists a shared folder in `ObjectList`, and `downloadSharedFile()` downloads one file.\n- **Server.** `s3.share.links` reads and revokes rows without guards, `s3.share.pruneLinks({ olderThan })` removes links revoked or expired before `olderThan` and links whose file or folder was deleted, and `s3.share.checkSchema()` fails fast.\n- **Table.** One `share_link` table, schema `1.0.0`, generated with `runCli` from `@dimah-s3/share/cli` or created with `migrate(client)`.\n- **Errors.** `SHARE_LINK_NOT_FOUND`, `SHARE_LINK_EXPIRED`, `SHARE_LINK_REVOKED`, `SHARE_LINK_EXHAUSTED`, `SHARE_TARGET_UNAVAILABLE`, `SHARE_PASSWORD_REQUIRED`, `SHARE_PASSWORD_INVALID`, `SHARE_FOLDER_LINKS_DISABLED`, and `SHARE_DOWNLOAD_URL_INVALID`.\n"
+    filename: 2026-11-24-share-links.md
     v: 0.0.0
 core:packages:
   - id: npm:@dimah-s3/cli
     updated: true
   - id: npm:@dimah-s3/core
     updated: true
-  - id: npm:@dimah-s3/db
-    updated: true
   - id: npm:@dimah-s3/react
     updated: true
-  - id: npm:@dimah-s3/server
+  - changelogIds:
+      - 2026-11-24-db-access.md
+    id: npm:@dimah-s3/db
     updated: true
   - changelogIds:
-      - 2026-11-24-object-list-rename-buttons.md
-    id: npm:@dimah-s3/ui
+      - 2026-11-24-plugin-downloads.md
+    id: npm:@dimah-s3/server
+    updated: true
+  - id: npm:@dimah-s3/ui
+    updated: true
+  - changelogIds:
+      - 2026-11-24-share-links.md
+    id: npm:@dimah-s3/share
     updated: true
 npm:packages:
   - distTag: latest
@@ -23,10 +35,12 @@ npm:packages:
   - distTag: latest
     id: npm:@dimah-s3/core
   - distTag: latest
-    id: npm:@dimah-s3/db
-  - distTag: latest
     id: npm:@dimah-s3/react
+  - distTag: latest
+    id: npm:@dimah-s3/db
   - distTag: latest
     id: npm:@dimah-s3/server
   - distTag: latest
     id: npm:@dimah-s3/ui
+  - distTag: latest
+    id: npm:@dimah-s3/share

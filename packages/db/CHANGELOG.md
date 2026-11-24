@@ -1,3 +1,14 @@
+## @dimah-s3/db@2.1.0
+
+### Plugins built on db() reuse its checks
+
+`s3.db.access` runs the scope and ownership checks of the db endpoints for another plugin, so it needs no `resolveScope` of its own. [s3.db.access](https://s3.dimah.dev/docs/db/api#s3dbaccess).
+
+- **`s3.db.access`.** `scope(call, target)`, `object(call, target, ref)`, and `folder(call, target, folderId)` resolve the caller with your `resolveScope`, check that the target is theirs, and run your `authorize`.
+- **`operation: "plugin"`.** `ScopeOperation` has `plugin`, and `ScopeContext` a `plugin: { id, action }`, for those calls. An `authorize` with an exhaustive `switch` on `operation` needs a case for it.
+- **`s3.db.objects.findById(id)`.** Loads a row by its id.
+- **`DbEndpoints`.** Exported, so a module that exports a `dimahS3()` instance with `db()` can emit declarations.
+
 ## @dimah-s3/db@2.0.0
 
 ### Search and sort `db()` object listings

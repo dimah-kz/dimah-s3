@@ -1,7 +1,4 @@
----
-packages:
-  "@dimah-s3/share": minor
----
+## @dimah-s3/share@2.1.0
 
 ### Share links
 
