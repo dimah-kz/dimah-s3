@@ -184,6 +184,40 @@ describe("SharedView", () => {
         { signal: undefined },
       ),
     );
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByRole("status")
+          .some((region) => region.textContent === "Download started"),
+      ).toBe(true),
+    );
+  });
+
+  it("announces a download on a link without a limit", async () => {
+    const share = fakeShare();
+    share.downloadShared.mockResolvedValue(sent(null));
+    render(
+      <Harness share={share} link={{ ...fileLink, downloadsLeft: null }} />,
+    );
+    const status = () =>
+      screen.getAllByRole("status").find((region) => region.textContent !== "");
+
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => expect(status()?.textContent).toBe("Download started"));
+    expect(assign).toHaveBeenCalledWith("https://bucket.test/file?sig");
+
+    // A second download is read out again.
+    const first = status()?.firstElementChild;
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "Download" })
+          .hasAttribute("aria-busy"),
+      ).toBe(false),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => expect(status()?.firstElementChild).not.toBe(first));
+    expect(share.downloadShared).toHaveBeenCalledTimes(2);
   });
 
   it("shows a download refusal above the file", async () => {

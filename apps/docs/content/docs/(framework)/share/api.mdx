@@ -9,7 +9,10 @@ The reference for [`@dimah-s3/share`](/docs/share). The plugin needs
 ## Policy
 
 Set the rules once in `share()`. A request that breaks one fails with
-`VALIDATION_ERROR`, naming the field.
+`VALIDATION_ERROR`. Its `params.rule` names the rule (`passwordRequired`,
+`passwordTooShort`, `expiryRequired`, `expiryInPast`, or `expiryTooLong`),
+with `minLength` or `maxExpiresIn`, and
+[`useFormatError`](/docs/react/helpers#errors) words it.
 
 ```ts title="lib/s3.ts"
 share({
@@ -90,9 +93,9 @@ and when a lifetime or a length is not a positive integer.
 | `unlockExpiresIn`   | `number`                                                          | `3600`                | Lifetime of an `access` proof in seconds                                                      |
 | `authorize`         | `(context: ShareAuthorizeContext) => boolean \| Promise<boolean>` | —                     | `false` rejects an owner action with `FORBIDDEN`                                              |
 | `authorizeVisit`    | `(context: ShareVisitContext) => boolean \| Promise<boolean>`     | —                     | `false` fails a visitor call with `SHARE_TARGET_UNAVAILABLE`                                  |
-| `onCreated`         | `(context) => void \| Promise<void>`                              | —                     | After a link is created. Context: `request`, `locals`, `scope`, `link`                        |
+| `onCreated`         | `(context) => void \| Promise<void>`                              | —                     | After a link is created. Context: `request`, `locals`, `scope`, `link`, `target`              |
 | `onUpdated`         | `(context) => void \| Promise<void>`                              | —                     | After a link's settings change. Also `previous`                                               |
-| `onRevoked`         | `(context) => void \| Promise<void>`                              | —                     | After a link is revoked                                                                       |
+| `onRevoked`         | `(context) => void \| Promise<void>`                              | —                     | After a link is revoked. `target` is absent once the file or folder is gone                   |
 | `onOpened`          | `(context) => void \| Promise<void>`                              | —                     | After a visitor opens an unlocked link. Context: `request`, `locals`, `link`, `target`        |
 | `onDownloaded`      | `(context) => void \| Promise<void>`                              | —                     | After a visitor gets a download URL. Context: `request`, `locals`, `link`, `object`           |
 
@@ -151,13 +154,19 @@ Each takes `(input, options?)`, with `options` `{ signal, headers }`.
 | -------------- | ------------------------------------------------------------------ | -------------------- | --------------------------------------------------------------------------------- |
 | `target`       | `{ type: "object"; key; bucket? } \| { type: "folder"; folderId }` | required             | What to share. `bucket` only when the routes use several                          |
 | `expiresAt`    | `Date \| string \| null`                                           | `expiration.default` | When the link stops opening. `null` never expires, unless `expiration.max` is set |
+| `expiresIn`    | `number`                                                           | —                    | Lifetime in whole seconds, from the server's clock. Instead of `expiresAt`        |
 | `password`     | `string \| null`                                                   | —                    | Visitors enter it first                                                           |
 | `maxDownloads` | `number \| null`                                                   | —                    | Downloads the link hands out, 1 to 1,000,000                                      |
 | `label`        | `string \| null`                                                   | —                    | Your note. Visitors never see it                                                  |
 
 `updateLink` takes `id` and the same settings. An omitted field stays;
-`null` clears a password, an expiry, or a limit. `listLinks` takes
-`target`, `includeRevoked`, `limit` (1 to 100), and `cursor`.
+`null` clears a password, an expiry, or a limit. Send `expiresIn` from a
+browser: its clock can run ahead of the server's, and an `expiresAt` at the
+longest lifetime then fails `expiration.max`. Sending both fails with
+`VALIDATION_ERROR`.
+
+`listLinks` takes `target`, `includeRevoked`, `limit` (1 to 100), and
+`cursor`.
 
 ### ShareClientLink
 

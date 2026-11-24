@@ -1145,7 +1145,7 @@
         "@fuma-translate/react",
         "cn",
         "lucide-react",
-        "@dimah-s3/share@^2.2.0"
+        "@dimah-s3/share@^2.3.0"
       ],
       "cssVars": {
         "light": {
@@ -1197,6 +1197,11 @@
           "target": "@components/dimah-s3/share/share-link-fields.tsx"
         },
         {
+          "path": "src/hooks/use-announcer.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-announcer.tsx"
+        },
+        {
           "path": "src/lib/isolate-text.ts",
           "type": "registry:lib",
           "target": "@lib/isolate-text.ts"
@@ -1215,7 +1220,7 @@
         "cn",
         "lucide-react",
         "react-file-icon",
-        "@dimah-s3/share@^2.2.0"
+        "@dimah-s3/share@^2.3.0"
       ],
       "cssVars": {
         "light": {
@@ -1268,6 +1273,11 @@
           "path": "src/components/dimah-s3/share/shared-view.tsx",
           "type": "registry:component",
           "target": "@components/dimah-s3/share/shared-view.tsx"
+        },
+        {
+          "path": "src/hooks/use-announcer.tsx",
+          "type": "registry:hook",
+          "target": "@hooks/use-announcer.tsx"
         },
         {
           "path": "src/components/dimah-s3/list/object-list.tsx",

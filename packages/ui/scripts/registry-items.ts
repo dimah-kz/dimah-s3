@@ -128,17 +128,20 @@ const objectListFiles: RegistryFile[] = [
   sourceFile("hooks/use-in-view.ts", "registry:hook"),
 ];
 
+const announcerFile = sourceFile("hooks/use-announcer.tsx", "registry:hook");
+
 const shareLinkDialogFiles: RegistryFile[] = [
   sourceFile("components/dimah-s3/share/share-link-dialog.tsx"),
   sourceFile("components/dimah-s3/share/share-link-fields.tsx"),
+  announcerFile,
   sourceFile("lib/isolate-text.ts", "registry:lib"),
 ];
 
 /**
- * The share components need `@dimah-s3/share/react` and the share codes in
- * `useFormatError`, both new in 2.2.0.
+ * The share components need `@dimah-s3/share/react` (2.2.0), and the
+ * dialog sends `expiresIn`, which `share()` takes since 2.3.0.
  */
-const shareDependency = "@dimah-s3/share@^2.2.0";
+const shareDependency = "@dimah-s3/share@^2.3.0";
 
 /**
  * The `@dimah-s3/*` packages the copied source imports, with a range: a
@@ -431,7 +434,7 @@ export const components: Registry["items"] = [
       "item",
     ],
     files: files(
-      [sourceFile("components/dimah-s3/share/shared-view.tsx")],
+      [sourceFile("components/dimah-s3/share/shared-view.tsx"), announcerFile],
       objectListFiles,
       [objectImageFile],
       uploadFamilyFiles,

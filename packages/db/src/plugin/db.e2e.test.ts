@@ -147,8 +147,24 @@ describe("db() through the test kit", () => {
         operation: "update",
         before: expect.objectContaining({ name: "a.txt", folderId: null }),
         after: expect.objectContaining({ name: "b.txt", folderId: docs.id }),
+        // Where it was and where it went, as `authorize` sees them.
+        folder: null,
+        destination: { folder: "docs", folderId: docs.id },
       }),
     );
+    // A rename names no destination.
+    await client.db.updateObject({ key, name: "c.txt" }, asUser("1"));
+    expect(onObjectUpdated.mock.lastCall?.[0]).toMatchObject({
+      folder: "docs",
+    });
+    expect(onObjectUpdated.mock.lastCall?.[0]).not.toHaveProperty(
+      "destination",
+    );
+    await client.db.updateObject({ key, folderId: "" }, asUser("1"));
+    expect(onObjectUpdated.mock.lastCall?.[0]).toMatchObject({
+      folder: "docs",
+      destination: { folder: null, folderId: null },
+    });
 
     await client.db.deleteFolder({ id: drawings.id }, asUser("1"));
     expect(onFolderDeleted).toHaveBeenCalledWith(
@@ -181,10 +197,10 @@ describe("db() through the test kit", () => {
     // A missing folder, and a call refused before its write, run nothing.
     await client.db.deleteFolder({ id: drawings.id }, asUser("1"));
     await expect(
-      client.db.updateObject({ key, name: "c.txt" }, asUser("2")),
+      client.db.updateObject({ key, name: "d.txt" }, asUser("2")),
     ).rejects.toMatchObject({ code: "OBJECT_NOT_FOUND" });
     expect(onFolderDeleted).toHaveBeenCalledTimes(2);
-    expect(onObjectUpdated).toHaveBeenCalledTimes(1);
+    expect(onObjectUpdated).toHaveBeenCalledTimes(3);
   });
 
   it("fails the call when a change hook throws, and keeps the change", async () => {

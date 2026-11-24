@@ -46,6 +46,45 @@ describe("useFormatError", () => {
     );
   });
 
+  it("words the share() rule a VALIDATION_ERROR names", () => {
+    const format = renderHookWithI18n(useFormatError);
+    const rule = (
+      params: Omit<Parameters<typeof s3Error<"VALIDATION_ERROR">>[1], "issue">,
+    ) =>
+      format(s3Error("VALIDATION_ERROR", { issue: "[body.x] y", ...params }));
+    expect(format(s3Error("VALIDATION_ERROR", { issue: "[body.x] y" }))).toBe(
+      "Invalid request",
+    );
+    expect(rule({ rule: "passwordTooShort", minLength: 8 })).toBe(
+      "Use at least 8 characters for the password",
+    );
+    expect(rule({ rule: "passwordRequired" })).toBe(
+      "Add a password: every link needs one",
+    );
+    expect(rule({ rule: "expiryRequired" })).toBe(
+      "Choose an expiry: every link must expire",
+    );
+    expect(rule({ rule: "expiryInPast" })).toBe(
+      "Choose an expiry in the future",
+    );
+    expect(rule({ rule: "expiryTooLong", maxExpiresIn: 604_800 })).toBe(
+      "Choose an expiry of at most 7 days",
+    );
+    // Rounded down, so it never offers more than the max.
+    expect(rule({ rule: "expiryTooLong", maxExpiresIn: 86_400 + 3600 })).toBe(
+      "Choose an expiry of at most 1 day",
+    );
+    expect(rule({ rule: "expiryTooLong", maxExpiresIn: 7200 })).toBe(
+      "Choose an expiry of at most 2 hours",
+    );
+    expect(rule({ rule: "expiryTooLong", maxExpiresIn: 90 })).toBe(
+      "Choose an expiry of at most 1 minute",
+    );
+    expect(rule({ rule: "expiryTooLong", maxExpiresIn: 30 })).toBe(
+      "Choose a shorter expiry",
+    );
+  });
+
   it("fills params", () => {
     const format = renderHookWithI18n(useFormatError);
     expect(format(s3Error("S3_NETWORK_ERROR", { code: "ECONNREFUSED" }))).toBe(

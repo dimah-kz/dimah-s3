@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type ReactNode,
   type RefObject,
 } from "react";
 import {
@@ -81,6 +80,7 @@ import {
   type ShareLinkDraft,
   type ShareLinkFieldsOptions,
 } from "@/components/dimah-s3/share/share-link-fields";
+import { useAnnouncer } from "@/hooks/use-announcer";
 import { isolateText } from "@/lib/isolate-text";
 
 /** How long a row shows "Copied", in milliseconds. */
@@ -429,18 +429,6 @@ function SharePanel({
       </DialogFooter>
     </>
   );
-}
-
-/**
- * A message for a live region, and a setter that reads the same text out
- * again when it repeats.
- */
-function useAnnouncer(): [notice: ReactNode, announce: (text: string) => void] {
-  const [notice, setNotice] = useState({ text: "", count: 0 });
-  return [
-    notice.text ? <span key={notice.count}>{notice.text}</span> : null,
-    (text) => setNotice((current) => ({ text, count: current.count + 1 })),
-  ];
 }
 
 function LinkList({

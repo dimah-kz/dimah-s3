@@ -182,7 +182,10 @@ export const ObjectListRow = memo(function ObjectListRow<TItem>(
               className={cn("flex min-w-0 flex-1 flex-col", actions && "pe-2")}
             >
               <span className="flex min-w-0 items-center gap-2">
-                <span className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
+                <span
+                  data-slot="object-list-entry-name"
+                  className="block w-full min-w-0 overflow-hidden text-sm leading-snug text-dimah-s3-foreground"
+                >
                   <FileName
                     name={entry.name}
                     extension={entry.kind === "file"}
@@ -260,7 +263,10 @@ export const ObjectListTile = memo(function ObjectListTile<TItem>(
             </span>
             <span className="flex min-w-0 flex-col gap-0.5 px-2 py-1.5">
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground">
+                <span
+                  data-slot="object-list-entry-name"
+                  className="block min-w-0 flex-1 overflow-hidden text-sm leading-snug text-dimah-s3-foreground"
+                >
                   <FileName
                     name={entry.name}
                     extension={entry.kind === "file"}

@@ -966,6 +966,7 @@ export type Translations = {
   "Access denied(API error)": string;
   "Actions for {name}(object list menu)": string;
   "Active(share link status)": string;
+  "Add a password: every link needs one(API error)": string;
   "All {count} files uploaded(upload status)": string;
   "An uploaded part was not found(API error)": string;
   "Another change happened at the same time. Try again.(API error)": string;
@@ -986,6 +987,15 @@ export type Translations = {
   "Cancel(object list rename)": string;
   "Cancel(toast action)": string;
   "Change link(share link dialog)": string;
+  "Choose a shorter expiry(API error)": string;
+  "Choose an expiry in the future(API error)": string;
+  "Choose an expiry of at most 1 day(API error)": string;
+  "Choose an expiry of at most 1 hour(API error)": string;
+  "Choose an expiry of at most 1 minute(API error)": string;
+  "Choose an expiry of at most {count} days(API error)": string;
+  "Choose an expiry of at most {count} hours(API error)": string;
+  "Choose an expiry of at most {count} minutes(API error)": string;
+  "Choose an expiry: every link must expire(API error)": string;
   "Clear search(object list)": string;
   "Clear(object list selection)": string;
   "Close search(object list)": string;
@@ -1029,6 +1039,7 @@ export type Translations = {
   "Download failed(toast)": string;
   "Download limit(share link field)": string;
   "Download link is invalid or has expired(API error)": string;
+  "Download started(shared view)": string;
   "Download started(toast)": string;
   "Download {name}(attachment action)": string;
   "Download(button)": string;
@@ -1195,6 +1206,7 @@ export type Translations = {
   "TB(file size unit)": string;
   "Text files(file type group)": string;
   "The file has changed(API error)": string;
+  "The password is too short(API error)": string;
   "The shared item is no longer available(API error)": string;
   "The shared item was deleted.(share link facts)": string;
   "These files cannot be uploaded(dropzone)": string;
@@ -1242,6 +1254,7 @@ export type Translations = {
   "Uploading(toast)": string;
   "Uploading…(upload status)": string;
   "Uploads are disabled(API error)": string;
+  "Use at least {minLength} characters for the password(API error)": string;
   "Videos(file type group)": string;
   "View(object list)": string;
   "Who the link is for(share link field)": string;
