@@ -85,7 +85,7 @@ jobs:
             examples:
               - *shared
               - examples/**
-              - packages/{core,server,react,ui,db}/**
+              - packages/{core,server,react,ui,db,share}/**
             templates:
               - *shared
               - packages/{core,server,react,ui}/**

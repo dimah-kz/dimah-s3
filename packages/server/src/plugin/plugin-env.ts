@@ -112,8 +112,9 @@ function createPluginDownloads(
     },
 
     async serve(input, request) {
-      const { route, target } = open(input, "proxy");
       try {
+        // Inside the try: a missing route or key gets the headers too.
+        const { route, target } = open(input, "proxy");
         return await streamObject(
           route as OpenedRoute<"proxy">,
           target,
@@ -166,6 +167,7 @@ function pluginRoute<Id extends string>(
             enabled: true as const,
             mode: download.mode,
             disposition: download.disposition,
+            maxExpiresIn: download.maxExpiresIn,
           }
         : { enabled: false as const },
     ),

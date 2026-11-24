@@ -300,10 +300,13 @@ export function createOwnerOperations(
       });
       if (record.revokedAt !== null) return respond(current, loaded);
 
-      const revoked = await links.revoke(record.id);
-      if (!revoked) throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_NOT_FOUND);
-      const link = toShareLink(revoked);
-      await options.onRevoked?.({ ...ownerCall(call, scope), link });
+      const result = await links.revoke(record.id);
+      if (!result) throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_NOT_FOUND);
+      const link = toShareLink(result.record);
+      // A concurrent revoke that landed first ran the hook already.
+      if (result.revoked) {
+        await options.onRevoked?.({ ...ownerCall(call, scope), link });
+      }
       return respond(link, loaded);
     },
   };

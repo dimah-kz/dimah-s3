@@ -151,6 +151,19 @@ describe("PluginInitEnv.download.serve", () => {
     expect(headers.get("x-content-type-options")).toBe("nosniff");
   });
 
+  it("adds the hardening headers to an error before the stream starts", async () => {
+    const { env } = setup();
+    const error: unknown = await env.download
+      .serve(
+        { route: "private", key: "private/a.txt" },
+        new Request("https://app.test/file"),
+      )
+      .catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "FEATURE_DISABLED" });
+    const headers = new Headers((error as { headers?: HeadersInit }).headers);
+    expect(headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   it("refuses a route in presign mode as a plugin bug", async () => {
     const { env } = setup();
     await expect(

@@ -23,6 +23,9 @@ type Condition = ReturnType<LinkConditions> | boolean;
 /** Times a counted download retries after a concurrent one won. */
 const COUNT_ATTEMPTS = 5;
 
+/** Rows one `prune` or `listOld` query reads at a time. */
+const BATCH_SIZE = 500;
+
 /** A `share_link` row inside the plugin: a {@link ShareLink} and its password hash. */
 export type ShareLinkRecord = ShareLink & {
   passwordHash: string | null;
@@ -42,7 +45,7 @@ type ShareLinkRow = {
   maxDownloads: number | bigint | null;
   downloadCount: number | bigint;
   viewCount: number | bigint;
-  countToken: string | null;
+  writeToken: string | null;
   lastAccessedAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
@@ -108,9 +111,12 @@ export type ShareLinkStore = {
   ) => Promise<ShareLinkRecord | null>;
   /**
    * Turns a link off. Returns the row, also when it was already revoked,
-   * or `null` when there is none.
+   * and `revoked: true` only for the one call that turned it off. `null`
+   * when there is no such link.
    */
-  revoke: (id: string) => Promise<ShareLinkRecord | null>;
+  revoke: (
+    id: string,
+  ) => Promise<{ record: ShareLinkRecord; revoked: boolean } | null>;
   /**
    * Counts one download as a compare-and-set on `download_count`, while the
    * link is not revoked, has not expired, and is under `maxDownloads`.
@@ -128,6 +134,16 @@ export type ShareLinkStore = {
    * Removes links revoked or expired before `olderThan`. Returns how many.
    */
   prune: (olderThan: Date) => Promise<number>;
+  /**
+   * One batch of live links of every scope created before `olderThan`, by
+   * `id`, after the link `after`. For jobs that check each link's target.
+   */
+  listOld: (
+    olderThan: Date,
+    after: string | null,
+  ) => Promise<ShareLinkRecord[]>;
+  /** Removes these links. Returns how many were there. */
+  deleteMany: (ids: readonly string[]) => Promise<number>;
 };
 
 function toNumber(value: number | bigint): number {
@@ -189,8 +205,8 @@ function decodeCursor(value: string): LinkCursor | null {
   return null;
 }
 
-/** A new count token: 12 random bytes in base64url. */
-function newCountToken(): string {
+/** A new write token: 12 random bytes in base64url. */
+function newWriteToken(): string {
   return base64UrlEncode(crypto.getRandomValues(new Uint8Array(12)));
 }
 
@@ -202,6 +218,15 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
       where: (b) => b("id", "=", id),
     });
     return row ? mapRow(row) : null;
+  };
+
+  const deleteMany = async (ids: readonly string[]) => {
+    if (ids.length === 0) return 0;
+    const orm = await getOrm();
+    const where = (b: LinkConditions) => b("id", "in", [...ids]);
+    const present = await orm.count("shareLink", { where });
+    await orm.deleteMany("shareLink", { where });
+    return present;
   };
 
   const filterConditions = (
@@ -331,11 +356,17 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
     async revoke(id) {
       const orm = await getOrm();
       const now = new Date();
+      const token = newWriteToken();
       await orm.updateMany("shareLink", {
         where: (b) => b.and(b("id", "=", id), b.isNull("revokedAt")),
-        set: { revokedAt: now, updatedAt: now },
+        set: { revokedAt: now, updatedAt: now, writeToken: token },
       });
-      return findById(id);
+      const row = await orm.findFirst("shareLink", {
+        where: (b) => b("id", "=", id),
+      });
+      if (!row) return null;
+      // Only the call whose write landed sees its own token.
+      return { record: mapRow(row), revoked: row.writeToken === token };
     },
 
     async countDownload(link) {
@@ -355,18 +386,26 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
         if (current.expiresAt !== null && current.expiresAt <= now) {
           throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_EXPIRED);
         }
-        const token = newCountToken();
-        const seen = current.downloadCount;
+        const token = newWriteToken();
+        const seen = current;
         await orm.updateMany("shareLink", {
+          // The row as it was checked: a new count, limit, or expiry, or a
+          // revoke in between, leaves no match.
           where: (b) =>
             b.and(
-              b("id", "=", current.id),
-              b("downloadCount", "=", seen),
+              b("id", "=", seen.id),
+              b("downloadCount", "=", seen.downloadCount),
+              seen.maxDownloads === null
+                ? b.isNull("maxDownloads")
+                : b("maxDownloads", "=", seen.maxDownloads),
+              seen.expiresAt === null
+                ? b.isNull("expiresAt")
+                : b("expiresAt", "=", seen.expiresAt),
               b.isNull("revokedAt"),
             ),
           set: {
-            downloadCount: seen + 1,
-            countToken: token,
+            downloadCount: seen.downloadCount + 1,
+            writeToken: token,
             lastAccessedAt: now,
           },
         });
@@ -374,7 +413,7 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
           where: (b) => b("id", "=", current.id),
         });
         if (!row) throw s3Error(SHARE_ERROR_CODES.SHARE_LINK_NOT_FOUND);
-        if (row.countToken === token) return mapRow(row);
+        if (row.writeToken === token) return mapRow(row);
         // Another download, or a change to the link, won; read it again.
         current = mapRow(row);
       }
@@ -413,14 +452,39 @@ export function createLinkStore(getOrm: GetShareOrm): ShareLinkStore {
 
     async prune(olderThan) {
       const orm = await getOrm();
-      const where = (b: LinkConditions) =>
-        b.or(
-          b("revokedAt", "<", olderThan),
-          b.and(b.isNotNull("expiresAt"), b("expiresAt", "<", olderThan)),
-        );
-      const pruned = await orm.count("shareLink", { where });
-      await orm.deleteMany("shareLink", { where });
-      return pruned;
+      let pruned = 0;
+      for (;;) {
+        // Ids first, so the count is what this call deleted.
+        const rows = await orm.findMany("shareLink", {
+          select: ["id"],
+          where: (b) =>
+            b.or(
+              b("revokedAt", "<", olderThan),
+              b.and(b.isNotNull("expiresAt"), b("expiresAt", "<", olderThan)),
+            ),
+          limit: BATCH_SIZE,
+        });
+        if (rows.length === 0) return pruned;
+        pruned += await deleteMany(rows.map((row) => row.id));
+        if (rows.length < BATCH_SIZE) return pruned;
+      }
     },
+
+    async listOld(olderThan, after) {
+      const orm = await getOrm();
+      const rows = await orm.findMany("shareLink", {
+        where: (b) =>
+          b.and(
+            b.isNull("revokedAt"),
+            b("createdAt", "<", olderThan),
+            after === null || b("id", ">", after),
+          ),
+        orderBy: [["id", "asc"]],
+        limit: BATCH_SIZE,
+      });
+      return rows.map(mapRow);
+    },
+
+    deleteMany,
   };
 }

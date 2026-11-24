@@ -84,6 +84,11 @@ export type PluginRoute<Id extends string = string> = {
         mode: "presign" | "proxy";
         /** The route's default `Content-Disposition`. */
         disposition: ContentDispositionType;
+        /**
+         * Longest download URL lifetime in seconds, already capped by the
+         * instance `maxExpiresIn`. Cap a grant your plugin signs by it.
+         */
+        maxExpiresIn: number;
       }
   >;
   readonly delete: Readonly<{ enabled: boolean }>;

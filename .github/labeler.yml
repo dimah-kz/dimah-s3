@@ -23,6 +23,10 @@
   - changed-files:
       - any-glob-to-any-file: packages/db/**
 
+"area:share":
+  - changed-files:
+      - any-glob-to-any-file: packages/share/**
+
 "area:cli":
   - changed-files:
       - any-glob-to-any-file:

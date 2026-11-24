@@ -215,7 +215,8 @@ export function createVisitorOperations(
                 ...base,
                 type: "object",
                 locked: false,
-                object: toVisitorObject(target.object, null),
+                // The file's own folder is the top of an object link.
+                object: toVisitorObject(target.object, target.object.folderId),
               }
             : {
                 ...base,
@@ -250,7 +251,7 @@ export function createVisitorOperations(
       const target = await liveTarget(record);
       if (target.type === "object") {
         return {
-          objects: [toVisitorObject(target.object, null)],
+          objects: [toVisitorObject(target.object, target.object.folderId)],
           nextCursor: null,
         };
       }
@@ -351,19 +352,24 @@ export function createVisitorOperations(
         });
         sent = { mode: "presign", ...signed };
       } else {
+        // Capped by the route, as a presigned URL is.
+        const expiresIn = Math.min(
+          downloadExpiresIn,
+          route.download.maxExpiresIn,
+        );
         const grant = await grants.sign(
           {
             l: record.id,
             o: object.id,
             ...(body.disposition !== undefined && { d: body.disposition }),
           },
-          { expiresIn: downloadExpiresIn },
+          { expiresIn },
         );
         const params = new URLSearchParams({ grant });
         sent = {
           mode: "proxy",
           url: `${env.url(pluginPath("share", "file"))}?${params}`,
-          expiresIn: downloadExpiresIn,
+          expiresIn,
           disposition: body.disposition ?? route.download.disposition,
         };
       }

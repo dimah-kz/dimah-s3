@@ -36,6 +36,7 @@ body:
         - "@dimah-s3/react"
         - "@dimah-s3/ui"
         - "@dimah-s3/db"
+        - "@dimah-s3/share"
         - "@dimah-s3/cli"
         - Starter template
         - Docs

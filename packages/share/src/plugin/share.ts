@@ -8,13 +8,26 @@ import { createOwnerOperations } from "./owner";
 import { createPublicLinks, type ShareLinks } from "./public-links";
 import type { ShareBindings, ShareRuntime } from "./runtime";
 import { createServerApi, type ShareServerApi } from "./server-api";
+import { pruneLinks } from "./prune";
 import { resolvePolicy } from "./settings";
 import { createVisitorOperations } from "./visitor";
 
 /** Options of `s3.share.pruneLinks`. */
 export type PruneLinksOptions = {
-  /** Links revoked or expired before this time are removed (a `Date` or epoch milliseconds). */
+  /**
+   * Links revoked or expired before this time are removed, and so are
+   * links created before it whose object or folder is gone (a `Date` or
+   * epoch milliseconds).
+   */
   olderThan: Date | number;
+};
+
+/** What one `s3.share.pruneLinks` run removed. */
+export type PruneLinksResult = {
+  /** Every link removed. */
+  pruned: number;
+  /** Of those, links whose object or folder no longer exists. */
+  orphaned: number;
 };
 
 /** What `share()` exposes on `s3.share` and `s3.context.share`. */
@@ -23,8 +36,13 @@ export type SharePluginContext = {
   api: ShareServerApi;
   /** The `share_link` rows, without guards: for jobs and admin tools. */
   links: ShareLinks;
-  /** Removes links revoked or expired before `olderThan`. Run it from a job. */
-  pruneLinks: (options: PruneLinksOptions) => Promise<{ pruned: number }>;
+  /**
+   * Removes links revoked or expired before `olderThan`, and links created
+   * before it whose object or folder was deleted: an id is never reused,
+   * so such a link never opens again. It reads every older live link, so
+   * run it from a job.
+   */
+  pruneLinks: (options: PruneLinksOptions) => Promise<PruneLinksResult>;
   /**
    * Throws unless the database is at the share schema this version needs.
    * Call it at startup to fail fast; the first query runs the same check.
@@ -81,9 +99,7 @@ export function share(options: ShareOptions) {
   const context: SharePluginContext = {
     api: createServerApi(runtime, owner, visitor),
     links: createPublicLinks(store.links),
-    pruneLinks: async ({ olderThan }) => ({
-      pruned: await store.links.prune(new Date(olderThan)),
-    }),
+    pruneLinks: ({ olderThan }) => pruneLinks(runtime, new Date(olderThan)),
     checkSchema: store.checkSchema,
   };
 

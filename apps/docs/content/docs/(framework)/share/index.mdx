@@ -32,8 +32,9 @@ link.url; // "https://app.example.com/s/k3Jx…"
   target: a revoked or expired link, a deleted file, or a file moved out of
   a shared folder stops opening at once.
 - **Downloads follow the route.** On a route in `presign` mode a visitor
-  gets a presigned URL that lives 5 minutes. In `proxy` mode they get a
-  signed `/share/file` URL that streams through your server.
+  gets a presigned URL that lives 5 minutes, capped by the route. In
+  `proxy` mode they get a signed `/share/file` URL, as short-lived, that
+  streams through your server.
 - **Passwords never travel twice.** `unlockLink` checks the password
   (PBKDF2-SHA256) once and returns an `access` proof for later calls. A new
   password ends every proof made under the old one.
@@ -202,11 +203,17 @@ link whose file or folder was deleted has `target.available: false`.
 
 On the server, `s3.share.api` runs the same actions with
 `{ request }`, and `s3.share.links` reads and revokes rows without
-guards. Remove old rows from a job:
+guards. Remove dead rows from a job:
 
 ```ts
-await s3.share.pruneLinks({ olderThan: Date.now() - 30 * 24 * 60 * 60 * 1000 });
+const { pruned, orphaned } = await s3.share.pruneLinks({
+  olderThan: Date.now() - 30 * 24 * 60 * 60 * 1000,
+});
 ```
+
+It removes links revoked or expired before `olderThan`, and links created
+before it whose file or folder was deleted. A deleted file never comes
+back under the same id, so those links can never open again.
 
 ## Next steps
 

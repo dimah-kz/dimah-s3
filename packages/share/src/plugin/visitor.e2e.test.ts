@@ -57,6 +57,8 @@ describe("openLink", () => {
       object: { name: "report.txt", size: 11, contentType: "text/plain" },
     });
     expect(JSON.stringify(opened)).not.toContain(key);
+    // The file's own folder is the top of an object link.
+    expect(opened.link).toMatchObject({ object: { folderId: null } });
     expect(onOpened).toHaveBeenCalledTimes(1);
 
     const { link: after } = await t.client.share.getLink(
@@ -249,6 +251,8 @@ describe("downloadShared", () => {
 
     const sent = await t.client.share.downloadShared({ token: link.token });
     expect(sent.mode).toBe("proxy");
+    // Capped by the route's `maxExpiresIn` (60 on this route).
+    expect(sent.expiresIn).toBe(60);
     const url = new URL(sent.url, "https://app.test");
     expect(url.pathname).toBe("/api/s3/share/file");
 

@@ -10,6 +10,7 @@ export { migrate } from "./migrate";
 export {
   share,
   type PruneLinksOptions,
+  type PruneLinksResult,
   type SharePluginContext,
 } from "./plugin/share";
 export type { ShareEndpoints } from "./plugin/endpoints";

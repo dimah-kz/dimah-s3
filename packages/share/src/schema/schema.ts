@@ -44,11 +44,11 @@ const shareLink = table("share_link", {
   downloadCount: column("download_count", "integer").defaultTo(0),
   viewCount: column("view_count", "integer").defaultTo(0),
   /**
-   * Token of the last counted download. A counted download is a
-   * compare-and-set on `download_count` that writes it, so the writer can
-   * tell its own increment from a concurrent one.
+   * Token of the last compare-and-set write: a counted download or a
+   * revoke. The writer reads the row back and sees its own token only when
+   * its write landed, so it can tell its change from a concurrent one.
    */
-  countToken: string("count_token", 32).nullable(),
+  writeToken: string("write_token", 32).nullable(),
   lastAccessedAt: column("last_accessed_at", "timestamp").nullable(),
   revokedAt: column("revoked_at", "timestamp").nullable(),
   createdAt: column("created_at", "timestamp").defaultTo$("now"),

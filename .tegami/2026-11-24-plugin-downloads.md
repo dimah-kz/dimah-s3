@@ -11,4 +11,4 @@ A plugin that grants access without a session, such as a share link, can send an
 - **`env.download.serve(input, request)`.** The `GET /file` response for a route in proxy mode: Range, conditional headers, and the hardening headers.
 - **`env.tokens(purpose)`.** `sign(payload, { expiresIn })` and `verify(token)` with the instance secret, under a key derived for the plugin and the purpose.
 - **`env.url(path)`.** The URL of an API path, under `baseURL` when it is set.
-- **`PluginRoute.download.disposition`.** The route's default disposition.
+- **`PluginRoute.download`.** Adds `disposition`, the route's default, and `maxExpiresIn`, its URL lifetime cap. Cap a grant you sign by it.

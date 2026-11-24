@@ -55,6 +55,9 @@
 - name: "area:db"
   color: "fef2c0"
   description: packages/db
+- name: "area:share"
+  color: "c5def5"
+  description: packages/share
 - name: "area:cli"
   color: "bfe5bf"
   description: packages/cli and templates

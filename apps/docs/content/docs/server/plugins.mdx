@@ -445,16 +445,16 @@ The instance keys (`handler`, `api`, `put`, `context`, `getPlugin`,
 
 One entry of `env.routes`.
 
-| Property    | Type                                                                           | Description                                                                     |
-| ----------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `name`      | `string`                                                                       | The route name                                                                  |
-| `client`    | `S3Client`                                                                     | The route's client, or the instance one                                         |
-| `bucket`    | `string`                                                                       | The route's bucket, or the instance one                                         |
-| `keyPrefix` | `string \| false`                                                              | The key namespace. `false`: keys are not namespace-checked                      |
-| `options`   | `T \| false \| undefined`                                                      | This plugin's options for the route                                             |
-| `upload`    | `{ enabled: false } \| { enabled: true; fileTypes?; maxFileSize?; multipart }` | Whether uploads are on, and their file limits                                   |
-| `download`  | `{ enabled: false } \| { enabled: true; mode; disposition }`                   | Whether downloads are on, `"presign"` or `"proxy"`, and the default disposition |
-| `delete`    | `{ enabled: boolean }`                                                         | Whether deletes are on                                                          |
+| Property    | Type                                                                           | Description                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `name`      | `string`                                                                       | The route name                                                                                                   |
+| `client`    | `S3Client`                                                                     | The route's client, or the instance one                                                                          |
+| `bucket`    | `string`                                                                       | The route's bucket, or the instance one                                                                          |
+| `keyPrefix` | `string \| false`                                                              | The key namespace. `false`: keys are not namespace-checked                                                       |
+| `options`   | `T \| false \| undefined`                                                      | This plugin's options for the route                                                                              |
+| `upload`    | `{ enabled: false } \| { enabled: true; fileTypes?; maxFileSize?; multipart }` | Whether uploads are on, and their file limits                                                                    |
+| `download`  | `{ enabled: false } \| { enabled: true; mode; disposition; maxExpiresIn }`     | Whether downloads are on, `"presign"` or `"proxy"`, the default disposition, and the URL lifetime cap in seconds |
+| `delete`    | `{ enabled: boolean }`                                                         | Whether deletes are on                                                                                           |
 
 ### runOperation()
 

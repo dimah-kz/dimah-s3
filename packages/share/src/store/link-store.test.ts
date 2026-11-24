@@ -96,12 +96,15 @@ describe.each(testDatabases)("link store ($name)", (factory) => {
     });
 
     const revoked = await links().revoke(link.id);
-    expect(revoked?.revokedAt).toBeInstanceOf(Date);
+    expect(revoked?.revoked).toBe(true);
+    expect(revoked?.record.revokedAt).toBeInstanceOf(Date);
     await expect(links().update(link.id, { label: "x" })).resolves.toBeNull();
-    // Revoking again keeps the first time.
+    // Revoking again keeps the first time, and says it did nothing.
     await expect(links().revoke(link.id)).resolves.toMatchObject({
-      revokedAt: revoked?.revokedAt,
+      revoked: false,
+      record: { revokedAt: revoked?.record.revokedAt },
     });
+    await expect(links().revoke("missing")).resolves.toBeNull();
     await expect(links().count("user:1")).resolves.toBe(0);
     await expect(
       links().count("user:1", { includeRevoked: true }),
@@ -166,5 +169,42 @@ describe.each(testDatabases)("link store ($name)", (factory) => {
     await expect(links().prune(new Date(Date.now() + 1000))).resolves.toBe(2);
     await expect(links().findById(live.id)).resolves.not.toBeNull();
     await expect(links().findById(old.id)).resolves.toBeNull();
+    await expect(links().prune(new Date(Date.now() + 1000))).resolves.toBe(0);
+  });
+
+  it("refuses to count a download after the limit changed", async () => {
+    const link = await links().create(input({ maxDownloads: 5 }));
+    // The owner lowers the limit after the visitor's copy was read.
+    await links().update(link.id, { maxDownloads: 1 });
+    await expect(links().countDownload(link)).resolves.toMatchObject({
+      downloadCount: 1,
+      maxDownloads: 1,
+    });
+    await expect(links().countDownload(link)).rejects.toMatchObject({
+      code: "SHARE_LINK_EXHAUSTED",
+    });
+  });
+
+  it("walks older live links by id, and deletes by id", async () => {
+    const created = [];
+    for (let index = 0; index < 3; index++) {
+      created.push(await links().create(input()));
+    }
+    await links().revoke(created[1].id);
+    const later = new Date(Date.now() + 1000);
+
+    const batch = await links().listOld(later, null);
+    expect(batch.map((link) => link.id).sort()).toEqual(
+      [created[0].id, created[2].id].sort(),
+    );
+    await expect(
+      links().listOld(later, batch.at(-1)?.id ?? null),
+    ).resolves.toEqual([]);
+    await expect(links().listOld(new Date(0), null)).resolves.toEqual([]);
+
+    await expect(links().deleteMany([created[0].id, "missing"])).resolves.toBe(
+      1,
+    );
+    await expect(links().deleteMany([])).resolves.toBe(0);
   });
 });

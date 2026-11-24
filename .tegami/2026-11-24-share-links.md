@@ -13,6 +13,6 @@ packages:
 - **Hooks.** `onCreated`, `onUpdated`, `onRevoked`, `onOpened`, and `onDownloaded`.
 - **Guards.** `isSharePublicAction(context)` lets visitors through an instance guard that requires a session.
 - **ObjectList.** `shareObjectSource()` lists a shared folder in `ObjectList`, and `downloadSharedFile()` downloads one file.
-- **Server.** `s3.share.links` reads and revokes rows without guards, `s3.share.pruneLinks({ olderThan })` removes old ones, and `s3.share.checkSchema()` fails fast.
+- **Server.** `s3.share.links` reads and revokes rows without guards, `s3.share.pruneLinks({ olderThan })` removes links revoked or expired before `olderThan` and links whose file or folder was deleted, and `s3.share.checkSchema()` fails fast.
 - **Table.** One `share_link` table, schema `1.0.0`, generated with `runCli` from `@dimah-s3/share/cli` or created with `migrate(client)`.
 - **Errors.** `SHARE_LINK_NOT_FOUND`, `SHARE_LINK_EXPIRED`, `SHARE_LINK_REVOKED`, `SHARE_LINK_EXHAUSTED`, `SHARE_TARGET_UNAVAILABLE`, `SHARE_PASSWORD_REQUIRED`, `SHARE_PASSWORD_INVALID`, `SHARE_FOLDER_LINKS_DISABLED`, and `SHARE_DOWNLOAD_URL_INVALID`.

@@ -383,6 +383,58 @@ describe("server context", () => {
     await expect(s3.share.links.count("user:1")).resolves.toBe(1);
   });
 
+  it("prunes links to deleted files and folders, and keeps newer ones", async () => {
+    const { s3, client, put, folder, as } = await setup();
+    const kept = await put("1", "kept.txt");
+    const gone = await put("1", "gone.txt");
+    const docs = await folder("1", "Docs");
+    const keep = await client.share.createLink(
+      { target: { type: "object", key: kept }, expiresAt: null },
+      as("1"),
+    );
+    const orphan = await client.share.createLink(
+      { target: { type: "object", key: gone }, expiresAt: null },
+      as("1"),
+    );
+    const folderLink = await client.share.createLink(
+      { target: { type: "folder", folderId: docs }, expiresAt: null },
+      as("1"),
+    );
+    await client.delete({ route: "files", key: gone }, as("1"));
+    await client.db.deleteFolder({ id: docs }, as("1"));
+
+    // Too recent: nothing created before `olderThan` yet.
+    await expect(
+      s3.share.pruneLinks({ olderThan: Date.now() - DAY }),
+    ).resolves.toEqual({ pruned: 0, orphaned: 0 });
+
+    await expect(
+      s3.share.pruneLinks({ olderThan: Date.now() + 1000 }),
+    ).resolves.toEqual({ pruned: 2, orphaned: 2 });
+    await expect(s3.share.links.find(keep.link.id)).resolves.not.toBeNull();
+    await expect(s3.share.links.find(orphan.link.id)).resolves.toBeNull();
+    await expect(s3.share.links.find(folderLink.link.id)).resolves.toBeNull();
+  });
+
+  it("runs onRevoked once for concurrent revokes", async () => {
+    const onRevoked = vi.fn();
+    const { client, put, as } = await setup({ onRevoked });
+    const key = await put("1", "a.txt");
+    const { link } = await client.share.createLink(
+      { target: { type: "object", key } },
+      as("1"),
+    );
+    const results = await Promise.all([
+      client.share.revokeLink({ id: link.id }, as("1")),
+      client.share.revokeLink({ id: link.id }, as("1")),
+    ]);
+    expect(results.map((result) => result.link.status)).toEqual([
+      "revoked",
+      "revoked",
+    ]);
+    expect(onRevoked).toHaveBeenCalledTimes(1);
+  });
+
   it("revokes every link to a target and prunes old ones", async () => {
     const { s3, client, put, as, patchLink } = await setup();
     const key = await put("1", "a.txt");
@@ -403,7 +455,7 @@ describe("server context", () => {
     await patchLink(first.link.id, { expiresAt: new Date(Date.now() - DAY) });
     await expect(
       s3.share.pruneLinks({ olderThan: Date.now() + 1000 }),
-    ).resolves.toEqual({ pruned: 2 });
+    ).resolves.toEqual({ pruned: 2, orphaned: 0 });
     await expect(
       s3.share.links.count("user:1", { includeRevoked: true }),
     ).resolves.toBe(0);

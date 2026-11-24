@@ -164,12 +164,12 @@ of the shared folder.
 
 The plugin's context on the server (`SharePluginContext`).
 
-| Property      | Type                                                              | Description                                                                                                   |
-| ------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `api`         | `ShareServerApi`                                                  | Every client action as `(input, options?)`, behind the instance guard. `options` is `S3ServerCallOptions`     |
-| `links`       | `ShareLinks`                                                      | `find`, `findByToken`, `list(scope)`, `count(scope)`, `revoke(id)`, and `revokeTarget(target)`, with no guard |
-| `pruneLinks`  | `(options: { olderThan: Date \| number }) => Promise<{ pruned }>` | Removes links revoked or expired before `olderThan`                                                           |
-| `checkSchema` | `() => Promise<void>`                                             | Throws unless the database is at share schema `1.0.0`. The first query runs it too                            |
+| Property      | Type                                                                        | Description                                                                                                                                         |
+| ------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api`         | `ShareServerApi`                                                            | Every client action as `(input, options?)`, behind the instance guard. `options` is `S3ServerCallOptions`                                           |
+| `links`       | `ShareLinks`                                                                | `find`, `findByToken`, `list(scope)`, `count(scope)`, `revoke(id)`, and `revokeTarget(target)`, with no guard                                       |
+| `pruneLinks`  | `(options: { olderThan: Date \| number }) => Promise<{ pruned; orphaned }>` | Removes links revoked or expired before `olderThan`, and links created before it whose target was deleted (`orphaned`). Reads every older live link |
+| `checkSchema` | `() => Promise<void>`                                                       | Throws unless the database is at share schema `1.0.0`. The first query runs it too                                                                  |
 
 ### shareObjectSource()
 

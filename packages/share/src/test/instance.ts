@@ -55,7 +55,10 @@ export async function createShareTest(options: ShareTestOptions = {}) {
     clientPlugins: [dbClient(), shareClient()],
     routes: {
       files: route({ upload: true, download: true, delete: true }),
-      proxied: route({ upload: true, download: { mode: "proxy" } }),
+      proxied: route({
+        upload: true,
+        download: { mode: "proxy", maxExpiresIn: 60 },
+      }),
       private: route({ upload: true }),
     },
   });

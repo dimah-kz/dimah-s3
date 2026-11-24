@@ -47,7 +47,7 @@ export function createPublicLinks(links: ShareLinkStore): ShareLinks {
       };
     },
     count: links.count,
-    revoke: async (id) => nullable(await links.revoke(id)),
+    revoke: async (id) => nullable((await links.revoke(id))?.record ?? null),
     revokeTarget: links.revokeTarget,
   };
 }
