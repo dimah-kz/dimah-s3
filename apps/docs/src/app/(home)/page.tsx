@@ -1,9 +1,12 @@
 import {
   ArrowRight,
   Blocks,
+  Cloud,
   Database,
   Download,
   Layers,
+  Link2,
+  Puzzle,
   ShieldCheck,
   Trash2,
   type LucideIcon,
@@ -72,6 +75,24 @@ const features: {
     title: "Optional database",
     body: "Track ownership, folders, and usage, only when you need it.",
     href: "/docs/db",
+  },
+  {
+    icon: Link2,
+    title: "Share links",
+    body: "Links to a file or folder for anyone, with expiry, a password, and a download limit.",
+    href: "/docs/share",
+  },
+  {
+    icon: Puzzle,
+    title: "Plugins",
+    body: "Add endpoints, hooks, and a typed client of your own, tested on an in-memory S3.",
+    href: "/docs/server/plugins",
+  },
+  {
+    icon: Cloud,
+    title: "Any S3-compatible store",
+    body: "Amazon S3, Cloudflare R2, MinIO, ArvanCloud, and more, with your own S3Client.",
+    href: "/docs/providers",
   },
 ];
 

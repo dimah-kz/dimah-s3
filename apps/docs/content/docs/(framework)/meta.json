@@ -1,6 +1,6 @@
 {
   "title": "Get Started",
-  "description": "Introduction, quickstart, storage providers, and the database plugin",
+  "description": "Introduction, quickstart, storage providers, the database plugin, and share links",
   "icon": "Rocket",
   "root": true,
   "pages": [

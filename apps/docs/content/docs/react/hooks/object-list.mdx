@@ -340,6 +340,22 @@ const list = useObjectList({
 });
 ```
 
+### shareObjectSource
+
+`shareObjectSource(api.share, { token, access })` from
+`@dimah-s3/share/client` lists a folder that a [share link](/docs/share)
+opens, for a visitor without a session. It is read-only: the list has no
+upload, rename, move, or delete. The top of the share is its root, and a
+search reaches every folder below the open one. Downloads go through
+`downloadSharedFile`; see [The Shared Page](/docs/share/visitor-page).
+
+```tsx
+const list = useObjectList({
+  ...shareObjectSource(s3Client.share, { token, access }),
+  queryKey: ["share", token, access],
+});
+```
+
 ## Selection
 
 `useObjectListSelection(list, options?)` adds checkbox state over the loaded

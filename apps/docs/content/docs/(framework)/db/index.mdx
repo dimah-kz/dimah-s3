@@ -42,6 +42,8 @@ the plugin adds:
 - **Quotas.** Caps on bytes, files, and folders per scope.
 - **Lifecycle.** A row from upload start to delete, and a
   [purge job](/docs/db/purge) for uploads that never confirmed.
+- **Share links.** [`share()`](/docs/share) builds on these rows to give a
+  file or a folder a link anyone can open, with expiry and a password.
 
 Authentication, quota values, and business rules stay in your app.
 
@@ -99,8 +101,13 @@ adapters:
     description="Move a 1.x or earlier 2.x database to schema 2.3.0."
   />
   <Card
+    title="Share Links"
+    href="/docs/share"
+    description="Give files and folders links anyone can open, on top of db()."
+  />
+  <Card
     title="Full example"
     href="https://github.com/dimah-kz/dimah-s3/tree/main/examples/with-db"
-    description="Next.js and Drizzle file manager with folders and a quota."
+    description="Next.js and Drizzle file manager with folders, a quota, and share links."
   />
 </Cards>

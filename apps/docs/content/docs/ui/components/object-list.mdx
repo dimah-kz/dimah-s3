@@ -85,7 +85,8 @@ export function Library({ source }: { source: ObjectListSource<LibraryFile> }) {
 
 The component never fetches. `source` decides where the rows come from:
 `memoryObjectSource` for records you hold, `dbObjectSource` with the
-[database plugin](/docs/db), or your own API. See
+[database plugin](/docs/db), `shareObjectSource` for a
+[shared folder](/docs/share/visitor-page), or your own API. See
 [useObjectList](/docs/react/hooks/object-list).
 
 | Prop         | Turns on                                                                   |

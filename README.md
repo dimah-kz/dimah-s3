@@ -7,7 +7,8 @@
 **Full-stack S3 toolkit for the React ecosystem.**
 
 Server handlers, headless React hooks, optional [shadcn](https://ui.shadcn.com)
-UI, and an optional database plugin. You pass in your own AWS SDK `S3Client`.
+UI, and optional plugins for database tracking and share links. You pass in
+your own AWS SDK `S3Client`.
 
 It is presign-first: the server signs, the browser talks to the bucket, and
 credentials never leave the backend. Auth, quotas, and database rules live
